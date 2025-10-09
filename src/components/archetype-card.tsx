@@ -1,0 +1,108 @@
+import React from 'react';
+import { View, Text, TouchableOpacity, Vibration, StyleSheet } from 'react-native';
+import { useUIStore } from '../stores/uiStore';
+import { type Archetype } from './types';
+import { theme } from '../theme';
+
+interface ArchetypeCardProps {
+  archetype: Archetype;
+  isSelected?: boolean;
+  onSelect?: (archetype: Archetype) => void;
+}
+
+const archetypeData = {
+    Emperor: { icon: "👑", name: "The Emperor" },
+    Empress: { icon: "🌹", name: "The Empress" },
+    HighPriestess: { icon: "🌙", name: "The High Priestess" },
+    Fool: { icon: "🃏", name: "The Fool" },
+    Sun: { icon: "☀️", name: "The Sun" },
+    Hermit: { icon: "🏮", name: "The Magician" },
+    Magician: { icon: "⚡", name: "The Magician" },
+};
+
+export function ArchetypeCard({
+  archetype,
+  isSelected = false,
+  onSelect,
+}: ArchetypeCardProps) {
+  const { setArchetypeModal } = useUIStore();
+  const data = archetypeData[archetype];
+
+  const handlePress = () => {
+    if (onSelect) {
+      onSelect(archetype);
+    }
+  };
+
+  const handleLongPress = () => {
+    setArchetypeModal(archetype);
+    Vibration.vibrate(50);
+  };
+
+  return (
+    <TouchableOpacity
+      onPress={handlePress}
+      onLongPress={handleLongPress}
+      style={[styles.container, isSelected && styles.containerSelected]}
+    >
+      <Text style={styles.icon}>{data.icon}</Text>
+      <Text style={styles.name}>
+        {data.name.replace("The ", "")}
+      </Text>
+      {isSelected && (
+        <View style={styles.selectedIndicator}>
+          <View style={styles.selectedIndicatorInner} />
+        </View>
+      )}
+    </TouchableOpacity>
+  );
+}
+
+const styles = StyleSheet.create({
+    container: {
+        position: 'relative',
+        borderRadius: 16,
+        borderWidth: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 8,
+        width: '100%',
+        height: 96,
+        borderColor: theme.colors.border,
+        backgroundColor: theme.colors.card,
+    },
+    containerSelected: {
+        borderColor: theme.colors.primary,
+        backgroundColor: 'rgba(181, 138, 108, 0.05)',
+    },
+    icon: {
+        fontSize: 32,
+        marginBottom: 4,
+    },
+    name: {
+        textAlign: 'center',
+        fontWeight: '500',
+        color: theme.colors.foreground,
+        lineHeight: 16,
+        fontSize: 14,
+    },
+    selectedIndicator: {
+        position: 'absolute',
+        top: -8,
+        right: -8,
+        width: 24,
+        height: 24,
+        backgroundColor: theme.colors.primary,
+        borderRadius: 12,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 2,
+        borderColor: 'white',
+    },
+    selectedIndicatorInner: {
+        width: 8,
+        height: 8,
+        backgroundColor: 'white',
+        borderRadius: 4,
+    }
+});
