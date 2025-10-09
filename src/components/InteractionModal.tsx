@@ -1,9 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, Modal, TouchableOpacity, TextInput, StyleSheet, ScrollView, Alert, Keyboard, TouchableWithoutFeedback } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, Modal, TouchableOpacity, TextInput, StyleSheet, ScrollView, Alert, Keyboard, TouchableWithoutFeedback, Vibration } from 'react-native';
 import { useUIStore } from '../stores/uiStore';
 import { useInteractionStore } from '../stores/interactionStore';
 import { theme } from '../theme';
-import { X } from 'lucide-react-native';
+import { X, Calendar } from 'lucide-react-native';
+import { CalendarView } from './CalendarView';
+import { format } from 'date-fns';
 
 const modes = [
   { id: 'one-on-one', icon: '🌿', label: 'One-on-One', sublabel: 'For depth and focus' },
@@ -41,7 +43,7 @@ const forms: Record<string, Array<{activity: string, icon: string}>> = {
   ],
 };
 
-type ViewStep = 'mode' | 'activity' | 'reflection';
+type ViewStep = 'mode' | 'activity' | 'reflection' | 'calendar';
 
 export function InteractionModal() {
   const { interactionModal, closeInteractionModal, selectedFriendId } = useUIStore();
@@ -50,16 +52,18 @@ export function InteractionModal() {
   const [currentView, setCurrentView] = useState<ViewStep>('mode');
   const [selectedMode, setSelectedMode] = useState<string | null>(null);
   const [selectedActivity, setSelectedActivity] = useState<string | null>(null);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [notes, setNotes] = useState('');
 
   useEffect(() => {
     if (interactionModal.isOpen) {
-      setCurrentView(interactionModal.mode === 'log' ? 'mode' : 'mode');
+      setCurrentView('mode');
       setSelectedMode(null);
       setSelectedActivity(null);
+      setSelectedDate(new Date()); // Default to today
       setNotes('');
     }
-  }, [interactionModal.isOpen, interactionModal.mode]);
+  }, [interactionModal.isOpen]);
 
   const handleModeSelect = (modeId: string) => {
     setSelectedMode(modeId);
@@ -68,27 +72,27 @@ export function InteractionModal() {
 
   const handleActivitySelect = (activity: string) => {
     setSelectedActivity(activity);
-    if (interactionModal.mode === 'log') {
-        handleSave(activity);
-    } else {
-        setCurrentView('reflection');
-    }
+    setCurrentView('reflection');
   };
 
-  const handleSave = async (activity?: string) => {
-    const finalActivity = activity || selectedActivity;
-    if (!finalActivity || !selectedMode || !selectedFriendId || !interactionModal.mode) return;
+  const handleDateSelect = (date: Date) => {
+      setSelectedDate(date);
+      setCurrentView('reflection');
+  }
+
+  const handleSave = async () => {
+    if (!selectedActivity || !selectedMode || !selectedFriendId || !interactionModal.mode || !selectedDate) return;
 
     await addInteraction({
       friendIds: [selectedFriendId],
-      activity: finalActivity,
+      activity: selectedActivity,
       notes,
-      date: new Date(),
+      date: selectedDate,
       type: interactionModal.mode,
       status: interactionModal.mode === 'log' ? 'completed' : 'planned',
       mode: selectedMode,
     });
-    Alert.alert('Success', `Weave ${interactionModal.mode === 'log' ? 'logged' : 'planned'}!`);
+    Vibration.vibrate();
     closeInteractionModal();
   };
 
@@ -143,7 +147,12 @@ export function InteractionModal() {
                 {renderHeader('Add Details')}
                 <View style={styles.formContainer}>
                     <Text style={styles.reflectionInfo}>Activity: {selectedActivity}</Text>
-                    <Text style={styles.reflectionInfo}>Date: (Calendar placeholder)</Text>
+                    <TouchableOpacity style={styles.datePickerButton} onPress={() => setCurrentView('calendar')}>
+                        <Calendar size={16} color={theme.colors['muted-foreground']} />
+                        <Text style={styles.datePickerButtonText}>
+                            {selectedDate ? format(selectedDate, 'MMMM dd, yyyy') : 'Select a date'}
+                        </Text>
+                    </TouchableOpacity>
                     <TextInput
                         style={[styles.input, styles.multilineInput]}
                         placeholder="Notes..."
@@ -151,12 +160,21 @@ export function InteractionModal() {
                         onChangeText={setNotes}
                         multiline
                     />
-                    <TouchableOpacity style={styles.saveButton} onPress={() => handleSave()}>
+                    <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
                         <Text style={styles.saveButtonText}>Save</Text>
                     </TouchableOpacity>
                 </View>
             </>
         );
+        case 'calendar':
+            return (
+                <>
+                    {renderHeader('Select a Date')}
+                    <View style={styles.formContainer}>
+                        <CalendarView onDateSelect={handleDateSelect} />
+                    </View>
+                </>
+            )
       default: return null;
     }
   };
@@ -193,4 +211,6 @@ const styles = StyleSheet.create({
     multilineInput: { height: 120, textAlignVertical: 'top' },
     saveButton: { backgroundColor: theme.colors.primary, padding: 16, borderRadius: 12, alignItems: 'center', marginTop: 'auto', marginBottom: 20 },
     saveButtonText: { color: 'white', fontSize: 16, fontWeight: '600' },
+    datePickerButton: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: theme.colors.card, borderWidth: 1, borderColor: theme.colors.border, borderRadius: 8, padding: 16 },
+    datePickerButtonText: { fontSize: 16, color: theme.colors.foreground },
 });

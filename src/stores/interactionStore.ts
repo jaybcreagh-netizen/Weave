@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { database } from '../db';
+import Interaction from '../db/models/Interaction';
 
 export interface InteractionFormData {
   friendIds: string[];
@@ -13,6 +14,7 @@ export interface InteractionFormData {
 
 interface InteractionStore {
   addInteraction: (data: InteractionFormData) => Promise<void>;
+  deleteInteraction: (id: string) => Promise<void>;
 }
 
 export const useInteractionStore = create<InteractionStore>(() => ({
@@ -27,6 +29,12 @@ export const useInteractionStore = create<InteractionStore>(() => ({
             interaction.mode = data.mode;
             interaction.friendIds = data.friendIds[0];
         });
+    });
+  },
+  deleteInteraction: async (id: string) => {
+    await database.write(async () => {
+        const interaction = await database.get<Interaction>('interactions').find(id);
+        await interaction.destroyPermanently();
     });
   },
 }));
