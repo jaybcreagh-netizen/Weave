@@ -2,7 +2,6 @@ import { Stack } from 'expo-router';
 import React from 'react';
 import { View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { InteractionModal } from '../src/components/InteractionModal';
 import { ArchetypeDetailModal } from '../src/components/ArchetypeDetailModal';
 
 export default function RootLayout() {
@@ -16,8 +15,8 @@ export default function RootLayout() {
           <Stack.Screen name="friend-profile" />
           <Stack.Screen name="add-friend" />
           <Stack.Screen name="edit-friend" />
+          <Stack.Screen name="interaction-form" />
         </Stack>
-        <InteractionModal />
         <ArchetypeDetailModal />
       </View>
     </GestureHandlerRootView>

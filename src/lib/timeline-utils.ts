@@ -1,3 +1,4 @@
+import { addDays } from 'date-fns';
 import { type Interaction } from '../components/types';
 import { type Tier, type Status } from '../components/types';
 
@@ -12,6 +13,11 @@ const tierRules = {
   CloseFriends: 30, // Monthly interaction
   Community: 90,    // Quarterly interaction
 };
+
+export function calculateNextConnectionDate(lastInteractionDate: Date, tier: Tier): Date {
+    const daysToAdd = tierRules[tier];
+    return addDays(lastInteractionDate, daysToAdd);
+}
 
 export function calculateOverallStatus(interactions: Interaction[], tier: Tier): ConnectionStatus {
   if (!interactions || interactions.length === 0) {

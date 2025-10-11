@@ -1,8 +1,9 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, Vibration, StyleSheet } from 'react-native';
+import { View, Text, Pressable, Vibration, StyleSheet } from 'react-native';
 import { useUIStore } from '../stores/uiStore';
 import { type Archetype } from './types';
 import { theme } from '../theme';
+import { archetypeData } from '../lib/constants';
 
 interface ArchetypeCardProps {
   archetype: Archetype;
@@ -10,23 +11,18 @@ interface ArchetypeCardProps {
   onSelect?: (archetype: Archetype) => void;
 }
 
-const archetypeData = {
-    Emperor: { icon: "👑", name: "The Emperor" },
-    Empress: { icon: "🌹", name: "The Empress" },
-    HighPriestess: { icon: "🌙", name: "The High Priestess" },
-    Fool: { icon: "🃏", name: "The Fool" },
-    Sun: { icon: "☀️", name: "The Sun" },
-    Hermit: { icon: "🏮", name: "The Magician" },
-    Magician: { icon: "⚡", name: "The Magician" },
-};
-
 export function ArchetypeCard({
-  archetype,
-  isSelected = false,
-  onSelect,
+    archetype,
+    isSelected = false,
+    onSelect,
 }: ArchetypeCardProps) {
   const { setArchetypeModal } = useUIStore();
   const data = archetypeData[archetype];
+
+  // ADD THIS CHECK: If data is not found, render nothing to prevent a crash.
+  if (!data) {
+    return null;
+  }
 
   const handlePress = () => {
     if (onSelect) {
@@ -40,10 +36,14 @@ export function ArchetypeCard({
   };
 
   return (
-    <TouchableOpacity
+    <Pressable
       onPress={handlePress}
       onLongPress={handleLongPress}
-      style={[styles.container, isSelected && styles.containerSelected]}
+      style={({ pressed }) => [
+        styles.container,
+        isSelected && styles.containerSelected,
+        { transform: [{ scale: pressed ? 0.97 : 1 }] }
+      ]}
     >
       <Text style={styles.icon}>{data.icon}</Text>
       <Text style={styles.name}>
@@ -54,7 +54,7 @@ export function ArchetypeCard({
           <View style={styles.selectedIndicatorInner} />
         </View>
       )}
-    </TouchableOpacity>
+    </Pressable>
   );
 }
 

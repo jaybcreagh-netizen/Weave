@@ -18,3 +18,23 @@ export const theme = {
         xl: 40,
     },
 };
+
+export const darkTheme = {
+  ...theme,
+  colors: {
+    ...theme.colors,
+    background: '#1C1C1E',
+    foreground: '#FFFFFF',
+    card: '#2C2C2E',
+    border: '#3A3A3C',
+    muted: '#3A3A3C',
+    'muted-foreground': '#8E8E93',
+  }
+}
+
+export const getThemeColors = (isDarkMode: boolean) => {
+  return isDarkMode ? darkTheme.colors : theme.colors;
+}
+
+// Add a constant for spacing to be used in stylesheets
+export const spacing = theme.spacing;

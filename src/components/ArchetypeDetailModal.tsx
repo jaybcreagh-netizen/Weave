@@ -4,16 +4,7 @@ import { useUIStore } from '../stores/uiStore';
 import { theme } from '../theme';
 import { X } from 'lucide-react-native';
 import { type Archetype } from './types';
-
-const archetypeData: Record<Archetype, { icon: string; name: string; essence: string; careStyle: string; }> = {
-    Emperor: { icon: "👑", name: "The Emperor", essence: "The Architect of Order", careStyle: "A promise honored, a plan fulfilled." },
-    Empress: { icon: "🌹", name: "The Empress", essence: "The Nurturer of Comfort", careStyle: "Where care flows, where beauty is made." },
-    HighPriestess: { icon: "🌙", name: "The High Priestess", essence: "The Keeper of Depth", careStyle: "In quiet corners, in the truths beneath words." },
-    Fool: { icon: "🃏", name: "The Fool", essence: "The Spirit of Play", careStyle: "With laughter, with a door left open." },
-    Sun: { icon: "☀️", name: "The Sun", essence: "The Bringer of Joy", careStyle: "In celebration, in the radiance of being seen." },
-    Hermit: { icon: "🏮", name: "The Hermit", essence: "The Guardian of Solitude", careStyle: "In patience, in the glow of stillness." },
-    Magician: { icon: "⚡", name: "The Magician", essence: "The Spark of Possibility", careStyle: "At thresholds, where sparks leap into being." },
-};
+import { archetypeData } from '../lib/constants';
 
 export function ArchetypeDetailModal() {
   const { archetypeModal, setArchetypeModal } = useUIStore();

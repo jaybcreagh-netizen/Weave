@@ -1,20 +1,24 @@
 import { Model } from '@nozbe/watermelondb'
-import { field, text, readonly, date } from '@nozbe/watermelondb/decorators'
+import { field, text, readonly, date, lazy } from '@nozbe/watermelondb/decorators'
+import { Q } from '@nozbe/watermelondb'
+import { associations } from '@nozbe/watermelondb/Model'
 
 export default class Interaction extends Model {
   static table = 'interactions'
 
-  @text('friend_ids') friendIds!: string
-  @field('type') type!: string
-  @text('activity') activity!: string
-  @text('mode') mode?: string
-  @date('date') date!: Date
-  @field('status') status!: string
-  @text('moon_phase') moonPhase?: string
-  @text('notes') notes?: string
-  @text('title') title?: string
-  @text('location') location?: string
-  @text('tags') tags?: string
+  // This tells WatermelonDB about the join table relationship
+  static associations = associations(
+    'interaction_friends', { type: 'has_many', foreignKey: 'interaction_id' },
+  )
+
+  @date('interaction_date') interactionDate!: Date
+  @field('interaction_type') interactionType!: string
+  @field('duration') duration?: string
+  @field('vibe') vibe?: string
+  @text('note') note?: string
   @readonly @date('created_at') createdAt!: Date
-  @readonly @date('updated_at') updatedAt!: Date
+
+  @lazy friends = this.collections.get('friends').query(
+    Q.on('interaction_friends', 'interaction_id', this.id)
+  )
 }

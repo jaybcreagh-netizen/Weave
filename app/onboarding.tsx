@@ -8,7 +8,7 @@ import { theme } from '../src/theme';
 import { type Archetype } from '../src/components/types';
 import { ArchetypeCard } from '../src/components/archetype-card';
 
-function Onboarding() {
+export default function Onboarding() {
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(0);
 
@@ -302,5 +302,3 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
 });
-
-export default Onboarding;

@@ -2,17 +2,10 @@ import { create } from 'zustand';
 import { database } from '../db';
 import FriendModel from '../db/models/Friend';
 import InteractionModel from '../db/models/Interaction';
-import { type Archetype, type Tier, type Status } from '../components/types';
+import { type Archetype, type Tier, type Status, type FriendFormData } from '../components/types';
 import { Subscription } from 'rxjs';
 import { Q } from '@nozbe/watermelondb';
-
-export interface FriendFormData {
-  name: string;
-  tier: string;
-  archetype: Archetype;
-  notes?: string;
-  photoUrl?: string;
-}
+import { tierMap } from '../lib/constants';
 
 interface FriendStore {
   friends: FriendModel[];
@@ -21,22 +14,14 @@ interface FriendStore {
   friendsSubscription: Subscription | null;
   friendSubscription: Subscription | null;
   interactionSubscription: Subscription | null;
-  
   observeFriends: () => void;
   unobserveFriends: () => void;
   observeFriend: (friendId: string) => void;
   unobserveFriend: () => void;
-
   addFriend: (data: FriendFormData) => Promise<void>;
   updateFriend: (id: string, data: FriendFormData) => Promise<void>;
   deleteFriend: (id: string) => Promise<void>;
 }
-
-const tierMap: Record<string, Tier> = {
-  inner: "InnerCircle",
-  close: "CloseFriends",
-  community: "Community",
-};
 
 export const useFriendStore = create<FriendStore>((set, get) => ({
   friends: [],
@@ -69,14 +54,19 @@ export const useFriendStore = create<FriendStore>((set, get) => ({
     get().unobserveFriend(); // Unsubscribe from previous friend
 
     const friendSub = database.get<FriendModel>('friends').findAndObserve(friendId).subscribe(friend => {
-        set({ activeFriend: friend });
+      set({ activeFriend: friend });
+
+      // Now, observe the interactions via the relationship
+      if (friend) {
+        const interactionSub = friend.interactions.observe().subscribe(interactions => {
+          set({ activeFriendInteractions: interactions });
+        });
+        // Store the new interaction subscription
+        set({ interactionSubscription: interactionSub });
+      }
     });
 
-    const interactionSub = database.get<InteractionModel>('interactions').query(Q.where('friend_ids', friendId)).observe().subscribe(interactions => {
-        set({ activeFriendInteractions: interactions });
-    });
-
-    set({ friendSubscription: friendSub, interactionSubscription: interactionSub });
+    set({ friendSubscription: friendSub });
   },
 
   unobserveFriend: () => {

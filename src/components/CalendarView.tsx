@@ -6,9 +6,10 @@ import { eachDayOfInterval, endOfMonth, endOfWeek, startOfMonth, startOfWeek, fo
 
 interface CalendarViewProps {
   onDateSelect: (date: Date) => void;
+  selectedDate: Date;
 }
 
-export function CalendarView({ onDateSelect }: CalendarViewProps) {
+export function CalendarView({ onDateSelect, selectedDate }: CalendarViewProps) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
 
   const firstDayOfMonth = startOfMonth(currentMonth);
@@ -46,24 +47,28 @@ export function CalendarView({ onDateSelect }: CalendarViewProps) {
       </View>
 
       <View style={styles.daysGrid}>
-        {days.map((day) => (
-          <TouchableOpacity
-            key={day.toString()}
-            style={[
-              styles.dayCell,
-              isToday(day) && styles.dayToday,
-              // Add isSelected style later
-            ]}
-            onPress={() => onDateSelect(day)}
-          >
-            <Text style={[
-              styles.dayText,
-              !isSameMonth(day, currentMonth) && styles.dayOutside,
-            ]}>
-              {format(day, 'd')}
-            </Text>
-          </TouchableOpacity>
-        ))}
+        {days.map((day) => {
+          const isSelected = isSameDay(day, selectedDate);
+          return (
+            <TouchableOpacity
+              key={day.toString()}
+              style={[
+                styles.dayCell,
+                isToday(day) && styles.dayToday,
+                isSelected && styles.daySelected,
+              ]}
+              onPress={() => onDateSelect(day)}
+            >
+              <Text style={[
+                styles.dayText,
+                !isSameMonth(day, currentMonth) && styles.dayOutside,
+                isSelected && styles.daySelectedText,
+              ]}>
+                {format(day, 'd')}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
     </View>
   );
@@ -120,9 +125,15 @@ const styles = StyleSheet.create({
   dayToday: {
     backgroundColor: theme.colors.secondary,
   },
+  daySelected: {
+    backgroundColor: theme.colors.primary,
+  },
   dayText: {
     fontSize: 16,
     color: theme.colors.foreground,
+  },
+  daySelectedText: {
+    color: theme.colors.background,
   },
   dayOutside: {
     color: theme.colors['muted-foreground'],

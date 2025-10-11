@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { theme } from '../theme';
 
 interface TierTabProps {
@@ -30,9 +31,16 @@ export function TierTab({ label, shortLabel, count, maxCount, isActive, onClick,
   const percentage = count && maxCount ? (count / maxCount) * 100 : 0;
 
   return (
-    <TouchableOpacity
-      onPress={onClick}
-      style={[styles.container, isActive && styles.containerActive]}
+    <Pressable
+      onPress={() => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        onClick();
+      }}
+      style={({ pressed }) => [
+        styles.container, 
+        isActive && styles.containerActive,
+        { transform: [{ scale: pressed ? 0.98 : 1 }] }
+      ]}
     >
       {isActive && count !== undefined && maxCount && (
         <View
@@ -63,11 +71,11 @@ export function TierTab({ label, shortLabel, count, maxCount, isActive, onClick,
         
         {!isActive && (
           <View
-            style={[styles.dot, { backgroundColor: tierColor }]}
+            style={[styles.dot, { backgroundColor: tierColor }]} 
           />
         )}
       </View>
-    </TouchableOpacity>
+    </Pressable>
   );
 }
 

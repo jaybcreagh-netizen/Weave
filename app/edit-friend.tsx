@@ -1,9 +1,10 @@
 import React from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Text } from 'react-native';
-import withObservables from '@nozbe/with-observables';
+import { withObservables } from '@nozbe/watermelondb/react';
 import { FriendForm } from '../src/components/FriendForm';
-import { useFriendStore, type FriendFormData } from '../src/stores/friendStore';
+import { useFriendStore } from '../src/stores/friendStore';
+import { type FriendFormData } from '../src/components/types';
 import { database } from '../src/db';
 import FriendModel from '../src/db/models/Friend';
 

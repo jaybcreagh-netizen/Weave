@@ -1,8 +1,10 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, Image, Vibration, StyleSheet } from 'react-native';
+import { View, Text, Pressable, Image, Vibration, StyleSheet } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { useUIStore } from '../stores/uiStore';
 import { type Tier, type Archetype, type Status } from './types';
 import { theme } from '../theme';
+import { tierColors, archetypeIcons, archetypeData } from '../lib/constants';
 
 interface GlyphProps {
   name: string;
@@ -13,55 +15,61 @@ interface GlyphProps {
   photoUrl?: string;
   onClick?: () => void;
   variant?: 'compact' | 'full';
+  needsAttention?: boolean;
 }
 
-const tierColors = {
-    InnerCircle: "#D4AF37",
-    CloseFriends: "#C0C0C0",
-    Community: "#CD7F32",
-};
-  
-const archetypeIcons = {
-    Emperor: "👑", Empress: "🌹", HighPriestess: "🌙", Fool: "🃏", Sun: "☀️", Hermit: "🏮", Magician: "⚡",
-};
-  
-const archetypeData = {
-    Emperor: { essence: "The Architect of Order", careStyle: "A promise honored, a plan fulfilled." },
-    Empress: { essence: "The Nurturer of Comfort", careStyle: "Where care flows, where beauty is made." },
-    HighPriestess: { essence: "The Keeper of Depth", careStyle: "In quiet corners, in the truths beneath words." },
-    Fool: { essence: "The Spirit of Play", careStyle: "With laughter, with a door left open." },
-    Sun: { essence: "The Bringer of Joy", careStyle: "In celebration, in the radiance of being seen." },
-    Hermit: { essence: "The Guardian of Solitude", careStyle: "In patience, in the glow of stillness." },
-    Magician: { essence: "The Spark of Possibility", careStyle: "At thresholds, where sparks leap into being." },
-};
-
 export function Glyph({
-  name,
-  statusText,
-  tier,
-  archetype,
-  status,
-  photoUrl,
-  onClick,
-  variant = "compact",
+    name,
+    statusText,
+    tier,
+    archetype,
+    status,
+    photoUrl,
+    onClick,
+    variant = "compact",
+    needsAttention = false,
 }: GlyphProps) {
   const { setArchetypeModal } = useUIStore();
 
-  const tierColor = tierColors[tier];
-  const archetypeIcon = archetypeIcons[archetype];
+  // Safeguard against invalid props to prevent crashes
+  const tierColor = tierColors[tier] || theme.colors.border; // Fallback to a neutral color
+  const archetypeIcon = archetypeIcons[archetype] || '?'; // Fallback to a question mark
   const archetypeDetails = archetypeData[archetype];
+
+  // Another safeguard: if core details are missing, render a simplified view or null
+  if (!archetypeDetails) {
+    // In a real-world scenario, we might log this error to a service
+    return null; // Or a placeholder component
+  }
 
   const handleArchetypeLongPress = () => {
     setArchetypeModal(archetype);
     Vibration.vibrate(50);
   };
 
-  const statusStyle = styles[status];
+  const statusStyle = StyleSheet.create({
+    Green: { borderColor: '#a7f3d0', backgroundColor: '#f0fdf4' },
+    Yellow: { borderColor: '#fde68a', backgroundColor: '#fefce8' },
+    Red: { borderColor: '#fecaca', backgroundColor: '#fef2f2' },
+  })[status];
+
 
   return (
-    <TouchableOpacity
-      onPress={onClick}
-      style={[styles.container, statusStyle]}
+    <Pressable
+      onPress={() => {
+        if (Haptics && typeof Haptics.impactAsync === 'function') {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {
+            // Haptics not available or failed
+          });
+        }
+        if (onClick) onClick();
+      }}
+      style={({ pressed }) => [
+        styles.container,
+        statusStyle,
+        needsAttention && styles.needsAttentionGlow,
+        { transform: [{ scale: pressed ? 0.97 : 1 }] }
+      ]}
       disabled={!onClick}
     >
       <View style={styles.innerContainer}>
@@ -81,12 +89,12 @@ export function Glyph({
             <Text style={styles.name}>{name}</Text>
             <Text style={styles.statusText}>{statusText}</Text>
           </View>
-          <TouchableOpacity
+          <Pressable
             onLongPress={handleArchetypeLongPress}
             style={styles.archetypeButton}
           >
             <Text style={styles.archetypeIcon}>{archetypeIcon}</Text>
-          </TouchableOpacity>
+          </Pressable>
         </View>
         {variant === "full" && (
           <View style={styles.detailsContainer}>
@@ -111,7 +119,7 @@ export function Glyph({
           </View>
         )}
       </View>
-    </TouchableOpacity>
+    </Pressable>
   );
 }
 
@@ -121,6 +129,13 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         backgroundColor: theme.colors.card,
         overflow: 'hidden',
+        transition: 'transform 0.1s ease-in-out',
+    },
+    needsAttentionGlow: {
+        shadowColor: '#f59e0b', // amber-500
+        shadowRadius: 10,
+        shadowOpacity: 0.6,
+        elevation: 8, // for Android
     },
     Green: { borderColor: '#a7f3d0', backgroundColor: '#f0fdf4' },
     Yellow: { borderColor: '#fde68a', backgroundColor: '#fefce8' },
@@ -205,8 +220,8 @@ const styles = StyleSheet.create({
         borderRadius: 999,
     },
     tierBadgeText: {
-        fontSize: 12,
         color: theme.colors.primary,
+        fontSize: 12,
     },
     detailText: {
         fontSize: 14,

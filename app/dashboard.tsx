@@ -1,5 +1,6 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Dimensions, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Dimensions, StyleSheet, FlatList } from 'react-native';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, withDelay, withRepeat, Easing, interpolate } from 'react-native-reanimated';
 import { Settings } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -10,22 +11,67 @@ import { FAB } from '../src/components/fab';
 import { SettingsModal } from '../src/components/settings-modal';
 import { useUIStore } from '../src/stores/uiStore';
 import { useFriendStore } from '../src/stores/friendStore';
+import { updateAllFriendStatuses } from '../src/lib/status-updater';
 import FriendModel from '../src/db/models/Friend';
 import { theme } from '../src/theme';
+import { type Tier, type Archetype, type Status } from '../src/components/types';
 
-const { width: screenWidth } = Dimensions.get('window');
+const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+
+const AnimatedGlyphItem = ({ item, index, onClick }: { item: FriendModel, index: number, onClick: () => void }) => {
+    const opacity = useSharedValue(0);
+    const translateY = useSharedValue(25);
+
+    useEffect(() => {
+        opacity.value = withDelay(index * 50, withTiming(1, { duration: 300 }));
+        translateY.value = withDelay(index * 50, withTiming(0, { duration: 300 }));
+    }, []);
+
+    const animatedStyle = useAnimatedStyle(() => {
+        return {
+            opacity: opacity.value,
+            transform: [{ translateY: translateY.value }],
+        };
+    });
+
+    return (
+        <Animated.View style={[animatedStyle, { marginBottom: 16 }]}>
+            <Glyph
+                name={item.name}
+                statusText={item.statusText}
+                tier={item.tier as Tier}
+                archetype={item.archetype as Archetype}
+                status={item.status as Status}
+                photoUrl={item.photoUrl}
+                onClick={onClick}
+                variant="compact"
+                needsAttention={item.status === 'Yellow' || item.status === 'Red'}
+            />
+        </Animated.View>
+    );
+};
+
 
 function Dashboard() {
   const router = useRouter();
   const { setSelectedFriendId } = useUIStore();
   const { friends: allFriends, observeFriends, unobserveFriends } = useFriendStore();
 
+  const rotation = useSharedValue(0);
+
   useEffect(() => {
     observeFriends();
+    updateAllFriendStatuses(); // Trigger status updates on mount
+
+    rotation.value = withRepeat(
+      withTiming(360, { duration: 60000, easing: Easing.linear }),
+      -1
+    );
+
     return () => {
       unobserveFriends();
     };
-  }, [observeFriends, unobserveFriends]);
+  }, [observeFriends, unobserveFriends, rotation]);
 
   const friends = useMemo(() => {
     return (allFriends || []).reduce((acc, friend) => {
@@ -60,6 +106,21 @@ function Dashboard() {
     }
   };
 
+  const outerRingStyle = useAnimatedStyle(() => {
+    const rotate = interpolate(rotation.value, [0, 360], [0, 360]);
+    return { transform: [{ rotate: `${rotate}deg` }] };
+  });
+
+  const middleRingStyle = useAnimatedStyle(() => {
+    const rotate = interpolate(rotation.value, [0, 360], [360, 0]);
+    return { transform: [{ rotate: `${rotate}deg` }] };
+  });
+
+  const innerRingStyle = useAnimatedStyle(() => {
+    const rotate = interpolate(rotation.value, [0, 360], [0, 360]);
+    return { transform: [{ rotate: `${rotate}deg` }] };
+  });
+
   const renderTier = (tier: 'inner' | 'close' | 'community') => {
     const currentFriends = friends[tier] || [];
     const isEmpty = currentFriends.length === 0;
@@ -80,36 +141,24 @@ function Dashboard() {
     }
 
     return (
-      <ScrollView style={{ width: screenWidth }} contentContainerStyle={styles.tierScrollView}>
-        {currentFriends.map((friend) => (
-          <View key={friend.id} style={{ marginBottom: 16 }}>
-            <Glyph
-              name={friend.name}
-              statusText={friend.statusText}
-              tier={friend.tier as any}
-              archetype={friend.archetype as any}
-              status={friend.status as any}
-              photoUrl={friend.photoUrl}
-              onClick={() => onFriendClick(friend.id)}
-              variant="compact"
-            />
-          </View>
-        ))}
-      </ScrollView>
+      <FlatList
+        style={{ width: screenWidth }}
+        contentContainerStyle={styles.tierScrollView}
+        data={currentFriends}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item, index }) => <AnimatedGlyphItem item={item} index={index} onClick={() => onFriendClick(item.id)} />}
+      />
     );
   };
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <Animated.View style={[styles.outerRing, outerRingStyle]} />
+      <Animated.View style={[styles.middleRing, middleRingStyle]} />
+      <Animated.View style={[styles.innerRing, innerRingStyle]} />
+
       <View style={styles.header}>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.headerTitle}>Weave</Text>
-          <View style={styles.headerCounts}>
-            <Text style={styles.headerCountText}>Inner: {friends.inner.length}/15</Text>
-            <Text style={styles.headerCountText}>Close: {friends.close.length}/50</Text>
-            <Text style={styles.headerCountText}>Community: {friends.community.length}/150</Text>
-          </View>
-        </View>
+        <Text style={styles.headerTitle}>Weave</Text>
         <TouchableOpacity onPress={() => setShowSettings(true)} style={{ padding: 12 }}>
           <Settings size={24} color={theme.colors['muted-foreground']} />
         </TouchableOpacity>
@@ -141,8 +190,6 @@ function Dashboard() {
       <SettingsModal
         isOpen={showSettings}
         onClose={() => setShowSettings(false)}
-        darkMode={false} // Placeholder
-        onToggleDarkMode={() => {}} // Placeholder
       />
     </SafeAreaView>
   );
@@ -156,7 +203,7 @@ const styles = StyleSheet.create({
     header: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        alignItems: 'flex-start',
+        alignItems: 'center',
         paddingHorizontal: 20,
         paddingTop: 16,
         paddingBottom: 8,
@@ -164,16 +211,6 @@ const styles = StyleSheet.create({
     headerTitle: {
         fontSize: 32,
         color: theme.colors.foreground,
-        marginBottom: 8,
-    },
-    headerCounts: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 12,
-    },
-    headerCountText: {
-        fontSize: 12,
-        color: theme.colors['muted-foreground'],
     },
     tierTabsOuterContainer: {
         paddingHorizontal: 20,
@@ -228,7 +265,40 @@ const styles = StyleSheet.create({
     tierScrollView: {
         paddingHorizontal: 20,
         paddingVertical: 16,
-    }
+    },
+    outerRing: {
+        position: 'absolute',
+        width: screenWidth * 1.8,
+        height: screenWidth * 1.8,
+        borderRadius: screenWidth * 0.9,
+        borderWidth: 1,
+        borderColor: 'rgba(181, 138, 108, 0.1)',
+        top: screenHeight / 2 - screenWidth * 0.9,
+        left: screenWidth / 2 - screenWidth * 0.9,
+        zIndex: -1,
+    },
+    middleRing: {
+        position: 'absolute',
+        width: screenWidth * 2.2,
+        height: screenWidth * 2.2,
+        borderRadius: screenWidth * 1.1,
+        borderWidth: 1,
+        borderColor: 'rgba(181, 138, 108, 0.08)',
+        top: screenHeight / 2 - screenWidth * 1.1,
+        left: screenWidth / 2 - screenWidth * 1.1,
+        zIndex: -1,
+    },
+    innerRing: {
+        position: 'absolute',
+        width: screenWidth * 2.6,
+        height: screenWidth * 2.6,
+        borderRadius: screenWidth * 1.3,
+        borderWidth: 1,
+        borderColor: 'rgba(181, 138, 108, 0.06)',
+        top: screenHeight / 2 - screenWidth * 1.3,
+        left: screenWidth / 2 - screenWidth * 1.3,
+        zIndex: -1,
+    },
 });
 
 export default Dashboard;

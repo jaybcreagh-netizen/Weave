@@ -8,7 +8,6 @@ interface InteractionModal {
 
 interface UIStore {
   selectedFriendId: string | null;
-  interactionModal: InteractionModal;
   archetypeModal: Archetype | null;
   timelineViewOpen: boolean;
   timelineInteractions: Interaction[];
@@ -20,8 +19,6 @@ interface UIStore {
   calendarSelectedDate: Date | null;
   
   setSelectedFriendId: (id: string | null) => void;
-  openInteractionModal: (mode: 'log' | 'plan') => void;
-  closeInteractionModal: () => void;
   setArchetypeModal: (archetype: Archetype | null) => void;
   openTimelineView: () => void;
   closeTimelineView: () => void;
@@ -37,7 +34,6 @@ interface UIStore {
 
 export const useUIStore = create<UIStore>((set, get) => ({
   selectedFriendId: null,
-  interactionModal: { isOpen: false, mode: null },
   archetypeModal: null,
   timelineViewOpen: false,
   timelineInteractions: [],
@@ -49,8 +45,6 @@ export const useUIStore = create<UIStore>((set, get) => ({
   calendarSelectedDate: null,
   
   setSelectedFriendId: (id) => set({ selectedFriendId: id }),
-  openInteractionModal: (mode) => set({ interactionModal: { isOpen: true, mode } }),
-  closeInteractionModal: () => set({ interactionModal: { isOpen: false, mode: null } }),
   setArchetypeModal: (archetype) => set({ archetypeModal: archetype }),
   openTimelineView: () => set({ timelineViewOpen: true }),
   closeTimelineView: () => set({ timelineViewOpen: false }),

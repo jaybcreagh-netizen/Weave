@@ -1,24 +1,23 @@
 import React from 'react';
 import { Modal, View, Text, TouchableOpacity, Switch, Alert, StyleSheet } from 'react-native';
 import { X, Moon, Sun, Palette, RefreshCw } from 'lucide-react-native';
-import { theme } from '../theme';
+import { getThemeColors, spacing } from '../theme'; // Import getThemeColors and spacing
 import { clearDatabase } from '../db';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useUIStore } from '../stores/uiStore'; // Import useUIStore
 
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  darkMode: boolean;
-  onToggleDarkMode: () => void;
 }
 
 export function SettingsModal({
   isOpen,
   onClose,
-  darkMode,
-  onToggleDarkMode,
 }: SettingsModalProps) {
   const insets = useSafeAreaInsets();
+  const { isDarkMode, toggleDarkMode } = useUIStore(); // Get isDarkMode and toggleDarkMode
+  const themeColors = getThemeColors(isDarkMode); // Get current theme colors
 
   const handleResetDatabase = () => {
     Alert.alert(
@@ -50,61 +49,61 @@ export function SettingsModal({
       visible={isOpen}
       onRequestClose={onClose}
     >
-      <View style={styles.backdrop}>
-        <View style={[styles.modalContainer, { paddingBottom: insets.bottom + 24 }]}>
+      <View style={[styles.backdrop, { backgroundColor: isDarkMode ? 'rgba(0, 0, 0, 0.7)' : 'rgba(0, 0, 0, 0.2)' }]}>
+        <View style={[styles.modalContainer, { paddingBottom: insets.bottom + spacing.lg, backgroundColor: themeColors.background, borderColor: themeColors.border }]}>
           <View style={styles.header}>
             <View style={styles.headerTitleContainer}>
-              <View style={[styles.iconContainer, { backgroundColor: 'rgba(181, 138, 108, 0.1)'}]}>
-                <Palette color={theme.colors.primary} size={20} />
+              <View style={[styles.iconContainer, { backgroundColor: themeColors.muted }]}>
+                <Palette color={themeColors.primary} size={20} />
               </View>
-              <Text style={styles.headerTitle}>Settings</Text>
+              <Text style={[styles.headerTitle, { color: themeColors.foreground }]}>Settings</Text>
             </View>
-            <TouchableOpacity onPress={onClose} style={{ padding: 8 }}>
-              <X color={theme.colors['muted-foreground']} size={20} />
+            <TouchableOpacity onPress={onClose} style={{ padding: spacing.sm }}>
+              <X color={themeColors['muted-foreground']} size={20} />
             </TouchableOpacity>
           </View>
 
-          <View style={{ gap: 24 }}>
+          <View style={{ gap: spacing.lg }}>
             <View style={styles.settingRow}>
               <View style={styles.settingLabelContainer}>
-                <View style={[styles.iconContainer, { backgroundColor: theme.colors.muted }]}>
-                  {darkMode ? (
-                    <Moon color={theme.colors.foreground} size={20} />
+                <View style={[styles.iconContainer, { backgroundColor: themeColors.muted }]}>
+                  {isDarkMode ? (
+                    <Moon color={themeColors.foreground} size={20} />
                   ) : (
-                    <Sun color={theme.colors.foreground} size={20} />
+                    <Sun color={themeColors.foreground} size={20} />
                   )}
                 </View>
                 <View>
-                  <Text style={styles.settingLabel}>{darkMode ? "Dark Theme" : "Light Theme"}</Text>
-                  <Text style={styles.settingDescription}>{darkMode ? "Mystic arcane theme" : "Warm cream theme"}</Text>
+                  <Text style={[styles.settingLabel, { color: themeColors.foreground }]}>{isDarkMode ? "Dark Theme" : "Light Theme"}</Text>
+                  <Text style={[styles.settingDescription, { color: themeColors['muted-foreground'] }]}>{isDarkMode ? "Mystic arcane theme" : "Warm cream theme"}</Text>
                 </View>
               </View>
               <Switch
-                value={darkMode}
-                onValueChange={onToggleDarkMode}
-                trackColor={{ false: "#767577", true: theme.colors.primary }}
-                thumbColor={darkMode ? "#f4f3f4" : "#f4f3f4"}
+                value={isDarkMode}
+                onValueChange={toggleDarkMode}
+                trackColor={{ false: themeColors.muted, true: themeColors.primary }}
+                thumbColor={themeColors.card}
               />
             </View>
 
-            <View style={[styles.settingRow, styles.topBorder]}>
+            <View style={[styles.settingRow, styles.topBorder, { borderColor: themeColors.border }]}>
               <View style={styles.settingLabelContainer}>
-                <View style={[styles.iconContainer, { backgroundColor: 'rgba(239, 68, 68, 0.1)' }]}>
-                  <RefreshCw color={theme.colors.destructive} size={20} />
+                <View style={[styles.iconContainer, { backgroundColor: themeColors.destructive + '1A' }]}>
+                  <RefreshCw color={themeColors.destructive} size={20} />
                 </View>
                 <View>
-                  <Text style={styles.settingLabel}>Reset Database</Text>
-                  <Text style={styles.settingDescription}>Clear all data and start fresh</Text>
+                  <Text style={[styles.settingLabel, { color: themeColors.foreground }]}>Reset Database</Text>
+                  <Text style={[styles.settingDescription, { color: themeColors['muted-foreground'] }]}>Clear all data and start fresh</Text>
                 </View>
               </View>
-              <TouchableOpacity onPress={handleResetDatabase} style={styles.resetButton}>
-                <Text style={styles.resetButtonText}>Reset</Text>
+              <TouchableOpacity onPress={handleResetDatabase} style={[styles.resetButton, { borderColor: themeColors.destructive + '33' }]}>
+                <Text style={[styles.resetButtonText, { color: themeColors.destructive }]}>Reset</Text>
               </TouchableOpacity>
             </View>
           </View>
 
-          <View style={[styles.footer, styles.topBorder]}>
-            <Text style={styles.footerText}>
+          <View style={[styles.footer, styles.topBorder, { borderColor: themeColors.border }]}>
+            <Text style={[styles.footerText, { color: themeColors['muted-foreground'] }]}>
               Weave • Social Relationship Management
             </Text>
           </View>
@@ -118,15 +117,12 @@ const styles = StyleSheet.create({
     backdrop: {
         flex: 1,
         justifyContent: 'flex-end',
-        backgroundColor: 'rgba(0, 0, 0, 0.2)',
     },
     modalContainer: {
-        backgroundColor: theme.colors.background,
         borderTopWidth: 1,
-        borderColor: theme.colors.border,
         borderTopLeftRadius: 24,
         borderTopRightRadius: 24,
-        padding: 24,
+        padding: spacing.lg,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: -10 },
         shadowOpacity: 0.1,
@@ -137,12 +133,12 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        marginBottom: 24,
+        marginBottom: spacing.lg,
     },
     headerTitleContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 12,
+        gap: spacing.md,
     },
     iconContainer: {
         width: 40,
@@ -153,7 +149,6 @@ const styles = StyleSheet.create({
     },
     headerTitle: {
         fontSize: 20,
-        color: theme.colors.foreground,
     },
     settingRow: {
         flexDirection: 'row',
@@ -163,39 +158,34 @@ const styles = StyleSheet.create({
     settingLabelContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 12,
+        gap: spacing.md,
     },
     settingLabel: {
         fontSize: 16,
         fontWeight: '500',
-        color: theme.colors.foreground,
     },
     settingDescription: {
         fontSize: 14,
-        color: theme.colors['muted-foreground'],
     },
     topBorder: {
-        paddingTop: 24,
+        paddingTop: spacing.lg,
         borderTopWidth: 1,
-        borderColor: theme.colors.border,
     },
     resetButton: {
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-        borderRadius: 8,
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.sm,
+        borderRadius: spacing.sm,
         borderWidth: 1,
-        borderColor: 'rgba(239, 68, 68, 0.2)',
     },
     resetButtonText: {
-        color: theme.colors.destructive,
+        // color will be set dynamically
     },
     footer: {
-        marginTop: 32,
-        paddingTop: 24,
+        marginTop: spacing.xl,
+        paddingTop: spacing.lg,
     },
     footerText: {
         textAlign: 'center',
         fontSize: 12,
-        color: theme.colors['muted-foreground'],
     }
 });

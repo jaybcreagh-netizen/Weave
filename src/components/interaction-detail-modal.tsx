@@ -2,6 +2,9 @@ import React from 'react';
 import { Modal, View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import { X, Calendar, MapPin, Heart, MessageCircle } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { GestureDetector, Gesture } from 'react-native-gesture-handler';
+import Animated, { useSharedValue, useAnimatedStyle, withSpring, runOnJS } from 'react-native-reanimated';
+import { BlurView } from 'expo-blur';
 import { theme } from '../theme';
 import { type Interaction, type MoonPhase } from './types';
 
@@ -48,6 +51,23 @@ export function InteractionDetailModal({
   friendName
 }: InteractionDetailModalProps) {
   const insets = useSafeAreaInsets();
+  const translateY = useSharedValue(0);
+
+  const pan = Gesture.Pan()
+    .onUpdate((event) => {
+      translateY.value = Math.max(0, event.translationY);
+    })
+    .onEnd((event) => {
+      if (event.translationY > 200) {
+        runOnJS(onClose)();
+      } else {
+        translateY.value = withSpring(0);
+      }
+    });
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: translateY.value }],
+  }));
 
   if (!interaction) return null;
 
@@ -63,42 +83,44 @@ export function InteractionDetailModal({
       visible={isOpen}
       onRequestClose={onClose}
     >
-      <View style={styles.backdrop}>
-        <View style={[styles.modalContainer, { paddingBottom: insets.bottom }]}>
-          <View style={styles.handleBarContainer}>
-            <View style={styles.handleBar} />
-          </View>
+      <BlurView style={styles.backdrop} intensity={10} tint="dark">
+        <GestureDetector gesture={pan}>
+          <Animated.View style={[styles.modalContainer, { paddingBottom: insets.bottom }, animatedStyle]}>
+            <View style={styles.handleBarContainer}>
+              <View style={styles.handleBar} />
+            </View>
 
-          <View style={styles.header}>
-            <View style={styles.headerTitleContainer}>
-              <Text style={styles.headerIcon}>{modeIcon}</Text>
-              <View>
-                <Text style={styles.headerTitle}>{interaction.activity}</Text>
-                <Text style={styles.headerSubtitle}>
-                  {interaction.mode?.replace('-', ' ')} • {interaction.type}
+            <View style={styles.header}>
+              <View style={styles.headerTitleContainer}>
+                <Text style={styles.headerIcon}>{modeIcon}</Text>
+                <View>
+                  <Text style={styles.headerTitle}>{interaction.activity}</Text>
+                  <Text style={styles.headerSubtitle}>
+                    {interaction.mode?.replace('-', ' ')} • {interaction.type}
+                  </Text>
+                </View>
+              </View>
+              <TouchableOpacity onPress={onClose} style={{ padding: 8 }}>
+                <X color={theme.colors['muted-foreground']} size={24} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView contentContainerStyle={styles.scrollViewContent}>
+              <View style={[styles.statusBadge, interaction.status === 'completed' ? styles.statusCompleted : styles.statusPlanned]}>
+                <Text style={[styles.statusBadgeText, interaction.status === 'completed' ? styles.statusCompletedText : styles.statusPlannedText]}>
+                  {interaction.status === 'completed' ? '✓ Completed' : '⏳ Planned'}
                 </Text>
               </View>
-            </View>
-            <TouchableOpacity onPress={onClose} style={{ padding: 8 }}>
-              <X color={theme.colors['muted-foreground']} size={24} />
-            </TouchableOpacity>
-          </View>
 
-          <ScrollView contentContainerStyle={styles.scrollViewContent}>
-            <View style={[styles.statusBadge, interaction.status === 'completed' ? styles.statusCompleted : styles.statusPlanned]}>
-              <Text style={[styles.statusBadgeText, interaction.status === 'completed' ? styles.statusCompletedText : styles.statusPlannedText]}>
-                {interaction.status === 'completed' ? '✓ Completed' : '⏳ Planned'}
-              </Text>
-            </View>
-
-            <InfoRow icon={<Calendar color={theme.colors['muted-foreground']} size={20} />} title={date} subtitle={time} />
-            {friendName && <InfoRow icon={<Heart color={theme.colors['muted-foreground']} size={20} />} title={friendName} subtitle="With" />}
-            {isPast && moonIcon && <InfoRow icon={<Text style={{ fontSize: 24 }}>{moonIcon}</Text>} title={interaction.moonPhase?.replace(/([A-Z])/g, ' $1').trim()} subtitle="Moon phase" />}
-            {interaction.location && <InfoRow icon={<MapPin color={theme.colors['muted-foreground']} size={20} />} title={interaction.location} subtitle="Location" />}
-            {interaction.notes && <InfoRow icon={<MessageCircle color={theme.colors['muted-foreground']} size={20} />} title={interaction.notes} subtitle="Notes" />}
-          </ScrollView>
-        </View>
-      </View>
+              <InfoRow icon={<Calendar color={theme.colors['muted-foreground']} size={20} />} title={date} subtitle={time} />
+              {friendName && <InfoRow icon={<Heart color={theme.colors['muted-foreground']} size={20} />} title={friendName} subtitle="With" />}
+              {isPast && moonIcon && <InfoRow icon={<Text style={{ fontSize: 24 }}>{moonIcon}</Text>} title={interaction.moonPhase?.replace(/([A-Z])/g, ' $1').trim()} subtitle="Moon phase" />}
+              {interaction.location && <InfoRow icon={<MapPin color={theme.colors['muted-foreground']} size={20} />} title={interaction.location} subtitle="Location" />}
+              {interaction.notes && <InfoRow icon={<MessageCircle color={theme.colors['muted-foreground']} size={20} />} title={interaction.notes} subtitle="Notes" />}
+            </ScrollView>
+          </Animated.View>
+        </GestureDetector>
+      </BlurView>
     </Modal>
   );
 }
@@ -117,10 +139,9 @@ const styles = StyleSheet.create({
     backdrop: {
         flex: 1,
         justifyContent: 'flex-end',
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
     },
     modalContainer: {
-        backgroundColor: theme.colors.background,
+        backgroundColor: 'rgba(247, 245, 242, 0.8)',
         borderTopLeftRadius: 24,
         borderTopRightRadius: 24,
         shadowColor: '#000',

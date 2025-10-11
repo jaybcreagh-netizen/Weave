@@ -5,8 +5,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { theme } from '../theme';
-import { type Archetype, type Friend } from './types';
-import { type FriendFormData } from '../stores/friendStore';
+import { type Archetype, type Friend, type FriendFormData, type Tier } from './types';
 import { ArchetypeCard } from './archetype-card';
 
 interface FriendFormProps {
@@ -16,9 +15,19 @@ interface FriendFormProps {
 
 export function FriendForm({ onSave, friend }: FriendFormProps) {
   const navigation = useNavigation();
+
+  // Helper function to map DB tier to form tier
+  const getFormTier = (dbTier?: Tier | string) => {
+    if (dbTier === 'InnerCircle') return 'inner';
+    if (dbTier === 'CloseFriends') return 'close';
+    // Default for 'Community' or when adding a new friend
+    return 'community';
+  };
+
   const [formData, setFormData] = useState({
     name: friend?.name || "",
-    tier: friend?.tier === "InnerCircle" ? "inner" : friend?.tier === "CloseFriends" ? "close" : "community",
+    // Use the helper function for clarity
+    tier: getFormTier(friend?.tier), 
     archetype: friend?.archetype || "Emperor" as Archetype,
     notes: friend?.notes || "",
     photoUrl: friend?.photoUrl || ""

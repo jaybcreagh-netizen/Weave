@@ -2,38 +2,27 @@
   "expo": {
     "name": "WeaveNative",
     "slug": "WeaveNative",
-    "version": "1.0.0",
-    "orientation": "portrait",
-    "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
-    },
+    "version": "1.0.0", 
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.jaycreagh.WeaveNative",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
-      },
-      "newArchEnabled": true
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.jaycreagh.WeaveNative",
-      "newArchEnabled": true
+      "package": "com.jaycreagh.WeaveNative"
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
+    "newArchEnabled": true, 
     "extra": {
-      "eas": {
-        "projectId": "96290618-9fd6-402b-85a3-fb0c33e0d44a"
-      }
+     
     },
     "plugins": [
       "expo-router"
