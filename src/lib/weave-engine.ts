@@ -3,71 +3,111 @@ import { Friend, Interaction, Tier, Archetype, InteractionType, Duration, Vibe }
 import { TierDecayRates, InteractionBaseScores, DurationModifiers, VibeMultipliers, RecencyFactors, ArchetypeMatrixV2 } from './constants';
 import FriendModel from '../db/models/Friend';
 import InteractionModel from '../db/models/Interaction';
+import InteractionFriend from '../db/models/InteractionFriend';
+import { type InteractionFormData } from '../stores/interactionStore';
 
 /**
  * Calculates the decayed score of a friend based on the time since the last update.
- * @param friend The Friend model instance.
- * @returns The decayed weave score.
  */
 export function calculateCurrentScore(friend: FriendModel): number {
   const daysSinceLastUpdate = (Date.now() - friend.lastUpdated.getTime()) / 86400000;
   const tierDecayRate = TierDecayRates[friend.dunbarTier as Tier];
-  const decayAmount = daysSinceLastUpdate * tierDecayRate;
+  const decayAmount = (daysSinceLastUpdate * tierDecayRate) / friend.resilience;
   return Math.max(0, friend.weaveScore - decayAmount);
 }
 
 /**
  * Calculates the points for a new interaction.
- * @param friend The Friend model instance.
- * @param weaveData The data for the new interaction.
- * @returns The points for the new weave.
  */
 export function calculatePointsForWeave(friend: FriendModel, weaveData: { interactionType: InteractionType; duration: Duration | null; vibe: Vibe | null }): number {
+  // Calculate current momentum
+  const daysSinceMomentumUpdate = (Date.now() - friend.momentumLastUpdated.getTime()) / 86400000;
+  const currentMomentumScore = Math.max(0, friend.momentumScore - daysSinceMomentumUpdate);
+
   const baseScore = InteractionBaseScores[weaveData.interactionType];
   const archetypeMultiplier = ArchetypeMatrixV2[friend.archetype as Archetype][weaveData.interactionType];
   const durationModifier = DurationModifiers[weaveData.duration || 'Standard'];
   const vibeMultiplier = VibeMultipliers[weaveData.vibe || 'WaxingCrescent'];
+  
   const eventMultiplier = 1.0; // Hardcoded for Phase 1
+  const groupDilutionFactor = 1.0; // Hardcoded for Phase 1
 
   const initialPoints = baseScore * archetypeMultiplier * durationModifier;
-  const finalPoints = initialPoints * vibeMultiplier * eventMultiplier;
+  const finalPoints = initialPoints * vibeMultiplier * eventMultiplier * groupDilutionFactor;
+
+  // Apply momentum bonus
+  if (currentMomentumScore > 0) {
+    return finalPoints * 1.15;
+  }
+
   return finalPoints;
 }
 
 /**
  * Logs a new interaction, calculates the new scores, and updates the database in a single transaction.
- * @param friendsToUpdate An array of Friend model instances.
- * @param weaveData The data for the new interaction.
- * @param database A reference to the WatermelonDB database object.
  */
-export async function logNewWeave(friendsToUpdate: FriendModel[], weaveData: Omit<Interaction, 'id' | 'friendIds' | 'createdAt'>, database: Database): Promise<void> {
+export async function logNewWeave(friendsToUpdate: FriendModel[], weaveData: InteractionFormData, database: Database): Promise<void> {
   await database.write(async () => {
+    // 1. Create the Interaction record with the correct data
     const newInteraction = await database.get<InteractionModel>('interactions').create(interaction => {
-      interaction.interactionDate = weaveData.interactionDate;
-      interaction.interactionType = weaveData.interactionType;
-      interaction.duration = weaveData.duration;
+      interaction.interactionDate = weaveData.date;
+      interaction.interactionType = weaveData.type; // 'log' or 'plan'
+      interaction.activity = weaveData.activity;
+      interaction.status = weaveData.status;
+      interaction.mode = weaveData.mode;
+      interaction.note = weaveData.notes;
       interaction.vibe = weaveData.vibe;
-      interaction.note = weaveData.note;
+      interaction.duration = weaveData.duration;
     });
 
     for (const friend of friendsToUpdate) {
+      // If the weave is just being planned for the future, don't update scores yet.
+      if (weaveData.type === 'plan') {
+        // Just create the join record and continue to the next friend.
+        await database.get<InteractionFriend>('interaction_friends').create(ifriend => {
+            ifriend.interactionId = newInteraction.id;
+            ifriend.friendId = friend.id;
+        });
+        continue; // Skip all the scoring logic
+      }
+
+      // 2. Calculate scores using the relevant part of the weaveData
       const currentScore = calculateCurrentScore(friend);
-      const pointsToAdd = calculatePointsForWeave(friend, weaveData);
+      const pointsToAdd = calculatePointsForWeave(friend, { 
+          interactionType: weaveData.activity as InteractionType, 
+          duration: weaveData.duration, 
+          vibe: weaveData.vibe 
+      });
+      const newWeaveScore = Math.min(100, currentScore + pointsToAdd);
 
-      const recencyFactor = RecencyFactors.find(rf => currentScore >= rf.min && currentScore <= rf.max)?.factor || 1.0;
+      // 3. Update the friend record with all new scores and states
+      await friend.update(record => {
+        record.weaveScore = newWeaveScore;
+        record.lastUpdated = new Date();
 
-      const finalPointsToAdd = pointsToAdd * recencyFactor;
-      const newWeaveScore = Math.min(100, currentScore + finalPointsToAdd);
+        if (weaveData.vibe) {
+          record.ratedWeavesCount += 1;
+          if (record.ratedWeavesCount >= 5) {
+            let newResilience = record.resilience;
+            if (weaveData.vibe === 'WaxingGibbous' || weaveData.vibe === 'FullMoon') {
+              newResilience += 0.008;
+            } else if (weaveData.vibe === 'NewMoon') {
+              newResilience -= 0.005;
+            }
+            record.resilience = Math.max(0.8, Math.min(1.5, newResilience));
+          }
+        }
 
-      await friend.update(() => {
-        friend.weaveScore = newWeaveScore;
-        friend.lastUpdated = new Date();
+        record.momentumScore = 15;
+        record.momentumLastUpdated = new Date();
+        record.isDormant = false;
+        record.dormantSince = null;
       });
 
-      // Create the join table record
-      await database.get('interaction_friends').create(ifriend => {
-          ifriend.interaction.id = newInteraction.id;
-          ifriend.friend.id = friend.id;
+      // 4. Create the join table record
+      await database.get<InteractionFriend>('interaction_friends').create(ifriend => {
+          ifriend.interactionId = newInteraction.id;
+          ifriend.friendId = friend.id;
       });
     }
   });

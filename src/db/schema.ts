@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb'
 
 export default appSchema({
-  version: 2, // Increment version for schema change
+  version: 8, // Increment version for schema change
   tables: [
     tableSchema({
       name: 'friends',
@@ -12,6 +12,14 @@ export default appSchema({
         { name: 'weave_score', type: 'number' },
         { name: 'last_updated', type: 'number' },
         { name: 'created_at', type: 'number' },
+        { name: 'photo_url', type: 'string', isOptional: true },
+        { name: 'notes', type: 'string', isOptional: true },
+        { name: 'resilience', type: 'number', defaultValue: 1.0 },
+        { name: 'rated_weaves_count', type: 'number', defaultValue: 0 },
+        { name: 'momentum_score', type: 'number', defaultValue: 0 },
+        { name: 'momentum_last_updated', type: 'number' },
+        { name: 'is_dormant', type: 'boolean', defaultValue: false },
+        { name: 'dormant_since', type: 'number', isOptional: true },
       ]
     }),
     tableSchema({
@@ -23,6 +31,9 @@ export default appSchema({
         { name: 'vibe', type: 'string', isOptional: true },
         { name: 'note', type: 'string', isOptional: true },
         { name: 'created_at', type: 'number' },
+        { name: 'activity', type: 'string' },
+        { name: 'status', type: 'string' },
+        { name: 'mode', type: 'string' },
       ]
     }),
     tableSchema({

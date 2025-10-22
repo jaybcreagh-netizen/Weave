@@ -25,21 +25,7 @@ const EditFriendComponent = ({ friend }: EditFriendProps) => {
     router.back();
   };
 
-  // Convert WatermelonDB model to plain object for form
-  const plainFriend = {
-      id: friend.id,
-      name: friend.name,
-      tier: friend.tier,
-      archetype: friend.archetype,
-      status: friend.status,
-      statusText: friend.statusText,
-      photoUrl: friend.photoUrl,
-      notes: friend.notes,
-      createdAt: friend.createdAt,
-      updatedAt: friend.updatedAt,
-  };
-
-  return <FriendForm onSave={handleSave} friend={plainFriend as any} />;
+  return <FriendForm onSave={handleSave} friend={friend} />;
 }
 
 const enhance = withObservables<{ friendId: string }, EditFriendProps>(['friendId'], ({ friendId }) => ({

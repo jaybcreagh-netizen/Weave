@@ -2,12 +2,13 @@
   "expo": {
     "name": "WeaveNative",
     "slug": "WeaveNative",
-    "version": "1.0.0", 
+    "version": "1.0.0",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.jaycreagh.WeaveNative",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSContactsUsageDescription": "Weave uses your contacts to help you select friends to add to your circles."
       }
     },
     "android": {
@@ -20,12 +21,12 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "newArchEnabled": true, 
-    "extra": {
-     
-    },
+    "scheme": "weavenative",
+    "newArchEnabled": true,
+    "extra": {},
     "plugins": [
-      "expo-router"
+      "expo-router",
+      "expo-font"
     ]
   }
 }

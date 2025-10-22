@@ -2,33 +2,34 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, TextInput, ScrollView, Image, Platform, StyleSheet } from 'react-native';
 import { ArrowLeft, Camera, X } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { theme } from '../theme';
-import { type Archetype, type Friend, type FriendFormData, type Tier } from './types';
+import FriendModel from '../db/models/Friend';
+import { type Archetype, type FriendFormData, type Tier } from './types';
 import { ArchetypeCard } from './archetype-card';
 
 interface FriendFormProps {
   onSave: (friendData: FriendFormData) => void;
-  friend?: Friend;
+  friend?: FriendModel;
+  initialTier?: 'inner' | 'close' | 'community';
 }
 
-export function FriendForm({ onSave, friend }: FriendFormProps) {
-  const navigation = useNavigation();
+export function FriendForm({ onSave, friend, initialTier }: FriendFormProps) {
+  const router = useRouter();
 
   // Helper function to map DB tier to form tier
   const getFormTier = (dbTier?: Tier | string) => {
     if (dbTier === 'InnerCircle') return 'inner';
     if (dbTier === 'CloseFriends') return 'close';
-    // Default for 'Community' or when adding a new friend
-    return 'community';
+    if (dbTier === 'Community') return 'community';
+    return 'close'; // Default
   };
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FriendFormData>({
     name: friend?.name || "",
-    // Use the helper function for clarity
-    tier: getFormTier(friend?.tier), 
-    archetype: friend?.archetype || "Emperor" as Archetype,
+    tier: friend ? getFormTier(friend.dunbarTier) : initialTier || 'close',
+    archetype: friend?.archetype || "Emperor",
     notes: friend?.notes || "",
     photoUrl: friend?.photoUrl || ""
   });
@@ -36,6 +37,7 @@ export function FriendForm({ onSave, friend }: FriendFormProps) {
   const handleSave = () => {
     if (formData.name.trim()) {
       onSave(formData);
+      router.replace('/dashboard');
     }
   };
 
@@ -65,7 +67,7 @@ export function FriendForm({ onSave, friend }: FriendFormProps) {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <ArrowLeft size={20} color={theme.colors['muted-foreground']} />
           <Text style={styles.backButtonText}>Back</Text>
         </TouchableOpacity>
@@ -196,6 +198,7 @@ const styles = StyleSheet.create({
     headerTitle: {
         fontSize: 20,
         fontWeight: '600',
+        fontFamily: 'Lora_700Bold',
         color: theme.colors.foreground,
     },
     scrollViewContent: {
@@ -204,6 +207,7 @@ const styles = StyleSheet.create({
     label: {
         fontSize: 16,
         marginBottom: 12,
+        fontFamily: 'Lora_400Regular',
     },
     imagePickerContainer: {
         flexDirection: 'row',

@@ -2,8 +2,10 @@ import { create } from 'zustand';
 import { database } from '../db';
 import FriendModel from '../db/models/Friend';
 import InteractionModel from '../db/models/Interaction';
+import InteractionFriend from '../db/models/InteractionFriend';
 import { type Archetype, type Tier, type Status, type FriendFormData } from '../components/types';
-import { Subscription } from 'rxjs';
+import { Subscription, of } from 'rxjs';
+import { switchMap } from 'rxjs/operators';
 import { Q } from '@nozbe/watermelondb';
 import { tierMap } from '../lib/constants';
 
@@ -56,13 +58,30 @@ export const useFriendStore = create<FriendStore>((set, get) => ({
     const friendSub = database.get<FriendModel>('friends').findAndObserve(friendId).subscribe(friend => {
       set({ activeFriend: friend });
 
-      // Now, observe the interactions via the relationship
       if (friend) {
-        const interactionSub = friend.interactions.observe().subscribe(interactions => {
+        // Manually and correctly fetch interactions for the friend
+        const interactionFriendsSub = database.get<InteractionFriend>('interaction_friends')
+          .query(Q.where('friend_id', friend.id))
+          .observe();
+        
+        const interactionSub = interactionFriendsSub.pipe(
+          switchMap(interactionFriends => {
+            const interactionIds = interactionFriends.map(ifriend => ifriend.interactionId);
+            if (interactionIds.length === 0) {
+              return of([]); // Return an empty observable if no interactions
+            }
+            return database.get<InteractionModel>('interactions').query(
+              Q.where('id', Q.oneOf(interactionIds))
+            ).observe();
+          })
+        ).subscribe(interactions => {
           set({ activeFriendInteractions: interactions });
         });
-        // Store the new interaction subscription
+
         set({ interactionSubscription: interactionSub });
+      } else {
+        // If friend is not found or null, clear interactions
+        set({ activeFriendInteractions: [], interactionSubscription: null });
       }
     });
 
@@ -84,12 +103,20 @@ export const useFriendStore = create<FriendStore>((set, get) => ({
     await database.write(async () => {
         await database.get('friends').create(friend => {
             friend.name = data.name;
-            friend.status = 'Green';
-            friend.statusText = 'Just added to your network';
+            friend.dunbarTier = tierMap[data.tier] || 'Community';
             friend.archetype = data.archetype;
-            friend.tier = tierMap[data.tier] || 'Community';
             friend.photoUrl = data.photoUrl;
             friend.notes = data.notes;
+            friend.weaveScore = 50; // Start with a neutral score
+            friend.lastUpdated = new Date();
+
+            // Initialize intelligence engine fields
+            friend.resilience = 1.0;
+            friend.ratedWeavesCount = 0;
+            friend.momentumScore = 0;
+            friend.momentumLastUpdated = new Date();
+            friend.isDormant = false;
+            friend.dormantSince = null;
         });
     });
   },
@@ -99,8 +126,8 @@ export const useFriendStore = create<FriendStore>((set, get) => ({
         const friend = await database.get<FriendModel>('friends').find(id);
         await friend.update(record => {
             record.name = data.name;
+            record.dunbarTier = tierMap[data.tier] || 'Community';
             record.archetype = data.archetype;
-            record.tier = tierMap[data.tier] || 'Community';
             record.photoUrl = data.photoUrl;
             record.notes = data.notes;
         });

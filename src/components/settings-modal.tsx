@@ -1,6 +1,6 @@
 import React from 'react';
 import { Modal, View, Text, TouchableOpacity, Switch, Alert, StyleSheet } from 'react-native';
-import { X, Moon, Sun, Palette, RefreshCw } from 'lucide-react-native';
+import { X, Moon, Sun, Palette, RefreshCw, Bug } from 'lucide-react-native';
 import { getThemeColors, spacing } from '../theme'; // Import getThemeColors and spacing
 import { clearDatabase } from '../db';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -16,7 +16,7 @@ export function SettingsModal({
   onClose,
 }: SettingsModalProps) {
   const insets = useSafeAreaInsets();
-  const { isDarkMode, toggleDarkMode } = useUIStore(); // Get isDarkMode and toggleDarkMode
+  const { isDarkMode, toggleDarkMode, showDebugScore, toggleShowDebugScore } = useUIStore(); // Get store values
   const themeColors = getThemeColors(isDarkMode); // Get current theme colors
 
   const handleResetDatabase = () => {
@@ -85,6 +85,26 @@ export function SettingsModal({
                 thumbColor={themeColors.card}
               />
             </View>
+
+            {/* START: New Debug Setting */}
+            <View style={[styles.settingRow, styles.topBorder, { borderColor: themeColors.border }]}>
+              <View style={styles.settingLabelContainer}>
+                <View style={[styles.iconContainer, { backgroundColor: themeColors.muted }]}>
+                  <Bug color={themeColors.foreground} size={20} />
+                </View>
+                <View>
+                  <Text style={[styles.settingLabel, { color: themeColors.foreground }]}>Show Weave Score</Text>
+                  <Text style={[styles.settingDescription, { color: themeColors['muted-foreground'] }]}>Display score for debugging</Text>
+                </View>
+              </View>
+              <Switch
+                value={showDebugScore}
+                onValueChange={toggleShowDebugScore}
+                trackColor={{ false: themeColors.muted, true: themeColors.primary }}
+                thumbColor={themeColors.card}
+              />
+            </View>
+            {/* END: New Debug Setting */}
 
             <View style={[styles.settingRow, styles.topBorder, { borderColor: themeColors.border }]}>
               <View style={styles.settingLabelContainer}>

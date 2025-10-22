@@ -1,9 +1,9 @@
 import { create } from 'zustand';
 import { type Archetype, type Interaction } from '../components/types';
 
-interface InteractionModal {
-  isOpen: boolean;
-  mode: 'log' | 'plan' | null;
+interface ToastData {
+  message: string;
+  friendName: string;
 }
 
 interface UIStore {
@@ -17,7 +17,15 @@ interface UIStore {
   calendarViewOpen: boolean;
   calendarSelectedFriendId: string | null;
   calendarSelectedDate: Date | null;
-  
+  showDebugScore: boolean;
+  isQuickWeaveOpen: boolean;
+  isQuickWeaveClosing: boolean; // Added this
+  quickWeaveFriendId: string | null;
+  quickWeaveCenterPoint: { x: number; y: number } | null;
+  justNurturedFriendId: string | null;
+  toastData: ToastData | null;
+  isDarkMode: boolean;
+
   setSelectedFriendId: (id: string | null) => void;
   setArchetypeModal: (archetype: Archetype | null) => void;
   openTimelineView: () => void;
@@ -30,6 +38,15 @@ interface UIStore {
   openCalendarView: (friendId?: string | null) => void;
   closeCalendarView: () => void;
   setCalendarSelectedDate: (date: Date | null) => void;
+  toggleShowDebugScore: () => void;
+  openQuickWeave: (friendId: string, centerPoint: { x: number; y: number }) => void;
+  closeQuickWeave: () => void; // Added this
+  _finishClosingQuickWeave: () => void;
+  setJustNurturedFriendId: (id: string | null) => void;
+  showToast: (message: string, friendName: string) => void;
+  hideToast: () => void;
+  toggleDarkMode: () => void;
+  setDarkMode: (isDark: boolean) => void;
 }
 
 export const useUIStore = create<UIStore>((set, get) => ({
@@ -43,6 +60,14 @@ export const useUIStore = create<UIStore>((set, get) => ({
   calendarViewOpen: false,
   calendarSelectedFriendId: null,
   calendarSelectedDate: null,
+  showDebugScore: false,
+  isQuickWeaveOpen: false,
+  isQuickWeaveClosing: false, // Added this
+  quickWeaveFriendId: null,
+  quickWeaveCenterPoint: null,
+  justNurturedFriendId: null,
+  toastData: null,
+  isDarkMode: false,
   
   setSelectedFriendId: (id) => set({ selectedFriendId: id }),
   setArchetypeModal: (archetype) => set({ archetypeModal: archetype }),
@@ -63,4 +88,36 @@ export const useUIStore = create<UIStore>((set, get) => ({
   openCalendarView: (friendId = null) => set({ calendarViewOpen: true, calendarSelectedFriendId: friendId }),
   closeCalendarView: () => set({ calendarViewOpen: false, calendarSelectedFriendId: null, calendarSelectedDate: null }),
   setCalendarSelectedDate: (date) => set({ calendarSelectedDate: date }),
+  toggleShowDebugScore: () => set((state) => ({ showDebugScore: !state.showDebugScore })),
+  
+  openQuickWeave: (friendId, centerPoint) => set({ 
+    isQuickWeaveOpen: true, 
+    isQuickWeaveClosing: false,
+    quickWeaveFriendId: friendId, 
+    quickWeaveCenterPoint: centerPoint 
+  }),
+  
+  // This just starts the closing animation
+  closeQuickWeave: () => set({ isQuickWeaveClosing: true }),
+
+  // This is called by the overlay after the animation finishes
+  _finishClosingQuickWeave: () => set({
+    isQuickWeaveOpen: false,
+    quickWeaveFriendId: null,
+    quickWeaveCenterPoint: null,
+    isQuickWeaveClosing: false,
+  }),
+  
+  setJustNurturedFriendId: (id) => set({ justNurturedFriendId: id }),
+  
+  showToast: (message, friendName) => {
+    set({ toastData: { message, friendName } });
+    setTimeout(() => {
+      get().hideToast();
+    }, 3500);
+  },
+  hideToast: () => set({ toastData: null }),
+
+  toggleDarkMode: () => set((state) => ({ isDarkMode: !state.isDarkMode })),
+  setDarkMode: (isDark) => set({ isDarkMode: isDark }),
 }));

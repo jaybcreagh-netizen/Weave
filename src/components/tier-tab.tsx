@@ -1,6 +1,9 @@
+// src/components/tier-tab.tsx
+
 import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import Animated, { useAnimatedStyle, withTiming } from 'react-native-reanimated';
 import { theme } from '../theme';
 
 interface TierTabProps {
@@ -13,22 +16,39 @@ interface TierTabProps {
   tier: 'inner' | 'close' | 'community';
 }
 
-const tierColors = {
-  inner: "#D4AF37", // Gold
-  close: "#C0C0C0", // Silver
-  community: "#CD7F32" // Bronze
-};
-
 const tierIcons = {
   inner: "⭐",
   close: "💫",
   community: "🌐"
 };
 
-export function TierTab({ label, shortLabel, count, maxCount, isActive, onClick, tier }: TierTabProps) {
-  const tierColor = tierColors[tier];
+export function TierTab({ shortLabel, label, count, maxCount, isActive, onClick, tier }: TierTabProps) {
+  const tierColor = theme.colors.tier[tier];
   const tierIcon = tierIcons[tier];
-  const percentage = count && maxCount ? (count / maxCount) * 100 : 0;
+
+  // Animate background color and text color for a smooth transition
+  const animatedContainerStyle = useAnimatedStyle(() => {
+    return {
+      backgroundColor: withTiming(isActive ? theme.colors.primary + '33' : 'transparent', { duration: 250 }),
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: withTiming(isActive ? 0.15 : 0, { duration: 250 }),
+      shadowRadius: withTiming(isActive ? 5 : 0, { duration: 250 }),
+      elevation: withTiming(isActive ? 4 : 0, { duration: 250 }),
+    };
+  });
+
+  const animatedTextStyle = useAnimatedStyle(() => {
+    return {
+      color: withTiming(isActive ? theme.colors.foreground : theme.colors['muted-foreground'], { duration: 250 }),
+    };
+  });
+
+  const animatedCountTextStyle = useAnimatedStyle(() => {
+    return {
+        color: withTiming(isActive ? theme.colors.foreground : theme.colors['muted-foreground'], { duration: 250 }),
+    }
+  });
 
   return (
     <Pressable
@@ -36,105 +56,64 @@ export function TierTab({ label, shortLabel, count, maxCount, isActive, onClick,
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         onClick();
       }}
-      style={({ pressed }) => [
-        styles.container, 
-        isActive && styles.containerActive,
-        { transform: [{ scale: pressed ? 0.98 : 1 }] }
-      ]}
+      style={({ pressed }) => [styles.pressable, { transform: [{ scale: pressed ? 0.98 : 1 }] }]}
     >
-      {isActive && count !== undefined && maxCount && (
-        <View
-          style={[styles.progressBar, { width: `${percentage}%` }]}
-        />
-      )}
-      
-      {!isActive && (
-        <View
-          style={[styles.accentBar, { backgroundColor: tierColor }]}
-        />
-      )}
+      <Animated.View style={[styles.container, animatedContainerStyle]}>
+        {/* Unified Accent Dot */}
+        {!isActive && (
+          <View style={[styles.accentDot, { backgroundColor: tierColor }]} />
+        )}
 
-      <View style={styles.content}>
-        <Text style={[styles.icon, { opacity: isActive ? 0.9 : 0.75 }]}>
-          {tierIcon}
-        </Text>
+        <Text style={styles.icon}>{tierIcon}</Text>
         
-        <Text style={[styles.label, { color: isActive ? 'white' : theme.colors['muted-foreground'] }]}>
+        <Animated.Text style={[styles.label, animatedTextStyle]}>
           {shortLabel || label}
-        </Text>
+        </Animated.Text>
         
         {count !== undefined && (
-          <Text style={[styles.count, { color: isActive ? 'rgba(255, 255, 255, 0.8)' : theme.colors['muted-foreground'] }]}>
+          <Animated.Text style={[styles.count, animatedCountTextStyle]}>
             {count}
-          </Text>
+          </Animated.Text>
         )}
-        
-        {!isActive && (
-          <View
-            style={[styles.dot, { backgroundColor: tierColor }]} 
-          />
-        )}
-      </View>
+      </Animated.View>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
+    pressable: {
+        flex: 1, // Let the pressable area grow, but the content inside dictates the width.
+        minWidth: 80, // Prevent tabs from becoming too small on large screens
+    },
     container: {
-        flex: 1,
+        flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
+        gap: 6,
         paddingHorizontal: 12,
-        paddingVertical: 16,
+        paddingVertical: 14,
         borderRadius: 12,
         position: 'relative',
-        backgroundColor: 'transparent',
+        overflow: 'hidden', // Ensures rounded corners clip child elements
     },
-    containerActive: {
-        backgroundColor: theme.colors.primary,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.23,
-        shadowRadius: 2.62,
-        elevation: 4,
-    },
-    progressBar: {
+    accentDot: {
         position: 'absolute',
-        bottom: 0,
-        left: 0,
-        height: 4,
-        backgroundColor: 'rgba(255, 255, 255, 0.4)',
-        borderRadius: 2,
-    },
-    accentBar: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        width: '100%',
-        height: 2,
-        borderRadius: 1,
-        opacity: 0.5,
-    },
-    content: {
-        alignItems: 'center',
-        gap: 6,
+        top: 8,
+        right: 8,
+        width: 6,
+        height: 6,
+        borderRadius: 3,
     },
     icon: {
         fontSize: 16,
     },
     label: {
-        fontWeight: '500',
+        fontWeight: '600',
         fontSize: 14,
-        lineHeight: 18,
     },
     count: {
         fontSize: 12,
-        lineHeight: 16,
+        fontWeight: '500',
+        marginLeft: -2, // Optical adjustment to bring count closer to label
     },
-    dot: {
-        width: 6,
-        height: 6,
-        borderRadius: 3,
-        opacity: 0.6,
-    }
 });

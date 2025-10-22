@@ -1,15 +1,15 @@
 import { Model } from '@nozbe/watermelondb'
-import { field, text, readonly, date, lazy } from '@nozbe/watermelondb/decorators'
+import { field, text, readonly, date, lazy, children } from '@nozbe/watermelondb/decorators'
 import { Q } from '@nozbe/watermelondb'
-import { associations } from '@nozbe/watermelondb/Model'
 
 export default class Friend extends Model {
   static table = 'friends'
 
-  // This tells WatermelonDB about the join table relationship
-  static associations = associations(
-    'interaction_friends', { type: 'has_many', foreignKey: 'friend_id' },
-  )
+  static associations = {
+    interaction_friends: { type: 'has_many', foreignKey: 'friend_id' }
+  }
+
+  @children('interaction_friends') interactionFriends
 
   @text('name') name!: string
   @field('dunbar_tier') dunbarTier!: string
@@ -18,7 +18,15 @@ export default class Friend extends Model {
   @date('last_updated') lastUpdated!: Date
   @readonly @date('created_at') createdAt!: Date
 
-  @lazy interactions = this.collections.get('interactions').query(
-    Q.on('interaction_friends', 'friend_id', this.id)
-  )
+  @text('photo_url') photoUrl?: string
+  @text('notes') notes?: string
+
+  @field('resilience') resilience!: number
+  @field('rated_weaves_count') ratedWeavesCount!: number
+  @field('momentum_score') momentumScore!: number
+  @date('momentum_last_updated') momentumLastUpdated!: Date
+  @field('is_dormant') isDormant!: boolean
+  @date('dormant_since') dormantSince?: Date
+
+
 }

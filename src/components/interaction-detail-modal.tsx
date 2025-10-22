@@ -7,23 +7,7 @@ import Animated, { useSharedValue, useAnimatedStyle, withSpring, runOnJS } from 
 import { BlurView } from 'expo-blur';
 import { theme } from '../theme';
 import { type Interaction, type MoonPhase } from './types';
-
-interface InteractionDetailModalProps {
-  interaction: Interaction | null;
-  isOpen: boolean;
-  onClose: () => void;
-  friendName?: string;
-}
-
-const modeIcons = {
-  'one-on-one': '🌿',
-  'group-flow': '🌊',
-  'celebration': '🔥',
-  'quick-touch': '🌀',
-  'cozy-time': '🌙',
-  'out-and-about': '☀️',
-  'default': '💫'
-};
+import { modeIcons } from '../lib/constants';
 
 const moonPhaseIcons: Record<MoonPhase, string> = {
   'NewMoon': '🌑',
@@ -71,10 +55,10 @@ export function InteractionDetailModal({
 
   if (!interaction) return null;
 
-  const { date, time } = formatDateTime(interaction.date);
+  const { date, time } = formatDateTime(interaction.interactionDate);
   const modeIcon = modeIcons[interaction.mode as keyof typeof modeIcons] || modeIcons.default;
-  const moonIcon = interaction.moonPhase ? moonPhaseIcons[interaction.moonPhase as MoonPhase] : null;
-  const isPast = new Date(interaction.date) < new Date();
+  const moonIcon = interaction.vibe ? moonPhaseIcons[interaction.vibe as MoonPhase] : null;
+  const isPast = new Date(interaction.interactionDate) < new Date();
 
   return (
     <Modal
@@ -114,7 +98,7 @@ export function InteractionDetailModal({
 
               <InfoRow icon={<Calendar color={theme.colors['muted-foreground']} size={20} />} title={date} subtitle={time} />
               {friendName && <InfoRow icon={<Heart color={theme.colors['muted-foreground']} size={20} />} title={friendName} subtitle="With" />}
-              {isPast && moonIcon && <InfoRow icon={<Text style={{ fontSize: 24 }}>{moonIcon}</Text>} title={interaction.moonPhase?.replace(/([A-Z])/g, ' $1').trim()} subtitle="Moon phase" />}
+              {isPast && moonIcon && <InfoRow icon={<Text style={{ fontSize: 24 }}>{moonIcon}</Text>} title={interaction.vibe?.replace(/([A-Z])/g, ' $1').trim()} subtitle="Moon phase" />}
               {interaction.location && <InfoRow icon={<MapPin color={theme.colors['muted-foreground']} size={20} />} title={interaction.location} subtitle="Location" />}
               {interaction.notes && <InfoRow icon={<MessageCircle color={theme.colors['muted-foreground']} size={20} />} title={interaction.notes} subtitle="Notes" />}
             </ScrollView>
@@ -221,6 +205,11 @@ const styles = StyleSheet.create({
         padding: 16,
         backgroundColor: 'rgba(229, 225, 220, 0.5)', // muted/50
         borderRadius: 16,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 8,
+        elevation: 4,
     },
     infoSubtitle: {
         fontSize: 14,

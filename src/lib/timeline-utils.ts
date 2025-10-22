@@ -1,60 +1,238 @@
-import { addDays } from 'date-fns';
-import { type Interaction } from '../components/types';
-import { type Tier, type Status } from '../components/types';
+import { differenceInHours, differenceInDays, differenceInWeeks, differenceInMonths, format, isToday, isYesterday, isSameWeek } from 'date-fns';
 
-export interface ConnectionStatus {
-  status: Status;
-  statusText: string;
-}
+/**
+ * Formats a date into poetic, human-readable language
+ */
+export const formatPoeticDate = (date: Date | string): { 
+  primary: string;    // Main time description
+  secondary: string;  // Time of day
+} => {
+  const d = typeof date === 'string' ? new Date(date) : date;
+  const now = new Date();
+  const hoursAgo = differenceInHours(now, d);
+  const daysAgo = differenceInDays(now, d);
+  const weeksAgo = differenceInWeeks(now, d);
+  const monthsAgo = differenceInMonths(now, d);
 
-// Define the rules for each tier in days
-const tierRules = {
-  InnerCircle: 7,   // Weekly interaction
-  CloseFriends: 30, // Monthly interaction
-  Community: 90,    // Quarterly interaction
+  let primary = '';
+  
+  // Future dates
+  if (hoursAgo < 0) {
+    const daysUntil = Math.abs(daysAgo);
+    if (daysUntil === 0) {
+      primary = 'Later today';
+    } else if (daysUntil === 1) {
+      primary = 'Tomorrow';
+    } else if (daysUntil < 7) {
+      primary = format(d, 'EEEE'); // Day name
+    } else if (daysUntil < 14) {
+      primary = 'Next week';
+    } else {
+      primary = format(d, 'MMM d');
+    }
+  }
+  // Today
+  else if (isToday(d)) {
+    if (hoursAgo < 1) {
+      primary = 'Just now';
+    } else if (hoursAgo < 4) {
+      primary = 'Earlier today';
+    } else if (hoursAgo < 8) {
+      primary = 'Today';
+    } else {
+      primary = 'Earlier today';
+    }
+  }
+  // Yesterday
+  else if (isYesterday(d)) {
+    primary = 'Yesterday';
+  }
+  // This week
+  else if (isSameWeek(d, now)) {
+    primary = format(d, 'EEEE'); // "Monday", "Tuesday", etc.
+  }
+  // Last week
+  else if (daysAgo < 14) {
+    primary = `Last ${format(d, 'EEEE')}`;
+  }
+  // This month
+  else if (daysAgo < 30) {
+    primary = `${weeksAgo} week${weeksAgo > 1 ? 's' : ''} ago`;
+  }
+  // Older
+  else if (monthsAgo < 12) {
+    primary = `${monthsAgo} month${monthsAgo > 1 ? 's' : ''} ago`;
+  }
+  // Over a year
+  else {
+    primary = format(d, 'MMM yyyy');
+  }
+
+  // Time of day
+  const hour = d.getHours();
+  let secondary = '';
+  
+  if (hour >= 5 && hour < 12) {
+    secondary = 'Morning';
+  } else if (hour >= 12 && hour < 17) {
+    secondary = 'Afternoon';
+  } else if (hour >= 17 && hour < 21) {
+    secondary = 'Evening';
+  } else {
+    secondary = 'Night';
+  }
+
+  return { primary, secondary };
 };
 
-export function calculateNextConnectionDate(lastInteractionDate: Date, tier: Tier): Date {
-    const daysToAdd = tierRules[tier];
-    return addDays(lastInteractionDate, daysToAdd);
-}
+/**
+ * Calculate "warmth" intensity based on recency (0.0 - 1.0)
+ * Used for thread color, glow, and animation intensity
+ */
+export const calculateWeaveWarmth = (date: Date | string): number => {
+  const d = typeof date === 'string' ? new Date(date) : date;
+  const now = new Date();
+  const hoursAgo = differenceInHours(now, d);
+  
+  // Future weaves have no warmth (they're ethereal)
+  if (hoursAgo < 0) return 0;
+  
+  // Today: Full warmth (1.0)
+  if (hoursAgo < 24) {
+    return 1.0;
+  }
+  
+  // This week: High warmth (0.7)
+  if (hoursAgo < 168) { // 7 days
+    return 0.7;
+  }
+  
+  // This month: Medium warmth (0.4)
+  if (hoursAgo < 720) { // 30 days
+    return 0.4;
+  }
+  
+  // Older: Low warmth (0.2)
+  return 0.2;
+};
 
-export function calculateOverallStatus(interactions: Interaction[], tier: Tier): ConnectionStatus {
-  if (!interactions || interactions.length === 0) {
+/**
+ * Get section title based on time category
+ */
+export const getPoeticSectionTitle = (category: 'future' | 'today' | 'past'): string => {
+  switch (category) {
+    case 'future':
+      return 'Seeds Planted';
+    case 'today':
+      return "Today's Thread";
+    case 'past':
+      return 'Woven Memories';
+    default:
+      return '';
+  }
+};
+
+/**
+ * Interpolate between two colors based on a factor (0-1)
+ */
+export const interpolateColor = (color1: string, color2: string, factor: number): string => {
+  // Simple rgba interpolation for our use case
+  // Assumes colors are in rgba format
+  const c1 = color1.match(/[\d.]+/g)?.map(Number) || [0, 0, 0, 0];
+  const c2 = color2.match(/[\d.]+/g)?.map(Number) || [0, 0, 0, 0];
+  
+  const r = Math.round(c1[0] + (c2[0] - c1[0]) * factor);
+  const g = Math.round(c1[1] + (c2[1] - c1[1]) * factor);
+  const b = Math.round(c1[2] + (c2[2] - c1[2]) * factor);
+  const a = (c1[3] + (c2[3] - c1[3]) * factor).toFixed(2);
+  
+  return `rgba(${r}, ${g}, ${b}, ${a})`;
+};
+
+/**
+ * Get thread and knot colors based on warmth
+ */
+export const getThreadColors = (warmth: number, isFuture: boolean = false) => {
+  if (isFuture) {
     return {
-      status: 'Red',
-      statusText: 'No connection yet. Time to reach out!',
+      thread: 'rgba(181, 138, 108, 0.3)',
+      knot: 'rgba(181, 138, 108, 0.4)',
+      glow: 'transparent',
     };
   }
+  
+  const warmColors = {
+    thread: 'rgba(181, 138, 108, 1)',
+    knot: '#D4AF37',
+    glow: 'rgba(212, 175, 55, 0.6)',
+  };
+  
+  const coolColors = {
+    thread: 'rgba(181, 138, 108, 0.3)',
+    knot: 'rgba(181, 138, 108, 0.5)',
+    glow: 'transparent',
+  };
+  
+  return {
+    thread: interpolateColor(coolColors.thread, warmColors.thread, warmth),
+    knot: interpolateColor(coolColors.knot, warmColors.knot, warmth),
+    glow: interpolateColor(coolColors.glow, warmColors.glow, warmth),
+  };
+};
 
-  // Find the most recent interaction
-  const mostRecentInteraction = interactions.reduce((latest, current) => {
-    const latestDate = new Date(latest.date);
-    const currentDate = new Date(current.date);
-    return currentDate > latestDate ? current : latest;
+/**
+ * Calculate the next recommended connection date based on Dunbar tier
+ */
+export const calculateNextConnectionDate = (lastInteractionDate: Date, tier: string): Date => {
+  const intervalDays: { [key: string]: number } = {
+    InnerCircle: 7,    // Weekly
+    CloseFriends: 14,  // Bi-weekly
+    Community: 30,     // Monthly
+  };
+
+  const days = intervalDays[tier] || 30;
+  const nextDate = new Date(lastInteractionDate);
+  nextDate.setDate(nextDate.getDate() + days);
+  
+  return nextDate;
+};
+
+/**
+ * Calculate overall connection status (used elsewhere in the app)
+ */
+export type ConnectionStatus = 'healthy' | 'stable' | 'attention';
+
+export const calculateOverallStatus = (interactions: any[], tier: string): ConnectionStatus => {
+  if (!interactions || interactions.length === 0) {
+    return 'attention';
+  }
+
+  const now = new Date();
+  const pastInteractions = interactions.filter(i => isPast(new Date(i.interactionDate)));
+  
+  if (pastInteractions.length === 0) {
+    return 'attention';
+  }
+
+  const mostRecent = pastInteractions.reduce((latest, current) => {
+    return new Date(current.interactionDate) > new Date(latest.interactionDate) ? current : latest;
   });
 
-  const lastInteractionDate = new Date(mostRecentInteraction.date);
-  const now = new Date();
-  const daysSinceLastInteraction = Math.floor((now.getTime() - lastInteractionDate.getTime()) / (1000 * 60 * 60 * 24));
+  const daysSinceLastInteraction = differenceInDays(now, new Date(mostRecent.interactionDate));
 
-  const rule = tierRules[tier];
-  const yellowThreshold = rule * 0.75;
+  const thresholds: { [key: string]: { attention: number; stable: number } } = {
+    InnerCircle: { attention: 10, stable: 5 },
+    CloseFriends: { attention: 20, stable: 10 },
+    Community: { attention: 40, stable: 20 },
+  };
 
-  if (daysSinceLastInteraction < yellowThreshold) {
-    return {
-      status: 'Green',
-      statusText: `Connected ${daysSinceLastInteraction}d ago. Strong! `,
-    };
-  } else if (daysSinceLastInteraction < rule) {
-    return {
-      status: 'Yellow',
-      statusText: `Connected ${daysSinceLastInteraction}d ago. Needs a refresh.`,
-    };
+  const threshold = thresholds[tier] || thresholds.Community;
+
+  if (daysSinceLastInteraction > threshold.attention) {
+    return 'attention';
+  } else if (daysSinceLastInteraction > threshold.stable) {
+    return 'stable';
   } else {
-    return {
-      status: 'Red',
-      statusText: `Last connected ${daysSinceLastInteraction}d ago. Time to reconnect!`,
-    };
+    return 'healthy';
   }
-}
+};

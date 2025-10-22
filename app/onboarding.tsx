@@ -1,102 +1,256 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
-import { ArrowRight, Heart, UserPlus } from 'lucide-react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Dimensions, NativeSyntheticEvent, NativeScrollEvent, Linking, FlatList } from 'react-native';
+import { ArrowLeft, ArrowRight, Mail, CalendarCheck, Users, Star, Heart, Lock, CloudOff, Shield } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import type { Contact } from 'expo-contacts';
+import Animated, { FadeInDown } from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
+import 'react-native-get-random-values';
+import { v4 as uuidv4 } from 'uuid';
 
 import { theme } from '../src/theme';
-import { type Archetype } from '../src/components/types';
-import { ArchetypeCard } from '../src/components/archetype-card';
+import { type Archetype, type FriendFormData, type MockContact } from '../src/components/types';
+import { useFriendStore } from '../src/stores/friendStore';
+import { AnimatedThoughtBubbles } from '../src/components/onboarding/AnimatedThoughtBubbles';
+import { VisionCard } from '../src/components/onboarding/VisionCard';
+import { TierCard } from '../src/components/onboarding/TierCard';
+import { ContactPickerGrid } from '../src/components/onboarding/ContactPickerGrid';
+import { ArchetypeQuiz } from '../src/components/onboarding/ArchetypeQuiz';
+import { PrivacyPromise } from '../src/components/onboarding/PrivacyPromise';
+import { AddConnectionChoice } from '../src/components/onboarding/AddConnectionChoice';
+import { ManualAddFriendForm } from '../src/components/onboarding/ManualAddFriendForm';
+
+const { width } = Dimensions.get('window');
+
+const visionCards = [
+  {
+    icon: <Mail size={32} color={theme.colors.primary} />,
+    title: "Never Lose Touch",
+    description: "Get gentle nudges to reconnect before friendships fade, turning good intentions into action.",
+  },
+  {
+    icon: <CalendarCheck size={32} color={theme.colors.primary} />,
+    title: "Celebrate the Moments",
+    description: "Easily log memories and milestones, creating a rich, shared history of your most important bonds.",
+  },
+  {
+    icon: <Users size={32} color={theme.colors.primary} />,
+    title: "Know Your People",
+    description: "Understand the rhythm of your social life and see who you're truly connecting with over time.",
+  },
+];
+
+const tierCards = [
+    {
+        icon: <Heart size={24} color={theme.colors.primary} />,
+        title: "Inner Circle (Up to 15)",
+        description: "Your ride-or-dies. The people you trust with anything.",
+    },
+    {
+        icon: <Star size={24} color={theme.colors.primary} />,
+        title: "Close Friends (Up to 50)",
+        description: "Important people you share a strong, mutual bond with.",
+    },
+    {
+        icon: <Users size={24} color={theme.colors.primary} />,
+        title: "Community (Up to 150)",
+        description: "Friends and acquaintances who enrich your life.",
+    },
+];
+
+const privacyPromises = [
+    {
+        icon: <Lock size={24} color={theme.colors.primary} />,
+        title: "Private by Design",
+        description: "Your data is stored locally on your device. We don't have access to it.",
+    },
+    {
+        icon: <CloudOff size={24} color={theme.colors.primary} />,
+        title: "No Cloud, No Problem",
+        description: "Weave works entirely offline. Your personal relationship data never leaves your phone.",
+    },
+    {
+        icon: <Shield size={24} color={theme.colors.primary} />,
+        title: "You Are Not the Product",
+        description: "We will never sell your data or use it for advertising. Our business model is aligned with your privacy.",
+    },
+];
 
 export default function Onboarding() {
   const router = useRouter();
+  const addFriend = useFriendStore(state => state.addFriend);
+
+  // State management
   const [currentStep, setCurrentStep] = useState(0);
+  const [circlesStep, setCirclesStep] = useState<'intro' | 'choice' | 'picker' | 'manual'>('intro');
+  const [friendsForQuiz, setFriendsForQuiz] = useState<(Contact | MockContact)[]>([]);
+  const [assignments, setAssignments] = useState<Record<string, Archetype>>({});
+  const [visionPage, setVisionPage] = useState(0);
+
+  // Step configuration
+  const steps = ['hook', 'vision', 'circles', 'archetypes', 'privacy'];
+  const currentStepName = steps[currentStep];
 
   const onComplete = () => {
     router.replace('/dashboard');
   };
 
-  const steps = [
-    {
-      id: 'welcome',
-      title: 'Welcome to Weave',
-      subtitle: 'Strengthen your relationships with intention',
-      content: (
-        <View style={styles.stepContentContainer}>
-          <Text style={styles.emoji}>🕸️</Text>
-          <Text style={styles.stepSubtext}>
-            Build and maintain meaningful connections using the science of human relationships.
-          </Text>
-        </View>
-      ),
-    },
-    {
-      id: 'tiers',
-      title: 'Three Circles of Connection',
-      subtitle: "Based on Dunbar's Number research",
-      content: (
-        <View style={styles.stepContentContainer}>
-          <View style={styles.tiersRingLg}>
-            <View style={styles.tiersRingMd}>
-              <View style={styles.tiersRingSm}>
-                <Heart color="white" size={32} />
-              </View>
-            </View>
-          </View>
-          <View style={{ gap: 24 }}>
-            <TierInfo color="#7A9471" title="Inner Circle (5-15)" subtitle="Your closest relationships" />
-            <TierInfo color="#D4A574" title="Close Friends (50)" subtitle="Meaningful friendships" />
-            <TierInfo color="#C17B63" title="Community (150)" subtitle="Your broader social network" />
-          </View>
-        </View>
-      ),
-    },
-    {
-      id: 'archetypes',
-      title: 'Archetypes',
-      subtitle: 'A tool for empathy and understanding',
-      content: (
-        <View style={styles.stepContentContainer}>
-          <View style={styles.archetypeGrid}>
-            {["Emperor", "Empress", "HighPriestess", "Fool", "Sun", "Hermit", "Magician"].map(archetype => (
-              <View key={archetype} style={{ width: '22%' }}>
-                <ArchetypeCard archetype={archetype as Archetype} />
-              </View>
-            ))}
-          </View>
-          <Text style={styles.stepSubtext}>
-            <Text style={{ fontWeight: 'bold' }}>Tap and hold any archetype</Text> to learn about their essence and connection style.
-          </Text>
-        </View>
-      ),
-    },
-    {
-      id: 'start',
-      title: 'Ready to Begin?',
-      subtitle: 'Start building your weave',
-      content: (
-        <View style={styles.stepContentContainer}>
-          <View style={styles.startIconContainer}>
-            <UserPlus color="white" size={40} />
-          </View>
-          <Text style={styles.stepSubtext}>
-            Add your first Inner Circle friend and begin strengthening your most important relationships.
-          </Text>
-        </View>
-      ),
-    },
-  ];
+  const onSkip = () => {
+    router.replace('/dashboard');
+  };
 
-  const currentStepData = steps[currentStep];
   const isLastStep = currentStep === steps.length - 1;
 
-  const handleNext = () => {
+  const handleNext = async () => {
+    if (currentStepName === 'circles') {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+
+    if (currentStepName === 'archetypes') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+      for (const friend of friendsForQuiz) {
+        if (friend.id && assignments[friend.id]) {
+          const friendData: FriendFormData = {
+            name: friend.name,
+            tier: 'inner', // Step 3 is for the Inner Circle
+            archetype: assignments[friend.id],
+            notes: '', // Not collected in onboarding
+            photoUrl: friend.imageAvailable ? friend.image!.uri : '',
+          };
+          await addFriend(friendData);
+        }
+      }
+    }
+
     if (isLastStep) {
       onComplete();
     } else {
-      setCurrentStep(currentStep + 1);
+      setCurrentStep(prev => Math.min(prev + 1, steps.length - 1));
     }
   };
+  
+  const handleBack = () => {
+    if (currentStepName === 'circles' && circlesStep !== 'intro') {
+        setCirclesStep('intro');
+    } else {
+        setCurrentStep(prev => Math.max(0, prev - 1));
+    }
+  };
+
+  const handleQuizComplete = (newAssignments: Record<string, Archetype>) => {
+    setAssignments(newAssignments);
+    handleNext();
+  };
+
+  const handleManualAddComplete = (friendData: FriendFormData) => {
+    const mockContact: MockContact = {
+      id: uuidv4(),
+      name: friendData.name,
+      imageAvailable: !!friendData.photoUrl,
+      image: friendData.photoUrl ? { uri: friendData.photoUrl } : undefined,
+    };
+    setFriendsForQuiz([mockContact]);
+    handleNext();
+  };
+
+  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const pageIndex = Math.round(event.nativeEvent.contentOffset.x / width);
+    setVisionPage(pageIndex);
+  };
+
+  // Conditional rendering for step content
+  const renderStepContent = () => {
+    switch (currentStepName) {
+      case 'hook':
+        return (
+            <Animated.View style={{alignItems: 'center'}} entering={FadeInDown.duration(600)}>
+              <Text style={styles.hookTitle}>When did you last talk to...</Text>
+              <AnimatedThoughtBubbles phrases={["your sister?", "your best friend?", "Your Uni roommate?"]} />
+              <Text style={styles.hookSubtitle}>Think of someone you care about deeply. When did you last connect?</Text>
+              <Text style={styles.hookSubtext}>Life gets busy... Weave helps you stay close to what matters.</Text>
+            </Animated.View>
+        );
+      case 'vision':
+        return (
+          <Animated.View style={{alignItems: 'center'}} entering={FadeInDown.duration(600)}>
+            <Text style={styles.visionTitle}>Imagine a year from now...</Text>
+            <Text style={styles.visionSubtitle}>Where no one slips through the cracks.</Text>
+            <FlatList
+              horizontal
+              data={visionCards}
+              renderItem={({ item }) => (
+                <VisionCard icon={item.icon} title={item.title} description={item.description} />
+              )}
+              keyExtractor={(_, index) => index.toString()}
+              showsHorizontalScrollIndicator={false}
+              onScroll={handleScroll}
+              scrollEventThrottle={16}
+              snapToAlignment="center"
+              decelerationRate="fast"
+              contentContainerStyle={{ paddingHorizontal: (width - (width - 48)) / 2 }}
+              snapToInterval={width - 48}
+            />
+            <View style={styles.paginationContainer}>
+              {visionCards.map((_, index) => (
+                <View key={index} style={[styles.paginationDot, { opacity: visionPage === index ? 1 : 0.3 }]} />
+              ))}
+            </View>
+          </Animated.View>
+        );
+      case 'circles':
+        switch (circlesStep) {
+          case 'intro':
+            return (
+              <Animated.View style={{alignItems: 'center', width: '100%'}} entering={FadeInDown.duration(600)}>
+                  <Text style={styles.visionTitle}>Your Three Circles</Text>
+                  <Text style={styles.visionSubtitle}>We'll start with your inner circle—the people who matter most.</Text>
+                  <View style={styles.tierCardContainer}>
+                      {tierCards.map((card, index) => (
+                          <TierCard key={index} icon={card.icon} title={card.title} description={card.description} />
+                      ))}
+                  </View>
+                  <TouchableOpacity onPress={() => setCirclesStep('choice')} style={styles.startButton}>
+                      <Text style={styles.startButtonText}>Got it — Let's start</Text>
+                  </TouchableOpacity>
+              </Animated.View>
+            );
+          case 'choice':
+            return <AddConnectionChoice onChoice={setCirclesStep} />;
+          case 'picker':
+            return <ContactPickerGrid maxSelection={3} onSelectionChange={setFriendsForQuiz} />;
+          case 'manual':
+            return <ManualAddFriendForm onComplete={handleManualAddComplete} />;
+          default:
+            return null;
+        }
+      case 'archetypes':
+        return <ArchetypeQuiz friends={friendsForQuiz} onComplete={handleQuizComplete} />;
+      case 'privacy':
+        return (
+            <Animated.View style={{alignItems: 'center', width: '100%'}} entering={FadeInDown.duration(600)}>
+                <Text style={styles.visionTitle}>Your relationships are yours.</Text>
+                <Text style={styles.visionSubtitle}>We believe your personal life is not a product. Here's our promise:</Text>
+                <View style={styles.tierCardContainer}>
+                    {privacyPromises.map((card, index) => (
+                        <PrivacyPromise key={index} icon={card.icon} title={card.title} description={card.description} />
+                    ))}
+                </View>
+                <TouchableOpacity onPress={() => Linking.openURL('https://www.google.com')}>
+                    <Text style={styles.linkText}>Read our full Privacy Policy</Text>
+                </TouchableOpacity>
+            </Animated.View>
+        );
+      default:
+        return null;
+    }
+  };
+  
+  const showFooterContinue = !(currentStepName === 'circles' && circlesStep === 'intro');
+  const isCirclesContinueDisabled = currentStepName === 'circles' && circlesStep === 'picker' && friendsForQuiz.length === 0;
+  const isArchetypesContinueDisabled = currentStepName === 'archetypes' && Object.keys(assignments).length < friendsForQuiz.length;
+
+  const isScrollView = !((currentStepName === 'circles' && (circlesStep === 'picker' || circlesStep === 'manual')) || currentStepName === 'archetypes');
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -110,195 +264,107 @@ export default function Onboarding() {
       </View>
 
       <View style={styles.headerContainer}>
-        <Text style={styles.title}>{currentStepData.title}</Text>
-        <Text style={styles.subtitle}>{currentStepData.subtitle}</Text>
+        {currentStep > 0 && (
+          <TouchableOpacity onPress={handleBack} style={styles.backButton}>
+            <ArrowLeft size={24} color={theme.colors['muted-foreground']} />
+          </TouchableOpacity>
+        )}
+        {!isLastStep && currentStepName !== 'archetypes' && (
+          <TouchableOpacity onPress={onSkip} style={styles.skipButton}>
+            <Text style={styles.skipButtonText}>Skip</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
-      <ScrollView contentContainerStyle={styles.contentContainer}>
-        {currentStepData.content}
-      </ScrollView>
+      {isScrollView ? (
+        <ScrollView contentContainerStyle={styles.contentContainer}>
+          {renderStepContent()}
+        </ScrollView>
+      ) : (
+        <View style={styles.contentContainer}>
+          {renderStepContent()}
+        </View>
+      )}
 
       <View style={styles.footer}>
-        <View style={{ width: 80 }}>
-          {currentStep > 0 && (
-            <TouchableOpacity onPress={() => setCurrentStep(currentStep - 1)} style={{ padding: 8 }}>
-              <Text style={styles.backButtonText}>Back</Text>
+        {currentStepName === 'circles' && circlesStep === 'picker' ? (
+          <View style={{ width: '100%', alignItems: 'center' }}>
+            <TouchableOpacity onPress={handleNext} disabled={isCirclesContinueDisabled} style={[styles.nextButton, isCirclesContinueDisabled && { opacity: 0.5 }]}>
+              <ArrowRight color="white" size={24} />
             </TouchableOpacity>
-          )}
-        </View>
-        <TouchableOpacity onPress={handleNext} style={styles.nextButton}>
-          <Text style={styles.nextButtonText}>{isLastStep ? 'Get Started' : 'Continue'}</Text>
-          <ArrowRight color="white" size={20} style={{ marginLeft: 8 }} />
-        </TouchableOpacity>
+          </View>
+        ) : (
+          <>
+            <View style={{ flex: 1 }} />
+            <View style={{ flex: 1, alignItems: 'flex-end' }}>
+              {showFooterContinue && currentStepName !== 'archetypes' && (currentStepName !== 'circles' || circlesStep !== 'manual') && (
+                <TouchableOpacity onPress={handleNext} disabled={isArchetypesContinueDisabled} style={[styles.nextButton, isArchetypesContinueDisabled && { opacity: 0.5 }]}>
+                  <ArrowRight color="white" size={24} />
+                </TouchableOpacity>
+              )}
+            </View>
+          </>
+        )}
       </View>
     </SafeAreaView>
   );
 }
 
-const TierInfo = ({ color, title, subtitle }: { color: string, title: string, subtitle: string }) => (
-    <View style={styles.tierInfoContainer}>
-        <View style={[styles.tierInfoDot, { backgroundColor: color }]} />
-        <View>
-            <Text style={styles.tierInfoTitle}>{title}</Text>
-            <Text style={styles.tierInfoSubtitle}>{subtitle}</Text>
-        </View>
-    </View>
-);
-
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
-  },
-  progressBarContainer: {
-    flexDirection: 'row',
-    gap: 8,
-    paddingHorizontal: 24,
-    paddingTop: 20,
-    paddingBottom: 20,
-  },
-  progressPill: {
-    height: 8,
-    flex: 1,
-    borderRadius: 4,
-  },
-  headerContainer: {
-    alignItems: 'center',
-    paddingHorizontal: 24,
-    marginBottom: 16,
-  },
-  title: {
-    fontSize: 32,
-    color: theme.colors.foreground,
-    marginBottom: 12,
-    textAlign: 'center',
-    fontFamily: 'serif',
-  },
-  subtitle: {
-    fontSize: 18,
-    color: theme.colors['muted-foreground'],
-    textAlign: 'center',
-  },
-  contentContainer: {
-    paddingHorizontal: 24,
-    paddingBottom: 120, // Space for the footer
-  },
-  stepContentContainer: {
-    alignItems: 'center',
-    paddingVertical: 16,
-  },
-  emoji: {
-    fontSize: 80,
-    marginBottom: 32,
-  },
-  stepSubtext: {
-    fontSize: 18,
-    textAlign: 'center',
-    color: theme.colors['muted-foreground'],
-    lineHeight: 28,
-    maxWidth: 300,
-  },
-  tiersRingLg: {
-    width: 224,
-    height: 224,
-    borderRadius: 112,
-    borderWidth: 4,
-    borderStyle: 'dashed',
-    borderColor: '#C17B63',
-    alignItems: 'center',
+  safeArea: { flex: 1, backgroundColor: '#FBF9F7' },
+  progressBarContainer: { flexDirection: 'row', gap: 8, paddingHorizontal: 24, paddingTop: 20, paddingBottom: 20 },
+  progressPill: { height: 8, flex: 1, borderRadius: 4 },
+  headerContainer: { 
+    height: 60,
     justifyContent: 'center',
-    marginBottom: 48,
+    paddingHorizontal: 24,
   },
-  tiersRingMd: {
-    width: 144,
-    height: 144,
-    borderRadius: 72,
-    borderWidth: 4,
-    borderStyle: 'dashed',
-    borderColor: '#D4A574',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  tiersRingSm: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#7A9471',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  tierInfoContainer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 16,
-      padding: 12,
-      borderRadius: 12,
-      backgroundColor: 'rgba(255, 255, 255, 0.5)',
-  },
-  tierInfoDot: {
-      width: 24,
-      height: 24,
-      borderRadius: 12,
-  },
-  tierInfoTitle: {
-      fontWeight: '500',
-      fontSize: 18,
-      color: '#3C3C3C',
-  },
-  tierInfoSubtitle: {
-      color: '#8A8A8A',
-  },
-  archetypeGrid: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      justifyContent: 'center',
-      gap: 12,
-      marginBottom: 48,
-  },
-  startIconContainer: {
-      width: 96,
-      height: 96,
-      backgroundColor: theme.colors.primary,
-      borderRadius: 24,
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginBottom: 32,
-  },
-  footer: {
+  backButton: {
     position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: 24,
-    paddingBottom: 32,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: theme.colors.background,
-    borderTopWidth: 1,
-    borderColor: theme.colors.border,
+    left: 24,
+    padding: 8,
+    zIndex: 10,
   },
-  backButtonText: {
-    fontSize: 18,
-    fontWeight: '500',
-    color: theme.colors['muted-foreground'],
+  skipButton: {
+    position: 'absolute',
+    right: 24,
+    padding: 8,
+    zIndex: 10,
   },
+  contentContainer: { paddingBottom: 120, justifyContent: 'center', flexGrow: 1 },
+  placeholderText: { fontSize: 18, color: theme.colors['muted-foreground'], textAlign: 'center' },
+  hookTitle: { fontSize: 32, color: theme.colors.foreground, textAlign: 'center', fontFamily: 'serif', marginBottom: 16 },
+  hookSubtitle: { fontSize: 20, color: theme.colors.foreground, textAlign: 'center', fontFamily: 'serif', marginBottom: 12 },
+  hookSubtext: { fontSize: 16, color: theme.colors['muted-foreground'], textAlign: 'center', marginTop: 24, lineHeight: 24 },
+  visionTitle: { fontSize: 32, color: theme.colors.foreground, textAlign: 'center', fontFamily: 'serif', marginBottom: 8, paddingHorizontal: 24 },
+  visionSubtitle: { fontSize: 18, color: theme.colors['muted-foreground'], textAlign: 'center', marginBottom: 32, paddingHorizontal: 24 },
+  visionScrollView: { maxHeight: 350 },
+  paginationContainer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 24 },
+  paginationDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: theme.colors.primary, marginHorizontal: 4 },
+  tierCardContainer: { gap: 12, width: '100%', paddingHorizontal: 24, marginBottom: 32 },
+  startButton: { backgroundColor: theme.colors.primary, paddingHorizontal: 32, paddingVertical: 16, borderRadius: 16 },
+  startButtonText: { color: 'white', fontSize: 18, fontWeight: '500' },
+  linkText: {
+    color: theme.colors.primary,
+    textDecorationLine: 'underline',
+    fontSize: 16,
+    marginTop: 24,
+  },
+  footer: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 24, paddingBottom: 32, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'transparent' },
+  backButtonText: { fontSize: 18, fontWeight: '500', color: theme.colors['muted-foreground'] },
+  skipButtonText: { fontSize: 18, fontWeight: '500', color: theme.colors['muted-foreground'], opacity: 0.7 },
   nextButton: {
     backgroundColor: theme.colors.primary,
-    paddingHorizontal: 32,
-    paddingVertical: 16,
-    borderRadius: 16,
-    flexDirection: 'row',
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 5,
   },
-  nextButtonText: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: '500',
-  },
+  nextButtonText: { color: 'white', fontSize: 18, fontWeight: '500' },
 });

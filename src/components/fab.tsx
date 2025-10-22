@@ -16,7 +16,7 @@ export function FAB({ onClick }: FABProps) {
       onPress={onClick}
       style={[styles.container, { bottom: insets.bottom + 24 }]}
     >
-      <Plus color="white" size={28} />
+      <Plus color={theme.colors.primary} size={28} />
     </TouchableOpacity>
   );
 }
@@ -26,13 +26,13 @@ const styles = StyleSheet.create({
         position: 'absolute',
         width: 64,
         height: 64,
-        backgroundColor: theme.colors.primary,
+        backgroundColor: theme.colors.primary + '33',
         borderRadius: 32,
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 4.65,
-        elevation: 8,
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.25,
+        shadowRadius: 8,
+        elevation: 12,
         alignItems: 'center',
         justifyContent: 'center',
         zIndex: 50,

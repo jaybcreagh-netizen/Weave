@@ -4,6 +4,7 @@ import { useUIStore } from '../stores/uiStore';
 import { type Archetype } from './types';
 import { theme } from '../theme';
 import { archetypeData } from '../lib/constants';
+import { ArchetypeIcon } from './ArchetypeIcon';
 
 interface ArchetypeCardProps {
   archetype: Archetype;
@@ -19,7 +20,6 @@ export function ArchetypeCard({
   const { setArchetypeModal } = useUIStore();
   const data = archetypeData[archetype];
 
-  // ADD THIS CHECK: If data is not found, render nothing to prevent a crash.
   if (!data) {
     return null;
   }
@@ -45,7 +45,7 @@ export function ArchetypeCard({
         { transform: [{ scale: pressed ? 0.97 : 1 }] }
       ]}
     >
-      <Text style={styles.icon}>{data.icon}</Text>
+      <ArchetypeIcon archetype={archetype} size={32} color={isSelected ? theme.colors.primary : theme.colors.foreground} />
       <Text style={styles.name}>
         {data.name.replace("The ", "")}
       </Text>

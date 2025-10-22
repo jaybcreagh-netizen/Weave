@@ -3,6 +3,7 @@ import SQLiteAdapter from '@nozbe/watermelondb/adapters/sqlite';
 import schema from './db/schema';
 import Friend from './db/models/Friend';
 import Interaction from './db/models/Interaction';
+import InteractionFriend from './db/models/InteractionFriend';
 
 const adapter = new SQLiteAdapter({
   schema,
@@ -19,6 +20,7 @@ export const database = new Database({
   modelClasses: [
     Friend,
     Interaction,
+    InteractionFriend,
   ],
 });
 

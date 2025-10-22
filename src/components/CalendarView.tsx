@@ -2,14 +2,15 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { theme } from '../theme';
-import { eachDayOfInterval, endOfMonth, endOfWeek, startOfMonth, startOfWeek, format, isToday, isSameMonth, isSameDay } from 'date-fns';
+import { eachDayOfInterval, endOfMonth, endOfWeek, startOfMonth, startOfWeek, format, isToday, isSameMonth, isSameDay, isAfter } from 'date-fns';
 
 interface CalendarViewProps {
   onDateSelect: (date: Date) => void;
   selectedDate: Date;
+  maxDate?: Date;
 }
 
-export function CalendarView({ onDateSelect, selectedDate }: CalendarViewProps) {
+export function CalendarView({ onDateSelect, selectedDate, maxDate }: CalendarViewProps) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
 
   const firstDayOfMonth = startOfMonth(currentMonth);
@@ -28,6 +29,8 @@ export function CalendarView({ onDateSelect, selectedDate }: CalendarViewProps) 
     setCurrentMonth(new Date(currentMonth.setMonth(currentMonth.getMonth() - 1)));
   };
 
+  const canGoToNextMonth = !maxDate || isSameMonth(currentMonth, maxDate) || !isAfter(firstDayOfMonth, maxDate);
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -35,8 +38,8 @@ export function CalendarView({ onDateSelect, selectedDate }: CalendarViewProps) 
           <ChevronLeft color={theme.colors.foreground} size={20} />
         </TouchableOpacity>
         <Text style={styles.headerLabel}>{format(currentMonth, 'MMMM yyyy')}</Text>
-        <TouchableOpacity onPress={nextMonth} style={styles.navButton}>
-          <ChevronRight color={theme.colors.foreground} size={20} />
+        <TouchableOpacity onPress={nextMonth} disabled={!canGoToNextMonth} style={styles.navButton}>
+          <ChevronRight color={!canGoToNextMonth ? theme.colors.muted : theme.colors.foreground} size={20} />
         </TouchableOpacity>
       </View>
 
@@ -49,13 +52,17 @@ export function CalendarView({ onDateSelect, selectedDate }: CalendarViewProps) 
       <View style={styles.daysGrid}>
         {days.map((day) => {
           const isSelected = isSameDay(day, selectedDate);
+          const isDisabled = maxDate ? isAfter(day, maxDate) && !isSameDay(day, maxDate) : false;
+
           return (
             <TouchableOpacity
               key={day.toString()}
+              disabled={isDisabled}
               style={[
                 styles.dayCell,
                 isToday(day) && styles.dayToday,
                 isSelected && styles.daySelected,
+                isDisabled && styles.dayDisabled,
               ]}
               onPress={() => onDateSelect(day)}
             >
@@ -63,6 +70,7 @@ export function CalendarView({ onDateSelect, selectedDate }: CalendarViewProps) 
                 styles.dayText,
                 !isSameMonth(day, currentMonth) && styles.dayOutside,
                 isSelected && styles.daySelectedText,
+                isDisabled && styles.dayDisabledText,
               ]}>
                 {format(day, 'd')}
               </Text>
@@ -128,6 +136,9 @@ const styles = StyleSheet.create({
   daySelected: {
     backgroundColor: theme.colors.primary,
   },
+  dayDisabled: {
+    opacity: 0.3,
+  },
   dayText: {
     fontSize: 16,
     color: theme.colors.foreground,
@@ -139,4 +150,7 @@ const styles = StyleSheet.create({
     color: theme.colors['muted-foreground'],
     opacity: 0.5,
   },
+  dayDisabledText: {
+      color: theme.colors['muted-foreground'],
+  }
 });
