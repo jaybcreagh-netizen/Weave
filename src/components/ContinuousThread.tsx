@@ -34,6 +34,11 @@ export function ContinuousThread({ contentHeight, startY = 0, interactions = [] 
   // Animation: Elegant fade-in
   const opacity = useSharedValue(0);
 
+  // Move useAnimatedProps outside of the render function to avoid hooks violations
+  const animatedProps = useAnimatedProps(() => ({
+    opacity: opacity.value,
+  }));
+
   useEffect(() => {
     opacity.value = withTiming(1, {
       duration: 1000,
@@ -169,10 +174,6 @@ export function ContinuousThread({ contentHeight, startY = 0, interactions = [] 
       : segment.texture === 'dashed'
       ? '8 4' // Dashes
       : undefined; // Solid (no dash array)
-
-    const animatedProps = useAnimatedProps(() => ({
-      opacity: opacity.value,
-    }));
 
     return (
       <AnimatedLine
