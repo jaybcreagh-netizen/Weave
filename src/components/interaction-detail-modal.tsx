@@ -57,14 +57,25 @@ export function InteractionDetailModal({
   if (!interaction) return null;
 
   const { date, time } = formatDateTime(interaction.interactionDate);
-  const modeIcon = modeIcons[interaction.mode as keyof typeof modeIcons] || modeIcons.default;
   const moonIcon = interaction.vibe ? moonPhaseIcons[interaction.vibe as MoonPhase] : null;
   const isPast = new Date(interaction.interactionDate) < new Date();
 
-  // Get friendly label for category (or fall back to activity)
-  const displayLabel = interaction.category
-    ? getCategoryMetadata(interaction.category as InteractionCategory).label
-    : interaction.activity;
+  // Get friendly label and icon for category (or fall back to activity)
+  // Check if activity looks like a category ID (has a dash)
+  const isCategory = interaction.activity && interaction.activity.includes('-');
+
+  let displayLabel: string;
+  let displayIcon: string;
+
+  if (isCategory) {
+    const categoryData = getCategoryMetadata(interaction.activity as InteractionCategory);
+    displayLabel = categoryData.label;
+    displayIcon = categoryData.icon;
+  } else {
+    // Old format - use mode icon and activity name
+    displayLabel = interaction.activity;
+    displayIcon = modeIcons[interaction.mode as keyof typeof modeIcons] || modeIcons.default;
+  }
 
   return (
     <Modal
@@ -82,7 +93,7 @@ export function InteractionDetailModal({
 
             <View style={styles.header}>
               <View style={styles.headerTitleContainer}>
-                <Text style={styles.headerIcon}>{modeIcon}</Text>
+                <Text style={styles.headerIcon}>{displayIcon}</Text>
                 <View>
                   <Text style={styles.headerTitle}>{displayLabel}</Text>
                   <Text style={styles.headerSubtitle}>

@@ -38,12 +38,23 @@ export function TimelineItem({ interaction, isFuture, onPress, index, scrollY, i
   const warmth = calculateWeaveWarmth(date);
   const colors = getThreadColors(warmth, isFuture);
   const { primary, secondary } = formatPoeticDate(date);
-  const modeIcon = modeIcons[interaction.mode as keyof typeof modeIcons] || modeIcons.default;
 
-  // Get friendly label for category (or fall back to activity)
-  const displayLabel = interaction.category
-    ? getCategoryMetadata(interaction.category as InteractionCategory).label
-    : interaction.activity;
+  // Get friendly label and icon for category (or fall back to activity)
+  // Check if activity looks like a category ID (has a dash)
+  const isCategory = interaction.activity && interaction.activity.includes('-');
+
+  let displayLabel: string;
+  let displayIcon: string;
+
+  if (isCategory) {
+    const categoryData = getCategoryMetadata(interaction.activity as InteractionCategory);
+    displayLabel = categoryData.label;
+    displayIcon = categoryData.icon;
+  } else {
+    // Old format - use mode icon and activity name
+    displayLabel = interaction.activity;
+    displayIcon = modeIcons[interaction.mode as keyof typeof modeIcons] || modeIcons.default;
+  }
 
   // Animation values
   const pulseAnimation = useSharedValue(0);
@@ -308,7 +319,7 @@ export function TimelineItem({ interaction, isFuture, onPress, index, scrollY, i
               styles.cardIcon,
               { transform: [{ rotate: `${iconRotation}deg` }] }
             ]}>
-              {modeIcon}
+              {displayIcon}
             </Text>
             <View style={{ flex: 1 }}>
               <Text style={styles.cardTitle}>{displayLabel}</Text>
