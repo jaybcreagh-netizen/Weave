@@ -10,43 +10,11 @@ import { Calendar as CalendarIcon, X, ArrowUp } from 'lucide-react-native';
 import { CalendarView } from '../src/components/CalendarView';
 import { MoonPhaseSelector } from '../src/components/MoonPhaseSelector';
 import { format, addDays, nextSaturday, isSameDay } from 'date-fns';
-import { type Vibe } from '../src/components/types';
+import { type Vibe, type InteractionCategory } from '../src/components/types';
+import { getAllCategories, type CategoryMetadata } from '../src/lib/interaction-categories';
 
-const modes = [
-  { id: 'one-on-one', icon: '🌿', label: 'One-on-One', sublabel: 'For depth and focus' },
-  { id: 'group-flow', icon: '🌊', label: 'Group Flow', sublabel: 'For shared energy' },
-  { id: 'celebration', icon: '🔥', label: 'Celebration', sublabel: 'For marking moments' },
-  { id: 'quick-touch', icon: '🌀', label: 'Quick Touch', sublabel: 'For light connection' },
-  { id: 'cozy-time', icon: '🌙', label: 'Cozy Time', sublabel: 'For warmth and ease' },
-  { id: 'out-and-about', icon: '☀️', label: 'Out & About', sublabel: 'For movement and play' },
-];
-
-const forms: Record<string, Array<{activity: string, icon: string}>> = {
-  'one-on-one': [
-    { activity: 'Coffee', icon: '☕' }, { activity: 'Meal', icon: '🍽️' }, { activity: 'Walk', icon: '🚶' },
-    { activity: 'Chat', icon: '💬' }, { activity: 'Video Call', icon: '📹' }, { activity: 'Something else', icon: '✨' }
-  ],
-  'group-flow': [
-    { activity: 'Event', icon: '🎪' }, { activity: 'Party', icon: '🎉' }, { activity: 'Dinner Party', icon: '🍷' },
-    { activity: 'Hangout', icon: '👥' }, { activity: 'Game Night', icon: '🎲' }, { activity: 'Something else', icon: '✨' }
-  ],
-  'celebration': [
-    { activity: 'Birthday', icon: '🎂' }, { activity: 'Anniversary', icon: '💕' }, { activity: 'Milestone', icon: '🏆' },
-    { activity: 'Holiday', icon: '🎄' }, { activity: 'Achievement', icon: '🌟' }, { activity: 'Something else', icon: '✨' }
-  ],
-  'quick-touch': [
-    { activity: 'Text', icon: '💬' }, { activity: 'Call', icon: '📞' }, { activity: 'DM', icon: '📱' },
-    { activity: 'Quick Visit', icon: '🚪' }, { activity: 'Voice Note', icon: '🎤' }, { activity: 'Something else', icon: '✨' }
-  ],
-  'cozy-time': [
-    { activity: 'Home', icon: '🏠' }, { activity: 'Movie Night', icon: '🍿' }, { activity: 'Cooking', icon: '👩‍🍳' },
-    { activity: 'Tea Time', icon: '🫖' }, { activity: 'Reading Together', icon: '📚' }, { activity: 'Something else', icon: '✨' }
-  ],
-  'out-and-about': [
-    { activity: 'Hike', icon: '🥾' }, { activity: 'Concert', icon: '🎵' }, { activity: 'Museum', icon: '🖼️' },
-    { activity: 'Shopping', icon: '🛍️' }, { activity: 'Adventure', icon: '🗺️' }, { activity: 'Something else', icon: '✨' }
-  ],
-};
+// NEW: 8 universal interaction categories
+const categories: CategoryMetadata[] = getAllCategories();
 
 const dateOptions = [
     { id: 'today', icon: '☀️', label: 'Today', getDate: () => new Date() },
@@ -66,34 +34,24 @@ export default function InteractionFormScreen() {
     : dateOptions;
 
   const [showCalendar, setShowCalendar] = useState(false);
-  const [selectedMode, setSelectedMode] = useState<string | null>(null);
-  const [selectedActivity, setSelectedActivity] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<InteractionCategory | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [selectedVibe, setSelectedVibe] = useState<Vibe | null>(null);
   const [notes, setNotes] = useState('');
 
   const scrollViewRef = useRef<ScrollView>(null);
-  const [sectionLayouts, setSectionLayouts] = useState({ activity: 0, reflection: 0 });
+  const [detailsSectionY, setDetailsSectionY] = useState(0);
 
+  // Auto-scroll to details section when category is selected
   useEffect(() => {
-    if (selectedMode && sectionLayouts.activity > 0) {
-      scrollViewRef.current?.scrollTo({ y: sectionLayouts.activity, animated: true });
+    if (selectedCategory && detailsSectionY > 0) {
+      scrollViewRef.current?.scrollTo({ y: detailsSectionY, animated: true });
     }
-  }, [selectedMode, sectionLayouts.activity]);
+  }, [selectedCategory, detailsSectionY]);
 
-  useEffect(() => {
-    if (selectedActivity && sectionLayouts.reflection > 0) {
-      scrollViewRef.current?.scrollTo({ y: sectionLayouts.reflection, animated: true });
-    }
-  }, [selectedActivity, sectionLayouts.reflection]);
-
-  const handleModeSelect = (modeId: string) => {
-    setSelectedMode(modeId);
-    setSelectedActivity(null); // Reset subsequent selections
-  };
-
-  const handleActivitySelect = (activity: string) => {
-    setSelectedActivity(activity);
+  const handleCategorySelect = (category: InteractionCategory) => {
+    setSelectedCategory(category);
+    Vibration.vibrate(50);
   };
 
   const handleDateSelect = (date: Date) => {
@@ -107,16 +65,17 @@ export default function InteractionFormScreen() {
   }
 
   const handleSave = async () => {
-    if (!selectedActivity || !selectedMode || !friendId || !mode || !selectedDate) return;
+    if (!selectedCategory || !friendId || !mode || !selectedDate) return;
 
     await addInteraction({
       friendIds: [friendId],
-      activity: selectedActivity,
+      category: selectedCategory, // NEW: Use category instead of activity
+      activity: selectedCategory, // Keep for backward compatibility
       notes,
       date: selectedDate,
       type: mode,
       status: mode === 'log' ? 'completed' : 'planned',
-      mode: selectedMode,
+      mode: 'one-on-one', // Deprecated field, use default
       vibe: selectedVibe,
     });
     Vibration.vibrate();
@@ -145,53 +104,40 @@ export default function InteractionFormScreen() {
 
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
             <ScrollView ref={scrollViewRef} style={{ flex: 1}} contentContainerStyle={styles.scrollContainer}>
+                {/* NEW: Single-step category selection */}
                 <Animated.View style={styles.section} entering={FadeInUp.duration(500)}>
-                    <Text style={styles.sectionTitle}>What was the energy?</Text>
+                    <Text style={styles.sectionTitle}>How did you connect?</Text>
                     <View style={styles.gridContainer}>
-                        {modes.map((m, index) => (
-                            <Animated.View key={m.id} style={{ width: '48%' }} entering={FadeInUp.duration(500).delay(100 + index * 50)}>
-                                <TouchableOpacity style={[styles.gridItem, selectedMode === m.id && styles.gridItemSelected]} onPress={() => handleModeSelect(m.id)}>
-                                    <Text style={styles.gridItemIcon}>{m.icon}</Text>
-                                    <Text style={styles.gridItemLabel}>{m.label}</Text>
-                                    <Text style={styles.gridItemSublabel}>{m.sublabel}</Text>
+                        {categories.map((cat, index) => (
+                            <Animated.View
+                                key={cat.category}
+                                style={{ width: '48%' }}
+                                entering={FadeInUp.duration(500).delay(100 + index * 50)}
+                            >
+                                <TouchableOpacity
+                                    style={[
+                                        styles.gridItem,
+                                        selectedCategory === cat.category && styles.gridItemSelected
+                                    ]}
+                                    onPress={() => handleCategorySelect(cat.category)}
+                                >
+                                    <Text style={styles.gridItemIcon}>{cat.icon}</Text>
+                                    <Text style={styles.gridItemLabel}>{cat.label}</Text>
+                                    <Text style={styles.gridItemSublabel}>{cat.description}</Text>
                                 </TouchableOpacity>
                             </Animated.View>
                         ))}
                     </View>
                 </Animated.View>
 
-                {selectedMode && (
+                {selectedCategory && (
                     <Animated.View style={styles.section} entering={FadeInUp.duration(500)} onLayout={(event) => {
                         const { y } = event.nativeEvent.layout;
-                        setSectionLayouts(prev => ({ ...prev, activity: y }));
-                    }}>
-                        <View style={styles.sectionHeader}>
-                            <Text style={styles.sectionTitle}>How did it take shape?</Text>
-                            <TouchableOpacity onPress={() => scrollViewRef.current?.scrollTo({ y: 0, animated: true }) }>
-                                <ArrowUp size={24} color={theme.colors['muted-foreground']} />
-                            </TouchableOpacity>
-                        </View>
-                        <View style={styles.gridContainer}>
-                            {(forms[selectedMode] || []).map((act, index) => (
-                                <Animated.View key={act.activity} style={{ width: '48%' }} entering={FadeInUp.duration(500).delay(100 + index * 50)}>
-                                    <TouchableOpacity style={[styles.gridItem, selectedActivity === act.activity && styles.gridItemSelected]} onPress={() => handleActivitySelect(act.activity)}>
-                                        <Text style={styles.gridItemIcon}>{act.icon}</Text>
-                                        <Text style={styles.gridItemLabel}>{act.activity}</Text>
-                                    </TouchableOpacity>
-                                </Animated.View>
-                            ))}
-                        </View>
-                    </Animated.View>
-                )}
-
-                {selectedActivity && (
-                    <Animated.View style={styles.section} entering={FadeInUp.duration(500)} onLayout={(event) => {
-                        const { y } = event.nativeEvent.layout;
-                        setSectionLayouts(prev => ({ ...prev, reflection: y }));
+                        setDetailsSectionY(y);
                     }}>
                         <View style={styles.sectionHeader}>
                             <Text style={styles.sectionTitle}>Add Details</Text>
-                            <TouchableOpacity onPress={() => scrollViewRef.current?.scrollTo({ y: sectionLayouts.activity, animated: true }) }>
+                            <TouchableOpacity onPress={() => scrollViewRef.current?.scrollTo({ y: 0, animated: true }) }>
                                 <ArrowUp size={24} color={theme.colors['muted-foreground']} />
                             </TouchableOpacity>
                         </View>
@@ -235,7 +181,7 @@ export default function InteractionFormScreen() {
 
             </ScrollView>
         </TouchableWithoutFeedback>
-        {selectedActivity && (
+        {selectedCategory && (
             <View style={styles.footer}>
                 <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
                     <Text style={styles.saveButtonText}>Save</Text>

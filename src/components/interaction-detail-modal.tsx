@@ -6,8 +6,9 @@ import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, runOnJS } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
 import { theme } from '../theme';
-import { type Interaction, type MoonPhase } from './types';
+import { type Interaction, type MoonPhase, type InteractionCategory } from './types';
 import { modeIcons } from '../lib/constants';
+import { getCategoryMetadata } from '../lib/interaction-categories';
 
 const moonPhaseIcons: Record<MoonPhase, string> = {
   'NewMoon': '🌑',
@@ -60,6 +61,11 @@ export function InteractionDetailModal({
   const moonIcon = interaction.vibe ? moonPhaseIcons[interaction.vibe as MoonPhase] : null;
   const isPast = new Date(interaction.interactionDate) < new Date();
 
+  // Get friendly label for category (or fall back to activity)
+  const displayLabel = interaction.category
+    ? getCategoryMetadata(interaction.category as InteractionCategory).label
+    : interaction.activity;
+
   return (
     <Modal
       animationType="slide"
@@ -78,7 +84,7 @@ export function InteractionDetailModal({
               <View style={styles.headerTitleContainer}>
                 <Text style={styles.headerIcon}>{modeIcon}</Text>
                 <View>
-                  <Text style={styles.headerTitle}>{interaction.activity}</Text>
+                  <Text style={styles.headerTitle}>{displayLabel}</Text>
                   <Text style={styles.headerSubtitle}>
                     {interaction.mode?.replace('-', ' ')} • {interaction.type}
                   </Text>

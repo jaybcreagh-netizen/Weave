@@ -15,7 +15,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { theme } from '../theme';
 import { formatPoeticDate, calculateWeaveWarmth, getThreadColors } from '../lib/timeline-utils';
 import { modeIcons } from '../lib/constants';
-import { type Interaction } from './types';
+import { getCategoryMetadata } from '../lib/interaction-categories';
+import { type Interaction, type InteractionCategory } from './types';
 
 interface TimelineItemProps {
   interaction: Interaction;
@@ -38,6 +39,11 @@ export function TimelineItem({ interaction, isFuture, onPress, index, scrollY, i
   const colors = getThreadColors(warmth, isFuture);
   const { primary, secondary } = formatPoeticDate(date);
   const modeIcon = modeIcons[interaction.mode as keyof typeof modeIcons] || modeIcons.default;
+
+  // Get friendly label for category (or fall back to activity)
+  const displayLabel = interaction.category
+    ? getCategoryMetadata(interaction.category as InteractionCategory).label
+    : interaction.activity;
 
   // Animation values
   const pulseAnimation = useSharedValue(0);
@@ -305,7 +311,7 @@ export function TimelineItem({ interaction, isFuture, onPress, index, scrollY, i
               {modeIcon}
             </Text>
             <View style={{ flex: 1 }}>
-              <Text style={styles.cardTitle}>{interaction.activity}</Text>
+              <Text style={styles.cardTitle}>{displayLabel}</Text>
               <Text style={styles.cardSubtitle}>
                 {interaction.mode?.replace('-', ' ')}
               </Text>
