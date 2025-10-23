@@ -4,7 +4,7 @@ import { ArrowLeft, Camera, X } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useNavigation, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { theme } from '../theme';
+import { useTheme } from '../hooks/useTheme';
 import FriendModel from '../db/models/Friend';
 import { type Archetype, type FriendFormData, type Tier } from './types';
 import { ArchetypeCard } from './archetype-card';
@@ -17,6 +17,7 @@ interface FriendFormProps {
 
 export function FriendForm({ onSave, friend, initialTier }: FriendFormProps) {
   const router = useRouter();
+  const { colors } = useTheme(); // Use the hook
 
   // Helper function to map DB tier to form tier
   const getFormTier = (dbTier?: Tier | string) => {
@@ -65,13 +66,13 @@ export function FriendForm({ onSave, friend, initialTier }: FriendFormProps) {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.header}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
+      <View style={[styles.header, { borderColor: colors.border }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <ArrowLeft size={20} color={theme.colors['muted-foreground']} />
-          <Text style={styles.backButtonText}>Back</Text>
+          <ArrowLeft size={20} color={colors['muted-foreground']} />
+          <Text style={[styles.backButtonText, { color: colors['muted-foreground'] }]}>Back</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>
+        <Text style={[styles.headerTitle, { color: colors.foreground }]}>
           {friend ? "Edit Friend" : "Add Friend"}
         </Text>
         <View style={{ width: 40 }} />
@@ -80,14 +81,14 @@ export function FriendForm({ onSave, friend, initialTier }: FriendFormProps) {
       <ScrollView contentContainerStyle={styles.scrollViewContent}>
         <View style={{ gap: 24 }}>
           <View>
-            <Text style={styles.label}>Portrait</Text>
+            <Text style={[styles.label, { color: colors.foreground }]}>Portrait</Text>
             <View style={styles.imagePickerContainer}>
               <TouchableOpacity onPress={pickImage}>
-                <View style={styles.avatarContainer}>
+                <View style={[styles.avatarContainer, { backgroundColor: colors.muted, borderColor: colors.border }]}>
                   {formData.photoUrl ? (
                     <Image source={{ uri: formData.photoUrl }} style={styles.avatarImage} />
                   ) : (
-                    <Camera size={24} color={theme.colors['muted-foreground']} />
+                    <Camera size={24} color={colors['muted-foreground']} />
                   )}
                 </View>
               </TouchableOpacity>
@@ -97,25 +98,26 @@ export function FriendForm({ onSave, friend, initialTier }: FriendFormProps) {
                 </TouchableOpacity>
               )}
               <View style={{ flex: 1 }}>
-                <TouchableOpacity onPress={pickImage} style={styles.addPhotoButton}>
-                  <Text>{formData.photoUrl ? "Change Photo" : "Add Photo"}</Text>
+                <TouchableOpacity onPress={pickImage} style={[styles.addPhotoButton, { borderColor: colors.border }]}>
+                  <Text style={{ color: colors.foreground }}>{formData.photoUrl ? "Change Photo" : "Add Photo"}</Text>
                 </TouchableOpacity>
               </View>
             </View>
           </View>
 
           <View>
-            <Text style={styles.label}>Name</Text>
+            <Text style={[styles.label, { color: colors.foreground }]}>Name</Text>
             <TextInput
               value={formData.name}
               onChangeText={(name) => setFormData({ ...formData, name })}
-              style={styles.input}
+              style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
               placeholder="Enter friend's name"
+              placeholderTextColor={colors['muted-foreground']}
             />
           </View>
 
           <View>
-            <Text style={styles.label}>Connection Tier</Text>
+            <Text style={[styles.label, { color: colors.foreground }]}>Connection Tier</Text>
             <View style={styles.tierSelectorContainer}>
               {[
                 { id: "inner", label: "Inner" },
@@ -125,16 +127,24 @@ export function FriendForm({ onSave, friend, initialTier }: FriendFormProps) {
                 <TouchableOpacity
                   key={tier.id}
                   onPress={() => setFormData({ ...formData, tier: tier.id })}
-                  style={[styles.tierButton, formData.tier === tier.id && styles.tierButtonSelected]}
+                  style={[
+                    styles.tierButton, 
+                    { backgroundColor: colors.card, borderColor: colors.border }, 
+                    formData.tier === tier.id && [styles.tierButtonSelected, { borderColor: colors.primary, backgroundColor: colors.primary + '20' }]
+                  ]}
                 >
-                  <Text style={[styles.tierButtonText, formData.tier === tier.id && styles.tierButtonTextSelected]}>{tier.label}</Text>
+                  <Text style={[
+                    styles.tierButtonText, 
+                    { color: colors.foreground }, 
+                    formData.tier === tier.id && [styles.tierButtonTextSelected, { color: colors.primary }]
+                  ]}>{tier.label}</Text>
                 </TouchableOpacity>
               ))}
             </View>
           </View>
 
           <View>
-            <Text style={styles.label}>Archetype</Text>
+            <Text style={[styles.label, { color: colors.foreground }]}>Archetype</Text>
             <View style={styles.archetypeGrid}>
               {["Emperor", "Empress", "HighPriestess", "Fool", "Sun", "Hermit", "Magician"].map((archetype) => (
                 <View key={archetype} style={{ width: '48%' }}>
@@ -149,12 +159,13 @@ export function FriendForm({ onSave, friend, initialTier }: FriendFormProps) {
           </View>
 
           <View>
-            <Text style={styles.label}>Notes (Optional)</Text>
+            <Text style={[styles.label, { color: colors.foreground }]}>Notes (Optional)</Text>
             <TextInput
               value={formData.notes}
               onChangeText={(notes) => setFormData({ ...formData, notes })}
-              style={[styles.input, { height: 96, paddingTop: 16 }]}
+              style={[styles.input, { height: 96, paddingTop: 16, backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
               placeholder="Any special notes about this person..."
+              placeholderTextColor={colors['muted-foreground']}
               multiline
             />
           </View>
@@ -162,9 +173,9 @@ export function FriendForm({ onSave, friend, initialTier }: FriendFormProps) {
           <TouchableOpacity
             onPress={handleSave}
             disabled={!formData.name.trim()}
-            style={[styles.saveButton, !formData.name.trim() && { opacity: 0.5 }]}
+            style={[styles.saveButton, { backgroundColor: colors.primary }, !formData.name.trim() && { opacity: 0.5 }]}
           >
-            <Text style={styles.saveButtonText}>
+            <Text style={[styles.saveButtonText, { color: colors['primary-foreground'] }]}>
               {friend ? "Save Changes" : "Add Friend"}
             </Text>
           </TouchableOpacity>
@@ -177,7 +188,6 @@ export function FriendForm({ onSave, friend, initialTier }: FriendFormProps) {
 const styles = StyleSheet.create({
     safeArea: {
         flex: 1,
-        backgroundColor: theme.colors.background,
     },
     header: {
         flexDirection: 'row',
@@ -185,21 +195,17 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         padding: 20,
         borderBottomWidth: 1,
-        borderColor: theme.colors.border,
     },
     backButton: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 8,
     },
-    backButtonText: {
-        color: theme.colors['muted-foreground'],
-    },
+    backButtonText: {},
     headerTitle: {
         fontSize: 20,
         fontWeight: '600',
         fontFamily: 'Lora_700Bold',
-        color: theme.colors.foreground,
     },
     scrollViewContent: {
         padding: 20,
@@ -218,10 +224,8 @@ const styles = StyleSheet.create({
         width: 80,
         height: 80,
         borderRadius: 40,
-        backgroundColor: theme.colors.muted,
         borderWidth: 2,
         borderStyle: 'dashed',
-        borderColor: theme.colors.border,
         alignItems: 'center',
         justifyContent: 'center',
         overflow: 'hidden',
@@ -246,14 +250,11 @@ const styles = StyleSheet.create({
         height: 48,
         borderRadius: 12,
         borderWidth: 1,
-        borderColor: theme.colors.border,
         alignItems: 'center',
         justifyContent: 'center',
     },
     input: {
-        backgroundColor: theme.colors.card,
         borderWidth: 1,
-        borderColor: theme.colors.border,
         borderRadius: 12,
         height: 56,
         fontSize: 18,
@@ -269,19 +270,12 @@ const styles = StyleSheet.create({
         borderRadius: 12,
         borderWidth: 1,
         alignItems: 'center',
-        backgroundColor: theme.colors.card,
-        borderColor: theme.colors.border,
     },
-    tierButtonSelected: {
-        backgroundColor: 'rgba(181, 138, 108, 0.2)',
-        borderColor: theme.colors.primary,
-    },
+    tierButtonSelected: {},
     tierButtonText: {
         fontWeight: '500',
     },
-    tierButtonTextSelected: {
-        color: theme.colors.primary,
-    },
+    tierButtonTextSelected: {},
     archetypeGrid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
@@ -289,13 +283,11 @@ const styles = StyleSheet.create({
     },
     saveButton: {
         width: '100%',
-        backgroundColor: theme.colors.primary,
         paddingVertical: 16,
         borderRadius: 16,
         alignItems: 'center',
     },
     saveButtonText: {
-        color: 'white',
         fontSize: 18,
         fontWeight: '500',
     }

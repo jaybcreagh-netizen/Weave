@@ -4,7 +4,7 @@ import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import Animated, { useAnimatedStyle, withTiming } from 'react-native-reanimated';
-import { theme } from '../theme';
+import { useTheme } from '../hooks/useTheme';
 
 interface TierTabProps {
   label: string;
@@ -23,13 +23,14 @@ const tierIcons = {
 };
 
 export function TierTab({ shortLabel, label, count, maxCount, isActive, onClick, tier }: TierTabProps) {
-  const tierColor = theme.colors.tier[tier];
+  const { colors } = useTheme(); // Use the hook
+  const tierColor = colors.tier[tier];
   const tierIcon = tierIcons[tier];
 
   // Animate background color and text color for a smooth transition
   const animatedContainerStyle = useAnimatedStyle(() => {
     return {
-      backgroundColor: withTiming(isActive ? theme.colors.primary + '33' : 'transparent', { duration: 250 }),
+      backgroundColor: withTiming(isActive ? colors.primary + '33' : 'transparent', { duration: 250 }),
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: withTiming(isActive ? 0.15 : 0, { duration: 250 }),
@@ -40,13 +41,13 @@ export function TierTab({ shortLabel, label, count, maxCount, isActive, onClick,
 
   const animatedTextStyle = useAnimatedStyle(() => {
     return {
-      color: withTiming(isActive ? theme.colors.foreground : theme.colors['muted-foreground'], { duration: 250 }),
+      color: withTiming(isActive ? colors.foreground : colors['muted-foreground'], { duration: 250 }),
     };
   });
 
   const animatedCountTextStyle = useAnimatedStyle(() => {
     return {
-        color: withTiming(isActive ? theme.colors.foreground : theme.colors['muted-foreground'], { duration: 250 }),
+        color: withTiming(isActive ? colors.foreground : colors['muted-foreground'], { duration: 250 }),
     }
   });
 

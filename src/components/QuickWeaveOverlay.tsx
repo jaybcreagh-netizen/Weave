@@ -164,13 +164,12 @@ function MenuItem({
     const dragDistance = Math.sqrt(dragX.value**2 + dragY.value**2);
     const hasDragged = dragDistance > SELECTION_THRESHOLD;
     const shouldShow = isHighlighted && hasDragged;
-    
-    // Shortened the label animation duration to feel extra crisp.
+
     return {
-      opacity: withTiming(shouldShow ? 1 : 0, { duration: 50 }),
+      opacity: withTiming(shouldShow ? 1 : 0, { duration: 100 }),
       transform: [
-        { translateY: withTiming(shouldShow ? 0 : 6, { duration: 50 }) },
-        { scale: withTiming(shouldShow ? 1 : 0.92, { duration: 50 }) }
+        { translateY: withTiming(shouldShow ? 0 : 8, { duration: 100 }) },
+        { scale: withTiming(shouldShow ? 1 : 0.9, { duration: 100 }) }
       ],
     };
   });
@@ -181,7 +180,9 @@ function MenuItem({
         <Text style={styles.itemIcon}>{item.icon}</Text>
       </View>
       <Animated.View style={[styles.labelContainer, labelStyle]}>
-        <Text style={styles.labelText}>{item.label}</Text>
+        <View style={styles.labelInner}>
+          <Text style={styles.labelText} numberOfLines={1}>{item.label}</Text>
+        </View>
       </Animated.View>
     </Animated.View>
   );
@@ -266,37 +267,48 @@ const styles = StyleSheet.create({
     width: ITEM_SIZE,
     height: ITEM_SIZE,
     borderRadius: ITEM_SIZE / 2,
-    backgroundColor: 'white',
+    backgroundColor: 'rgba(255, 255, 255, 0.98)',
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 6,
-    borderWidth: 2.5,
-    borderColor: 'rgba(181, 138, 108, 0.25)',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 8,
+    borderWidth: 0.5,
+    borderColor: 'rgba(0, 0, 0, 0.08)',
   },
   itemIcon: {
-    fontSize: 28,
+    fontSize: 30,
+    textAlign: 'center',
   },
   labelContainer: {
     position: 'absolute',
-    top: ITEM_SIZE + 10,
-    backgroundColor: 'rgba(181, 138, 108, 0.96)',
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 7,
+    top: ITEM_SIZE + 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 80,
+  },
+  labelInner: {
+    backgroundColor: 'rgba(255, 255, 255, 0.98)',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
     elevation: 6,
+    borderWidth: 0.5,
+    borderColor: 'rgba(0, 0, 0, 0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   labelText: {
     fontSize: 13,
-    fontWeight: '700',
-    color: 'white',
-    letterSpacing: 0.4,
+    fontWeight: '600',
+    color: '#3C3C3C',
+    letterSpacing: 0.2,
+    textAlign: 'center',
   },
 });

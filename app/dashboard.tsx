@@ -55,13 +55,19 @@ function DashboardContent() {
   const { colors } = useTheme();
   const { isQuickWeaveOpen } = useUIStore();
   const { friends: allFriends, observeFriends, unobserveFriends } = useFriendStore();
-  const { gesture, animatedScrollHandler } = useCardGesture();
+  const { gesture, animatedScrollHandler, activeCardId } = useCardGesture();
 
   useFocusEffect(
     React.useCallback(() => {
       observeFriends();
-      return () => unobserveFriends();
-    }, [observeFriends, unobserveFriends])
+      // Reset activeCardId when screen gains focus to prevent stuck scales
+      activeCardId.value = null;
+      return () => {
+        unobserveFriends();
+        // Also reset when leaving the screen
+        activeCardId.value = null;
+      };
+    }, [observeFriends, unobserveFriends, activeCardId])
   );
 
   useEffect(() => {

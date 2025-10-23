@@ -49,8 +49,12 @@ export function SettingsModal({
       visible={isOpen}
       onRequestClose={onClose}
     >
-      <View style={[styles.backdrop, { backgroundColor: isDarkMode ? 'rgba(0, 0, 0, 0.7)' : 'rgba(0, 0, 0, 0.2)' }]}>
-        <View style={[styles.modalContainer, { paddingBottom: insets.bottom + spacing.lg, backgroundColor: themeColors.background, borderColor: themeColors.border }]}>
+      <View style={[styles.backdrop, { backgroundColor: isDarkMode ? 'rgba(0, 0, 0, 0.7)' : 'rgba(0, 0, 0, 0.4)' }]}>
+        <View style={[styles.modalContainer, {
+          paddingBottom: insets.bottom + spacing.lg,
+          backgroundColor: isDarkMode ? themeColors.background : '#F7F5F2',
+          borderColor: themeColors.border
+        }]}>
           <View style={styles.header}>
             <View style={styles.headerTitleContainer}>
               <View style={[styles.iconContainer, { backgroundColor: themeColors.muted }]}>

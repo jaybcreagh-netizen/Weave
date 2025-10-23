@@ -72,9 +72,9 @@ export const darkTheme = {
           community: '#d97706', // Bronze
       },
       living: {
-        healthy: ['#10b981', '#059669'],   // Green
-        stable: ['#f59e0b', '#d97706'],    // Amber
-        attention: ['#ef4444', '#dc2626'], // Red
+        healthy: ['#2dd4bf', '#14b8a6'],   // Teal
+        stable: ['#a78bfa', '#8b5cf6'],    // Violet
+        attention: ['#f472b6', '#ec4899'], // Pink
       },
       // Timeline colors for dark mode
       'weave-vibrant': '#10b981',
