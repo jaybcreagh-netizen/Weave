@@ -8,10 +8,13 @@ import { useInteractionStore } from '../src/stores/interactionStore';
 import { Calendar as CalendarIcon, X, ArrowUp } from 'lucide-react-native';
 import { CalendarView } from '../src/components/CalendarView';
 import { MoonPhaseSelector } from '../src/components/MoonPhaseSelector';
+import { ContextualReflectionInput } from '../src/components/ContextualReflectionInput';
 import { format, addDays, nextSaturday, isSameDay } from 'date-fns';
-import { type Vibe, type InteractionCategory } from '../src/components/types';
+import { type Vibe, type InteractionCategory, type Archetype } from '../src/components/types';
 import { useTheme } from '../src/hooks/useTheme';
 import { getAllCategories, type CategoryMetadata } from '../src/lib/interaction-categories';
+import { database } from '../src/db';
+import FriendModel from '../src/db/models/Friend';
 
 // NEW: 8 universal interaction categories
 const categories: CategoryMetadata[] = getAllCategories();
@@ -39,9 +42,20 @@ export default function InteractionFormScreen() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [selectedVibe, setSelectedVibe] = useState<Vibe | null>(null);
   const [notes, setNotes] = useState('');
+  const [friendArchetype, setFriendArchetype] = useState<Archetype | undefined>(undefined);
 
   const scrollViewRef = useRef<ScrollView>(null);
   const [detailsSectionY, setDetailsSectionY] = useState(0);
+
+  // Fetch friend's archetype for contextual prompts
+  useEffect(() => {
+    if (friendId) {
+      database.get<FriendModel>(FriendModel.table)
+        .find(friendId)
+        .then(friend => setFriendArchetype(friend.archetype as Archetype))
+        .catch(err => console.error('Error fetching friend:', err));
+    }
+  }, [friendId]);
 
   // Auto-scroll to details section when category is selected
   useEffect(() => {
@@ -169,14 +183,16 @@ export default function InteractionFormScreen() {
                                     <MoonPhaseSelector onSelect={setSelectedVibe} selectedVibe={selectedVibe} />
                                 </View>
                             )}
-                            <TextInput
-                                style={[styles.input, { borderColor: colors.border, backgroundColor: colors.card, color: colors.foreground }]}
-                                placeholder="Notes..."
-                                placeholderTextColor={colors['muted-foreground']}
-                                value={notes}
-                                onChangeText={setNotes}
-                                multiline
-                            />
+                            {/* NEW: Contextual reflection prompts */}
+                            {selectedCategory && (
+                                <ContextualReflectionInput
+                                    category={selectedCategory}
+                                    archetype={friendArchetype}
+                                    vibe={selectedVibe}
+                                    value={notes}
+                                    onChange={setNotes}
+                                />
+                            )}
                         </View>
                     </Animated.View>
                 )}
