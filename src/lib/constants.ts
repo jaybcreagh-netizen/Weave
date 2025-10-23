@@ -1,4 +1,4 @@
-import { Tier, InteractionType, Duration, Vibe, Archetype } from '../components/types';
+import { Tier, InteractionType, InteractionCategory, Duration, Vibe, Archetype } from '../components/types';
 
 export const TierDecayRates: Record<Tier, number> = {
   InnerCircle: 2.5,
@@ -6,6 +6,7 @@ export const TierDecayRates: Record<Tier, number> = {
   Community: 0.5,
 };
 
+// DEPRECATED: Old activity-based scores (kept for backwards compatibility)
 export const InteractionBaseScores: Record<InteractionType, number> = {
   // Original
   Event: 30,
@@ -41,6 +42,18 @@ export const InteractionBaseScores: Record<InteractionType, number> = {
   'Shopping': 15,
   'Adventure': 30,
   'Something else': 15,
+};
+
+// NEW: Simplified category-based scores for the 8 universal types
+export const CategoryBaseScores: Record<InteractionCategory, number> = {
+  'text-call': 10,       // 💬 Quick digital connection
+  'voice-note': 12,      // 🎤 Async voice - slightly more personal
+  'meal-drink': 22,      // 🍽️ Classic quality time
+  'hangout': 20,         // 🏠 Casual in-person time
+  'deep-talk': 28,       // 💭 Meaningful, vulnerable conversation
+  'event-party': 27,     // 🎉 Social gathering energy
+  'activity-hobby': 25,  // 🎨 Shared activities/adventures
+  'celebration': 32,     // 🎂 Peak moments - birthdays, milestones
 };
 
 export const DurationModifiers: Record<Duration, number> = {
@@ -126,6 +139,87 @@ export const ArchetypeMatrixV2: Record<Archetype, Record<InteractionType, number
     Milestone: 1.8, Holiday: 1.3, Achievement: 1.9, DM: 1.0, 'Quick Visit': 1.1,
     'Voice Note': 1.1, 'Movie Night': 1.0, Cooking: 1.5, 'Tea Time': 1.3, 'Reading Together': 1.2,
     Hike: 1.5, Concert: 1.7, Museum: 1.6, Shopping: 1.0, Adventure: 1.8,
+  },
+};
+
+// NEW: Simplified archetype multipliers for 8 universal categories
+export const CategoryArchetypeMatrix: Record<Archetype, Record<InteractionCategory, number>> = {
+  // The Emperor values structure and achievement. High-impact, planned events are best.
+  Emperor: {
+    'text-call': 0.7,        // Low - prefers structured, planned interaction
+    'voice-note': 0.8,       // Low - asynchronous feels less intentional
+    'meal-drink': 1.4,       // Good - structured social time
+    'hangout': 1.1,          // Moderate - depends on purpose
+    'deep-talk': 1.3,        // Good - values meaningful exchange
+    'event-party': 1.7,      // High - loves organized gatherings
+    'activity-hobby': 1.5,   // High - goal-oriented activities
+    'celebration': 1.9,      // Peak - milestones and achievements
+  },
+  // The Empress values comfort, generosity, and sensory experiences.
+  Empress: {
+    'text-call': 0.9,        // Low-moderate - prefers richer connection
+    'voice-note': 1.1,       // Moderate - appreciates warmth in voice
+    'meal-drink': 1.8,       // Peak - loves sharing meals
+    'hangout': 1.7,          // High - thrives in cozy, comfortable spaces
+    'deep-talk': 1.4,        // Good - values emotional connection
+    'event-party': 1.3,      // Moderate - social but prefers intimate
+    'activity-hobby': 1.4,   // Good - enjoys shared creative experiences
+    'celebration': 1.9,      // Peak - loves celebrating others
+  },
+  // The High Priestess values deep, intuitive, and private connection.
+  HighPriestess: {
+    'text-call': 0.8,        // Low - prefers depth over speed
+    'voice-note': 1.4,       // Good - appreciates thoughtful async
+    'meal-drink': 1.6,       // High - intimate setting for depth
+    'hangout': 1.2,          // Moderate - depends on energy
+    'deep-talk': 2.0,        // Peak - this is the sweet spot
+    'event-party': 0.6,      // Very low - draining social energy
+    'activity-hobby': 1.3,   // Moderate - prefers contemplative activities
+    'celebration': 1.0,      // Low-moderate - tolerates for close friends
+  },
+  // The Fool values spontaneity, novelty, and light-hearted fun.
+  Fool: {
+    'text-call': 1.7,        // High - loves quick, playful exchanges
+    'voice-note': 1.6,       // High - fun and spontaneous
+    'meal-drink': 1.3,       // Moderate - good but not peak
+    'hangout': 1.6,          // High - casual and fun
+    'deep-talk': 1.1,        // Low-moderate - can feel heavy
+    'event-party': 1.8,      // High - loves social energy
+    'activity-hobby': 1.9,   // Peak - adventures and new experiences
+    'celebration': 1.5,      // Good - loves the party vibe
+  },
+  // The Sun values celebration, visibility, and high-energy social gatherings.
+  Sun: {
+    'text-call': 0.8,        // Low - prefers visibility
+    'voice-note': 0.7,       // Low - not enough presence
+    'meal-drink': 1.6,       // High - social eating experience
+    'hangout': 1.4,          // Good - enjoys group energy
+    'deep-talk': 1.0,        // Moderate - not the focus
+    'event-party': 2.0,      // Peak - this is the sweet spot
+    'activity-hobby': 1.6,   // High - loves shared excitement
+    'celebration': 2.0,      // Peak - lives for these moments
+  },
+  // The Hermit values solitude, quiet contemplation, and meaningful one-on-one time.
+  Hermit: {
+    'text-call': 1.5,        // Good - controlled, low-energy connection
+    'voice-note': 1.7,       // High - appreciates thoughtful messages
+    'meal-drink': 1.2,       // Moderate - okay in small doses
+    'hangout': 0.9,          // Low - depends on energy level
+    'deep-talk': 1.9,        // Peak - craves meaningful exchange
+    'event-party': 0.5,      // Very low - draining
+    'activity-hobby': 1.4,   // Good - prefers quiet, focused activities
+    'celebration': 0.8,      // Low - tolerates for loved ones
+  },
+  // The Magician values creativity, focused energy, and shared projects or ideas.
+  Magician: {
+    'text-call': 1.1,        // Moderate - efficient for coordination
+    'voice-note': 1.2,       // Moderate - good for ideas
+    'meal-drink': 1.4,       // Good - brainstorming over coffee
+    'hangout': 1.3,          // Moderate - depends on purpose
+    'deep-talk': 1.5,        // High - loves intellectual exchange
+    'event-party': 1.6,      // High - networking and inspiration
+    'activity-hobby': 1.9,   // Peak - collaborative creation
+    'celebration': 1.7,      // High - enjoys meaningful milestones
   },
 };
 

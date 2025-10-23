@@ -22,5 +22,8 @@ export default class Interaction extends Model {
   @text('status') status!: string
   @text('mode') mode!: string
 
+  // NEW: Simplified interaction category system
+  @field('interaction_category') interactionCategory?: string
+
 
 }

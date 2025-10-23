@@ -7,6 +7,7 @@ import { QuickWeaveProvider } from '../src/components/QuickWeaveProvider';
 import { ToastProvider } from '../src/components/toast_provider';
 import { CardGestureProvider } from '../src/context/CardGestureContext'; // Import the provider
 import { useUIStore } from '../src/stores/uiStore';
+import { initializeDataMigrations } from '../src/db';
 import {
   useFonts,
   Lora_400Regular,
@@ -35,6 +36,13 @@ export default function RootLayout() {
       SplashScreen.hideAsync();
     }
   }, [fontsLoaded, fontError]);
+
+  // Run data migrations on app startup
+  useEffect(() => {
+    initializeDataMigrations().catch((error) => {
+      console.error('Failed to run data migrations:', error);
+    });
+  }, []);
 
   // Prevent rendering until the font has loaded or an error was returned
   if (!fontsLoaded && !fontError) {

@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb'
 
 export default appSchema({
-  version: 8, // Increment version for schema change
+  version: 9, // UPDATED: Added interaction_category field
   tables: [
     tableSchema({
       name: 'friends',
@@ -34,6 +34,8 @@ export default appSchema({
         { name: 'activity', type: 'string' },
         { name: 'status', type: 'string' },
         { name: 'mode', type: 'string' },
+        // NEW: Simplified interaction category system
+        { name: 'interaction_category', type: 'string', isOptional: true },
       ]
     }),
     tableSchema({
