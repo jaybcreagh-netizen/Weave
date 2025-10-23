@@ -103,7 +103,7 @@ export const REFLECTION_SENTENCES: ReflectionSentence[] = [
     components: {
       topic: {
         original: 'life and where we are',
-        alternatives: ['work and dreams', 'everything and nothing', 'what's been on our minds', 'the big stuff'],
+        alternatives: ['work and dreams', 'everything and nothing', 'what we\'ve been thinking about', 'the big stuff'],
       },
       meal_type: {
         original: 'food',
@@ -178,7 +178,7 @@ export const REFLECTION_SENTENCES: ReflectionSentence[] = [
     components: {
       what: {
         original: 'comfortable silence',
-        alternatives: ['just being', 'each other's company', 'not needing to fill the space'],
+        alternatives: ['just being', 'each other\'s company', 'not needing to fill the space'],
       },
     },
     plainText: 'We enjoyed comfortable silence together',
@@ -194,7 +194,7 @@ export const REFLECTION_SENTENCES: ReflectionSentence[] = [
     components: {
       topic: {
         original: 'something vulnerable',
-        alternatives: ['our fears', 'what we've been holding', 'the hard stuff', 'what really matters'],
+        alternatives: ['our fears', 'what we\'ve been holding', 'the hard stuff', 'what really matters'],
       },
       feeling: {
         original: 'really seen',
@@ -227,15 +227,15 @@ export const REFLECTION_SENTENCES: ReflectionSentence[] = [
     template: 'I opened up about {topic} and it felt {feeling}',
     components: {
       topic: {
-        original: 'something I've been carrying',
-        alternatives: ['my fears', 'what I really need', 'the truth', 'where I'm stuck'],
+        original: 'something I\'ve been carrying',
+        alternatives: ['my fears', 'what I really need', 'the truth', 'where I\'m stuck'],
       },
       feeling: {
         original: 'like a release',
         alternatives: ['transformative', 'exactly right', 'like a breakthrough', 'scary but good'],
       },
     },
-    plainText: 'I opened up about something I've been carrying and it felt like a release',
+    plainText: 'I opened up about something I\'ve been carrying and it felt like a release',
   },
   {
     id: 'deep-talk_hermit',
@@ -245,7 +245,7 @@ export const REFLECTION_SENTENCES: ReflectionSentence[] = [
     components: {
       what: {
         original: 'the quiet',
-        alternatives: ['the questions', 'what we don't know', 'the complexity'],
+        alternatives: ['the questions', 'what we don\'t know', 'the complexity'],
       },
       discovery: {
         original: 'wisdom in the silence',
@@ -371,7 +371,7 @@ export const REFLECTION_SENTENCES: ReflectionSentence[] = [
     components: {
       what: {
         original: 'something important',
-        alternatives: ['a milestone', 'this moment', 'how far we've come'],
+        alternatives: ['a milestone', 'this moment', 'how far we\'ve come'],
       },
       feeling: {
         original: 'meaningful',
