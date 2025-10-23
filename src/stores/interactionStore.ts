@@ -7,6 +7,25 @@ import { type InteractionType, type InteractionCategory, type Duration, type Vib
 import Interaction from '../db/models/Interaction';
 import InteractionFriend from '../db/models/InteractionFriend';
 
+/**
+ * Single reflection chip/sentence
+ */
+export interface ReflectionChip {
+  chipId: string; // References a StoryChip ID
+  componentOverrides: Record<string, string>;
+}
+
+/**
+ * Structured reflection data
+ * Supports multiple chips + custom notes
+ */
+export interface StructuredReflection {
+  // Multiple selected sentence chips (array)
+  chips?: ReflectionChip[];
+  // Freeform custom notes (always optional)
+  customNotes?: string;
+}
+
 // This now represents all the data collected from the form
 export interface InteractionFormData {
   friendIds: string[];
@@ -20,6 +39,8 @@ export interface InteractionFormData {
   duration?: Duration | null;
   // NEW: Simplified category system
   category?: InteractionCategory;
+  // NEW: Structured reflection data
+  reflection?: StructuredReflection;
 }
 
 interface InteractionStore {

@@ -34,6 +34,8 @@ export default function FriendProfile() {
   const [contentHeight, setContentHeight] = useState(0);
   const [headerHeight, setHeaderHeight] = useState(0);
   const [itemHeights, setItemHeights] = useState<{[key: string]: {y: number, height: number}}>({});
+  console.log('[Haptic State]', Object.keys(itemHeights).length, 'items with layout info.'); // Log state on render
+
   const triggeredAtScroll = useRef<{[key: string]: number}>({});
   const lastScrollY = useRef(0);
 
@@ -95,14 +97,20 @@ export default function FriendProfile() {
 
     Object.entries(itemHeights).forEach(([itemId, position]) => {
       const itemCenter = position.y + (position.height / 2);
-      const lastTriggerScroll = triggeredAtScroll.current[itemId] || -1000;
+      const hasCrossed = Math.abs(VIEWPORT_CENTER - itemCenter) < 20;
 
-      const hasCrossed = Math.abs(VIEWPORT_CENTER - itemCenter) < 10;
-      const hasMovedEnough = Math.abs(currentScroll - lastTriggerScroll) > 50;
+      // Check if it has been triggered in this direction already
+      const lastDirection = triggeredAtScroll.current[itemId];
+      const currentDirection = VIEWPORT_CENTER > itemCenter ? 'down' : 'up';
 
-      if (hasCrossed && hasMovedEnough) {
-        triggeredAtScroll.current[itemId] = currentScroll;
+      if (hasCrossed && lastDirection !== currentDirection) {
+        triggeredAtScroll.current[itemId] = currentDirection;
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      }
+      
+      // Reset if we've left the crossing zone
+      if (!hasCrossed && lastDirection) {
+        delete triggeredAtScroll.current[itemId];
       }
     });
 
@@ -113,6 +121,7 @@ export default function FriendProfile() {
     if (friendId && typeof friendId === 'string') {
       // Reset loading state when friendId changes
       setIsDataLoaded(false);
+      setItemHeights({}); // Clear heights for new friend
       observeFriend(friendId);
     }
     return () => {
@@ -132,13 +141,14 @@ export default function FriendProfile() {
     }
   }, [friend, interactions, friendId]);
 
-  const timelineSections = useMemo(() => {
-    const sortedInteractions = [...(interactions || [])].sort((a, b) => {
+  const sortedInteractions = useMemo(() => 
+    [...(interactions || [])].sort((a, b) => {
         const dateA = typeof a.interactionDate === 'string' ? new Date(a.interactionDate) : a.interactionDate;
         const dateB = typeof b.interactionDate === 'string' ? new Date(b.interactionDate) : b.interactionDate;
         return dateB.getTime() - dateA.getTime();
-    });
+    }), [interactions]);
 
+  const timelineSections = useMemo(() => {
     const sections: { [key: string]: Interaction[] } = {
         Seeds: [], // Future
         Today: [],
@@ -156,7 +166,7 @@ export default function FriendProfile() {
         .map(([title, data]) => ({ title, data }))
         .filter(section => section.data.length > 0);
 
-  }, [interactions]);
+  }, [sortedInteractions]);
 
   const nextConnectionDate = useMemo(() => {
     const pastInteractions = (interactions || []).filter(i => isPast(new Date(i.interactionDate)));
@@ -193,6 +203,7 @@ export default function FriendProfile() {
   };
 
   const renderTimelineItem = ({ item: interaction, section, index }: { item: Interaction; section: { title: string; data: Interaction[] }; index: number }) => {
+    const itemRef = useRef<View>(null);
     const date = typeof interaction.interactionDate === 'string' ? new Date(interaction.interactionDate) : interaction.interactionDate;
     const isFutureInteraction = section.title === 'Seeds';
     const isFirstInSection = index === 0;
@@ -200,28 +211,38 @@ export default function FriendProfile() {
     // Check if this is the first item overall (for thread rendering)
     const isVeryFirstItem = timelineSections[0]?.data[0]?.id === interaction.id;
 
+    useEffect(() => {
+      if (itemRef.current) {
+        itemRef.current.measure((x, y, width, height, pageX, pageY) => {
+          // We need the position relative to the scrollview, not the screen.
+          // `pageY` is absolute to the screen. We can subtract the header height.
+          // A more robust way might involve a ref on the SectionList itself.
+          // For now, let's assume a static header height can be calculated or estimated.
+          // This will be much more reliable than onLayout's relative `y`.
+          const yPosition = pageY - headerHeight;
+          if (itemHeights[interaction.id.toString()]?.y !== yPosition) {
+            setItemHeights(prev => ({
+                ...prev,
+                [interaction.id.toString()]: { y: yPosition, height }
+            }));
+          }
+        });
+      }
+    }, [itemRef.current, headerHeight]);
+
     return (
-        <View
-            style={styles.itemWrapper}
-            onLayout={(event) => {
-                const { y, height } = event.nativeEvent.layout;
-                setItemHeights(prev => ({
-                    ...prev,
-                    [interaction.id.toString()]: { y, height }
-                }));
-            }}
-        >
+        <View ref={itemRef} style={styles.itemWrapper}>
             {/* Render continuous thread before the very first item */}
             {isVeryFirstItem && (
                 <View style={styles.threadContainer}>
                     <ContinuousThread
                         contentHeight={contentHeight}
                         startY={0}
-                        interactions={interactions?.map(int => ({
+                        interactions={sortedInteractions.map(int => ({
                             id: int.id.toString(),
                             interactionDate: int.interactionDate,
                             y: itemHeights[int.id.toString()]?.y || 0,
-                        })) || []}
+                        }))}
                     />
                 </View>
             )}
@@ -238,7 +259,7 @@ export default function FriendProfile() {
   };
 
   const ListHeader = () => (
-    <View>
+    <View onLayout={(event) => setHeaderHeight(event.nativeEvent.layout.height)}>
         <View style={[styles.header, { borderColor: colors.border }]}>
             <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
               <ArrowLeft size={20} color={colors['muted-foreground']} />
@@ -329,7 +350,7 @@ export default function FriendProfile() {
                 keyExtractor={(item) => item.id.toString()}
                 ListEmptyComponent={
                     <View style={styles.emptyContainer}>
-                        <Text style={styles.emptyEmoji}>🕸️</Text>
+                        <Text style={styles.emptyEmoji}>🧵</Text>
                         <Text style={[styles.emptyText, { color: colors['muted-foreground'] }]}>No weaves yet</Text>
                         <Text style={[styles.emptySubtext, { color: colors['muted-foreground'] }]}>Your timeline will grow as you connect</Text>
                     </View>

@@ -1,22 +1,31 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TextInput, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
-import { theme } from '../theme';
-import { selectReflectionPrompt, type ReflectionPrompt } from '../lib/reflection-prompts';
+import { ReflectionStoryChips } from './ReflectionStoryChips';
+import { ReflectionTextInput } from './ReflectionTextInput';
+import { getNextChipType, STORY_CHIPS, type StoryChip, type ChipType } from '../lib/story-chips';
 import { type InteractionCategory, type Archetype, type Vibe } from './types';
+import { type StructuredReflection } from '../stores/interactionStore';
+import { useTheme } from '../hooks/useTheme';
 
 interface ContextualReflectionInputProps {
   category: InteractionCategory;
   archetype?: Archetype;
   vibe?: Vibe | null;
-  value: string;
-  onChange: (text: string) => void;
-  multiline?: boolean;
+  value: StructuredReflection;
+  onChange: (reflection: StructuredReflection) => void;
 }
 
 /**
- * Smart reflection input that shows contextual prompts
- * based on category, archetype, and vibe
+ * Story builder reflection input
+ *
+ * Flow:
+ * 1. Show next chip type in sequence (activity → people → topic → feeling → moment)
+ * 2. User taps chip → appears as bubble card in text input
+ * 3. User can tap colored words in bubble to customize
+ * 4. Next chip type appears automatically
+ * 5. User can type additional notes at any time
+ * 6. Clean, aligned, beautiful
  */
 export function ContextualReflectionInput({
   category,
@@ -24,80 +33,100 @@ export function ContextualReflectionInput({
   vibe,
   value,
   onChange,
-  multiline = true,
 }: ContextualReflectionInputProps) {
-  const [prompt, setPrompt] = useState<ReflectionPrompt | null>(null);
+  const { colors } = useTheme();
+  const [nextChipType, setNextChipType] = useState<ChipType | null>('activity');
 
-  // Update prompt when context changes
+  // Update next chip type when chips change
   useEffect(() => {
-    const selectedPrompt = selectReflectionPrompt(
-      category,
-      archetype,
-      vibe || undefined
-    );
-    setPrompt(selectedPrompt);
-  }, [category, archetype, vibe]);
+    const selectedTypes = (value.chips || []).map(chip => {
+      const storyChip = STORY_CHIPS.find(s => s.id === chip.chipId);
+      return storyChip?.type;
+    }).filter((type): type is ChipType => type !== undefined);
 
-  if (!prompt) {
-    return null;
-  }
+    const next = getNextChipType(selectedTypes);
+    setNextChipType(next);
+  }, [value.chips]);
+
+  const handleChipSelect = (storyChip: StoryChip) => {
+    // Add new chip to the array
+    const newChip = {
+      chipId: storyChip.id,
+      componentOverrides: {},
+    };
+
+    onChange({
+      ...value,
+      chips: [...(value.chips || []), newChip],
+    });
+  };
+
+  const handleComponentChange = (chipIndex: number, componentId: string, componentValue: string) => {
+    const updatedChips = [...(value.chips || [])];
+    updatedChips[chipIndex] = {
+      ...updatedChips[chipIndex],
+      componentOverrides: {
+        ...updatedChips[chipIndex].componentOverrides,
+        [componentId]: componentValue,
+      },
+    };
+
+    onChange({
+      ...value,
+      chips: updatedChips,
+    });
+  };
+
+  const handleRemoveChip = (chipIndex: number) => {
+    const updatedChips = [...(value.chips || [])];
+    updatedChips.splice(chipIndex, 1);
+
+    onChange({
+      ...value,
+      chips: updatedChips,
+    });
+  };
+
+  const handleCustomTextChange = (text: string) => {
+    onChange({
+      ...value,
+      customNotes: text,
+    });
+  };
 
   return (
     <Animated.View entering={FadeIn.duration(400)} style={styles.container}>
-      {/* Prompt question */}
-      <Text style={styles.promptText}>{prompt.prompt}</Text>
-
-      {/* Text input */}
-      <TextInput
-        style={[
-          styles.input,
-          multiline && styles.multilineInput
-        ]}
-        placeholder={prompt.placeholder || 'Share your thoughts...'}
-        placeholderTextColor={theme.colors['muted-foreground']}
-        value={value}
-        onChangeText={onChange}
-        multiline={multiline}
-        textAlignVertical={multiline ? 'top' : 'center'}
-      />
-
-      {/* Optional: Show prompt metadata in dev mode */}
-      {__DEV__ && (
-        <Text style={styles.debugText}>
-          Prompt ID: {prompt.id}
-        </Text>
+      {/* Show story chips for next type */}
+      {nextChipType && (
+        <ReflectionStoryChips
+          chipType={nextChipType}
+          category={category}
+          archetype={archetype}
+          vibe={vibe}
+          onChipSelect={handleChipSelect}
+        />
       )}
+
+      {/* Text input with multiple chip bubbles inside */}
+      <ReflectionTextInput
+        chips={value.chips || []}
+        customText={value.customNotes || ''}
+        onComponentChange={handleComponentChange}
+        onCustomTextChange={handleCustomTextChange}
+        onRemoveChip={handleRemoveChip}
+        placeholder="Add your own notes..."
+      />
     </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    gap: 12,
+    gap: 16,
   },
   promptText: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: theme.colors.foreground,
-    marginBottom: 4,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    borderRadius: 8,
-    padding: 16,
-    fontSize: 16,
-    backgroundColor: theme.colors.card,
-    color: theme.colors.foreground,
-  },
-  multilineInput: {
-    height: 120,
-    textAlignVertical: 'top',
-  },
-  debugText: {
-    fontSize: 10,
-    color: theme.colors['muted-foreground'],
-    fontStyle: 'italic',
-    marginTop: 4,
+    fontSize: 18,
+    fontWeight: '600',
+    lineHeight: 26,
   },
 });

@@ -4,7 +4,7 @@ import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 
-import { useInteractionStore } from '../src/stores/interactionStore';
+import { useInteractionStore, type StructuredReflection } from '../src/stores/interactionStore';
 import { Calendar as CalendarIcon, X, ArrowUp } from 'lucide-react-native';
 import { CalendarView } from '../src/components/CalendarView';
 import { MoonPhaseSelector } from '../src/components/MoonPhaseSelector';
@@ -41,7 +41,7 @@ export default function InteractionFormScreen() {
   const [selectedCategory, setSelectedCategory] = useState<InteractionCategory | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [selectedVibe, setSelectedVibe] = useState<Vibe | null>(null);
-  const [notes, setNotes] = useState('');
+  const [reflection, setReflection] = useState<StructuredReflection>({});
   const [friendArchetype, setFriendArchetype] = useState<Archetype | undefined>(undefined);
 
   const scrollViewRef = useRef<ScrollView>(null);
@@ -82,16 +82,40 @@ export default function InteractionFormScreen() {
   const handleSave = async () => {
     if (!selectedCategory || !friendId || !mode || !selectedDate) return;
 
+    // Build legacy notes field from chips + custom notes for backward compatibility
+    const legacyNotes = [
+      ...(reflection.chips || []).map(chip => {
+        const { STORY_CHIPS } = require('../src/lib/story-chips');
+        const storyChip = STORY_CHIPS.find((s: any) => s.id === chip.chipId);
+        if (!storyChip) return '';
+
+        let text = storyChip.template;
+
+        if (storyChip.components) {
+          Object.entries(storyChip.components).forEach(([componentId, component]: [string, any]) => {
+            const value = chip.componentOverrides[componentId] || component.original;
+            text = text.replace(`{${componentId}}`, value);
+          });
+        }
+
+        return text;
+      }),
+      reflection.customNotes || '',
+    ]
+      .filter(Boolean)
+      .join(' ');
+
     await addInteraction({
       friendIds: [friendId],
-      category: selectedCategory, // NEW: Use category instead of activity
-      activity: selectedCategory, // Keep for backward compatibility
-      notes,
+      category: selectedCategory,
+      activity: selectedCategory,
+      notes: legacyNotes, // Legacy field - reconstructed from chips + notes
       date: selectedDate,
       type: mode,
       status: mode === 'log' ? 'completed' : 'planned',
-      mode: 'one-on-one', // Deprecated field, use default
+      mode: 'one-on-one',
       vibe: selectedVibe,
+      reflection, // NEW: Structured reflection data
     });
     Vibration.vibrate();
     router.back();
@@ -183,14 +207,14 @@ export default function InteractionFormScreen() {
                                     <MoonPhaseSelector onSelect={setSelectedVibe} selectedVibe={selectedVibe} />
                                 </View>
                             )}
-                            {/* NEW: Contextual reflection prompts */}
+                            {/* NEW: Contextual reflection with structured data */}
                             {selectedCategory && (
                                 <ContextualReflectionInput
                                     category={selectedCategory}
                                     archetype={friendArchetype}
                                     vibe={selectedVibe}
-                                    value={notes}
-                                    onChange={setNotes}
+                                    value={reflection}
+                                    onChange={setReflection}
                                 />
                             )}
                         </View>

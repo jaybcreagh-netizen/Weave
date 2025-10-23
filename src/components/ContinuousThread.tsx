@@ -1,8 +1,10 @@
 import React, { useEffect } from 'react';
 import { StyleSheet, Dimensions, View } from 'react-native';
-import Animated, { useSharedValue, useAnimatedProps, withTiming, Easing } from 'react-native-reanimated';
+import Animated, { useSharedValue, useAnimatedStyle, useAnimatedProps, withTiming, Easing } from 'react-native-reanimated';
 import Svg, { Line } from 'react-native-svg';
 import { isFuture, isToday, differenceInDays } from 'date-fns';
+
+import { useTheme } from '../hooks/useTheme';
 
 const AnimatedLine = Animated.createAnimatedComponent(Line);
 
@@ -31,20 +33,22 @@ interface ContinuousThreadProps {
  * Transitions occur at knot positions
  */
 export function ContinuousThread({ contentHeight, startY = 0, interactions = [] }: ContinuousThreadProps) {
-  // Animation: Elegant fade-in
-  const opacity = useSharedValue(0);
-
-  // Move useAnimatedProps outside of the render function to avoid hooks violations
-  const animatedProps = useAnimatedProps(() => ({
-    opacity: opacity.value,
-  }));
+  const { colors, isDarkMode } = useTheme();
+  const animatedHeight = useSharedValue(0);
 
   useEffect(() => {
-    opacity.value = withTiming(1, {
-      duration: 1000,
-      easing: Easing.bezier(0.4, 0, 0.2, 1),
+    // Animate the height to "draw" the line down
+    animatedHeight.value = withTiming(contentHeight, {
+      duration: 600, 
+      easing: Easing.out(Easing.quad)
     });
-  }, []);
+  }, [contentHeight]);
+
+  const animatedSvgStyle = useAnimatedStyle(() => {
+    return {
+      height: animatedHeight.value,
+    };
+  });
   // Determine texture based on interaction date
   const getThreadTexture = (date: Date | string): 'dotted' | 'solid' | 'dashed' => {
     const interactionDate = typeof date === 'string' ? new Date(date) : date;
@@ -66,22 +70,25 @@ export function ContinuousThread({ contentHeight, startY = 0, interactions = [] 
 
   // Get color based on texture type and position (gradient effect)
   const getThreadColor = (texture: 'dotted' | 'solid' | 'dashed', yPosition: number): string => {
-    // Calculate gradient position (0 = top, 1 = bottom)
-    const gradientPosition = contentHeight > 0 ? yPosition / contentHeight : 0;
-
-    // Warm (recent/golden) at top to cool (older/faded) at bottom
-    const baseOpacity = texture === 'dotted' ? 0.5 : texture === 'solid' ? 0.8 : 0.7;
-
-    if (gradientPosition < 0.2) {
-      // Top - Golden
-      return `rgba(212, 175, 55, ${baseOpacity})`;
-    } else if (gradientPosition < 0.5) {
-      // Middle-top - Warm brown
-      return `rgba(181, 138, 108, ${baseOpacity})`;
-    } else {
-      // Bottom - Faded brown
+    if (!isDarkMode) {
+      // Original light mode gradient
+      const gradientPosition = contentHeight > 0 ? yPosition / contentHeight : 0;
+      const baseOpacity = texture === 'dotted' ? 0.5 : texture === 'solid' ? 0.8 : 0.7;
+      if (gradientPosition < 0.2) return `rgba(212, 175, 55, ${baseOpacity})`;
+      if (gradientPosition < 0.5) return `rgba(181, 138, 108, ${baseOpacity})`;
       return `rgba(181, 138, 108, ${baseOpacity * 0.8})`;
     }
+
+    // New Dark Mode "Mystic Arcane" Gradient
+    const gradientPosition = contentHeight > 0 ? yPosition / contentHeight : 0;
+    const opacity = texture === 'dotted' ? 0.4 : texture === 'solid' ? 0.9 : 0.6;
+
+    // Interpolate between accent (top) and a deep purple (bottom)
+    const r = Math.round(139 - (139 - 68) * gradientPosition);
+    const g = Math.round(92 - (92 - 51) * gradientPosition);
+    const b = Math.round(246 - (246 - 128) * gradientPosition);
+
+    return `rgba(${r}, ${g}, ${b}, ${opacity})`;
   };
 
   // Build thread segments between knots
@@ -186,7 +193,6 @@ export function ContinuousThread({ contentHeight, startY = 0, interactions = [] 
         strokeWidth={1.5}
         strokeDasharray={strokeDasharray}
         strokeLinecap="round"
-        animatedProps={animatedProps}
       />
     );
   };
@@ -218,17 +224,19 @@ export function ContinuousThread({ contentHeight, startY = 0, interactions = [] 
         ]}
         pointerEvents="none"
       >
-        <Svg width={4} height={contentHeight} style={StyleSheet.absoluteFill}>
-          <Line
-            x1={2}
-            y1={0}
-            x2={2}
-            y2={contentHeight}
-            stroke="rgba(181, 138, 108, 0.6)"
-            strokeWidth={1.5}
-            strokeLinecap="round"
-          />
-        </Svg>
+        <Animated.View style={animatedSvgStyle}>
+          <Svg width={4} height={contentHeight} style={StyleSheet.absoluteFill}>
+            <Line
+              x1={2}
+              y1={0}
+              x2={2}
+              y2={contentHeight}
+              stroke="rgba(181, 138, 108, 0.6)"
+              strokeWidth={1.5}
+              strokeLinecap="round"
+            />
+          </Svg>
+        </Animated.View>
       </View>
     );
   }
@@ -244,9 +252,11 @@ export function ContinuousThread({ contentHeight, startY = 0, interactions = [] 
       ]}
       pointerEvents="none"
     >
-      <Svg width={4} height={contentHeight} style={StyleSheet.absoluteFill}>
-        {segments.map((segment, index) => renderSegment(segment, index))}
-      </Svg>
+      <Animated.View style={[styles.svgContainer, animatedSvgStyle]}>
+        <Svg width={4} height={contentHeight} style={StyleSheet.absoluteFill}>
+          {segments.map((segment, index) => renderSegment(segment, index))}
+        </Svg>
+      </Animated.View>
     </View>
   );
 }
@@ -260,6 +270,10 @@ const styles = StyleSheet.create({
     width: 4,
     top: 0, // Dynamic, set via style prop
     zIndex: -1, // Behind everything
+  },
+  svgContainer: {
+    width: '100%',
+    overflow: 'hidden',
   },
   threadCore: {
     position: 'absolute',

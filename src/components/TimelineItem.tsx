@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -11,8 +11,9 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 
-import { theme } from '../theme';
+import { useTheme } from '../hooks/useTheme';
 import { formatPoeticDate, calculateWeaveWarmth, getThreadColors } from '../lib/timeline-utils';
 import { modeIcons } from '../lib/constants';
 import { getCategoryMetadata } from '../lib/interaction-categories';
@@ -31,16 +32,33 @@ interface TimelineItemProps {
 }
 
 export function TimelineItem({ interaction, isFuture, onPress, index, scrollY, itemY = 0, showKnot = true, sectionLabel, isFirstInSection = false }: TimelineItemProps) {
+  const { colors, isDarkMode } = useTheme();
   const date = typeof interaction.interactionDate === 'string' 
     ? new Date(interaction.interactionDate) 
     : interaction.interactionDate;
   
   const warmth = calculateWeaveWarmth(date);
-  const colors = getThreadColors(warmth, isFuture);
+  const threadColors = getThreadColors(warmth, isFuture);
   const { primary, secondary } = formatPoeticDate(date);
 
+  const cardTintColor = useMemo(() => {
+    if (!isDarkMode || isFuture) return 'transparent';
+
+    switch (interaction.vibe) {
+      case 'FullMoon':
+        return colors.living.healthy[0] + '40'; // Teal tint
+      case 'WaxingGibbous':
+      case 'FirstQuarter':
+        return colors.living.stable[0] + '40'; // Violet tint
+      case 'WaxingCrescent':
+      case 'NewMoon':
+        return colors.secondary + '60'; // Neutral purple tint
+      default:
+        return colors.secondary + '40'; // Default subtle tint
+    }
+  }, [isDarkMode, isFuture, interaction.vibe, colors]);
+
   // Get friendly label and icon for category (or fall back to activity)
-  // Check if activity looks like a category ID (has a dash)
   const isCategory = interaction.activity && interaction.activity.includes('-');
 
   let displayLabel: string;
@@ -56,6 +74,39 @@ export function TimelineItem({ interaction, isFuture, onPress, index, scrollY, i
     displayIcon = modeIcons[interaction.mode as keyof typeof modeIcons] || modeIcons.default;
   }
 
+  // Define dynamic styles inside the component
+  const dynamicStyles = {
+    sectionLabel: {
+      color: colors['muted-foreground'],
+    },
+    dateText: {
+      color: colors.foreground,
+    },
+    timeText: {
+      color: colors['muted-foreground'],
+    },
+    knotOnThread: {
+      backgroundColor: colors.card,
+      shadowColor: warmth > 0.5 ? (isDarkMode ? colors.accent : '#D4AF37') : '#000',
+    },
+    card: {
+      borderColor: colors.border,
+    },
+    cardCompleted: {
+      backgroundColor: isDarkMode ? 'transparent' : 'rgba(255, 255, 255, 0.95)',
+    },
+    cardPlanned: {
+      backgroundColor: isDarkMode ? 'transparent' : 'rgba(255, 255, 255, 0.65)',
+      borderColor: isDarkMode ? colors.accent + '80' : 'rgba(181, 138, 108, 0.4)',
+    },
+    cardTitle: {
+      color: colors.foreground,
+    },
+    cardSubtitle: {
+      color: colors['muted-foreground'],
+    },
+  };
+
   // Animation values
   const pulseAnimation = useSharedValue(0);
   const pressScale = useSharedValue(1);
@@ -68,15 +119,15 @@ export function TimelineItem({ interaction, isFuture, onPress, index, scrollY, i
 
   // Beautiful staggered entrance - scale + fade + slide
   useEffect(() => {
-    const baseDelay = 200; // Let thread start first
-    const stagger = index * 120; // Elegant stagger
+    const baseDelay = 200; // Let thread draw in first
+    const stagger = index * 100; // Stagger each item
     const delay = baseDelay + stagger;
 
     // Opacity: Quick fade in
     entranceOpacity.value = withDelay(
       delay,
       withTiming(1, {
-        duration: 600,
+        duration: 400, // Faster fade
         easing: Easing.out(Easing.quad),
       })
     );
@@ -86,7 +137,7 @@ export function TimelineItem({ interaction, isFuture, onPress, index, scrollY, i
       delay,
       withSpring(1, {
         damping: 20,
-        stiffness: 90,
+        stiffness: 150, // Snappier spring
       })
     );
 
@@ -94,8 +145,8 @@ export function TimelineItem({ interaction, isFuture, onPress, index, scrollY, i
     entranceTranslateY.value = withDelay(
       delay,
       withSpring(0, {
-        damping: 25,
-        stiffness: 100,
+        damping: 20,
+        stiffness: 180, // Snappier spring
       })
     );
   }, [index]);
@@ -223,9 +274,9 @@ export function TimelineItem({ interaction, isFuture, onPress, index, scrollY, i
   // Get section accent color
   const getSectionAccentColor = (label?: string) => {
     if (!label) return 'transparent';
-    if (label.includes('Seeds')) return 'rgba(181, 138, 108, 0.4)';
-    if (label.includes('Today')) return 'rgba(212, 175, 55, 0.8)';
-    return 'rgba(181, 138, 108, 0.6)';
+    if (label.includes('Seeds')) return isDarkMode ? colors.accent + '60' : 'rgba(181, 138, 108, 0.4)';
+    if (label.includes('Today')) return isDarkMode ? colors.primary + '90' : 'rgba(212, 175, 55, 0.8)';
+    return isDarkMode ? colors.secondary + '70' : 'rgba(181, 138, 108, 0.6)';
   };
 
   return (
@@ -234,7 +285,7 @@ export function TimelineItem({ interaction, isFuture, onPress, index, scrollY, i
       {isFirstInSection && sectionLabel && (
         <View style={styles.sectionChipContainer}>
           <View style={[styles.sectionAccent, { backgroundColor: getSectionAccentColor(sectionLabel) }]} />
-          <Text style={styles.sectionLabel}>{sectionLabel}</Text>
+          <Text style={[styles.sectionLabel, dynamicStyles.sectionLabel]}>{sectionLabel}</Text>
         </View>
       )}
 
@@ -247,6 +298,7 @@ export function TimelineItem({ interaction, isFuture, onPress, index, scrollY, i
           {
             left: THREAD_CENTER,
             width: CARD_START - THREAD_CENTER,
+            backgroundColor: isDarkMode ? colors.border : 'rgba(181, 138, 108, 0.5)',
           }
         ]} />
 
@@ -256,8 +308,8 @@ export function TimelineItem({ interaction, isFuture, onPress, index, scrollY, i
           knotAnimatedStyle,
           {
             left: THREAD_CENTER - (KNOT_SIZE / 2),
-            backgroundColor: colors.knot,
-            shadowColor: warmth > 0.5 ? '#D4AF37' : '#000',
+            backgroundColor: colors.card,
+            shadowColor: warmth > 0.5 ? (isDarkMode ? colors.accent : '#D4AF37') : (isDarkMode ? '#000' : '#000'),
             shadowRadius: 4 + (warmth * 8),
           }
         ]}>
@@ -266,7 +318,7 @@ export function TimelineItem({ interaction, isFuture, onPress, index, scrollY, i
             <View
               style={[
                 styles.knotGlow,
-                { backgroundColor: colors.glow }
+                { backgroundColor: isDarkMode ? colors.accent : colors.glow }
               ]}
             />
           )}
@@ -275,8 +327,8 @@ export function TimelineItem({ interaction, isFuture, onPress, index, scrollY, i
 
       {/* Date Column */}
       <View style={styles.dateColumn}>
-        <Text style={styles.dateText} numberOfLines={1}>{primary}</Text>
-        <Text style={styles.timeText} numberOfLines={1}>{secondary}</Text>
+        <Text style={[styles.dateText, dynamicStyles.dateText]} numberOfLines={1}>{primary}</Text>
+        <Text style={[styles.timeText, dynamicStyles.timeText]} numberOfLines={1}>{secondary}</Text>
       </View>
 
       {/* Empty spacer where knot used to be */}
@@ -292,9 +344,15 @@ export function TimelineItem({ interaction, isFuture, onPress, index, scrollY, i
       >
         <Animated.View style={[
           styles.card,
-          isFuture ? styles.cardPlanned : styles.cardCompleted,
+          dynamicStyles.card,
+          isFuture ? dynamicStyles.cardPlanned : dynamicStyles.cardCompleted,
           cardAnimatedStyle,
         ]}>
+          <BlurView 
+            intensity={isDarkMode ? 40 : 100} 
+            tint={isDarkMode ? 'dark' : 'light'} 
+            style={[StyleSheet.absoluteFill, { backgroundColor: cardTintColor }]} 
+          />
           {/* Warm glow gradient overlay */}
           {!isFuture && warmth > 0 && (
             <Animated.View 
@@ -303,8 +361,8 @@ export function TimelineItem({ interaction, isFuture, onPress, index, scrollY, i
             >
               <LinearGradient
                 colors={[
-                  'rgba(255, 248, 230, 1)',
-                  'rgba(255, 248, 230, 0.5)',
+                  isDarkMode ? colors.primary + '1A' : 'rgba(255, 248, 230, 1)',
+                  isDarkMode ? colors.primary + '0A' : 'rgba(255, 248, 230, 0.5)',
                   'transparent',
                 ]}
                 start={{ x: 0, y: 0 }}
@@ -322,8 +380,8 @@ export function TimelineItem({ interaction, isFuture, onPress, index, scrollY, i
               {displayIcon}
             </Text>
             <View style={{ flex: 1 }}>
-              <Text style={styles.cardTitle}>{displayLabel}</Text>
-              <Text style={styles.cardSubtitle}>
+              <Text style={[styles.cardTitle, dynamicStyles.cardTitle]}>{displayLabel}</Text>
+              <Text style={[styles.cardSubtitle, dynamicStyles.cardSubtitle]}>
                 {interaction.mode?.replace('-', ' ')}
               </Text>
             </View>
@@ -353,7 +411,6 @@ const styles = StyleSheet.create({
   sectionLabel: {
     fontSize: 10,
     fontWeight: '600',
-    color: theme.colors['muted-foreground'],
     textTransform: 'uppercase',
     letterSpacing: 1.2,
   },
@@ -372,13 +429,11 @@ const styles = StyleSheet.create({
   },
   dateText: {
     fontSize: 12,
-    color: theme.colors.foreground,
     fontWeight: '600',
     marginBottom: 2,
   },
   timeText: { 
     fontSize: 11, 
-    color: theme.colors['muted-foreground'],
     fontWeight: '400',
   },
   knotContainer: {
@@ -396,7 +451,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     height: 1.5,
     top: 20,
-    backgroundColor: 'rgba(181, 138, 108, 0.5)',
   },
   knotOnThread: {
     position: 'absolute',
@@ -428,16 +482,7 @@ const styles = StyleSheet.create({
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     elevation: 4,
-  },
-  cardCompleted: {
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
     borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  cardPlanned: {
-    backgroundColor: 'rgba(255, 255, 255, 0.65)',
-    borderWidth: 1.5,
-    borderColor: 'rgba(181, 138, 108, 0.4)',
   },
   cardContent: {
     padding: 16,
@@ -452,14 +497,12 @@ const styles = StyleSheet.create({
   },
   cardTitle: { 
     fontWeight: '600', 
-    color: theme.colors.foreground, 
     marginBottom: 4, 
     fontSize: 16,
     fontFamily: 'Lora_700Bold',
   },
   cardSubtitle: { 
     fontSize: 13, 
-    color: theme.colors['muted-foreground'],
     textTransform: 'capitalize',
   },
 });
