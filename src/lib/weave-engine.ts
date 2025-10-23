@@ -1,6 +1,6 @@
 import { Database } from '@nozbe/watermelondb';
-import { Friend, Interaction, Tier, Archetype, InteractionType, Duration, Vibe } from '../components/types';
-import { TierDecayRates, InteractionBaseScores, DurationModifiers, VibeMultipliers, RecencyFactors, ArchetypeMatrixV2 } from './constants';
+import { Friend, Interaction, Tier, Archetype, InteractionType, InteractionCategory, Duration, Vibe } from '../components/types';
+import { TierDecayRates, InteractionBaseScores, CategoryBaseScores, DurationModifiers, VibeMultipliers, RecencyFactors, ArchetypeMatrixV2, CategoryArchetypeMatrix } from './constants';
 import FriendModel from '../db/models/Friend';
 import InteractionModel from '../db/models/Interaction';
 import InteractionFriend from '../db/models/InteractionFriend';
@@ -18,17 +18,43 @@ export function calculateCurrentScore(friend: FriendModel): number {
 
 /**
  * Calculates the points for a new interaction.
+ * Supports both old activity-based and new category-based systems.
  */
-export function calculatePointsForWeave(friend: FriendModel, weaveData: { interactionType: InteractionType; duration: Duration | null; vibe: Vibe | null }): number {
+export function calculatePointsForWeave(
+  friend: FriendModel,
+  weaveData: {
+    interactionType?: InteractionType;
+    category?: InteractionCategory;
+    duration: Duration | null;
+    vibe: Vibe | null
+  }
+): number {
   // Calculate current momentum
   const daysSinceMomentumUpdate = (Date.now() - friend.momentumLastUpdated.getTime()) / 86400000;
   const currentMomentumScore = Math.max(0, friend.momentumScore - daysSinceMomentumUpdate);
 
-  const baseScore = InteractionBaseScores[weaveData.interactionType];
-  const archetypeMultiplier = ArchetypeMatrixV2[friend.archetype as Archetype][weaveData.interactionType];
+  let baseScore: number;
+  let archetypeMultiplier: number;
+
+  // NEW: Use category-based scoring if available
+  if (weaveData.category) {
+    baseScore = CategoryBaseScores[weaveData.category];
+    archetypeMultiplier = CategoryArchetypeMatrix[friend.archetype as Archetype][weaveData.category];
+  }
+  // DEPRECATED: Fall back to old activity-based scoring
+  else if (weaveData.interactionType) {
+    baseScore = InteractionBaseScores[weaveData.interactionType];
+    archetypeMultiplier = ArchetypeMatrixV2[friend.archetype as Archetype][weaveData.interactionType];
+  }
+  // Default fallback
+  else {
+    baseScore = 15;
+    archetypeMultiplier = 1.0;
+  }
+
   const durationModifier = DurationModifiers[weaveData.duration || 'Standard'];
   const vibeMultiplier = VibeMultipliers[weaveData.vibe || 'WaxingCrescent'];
-  
+
   const eventMultiplier = 1.0; // Hardcoded for Phase 1
   const groupDilutionFactor = 1.0; // Hardcoded for Phase 1
 
@@ -58,6 +84,10 @@ export async function logNewWeave(friendsToUpdate: FriendModel[], weaveData: Int
       interaction.note = weaveData.notes;
       interaction.vibe = weaveData.vibe;
       interaction.duration = weaveData.duration;
+      // NEW: Save category if provided
+      if (weaveData.category) {
+        interaction.interactionCategory = weaveData.category;
+      }
     });
 
     for (const friend of friendsToUpdate) {
@@ -73,10 +103,12 @@ export async function logNewWeave(friendsToUpdate: FriendModel[], weaveData: Int
 
       // 2. Calculate scores using the relevant part of the weaveData
       const currentScore = calculateCurrentScore(friend);
-      const pointsToAdd = calculatePointsForWeave(friend, { 
-          interactionType: weaveData.activity as InteractionType, 
-          duration: weaveData.duration, 
-          vibe: weaveData.vibe 
+      const pointsToAdd = calculatePointsForWeave(friend, {
+          // NEW: Use category if available, otherwise fall back to old activity
+          category: weaveData.category as InteractionCategory | undefined,
+          interactionType: weaveData.activity as InteractionType,
+          duration: weaveData.duration,
+          vibe: weaveData.vibe
       });
       const newWeaveScore = Math.min(100, currentScore + pointsToAdd);
 

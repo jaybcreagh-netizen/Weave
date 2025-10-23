@@ -3,7 +3,7 @@ import { database } from '../db';
 import { Q } from '@nozbe/watermelondb';
 import FriendModel from '../db/models/Friend';
 import { logNewWeave } from '../lib/weave-engine';
-import { type InteractionType, type Duration, type Vibe } from '../components/types';
+import { type InteractionType, type InteractionCategory, type Duration, type Vibe } from '../components/types';
 import Interaction from '../db/models/Interaction';
 import InteractionFriend from '../db/models/InteractionFriend';
 
@@ -18,6 +18,8 @@ export interface InteractionFormData {
   mode: string; // e.g. 'one-on-one'
   vibe?: Vibe | null;
   duration?: Duration | null;
+  // NEW: Simplified category system
+  category?: InteractionCategory;
 }
 
 interface InteractionStore {
