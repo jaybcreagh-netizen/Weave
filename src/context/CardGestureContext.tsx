@@ -14,13 +14,14 @@ const MENU_RADIUS = 100;
 const HIGHLIGHT_THRESHOLD = 30;
 const SELECTION_THRESHOLD = 45;
 
+// NEW: 6 most common categories for quick-touch radial menu
 const ACTIVITIES = [
-  { id: 'Meal', icon: '🍽️', label: 'Meal' },
-  { id: 'Coffee', icon: '☕', label: 'Coffee' },
-  { id: 'Call', icon: '📞', label: 'Call' },
-  { id: 'Walk', icon: '🚶', label: 'Walk' },
-  { id: 'Hangout', icon: '👥', label: 'Hangout' },
-  { id: 'Chat', icon: '💬', label: 'Chat' },
+  { id: 'text-call', icon: '💬', label: 'Text/Call' },
+  { id: 'meal-drink', icon: '🍽️', label: 'Meal/Drink' },
+  { id: 'hangout', icon: '🏠', label: 'Hangout' },
+  { id: 'deep-talk', icon: '💭', label: 'Deep Talk' },
+  { id: 'activity-hobby', icon: '🎨', label: 'Activity' },
+  { id: 'event-party', icon: '🎉', label: 'Event' },
 ];
 
 const itemPositions = ACTIVITIES.map((_, i) => {
@@ -84,8 +85,16 @@ function useCardGestureCoordinator(): CardGestureContextType {
     const friend = await database.get<Friend>(Friend.table).find(friendId);
     if (!friend) return;
     addInteraction({
-      friendIds: [friendId], activity: activityId, notes: '', date: new Date(),
-      type: 'log', status: 'completed', mode: 'quick-touch', vibe: null, duration: null,
+      friendIds: [friendId],
+      category: activityId as any, // NEW: Pass category for new scoring system
+      activity: activityId, // Keep for backward compatibility
+      notes: '',
+      date: new Date(),
+      type: 'log',
+      status: 'completed',
+      mode: 'quick-touch',
+      vibe: null,
+      duration: null,
     });
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setJustNurturedFriendId(friendId);
@@ -197,12 +206,19 @@ function useCardGestureCoordinator(): CardGestureContextType {
           }
           runOnJS(closeQuickWeave)();
         }
-        
+
+        // Reset all state immediately
         isLongPressActive.value = false;
         activeCardId.value = null;
         dragX.value = 0;
         dragY.value = 0;
         highlightedIndex.value = -1;
+      })
+      .onFinalize(() => {
+        'worklet';
+        // Final cleanup to ensure card scale resets
+        activeCardId.value = null;
+        isLongPressActive.value = false;
       });
 
     return Gesture.Exclusive(tap, longPressAndDrag);
