@@ -88,6 +88,10 @@ export async function logNewWeave(friendsToUpdate: FriendModel[], weaveData: Int
       if (weaveData.category) {
         interaction.interactionCategory = weaveData.category;
       }
+      // NEW: Save structured reflection if provided
+      if (weaveData.reflection) {
+        interaction.reflectionJSON = JSON.stringify(weaveData.reflection);
+      }
     });
 
     for (const friend of friendsToUpdate) {

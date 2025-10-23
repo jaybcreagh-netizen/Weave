@@ -46,6 +46,7 @@ export interface InteractionFormData {
 interface InteractionStore {
   addInteraction: (data: InteractionFormData) => Promise<void>;
   deleteInteraction: (id: string) => Promise<void>;
+  updateReflection: (interactionId: string, reflection: StructuredReflection) => Promise<void>;
 }
 
 export const useInteractionStore = create<InteractionStore>(() => ({
@@ -64,6 +65,14 @@ export const useInteractionStore = create<InteractionStore>(() => ({
       const joinRecords = await database.get<InteractionFriend>('interaction_friends').query(Q.where('interaction_id', id)).fetch();
       const recordsToDelete = joinRecords.map(r => r.prepareDestroyPermanently());
       await database.batch(...recordsToDelete, interaction.prepareDestroyPermanently());
+    });
+  },
+  updateReflection: async (interactionId: string, reflection: StructuredReflection) => {
+    await database.write(async () => {
+      const interaction = await database.get<Interaction>('interactions').find(interactionId);
+      await interaction.update(i => {
+        i.reflectionJSON = JSON.stringify(reflection);
+      });
     });
   },
 }));

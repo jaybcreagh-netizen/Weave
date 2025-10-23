@@ -42,21 +42,28 @@ export function TimelineItem({ interaction, isFuture, onPress, index, scrollY, i
   const { primary, secondary } = formatPoeticDate(date);
 
   const cardTintColor = useMemo(() => {
-    if (!isDarkMode || isFuture) return 'transparent';
+    if (isFuture) return 'transparent';
+
+    // Enhanced tint for deepened weaves
+    const isDeepened = interaction.reflection?.chips && interaction.reflection.chips.length > 0;
+
+    // Different opacity for light/dark modes
+    const darkTintIntensity = isDeepened ? '60' : '40';
+    const lightTintIntensity = isDeepened ? '25' : '15';
 
     switch (interaction.vibe) {
       case 'FullMoon':
-        return colors.living.healthy[0] + '40'; // Teal tint
+        return colors.living.healthy[0] + (isDarkMode ? darkTintIntensity : lightTintIntensity); // Teal tint
       case 'WaxingGibbous':
       case 'FirstQuarter':
-        return colors.living.stable[0] + '40'; // Violet tint
+        return colors.living.stable[0] + (isDarkMode ? darkTintIntensity : lightTintIntensity); // Violet tint
       case 'WaxingCrescent':
       case 'NewMoon':
-        return colors.secondary + '60'; // Neutral purple tint
+        return colors.secondary + (isDarkMode ? (isDeepened ? '70' : '60') : lightTintIntensity); // Neutral purple tint
       default:
-        return colors.secondary + '40'; // Default subtle tint
+        return colors.secondary + (isDarkMode ? darkTintIntensity : lightTintIntensity); // Default subtle tint
     }
-  }, [isDarkMode, isFuture, interaction.vibe, colors]);
+  }, [isDarkMode, isFuture, interaction.vibe, interaction.reflection, colors]);
 
   // Get friendly label and icon for category (or fall back to activity)
   const isCategory = interaction.activity && interaction.activity.includes('-');
@@ -347,6 +354,15 @@ export function TimelineItem({ interaction, isFuture, onPress, index, scrollY, i
           dynamicStyles.card,
           isFuture ? dynamicStyles.cardPlanned : dynamicStyles.cardCompleted,
           cardAnimatedStyle,
+          // Enhanced border for deepened weaves
+          interaction.reflection?.chips && interaction.reflection.chips.length > 0 && {
+            borderColor: colors.primary + (isDarkMode ? '80' : '60'),
+            borderWidth: 2,
+            shadowColor: colors.primary,
+            shadowOpacity: isDarkMode ? 0.3 : 0.2,
+            shadowRadius: 8,
+            shadowOffset: { width: 0, height: 2 },
+          },
         ]}>
           <BlurView 
             intensity={isDarkMode ? 40 : 100} 
@@ -373,17 +389,34 @@ export function TimelineItem({ interaction, isFuture, onPress, index, scrollY, i
           )}
 
           <View style={styles.cardContent}>
-            <Text style={[
-              styles.cardIcon,
-              { transform: [{ rotate: `${iconRotation}deg` }] }
-            ]}>
-              {displayIcon}
-            </Text>
+            {/* Icon with deepened indicator */}
+            <View>
+              <Text style={[
+                styles.cardIcon,
+                { transform: [{ rotate: `${iconRotation}deg` }] }
+              ]}>
+                {displayIcon}
+              </Text>
+              {/* Deepened weave indicator - sparkle overlay */}
+              {interaction.reflection?.chips && interaction.reflection.chips.length > 0 && (
+                <View style={styles.deepenedIndicator}>
+                  <Text style={styles.deepenedSparkle}>✨</Text>
+                </View>
+              )}
+            </View>
             <View style={{ flex: 1 }}>
               <Text style={[styles.cardTitle, dynamicStyles.cardTitle]}>{displayLabel}</Text>
               <Text style={[styles.cardSubtitle, dynamicStyles.cardSubtitle]}>
                 {interaction.mode?.replace('-', ' ')}
               </Text>
+              {/* Reflection chip preview - simplified */}
+              {interaction.reflection?.chips && interaction.reflection.chips.length > 0 && (
+                <View style={styles.reflectionPreview}>
+                  <Text style={[styles.reflectionPreviewText, { color: colors.primary }]} numberOfLines={1}>
+                    Deepened
+                  </Text>
+                </View>
+              )}
             </View>
           </View>
         </Animated.View>
@@ -398,9 +431,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingLeft: 98, // Align with thread
-    paddingBottom: 12,
-    paddingTop: 16,
-    gap: 8,
+    paddingBottom: 8,
+    paddingTop: 12,
+    gap: 6,
   },
   sectionAccent: {
     width: 2,
@@ -491,9 +524,17 @@ const styles = StyleSheet.create({
     gap: 12,
     zIndex: 1,
   },
-  cardIcon: { 
+  cardIcon: {
     fontSize: 26,
     opacity: 0.9,
+  },
+  deepenedIndicator: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+  },
+  deepenedSparkle: {
+    fontSize: 14,
   },
   cardTitle: { 
     fontWeight: '600', 
@@ -501,8 +542,16 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Lora_700Bold',
   },
-  cardSubtitle: { 
-    fontSize: 13, 
+  cardSubtitle: {
+    fontSize: 13,
     textTransform: 'capitalize',
+  },
+  reflectionPreview: {
+    marginTop: 6,
+  },
+  reflectionPreviewText: {
+    fontSize: 11,
+    fontWeight: '500',
+    opacity: 0.7,
   },
 });

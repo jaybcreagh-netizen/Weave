@@ -1,14 +1,15 @@
 import React from 'react';
 import { Modal, View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
-import { X, Calendar, MapPin, Heart, MessageCircle } from 'lucide-react-native';
+import { X, Calendar, MapPin, Heart, MessageCircle, Sparkles } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, runOnJS } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
-import { theme } from '../theme';
+import { useTheme } from '../hooks/useTheme';
 import { type Interaction, type MoonPhase, type InteractionCategory } from './types';
 import { modeIcons } from '../lib/constants';
 import { getCategoryMetadata } from '../lib/interaction-categories';
+import { STORY_CHIPS } from '../lib/story-chips';
 
 const moonPhaseIcons: Record<MoonPhase, string> = {
   'NewMoon': '🌑',
@@ -29,13 +30,23 @@ const formatDateTime = (date: Date | string): { date: string; time: string } => 
   };
 };
 
+interface InteractionDetailModalProps {
+  interaction: Interaction | null;
+  isOpen: boolean;
+  onClose: () => void;
+  friendName?: string;
+  onEditReflection?: (interaction: Interaction) => void;
+}
+
 export function InteractionDetailModal({
   interaction,
   isOpen,
   onClose,
-  friendName
+  friendName,
+  onEditReflection,
 }: InteractionDetailModalProps) {
   const insets = useSafeAreaInsets();
+  const { colors, isDarkMode } = useTheme();
   const translateY = useSharedValue(0);
 
   const pan = Gesture.Pan()
@@ -84,25 +95,25 @@ export function InteractionDetailModal({
       visible={isOpen}
       onRequestClose={onClose}
     >
-      <BlurView style={styles.backdrop} intensity={10} tint="dark">
+      <BlurView style={styles.backdrop} intensity={10} tint={isDarkMode ? 'dark' : 'light'}>
         <GestureDetector gesture={pan}>
-          <Animated.View style={[styles.modalContainer, { paddingBottom: insets.bottom }, animatedStyle]}>
+          <Animated.View style={[styles.modalContainer, { paddingBottom: insets.bottom, backgroundColor: colors.background }, animatedStyle]}>
             <View style={styles.handleBarContainer}>
-              <View style={styles.handleBar} />
+              <View style={[styles.handleBar, { backgroundColor: colors.muted }]} />
             </View>
 
             <View style={styles.header}>
               <View style={styles.headerTitleContainer}>
                 <Text style={styles.headerIcon}>{displayIcon}</Text>
                 <View>
-                  <Text style={styles.headerTitle}>{displayLabel}</Text>
-                  <Text style={styles.headerSubtitle}>
+                  <Text style={[styles.headerTitle, { color: colors.foreground }]}>{displayLabel}</Text>
+                  <Text style={[styles.headerSubtitle, { color: colors['muted-foreground'] }]}>
                     {interaction.mode?.replace('-', ' ')} • {interaction.type}
                   </Text>
                 </View>
               </View>
               <TouchableOpacity onPress={onClose} style={{ padding: 8 }}>
-                <X color={theme.colors['muted-foreground']} size={24} />
+                <X color={colors['muted-foreground']} size={24} />
               </TouchableOpacity>
             </View>
 
@@ -113,12 +124,70 @@ export function InteractionDetailModal({
                 </Text>
               </View>
 
-              <InfoRow icon={<Calendar color={theme.colors['muted-foreground']} size={20} />} title={date} subtitle={time} />
-              {friendName && <InfoRow icon={<Heart color={theme.colors['muted-foreground']} size={20} />} title={friendName} subtitle="With" />}
-              {isPast && moonIcon && <InfoRow icon={<Text style={{ fontSize: 24 }}>{moonIcon}</Text>} title={interaction.vibe?.replace(/([A-Z])/g, ' $1').trim()} subtitle="Moon phase" />}
-              {interaction.location && <InfoRow icon={<MapPin color={theme.colors['muted-foreground']} size={20} />} title={interaction.location} subtitle="Location" />}
-              {interaction.notes && <InfoRow icon={<MessageCircle color={theme.colors['muted-foreground']} size={20} />} title={interaction.notes} subtitle="Notes" />}
+              <InfoRow icon={<Calendar color={colors['muted-foreground']} size={20} />} title={date} subtitle={time} colors={colors} />
+              {friendName && <InfoRow icon={<Heart color={colors['muted-foreground']} size={20} />} title={friendName} subtitle="With" colors={colors} />}
+              {isPast && moonIcon && <InfoRow icon={<Text style={{ fontSize: 24 }}>{moonIcon}</Text>} title={interaction.vibe?.replace(/([A-Z])/g, ' $1').trim()} subtitle="Moon phase" colors={colors} />}
+              {interaction.location && <InfoRow icon={<MapPin color={colors['muted-foreground']} size={20} />} title={interaction.location} subtitle="Location" colors={colors} />}
+
+              {/* Reflection chips display */}
+              {interaction.reflection && (interaction.reflection.chips?.length || interaction.reflection.customNotes) && (
+                <View style={[styles.reflectionSection, { backgroundColor: colors.muted + '80' }]}>
+                  <View style={styles.reflectionHeader}>
+                    <Sparkles color={colors.primary} size={16} />
+                    <Text style={[styles.reflectionHeaderText, { color: colors.foreground }]}>Reflection</Text>
+                  </View>
+
+                  {/* Story chips */}
+                  {interaction.reflection.chips && interaction.reflection.chips.length > 0 && (
+                    <View style={styles.reflectionChips}>
+                      {interaction.reflection.chips.map((chip, index) => {
+                        const storyChip = STORY_CHIPS.find(s => s.id === chip.chipId);
+                        if (!storyChip) return null;
+
+                        // Build the text with overrides
+                        let text = storyChip.template;
+                        if (storyChip.components) {
+                          Object.entries(storyChip.components).forEach(([componentId, component]) => {
+                            const value = chip.componentOverrides[componentId] || component.original;
+                            text = text.replace(`{${componentId}}`, value);
+                          });
+                        }
+
+                        return (
+                          <View key={index} style={[styles.reflectionChip, { backgroundColor: colors.primary + '20', borderColor: colors.primary + '40' }]}>
+                            <Text style={[styles.reflectionChipText, { color: colors.foreground }]}>{text}</Text>
+                          </View>
+                        );
+                      })}
+                    </View>
+                  )}
+
+                  {/* Custom notes */}
+                  {interaction.reflection.customNotes && (
+                    <Text style={[styles.reflectionCustomNotes, { color: colors.foreground }]}>
+                      {interaction.reflection.customNotes}
+                    </Text>
+                  )}
+                </View>
+              )}
+
+              {interaction.notes && <InfoRow icon={<MessageCircle color={colors['muted-foreground']} size={20} />} title={interaction.notes} subtitle="Notes" colors={colors} />}
             </ScrollView>
+
+            {/* Deepen Weave / Edit Reflection Button - Only for past interactions */}
+            {onEditReflection && isPast && (
+              <View style={[styles.footer, { paddingBottom: insets.bottom + 16, borderTopColor: colors.border }]}>
+                <TouchableOpacity
+                  style={[styles.deepenButton, { backgroundColor: colors.primary }]}
+                  onPress={() => onEditReflection(interaction)}
+                >
+                  <Sparkles color={colors['primary-foreground']} size={20} />
+                  <Text style={[styles.deepenButtonText, { color: colors['primary-foreground'] }]}>
+                    {interaction.reflection?.chips?.length ? 'Edit Reflection' : 'Deepen this weave'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
           </Animated.View>
         </GestureDetector>
       </BlurView>
@@ -126,12 +195,12 @@ export function InteractionDetailModal({
   );
 }
 
-const InfoRow = ({ icon, title, subtitle }: { icon: React.ReactNode, title: string, subtitle: string }) => (
-    <View style={styles.infoRow}>
+const InfoRow = ({ icon, title, subtitle, colors }: { icon: React.ReactNode, title: string, subtitle: string, colors: any }) => (
+    <View style={[styles.infoRow, { backgroundColor: colors.muted + '80' }]}>
         <View style={{ width: 24, alignItems: 'center' }}>{icon}</View>
         <View style={{ flex: 1 }}>
-            <Text style={styles.infoSubtitle}>{subtitle}</Text>
-            <Text style={styles.infoTitle}>{title}</Text>
+            <Text style={[styles.infoSubtitle, { color: colors['muted-foreground'] }]}>{subtitle}</Text>
+            <Text style={[styles.infoTitle, { color: colors.foreground }]}>{title}</Text>
         </View>
     </View>
 );
@@ -142,7 +211,6 @@ const styles = StyleSheet.create({
         justifyContent: 'flex-end',
     },
     modalContainer: {
-        backgroundColor: 'rgba(247, 245, 242, 0.8)',
         borderTopLeftRadius: 24,
         borderTopRightRadius: 24,
         shadowColor: '#000',
@@ -159,7 +227,6 @@ const styles = StyleSheet.create({
     handleBar: {
         width: 48,
         height: 6,
-        backgroundColor: theme.colors.muted,
         borderRadius: 3,
     },
     header: {
@@ -182,11 +249,9 @@ const styles = StyleSheet.create({
     headerTitle: {
         fontSize: 24,
         fontWeight: '600',
-        color: theme.colors.foreground,
     },
     headerSubtitle: {
         fontSize: 14,
-        color: theme.colors['muted-foreground'],
         textTransform: 'capitalize',
     },
     scrollViewContent: {
@@ -220,7 +285,6 @@ const styles = StyleSheet.create({
         alignItems: 'flex-start',
         gap: 12,
         padding: 16,
-        backgroundColor: 'rgba(229, 225, 220, 0.5)', // muted/50
         borderRadius: 16,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
@@ -230,10 +294,65 @@ const styles = StyleSheet.create({
     },
     infoSubtitle: {
         fontSize: 14,
-        color: theme.colors['muted-foreground'],
     },
     infoTitle: {
         fontWeight: '500',
-        color: theme.colors.foreground,
-    }
+    },
+    reflectionSection: {
+        padding: 16,
+        borderRadius: 16,
+        gap: 12,
+    },
+    reflectionHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        marginBottom: 4,
+    },
+    reflectionHeaderText: {
+        fontSize: 14,
+        fontWeight: '600',
+    },
+    reflectionChips: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+    },
+    reflectionChip: {
+        borderWidth: 1,
+        borderRadius: 16,
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+    },
+    reflectionChipText: {
+        fontSize: 13,
+        fontWeight: '500',
+    },
+    reflectionCustomNotes: {
+        fontSize: 14,
+        lineHeight: 20,
+        fontStyle: 'italic',
+    },
+    footer: {
+        paddingHorizontal: 24,
+        paddingTop: 16,
+        borderTopWidth: 1,
+    },
+    deepenButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        padding: 16,
+        borderRadius: 12,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 12,
+        elevation: 8,
+    },
+    deepenButtonText: {
+        fontSize: 16,
+        fontWeight: '600',
+    },
 });

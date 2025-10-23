@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb'
 
 export default appSchema({
-  version: 9, // UPDATED: Added interaction_category field
+  version: 10, // UPDATED: Added reflection field for structured reflection data
   tables: [
     tableSchema({
       name: 'friends',
@@ -36,6 +36,8 @@ export default appSchema({
         { name: 'mode', type: 'string' },
         // NEW: Simplified interaction category system
         { name: 'interaction_category', type: 'string', isOptional: true },
+        // NEW: Structured reflection data (JSON string)
+        { name: 'reflection', type: 'string', isOptional: true },
       ]
     }),
     tableSchema({

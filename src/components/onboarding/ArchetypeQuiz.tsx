@@ -6,8 +6,11 @@ import { ChevronRight, Info } from 'lucide-react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 
 import { type Archetype, type MockContact } from '../types';
-import { ARCHETYPE_NAMES, ARCHETYPE_DETAILS } from '../../lib/archetype-data';
+import { archetypeData } from '../../lib/constants';
 import { ArchetypeCard } from './ArchetypeCard';
+
+const ARCHETYPE_NAMES = Object.keys(archetypeData) as Archetype[];
+const ARCHETYPE_DETAILS = archetypeData;
 
 interface ArchetypeQuizProps {
   friends: (Contact | MockContact)[];

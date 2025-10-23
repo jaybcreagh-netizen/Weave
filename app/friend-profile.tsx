@@ -17,6 +17,7 @@ import { calculateNextConnectionDate, getPoeticSectionTitle } from '../src/lib/t
 import { useTheme } from '../src/hooks/useTheme';
 import { type Interaction, type Tier } from '../src/components/types';
 import { InteractionDetailModal } from '../src/components/interaction-detail-modal';
+import { EditReflectionModal } from '../src/components/EditReflectionModal';
 
 const AnimatedSectionList = Animated.createAnimatedComponent(SectionList);
 
@@ -26,8 +27,9 @@ export default function FriendProfile() {
   const { friendId } = useLocalSearchParams();
   const { activeFriend: friend, activeFriendInteractions: interactions, observeFriend, unobserveFriend } = useFriendStore();
   const { deleteFriend } = useFriendStore();
-  const { deleteInteraction } = useInteractionStore();
+  const { deleteInteraction, updateReflection } = useInteractionStore();
   const [selectedInteraction, setSelectedInteraction] = useState<Interaction | null>(null);
+  const [editingReflection, setEditingReflection] = useState<Interaction | null>(null);
   const [isDataLoaded, setIsDataLoaded] = useState(false);
 
   const scrollY = useSharedValue(0);
@@ -375,6 +377,18 @@ export default function FriendProfile() {
             isOpen={selectedInteraction !== null}
             onClose={() => setSelectedInteraction(null)}
             friendName={friend.name}
+            onEditReflection={(interaction) => {
+              setEditingReflection(interaction);
+              setSelectedInteraction(null); // Close detail modal
+            }}
+        />
+
+        <EditReflectionModal
+            interaction={editingReflection}
+            isOpen={editingReflection !== null}
+            onClose={() => setEditingReflection(null)}
+            onSave={updateReflection}
+            friendArchetype={friend?.archetype}
         />
         </Animated.View>
     </SafeAreaView>
@@ -387,23 +401,23 @@ const styles = StyleSheet.create({
     header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 12, borderBottomWidth: 1 },
     backButton: { flexDirection: 'row', alignItems: 'center', gap: 8 },
     headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-    contentContainer: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 12, gap: 16 },
+    contentContainer: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8, gap: 12 },
     actionButtonsContainer: { flexDirection: 'row', gap: 12 },
     actionButton: {
       flex: 1,
-      borderRadius: 16,
+      borderRadius: 12,
       overflow: 'hidden',
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.15,
-      shadowRadius: 12,
-      elevation: 6,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 8,
+      elevation: 4,
     },
     actionButtonPrimary: {},
     actionButtonSecondary: {},
     buttonGradient: {
-      paddingVertical: 14,
-      paddingHorizontal: 20,
+      paddingVertical: 12,
+      paddingHorizontal: 16,
       alignItems: 'center',
       justifyContent: 'center',
       position: 'relative',
@@ -419,19 +433,16 @@ const styles = StyleSheet.create({
       borderBottomRightRadius: 100,
     },
     actionButtonTextPrimary: {
-      fontSize: 15,
-      fontWeight: '700',
-      letterSpacing: 0.3,
-      textShadowColor: 'rgba(0, 0, 0, 0.1)',
-      textShadowOffset: { width: 0, height: 1 },
-      textShadowRadius: 2,
+      fontSize: 14,
+      fontWeight: '600',
+      letterSpacing: 0.2,
     },
     actionButtonTextSecondary: {
-      fontSize: 15,
-      fontWeight: '700',
-      letterSpacing: 0.3,
+      fontSize: 14,
+      fontWeight: '600',
+      letterSpacing: 0.2,
     },
-    timelineTitle: { fontSize: 18, fontWeight: '600', marginBottom: 16, fontFamily: 'Lora_700Bold' },
+    timelineTitle: { fontSize: 16, fontWeight: '600', marginBottom: 12, marginTop: 8, fontFamily: 'Lora_700Bold' },
     emptyContainer: { alignItems: 'center', paddingVertical: 48 },
     emptyEmoji: { fontSize: 40, marginBottom: 16, opacity: 0.5 },
     emptyText: {},

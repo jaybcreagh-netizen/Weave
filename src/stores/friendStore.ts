@@ -100,25 +100,32 @@ export const useFriendStore = create<FriendStore>((set, get) => ({
   },
 
   addFriend: async (data: FriendFormData) => {
-    await database.write(async () => {
-        await database.get('friends').create(friend => {
-            friend.name = data.name;
-            friend.dunbarTier = tierMap[data.tier] || 'Community';
-            friend.archetype = data.archetype;
-            friend.photoUrl = data.photoUrl;
-            friend.notes = data.notes;
-            friend.weaveScore = 50; // Start with a neutral score
-            friend.lastUpdated = new Date();
+    console.log('[addFriend] Attempting to add friend with data:', data);
+    try {
+      await database.write(async () => {
+          await database.get('friends').create(friend => {
+              console.log('[addFriend] Inside create block');
+              friend.name = data.name;
+              friend.dunbarTier = tierMap[data.tier] || 'Community';
+              friend.archetype = data.archetype;
+              friend.photoUrl = data.photoUrl;
+              friend.notes = data.notes;
+              friend.weaveScore = 50; // Start with a neutral score
+              friend.lastUpdated = new Date();
 
-            // Initialize intelligence engine fields
-            friend.resilience = 1.0;
-            friend.ratedWeavesCount = 0;
-            friend.momentumScore = 0;
-            friend.momentumLastUpdated = new Date();
-            friend.isDormant = false;
-            friend.dormantSince = null;
-        });
-    });
+              // Initialize intelligence engine fields
+              friend.resilience = 1.0;
+              friend.ratedWeavesCount = 0;
+              friend.momentumScore = 0;
+              friend.momentumLastUpdated = new Date();
+              friend.isDormant = false;
+              friend.dormantSince = null;
+          });
+      });
+      console.log('[addFriend] SUCCESS: Friend should be created.');
+    } catch (error) {
+      console.error('[addFriend] ERROR: Failed to create friend.', error);
+    }
   },
   
   updateFriend: async (id: string, data: FriendFormData) => {

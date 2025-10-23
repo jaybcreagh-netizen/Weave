@@ -1,6 +1,7 @@
 import { Model } from '@nozbe/watermelondb'
 import { field, text, readonly, date, lazy, children } from '@nozbe/watermelondb/decorators'
 import { Q } from '@nozbe/watermelondb'
+import { type StructuredReflection } from '../../components/types'
 
 export default class Interaction extends Model {
   static table = 'interactions'
@@ -25,5 +26,16 @@ export default class Interaction extends Model {
   // NEW: Simplified interaction category system
   @field('interaction_category') interactionCategory?: string
 
+  // NEW: Structured reflection data (stored as JSON)
+  @text('reflection') reflectionJSON?: string
 
+  // Getter for parsed reflection
+  get reflection(): StructuredReflection | undefined {
+    if (!this.reflectionJSON) return undefined
+    try {
+      return JSON.parse(this.reflectionJSON)
+    } catch {
+      return undefined
+    }
+  }
 }

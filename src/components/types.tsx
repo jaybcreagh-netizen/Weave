@@ -29,6 +29,17 @@ export type InteractionType = ActivityType;
 export type Duration = 'Quick' | 'Standard' | 'Extended';
 export type Vibe = 'NewMoon' | 'WaxingCrescent' | 'FirstQuarter' | 'WaxingGibbous' | 'FullMoon';
 
+// Reflection chip structure
+export interface ReflectionChip {
+  chipId: string;
+  componentOverrides: Record<string, string>;
+}
+
+export interface StructuredReflection {
+  chips?: ReflectionChip[];
+  customNotes?: string;
+}
+
 // Used for manually added friends during onboarding
 export type MockContact = {
   id: string;
@@ -59,6 +70,7 @@ export type Interaction = {
   note: string | null;
   source?: 'quick-weave' | 'full-form' | 'import'; // Track entry method for node sizing
   photos?: string[]; // Photo URIs for rich content detection
+  reflection?: StructuredReflection; // NEW: Structured reflection data
 };
 
 export type FriendFormData = {
