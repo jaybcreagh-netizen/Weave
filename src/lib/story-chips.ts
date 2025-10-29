@@ -115,6 +115,20 @@ export const STORY_CHIPS: StoryChip[] = [
     template: 'We celebrated',
     plainText: 'We celebrated',
   },
+  {
+    id: 'activity_event',
+    type: 'activity',
+    category: 'event-party',
+    template: 'We went to a {event_type}',
+    components: {
+      event_type: {
+        id: 'event_type',
+        original: 'gathering',
+        alternatives: ['party', 'event', 'celebration', 'get-together'],
+      },
+    },
+    plainText: 'We went to a gathering',
+  },
 
   // ====================================================================
   // PEOPLE CHIPS - Who was there

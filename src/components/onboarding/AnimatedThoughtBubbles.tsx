@@ -16,24 +16,14 @@ interface AnimatedThoughtBubblesProps {
 
 export function AnimatedThoughtBubbles({ phrases }: AnimatedThoughtBubblesProps) {
   return (
-    <View className="h-64 w-full items-center justify-center relative my-8">
+    <View className="w-full items-center justify-center my-8">
       {phrases.map((phrase, index) => {
-        // Stagger horizontally for organic feel
-        const positions = ['10%', '30%', '50%', '70%'];
-        const leftPosition = positions[index % positions.length];
-        
         return (
           <Animated.View
             key={index}
             entering={FadeInUp.delay(index * 600).duration(800).springify()}
             exiting={FadeOut.duration(400)}
-            style={[
-              {
-                position: 'absolute',
-                left: leftPosition,
-                top: `${(index * 20) % 60}%`,
-              },
-            ]}
+            style={{ marginVertical: 8 }}
           >
             <FloatingBubble phrase={phrase} delay={index * 200} />
           </Animated.View>

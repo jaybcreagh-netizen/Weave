@@ -133,6 +133,20 @@ export function getCategoryMetadata(category: InteractionCategory): CategoryMeta
 }
 
 /**
+ * Array of all interaction categories in display order
+ */
+export const INTERACTION_CATEGORIES: InteractionCategory[] = [
+  'text-call',
+  'voice-note',
+  'meal-drink',
+  'hangout',
+  'deep-talk',
+  'event-party',
+  'activity-hobby',
+  'celebration',
+];
+
+/**
  * Get all categories in display order
  */
 export function getAllCategories(): CategoryMetadata[] {

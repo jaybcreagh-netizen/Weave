@@ -9,20 +9,27 @@ import Animated, {
   withDelay,
   interpolate,
   Easing,
+  runOnJS,
 } from 'react-native-reanimated';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { Trash2, Edit3 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
+import * as Haptics from 'expo-haptics';
 
 import { useTheme } from '../hooks/useTheme';
 import { formatPoeticDate, calculateWeaveWarmth, getThreadColors } from '../lib/timeline-utils';
 import { modeIcons } from '../lib/constants';
 import { getCategoryMetadata } from '../lib/interaction-categories';
 import { type Interaction, type InteractionCategory } from './types';
+import { calculateDeepeningLevel, getDeepeningVisuals } from '../lib/deepening-utils';
 
 interface TimelineItemProps {
   interaction: Interaction;
   isFuture: boolean;
   onPress: () => void;
+  onDelete?: (interactionId: string) => void;
+  onEdit?: (interactionId: string) => void;
   index: number;
   scrollY?: Animated.SharedValue<number>;
   itemY?: number;
@@ -31,58 +38,80 @@ interface TimelineItemProps {
   isFirstInSection?: boolean;
 }
 
-export function TimelineItem({ interaction, isFuture, onPress, index, scrollY, itemY = 0, showKnot = true, sectionLabel, isFirstInSection = false }: TimelineItemProps) {
+export const TimelineItem = React.memo(({ interaction, isFuture, onPress, onDelete, onEdit, index, scrollY, itemY = 0, showKnot = true, sectionLabel, isFirstInSection = false }: TimelineItemProps) => {
   const { colors, isDarkMode } = useTheme();
-  const date = typeof interaction.interactionDate === 'string' 
-    ? new Date(interaction.interactionDate) 
-    : interaction.interactionDate;
-  
-  const warmth = calculateWeaveWarmth(date);
-  const threadColors = getThreadColors(warmth, isFuture);
-  const { primary, secondary } = formatPoeticDate(date);
+
+  // Memoize date parsing
+  const date = useMemo(() =>
+    typeof interaction.interactionDate === 'string'
+      ? new Date(interaction.interactionDate)
+      : interaction.interactionDate,
+    [interaction.interactionDate]
+  );
+
+  // Memoize expensive calculations
+  const warmth = useMemo(() => calculateWeaveWarmth(date), [date]);
+  const threadColors = useMemo(() => getThreadColors(warmth, isFuture), [warmth, isFuture]);
+  const poeticDate = useMemo(() => formatPoeticDate(date), [date]);
+  const { primary, secondary } = poeticDate;
+
+  // Memoize deepening calculations
+  const deepeningMetrics = useMemo(() =>
+    calculateDeepeningLevel(interaction.reflection),
+    [interaction.reflection]
+  );
+  const deepeningVisuals = useMemo(() =>
+    getDeepeningVisuals(deepeningMetrics, colors, isDarkMode),
+    [deepeningMetrics, colors, isDarkMode]
+  );
 
   const cardTintColor = useMemo(() => {
     if (isFuture) return 'transparent';
 
-    // Enhanced tint for deepened weaves
-    const isDeepened = interaction.reflection?.chips && interaction.reflection.chips.length > 0;
-
-    // Different opacity for light/dark modes
-    const darkTintIntensity = isDeepened ? '60' : '40';
-    const lightTintIntensity = isDeepened ? '25' : '15';
+    // Use scale-based tint opacity
+    const tintOpacity = deepeningVisuals.tintOpacity.toString(16).padStart(2, '0');
 
     switch (interaction.vibe) {
       case 'FullMoon':
-        return colors.living.healthy[0] + (isDarkMode ? darkTintIntensity : lightTintIntensity); // Teal tint
+        return colors.living.healthy[0] + tintOpacity; // Teal tint
       case 'WaxingGibbous':
       case 'FirstQuarter':
-        return colors.living.stable[0] + (isDarkMode ? darkTintIntensity : lightTintIntensity); // Violet tint
+        return colors.living.stable[0] + tintOpacity; // Violet tint
       case 'WaxingCrescent':
       case 'NewMoon':
-        return colors.secondary + (isDarkMode ? (isDeepened ? '70' : '60') : lightTintIntensity); // Neutral purple tint
+        return colors.secondary + tintOpacity; // Neutral purple tint
       default:
-        return colors.secondary + (isDarkMode ? darkTintIntensity : lightTintIntensity); // Default subtle tint
+        return colors.secondary + tintOpacity; // Default subtle tint
     }
-  }, [isDarkMode, isFuture, interaction.vibe, interaction.reflection, colors]);
+  }, [isFuture, interaction.vibe, deepeningVisuals.tintOpacity, colors]);
 
-  // Get friendly label and icon for category (or fall back to activity)
-  const isCategory = interaction.activity && interaction.activity.includes('-');
+  // Get friendly label and icon for category (memoized)
+  const { displayLabel, displayIcon } = useMemo(() => {
+    const isCategory = interaction.activity && interaction.activity.includes('-');
 
-  let displayLabel: string;
-  let displayIcon: string;
+    if (isCategory) {
+      const categoryData = getCategoryMetadata(interaction.activity as InteractionCategory);
+      return { displayLabel: categoryData.label, displayIcon: categoryData.icon };
+    }
 
-  if (isCategory) {
-    const categoryData = getCategoryMetadata(interaction.activity as InteractionCategory);
-    displayLabel = categoryData.label;
-    displayIcon = categoryData.icon;
-  } else {
     // Old format - use mode icon and activity name
-    displayLabel = interaction.activity;
-    displayIcon = modeIcons[interaction.mode as keyof typeof modeIcons] || modeIcons.default;
-  }
+    // BUT: If this is a deepened quick log, try to extract category from reflection
+    const hasReflection = interaction.reflection && (interaction.reflection.chips?.length || interaction.reflection.customNotes);
+    const categoryFromReflection = hasReflection && interaction.interactionCategory;
 
-  // Define dynamic styles inside the component
-  const dynamicStyles = {
+    if (categoryFromReflection) {
+      const categoryData = getCategoryMetadata(categoryFromReflection as InteractionCategory);
+      return { displayLabel: categoryData.label, displayIcon: categoryData.icon };
+    }
+
+    return {
+      displayLabel: interaction.activity,
+      displayIcon: modeIcons[interaction.mode as keyof typeof modeIcons] || modeIcons.default
+    };
+  }, [interaction.activity, interaction.mode, interaction.interactionCategory, interaction.reflection]);
+
+  // Memoize dynamic styles
+  const dynamicStyles = useMemo(() => ({
     sectionLabel: {
       color: colors['muted-foreground'],
     },
@@ -112,7 +141,7 @@ export function TimelineItem({ interaction, isFuture, onPress, index, scrollY, i
     cardSubtitle: {
       color: colors['muted-foreground'],
     },
-  };
+  }), [colors, warmth, isDarkMode]);
 
   // Animation values
   const pulseAnimation = useSharedValue(0);
@@ -232,6 +261,77 @@ export function TimelineItem({ interaction, isFuture, onPress, index, scrollY, i
   // Icon subtle rotation for organic feel
   const iconRotation = Math.random() * 4 - 2; // -2° to +2°
 
+  // Swipe to edit/delete
+  const translateX = useSharedValue(0);
+  const itemOpacity = useSharedValue(1);
+  const SWIPE_THRESHOLD = 80; // Swipe 80px to trigger action (left or right)
+
+  // Create non-async wrappers for handlers
+  const handleDelete = React.useCallback(() => {
+    if (onDelete) {
+      onDelete(interaction.id);
+    }
+  }, [onDelete, interaction.id]);
+
+  const handleEdit = React.useCallback(() => {
+    if (onEdit) {
+      onEdit(interaction.id);
+    }
+  }, [onEdit, interaction.id]);
+
+  const hasTriggeredHaptic = useSharedValue(false);
+
+  const triggerHaptic = React.useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  }, []);
+
+  const panGesture = Gesture.Pan()
+    .enabled(!!(onDelete || onEdit)) // Enable if either handler exists
+    .activeOffsetX([-15, 15]) // Activate for either direction
+    .failOffsetY([-20, 20]) // Fail if vertical movement exceeds 20px
+    .onUpdate((event) => {
+      'worklet';
+      translateX.value = event.translationX;
+
+      // Trigger haptic when crossing threshold
+      if (Math.abs(event.translationX) > SWIPE_THRESHOLD && !hasTriggeredHaptic.value) {
+        hasTriggeredHaptic.value = true;
+        runOnJS(triggerHaptic)();
+      }
+      // Reset haptic trigger when going back below threshold
+      if (Math.abs(event.translationX) < SWIPE_THRESHOLD) {
+        hasTriggeredHaptic.value = false;
+      }
+    })
+    .onEnd((event) => {
+      'worklet';
+      // Swipe right to edit
+      if (event.translationX > SWIPE_THRESHOLD && onEdit) {
+        // Snap back and trigger edit
+        translateX.value = withSpring(0, { damping: 20, stiffness: 300 });
+        runOnJS(handleEdit)();
+      }
+      // Swipe left to delete
+      else if (event.translationX < -SWIPE_THRESHOLD && onDelete) {
+        // Fade out animation, then delete
+        itemOpacity.value = withTiming(0, { duration: 200 }, (finished) => {
+          if (finished) {
+            runOnJS(handleDelete)();
+          }
+        });
+        translateX.value = withTiming(-400, { duration: 200 });
+      } else {
+        // Snap back
+        translateX.value = withSpring(0, { damping: 20, stiffness: 300 });
+      }
+      hasTriggeredHaptic.value = false;
+    });
+
+  const swipeAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: translateX.value }],
+    opacity: itemOpacity.value,
+  }));
+
   // Container entrance animation - combines all entrance effects
   const containerAnimatedStyle = useAnimatedStyle(() => {
     return {
@@ -286,6 +386,15 @@ export function TimelineItem({ interaction, isFuture, onPress, index, scrollY, i
     return isDarkMode ? colors.secondary + '70' : 'rgba(181, 138, 108, 0.6)';
   };
 
+  // Action backgrounds visibility
+  const editBackgroundStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(translateX.value, [0, SWIPE_THRESHOLD], [0, 1], 'clamp'),
+  }));
+
+  const deleteBackgroundStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(translateX.value, [0, -SWIPE_THRESHOLD], [0, 1], 'clamp'),
+  }));
+
   return (
     <View>
       {/* Section label chip - only for first item in section */}
@@ -296,7 +405,26 @@ export function TimelineItem({ interaction, isFuture, onPress, index, scrollY, i
         </View>
       )}
 
-      <Animated.View style={[styles.itemContainer, containerAnimatedStyle, scrollFadeStyle]}>
+      <View style={styles.swipeContainer}>
+        {/* Edit background (left side - swipe right to reveal) */}
+        {onEdit && (
+          <Animated.View style={[styles.editBackground, editBackgroundStyle]}>
+            <Edit3 color={colors.primary} size={24} />
+            <Text style={[styles.editText, { color: colors.primary }]}>Edit</Text>
+          </Animated.View>
+        )}
+
+        {/* Delete background (right side - swipe left to reveal) */}
+        {onDelete && (
+          <Animated.View style={[styles.deleteBackground, deleteBackgroundStyle]}>
+            <Trash2 color={colors.destructive} size={24} />
+            <Text style={[styles.deleteText, { color: colors.destructive }]}>Delete</Text>
+          </Animated.View>
+        )}
+
+        {/* Swipeable content */}
+        <GestureDetector gesture={panGesture}>
+          <Animated.View style={[styles.itemContainer, containerAnimatedStyle, scrollFadeStyle, swipeAnimatedStyle]}>
         {/* Knot positioned absolutely on the thread with connector line */}
       <View style={styles.knotAbsoluteContainer} pointerEvents="none">
         {/* Connector line from thread to card */}
@@ -354,13 +482,13 @@ export function TimelineItem({ interaction, isFuture, onPress, index, scrollY, i
           dynamicStyles.card,
           isFuture ? dynamicStyles.cardPlanned : dynamicStyles.cardCompleted,
           cardAnimatedStyle,
-          // Enhanced border for deepened weaves
-          interaction.reflection?.chips && interaction.reflection.chips.length > 0 && {
-            borderColor: colors.primary + (isDarkMode ? '80' : '60'),
-            borderWidth: 2,
+          // Scale-based border and shadow for deepened weaves
+          deepeningMetrics.level !== 'none' && {
+            borderColor: colors.primary + deepeningVisuals.borderOpacity.toString(16).padStart(2, '0'),
+            borderWidth: deepeningVisuals.borderWidth,
             shadowColor: colors.primary,
-            shadowOpacity: isDarkMode ? 0.3 : 0.2,
-            shadowRadius: 8,
+            shadowOpacity: deepeningVisuals.shadowOpacity,
+            shadowRadius: deepeningVisuals.shadowRadius,
             shadowOffset: { width: 0, height: 2 },
           },
         ]}>
@@ -397,10 +525,10 @@ export function TimelineItem({ interaction, isFuture, onPress, index, scrollY, i
               ]}>
                 {displayIcon}
               </Text>
-              {/* Deepened weave indicator - sparkle overlay */}
-              {interaction.reflection?.chips && interaction.reflection.chips.length > 0 && (
+              {/* Deepened weave indicator - scale-based sparkles */}
+              {deepeningMetrics.level !== 'none' && (
                 <View style={styles.deepenedIndicator}>
-                  <Text style={styles.deepenedSparkle}>✨</Text>
+                  <Text style={styles.deepenedSparkle}>{deepeningVisuals.badgeEmoji}</Text>
                 </View>
               )}
             </View>
@@ -409,11 +537,11 @@ export function TimelineItem({ interaction, isFuture, onPress, index, scrollY, i
               <Text style={[styles.cardSubtitle, dynamicStyles.cardSubtitle]}>
                 {interaction.mode?.replace('-', ' ')}
               </Text>
-              {/* Reflection chip preview - simplified */}
-              {interaction.reflection?.chips && interaction.reflection.chips.length > 0 && (
+              {/* Reflection chip preview - scale-based label */}
+              {deepeningMetrics.level !== 'none' && (
                 <View style={styles.reflectionPreview}>
                   <Text style={[styles.reflectionPreviewText, { color: colors.primary }]} numberOfLines={1}>
-                    Deepened
+                    {deepeningVisuals.badgeText}
                   </Text>
                 </View>
               )}
@@ -421,10 +549,20 @@ export function TimelineItem({ interaction, isFuture, onPress, index, scrollY, i
           </View>
         </Animated.View>
       </TouchableOpacity>
-      </Animated.View>
+          </Animated.View>
+        </GestureDetector>
+      </View>
     </View>
   );
-}
+}, (prevProps, nextProps) => {
+  // Custom comparison - only re-render if interaction data actually changes
+  return (
+    prevProps.interaction.id === nextProps.interaction.id &&
+    prevProps.interaction.updatedAt === nextProps.interaction.updatedAt &&
+    prevProps.isFuture === nextProps.isFuture &&
+    prevProps.index === nextProps.index
+  );
+});
 
 const styles = StyleSheet.create({
   sectionChipContainer: {
@@ -553,5 +691,38 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '500',
     opacity: 0.7,
+  },
+  swipeContainer: {
+    position: 'relative',
+  },
+  editBackground: {
+    position: 'absolute',
+    left: 20,
+    top: 0,
+    bottom: 24,
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+    gap: 8,
+    paddingLeft: 100,
+    zIndex: 1,
+  },
+  editText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  deleteBackground: {
+    position: 'absolute',
+    right: 20,
+    top: 0,
+    bottom: 24,
+    justifyContent: 'center',
+    alignItems: 'flex-end',
+    gap: 8,
+    paddingRight: 40,
+    zIndex: 1,
+  },
+  deleteText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
 });

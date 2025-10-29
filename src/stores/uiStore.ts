@@ -6,6 +6,15 @@ interface ToastData {
   friendName: string;
 }
 
+interface MicroReflectionData {
+  friendId: string;
+  friendName: string;
+  activityId: string;
+  activityLabel: string;
+  interactionId: string;
+  friendArchetype?: string;
+}
+
 interface UIStore {
   selectedFriendId: string | null;
   archetypeModal: Archetype | null;
@@ -24,6 +33,7 @@ interface UIStore {
   quickWeaveCenterPoint: { x: number; y: number } | null;
   justNurturedFriendId: string | null;
   toastData: ToastData | null;
+  microReflectionData: MicroReflectionData | null;
   isDarkMode: boolean;
 
   setSelectedFriendId: (id: string | null) => void;
@@ -45,6 +55,8 @@ interface UIStore {
   setJustNurturedFriendId: (id: string | null) => void;
   showToast: (message: string, friendName: string) => void;
   hideToast: () => void;
+  showMicroReflectionSheet: (data: MicroReflectionData) => void;
+  hideMicroReflectionSheet: () => void;
   toggleDarkMode: () => void;
   setDarkMode: (isDark: boolean) => void;
 }
@@ -67,6 +79,7 @@ export const useUIStore = create<UIStore>((set, get) => ({
   quickWeaveCenterPoint: null,
   justNurturedFriendId: null,
   toastData: null,
+  microReflectionData: null,
   isDarkMode: false,
   
   setSelectedFriendId: (id) => set({ selectedFriendId: id }),
@@ -117,6 +130,9 @@ export const useUIStore = create<UIStore>((set, get) => ({
     }, 3500);
   },
   hideToast: () => set({ toastData: null }),
+
+  showMicroReflectionSheet: (data) => set({ microReflectionData: data }),
+  hideMicroReflectionSheet: () => set({ microReflectionData: null }),
 
   toggleDarkMode: () => set((state) => ({ isDarkMode: !state.isDarkMode })),
   setDarkMode: (isDark) => set({ isDarkMode: isDark }),

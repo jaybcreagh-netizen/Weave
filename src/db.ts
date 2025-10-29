@@ -5,6 +5,10 @@ import migrations from './db/migrations';
 import Friend from './db/models/Friend';
 import Interaction from './db/models/Interaction';
 import InteractionFriend from './db/models/InteractionFriend';
+import SuggestionEvent from './db/models/SuggestionEvent';
+import Intention from './db/models/Intention';
+import UserProfile from './db/models/UserProfile';
+import PracticeLog from './db/models/PracticeLog';
 
 const adapter = new SQLiteAdapter({
   schema,
@@ -23,6 +27,10 @@ export const database = new Database({
     Friend,
     Interaction,
     InteractionFriend,
+    SuggestionEvent,
+    Intention,
+    UserProfile,
+    PracticeLog,
   ],
 });
 
@@ -57,6 +65,24 @@ export const seedDatabase = async () => {
         friend.tier = 'Community';
     });
   });
+};
+
+/**
+ * Initialize user profile singleton
+ * Should be called once on app startup
+ */
+export const initializeUserProfile = async () => {
+  const profileCollection = database.get<UserProfile>('user_profile');
+  const profiles = await profileCollection.query().fetch();
+
+  if (profiles.length === 0) {
+    await database.write(async () => {
+      await profileCollection.create(profile => {
+        profile.batteryCheckinEnabled = true;
+        profile.batteryCheckinTime = '09:00';
+      });
+    });
+  }
 };
 
 export const clearDatabase = async () => {

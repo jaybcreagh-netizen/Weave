@@ -44,20 +44,24 @@ export interface InteractionFormData {
 }
 
 interface InteractionStore {
-  addInteraction: (data: InteractionFormData) => Promise<void>;
+  addInteraction: (data: InteractionFormData) => Promise<string>;
   deleteInteraction: (id: string) => Promise<void>;
   updateReflection: (interactionId: string, reflection: StructuredReflection) => Promise<void>;
+  updateInteractionCategory: (interactionId: string, category: InteractionCategory) => Promise<void>;
+  updateInteractionVibeAndNotes: (interactionId: string, vibe?: Vibe | null, notes?: string) => Promise<void>;
 }
 
 export const useInteractionStore = create<InteractionStore>(() => ({
-  addInteraction: async (data: InteractionFormData) => {
+  addInteraction: async (data: InteractionFormData): Promise<string> => {
     // 1. Fetch the full FriendModel objects
     const friends = await database.get<FriendModel>('friends').query(Q.where('id', Q.oneOf(data.friendIds))).fetch();
 
     if (friends.length > 0) {
       // 2. Pass the full form data to the engine. The engine is the expert.
-      await logNewWeave(friends, data, database);
+      const interactionId = await logNewWeave(friends, data, database);
+      return interactionId;
     }
+    throw new Error('No friends found');
   },
   deleteInteraction: async (id: string) => {
     await database.write(async () => {
@@ -72,6 +76,28 @@ export const useInteractionStore = create<InteractionStore>(() => ({
       const interaction = await database.get<Interaction>('interactions').find(interactionId);
       await interaction.update(i => {
         i.reflectionJSON = JSON.stringify(reflection);
+      });
+    });
+  },
+  updateInteractionCategory: async (interactionId: string, category: InteractionCategory) => {
+    await database.write(async () => {
+      const interaction = await database.get<Interaction>('interactions').find(interactionId);
+      await interaction.update(i => {
+        i.interactionCategory = category;
+        i.activity = category; // Update both for backward compatibility
+      });
+    });
+  },
+  updateInteractionVibeAndNotes: async (interactionId: string, vibe?: Vibe | null, notes?: string) => {
+    await database.write(async () => {
+      const interaction = await database.get<Interaction>('interactions').find(interactionId);
+      await interaction.update(i => {
+        if (vibe !== undefined) {
+          i.vibe = vibe;
+        }
+        if (notes !== undefined && notes.trim()) {
+          i.notes = notes.trim();
+        }
       });
     });
   },

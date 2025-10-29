@@ -38,7 +38,32 @@ export const useFriendStore = create<FriendStore>((set, get) => ({
     if (currentSubscription) return;
 
     const newSubscription = database.get<FriendModel>('friends').query().observe().subscribe(friends => {
-      set({ friends });
+      const currentFriends = get().friends;
+
+      // Only update if the friend IDs or count has actually changed
+      // This prevents unnecessary re-renders when WatermelonDB emits same data
+      const currentIds = currentFriends.map(f => f.id).sort().join(',');
+      const newIds = friends.map(f => f.id).sort().join(',');
+
+      if (currentIds !== newIds) {
+        set({ friends });
+      } else {
+        // IDs are the same, but properties might have changed
+        // Update the array reference only if we detect actual changes
+        const hasChanges = friends.some((newFriend, idx) => {
+          const oldFriend = currentFriends.find(f => f.id === newFriend.id);
+          return !oldFriend ||
+                 oldFriend.name !== newFriend.name ||
+                 oldFriend.weaveScore !== newFriend.weaveScore ||
+                 oldFriend.dunbarTier !== newFriend.dunbarTier ||
+                 oldFriend.archetype !== newFriend.archetype ||
+                 oldFriend.isDormant !== newFriend.isDormant;
+        });
+
+        if (hasChanges) {
+          set({ friends });
+        }
+      }
     });
 
     set({ friendsSubscription: newSubscription });

@@ -55,7 +55,7 @@ export function useCardGesture() {
 
 function useCardGestureCoordinator(): CardGestureContextType {
   const router = useRouter();
-  const { openQuickWeave, closeQuickWeave, showToast, setJustNurturedFriendId, setSelectedFriendId } = useUIStore();
+  const { openQuickWeave, closeQuickWeave, showToast, setJustNurturedFriendId, setSelectedFriendId, showMicroReflectionSheet } = useUIStore();
   const { addInteraction } = useInteractionStore();
 
   const cardRefs = useSharedValue<Record<string, React.RefObject<Animated.View>>>({});
@@ -84,7 +84,9 @@ function useCardGestureCoordinator(): CardGestureContextType {
   const handleInteraction = async (activityId: string, activityLabel: string, friendId: string) => {
     const friend = await database.get<Friend>(Friend.table).find(friendId);
     if (!friend) return;
-    addInteraction({
+
+    // 1. Log the interaction and get the ID back
+    const interactionId = await addInteraction({
       friendIds: [friendId],
       category: activityId as any, // NEW: Pass category for new scoring system
       activity: activityId, // Keep for backward compatibility
@@ -96,9 +98,27 @@ function useCardGestureCoordinator(): CardGestureContextType {
       vibe: null,
       duration: null,
     });
+
+    // 2. Success haptic
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+    // 3. Show "just nurtured" glow
     setJustNurturedFriendId(friendId);
+
+    // 4. Show toast
     showToast(activityLabel, friend.name);
+
+    // 5. Trigger micro-reflection after short delay
+    setTimeout(() => {
+      showMicroReflectionSheet({
+        friendId,
+        friendName: friend.name,
+        activityId,
+        activityLabel,
+        interactionId,
+        friendArchetype: friend.archetype,
+      });
+    }, 200);
   };
 
   const handleTap = (friendId: string) => {

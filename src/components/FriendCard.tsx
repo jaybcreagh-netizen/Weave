@@ -20,6 +20,7 @@ import { ArchetypeIcon } from './ArchetypeIcon';
 import { archetypeData } from '../lib/constants';
 import FriendModel from '../db/models/Friend';
 import { useCardGesture } from '../context/CardGestureContext';
+import { calculateCurrentScore } from '../lib/weave-engine';
 
 const ATTENTION_THRESHOLD = 35;
 const STABLE_THRESHOLD = 65;
@@ -32,10 +33,17 @@ interface FriendCardProps {
 export function FriendCard({ friend, animatedRef }: FriendCardProps) {
   if (!friend) return null;
 
-  const { id, name, archetype, weaveScore, isDormant = false, photoUrl } = friend;
+  const { id, name, archetype, isDormant = false, photoUrl } = friend;
   const { colors, isDarkMode } = useTheme();
   const { setArchetypeModal, justNurturedFriendId, setJustNurturedFriendId } = useUIStore();
   const { activeCardId } = useCardGesture();
+
+  // Force recalculation of score by using lastUpdated as a dependency
+  // This ensures colors update when friend data changes OR when time passes
+  const weaveScore = useMemo(
+    () => calculateCurrentScore(friend),
+    [friend, friend.lastUpdated]
+  );
 
   const glowColor = useMemo(() => {
     if (!isDarkMode) return '#000'; // Black shadow for light mode

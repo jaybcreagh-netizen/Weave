@@ -5,8 +5,9 @@ import * as Haptics from 'expo-haptics';
 import { BlurView } from 'expo-blur';
 
 import { useUIStore } from '../stores/uiStore';
-import { useFriendStore } from '../stores/friendStore';
+import { useFriends } from '../hooks/useFriends';
 import { useCardGesture } from '../context/CardGestureContext';
+import { useTheme } from '../hooks/useTheme';
 
 const { width, height } = Dimensions.get('window');
 const MENU_RADIUS = 100;
@@ -45,8 +46,10 @@ export function QuickWeaveOverlay() {
     isQuickWeaveClosing,
     _finishClosingQuickWeave,
   } = useUIStore();
-  const friend = useFriendStore(state => state.friends.find(f => f.id === quickWeaveFriendId));
+  const allFriends = useFriends();
+  const friend = allFriends.find(f => f.id === quickWeaveFriendId);
   const { dragX, dragY, highlightedIndex } = useCardGesture();
+  const { colors, isDarkMode } = useTheme();
 
   const overlayOpacity = useSharedValue(0);
   const menuScale = useSharedValue(0.3);
@@ -72,10 +75,6 @@ export function QuickWeaveOverlay() {
     }
   }, [isQuickWeaveClosing]);
 
-  if (!quickWeaveCenterPoint || !quickWeaveFriendId || !friend) {
-    return null;
-  }
-
   const overlayStyle = useAnimatedStyle(() => ({
     opacity: overlayOpacity.value,
   }));
@@ -85,27 +84,36 @@ export function QuickWeaveOverlay() {
     transform: [{ scale: menuScale.value }],
   }));
 
+  // Early return AFTER all hooks have been called
+  if (!quickWeaveCenterPoint || !quickWeaveFriendId || !friend) {
+    return null;
+  }
+
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
       <Animated.View style={overlayStyle}>
         <BlurView intensity={20} tint="dark" style={StyleSheet.absoluteFill} />
       </Animated.View>
-      
+
       <Animated.View
         style={[
           styles.menuContainer,
           {
-            left: quickWeaveCenterPoint.x,
-            top: quickWeaveCenterPoint.y,
+            left: quickWeaveCenterPoint.x - MENU_RADIUS,
+            top: quickWeaveCenterPoint.y - MENU_RADIUS,
           },
           menuContainerStyle,
         ]}
       >
-        <CenterHint
-          friendName={friend.name}
-          dragX={dragX}
-          dragY={dragY}
-        />
+        {/* Header label above menu */}
+        <View style={styles.headerLabel}>
+          <Text style={[styles.headerLabelText, { color: isDarkMode ? 'rgba(255, 255, 255, 0.7)' : colors.foreground }]}>
+            Log a weave
+          </Text>
+          <Text style={[styles.headerFriendName, { color: isDarkMode ? 'white' : colors.foreground }]}>
+            {friend.name}
+          </Text>
+        </View>
 
         {ACTIVITIES.map((item, index) => (
           <MenuItem
@@ -122,13 +130,13 @@ export function QuickWeaveOverlay() {
   );
 }
 
-function MenuItem({ 
-  item, 
-  index, 
+function MenuItem({
+  item,
+  index,
   highlightedIndex,
   dragX,
   dragY,
-}: { 
+}: {
   item: RadialMenuItem;
   index: number;
   highlightedIndex: Animated.SharedValue<number>;
@@ -141,19 +149,19 @@ function MenuItem({
     const isHighlighted = highlightedIndex.value === index;
     const dragDistance = Math.sqrt(dragX.value**2 + dragY.value**2);
     const hasDragged = dragDistance > HIGHLIGHT_THRESHOLD;
-    
-    const targetScale = isHighlighted && hasDragged ? 1.05 : 1;
-    // Made the item highlight spring much stiffer for an immediate reaction.
-    const scale = withSpring(targetScale, { damping: 2, stiffness: 750 });
-    
-    const targetOpacity = hasDragged ? (isHighlighted ? 1 : 0.9) : 0.85;
+
+    const targetScale = isHighlighted && hasDragged ? 1.08 : 1;
+    // Reduced bounciness with higher damping for smoother feel
+    const scale = withSpring(targetScale, { damping: 15, stiffness: 400 });
+
+    const targetOpacity = hasDragged ? (isHighlighted ? 1 : 0.75) : 0.6;
     const opacity = withTiming(targetOpacity, { duration: 50 });
 
     return {
       opacity,
       transform: [
-        { translateX: finalX - ITEM_SIZE / 2 },
-        { translateY: finalY - ITEM_SIZE / 2 },
+        { translateX: finalX },
+        { translateY: finalY },
         { scale },
       ],
     };
@@ -188,37 +196,6 @@ function MenuItem({
   );
 }
 
-function CenterHint({ 
-  friendName,
-  dragX,
-  dragY,
-}: { 
-  friendName: string;
-  dragX: Animated.SharedValue<number>;
-  dragY: Animated.SharedValue<number>;
-}) {
-  const animatedStyle = useAnimatedStyle(() => {
-    const dragDistance = Math.sqrt(dragX.value**2 + dragY.value**2);
-    const isDragging = dragDistance > HIGHLIGHT_THRESHOLD;
-    
-    // Shortened the hint fade-out to make it disappear instantly when dragging starts.
-    return {
-      opacity: withTiming(isDragging ? 0.3 : 1, { duration: 100 }),
-      transform: [
-        { scale: withTiming(isDragging ? 0.88 : 1, { duration: 100 }) }
-      ],
-    };
-  });
-
-  return (
-    <Animated.View style={[styles.centerHint, animatedStyle]}>
-      <Text style={styles.centerHintText}>Drag to log</Text>
-      <Text style={styles.centerHintName} numberOfLines={1}>{friendName}</Text>
-    </Animated.View>
-  );
-}
-
-
 const styles = StyleSheet.create({
   overlay: {
     ...StyleSheet.absoluteFillObject,
@@ -228,36 +205,31 @@ const styles = StyleSheet.create({
     position: 'absolute',
     width: MENU_RADIUS * 2,
     height: MENU_RADIUS * 2,
-    marginLeft: -MENU_RADIUS,
-    marginTop: -MENU_RADIUS,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  centerHint: {
+  headerLabel: {
     position: 'absolute',
+    top: -MENU_RADIUS - 15,
     alignItems: 'center',
-    justifyContent: 'center',
-    width: MENU_RADIUS * 1.6,
-    paddingHorizontal: 16,
+    width: 200,
   },
-  centerHintText: {
-    fontSize: 12,
+  headerLabelText: {
+    fontSize: 13,
     fontWeight: '600',
-    color: 'rgba(255, 255, 255, 0.5)',
-    marginBottom: 6,
-    letterSpacing: 0.8,
+    marginBottom: 4,
+    letterSpacing: 0.5,
     textTransform: 'uppercase',
-    textAlign: 'center',
   },
-  centerHintName: {
-    fontSize: 19,
+  headerFriendName: {
+    fontSize: 24,
     fontWeight: '700',
-    color: 'white',
     fontFamily: 'Lora_700Bold',
-    textAlign: 'center',
   },
   itemWrapper: {
     position: 'absolute',
+    left: MENU_RADIUS - ITEM_SIZE / 2,  // Center the item at the menu center
+    top: MENU_RADIUS - ITEM_SIZE / 2,
     width: ITEM_SIZE,
     height: ITEM_SIZE,
     alignItems: 'center',

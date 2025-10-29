@@ -72,7 +72,9 @@ export function calculatePointsForWeave(
 /**
  * Logs a new interaction, calculates the new scores, and updates the database in a single transaction.
  */
-export async function logNewWeave(friendsToUpdate: FriendModel[], weaveData: InteractionFormData, database: Database): Promise<void> {
+export async function logNewWeave(friendsToUpdate: FriendModel[], weaveData: InteractionFormData, database: Database): Promise<string> {
+  let interactionId = '';
+
   await database.write(async () => {
     // 1. Create the Interaction record with the correct data
     const newInteraction = await database.get<InteractionModel>('interactions').create(interaction => {
@@ -93,6 +95,8 @@ export async function logNewWeave(friendsToUpdate: FriendModel[], weaveData: Int
         interaction.reflectionJSON = JSON.stringify(weaveData.reflection);
       }
     });
+
+    interactionId = newInteraction.id;
 
     for (const friend of friendsToUpdate) {
       // If the weave is just being planned for the future, don't update scores yet.
@@ -147,4 +151,6 @@ export async function logNewWeave(friendsToUpdate: FriendModel[], weaveData: Int
       });
     }
   });
+
+  return interactionId;
 }

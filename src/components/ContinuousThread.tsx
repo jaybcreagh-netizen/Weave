@@ -197,19 +197,7 @@ export function ContinuousThread({ contentHeight, startY = 0, interactions = [] 
     );
   };
 
-  // Debug logging
-  console.log('ContinuousThread:', {
-    interactions: interactions.length,
-    interactionYs: interactions.map(i => i.y),
-    contentHeight,
-    segments: segments.length,
-    segmentDetails: segments.map(s => ({
-      start: s.startY,
-      end: s.endY,
-      texture: s.texture,
-      color: s.color,
-    })),
-  });
+  // Debug logging removed for performance
 
   // Fallback: if no segments, render a simple solid line
   if (segments.length === 0 && contentHeight > 0) {

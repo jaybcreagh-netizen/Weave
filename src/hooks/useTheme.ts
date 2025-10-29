@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useUIStore } from '../stores/uiStore';
 import { getTheme, getThemeColors } from '../theme';
 
@@ -8,9 +9,9 @@ import { getTheme, getThemeColors } from '../theme';
 export function useTheme() {
   const isDarkMode = useUIStore((state) => state.isDarkMode);
 
-  return {
+  return useMemo(() => ({
     theme: getTheme(isDarkMode),
     colors: getThemeColors(isDarkMode),
     isDarkMode,
-  };
+  }), [isDarkMode]);
 }

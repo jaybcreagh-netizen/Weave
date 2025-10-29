@@ -4,8 +4,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { X } from 'lucide-react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { ContextualReflectionInput } from './ContextualReflectionInput';
+import { CelebrationAnimation } from './CelebrationAnimation';
 import { useTheme } from '../hooks/useTheme';
 import { type Interaction, type StructuredReflection, type InteractionCategory, type Archetype, type Vibe } from './types';
+import { calculateDeepeningLevel } from '../lib/deepening-utils';
 
 interface EditReflectionModalProps {
   interaction: Interaction | null;
@@ -27,6 +29,7 @@ export function EditReflectionModal({
     interaction?.reflection || {}
   );
   const [isSaving, setIsSaving] = useState(false);
+  const [showCelebration, setShowCelebration] = useState(false);
 
   // Update reflection when interaction changes
   React.useEffect(() => {
@@ -41,10 +44,17 @@ export function EditReflectionModal({
     setIsSaving(true);
     try {
       await onSave(interaction.id, reflection);
-      onClose();
+
+      // Show celebration animation
+      setShowCelebration(true);
+
+      // Close modal after animation
+      setTimeout(() => {
+        onClose();
+        setShowCelebration(false);
+      }, 900);
     } catch (error) {
       console.error('Error saving reflection:', error);
-    } finally {
       setIsSaving(false);
     }
   };
@@ -52,6 +62,7 @@ export function EditReflectionModal({
   if (!interaction) return null;
 
   const category = (interaction.interactionCategory || interaction.activity) as InteractionCategory;
+  const deepeningMetrics = calculateDeepeningLevel(reflection);
 
   return (
     <Modal
@@ -61,6 +72,12 @@ export function EditReflectionModal({
       onRequestClose={onClose}
     >
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+        {/* Celebration animation */}
+        <CelebrationAnimation
+          visible={showCelebration}
+          intensity={deepeningMetrics.level === 'none' ? 'light' : deepeningMetrics.level}
+          onComplete={() => setShowCelebration(false)}
+        />
         <View style={[styles.header, { borderBottomColor: colors.border }]}>
           <View>
             <Text style={[styles.headerTitle, { color: colors.foreground }]}>

@@ -7,7 +7,7 @@ import { QuickWeaveProvider } from '../src/components/QuickWeaveProvider';
 import { ToastProvider } from '../src/components/toast_provider';
 import { CardGestureProvider } from '../src/context/CardGestureContext'; // Import the provider
 import { useUIStore } from '../src/stores/uiStore';
-import { initializeDataMigrations } from '../src/db';
+import { initializeDataMigrations, initializeUserProfile } from '../src/db';
 import {
   useFonts,
   Lora_400Regular,
@@ -37,10 +37,13 @@ export default function RootLayout() {
     }
   }, [fontsLoaded, fontError]);
 
-  // Run data migrations on app startup
+  // Run data migrations and initialize user profile on app startup
   useEffect(() => {
     initializeDataMigrations().catch((error) => {
       console.error('Failed to run data migrations:', error);
+    });
+    initializeUserProfile().catch((error) => {
+      console.error('Failed to initialize user profile:', error);
     });
   }, []);
 

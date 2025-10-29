@@ -1,10 +1,11 @@
 import React from 'react';
 import { Modal, View, Text, TouchableOpacity, Switch, Alert, StyleSheet } from 'react-native';
-import { X, Moon, Sun, Palette, RefreshCw, Bug } from 'lucide-react-native';
+import { X, Moon, Sun, Palette, RefreshCw, Bug, BarChart3 } from 'lucide-react-native';
 import { getThemeColors, spacing } from '../theme'; // Import getThemeColors and spacing
 import { clearDatabase } from '../db';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUIStore } from '../stores/uiStore'; // Import useUIStore
+import { getSuggestionAnalytics } from '../lib/suggestion-tracker';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -40,6 +41,30 @@ export function SettingsModal({
         },
       ]
     );
+  };
+
+  const handleViewAnalytics = async () => {
+    try {
+      const analytics = await getSuggestionAnalytics();
+
+      const typeBreakdown = Object.entries(analytics.byType)
+        .map(([type, stats]) => `${type}: ${stats.acted}/${stats.shown} (${stats.conversionRate}%)`)
+        .join('\n');
+
+      Alert.alert(
+        "📊 Suggestion Analytics",
+        `Total shown: ${analytics.totalShown}\n` +
+        `Total acted: ${analytics.totalActed}\n` +
+        `Total dismissed: ${analytics.totalDismissed}\n` +
+        `Conversion rate: ${analytics.conversionRate}%\n` +
+        `Avg time to action: ${analytics.avgTimeToActionMinutes} min\n\n` +
+        `By Type:\n${typeBreakdown || 'No data yet'}`,
+        [{ text: "OK" }]
+      );
+    } catch (error) {
+      console.error('Failed to get analytics:', error);
+      Alert.alert('Error', 'Failed to load analytics.');
+    }
   };
 
   return (
@@ -109,6 +134,21 @@ export function SettingsModal({
               />
             </View>
             {/* END: New Debug Setting */}
+
+            <TouchableOpacity
+              style={[styles.settingRow, styles.topBorder, { borderColor: themeColors.border }]}
+              onPress={handleViewAnalytics}
+            >
+              <View style={styles.settingLabelContainer}>
+                <View style={[styles.iconContainer, { backgroundColor: themeColors.muted }]}>
+                  <BarChart3 color={themeColors.foreground} size={20} />
+                </View>
+                <View>
+                  <Text style={[styles.settingLabel, { color: themeColors.foreground }]}>Suggestion Analytics</Text>
+                  <Text style={[styles.settingDescription, { color: themeColors['muted-foreground'] }]}>View tracking data</Text>
+                </View>
+              </View>
+            </TouchableOpacity>
 
             <View style={[styles.settingRow, styles.topBorder, { borderColor: themeColors.border }]}>
               <View style={styles.settingLabelContainer}>

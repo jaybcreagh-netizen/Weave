@@ -1,8 +1,11 @@
+import { useKeepAwake } from 'expo-keep-awake';
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, TextInput, StyleSheet, ScrollView, Keyboard, TouchableWithoutFeedback, Vibration, Modal } from 'react-native';
 import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInUp } from 'react-native-reanimated';
+import { CelebrationAnimation } from '../src/components/CelebrationAnimation';
+import { calculateDeepeningLevel } from '../src/lib/deepening-utils';
 
 import { useInteractionStore, type StructuredReflection } from '../src/stores/interactionStore';
 import { Calendar as CalendarIcon, X, ArrowUp } from 'lucide-react-native';
@@ -26,6 +29,7 @@ const dateOptions = [
 ];
 
 export default function InteractionFormScreen() {
+  useKeepAwake();
   const router = useRouter();
   const { friendId, mode } = useLocalSearchParams<{ friendId: string, mode: 'log' | 'plan' }>();
   const { addInteraction } = useInteractionStore();
@@ -43,6 +47,7 @@ export default function InteractionFormScreen() {
   const [selectedVibe, setSelectedVibe] = useState<Vibe | null>(null);
   const [reflection, setReflection] = useState<StructuredReflection>({});
   const [friendArchetype, setFriendArchetype] = useState<Archetype | undefined>(undefined);
+  const [showCelebration, setShowCelebration] = useState(false);
 
   const scrollViewRef = useRef<ScrollView>(null);
   const [detailsSectionY, setDetailsSectionY] = useState(0);
@@ -117,13 +122,29 @@ export default function InteractionFormScreen() {
       vibe: selectedVibe,
       reflection, // NEW: Structured reflection data
     });
+
+    // Show celebration animation
+    setShowCelebration(true);
     Vibration.vibrate();
-    router.back();
+
+    // Navigate back after animation
+    setTimeout(() => {
+      router.back();
+    }, 900);
   };
+
+  const deepeningMetrics = calculateDeepeningLevel(reflection);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
         <Stack.Screen options={{ title: mode === 'log' ? 'Mark the Moment' : 'Set an Intention' }} />
+
+        {/* Celebration animation */}
+        <CelebrationAnimation
+          visible={showCelebration}
+          intensity={deepeningMetrics.level === 'none' ? 'light' : deepeningMetrics.level}
+          onComplete={() => setShowCelebration(false)}
+        />
 
         <Modal
             visible={showCalendar}
@@ -145,7 +166,7 @@ export default function InteractionFormScreen() {
             <ScrollView ref={scrollViewRef} style={{ flex: 1}} contentContainerStyle={styles.scrollContainer}>
                 {/* NEW: Single-step category selection */}
                 <Animated.View style={[styles.section, { borderColor: colors.border }]} entering={FadeInUp.duration(500)}>
-                    <Text style={[styles.sectionTitle, { color: colors.foreground }]}>How did you connect?</Text>
+                    <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{mode === 'log' ? 'How did you connect?' : 'What kind of connection do you want to plan?'}</Text>
                     <View style={styles.gridContainer}>
                         {categories.map((cat, index) => (
                             <Animated.View

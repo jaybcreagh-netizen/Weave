@@ -18,6 +18,7 @@ export default class Interaction extends Model {
   @field('vibe') vibe?: string
   @text('note') note?: string
   @readonly @date('created_at') createdAt!: Date
+  @date('updated_at') updatedAt!: Date
 
   @text('activity') activity!: string
   @text('status') status!: string

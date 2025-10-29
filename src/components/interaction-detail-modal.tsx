@@ -95,9 +95,16 @@ export function InteractionDetailModal({
       visible={isOpen}
       onRequestClose={onClose}
     >
-      <BlurView style={styles.backdrop} intensity={10} tint={isDarkMode ? 'dark' : 'light'}>
+      <BlurView style={styles.backdrop} intensity={isDarkMode ? 10 : 30} tint={isDarkMode ? 'dark' : 'light'}>
         <GestureDetector gesture={pan}>
-          <Animated.View style={[styles.modalContainer, { paddingBottom: insets.bottom, backgroundColor: colors.background }, animatedStyle]}>
+          <Animated.View style={[
+            styles.modalContainer,
+            {
+              paddingBottom: insets.bottom,
+              backgroundColor: isDarkMode ? colors.background + 'F0' : colors.background,
+            },
+            animatedStyle
+          ]}>
             <View style={styles.handleBarContainer}>
               <View style={[styles.handleBar, { backgroundColor: colors.muted }]} />
             </View>
