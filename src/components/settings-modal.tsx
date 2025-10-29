@@ -1,6 +1,6 @@
 import React from 'react';
 import { Modal, View, Text, TouchableOpacity, Switch, Alert, StyleSheet } from 'react-native';
-import { X, Moon, Sun, Palette, RefreshCw, Bug, BarChart3 } from 'lucide-react-native';
+import { X, Moon, Sun, Palette, RefreshCw, Bug, BarChart3, Battery } from 'lucide-react-native';
 import { getThemeColors, spacing } from '../theme'; // Import getThemeColors and spacing
 import { clearDatabase } from '../db';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -10,11 +10,13 @@ import { getSuggestionAnalytics } from '../lib/suggestion-tracker';
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onOpenBatteryCheckIn?: () => void;
 }
 
 export function SettingsModal({
   isOpen,
   onClose,
+  onOpenBatteryCheckIn,
 }: SettingsModalProps) {
   const insets = useSafeAreaInsets();
   const { isDarkMode, toggleDarkMode, showDebugScore, toggleShowDebugScore } = useUIStore(); // Get store values
@@ -134,6 +136,26 @@ export function SettingsModal({
               />
             </View>
             {/* END: New Debug Setting */}
+
+            {onOpenBatteryCheckIn && (
+              <TouchableOpacity
+                style={[styles.settingRow, styles.topBorder, { borderColor: themeColors.border }]}
+                onPress={() => {
+                  onClose();
+                  setTimeout(() => onOpenBatteryCheckIn(), 300);
+                }}
+              >
+                <View style={styles.settingLabelContainer}>
+                  <View style={[styles.iconContainer, { backgroundColor: themeColors.muted }]}>
+                    <Battery color={themeColors.foreground} size={20} />
+                  </View>
+                  <View>
+                    <Text style={[styles.settingLabel, { color: themeColors.foreground }]}>Social Battery Check-in</Text>
+                    <Text style={[styles.settingDescription, { color: themeColors['muted-foreground'] }]}>Update your social energy</Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            )}
 
             <TouchableOpacity
               style={[styles.settingRow, styles.topBorder, { borderColor: themeColors.border }]}

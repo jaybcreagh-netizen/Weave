@@ -4,6 +4,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Sparkles, Users, Settings } from 'lucide-react-native';
 import { useTheme } from '../../src/hooks/useTheme';
 import { SettingsModal } from '../../src/components/settings-modal';
+import { SocialBatterySheet } from '../../src/components/home/SocialBatterySheet';
+import { useUserProfileStore } from '../../src/stores/userProfileStore';
 import HomeScreen from '../home';
 import FriendsScreen from '../friends';
 
@@ -13,6 +15,8 @@ export default function TabsLayout() {
   const { colors } = useTheme();
   const [activeTab, setActiveTab] = useState<'insights' | 'circle'>('insights');
   const [showSettings, setShowSettings] = useState(false);
+  const [showBatterySheet, setShowBatterySheet] = useState(false);
+  const { submitBatteryCheckin } = useUserProfileStore();
   const scrollViewRef = useRef<ScrollView>(null);
 
   const handleTabPress = (tab: 'insights' | 'circle') => {
@@ -96,7 +100,21 @@ export default function TabsLayout() {
       </ScrollView>
 
       {/* Settings Modal */}
-      <SettingsModal isOpen={showSettings} onClose={() => setShowSettings(false)} />
+      <SettingsModal
+        isOpen={showSettings}
+        onClose={() => setShowSettings(false)}
+        onOpenBatteryCheckIn={() => setShowBatterySheet(true)}
+      />
+
+      {/* Battery Check-in Sheet */}
+      <SocialBatterySheet
+        isVisible={showBatterySheet}
+        onSubmit={async (value, note) => {
+          await submitBatteryCheckin(value, note);
+          setShowBatterySheet(false);
+        }}
+        onDismiss={() => setShowBatterySheet(false)}
+      />
     </SafeAreaView>
   );
 }

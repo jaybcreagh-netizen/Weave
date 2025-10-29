@@ -5,7 +5,6 @@ import { HomeWidgetGrid, WidgetGridItem } from '../src/components/home/HomeWidge
 import { SocialSeasonWidget } from '../src/components/home/widgets/SocialSeasonWidget';
 import { TodaysFocusWidget } from '../src/components/home/widgets/TodaysFocusWidget';
 import { CelebrationDataWidget } from '../src/components/home/widgets/CelebrationDataWidget';
-import { LifeEventsWidget } from '../src/components/home/widgets/LifeEventsWidget';
 import { SocialBatterySheet } from '../src/components/home/SocialBatterySheet';
 import { useUserProfileStore } from '../src/stores/userProfileStore';
 import { useFriendStore } from '../src/stores/friendStore';
@@ -73,17 +72,6 @@ export default function Home() {
       visible: true,
     },
     {
-      id: 'life-events',
-      component: LifeEventsWidget,
-      config: {
-        id: 'life-events',
-        type: 'life-events',
-        fullWidth: true,
-      },
-      position: 1,
-      visible: true,
-    },
-    {
       id: 'todays-focus',
       component: TodaysFocusWidget,
       config: {
@@ -91,7 +79,7 @@ export default function Home() {
         type: 'todays-focus',
         fullWidth: true,
       },
-      position: 2,
+      position: 1,
       visible: true,
     },
     {
@@ -102,7 +90,7 @@ export default function Home() {
         type: 'celebration-data',
         fullWidth: false,
       },
-      position: 3,
+      position: 2,
       visible: true,
     },
   ];

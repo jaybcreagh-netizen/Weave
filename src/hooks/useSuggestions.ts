@@ -25,6 +25,7 @@ function selectDiverseSuggestions(suggestions: Suggestion[], maxCount: number): 
   const buckets = {
     critical: suggestions.filter(s => s.urgency === 'critical'),
     reflect: suggestions.filter(s => s.category === 'reflect'),
+    lifeEvent: suggestions.filter(s => s.category === 'life-event'),
     drift: suggestions.filter(s => s.category === 'drift'),
     deepen: suggestions.filter(s => s.category === 'deepen' || s.category === 'celebrate'),
     maintain: suggestions.filter(s => s.category === 'maintain'),
@@ -42,8 +43,8 @@ function selectDiverseSuggestions(suggestions: Suggestion[], maxCount: number): 
   }
 
   // 2. Build a diverse set from different buckets
-  // Priority order: reflect -> drift -> portfolio -> deepen -> maintain -> insight
-  const bucketOrder: Array<keyof typeof buckets> = ['reflect', 'drift', 'portfolio', 'deepen', 'maintain', 'insight'];
+  // Priority order: reflect -> lifeEvent -> drift -> portfolio -> deepen -> maintain -> insight
+  const bucketOrder: Array<keyof typeof buckets> = ['reflect', 'lifeEvent', 'drift', 'portfolio', 'deepen', 'maintain', 'insight'];
 
   // Round-robin selection: pick best from each bucket
   for (const bucketName of bucketOrder) {
@@ -185,6 +186,8 @@ export function useSuggestions() {
             archetype: friend.archetype,
             dunbarTier: friend.dunbarTier,
             createdAt: friend.createdAt,
+            birthday: friend.birthday,
+            anniversary: friend.anniversary,
           },
           currentScore,
           lastInteractionDate: lastInteraction?.interactionDate,

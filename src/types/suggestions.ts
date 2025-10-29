@@ -1,7 +1,7 @@
 import { Archetype, Tier } from './core';
 
 export type Urgency = 'critical' | 'high' | 'medium' | 'low';
-export type SuggestionCategory = 'drift' | 'maintain' | 'deepen' | 'celebrate' | 'reflect' | 'insight' | 'portfolio';
+export type SuggestionCategory = 'drift' | 'maintain' | 'deepen' | 'celebrate' | 'reflect' | 'insight' | 'portfolio' | 'life-event';
 export type ActionType = 'log' | 'plan' | 'reflect';
 export type InteractionCategory = 'text-call' | 'meal-drink' | 'hangout' | 'deep-talk' | 'activity-hobby' | 'event-party';
 
@@ -41,6 +41,8 @@ export interface SuggestionInput {
     archetype: Archetype;
     dunbarTier: Tier;
     createdAt: Date;
+    birthday?: Date;
+    anniversary?: Date;
   };
   currentScore: number;
   lastInteractionDate?: Date;

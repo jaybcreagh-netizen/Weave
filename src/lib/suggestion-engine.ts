@@ -4,6 +4,7 @@ import {
   getArchetypeDriftSuggestion,
   getArchetypeMomentumSuggestion,
 } from './archetype-content';
+import { differenceInDays } from 'date-fns';
 
 // Friendly category labels for suggestions
 const CATEGORY_LABELS: Record<string, string> = {
@@ -25,6 +26,7 @@ const COOLDOWN_DAYS = {
   'critical-drift': 1,
   'high-drift': 2,
   'first-weave': 2,
+  'life-event': 1, // Show again tomorrow if still upcoming
   'archetype-mismatch': 3,
   'momentum': 7,
   'maintenance': 3,
@@ -32,14 +34,111 @@ const COOLDOWN_DAYS = {
   'reflect': 2,
 };
 
+// Archetype-specific celebration suggestions
+const ARCHETYPE_CELEBRATION_SUGGESTIONS: Record<string, string[]> = {
+  Emperor: ['Plan a structured celebration dinner', 'Organize a milestone celebration', 'Send a thoughtful, high-quality gift'],
+  Empress: ['Host a cozy dinner party at your place', 'Bake or cook something special for them', 'Plan a comfort-focused celebration'],
+  HighPriestess: ['Schedule a deep one-on-one conversation', 'Send a heartfelt, personal message', 'Arrange intimate tea or coffee time'],
+  Fool: ['Plan a spontaneous surprise adventure', 'Throw an unexpected party', 'Organize something fun and playful'],
+  Sun: ['Throw a big, energetic celebration', 'Host a vibrant party with others', 'Organize a group gathering in their honor'],
+  Hermit: ['Schedule meaningful one-on-one quality time', 'Plan a quiet, thoughtful celebration', 'Arrange a peaceful walk or private dinner'],
+  Magician: ['Collaborate on a creative celebration project', 'Plan a unique, experiential celebration', 'Create something special together'],
+};
+
+function getArchetypeCelebrationSuggestion(archetype: string): string {
+  const suggestions = ARCHETYPE_CELEBRATION_SUGGESTIONS[archetype] || [
+    'Reach out with a thoughtful message',
+    'Plan a way to celebrate together',
+  ];
+  const randomIndex = Math.floor(Math.random() * suggestions.length);
+  return suggestions[randomIndex];
+}
+
+interface LifeEventInfo {
+  type: 'birthday' | 'anniversary';
+  daysUntil: number;
+}
+
+function checkUpcomingLifeEvent(friend: SuggestionInput['friend']): LifeEventInfo | null {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  // Check birthday (within 7 days)
+  if (friend.birthday) {
+    const birthdayThisYear = new Date(friend.birthday);
+    birthdayThisYear.setFullYear(today.getFullYear());
+    birthdayThisYear.setHours(0, 0, 0, 0);
+
+    if (birthdayThisYear < today) {
+      birthdayThisYear.setFullYear(today.getFullYear() + 1);
+    }
+
+    const daysUntil = differenceInDays(birthdayThisYear, today);
+    if (daysUntil >= 0 && daysUntil <= 7) {
+      return { type: 'birthday', daysUntil };
+    }
+  }
+
+  // Check anniversary (within 7 days)
+  if (friend.anniversary) {
+    const anniversaryThisYear = new Date(friend.anniversary);
+    anniversaryThisYear.setFullYear(today.getFullYear());
+    anniversaryThisYear.setHours(0, 0, 0, 0);
+
+    if (anniversaryThisYear < today) {
+      anniversaryThisYear.setFullYear(today.getFullYear() + 1);
+    }
+
+    const daysUntil = differenceInDays(anniversaryThisYear, today);
+    if (daysUntil >= 0 && daysUntil <= 7) {
+      return { type: 'anniversary', daysUntil };
+    }
+  }
+
+  return null;
+}
+
+function getDaysText(days: number): string {
+  if (days === 0) return 'is today';
+  if (days === 1) return 'is tomorrow';
+  return `is in ${days} days`;
+}
+
 export function generateSuggestion(input: SuggestionInput): Suggestion | null {
   const { friend, currentScore, lastInteractionDate, interactionCount, momentumScore, recentInteractions } = input;
+
+  // Check for upcoming life event (used in multiple priorities)
+  const lifeEvent = checkUpcomingLifeEvent(friend);
 
   // PRIORITY 1: Reflect on recent interaction
   const recentReflectSuggestion = checkReflectSuggestion(friend, recentInteractions);
   if (recentReflectSuggestion) return recentReflectSuggestion;
 
-  // PRIORITY 2: Critical drift (Inner Circle emergency)
+  // PRIORITY 2: Upcoming life event (birthday/anniversary within 7 days)
+  if (lifeEvent) {
+    const eventIcon = lifeEvent.type === 'birthday' ? '🎂' : '💝';
+    const eventLabel = lifeEvent.type === 'birthday' ? 'birthday' : 'friendship anniversary';
+
+    return {
+      id: `life-event-${friend.id}-${lifeEvent.type}`,
+      friendId: friend.id,
+      friendName: friend.name,
+      urgency: lifeEvent.daysUntil <= 1 ? 'high' : 'medium',
+      category: 'life-event',
+      title: `${friend.name}'s ${eventLabel} ${getDaysText(lifeEvent.daysUntil)}`,
+      subtitle: getArchetypeCelebrationSuggestion(friend.archetype),
+      actionLabel: 'Plan Celebration',
+      icon: eventIcon,
+      action: {
+        type: 'plan',
+        prefilledCategory: 'celebration' as any,
+      },
+      dismissible: true,
+      createdAt: new Date(),
+    };
+  }
+
+  // PRIORITY 3: Critical drift (Inner Circle emergency)
   if (friend.dunbarTier === 'InnerCircle' && currentScore < 30) {
     return {
       id: `critical-drift-${friend.id}`,
@@ -48,7 +147,9 @@ export function generateSuggestion(input: SuggestionInput): Suggestion | null {
       urgency: 'critical',
       category: 'drift',
       title: `${friend.name} is drifting away`,
-      subtitle: getArchetypeDriftSuggestion(friend.archetype),
+      subtitle: lifeEvent
+        ? `${getArchetypeDriftSuggestion(friend.archetype)} ${lifeEvent.type === 'birthday' ? '🎂' : '💝'} Their ${lifeEvent.type} ${getDaysText(lifeEvent.daysUntil)}.`
+        : getArchetypeDriftSuggestion(friend.archetype),
       actionLabel: 'Reach Out Now',
       icon: '🚨',
       action: {
@@ -74,7 +175,9 @@ export function generateSuggestion(input: SuggestionInput): Suggestion | null {
       urgency: 'high',
       category: 'drift',
       title: `Time to reconnect with ${friend.name}`,
-      subtitle: `Your connection is cooling. ${getArchetypeDriftSuggestion(friend.archetype)}`,
+      subtitle: lifeEvent
+        ? `Your connection is cooling. ${getArchetypeDriftSuggestion(friend.archetype)} ${lifeEvent.type === 'birthday' ? '🎂' : '💝'} Their ${lifeEvent.type} ${getDaysText(lifeEvent.daysUntil)}.`
+        : `Your connection is cooling. ${getArchetypeDriftSuggestion(friend.archetype)}`,
       actionLabel: 'Plan a Weave',
       icon: '🧵',
       action: {
@@ -267,6 +370,7 @@ export function getSuggestionCooldownDays(suggestionId: string): number {
   if (suggestionId.startsWith('critical-drift')) return COOLDOWN_DAYS['critical-drift'];
   if (suggestionId.startsWith('high-drift')) return COOLDOWN_DAYS['high-drift'];
   if (suggestionId.startsWith('first-weave')) return COOLDOWN_DAYS['first-weave'];
+  if (suggestionId.startsWith('life-event')) return COOLDOWN_DAYS['life-event'];
   if (suggestionId.startsWith('archetype-mismatch')) return COOLDOWN_DAYS['archetype-mismatch'];
   if (suggestionId.startsWith('momentum')) return COOLDOWN_DAYS['momentum'];
   if (suggestionId.startsWith('maintenance')) return COOLDOWN_DAYS['maintenance'];
