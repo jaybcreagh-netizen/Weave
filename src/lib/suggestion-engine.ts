@@ -105,6 +105,97 @@ function getDaysText(days: number): string {
 }
 
 /**
+ * Analyzes past interactions to suggest specific, personalized activities
+ * based on what this friendship has done before.
+ */
+function getContextualSuggestion(
+  recentInteractions: SuggestionInput['recentInteractions'],
+  archetype: string,
+  tier: string
+): string {
+  // Count interaction types to find patterns
+  const categoryCounts: Record<string, number> = {};
+  recentInteractions.forEach(i => {
+    if (i.category) {
+      categoryCounts[i.category] = (categoryCounts[i.category] || 0) + 1;
+    }
+  });
+
+  // Get most common interaction type
+  const mostCommon = Object.entries(categoryCounts).sort(([,a], [,b]) => b - a)[0];
+
+  // Contextual suggestions based on their history + archetype
+  const suggestions: Record<string, string[]> = {
+    'text-call': [
+      "Send them a quick text like you used to",
+      "Give them a call to catch up",
+      "Drop them a voice note",
+      "Send a funny meme or memory",
+    ],
+    'meal-drink': [
+      "Grab coffee at your usual spot",
+      "Plan dinner like old times",
+      "Meet for drinks and catch up",
+      "Grab lunch together this week",
+    ],
+    'hangout': [
+      "Hang out like you used to",
+      "Plan a chill hangout session",
+      "Meet up for quality time",
+      "Do something spontaneous together",
+    ],
+    'deep-talk': [
+      "Have a heart-to-heart conversation",
+      "Set aside time for a deep catch-up",
+      "Schedule a meaningful conversation",
+      "Create space for vulnerable sharing",
+    ],
+    'activity-hobby': [
+      "Do that activity you both love",
+      "Revisit your shared hobby together",
+      "Plan an adventure like you used to",
+      "Get active together again",
+    ],
+    'event-party': [
+      "Invite them to something fun",
+      "Plan a celebration together",
+      "Organize a group hangout",
+      "Go to an event together",
+    ],
+  };
+
+  // If they have a pattern, suggest continuing it
+  if (mostCommon && mostCommon[1] >= 2) {
+    const [category, count] = mostCommon;
+    const options = suggestions[category] || [];
+    if (options.length > 0) {
+      return options[Math.floor(Math.random() * options.length)];
+    }
+  }
+
+  // Fallback to archetype + tier appropriate suggestions
+  if (tier === 'InnerCircle') {
+    const innerCircleSuggestions = [
+      "Set aside real quality time",
+      "Plan something meaningful together",
+      "Have a proper catch-up",
+      "Make time for a deep connection",
+    ];
+    return innerCircleSuggestions[Math.floor(Math.random() * innerCircleSuggestions.length)];
+  } else if (tier === 'CloseFriends') {
+    const closeFriendSuggestions = [
+      "Reach out with a thoughtful message",
+      "Plan a casual meet-up",
+      "Grab coffee or a quick bite",
+      "Send a text to check in",
+    ];
+    return closeFriendSuggestions[Math.floor(Math.random() * closeFriendSuggestions.length)];
+  } else {
+    return "Send them a friendly message";
+  }
+}
+
+/**
  * Generates intelligent suggestions for a friend based on their interaction history,
  * relationship health, and upcoming life events.
  *
@@ -148,6 +239,11 @@ export function generateSuggestion(input: SuggestionInput): Suggestion | null {
 
   // PRIORITY 3: Critical drift (Inner Circle emergency)
   if (friend.dunbarTier === 'InnerCircle' && currentScore < 30) {
+    const contextualAction = getContextualSuggestion(recentInteractions, friend.archetype, friend.dunbarTier);
+    const eventContext = lifeEvent
+      ? ` ${lifeEvent.type === 'birthday' ? '🎂' : '💝'} Their ${lifeEvent.type} ${getDaysText(lifeEvent.daysUntil)}.`
+      : '';
+
     return {
       id: `critical-drift-${friend.id}`,
       friendId: friend.id,
@@ -155,9 +251,7 @@ export function generateSuggestion(input: SuggestionInput): Suggestion | null {
       urgency: 'critical',
       category: 'drift',
       title: `${friend.name} is drifting away`,
-      subtitle: lifeEvent
-        ? `${getArchetypeDriftSuggestion(friend.archetype)} ${lifeEvent.type === 'birthday' ? '🎂' : '💝'} Their ${lifeEvent.type} ${getDaysText(lifeEvent.daysUntil)}.`
-        : getArchetypeDriftSuggestion(friend.archetype),
+      subtitle: `${contextualAction}.${eventContext}`,
       actionLabel: 'Reach Out Now',
       icon: '🚨',
       action: {
@@ -170,12 +264,17 @@ export function generateSuggestion(input: SuggestionInput): Suggestion | null {
     };
   }
 
-  // PRIORITY 3: High drift (attention needed)
+  // PRIORITY 4: High drift (attention needed)
   const isHighDrift =
     (friend.dunbarTier === 'InnerCircle' && currentScore < 50) ||
     (friend.dunbarTier === 'CloseFriends' && currentScore < 35);
 
   if (isHighDrift) {
+    const contextualAction = getContextualSuggestion(recentInteractions, friend.archetype, friend.dunbarTier);
+    const eventContext = lifeEvent
+      ? ` ${lifeEvent.type === 'birthday' ? '🎂' : '💝'} Their ${lifeEvent.type} ${getDaysText(lifeEvent.daysUntil)}.`
+      : '';
+
     return {
       id: `high-drift-${friend.id}`,
       friendId: friend.id,
@@ -183,9 +282,7 @@ export function generateSuggestion(input: SuggestionInput): Suggestion | null {
       urgency: 'high',
       category: 'drift',
       title: `Time to reconnect with ${friend.name}`,
-      subtitle: lifeEvent
-        ? `Your connection is cooling. ${getArchetypeDriftSuggestion(friend.archetype)} ${lifeEvent.type === 'birthday' ? '🎂' : '💝'} Their ${lifeEvent.type} ${getDaysText(lifeEvent.daysUntil)}.`
-        : `Your connection is cooling. ${getArchetypeDriftSuggestion(friend.archetype)}`,
+      subtitle: `${contextualAction}.${eventContext}`,
       actionLabel: 'Plan a Weave',
       icon: '🧵',
       action: {
@@ -232,6 +329,8 @@ export function generateSuggestion(input: SuggestionInput): Suggestion | null {
       : 999;
 
     if (daysSinceLast <= 7) {
+      const contextualAction = getContextualSuggestion(recentInteractions, friend.archetype, friend.dunbarTier);
+
       return {
         id: `momentum-${friend.id}`,
         friendId: friend.id,
@@ -239,7 +338,7 @@ export function generateSuggestion(input: SuggestionInput): Suggestion | null {
         urgency: 'medium',
         category: 'deepen',
         title: `You're connecting well with ${friend.name}`,
-        subtitle: `Ride this momentum! ${getArchetypeMomentumSuggestion(friend.archetype)}`,
+        subtitle: `Ride this momentum! ${contextualAction}`,
         actionLabel: 'Deepen the Bond',
         icon: '🌟',
         action: {
@@ -264,6 +363,8 @@ export function generateSuggestion(input: SuggestionInput): Suggestion | null {
   }[friend.dunbarTier];
 
   if (currentScore >= 40 && currentScore <= 70 && daysSinceInteraction > maintenanceThreshold) {
+    const contextualAction = getContextualSuggestion(recentInteractions, friend.archetype, friend.dunbarTier);
+
     return {
       id: `maintenance-${friend.id}`,
       friendId: friend.id,
@@ -271,7 +372,7 @@ export function generateSuggestion(input: SuggestionInput): Suggestion | null {
       urgency: 'low',
       category: 'maintain',
       title: `Keep the thread warm with ${friend.name}`,
-      subtitle: 'A simple text or voice note can maintain your connection.',
+      subtitle: contextualAction,
       actionLabel: 'Plan a Weave',
       icon: '💛',
       action: {
@@ -285,6 +386,8 @@ export function generateSuggestion(input: SuggestionInput): Suggestion | null {
 
   // PRIORITY 8: Deepen (thriving)
   if (currentScore > 85 && friend.dunbarTier !== 'Community') {
+    const contextualAction = getContextualSuggestion(recentInteractions, friend.archetype, friend.dunbarTier);
+
     return {
       id: `deepen-${friend.id}`,
       friendId: friend.id,
@@ -292,7 +395,7 @@ export function generateSuggestion(input: SuggestionInput): Suggestion | null {
       urgency: 'low',
       category: 'celebrate',
       title: `Your bond with ${friend.name} is thriving`,
-      subtitle: 'Plan something special to celebrate this connection.',
+      subtitle: `Celebrate this connection! ${contextualAction}`,
       actionLabel: 'Plan Something Meaningful',
       icon: '✨',
       action: { type: 'plan' },
