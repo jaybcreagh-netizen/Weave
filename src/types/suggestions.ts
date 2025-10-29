@@ -48,6 +48,8 @@ export interface SuggestionInput {
   lastInteractionDate?: Date;
   interactionCount: number;
   momentumScore: number;
+  // IMPORTANT: Only include COMPLETED interactions that have already happened (not planned/future)
+  // Filter: status === 'completed' AND interactionDate <= now
   recentInteractions: Array<{
     id: string;
     category: InteractionCategory;

@@ -106,7 +106,10 @@ export function useSuggestions() {
           if (interactionIds.length > 0) {
             const friendInteractions = await database
               .get<Interaction>('interactions')
-              .query(Q.where('id', Q.oneOf(interactionIds)))
+              .query(
+                Q.where('id', Q.oneOf(interactionIds)),
+                Q.where('status', 'completed') // Only include completed interactions
+              )
               .fetch();
 
             const sortedInteractions = friendInteractions.sort(
@@ -149,7 +152,10 @@ export function useSuggestions() {
         if (interactionIds.length > 0) {
           const friendInteractions = await database
             .get<Interaction>('interactions')
-            .query(Q.where('id', Q.oneOf(interactionIds)))
+            .query(
+              Q.where('id', Q.oneOf(interactionIds)),
+              Q.where('status', 'completed') // Only include completed interactions
+            )
             .fetch();
 
           sortedInteractions = friendInteractions.sort(

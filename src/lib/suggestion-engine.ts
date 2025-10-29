@@ -104,13 +104,21 @@ function getDaysText(days: number): string {
   return `is in ${days} days`;
 }
 
+/**
+ * Generates intelligent suggestions for a friend based on their interaction history,
+ * relationship health, and upcoming life events.
+ *
+ * IMPORTANT: Only pass COMPLETED interactions (status === 'completed') that have already
+ * occurred (interactionDate <= now). Planned/future interactions should never be included
+ * in recentInteractions as they cannot be reflected upon or used for pattern analysis.
+ */
 export function generateSuggestion(input: SuggestionInput): Suggestion | null {
   const { friend, currentScore, lastInteractionDate, interactionCount, momentumScore, recentInteractions } = input;
 
   // Check for upcoming life event (used in multiple priorities)
   const lifeEvent = checkUpcomingLifeEvent(friend);
 
-  // PRIORITY 1: Reflect on recent interaction
+  // PRIORITY 1: Reflect on recent interaction (only past, completed interactions)
   const recentReflectSuggestion = checkReflectSuggestion(friend, recentInteractions);
   if (recentReflectSuggestion) return recentReflectSuggestion;
 
@@ -303,9 +311,17 @@ function checkReflectSuggestion(
   if (recentInteractions.length === 0) return null;
 
   const mostRecent = recentInteractions[0];
-  const hoursSince = (Date.now() - mostRecent.interactionDate.getTime()) / 3600000;
+  const now = Date.now();
+  const hoursSince = (now - mostRecent.interactionDate.getTime()) / 3600000;
 
-  if (hoursSince < 24 && (!mostRecent.notes || !mostRecent.vibe)) {
+  // Only suggest reflection for PAST interactions (not future/planned)
+  // Interaction must be in the past and within 24 hours
+  if (mostRecent.interactionDate.getTime() > now) {
+    return null; // Future interaction, can't reflect yet
+  }
+
+  // Must be recent (within 24 hours) and missing reflection data
+  if (hoursSince < 24 && hoursSince >= 0 && (!mostRecent.notes || !mostRecent.vibe)) {
     const activityLabel = mostRecent.category ? getCategoryLabel(mostRecent.category) : 'time together';
 
     return {
@@ -337,7 +353,14 @@ function checkArchetypeMismatch(
 ): Suggestion | null {
   if (recentInteractions.length < 3) return null;
 
-  const last3 = recentInteractions.slice(0, 3);
+  // Filter to only past interactions (recentInteractions should already be filtered to completed,
+  // but adding this as extra safety)
+  const now = Date.now();
+  const pastInteractions = recentInteractions.filter(i => i.interactionDate.getTime() <= now);
+
+  if (pastInteractions.length < 3) return null;
+
+  const last3 = pastInteractions.slice(0, 3);
   const preferredCategory = getArchetypePreferredCategory(friend.archetype);
 
   const hasPreferred = last3.some(i => i.category === preferredCategory);
