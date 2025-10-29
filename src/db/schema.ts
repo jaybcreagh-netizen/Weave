@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb'
 
 export default appSchema({
-  version: 14, // UPDATED: Added user_profile and practice_log tables for home dashboard
+  version: 15, // UPDATED: Added birthday, anniversary, relationship_type to friends; added life_events table
   tables: [
     tableSchema({
       name: 'friends',
@@ -20,6 +20,10 @@ export default appSchema({
         { name: 'momentum_last_updated', type: 'number' },
         { name: 'is_dormant', type: 'boolean', defaultValue: false },
         { name: 'dormant_since', type: 'number', isOptional: true },
+        // NEW: Life events and relationship context
+        { name: 'birthday', type: 'number', isOptional: true }, // Timestamp (month/day, year optional)
+        { name: 'anniversary', type: 'number', isOptional: true }, // When you met/became friends
+        { name: 'relationship_type', type: 'string', isOptional: true }, // friend, close_friend, family, partner, colleague, acquaintance
       ]
     }),
     tableSchema({
@@ -106,6 +110,22 @@ export default appSchema({
         { name: 'practice_type', type: 'string' }, // 'log_weave' | 'add_reflection' | 'create_intention' | 'plan_weave' | 'view_reading'
         { name: 'related_id', type: 'string', isOptional: true }, // Reference to interaction/intention/etc
         { name: 'created_at', type: 'number' },
+      ]
+    }),
+    tableSchema({
+      name: 'life_events',
+      columns: [
+        { name: 'friend_id', type: 'string', isIndexed: true },
+        { name: 'event_type', type: 'string' }, // birthday, anniversary, new_job, moving, graduation, health_event, celebration, loss, wedding, baby, etc.
+        { name: 'event_date', type: 'number' }, // When it happened/will happen
+        { name: 'title', type: 'string' },
+        { name: 'notes', type: 'string', isOptional: true },
+        { name: 'importance', type: 'string' }, // low, medium, high, critical
+        { name: 'source', type: 'string' }, // manual, keyword_detected, recurring
+        { name: 'is_recurring', type: 'boolean', defaultValue: false }, // For birthdays/anniversaries
+        { name: 'reminded', type: 'boolean', defaultValue: false }, // Has user been notified
+        { name: 'created_at', type: 'number' },
+        { name: 'updated_at', type: 'number' },
       ]
     })
   ]

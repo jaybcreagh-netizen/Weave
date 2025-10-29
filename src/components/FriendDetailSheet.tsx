@@ -1,0 +1,231 @@
+import React, { useEffect, useState } from 'react';
+import { View, Text, TouchableOpacity, Modal } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+  runOnJS,
+} from 'react-native-reanimated';
+import { BlurView } from 'expo-blur';
+import { Calendar, Heart, Sparkles, X } from 'lucide-react-native';
+import { format } from 'date-fns';
+
+import { useTheme } from '../hooks/useTheme';
+import { ArchetypeIcon } from './ArchetypeIcon';
+import { archetypeData } from '../lib/constants';
+import FriendModel from '../db/models/Friend';
+import { useFriendStore } from '../stores/friendStore';
+import { calculateCurrentScore } from '../lib/weave-engine';
+
+interface FriendDetailSheetProps {
+  isVisible: boolean;
+  onClose: () => void;
+  friend: FriendModel;
+}
+
+export const FriendDetailSheet: React.FC<FriendDetailSheetProps> = ({
+  isVisible,
+  onClose,
+  friend,
+}) => {
+  const { colors, isDarkMode } = useTheme();
+  const { activeFriendInteractions } = useFriendStore();
+  const [shouldRender, setShouldRender] = useState(false);
+
+  const sheetTranslateY = useSharedValue(600);
+  const backdropOpacity = useSharedValue(0);
+
+  useEffect(() => {
+    if (isVisible) {
+      setShouldRender(true);
+      sheetTranslateY.value = withSpring(0, {
+        damping: 35,
+        stiffness: 200,
+      });
+      backdropOpacity.value = withTiming(1, { duration: 300 });
+    } else if (shouldRender) {
+      // Animate out, then unmount
+      sheetTranslateY.value = withTiming(600, { duration: 250 });
+      backdropOpacity.value = withTiming(0, { duration: 250 }, (finished) => {
+        if (finished) {
+          runOnJS(setShouldRender)(false);
+        }
+      });
+    }
+  }, [isVisible, shouldRender]);
+
+  const animatedSheetStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: sheetTranslateY.value }],
+  }));
+
+  const animatedBackdropStyle = useAnimatedStyle(() => ({
+    opacity: backdropOpacity.value,
+  }));
+
+  if (!shouldRender) return null;
+
+  const archetypeInfo = archetypeData[friend.archetype];
+  const weaveScore = calculateCurrentScore(friend);
+  const totalWeaves = activeFriendInteractions?.length || 0;
+  const completedWeaves = activeFriendInteractions?.filter(i => i.status === 'completed').length || 0;
+
+  return (
+    <Modal transparent visible={isVisible} onRequestClose={onClose} animationType="none">
+      {/* Backdrop */}
+      <Animated.View style={animatedBackdropStyle} className="absolute inset-0">
+        <BlurView intensity={isDarkMode ? 40 : 20} className="absolute inset-0" />
+        <TouchableOpacity
+          className="absolute inset-0"
+          activeOpacity={1}
+          onPress={onClose}
+        />
+      </Animated.View>
+
+      {/* Sheet */}
+      <Animated.View
+        style={[
+          animatedSheetStyle,
+          { backgroundColor: colors.card, borderColor: colors.border },
+        ]}
+        className="absolute bottom-0 left-0 right-0 rounded-t-3xl border-t px-6 pt-6 pb-10 shadow-2xl"
+      >
+        {/* Header */}
+        <View className="mb-6 flex-row items-center justify-between">
+          <Text
+            style={{ color: colors.foreground }}
+            className="font-lora text-[22px] font-bold"
+          >
+            {friend.name}'s Details
+          </Text>
+          <TouchableOpacity onPress={onClose} className="p-2">
+            <X size={24} color={colors['muted-foreground']} />
+          </TouchableOpacity>
+        </View>
+
+        {/* Date Info */}
+        <View className="mb-6 gap-4">
+          {friend.birthday && (
+            <View className="flex-row items-center gap-3">
+              <View
+                style={{ backgroundColor: colors.muted }}
+                className="h-10 w-10 items-center justify-center rounded-full"
+              >
+                <Calendar size={20} color={colors.foreground} />
+              </View>
+              <View className="flex-1">
+                <Text
+                  style={{ color: colors['muted-foreground'] }}
+                  className="font-inter text-xs"
+                >
+                  Birthday
+                </Text>
+                <Text
+                  style={{ color: colors.foreground }}
+                  className="font-inter text-base font-semibold"
+                >
+                  {format(friend.birthday, 'MMMM do, yyyy')}
+                </Text>
+              </View>
+            </View>
+          )}
+
+          {friend.anniversary && (
+            <View className="flex-row items-center gap-3">
+              <View
+                style={{ backgroundColor: colors.muted }}
+                className="h-10 w-10 items-center justify-center rounded-full"
+              >
+                <Heart size={20} color={colors.foreground} />
+              </View>
+              <View className="flex-1">
+                <Text
+                  style={{ color: colors['muted-foreground'] }}
+                  className="font-inter text-xs"
+                >
+                  Anniversary
+                </Text>
+                <Text
+                  style={{ color: colors.foreground }}
+                  className="font-inter text-base font-semibold"
+                >
+                  {format(friend.anniversary, 'MMMM do, yyyy')}
+                </Text>
+              </View>
+            </View>
+          )}
+
+          {!friend.birthday && !friend.anniversary && (
+            <Text
+              style={{ color: colors['muted-foreground'] }}
+              className="text-center font-inter text-sm"
+            >
+              No dates set
+            </Text>
+          )}
+        </View>
+
+        {/* Archetype Info */}
+        <View
+          style={{ backgroundColor: colors.muted, borderColor: colors.border }}
+          className="mb-6 rounded-2xl border p-4"
+        >
+          <View className="mb-3 flex-row items-center gap-3">
+            <ArchetypeIcon archetype={friend.archetype} size={24} color={colors.primary} />
+            <Text
+              style={{ color: colors.foreground }}
+              className="font-lora text-lg font-bold"
+            >
+              {archetypeInfo?.name || friend.archetype}
+            </Text>
+          </View>
+          <Text
+            style={{ color: colors['muted-foreground'] }}
+            className="font-inter text-sm leading-5"
+          >
+            {archetypeInfo?.description || 'A unique archetype'}
+          </Text>
+        </View>
+
+        {/* Stats */}
+        <View className="flex-row gap-3">
+          <View
+            style={{ backgroundColor: colors.muted, borderColor: colors.border }}
+            className="flex-1 rounded-xl border p-4"
+          >
+            <Text
+              style={{ color: colors['muted-foreground'] }}
+              className="mb-1 font-inter text-xs"
+            >
+              Weave Score
+            </Text>
+            <Text
+              style={{ color: colors.primary }}
+              className="font-lora text-2xl font-bold"
+            >
+              {Math.round(weaveScore)}
+            </Text>
+          </View>
+
+          <View
+            style={{ backgroundColor: colors.muted, borderColor: colors.border }}
+            className="flex-1 rounded-xl border p-4"
+          >
+            <Text
+              style={{ color: colors['muted-foreground'] }}
+              className="mb-1 font-inter text-xs"
+            >
+              Total Weaves
+            </Text>
+            <Text
+              style={{ color: colors.foreground }}
+              className="font-lora text-2xl font-bold"
+            >
+              {completedWeaves}
+            </Text>
+          </View>
+        </View>
+      </Animated.View>
+    </Modal>
+  );
+};

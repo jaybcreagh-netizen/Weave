@@ -1,6 +1,26 @@
 export type Tier = 'InnerCircle' | 'CloseFriends' | 'Community';
 export type Archetype = 'Emperor' | 'Empress' | 'HighPriestess' | 'Fool' | 'Sun' | 'Hermit' | 'Magician';
 
+// Relationship types for understanding friend context
+export type RelationshipType = 'friend' | 'close_friend' | 'family' | 'partner' | 'colleague' | 'acquaintance';
+
+// Life event types for tracking important moments
+export type LifeEventType =
+  | 'birthday'
+  | 'anniversary'
+  | 'new_job'
+  | 'moving'
+  | 'graduation'
+  | 'health_event'
+  | 'celebration'
+  | 'loss'
+  | 'wedding'
+  | 'baby'
+  | 'other';
+
+export type LifeEventImportance = 'low' | 'medium' | 'high' | 'critical';
+export type LifeEventSource = 'manual' | 'keyword_detected' | 'recurring';
+
 // NEW: Simplified 8 universal interaction categories
 export type InteractionCategory =
   | 'text-call'       // 💬 Text/Call
@@ -79,4 +99,8 @@ export type FriendFormData = {
   archetype: Archetype;
   notes: string;
   photoUrl: string;
+  // Life events and relationship context
+  birthday?: Date;
+  anniversary?: Date;
+  relationshipType?: RelationshipType;
 };

@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, TextInput, ScrollView, Image, Platform, StyleSheet } from 'react-native';
-import { ArrowLeft, Camera, X } from 'lucide-react-native';
+import { ArrowLeft, Camera, X, Calendar, Heart } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { useNavigation, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../hooks/useTheme';
 import FriendModel from '../db/models/Friend';
-import { type Archetype, type FriendFormData, type Tier } from './types';
+import { type Archetype, type FriendFormData, type Tier, type RelationshipType } from './types';
 import { ArchetypeCard } from './archetype-card';
 
 interface FriendFormProps {
@@ -32,13 +33,23 @@ export function FriendForm({ onSave, friend, initialTier }: FriendFormProps) {
     tier: friend ? getFormTier(friend.dunbarTier) : initialTier || 'close',
     archetype: friend?.archetype || "Emperor",
     notes: friend?.notes || "",
-    photoUrl: friend?.photoUrl || ""
+    photoUrl: friend?.photoUrl || "",
+    birthday: friend?.birthday,
+    anniversary: friend?.anniversary,
+    relationshipType: friend?.relationshipType as RelationshipType | undefined,
   });
+
+  const [showBirthdayPicker, setShowBirthdayPicker] = useState(false);
+  const [showAnniversaryPicker, setShowAnniversaryPicker] = useState(false);
 
   const handleSave = () => {
     if (formData.name.trim()) {
       onSave(formData);
-      router.replace('/dashboard');
+      if (router.canGoBack()) {
+        router.back();
+      } else {
+        router.replace('/(tabs)');
+      }
     }
   };
 
@@ -156,6 +167,99 @@ export function FriendForm({ onSave, friend, initialTier }: FriendFormProps) {
                 </View>
               ))}
             </View>
+          </View>
+
+          <View>
+            <Text style={[styles.label, { color: colors.foreground }]}>Relationship Type (Optional)</Text>
+            <View style={styles.relationshipTypeContainer}>
+              {[
+                { id: "friend", label: "Friend" },
+                { id: "close_friend", label: "Close Friend" },
+                { id: "family", label: "Family" },
+                { id: "partner", label: "Partner" },
+                { id: "colleague", label: "Colleague" },
+                { id: "acquaintance", label: "Acquaintance" }
+              ].map((type) => (
+                <TouchableOpacity
+                  key={type.id}
+                  onPress={() => setFormData({ ...formData, relationshipType: type.id as RelationshipType })}
+                  style={[
+                    styles.relationshipTypeButton,
+                    { backgroundColor: colors.card, borderColor: colors.border },
+                    formData.relationshipType === type.id && [styles.relationshipTypeButtonSelected, { borderColor: colors.primary, backgroundColor: colors.primary + '20' }]
+                  ]}
+                >
+                  <Text style={[
+                    styles.relationshipTypeButtonText,
+                    { color: colors.foreground },
+                    formData.relationshipType === type.id && { color: colors.primary }
+                  ]}>{type.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          <View>
+            <Text style={[styles.label, { color: colors.foreground }]}>Birthday (Optional)</Text>
+            <TouchableOpacity
+              onPress={() => setShowBirthdayPicker(true)}
+              style={[styles.dateButton, { backgroundColor: colors.card, borderColor: colors.border }]}
+            >
+              <Calendar size={20} color={colors['muted-foreground']} />
+              <Text style={[styles.dateButtonText, { color: formData.birthday ? colors.foreground : colors['muted-foreground'] }]}>
+                {formData.birthday ? formData.birthday.toLocaleDateString() : "Set birthday"}
+              </Text>
+              {formData.birthday && (
+                <TouchableOpacity onPress={() => setFormData({ ...formData, birthday: undefined })}>
+                  <X size={16} color={colors['muted-foreground']} />
+                </TouchableOpacity>
+              )}
+            </TouchableOpacity>
+            {showBirthdayPicker && (
+              <DateTimePicker
+                value={formData.birthday || new Date()}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                onChange={(event, selectedDate) => {
+                  setShowBirthdayPicker(Platform.OS === 'ios');
+                  if (selectedDate) {
+                    setFormData({ ...formData, birthday: selectedDate });
+                  }
+                }}
+              />
+            )}
+          </View>
+
+          <View>
+            <Text style={[styles.label, { color: colors.foreground }]}>Anniversary (Optional)</Text>
+            <Text style={[styles.helperText, { color: colors['muted-foreground'] }]}>When you met or became friends</Text>
+            <TouchableOpacity
+              onPress={() => setShowAnniversaryPicker(true)}
+              style={[styles.dateButton, { backgroundColor: colors.card, borderColor: colors.border }]}
+            >
+              <Heart size={20} color={colors['muted-foreground']} />
+              <Text style={[styles.dateButtonText, { color: formData.anniversary ? colors.foreground : colors['muted-foreground'] }]}>
+                {formData.anniversary ? formData.anniversary.toLocaleDateString() : "Set anniversary"}
+              </Text>
+              {formData.anniversary && (
+                <TouchableOpacity onPress={() => setFormData({ ...formData, anniversary: undefined })}>
+                  <X size={16} color={colors['muted-foreground']} />
+                </TouchableOpacity>
+              )}
+            </TouchableOpacity>
+            {showAnniversaryPicker && (
+              <DateTimePicker
+                value={formData.anniversary || new Date()}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                onChange={(event, selectedDate) => {
+                  setShowAnniversaryPicker(Platform.OS === 'ios');
+                  if (selectedDate) {
+                    setFormData({ ...formData, anniversary: selectedDate });
+                  }
+                }}
+              />
+            )}
           </View>
 
           <View>
@@ -280,6 +384,39 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         flexWrap: 'wrap',
         gap: 12,
+    },
+    relationshipTypeContainer: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+    },
+    relationshipTypeButton: {
+        paddingVertical: 10,
+        paddingHorizontal: 16,
+        borderRadius: 20,
+        borderWidth: 1,
+    },
+    relationshipTypeButtonSelected: {},
+    relationshipTypeButtonText: {
+        fontSize: 14,
+        fontWeight: '500',
+    },
+    dateButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        borderWidth: 1,
+        borderRadius: 12,
+        padding: 16,
+    },
+    dateButtonText: {
+        flex: 1,
+        fontSize: 16,
+    },
+    helperText: {
+        fontSize: 13,
+        marginBottom: 8,
+        fontFamily: 'Inter_400Regular',
     },
     saveButton: {
         width: '100%',

@@ -9,6 +9,7 @@ import SuggestionEvent from './db/models/SuggestionEvent';
 import Intention from './db/models/Intention';
 import UserProfile from './db/models/UserProfile';
 import PracticeLog from './db/models/PracticeLog';
+import LifeEvent from './db/models/LifeEvent';
 
 const adapter = new SQLiteAdapter({
   schema,
@@ -31,6 +32,7 @@ export const database = new Database({
     Intention,
     UserProfile,
     PracticeLog,
+    LifeEvent,
   ],
 });
 

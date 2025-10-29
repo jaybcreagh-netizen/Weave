@@ -28,5 +28,9 @@ export default class Friend extends Model {
   @field('is_dormant') isDormant!: boolean
   @date('dormant_since') dormantSince?: Date
 
+  // Life events and relationship context
+  @date('birthday') birthday?: Date
+  @date('anniversary') anniversary?: Date
+  @text('relationship_type') relationshipType?: string
 
 }

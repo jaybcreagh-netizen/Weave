@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, Image, StyleSheet, LayoutChangeEvent } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
@@ -11,29 +12,43 @@ import Animated, {
   Easing,
   withSequence,
   withSpring,
+  runOnJS,
 } from 'react-native-reanimated';
 
 import { useUIStore } from '../stores/uiStore';
-import { type Archetype } from './types';
+import { type Archetype, type RelationshipType } from './types';
 import { useTheme } from '../hooks/useTheme';
 import { ArchetypeIcon } from './ArchetypeIcon';
 import { archetypeData } from '../lib/constants';
 import FriendModel from '../db/models/Friend';
 import { useCardGesture } from '../context/CardGestureContext';
 import { calculateCurrentScore } from '../lib/weave-engine';
+import { FriendDetailSheet } from './FriendDetailSheet';
 
 const ATTENTION_THRESHOLD = 35;
 const STABLE_THRESHOLD = 65;
 
+// Relationship type icon mapping
+const RELATIONSHIP_ICONS: Record<RelationshipType, string> = {
+  friend: '🤝',
+  close_friend: '💙',
+  family: '👨‍👩‍👧‍👦',
+  partner: '❤️',
+  colleague: '💼',
+  acquaintance: '👋',
+};
+
 interface FriendCardProps {
   friend: FriendModel;
-  animatedRef: React.RefObject<Animated.View>;
+  animatedRef?: React.RefObject<Animated.View>;
+  variant?: 'default' | 'full';
 }
 
-export function FriendCard({ friend, animatedRef }: FriendCardProps) {
+export function FriendCard({ friend, animatedRef, variant = 'default' }: FriendCardProps) {
   if (!friend) return null;
 
-  const { id, name, archetype, isDormant = false, photoUrl } = friend;
+  const { id, name, archetype, isDormant = false, photoUrl, relationshipType, birthday, anniversary } = friend;
+  const [showDetailSheet, setShowDetailSheet] = useState(false);
   const { colors, isDarkMode } = useTheme();
   const { setArchetypeModal, justNurturedFriendId, setJustNurturedFriendId } = useUIStore();
   const { activeCardId } = useCardGesture();
@@ -131,6 +146,17 @@ export function FriendCard({ friend, animatedRef }: FriendCardProps) {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
   };
 
+  const handleLongPress = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setShowDetailSheet(true);
+  };
+
+  const longPressGesture = Gesture.LongPress()
+    .minDuration(250)
+    .onStart(() => {
+      runOnJS(handleLongPress)();
+    });
+
   const healthyGradientStyle = useAnimatedStyle(() => ({ 
     opacity: interpolate(weaveScore, [STABLE_THRESHOLD - 10, STABLE_THRESHOLD], [0, 1], 'clamp') 
   }));
@@ -212,7 +238,16 @@ export function FriendCard({ friend, animatedRef }: FriendCardProps) {
               </View>
             </View>
             <View style={styles.headerTextContainer}>
-              <Text style={dynamicStyles.name}>{name}</Text>
+              <GestureDetector gesture={variant === 'full' ? longPressGesture : Gesture.Tap()}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Text style={dynamicStyles.name}>{name}</Text>
+                  {variant === 'full' && relationshipType && (
+                    <Text style={{ fontSize: 18 }}>
+                      {RELATIONSHIP_ICONS[relationshipType as RelationshipType]}
+                    </Text>
+                  )}
+                </View>
+              </GestureDetector>
               <Text style={dynamicStyles.statusText} numberOfLines={1} ellipsizeMode="tail">
                 {archetypeData[archetype]?.essence}
               </Text>
@@ -223,6 +258,14 @@ export function FriendCard({ friend, animatedRef }: FriendCardProps) {
           </View>
         </View>
       </View>
+
+      {variant === 'full' && (
+        <FriendDetailSheet
+          isVisible={showDetailSheet}
+          onClose={() => setShowDetailSheet(false)}
+          friend={friend}
+        />
+      )}
     </Animated.View>
   );
 }

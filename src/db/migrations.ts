@@ -27,6 +27,11 @@ import { schemaMigrations, addColumns, createTable } from '@nozbe/watermelondb/S
  * - Add user_profile table for social season and battery tracking
  * - Add practice_log table for streak system (Phase 3)
  * - Enables home dashboard personalization
+ *
+ * Migration from v14 to v15:
+ * - Add birthday, anniversary, relationship_type to friends table
+ * - Add life_events table for tracking important life events
+ * - Enables life event tracking and context-aware suggestions
  */
 export default schemaMigrations({
   migrations: [
@@ -133,6 +138,36 @@ export default schemaMigrations({
             { name: 'practice_type', type: 'string' },
             { name: 'related_id', type: 'string', isOptional: true },
             { name: 'created_at', type: 'number' },
+          ],
+        }),
+      ],
+    },
+    {
+      // Migration from schema v14 to v15
+      toVersion: 15,
+      steps: [
+        addColumns({
+          table: 'friends',
+          columns: [
+            { name: 'birthday', type: 'number', isOptional: true },
+            { name: 'anniversary', type: 'number', isOptional: true },
+            { name: 'relationship_type', type: 'string', isOptional: true },
+          ],
+        }),
+        createTable({
+          name: 'life_events',
+          columns: [
+            { name: 'friend_id', type: 'string', isIndexed: true },
+            { name: 'event_type', type: 'string' },
+            { name: 'event_date', type: 'number' },
+            { name: 'title', type: 'string' },
+            { name: 'notes', type: 'string', isOptional: true },
+            { name: 'importance', type: 'string' },
+            { name: 'source', type: 'string' },
+            { name: 'is_recurring', type: 'boolean' },
+            { name: 'reminded', type: 'boolean' },
+            { name: 'created_at', type: 'number' },
+            { name: 'updated_at', type: 'number' },
           ],
         }),
       ],

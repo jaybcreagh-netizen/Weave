@@ -138,6 +138,11 @@ export const useFriendStore = create<FriendStore>((set, get) => ({
               friend.weaveScore = 50; // Start with a neutral score
               friend.lastUpdated = new Date();
 
+              // Life events and relationship context
+              friend.birthday = data.birthday || null;
+              friend.anniversary = data.anniversary || null;
+              friend.relationshipType = data.relationshipType || null;
+
               // Initialize intelligence engine fields
               friend.resilience = 1.0;
               friend.ratedWeavesCount = 0;
@@ -162,6 +167,11 @@ export const useFriendStore = create<FriendStore>((set, get) => ({
             record.archetype = data.archetype;
             record.photoUrl = data.photoUrl;
             record.notes = data.notes;
+
+            // Life events and relationship context
+            record.birthday = data.birthday || null;
+            record.anniversary = data.anniversary || null;
+            record.relationshipType = data.relationshipType || null;
         });
     });
   },
