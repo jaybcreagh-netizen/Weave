@@ -79,8 +79,6 @@ function DashboardContent() {
     React.useCallback(() => {
       // Reset activeCardId when screen gains focus to prevent stuck scales
       activeCardId.value = null;
-      // Force a refresh of the friend list (helps with time-based color updates)
-      setRefreshKey(prev => prev + 1);
       return () => {
         // Also reset when leaving the screen
         activeCardId.value = null;

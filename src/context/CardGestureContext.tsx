@@ -144,7 +144,7 @@ function useCardGestureCoordinator(): CardGestureContextType {
   // THE FIX: Wrap the entire gesture definition in useMemo to prevent re-creation on re-renders.
   const gesture = useMemo(() => {
     const tap = Gesture.Tap()
-      .maxDuration(200)
+      .maxDuration(300) // Increased to 300ms to catch slower taps
       .onEnd((event, success) => {
         'worklet';
         if (success && !isLongPressActive.value) {
@@ -156,7 +156,7 @@ function useCardGestureCoordinator(): CardGestureContextType {
       });
 
     const longPressAndDrag = Gesture.LongPress()
-      .minDuration(200)
+      .minDuration(350) // Increased to 350ms to avoid overlap, still feels snappy
       .maxDistance(999999)
       .shouldCancelWhenOutside(false)
       .onBegin((event) => {
