@@ -78,11 +78,26 @@ export function useSuggestions() {
   const friends = useFriends();
   const [dismissedMap, setDismissedMap] = useState<Map<string, any>>(new Map());
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  const [interactionTrigger, setInteractionTrigger] = useState(0); // Trigger for interaction changes
   const trackedSuggestions = useRef<Set<string>>(new Set()); // Track which suggestions we've already logged as "shown"
 
   // Load dismissed suggestions on mount
   useEffect(() => {
     getDismissedSuggestions().then(setDismissedMap);
+  }, []);
+
+  // Observe interactions table for changes to trigger suggestion regeneration
+  useEffect(() => {
+    const subscription = database
+      .get<Interaction>('interactions')
+      .query()
+      .observe()
+      .subscribe(() => {
+        // Trigger regeneration when interactions change
+        setInteractionTrigger(prev => prev + 1);
+      });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   // Track when suggestions are shown (only track each suggestion once)
@@ -133,9 +148,12 @@ export function useSuggestions() {
     });
   }, [suggestions, friends]);
 
-  // Generate suggestions when friends or dismissedMap changes
+  // Generate suggestions when friends, dismissedMap, or interactions change
   useEffect(() => {
     const generateAllSuggestions = async () => {
+      // Clear tracked suggestions when regenerating
+      trackedSuggestions.current.clear();
+
       const allSuggestions: Suggestion[] = [];
       const friendStats: PortfolioAnalysis['friends'] = [];
 
@@ -274,7 +292,7 @@ export function useSuggestions() {
     };
 
     generateAllSuggestions();
-  }, [friends, dismissedMap]);
+  }, [friends, dismissedMap, interactionTrigger]);
 
   const dismissSuggestion = async (id: string, cooldownDays: number) => {
     // Track the dismissal
