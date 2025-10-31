@@ -44,6 +44,9 @@ export interface InteractionFormData {
   category?: InteractionCategory;
   // NEW: Structured reflection data
   reflection?: StructuredReflection;
+  // v17: Custom title and location
+  title?: string;
+  location?: string;
 }
 
 interface InteractionStore {

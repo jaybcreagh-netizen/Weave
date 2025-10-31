@@ -94,6 +94,13 @@ export async function logNewWeave(friendsToUpdate: FriendModel[], weaveData: Int
       if (weaveData.reflection) {
         interaction.reflectionJSON = JSON.stringify(weaveData.reflection);
       }
+      // v17: Save title and location if provided
+      if (weaveData.title) {
+        interaction.title = weaveData.title;
+      }
+      if (weaveData.location) {
+        interaction.location = weaveData.location;
+      }
     });
 
     interactionId = newInteraction.id;

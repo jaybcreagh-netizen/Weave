@@ -1,0 +1,173 @@
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, TextInput } from 'react-native';
+import { ChevronDown, ChevronUp } from 'lucide-react-native';
+import { format } from 'date-fns';
+import { useTheme } from '../../hooks/useTheme';
+import { PlanFormData } from '../PlanWizard';
+import FriendModel from '../../db/models/Friend';
+import { PlanSuggestion } from '../../hooks/usePlanSuggestion';
+
+interface PlanWizardStep3Props {
+  formData: Partial<PlanFormData>;
+  onUpdate: (updates: Partial<PlanFormData>) => void;
+  onSubmit: () => void;
+  isSubmitting: boolean;
+  friend: FriendModel;
+  suggestion: PlanSuggestion | null;
+}
+
+const CATEGORY_LABELS: Record<string, string> = {
+  'text-call': 'Chat',
+  'meal-drink': 'Meal',
+  'hangout': 'Hangout',
+  'deep-talk': 'Deep Talk',
+  'activity-hobby': 'Activity',
+  'event-party': 'Event',
+  'favor-support': 'Support',
+  'celebration': 'Celebration',
+};
+
+export function PlanWizardStep3({
+  formData,
+  onUpdate,
+  onSubmit,
+  isSubmitting,
+  friend,
+  suggestion,
+}: PlanWizardStep3Props) {
+  const { colors } = useTheme();
+  const [showDetails, setShowDetails] = useState(false);
+
+  const categoryLabel = formData.category ? CATEGORY_LABELS[formData.category] : 'Time together';
+  const dateText = formData.date ? format(formData.date, 'EEEE, MMM d') : '';
+
+  return (
+    <View className="px-5 py-6">
+      {/* Summary */}
+      <View
+        className="p-4 rounded-2xl mb-6"
+        style={{ backgroundColor: colors.muted }}
+      >
+        <Text className="font-inter-medium text-sm" style={{ color: colors['muted-foreground'] }}>
+          Planning
+        </Text>
+        <Text className="font-lora-bold text-xl mt-1" style={{ color: colors.foreground }}>
+          {categoryLabel} with {friend.name}
+        </Text>
+        <Text className="font-inter-regular text-base mt-1" style={{ color: colors.foreground }}>
+          {dateText}
+        </Text>
+      </View>
+
+      {/* Title input */}
+      <Text className="font-inter-semibold text-base mb-2" style={{ color: colors.foreground }}>
+        Give it a title? <Text style={{ color: colors['muted-foreground'] }}>(optional)</Text>
+      </Text>
+      <TextInput
+        value={formData.title}
+        onChangeText={title => onUpdate({ title })}
+        placeholder={`e.g., Birthday ${categoryLabel.toLowerCase()}, Catch-up coffee`}
+        placeholderTextColor={colors['muted-foreground']}
+        className="p-4 rounded-xl mb-6 font-inter-regular text-base"
+        style={{ backgroundColor: colors.muted, color: colors.foreground }}
+      />
+
+      {/* Collapsible details section */}
+      <TouchableOpacity
+        onPress={() => setShowDetails(!showDetails)}
+        className="flex-row items-center justify-between py-3 mb-3"
+      >
+        <Text className="font-inter-semibold text-base" style={{ color: colors.foreground }}>
+          Add more specifics <Text style={{ color: colors['muted-foreground'] }}>(optional)</Text>
+        </Text>
+        {showDetails ? (
+          <ChevronUp size={20} color={colors['muted-foreground']} />
+        ) : (
+          <ChevronDown size={20} color={colors['muted-foreground']} />
+        )}
+      </TouchableOpacity>
+
+      {showDetails && (
+        <View className="mb-6">
+          {/* Location with history */}
+          <Text className="font-inter-semibold text-sm mb-2" style={{ color: colors.foreground }}>
+            Where?
+          </Text>
+
+          {/* Recent locations */}
+          {suggestion?.recentLocations && suggestion.recentLocations.length > 0 && (
+            <View className="mb-3">
+              <Text className="font-inter-regular text-xs mb-2" style={{ color: colors['muted-foreground'] }}>
+                You've been here before:
+              </Text>
+              <View className="flex-row flex-wrap gap-2">
+                {suggestion.recentLocations.map((location, idx) => (
+                  <TouchableOpacity
+                    key={idx}
+                    onPress={() => onUpdate({ location })}
+                    className="px-3 py-2 rounded-full"
+                    style={{
+                      backgroundColor: formData.location === location ? `${colors.primary}20` : colors.muted,
+                      borderWidth: formData.location === location ? 1 : 0,
+                      borderColor: colors.primary,
+                    }}
+                  >
+                    <Text
+                      className="font-inter-medium text-sm"
+                      style={{ color: formData.location === location ? colors.primary : colors.foreground }}
+                    >
+                      {location}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          )}
+
+          <TextInput
+            value={formData.location}
+            onChangeText={location => onUpdate({ location })}
+            placeholder="e.g., Blue Bottle Coffee, Their place"
+            placeholderTextColor={colors['muted-foreground']}
+            className="p-4 rounded-xl mb-4 font-inter-regular text-base"
+            style={{ backgroundColor: colors.muted, color: colors.foreground }}
+          />
+
+          {/* Notes */}
+          <Text className="font-inter-semibold text-sm mb-2" style={{ color: colors.foreground }}>
+            Notes
+          </Text>
+          <TextInput
+            value={formData.notes}
+            onChangeText={notes => onUpdate({ notes })}
+            placeholder="e.g., Discuss her new job, Bring birthday gift"
+            placeholderTextColor={colors['muted-foreground']}
+            multiline
+            numberOfLines={3}
+            className="p-4 rounded-xl font-inter-regular text-base"
+            style={{
+              backgroundColor: colors.muted,
+              color: colors.foreground,
+              textAlignVertical: 'top',
+            }}
+          />
+        </View>
+      )}
+
+      {/* Create button */}
+      <TouchableOpacity
+        onPress={onSubmit}
+        disabled={isSubmitting}
+        className="py-4 rounded-full items-center mt-4"
+        style={{
+          backgroundColor: colors.primary,
+          opacity: isSubmitting ? 0.6 : 1,
+        }}
+      >
+        <Text className="font-inter-semibold text-base text-white">
+          {isSubmitting ? 'Creating Plan...' : 'Create Plan'}
+        </Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
