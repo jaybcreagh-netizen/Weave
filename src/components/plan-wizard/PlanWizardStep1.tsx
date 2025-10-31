@@ -1,23 +1,29 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Platform, Modal } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, FadeIn, SlideInDown } from 'react-native-reanimated';
 import { Calendar, Sun, Moon, X } from 'lucide-react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { BlurView } from 'expo-blur';
 import { startOfDay, addDays, format, isSaturday, nextSaturday } from 'date-fns';
+import { Q } from '@nozbe/watermelondb';
 import { useTheme } from '../../hooks/useTheme';
+import { CustomCalendar } from '../CustomCalendar';
+import { database } from '../../db';
+import InteractionModel from '../../db/models/Interaction';
+import FriendModel from '../../db/models/Friend';
 
 interface PlanWizardStep1Props {
   selectedDate?: Date;
   onDateSelect: (date: Date) => void;
   onContinue: () => void;
   canContinue: boolean;
+  friend: FriendModel;
 }
 
-export function PlanWizardStep1({ selectedDate, onDateSelect, onContinue, canContinue }: PlanWizardStep1Props) {
+export function PlanWizardStep1({ selectedDate, onDateSelect, onContinue, canContinue, friend }: PlanWizardStep1Props) {
   const { colors, isDarkMode } = useTheme();
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const [plannedDates, setPlannedDates] = useState<Date[]>([]);
   const scale = useSharedValue(1);
 
   // Create animated style once at the top level
@@ -26,6 +32,44 @@ export function PlanWizardStep1({ selectedDate, onDateSelect, onContinue, canCon
   }));
 
   const today = startOfDay(new Date());
+
+  // Fetch planned dates for this friend
+  useEffect(() => {
+    const fetchPlannedDates = async () => {
+      try {
+        // Query the join table for this friend's interactions
+        const joinRecords = await database
+          .get('interaction_friends')
+          .query(Q.where('friend_id', friend.id))
+          .fetch();
+
+        if (joinRecords.length === 0) {
+          setPlannedDates([]);
+          return;
+        }
+
+        const interactionIds = joinRecords.map((jr: any) => jr.interactionId);
+
+        // Get the planned interactions
+        const interactions = await database
+          .get<InteractionModel>('interactions')
+          .query(
+            Q.where('id', Q.oneOf(interactionIds)),
+            Q.where('status', 'planned'),
+            Q.where('interaction_date', Q.gte(today.getTime()))
+          )
+          .fetch();
+
+        const dates = interactions.map(i => startOfDay(i.interactionDate));
+        setPlannedDates(dates);
+      } catch (error) {
+        console.error('Error fetching planned dates:', error);
+        setPlannedDates([]);
+      }
+    };
+
+    fetchPlannedDates();
+  }, [friend.id, today]);
 
   const handleQuickSelect = (option: 'weekend' | 'next-week') => {
     setSelectedKey(option);
@@ -195,24 +239,21 @@ export function PlanWizardStep1({ selectedDate, onDateSelect, onContinue, canCon
                 </TouchableOpacity>
               </View>
 
-              <DateTimePicker
-                value={selectedDate || today}
-                mode="date"
-                display={Platform.OS === 'ios' ? 'inline' : 'default'}
-                minimumDate={today}
-                onChange={(event, date) => {
-                  if (date && (Platform.OS === 'android' || event.type === 'set')) {
-                    setSelectedKey('calendar');
-                    onDateSelect(startOfDay(date));
-                    setShowDatePicker(false);
-                    // Auto-advance after selecting from calendar
-                    scale.value = withSpring(0.95, { damping: 15 });
-                    setTimeout(() => {
-                      scale.value = withSpring(1, { damping: 15 });
-                      onContinue();
-                    }, 200);
-                  }
+              <CustomCalendar
+                selectedDate={selectedDate}
+                onDateSelect={(date) => {
+                  setSelectedKey('calendar');
+                  onDateSelect(date);
+                  setShowDatePicker(false);
+                  // Auto-advance after selecting from calendar
+                  scale.value = withSpring(0.95, { damping: 15 });
+                  setTimeout(() => {
+                    scale.value = withSpring(1, { damping: 15 });
+                    onContinue();
+                  }, 200);
                 }}
+                minDate={today}
+                plannedDates={plannedDates}
               />
             </Animated.View>
           </TouchableOpacity>

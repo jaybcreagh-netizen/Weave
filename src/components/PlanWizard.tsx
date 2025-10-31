@@ -163,6 +163,7 @@ export function PlanWizard({ visible, onClose, friend, prefillData }: PlanWizard
                 onDateSelect={date => updateFormData({ date })}
                 onContinue={goToNextStep}
                 canContinue={canProceedFromStep1}
+                friend={friend}
               />
             </Animated.View>
           )}
