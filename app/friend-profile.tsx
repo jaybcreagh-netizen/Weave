@@ -3,10 +3,11 @@ import { View, Text, TouchableOpacity, Alert, StyleSheet, SectionList, LayoutCha
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, withDelay, Easing, useAnimatedScrollHandler, runOnJS } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
-import { ArrowLeft, Edit, Trash2, Calendar } from 'lucide-react-native';
+import { ArrowLeft, Edit, Trash2, Calendar, Plus } from 'lucide-react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { isFuture, isToday, isPast, format } from 'date-fns';
+import { isFuture, isToday, isPast, format, differenceInDays } from 'date-fns';
+import { Q } from '@nozbe/watermelondb';
 
 import { FriendCard } from '../src/components/FriendCard';
 import { TimelineItem } from '../src/components/TimelineItem';
@@ -26,6 +27,9 @@ import { IntentionsFAB } from '../src/components/IntentionsFAB';
 import { IntentionActionSheet } from '../src/components/IntentionActionSheet';
 import { useIntentionStore } from '../src/stores/intentionStore';
 import { useFriendIntentions } from '../src/hooks/useIntentions';
+import { LifeEventModal } from '../src/components/LifeEventModal';
+import { database } from '../src/db';
+import LifeEvent from '../src/db/models/LifeEvent';
 
 const AnimatedSectionList = Animated.createAnimatedComponent(SectionList);
 
@@ -46,6 +50,9 @@ export default function FriendProfile() {
   const [showIntentionForm, setShowIntentionForm] = useState(false);
   const [showIntentionsDrawer, setShowIntentionsDrawer] = useState(false);
   const [selectedIntentionForAction, setSelectedIntentionForAction] = useState<any>(null);
+  const [showLifeEventModal, setShowLifeEventModal] = useState(false);
+  const [editingLifeEvent, setEditingLifeEvent] = useState<LifeEvent | null>(null);
+  const [activeLifeEvents, setActiveLifeEvents] = useState<LifeEvent[]>([]);
 
   const scrollY = useSharedValue(0);
   const [contentHeight, setContentHeight] = useState(0);
@@ -131,11 +138,38 @@ export default function FriendProfile() {
       setIsDataLoaded(false);
       itemHeights.current = {};
       observeFriend(friendId);
+
+      // Load active life events for this friend
+      loadLifeEvents();
     }
     return () => {
       unobserveFriend();
     };
   }, [friendId, observeFriend, unobserveFriend]);
+
+  const loadLifeEvents = async () => {
+    if (!friendId || typeof friendId !== 'string') return;
+
+    try {
+      const sixtyDaysAgo = Date.now() - 60 * 24 * 60 * 60 * 1000;
+      const events = await database
+        .get<LifeEvent>('life_events')
+        .query(
+          // @ts-ignore
+          Q.where('friend_id', friendId),
+          Q.or(
+            Q.where('event_date', Q.gte(sixtyDaysAgo)),
+            Q.where('event_date', Q.gt(Date.now()))
+          ),
+          Q.sortBy('event_date', 'asc')
+        )
+        .fetch();
+
+      setActiveLifeEvents(events);
+    } catch (error) {
+      console.error('Error loading life events:', error);
+    }
+  };
 
   // Track when data is actually loaded - must match the friendId
   // Add small delay to ensure data is fully settled
@@ -344,6 +378,81 @@ export default function FriendProfile() {
                   </LinearGradient>
                 </TouchableOpacity>
             </Animated.View>
+
+            {/* Life Events Section */}
+            {activeLifeEvents.length > 0 || true /* always show to allow adding */ ? (
+              <Animated.View style={[styles.lifeEventsSection, buttonsAnimatedStyle]}>
+                <View style={styles.lifeEventsSectionHeader}>
+                  <Text style={[styles.lifeEventsSectionTitle, { color: colors.foreground }]}>
+                    Life Events
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => {
+                      setEditingLifeEvent(null);
+                      setShowLifeEventModal(true);
+                    }}
+                    style={[styles.addLifeEventButton, { backgroundColor: colors.muted }]}
+                  >
+                    <Plus size={16} color={colors.primary} />
+                    <Text style={[styles.addLifeEventText, { color: colors.primary }]}>Add</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {activeLifeEvents.length > 0 ? (
+                  <View style={styles.lifeEventsList}>
+                    {activeLifeEvents.map((event) => {
+                      const daysUntil = differenceInDays(event.eventDate, new Date());
+                      const isPastEvent = daysUntil < 0;
+                      const isUpcoming = daysUntil >= 0 && daysUntil <= 30;
+
+                      const eventIcons: Record<string, string> = {
+                        new_job: '💼', moving: '📦', wedding: '💒', baby: '👶',
+                        loss: '🕊️', health_event: '🏥', graduation: '🎓',
+                        celebration: '🎉', birthday: '🎂', anniversary: '💝', other: '✨'
+                      };
+
+                      return (
+                        <TouchableOpacity
+                          key={event.id}
+                          onPress={() => {
+                            setEditingLifeEvent(event);
+                            setShowLifeEventModal(true);
+                          }}
+                          style={[
+                            styles.lifeEventCard,
+                            {
+                              backgroundColor: colors.muted,
+                              borderColor: isUpcoming ? colors.primary : colors.border,
+                              borderWidth: isUpcoming ? 2 : 1,
+                            }
+                          ]}
+                        >
+                          <Text style={styles.lifeEventIcon}>{eventIcons[event.eventType]}</Text>
+                          <View style={styles.lifeEventContent}>
+                            <Text style={[styles.lifeEventTitle, { color: colors.foreground }]}>
+                              {event.title}
+                            </Text>
+                            <Text style={[styles.lifeEventDate, { color: colors['muted-foreground'] }]}>
+                              {isPastEvent
+                                ? `${Math.abs(daysUntil)} days ago`
+                                : daysUntil === 0
+                                ? 'Today'
+                                : daysUntil === 1
+                                ? 'Tomorrow'
+                                : `In ${daysUntil} days`}
+                            </Text>
+                          </View>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                ) : (
+                  <Text style={[styles.noLifeEvents, { color: colors['muted-foreground'] }]}>
+                    No active life events. Tap "Add" to create one.
+                  </Text>
+                )}
+              </Animated.View>
+            ) : null}
         </View>
         <View style={{ paddingHorizontal: 20 }}>
             <Text style={[styles.timelineTitle, { color: colors.foreground }]}>
@@ -460,6 +569,17 @@ export default function FriendProfile() {
             setSelectedIntentionForAction(null);
           }}
         />
+
+        <LifeEventModal
+          visible={showLifeEventModal}
+          onClose={() => {
+            setShowLifeEventModal(false);
+            setEditingLifeEvent(null);
+            loadLifeEvents(); // Refresh events after modal closes
+          }}
+          friendId={typeof friendId === 'string' ? friendId : ''}
+          existingEvent={editingLifeEvent}
+        />
         </Animated.View>
 
         <IntentionsFAB
@@ -557,5 +677,64 @@ const styles = StyleSheet.create({
         bottom: 0,
         zIndex: -1, // Behind items
         pointerEvents: 'none',
+    },
+    lifeEventsSection: {
+        paddingHorizontal: 20,
+        marginTop: 16,
+        marginBottom: 16,
+    },
+    lifeEventsSectionHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 12,
+    },
+    lifeEventsSectionTitle: {
+        fontFamily: 'Lora_700Bold',
+        fontSize: 18,
+    },
+    addLifeEventButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 999,
+    },
+    addLifeEventText: {
+        fontFamily: 'Inter_600SemiBold',
+        fontSize: 14,
+    },
+    lifeEventsList: {
+        gap: 8,
+    },
+    lifeEventCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 12,
+        borderRadius: 12,
+        gap: 12,
+        marginBottom: 8,
+    },
+    lifeEventIcon: {
+        fontSize: 24,
+    },
+    lifeEventContent: {
+        flex: 1,
+    },
+    lifeEventTitle: {
+        fontFamily: 'Inter_600SemiBold',
+        fontSize: 14,
+        marginBottom: 2,
+    },
+    lifeEventDate: {
+        fontFamily: 'Inter_400Regular',
+        fontSize: 12,
+    },
+    noLifeEvents: {
+        fontFamily: 'Inter_400Regular',
+        fontSize: 14,
+        textAlign: 'center',
+        paddingVertical: 12,
     },
 });

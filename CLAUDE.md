@@ -138,7 +138,11 @@ Each archetype has unique affinity multipliers for interaction types (see `Arche
 
 **Components** (`src/components/`):
 - Component files use PascalCase filenames
-- Mix of StyleSheet and NativeWind styling
+- **Styling Policy**:
+  - **All NEW components MUST use NativeWind** (Tailwind classes)
+  - When rebuilding/modifying existing components, refactor styling to NativeWind
+  - Don't automatically refactor old components just for styling changes
+  - Legacy components may still use StyleSheet until they're touched
 - Reanimated for performance-critical animations
 - Key components: `FriendCard`, `QuickWeaveOverlay`, `CalendarView`, `SettingsModal`
 
@@ -237,3 +241,4 @@ When making changes:
 - **Zustand for UI only**: Don't store database records in Zustand
 - **Transaction Boundaries**: Group related writes in single `database.write()` call
 - **Observe vs Fetch**: Always use `.observe()` for reactive updates, not `.fetch()`
+- remember the plan for the new logging/planning redesign for now

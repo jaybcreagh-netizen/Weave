@@ -32,6 +32,11 @@ import { schemaMigrations, addColumns, createTable } from '@nozbe/watermelondb/S
  * - Add birthday, anniversary, relationship_type to friends table
  * - Add life_events table for tracking important life events
  * - Enables life event tracking and context-aware suggestions
+ *
+ * Migration from v15 to v16:
+ * - Add user_progress table for milestone tracking
+ * - Tracks Path of Consistency (practice streak), Path of Depth (reflections), Path of Nurturing (friend milestones)
+ * - Enables "Weaving Journey" gamification system
  */
 export default schemaMigrations({
   migrations: [
@@ -166,6 +171,26 @@ export default schemaMigrations({
             { name: 'source', type: 'string' },
             { name: 'is_recurring', type: 'boolean' },
             { name: 'reminded', type: 'boolean' },
+            { name: 'created_at', type: 'number' },
+            { name: 'updated_at', type: 'number' },
+          ],
+        }),
+      ],
+    },
+    {
+      // Migration from schema v15 to v16
+      toVersion: 16,
+      steps: [
+        createTable({
+          name: 'user_progress',
+          columns: [
+            { name: 'current_streak', type: 'number' },
+            { name: 'best_streak', type: 'number' },
+            { name: 'last_practice_date', type: 'number', isOptional: true },
+            { name: 'consistency_milestones', type: 'string', isOptional: true },
+            { name: 'total_reflections', type: 'number' },
+            { name: 'reflection_milestones', type: 'string', isOptional: true },
+            { name: 'friendship_milestones', type: 'string', isOptional: true },
             { name: 'created_at', type: 'number' },
             { name: 'updated_at', type: 'number' },
           ],

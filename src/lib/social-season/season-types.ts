@@ -17,13 +17,13 @@ export interface SeasonCalculationInput {
 
 export interface SeasonThresholds {
   resting: { min: number; max: number };
-  flowing: { min: number; max: number };
+  balanced: { min: number; max: number };
   blooming: { min: number; max: number };
 }
 
 export const SEASON_THRESHOLDS: SeasonThresholds = {
   resting: { min: 0, max: 45 },
-  flowing: { min: 46, max: 80 },
+  balanced: { min: 46, max: 80 },
   blooming: { min: 81, max: 100 },
 };
 

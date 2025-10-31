@@ -5,6 +5,9 @@ import {
   getArchetypeMomentumSuggestion,
 } from './archetype-content';
 import { differenceInDays } from 'date-fns';
+import { database } from '../db';
+import LifeEvent, { LifeEventType } from '../db/models/LifeEvent';
+import { Q } from '@nozbe/watermelondb';
 
 // Friendly category labels for suggestions
 const CATEGORY_LABELS: Record<string, string> = {
@@ -55,14 +58,64 @@ function getArchetypeCelebrationSuggestion(archetype: string): string {
 }
 
 interface LifeEventInfo {
-  type: 'birthday' | 'anniversary';
+  type: 'birthday' | 'anniversary' | LifeEventType;
   daysUntil: number;
+  importance?: 'low' | 'medium' | 'high' | 'critical';
+  title?: string;
 }
 
-function checkUpcomingLifeEvent(friend: SuggestionInput['friend']): LifeEventInfo | null {
+async function checkUpcomingLifeEvent(friend: SuggestionInput['friend']): Promise<LifeEventInfo | null> {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
+  // First check database for detected life events (highest priority if critical)
+  try {
+    const activeLifeEvents = await database
+      .get<LifeEvent>('life_events')
+      .query(
+        // @ts-ignore
+        Q.where('friend_id', friend.id),
+        Q.or(
+          // Upcoming events (within next 30 days)
+          Q.and(
+            Q.where('event_date', Q.gte(today.getTime())),
+            Q.where('event_date', Q.lte(today.getTime() + 30 * 24 * 60 * 60 * 1000))
+          ),
+          // Recent past events needing follow-up (last 7 days)
+          Q.and(
+            Q.where('event_date', Q.gte(today.getTime() - 7 * 24 * 60 * 60 * 1000)),
+            Q.where('event_date', Q.lt(today.getTime()))
+          )
+        )
+      )
+      .fetch();
+
+    // Prioritize critical and high importance events
+    const sortedEvents = activeLifeEvents.sort((a, b) => {
+      const importanceOrder = { critical: 4, high: 3, medium: 2, low: 1 };
+      const aScore = importanceOrder[a.importance];
+      const bScore = importanceOrder[b.importance];
+      if (aScore !== bScore) return bScore - aScore;
+      // If same importance, prioritize by proximity
+      return Math.abs(differenceInDays(a.eventDate, today)) - Math.abs(differenceInDays(b.eventDate, today));
+    });
+
+    if (sortedEvents.length > 0) {
+      const topEvent = sortedEvents[0];
+      const daysUntil = differenceInDays(topEvent.eventDate, today);
+
+      return {
+        type: topEvent.eventType,
+        daysUntil,
+        importance: topEvent.importance,
+        title: topEvent.title,
+      };
+    }
+  } catch (error) {
+    console.error('Error checking life events:', error);
+  }
+
+  // Fallback to legacy birthday/anniversary checks from Friend model
   // Check birthday (within 7 days)
   if (friend.birthday) {
     const birthdayThisYear = new Date(friend.birthday);
@@ -75,7 +128,7 @@ function checkUpcomingLifeEvent(friend: SuggestionInput['friend']): LifeEventInf
 
     const daysUntil = differenceInDays(birthdayThisYear, today);
     if (daysUntil >= 0 && daysUntil <= 7) {
-      return { type: 'birthday', daysUntil };
+      return { type: 'birthday', daysUntil, importance: 'high' };
     }
   }
 
@@ -91,11 +144,64 @@ function checkUpcomingLifeEvent(friend: SuggestionInput['friend']): LifeEventInf
 
     const daysUntil = differenceInDays(anniversaryThisYear, today);
     if (daysUntil >= 0 && daysUntil <= 7) {
-      return { type: 'anniversary', daysUntil };
+      return { type: 'anniversary', daysUntil, importance: 'medium' };
     }
   }
 
   return null;
+}
+
+// Get appropriate emoji and label for life event type
+function getLifeEventDisplay(eventType: LifeEventType | 'birthday' | 'anniversary'): { icon: string; label: string } {
+  const displays: Record<string, { icon: string; label: string }> = {
+    birthday: { icon: '🎂', label: 'birthday' },
+    anniversary: { icon: '💝', label: 'anniversary' },
+    new_job: { icon: '💼', label: 'new job' },
+    moving: { icon: '📦', label: 'move' },
+    wedding: { icon: '💒', label: 'wedding' },
+    baby: { icon: '👶', label: 'new baby' },
+    loss: { icon: '🕊️', label: 'difficult time' },
+    health_event: { icon: '🏥', label: 'health event' },
+    graduation: { icon: '🎓', label: 'graduation' },
+    celebration: { icon: '🎉', label: 'milestone' },
+    other: { icon: '✨', label: 'life event' },
+  };
+  return displays[eventType] || { icon: '✨', label: 'life event' };
+}
+
+// Get appropriate suggestion text for event type
+function getLifeEventSuggestion(eventType: LifeEventType | 'birthday' | 'anniversary', archetype: string, isPast: boolean): string {
+  if (isPast) {
+    // Follow-up suggestions for past events
+    const followUps: Record<string, string> = {
+      wedding: 'Check in on how married life is going',
+      baby: 'See how they\'re adjusting to parenthood',
+      new_job: 'Ask how the new role is going',
+      moving: 'See how they\'re settling into the new place',
+      loss: 'Offer support and check how they\'re doing',
+      health_event: 'Check in on their recovery',
+      graduation: 'Celebrate their achievement',
+    };
+    return followUps[eventType] || 'Check in and see how they\'re doing';
+  }
+
+  // Use archetype-specific celebration for birthdays
+  if (eventType === 'birthday' || eventType === 'anniversary') {
+    return getArchetypeCelebrationSuggestion(archetype);
+  }
+
+  // Proactive suggestions for upcoming events
+  const suggestions: Record<string, string> = {
+    wedding: 'Offer help with wedding planning or send congratulations',
+    baby: 'Offer support or send a thoughtful gift',
+    new_job: 'Send congratulations and encouragement',
+    moving: 'Offer to help with the move or settling in',
+    loss: 'Reach out with compassion and support',
+    health_event: 'Offer support and check if they need anything',
+    graduation: 'Plan a celebration or send congratulations',
+    celebration: 'Celebrate this milestone together',
+  };
+  return suggestions[eventType] || 'Reach out to acknowledge this moment';
 }
 
 function getDaysText(days: number): string {

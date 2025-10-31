@@ -1,7 +1,7 @@
 import { Model } from '@nozbe/watermelondb';
 import { field, text, date, readonly } from '@nozbe/watermelondb/decorators';
 
-export type SocialSeason = 'resting' | 'flowing' | 'blooming';
+export type SocialSeason = 'resting' | 'balanced' | 'blooming';
 
 export interface SeasonHistoryEntry {
   season: SocialSeason;

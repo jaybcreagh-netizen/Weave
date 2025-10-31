@@ -6,8 +6,9 @@ import { StatusBar } from 'expo-status-bar';
 import { QuickWeaveProvider } from '../src/components/QuickWeaveProvider';
 import { ToastProvider } from '../src/components/toast_provider';
 import { CardGestureProvider } from '../src/context/CardGestureContext'; // Import the provider
+import { MilestoneCelebration } from '../src/components/MilestoneCelebration';
 import { useUIStore } from '../src/stores/uiStore';
-import { initializeDataMigrations, initializeUserProfile } from '../src/db';
+import { initializeDataMigrations, initializeUserProfile, initializeUserProgress } from '../src/db';
 import {
   useFonts,
   Lora_400Regular,
@@ -23,6 +24,9 @@ SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const isDarkMode = useUIStore((state) => state.isDarkMode);
+  const milestoneCelebrationData = useUIStore((state) => state.milestoneCelebrationData);
+  const hideMilestoneCelebration = useUIStore((state) => state.hideMilestoneCelebration);
+
   const [fontsLoaded, fontError] = useFonts({
     Lora_400Regular,
     Lora_700Bold,
@@ -45,6 +49,9 @@ export default function RootLayout() {
     initializeUserProfile().catch((error) => {
       console.error('Failed to initialize user profile:', error);
     });
+    initializeUserProgress().catch((error) => {
+      console.error('Failed to initialize user progress:', error);
+    });
   }, []);
 
   // Prevent rendering until the font has loaded or an error was returned
@@ -62,6 +69,13 @@ export default function RootLayout() {
             <Stack screenOptions={{ headerShown: false }}>
               {/* The Stack navigator will automatically discover all files in the app directory */}
             </Stack>
+
+            {/* Global Milestone Celebration Modal */}
+            <MilestoneCelebration
+              visible={milestoneCelebrationData !== null}
+              milestone={milestoneCelebrationData}
+              onClose={hideMilestoneCelebration}
+            />
           </ToastProvider>
         </QuickWeaveProvider>
       </CardGestureProvider>

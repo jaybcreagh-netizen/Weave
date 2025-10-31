@@ -4,7 +4,7 @@ import { View } from 'react-native';
 import { HomeWidgetGrid, WidgetGridItem } from '../src/components/home/HomeWidgetGrid';
 import { SocialSeasonWidget } from '../src/components/home/widgets/SocialSeasonWidget';
 import { TodaysFocusWidget } from '../src/components/home/widgets/TodaysFocusWidget';
-import { CelebrationDataWidget } from '../src/components/home/widgets/CelebrationDataWidget';
+import { WeavingPracticeWidget } from '../src/components/home/widgets/WeavingPracticeWidget';
 import { SocialBatterySheet } from '../src/components/home/SocialBatterySheet';
 import { useUserProfileStore } from '../src/stores/userProfileStore';
 import { useFriendStore } from '../src/stores/friendStore';
@@ -83,12 +83,12 @@ export default function Home() {
       visible: true,
     },
     {
-      id: 'celebration-data',
-      component: CelebrationDataWidget,
+      id: 'weaving-practice',
+      component: WeavingPracticeWidget,
       config: {
-        id: 'celebration-data',
-        type: 'celebration-data',
-        fullWidth: false,
+        id: 'weaving-practice',
+        type: 'weaving-practice',
+        fullWidth: true,
       },
       position: 2,
       visible: true,

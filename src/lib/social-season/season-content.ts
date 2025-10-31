@@ -21,27 +21,27 @@ export interface SeasonStyle {
  */
 export const SEASON_STYLES: Record<SocialSeason, SeasonStyle> = {
   resting: {
-    primaryColor: '#F87171', // Soft coral-red
-    lightColor: '#FCA5A5',
-    darkColor: '#DC2626',
-    gradientColorsLight: ['#FCA5A5', '#F87171'], // living.attention (light)
-    gradientColorsDark: ['#f472b6', '#ec4899'], // living.attention (dark)
+    primaryColor: '#818CF8', // Soft indigo/purple
+    lightColor: '#A5B4FC',
+    darkColor: '#6366F1',
+    gradientColorsLight: ['#A5B4FC', '#818CF8'], // Calming blue-purple
+    gradientColorsDark: ['#6366F1', '#4F46E5'], // Deep indigo
     animation: 'gentle-pulse',
   },
-  flowing: {
-    primaryColor: '#FBBF24', // Vibrant gold
+  balanced: {
+    primaryColor: '#FBBF24', // Warm gold/sun
     lightColor: '#FCD34D',
-    darkColor: '#D97706',
-    gradientColorsLight: ['#FCD34D', '#FBBF24'], // living.stable (light)
-    gradientColorsDark: ['#a78bfa', '#8b5cf6'], // living.stable (dark)
+    darkColor: '#F59E0B',
+    gradientColorsLight: ['#FCD34D', '#FBBF24'], // Warm sunny gradient
+    gradientColorsDark: ['#F59E0B', '#D97706'], // Rich amber
     animation: 'subtle-wave',
   },
   blooming: {
-    primaryColor: '#34D399', // Mint green
-    lightColor: '#6EE7B7',
-    darkColor: '#10B981',
-    gradientColorsLight: ['#6EE7B7', '#34D399'], // living.healthy (light)
-    gradientColorsDark: ['#2dd4bf', '#14b8a6'], // living.healthy (dark)
+    primaryColor: '#A78BFA', // Vibrant purple
+    lightColor: '#C4B5FD',
+    darkColor: '#8B5CF6',
+    gradientColorsLight: ['#C4B5FD', '#A78BFA'], // Soft violet
+    gradientColorsDark: ['#8B5CF6', '#7C3AED'], // Rich purple
     animation: 'sparkle',
   },
 };
@@ -58,78 +58,78 @@ const SEASON_GREETINGS: Record<
 > = {
   resting: {
     default: {
-      headline: 'Resting Season',
-      subtext: 'This is a time for quiet reflection and gentle care. Your connections are patient.',
+      headline: "You're in a resting season",
+      subtext: 'Your weave holds even when you need space. This is a time for restoration.',
       emoji: '🌙',
     },
     contextVariants: {
       innerCircleWeak: {
-        headline: 'Taking Space',
+        headline: 'Taking gentle space',
         subtext: "Even your closest friends understand when you need to rest. They'll be here when you're ready.",
         emoji: '🌙',
       },
       lowActivity: {
-        headline: 'Quiet Time',
+        headline: 'Quiet restoration',
         subtext: 'Rest is productive. Your weave will bloom again when the time is right.',
-        emoji: '✨',
+        emoji: '🌙',
       },
       batteryLow: {
-        headline: 'Low Energy, High Compassion',
-        subtext: 'Honor your need for solitude. Quality over quantity, always.',
-        emoji: '🌑',
+        headline: 'Honoring your limits',
+        subtext: 'This low energy is temporary. Quality over quantity, always.',
+        emoji: '🌙',
       },
     },
   },
-  flowing: {
+  balanced: {
     default: {
-      headline: 'Flowing Season',
-      subtext: "You're finding a sustainable rhythm. Keep weaving at your own pace.",
-      emoji: '🌊',
+      headline: "You're in a beautiful rhythm",
+      subtext: 'Connecting mindfully and listening to your needs. This consistency is something to celebrate.',
+      emoji: '☀️',
     },
     contextVariants: {
       innerCircleStrong: {
-        headline: 'Steady & Strong',
+        headline: 'Steady & strong',
         subtext: 'Your closest connections are thriving. This is what balance feels like.',
-        emoji: '💛',
+        emoji: '☀️',
       },
       highActivity: {
-        headline: 'Active Flow',
-        subtext: 'Lots of weaving lately—make sure to balance action with rest.',
-        emoji: '🌊',
+        headline: 'Mindful momentum',
+        subtext: 'Lots of weaving lately—remember to check in with your energy.',
+        emoji: '☀️',
       },
       batteryHigh: {
-        headline: 'Energized Connection',
-        subtext: 'Your social battery is charged. Ride this wave of positive momentum.',
-        emoji: '⚡',
+        headline: 'Energized balance',
+        subtext: 'Your social battery is charged and your rhythm is sustainable.',
+        emoji: '☀️',
       },
       innerCircleWeak: {
-        headline: 'Finding Balance',
-        subtext: "You're active, but your Inner Circle needs a little extra care right now.",
-        emoji: '🌊',
+        headline: 'Rebalancing',
+        subtext: "You're active, but your Inner Circle could use a little extra care.",
+        emoji: '☀️',
       },
     },
   },
   blooming: {
     default: {
-      headline: 'Blooming Season',
-      subtext: "You're in full bloom! Your social garden is flourishing. 🌸",
-      emoji: '🌸',
+      headline: "You're blooming!",
+      subtext: "You're radiating connection. Remember to check in with yourself.",
+      emoji: '✨',
     },
     contextVariants: {
       innerCircleStrong: {
-        headline: 'Thriving Together',
+        headline: 'Thriving together',
         subtext: 'Your Inner Circle is radiant. This is the magic of intentional connection.',
         emoji: '✨',
       },
       highActivity: {
-        headline: 'Connection Abundance',
-        subtext: "You're weaving at a beautiful pace. All your relationships are feeling the love.",
-        emoji: '🌟',
+        headline: 'Connection abundance',
+        subtext: "You're weaving at a beautiful pace. Stay mindful of your energy.",
+        emoji: '✨',
       },
       batteryHigh: {
-        headline: 'Peak Energy',
-        subtext: 'Your social battery is full and your connections are glowing. Keep this magic alive!',
-        emoji: '🔥',
+        headline: 'Peak bloom',
+        subtext: 'Your connections are glowing. Remember: this season is temporary too.',
+        emoji: '✨',
       },
     },
   },
@@ -179,8 +179,8 @@ export function getSeasonGreeting(
 export function getSeasonIcon(season: SocialSeason): string {
   const icons: Record<SocialSeason, string> = {
     resting: '🌙',
-    flowing: '🌊',
-    blooming: '🌸',
+    balanced: '☀️',
+    blooming: '✨',
   };
   return icons[season];
 }
@@ -191,7 +191,7 @@ export function getSeasonIcon(season: SocialSeason): string {
 export function getSeasonDisplayName(season: SocialSeason): string {
   const names: Record<SocialSeason, string> = {
     resting: 'Resting',
-    flowing: 'Flowing',
+    balanced: 'Balanced',
     blooming: 'Blooming',
   };
   return names[season];

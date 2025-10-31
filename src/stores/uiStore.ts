@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { type Archetype, type Interaction } from '../components/types';
+import { type Milestone } from '../lib/milestone-tracker';
 
 interface ToastData {
   message: string;
@@ -34,6 +35,7 @@ interface UIStore {
   justNurturedFriendId: string | null;
   toastData: ToastData | null;
   microReflectionData: MicroReflectionData | null;
+  milestoneCelebrationData: Milestone | null;
   isDarkMode: boolean;
 
   setSelectedFriendId: (id: string | null) => void;
@@ -57,6 +59,8 @@ interface UIStore {
   hideToast: () => void;
   showMicroReflectionSheet: (data: MicroReflectionData) => void;
   hideMicroReflectionSheet: () => void;
+  showMilestoneCelebration: (milestone: Milestone) => void;
+  hideMilestoneCelebration: () => void;
   toggleDarkMode: () => void;
   setDarkMode: (isDark: boolean) => void;
 }
@@ -80,6 +84,7 @@ export const useUIStore = create<UIStore>((set, get) => ({
   justNurturedFriendId: null,
   toastData: null,
   microReflectionData: null,
+  milestoneCelebrationData: null,
   isDarkMode: false,
   
   setSelectedFriendId: (id) => set({ selectedFriendId: id }),
@@ -133,6 +138,9 @@ export const useUIStore = create<UIStore>((set, get) => ({
 
   showMicroReflectionSheet: (data) => set({ microReflectionData: data }),
   hideMicroReflectionSheet: () => set({ microReflectionData: null }),
+
+  showMilestoneCelebration: (milestone) => set({ milestoneCelebrationData: milestone }),
+  hideMilestoneCelebration: () => set({ milestoneCelebrationData: null }),
 
   toggleDarkMode: () => set((state) => ({ isDarkMode: !state.isDarkMode })),
   setDarkMode: (isDark) => set({ isDarkMode: isDark }),

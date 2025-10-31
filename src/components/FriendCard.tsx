@@ -24,6 +24,7 @@ import FriendModel from '../db/models/Friend';
 import { useCardGesture } from '../context/CardGestureContext';
 import { calculateCurrentScore } from '../lib/weave-engine';
 import { FriendDetailSheet } from './FriendDetailSheet';
+import { generateIntelligentStatusLine } from '../lib/intelligent-status-line';
 
 const ATTENTION_THRESHOLD = 35;
 const STABLE_THRESHOLD = 65;
@@ -49,6 +50,9 @@ export function FriendCard({ friend, animatedRef, variant = 'default' }: FriendC
 
   const { id, name, archetype, isDormant = false, photoUrl, relationshipType, birthday, anniversary } = friend;
   const [showDetailSheet, setShowDetailSheet] = useState(false);
+  const [statusLine, setStatusLine] = useState<{ text: string; icon?: string }>({
+    text: archetypeData[archetype]?.essence || ''
+  });
   const { colors, isDarkMode } = useTheme();
   const { setArchetypeModal, justNurturedFriendId, setJustNurturedFriendId } = useUIStore();
   const { activeCardId } = useCardGesture();
@@ -130,6 +134,16 @@ export function FriendCard({ friend, animatedRef, variant = 'default' }: FriendC
     const pulseDuration = interpolate(weaveScore, [0, 100], [5000, 2000]);
     pulse.value = withRepeat(withTiming(1, { duration: pulseDuration, easing: Easing.inOut(Easing.ease) }), -1, true);
   }, [weaveScore, pulse]);
+
+  // Update intelligent status line
+  useEffect(() => {
+    generateIntelligentStatusLine(friend)
+      .then(status => setStatusLine(status))
+      .catch(error => {
+        console.error('Error generating status line:', error);
+        setStatusLine({ text: archetypeData[archetype]?.essence || '' });
+      });
+  }, [friend, friend.lastUpdated, friend.weaveScore]);
 
   useEffect(() => {
     if (justNurturedFriendId === id) {
@@ -248,9 +262,14 @@ export function FriendCard({ friend, animatedRef, variant = 'default' }: FriendC
                   )}
                 </View>
               </GestureDetector>
-              <Text style={dynamicStyles.statusText} numberOfLines={1} ellipsizeMode="tail">
-                {archetypeData[archetype]?.essence}
-              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                {statusLine.icon && (
+                  <Text style={{ fontSize: 14 }}>{statusLine.icon}</Text>
+                )}
+                <Text style={dynamicStyles.statusText} numberOfLines={1} ellipsizeMode="tail">
+                  {statusLine.text}
+                </Text>
+              </View>
             </View>
             <View onLongPress={handleArchetypeLongPress} style={dynamicStyles.archetypeButton}>
               <ArchetypeIcon archetype={archetype} size={20} color={isDarkMode ? colors.foreground : colors['muted-foreground']} />

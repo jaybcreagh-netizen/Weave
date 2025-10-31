@@ -17,6 +17,7 @@ import { archetypeData } from '../lib/constants';
 import FriendModel from '../db/models/Friend';
 import { useFriendStore } from '../stores/friendStore';
 import { calculateCurrentScore } from '../lib/weave-engine';
+import { getFriendMilestones, Milestone } from '../lib/milestone-tracker';
 
 interface FriendDetailSheetProps {
   isVisible: boolean;
@@ -32,6 +33,7 @@ export const FriendDetailSheet: React.FC<FriendDetailSheetProps> = ({
   const { colors, isDarkMode } = useTheme();
   const { activeFriendInteractions } = useFriendStore();
   const [shouldRender, setShouldRender] = useState(false);
+  const [milestones, setMilestones] = useState<Milestone[]>([]);
 
   const sheetTranslateY = useSharedValue(600);
   const backdropOpacity = useSharedValue(0);
@@ -44,6 +46,9 @@ export const FriendDetailSheet: React.FC<FriendDetailSheetProps> = ({
         stiffness: 200,
       });
       backdropOpacity.value = withTiming(1, { duration: 300 });
+
+      // Load milestones when sheet opens
+      getFriendMilestones(friend.id).then(setMilestones);
     } else if (shouldRender) {
       // Animate out, then unmount
       sheetTranslateY.value = withTiming(600, { duration: 250 });
@@ -53,7 +58,7 @@ export const FriendDetailSheet: React.FC<FriendDetailSheetProps> = ({
         }
       });
     }
-  }, [isVisible, shouldRender]);
+  }, [isVisible, shouldRender, friend.id]);
 
   const animatedSheetStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: sheetTranslateY.value }],
@@ -186,6 +191,38 @@ export const FriendDetailSheet: React.FC<FriendDetailSheetProps> = ({
             {archetypeInfo?.description || 'A unique archetype'}
           </Text>
         </View>
+
+        {/* Milestones */}
+        {milestones.length > 0 && (
+          <View className="mb-6">
+            <Text
+              style={{ color: colors['muted-foreground'] }}
+              className="mb-3 font-inter text-xs uppercase tracking-wider"
+            >
+              Milestones
+            </Text>
+            <View className="flex-row flex-wrap gap-2">
+              {milestones.map((milestone) => (
+                <View
+                  key={milestone.id}
+                  style={{
+                    backgroundColor: `${colors.primary}15`,
+                    borderColor: `${colors.primary}30`,
+                  }}
+                  className="flex-row items-center gap-1.5 rounded-full border px-3 py-2"
+                >
+                  <Text className="text-base">{milestone.icon}</Text>
+                  <Text
+                    style={{ color: colors.primary }}
+                    className="font-inter text-xs font-semibold"
+                  >
+                    {milestone.name}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
 
         {/* Stats */}
         <View className="flex-row gap-3">

@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb'
 
 export default appSchema({
-  version: 15, // UPDATED: Added birthday, anniversary, relationship_type to friends; added life_events table
+  version: 17, // UPDATED: Added title, location, and plan lifecycle fields to interactions
   tables: [
     tableSchema({
       name: 'friends',
@@ -37,12 +37,18 @@ export default appSchema({
         { name: 'created_at', type: 'number' },
         { name: 'updated_at', type: 'number' },
         { name: 'activity', type: 'string' },
-        { name: 'status', type: 'string' },
+        { name: 'status', type: 'string' }, // planned, pending_confirm, completed, cancelled, missed
         { name: 'mode', type: 'string' },
         // NEW: Simplified interaction category system
         { name: 'interaction_category', type: 'string', isOptional: true },
         // NEW: Structured reflection data (JSON string)
         { name: 'reflection', type: 'string', isOptional: true },
+        // v17: Custom title for weaves
+        { name: 'title', type: 'string', isOptional: true },
+        // v17: Location (Phase 1 - text only, no coordinates yet)
+        { name: 'location', type: 'string', isOptional: true },
+        // v17: Plan lifecycle tracking
+        { name: 'completion_prompted_at', type: 'number', isOptional: true },
       ]
     }),
     tableSchema({
@@ -124,6 +130,26 @@ export default appSchema({
         { name: 'source', type: 'string' }, // manual, keyword_detected, recurring
         { name: 'is_recurring', type: 'boolean', defaultValue: false }, // For birthdays/anniversaries
         { name: 'reminded', type: 'boolean', defaultValue: false }, // Has user been notified
+        { name: 'created_at', type: 'number' },
+        { name: 'updated_at', type: 'number' },
+      ]
+    }),
+    tableSchema({
+      name: 'user_progress',
+      columns: [
+        // Path of Consistency
+        { name: 'current_streak', type: 'number', defaultValue: 0 },
+        { name: 'best_streak', type: 'number', defaultValue: 0 },
+        { name: 'last_practice_date', type: 'number', isOptional: true },
+        { name: 'consistency_milestones', type: 'string', isOptional: true }, // JSON array
+
+        // Path of Depth
+        { name: 'total_reflections', type: 'number', defaultValue: 0 },
+        { name: 'reflection_milestones', type: 'string', isOptional: true }, // JSON array
+
+        // Path of Nurturing
+        { name: 'friendship_milestones', type: 'string', isOptional: true }, // JSON array
+
         { name: 'created_at', type: 'number' },
         { name: 'updated_at', type: 'number' },
       ]

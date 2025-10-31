@@ -108,21 +108,21 @@ export function calculateSocialSeason(
   if (!currentSeason) {
     if (score <= SEASON_THRESHOLDS.resting.max) return 'resting';
     if (score >= SEASON_THRESHOLDS.blooming.min) return 'blooming';
-    return 'flowing';
+    return 'balanced';
   }
 
   // Apply hysteresis to prevent rapid oscillation
   // Must cross buffer zone to switch states
 
   if (currentSeason === 'resting') {
-    // Must rise to 50 (46 + buffer) to become Flowing
-    if (score >= SEASON_THRESHOLDS.flowing.min + HYSTERESIS_BUFFER) {
-      return 'flowing';
+    // Must rise to 50 (46 + buffer) to become Balanced
+    if (score >= SEASON_THRESHOLDS.balanced.min + HYSTERESIS_BUFFER) {
+      return 'balanced';
     }
     return 'resting';
   }
 
-  if (currentSeason === 'flowing') {
+  if (currentSeason === 'balanced') {
     // Must drop to 40 (45 - buffer) to become Resting
     if (score <= SEASON_THRESHOLDS.resting.max - HYSTERESIS_BUFFER) {
       return 'resting';
@@ -133,19 +133,19 @@ export function calculateSocialSeason(
       return 'blooming';
     }
 
-    return 'flowing';
+    return 'balanced';
   }
 
   if (currentSeason === 'blooming') {
-    // Must drop to 76 (80 - buffer) to become Flowing
-    if (score <= SEASON_THRESHOLDS.flowing.max - HYSTERESIS_BUFFER) {
-      return 'flowing';
+    // Must drop to 76 (80 - buffer) to become Balanced
+    if (score <= SEASON_THRESHOLDS.balanced.max - HYSTERESIS_BUFFER) {
+      return 'balanced';
     }
     return 'blooming';
   }
 
   // Fallback (should never reach here)
-  return 'flowing';
+  return 'balanced';
 }
 
 /**

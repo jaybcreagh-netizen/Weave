@@ -10,6 +10,7 @@ import Intention from './db/models/Intention';
 import UserProfile from './db/models/UserProfile';
 import PracticeLog from './db/models/PracticeLog';
 import LifeEvent from './db/models/LifeEvent';
+import UserProgress from './db/models/UserProgress';
 
 const adapter = new SQLiteAdapter({
   schema,
@@ -33,6 +34,7 @@ export const database = new Database({
     UserProfile,
     PracticeLog,
     LifeEvent,
+    UserProgress,
   ],
 });
 
@@ -82,6 +84,28 @@ export const initializeUserProfile = async () => {
       await profileCollection.create(profile => {
         profile.batteryCheckinEnabled = true;
         profile.batteryCheckinTime = '09:00';
+      });
+    });
+  }
+};
+
+/**
+ * Initialize user progress singleton
+ * Should be called once on app startup
+ */
+export const initializeUserProgress = async () => {
+  const progressCollection = database.get<UserProgress>('user_progress');
+  const progress = await progressCollection.query().fetch();
+
+  if (progress.length === 0) {
+    await database.write(async () => {
+      await progressCollection.create(p => {
+        p.currentStreak = 0;
+        p.bestStreak = 0;
+        p.totalReflections = 0;
+        p.consistencyMilestones = [];
+        p.reflectionMilestones = [];
+        p.friendshipMilestones = [];
       });
     });
   }
