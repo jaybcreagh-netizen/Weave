@@ -168,7 +168,7 @@ function DashboardContent() {
     if (currentFriends.length === 0) {
       return (
         <View style={[styles.emptyTierContainer, { width: screenWidth }]}>
-          <Text style={styles.emptyTierEmoji}>🕸️</Text>
+          <Text style={styles.emptyTierEmoji}>🧵</Text>
           <Text style={[styles.emptyTierTitle, { color: colors.foreground }]}>Your weave is empty</Text>
         </View>
       );

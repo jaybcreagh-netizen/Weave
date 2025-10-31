@@ -29,11 +29,11 @@ export const SEASON_STYLES: Record<SocialSeason, SeasonStyle> = {
     animation: 'gentle-pulse',
   },
   balanced: {
-    primaryColor: '#FBBF24', // Warm gold/sun
-    lightColor: '#FCD34D',
-    darkColor: '#F59E0B',
-    gradientColorsLight: ['#FCD34D', '#FBBF24'], // Warm sunny gradient
-    gradientColorsDark: ['#F59E0B', '#D97706'], // Rich amber
+    primaryColor: '#EBC867', // Warm gold/sun
+    lightColor: '#E5BA50',
+    darkColor: '#EBC867',
+    gradientColorsLight: ['#EBC867', '#E5BA50'], // Use new, softer gold from theme
+    gradientColorsDark: ['#EBC867', '#E5BA50'], // Use new, softer gold from theme
     animation: 'subtle-wave',
   },
   blooming: {

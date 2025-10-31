@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import { Sparkles } from 'lucide-react-native';
 import { format } from 'date-fns';
 import { useTheme } from '../../hooks/useTheme';
@@ -41,11 +42,38 @@ export function PlanWizardStep2({
   suggestion,
 }: PlanWizardStep2Props) {
   const { colors } = useTheme();
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const scale = useSharedValue(1);
+
+  // Create animated style once at the top level
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
 
   const handleUseSuggestion = () => {
     if (suggestion?.suggestedCategory) {
+      setSelectedKey(suggestion.suggestedCategory);
       onCategorySelect(suggestion.suggestedCategory);
+
+      // Visual feedback: scale down then advance
+      scale.value = withSpring(0.95, { damping: 15 });
+      setTimeout(() => {
+        scale.value = withSpring(1, { damping: 15 });
+        onContinue();
+      }, 200);
     }
+  };
+
+  const handleCategorySelect = (category: InteractionCategory) => {
+    setSelectedKey(category);
+    onCategorySelect(category);
+
+    // Visual feedback: scale down then advance
+    scale.value = withSpring(0.95, { damping: 15 });
+    setTimeout(() => {
+      scale.value = withSpring(1, { damping: 15 });
+      onContinue();
+    }, 200);
   };
 
   const getCategoryData = (value: InteractionCategory) => {
@@ -70,6 +98,11 @@ export function PlanWizardStep2({
             backgroundColor: `${colors.primary}10`,
             borderWidth: selectedCategory === suggestion.suggestedCategory ? 2 : 1,
             borderColor: selectedCategory === suggestion.suggestedCategory ? colors.primary : `${colors.primary}30`,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.05,
+            shadowRadius: 8,
+            elevation: 2,
           }}
         >
           <View
@@ -96,51 +129,48 @@ export function PlanWizardStep2({
       )}
 
       {/* Category grid */}
-      <View className="gap-3 mb-6">
+      <View className="gap-3">
         {CATEGORIES.map(category => {
           const isSelected = selectedCategory === category.value;
           const isSuggested = suggestion?.suggestedCategory === category.value;
+          const isJustSelected = selectedKey === category.value;
 
           return (
-            <TouchableOpacity
+            <Animated.View
               key={category.value}
-              onPress={() => onCategorySelect(category.value)}
-              className="p-4 rounded-xl flex-row items-center"
-              style={{
-                backgroundColor: isSelected ? `${colors.primary}15` : colors.muted,
-                borderWidth: isSelected ? 2 : isSuggested ? 1 : 0,
-                borderColor: isSelected ? colors.primary : isSuggested ? `${colors.primary}50` : 'transparent',
-              }}
+              style={isJustSelected ? animatedStyle : {}}
             >
-              <Text className="text-3xl mr-3">{category.icon}</Text>
-              <View className="flex-1">
-                <Text
-                  className="font-inter-semibold text-base"
-                  style={{ color: isSelected ? colors.primary : colors.foreground }}
-                >
-                  {category.label}
-                </Text>
-                <Text className="font-inter-regular text-sm" style={{ color: colors['muted-foreground'] }}>
-                  {category.description}
-                </Text>
-              </View>
-            </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => handleCategorySelect(category.value)}
+                className="p-4 rounded-xl flex-row items-center"
+                style={{
+                  backgroundColor: isSelected ? `${colors.primary}15` : colors.card,
+                  borderWidth: isSelected ? 2 : 1,
+                  borderColor: isSelected ? colors.primary : isSuggested ? `${colors.primary}50` : colors.border,
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.05,
+                  shadowRadius: 8,
+                  elevation: 2,
+                }}
+              >
+                <Text className="text-3xl mr-3">{category.icon}</Text>
+                <View className="flex-1">
+                  <Text
+                    className="font-inter-semibold text-base"
+                    style={{ color: isSelected ? colors.primary : colors.foreground }}
+                  >
+                    {category.label}
+                  </Text>
+                  <Text className="font-inter-regular text-sm" style={{ color: colors['muted-foreground'] }}>
+                    {category.description}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            </Animated.View>
           );
         })}
       </View>
-
-      {/* Continue button */}
-      <TouchableOpacity
-        onPress={onContinue}
-        disabled={!canContinue}
-        className="py-4 rounded-full items-center"
-        style={{
-          backgroundColor: canContinue ? colors.primary : colors.muted,
-          opacity: canContinue ? 1 : 0.5,
-        }}
-      >
-        <Text className="font-inter-semibold text-base text-white">Continue</Text>
-      </TouchableOpacity>
     </View>
   );
 }

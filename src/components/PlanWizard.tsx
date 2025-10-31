@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Modal, ScrollView, SafeAreaView } from 'react-native';
+import Animated, { SlideInLeft, SlideInRight, SlideOutLeft, SlideOutRight } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
 import { X, ArrowLeft } from 'lucide-react-native';
 import { useTheme } from '../hooks/useTheme';
@@ -29,6 +30,7 @@ export interface PlanFormData {
   category: InteractionCategory;
   title?: string;
   location?: string;
+  time?: Date; // Optional time of day
   notes?: string;
 }
 
@@ -38,6 +40,7 @@ export function PlanWizard({ visible, onClose, friend, prefillData }: PlanWizard
   const suggestion = usePlanSuggestion(friend);
 
   const [currentStep, setCurrentStep] = useState(1);
+  const [direction, setDirection] = useState<'forward' | 'backward'>('forward');
   const [formData, setFormData] = useState<Partial<PlanFormData>>({
     date: prefillData?.date,
     category: prefillData?.category || suggestion?.suggestedCategory,
@@ -52,12 +55,14 @@ export function PlanWizard({ visible, onClose, friend, prefillData }: PlanWizard
 
   const goToNextStep = () => {
     if (currentStep < 3) {
+      setDirection('forward');
       setCurrentStep(currentStep + 1);
     }
   };
 
   const goToPreviousStep = () => {
     if (currentStep > 1) {
+      setDirection('backward');
       setCurrentStep(currentStep - 1);
     }
   };
@@ -86,10 +91,10 @@ export function PlanWizard({ visible, onClose, friend, prefillData }: PlanWizard
         type: 'plan',
         status: 'planned',
         mode: 'one-on-one',
-        // NEW: Include title and location
-        title: formData.title,
-        location: formData.location,
-      } as any);
+        // Include title and location
+        title: formData.title?.trim() || undefined,
+        location: formData.location?.trim() || undefined,
+      });
 
       handleClose();
     } catch (error) {
@@ -145,37 +150,55 @@ export function PlanWizard({ visible, onClose, friend, prefillData }: PlanWizard
           ))}
         </View>
 
-        {/* Step content */}
+        {/* Step content with animations */}
         <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 20 }}>
           {currentStep === 1 && (
-            <PlanWizardStep1
-              selectedDate={formData.date}
-              onDateSelect={date => updateFormData({ date })}
-              onContinue={goToNextStep}
-              canContinue={canProceedFromStep1}
-            />
+            <Animated.View
+              key="step1"
+              entering={direction === 'forward' ? SlideInRight.duration(300) : SlideInLeft.duration(300)}
+              exiting={direction === 'forward' ? SlideOutLeft.duration(300) : SlideOutRight.duration(300)}
+            >
+              <PlanWizardStep1
+                selectedDate={formData.date}
+                onDateSelect={date => updateFormData({ date })}
+                onContinue={goToNextStep}
+                canContinue={canProceedFromStep1}
+              />
+            </Animated.View>
           )}
 
           {currentStep === 2 && (
-            <PlanWizardStep2
-              selectedCategory={formData.category}
-              onCategorySelect={category => updateFormData({ category })}
-              onContinue={goToNextStep}
-              canContinue={canProceedFromStep2}
-              friend={friend}
-              suggestion={suggestion}
-            />
+            <Animated.View
+              key="step2"
+              entering={direction === 'forward' ? SlideInRight.duration(300) : SlideInLeft.duration(300)}
+              exiting={direction === 'forward' ? SlideOutLeft.duration(300) : SlideOutRight.duration(300)}
+            >
+              <PlanWizardStep2
+                selectedCategory={formData.category}
+                onCategorySelect={category => updateFormData({ category })}
+                onContinue={goToNextStep}
+                canContinue={canProceedFromStep2}
+                friend={friend}
+                suggestion={suggestion}
+              />
+            </Animated.View>
           )}
 
           {currentStep === 3 && (
-            <PlanWizardStep3
-              formData={formData}
-              onUpdate={updateFormData}
-              onSubmit={handleSubmit}
-              isSubmitting={isSubmitting}
-              friend={friend}
-              suggestion={suggestion}
-            />
+            <Animated.View
+              key="step3"
+              entering={direction === 'forward' ? SlideInRight.duration(300) : SlideInLeft.duration(300)}
+              exiting={direction === 'forward' ? SlideOutLeft.duration(300) : SlideOutRight.duration(300)}
+            >
+              <PlanWizardStep3
+                formData={formData}
+                onUpdate={updateFormData}
+                onSubmit={handleSubmit}
+                isSubmitting={isSubmitting}
+                friend={friend}
+                suggestion={suggestion}
+              />
+            </Animated.View>
           )}
         </ScrollView>
       </SafeAreaView>

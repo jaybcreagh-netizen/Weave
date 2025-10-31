@@ -19,13 +19,13 @@ export const lightTheme = {
       'destructive-foreground': '#FFFFFF',
       ring: '#B58A6C',
       tier: {
-          inner: '#D4AF37',   // Gold
+          inner: '#EBC867',   // Gold
           close: '#A9A9A9',   // Darker Silver for contrast
           community: '#CD7F32',// Bronze
       },
       living: {
         healthy: ['#6EE7B7', '#34D399'],   // A gentle, warm mint green
-        stable: ['#FCD34D', '#FBBF24'],    // A vibrant, friendly gold
+        stable: ['#EBC867', '#E5BA50'],    // A vibrant, friendly gold
         attention: ['#FCA5A5', '#F87171'], // A soft, warm coral-red (less alarming)
       },
       // Timeline colors

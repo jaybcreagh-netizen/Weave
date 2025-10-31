@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, Platform } from 'react-native';
-import { Calendar, Sun, Moon } from 'lucide-react-native';
+import { View, Text, TouchableOpacity, Platform, Modal } from 'react-native';
+import Animated, { useSharedValue, useAnimatedStyle, withSpring, FadeIn, SlideInDown } from 'react-native-reanimated';
+import { Calendar, Sun, Moon, X } from 'lucide-react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { BlurView } from 'expo-blur';
 import { startOfDay, addDays, format, isSaturday, nextSaturday } from 'date-fns';
 import { useTheme } from '../../hooks/useTheme';
 
@@ -13,20 +15,36 @@ interface PlanWizardStep1Props {
 }
 
 export function PlanWizardStep1({ selectedDate, onDateSelect, onContinue, canContinue }: PlanWizardStep1Props) {
-  const { colors } = useTheme();
+  const { colors, isDarkMode } = useTheme();
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const scale = useSharedValue(1);
+
+  // Create animated style once at the top level
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
 
   const today = startOfDay(new Date());
 
   const handleQuickSelect = (option: 'weekend' | 'next-week') => {
+    setSelectedKey(option);
+    let targetDate: Date;
     if (option === 'weekend') {
       // If today is Saturday, use today. Otherwise, next Saturday
-      const targetDate = isSaturday(today) ? today : nextSaturday(today);
-      onDateSelect(targetDate);
+      targetDate = isSaturday(today) ? today : nextSaturday(today);
     } else {
       // Next week = 7 days from now
-      onDateSelect(addDays(today, 7));
+      targetDate = addDays(today, 7);
     }
+    onDateSelect(targetDate);
+
+    // Visual feedback: scale down then advance
+    scale.value = withSpring(0.95, { damping: 15 });
+    setTimeout(() => {
+      scale.value = withSpring(1, { damping: 15 });
+      onContinue();
+    }, 200);
   };
 
   return (
@@ -40,64 +58,87 @@ export function PlanWizardStep1({ selectedDate, onDateSelect, onContinue, canCon
 
       {/* Quick select options */}
       <View className="gap-3 mb-6">
-        <TouchableOpacity
-          onPress={() => handleQuickSelect('weekend')}
-          className="p-5 rounded-2xl flex-row items-center justify-between"
-          style={{
-            backgroundColor: colors.muted,
-            borderWidth: selectedDate && isSaturday(selectedDate) ? 2 : 0,
-            borderColor: colors.primary,
-          }}
-        >
-          <View className="flex-row items-center gap-3">
-            <View
-              className="w-12 h-12 rounded-full items-center justify-center"
-              style={{ backgroundColor: colors.background }}
-            >
-              <Sun size={24} color={colors.primary} />
+        <Animated.View style={selectedKey === 'weekend' ? animatedStyle : {}}>
+          <TouchableOpacity
+            onPress={() => handleQuickSelect('weekend')}
+            className="p-5 rounded-2xl flex-row items-center justify-between"
+            style={{
+              backgroundColor: colors.card,
+              borderWidth: selectedDate && isSaturday(selectedDate) ? 2 : 1,
+              borderColor: selectedDate && isSaturday(selectedDate) ? colors.primary : colors.border,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.05,
+              shadowRadius: 8,
+              elevation: 2,
+            }}
+          >
+            <View className="flex-row items-center gap-3">
+              <View
+                className="w-12 h-12 rounded-full items-center justify-center"
+                style={{ backgroundColor: colors.background }}
+              >
+                <Sun size={24} color={colors.primary} />
+              </View>
+              <View>
+                <Text className="font-inter-semibold text-base" style={{ color: colors.foreground }}>
+                  {format(isSaturday(today) ? today : nextSaturday(today), 'EEEE')}
+                </Text>
+                <Text className="font-inter-regular text-sm" style={{ color: colors['muted-foreground'] }}>
+                  {format(isSaturday(today) ? today : nextSaturday(today), 'MMM d')} • This Weekend
+                </Text>
+              </View>
             </View>
-            <View>
-              <Text className="font-inter-semibold text-base" style={{ color: colors.foreground }}>
-                This Weekend
-              </Text>
-              <Text className="font-inter-regular text-sm" style={{ color: colors['muted-foreground'] }}>
-                {format(isSaturday(today) ? today : nextSaturday(today), 'EEEE, MMM d')}
-              </Text>
-            </View>
-          </View>
-        </TouchableOpacity>
+          </TouchableOpacity>
+        </Animated.View>
 
-        <TouchableOpacity
-          onPress={() => handleQuickSelect('next-week')}
-          className="p-5 rounded-2xl flex-row items-center justify-between"
-          style={{
-            backgroundColor: colors.muted,
-            borderWidth: selectedDate && !isSaturday(selectedDate) ? 2 : 0,
-            borderColor: colors.primary,
-          }}
-        >
-          <View className="flex-row items-center gap-3">
-            <View
-              className="w-12 h-12 rounded-full items-center justify-center"
-              style={{ backgroundColor: colors.background }}
-            >
-              <Moon size={24} color={colors.primary} />
+        <Animated.View style={selectedKey === 'next-week' ? animatedStyle : {}}>
+          <TouchableOpacity
+            onPress={() => handleQuickSelect('next-week')}
+            className="p-5 rounded-2xl flex-row items-center justify-between"
+            style={{
+              backgroundColor: colors.card,
+              borderWidth: selectedDate && !isSaturday(selectedDate) ? 2 : 1,
+              borderColor: selectedDate && !isSaturday(selectedDate) ? colors.primary : colors.border,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.05,
+              shadowRadius: 8,
+              elevation: 2,
+            }}
+          >
+            <View className="flex-row items-center gap-3">
+              <View
+                className="w-12 h-12 rounded-full items-center justify-center"
+                style={{ backgroundColor: colors.background }}
+              >
+                <Moon size={24} color={colors.primary} />
+              </View>
+              <View>
+                <Text className="font-inter-semibold text-base" style={{ color: colors.foreground }}>
+                  {format(addDays(today, 7), 'EEEE')}
+                </Text>
+                <Text className="font-inter-regular text-sm" style={{ color: colors['muted-foreground'] }}>
+                  {format(addDays(today, 7), 'MMM d')} • Next Week
+                </Text>
+              </View>
             </View>
-            <View>
-              <Text className="font-inter-semibold text-base" style={{ color: colors.foreground }}>
-                Next Week
-              </Text>
-              <Text className="font-inter-regular text-sm" style={{ color: colors['muted-foreground'] }}>
-                {format(addDays(today, 7), 'EEEE, MMM d')}
-              </Text>
-            </View>
-          </View>
-        </TouchableOpacity>
+          </TouchableOpacity>
+        </Animated.View>
 
         <TouchableOpacity
           onPress={() => setShowDatePicker(true)}
           className="p-5 rounded-2xl flex-row items-center justify-between"
-          style={{ backgroundColor: colors.muted }}
+          style={{
+            backgroundColor: colors.card,
+            borderWidth: 1,
+            borderColor: colors.border,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.05,
+            shadowRadius: 8,
+            elevation: 2,
+          }}
         >
           <View className="flex-row items-center gap-3">
             <View
@@ -118,48 +159,65 @@ export function PlanWizardStep1({ selectedDate, onDateSelect, onContinue, canCon
         </TouchableOpacity>
       </View>
 
-      {showDatePicker && (
-        <DateTimePicker
-          value={selectedDate || today}
-          mode="date"
-          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-          minimumDate={today}
-          onChange={(event, date) => {
-            setShowDatePicker(Platform.OS === 'ios');
-            if (date) {
-              onDateSelect(startOfDay(date));
-            }
-          }}
-        />
-      )}
-
-      {/* Selected date display */}
-      {selectedDate && (
-        <View
-          className="p-4 rounded-xl mb-6"
-          style={{ backgroundColor: `${colors.primary}15`, borderWidth: 1, borderColor: colors.primary }}
-        >
-          <Text className="font-inter-medium text-sm" style={{ color: colors['muted-foreground'] }}>
-            Selected date
-          </Text>
-          <Text className="font-lora-bold text-lg mt-1" style={{ color: colors.foreground }}>
-            {format(selectedDate, 'EEEE, MMMM d, yyyy')}
-          </Text>
-        </View>
-      )}
-
-      {/* Continue button */}
-      <TouchableOpacity
-        onPress={onContinue}
-        disabled={!canContinue}
-        className="py-4 rounded-full items-center"
-        style={{
-          backgroundColor: canContinue ? colors.primary : colors.muted,
-          opacity: canContinue ? 1 : 0.5,
-        }}
+      {/* Calendar Popup Modal */}
+      <Modal
+        visible={showDatePicker}
+        transparent
+        animationType="none"
+        onRequestClose={() => setShowDatePicker(false)}
       >
-        <Text className="font-inter-semibold text-base text-white">Continue</Text>
-      </TouchableOpacity>
+        <BlurView intensity={isDarkMode ? 20 : 40} tint={isDarkMode ? 'dark' : 'light'} className="flex-1">
+          <TouchableOpacity
+            className="flex-1 justify-center items-center px-5"
+            activeOpacity={1}
+            onPress={() => setShowDatePicker(false)}
+          >
+            <Animated.View
+              entering={FadeIn.duration(200).springify()}
+              className="w-full max-w-md rounded-3xl p-6"
+              style={{
+                backgroundColor: isDarkMode ? colors.background + 'F5' : colors.background + 'F8',
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 20 },
+                shadowOpacity: 0.25,
+                shadowRadius: 30,
+                elevation: 20,
+              }}
+              onStartShouldSetResponder={() => true}
+            >
+              {/* Header */}
+              <View className="flex-row justify-between items-center mb-4">
+                <Text className="font-lora-bold text-xl" style={{ color: colors.foreground }}>
+                  Pick a Date
+                </Text>
+                <TouchableOpacity onPress={() => setShowDatePicker(false)} className="p-2 -mr-2">
+                  <X color={colors['muted-foreground']} size={22} />
+                </TouchableOpacity>
+              </View>
+
+              <DateTimePicker
+                value={selectedDate || today}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'inline' : 'default'}
+                minimumDate={today}
+                onChange={(event, date) => {
+                  if (date && (Platform.OS === 'android' || event.type === 'set')) {
+                    setSelectedKey('calendar');
+                    onDateSelect(startOfDay(date));
+                    setShowDatePicker(false);
+                    // Auto-advance after selecting from calendar
+                    scale.value = withSpring(0.95, { damping: 15 });
+                    setTimeout(() => {
+                      scale.value = withSpring(1, { damping: 15 });
+                      onContinue();
+                    }, 200);
+                  }
+                }}
+              />
+            </Animated.View>
+          </TouchableOpacity>
+        </BlurView>
+      </Modal>
     </View>
   );
 }

@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, TextInput } from 'react-native';
-import { ChevronDown, ChevronUp } from 'lucide-react-native';
+import { View, Text, TouchableOpacity, TextInput, Platform } from 'react-native';
+import { ChevronDown, ChevronUp, Clock } from 'lucide-react-native';
 import { format } from 'date-fns';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { useTheme } from '../../hooks/useTheme';
 import { PlanFormData } from '../PlanWizard';
 import FriendModel from '../../db/models/Friend';
@@ -37,6 +38,7 @@ export function PlanWizardStep3({
 }: PlanWizardStep3Props) {
   const { colors } = useTheme();
   const [showDetails, setShowDetails] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
 
   const categoryLabel = formData.category ? CATEGORY_LABELS[formData.category] : 'Time together';
   const dateText = formData.date ? format(formData.date, 'EEEE, MMM d') : '';
@@ -89,6 +91,62 @@ export function PlanWizardStep3({
 
       {showDetails && (
         <View className="mb-6">
+          {/* Time picker */}
+          <View className="flex-row items-center justify-between mb-2">
+            <Text className="font-inter-semibold text-sm" style={{ color: colors.foreground }}>
+              What time?
+            </Text>
+            {formData.time && (
+              <TouchableOpacity onPress={() => onUpdate({ time: undefined })}>
+                <Text className="font-inter-medium text-sm" style={{ color: colors.primary }}>
+                  Clear
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+          <TouchableOpacity
+            onPress={() => setShowTimePicker(true)}
+            className="p-4 rounded-xl mb-4 flex-row items-center justify-between"
+            style={{ backgroundColor: colors.muted }}
+          >
+            <View className="flex-row items-center">
+              <Clock size={20} color={colors['muted-foreground']} />
+              <Text className="font-inter-regular text-base ml-3" style={{ color: formData.time ? colors.foreground : colors['muted-foreground'] }}>
+                {formData.time ? format(formData.time, 'h:mm a') : 'Add a time'}
+              </Text>
+            </View>
+          </TouchableOpacity>
+
+          {showTimePicker && (
+            <View className="mb-4">
+              <DateTimePicker
+                value={formData.time || new Date()}
+                mode="time"
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                onChange={(event, time) => {
+                  setShowTimePicker(Platform.OS === 'ios');
+                  if (time && event.type === 'set') {
+                    onUpdate({ time });
+                  }
+                  // On Android, close picker after selection
+                  if (Platform.OS === 'android') {
+                    setShowTimePicker(false);
+                  }
+                }}
+              />
+              {/* iOS: Add Done button to dismiss picker */}
+              {Platform.OS === 'ios' && (
+                <TouchableOpacity
+                  onPress={() => setShowTimePicker(false)}
+                  className="py-3 px-6 rounded-full items-center self-center mt-2"
+                  style={{ backgroundColor: colors.primary }}
+                >
+                  <Text className="font-inter-semibold text-base text-white">Done</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
+
           {/* Location with history */}
           <Text className="font-inter-semibold text-sm mb-2" style={{ color: colors.foreground }}>
             Where?

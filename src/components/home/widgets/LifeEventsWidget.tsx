@@ -1,200 +1,208 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Calendar, Heart, Cake, PartyPopper } from 'lucide-react-native';
+import { Calendar, Heart, Cake, PartyPopper, Briefcase, Home, Award } from 'lucide-react-native';
 import { format, differenceInDays, isThisYear } from 'date-fns';
 
 import { HomeWidgetBase, HomeWidgetConfig } from '../HomeWidgetBase';
 import { useTheme } from '../../../hooks/useTheme';
-import { useFriendStore } from '../../../stores/friendStore';
+import { useFriends } from '../../../hooks/useFriends';
 import FriendModel from '../../../db/models/Friend';
+import { getAllFriendsWithActiveLifeEvents } from '../../../lib/life-event-detection';
+import LifeEvent, { LifeEventType } from '../../../db/models/LifeEvent';
 
 const WIDGET_CONFIG: HomeWidgetConfig = {
   id: 'life-events',
   type: 'life-events',
-  title: 'Special Dates',
+  title: 'Life Events',
   minHeight: 200,
   fullWidth: true,
 };
 
-interface UpcomingEvent {
+interface DisplayEvent {
+  id: string;
   friend: FriendModel;
-  type: 'birthday' | 'anniversary';
+  type: LifeEventType | 'birthday' | 'anniversary';
   date: Date;
   daysUntil: number;
+  title: string;
 }
 
 export const LifeEventsWidget: React.FC = () => {
   const { colors } = useTheme();
   const router = useRouter();
-  const { friends } = useFriendStore();
-  const [upcomingEvents, setUpcomingEvents] = useState<UpcomingEvent[]>([]);
+  const allFriends = useFriends();
+  const [allEvents, setAllEvents] = useState<DisplayEvent[]>([]);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   useEffect(() => {
-    if (!friends || friends.length === 0) return;
+    const fetchAndProcessEvents = async () => {
+      if (!allFriends || allFriends.length === 0) return;
 
-    const events: UpcomingEvent[] = [];
-    const today = new Date();
-    const thirtyDaysFromNow = new Date();
-    thirtyDaysFromNow.setDate(today.getDate() + 30);
-
-    friends.forEach(friend => {
-      // Check birthday
-      if (friend.birthday) {
-        const birthdayThisYear = new Date(friend.birthday);
-        birthdayThisYear.setFullYear(today.getFullYear());
-
-        // If birthday already passed this year, check next year
-        if (birthdayThisYear < today) {
-          birthdayThisYear.setFullYear(today.getFullYear() + 1);
+      const specialDates: DisplayEvent[] = [];
+      const today = new Date();
+      
+      // 1. Process Birthdays and Anniversaries
+      allFriends.forEach(friend => {
+        if (friend.birthday) {
+          const eventDate = new Date(friend.birthday);
+          eventDate.setFullYear(today.getFullYear());
+          if (eventDate < today) {
+            eventDate.setFullYear(today.getFullYear() + 1);
+          }
+          const daysUntil = differenceInDays(eventDate, today);
+          if (daysUntil >= 0 && daysUntil <= 60) { // Widen scope to 60 days
+            specialDates.push({ id: `${friend.id}-birthday`, friend, type: 'birthday', date: eventDate, daysUntil, title: 'Birthday' });
+          }
         }
+        if (friend.anniversary) {
+          const eventDate = new Date(friend.anniversary);
+          eventDate.setFullYear(today.getFullYear());
+          if (eventDate < today) {
+            eventDate.setFullYear(today.getFullYear() + 1);
+          }
+          const daysUntil = differenceInDays(eventDate, today);
+          if (daysUntil >= 0 && daysUntil <= 60) {
+            specialDates.push({ id: `${friend.id}-anniversary`, friend, type: 'anniversary', date: eventDate, daysUntil, title: 'Friendship Anniversary' });
+          }
+        }
+      });
 
-        const daysUntil = differenceInDays(birthdayThisYear, today);
-        if (daysUntil >= 0 && daysUntil <= 30) {
-          events.push({
+      // 2. Fetch dynamic life events
+      const dynamicEventsRaw = await getAllFriendsWithActiveLifeEvents();
+      const dynamicEvents: DisplayEvent[] = dynamicEventsRaw
+        .map(({ friendId, events }) => {
+          const friend = allFriends.find(f => f.id === friendId);
+          if (!friend) return null;
+          return events.map(event => ({
+            id: event.id,
             friend,
-            type: 'birthday',
-            date: birthdayThisYear,
-            daysUntil,
-          });
-        }
-      }
+            type: event.eventType,
+            date: event.eventDate,
+            daysUntil: differenceInDays(event.eventDate, today),
+            title: event.title,
+          }));
+        })
+        .flat()
+        .filter((e): e is DisplayEvent => e !== null);
 
-      // Check anniversary
-      if (friend.anniversary) {
-        const anniversaryThisYear = new Date(friend.anniversary);
-        anniversaryThisYear.setFullYear(today.getFullYear());
+      // 3. Merge and sort all events
+      const combinedEvents = [...specialDates, ...dynamicEvents];
+      combinedEvents.sort((a, b) => a.daysUntil - b.daysUntil);
+      
+      // 4. Remove duplicates (preferring dynamic events over special dates if they are the same)
+      const uniqueEvents = combinedEvents.filter((event, index, self) =>
+        index === self.findIndex((e) => (
+          e.friend.id === event.friend.id && e.type === event.type && e.date.toDateString() === event.date.toDateString()
+        ))
+      );
 
-        // If anniversary already passed this year, check next year
-        if (anniversaryThisYear < today) {
-          anniversaryThisYear.setFullYear(today.getFullYear() + 1);
-        }
+      setAllEvents(uniqueEvents);
+    };
 
-        const daysUntil = differenceInDays(anniversaryThisYear, today);
-        if (daysUntil >= 0 && daysUntil <= 30) {
-          events.push({
-            friend,
-            type: 'anniversary',
-            date: anniversaryThisYear,
-            daysUntil,
-          });
-        }
-      }
-    });
+    fetchAndProcessEvents();
+  }, [allFriends]);
 
-    // Sort by days until
-    events.sort((a, b) => a.daysUntil - b.daysUntil);
-    setUpcomingEvents(events);
-  }, [friends]);
-
-  const getEventIcon = (type: 'birthday' | 'anniversary') => {
-    return type === 'birthday' ? (
-      <Cake size={20} color={colors.primary} />
-    ) : (
-      <Heart size={20} color={colors.primary} />
-    );
+  const getEventIcon = (type: DisplayEvent['type']) => {
+    switch (type) {
+      case 'birthday':
+        return <Cake size={20} color={colors.primary} />;
+      case 'anniversary':
+        return <Heart size={20} color={colors.primary} />;
+      case 'new_job':
+        return <Briefcase size={20} color={colors.primary} />;
+      case 'moving':
+        return <Home size={20} color={colors.primary} />;
+      case 'celebration':
+        return <Award size={20} color={colors.primary} />;
+      default:
+        return <Calendar size={20} color={colors.primary} />;
+    }
   };
 
   const getDaysText = (days: number) => {
+    if (days < 0) return `${Math.abs(days)} days ago`;
     if (days === 0) return 'Today';
     if (days === 1) return 'Tomorrow';
     return `In ${days} days`;
   };
 
+  const displayedEvents = isExpanded ? allEvents : allEvents.slice(0, 2);
+
   return (
     <HomeWidgetBase config={WIDGET_CONFIG}>
       <View className="mb-4 flex-row items-center justify-between">
         <View className="flex-row items-center gap-2">
-          <View
-            style={{ backgroundColor: colors.primary + '20' }}
-            className="h-10 w-10 items-center justify-center rounded-full"
-          >
+          <View style={{ backgroundColor: colors.primary + '20' }} className="h-10 w-10 items-center justify-center rounded-full">
             <PartyPopper size={20} color={colors.primary} />
           </View>
-          <Text
-            style={{ color: colors.foreground }}
-            className="font-lora text-xl font-bold"
-          >
-            Special Dates
+          <Text style={{ color: colors.foreground }} className="font-lora text-xl font-bold">
+            Life Events
           </Text>
         </View>
       </View>
 
-      {upcomingEvents.length === 0 ? (
+      {allEvents.length === 0 ? (
         <View className="items-center py-8">
-          <Text
-            style={{ color: colors['muted-foreground'] }}
-            className="text-center font-inter text-sm"
-          >
-            No special dates in the next 30 days
+          <Text style={{ color: colors['muted-foreground'] }} className="text-center font-inter text-sm">
+            No life events or special dates in the near future.
           </Text>
-          <Text
-            style={{ color: colors['muted-foreground'] }}
-            className="mt-2 text-center font-inter text-xs"
-          >
-            Add birthdays and anniversaries to your friends!
+          <Text style={{ color: colors['muted-foreground'] }} className="mt-2 text-center font-inter text-xs">
+            Log weaves with notes to automatically detect events!
           </Text>
         </View>
       ) : (
-        <ScrollView
-          style={{ maxHeight: 280 }}
-          showsVerticalScrollIndicator={false}
-          className="gap-3"
-        >
-          {upcomingEvents.map((event, index) => (
-            <TouchableOpacity
-              key={`${event.friend.id}-${event.type}`}
-              onPress={() => router.push(`/friend-profile?friendId=${event.friend.id}`)}
-              style={{
-                backgroundColor: colors.muted,
-                borderColor: colors.border,
-              }}
-              className="mb-3 flex-row items-center gap-3 rounded-xl border p-4"
-            >
-              {/* Icon */}
-              <View
-                style={{ backgroundColor: colors.card }}
-                className="h-10 w-10 items-center justify-center rounded-full"
+        <View>
+          <View className="gap-3">
+            {displayedEvents.map((event) => (
+              <TouchableOpacity
+                key={event.id}
+                onPress={() => router.push(`/friend-profile?friendId=${event.friend.id}`)}
+                style={{ backgroundColor: colors.muted, borderColor: colors.border }}
+                className="flex-row items-center gap-3 rounded-xl border p-4"
               >
-                {getEventIcon(event.type)}
-              </View>
-
-              {/* Info */}
-              <View className="flex-1">
-                <Text
-                  style={{ color: colors.foreground }}
-                  className="font-inter text-base font-semibold"
-                >
-                  {event.friend.name}
-                </Text>
-                <Text
-                  style={{ color: colors['muted-foreground'] }}
-                  className="font-inter text-sm"
-                >
-                  {event.type === 'birthday' ? 'Birthday' : 'Friendship Anniversary'}
-                </Text>
-              </View>
-
-              {/* Date badge */}
-              <View
-                style={{
-                  backgroundColor: event.daysUntil <= 7 ? colors.primary + '20' : colors.card,
-                  borderColor: event.daysUntil <= 7 ? colors.primary : colors.border,
-                }}
-                className="rounded-lg border px-3 py-2"
-              >
-                <Text
+                <View style={{ backgroundColor: colors.card }} className="h-10 w-10 items-center justify-center rounded-full">
+                  {getEventIcon(event.type)}
+                </View>
+                <View className="flex-1">
+                  <Text style={{ color: colors.foreground }} className="font-inter text-base font-semibold">
+                    {event.friend.name}
+                  </Text>
+                  <Text style={{ color: colors['muted-foreground'] }} className="font-inter text-sm">
+                    {event.title}
+                  </Text>
+                </View>
+                <View
                   style={{
-                    color: event.daysUntil <= 7 ? colors.primary : colors['muted-foreground'],
+                    backgroundColor: event.daysUntil <= 7 && event.daysUntil >= 0 ? colors.primary + '20' : colors.card,
+                    borderColor: event.daysUntil <= 7 && event.daysUntil >= 0 ? colors.primary : colors.border,
                   }}
-                  className="font-inter text-xs font-semibold"
+                  className="rounded-lg border px-3 py-2"
                 >
-                  {getDaysText(event.daysUntil)}
-                </Text>
-              </View>
+                  <Text
+                    style={{
+                      color: event.daysUntil <= 7 && event.daysUntil >= 0 ? colors.primary : colors['muted-foreground'],
+                    }}
+                    className="font-inter text-xs font-semibold"
+                  >
+                    {getDaysText(event.daysUntil)}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {allEvents.length > 2 && (
+            <TouchableOpacity
+              onPress={() => setIsExpanded(!isExpanded)}
+              className="mt-4 items-center rounded-lg py-2"
+            >
+              <Text style={{ color: colors.primary }} className="font-inter font-semibold">
+                {isExpanded ? 'Show Less' : `Show ${allEvents.length - 2} More`}
+              </Text>
             </TouchableOpacity>
-          ))}
-        </ScrollView>
+          )}
+        </View>
       )}
     </HomeWidgetBase>
   );

@@ -91,7 +91,9 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, onDele
 
     if (isCategory) {
       const categoryData = getCategoryMetadata(interaction.activity as InteractionCategory);
-      return { displayLabel: categoryData.label, displayIcon: categoryData.icon };
+      if (categoryData) {
+        return { displayLabel: categoryData.label, displayIcon: categoryData.icon };
+      }
     }
 
     // Old format - use mode icon and activity name
@@ -101,11 +103,13 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, onDele
 
     if (categoryFromReflection) {
       const categoryData = getCategoryMetadata(categoryFromReflection as InteractionCategory);
-      return { displayLabel: categoryData.label, displayIcon: categoryData.icon };
+      if (categoryData) {
+        return { displayLabel: categoryData.label, displayIcon: categoryData.icon };
+      }
     }
 
     return {
-      displayLabel: interaction.activity,
+      displayLabel: interaction.activity || 'Interaction', // Fallback label
       displayIcon: modeIcons[interaction.mode as keyof typeof modeIcons] || modeIcons.default
     };
   }, [interaction.activity, interaction.mode, interaction.interactionCategory, interaction.reflection]);
@@ -533,9 +537,13 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, onDele
               )}
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.cardTitle, dynamicStyles.cardTitle]}>{displayLabel}</Text>
+              {/* Show custom title if it exists, otherwise show category label */}
+              <Text style={[styles.cardTitle, dynamicStyles.cardTitle]}>
+                {interaction.title || displayLabel}
+              </Text>
+              {/* Show category as subtitle if custom title exists, otherwise show mode */}
               <Text style={[styles.cardSubtitle, dynamicStyles.cardSubtitle]}>
-                {interaction.mode?.replace('-', ' ')}
+                {interaction.title ? displayLabel : interaction.mode?.replace('-', ' ')}
               </Text>
               {/* Reflection chip preview - scale-based label */}
               {deepeningMetrics.level !== 'none' && (

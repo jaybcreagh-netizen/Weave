@@ -159,8 +159,8 @@ export const SocialSeasonWidget: React.FC = () => {
         ];
       case 'balanced':
         return [
-          { label: 'Explore Ideas', icon: Sparkles, route: '/home' },
-          { label: 'View Constellation', icon: Telescope, onPress: () => console.log('🌌 Constellation') },
+          { label: 'Suggestions', icon: Sparkles, route: '/home' },
+          { label: 'Constellation', icon: Telescope, onPress: () => console.log('🌌 Constellation') },
         ];
       case 'blooming':
         return [
