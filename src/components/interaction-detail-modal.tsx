@@ -80,11 +80,17 @@ export function InteractionDetailModal({
 
   if (isCategory) {
     const categoryData = getCategoryMetadata(interaction.activity as InteractionCategory);
-    displayLabel = categoryData.label;
-    displayIcon = categoryData.icon;
+    if (categoryData) {
+      displayLabel = categoryData.label;
+      displayIcon = categoryData.icon;
+    } else {
+      // Fallback if category not found
+      displayLabel = interaction.activity || 'Interaction';
+      displayIcon = modeIcons[interaction.mode as keyof typeof modeIcons] || modeIcons.default;
+    }
   } else {
     // Old format - use mode icon and activity name
-    displayLabel = interaction.activity;
+    displayLabel = interaction.activity || 'Interaction';
     displayIcon = modeIcons[interaction.mode as keyof typeof modeIcons] || modeIcons.default;
   }
 

@@ -61,6 +61,13 @@ export const CATEGORY_METADATA: Record<InteractionCategory, CategoryMetadata> = 
     description: 'Shared activities, hobbies, or adventures',
     baseScore: 25,
   },
+  'favor-support': {
+    category: 'favor-support',
+    label: 'Support',
+    icon: '🤝',
+    description: 'Help or emotional support',
+    baseScore: 24,
+  },
   'celebration': {
     category: 'celebration',
     label: 'Celebration',
@@ -143,6 +150,7 @@ export const INTERACTION_CATEGORIES: InteractionCategory[] = [
   'deep-talk',
   'event-party',
   'activity-hobby',
+  'favor-support',
   'celebration',
 ];
 
@@ -158,6 +166,7 @@ export function getAllCategories(): CategoryMetadata[] {
     CATEGORY_METADATA['deep-talk'],
     CATEGORY_METADATA['event-party'],
     CATEGORY_METADATA['activity-hobby'],
+    CATEGORY_METADATA['favor-support'],
     CATEGORY_METADATA['celebration'],
   ];
 }

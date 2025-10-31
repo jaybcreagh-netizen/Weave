@@ -44,7 +44,7 @@ export const InteractionBaseScores: Record<InteractionType, number> = {
   'Something else': 15,
 };
 
-// NEW: Simplified category-based scores for the 8 universal types
+// NEW: Simplified category-based scores for the 9 universal types
 export const CategoryBaseScores: Record<InteractionCategory, number> = {
   'text-call': 10,       // 💬 Quick digital connection
   'voice-note': 12,      // 🎤 Async voice - slightly more personal
@@ -53,6 +53,7 @@ export const CategoryBaseScores: Record<InteractionCategory, number> = {
   'deep-talk': 28,       // 💭 Meaningful, vulnerable conversation
   'event-party': 27,     // 🎉 Social gathering energy
   'activity-hobby': 25,  // 🎨 Shared activities/adventures
+  'favor-support': 24,   // 🤝 Help or emotional support
   'celebration': 32,     // 🎂 Peak moments - birthdays, milestones
 };
 
@@ -153,6 +154,7 @@ export const CategoryArchetypeMatrix: Record<Archetype, Record<InteractionCatego
     'deep-talk': 1.3,        // Good - values meaningful exchange
     'event-party': 1.7,      // High - loves organized gatherings
     'activity-hobby': 1.5,   // High - goal-oriented activities
+    'favor-support': 1.4,    // Good - practical help and problem-solving
     'celebration': 1.9,      // Peak - milestones and achievements
   },
   // The Empress values comfort, generosity, and sensory experiences.
@@ -164,6 +166,7 @@ export const CategoryArchetypeMatrix: Record<Archetype, Record<InteractionCatego
     'deep-talk': 1.4,        // Good - values emotional connection
     'event-party': 1.3,      // Moderate - social but prefers intimate
     'activity-hobby': 1.4,   // Good - enjoys shared creative experiences
+    'favor-support': 1.9,    // Peak - loves nurturing and caring for others
     'celebration': 1.9,      // Peak - loves celebrating others
   },
   // The High Priestess values deep, intuitive, and private connection.
@@ -175,6 +178,7 @@ export const CategoryArchetypeMatrix: Record<Archetype, Record<InteractionCatego
     'deep-talk': 2.0,        // Peak - this is the sweet spot
     'event-party': 0.6,      // Very low - draining social energy
     'activity-hobby': 1.3,   // Moderate - prefers contemplative activities
+    'favor-support': 1.7,    // High - values emotional support and deep care
     'celebration': 1.0,      // Low-moderate - tolerates for close friends
   },
   // The Fool values spontaneity, novelty, and light-hearted fun.
@@ -186,6 +190,7 @@ export const CategoryArchetypeMatrix: Record<Archetype, Record<InteractionCatego
     'deep-talk': 1.1,        // Low-moderate - can feel heavy
     'event-party': 1.8,      // High - loves social energy
     'activity-hobby': 1.9,   // Peak - adventures and new experiences
+    'favor-support': 1.2,    // Low-moderate - less comfortable with serious support
     'celebration': 1.5,      // Good - loves the party vibe
   },
   // The Sun values celebration, visibility, and high-energy social gatherings.
@@ -197,6 +202,7 @@ export const CategoryArchetypeMatrix: Record<Archetype, Record<InteractionCatego
     'deep-talk': 1.0,        // Moderate - not the focus
     'event-party': 2.0,      // Peak - this is the sweet spot
     'activity-hobby': 1.6,   // High - loves shared excitement
+    'favor-support': 1.5,    // Good - enjoys being there for friends
     'celebration': 2.0,      // Peak - lives for these moments
   },
   // The Hermit values solitude, quiet contemplation, and meaningful one-on-one time.
@@ -208,6 +214,7 @@ export const CategoryArchetypeMatrix: Record<Archetype, Record<InteractionCatego
     'deep-talk': 1.9,        // Peak - craves meaningful exchange
     'event-party': 0.5,      // Very low - draining
     'activity-hobby': 1.4,   // Good - prefers quiet, focused activities
+    'favor-support': 1.6,    // High - values one-on-one support conversations
     'celebration': 0.8,      // Low - tolerates for loved ones
   },
   // The Magician values creativity, focused energy, and shared projects or ideas.
@@ -219,6 +226,7 @@ export const CategoryArchetypeMatrix: Record<Archetype, Record<InteractionCatego
     'deep-talk': 1.5,        // High - loves intellectual exchange
     'event-party': 1.6,      // High - networking and inspiration
     'activity-hobby': 1.9,   // Peak - collaborative creation
+    'favor-support': 1.5,    // Good - enjoys helping solve problems
     'celebration': 1.7,      // High - enjoys meaningful milestones
   },
 };

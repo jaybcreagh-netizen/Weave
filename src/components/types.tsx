@@ -21,7 +21,7 @@ export type LifeEventType =
 export type LifeEventImportance = 'low' | 'medium' | 'high' | 'critical';
 export type LifeEventSource = 'manual' | 'keyword_detected' | 'recurring';
 
-// NEW: Simplified 8 universal interaction categories
+// NEW: Simplified 9 universal interaction categories
 export type InteractionCategory =
   | 'text-call'       // 💬 Text/Call
   | 'voice-note'      // 🎤 Voice Note
@@ -30,6 +30,7 @@ export type InteractionCategory =
   | 'deep-talk'       // 💭 Deep Talk
   | 'event-party'     // 🎉 Event/Party
   | 'activity-hobby'  // 🎨 Activity/Hobby
+  | 'favor-support'   // 🤝 Support
   | 'celebration';    // 🎂 Celebration
 
 // DEPRECATED: Old activity types (kept for backwards compatibility during migration)
