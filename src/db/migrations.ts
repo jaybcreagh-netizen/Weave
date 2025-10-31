@@ -37,6 +37,11 @@ import { schemaMigrations, addColumns, createTable } from '@nozbe/watermelondb/S
  * - Add user_progress table for milestone tracking
  * - Tracks Path of Consistency (practice streak), Path of Depth (reflections), Path of Nurturing (friend milestones)
  * - Enables "Weaving Journey" gamification system
+ *
+ * Migration from v16 to v17:
+ * - Add title, location, completion_prompted_at to interactions table
+ * - Enables custom weave titles, location tracking (Phase 1), and plan lifecycle management
+ * - Supports new Log vs Plan redesign with plan confirmation flow
  */
 export default schemaMigrations({
   migrations: [
@@ -193,6 +198,20 @@ export default schemaMigrations({
             { name: 'friendship_milestones', type: 'string', isOptional: true },
             { name: 'created_at', type: 'number' },
             { name: 'updated_at', type: 'number' },
+          ],
+        }),
+      ],
+    },
+    {
+      // Migration from schema v16 to v17
+      toVersion: 17,
+      steps: [
+        addColumns({
+          table: 'interactions',
+          columns: [
+            { name: 'title', type: 'string', isOptional: true },
+            { name: 'location', type: 'string', isOptional: true },
+            { name: 'completion_prompted_at', type: 'number', isOptional: true },
           ],
         }),
       ],

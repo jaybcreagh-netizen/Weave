@@ -21,7 +21,7 @@ export default class Interaction extends Model {
   @date('updated_at') updatedAt!: Date
 
   @text('activity') activity!: string
-  @text('status') status!: string
+  @text('status') status!: string // 'planned' | 'pending_confirm' | 'completed' | 'cancelled' | 'missed'
   @text('mode') mode!: string
 
   // NEW: Simplified interaction category system
@@ -29,6 +29,15 @@ export default class Interaction extends Model {
 
   // NEW: Structured reflection data (stored as JSON)
   @text('reflection') reflectionJSON?: string
+
+  // v17: Custom title for weaves
+  @text('title') title?: string
+
+  // v17: Location (Phase 1 - text only, no coordinates yet)
+  @text('location') location?: string
+
+  // v17: Plan lifecycle tracking
+  @field('completion_prompted_at') completionPromptedAt?: number
 
   // Getter for parsed reflection
   get reflection(): StructuredReflection | undefined {
