@@ -21,6 +21,7 @@ import { InteractionDetailModal } from '../src/components/interaction-detail-mod
 import { EditReflectionModal } from '../src/components/EditReflectionModal';
 import { EditInteractionModal } from '../src/components/EditInteractionModal';
 import { PlanChoiceModal } from '../src/components/PlanChoiceModal';
+import { PlanWizard } from '../src/components/PlanWizard';
 import { IntentionFormModal } from '../src/components/IntentionFormModal';
 import { IntentionsDrawer } from '../src/components/IntentionsDrawer';
 import { IntentionsFAB } from '../src/components/IntentionsFAB';
@@ -47,6 +48,7 @@ export default function FriendProfile() {
   const [editingInteraction, setEditingInteraction] = useState<Interaction | null>(null);
   const [isDataLoaded, setIsDataLoaded] = useState(false);
   const [showPlanChoice, setShowPlanChoice] = useState(false);
+  const [showPlanWizard, setShowPlanWizard] = useState(false);
   const [showIntentionForm, setShowIntentionForm] = useState(false);
   const [showIntentionsDrawer, setShowIntentionsDrawer] = useState(false);
   const [selectedIntentionForAction, setSelectedIntentionForAction] = useState<any>(null);
@@ -528,9 +530,17 @@ export default function FriendProfile() {
           }}
           onSchedulePlan={() => {
             setShowPlanChoice(false);
-            router.push({ pathname: '/interaction-form', params: { friendId: friend.id, mode: 'plan' } });
+            setShowPlanWizard(true);
           }}
         />
+
+        {friend && (
+          <PlanWizard
+            visible={showPlanWizard}
+            onClose={() => setShowPlanWizard(false)}
+            friend={friend}
+          />
+        )}
 
         <IntentionFormModal
           isOpen={showIntentionForm}
