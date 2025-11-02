@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb'
 
 export default appSchema({
-  version: 17, // UPDATED: Added title, location, and plan lifecycle fields to interactions
+  version: 18, // UPDATED: Added calendar_event_id for calendar integration
   tables: [
     tableSchema({
       name: 'friends',
@@ -49,6 +49,8 @@ export default appSchema({
         { name: 'location', type: 'string', isOptional: true },
         // v17: Plan lifecycle tracking
         { name: 'completion_prompted_at', type: 'number', isOptional: true },
+        // v18: Calendar integration
+        { name: 'calendar_event_id', type: 'string', isOptional: true },
       ]
     }),
     tableSchema({

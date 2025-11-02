@@ -39,6 +39,9 @@ export default class Interaction extends Model {
   // v17: Plan lifecycle tracking
   @field('completion_prompted_at') completionPromptedAt?: number
 
+  // v18: Calendar integration
+  @text('calendar_event_id') calendarEventId?: string
+
   // Getter for parsed reflection
   get reflection(): StructuredReflection | undefined {
     if (!this.reflectionJSON) return undefined

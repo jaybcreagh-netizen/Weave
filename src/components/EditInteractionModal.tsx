@@ -1,17 +1,23 @@
 import React, { useState } from 'react';
-import { Modal, View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { X } from 'lucide-react-native';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { useTheme } from '../hooks/useTheme';
-import { type Interaction, type InteractionCategory } from './types';
+import { type Interaction, type InteractionCategory, type Vibe, type StructuredReflection } from './types';
 import { getAllCategories, type CategoryMetadata } from '../lib/interaction-categories';
+import { MoonPhaseSelector } from './MoonPhaseSelector';
 
 interface EditInteractionModalProps {
   interaction: Interaction | null;
   isOpen: boolean;
   onClose: () => void;
-  onSave: (interactionId: string, newCategory: InteractionCategory) => Promise<void>;
+  onSave: (interactionId: string, updates: {
+    title?: string;
+    category?: InteractionCategory;
+    vibe?: Vibe | null;
+    reflection?: StructuredReflection;
+  }) => Promise<void>;
 }
 
 const categories: CategoryMetadata[] = getAllCategories();
@@ -23,22 +29,50 @@ export function EditInteractionModal({
   onSave,
 }: EditInteractionModalProps) {
   const { colors } = useTheme();
+  const [title, setTitle] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<InteractionCategory | null>(null);
+  const [selectedVibe, setSelectedVibe] = useState<Vibe | null>(null);
+  const [customNotes, setCustomNotes] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
-  // Update selected category when interaction changes
+  // Update state when interaction changes
   React.useEffect(() => {
     if (interaction) {
+      setTitle(interaction.title || '');
       setSelectedCategory((interaction.interactionCategory || interaction.activity) as InteractionCategory);
+      setSelectedVibe(interaction.vibe || null);
+      setCustomNotes(interaction.reflection?.customNotes || interaction.notes || '');
     }
   }, [interaction]);
 
   const handleSave = async () => {
-    if (!interaction || !selectedCategory) return;
+    if (!interaction) return;
 
     setIsSaving(true);
     try {
-      await onSave(interaction.id, selectedCategory);
+      const updates: any = {};
+
+      if (title !== interaction.title) {
+        updates.title = title;
+      }
+
+      if (selectedCategory && selectedCategory !== (interaction.interactionCategory || interaction.activity)) {
+        updates.category = selectedCategory;
+      }
+
+      if (selectedVibe !== interaction.vibe) {
+        updates.vibe = selectedVibe;
+      }
+
+      // Update reflection if custom notes changed
+      if (customNotes !== (interaction.reflection?.customNotes || interaction.notes || '')) {
+        updates.reflection = {
+          ...interaction.reflection,
+          customNotes,
+        };
+      }
+
+      await onSave(interaction.id, updates);
       onClose();
     } catch (error) {
       console.error('Error updating interaction:', error);
@@ -74,38 +108,87 @@ export function EditInteractionModal({
         <ScrollView
           style={styles.scrollView}
           contentContainerStyle={styles.scrollViewContent}
+          showsVerticalScrollIndicator={false}
         >
-          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-            How did you connect?
-          </Text>
-          <View style={styles.gridContainer}>
-            {categories.map((cat, index) => (
-              <Animated.View
-                key={cat.category}
-                style={{ width: '48%' }}
-                entering={FadeInUp.duration(500).delay(index * 50)}
-              >
-                <TouchableOpacity
-                  style={[
-                    styles.gridItem,
-                    { backgroundColor: colors.card, borderColor: colors.border },
-                    selectedCategory === cat.category && [
-                      styles.gridItemSelected,
-                      { borderColor: colors.primary }
-                    ]
-                  ]}
-                  onPress={() => setSelectedCategory(cat.category)}
+          {/* Title Input */}
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
+              Title
+            </Text>
+            <TextInput
+              style={[
+                styles.titleInput,
+                { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }
+              ]}
+              placeholder='e.g., "Coffee at Blue Bottle"'
+              placeholderTextColor={colors['muted-foreground']}
+              value={title}
+              onChangeText={setTitle}
+            />
+          </View>
+
+          {/* Category Selection */}
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
+              Category
+            </Text>
+            <View style={styles.gridContainer}>
+              {categories.map((cat, index) => (
+                <Animated.View
+                  key={cat.category}
+                  style={{ width: '48%' }}
+                  entering={FadeInUp.duration(500).delay(index * 50)}
                 >
-                  <Text style={styles.gridItemIcon}>{cat.icon}</Text>
-                  <Text style={[styles.gridItemLabel, { color: colors.foreground }]}>
-                    {cat.label}
-                  </Text>
-                  <Text style={[styles.gridItemSublabel, { color: colors['muted-foreground'] }]}>
-                    {cat.description}
-                  </Text>
-                </TouchableOpacity>
-              </Animated.View>
-            ))}
+                  <TouchableOpacity
+                    style={[
+                      styles.gridItem,
+                      { backgroundColor: colors.card, borderColor: colors.border },
+                      selectedCategory === cat.category && [
+                        styles.gridItemSelected,
+                        { borderColor: colors.primary }
+                      ]
+                    ]}
+                    onPress={() => setSelectedCategory(cat.category)}
+                  >
+                    <Text style={styles.gridItemIcon}>{cat.icon}</Text>
+                    <Text style={[styles.gridItemLabel, { color: colors.foreground }]}>
+                      {cat.label}
+                    </Text>
+                    <Text style={[styles.gridItemSublabel, { color: colors['muted-foreground'] }]}>
+                      {cat.description}
+                    </Text>
+                  </TouchableOpacity>
+                </Animated.View>
+              ))}
+            </View>
+          </View>
+
+          {/* Vibe Selection */}
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
+              Vibe
+            </Text>
+            <MoonPhaseSelector onSelect={setSelectedVibe} selectedVibe={selectedVibe} />
+          </View>
+
+          {/* Notes */}
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
+              Notes
+            </Text>
+            <TextInput
+              style={[
+                styles.notesInput,
+                { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }
+              ]}
+              placeholder="Add notes about this moment..."
+              placeholderTextColor={colors['muted-foreground']}
+              value={customNotes}
+              onChangeText={setCustomNotes}
+              multiline
+              numberOfLines={4}
+              textAlignVertical="top"
+            />
           </View>
         </ScrollView>
 
@@ -152,11 +235,28 @@ const styles = StyleSheet.create({
   },
   scrollViewContent: {
     padding: 20,
+    paddingBottom: 40,
+  },
+  section: {
+    marginBottom: 32,
   },
   sectionTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '600',
-    marginBottom: 20,
+    marginBottom: 12,
+  },
+  titleInput: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 16,
+    fontSize: 16,
+  },
+  notesInput: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 16,
+    fontSize: 16,
+    minHeight: 120,
   },
   gridContainer: {
     flexDirection: 'row',
@@ -165,18 +265,18 @@ const styles = StyleSheet.create({
   },
   gridItem: {
     width: '100%',
-    aspectRatio: 1,
+    minHeight: 120,
     borderWidth: 1,
     borderRadius: 16,
-    padding: 16,
+    padding: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   gridItemSelected: {
     borderWidth: 2,

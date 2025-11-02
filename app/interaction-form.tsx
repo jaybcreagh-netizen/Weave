@@ -1,6 +1,6 @@
-import { useKeepAwake } from 'expo-keep-awake';
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, TextInput, StyleSheet, ScrollView, Keyboard, TouchableWithoutFeedback, Vibration, Modal } from 'react-native';
+import { useActivityKeepAwake } from '../src/hooks/useActivityKeepAwake';
 import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInUp } from 'react-native-reanimated';
@@ -29,7 +29,7 @@ const dateOptions = [
 ];
 
 export default function InteractionFormScreen() {
-  useKeepAwake();
+  const resetActivityTimer = useActivityKeepAwake('interaction-form');
   const router = useRouter();
   const { friendId, mode } = useLocalSearchParams<{ friendId: string, mode: 'log' | 'plan' }>();
   const { addInteraction } = useInteractionStore();
@@ -136,7 +136,7 @@ export default function InteractionFormScreen() {
   const deepeningMetrics = calculateDeepeningLevel(reflection);
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} onTouchStart={resetActivityTimer}>
         <Stack.Screen options={{ title: mode === 'log' ? 'Mark the Moment' : 'Set an Intention' }} />
 
         {/* Celebration animation */}

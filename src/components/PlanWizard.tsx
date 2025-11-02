@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, Modal, ScrollView, SafeAreaView } from 'r
 import Animated, { SlideInLeft, SlideInRight, SlideOutLeft, SlideOutRight } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
 import { X, ArrowLeft } from 'lucide-react-native';
+import { useActivityKeepAwake } from '../hooks/useActivityKeepAwake';
 import { useTheme } from '../hooks/useTheme';
 import FriendModel from '../db/models/Friend';
 import { type InteractionCategory } from './types';
@@ -11,6 +12,10 @@ import { PlanWizardStep1 } from './plan-wizard/PlanWizardStep1';
 import { PlanWizardStep2 } from './plan-wizard/PlanWizardStep2';
 import { PlanWizardStep3 } from './plan-wizard/PlanWizardStep3';
 import { useInteractionStore } from '../stores/interactionStore';
+import { createWeaveCalendarEvent, getCalendarSettings } from '../lib/calendar-service';
+import { getCategoryMetadata } from '../lib/interaction-categories';
+import { database } from '../db';
+import Interaction from '../db/models/Interaction';
 
 interface PlanWizardProps {
   visible: boolean;
@@ -23,6 +28,8 @@ interface PlanWizardProps {
     title?: string;
     location?: string;
   };
+  // Optional: ID of existing interaction to replace (for reschedule)
+  replaceInteractionId?: string;
 }
 
 export interface PlanFormData {
@@ -34,10 +41,11 @@ export interface PlanFormData {
   notes?: string;
 }
 
-export function PlanWizard({ visible, onClose, friend, prefillData }: PlanWizardProps) {
+export function PlanWizard({ visible, onClose, friend, prefillData, replaceInteractionId }: PlanWizardProps) {
   const { colors, isDarkMode } = useTheme();
-  const { addInteraction } = useInteractionStore();
+  const { addInteraction, deleteInteraction } = useInteractionStore();
   const suggestion = usePlanSuggestion(friend);
+  const resetActivityTimer = useActivityKeepAwake('plan-wizard');
 
   const [currentStep, setCurrentStep] = useState(1);
   const [direction, setDirection] = useState<'forward' | 'backward'>('forward');
@@ -82,7 +90,13 @@ export function PlanWizard({ visible, onClose, friend, prefillData }: PlanWizard
 
     setIsSubmitting(true);
     try {
-      await addInteraction({
+      // If rescheduling, delete the old plan first
+      if (replaceInteractionId) {
+        await deleteInteraction(replaceInteractionId);
+      }
+
+      // Create the interaction
+      const interactionId = await addInteraction({
         friendIds: [friend.id],
         activity: formData.category,
         category: formData.category,
@@ -95,6 +109,37 @@ export function PlanWizard({ visible, onClose, friend, prefillData }: PlanWizard
         title: formData.title?.trim() || undefined,
         location: formData.location?.trim() || undefined,
       });
+
+      // Try to create calendar event if settings enabled
+      try {
+        const settings = await getCalendarSettings();
+        if (settings.enabled) {
+          const categoryMeta = getCategoryMetadata(formData.category);
+          const eventTitle = formData.title?.trim() || `${categoryMeta?.label || formData.category} with ${friend.name}`;
+
+          const calendarEventId = await createWeaveCalendarEvent({
+            title: eventTitle,
+            friendName: friend.name,
+            category: categoryMeta?.label || formData.category,
+            date: formData.date,
+            location: formData.location?.trim(),
+            notes: formData.notes?.trim(),
+          });
+
+          // If calendar event created successfully, update the interaction with the event ID
+          if (calendarEventId && interactionId) {
+            await database.write(async () => {
+              const interaction = await database.get<Interaction>('interactions').find(interactionId);
+              await interaction.update(i => {
+                i.calendarEventId = calendarEventId;
+              });
+            });
+          }
+        }
+      } catch (calendarError) {
+        // Don't fail the plan creation if calendar sync fails
+        console.warn('Calendar event creation failed:', calendarError);
+      }
 
       handleClose();
     } catch (error) {
@@ -109,7 +154,7 @@ export function PlanWizard({ visible, onClose, friend, prefillData }: PlanWizard
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={handleClose}>
-      <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
+      <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }} onTouchStart={resetActivityTimer}>
         {/* Header */}
         <View
           className="flex-row items-center justify-between px-5 py-4 border-b"

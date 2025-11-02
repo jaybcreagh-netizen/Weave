@@ -25,6 +25,7 @@ import { useCardGesture } from '../context/CardGestureContext';
 import { calculateCurrentScore } from '../lib/weave-engine';
 import { FriendDetailSheet } from './FriendDetailSheet';
 import { generateIntelligentStatusLine } from '../lib/intelligent-status-line';
+import { usePausableAnimation } from '../hooks/usePausableAnimation';
 
 const ATTENTION_THRESHOLD = 35;
 const STABLE_THRESHOLD = 65;
@@ -32,11 +33,12 @@ const STABLE_THRESHOLD = 65;
 // Relationship type icon mapping
 const RELATIONSHIP_ICONS: Record<RelationshipType, string> = {
   friend: '🤝',
-  close_friend: '💙',
   family: '👨‍👩‍👧‍👦',
   partner: '❤️',
   colleague: '💼',
-  acquaintance: '👋',
+  neighbor: '🏘️',
+  mentor: '🎓',
+  creative: '🎨',
 };
 
 interface FriendCardProps {
@@ -130,10 +132,16 @@ export function FriendCard({ friend, animatedRef, variant = 'default' }: FriendC
   const pulse = useSharedValue(0);
   const glowProgress = useSharedValue(0);
 
+  // Pause pulse animation when app is sleeping (battery optimization)
+  const { isSleeping } = usePausableAnimation(pulse);
+
   useEffect(() => {
-    const pulseDuration = interpolate(weaveScore, [0, 100], [5000, 2000]);
-    pulse.value = withRepeat(withTiming(1, { duration: pulseDuration, easing: Easing.inOut(Easing.ease) }), -1, true);
-  }, [weaveScore, pulse]);
+    // Only run animation when app is not sleeping
+    if (!isSleeping) {
+      const pulseDuration = interpolate(weaveScore, [0, 100], [5000, 2000]);
+      pulse.value = withRepeat(withTiming(1, { duration: pulseDuration, easing: Easing.inOut(Easing.ease) }), -1, true);
+    }
+  }, [weaveScore, pulse, isSleeping]);
 
   // Update intelligent status line
   useEffect(() => {

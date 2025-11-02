@@ -151,9 +151,10 @@ function DashboardContent() {
         });
       }
     } else if (suggestion.action.type === 'log') {
-      router.push(`/interaction-form?friendId=${suggestion.friendId}&category=${suggestion.action.prefilledCategory || ''}&mode=${suggestion.action.prefilledMode || 'detailed'}`);
+      router.push(`/weave-logger?friendId=${suggestion.friendId}`);
     } else if (suggestion.action.type === 'plan') {
-      router.push(`/interaction-form?friendId=${suggestion.friendId}&category=${suggestion.action.prefilledCategory || ''}&mode=plan`);
+      // Navigate to friend profile where they can use PlanWizard
+      router.push(`/friend-profile?friendId=${suggestion.friendId}`);
     }
   };
 
@@ -260,7 +261,8 @@ function DashboardContent() {
         onSchedule={async (intention, intentionFriend) => {
           await convertToPlannedWeave(intention.id);
           setSelectedIntention(null);
-          router.push({ pathname: '/interaction-form', params: { friendId: intentionFriend.id, mode: 'plan', category: intention.interactionCategory || '' } });
+          // Navigate to friend profile where they can schedule with PlanWizard
+          router.push({ pathname: '/friend-profile', params: { friendId: intentionFriend.id } });
         }}
         onDismiss={async (intention) => {
           await dismissIntention(intention.id);

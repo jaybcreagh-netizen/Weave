@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Platform, Modal } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, FadeIn, SlideInDown } from 'react-native-reanimated';
-import { Calendar, Sun, Moon, X } from 'lucide-react-native';
+import { Calendar, Sun, Moon, X, TrendingUp, CalendarDays } from 'lucide-react-native';
 import { BlurView } from 'expo-blur';
-import { startOfDay, addDays, format, isSaturday, nextSaturday } from 'date-fns';
+import { startOfDay, addDays, format, isSaturday, nextSaturday, getDay, nextDay } from 'date-fns';
 import { Q } from '@nozbe/watermelondb';
 import { useTheme } from '../../hooks/useTheme';
 import { CustomCalendar } from '../CustomCalendar';
@@ -24,6 +24,7 @@ export function PlanWizardStep1({ selectedDate, onDateSelect, onContinue, canCon
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [plannedDates, setPlannedDates] = useState<Date[]>([]);
+  const [mostCommonDay, setMostCommonDay] = useState<{ day: number; name: string; date: Date } | null>(null);
   const scale = useSharedValue(1);
 
   // Create animated style once at the top level
@@ -32,6 +33,8 @@ export function PlanWizardStep1({ selectedDate, onDateSelect, onContinue, canCon
   }));
 
   const today = startOfDay(new Date());
+
+  const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
   // Fetch planned dates for this friend
   useEffect(() => {
@@ -71,24 +74,108 @@ export function PlanWizardStep1({ selectedDate, onDateSelect, onContinue, canCon
     fetchPlannedDates();
   }, [friend.id, today]);
 
-  const handleQuickSelect = (option: 'weekend' | 'next-week') => {
+  // Calculate most common day to meet this friend
+  useEffect(() => {
+    const calculateMostCommonDay = async () => {
+      try {
+        // Query the join table for this friend's completed interactions
+        const joinRecords = await database
+          .get('interaction_friends')
+          .query(Q.where('friend_id', friend.id))
+          .fetch();
+
+        if (joinRecords.length === 0) {
+          setMostCommonDay(null);
+          return;
+        }
+
+        const interactionIds = joinRecords.map((jr: any) => jr.interactionId);
+
+        // Get completed interactions only
+        const interactions = await database
+          .get<InteractionModel>('interactions')
+          .query(
+            Q.where('id', Q.oneOf(interactionIds)),
+            Q.where('status', 'completed')
+          )
+          .fetch();
+
+        if (interactions.length === 0) {
+          setMostCommonDay(null);
+          return;
+        }
+
+        // Count occurrences of each day of the week (0=Sunday, 6=Saturday)
+        const dayCounts: Record<number, number> = {};
+        interactions.forEach(interaction => {
+          const dayOfWeek = getDay(interaction.interactionDate);
+          dayCounts[dayOfWeek] = (dayCounts[dayOfWeek] || 0) + 1;
+        });
+
+        // Find the most common day
+        let maxCount = 0;
+        let commonDay = 0;
+        Object.entries(dayCounts).forEach(([day, count]) => {
+          if (count > maxCount) {
+            maxCount = count;
+            commonDay = parseInt(day);
+          }
+        });
+
+        // Calculate next occurrence of that day
+        const currentDay = getDay(today);
+        let nextOccurrence: Date;
+
+        if (commonDay === currentDay) {
+          // If today is the common day, suggest today
+          nextOccurrence = today;
+        } else if (commonDay > currentDay) {
+          // Common day is later this week
+          nextOccurrence = addDays(today, commonDay - currentDay);
+        } else {
+          // Common day is next week
+          nextOccurrence = addDays(today, 7 - currentDay + commonDay);
+        }
+
+        setMostCommonDay({
+          day: commonDay,
+          name: dayNames[commonDay],
+          date: nextOccurrence,
+        });
+      } catch (error) {
+        console.error('Error calculating most common day:', error);
+        setMostCommonDay(null);
+      }
+    };
+
+    calculateMostCommonDay();
+  }, [friend.id, today]);
+
+  const handleQuickSelect = (option: 'today' | 'weekend' | 'usual' | 'next-week') => {
     setSelectedKey(option);
     let targetDate: Date;
-    if (option === 'weekend') {
-      // If today is Saturday, use today. Otherwise, next Saturday
-      targetDate = isSaturday(today) ? today : nextSaturday(today);
-    } else {
-      // Next week = 7 days from now
-      targetDate = addDays(today, 7);
-    }
-    onDateSelect(targetDate);
 
-    // Visual feedback: scale down then advance
-    scale.value = withSpring(0.95, { damping: 15 });
-    setTimeout(() => {
-      scale.value = withSpring(1, { damping: 15 });
-      onContinue();
-    }, 200);
+    switch (option) {
+      case 'today':
+        targetDate = today;
+        break;
+      case 'weekend':
+        // If today is Saturday, use today. Otherwise, next Saturday
+        targetDate = isSaturday(today) ? today : nextSaturday(today);
+        break;
+      case 'usual':
+        // Use the calculated most common day
+        targetDate = mostCommonDay?.date || today;
+        break;
+      case 'next-week':
+        // Next week = 7 days from now
+        targetDate = addDays(today, 7);
+        break;
+      default:
+        targetDate = today;
+    }
+
+    onDateSelect(targetDate);
   };
 
   return (
@@ -102,6 +189,42 @@ export function PlanWizardStep1({ selectedDate, onDateSelect, onContinue, canCon
 
       {/* Quick select options */}
       <View className="gap-3 mb-6">
+        {/* Today */}
+        <Animated.View style={selectedKey === 'today' ? animatedStyle : {}}>
+          <TouchableOpacity
+            onPress={() => handleQuickSelect('today')}
+            className="p-5 rounded-2xl flex-row items-center justify-between"
+            style={{
+              backgroundColor: colors.card,
+              borderWidth: selectedDate?.getTime() === today.getTime() ? 2 : 1,
+              borderColor: selectedDate?.getTime() === today.getTime() ? colors.primary : colors.border,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.05,
+              shadowRadius: 8,
+              elevation: 2,
+            }}
+          >
+            <View className="flex-row items-center gap-3">
+              <View
+                className="w-12 h-12 rounded-full items-center justify-center"
+                style={{ backgroundColor: colors.background }}
+              >
+                <Sun size={24} color={colors.primary} />
+              </View>
+              <View>
+                <Text className="font-inter-semibold text-base" style={{ color: colors.foreground }}>
+                  Today
+                </Text>
+                <Text className="font-inter-regular text-sm" style={{ color: colors['muted-foreground'] }}>
+                  {format(today, 'EEEE, MMM d')}
+                </Text>
+              </View>
+            </View>
+          </TouchableOpacity>
+        </Animated.View>
+
+        {/* This Weekend */}
         <Animated.View style={selectedKey === 'weekend' ? animatedStyle : {}}>
           <TouchableOpacity
             onPress={() => handleQuickSelect('weekend')}
@@ -122,54 +245,58 @@ export function PlanWizardStep1({ selectedDate, onDateSelect, onContinue, canCon
                 className="w-12 h-12 rounded-full items-center justify-center"
                 style={{ backgroundColor: colors.background }}
               >
-                <Sun size={24} color={colors.primary} />
+                <Calendar size={24} color={colors.primary} />
               </View>
               <View>
                 <Text className="font-inter-semibold text-base" style={{ color: colors.foreground }}>
-                  {format(isSaturday(today) ? today : nextSaturday(today), 'EEEE')}
+                  This Weekend
                 </Text>
                 <Text className="font-inter-regular text-sm" style={{ color: colors['muted-foreground'] }}>
-                  {format(isSaturday(today) ? today : nextSaturday(today), 'MMM d')} • This Weekend
+                  {format(isSaturday(today) ? today : nextSaturday(today), 'EEEE, MMM d')}
                 </Text>
               </View>
             </View>
           </TouchableOpacity>
         </Animated.View>
 
-        <Animated.View style={selectedKey === 'next-week' ? animatedStyle : {}}>
-          <TouchableOpacity
-            onPress={() => handleQuickSelect('next-week')}
-            className="p-5 rounded-2xl flex-row items-center justify-between"
-            style={{
-              backgroundColor: colors.card,
-              borderWidth: selectedDate && !isSaturday(selectedDate) ? 2 : 1,
-              borderColor: selectedDate && !isSaturday(selectedDate) ? colors.primary : colors.border,
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.05,
-              shadowRadius: 8,
-              elevation: 2,
-            }}
-          >
-            <View className="flex-row items-center gap-3">
-              <View
-                className="w-12 h-12 rounded-full items-center justify-center"
-                style={{ backgroundColor: colors.background }}
-              >
-                <Moon size={24} color={colors.primary} />
+        {/* Your Usual Day (dynamic) */}
+        {mostCommonDay && (
+          <Animated.View style={selectedKey === 'usual' ? animatedStyle : {}}>
+            <TouchableOpacity
+              onPress={() => handleQuickSelect('usual')}
+              className="p-5 rounded-2xl flex-row items-center justify-between"
+              style={{
+                backgroundColor: colors.card,
+                borderWidth: selectedDate?.getTime() === mostCommonDay.date.getTime() ? 2 : 1,
+                borderColor: selectedDate?.getTime() === mostCommonDay.date.getTime() ? colors.primary : colors.border,
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.05,
+                shadowRadius: 8,
+                elevation: 2,
+              }}
+            >
+              <View className="flex-row items-center gap-3">
+                <View
+                  className="w-12 h-12 rounded-full items-center justify-center"
+                  style={{ backgroundColor: colors.background }}
+                >
+                  <TrendingUp size={24} color={colors.primary} />
+                </View>
+                <View>
+                  <Text className="font-inter-semibold text-base" style={{ color: colors.foreground }}>
+                    Your usual {mostCommonDay.name}
+                  </Text>
+                  <Text className="font-inter-regular text-sm" style={{ color: colors['muted-foreground'] }}>
+                    {format(mostCommonDay.date, 'EEEE, MMM d')}
+                  </Text>
+                </View>
               </View>
-              <View>
-                <Text className="font-inter-semibold text-base" style={{ color: colors.foreground }}>
-                  {format(addDays(today, 7), 'EEEE')}
-                </Text>
-                <Text className="font-inter-regular text-sm" style={{ color: colors['muted-foreground'] }}>
-                  {format(addDays(today, 7), 'MMM d')} • Next Week
-                </Text>
-              </View>
-            </View>
-          </TouchableOpacity>
-        </Animated.View>
+            </TouchableOpacity>
+          </Animated.View>
+        )}
 
+        {/* Pick a Date */}
         <TouchableOpacity
           onPress={() => setShowDatePicker(true)}
           className="p-5 rounded-2xl flex-row items-center justify-between"
@@ -189,7 +316,7 @@ export function PlanWizardStep1({ selectedDate, onDateSelect, onContinue, canCon
               className="w-12 h-12 rounded-full items-center justify-center"
               style={{ backgroundColor: colors.background }}
             >
-              <Calendar size={24} color={colors.primary} />
+              <CalendarDays size={24} color={colors.primary} />
             </View>
             <View>
               <Text className="font-inter-semibold text-base" style={{ color: colors.foreground }}>
@@ -245,12 +372,6 @@ export function PlanWizardStep1({ selectedDate, onDateSelect, onContinue, canCon
                   setSelectedKey('calendar');
                   onDateSelect(date);
                   setShowDatePicker(false);
-                  // Auto-advance after selecting from calendar
-                  scale.value = withSpring(0.95, { damping: 15 });
-                  setTimeout(() => {
-                    scale.value = withSpring(1, { damping: 15 });
-                    onContinue();
-                  }, 200);
                 }}
                 minDate={today}
                 plannedDates={plannedDates}
@@ -259,6 +380,28 @@ export function PlanWizardStep1({ selectedDate, onDateSelect, onContinue, canCon
           </TouchableOpacity>
         </BlurView>
       </Modal>
+
+      {/* Continue button (after date is selected) */}
+      {selectedDate && (
+        <View className="mt-6">
+          <TouchableOpacity
+            onPress={onContinue}
+            disabled={!canContinue}
+            className="p-5 rounded-2xl items-center"
+            style={{
+              backgroundColor: canContinue ? colors.primary : colors.card,
+              opacity: canContinue ? 1 : 0.5,
+            }}
+          >
+            <Text
+              className="font-inter-semibold text-base"
+              style={{ color: canContinue ? '#FFFFFF' : colors['muted-foreground'] }}
+            >
+              Continue
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   );
 }

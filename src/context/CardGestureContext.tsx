@@ -9,6 +9,7 @@ import { useUIStore } from '../stores/uiStore';
 import { useInteractionStore } from '../stores/interactionStore';
 import { database } from '../db';
 import Friend from '../db/models/Friend';
+import { type InteractionCategory } from '../components/types';
 
 const MENU_RADIUS = 100;
 const HIGHLIGHT_THRESHOLD = 30;
@@ -88,8 +89,8 @@ function useCardGestureCoordinator(): CardGestureContextType {
     // 1. Log the interaction and get the ID back
     const interactionId = await addInteraction({
       friendIds: [friendId],
-      category: activityId as any, // NEW: Pass category for new scoring system
-      activity: activityId, // Keep for backward compatibility
+      category: activityId as InteractionCategory,
+      activity: activityId,
       notes: '',
       date: new Date(),
       type: 'log',

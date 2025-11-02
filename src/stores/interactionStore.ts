@@ -9,6 +9,8 @@ import InteractionFriend from '../db/models/InteractionFriend';
 import { recordPractice, recordReflection, CONSISTENCY_MILESTONES, DEPTH_MILESTONES } from '../lib/milestone-tracker';
 import { analyzeAndTagLifeEvents } from '../lib/life-event-detection';
 import { useUIStore } from './uiStore';
+import { deleteWeaveCalendarEvent, updateWeaveCalendarEvent, getCalendarSettings } from '../lib/calendar-service';
+import { getCategoryMetadata } from '../lib/interaction-categories';
 
 /**
  * Single reflection chip/sentence
@@ -55,6 +57,17 @@ interface InteractionStore {
   updateReflection: (interactionId: string, reflection: StructuredReflection) => Promise<void>;
   updateInteractionCategory: (interactionId: string, category: InteractionCategory) => Promise<void>;
   updateInteractionVibeAndNotes: (interactionId: string, vibe?: Vibe | null, notes?: string) => Promise<void>;
+  updateInteraction: (interactionId: string, updates: {
+    title?: string;
+    category?: InteractionCategory;
+    vibe?: Vibe | null;
+    reflection?: StructuredReflection;
+    date?: Date;
+    location?: string;
+    notes?: string;
+  }) => Promise<void>;
+  confirmPlan: (interactionId: string) => Promise<void>;
+  updatePlanStatus: (interactionId: string, status: 'planned' | 'pending_confirm' | 'completed' | 'cancelled' | 'missed') => Promise<void>;
 }
 
 export const useInteractionStore = create<InteractionStore>(() => ({
@@ -108,12 +121,23 @@ export const useInteractionStore = create<InteractionStore>(() => ({
     throw new Error('No friends found');
   },
   deleteInteraction: async (id: string) => {
+    // First, get the interaction to check for calendar event
+    const interaction = await database.get<Interaction>('interactions').find(id);
+    const calendarEventId = interaction.calendarEventId;
+
+    // Delete from database
     await database.write(async () => {
-      const interaction = await database.get<Interaction>('interactions').find(id);
       const joinRecords = await database.get<InteractionFriend>('interaction_friends').query(Q.where('interaction_id', id)).fetch();
       const recordsToDelete = joinRecords.map(r => r.prepareDestroyPermanently());
       await database.batch(...recordsToDelete, interaction.prepareDestroyPermanently());
     });
+
+    // Delete calendar event if it exists (don't await - do in background)
+    if (calendarEventId) {
+      deleteWeaveCalendarEvent(calendarEventId).catch(err => {
+        console.warn('Failed to delete calendar event:', err);
+      });
+    }
   },
   updateReflection: async (interactionId: string, reflection: StructuredReflection) => {
     await database.write(async () => {
@@ -178,6 +202,139 @@ export const useInteractionStore = create<InteractionStore>(() => ({
           console.error('Error analyzing life events:', error);
         });
       }
+    }
+  },
+  confirmPlan: async (interactionId: string) => {
+    await database.write(async () => {
+      const interaction = await database.get<Interaction>('interactions').find(interactionId);
+      await interaction.update(i => {
+        i.status = 'pending_confirm';
+        i.confirmedAt = new Date();
+      });
+    });
+  },
+  updateInteraction: async (interactionId: string, updates: {
+    title?: string;
+    category?: InteractionCategory;
+    vibe?: Vibe | null;
+    reflection?: StructuredReflection;
+    date?: Date;
+    location?: string;
+    notes?: string;
+  }) => {
+    // Get the interaction first to check for calendar sync needs
+    const interaction = await database.get<Interaction>('interactions').find(interactionId);
+    const calendarEventId = interaction.calendarEventId;
+    const isPlanned = interaction.status === 'planned' || interaction.status === 'pending_confirm';
+
+    // Update database
+    await database.write(async () => {
+      await interaction.update(i => {
+        if (updates.title !== undefined) {
+          i.title = updates.title;
+        }
+        if (updates.category !== undefined) {
+          i.interactionCategory = updates.category;
+          i.activity = updates.category; // Update both for backward compatibility
+        }
+        if (updates.vibe !== undefined) {
+          i.vibe = updates.vibe;
+        }
+        if (updates.reflection !== undefined) {
+          i.reflectionJSON = JSON.stringify(updates.reflection);
+        }
+        if (updates.date !== undefined) {
+          i.interactionDate = updates.date;
+        }
+        if (updates.location !== undefined) {
+          i.location = updates.location;
+        }
+        if (updates.notes !== undefined) {
+          i.notes = updates.notes;
+        }
+      });
+    });
+
+    // Update calendar event if this is a planned interaction with a calendar event
+    if (calendarEventId && isPlanned) {
+      const calendarUpdates: any = {};
+
+      // Check if we need to update calendar
+      const needsCalendarUpdate =
+        updates.title !== undefined ||
+        updates.date !== undefined ||
+        updates.location !== undefined ||
+        updates.notes !== undefined;
+
+      if (needsCalendarUpdate) {
+        try {
+          const settings = await getCalendarSettings();
+          if (settings.enabled) {
+            // Get friend names for calendar event
+            const interactionFriends = await database
+              .get<InteractionFriend>('interaction_friends')
+              .query(Q.where('interaction_id', interactionId))
+              .fetch();
+
+            const friendIds = interactionFriends.map(ifriend => ifriend.friendId);
+            const friends = await database
+              .get<FriendModel>('friends')
+              .query(Q.where('id', Q.oneOf(friendIds)))
+              .fetch();
+
+            const friendNames = friends.map(f => f.name).join(', ');
+
+            // Prepare calendar updates
+            if (updates.title !== undefined || updates.category !== undefined) {
+              const category = updates.category || interaction.interactionCategory;
+              const categoryMeta = getCategoryMetadata(category as InteractionCategory);
+              const eventTitle = updates.title || interaction.title || `${categoryMeta?.label || category}`;
+              calendarUpdates.title = `🧵 Weave with ${friendNames} - ${eventTitle}`;
+            }
+
+            if (updates.date !== undefined) {
+              calendarUpdates.date = updates.date;
+            }
+
+            if (updates.location !== undefined) {
+              calendarUpdates.location = updates.location;
+            }
+
+            if (updates.notes !== undefined) {
+              calendarUpdates.notes = updates.notes;
+            }
+
+            // Update the calendar event
+            await updateWeaveCalendarEvent(calendarEventId, calendarUpdates);
+          }
+        } catch (calendarError) {
+          console.warn('Failed to update calendar event:', calendarError);
+        }
+      }
+    }
+  },
+  updatePlanStatus: async (interactionId: string, status: 'planned' | 'pending_confirm' | 'completed' | 'cancelled' | 'missed') => {
+    // Get interaction first to check for calendar event
+    const interaction = await database.get<Interaction>('interactions').find(interactionId);
+    const calendarEventId = interaction.calendarEventId;
+
+    // Update database
+    await database.write(async () => {
+      await interaction.update(i => {
+        i.status = status;
+      });
+    });
+
+    // Handle calendar event based on new status
+    if (calendarEventId) {
+      // Delete calendar event if plan is cancelled or missed
+      if (status === 'cancelled' || status === 'missed') {
+        deleteWeaveCalendarEvent(calendarEventId).catch(err => {
+          console.warn('Failed to delete calendar event:', err);
+        });
+      }
+      // Note: For 'completed' status, we keep the calendar event as a record
+      // For 'pending_confirm', we keep it active since plan might still happen
     }
   },
 }));

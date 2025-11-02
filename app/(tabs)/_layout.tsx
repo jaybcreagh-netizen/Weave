@@ -6,6 +6,7 @@ import { useTheme } from '../../src/hooks/useTheme';
 import { SettingsModal } from '../../src/components/settings-modal';
 import { SocialBatterySheet } from '../../src/components/home/SocialBatterySheet';
 import { useUserProfileStore } from '../../src/stores/userProfileStore';
+import { useSuggestions } from '../../src/hooks/useSuggestions';
 import HomeScreen from '../home';
 import FriendsScreen from '../friends';
 
@@ -13,21 +14,22 @@ const { width: screenWidth } = Dimensions.get('window');
 
 export default function TabsLayout() {
   const { colors } = useTheme();
-  const [activeTab, setActiveTab] = useState<'insights' | 'circle'>('insights');
+  const [activeTab, setActiveTab] = useState<'insights' | 'circle'>('circle');
   const [showSettings, setShowSettings] = useState(false);
   const [showBatterySheet, setShowBatterySheet] = useState(false);
   const { submitBatteryCheckin } = useUserProfileStore();
+  const { suggestionCount } = useSuggestions();
   const scrollViewRef = useRef<ScrollView>(null);
 
   const handleTabPress = (tab: 'insights' | 'circle') => {
     setActiveTab(tab);
-    const index = tab === 'insights' ? 0 : 1;
+    const index = tab === 'circle' ? 0 : 1;
     scrollViewRef.current?.scrollTo({ x: index * screenWidth, animated: true });
   };
 
   const onScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const slide = Math.round(event.nativeEvent.contentOffset.x / screenWidth);
-    const newTab = slide === 0 ? 'insights' : 'circle';
+    const newTab = slide === 0 ? 'circle' : 'insights';
     if (newTab !== activeTab) {
       setActiveTab(newTab);
     }
@@ -42,10 +44,22 @@ export default function TabsLayout() {
             style={[styles.tab, activeTab === 'insights' && styles.activeTab]}
             onPress={() => handleTabPress('insights')}
           >
-            <Sparkles
-              size={24}
-              color={activeTab === 'insights' ? colors.primary : colors['muted-foreground']}
-            />
+            <View style={styles.tabIconContainer}>
+              <Sparkles
+                size={24}
+                color={activeTab === 'insights' ? colors.primary : colors['muted-foreground']}
+              />
+              {suggestionCount > 0 && (
+                <View
+                  style={[
+                    styles.notificationBadge,
+                    { backgroundColor: colors.primary },
+                  ]}
+                >
+                  <Text style={styles.notificationText}>{suggestionCount}</Text>
+                </View>
+              )}
+            </View>
             <Text
               style={[
                 styles.tabLabel,
@@ -92,10 +106,10 @@ export default function TabsLayout() {
         style={styles.scrollView}
       >
         <View style={{ width: screenWidth }}>
-          <HomeScreen />
+          <FriendsScreen />
         </View>
         <View style={{ width: screenWidth }}>
-          <FriendsScreen />
+          <HomeScreen />
         </View>
       </ScrollView>
 
@@ -155,5 +169,25 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+  },
+  tabIconContainer: {
+    position: 'relative',
+  },
+  notificationBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -8,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+  },
+  notificationText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '600',
+    fontFamily: 'Inter_600SemiBold',
   },
 });

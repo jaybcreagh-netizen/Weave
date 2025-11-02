@@ -119,6 +119,13 @@ async function checkUpcomingLifeEvent(friend: SuggestionInput['friend']): Promis
   // Check birthday (within 7 days)
   if (friend.birthday) {
     const birthdayThisYear = new Date(friend.birthday);
+
+    // Validate that we have a valid date
+    if (isNaN(birthdayThisYear.getTime())) {
+      console.warn('Invalid birthday date for friend:', friend.id);
+      return null;
+    }
+
     birthdayThisYear.setFullYear(today.getFullYear());
     birthdayThisYear.setHours(0, 0, 0, 0);
 
@@ -127,14 +134,28 @@ async function checkUpcomingLifeEvent(friend: SuggestionInput['friend']): Promis
     }
 
     const daysUntil = differenceInDays(birthdayThisYear, today);
+
+    // Extra validation check
+    if (isNaN(daysUntil)) {
+      console.warn('Invalid daysUntil calculation for birthday:', friend.id);
+      return null;
+    }
+
     if (daysUntil >= 0 && daysUntil <= 7) {
       return { type: 'birthday', daysUntil, importance: 'high' };
     }
   }
 
-  // Check anniversary (within 7 days)
+  // Check anniversary (within 14 days)
   if (friend.anniversary) {
     const anniversaryThisYear = new Date(friend.anniversary);
+
+    // Validate that we have a valid date
+    if (isNaN(anniversaryThisYear.getTime())) {
+      console.warn('Invalid anniversary date for friend:', friend.id);
+      return null;
+    }
+
     anniversaryThisYear.setFullYear(today.getFullYear());
     anniversaryThisYear.setHours(0, 0, 0, 0);
 
@@ -143,7 +164,14 @@ async function checkUpcomingLifeEvent(friend: SuggestionInput['friend']): Promis
     }
 
     const daysUntil = differenceInDays(anniversaryThisYear, today);
-    if (daysUntil >= 0 && daysUntil <= 7) {
+
+    // Extra validation check
+    if (isNaN(daysUntil)) {
+      console.warn('Invalid daysUntil calculation for anniversary:', friend.id);
+      return null;
+    }
+
+    if (daysUntil >= 0 && daysUntil <= 14) {
       return { type: 'anniversary', daysUntil, importance: 'medium' };
     }
   }
@@ -204,7 +232,8 @@ function getLifeEventSuggestion(eventType: LifeEventType | 'birthday' | 'anniver
   return suggestions[eventType] || 'Reach out to acknowledge this moment';
 }
 
-function getDaysText(days: number): string {
+function getDaysText(days: number | undefined): string {
+  if (days === undefined || isNaN(days)) return 'is coming up';
   if (days === 0) return 'is today';
   if (days === 1) return 'is tomorrow';
   return `is in ${days} days`;
@@ -319,7 +348,7 @@ export function generateSuggestion(input: SuggestionInput): Suggestion | null {
   const recentReflectSuggestion = checkReflectSuggestion(friend, recentInteractions);
   if (recentReflectSuggestion) return recentReflectSuggestion;
 
-  // PRIORITY 2: Upcoming life event (birthday/anniversary within 7 days)
+  // PRIORITY 2: Upcoming life event (birthday within 7 days, anniversary within 14 days)
   if (lifeEvent) {
     const eventIcon = lifeEvent.type === 'birthday' ? '🎂' : '💝';
     const eventLabel = lifeEvent.type === 'birthday' ? 'birthday' : 'friendship anniversary';

@@ -10,6 +10,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useTheme } from '../hooks/useTheme';
 import { Milestone } from '../lib/milestone-tracker';
+import { usePausableAnimation } from '../hooks/usePausableAnimation';
 
 /**
  * Thread Progress Bar
@@ -47,26 +48,33 @@ export const ThreadProgressBar: React.FC<ThreadProgressBarProps> = ({
   const glowOpacity = useSharedValue(0.4);
   const pulseScale = useSharedValue(1);
 
+  // Pause animations when app is sleeping (battery optimization)
+  const { isSleeping: isSleeping1 } = usePausableAnimation(glowOpacity);
+  const { isSleeping } = usePausableAnimation(pulseScale);
+
   // Breathing animation for the thread
   useEffect(() => {
-    glowOpacity.value = withRepeat(
-      withSequence(
-        withTiming(0.6, { duration: 2000, easing: Easing.inOut(Easing.ease) }),
-        withTiming(0.4, { duration: 2000, easing: Easing.inOut(Easing.ease) })
-      ),
-      -1, // Infinite
-      false
-    );
+    // Only run animations when app is not sleeping
+    if (!isSleeping) {
+      glowOpacity.value = withRepeat(
+        withSequence(
+          withTiming(0.6, { duration: 2000, easing: Easing.inOut(Easing.ease) }),
+          withTiming(0.4, { duration: 2000, easing: Easing.inOut(Easing.ease) })
+        ),
+        -1, // Infinite
+        false
+      );
 
-    pulseScale.value = withRepeat(
-      withSequence(
-        withTiming(1.05, { duration: 2000, easing: Easing.inOut(Easing.ease) }),
-        withTiming(1, { duration: 2000, easing: Easing.inOut(Easing.ease) })
-      ),
-      -1,
-      false
-    );
-  }, []);
+      pulseScale.value = withRepeat(
+        withSequence(
+          withTiming(1.05, { duration: 2000, easing: Easing.inOut(Easing.ease) }),
+          withTiming(1, { duration: 2000, easing: Easing.inOut(Easing.ease) })
+        ),
+        -1,
+        false
+      );
+    }
+  }, [isSleeping]);
 
   const glowStyle = useAnimatedStyle(() => ({
     opacity: glowOpacity.value,

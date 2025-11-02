@@ -45,17 +45,30 @@ export function ArchetypeCard({
       onLongPress={handleLongPress}
       style={({ pressed }) => [
         styles.container,
-        { 
-          backgroundColor: colors.card, 
-          borderColor: isSelected ? colors.primary : colors.border 
+        {
+          backgroundColor: colors.card,
+          borderColor: isSelected ? colors.primary : colors.border,
+          shadowColor: isSelected ? colors.primary : '#000',
+          shadowOpacity: isSelected ? 0.15 : 0.05,
         },
         isSelected && styles.containerSelected,
-        { transform: [{ scale: pressed ? 0.97 : 1 }] }
+        { transform: [{ scale: pressed ? 0.95 : 1 }] }
       ]}
     >
-      <ArchetypeIcon archetype={archetype} size={32} color={iconColor} />
+      <View style={[
+        styles.iconBox,
+        {
+          backgroundColor: isSelected ? colors.primary + '15' : colors.background,
+          borderColor: isSelected ? colors.primary : colors.border,
+        }
+      ]}>
+        <ArchetypeIcon archetype={archetype} size={28} color={iconColor} />
+      </View>
       <Text style={[styles.name, { color: textColor }]}>
         {data.name.replace("The ", "")}
+      </Text>
+      <Text style={[styles.essence, { color: colors['muted-foreground'] }]} numberOfLines={1} ellipsizeMode="tail">
+        {data.essence}
       </Text>
     </Pressable>
   );
@@ -65,22 +78,42 @@ const styles = StyleSheet.create({
     container: {
         position: 'relative',
         borderRadius: 16,
+        borderWidth: 2,
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 12,
+        width: '100%',
+        minHeight: 120,
+        shadowOffset: { width: 0, height: 2 },
+        shadowRadius: 8,
+        elevation: 2,
+    },
+    containerSelected: {
+        shadowOffset: { width: 0, height: 4 },
+        shadowRadius: 12,
+        elevation: 4,
+    },
+    iconBox: {
+        width: 52,
+        height: 52,
+        borderRadius: 12,
         borderWidth: 1.5,
         alignItems: 'center',
         justifyContent: 'center',
-        padding: 8,
-        width: '100%',
-        height: 96,
-    },
-    containerSelected: {
-        // You can add extra styles for selected state here if needed
-        // e.g., a subtle inner shadow or background pattern
+        marginBottom: 8,
     },
     name: {
         textAlign: 'center',
         fontWeight: '600',
-        lineHeight: 16,
+        lineHeight: 18,
         fontSize: 14,
-        marginTop: 8,
+        marginBottom: 2,
+    },
+    essence: {
+        textAlign: 'center',
+        fontSize: 10,
+        lineHeight: 14,
+        fontWeight: '400',
+        paddingHorizontal: 4,
     },
 });

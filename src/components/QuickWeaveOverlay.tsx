@@ -8,6 +8,7 @@ import { useUIStore } from '../stores/uiStore';
 import { useFriends } from '../hooks/useFriends';
 import { useCardGesture } from '../context/CardGestureContext';
 import { useTheme } from '../hooks/useTheme';
+import { type InteractionCategory } from './types';
 
 const { width, height } = Dimensions.get('window');
 const MENU_RADIUS = 100;
@@ -16,18 +17,18 @@ const HIGHLIGHT_THRESHOLD = 30;
 const SELECTION_THRESHOLD = 45;
 
 interface RadialMenuItem {
-  id: string;
+  id: InteractionCategory;
   icon: string;
   label: string;
 }
 
 const ACTIVITIES: RadialMenuItem[] = [
-  { id: 'Meal', icon: '🍽️', label: 'Meal' },
-  { id: 'Coffee', icon: '☕', label: 'Coffee' },
-  { id: 'Call', icon: '📞', label: 'Call' },
-  { id: 'Walk', icon: '🚶', label: 'Walk' },
-  { id: 'Hangout', icon: '👥', label: 'Hangout' },
-  { id: 'Chat', icon: '💬', label: 'Chat' },
+  { id: 'meal-drink', icon: '🍽️', label: 'Meal' },
+  { id: 'text-call', icon: '📞', label: 'Call' },
+  { id: 'hangout', icon: '👥', label: 'Hangout' },
+  { id: 'deep-talk', icon: '💭', label: 'Deep Talk' },
+  { id: 'activity-hobby', icon: '🎨', label: 'Activity' },
+  { id: 'voice-note', icon: '🎤', label: 'Voice Note' },
 ];
 
 const itemPositions = ACTIVITIES.map((_, i) => {

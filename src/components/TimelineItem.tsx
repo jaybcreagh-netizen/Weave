@@ -23,6 +23,7 @@ import { modeIcons } from '../lib/constants';
 import { getCategoryMetadata } from '../lib/interaction-categories';
 import { type Interaction, type InteractionCategory } from './types';
 import { calculateDeepeningLevel, getDeepeningVisuals } from '../lib/deepening-utils';
+import { usePausableAnimation } from '../hooks/usePausableAnimation';
 
 interface TimelineItemProps {
   interaction: Interaction;
@@ -152,6 +153,9 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, onDele
   const pressScale = useSharedValue(1);
   const cardShadow = useSharedValue(2);
 
+  // Pause pulse animation when app is sleeping (battery optimization)
+  const { isSleeping } = usePausableAnimation(pulseAnimation);
+
   // Entrance animation values
   const entranceOpacity = useSharedValue(0);
   const entranceScale = useSharedValue(0.92);
@@ -193,7 +197,8 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, onDele
 
   // Subtle pulse animation for warm weaves
   useEffect(() => {
-    if (warmth > 0.7 && !isFuture) {
+    // Only run animation when app is not sleeping
+    if (warmth > 0.7 && !isFuture && !isSleeping) {
       pulseAnimation.value = withRepeat(
         withTiming(1, {
           duration: 3000,
@@ -203,7 +208,7 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, onDele
         true
       );
     }
-  }, [warmth, isFuture]);
+  }, [warmth, isFuture, isSleeping]);
 
   // Knot pulse style - very subtle
   const knotAnimatedStyle = useAnimatedStyle(() => {

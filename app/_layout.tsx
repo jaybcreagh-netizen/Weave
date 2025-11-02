@@ -2,6 +2,7 @@ import '../global.css';
 import { Stack, SplashScreen } from 'expo-router';
 import React, { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { TouchableWithoutFeedback, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { QuickWeaveProvider } from '../src/components/QuickWeaveProvider';
 import { ToastProvider } from '../src/components/toast_provider';
@@ -9,6 +10,9 @@ import { CardGestureProvider } from '../src/context/CardGestureContext'; // Impo
 import { MilestoneCelebration } from '../src/components/MilestoneCelebration';
 import { useUIStore } from '../src/stores/uiStore';
 import { initializeDataMigrations, initializeUserProfile, initializeUserProgress } from '../src/db';
+import { appStateManager } from '../src/lib/app-state-manager';
+import { useAppStateChange } from '../src/hooks/useAppState';
+import { useFriendStore } from '../src/stores/friendStore';
 import {
   useFonts,
   Lora_400Regular,
@@ -54,13 +58,41 @@ export default function RootLayout() {
     });
   }, []);
 
+  // Monitor app state changes for logging
+  useAppStateChange((state) => {
+    console.log('[App] State changed to:', state);
+    if (state === 'active') {
+      console.log('[App] App is active - resuming operations');
+    } else if (state === 'background') {
+      console.log('[App] App went to background - pausing heavy operations');
+    }
+  });
+
+  // Initialize app state listeners for stores (battery optimization)
+  useEffect(() => {
+    console.log('[App] Initializing store app state listeners');
+    const initializeAppStateListener = useFriendStore.getState().initializeAppStateListener;
+    initializeAppStateListener();
+
+    // Cleanup on unmount (though app layout rarely unmounts)
+    return () => {
+      const cleanupAppStateListener = useFriendStore.getState().cleanupAppStateListener;
+      cleanupAppStateListener();
+    };
+  }, []);
+
+  // Track user activity globally
+  const handleUserActivity = () => {
+    appStateManager.recordActivity();
+  };
+
   // Prevent rendering until the font has loaded or an error was returned
   if (!fontsLoaded && !fontError) {
     return null;
   }
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
+    <GestureHandlerRootView style={{ flex: 1 }} onTouchStart={handleUserActivity}>
       <StatusBar style={isDarkMode ? 'light' : 'dark'} />
       {/* Wrap with CardGestureProvider so both Dashboard and Overlay can access it */}
       <CardGestureProvider>

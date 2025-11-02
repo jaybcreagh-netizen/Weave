@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, Modal, TextInput, ScrollView, Alert, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, Modal, TextInput, ScrollView, Alert } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { X, Calendar } from 'lucide-react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import Animated, { FadeInUp } from 'react-native-reanimated';
 import { useTheme } from '../hooks/useTheme';
 import { database } from '../db';
 import LifeEvent, { LifeEventType, LifeEventImportance } from '../db/models/LifeEvent';
+import { CustomCalendar } from './CustomCalendar';
+import { startOfDay } from 'date-fns';
 
 interface LifeEventModalProps {
   visible: boolean;
@@ -41,12 +43,17 @@ export const LifeEventModal: React.FC<LifeEventModalProps> = ({
 }) => {
   const { colors, isDarkMode } = useTheme();
   const [eventType, setEventType] = useState<LifeEventType>(existingEvent?.eventType || 'other');
-  const [eventDate, setEventDate] = useState<Date>(existingEvent?.eventDate || new Date());
+  const [eventDate, setEventDate] = useState<Date>(existingEvent?.eventDate || startOfDay(new Date()));
   const [title, setTitle] = useState(existingEvent?.title || '');
   const [notes, setNotes] = useState(existingEvent?.notes || '');
   const [importance, setImportance] = useState<LifeEventImportance>(existingEvent?.importance || 'medium');
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+
+  const handleDateSelect = (date: Date) => {
+    setEventDate(startOfDay(date));
+    setShowDatePicker(false);
+  };
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -56,7 +63,7 @@ export const LifeEventModal: React.FC<LifeEventModalProps> = ({
           // Update existing event
           await existingEvent.update(event => {
             event.eventType = eventType;
-            event.eventDate = eventDate;
+            event.eventDate = startOfDay(eventDate);
             event.title = title.trim() || EVENT_TYPES.find(t => t.value === eventType)?.label || 'Life Event';
             event.notes = notes.trim();
             event.importance = importance;
@@ -66,7 +73,7 @@ export const LifeEventModal: React.FC<LifeEventModalProps> = ({
           await database.get<LifeEvent>('life_events').create(event => {
             event.friendId = friendId;
             event.eventType = eventType;
-            event.eventDate = eventDate;
+            event.eventDate = startOfDay(eventDate);
             event.title = title.trim() || EVENT_TYPES.find(t => t.value === eventType)?.label || 'Life Event';
             event.notes = notes.trim();
             event.importance = importance;
@@ -194,16 +201,51 @@ export const LifeEventModal: React.FC<LifeEventModalProps> = ({
                 </Text>
               </TouchableOpacity>
 
+              {/* Calendar Modal */}
               {showDatePicker && (
-                <DateTimePicker
-                  value={eventDate}
-                  mode="date"
-                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                  onChange={(event, selectedDate) => {
-                    setShowDatePicker(Platform.OS === 'ios');
-                    if (selectedDate) setEventDate(selectedDate);
-                  }}
-                />
+                <Modal
+                  visible={showDatePicker}
+                  transparent
+                  animationType="none"
+                  onRequestClose={() => setShowDatePicker(false)}
+                >
+                  <BlurView intensity={isDarkMode ? 20 : 40} tint={isDarkMode ? 'dark' : 'light'} className="flex-1">
+                    <TouchableOpacity
+                      className="flex-1 justify-center items-center px-5"
+                      activeOpacity={1}
+                      onPress={() => setShowDatePicker(false)}
+                    >
+                      <Animated.View
+                        entering={FadeInUp.duration(200).springify()}
+                        className="w-full max-w-md rounded-3xl p-6"
+                        style={{
+                          backgroundColor: isDarkMode ? colors.background + 'F5' : colors.background + 'F8',
+                          shadowColor: '#000',
+                          shadowOffset: { width: 0, height: 20 },
+                          shadowOpacity: 0.25,
+                          shadowRadius: 30,
+                          elevation: 20,
+                        }}
+                        onStartShouldSetResponder={() => true}
+                      >
+                        <View className="flex-row justify-between items-center mb-4">
+                          <Text className="font-lora-bold text-xl" style={{ color: colors.foreground }}>
+                            Pick a Date
+                          </Text>
+                          <TouchableOpacity onPress={() => setShowDatePicker(false)} className="p-2 -mr-2">
+                            <X size={22} color={colors['muted-foreground']} />
+                          </TouchableOpacity>
+                        </View>
+
+                        <CustomCalendar
+                          selectedDate={eventDate}
+                          onDateSelect={handleDateSelect}
+                          minDate={undefined}
+                        />
+                      </Animated.View>
+                    </TouchableOpacity>
+                  </BlurView>
+                </Modal>
               )}
 
               {/* Importance */}

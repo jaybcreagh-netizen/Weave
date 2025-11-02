@@ -42,6 +42,10 @@ import { schemaMigrations, addColumns, createTable } from '@nozbe/watermelondb/S
  * - Add title, location, completion_prompted_at to interactions table
  * - Enables custom weave titles, location tracking (Phase 1), and plan lifecycle management
  * - Supports new Log vs Plan redesign with plan confirmation flow
+ *
+ * Migration from v17 to v18:
+ * - Add calendar_event_id to interactions table
+ * - Enables calendar integration for planned weaves
  */
 export default schemaMigrations({
   migrations: [
@@ -212,6 +216,18 @@ export default schemaMigrations({
             { name: 'title', type: 'string', isOptional: true },
             { name: 'location', type: 'string', isOptional: true },
             { name: 'completion_prompted_at', type: 'number', isOptional: true },
+          ],
+        }),
+      ],
+    },
+    {
+      // Migration from schema v17 to v18
+      toVersion: 18,
+      steps: [
+        addColumns({
+          table: 'interactions',
+          columns: [
+            { name: 'calendar_event_id', type: 'string', isOptional: true },
           ],
         }),
       ],

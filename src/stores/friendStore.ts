@@ -8,6 +8,7 @@ import { Subscription, of } from 'rxjs';
 import { switchMap } from 'rxjs/operators';
 import { Q } from '@nozbe/watermelondb';
 import { tierMap } from '../lib/constants';
+import { appStateManager } from '../lib/app-state-manager';
 
 interface FriendStore {
   friends: FriendModel[];
@@ -16,10 +17,17 @@ interface FriendStore {
   friendsSubscription: Subscription | null;
   friendSubscription: Subscription | null;
   interactionSubscription: Subscription | null;
+  appStateSubscription: (() => void) | null;
+  isSleeping: boolean;
+  pendingFriendId: string | null; // Track friend to observe when app wakes
   observeFriends: () => void;
   unobserveFriends: () => void;
   observeFriend: (friendId: string) => void;
   unobserveFriend: () => void;
+  pauseObservers: () => void;
+  resumeObservers: () => void;
+  initializeAppStateListener: () => void;
+  cleanupAppStateListener: () => void;
   addFriend: (data: FriendFormData) => Promise<void>;
   updateFriend: (id: string, data: FriendFormData) => Promise<void>;
   deleteFriend: (id: string) => Promise<void>;
@@ -32,6 +40,9 @@ export const useFriendStore = create<FriendStore>((set, get) => ({
   friendsSubscription: null,
   friendSubscription: null,
   interactionSubscription: null,
+  appStateSubscription: null,
+  isSleeping: false,
+  pendingFriendId: null,
 
   observeFriends: () => {
     const currentSubscription = get().friendsSubscription;
@@ -181,5 +192,98 @@ export const useFriendStore = create<FriendStore>((set, get) => ({
         const friend = await database.get<FriendModel>('friends').find(id);
         await friend.destroyPermanently();
     });
+  },
+
+  pauseObservers: () => {
+    console.log('[FriendStore] Pausing observers (app sleeping)');
+    const { friendsSubscription, friendSubscription, interactionSubscription, pendingFriendId } = get();
+
+    // Store the current friend ID so we can resume later
+    const currentFriendId = get().activeFriend?.id || pendingFriendId;
+
+    // Unsubscribe from all observers
+    if (friendsSubscription) {
+      friendsSubscription.unsubscribe();
+    }
+    if (friendSubscription) {
+      friendSubscription.unsubscribe();
+    }
+    if (interactionSubscription) {
+      interactionSubscription.unsubscribe();
+    }
+
+    set({
+      friendsSubscription: null,
+      friendSubscription: null,
+      interactionSubscription: null,
+      pendingFriendId: currentFriendId,
+      isSleeping: true,
+    });
+  },
+
+  resumeObservers: () => {
+    console.log('[FriendStore] Resuming observers (app awake)');
+    const { pendingFriendId } = get();
+
+    set({ isSleeping: false });
+
+    // Resume friends list observer
+    get().observeFriends();
+
+    // Resume friend detail observer if there was one active
+    if (pendingFriendId) {
+      get().observeFriend(pendingFriendId);
+      set({ pendingFriendId: null });
+    }
+  },
+
+  initializeAppStateListener: () => {
+    const currentSubscription = get().appStateSubscription;
+    if (currentSubscription) {
+      console.log('[FriendStore] App state listener already initialized');
+      return;
+    }
+
+    console.log('[FriendStore] Initializing app state listener');
+
+    // Subscribe to app state changes (both app state and idle state)
+    const handleSleepStateChange = () => {
+      const shouldSleep = appStateManager.shouldSleep();
+      const { isSleeping } = get();
+
+      if (shouldSleep && !isSleeping) {
+        // App is now sleeping (backgrounded or idle)
+        get().pauseObservers();
+      } else if (!shouldSleep && isSleeping) {
+        // App is now awake
+        get().resumeObservers();
+      }
+    };
+
+    // Subscribe to both state changes
+    const appStateUnsub = appStateManager.subscribe(() => {
+      handleSleepStateChange();
+    });
+
+    const idleStateUnsub = appStateManager.subscribeToIdle(() => {
+      handleSleepStateChange();
+    });
+
+    // Combine unsubscribe functions
+    const combinedUnsub = () => {
+      appStateUnsub();
+      idleStateUnsub();
+    };
+
+    set({ appStateSubscription: combinedUnsub });
+  },
+
+  cleanupAppStateListener: () => {
+    const { appStateSubscription } = get();
+    if (appStateSubscription) {
+      console.log('[FriendStore] Cleaning up app state listener');
+      appStateSubscription();
+      set({ appStateSubscription: null });
+    }
   },
 }));

@@ -9,6 +9,7 @@ import { useTheme } from '../hooks/useTheme';
 import FriendModel from '../db/models/Friend';
 import { type Archetype, type FriendFormData, type Tier, type RelationshipType } from './types';
 import { ArchetypeCard } from './archetype-card';
+import { ArchetypeDetailModal } from './ArchetypeDetailModal';
 
 interface FriendFormProps {
   onSave: (friendData: FriendFormData) => void;
@@ -156,9 +157,12 @@ export function FriendForm({ onSave, friend, initialTier }: FriendFormProps) {
 
           <View>
             <Text style={[styles.label, { color: colors.foreground }]}>Archetype</Text>
+            <Text style={[styles.helperText, { color: colors['muted-foreground'] }]}>
+              How does this friend like to connect? Long press for details.
+            </Text>
             <View style={styles.archetypeGrid}>
               {["Emperor", "Empress", "HighPriestess", "Fool", "Sun", "Hermit", "Magician"].map((archetype) => (
-                <View key={archetype} style={{ width: '48%' }}>
+                <View key={archetype} style={styles.archetypeCardWrapper}>
                     <ArchetypeCard
                         archetype={archetype as Archetype}
                         isSelected={formData.archetype === archetype}
@@ -173,12 +177,13 @@ export function FriendForm({ onSave, friend, initialTier }: FriendFormProps) {
             <Text style={[styles.label, { color: colors.foreground }]}>Relationship Type (Optional)</Text>
             <View style={styles.relationshipTypeContainer}>
               {[
-                { id: "friend", label: "Friend" },
-                { id: "close_friend", label: "Close Friend" },
-                { id: "family", label: "Family" },
-                { id: "partner", label: "Partner" },
-                { id: "colleague", label: "Colleague" },
-                { id: "acquaintance", label: "Acquaintance" }
+                { id: "friend", label: "Friend", icon: "🤝" },
+                { id: "family", label: "Family", icon: "👨‍👩‍👧‍👦" },
+                { id: "partner", label: "Partner", icon: "❤️" },
+                { id: "colleague", label: "Colleague", icon: "💼" },
+                { id: "neighbor", label: "Neighbor", icon: "🏘️" },
+                { id: "mentor", label: "Mentor", icon: "🎓" },
+                { id: "creative", label: "Creative", icon: "🎨" }
               ].map((type) => (
                 <TouchableOpacity
                   key={type.id}
@@ -193,7 +198,7 @@ export function FriendForm({ onSave, friend, initialTier }: FriendFormProps) {
                     styles.relationshipTypeButtonText,
                     { color: colors.foreground },
                     formData.relationshipType === type.id && { color: colors.primary }
-                  ]}>{type.label}</Text>
+                  ]}>{type.icon} {type.label}</Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -285,6 +290,9 @@ export function FriendForm({ onSave, friend, initialTier }: FriendFormProps) {
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      {/* Archetype Detail Modal */}
+      <ArchetypeDetailModal />
     </SafeAreaView>
   );
 }
@@ -384,6 +392,16 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         flexWrap: 'wrap',
         gap: 12,
+        marginTop: 8,
+    },
+    archetypeCardWrapper: {
+        width: '48%',
+    },
+    helperText: {
+        fontSize: 13,
+        lineHeight: 18,
+        marginTop: 4,
+        marginBottom: 8,
     },
     relationshipTypeContainer: {
         flexDirection: 'row',

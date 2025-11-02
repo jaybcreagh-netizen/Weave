@@ -1,13 +1,16 @@
 import React from 'react';
-import { View, Text, Modal, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, Modal, TouchableOpacity } from 'react-native';
 import { useUIStore } from '../stores/uiStore';
-import { theme } from '../theme';
+import { useTheme } from '../hooks/useTheme';
 import { X } from 'lucide-react-native';
 import { type Archetype } from './types';
 import { archetypeData } from '../lib/constants';
+import { ArchetypeIcon } from './ArchetypeIcon';
+import { BlurView } from 'expo-blur';
 
 export function ArchetypeDetailModal() {
   const { archetypeModal, setArchetypeModal } = useUIStore();
+  const { colors, isDarkMode } = useTheme();
 
   if (!archetypeModal) {
     return null;
@@ -22,73 +25,77 @@ export function ArchetypeDetailModal() {
       visible={!!archetypeModal}
       onRequestClose={() => setArchetypeModal(null)}
     >
-      <View style={styles.backdrop}>
-        <View style={styles.modalContainer}>
-          <TouchableOpacity style={styles.closeButton} onPress={() => setArchetypeModal(null)}>
-            <X color={theme.colors['muted-foreground']} size={24} />
+      <BlurView intensity={90} className="flex-1 justify-center items-center" tint={isDarkMode ? 'dark' : 'light'}>
+        <TouchableOpacity
+          className="flex-1 justify-center items-center w-full"
+          activeOpacity={1}
+          onPress={() => setArchetypeModal(null)}
+        >
+          <TouchableOpacity activeOpacity={1} className="w-[85%] max-w-[400px]">
+            <View
+              className="w-full rounded-3xl p-6 items-center"
+              style={{
+                backgroundColor: colors.card,
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 8 },
+                shadowOpacity: 0.3,
+                shadowRadius: 16,
+                elevation: 8,
+              }}
+            >
+              <TouchableOpacity
+                className="absolute top-4 right-4 z-10 p-1"
+                onPress={() => setArchetypeModal(null)}
+              >
+                <X color={colors['muted-foreground']} size={24} />
+              </TouchableOpacity>
+
+              <View
+                className="w-20 h-20 rounded-2xl border-2 items-center justify-center mb-4 mt-2"
+                style={{
+                  backgroundColor: colors.primary + '15',
+                  borderColor: colors.primary,
+                }}
+              >
+                <ArchetypeIcon archetype={archetypeModal} size={48} color={colors.primary} />
+              </View>
+
+              <Text
+                className="font-lora-bold text-2xl mb-2 text-center"
+                style={{ color: colors.foreground }}
+              >
+                {data.name}
+              </Text>
+
+              <Text
+                className="font-inter-medium text-[15px] mb-5 text-center italic"
+                style={{ color: colors['muted-foreground'] }}
+              >
+                {data.essence}
+              </Text>
+
+              <View
+                className="h-[1px] w-full my-5"
+                style={{ backgroundColor: colors.border }}
+              />
+
+              <Text
+                className="font-inter-semibold text-[17px] mb-3"
+                style={{ color: colors.foreground }}
+              >
+                Best Way to Connect
+              </Text>
+
+              <Text
+                className="font-inter-regular text-[15px] text-center leading-[22px]"
+                style={{ color: colors['muted-foreground'] }}
+              >
+                {data.careStyle}
+              </Text>
+            </View>
           </TouchableOpacity>
-          <Text style={styles.icon}>{data.icon}</Text>
-          <Text style={styles.title}>{data.name}</Text>
-          <Text style={styles.subtitle}>{data.essence}</Text>
-          <View style={styles.divider} />
-          <Text style={styles.heading}>Best Way to Connect</Text>
-          <Text style={styles.body}>{data.careStyle}</Text>
-        </View>
-      </View>
+        </TouchableOpacity>
+      </BlurView>
     </Modal>
   );
 }
-
-const styles = StyleSheet.create({
-    backdrop: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    },
-    modalContainer: {
-        width: '85%',
-        backgroundColor: theme.colors.card,
-        borderRadius: 16,
-        padding: theme.spacing.lg,
-        alignItems: 'center',
-    },
-    closeButton: {
-        position: 'absolute',
-        top: 16,
-        right: 16,
-    },
-    icon: {
-        fontSize: 60,
-        marginBottom: theme.spacing.md,
-    },
-    title: {
-        fontSize: 24,
-        fontWeight: '600',
-        color: theme.colors.foreground,
-        marginBottom: theme.spacing.sm,
-    },
-    subtitle: {
-        fontSize: 16,
-        color: theme.colors.primary,
-        marginBottom: theme.spacing.md,
-        textAlign: 'center',
-    },
-    divider: {
-        height: 1,
-        backgroundColor: theme.colors.border,
-        width: '100%',
-        marginVertical: theme.spacing.md,
-    },
-    heading: {
-        fontSize: 18,
-        fontWeight: '600',
-        color: theme.colors.foreground,
-        marginBottom: theme.spacing.sm,
-    },
-    body: {
-        fontSize: 16,
-        color: theme.colors['muted-foreground'],
-        textAlign: 'center',
-    }
-});

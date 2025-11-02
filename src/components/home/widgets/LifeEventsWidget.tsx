@@ -62,7 +62,7 @@ export const LifeEventsWidget: React.FC = () => {
             eventDate.setFullYear(today.getFullYear() + 1);
           }
           const daysUntil = differenceInDays(eventDate, today);
-          if (daysUntil >= 0 && daysUntil <= 60) {
+          if (daysUntil >= 0 && daysUntil <= 14) {
             specialDates.push({ id: `${friend.id}-anniversary`, friend, type: 'anniversary', date: eventDate, daysUntil, title: 'Friendship Anniversary' });
           }
         }

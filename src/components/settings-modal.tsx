@@ -1,11 +1,20 @@
-import React from 'react';
-import { Modal, View, Text, TouchableOpacity, Switch, Alert, StyleSheet } from 'react-native';
-import { X, Moon, Sun, Palette, RefreshCw, Bug, BarChart3, Battery } from 'lucide-react-native';
+import React, { useState, useEffect } from 'react';
+import { Modal, View, Text, TouchableOpacity, Switch, Alert, StyleSheet, ScrollView } from 'react-native';
+import { X, Moon, Sun, Palette, RefreshCw, Bug, BarChart3, Battery, Calendar as CalendarIcon, ChevronRight } from 'lucide-react-native';
 import { getThemeColors, spacing } from '../theme'; // Import getThemeColors and spacing
 import { clearDatabase } from '../db';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUIStore } from '../stores/uiStore'; // Import useUIStore
 import { getSuggestionAnalytics } from '../lib/suggestion-tracker';
+import {
+  getCalendarSettings,
+  toggleCalendarIntegration,
+  getAvailableCalendars,
+  setPreferredCalendar,
+  setReminderTime,
+  requestCalendarPermissions,
+  type CalendarSettings,
+} from '../lib/calendar-service';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -21,6 +30,76 @@ export function SettingsModal({
   const insets = useSafeAreaInsets();
   const { isDarkMode, toggleDarkMode, showDebugScore, toggleShowDebugScore } = useUIStore(); // Get store values
   const themeColors = getThemeColors(isDarkMode); // Get current theme colors
+
+  // Calendar settings state
+  const [calendarSettings, setCalendarSettings] = useState<CalendarSettings>({
+    enabled: false,
+    calendarId: null,
+    reminderMinutes: 60,
+  });
+  const [availableCalendars, setAvailableCalendars] = useState<any[]>([]);
+  const [showCalendarPicker, setShowCalendarPicker] = useState(false);
+
+  // Load calendar settings on mount
+  useEffect(() => {
+    if (isOpen) {
+      loadCalendarSettings();
+    }
+  }, [isOpen]);
+
+  const loadCalendarSettings = async () => {
+    const settings = await getCalendarSettings();
+    setCalendarSettings(settings);
+
+    if (settings.enabled) {
+      const calendars = await getAvailableCalendars();
+      setAvailableCalendars(calendars);
+    }
+  };
+
+  const handleToggleCalendar = async (enabled: boolean) => {
+    if (enabled) {
+      // Request permissions first
+      const hasPermission = await requestCalendarPermissions();
+      if (!hasPermission) {
+        // requestCalendarPermissions handles showing the appropriate alert
+        // Just exit without enabling
+        return;
+      }
+
+      // Load available calendars
+      const calendars = await getAvailableCalendars();
+      if (calendars.length === 0) {
+        Alert.alert(
+          'No Calendars Found',
+          'No writable calendars were found on your device.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+
+      setAvailableCalendars(calendars);
+    }
+
+    await toggleCalendarIntegration(enabled);
+    setCalendarSettings((prev) => ({ ...prev, enabled }));
+  };
+
+  const handleSelectCalendar = async () => {
+    if (availableCalendars.length === 0) return;
+
+    const buttons = availableCalendars.map((cal) => ({
+      text: cal.title,
+      onPress: async () => {
+        await setPreferredCalendar(cal.id);
+        setCalendarSettings((prev) => ({ ...prev, calendarId: cal.id }));
+      },
+    }));
+
+    buttons.push({ text: 'Cancel', onPress: () => {}, style: 'cancel' } as any);
+
+    Alert.alert('Select Calendar', 'Choose which calendar to use for planned weaves', buttons);
+  };
 
   const handleResetDatabase = () => {
     Alert.alert(
@@ -94,99 +173,140 @@ export function SettingsModal({
             </TouchableOpacity>
           </View>
 
-          <View style={{ gap: spacing.lg }}>
-            <View style={styles.settingRow}>
-              <View style={styles.settingLabelContainer}>
-                <View style={[styles.iconContainer, { backgroundColor: themeColors.muted }]}>
-                  {isDarkMode ? (
-                    <Moon color={themeColors.foreground} size={20} />
-                  ) : (
-                    <Sun color={themeColors.foreground} size={20} />
-                  )}
+          <ScrollView
+            style={{ maxHeight: 500 }}
+            contentContainerStyle={{ paddingBottom: spacing.lg }}
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={{ gap: spacing.lg }}>
+              <View style={styles.settingRow}>
+                <View style={styles.settingLabelContainer}>
+                  <View style={[styles.iconContainer, { backgroundColor: themeColors.muted }]}>
+                    {isDarkMode ? (
+                      <Moon color={themeColors.foreground} size={20} />
+                    ) : (
+                      <Sun color={themeColors.foreground} size={20} />
+                    )}
+                  </View>
+                  <View>
+                    <Text style={[styles.settingLabel, { color: themeColors.foreground }]}>{isDarkMode ? "Dark Theme" : "Light Theme"}</Text>
+                    <Text style={[styles.settingDescription, { color: themeColors['muted-foreground'] }]}>{isDarkMode ? "Mystic arcane theme" : "Warm cream theme"}</Text>
+                  </View>
                 </View>
-                <View>
-                  <Text style={[styles.settingLabel, { color: themeColors.foreground }]}>{isDarkMode ? "Dark Theme" : "Light Theme"}</Text>
-                  <Text style={[styles.settingDescription, { color: themeColors['muted-foreground'] }]}>{isDarkMode ? "Mystic arcane theme" : "Warm cream theme"}</Text>
-                </View>
+                <Switch
+                  value={isDarkMode}
+                  onValueChange={toggleDarkMode}
+                  trackColor={{ false: themeColors.muted, true: themeColors.primary }}
+                  thumbColor={themeColors.card}
+                />
               </View>
-              <Switch
-                value={isDarkMode}
-                onValueChange={toggleDarkMode}
-                trackColor={{ false: themeColors.muted, true: themeColors.primary }}
-                thumbColor={themeColors.card}
-              />
-            </View>
 
-            {/* START: New Debug Setting */}
-            <View style={[styles.settingRow, styles.topBorder, { borderColor: themeColors.border }]}>
-              <View style={styles.settingLabelContainer}>
-                <View style={[styles.iconContainer, { backgroundColor: themeColors.muted }]}>
-                  <Bug color={themeColors.foreground} size={20} />
+              {/* START: New Debug Setting */}
+              <View style={[styles.settingRow, styles.topBorder, { borderColor: themeColors.border }]}>
+                <View style={styles.settingLabelContainer}>
+                  <View style={[styles.iconContainer, { backgroundColor: themeColors.muted }]}>
+                    <Bug color={themeColors.foreground} size={20} />
+                  </View>
+                  <View>
+                    <Text style={[styles.settingLabel, { color: themeColors.foreground }]}>Show Weave Score</Text>
+                    <Text style={[styles.settingDescription, { color: themeColors['muted-foreground'] }]}>Display score for debugging</Text>
+                  </View>
                 </View>
-                <View>
-                  <Text style={[styles.settingLabel, { color: themeColors.foreground }]}>Show Weave Score</Text>
-                  <Text style={[styles.settingDescription, { color: themeColors['muted-foreground'] }]}>Display score for debugging</Text>
-                </View>
+                <Switch
+                  value={showDebugScore}
+                  onValueChange={toggleShowDebugScore}
+                  trackColor={{ false: themeColors.muted, true: themeColors.primary }}
+                  thumbColor={themeColors.card}
+                />
               </View>
-              <Switch
-                value={showDebugScore}
-                onValueChange={toggleShowDebugScore}
-                trackColor={{ false: themeColors.muted, true: themeColors.primary }}
-                thumbColor={themeColors.card}
-              />
-            </View>
-            {/* END: New Debug Setting */}
+              {/* END: New Debug Setting */}
 
-            {onOpenBatteryCheckIn && (
+              {onOpenBatteryCheckIn && (
+                <TouchableOpacity
+                  style={[styles.settingRow, styles.topBorder, { borderColor: themeColors.border }]}
+                  onPress={() => {
+                    onClose();
+                    setTimeout(() => onOpenBatteryCheckIn(), 300);
+                  }}
+                >
+                  <View style={styles.settingLabelContainer}>
+                    <View style={[styles.iconContainer, { backgroundColor: themeColors.muted }]}>
+                      <Battery color={themeColors.foreground} size={20} />
+                    </View>
+                    <View>
+                      <Text style={[styles.settingLabel, { color: themeColors.foreground }]}>Social Battery Check-in</Text>
+                      <Text style={[styles.settingDescription, { color: themeColors['muted-foreground'] }]}>Update your social energy</Text>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              )}
+
+              {/* Calendar Integration */}
+              <View style={[styles.settingRow, styles.topBorder, { borderColor: themeColors.border }]}>
+                <View style={styles.settingLabelContainer}>
+                  <View style={[styles.iconContainer, { backgroundColor: themeColors.muted }]}>
+                    <CalendarIcon color={themeColors.foreground} size={20} />
+                  </View>
+                  <View>
+                    <Text style={[styles.settingLabel, { color: themeColors.foreground }]}>Calendar Integration</Text>
+                    <Text style={[styles.settingDescription, { color: themeColors['muted-foreground'] }]}>Add planned weaves to calendar</Text>
+                  </View>
+                </View>
+                <Switch
+                  value={calendarSettings.enabled}
+                  onValueChange={handleToggleCalendar}
+                  trackColor={{ false: themeColors.muted, true: themeColors.primary }}
+                  thumbColor={themeColors.card}
+                />
+              </View>
+
+              {/* Calendar Selector - only show when calendar is enabled */}
+              {calendarSettings.enabled && availableCalendars.length > 0 && (
+                <TouchableOpacity
+                  style={[styles.settingRow, { paddingLeft: spacing.xl + spacing.lg }]}
+                  onPress={handleSelectCalendar}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.settingLabel, { color: themeColors.foreground, fontSize: 14 }]}>Calendar</Text>
+                    <Text style={[styles.settingDescription, { color: themeColors['muted-foreground'] }]}>
+                      {availableCalendars.find((cal) => cal.id === calendarSettings.calendarId)?.title || 'Default'}
+                    </Text>
+                  </View>
+                  <ChevronRight color={themeColors['muted-foreground']} size={20} />
+                </TouchableOpacity>
+              )}
+
               <TouchableOpacity
                 style={[styles.settingRow, styles.topBorder, { borderColor: themeColors.border }]}
-                onPress={() => {
-                  onClose();
-                  setTimeout(() => onOpenBatteryCheckIn(), 300);
-                }}
+                onPress={handleViewAnalytics}
               >
                 <View style={styles.settingLabelContainer}>
                   <View style={[styles.iconContainer, { backgroundColor: themeColors.muted }]}>
-                    <Battery color={themeColors.foreground} size={20} />
+                    <BarChart3 color={themeColors.foreground} size={20} />
                   </View>
                   <View>
-                    <Text style={[styles.settingLabel, { color: themeColors.foreground }]}>Social Battery Check-in</Text>
-                    <Text style={[styles.settingDescription, { color: themeColors['muted-foreground'] }]}>Update your social energy</Text>
+                    <Text style={[styles.settingLabel, { color: themeColors.foreground }]}>Suggestion Analytics</Text>
+                    <Text style={[styles.settingDescription, { color: themeColors['muted-foreground'] }]}>View tracking data</Text>
                   </View>
                 </View>
               </TouchableOpacity>
-            )}
 
-            <TouchableOpacity
-              style={[styles.settingRow, styles.topBorder, { borderColor: themeColors.border }]}
-              onPress={handleViewAnalytics}
-            >
-              <View style={styles.settingLabelContainer}>
-                <View style={[styles.iconContainer, { backgroundColor: themeColors.muted }]}>
-                  <BarChart3 color={themeColors.foreground} size={20} />
+              <View style={[styles.settingRow, styles.topBorder, { borderColor: themeColors.border }]}>
+                <View style={styles.settingLabelContainer}>
+                  <View style={[styles.iconContainer, { backgroundColor: themeColors.destructive + '1A' }]}>
+                    <RefreshCw color={themeColors.destructive} size={20} />
+                  </View>
+                  <View>
+                    <Text style={[styles.settingLabel, { color: themeColors.foreground }]}>Reset Database</Text>
+                    <Text style={[styles.settingDescription, { color: themeColors['muted-foreground'] }]}>Clear all data and start fresh</Text>
+                  </View>
                 </View>
-                <View>
-                  <Text style={[styles.settingLabel, { color: themeColors.foreground }]}>Suggestion Analytics</Text>
-                  <Text style={[styles.settingDescription, { color: themeColors['muted-foreground'] }]}>View tracking data</Text>
-                </View>
+                <TouchableOpacity onPress={handleResetDatabase} style={[styles.resetButton, { borderColor: themeColors.destructive + '33' }]}>
+                  <Text style={[styles.resetButtonText, { color: themeColors.destructive }]}>Reset</Text>
+                </TouchableOpacity>
               </View>
-            </TouchableOpacity>
-
-            <View style={[styles.settingRow, styles.topBorder, { borderColor: themeColors.border }]}>
-              <View style={styles.settingLabelContainer}>
-                <View style={[styles.iconContainer, { backgroundColor: themeColors.destructive + '1A' }]}>
-                  <RefreshCw color={themeColors.destructive} size={20} />
-                </View>
-                <View>
-                  <Text style={[styles.settingLabel, { color: themeColors.foreground }]}>Reset Database</Text>
-                  <Text style={[styles.settingDescription, { color: themeColors['muted-foreground'] }]}>Clear all data and start fresh</Text>
-                </View>
-              </View>
-              <TouchableOpacity onPress={handleResetDatabase} style={[styles.resetButton, { borderColor: themeColors.destructive + '33' }]}>
-                <Text style={[styles.resetButtonText, { color: themeColors.destructive }]}>Reset</Text>
-              </TouchableOpacity>
             </View>
-          </View>
+          </ScrollView>
 
           <View style={[styles.footer, styles.topBorder, { borderColor: themeColors.border }]}>
             <Text style={[styles.footerText, { color: themeColors['muted-foreground'] }]}>

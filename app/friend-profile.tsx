@@ -40,7 +40,7 @@ export default function FriendProfile() {
   const { friendId } = useLocalSearchParams();
   const { activeFriend: friend, activeFriendInteractions: interactions, observeFriend, unobserveFriend } = useFriendStore();
   const { deleteFriend } = useFriendStore();
-  const { deleteInteraction, updateReflection, updateInteractionCategory } = useInteractionStore();
+  const { deleteInteraction, updateReflection, updateInteraction } = useInteractionStore();
   const { createIntention, convertToPlannedWeave, dismissIntention } = useIntentionStore();
   const friendIntentions = useFriendIntentions(typeof friendId === 'string' ? friendId : undefined);
   const [selectedInteraction, setSelectedInteraction] = useState<Interaction | null>(null);
@@ -341,7 +341,7 @@ export default function FriendProfile() {
                 <Animated.View style={buttonsAnimatedStyle}>
                     <TouchableOpacity
                         style={[styles.connectByButton, { backgroundColor: colors.secondary, borderColor: colors.border }]}
-                        onPress={() => router.push({ pathname: '/interaction-form', params: { friendId: friend.id, mode: 'plan' } })}
+                        onPress={() => setShowPlanWizard(true)}
                     >
                         <Text style={[styles.connectByButtonText, { color: colors.foreground }]}>
                           Connect by: {format(nextConnectionDate, 'MMMM do')}
@@ -352,7 +352,7 @@ export default function FriendProfile() {
 
             <Animated.View style={[styles.actionButtonsContainer, buttonsAnimatedStyle]}>
                 <TouchableOpacity
-                  onPress={() => router.push({ pathname: '/interaction-form', params: { friendId: friend.id, mode: 'log' } })}
+                  onPress={() => router.push({ pathname: '/weave-logger', params: { friendId: friend.id } })}
                   style={[styles.actionButton, styles.actionButtonPrimary]}
                 >
                   <LinearGradient
@@ -518,7 +518,7 @@ export default function FriendProfile() {
             interaction={editingInteraction}
             isOpen={editingInteraction !== null}
             onClose={() => setEditingInteraction(null)}
-            onSave={updateInteractionCategory}
+            onSave={updateInteraction}
         />
 
         <PlanChoiceModal
@@ -571,8 +571,8 @@ export default function FriendProfile() {
           onSchedule={async (intention, intentionFriend) => {
             await convertToPlannedWeave(intention.id);
             setSelectedIntentionForAction(null);
-            // Navigate to interaction form to create the planned weave
-            router.push({ pathname: '/interaction-form', params: { friendId: intentionFriend.id, mode: 'plan', category: intention.interactionCategory || '' } });
+            // TODO: Open PlanWizard with prefilled category
+            // For now, user can schedule from friend profile
           }}
           onDismiss={async (intention) => {
             await dismissIntention(intention.id);

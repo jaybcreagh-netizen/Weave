@@ -2,7 +2,8 @@ export type Tier = 'InnerCircle' | 'CloseFriends' | 'Community';
 export type Archetype = 'Emperor' | 'Empress' | 'HighPriestess' | 'Fool' | 'Sun' | 'Hermit' | 'Magician';
 
 // Relationship types for understanding friend context
-export type RelationshipType = 'friend' | 'close_friend' | 'family' | 'partner' | 'colleague' | 'acquaintance';
+// Note: Closeness is handled by Dunbar tiers, these describe the nature of the relationship
+export type RelationshipType = 'friend' | 'family' | 'partner' | 'colleague' | 'neighbor' | 'mentor' | 'creative';
 
 // Life event types for tracking important moments
 export type LifeEventType =
