@@ -23,6 +23,7 @@ import { SeasonCalculationInput, SocialSeason } from '../../../lib/social-season
 import { calculateCurrentScore } from '../../../lib/weave-engine';
 import { database } from '../../../db';
 import Interaction from '../../../db/models/Interaction';
+import { generateSeasonExplanation, type SeasonExplanationData } from '../../../lib/narrative-generator';
 
 const WIDGET_CONFIG: HomeWidgetConfig = {
   id: 'social-season',
@@ -69,6 +70,7 @@ export const SocialSeasonWidget: React.FC = () => {
   const friends = useFriends();
   const [isCalculating, setIsCalculating] = useState(false);
   const [season, setSeason] = useState<SocialSeason>('balanced');
+  const [seasonData, setSeasonData] = useState<SeasonExplanationData | null>(null);
   const [showExplanation, setShowExplanation] = useState(false);
   const [showOverride, setShowOverride] = useState(false);
 
@@ -124,6 +126,18 @@ export const SocialSeasonWidget: React.FC = () => {
 
       const newSeason = calculateSocialSeason(input, profile.currentSocialSeason);
       setSeason(newSeason);
+
+      // Store season explanation data
+      setSeasonData({
+        season: newSeason,
+        weavesLast7Days,
+        weavesLast30Days,
+        avgScoreAllFriends,
+        avgScoreInnerCircle,
+        momentumCount,
+        batteryLast7DaysAvg,
+        batteryTrend,
+      });
 
       const oneHourAgo = Date.now() - 60 * 60 * 1000;
       if (newSeason !== profile.currentSocialSeason || !profile.seasonLastCalculated || profile.seasonLastCalculated < oneHourAgo) {
@@ -235,16 +249,50 @@ export const SocialSeasonWidget: React.FC = () => {
                 <X size={20} color={colors['muted-foreground']} />
               </TouchableOpacity>
 
-              <Text style={[styles.modalTitle, { color: colors.foreground }]}>{SEASON_EXPLANATIONS[season].title}</Text>
-              <Text style={[styles.modalDescription, { color: colors['muted-foreground'] }]}>{SEASON_EXPLANATIONS[season].description}</Text>
+              {seasonData ? (() => {
+                const explanation = generateSeasonExplanation(seasonData);
+                return (
+                  <>
+                    <Text style={[styles.modalTitle, { color: colors.foreground }]}>{explanation.headline}</Text>
 
-              <View style={[styles.meaningBox, { backgroundColor: colors.muted }]}>
-                <Text style={[styles.meaningText, { color: colors.foreground }]}>{SEASON_EXPLANATIONS[season].meaning}</Text>
-              </View>
+                    {/* Data-driven reasons */}
+                    {explanation.reasons.length > 0 && (
+                      <View style={styles.reasonsContainer}>
+                        <Text style={[styles.reasonsLabel, { color: colors['muted-foreground'] }]}>
+                          Based on:
+                        </Text>
+                        {explanation.reasons.map((reason, index) => (
+                          <View key={index} style={styles.reasonItem}>
+                            <Text style={[styles.reasonBullet, { color: colors.primary }]}>•</Text>
+                            <Text style={[styles.reasonText, { color: colors.foreground }]}>{reason}</Text>
+                          </View>
+                        ))}
+                      </View>
+                    )}
 
-              <TouchableOpacity onPress={() => setShowExplanation(false)} style={[styles.gotItButton, { backgroundColor: colors.primary }]}>
-                <Text style={styles.gotItText}>Got it</Text>
-              </TouchableOpacity>
+                    <View style={[styles.meaningBox, { backgroundColor: colors.muted }]}>
+                      <Text style={[styles.meaningText, { color: colors.foreground }]}>{explanation.insight}</Text>
+                    </View>
+
+                    <TouchableOpacity onPress={() => setShowExplanation(false)} style={[styles.gotItButton, { backgroundColor: colors.primary }]}>
+                      <Text style={styles.gotItText}>Got it</Text>
+                    </TouchableOpacity>
+                  </>
+                );
+              })() : (
+                <>
+                  <Text style={[styles.modalTitle, { color: colors.foreground }]}>{SEASON_EXPLANATIONS[season].title}</Text>
+                  <Text style={[styles.modalDescription, { color: colors['muted-foreground'] }]}>{SEASON_EXPLANATIONS[season].description}</Text>
+
+                  <View style={[styles.meaningBox, { backgroundColor: colors.muted }]}>
+                    <Text style={[styles.meaningText, { color: colors.foreground }]}>{SEASON_EXPLANATIONS[season].meaning}</Text>
+                  </View>
+
+                  <TouchableOpacity onPress={() => setShowExplanation(false)} style={[styles.gotItButton, { backgroundColor: colors.primary }]}>
+                    <Text style={styles.gotItText}>Got it</Text>
+                  </TouchableOpacity>
+                </>
+              )}
             </View>
           </View>
         </View>
@@ -409,6 +457,34 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_400Regular',
     fontSize: 16,
     marginBottom: 16,
+  },
+  reasonsContainer: {
+    marginTop: 12,
+    marginBottom: 20,
+    gap: 8,
+  },
+  reasonsLabel: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 8,
+  },
+  reasonItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+  },
+  reasonBullet: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 16,
+    lineHeight: 20,
+  },
+  reasonText: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 14,
+    lineHeight: 20,
+    flex: 1,
   },
   meaningBox: {
     padding: 16,

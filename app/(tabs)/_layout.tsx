@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Dimensions, ScrollView, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Sparkles, Users, Settings } from 'lucide-react-native';
@@ -20,20 +20,31 @@ export default function TabsLayout() {
   const { submitBatteryCheckin } = useUserProfileStore();
   const { suggestionCount } = useSuggestions();
   const scrollViewRef = useRef<ScrollView>(null);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   const handleTabPress = (tab: 'insights' | 'circle') => {
     setActiveTab(tab);
-    const index = tab === 'circle' ? 0 : 1;
+    const index = tab === 'insights' ? 0 : 1;
     scrollViewRef.current?.scrollTo({ x: index * screenWidth, animated: true });
   };
 
   const onScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const slide = Math.round(event.nativeEvent.contentOffset.x / screenWidth);
-    const newTab = slide === 0 ? 'circle' : 'insights';
+    const newTab = slide === 0 ? 'insights' : 'circle';
     if (newTab !== activeTab) {
       setActiveTab(newTab);
     }
   };
+
+  // Initialize scroll position to Circle tab (index 1) on mount
+  useEffect(() => {
+    if (!isInitialized && scrollViewRef.current) {
+      setTimeout(() => {
+        scrollViewRef.current?.scrollTo({ x: screenWidth, animated: false });
+        setIsInitialized(true);
+      }, 100);
+    }
+  }, [isInitialized]);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
@@ -106,10 +117,10 @@ export default function TabsLayout() {
         style={styles.scrollView}
       >
         <View style={{ width: screenWidth }}>
-          <FriendsScreen />
+          <HomeScreen />
         </View>
         <View style={{ width: screenWidth }}>
-          <HomeScreen />
+          <FriendsScreen />
         </View>
       </ScrollView>
 

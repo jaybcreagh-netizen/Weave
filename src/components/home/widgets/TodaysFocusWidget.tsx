@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import { View, Text, StyleSheet, TouchableOpacity, Vibration } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withTiming, Easing } from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
 import { differenceInDays, format } from 'date-fns';
 import { Cake, Heart, ChevronRight, Calendar, CheckCircle2, ChevronDown, ChevronUp } from 'lucide-react-native';
@@ -15,6 +15,10 @@ import { PlanWizard } from '../../PlanWizard';
 import { type InteractionCategory } from '../../types';
 import FriendModel from '../../../db/models/Friend';
 import { type Suggestion } from '../../../types/suggestions';
+import { generateTodaysFocusIntro, type TodaysFocusContext } from '../../../lib/narrative-generator';
+import { useUserProfileStore } from '../../../stores/userProfileStore';
+import { useActiveIntentions } from '../../../hooks/useIntentions';
+import Intention from '../../../db/models/Intention';
 
 const WIDGET_CONFIG: HomeWidgetConfig = {
   id: 'todays-focus',
@@ -34,9 +38,11 @@ export const TodaysFocusWidget: React.FC = () => {
   const { colors } = useTheme();
   const router = useRouter();
   const { friends } = useFriendStore();
-  const { suggestions } = useSuggestions();
+  const { suggestions, hasCritical } = useSuggestions();
   const { pendingPlans } = usePendingPlans();
   const { confirmPlan } = useInteractionStore();
+  const { profile } = useUserProfileStore();
+  const intentions = useActiveIntentions();
   const [upcomingDates, setUpcomingDates] = useState<UpcomingDate[]>([]);
   const [rescheduleWizardOpen, setRescheduleWizardOpen] = useState(false);
   const [rescheduleFriend, setRescheduleFriend] = useState<FriendModel | null>(null);
@@ -46,20 +52,30 @@ export const TodaysFocusWidget: React.FC = () => {
   const [selectedFriend, setSelectedFriend] = useState<FriendModel | null>(null);
   const [expanded, setExpanded] = useState(false);
   const [showAllSuggestions, setShowAllSuggestions] = useState(false);
-  const expandedHeight = useSharedValue(0);
+  const animationProgress = useSharedValue(0);
 
-  // Animate expansion/collapse
+  // Animate expansion/collapse with smooth easing
   useEffect(() => {
-    expandedHeight.value = withTiming(expanded ? 1 : 0, { duration: 250 });
+    animationProgress.value = withTiming(expanded ? 1 : 0, {
+      duration: 400,
+      easing: Easing.bezier(0.4, 0.0, 0.2, 1),
+    });
   }, [expanded]);
 
   const animatedStyle = useAnimatedStyle(() => {
+    'worklet';
     return {
-      opacity: expandedHeight.value,
-      maxHeight: expandedHeight.value * 2000, // Large enough to fit content
+      maxHeight: animationProgress.value * 2000, // Smoothly animate from 0 to 2000
+      opacity: animationProgress.value,
       overflow: 'hidden',
+      // Subtle slide-in effect like a drawer
+      transform: [{
+        translateY: (1 - animationProgress.value) * -20,
+      }],
     };
   });
+
+  const contentPointerEvents = expanded ? 'auto' : 'none';
 
   // Calculate upcoming special dates (30 days)
   useEffect(() => {
@@ -86,8 +102,10 @@ export const TodaysFocusWidget: React.FC = () => {
         }
       }
 
-      // Check anniversary
-      if (friend.anniversary) {
+      // Check anniversary (only show for partners/romantic relationships)
+      if (friend.anniversary &&
+          friend.relationshipType?.toLowerCase().includes('partner') &&
+          !isNaN(friend.anniversary.getTime())) {
         const anniversaryThisYear = new Date(friend.anniversary);
         anniversaryThisYear.setFullYear(today.getFullYear());
         anniversaryThisYear.setHours(0, 0, 0, 0);
@@ -175,6 +193,18 @@ export const TodaysFocusWidget: React.FC = () => {
   // Count total actionable items
   const totalItems = pendingPlans.length + suggestions.length;
   const topSuggestion = suggestions[0];
+  const topPlan = pendingPlans[0];
+
+  // Generate contextual intro
+  const focusContext: TodaysFocusContext = {
+    batteryLevel: profile?.socialBatteryCurrent || 3,
+    upcomingPlansCount: pendingPlans.length,
+    criticalSuggestions: suggestions.filter(s => s.urgency === 'critical').length,
+    season: (profile?.currentSocialSeason || 'balanced') as 'resting' | 'balanced' | 'blooming',
+    hasRecentActivity: false, // TODO: Calculate from recent interactions
+  };
+
+  const introText = generateTodaysFocusIntro(focusContext);
 
   return (
     <>
@@ -183,12 +213,15 @@ export const TodaysFocusWidget: React.FC = () => {
           {/* Header with collapse toggle */}
           <TouchableOpacity
             style={styles.header}
-            onPress={() => setExpanded(!expanded)}
+            onPress={() => {
+              Vibration.vibrate(10); // Subtle haptic feedback
+              setExpanded(!expanded);
+            }}
             activeOpacity={0.7}
           >
             <View style={styles.headerLeft}>
               <Text style={[styles.headerTitle, { color: colors.foreground }]}>
-                Smart Suggestions
+                Today's Focus
               </Text>
               {!expanded && totalItems > 0 && (
                 <View style={[styles.badge, { backgroundColor: colors.primary }]}>
@@ -202,6 +235,13 @@ export const TodaysFocusWidget: React.FC = () => {
               <ChevronDown size={20} color={colors['muted-foreground']} />
             )}
           </TouchableOpacity>
+
+          {/* Contextual Intro */}
+          {!expanded && totalItems > 0 && (
+            <Text style={[styles.introText, { color: colors['muted-foreground'] }]}>
+              {introText}
+            </Text>
+          )}
 
           {/* Collapsed Preview */}
           {!expanded && (
@@ -221,6 +261,18 @@ export const TodaysFocusWidget: React.FC = () => {
                 </View>
                 <ChevronRight size={18} color={colors['muted-foreground']} />
               </TouchableOpacity>
+            ) : topPlan ? (
+              <View style={[styles.compactPreview, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <Calendar size={24} color={colors.primary} />
+                <View style={styles.compactContent}>
+                  <Text style={[styles.compactTitle, { color: colors.foreground }]} numberOfLines={1}>
+                    {topPlan.interaction.title || getCategoryMetadata(topPlan.interaction.interactionCategory as InteractionCategory)?.label || 'Plan'}
+                  </Text>
+                  <Text style={[styles.compactSubtitle, { color: colors['muted-foreground'] }]} numberOfLines={1}>
+                    {topPlan.friends.map(f => f.name).join(', ')} • {topPlan.daysUntil === 0 ? 'Today' : topPlan.daysUntil === 1 ? 'Tomorrow' : `${topPlan.daysUntil}d`}
+                  </Text>
+                </View>
+              </View>
             ) : (
               <View style={styles.compactEmpty}>
                 <Text style={styles.compactEmptyIcon}>✨</Text>
@@ -232,7 +284,7 @@ export const TodaysFocusWidget: React.FC = () => {
           )}
 
           {/* Expanded Content */}
-          <Animated.View style={[animatedStyle, { gap: 16 }]}>
+          <Animated.View style={[animatedStyle, { gap: 16, marginTop: 16 }]} pointerEvents={contentPointerEvents}>
             {/* Pending Plan Confirmations */}
               {pendingPlans.length > 0 && (
                 <View style={styles.pendingPlansSection}>
@@ -483,6 +535,12 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontFamily: 'Lora_700Bold',
     fontSize: 20,
+  },
+  introText: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 12,
   },
   badge: {
     minWidth: 20,
