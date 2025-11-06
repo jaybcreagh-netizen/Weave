@@ -348,19 +348,6 @@ export default function FriendProfile() {
                 <FriendListRow friend={friend} variant="full" />
             </Animated.View>
 
-            {nextConnectionDate && !isPast(nextConnectionDate) && (
-                <Animated.View style={buttonsAnimatedStyle}>
-                    <TouchableOpacity
-                        style={[styles.connectByButton, { backgroundColor: colors.secondary, borderColor: colors.border }]}
-                        onPress={() => setShowPlanWizard(true)}
-                    >
-                        <Text style={[styles.connectByButtonText, { color: colors.foreground }]}>
-                          Connect by: {format(nextConnectionDate, 'MMMM do')}
-                        </Text>
-                    </TouchableOpacity>
-                </Animated.View>
-            )}
-
             <Animated.View style={[styles.actionButtonsContainer, buttonsAnimatedStyle]}>
                 <TouchableOpacity
                   onPress={() => router.push({ pathname: '/weave-logger', params: { friendId: friend.id } })}
@@ -392,7 +379,7 @@ export default function FriendProfile() {
                 </TouchableOpacity>
             </Animated.View>
 
-            {/* Life Events Section */}
+            {/* Life Events Section - Compact */}
             {activeLifeEvents.length > 0 || true /* always show to allow adding */ ? (
               <Animated.View style={[styles.lifeEventsSection, buttonsAnimatedStyle]}>
                 <View style={styles.lifeEventsSectionHeader}>
@@ -406,7 +393,7 @@ export default function FriendProfile() {
                     }}
                     style={[styles.addLifeEventButton, { backgroundColor: colors.muted }]}
                   >
-                    <Plus size={16} color={colors.primary} />
+                    <Plus size={14} color={colors.primary} />
                     <Text style={[styles.addLifeEventText, { color: colors.primary }]}>Add</Text>
                   </TouchableOpacity>
                 </View>
@@ -436,23 +423,23 @@ export default function FriendProfile() {
                             {
                               backgroundColor: colors.muted,
                               borderColor: isUpcoming ? colors.primary : colors.border,
-                              borderWidth: isUpcoming ? 2 : 1,
+                              borderWidth: isUpcoming ? 1.5 : 1,
                             }
                           ]}
                         >
                           <Text style={styles.lifeEventIcon}>{eventIcons[event.eventType]}</Text>
                           <View style={styles.lifeEventContent}>
-                            <Text style={[styles.lifeEventTitle, { color: colors.foreground }]}>
+                            <Text style={[styles.lifeEventTitle, { color: colors.foreground }]} numberOfLines={1}>
                               {event.title}
                             </Text>
                             <Text style={[styles.lifeEventDate, { color: colors['muted-foreground'] }]}>
                               {isPastEvent
-                                ? `${Math.abs(daysUntil)} days ago`
+                                ? `${Math.abs(daysUntil)}d ago`
                                 : daysUntil === 0
                                 ? 'Today'
                                 : daysUntil === 1
                                 ? 'Tomorrow'
-                                : `In ${daysUntil} days`}
+                                : `${daysUntil}d`}
                             </Text>
                           </View>
                         </TouchableOpacity>
@@ -671,23 +658,6 @@ const styles = StyleSheet.create({
     itemWrapper: {
         paddingHorizontal: 20,
     },
-    connectByButton: {
-        borderWidth: 1,
-        borderRadius: 12,
-        paddingVertical: 10,
-        paddingHorizontal: 14,
-        alignItems: 'center',
-        justifyContent: 'center',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.08,
-        shadowRadius: 8,
-        elevation: 4,
-    },
-    connectByButtonText: {
-        fontSize: 13,
-        fontWeight: '600',
-    },
     timelineContainer: {
         flex: 1,
         position: 'relative',
@@ -706,61 +676,61 @@ const styles = StyleSheet.create({
     },
     lifeEventsSection: {
         paddingHorizontal: 20,
-        marginTop: 16,
-        marginBottom: 16,
+        marginTop: 8,
+        marginBottom: 8,
     },
     lifeEventsSectionHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 12,
+        marginBottom: 8,
     },
     lifeEventsSectionTitle: {
         fontFamily: 'Lora_700Bold',
-        fontSize: 18,
+        fontSize: 15,
     },
     addLifeEventButton: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 6,
-        paddingHorizontal: 12,
-        paddingVertical: 6,
+        gap: 4,
+        paddingHorizontal: 10,
+        paddingVertical: 4,
         borderRadius: 999,
     },
     addLifeEventText: {
         fontFamily: 'Inter_600SemiBold',
-        fontSize: 14,
+        fontSize: 12,
     },
     lifeEventsList: {
-        gap: 8,
+        gap: 6,
     },
     lifeEventCard: {
         flexDirection: 'row',
         alignItems: 'center',
-        padding: 12,
-        borderRadius: 12,
-        gap: 12,
-        marginBottom: 8,
+        padding: 10,
+        borderRadius: 10,
+        gap: 10,
+        marginBottom: 0,
     },
     lifeEventIcon: {
-        fontSize: 24,
+        fontSize: 20,
     },
     lifeEventContent: {
         flex: 1,
     },
     lifeEventTitle: {
         fontFamily: 'Inter_600SemiBold',
-        fontSize: 14,
-        marginBottom: 2,
+        fontSize: 13,
+        marginBottom: 1,
     },
     lifeEventDate: {
         fontFamily: 'Inter_400Regular',
-        fontSize: 12,
+        fontSize: 11,
     },
     noLifeEvents: {
         fontFamily: 'Inter_400Regular',
-        fontSize: 14,
+        fontSize: 12,
         textAlign: 'center',
-        paddingVertical: 12,
+        paddingVertical: 8,
     },
 });
