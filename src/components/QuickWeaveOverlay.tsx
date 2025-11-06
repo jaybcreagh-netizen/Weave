@@ -1,6 +1,14 @@
 import React, { useEffect } from 'react';
-import { View, StyleSheet, Dimensions, Text } from 'react-native';
-import Animated, { useSharedValue, useAnimatedStyle, withTiming, runOnJS, interpolate, withSpring } from 'react-native-reanimated';
+import { View, Text } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  runOnJS,
+  interpolate,
+  withSpring,
+  withSequence,
+} from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { BlurView } from 'expo-blur';
 
@@ -10,11 +18,12 @@ import { useCardGesture } from '../context/CardGestureContext';
 import { useTheme } from '../hooks/useTheme';
 import { type InteractionCategory } from './types';
 
-const { width, height } = Dimensions.get('window');
-const MENU_RADIUS = 100;
-const ITEM_SIZE = 64;
-const HIGHLIGHT_THRESHOLD = 30;
-const SELECTION_THRESHOLD = 45;
+// Compact sizing for sleeker feel
+const MENU_RADIUS = 75; // Reduced from 100px
+const ITEM_SIZE = 50; // Reduced from 64px
+const CENTER_SIZE = 44; // New - iOS standard touch target
+const HIGHLIGHT_THRESHOLD = 25; // Reduced from 30px
+const SELECTION_THRESHOLD = 40; // Reduced from 45px
 
 interface RadialMenuItem {
   id: InteractionCategory;
@@ -23,12 +32,12 @@ interface RadialMenuItem {
 }
 
 const ACTIVITIES: RadialMenuItem[] = [
-  { id: 'meal-drink', icon: '🍽️', label: 'Meal' },
   { id: 'text-call', icon: '📞', label: 'Call' },
-  { id: 'hangout', icon: '👥', label: 'Hangout' },
-  { id: 'deep-talk', icon: '💭', label: 'Deep Talk' },
-  { id: 'activity-hobby', icon: '🎨', label: 'Activity' },
-  { id: 'voice-note', icon: '🎤', label: 'Voice Note' },
+  { id: 'meal-drink', icon: '🍽️', label: 'Meal' },
+  { id: 'hangout', icon: '👥', label: 'Hang' },
+  { id: 'deep-talk', icon: '💭', label: 'Talk' },
+  { id: 'activity-hobby', icon: '🎨', label: 'Do' },
+  { id: 'voice-note', icon: '🎤', label: 'Voice' },
 ];
 
 const itemPositions = ACTIVITIES.map((_, i) => {
@@ -54,21 +63,24 @@ export function QuickWeaveOverlay() {
 
   const overlayOpacity = useSharedValue(0);
   const menuScale = useSharedValue(0.3);
+  const centerPulse = useSharedValue(1);
 
   // Entrance Animation
   useEffect(() => {
-    // Shortened blur-in duration for a crisper feel.
-    overlayOpacity.value = withTiming(1, { duration: 20 });
-    // Significantly increased stiffness for a very fast, snappy pop-in animation.
-    menuScale.value = withSpring(1, { damping: 100, stiffness: 600 });
+    overlayOpacity.value = withTiming(1, { duration: 150 });
+    menuScale.value = withSpring(1, { damping: 20, stiffness: 300 });
+    // Subtle pulse on center to show it's active
+    centerPulse.value = withSequence(
+      withSpring(1.1, { damping: 10, stiffness: 300 }),
+      withSpring(1, { damping: 15, stiffness: 200 })
+    );
   }, []);
 
   // Exit Animation
   useEffect(() => {
     if (isQuickWeaveClosing) {
-      // Shortened exit duration for a faster dismiss.
-      menuScale.value = withTiming(0, { duration: 70 });
-      overlayOpacity.value = withTiming(0, { duration: 120 }, (finished) => {
+      menuScale.value = withTiming(0.3, { duration: 150 });
+      overlayOpacity.value = withTiming(0, { duration: 200 }, (finished) => {
         if (finished) {
           runOnJS(_finishClosingQuickWeave)();
         }
@@ -85,37 +97,76 @@ export function QuickWeaveOverlay() {
     transform: [{ scale: menuScale.value }],
   }));
 
+  const centerStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: centerPulse.value }],
+  }));
+
   // Early return AFTER all hooks have been called
   if (!quickWeaveCenterPoint || !quickWeaveFriendId || !friend) {
     return null;
   }
 
+  const friendInitial = friend.name.charAt(0).toUpperCase();
+
   return (
-    <View style={StyleSheet.absoluteFill} pointerEvents="none">
+    <View className="absolute inset-0" pointerEvents="none">
       <Animated.View style={overlayStyle}>
-        <BlurView intensity={20} tint="dark" style={StyleSheet.absoluteFill} />
+        <BlurView
+          intensity={isDarkMode ? 25 : 15}
+          tint={isDarkMode ? 'dark' : 'light'}
+          className="absolute inset-0"
+        />
       </Animated.View>
 
       <Animated.View
         style={[
-          styles.menuContainer,
           {
+            position: 'absolute',
+            width: MENU_RADIUS * 2,
+            height: MENU_RADIUS * 2,
             left: quickWeaveCenterPoint.x - MENU_RADIUS,
             top: quickWeaveCenterPoint.y - MENU_RADIUS,
+            alignItems: 'center',
+            justifyContent: 'center',
           },
           menuContainerStyle,
         ]}
       >
-        {/* Header label above menu */}
-        <View style={styles.headerLabel}>
-          <Text style={[styles.headerLabelText, { color: isDarkMode ? 'rgba(255, 255, 255, 0.7)' : colors.foreground }]}>
-            Log a weave
+        {/* Center Circle - Anchor Point */}
+        <Animated.View
+          style={[
+            {
+              width: CENTER_SIZE,
+              height: CENTER_SIZE,
+              borderRadius: CENTER_SIZE / 2,
+              backgroundColor: isDarkMode ? 'rgba(124, 58, 237, 0.9)' : 'rgba(124, 58, 237, 0.85)',
+              alignItems: 'center',
+              justifyContent: 'center',
+              position: 'absolute',
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.2,
+              shadowRadius: 6,
+              elevation: 4,
+              borderWidth: 2,
+              borderColor: 'rgba(255, 255, 255, 0.3)',
+            },
+            centerStyle,
+          ]}
+        >
+          <Text
+            style={{
+              fontSize: 18,
+              fontWeight: '700',
+              color: 'white',
+              fontFamily: 'Lora_700Bold',
+            }}
+          >
+            {friendInitial}
           </Text>
-          <Text style={[styles.headerFriendName, { color: isDarkMode ? 'white' : colors.foreground }]}>
-            {friend.name}
-          </Text>
-        </View>
+        </Animated.View>
 
+        {/* Radial Menu Items */}
         {ACTIVITIES.map((item, index) => (
           <MenuItem
             key={item.id}
@@ -124,6 +175,8 @@ export function QuickWeaveOverlay() {
             highlightedIndex={highlightedIndex}
             dragX={dragX}
             dragY={dragY}
+            isDarkMode={isDarkMode}
+            primaryColor={colors.primary}
           />
         ))}
       </Animated.View>
@@ -137,26 +190,31 @@ function MenuItem({
   highlightedIndex,
   dragX,
   dragY,
+  isDarkMode,
+  primaryColor,
 }: {
   item: RadialMenuItem;
   index: number;
   highlightedIndex: Animated.SharedValue<number>;
   dragX: Animated.SharedValue<number>;
   dragY: Animated.SharedValue<number>;
+  isDarkMode: boolean;
+  primaryColor: string;
 }) {
-  const {x: finalX, y: finalY} = itemPositions[index];
+  const { x: finalX, y: finalY } = itemPositions[index];
 
   const animatedStyle = useAnimatedStyle(() => {
     const isHighlighted = highlightedIndex.value === index;
-    const dragDistance = Math.sqrt(dragX.value**2 + dragY.value**2);
+    const dragDistance = Math.sqrt(dragX.value ** 2 + dragY.value ** 2);
     const hasDragged = dragDistance > HIGHLIGHT_THRESHOLD;
 
-    const targetScale = isHighlighted && hasDragged ? 1.08 : 1;
-    // Reduced bounciness with higher damping for smoother feel
-    const scale = withSpring(targetScale, { damping: 15, stiffness: 400 });
+    // More dramatic scale on highlight (1.25x vs previous 1.08x)
+    const targetScale = isHighlighted && hasDragged ? 1.25 : 1;
+    const scale = withSpring(targetScale, { damping: 12, stiffness: 350 });
 
-    const targetOpacity = hasDragged ? (isHighlighted ? 1 : 0.75) : 0.6;
-    const opacity = withTiming(targetOpacity, { duration: 50 });
+    // Clearer opacity states
+    const targetOpacity = hasDragged ? (isHighlighted ? 1 : 0.5) : 0.85;
+    const opacity = withTiming(targetOpacity, { duration: 100 });
 
     return {
       opacity,
@@ -168,120 +226,109 @@ function MenuItem({
     };
   });
 
-  const labelStyle = useAnimatedStyle(() => {
+  const itemBgStyle = useAnimatedStyle(() => {
     const isHighlighted = highlightedIndex.value === index;
-    const dragDistance = Math.sqrt(dragX.value**2 + dragY.value**2);
-    const hasDragged = dragDistance > SELECTION_THRESHOLD;
-    const shouldShow = isHighlighted && hasDragged;
+    const dragDistance = Math.sqrt(dragX.value ** 2 + dragY.value ** 2);
+    const hasDragged = dragDistance > HIGHLIGHT_THRESHOLD;
+
+    // Subtle color tint on selection
+    const backgroundColor = isHighlighted && hasDragged
+      ? isDarkMode
+        ? 'rgba(124, 58, 237, 0.95)' // Purple tint
+        : 'rgba(124, 58, 237, 0.12)'
+      : isDarkMode
+      ? 'rgba(255, 255, 255, 0.15)'
+      : 'rgba(255, 255, 255, 0.95)';
 
     return {
-      opacity: withTiming(shouldShow ? 1 : 0, { duration: 100 }),
-      transform: [
-        { translateY: withTiming(shouldShow ? 0 : 8, { duration: 100 }) },
-        { scale: withTiming(shouldShow ? 1 : 0.9, { duration: 100 }) }
-      ],
+      backgroundColor: withTiming(backgroundColor, { duration: 150 }),
+    };
+  });
+
+  const labelStyle = useAnimatedStyle(() => {
+    const isHighlighted = highlightedIndex.value === index;
+    const dragDistance = Math.sqrt(dragX.value ** 2 + dragY.value ** 2);
+    const hasDragged = dragDistance > HIGHLIGHT_THRESHOLD;
+
+    // Always visible, but more prominent when highlighted
+    const targetOpacity = isHighlighted && hasDragged ? 1 : 0.8;
+    const targetScale = isHighlighted && hasDragged ? 1.05 : 1;
+
+    return {
+      opacity: withTiming(targetOpacity, { duration: 100 }),
+      transform: [{ scale: withTiming(targetScale, { duration: 100 }) }],
     };
   });
 
   return (
-    <Animated.View style={[styles.itemWrapper, animatedStyle]}>
-      <View style={styles.itemCircle}>
-        <Text style={styles.itemIcon}>{item.icon}</Text>
-      </View>
-      <Animated.View style={[styles.labelContainer, labelStyle]}>
-        <View style={styles.labelInner}>
-          <Text style={styles.labelText} numberOfLines={1}>{item.label}</Text>
-        </View>
+    <Animated.View
+      style={[
+        {
+          position: 'absolute',
+          left: MENU_RADIUS - ITEM_SIZE / 2,
+          top: MENU_RADIUS - ITEM_SIZE / 2,
+          width: ITEM_SIZE,
+          height: ITEM_SIZE,
+          alignItems: 'center',
+          justifyContent: 'center',
+        },
+        animatedStyle,
+      ]}
+    >
+      {/* Item Circle with Icon */}
+      <Animated.View
+        style={[
+          {
+            width: ITEM_SIZE,
+            height: ITEM_SIZE,
+            borderRadius: ITEM_SIZE / 2,
+            alignItems: 'center',
+            justifyContent: 'center',
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: isDarkMode ? 0.3 : 0.15,
+            shadowRadius: 6,
+            elevation: 4,
+            borderWidth: 1.5,
+            borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.05)',
+          },
+          itemBgStyle,
+        ]}
+      >
+        <Text style={{ fontSize: 24, textAlign: 'center' }}>
+          {item.icon}
+        </Text>
+      </Animated.View>
+
+      {/* Always-visible compact label */}
+      <Animated.View
+        style={[
+          {
+            position: 'absolute',
+            top: ITEM_SIZE + 4,
+            alignItems: 'center',
+            justifyContent: 'center',
+          },
+          labelStyle,
+        ]}
+      >
+        <Text
+          style={{
+            fontSize: 10,
+            fontWeight: '600',
+            color: isDarkMode ? 'rgba(255, 255, 255, 0.9)' : 'white',
+            letterSpacing: 0.3,
+            textTransform: 'uppercase',
+            textAlign: 'center',
+            textShadowColor: 'rgba(0, 0, 0, 0.5)',
+            textShadowOffset: { width: 0, height: 1 },
+            textShadowRadius: 3,
+          }}
+          numberOfLines={1}
+        >
+          {item.label}
+        </Text>
       </Animated.View>
     </Animated.View>
   );
 }
-
-const styles = StyleSheet.create({
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(15, 15, 25, 0.65)',
-  },
-  menuContainer: {
-    position: 'absolute',
-    width: MENU_RADIUS * 2,
-    height: MENU_RADIUS * 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerLabel: {
-    position: 'absolute',
-    top: -MENU_RADIUS - 15,
-    alignItems: 'center',
-    width: 200,
-  },
-  headerLabelText: {
-    fontSize: 13,
-    fontWeight: '600',
-    marginBottom: 4,
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
-  },
-  headerFriendName: {
-    fontSize: 24,
-    fontWeight: '700',
-    fontFamily: 'Lora_700Bold',
-  },
-  itemWrapper: {
-    position: 'absolute',
-    left: MENU_RADIUS - ITEM_SIZE / 2,  // Center the item at the menu center
-    top: MENU_RADIUS - ITEM_SIZE / 2,
-    width: ITEM_SIZE,
-    height: ITEM_SIZE,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  itemCircle: {
-    width: ITEM_SIZE,
-    height: ITEM_SIZE,
-    borderRadius: ITEM_SIZE / 2,
-    backgroundColor: 'rgba(255, 255, 255, 0.98)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
-    elevation: 8,
-    borderWidth: 0.5,
-    borderColor: 'rgba(0, 0, 0, 0.08)',
-  },
-  itemIcon: {
-    fontSize: 30,
-    textAlign: 'center',
-  },
-  labelContainer: {
-    position: 'absolute',
-    top: ITEM_SIZE + 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minWidth: 80,
-  },
-  labelInner: {
-    backgroundColor: 'rgba(255, 255, 255, 0.98)',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 6,
-    borderWidth: 0.5,
-    borderColor: 'rgba(0, 0, 0, 0.08)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  labelText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#3C3C3C',
-    letterSpacing: 0.2,
-    textAlign: 'center',
-  },
-});

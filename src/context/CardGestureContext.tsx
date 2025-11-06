@@ -11,18 +11,18 @@ import { database } from '../db';
 import Friend from '../db/models/Friend';
 import { type InteractionCategory } from '../components/types';
 
-const MENU_RADIUS = 100;
-const HIGHLIGHT_THRESHOLD = 30;
-const SELECTION_THRESHOLD = 45;
+const MENU_RADIUS = 75; // Reduced for compact design
+const HIGHLIGHT_THRESHOLD = 25; // Reduced from 30
+const SELECTION_THRESHOLD = 40; // Reduced from 45
 
 // NEW: 6 most common categories for quick-touch radial menu
 const ACTIVITIES = [
-  { id: 'text-call', icon: '💬', label: 'Text/Call' },
-  { id: 'meal-drink', icon: '🍽️', label: 'Meal/Drink' },
-  { id: 'hangout', icon: '🏠', label: 'Hangout' },
-  { id: 'deep-talk', icon: '💭', label: 'Deep Talk' },
-  { id: 'activity-hobby', icon: '🎨', label: 'Activity' },
-  { id: 'event-party', icon: '🎉', label: 'Event' },
+  { id: 'text-call', icon: '📞', label: 'Call' },
+  { id: 'meal-drink', icon: '🍽️', label: 'Meal' },
+  { id: 'hangout', icon: '👥', label: 'Hang' },
+  { id: 'deep-talk', icon: '💭', label: 'Talk' },
+  { id: 'activity-hobby', icon: '🎨', label: 'Do' },
+  { id: 'voice-note', icon: '🎤', label: 'Voice' },
 ];
 
 const itemPositions = ACTIVITIES.map((_, i) => {
