@@ -29,6 +29,7 @@ import { IntentionActionSheet } from '../src/components/IntentionActionSheet';
 import { useIntentionStore } from '../src/stores/intentionStore';
 import { useFriendIntentions } from '../src/hooks/useIntentions';
 import { LifeEventModal } from '../src/components/LifeEventModal';
+import FriendBadgeSection from '../src/components/FriendBadgeSection';
 import { database } from '../src/db';
 import LifeEvent from '../src/db/models/LifeEvent';
 
@@ -392,6 +393,11 @@ export default function FriendProfile() {
                     <Text style={[styles.actionButtonTextSecondary, { color: colors.foreground }]}>Plan a Weave</Text>
                   </LinearGradient>
                 </TouchableOpacity>
+            </Animated.View>
+
+            {/* Friend Badges Section */}
+            <Animated.View style={buttonsAnimatedStyle}>
+              <FriendBadgeSection friendId={friend.id} friendName={friend.name} />
             </Animated.View>
 
             {/* Life Events Section - Compact */}

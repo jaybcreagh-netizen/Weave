@@ -8,7 +8,7 @@ import { getUserProgress, CONSISTENCY_MILESTONES, getCurrentMilestone } from '..
 import { database } from '../../../db';
 import Interaction from '../../../db/models/Interaction';
 
-import { AchievementsModal } from '../../AchievementsModal';
+import TrophyCabinetModal from '../../TrophyCabinetModal';
 
 const WIDGET_CONFIG: HomeWidgetConfig = {
   id: 'weaving-practice',
@@ -78,7 +78,7 @@ export const WeavingPracticeWidget: React.FC = () => {
   const [currentMilestone, setCurrentMilestone] = useState<any>(null);
   const [weekCounts, setWeekCounts] = useState({ weaves: 0, reflections: 0 });
   const [weekActivity, setWeekActivity] = useState<boolean[]>([]);
-  const [isAchievementsModalVisible, setAchievementsModalVisible] = useState(false);
+  const [isTrophyCabinetVisible, setTrophyCabinetVisible] = useState(false);
 
   useEffect(() => {
     const loadProgress = async () => {
@@ -143,7 +143,7 @@ export const WeavingPracticeWidget: React.FC = () => {
 
   return (
     <>
-      <TouchableOpacity onPress={() => setAchievementsModalVisible(true)} activeOpacity={1}>
+      <TouchableOpacity onPress={() => setTrophyCabinetVisible(true)} activeOpacity={1}>
         <HomeWidgetBase config={WIDGET_CONFIG}>
           <View className="px-4 py-3">
             {/* Icon + Milestone Badge */}
@@ -220,9 +220,9 @@ export const WeavingPracticeWidget: React.FC = () => {
           </View>
         </HomeWidgetBase>
       </TouchableOpacity>
-      <AchievementsModal
-        visible={isAchievementsModalVisible}
-        onClose={() => setAchievementsModalVisible(false)}
+      <TrophyCabinetModal
+        visible={isTrophyCabinetVisible}
+        onClose={() => setTrophyCabinetVisible(false)}
       />
     </>
   );

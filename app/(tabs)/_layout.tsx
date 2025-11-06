@@ -5,6 +5,7 @@ import { Sparkles, Users, Settings } from 'lucide-react-native';
 import { useTheme } from '../../src/hooks/useTheme';
 import { SettingsModal } from '../../src/components/settings-modal';
 import { SocialBatterySheet } from '../../src/components/home/SocialBatterySheet';
+import BadgeUnlockModal from '../../src/components/BadgeUnlockModal';
 import { useUserProfileStore } from '../../src/stores/userProfileStore';
 import { useSuggestions } from '../../src/hooks/useSuggestions';
 import HomeScreen from '../home';
@@ -140,6 +141,9 @@ export default function TabsLayout() {
         }}
         onDismiss={() => setShowBatterySheet(false)}
       />
+
+      {/* Badge/Achievement Unlock Modal */}
+      <BadgeUnlockModal />
     </SafeAreaView>
   );
 }
