@@ -72,9 +72,9 @@ export function FriendListRow({ friend, animatedRef, variant = 'default' }: Frie
 
   // Determine gradient opacity based on score (attention gets more visible)
   const gradientOpacity = useMemo(() => {
-    if (weaveScore > STABLE_THRESHOLD) return 0.15;
-    if (weaveScore > ATTENTION_THRESHOLD) return 0.18;
-    return 0.22; // Attention state more visible
+    if (weaveScore > STABLE_THRESHOLD) return 0.22;
+    if (weaveScore > ATTENTION_THRESHOLD) return 0.25;
+    return 0.30; // Attention state more visible
   }, [weaveScore]);
 
   const glowProgress = useSharedValue(0);

@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { formatDistanceToNow } from 'date-fns';
+import { Q } from '@nozbe/watermelondb';
 import { useTheme } from '../hooks/useTheme';
 import { getCategoryMetadata } from '../lib/interaction-categories';
 import Intention from '../db/models/Intention';
 import FriendModel from '../db/models/Friend';
 import { InteractionCategory } from './types';
+import { database } from '../db';
 
 interface IntentionWithFriend {
   intention: Intention;
@@ -29,15 +31,32 @@ export function IntentionsList({ intentions, onIntentionPress }: IntentionsListP
   useEffect(() => {
     const loadFriends = async () => {
       const withFriends = await Promise.all(
-        intentions.map(async (intention) => ({
-          intention,
-          friend: await intention.friend.fetch(),
-        }))
+        intentions.map(async (intention) => {
+          // Get the IntentionFriend join records for this intention
+          const intentionFriends = await database
+            .get('intention_friends')
+            .query(Q.where('intention_id', intention.id))
+            .fetch();
+
+          // Get the first friend (intentions can have multiple friends, but we'll show the first one)
+          if (intentionFriends.length > 0) {
+            const friend = await intentionFriends[0].friend.fetch();
+            return { intention, friend };
+          }
+
+          return null;
+        })
       );
-      setIntentionsWithFriends(withFriends);
+
+      // Filter out any null values (intentions without friends)
+      setIntentionsWithFriends(withFriends.filter(Boolean) as IntentionWithFriend[]);
     };
 
-    loadFriends();
+    if (intentions.length > 0) {
+      loadFriends();
+    } else {
+      setIntentionsWithFriends([]);
+    }
   }, [intentions]);
 
   return (

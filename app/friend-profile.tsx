@@ -575,7 +575,7 @@ export default function FriendProfile() {
           onClose={() => setShowIntentionForm(false)}
           onSave={async (description, category) => {
             await createIntention({
-              friendId: friend.id,
+              friendIds: [friend.id],
               description,
               category,
             });

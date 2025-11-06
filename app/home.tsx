@@ -2,9 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { View } from 'react-native';
 
 import { HomeWidgetGrid, WidgetGridItem } from '../src/components/home/HomeWidgetGrid';
-import { SocialSeasonWidget } from '../src/components/home/widgets/SocialSeasonWidget';
-import { TodaysFocusWidget } from '../src/components/home/widgets/TodaysFocusWidget';
-import { WeavingPracticeWidget } from '../src/components/home/widgets/WeavingPracticeWidget';
+import { StatePillsWidget } from '../src/components/home/widgets/StatePillsWidget';
+import { FocusCardWidget } from '../src/components/home/widgets/FocusCardWidget';
 import { SocialBatterySheet } from '../src/components/home/SocialBatterySheet';
 import { WeeklyReflectionModal } from '../src/components/WeeklyReflection/WeeklyReflectionModal';
 import { YearInMoonsModal } from '../src/components/YearInMoons/YearInMoonsModal';
@@ -82,39 +81,28 @@ export default function Home() {
     setShowBatterySheet(false);
   };
 
-  // Define widget grid
+  // Define widget grid - Compass Hub design
   const widgets: WidgetGridItem[] = [
     {
-      id: 'social-season',
-      component: SocialSeasonWidget,
+      id: 'state-pills',
+      component: StatePillsWidget,
       config: {
-        id: 'social-season',
-        type: 'social-season',
+        id: 'state-pills',
+        type: 'state-pills',
         fullWidth: true,
       },
       position: 0,
       visible: true,
     },
     {
-      id: 'todays-focus',
-      component: TodaysFocusWidget,
+      id: 'focus-card',
+      component: FocusCardWidget,
       config: {
-        id: 'todays-focus',
-        type: 'todays-focus',
+        id: 'focus-card',
+        type: 'focus-card',
         fullWidth: true,
       },
       position: 1,
-      visible: true,
-    },
-    {
-      id: 'weaving-practice',
-      component: WeavingPracticeWidget,
-      config: {
-        id: 'weaving-practice',
-        type: 'weaving-practice',
-        fullWidth: true,
-      },
-      position: 2,
       visible: true,
     },
   ];
