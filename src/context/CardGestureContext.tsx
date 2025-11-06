@@ -145,7 +145,7 @@ function useCardGestureCoordinator(): CardGestureContextType {
   // THE FIX: Wrap the entire gesture definition in useMemo to prevent re-creation on re-renders.
   const gesture = useMemo(() => {
     const tap = Gesture.Tap()
-      .maxDuration(300) // Increased to 300ms to catch slower taps
+      .maxDuration(400) // Increased to 400ms for more reliable taps
       .onEnd((event, success) => {
         'worklet';
         if (success && !isLongPressActive.value) {
@@ -157,27 +157,30 @@ function useCardGestureCoordinator(): CardGestureContextType {
       });
 
     const longPressAndDrag = Gesture.LongPress()
-      .minDuration(350) // Increased to 350ms to avoid overlap, still feels snappy
+      .minDuration(400) // Aligned with tap maxDuration to prevent overlap
       .maxDistance(999999)
       .shouldCancelWhenOutside(false)
       .onBegin((event) => {
         'worklet';
+        // Store coordinates but don't set activeCardId yet
         const targetId = findTargetCardId(event.absoluteX, event.absoluteY);
         if (targetId) {
-          activeCardId.value = targetId;
           startCoordinates.value = { x: event.x, y: event.y };
         }
       })
       .onStart((event) => {
         'worklet';
-        if (activeCardId.value) {
+        // Now set activeCardId when long press actually activates
+        const targetId = findTargetCardId(event.absoluteX, event.absoluteY);
+        if (targetId) {
+          activeCardId.value = targetId;
           isLongPressActive.value = true;
           runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Medium);
           const centerPoint = {
             x: event.absoluteX,
             y: event.absoluteY - scrollOffset.value,
           };
-          runOnJS(openQuickWeave)(activeCardId.value, centerPoint);
+          runOnJS(openQuickWeave)(targetId, centerPoint);
         }
       })
       .onTouchesMove((event, state) => {
@@ -228,7 +231,7 @@ function useCardGestureCoordinator(): CardGestureContextType {
           runOnJS(closeQuickWeave)();
         }
 
-        // Reset all state immediately
+        // Reset all state immediately - always, regardless of gesture state
         isLongPressActive.value = false;
         activeCardId.value = null;
         dragX.value = 0;
@@ -237,9 +240,12 @@ function useCardGestureCoordinator(): CardGestureContextType {
       })
       .onFinalize(() => {
         'worklet';
-        // Final cleanup to ensure card scale resets
+        // Final cleanup to ensure card scale resets - extra safety
         activeCardId.value = null;
         isLongPressActive.value = false;
+        dragX.value = 0;
+        dragY.value = 0;
+        highlightedIndex.value = -1;
       });
 
     return Gesture.Exclusive(tap, longPressAndDrag);

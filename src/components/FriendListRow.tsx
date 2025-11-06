@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, Image, Pressable } from 'react-native';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
@@ -10,7 +9,6 @@ import Animated, {
   withTiming,
   withSpring,
   Easing,
-  runOnJS,
   interpolate,
 } from 'react-native-reanimated';
 
@@ -22,7 +20,6 @@ import { archetypeData } from '../lib/constants';
 import FriendModel from '../db/models/Friend';
 import { useCardGesture } from '../context/CardGestureContext';
 import { calculateCurrentScore } from '../lib/weave-engine';
-import { FriendDetailSheet } from './FriendDetailSheet';
 import { generateIntelligentStatusLine } from '../lib/intelligent-status-line';
 
 const ATTENTION_THRESHOLD = 35;
@@ -49,7 +46,6 @@ export function FriendListRow({ friend, animatedRef, variant = 'default' }: Frie
   if (!friend) return null;
 
   const { id, name, archetype, isDormant = false, photoUrl, relationshipType } = friend;
-  const [showDetailSheet, setShowDetailSheet] = useState(false);
   const [statusLine, setStatusLine] = useState<{ text: string; icon?: string }>({
     text: archetypeData[archetype]?.essence || ''
   });
@@ -110,17 +106,6 @@ export function FriendListRow({ friend, animatedRef, variant = 'default' }: Frie
     setArchetypeModal(archetype);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
   };
-
-  const handleLongPress = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setShowDetailSheet(true);
-  };
-
-  const longPressGesture = Gesture.LongPress()
-    .minDuration(250)
-    .onStart(() => {
-      runOnJS(handleLongPress)();
-    });
 
   // Animated styles for gesture feedback
   const rowStyle = useAnimatedStyle(() => {
@@ -222,27 +207,25 @@ export function FriendListRow({ friend, animatedRef, variant = 'default' }: Frie
 
           {/* Text Content */}
           <View className="flex-1">
-            <GestureDetector gesture={variant === 'full' ? longPressGesture : Gesture.Tap()}>
-              <View className="flex-row items-center gap-1.5">
-                <Text
-                  className="font-semibold"
-                  style={{
-                    fontSize: 17,
-                    lineHeight: 20,
-                    color: colors.foreground,
-                    fontFamily: 'Lora_700Bold',
-                  }}
-                  numberOfLines={1}
-                >
-                  {name}
+            <View className="flex-row items-center gap-1.5">
+              <Text
+                className="font-semibold"
+                style={{
+                  fontSize: 17,
+                  lineHeight: 20,
+                  color: colors.foreground,
+                  fontFamily: 'Lora_700Bold',
+                }}
+                numberOfLines={1}
+              >
+                {name}
+              </Text>
+              {variant === 'full' && relationshipType && (
+                <Text style={{ fontSize: 14 }}>
+                  {RELATIONSHIP_ICONS[relationshipType as RelationshipType]}
                 </Text>
-                {variant === 'full' && relationshipType && (
-                  <Text style={{ fontSize: 14 }}>
-                    {RELATIONSHIP_ICONS[relationshipType as RelationshipType]}
-                  </Text>
-                )}
-              </View>
-            </GestureDetector>
+              )}
+            </View>
 
             <View className="flex-row items-center gap-1.5 mt-0.5">
               {statusLine.icon && (
@@ -262,6 +245,7 @@ export function FriendListRow({ friend, animatedRef, variant = 'default' }: Frie
           {/* Archetype Button */}
           <Pressable
             onLongPress={handleArchetypeLongPress}
+            delayLongPress={500}
             className="w-9 h-9 rounded-[10px] items-center justify-center"
             style={{
               backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)',
@@ -277,14 +261,6 @@ export function FriendListRow({ friend, animatedRef, variant = 'default' }: Frie
           </Pressable>
         </View>
       </View>
-
-      {variant === 'full' && (
-        <FriendDetailSheet
-          isVisible={showDetailSheet}
-          onClose={() => setShowDetailSheet(false)}
-          friend={friend}
-        />
-      )}
     </Animated.View>
   );
 }
