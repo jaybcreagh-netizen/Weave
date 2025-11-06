@@ -140,6 +140,21 @@ export default function FriendProfile() {
       // Reset loading state and clear positions when friendId changes
       setIsDataLoaded(false);
       itemHeights.current = {};
+      setContentHeight(0);
+      setHeaderHeight(0);
+
+      // Clear any open modals
+      setSelectedInteraction(null);
+      setEditingReflection(null);
+      setEditingInteraction(null);
+      setShowPlanChoice(false);
+      setShowPlanWizard(false);
+      setShowIntentionForm(false);
+      setShowIntentionsDrawer(false);
+      setSelectedIntentionForAction(null);
+      setShowLifeEventModal(false);
+      setEditingLifeEvent(null);
+
       observeFriend(friendId);
 
       // Load active life events for this friend
@@ -464,7 +479,10 @@ export default function FriendProfile() {
 
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
+    <SafeAreaView
+      key={`friend-profile-${friendId}`}
+      style={[styles.safeArea, { backgroundColor: colors.background }]}
+    >
         <Animated.View style={[{ flex: 1 }, pageAnimatedStyle]}>
         {/* Sticky Header */}
         <ListHeader />
