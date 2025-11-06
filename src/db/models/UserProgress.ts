@@ -41,6 +41,11 @@ export default class UserProgress extends Model {
   @field('scribe_progress') scribeProgress!: number;
   @field('curator_progress') curatorProgress!: number;
 
+  // Global Achievement System
+  @field('total_weaves') totalWeaves!: number; // Total completed interactions
+  @json('global_achievements', (json) => json) globalAchievements!: string[]; // Unlocked global achievement IDs
+  @json('hidden_achievements', (json) => json) hiddenAchievements!: string[]; // Unlocked hidden achievement IDs
+
   @date('created_at') createdAt!: Date;
   @date('updated_at') updatedAt!: Date;
 }

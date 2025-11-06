@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb'
 
 export default appSchema({
-  version: 20, // UPDATED: Added new achievement progress fields to user_progress
+  version: 21, // UPDATED: Added friend_badges, achievement_unlocks tables and global achievement fields
   tables: [
     tableSchema({
       name: 'friends',
@@ -164,6 +164,35 @@ export default appSchema({
         { name: 'scribe_progress', type: 'number', defaultValue: 0 },
         { name: 'curator_progress', type: 'number', defaultValue: 0 },
 
+        // Global Achievement System (v21)
+        { name: 'total_weaves', type: 'number', defaultValue: 0 },
+        { name: 'global_achievements', type: 'string', isOptional: true }, // JSON array
+        { name: 'hidden_achievements', type: 'string', isOptional: true }, // JSON array
+
+        { name: 'created_at', type: 'number' },
+        { name: 'updated_at', type: 'number' },
+      ]
+    }),
+    tableSchema({
+      name: 'friend_badges',
+      columns: [
+        { name: 'friend_id', type: 'string', isIndexed: true },
+        { name: 'badge_type', type: 'string', isIndexed: true }, // 'weave_count' | 'depth' | 'consistency' | 'special'
+        { name: 'badge_id', type: 'string' }, // e.g., 'growing_bond', 'deep_roots'
+        { name: 'tier', type: 'number' }, // 1-7 for progression tiers
+        { name: 'unlocked_at', type: 'number' },
+        { name: 'created_at', type: 'number' },
+        { name: 'updated_at', type: 'number' },
+      ]
+    }),
+    tableSchema({
+      name: 'achievement_unlocks',
+      columns: [
+        { name: 'achievement_id', type: 'string', isIndexed: true },
+        { name: 'achievement_type', type: 'string' }, // 'global' | 'friend_badge' | 'hidden'
+        { name: 'related_friend_id', type: 'string', isOptional: true },
+        { name: 'unlocked_at', type: 'number' },
+        { name: 'has_been_celebrated', type: 'boolean', defaultValue: false },
         { name: 'created_at', type: 'number' },
         { name: 'updated_at', type: 'number' },
       ]

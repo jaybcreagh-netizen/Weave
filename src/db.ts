@@ -11,6 +11,8 @@ import UserProfile from './db/models/UserProfile';
 import PracticeLog from './db/models/PracticeLog';
 import LifeEvent from './db/models/LifeEvent';
 import UserProgress from './db/models/UserProgress';
+import FriendBadge from './db/models/FriendBadge';
+import AchievementUnlock from './db/models/AchievementUnlock';
 
 const adapter = new SQLiteAdapter({
   schema,
@@ -35,6 +37,8 @@ export const database = new Database({
     PracticeLog,
     LifeEvent,
     UserProgress,
+    FriendBadge,
+    AchievementUnlock,
   ],
 });
 
@@ -106,6 +110,10 @@ export const initializeUserProgress = async () => {
         p.consistencyMilestones = [];
         p.reflectionMilestones = [];
         p.friendshipMilestones = [];
+        // Global achievement system (v21)
+        p.totalWeaves = 0;
+        p.globalAchievements = [];
+        p.hiddenAchievements = [];
       });
     });
   }

@@ -261,6 +261,48 @@ export default schemaMigrations({
         }),
       ],
     },
+    {
+      // Migration from schema v20 to v21
+      // Achievement System Redesign: Friend Badges + Global Achievements
+      toVersion: 21,
+      steps: [
+        // Add global achievement tracking to user_progress
+        addColumns({
+          table: 'user_progress',
+          columns: [
+            { name: 'total_weaves', type: 'number', defaultValue: 0 },
+            { name: 'global_achievements', type: 'string', isOptional: true }, // JSON array
+            { name: 'hidden_achievements', type: 'string', isOptional: true }, // JSON array
+          ],
+        }),
+        // Create friend_badges table for per-friend achievement milestones
+        createTable({
+          name: 'friend_badges',
+          columns: [
+            { name: 'friend_id', type: 'string', isIndexed: true },
+            { name: 'badge_type', type: 'string', isIndexed: true },
+            { name: 'badge_id', type: 'string' },
+            { name: 'tier', type: 'number' },
+            { name: 'unlocked_at', type: 'number' },
+            { name: 'created_at', type: 'number' },
+            { name: 'updated_at', type: 'number' },
+          ],
+        }),
+        // Create achievement_unlocks table for tracking unlock history
+        createTable({
+          name: 'achievement_unlocks',
+          columns: [
+            { name: 'achievement_id', type: 'string', isIndexed: true },
+            { name: 'achievement_type', type: 'string' },
+            { name: 'related_friend_id', type: 'string', isOptional: true },
+            { name: 'unlocked_at', type: 'number' },
+            { name: 'has_been_celebrated', type: 'boolean' },
+            { name: 'created_at', type: 'number' },
+            { name: 'updated_at', type: 'number' },
+          ],
+        }),
+      ],
+    },
   ],
 });
 
