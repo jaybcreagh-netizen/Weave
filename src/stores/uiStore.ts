@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { type Archetype, type Interaction } from '../components/types';
 import { type Milestone } from '../lib/milestone-tracker';
+import { type BadgeUnlock } from '../lib/badge-tracker';
+import { type AchievementUnlockData } from '../lib/achievement-tracker';
 
 interface ToastData {
   message: string;
@@ -37,6 +39,8 @@ interface UIStore {
   toastData: ToastData | null;
   microReflectionData: MicroReflectionData | null;
   milestoneCelebrationData: Milestone | null;
+  badgeUnlockQueue: BadgeUnlock[];
+  achievementUnlockQueue: AchievementUnlockData[];
   isDarkMode: boolean;
 
   setSelectedFriendId: (id: string | null) => void;
@@ -63,6 +67,10 @@ interface UIStore {
   hideMicroReflectionSheet: () => void;
   showMilestoneCelebration: (milestone: Milestone) => void;
   hideMilestoneCelebration: () => void;
+  queueBadgeUnlocks: (unlocks: BadgeUnlock[]) => void;
+  queueAchievementUnlocks: (unlocks: AchievementUnlockData[]) => void;
+  dismissBadgeUnlock: () => void;
+  dismissAchievementUnlock: () => void;
   toggleDarkMode: () => void;
   setDarkMode: (isDark: boolean) => void;
 }
@@ -88,6 +96,8 @@ export const useUIStore = create<UIStore>((set, get) => ({
   toastData: null,
   microReflectionData: null,
   milestoneCelebrationData: null,
+  badgeUnlockQueue: [],
+  achievementUnlockQueue: [],
   isDarkMode: false,
   
   setSelectedFriendId: (id) => set({ selectedFriendId: id }),
@@ -145,6 +155,22 @@ export const useUIStore = create<UIStore>((set, get) => ({
 
   showMilestoneCelebration: (milestone) => set({ milestoneCelebrationData: milestone }),
   hideMilestoneCelebration: () => set({ milestoneCelebrationData: null }),
+
+  queueBadgeUnlocks: (unlocks) => set((state) => ({
+    badgeUnlockQueue: [...state.badgeUnlockQueue, ...unlocks],
+  })),
+
+  queueAchievementUnlocks: (unlocks) => set((state) => ({
+    achievementUnlockQueue: [...state.achievementUnlockQueue, ...unlocks],
+  })),
+
+  dismissBadgeUnlock: () => set((state) => ({
+    badgeUnlockQueue: state.badgeUnlockQueue.slice(1),
+  })),
+
+  dismissAchievementUnlock: () => set((state) => ({
+    achievementUnlockQueue: state.achievementUnlockQueue.slice(1),
+  })),
 
   toggleDarkMode: () => set((state) => ({ isDarkMode: !state.isDarkMode })),
   setDarkMode: (isDark) => set({ isDarkMode: isDark }),

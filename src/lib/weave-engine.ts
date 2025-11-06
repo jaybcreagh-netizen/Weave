@@ -4,7 +4,10 @@ import { TierDecayRates, InteractionBaseScores, CategoryBaseScores, DurationModi
 import FriendModel from '../db/models/Friend';
 import InteractionModel from '../db/models/Interaction';
 import InteractionFriend from '../db/models/InteractionFriend';
+import UserProgress from '../db/models/UserProgress';
 import { type InteractionFormData } from '../stores/interactionStore';
+import { checkAndAwardFriendBadges, checkSpecialBadges, BadgeUnlock } from './badge-tracker';
+import { checkAndAwardGlobalAchievements, checkHiddenAchievements, AchievementUnlockData } from './achievement-tracker';
 
 /**
  * Calculates the decayed score of a friend based on the time since the last update.
@@ -71,13 +74,23 @@ export function calculatePointsForWeave(
 
 /**
  * Logs a new interaction, calculates the new scores, and updates the database in a single transaction.
+ * Returns the interaction ID and any badge/achievement unlocks.
  */
-export async function logNewWeave(friendsToUpdate: FriendModel[], weaveData: InteractionFormData, database: Database): Promise<string> {
+export async function logNewWeave(
+  friendsToUpdate: FriendModel[],
+  weaveData: InteractionFormData,
+  database: Database
+): Promise<{
+  interactionId: string;
+  badgeUnlocks: BadgeUnlock[];
+  achievementUnlocks: AchievementUnlockData[];
+}> {
   let interactionId = '';
+  let newInteraction: InteractionModel | null = null;
 
   await database.write(async () => {
     // 1. Create the Interaction record with the correct data
-    const newInteraction = await database.get<InteractionModel>('interactions').create(interaction => {
+    newInteraction = await database.get<InteractionModel>('interactions').create(interaction => {
       interaction.interactionDate = weaveData.date;
       interaction.interactionType = weaveData.type; // 'log' or 'plan'
       interaction.activity = weaveData.activity;
@@ -110,7 +123,7 @@ export async function logNewWeave(friendsToUpdate: FriendModel[], weaveData: Int
       if (weaveData.type === 'plan') {
         // Just create the join record and continue to the next friend.
         await database.get<InteractionFriend>('interaction_friends').create(ifriend => {
-            ifriend.interactionId = newInteraction.id;
+            ifriend.interactionId = newInteraction!.id;
             ifriend.friendId = friend.id;
         });
         continue; // Skip all the scoring logic
@@ -153,11 +166,66 @@ export async function logNewWeave(friendsToUpdate: FriendModel[], weaveData: Int
 
       // 4. Create the join table record
       await database.get<InteractionFriend>('interaction_friends').create(ifriend => {
-          ifriend.interactionId = newInteraction.id;
+          ifriend.interactionId = newInteraction!.id;
           ifriend.friendId = friend.id;
       });
     }
+
+    // 5. Update UserProgress total weaves count (only for completed weaves)
+    if (weaveData.type === 'log') {
+      const userProgressRecords = await database.get<UserProgress>('user_progress').query().fetch();
+      if (userProgressRecords.length > 0) {
+        const userProgress = userProgressRecords[0];
+        await userProgress.update(up => {
+          up.totalWeaves = (up.totalWeaves || 0) + 1;
+        });
+      }
+    }
   });
 
-  return interactionId;
+  // 6. Check for badge and achievement unlocks (after transaction completes)
+  const allBadgeUnlocks: BadgeUnlock[] = [];
+  const allAchievementUnlocks: AchievementUnlockData[] = [];
+
+  if (weaveData.type === 'log' && newInteraction) {
+    // Check badges for each friend
+    for (const friend of friendsToUpdate) {
+      // Check progressive badges (weave_count, depth, consistency)
+      const progressiveBadges = await checkAndAwardFriendBadges(friend.id, friend.name);
+      allBadgeUnlocks.push(...progressiveBadges);
+
+      // Check special badges (birthday, phoenix rising, time-based, etc.)
+      const specialBadges = await checkSpecialBadges(friend.id, friend.name, newInteraction);
+      allBadgeUnlocks.push(...specialBadges);
+    }
+
+    // Check global achievements
+    const globalUnlocks = await checkAndAwardGlobalAchievements();
+    allAchievementUnlocks.push(...globalUnlocks);
+
+    // Check hidden achievements
+    const hiddenUnlocks = await checkHiddenAchievements({
+      type: 'interaction_logged',
+      interaction: newInteraction,
+    });
+    allAchievementUnlocks.push(...hiddenUnlocks);
+
+    // Check for perfect week (if all friends were contacted in last 7 days)
+    // This is an expensive check, so we only do it occasionally
+    if (Math.random() < 0.1) {
+      // 10% chance to check
+      const perfectWeekUnlocks = await checkHiddenAchievements({ type: 'perfect_week' });
+      allAchievementUnlocks.push(...perfectWeekUnlocks);
+    }
+
+    // Check for renaissance soul (all interaction types used)
+    const renaissanceUnlocks = await checkHiddenAchievements({ type: 'interaction_type_used' });
+    allAchievementUnlocks.push(...renaissanceUnlocks);
+  }
+
+  return {
+    interactionId,
+    badgeUnlocks: allBadgeUnlocks,
+    achievementUnlocks: allAchievementUnlocks,
+  };
 }

@@ -77,7 +77,7 @@ export const useInteractionStore = create<InteractionStore>(() => ({
 
     if (friends.length > 0) {
       // 2. Pass the full form data to the engine. The engine is the expert.
-      const interactionId = await logNewWeave(friends, data, database);
+      const { interactionId, badgeUnlocks, achievementUnlocks } = await logNewWeave(friends, data, database);
 
       // 3. Record practice (updates streak) and check for milestone unlocks
       const newMilestoneIds = await recordPractice('log_weave', interactionId);
@@ -106,7 +106,16 @@ export const useInteractionStore = create<InteractionStore>(() => ({
         }
       }
 
-      // 6. Analyze notes/reflections for life events and auto-tag
+      // 6. Queue badge and achievement unlock celebrations
+      // Badge unlocks are shown first, then achievements
+      if (badgeUnlocks.length > 0) {
+        useUIStore.getState().queueBadgeUnlocks(badgeUnlocks);
+      }
+      if (achievementUnlocks.length > 0) {
+        useUIStore.getState().queueAchievementUnlocks(achievementUnlocks);
+      }
+
+      // 7. Analyze notes/reflections for life events and auto-tag
       if (data.notes && data.notes.trim().length > 0) {
         // Run life event detection for each friend
         for (const friend of friends) {
