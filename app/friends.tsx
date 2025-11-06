@@ -6,7 +6,7 @@ import { GestureDetector } from 'react-native-gesture-handler';
 import * as Haptics from 'expo-haptics';
 
 import { FriendCard } from '../src/components/FriendCard';
-import { TierTab } from '../src/components/tier-tab';
+import { TierSegmentedControl } from '../src/components/TierSegmentedControl';
 import { FAB } from '../src/components/fab';
 import { InsightsFAB } from '../src/components/InsightsFAB';
 import { MicroReflectionSheet } from '../src/components/MicroReflectionSheet';
@@ -192,11 +192,15 @@ function DashboardContent() {
 
   return (
     <View style={[styles.safeArea, { backgroundColor: colors.background }]}>
-      <View style={[styles.tierTabsContainer, { backgroundColor: colors.card, borderColor: colors.border }]}>
-        <TierTab label="Inner Circle" shortLabel="Inner" count={friends.inner.length} maxCount={15} isActive={activeTier === 'inner'} onClick={() => handleTierChange('inner')} tier="inner" />
-        <TierTab label="Close Friends" shortLabel="Close" count={friends.close.length} maxCount={50} isActive={activeTier === 'close'} onClick={() => handleTierChange('close')} tier="close" />
-        <TierTab label="Community" shortLabel="Community" count={friends.community.length} maxCount={150} isActive={activeTier === 'community'} onClick={() => handleTierChange('community')} tier="community" />
-      </View>
+      <TierSegmentedControl
+        activeTier={activeTier}
+        onTierChange={handleTierChange}
+        counts={{
+          inner: friends.inner.length,
+          close: friends.close.length,
+          community: friends.community.length,
+        }}
+      />
 
       <GestureDetector gesture={gesture}>
         <Animated.ScrollView
@@ -279,7 +283,6 @@ export default function Friends() {
 
 const styles = StyleSheet.create({
     safeArea: { flex: 1 },
-    tierTabsContainer: { flexDirection: 'row', gap: 4, borderRadius: 16, padding: 4, marginHorizontal: 20, marginTop: 16, marginBottom: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3, borderWidth: 1 },
     emptyTierContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
     emptyTierEmoji: { fontSize: 50, marginBottom: 24, opacity: 0.6 },
     emptyTierTitle: { fontSize: 18, marginBottom: 12 },
