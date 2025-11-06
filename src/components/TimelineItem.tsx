@@ -463,22 +463,26 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, onDele
         {/* Knot positioned absolutely on the thread with connector line */}
       <View style={styles.knotAbsoluteContainer} pointerEvents="none">
         {/* Connector line from thread to card */}
+        {/* Future: dotted, Past: solid */}
         <View style={[
           styles.connectorLine,
           {
             left: THREAD_CENTER,
             width: CARD_START - THREAD_CENTER,
             backgroundColor: isDarkMode ? colors.border : 'rgba(181, 138, 108, 0.5)',
+            opacity: isFuture ? 0.5 : 1,
+            borderStyle: isFuture ? 'dotted' : 'solid',
           }
         ]} />
 
         {/* Knot on thread - centered on thread */}
+        {/* Future knots are hollow (transparent), past knots are filled */}
         <Animated.View style={[
           styles.knotOnThread,
           knotAnimatedStyle,
           {
             left: THREAD_CENTER - (KNOT_SIZE / 2),
-            backgroundColor: colors.card,
+            backgroundColor: isFuture ? 'transparent' : colors.card,
             shadowColor: warmth > 0.5 ? (isDarkMode ? colors.accent : '#D4AF37') : (isDarkMode ? '#000' : '#000'),
             shadowRadius: 4 + (warmth * 8),
           }

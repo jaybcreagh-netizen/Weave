@@ -49,39 +49,43 @@ export function ContinuousThread({ contentHeight, startY = 0, interactions = [] 
       height: animatedHeight.value,
     };
   });
-  // Determine texture based on interaction date
+  // Determine texture based on interaction date - temporal fading
+  // Recent solid → Past dashed → Old dotted
   const getThreadTexture = (date: Date | string): 'dotted' | 'solid' | 'dashed' => {
     const interactionDate = typeof date === 'string' ? new Date(date) : date;
     const today = new Date();
 
     if (isFuture(interactionDate)) {
-      return 'dotted'; // Future plans
+      return 'dotted'; // Future plans (hollow knots)
     } else if (isToday(interactionDate)) {
       return 'solid'; // Today
     } else {
       const daysAgo = differenceInDays(today, interactionDate);
-      if (daysAgo <= 3) {
-        return 'solid'; // Recent (within 3 days)
+      if (daysAgo <= 7) {
+        return 'solid'; // Recent past (within a week)
+      } else if (daysAgo <= 30) {
+        return 'dashed'; // Medium past (within a month)
       } else {
-        return 'dashed'; // Past memories
+        return 'dotted'; // Old past (over a month) - fades like distant memories
       }
     }
   };
 
   // Get color based on texture type and position (gradient effect)
+  // Opacity fades with time: solid (bold) → dashed (medium) → dotted (faint)
   const getThreadColor = (texture: 'dotted' | 'solid' | 'dashed', yPosition: number): string => {
     if (!isDarkMode) {
-      // Original light mode gradient
+      // Light mode gradient with temporal fading
       const gradientPosition = contentHeight > 0 ? yPosition / contentHeight : 0;
-      const baseOpacity = texture === 'dotted' ? 0.5 : texture === 'solid' ? 0.8 : 0.7;
+      const baseOpacity = texture === 'solid' ? 0.8 : texture === 'dashed' ? 0.6 : 0.35; // More fade for old
       if (gradientPosition < 0.2) return `rgba(212, 175, 55, ${baseOpacity})`;
       if (gradientPosition < 0.5) return `rgba(181, 138, 108, ${baseOpacity})`;
-      return `rgba(181, 138, 108, ${baseOpacity * 0.8})`;
+      return `rgba(181, 138, 108, ${baseOpacity * 0.85})`;
     }
 
-    // New Dark Mode "Mystic Arcane" Gradient
+    // Dark Mode "Mystic Arcane" Gradient with temporal fading
     const gradientPosition = contentHeight > 0 ? yPosition / contentHeight : 0;
-    const opacity = texture === 'dotted' ? 0.4 : texture === 'solid' ? 0.9 : 0.6;
+    const opacity = texture === 'solid' ? 0.9 : texture === 'dashed' ? 0.65 : 0.35; // More fade for old
 
     // Interpolate between accent (top) and a deep purple (bottom)
     const r = Math.round(139 - (139 - 68) * gradientPosition);
