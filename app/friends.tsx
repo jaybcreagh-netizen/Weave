@@ -211,6 +211,7 @@ function DashboardContent() {
           onMomentumScrollEnd={onScroll}
           scrollEventThrottle={16}
           scrollEnabled={!isQuickWeaveOpen}
+          directionalLockEnabled={true}
         >
           {renderTier('inner', animatedScrollHandler)}
           {renderTier('close', animatedScrollHandler)}
