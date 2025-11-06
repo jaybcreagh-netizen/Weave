@@ -69,25 +69,29 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, onDele
     return Math.round(opacity * 255).toString(16).padStart(2, '0');
   };
 
-  // Get vibe-based color tint with opacity
+  // Get vibe-based color tint with opacity - progressive based on reflection depth
   const getVibeColorTint = (baseOpacity: number = 0.05) => {
     if (isFuture) return 'transparent';
 
+    // Increase opacity for reflected weaves based on depth
+    const reflectionBoost = deepeningMetrics.level !== 'none' ? deepeningMetrics.intensity * 0.08 : 0;
+    const finalOpacity = baseOpacity + reflectionBoost;
+
     switch (interaction.vibe) {
       case 'FullMoon':
-        return colors.living.healthy[0] + opacityToHex(baseOpacity); // Teal tint
+        return colors.living.healthy[0] + opacityToHex(finalOpacity); // Teal tint
       case 'WaxingGibbous':
       case 'FirstQuarter':
-        return colors.living.stable[0] + opacityToHex(baseOpacity); // Amber/Violet tint
+        return colors.living.stable[0] + opacityToHex(finalOpacity); // Amber/Violet tint
       case 'WaxingCrescent':
       case 'NewMoon':
-        return colors.secondary + opacityToHex(baseOpacity); // Neutral purple tint
+        return colors.secondary + opacityToHex(finalOpacity); // Neutral purple tint
       default:
-        return colors.secondary + opacityToHex(baseOpacity); // Default subtle tint
+        return colors.secondary + opacityToHex(finalOpacity); // Default subtle tint
     }
   };
 
-  const cardTintColor = useMemo(() => getVibeColorTint(0.05), [isFuture, interaction.vibe, colors]);
+  const cardTintColor = useMemo(() => getVibeColorTint(0.05), [isFuture, interaction.vibe, colors, deepeningMetrics]);
 
   // Get friendly label and icon for category (memoized)
   const { displayLabel, displayIcon } = useMemo(() => {
@@ -155,6 +159,7 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, onDele
   const pulseAnimation = useSharedValue(0);
   const pressScale = useSharedValue(1);
   const cardShadow = useSharedValue(2);
+  const reflectionGlow = useSharedValue(0);
 
   // Pause pulse animation when app is sleeping (battery optimization)
   const { isSleeping } = usePausableAnimation(pulseAnimation);
@@ -213,6 +218,21 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, onDele
     }
   }, [warmth, isFuture, isSleeping]);
 
+  // Subtle glow animation for deep/profound reflections
+  useEffect(() => {
+    // Only animate deep and profound reflections when app is not sleeping
+    if ((deepeningMetrics.level === 'deep' || deepeningMetrics.level === 'profound') && !isFuture && !isSleeping) {
+      reflectionGlow.value = withRepeat(
+        withTiming(1, {
+          duration: 4000, // Slower, more subtle than warmth pulse
+          easing: Easing.inOut(Easing.ease)
+        }),
+        -1,
+        true
+      );
+    }
+  }, [deepeningMetrics.level, isFuture, isSleeping]);
+
   // Knot pulse style - very subtle
   const knotAnimatedStyle = useAnimatedStyle(() => {
     if (warmth <= 0.7 || isFuture) {
@@ -253,6 +273,24 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, onDele
     shadowOpacity: interpolate(cardShadow.value, [1, 2], [0.05, 0.08]),
     shadowRadius: interpolate(cardShadow.value, [1, 2], [4, 8]),
   }));
+
+  // Reflection glow overlay style - subtle pulse for deep reflections
+  const reflectionGlowStyle = useAnimatedStyle(() => {
+    if (deepeningMetrics.level === 'none' || isFuture) return { opacity: 0 };
+
+    // Base glow intensity increases with reflection depth
+    const baseGlow = deepeningMetrics.intensity * 0.15;
+
+    // Only pulse for deep/profound
+    const shouldPulse = deepeningMetrics.level === 'deep' || deepeningMetrics.level === 'profound';
+    const pulseGlow = shouldPulse
+      ? interpolate(reflectionGlow.value, [0, 1], [baseGlow, baseGlow * 1.3])
+      : baseGlow;
+
+    return {
+      opacity: pulseGlow,
+    };
+  });
 
 
   // Icon subtle rotation for organic feel
@@ -492,6 +530,18 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, onDele
           {/* Simple solid background with color tint overlay */}
           <View style={[StyleSheet.absoluteFill, { backgroundColor: isDarkMode ? colors.card : colors.card }]} />
           <View style={[StyleSheet.absoluteFill, { backgroundColor: cardTintColor }]} />
+
+          {/* Reflection glow overlay for deepened weaves */}
+          {deepeningMetrics.level !== 'none' && !isFuture && (
+            <Animated.View
+              style={[
+                StyleSheet.absoluteFill,
+                reflectionGlowStyle,
+                { backgroundColor: colors.primary }
+              ]}
+              pointerEvents="none"
+            />
+          )}
 
           <View style={styles.cardContent}>
             {/* Icon with deepened indicator */}
