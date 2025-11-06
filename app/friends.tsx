@@ -5,7 +5,7 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { GestureDetector } from 'react-native-gesture-handler';
 import * as Haptics from 'expo-haptics';
 
-import { FriendCard } from '../src/components/FriendCard';
+import { FriendListRow } from '../src/components/FriendListRow';
 import { TierSegmentedControl } from '../src/components/TierSegmentedControl';
 import { FAB } from '../src/components/fab';
 import { InsightsFAB } from '../src/components/InsightsFAB';
@@ -29,7 +29,7 @@ import Intention from '../src/db/models/Intention';
 
 const { width: screenWidth } = Dimensions.get('window');
 
-const AnimatedFriendCardItem = ({ item, index, refreshKey }: { item: FriendModel; index: number; refreshKey: number }) => {
+const AnimatedFriendListItem = ({ item, index, refreshKey }: { item: FriendModel; index: number; refreshKey: number }) => {
   const { registerRef, unregisterRef } = useCardGesture();
   const animatedRef = useAnimatedRef<Animated.View>();
 
@@ -54,8 +54,8 @@ const AnimatedFriendCardItem = ({ item, index, refreshKey }: { item: FriendModel
   }));
 
   return (
-    <Animated.View style={[animatedStyle, { marginBottom: 16 }]} key={`${item.id}-${refreshKey}`}>
-      <FriendCard friend={item} animatedRef={animatedRef} />
+    <Animated.View style={[animatedStyle, { marginBottom: 12 }]} key={`${item.id}-${refreshKey}`}>
+      <FriendListRow friend={item} animatedRef={animatedRef} />
     </Animated.View>
   );
 };
@@ -184,7 +184,7 @@ function DashboardContent() {
         onScroll={scrollHandler}
         scrollEventThrottle={16}
         renderItem={({ item, index }) => (
-          <AnimatedFriendCardItem item={item} index={index} refreshKey={refreshKey} />
+          <AnimatedFriendListItem item={item} index={index} refreshKey={refreshKey} />
         )}
       />
     );

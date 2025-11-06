@@ -9,7 +9,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { isFuture, isToday, isPast, format, differenceInDays } from 'date-fns';
 import { Q } from '@nozbe/watermelondb';
 
-import { FriendCard } from '../src/components/FriendCard';
+import { FriendListRow } from '../src/components/FriendListRow';
 import { TimelineItem } from '../src/components/TimelineItem';
 import { ContinuousThread } from '../src/components/ContinuousThread';
 import { useFriendStore } from '../src/stores/friendStore';
@@ -335,7 +335,7 @@ export default function FriendProfile() {
         </View>
         <View style={styles.contentContainer}>
             <Animated.View style={headerAnimatedStyle}>
-                <FriendCard friend={friend} variant="full" />
+                <FriendListRow friend={friend} variant="full" />
             </Animated.View>
 
             {nextConnectionDate && !isPast(nextConnectionDate) && (
