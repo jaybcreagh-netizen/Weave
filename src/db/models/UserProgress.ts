@@ -35,6 +35,12 @@ export default class UserProgress extends Model {
     milestones: string[];
   }>;
 
+  // New Achievements
+  @field('catalyst_progress') catalystProgress!: number;
+  @field('high_priestess_progress') highPriestessProgress!: number;
+  @field('scribe_progress') scribeProgress!: number;
+  @field('curator_progress') curatorProgress!: number;
+
   @date('created_at') createdAt!: Date;
   @date('updated_at') updatedAt!: Date;
 }

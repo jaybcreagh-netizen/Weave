@@ -232,5 +232,35 @@ export default schemaMigrations({
         }),
       ],
     },
+    {
+      // Migration from schema v18 to v19
+      toVersion: 19,
+      steps: [
+        // Create intention_friends join table
+        createTable({
+          name: 'intention_friends',
+          columns: [
+            { name: 'intention_id', type: 'string', isIndexed: true },
+            { name: 'friend_id', type: 'string', isIndexed: true },
+          ],
+        }),
+      ],
+    },
+    {
+      // Migration from schema v19 to v20
+      toVersion: 20,
+      steps: [
+        addColumns({
+          table: 'user_progress',
+          columns: [
+            { name: 'catalyst_progress', type: 'number', defaultValue: 0 },
+            { name: 'high_priestess_progress', type: 'number', defaultValue: 0 },
+            { name: 'scribe_progress', type: 'number', defaultValue: 0 },
+            { name: 'curator_progress', type: 'number', defaultValue: 0 },
+          ],
+        }),
+      ],
+    },
   ],
 });
+

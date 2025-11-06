@@ -1,12 +1,14 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text } from 'react-native';
-import { startOfWeek, startOfDay, subDays } from 'date-fns';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity } from 'react-native';
+import { startOfWeek, startOfDay, subDays, format } from 'date-fns';
 import { Q } from '@nozbe/watermelondb';
 import { useTheme } from '../../../hooks/useTheme';
 import { HomeWidgetBase, HomeWidgetConfig } from '../HomeWidgetBase';
 import { getUserProgress, CONSISTENCY_MILESTONES, getCurrentMilestone } from '../../../lib/milestone-tracker';
 import { database } from '../../../db';
 import Interaction from '../../../db/models/Interaction';
+
+import { AchievementsModal } from '../../AchievementsModal';
 
 const WIDGET_CONFIG: HomeWidgetConfig = {
   id: 'weaving-practice',
@@ -17,29 +19,30 @@ const WIDGET_CONFIG: HomeWidgetConfig = {
 };
 
 /**
- * Get last 7 days of practice activity for dot timeline
+ * Get this week's practice activity for dot timeline
  * Checks if user logged any interactions (completed or planned) on that day
  * This represents "showing up" in the app to be intentional
  */
-async function getLast7DaysActivity(): Promise<boolean[]> {
+async function getWeekActivity(): Promise<boolean[]> {
   const today = startOfDay(new Date());
-  const days: boolean[] = [];
+  const weekStart = startOfWeek(today, { weekStartsOn: 1 }); // Monday
+  const days: boolean[] = Array(7).fill(false);
 
-  for (let i = 6; i >= 0; i--) {
-    const day = subDays(today, i);
-    const dayStart = day.getTime();
-    const dayEnd = dayStart + 86400000; // +24 hours
+  const interactions = await database
+    .get<Interaction>('interactions')
+    .query(
+      Q.where('created_at', Q.gte(weekStart.getTime())),
+      Q.where('created_at', Q.lt(today.getTime() + 86400000)) // up to end of today
+    )
+    .fetch();
 
-    const count = await database
-      .get<Interaction>('interactions')
-      .query(
-        Q.where('created_at', Q.gte(dayStart)),
-        Q.where('created_at', Q.lt(dayEnd))
-      )
-      .fetchCount();
-
-    days.push(count > 0);
-  }
+  interactions.forEach(interaction => {
+    const dayOfWeek = interaction.createdAt.getDay(); // Sunday is 0
+    const index = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Monday is 0
+    if (index >= 0 && index < 7) {
+      days[index] = true;
+    }
+  });
 
   return days;
 }
@@ -74,14 +77,15 @@ export const WeavingPracticeWidget: React.FC = () => {
   const [currentStreak, setCurrentStreak] = useState(0);
   const [currentMilestone, setCurrentMilestone] = useState<any>(null);
   const [weekCounts, setWeekCounts] = useState({ weaves: 0, reflections: 0 });
-  const [last7Days, setLast7Days] = useState<boolean[]>([]);
+  const [weekActivity, setWeekActivity] = useState<boolean[]>([]);
+  const [isAchievementsModalVisible, setAchievementsModalVisible] = useState(false);
 
   useEffect(() => {
     const loadProgress = async () => {
       try {
         const progress = await getUserProgress();
         const counts = await getThisWeekCounts();
-        const activity = await getLast7DaysActivity();
+        const activity = await getWeekActivity();
 
         const currentConsistency = getCurrentMilestone(
           progress.consistencyMilestones || [],
@@ -91,7 +95,7 @@ export const WeavingPracticeWidget: React.FC = () => {
         setCurrentStreak(progress.currentStreak);
         setCurrentMilestone(currentConsistency);
         setWeekCounts(counts);
-        setLast7Days(activity);
+        setWeekActivity(activity);
         setLoading(false);
       } catch (error) {
         console.error('Error loading weaving progress:', error);
@@ -138,80 +142,88 @@ export const WeavingPracticeWidget: React.FC = () => {
     : "Building consistency";
 
   return (
-    <HomeWidgetBase config={WIDGET_CONFIG}>
-      <View className="px-4 py-3">
-        {/* Icon + Milestone Badge */}
-        <View className="items-center mb-3">
-          <View className="flex-row items-center gap-2">
-            <Text className="text-3xl">💫</Text>
-            {currentMilestone && (
-              <View
-                className="flex-row items-center gap-1 px-2 py-1 rounded-full"
-                style={{
-                  backgroundColor: `${colors.primary}15`,
-                  borderWidth: 1,
-                  borderColor: `${colors.primary}30`,
-                }}
-              >
-                <Text className="text-xs">{currentMilestone.icon}</Text>
-                <Text
-                  className="font-inter-semibold text-[10px]"
-                  style={{ color: colors.primary }}
-                >
-                  {currentMilestone.name}
-                </Text>
+    <>
+      <TouchableOpacity onPress={() => setAchievementsModalVisible(true)} activeOpacity={1}>
+        <HomeWidgetBase config={WIDGET_CONFIG}>
+          <View className="px-4 py-3">
+            {/* Icon + Milestone Badge */}
+            <View className="items-center mb-3">
+              <View className="flex-row items-center gap-2">
+                <Text className="text-3xl">💫</Text>
+                {currentMilestone && (
+                  <View
+                    className="flex-row items-center gap-1 px-2 py-1 rounded-full"
+                    style={{
+                      backgroundColor: `${colors.primary}15`,
+                      borderWidth: 1,
+                      borderColor: `${colors.primary}30`,
+                    }}
+                  >
+                    <Text className="text-xs">{currentMilestone.icon}</Text>
+                    <Text
+                      className="font-inter-semibold text-[10px]"
+                      style={{ color: colors.primary }}
+                    >
+                      {currentMilestone.name}
+                    </Text>
+                  </View>
+                )}
               </View>
-            )}
+            </View>
+
+            {/* Top: Streak + Counts */}
+            <View className="items-center mb-4">
+              <Text
+                className="font-inter-medium text-sm mb-1"
+                style={{ color: colors['muted-foreground'] }}
+              >
+                {currentStreak} day streak
+              </Text>
+              <Text
+                className="font-inter-regular text-xs"
+                style={{ color: colors['muted-foreground'] }}
+              >
+                {weekCounts.weaves} logs, {weekCounts.reflections} reflections
+              </Text>
+            </View>
+
+            {/* 7-Day Dot Timeline */}
+            <View className="mb-4">
+              <View className="flex-row justify-between items-center">
+                {weekActivity.map((active, index) => (
+                  <View
+                    key={index}
+                    className="w-6 h-6 rounded-full"
+                    style={{
+                      backgroundColor: active ? colors.primary : colors.border,
+                      opacity: active ? 1 : 0.3,
+                      shadowColor: active ? colors.primary : 'transparent',
+                      shadowOffset: { width: 0, height: 0 },
+                      shadowOpacity: active ? 0.8 : 0,
+                      shadowRadius: active ? 6 : 0,
+                      elevation: active ? 4 : 0,
+                    }}
+                  />
+                ))}
+              </View>
+            </View>
+
+            {/* Bottom: Insight Text */}
+            <View className="items-center">
+              <Text
+                className="font-inter-regular text-sm text-center"
+                style={{ color: colors['muted-foreground'] }}
+              >
+                {shortInsight}
+              </Text>
+            </View>
           </View>
-        </View>
-
-        {/* Top: Streak + Counts */}
-        <View className="items-center mb-4">
-          <Text
-            className="font-inter-medium text-sm mb-1"
-            style={{ color: colors['muted-foreground'] }}
-          >
-            {currentStreak} day streak
-          </Text>
-          <Text
-            className="font-inter-regular text-xs"
-            style={{ color: colors['muted-foreground'] }}
-          >
-            {weekCounts.weaves} logs, {weekCounts.reflections} reflections
-          </Text>
-        </View>
-
-        {/* 7-Day Dot Timeline */}
-        <View className="mb-4">
-          <View className="flex-row justify-between items-center">
-            {last7Days.map((active, index) => (
-              <View
-                key={index}
-                className="w-6 h-6 rounded-full"
-                style={{
-                  backgroundColor: active ? colors.primary : colors.border,
-                  opacity: active ? 1 : 0.3,
-                  shadowColor: active ? colors.primary : 'transparent',
-                  shadowOffset: { width: 0, height: 0 },
-                  shadowOpacity: active ? 0.8 : 0,
-                  shadowRadius: active ? 6 : 0,
-                  elevation: active ? 4 : 0,
-                }}
-              />
-            ))}
-          </View>
-        </View>
-
-        {/* Bottom: Insight Text */}
-        <View className="items-center">
-          <Text
-            className="font-inter-regular text-sm text-center"
-            style={{ color: colors['muted-foreground'] }}
-          >
-            {shortInsight}
-          </Text>
-        </View>
-      </View>
-    </HomeWidgetBase>
+        </HomeWidgetBase>
+      </TouchableOpacity>
+      <AchievementsModal
+        visible={isAchievementsModalVisible}
+        onClose={() => setAchievementsModalVisible(false)}
+      />
+    </>
   );
 };

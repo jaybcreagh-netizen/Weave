@@ -145,6 +145,14 @@ export const useInteractionStore = create<InteractionStore>(() => ({
       await interaction.update(i => {
         i.reflectionJSON = JSON.stringify(reflection);
       });
+
+      if (reflection.customNotes && reflection.customNotes.length >= 100) {
+        const userProgress = await database.get('user_progress').query().fetch();
+        const progress = userProgress[0];
+        await progress.update(p => {
+          p.highPriestessProgress += 1;
+        });
+      }
     });
   },
   updateInteractionCategory: async (interactionId: string, category: InteractionCategory) => {
@@ -323,6 +331,14 @@ export const useInteractionStore = create<InteractionStore>(() => ({
       await interaction.update(i => {
         i.status = status;
       });
+
+      if (status === 'completed') {
+        const userProgress = await database.get('user_progress').query().fetch();
+        const progress = userProgress[0];
+        await progress.update(p => {
+          p.catalystProgress += 1;
+        });
+      }
     });
 
     // Handle calendar event based on new status

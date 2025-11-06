@@ -226,7 +226,7 @@ export async function getDefaultCalendar(): Promise<string | null> {
  */
 export async function createWeaveCalendarEvent(params: {
   title: string;
-  friendName: string;
+  friendNames: string; // Changed from friendName to friendNames
   category: string;
   date: Date;
   location?: string;
@@ -260,9 +260,9 @@ export async function createWeaveCalendarEvent(params: {
     // Create stylized title with emoji and details
     let eventTitle = '🧵 Weave';
 
-    // Add friend name
-    if (params.friendName) {
-      eventTitle += ` with ${params.friendName}`;
+    // Add friend names
+    if (params.friendNames) {
+      eventTitle += ` with ${params.friendNames}`;
     }
 
     // Add category/title
@@ -273,7 +273,7 @@ export async function createWeaveCalendarEvent(params: {
     }
 
     // Build detailed notes
-    let eventNotes = `📅 Planned weave with ${params.friendName}\n`;
+    let eventNotes = `📅 Planned weave with ${params.friendNames}\n`;
 
     if (params.category) {
       eventNotes += `\n🎯 Activity: ${params.category}`;

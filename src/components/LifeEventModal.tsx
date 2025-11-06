@@ -81,6 +81,12 @@ export const LifeEventModal: React.FC<LifeEventModalProps> = ({
             event.isRecurring = false;
             event.reminded = false;
           });
+
+          const userProgress = await database.get('user_progress').query().fetch();
+          const progress = userProgress[0];
+          await progress.update(p => {
+            p.scribeProgress += 1;
+          });
         }
       });
 

@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb'
 
 export default appSchema({
-  version: 18, // UPDATED: Added calendar_event_id for calendar integration
+  version: 20, // UPDATED: Added new achievement progress fields to user_progress
   tables: [
     tableSchema({
       name: 'friends',
@@ -80,13 +80,19 @@ export default appSchema({
     tableSchema({
       name: 'intentions',
       columns: [
-        { name: 'friend_id', type: 'string', isIndexed: true },
         { name: 'description', type: 'string', isOptional: true },
         { name: 'interaction_category', type: 'string', isOptional: true },
         { name: 'status', type: 'string' }, // active, converted, dismissed
         { name: 'created_at', type: 'number' },
         { name: 'updated_at', type: 'number' },
         { name: 'last_reminded_at', type: 'number', isOptional: true },
+      ]
+    }),
+    tableSchema({
+      name: 'intention_friends',
+      columns: [
+          { name: 'intention_id', type: 'string', isIndexed: true },
+          { name: 'friend_id', type: 'string', isIndexed: true },
       ]
     }),
     tableSchema({
@@ -151,6 +157,12 @@ export default appSchema({
 
         // Path of Nurturing
         { name: 'friendship_milestones', type: 'string', isOptional: true }, // JSON array
+
+        // New Achievements
+        { name: 'catalyst_progress', type: 'number', defaultValue: 0 },
+        { name: 'high_priestess_progress', type: 'number', defaultValue: 0 },
+        { name: 'scribe_progress', type: 'number', defaultValue: 0 },
+        { name: 'curator_progress', type: 'number', defaultValue: 0 },
 
         { name: 'created_at', type: 'number' },
         { name: 'updated_at', type: 'number' },

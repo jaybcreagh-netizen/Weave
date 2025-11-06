@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, TextInput, Platform } from 'react-native';
-import { ChevronDown, ChevronUp, Clock } from 'lucide-react-native';
+import { ChevronDown, ChevronUp, Clock, Users } from 'lucide-react-native';
 import { format } from 'date-fns';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useTheme } from '../../hooks/useTheme';
 import { PlanFormData } from '../PlanWizard';
 import FriendModel from '../../db/models/Friend';
 import { PlanSuggestion } from '../../hooks/usePlanSuggestion';
+import { FriendSelectionModal } from './FriendSelectionModal';
 
 interface PlanWizardStep3Props {
   formData: Partial<PlanFormData>;
@@ -15,6 +16,8 @@ interface PlanWizardStep3Props {
   isSubmitting: boolean;
   friend: FriendModel;
   suggestion: PlanSuggestion | null;
+  selectedFriends: FriendModel[];
+  onFriendsSelect: (friends: FriendModel[]) => void;
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -35,10 +38,13 @@ export function PlanWizardStep3({
   isSubmitting,
   friend,
   suggestion,
+  selectedFriends,
+  onFriendsSelect,
 }: PlanWizardStep3Props) {
   const { colors } = useTheme();
   const [showDetails, setShowDetails] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
+  const [showFriendSelection, setShowFriendSelection] = useState(false);
 
   const categoryLabel = formData.category ? CATEGORY_LABELS[formData.category] : 'Time together';
   const dateText = formData.date ? format(formData.date, 'EEEE, MMM d') : '';
@@ -54,12 +60,24 @@ export function PlanWizardStep3({
           Planning
         </Text>
         <Text className="font-lora-bold text-xl mt-1" style={{ color: colors.foreground }}>
-          {categoryLabel} with {friend.name}
+          {categoryLabel} with {selectedFriends.map(f => f.name).join(', ')}
         </Text>
         <Text className="font-inter-regular text-base mt-1" style={{ color: colors.foreground }}>
           {dateText}
         </Text>
       </View>
+
+      {/* Add Others Button */}
+      <TouchableOpacity
+        onPress={() => setShowFriendSelection(true)}
+        className="flex-row items-center justify-center py-3 px-4 rounded-xl mb-6"
+        style={{ backgroundColor: colors.secondary }}
+      >
+        <Users size={20} color={colors.foreground} />
+        <Text className="font-inter-semibold text-base ml-3" style={{ color: colors.foreground }}>
+          Add Others
+        </Text>
+      </TouchableOpacity>
 
       {/* Title input */}
       <Text className="font-inter-semibold text-base mb-2" style={{ color: colors.foreground }}>
@@ -226,6 +244,14 @@ export function PlanWizardStep3({
           {isSubmitting ? 'Creating Plan...' : 'Create Plan'}
         </Text>
       </TouchableOpacity>
+
+      <FriendSelectionModal
+        visible={showFriendSelection}
+        onClose={() => setShowFriendSelection(false)}
+        initialFriend={friend}
+        selectedFriends={selectedFriends}
+        onSelect={onFriendsSelect}
+      />
     </View>
   );
 }

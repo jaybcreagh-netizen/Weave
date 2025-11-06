@@ -55,6 +55,7 @@ export default function FriendProfile() {
   const [showLifeEventModal, setShowLifeEventModal] = useState(false);
   const [editingLifeEvent, setEditingLifeEvent] = useState<LifeEvent | null>(null);
   const [activeLifeEvents, setActiveLifeEvents] = useState<LifeEvent[]>([]);
+  const [selectedFriends, setSelectedFriends] = useState<FriendModel[]>([]); // NEW STATE
 
   const scrollY = useSharedValue(0);
   const [contentHeight, setContentHeight] = useState(0);
@@ -530,7 +531,10 @@ export default function FriendProfile() {
           }}
           onSchedulePlan={() => {
             setShowPlanChoice(false);
-            setShowPlanWizard(true);
+            if (friend) {
+              setSelectedFriends([friend]); // Initialize with the current friend
+              setShowPlanWizard(true);
+            }
           }}
         />
 
@@ -538,7 +542,9 @@ export default function FriendProfile() {
           <PlanWizard
             visible={showPlanWizard}
             onClose={() => setShowPlanWizard(false)}
-            friend={friend}
+            initialFriend={friend}
+            selectedFriends={selectedFriends}
+            onFriendsSelect={setSelectedFriends}
           />
         )}
 

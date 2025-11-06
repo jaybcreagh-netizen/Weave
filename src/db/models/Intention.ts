@@ -6,11 +6,9 @@ export default class Intention extends Model {
   static table = 'intentions';
 
   static associations = {
-    friends: { type: 'belongs_to', key: 'friend_id' }
+    intention_friends: { type: 'has_many', foreignKey: 'intention_id' },
   };
 
-  @field('friend_id') friendId!: string;
-  @relation('friends', 'friend_id') friend!: FriendModel;
 
   // Flexible description - can be vague or specific
   @text('description') description?: string;

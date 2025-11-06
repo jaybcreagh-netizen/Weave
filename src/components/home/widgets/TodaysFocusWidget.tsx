@@ -19,6 +19,9 @@ import { generateTodaysFocusIntro, type TodaysFocusContext } from '../../../lib/
 import { useUserProfileStore } from '../../../stores/userProfileStore';
 import { useActiveIntentions } from '../../../hooks/useIntentions';
 import Intention from '../../../db/models/Intention';
+import { database } from '../../../db';
+import LifeEvent from '../../../db/models/LifeEvent';
+import { Q } from '@nozbe/watermelondb';
 
 const WIDGET_CONFIG: HomeWidgetConfig = {
   id: 'todays-focus',
@@ -30,8 +33,9 @@ const WIDGET_CONFIG: HomeWidgetConfig = {
 
 interface UpcomingDate {
   friend: FriendModel;
-  type: 'birthday' | 'anniversary';
+  type: 'birthday' | 'anniversary' | 'life_event';
   daysUntil: number;
+  title?: string;
 }
 
 export const TodaysFocusWidget: React.FC = () => {
@@ -53,6 +57,8 @@ export const TodaysFocusWidget: React.FC = () => {
   const [expanded, setExpanded] = useState(false);
   const [showAllSuggestions, setShowAllSuggestions] = useState(false);
   const animationProgress = useSharedValue(0);
+  const contentHeight = useSharedValue(0); // New shared value for height
+  const compactContentHeight = useSharedValue(0); // New shared value for compact content height
 
   // Animate expansion/collapse with smooth easing
   useEffect(() => {
@@ -65,13 +71,18 @@ export const TodaysFocusWidget: React.FC = () => {
   const animatedStyle = useAnimatedStyle(() => {
     'worklet';
     return {
-      maxHeight: animationProgress.value * 2000, // Smoothly animate from 0 to 2000
+      height: animationProgress.value * contentHeight.value, // Animate height
       opacity: animationProgress.value,
       overflow: 'hidden',
-      // Subtle slide-in effect like a drawer
-      transform: [{
-        translateY: (1 - animationProgress.value) * -20,
-      }],
+    };
+  });
+
+  const compactAnimatedStyle = useAnimatedStyle(() => {
+    'worklet';
+    return {
+      opacity: 1 - animationProgress.value,
+      height: (1 - animationProgress.value) * compactContentHeight.value, // Animate height to measured compact content height
+      overflow: 'hidden',
     };
   });
 
@@ -85,45 +96,72 @@ export const TodaysFocusWidget: React.FC = () => {
     today.setHours(0, 0, 0, 0);
     const events: UpcomingDate[] = [];
 
-    friends.forEach(friend => {
-      // Check birthday
-      if (friend.birthday) {
-        const birthdayThisYear = new Date(friend.birthday);
-        birthdayThisYear.setFullYear(today.getFullYear());
-        birthdayThisYear.setHours(0, 0, 0, 0);
+    const loadLifeEvents = async () => {
+      const thirtyDaysFromNow = new Date();
+      thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
 
-        if (birthdayThisYear < today) {
-          birthdayThisYear.setFullYear(today.getFullYear() + 1);
+      const lifeEvents = await database
+        .get<LifeEvent>('life_events')
+        .query(
+          Q.where('event_date', Q.gte(today.getTime())),
+          Q.where('event_date', Q.lte(thirtyDaysFromNow.getTime()))
+        )
+        .fetch();
+
+      lifeEvents.forEach(event => {
+        const friend = friends.find(f => f.id === event.friendId);
+        if (friend) {
+          events.push({
+            friend,
+            type: 'life_event',
+            daysUntil: differenceInDays(event.eventDate, today),
+            title: event.title,
+          });
+        }
+      });
+
+      friends.forEach(friend => {
+        // Check birthday
+        if (friend.birthday) {
+          const birthdayThisYear = new Date(friend.birthday);
+          birthdayThisYear.setFullYear(today.getFullYear());
+          birthdayThisYear.setHours(0, 0, 0, 0);
+
+          if (birthdayThisYear < today) {
+            birthdayThisYear.setFullYear(today.getFullYear() + 1);
+          }
+
+          const daysUntil = differenceInDays(birthdayThisYear, today);
+          if (daysUntil >= 0 && daysUntil <= 30) {
+            events.push({ friend, type: 'birthday', daysUntil });
+          }
         }
 
-        const daysUntil = differenceInDays(birthdayThisYear, today);
-        if (daysUntil >= 0 && daysUntil <= 30) {
-          events.push({ friend, type: 'birthday', daysUntil });
+        // Check anniversary (only show for partners/romantic relationships)
+        if (friend.anniversary &&
+            friend.relationshipType?.toLowerCase().includes('partner') &&
+            !isNaN(friend.anniversary.getTime())) {
+          const anniversaryThisYear = new Date(friend.anniversary);
+          anniversaryThisYear.setFullYear(today.getFullYear());
+          anniversaryThisYear.setHours(0, 0, 0, 0);
+
+          if (anniversaryThisYear < today) {
+            anniversaryThisYear.setFullYear(today.getFullYear() + 1);
+          }
+
+          const daysUntil = differenceInDays(anniversaryThisYear, today);
+          if (daysUntil >= 0 && daysUntil <= 14) {
+            events.push({ friend, type: 'anniversary', daysUntil });
+          }
         }
-      }
+      });
 
-      // Check anniversary (only show for partners/romantic relationships)
-      if (friend.anniversary &&
-          friend.relationshipType?.toLowerCase().includes('partner') &&
-          !isNaN(friend.anniversary.getTime())) {
-        const anniversaryThisYear = new Date(friend.anniversary);
-        anniversaryThisYear.setFullYear(today.getFullYear());
-        anniversaryThisYear.setHours(0, 0, 0, 0);
+      // Sort by proximity and show top 3
+      events.sort((a, b) => a.daysUntil - b.daysUntil);
+      setUpcomingDates(events.slice(0, 3));
+    };
 
-        if (anniversaryThisYear < today) {
-          anniversaryThisYear.setFullYear(today.getFullYear() + 1);
-        }
-
-        const daysUntil = differenceInDays(anniversaryThisYear, today);
-        if (daysUntil >= 0 && daysUntil <= 14) {
-          events.push({ friend, type: 'anniversary', daysUntil });
-        }
-      }
-    });
-
-    // Sort by proximity and show top 3
-    events.sort((a, b) => a.daysUntil - b.daysUntil);
-    setUpcomingDates(events.slice(0, 3));
+    loadLifeEvents();
   }, [friends]);
 
   // Organize suggestions by actionability
@@ -223,7 +261,7 @@ export const TodaysFocusWidget: React.FC = () => {
               <Text style={[styles.headerTitle, { color: colors.foreground }]}>
                 Today's Focus
               </Text>
-              {!expanded && totalItems > 0 && (
+              {totalItems > 0 && (
                 <View style={[styles.badge, { backgroundColor: colors.primary }]}>
                   <Text style={styles.badgeText}>{totalItems}</Text>
                 </View>
@@ -237,55 +275,68 @@ export const TodaysFocusWidget: React.FC = () => {
           </TouchableOpacity>
 
           {/* Contextual Intro */}
-          {!expanded && totalItems > 0 && (
-            <Text style={[styles.introText, { color: colors['muted-foreground'] }]}>
+          {totalItems > 0 && (
+            <Text style={[styles.introText, { color: colors['muted-foreground'], marginBottom: 8 }]}>
               {introText}
             </Text>
           )}
 
           {/* Collapsed Preview */}
-          {!expanded && (
-            topSuggestion ? (
-              <TouchableOpacity
-                onPress={() => handleSuggestionPress(topSuggestion)}
-                style={[styles.compactPreview, { backgroundColor: colors.card, borderColor: colors.border }]}
-              >
-                <Text style={styles.compactIcon}>{topSuggestion.icon}</Text>
-                <View style={styles.compactContent}>
-                  <Text style={[styles.compactTitle, { color: colors.foreground }]} numberOfLines={1}>
-                    {topSuggestion.title}
-                  </Text>
-                  <Text style={[styles.compactSubtitle, { color: colors['muted-foreground'] }]} numberOfLines={1}>
-                    {topSuggestion.subtitle}
+          <Animated.View style={compactAnimatedStyle}>
+            <View
+              style={{ position: 'absolute', width: '100%' }}
+              onLayout={(event) => {
+                compactContentHeight.value = event.nativeEvent.layout.height;
+              }}
+            >
+              {topSuggestion ? (
+                <TouchableOpacity
+                  onPress={() => handleSuggestionPress(topSuggestion)}
+                  style={[styles.compactPreview, { backgroundColor: colors.card, borderColor: colors.border }]}
+                >
+                  <Text style={styles.compactIcon}>{topSuggestion.icon}</Text>
+                  <View style={styles.compactContent}>
+                    <Text style={[styles.compactTitle, { color: colors.foreground }]} numberOfLines={1}>
+                      {topSuggestion.title}
+                    </Text>
+                    <Text style={[styles.compactSubtitle, { color: colors['muted-foreground'] }]} numberOfLines={1}>
+                      {topSuggestion.subtitle}
+                    </Text>
+                  </View>
+                  <ChevronRight size={18} color={colors['muted-foreground']} />
+                </TouchableOpacity>
+              ) : topPlan ? (
+                <View style={[styles.compactPreview, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                  <Calendar size={24} color={colors.primary} />
+                  <View style={styles.compactContent}>
+                    <Text style={[styles.compactTitle, { color: colors.foreground }]} numberOfLines={1}>
+                      {topPlan.interaction.title || getCategoryMetadata(topPlan.interaction.interactionCategory as InteractionCategory)?.label || 'Plan'}
+                    </Text>
+                    <Text style={[styles.compactSubtitle, { color: colors['muted-foreground'] }]} numberOfLines={1}>
+                      {topPlan.friends.map(f => f.name).join(', ')} • {topPlan.daysUntil === 0 ? 'Today' : topPlan.daysUntil === 1 ? 'Tomorrow' : `${topPlan.daysUntil}d`}
+                    </Text>
+                  </View>
+                </View>
+              ) : (
+                <View style={styles.compactEmpty}>
+                  <Text style={styles.compactEmptyIcon}>✨</Text>
+                  <Text style={[styles.compactEmptyText, { color: colors['muted-foreground'] }]}>
+                    All caught up
                   </Text>
                 </View>
-                <ChevronRight size={18} color={colors['muted-foreground']} />
-              </TouchableOpacity>
-            ) : topPlan ? (
-              <View style={[styles.compactPreview, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <Calendar size={24} color={colors.primary} />
-                <View style={styles.compactContent}>
-                  <Text style={[styles.compactTitle, { color: colors.foreground }]} numberOfLines={1}>
-                    {topPlan.interaction.title || getCategoryMetadata(topPlan.interaction.interactionCategory as InteractionCategory)?.label || 'Plan'}
-                  </Text>
-                  <Text style={[styles.compactSubtitle, { color: colors['muted-foreground'] }]} numberOfLines={1}>
-                    {topPlan.friends.map(f => f.name).join(', ')} • {topPlan.daysUntil === 0 ? 'Today' : topPlan.daysUntil === 1 ? 'Tomorrow' : `${topPlan.daysUntil}d`}
-                  </Text>
-                </View>
-              </View>
-            ) : (
-              <View style={styles.compactEmpty}>
-                <Text style={styles.compactEmptyIcon}>✨</Text>
-                <Text style={[styles.compactEmptyText, { color: colors['muted-foreground'] }]}>
-                  All caught up
-                </Text>
-              </View>
-            )
-          )}
+              )}
+            </View>
+          </Animated.View>
 
           {/* Expanded Content */}
-          <Animated.View style={[animatedStyle, { gap: 16, marginTop: 16 }]} pointerEvents={contentPointerEvents}>
-            {/* Pending Plan Confirmations */}
+          <Animated.View style={[animatedStyle]} pointerEvents={contentPointerEvents}>
+            <View
+              style={{ position: 'absolute', width: '100%', gap: 16, marginTop: 8 }}
+              onLayout={(event) => {
+                contentHeight.value = event.nativeEvent.layout.height;
+              }}
+            >
+              {/* Pending Plan Confirmations */}
               {pendingPlans.length > 0 && (
                 <View style={styles.pendingPlansSection}>
                   <Text style={[styles.pendingSectionTitle, { color: colors['muted-foreground'] }]}>
@@ -452,13 +503,20 @@ export const TodaysFocusWidget: React.FC = () => {
                 <View style={styles.upcomingIcon}>
                   {event.type === 'birthday' ? (
                     <Cake size={16} color={colors['muted-foreground']} />
-                  ) : (
+                  ) : event.type === 'anniversary' ? (
                     <Heart size={16} color={colors['muted-foreground']} />
+                  ) : (
+                    <Calendar size={16} color={colors['muted-foreground']} />
                   )}
                 </View>
-                <Text style={[styles.upcomingName, { color: colors.foreground }]}>
-                  {event.friend.name}
-                </Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.upcomingName, { color: colors.foreground }]}>
+                    {event.title || (event.type === 'birthday' ? 'Birthday' : 'Anniversary')}
+                  </Text>
+                  <Text style={[styles.upcomingSubheading, { color: colors['muted-foreground'] }]}>
+                    {event.friend.name}
+                  </Text>
+                </View>
                 <View
                   style={[
                     styles.upcomingBadge,
@@ -482,6 +540,7 @@ export const TodaysFocusWidget: React.FC = () => {
             ))}
           </View>
         )}
+            </View>
           </Animated.View>
       </View>
     </HomeWidgetBase>
@@ -740,7 +799,7 @@ const styles = StyleSheet.create({
   },
   upcomingItem: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: 10,
     paddingVertical: 10,
     paddingHorizontal: 12,
@@ -755,7 +814,11 @@ const styles = StyleSheet.create({
   upcomingName: {
     fontFamily: 'Inter_500Medium',
     fontSize: 14,
-    flex: 1,
+  },
+  upcomingSubheading: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 12,
+    marginTop: 2,
   },
   upcomingBadge: {
     paddingHorizontal: 8,

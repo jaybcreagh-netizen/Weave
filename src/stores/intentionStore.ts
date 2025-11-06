@@ -5,7 +5,7 @@ import Intention from '../db/models/Intention';
 import { InteractionCategory } from '../components/types';
 
 interface IntentionData {
-  friendId: string;
+  friendIds: string[];
   description?: string;
   category?: InteractionCategory;
 }
@@ -25,12 +25,19 @@ export const useIntentionStore = create<IntentionStore>(() => ({
 
     await database.write(async () => {
       const intention = await database.get<Intention>('intentions').create(i => {
-        i.friendId = data.friendId;
         i.description = data.description;
         i.interactionCategory = data.category;
         i.status = 'active';
       });
       intentionId = intention.id;
+
+      // Create entries in the join table for each friend
+      for (const friendId of data.friendIds) {
+        await database.get('intention_friends').create(intentionFriend => {
+          intentionFriend.intention.set(intention);
+          intentionFriend.friend.set(friendId);
+        });
+      }
     });
 
     return intentionId;
@@ -62,10 +69,17 @@ export const useIntentionStore = create<IntentionStore>(() => ({
   },
 
   getFriendIntentions: async (friendId: string): Promise<Intention[]> => {
+    const intentionFriends = await database
+      .get('intention_friends')
+      .query(Q.where('friend_id', friendId))
+      .fetch();
+
+    const intentionIds = intentionFriends.map(ifriend => ifriend.intention.id);
+
     return await database
       .get<Intention>('intentions')
       .query(
-        Q.where('friend_id', friendId),
+        Q.where('id', Q.oneOf(intentionIds)),
         Q.where('status', 'active')
       )
       .fetch();

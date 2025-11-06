@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Modal, ScrollView, SafeAreaView } from 'react-native';
 import Animated, { SlideInLeft, SlideInRight, SlideOutLeft, SlideOutRight } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
@@ -20,7 +20,7 @@ import Interaction from '../db/models/Interaction';
 interface PlanWizardProps {
   visible: boolean;
   onClose: () => void;
-  friend: FriendModel;
+  initialFriend: FriendModel; // The friend from whose profile the wizard was opened
   // Optional prefill from suggestions or reschedule
   prefillData?: {
     date?: Date;
@@ -41,14 +41,15 @@ export interface PlanFormData {
   notes?: string;
 }
 
-export function PlanWizard({ visible, onClose, friend, prefillData, replaceInteractionId }: PlanWizardProps) {
+export function PlanWizard({ visible, onClose, initialFriend, prefillData, replaceInteractionId }: PlanWizardProps) {
   const { colors, isDarkMode } = useTheme();
   const { addInteraction, deleteInteraction } = useInteractionStore();
-  const suggestion = usePlanSuggestion(friend);
+  const suggestion = usePlanSuggestion(initialFriend);
   const resetActivityTimer = useActivityKeepAwake('plan-wizard');
 
-  const [currentStep, setCurrentStep] = useState(1);
+  const [currentStep, setCurrentStep] = useState(1); // Start from step 1
   const [direction, setDirection] = useState<'forward' | 'backward'>('forward');
+  const [selectedFriends, setSelectedFriends] = useState<FriendModel[]>([initialFriend]); // Manage internally
   const [formData, setFormData] = useState<Partial<PlanFormData>>({
     date: prefillData?.date,
     category: prefillData?.category || suggestion?.suggestedCategory,
@@ -62,14 +63,14 @@ export function PlanWizard({ visible, onClose, friend, prefillData, replaceInter
   };
 
   const goToNextStep = () => {
-    if (currentStep < 3) {
+    if (currentStep < 3) { // Max step is 3
       setDirection('forward');
       setCurrentStep(currentStep + 1);
     }
   };
 
   const goToPreviousStep = () => {
-    if (currentStep > 1) {
+    if (currentStep > 1) { // Min step is 1
       setDirection('backward');
       setCurrentStep(currentStep - 1);
     }
@@ -78,6 +79,7 @@ export function PlanWizard({ visible, onClose, friend, prefillData, replaceInter
   const handleClose = () => {
     // Reset state
     setCurrentStep(1);
+    setSelectedFriends([initialFriend]); // Reset selected friends
     setFormData({});
     onClose();
   };
@@ -97,14 +99,14 @@ export function PlanWizard({ visible, onClose, friend, prefillData, replaceInter
 
       // Create the interaction
       const interactionId = await addInteraction({
-        friendIds: [friend.id],
+        friendIds: selectedFriends.map(f => f.id),
         activity: formData.category,
         category: formData.category,
         notes: formData.notes,
         date: formData.date,
         type: 'plan',
         status: 'planned',
-        mode: 'one-on-one',
+        mode: selectedFriends.length > 1 ? 'group' : 'one-on-one',
         // Include title and location
         title: formData.title?.trim() || undefined,
         location: formData.location?.trim() || undefined,
@@ -115,11 +117,12 @@ export function PlanWizard({ visible, onClose, friend, prefillData, replaceInter
         const settings = await getCalendarSettings();
         if (settings.enabled) {
           const categoryMeta = getCategoryMetadata(formData.category);
-          const eventTitle = formData.title?.trim() || `${categoryMeta?.label || formData.category} with ${friend.name}`;
+          const friendNames = selectedFriends.map(f => f.name).join(', ');
+          const eventTitle = formData.title?.trim() || `${categoryMeta?.label || formData.category} with ${friendNames}`;
 
           const calendarEventId = await createWeaveCalendarEvent({
             title: eventTitle,
-            friendName: friend.name,
+            friendNames: friendNames, // Pass all friend names
             category: categoryMeta?.label || formData.category,
             date: formData.date,
             location: formData.location?.trim(),
@@ -172,7 +175,7 @@ export function PlanWizard({ visible, onClose, friend, prefillData, replaceInter
 
           <View className="flex-1 items-center">
             <Text className="font-lora-bold text-lg" style={{ color: colors.foreground }}>
-              Schedule with {friend.name}
+              Schedule with {selectedFriends.map(f => f.name).join(', ')}
             </Text>
             <Text className="font-inter-regular text-sm mt-1" style={{ color: colors['muted-foreground'] }}>
               Step {currentStep} of 3
@@ -208,7 +211,7 @@ export function PlanWizard({ visible, onClose, friend, prefillData, replaceInter
                 onDateSelect={date => updateFormData({ date })}
                 onContinue={goToNextStep}
                 canContinue={canProceedFromStep1}
-                friend={friend}
+                friend={initialFriend}
               />
             </Animated.View>
           )}
@@ -224,7 +227,7 @@ export function PlanWizard({ visible, onClose, friend, prefillData, replaceInter
                 onCategorySelect={category => updateFormData({ category })}
                 onContinue={goToNextStep}
                 canContinue={canProceedFromStep2}
-                friend={friend}
+                friend={initialFriend}
                 suggestion={suggestion}
               />
             </Animated.View>
@@ -241,8 +244,10 @@ export function PlanWizard({ visible, onClose, friend, prefillData, replaceInter
                 onUpdate={updateFormData}
                 onSubmit={handleSubmit}
                 isSubmitting={isSubmitting}
-                friend={friend}
+                friend={initialFriend}
                 suggestion={suggestion}
+                selectedFriends={selectedFriends}
+                onFriendsSelect={setSelectedFriends}
               />
             </Animated.View>
           )}

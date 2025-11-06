@@ -139,7 +139,7 @@ export const useFriendStore = create<FriendStore>((set, get) => ({
     console.log('[addFriend] Attempting to add friend with data:', data);
     try {
       await database.write(async () => {
-          await database.get('friends').create(friend => {
+          const newFriend = await database.get('friends').create(friend => {
               console.log('[addFriend] Inside create block');
               friend.name = data.name;
               friend.dunbarTier = tierMap[data.tier] || 'Community';
@@ -161,6 +161,15 @@ export const useFriendStore = create<FriendStore>((set, get) => ({
               friend.momentumLastUpdated = new Date();
               friend.isDormant = false;
               friend.dormantSince = null;
+          });
+
+          const allFriends = await database.get<FriendModel>('friends').query().fetch();
+          const archetypes = new Set(allFriends.map(f => f.archetype));
+
+          const userProgress = await database.get('user_progress').query().fetch();
+          const progress = userProgress[0];
+          await progress.update(p => {
+            p.curatorProgress = archetypes.size;
           });
       });
       console.log('[addFriend] SUCCESS: Friend should be created.');
