@@ -22,6 +22,7 @@ import { getCategoryMetadata } from '../lib/interaction-categories';
 import { type Interaction, type InteractionCategory } from './types';
 import { calculateDeepeningLevel, getDeepeningVisuals } from '../lib/deepening-utils';
 import { usePausableAnimation } from '../hooks/usePausableAnimation';
+import { useUIStore } from '../stores/uiStore';
 
 interface TimelineItemProps {
   interaction: Interaction;
@@ -39,6 +40,7 @@ interface TimelineItemProps {
 
 export const TimelineItem = React.memo(({ interaction, isFuture, onPress, onDelete, onEdit, index, scrollY, itemY = 0, showKnot = true, sectionLabel, isFirstInSection = false }: TimelineItemProps) => {
   const { colors, isDarkMode } = useTheme();
+  const { justLoggedInteractionId, setJustLoggedInteractionId } = useUIStore();
 
   // Memoize date parsing
   const date = useMemo(() =>
@@ -160,6 +162,7 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, onDele
   const pressScale = useSharedValue(1);
   const cardShadow = useSharedValue(2);
   const reflectionGlow = useSharedValue(0);
+  const justLoggedGlow = useSharedValue(0);
 
   // Pause pulse animation when app is sleeping (battery optimization)
   const { isSleeping } = usePausableAnimation(pulseAnimation);
@@ -233,6 +236,18 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, onDele
     }
   }, [deepeningMetrics.level, isFuture, isSleeping]);
 
+  // "Just Logged" celebration glow effect
+  useEffect(() => {
+    if (justLoggedInteractionId === interaction.id) {
+      justLoggedGlow.value = withSequence(
+        withTiming(1, { duration: 400, easing: Easing.out(Easing.quad) }),
+        withTiming(0, { duration: 1000, easing: Easing.in(Easing.quad) })
+      );
+      // Clear the ID after animation starts
+      setTimeout(() => setJustLoggedInteractionId(null), 100);
+    }
+  }, [justLoggedInteractionId, interaction.id]);
+
   // Knot pulse style - very subtle
   const knotAnimatedStyle = useAnimatedStyle(() => {
     if (warmth <= 0.7 || isFuture) {
@@ -289,6 +304,16 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, onDele
 
     return {
       opacity: pulseGlow,
+    };
+  });
+
+  // Just-logged glow style - bright celebration flash
+  const justLoggedGlowStyle = useAnimatedStyle(() => {
+    const opacity = interpolate(justLoggedGlow.value, [0, 0.5, 1], [0, 0.7, 0]);
+    const scale = interpolate(justLoggedGlow.value, [0, 1], [1, 1.05]);
+    return {
+      opacity,
+      transform: [{ scale }],
     };
   });
 
@@ -546,6 +571,16 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, onDele
               pointerEvents="none"
             />
           )}
+
+          {/* Just-logged celebration glow */}
+          <Animated.View
+            style={[
+              StyleSheet.absoluteFill,
+              justLoggedGlowStyle,
+              { backgroundColor: 'white', zIndex: 20 }
+            ]}
+            pointerEvents="none"
+          />
 
           <View style={styles.cardContent}>
             {/* Icon with deepened indicator */}

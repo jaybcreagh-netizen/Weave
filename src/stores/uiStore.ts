@@ -33,6 +33,7 @@ interface UIStore {
   quickWeaveFriendId: string | null;
   quickWeaveCenterPoint: { x: number; y: number } | null;
   justNurturedFriendId: string | null;
+  justLoggedInteractionId: string | null;
   toastData: ToastData | null;
   microReflectionData: MicroReflectionData | null;
   milestoneCelebrationData: Milestone | null;
@@ -55,6 +56,7 @@ interface UIStore {
   closeQuickWeave: () => void; // Added this
   _finishClosingQuickWeave: () => void;
   setJustNurturedFriendId: (id: string | null) => void;
+  setJustLoggedInteractionId: (id: string | null) => void;
   showToast: (message: string, friendName: string) => void;
   hideToast: () => void;
   showMicroReflectionSheet: (data: MicroReflectionData) => void;
@@ -82,6 +84,7 @@ export const useUIStore = create<UIStore>((set, get) => ({
   quickWeaveFriendId: null,
   quickWeaveCenterPoint: null,
   justNurturedFriendId: null,
+  justLoggedInteractionId: null,
   toastData: null,
   microReflectionData: null,
   milestoneCelebrationData: null,
@@ -127,7 +130,8 @@ export const useUIStore = create<UIStore>((set, get) => ({
   }),
   
   setJustNurturedFriendId: (id) => set({ justNurturedFriendId: id }),
-  
+  setJustLoggedInteractionId: (id) => set({ justLoggedInteractionId: id }),
+
   showToast: (message, friendName) => {
     set({ toastData: { message, friendName } });
     setTimeout(() => {
