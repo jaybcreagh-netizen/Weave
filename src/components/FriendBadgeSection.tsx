@@ -5,7 +5,7 @@
  * Shows earned badges and progress toward next milestone
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { database } from '../db';
 import FriendBadge from '../db/models/FriendBadge';
@@ -26,37 +26,59 @@ interface FriendBadgeSectionProps {
   friendName: string;
 }
 
-export default function FriendBadgeSection({ friendId, friendName }: FriendBadgeSectionProps) {
+function FriendBadgeSectionComponent({ friendId, friendName }: FriendBadgeSectionProps) {
   const [unlockedBadges, setUnlockedBadges] = useState<BadgeDefinition[]>([]);
   const [progressData, setProgressData] = useState<BadgeProgress[]>([]);
   const [loading, setLoading] = useState(true);
-  const [expandedCategory, setExpandedCategory] = useState<string | null>('weave_count');
+  const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
+  const isMountedRef = useRef(true);
 
   useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    async function loadBadgeData() {
+      try {
+        // Load unlocked badges
+        const badges = await database
+          .get<FriendBadge>('friend_badges')
+          .query(Q.where('friend_id', friendId), Q.sortBy('unlocked_at', Q.desc))
+          .fetch();
+
+        if (isCancelled || !isMountedRef.current) return;
+
+        const unlockedDefs = badges
+          .map(b => getBadgeById(b.badgeId))
+          .filter((b): b is BadgeDefinition => b !== null);
+
+        // Calculate progress
+        const progress = await calculateFriendBadgeProgress(friendId);
+
+        if (isCancelled || !isMountedRef.current) return;
+
+        setUnlockedBadges(unlockedDefs);
+        setProgressData(progress);
+        setLoading(false);
+      } catch (error) {
+        console.error('Error loading badge data:', error);
+        if (!isCancelled && isMountedRef.current) {
+          setLoading(false);
+        }
+      }
+    }
+
     loadBadgeData();
+
+    return () => {
+      isCancelled = true;
+    };
   }, [friendId]);
-
-  async function loadBadgeData() {
-    setLoading(true);
-
-    // Load unlocked badges
-    const badges = await database
-      .get<FriendBadge>('friend_badges')
-      .query(Q.where('friend_id', friendId), Q.sortBy('unlocked_at', Q.desc))
-      .fetch();
-
-    const unlockedDefs = badges
-      .map(b => getBadgeById(b.badgeId))
-      .filter((b): b is BadgeDefinition => b !== null);
-
-    setUnlockedBadges(unlockedDefs);
-
-    // Calculate progress
-    const progress = await calculateFriendBadgeProgress(friendId);
-    setProgressData(progress);
-
-    setLoading(false);
-  }
 
   if (loading) {
     return (
@@ -207,3 +229,6 @@ export default function FriendBadgeSection({ friendId, friendName }: FriendBadge
     </View>
   );
 }
+
+// Memoize to prevent unnecessary re-renders
+export default React.memo(FriendBadgeSectionComponent);
