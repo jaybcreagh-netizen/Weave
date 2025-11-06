@@ -264,13 +264,23 @@ export default function FriendProfile() {
   const renderTimelineItem = useCallback(({ item: interaction, section, index }: { item: Interaction; section: { title: string; data: Interaction[] }; index: number }) => {
     const isFutureInteraction = section.title === 'Seeds';
     const isFirstInSection = index === 0;
+    const isLastInSection = index === section.data.length - 1;
 
     // Check if this is the first item overall (for thread rendering)
     const isVeryFirstItem = timelineSections[0]?.data[0]?.id === interaction.id;
 
+    // Subtle background tint for future section (no divider, gentle shift)
+    const futureBackgroundStyle = isFutureInteraction ? {
+      backgroundColor: colors.secondary + '0D', // 5% opacity tint
+      marginTop: isFirstInSection ? 8 : 0,
+      paddingTop: isFirstInSection ? 16 : 0,
+      marginBottom: isLastInSection ? 8 : 0,
+      paddingBottom: isLastInSection ? 16 : 0,
+    } : {};
+
     return (
       <View
-        style={styles.itemWrapper}
+        style={[styles.itemWrapper, futureBackgroundStyle]}
         onLayout={(event) => {
           const { y, height } = event.nativeEvent.layout;
           itemHeights.current[interaction.id.toString()] = { y, height };
