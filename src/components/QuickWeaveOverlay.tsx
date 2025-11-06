@@ -65,22 +65,22 @@ export function QuickWeaveOverlay() {
   const menuScale = useSharedValue(0.3);
   const centerPulse = useSharedValue(1);
 
-  // Entrance Animation
+  // Entrance Animation - Fast and snappy
   useEffect(() => {
-    overlayOpacity.value = withTiming(1, { duration: 150 });
-    menuScale.value = withSpring(1, { damping: 20, stiffness: 300 });
-    // Subtle pulse on center to show it's active
+    overlayOpacity.value = withTiming(1, { duration: 80 });
+    menuScale.value = withTiming(1, { duration: 120 });
+    // Very subtle pulse on center
     centerPulse.value = withSequence(
-      withSpring(1.1, { damping: 10, stiffness: 300 }),
-      withSpring(1, { damping: 15, stiffness: 200 })
+      withTiming(1.05, { duration: 100 }),
+      withTiming(1, { duration: 120 })
     );
   }, []);
 
-  // Exit Animation
+  // Exit Animation - Fast dismiss
   useEffect(() => {
     if (isQuickWeaveClosing) {
-      menuScale.value = withTiming(0.3, { duration: 150 });
-      overlayOpacity.value = withTiming(0, { duration: 200 }, (finished) => {
+      menuScale.value = withTiming(0.3, { duration: 100 });
+      overlayOpacity.value = withTiming(0, { duration: 120 }, (finished) => {
         if (finished) {
           runOnJS(_finishClosingQuickWeave)();
         }
@@ -208,13 +208,13 @@ function MenuItem({
     const dragDistance = Math.sqrt(dragX.value ** 2 + dragY.value ** 2);
     const hasDragged = dragDistance > HIGHLIGHT_THRESHOLD;
 
-    // More dramatic scale on highlight (1.25x vs previous 1.08x)
-    const targetScale = isHighlighted && hasDragged ? 1.25 : 1;
-    const scale = withSpring(targetScale, { damping: 12, stiffness: 350 });
+    // Subtle scale - snappy, not bouncy
+    const targetScale = isHighlighted && hasDragged ? 1.12 : 1;
+    const scale = withTiming(targetScale, { duration: 100 });
 
     // Clearer opacity states
     const targetOpacity = hasDragged ? (isHighlighted ? 1 : 0.5) : 0.85;
-    const opacity = withTiming(targetOpacity, { duration: 100 });
+    const opacity = withTiming(targetOpacity, { duration: 80 });
 
     return {
       opacity,
@@ -231,17 +231,17 @@ function MenuItem({
     const dragDistance = Math.sqrt(dragX.value ** 2 + dragY.value ** 2);
     const hasDragged = dragDistance > HIGHLIGHT_THRESHOLD;
 
-    // Subtle color tint on selection
+    // Keep it clean - white/frosted always, just slightly brighter when highlighted
     const backgroundColor = isHighlighted && hasDragged
       ? isDarkMode
-        ? 'rgba(124, 58, 237, 0.95)' // Purple tint
-        : 'rgba(124, 58, 237, 0.12)'
+        ? 'rgba(255, 255, 255, 0.25)' // Slightly brighter frosted
+        : 'rgba(255, 255, 255, 1)' // Pure white
       : isDarkMode
-      ? 'rgba(255, 255, 255, 0.15)'
-      : 'rgba(255, 255, 255, 0.95)';
+      ? 'rgba(255, 255, 255, 0.15)' // Frosted glass
+      : 'rgba(255, 255, 255, 0.95)'; // Near white
 
     return {
-      backgroundColor: withTiming(backgroundColor, { duration: 150 }),
+      backgroundColor: withTiming(backgroundColor, { duration: 80 }),
     };
   });
 
@@ -250,13 +250,11 @@ function MenuItem({
     const dragDistance = Math.sqrt(dragX.value ** 2 + dragY.value ** 2);
     const hasDragged = dragDistance > HIGHLIGHT_THRESHOLD;
 
-    // Always visible, but more prominent when highlighted
-    const targetOpacity = isHighlighted && hasDragged ? 1 : 0.8;
-    const targetScale = isHighlighted && hasDragged ? 1.05 : 1;
+    // Always visible, subtle highlight
+    const targetOpacity = isHighlighted && hasDragged ? 1 : 0.75;
 
     return {
-      opacity: withTiming(targetOpacity, { duration: 100 }),
-      transform: [{ scale: withTiming(targetScale, { duration: 100 }) }],
+      opacity: withTiming(targetOpacity, { duration: 80 }),
     };
   });
 
@@ -295,7 +293,7 @@ function MenuItem({
           itemBgStyle,
         ]}
       >
-        <Text style={{ fontSize: 24, textAlign: 'center' }}>
+        <Text style={{ fontSize: 26, textAlign: 'center' }}>
           {item.icon}
         </Text>
       </Animated.View>
@@ -314,11 +312,10 @@ function MenuItem({
       >
         <Text
           style={{
-            fontSize: 10,
+            fontSize: 11,
             fontWeight: '600',
             color: isDarkMode ? 'rgba(255, 255, 255, 0.9)' : 'white',
-            letterSpacing: 0.3,
-            textTransform: 'uppercase',
+            letterSpacing: 0.2,
             textAlign: 'center',
             textShadowColor: 'rgba(0, 0, 0, 0.5)',
             textShadowOffset: { width: 0, height: 1 },
