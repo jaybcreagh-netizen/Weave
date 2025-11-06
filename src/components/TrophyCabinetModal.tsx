@@ -18,23 +18,11 @@ import {
 } from 'react-native';
 import { database } from '../db';
 import UserProgress from '../db/models/UserProgress';
-import FriendBadge from '../db/models/FriendBadge';
-import Friend from '../db/models/Friend';
-import { Q } from '@nozbe/watermelondb';
 import {
   GLOBAL_ACHIEVEMENTS,
   HIDDEN_ACHIEVEMENTS,
-  getAchievementById,
   type GlobalAchievement,
 } from '../lib/achievement-definitions';
-import {
-  getBadgeById,
-  WEAVE_COUNT_BADGES,
-  DEPTH_BADGES,
-  CONSISTENCY_BADGES,
-  SPECIAL_BADGES,
-  type BadgeDefinition,
-} from '../lib/badge-definitions';
 import AchievementCard from './AchievementCard';
 
 interface TrophyCabinetModalProps {
@@ -42,16 +30,13 @@ interface TrophyCabinetModalProps {
   onClose: () => void;
 }
 
-type TabType = 'global' | 'badges' | 'hidden';
+type TabType = 'global' | 'hidden';
 
 export default function TrophyCabinetModal({ visible, onClose }: TrophyCabinetModalProps) {
   const [activeTab, setActiveTab] = useState<TabType>('global');
   const [userProgress, setUserProgress] = useState<UserProgress | null>(null);
   const [unlockedGlobal, setUnlockedGlobal] = useState<string[]>([]);
   const [unlockedHidden, setUnlockedHidden] = useState<string[]>([]);
-  const [friendBadges, setFriendBadges] = useState<
-    Array<{ badge: BadgeDefinition; friendName: string }>
-  >([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -71,28 +56,6 @@ export default function TrophyCabinetModal({ visible, onClose }: TrophyCabinetMo
       setUnlockedGlobal(progress.globalAchievements || []);
       setUnlockedHidden(progress.hiddenAchievements || []);
     }
-
-    // Load all friend badges with friend names
-    const badges = await database
-      .get<FriendBadge>('friend_badges')
-      .query(Q.sortBy('unlocked_at', Q.desc))
-      .fetch();
-
-    const badgesWithNames = await Promise.all(
-      badges.map(async (b) => {
-        const friend = await database.get<Friend>('friends').find(b.friendId);
-        const badgeDef = getBadgeById(b.badgeId);
-        if (!badgeDef) return null;
-        return {
-          badge: badgeDef,
-          friendName: friend.name,
-        };
-      })
-    );
-
-    setFriendBadges(
-      badgesWithNames.filter((b): b is { badge: BadgeDefinition; friendName: string } => b !== null)
-    );
 
     setLoading(false);
   }
@@ -163,72 +126,6 @@ export default function TrophyCabinetModal({ visible, onClose }: TrophyCabinetMo
             </View>
           );
         })}
-      </ScrollView>
-    );
-  }
-
-  function renderBadgesTab() {
-    // Group badges by friend
-    const badgesByFriend = friendBadges.reduce((acc, item) => {
-      if (!acc[item.friendName]) {
-        acc[item.friendName] = [];
-      }
-      acc[item.friendName].push(item.badge);
-      return acc;
-    }, {} as Record<string, BadgeDefinition[]>);
-
-    const friendNames = Object.keys(badgesByFriend).sort();
-
-    return (
-      <ScrollView className="flex-1 px-4">
-        {/* Header Stats */}
-        <View className="bg-gradient-to-br from-purple-900/40 to-pink-900/40 border border-purple-700/50 rounded-2xl p-4 mb-4">
-          <Text className="text-white font-['Lora'] text-2xl font-bold mb-2">
-            Relationship Badges
-          </Text>
-          <Text className="text-gray-300 font-['Inter'] text-base">
-            {friendBadges.length} badges earned across {friendNames.length} friends
-          </Text>
-        </View>
-
-        {/* Badges by Friend */}
-        {friendNames.length > 0 ? (
-          friendNames.map((friendName) => (
-            <View key={friendName} className="mb-6">
-              <View className="flex-row items-center mb-3">
-                <View className="bg-purple-500/20 rounded-full px-3 py-1">
-                  <Text className="text-purple-400 font-['Inter'] text-sm font-bold">
-                    {friendName}
-                  </Text>
-                </View>
-                <Text className="text-gray-400 font-['Inter'] text-sm ml-2">
-                  {badgesByFriend[friendName].length} badges
-                </Text>
-              </View>
-
-              <View className="space-y-3">
-                {badgesByFriend[friendName].map((badge) => (
-                  <AchievementCard
-                    key={badge.id}
-                    achievement={badge}
-                    unlocked={true}
-                    compact={true}
-                  />
-                ))}
-              </View>
-            </View>
-          ))
-        ) : (
-          <View className="bg-gray-800/30 border border-gray-700 rounded-xl p-8 items-center">
-            <Text className="text-5xl mb-4">🌱</Text>
-            <Text className="text-white font-['Lora'] text-lg font-semibold mb-2 text-center">
-              No Badges Yet
-            </Text>
-            <Text className="text-gray-400 font-['Inter'] text-sm text-center">
-              Log interactions with your friends to start earning relationship badges!
-            </Text>
-          </View>
-        )}
       </ScrollView>
     );
   }
@@ -348,20 +245,6 @@ export default function TrophyCabinetModal({ visible, onClose }: TrophyCabinetMo
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            onPress={() => setActiveTab('badges')}
-            className={`flex-1 py-3 items-center ${
-              activeTab === 'badges' ? 'border-b-2 border-purple-500' : ''
-            }`}
-          >
-            <Text
-              className={`font-['Inter'] text-sm font-semibold ${
-                activeTab === 'badges' ? 'text-purple-400' : 'text-gray-500'
-              }`}
-            >
-              🌟 Badges
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
             onPress={() => setActiveTab('hidden')}
             className={`flex-1 py-3 items-center ${
               activeTab === 'hidden' ? 'border-b-2 border-purple-500' : ''
@@ -386,7 +269,6 @@ export default function TrophyCabinetModal({ visible, onClose }: TrophyCabinetMo
           ) : (
             <>
               {activeTab === 'global' && renderGlobalTab()}
-              {activeTab === 'badges' && renderBadgesTab()}
               {activeTab === 'hidden' && renderHiddenTab()}
             </>
           )}

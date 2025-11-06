@@ -29,6 +29,7 @@ import { IntentionActionSheet } from '../src/components/IntentionActionSheet';
 import { useIntentionStore } from '../src/stores/intentionStore';
 import { useFriendIntentions } from '../src/hooks/useIntentions';
 import { LifeEventModal } from '../src/components/LifeEventModal';
+import FriendBadgePopup from '../src/components/FriendBadgePopup';
 import { database } from '../src/db';
 import LifeEvent from '../src/db/models/LifeEvent';
 
@@ -56,6 +57,7 @@ export default function FriendProfile() {
   const [editingLifeEvent, setEditingLifeEvent] = useState<LifeEvent | null>(null);
   const [activeLifeEvents, setActiveLifeEvents] = useState<LifeEvent[]>([]);
   const [selectedFriends, setSelectedFriends] = useState<FriendModel[]>([]); // NEW STATE
+  const [showBadgePopup, setShowBadgePopup] = useState(false);
 
   const scrollY = useSharedValue(0);
   const [contentHeight, setContentHeight] = useState(0);
@@ -360,7 +362,15 @@ export default function FriendProfile() {
         </View>
         <View style={styles.contentContainer}>
             <Animated.View style={headerAnimatedStyle}>
-                <FriendListRow friend={friend} variant="full" />
+                <TouchableOpacity
+                  activeOpacity={0.95}
+                  onLongPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                    setShowBadgePopup(true);
+                  }}
+                >
+                  <FriendListRow friend={friend} variant="full" />
+                </TouchableOpacity>
             </Animated.View>
 
             <Animated.View style={[styles.actionButtonsContainer, buttonsAnimatedStyle]}>
@@ -611,6 +621,15 @@ export default function FriendProfile() {
           friendId={typeof friendId === 'string' ? friendId : ''}
           existingEvent={editingLifeEvent}
         />
+
+        {friend && (
+          <FriendBadgePopup
+            visible={showBadgePopup}
+            onClose={() => setShowBadgePopup(false)}
+            friendId={friend.id}
+            friendName={friend.name}
+          />
+        )}
         </Animated.View>
 
         <IntentionsFAB
