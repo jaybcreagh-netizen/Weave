@@ -13,8 +13,6 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Trash2, Edit3 } from 'lucide-react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 
 import { useTheme } from '../hooks/useTheme';
@@ -66,25 +64,30 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, onDele
     [deepeningMetrics, colors, isDarkMode]
   );
 
-  const cardTintColor = useMemo(() => {
-    if (isFuture) return 'transparent';
+  // Helper to convert opacity (0-1) to hex string
+  const opacityToHex = (opacity: number) => {
+    return Math.round(opacity * 255).toString(16).padStart(2, '0');
+  };
 
-    // Use scale-based tint opacity
-    const tintOpacity = deepeningVisuals.tintOpacity.toString(16).padStart(2, '0');
+  // Get vibe-based color tint with opacity
+  const getVibeColorTint = (baseOpacity: number = 0.05) => {
+    if (isFuture) return 'transparent';
 
     switch (interaction.vibe) {
       case 'FullMoon':
-        return colors.living.healthy[0] + tintOpacity; // Teal tint
+        return colors.living.healthy[0] + opacityToHex(baseOpacity); // Teal tint
       case 'WaxingGibbous':
       case 'FirstQuarter':
-        return colors.living.stable[0] + tintOpacity; // Violet tint
+        return colors.living.stable[0] + opacityToHex(baseOpacity); // Amber/Violet tint
       case 'WaxingCrescent':
       case 'NewMoon':
-        return colors.secondary + tintOpacity; // Neutral purple tint
+        return colors.secondary + opacityToHex(baseOpacity); // Neutral purple tint
       default:
-        return colors.secondary + tintOpacity; // Default subtle tint
+        return colors.secondary + opacityToHex(baseOpacity); // Default subtle tint
     }
-  }, [isFuture, interaction.vibe, deepeningVisuals.tintOpacity, colors]);
+  };
+
+  const cardTintColor = useMemo(() => getVibeColorTint(0.05), [isFuture, interaction.vibe, colors]);
 
   // Get friendly label and icon for category (memoized)
   const { displayLabel, displayIcon } = useMemo(() => {
@@ -251,21 +254,6 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, onDele
     shadowRadius: interpolate(cardShadow.value, [1, 2], [4, 8]),
   }));
 
-  // Warm glow overlay for cards
-  const cardGlowStyle = useAnimatedStyle(() => {
-    if (isFuture) return { opacity: 0 };
-    
-    const glowIntensity = warmth * 0.25;
-    const pulseGlow = interpolate(
-      pulseAnimation.value,
-      [0, 1],
-      [glowIntensity, glowIntensity * 1.2]
-    );
-    
-    return {
-      opacity: warmth > 0.5 ? pulseGlow : glowIntensity,
-    };
-  });
 
   // Icon subtle rotation for organic feel
   const iconRotation = Math.random() * 4 - 2; // -2° to +2°
@@ -501,29 +489,9 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, onDele
             shadowOffset: { width: 0, height: 2 },
           },
         ]}>
-          <BlurView 
-            intensity={isDarkMode ? 40 : 100} 
-            tint={isDarkMode ? 'dark' : 'light'} 
-            style={[StyleSheet.absoluteFill, { backgroundColor: cardTintColor }]} 
-          />
-          {/* Warm glow gradient overlay */}
-          {!isFuture && warmth > 0 && (
-            <Animated.View 
-              style={[StyleSheet.absoluteFill, cardGlowStyle]}
-              pointerEvents="none"
-            >
-              <LinearGradient
-                colors={[
-                  isDarkMode ? colors.primary + '1A' : 'rgba(255, 248, 230, 1)',
-                  isDarkMode ? colors.primary + '0A' : 'rgba(255, 248, 230, 0.5)',
-                  'transparent',
-                ]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={StyleSheet.absoluteFill}
-              />
-            </Animated.View>
-          )}
+          {/* Simple solid background with color tint overlay */}
+          <View style={[StyleSheet.absoluteFill, { backgroundColor: isDarkMode ? colors.card : colors.card }]} />
+          <View style={[StyleSheet.absoluteFill, { backgroundColor: cardTintColor }]} />
 
           <View style={styles.cardContent}>
             {/* Icon with deepened indicator */}
