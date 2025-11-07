@@ -5,8 +5,27 @@ import { useTheme } from '../hooks/useTheme';
 import { X } from 'lucide-react-native';
 import { type Archetype } from './types';
 import { archetypeData } from '../lib/constants';
-import { ArchetypeIcon } from './ArchetypeIcon';
 import { BlurView } from 'expo-blur';
+
+// Import SVG files as components
+import EmperorSvg from '../../assets/TarotIcons/The Emperor.svg';
+import EmpressSvg from '../../assets/TarotIcons/The Empress.svg';
+import HighPriestessSvg from '../../assets/TarotIcons/High Priestess.svg';
+import FoolSvg from '../../assets/TarotIcons/The Fool.svg';
+import SunSvg from '../../assets/TarotIcons/The Sun.svg';
+import HermitSvg from '../../assets/TarotIcons/The Hermit.svg';
+import MagicianSvg from '../../assets/TarotIcons/The Magician.svg';
+
+// Map archetypes to their tarot card SVG components
+const TAROT_CARD_COMPONENTS: Record<Archetype, React.FC<any>> = {
+  Emperor: EmperorSvg,
+  Empress: EmpressSvg,
+  HighPriestess: HighPriestessSvg,
+  Fool: FoolSvg,
+  Sun: SunSvg,
+  Hermit: HermitSvg,
+  Magician: MagicianSvg,
+};
 
 export function ArchetypeDetailModal() {
   const { archetypeModal, setArchetypeModal } = useUIStore();
@@ -51,13 +70,16 @@ export function ArchetypeDetailModal() {
               </TouchableOpacity>
 
               <View
-                className="w-20 h-20 rounded-2xl border-2 items-center justify-center mb-4 mt-2"
+                className="mb-4 mt-2"
                 style={{
-                  backgroundColor: colors.primary + '15',
-                  borderColor: colors.primary,
+                  width: 120,
+                  height: 180,
                 }}
               >
-                <ArchetypeIcon archetype={archetypeModal} size={48} color={colors.primary} />
+                {React.createElement(TAROT_CARD_COMPONENTS[archetypeModal], {
+                  width: 120,
+                  height: 180,
+                })}
               </View>
 
               <Text

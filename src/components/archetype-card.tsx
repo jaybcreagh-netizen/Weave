@@ -74,44 +74,45 @@ export function ArchetypeCard({
     <Pressable
       onPress={handlePress}
       onLongPress={handleLongPress}
-      className="relative rounded-2xl border-2 items-center justify-center p-3 w-full min-h-[150px] overflow-hidden"
+      className="relative rounded-2xl items-center justify-center p-2 w-full min-h-[180px] overflow-hidden"
       style={({ pressed }) => ({
         backgroundColor: colors.card,
-        borderColor: isSelected ? colors.primary : colors.border,
-        shadowColor: isSelected ? colors.primary : '#000',
-        shadowOpacity: isSelected ? 0.15 : 0.05,
-        shadowOffset: isSelected ? { width: 0, height: 4 } : { width: 0, height: 2 },
-        shadowRadius: isSelected ? 12 : 8,
-        elevation: isSelected ? 4 : 2,
-        transform: [{ scale: pressed ? 0.95 : 1 }],
+        borderWidth: isSelected ? 3 : 0,
+        borderColor: isSelected ? gradient[0] : 'transparent',
+        shadowColor: isSelected ? gradient[0] : '#000',
+        shadowOpacity: isSelected ? 0.4 : 0.05,
+        shadowOffset: isSelected ? { width: 0, height: 6 } : { width: 0, height: 2 },
+        shadowRadius: isSelected ? 16 : 8,
+        elevation: isSelected ? 8 : 2,
+        transform: [{ scale: pressed ? 0.95 : isSelected ? 1.03 : 1 }],
       })}
     >
-      {/* Gradient Background */}
+      {/* Gradient Background - more prominent when selected */}
       <LinearGradient
-        colors={[...gradient.map(c => c + '15'), 'transparent']}
+        colors={[...gradient.map(c => c + (isSelected ? 'E6' : '10')), 'transparent']}
         className="absolute inset-0"
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
       />
 
       {/* Content */}
-      <View className="relative z-10 items-center">
+      <View className="relative z-10 items-center" style={{ opacity: isSelected ? 1 : 0.5 }}>
         {/* Tarot Card SVG */}
         <View
-          className="mb-2"
+          className="mb-1.5"
           style={{
-            width: 60,
-            height: 90,
+            width: 80,
+            height: 120,
             shadowColor: gradient[0],
-            shadowOpacity: isSelected ? 0.3 : 0.1,
+            shadowOpacity: isSelected ? 0.4 : 0.1,
             shadowOffset: { width: 0, height: 2 },
-            shadowRadius: 6,
+            shadowRadius: 8,
             elevation: isSelected ? 4 : 2,
           }}
         >
           {React.createElement(TAROT_CARD_COMPONENTS[archetype], {
-            width: 60,
-            height: 90,
+            width: 80,
+            height: 120,
           })}
         </View>
         <Text
