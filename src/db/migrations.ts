@@ -303,6 +303,30 @@ export default schemaMigrations({
         }),
       ],
     },
+    {
+      // Migration from schema v21 to v22
+      // Weekly Reflection System
+      toVersion: 22,
+      steps: [
+        createTable({
+          name: 'weekly_reflections',
+          columns: [
+            { name: 'week_start_date', type: 'number', isIndexed: true },
+            { name: 'week_end_date', type: 'number', isIndexed: true },
+            { name: 'total_weaves', type: 'number' },
+            { name: 'friends_contacted', type: 'number' },
+            { name: 'top_activity', type: 'string' },
+            { name: 'top_activity_count', type: 'number' },
+            { name: 'missed_friends_count', type: 'number' },
+            { name: 'gratitude_text', type: 'string', isOptional: true },
+            { name: 'gratitude_prompt', type: 'string', isOptional: true },
+            { name: 'prompt_context', type: 'string', isOptional: true },
+            { name: 'completed_at', type: 'number' },
+            { name: 'created_at', type: 'number' },
+          ],
+        }),
+      ],
+    },
   ],
 });
 

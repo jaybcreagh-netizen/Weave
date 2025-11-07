@@ -14,7 +14,8 @@ import { markReflectionComplete } from '../../lib/notification-manager';
 import { WeekSummary } from './WeekSummary';
 import { MissedConnectionsList } from './MissedConnectionsList';
 import { GratitudePrompt } from './GratitudePrompt';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { database } from '../../db';
+import WeeklyReflection from '../../db/models/WeeklyReflection';
 import * as Haptics from 'expo-haptics';
 
 interface WeeklyReflectionModalProps {
@@ -23,8 +24,6 @@ interface WeeklyReflectionModalProps {
 }
 
 type Step = 'summary' | 'missed' | 'gratitude';
-
-const GRATITUDE_STORAGE_KEY = '@weave:weekly_gratitude';
 
 export function WeeklyReflectionModal({ isOpen, onClose }: WeeklyReflectionModalProps) {
   const { colors, isDarkMode } = useTheme();
@@ -51,30 +50,40 @@ export function WeeklyReflectionModal({ isOpen, onClose }: WeeklyReflectionModal
     }
   };
 
-  const handleComplete = async (gratitudeText: string) => {
-    // Save gratitude text if provided
-    if (gratitudeText.trim().length > 0) {
-      try {
-        const gratitudeEntries = await AsyncStorage.getItem(GRATITUDE_STORAGE_KEY);
-        const entries = gratitudeEntries ? JSON.parse(gratitudeEntries) : [];
-        entries.push({
-          date: new Date().toISOString(),
-          text: gratitudeText,
+  const handleComplete = async (gratitudeText: string, prompt: string, promptContext: string) => {
+    if (!summary) return;
+
+    try {
+      // Save weekly reflection to database
+      await database.write(async () => {
+        await database.get<WeeklyReflection>('weekly_reflections').create((reflection) => {
+          reflection.weekStartDate = summary.weekStartDate.getTime();
+          reflection.weekEndDate = summary.weekEndDate.getTime();
+          reflection.totalWeaves = summary.totalWeaves;
+          reflection.friendsContacted = summary.friendsContacted;
+          reflection.topActivity = summary.topActivity;
+          reflection.topActivityCount = summary.topActivityCount;
+          reflection.missedFriendsCount = summary.missedFriends.length;
+          reflection.gratitudeText = gratitudeText.trim().length > 0 ? gratitudeText : undefined;
+          reflection.gratitudePrompt = prompt;
+          reflection.promptContext = promptContext;
+          reflection.completedAt = new Date();
         });
-        await AsyncStorage.setItem(GRATITUDE_STORAGE_KEY, JSON.stringify(entries));
-      } catch (error) {
-        console.error('Error saving gratitude:', error);
-      }
+      });
+
+      // Mark reflection as complete (for timing)
+      await markReflectionComplete();
+
+      // Success haptic
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+      // Close modal
+      onClose();
+    } catch (error) {
+      console.error('Error saving weekly reflection:', error);
+      // Still close modal even if save fails
+      onClose();
     }
-
-    // Mark reflection as complete
-    await markReflectionComplete();
-
-    // Success haptic
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-
-    // Close modal
-    onClose();
   };
 
   const handleBack = () => {
@@ -199,7 +208,7 @@ export function WeeklyReflectionModal({ isOpen, onClose }: WeeklyReflectionModal
 
               {currentStep === 'gratitude' && (
                 <Animated.View entering={SlideInRight} exiting={SlideOutLeft} className="flex-1">
-                  <GratitudePrompt onComplete={handleComplete} />
+                  <GratitudePrompt summary={summary} onComplete={handleComplete} />
                 </Animated.View>
               )}
             </>

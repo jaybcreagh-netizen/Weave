@@ -1,35 +1,35 @@
 /**
  * GratitudePrompt Component
- * Gratitude journaling for weekly reflection
+ * Gratitude journaling for weekly reflection with contextual prompts
  */
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
-import { Sparkles, Check } from 'lucide-react-native';
+import { Sparkles, Check, Lightbulb } from 'lucide-react-native';
 import { useTheme } from '../../hooks/useTheme';
+import { WeeklySummary } from '../../lib/weekly-reflection/weekly-stats';
+import { generateContextualPrompts, selectBestPrompt } from '../../lib/weekly-reflection/contextual-prompts';
 import * as Haptics from 'expo-haptics';
 
 interface GratitudePromptProps {
-  onComplete: (gratitudeText: string) => void;
+  summary: WeeklySummary;
+  onComplete: (gratitudeText: string, prompt: string, promptContext: string) => void;
 }
 
-const PROMPTS = [
-  "What moment with a friend made you smile this week?",
-  "Which friendship brought you joy recently?",
-  "What are you grateful for in your relationships?",
-  "Who showed up for you this week?",
-  "What connection surprised or delighted you?",
-];
-
-export function GratitudePrompt({ onComplete }: GratitudePromptProps) {
+export function GratitudePrompt({ summary, onComplete }: GratitudePromptProps) {
   const { colors } = useTheme();
   const [gratitudeText, setGratitudeText] = useState('');
-  const [selectedPrompt] = useState(() => PROMPTS[Math.floor(Math.random() * PROMPTS.length)]);
+
+  // Generate contextual prompts based on weekly summary
+  const contextualPrompt = useMemo(() => {
+    const prompts = generateContextualPrompts(summary);
+    return selectBestPrompt(prompts);
+  }, [summary]);
 
   const handleComplete = () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    onComplete(gratitudeText);
+    onComplete(gratitudeText, contextualPrompt.prompt, contextualPrompt.context);
   };
 
   const canComplete = gratitudeText.trim().length > 0 || true; // Allow skipping
@@ -72,11 +72,20 @@ export function GratitudePrompt({ onComplete }: GratitudePromptProps) {
           className="mb-6 p-6 rounded-2xl"
           style={{ backgroundColor: colors.secondary + '15', borderColor: colors.secondary + '30', borderWidth: 1 }}
         >
+          <View className="flex-row items-start mb-2">
+            <Lightbulb size={16} color={colors.secondary} style={{ marginTop: 2, marginRight: 8 }} />
+            <Text
+              className="text-xs font-medium flex-1"
+              style={{ color: colors.secondary, fontFamily: 'Inter_500Medium' }}
+            >
+              {contextualPrompt.context}
+            </Text>
+          </View>
           <Text
-            className="text-base leading-6 text-center italic"
+            className="text-base leading-6 italic"
             style={{ color: colors.foreground, fontFamily: 'Lora_400Regular' }}
           >
-            "{selectedPrompt}"
+            "{contextualPrompt.prompt}"
           </Text>
         </Animated.View>
 
