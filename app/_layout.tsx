@@ -1,9 +1,10 @@
 import '../global.css';
-import { Stack, SplashScreen } from 'expo-router';
+import { Stack, SplashScreen, useRouter } from 'expo-router';
 import React, { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { TouchableWithoutFeedback, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import * as Notifications from 'expo-notifications';
 import { QuickWeaveProvider } from '../src/components/QuickWeaveProvider';
 import { ToastProvider } from '../src/components/toast_provider';
 import { CardGestureProvider } from '../src/context/CardGestureContext'; // Import the provider
@@ -13,6 +14,7 @@ import { initializeDataMigrations, initializeUserProfile, initializeUserProgress
 import { appStateManager } from '../src/lib/app-state-manager';
 import { useAppStateChange } from '../src/hooks/useAppState';
 import { useFriendStore } from '../src/stores/friendStore';
+import { requestNotificationPermissions, scheduleWeeklyReflection } from '../src/lib/notification-manager';
 import {
   useFonts,
   Lora_400Regular,
@@ -79,6 +81,21 @@ export default function RootLayout() {
       const cleanupAppStateListener = useFriendStore.getState().cleanupAppStateListener;
       cleanupAppStateListener();
     };
+  }, []);
+
+  // Initialize notification permissions and schedule weekly reflection
+  useEffect(() => {
+    const setupNotifications = async () => {
+      const granted = await requestNotificationPermissions();
+      if (granted) {
+        await scheduleWeeklyReflection();
+        console.log('[App] Weekly reflection notification scheduled');
+      } else {
+        console.log('[App] Notification permissions not granted');
+      }
+    };
+
+    setupNotifications();
   }, []);
 
   // Track user activity globally

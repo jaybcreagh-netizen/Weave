@@ -6,13 +6,16 @@ import { SocialSeasonWidget } from '../src/components/home/widgets/SocialSeasonW
 import { TodaysFocusWidget } from '../src/components/home/widgets/TodaysFocusWidget';
 import { WeavingPracticeWidget } from '../src/components/home/widgets/WeavingPracticeWidget';
 import { SocialBatterySheet } from '../src/components/home/SocialBatterySheet';
+import { WeeklyReflectionModal } from '../src/components/WeeklyReflection/WeeklyReflectionModal';
 import { useUserProfileStore } from '../src/stores/userProfileStore';
 import { useFriendStore } from '../src/stores/friendStore';
+import { getLastReflectionDate, shouldShowReflection } from '../src/lib/notification-manager';
 
 export default function Home() {
   const { observeProfile, profile, submitBatteryCheckin } = useUserProfileStore();
   const { observeFriends } = useFriendStore();
   const [showBatterySheet, setShowBatterySheet] = useState(false);
+  const [showWeeklyReflection, setShowWeeklyReflection] = useState(false);
 
   // Initialize user profile observable on mount
   useEffect(() => {
@@ -52,6 +55,25 @@ export default function Home() {
       return () => clearTimeout(timer);
     }
   }, [profile]);
+
+  // Check if weekly reflection should be shown
+  useEffect(() => {
+    const checkWeeklyReflection = async () => {
+      const lastDate = await getLastReflectionDate();
+      if (shouldShowReflection(lastDate)) {
+        // Wait longer than battery check-in so it doesn't conflict
+        // Show after 2 seconds if battery sheet is dismissed or not shown
+        const timer = setTimeout(() => {
+          if (!showBatterySheet) {
+            setShowWeeklyReflection(true);
+          }
+        }, 2000);
+        return () => clearTimeout(timer);
+      }
+    };
+
+    checkWeeklyReflection();
+  }, [showBatterySheet]);
 
   const handleBatterySubmit = async (value: number, note?: string) => {
     await submitBatteryCheckin(value, note);
@@ -103,6 +125,11 @@ export default function Home() {
         isVisible={showBatterySheet}
         onSubmit={handleBatterySubmit}
         onDismiss={() => setShowBatterySheet(false)}
+      />
+
+      <WeeklyReflectionModal
+        isOpen={showWeeklyReflection}
+        onClose={() => setShowWeeklyReflection(false)}
       />
     </>
   );
