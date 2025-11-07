@@ -16,6 +16,7 @@ import {
   StyleSheet,
   Vibration,
   Platform,
+  Image,
 } from 'react-native';
 import Animated, {
   useAnimatedStyle,
@@ -29,7 +30,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../hooks/useTheme';
 import { type Archetype } from './types';
 import { archetypeData } from '../lib/constants';
-import { ArchetypeIcon } from './ArchetypeIcon';
 import { ChevronLeft, ChevronRight, Info } from 'lucide-react-native';
 import { useUIStore } from '../stores/uiStore';
 
@@ -51,6 +51,17 @@ const ARCHETYPES: Archetype[] = [
   'Hermit',
   'Magician',
 ];
+
+// Map archetypes to their tarot card SVG file paths
+const TAROT_CARD_SOURCES: Record<Archetype, any> = {
+  Emperor: require('../../assets/TarotIcons/The Emperor.svg'),
+  Empress: require('../../assets/TarotIcons/The Empress.svg'),
+  HighPriestess: require('../../assets/TarotIcons/High Priestess.svg'),
+  Fool: require('../../assets/TarotIcons/The Fool.svg'),
+  Sun: require('../../assets/TarotIcons/The Sun.svg'),
+  Hermit: require('../../assets/TarotIcons/The Hermit.svg'),
+  Magician: require('../../assets/TarotIcons/The Magician.svg'),
+};
 
 export function ArchetypeCarouselPicker({
   selectedArchetype,
@@ -134,18 +145,21 @@ export function ArchetypeCarouselPicker({
             end={{ x: 1, y: 1 }}
           />
 
-          {/* Icon Section */}
+          {/* Tarot Card Section */}
           <View style={styles.iconSection}>
             <View
               style={[
-                styles.iconContainer,
+                styles.tarotCardContainer,
                 {
-                  backgroundColor: gradient[0] + '20',
-                  borderColor: gradient[0] + '40',
+                  shadowColor: gradient[0],
                 },
               ]}
             >
-              <ArchetypeIcon archetype={item} size={80} color={gradient[0]} />
+              <Image
+                source={TAROT_CARD_SOURCES[item]}
+                style={styles.tarotCardImage}
+                resizeMode="contain"
+              />
             </View>
           </View>
 
@@ -305,19 +319,21 @@ const styles = StyleSheet.create({
   },
   iconSection: {
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 20,
   },
-  iconContainer: {
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    borderWidth: 3,
+  tarotCardContainer: {
+    width: 120,
+    height: 180,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    elevation: 6,
+  },
+  tarotCardImage: {
+    width: '100%',
+    height: '100%',
   },
   infoSection: {
     flex: 1,
