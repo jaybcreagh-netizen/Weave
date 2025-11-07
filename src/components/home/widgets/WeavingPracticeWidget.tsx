@@ -9,6 +9,7 @@ import { database } from '../../../db';
 import Interaction from '../../../db/models/Interaction';
 
 import TrophyCabinetModal from '../../TrophyCabinetModal';
+import { ReflectionJourneyModal } from '../../ReflectionJourney/ReflectionJourneyModal';
 
 const WIDGET_CONFIG: HomeWidgetConfig = {
   id: 'weaving-practice',
@@ -79,6 +80,7 @@ export const WeavingPracticeWidget: React.FC = () => {
   const [weekCounts, setWeekCounts] = useState({ weaves: 0, reflections: 0 });
   const [weekActivity, setWeekActivity] = useState<boolean[]>([]);
   const [isTrophyCabinetVisible, setTrophyCabinetVisible] = useState(false);
+  const [isReflectionJourneyVisible, setReflectionJourneyVisible] = useState(false);
 
   useEffect(() => {
     const loadProgress = async () => {
@@ -217,12 +219,36 @@ export const WeavingPracticeWidget: React.FC = () => {
                 {shortInsight}
               </Text>
             </View>
+
+            {/* Reflection Journey Button */}
+            <TouchableOpacity
+              onPress={(e) => {
+                e.stopPropagation();
+                setReflectionJourneyVisible(true);
+              }}
+              className="mt-3 py-2 px-4 rounded-lg flex-row items-center justify-center gap-1.5"
+              style={{ backgroundColor: colors.muted }}
+              activeOpacity={0.7}
+            >
+              <Text
+                className="font-inter-medium text-xs"
+                style={{ color: colors.foreground }}
+              >
+                📖 View Reflection Journey
+              </Text>
+            </TouchableOpacity>
           </View>
         </HomeWidgetBase>
       </TouchableOpacity>
+
       <TrophyCabinetModal
         visible={isTrophyCabinetVisible}
         onClose={() => setTrophyCabinetVisible(false)}
+      />
+
+      <ReflectionJourneyModal
+        isOpen={isReflectionJourneyVisible}
+        onClose={() => setReflectionJourneyVisible(false)}
       />
     </>
   );
