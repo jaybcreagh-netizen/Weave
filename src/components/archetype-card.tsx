@@ -113,6 +113,7 @@ export function ArchetypeCard({
           {React.createElement(TAROT_CARD_COMPONENTS[archetype], {
             width: 80,
             height: 120,
+            fill: colors.foreground,
           })}
         </View>
         <Text
