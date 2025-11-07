@@ -10,15 +10,24 @@ export function useActiveIntentions() {
   const [intentions, setIntentions] = useState<Intention[]>([]);
 
   useEffect(() => {
+    console.log('[useActiveIntentions] Setting up observer');
+
     const subscription = database
       .get<Intention>('intentions')
       .query(Q.where('status', 'active'), Q.sortBy('created_at', Q.desc))
       .observe()
-      .subscribe(setIntentions);
+      .subscribe((newIntentions) => {
+        console.log('[useActiveIntentions] Received intentions update:', newIntentions.length);
+        setIntentions(newIntentions);
+      });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      console.log('[useActiveIntentions] Cleaning up observer');
+      subscription.unsubscribe();
+    };
   }, []);
 
+  console.log('[useActiveIntentions] Current intentions count:', intentions.length);
   return intentions;
 }
 

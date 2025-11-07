@@ -21,26 +21,35 @@ interface IntentionStore {
 
 export const useIntentionStore = create<IntentionStore>(() => ({
   createIntention: async (data: IntentionData): Promise<string> => {
+    console.log('[IntentionStore] Creating intention with data:', data);
     let intentionId = '';
 
-    await database.write(async () => {
-      const intention = await database.get<Intention>('intentions').create(i => {
-        i.description = data.description;
-        i.interactionCategory = data.category;
-        i.status = 'active';
-      });
-      intentionId = intention.id;
-
-      // Create entries in the join table for each friend
-      for (const friendId of data.friendIds) {
-        await database.get('intention_friends').create((intentionFriend: any) => {
-          intentionFriend.intentionId = intention.id;
-          intentionFriend.friendId = friendId;
+    try {
+      await database.write(async () => {
+        const intention = await database.get<Intention>('intentions').create(i => {
+          i.description = data.description;
+          i.interactionCategory = data.category;
+          i.status = 'active';
         });
-      }
-    });
+        intentionId = intention.id;
+        console.log('[IntentionStore] Created intention with ID:', intentionId);
 
-    return intentionId;
+        // Create entries in the join table for each friend
+        for (const friendId of data.friendIds) {
+          await database.get('intention_friends').create((intentionFriend: any) => {
+            intentionFriend.intentionId = intention.id;
+            intentionFriend.friendId = friendId;
+          });
+          console.log('[IntentionStore] Created intention_friend link for:', friendId);
+        }
+      });
+
+      console.log('[IntentionStore] Successfully created intention:', intentionId);
+      return intentionId;
+    } catch (error) {
+      console.error('[IntentionStore] Error creating intention:', error);
+      throw error;
+    }
   },
 
   dismissIntention: async (intentionId: string) => {
