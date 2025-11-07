@@ -16,6 +16,7 @@ import {
   SafeAreaView,
   Dimensions,
 } from 'react-native';
+import { useTheme } from '../hooks/useTheme';
 import { database } from '../db';
 import UserProgress from '../db/models/UserProgress';
 import {
@@ -33,6 +34,7 @@ interface TrophyCabinetModalProps {
 type TabType = 'global' | 'hidden';
 
 export default function TrophyCabinetModal({ visible, onClose }: TrophyCabinetModalProps) {
+  const { colors, isDarkMode } = useTheme();
   const [activeTab, setActiveTab] = useState<TabType>('global');
   const [userProgress, setUserProgress] = useState<UserProgress | null>(null);
   const [unlockedGlobal, setUnlockedGlobal] = useState<string[]>([]);
@@ -74,22 +76,44 @@ export default function TrophyCabinetModal({ visible, onClose }: TrophyCabinetMo
     return (
       <ScrollView className="flex-1 px-4">
         {/* Header Stats */}
-        <View className="bg-gradient-to-br from-emerald-900/40 to-blue-900/40 border border-emerald-700/50 rounded-2xl p-4 mb-4">
-          <Text className="text-white font-['Lora'] text-2xl font-bold mb-2">
+        <View
+          className="rounded-2xl p-4 mb-4"
+          style={{
+            backgroundColor: colors.card,
+            borderWidth: 1,
+            borderColor: colors.border,
+          }}
+        >
+          <Text
+            className="font-['Lora'] text-2xl font-bold mb-2"
+            style={{ color: colors.foreground }}
+          >
             Trophy Cabinet
           </Text>
           <View className="flex-row items-center justify-between">
-            <Text className="text-emerald-400 font-['Inter'] text-3xl font-bold">
+            <Text
+              className="font-['Inter'] text-3xl font-bold"
+              style={{ color: colors.primary }}
+            >
               {totalUnlocked}
             </Text>
-            <Text className="text-gray-300 font-['Inter'] text-base">
+            <Text
+              className="font-['Inter'] text-base"
+              style={{ color: colors['muted-foreground'] }}
+            >
               / {totalAchievements} Unlocked
             </Text>
           </View>
-          <View className="h-2 bg-gray-800 rounded-full mt-3 overflow-hidden">
+          <View
+            className="h-2 rounded-full mt-3 overflow-hidden"
+            style={{ backgroundColor: colors.muted }}
+          >
             <View
-              className="h-full bg-gradient-to-r from-emerald-500 to-blue-500 rounded-full"
-              style={{ width: `${(totalUnlocked / totalAchievements) * 100}%` }}
+              className="h-full rounded-full"
+              style={{
+                width: `${(totalUnlocked / totalAchievements) * 100}%`,
+                backgroundColor: colors.primary,
+              }}
             />
           </View>
         </View>
@@ -103,10 +127,16 @@ export default function TrophyCabinetModal({ visible, onClose }: TrophyCabinetMo
           return (
             <View key={cat.key} className="mb-6">
               <View className="flex-row items-center justify-between mb-3">
-                <Text className="text-white font-['Inter'] text-lg font-bold">
+                <Text
+                  className="font-['Inter'] text-lg font-bold"
+                  style={{ color: colors.foreground }}
+                >
                   {cat.label}
                 </Text>
-                <Text className="text-gray-400 font-['Inter'] text-sm">
+                <Text
+                  className="font-['Inter'] text-sm"
+                  style={{ color: colors['muted-foreground'] }}
+                >
                   {categoryUnlocked} / {cat.achievements.length}
                 </Text>
               </View>
@@ -138,14 +168,30 @@ export default function TrophyCabinetModal({ visible, onClose }: TrophyCabinetMo
     return (
       <ScrollView className="flex-1 px-4">
         {/* Header */}
-        <View className="bg-gradient-to-br from-gray-900/60 to-purple-900/40 border border-purple-700/50 rounded-2xl p-4 mb-4">
-          <Text className="text-white font-['Lora'] text-2xl font-bold mb-2">
+        <View
+          className="rounded-2xl p-4 mb-4"
+          style={{
+            backgroundColor: colors.card,
+            borderWidth: 1,
+            borderColor: colors.border,
+          }}
+        >
+          <Text
+            className="font-['Lora'] text-2xl font-bold mb-2"
+            style={{ color: colors.foreground }}
+          >
             🔮 Hidden Discoveries
           </Text>
-          <Text className="text-gray-300 font-['Inter'] text-base">
+          <Text
+            className="font-['Inter'] text-base"
+            style={{ color: colors['muted-foreground'] }}
+          >
             {unlockedHiddenAchievements.length} / {HIDDEN_ACHIEVEMENTS.length} discovered
           </Text>
-          <Text className="text-gray-400 font-['Inter'] text-xs mt-2 italic">
+          <Text
+            className="font-['Inter'] text-xs mt-2 italic"
+            style={{ color: colors['muted-foreground'] }}
+          >
             Secret achievements unlock through special actions
           </Text>
         </View>
@@ -153,7 +199,10 @@ export default function TrophyCabinetModal({ visible, onClose }: TrophyCabinetMo
         {/* Unlocked Hidden Achievements */}
         {unlockedHiddenAchievements.length > 0 && (
           <View className="mb-6">
-            <Text className="text-emerald-400 font-['Inter'] text-base font-bold mb-3">
+            <Text
+              className="font-['Inter'] text-base font-bold mb-3"
+              style={{ color: colors.primary }}
+            >
               ✨ Discovered
             </Text>
             <View className="space-y-3">
@@ -171,7 +220,10 @@ export default function TrophyCabinetModal({ visible, onClose }: TrophyCabinetMo
         {/* Locked Hidden Achievements (show as mysterious) */}
         {HIDDEN_ACHIEVEMENTS.filter(a => !unlockedHidden.includes(a.id)).length > 0 && (
           <View className="mb-6">
-            <Text className="text-gray-500 font-['Inter'] text-base font-bold mb-3">
+            <Text
+              className="font-['Inter'] text-base font-bold mb-3"
+              style={{ color: colors['muted-foreground'] }}
+            >
               🔒 Undiscovered
             </Text>
             <View className="space-y-3">
@@ -179,15 +231,26 @@ export default function TrophyCabinetModal({ visible, onClose }: TrophyCabinetMo
                 (achievement) => (
                   <View
                     key={achievement.id}
-                    className="bg-gray-900/50 border-2 border-gray-700 rounded-2xl p-4"
+                    className="rounded-2xl p-4"
+                    style={{
+                      backgroundColor: colors.muted,
+                      borderWidth: 2,
+                      borderColor: colors.border,
+                    }}
                   >
                     <View className="flex-row items-center">
                       <Text className="text-3xl mr-3 opacity-20">❓</Text>
                       <View className="flex-1">
-                        <Text className="text-gray-600 font-['Lora'] font-bold text-lg">
+                        <Text
+                          className="font-['Lora'] font-bold text-lg"
+                          style={{ color: colors['muted-foreground'] }}
+                        >
                           ??? Hidden ???
                         </Text>
-                        <Text className="text-gray-700 font-['Inter'] text-sm">
+                        <Text
+                          className="font-['Inter'] text-sm"
+                          style={{ color: colors['muted-foreground'], opacity: 0.7 }}
+                        >
                           Unlock this secret achievement to reveal its details...
                         </Text>
                       </View>
@@ -201,12 +264,25 @@ export default function TrophyCabinetModal({ visible, onClose }: TrophyCabinetMo
 
         {/* Empty State */}
         {unlockedHiddenAchievements.length === 0 && (
-          <View className="bg-gray-800/30 border border-gray-700 rounded-xl p-8 items-center mt-4">
+          <View
+            className="rounded-xl p-8 items-center mt-4"
+            style={{
+              backgroundColor: colors.muted,
+              borderWidth: 1,
+              borderColor: colors.border,
+            }}
+          >
             <Text className="text-5xl mb-4">🔮</Text>
-            <Text className="text-white font-['Lora'] text-lg font-semibold mb-2 text-center">
+            <Text
+              className="font-['Lora'] text-lg font-semibold mb-2 text-center"
+              style={{ color: colors.foreground }}
+            >
               Mysteries Await
             </Text>
-            <Text className="text-gray-400 font-['Inter'] text-sm text-center">
+            <Text
+              className="font-['Inter'] text-sm text-center"
+              style={{ color: colors['muted-foreground'] }}
+            >
               Explore the app to discover hidden achievements!
             </Text>
           </View>
@@ -217,43 +293,72 @@ export default function TrophyCabinetModal({ visible, onClose }: TrophyCabinetMo
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
-      <SafeAreaView className="flex-1 bg-gray-950">
+      <SafeAreaView
+        className="flex-1"
+        style={{ backgroundColor: colors.background }}
+      >
         {/* Header */}
-        <View className="flex-row items-center justify-between px-4 py-3 border-b border-gray-800">
-          <Text className="text-white font-['Lora'] text-2xl font-bold">
+        <View
+          className="flex-row items-center justify-between px-4 py-3"
+          style={{
+            borderBottomWidth: 1,
+            borderBottomColor: colors.border,
+          }}
+        >
+          <Text
+            className="font-['Lora'] text-2xl font-bold"
+            style={{ color: colors.foreground }}
+          >
             Achievements
           </Text>
           <TouchableOpacity onPress={onClose} className="p-2">
-            <Text className="text-gray-400 font-['Inter'] text-lg">✕</Text>
+            <Text
+              className="font-['Inter'] text-lg"
+              style={{ color: colors['muted-foreground'] }}
+            >
+              ✕
+            </Text>
           </TouchableOpacity>
         </View>
 
         {/* Tabs */}
-        <View className="flex-row border-b border-gray-800 px-4">
+        <View
+          className="flex-row px-4"
+          style={{
+            borderBottomWidth: 1,
+            borderBottomColor: colors.border,
+          }}
+        >
           <TouchableOpacity
             onPress={() => setActiveTab('global')}
-            className={`flex-1 py-3 items-center ${
-              activeTab === 'global' ? 'border-b-2 border-emerald-500' : ''
-            }`}
+            className="flex-1 py-3 items-center"
+            style={{
+              borderBottomWidth: activeTab === 'global' ? 2 : 0,
+              borderBottomColor: colors.primary,
+            }}
           >
             <Text
-              className={`font-['Inter'] text-sm font-semibold ${
-                activeTab === 'global' ? 'text-emerald-400' : 'text-gray-500'
-              }`}
+              className="font-['Inter'] text-sm font-semibold"
+              style={{
+                color: activeTab === 'global' ? colors.primary : colors['muted-foreground'],
+              }}
             >
               🏆 Global
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => setActiveTab('hidden')}
-            className={`flex-1 py-3 items-center ${
-              activeTab === 'hidden' ? 'border-b-2 border-purple-500' : ''
-            }`}
+            className="flex-1 py-3 items-center"
+            style={{
+              borderBottomWidth: activeTab === 'hidden' ? 2 : 0,
+              borderBottomColor: colors.primary,
+            }}
           >
             <Text
-              className={`font-['Inter'] text-sm font-semibold ${
-                activeTab === 'hidden' ? 'text-purple-400' : 'text-gray-500'
-              }`}
+              className="font-['Inter'] text-sm font-semibold"
+              style={{
+                color: activeTab === 'hidden' ? colors.primary : colors['muted-foreground'],
+              }}
             >
               🔮 Hidden
             </Text>
@@ -264,7 +369,12 @@ export default function TrophyCabinetModal({ visible, onClose }: TrophyCabinetMo
         <View className="flex-1 pt-4">
           {loading ? (
             <View className="flex-1 items-center justify-center">
-              <Text className="text-gray-400 font-['Inter'] text-sm">Loading...</Text>
+              <Text
+                className="font-['Inter'] text-sm"
+                style={{ color: colors['muted-foreground'] }}
+              >
+                Loading...
+              </Text>
             </View>
           ) : (
             <>
