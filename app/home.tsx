@@ -4,6 +4,7 @@ import { View } from 'react-native';
 import { HomeWidgetGrid, WidgetGridItem } from '../src/components/home/HomeWidgetGrid';
 import { StatePillsWidget } from '../src/components/home/widgets/StatePillsWidget';
 import { FocusCardWidget } from '../src/components/home/widgets/FocusCardWidget';
+import { WeavingPracticeWidget } from '../src/components/home/widgets/WeavingPracticeWidget';
 import { SocialBatterySheet } from '../src/components/home/SocialBatterySheet';
 import { WeeklyReflectionModal } from '../src/components/WeeklyReflection/WeeklyReflectionModal';
 import { YearInMoonsModal } from '../src/components/YearInMoons/YearInMoonsModal';
@@ -103,6 +104,17 @@ export default function Home() {
         fullWidth: true,
       },
       position: 1,
+      visible: true,
+    },
+    {
+      id: 'weaving-practice',
+      component: WeavingPracticeWidget,
+      config: {
+        id: 'weaving-practice',
+        type: 'weaving-practice',
+        fullWidth: true,
+      },
+      position: 2,
       visible: true,
     },
   ];
