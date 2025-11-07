@@ -76,6 +76,59 @@ export default function AchievementCard({
   const { colors: themeColors } = useTheme();
   const colors = getRarityColors(achievement.rarity);
 
+  // Render minimal locked card
+  if (!unlocked && !showProgress) {
+    const content = (
+      <View
+        className={`
+          border rounded-xl overflow-hidden
+          ${colors.border} ${colors.bg}
+          p-3
+        `}
+        style={{ opacity: 0.5 }}
+      >
+        <View className="flex-row items-center">
+          <Text className="text-2xl mr-3 opacity-40">
+            {achievement.icon}
+          </Text>
+          <View className="flex-1">
+            <Text
+              className="font-['Lora'] font-semibold text-sm"
+              style={{ color: themeColors['muted-foreground'] }}
+              numberOfLines={1}
+            >
+              {achievement.name}
+            </Text>
+            <View className="flex-row items-center justify-between mt-1">
+              <Text
+                className={`font-['Inter'] text-xs uppercase tracking-wide ${colors.text}`}
+              >
+                {achievement.rarity}
+              </Text>
+              <Text
+                className="font-['Inter'] text-xs"
+                style={{ color: themeColors['muted-foreground'] }}
+              >
+                🔒 {achievement.threshold}
+              </Text>
+            </View>
+          </View>
+        </View>
+      </View>
+    );
+
+    if (onPress) {
+      return (
+        <TouchableOpacity onPress={onPress} activeOpacity={0.8}>
+          {content}
+        </TouchableOpacity>
+      );
+    }
+
+    return content;
+  }
+
+  // Render full unlocked card or progress card
   const content = (
     <View
       className={`
@@ -83,7 +136,6 @@ export default function AchievementCard({
         ${colors.border} ${colors.bg} ${colors.glow}
         ${compact ? 'p-3' : 'p-4'}
       `}
-      style={{ opacity: unlocked ? 1 : 0.4 }}
     >
       {/* Icon and Title Row */}
       <View className="flex-row items-center mb-2">
@@ -155,16 +207,6 @@ export default function AchievementCard({
             />
           </View>
         </View>
-      )}
-
-      {/* Locked Threshold Display */}
-      {!showProgress && !unlocked && (
-        <Text
-          className="font-['Inter'] text-xs mt-1"
-          style={{ color: themeColors['muted-foreground'] }}
-        >
-          Unlock at: {achievement.threshold}
-        </Text>
       )}
     </View>
   );
