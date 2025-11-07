@@ -7,6 +7,7 @@ import Interaction from './db/models/Interaction';
 import InteractionFriend from './db/models/InteractionFriend';
 import SuggestionEvent from './db/models/SuggestionEvent';
 import Intention from './db/models/Intention';
+import IntentionFriend from './db/models/IntentionFriend';
 import UserProfile from './db/models/UserProfile';
 import PracticeLog from './db/models/PracticeLog';
 import LifeEvent from './db/models/LifeEvent';
@@ -34,6 +35,7 @@ export const database = new Database({
     InteractionFriend,
     SuggestionEvent,
     Intention,
+    IntentionFriend,
     UserProfile,
     PracticeLog,
     LifeEvent,

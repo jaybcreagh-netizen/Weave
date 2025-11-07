@@ -33,9 +33,9 @@ export const useIntentionStore = create<IntentionStore>(() => ({
 
       // Create entries in the join table for each friend
       for (const friendId of data.friendIds) {
-        await database.get('intention_friends').create(intentionFriend => {
-          intentionFriend.intention.set(intention);
-          intentionFriend.friend.set(friendId);
+        await database.get('intention_friends').create((intentionFriend: any) => {
+          intentionFriend.intentionId = intention.id;
+          intentionFriend.friendId = friendId;
         });
       }
     });
