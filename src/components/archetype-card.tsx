@@ -6,7 +6,15 @@ import { useUIStore } from '../stores/uiStore';
 import { type Archetype } from './types';
 import { useTheme } from '../hooks/useTheme';
 import { archetypeData } from '../lib/constants';
-import { ArchetypeIcon } from './ArchetypeIcon';
+
+// Import SVG files as components
+import EmperorSvg from '../../assets/TarotIcons/The Emperor.svg';
+import EmpressSvg from '../../assets/TarotIcons/The Empress.svg';
+import HighPriestessSvg from '../../assets/TarotIcons/High Priestess.svg';
+import FoolSvg from '../../assets/TarotIcons/The Fool.svg';
+import SunSvg from '../../assets/TarotIcons/The Sun.svg';
+import HermitSvg from '../../assets/TarotIcons/The Hermit.svg';
+import MagicianSvg from '../../assets/TarotIcons/The Magician.svg';
 
 interface ArchetypeCardProps {
   archetype: Archetype;
@@ -22,6 +30,17 @@ const ARCHETYPE_GRADIENTS: Record<Archetype, string[]> = {
   Sun: ['#eab308', '#ca8a04'],
   Hermit: ['#6366f1', '#4f46e5'],
   Magician: ['#ec4899', '#db2777'],
+};
+
+// Map archetypes to their tarot card SVG components
+const TAROT_CARD_COMPONENTS: Record<Archetype, React.FC<any>> = {
+  Emperor: EmperorSvg,
+  Empress: EmpressSvg,
+  HighPriestess: HighPriestessSvg,
+  Fool: FoolSvg,
+  Sun: SunSvg,
+  Hermit: HermitSvg,
+  Magician: MagicianSvg,
 };
 
 export function ArchetypeCard({
@@ -49,14 +68,13 @@ export function ArchetypeCard({
   };
 
   const gradient = ARCHETYPE_GRADIENTS[archetype] || ['#6b7280', '#4b5563'];
-  const iconColor = isSelected ? colors.primary : colors.foreground;
   const textColor = isSelected ? colors.primary : colors.foreground;
 
   return (
     <Pressable
       onPress={handlePress}
       onLongPress={handleLongPress}
-      className="relative rounded-2xl border-2 items-center justify-center p-3 w-full min-h-[120px] overflow-hidden"
+      className="relative rounded-2xl border-2 items-center justify-center p-3 w-full min-h-[150px] overflow-hidden"
       style={({ pressed }) => ({
         backgroundColor: colors.card,
         borderColor: isSelected ? colors.primary : colors.border,
@@ -78,17 +96,26 @@ export function ArchetypeCard({
 
       {/* Content */}
       <View className="relative z-10 items-center">
+        {/* Tarot Card SVG */}
         <View
-          className="w-[52px] h-[52px] rounded-xl border-[1.5px] items-center justify-center mb-2"
+          className="mb-2"
           style={{
-            backgroundColor: isSelected ? colors.primary + '15' : colors.background,
-            borderColor: isSelected ? colors.primary : colors.border,
+            width: 60,
+            height: 90,
+            shadowColor: gradient[0],
+            shadowOpacity: isSelected ? 0.3 : 0.1,
+            shadowOffset: { width: 0, height: 2 },
+            shadowRadius: 6,
+            elevation: isSelected ? 4 : 2,
           }}
         >
-          <ArchetypeIcon archetype={archetype} size={28} color={iconColor} />
+          {React.createElement(TAROT_CARD_COMPONENTS[archetype], {
+            width: 60,
+            height: 90,
+          })}
         </View>
         <Text
-          className="text-center font-semibold text-sm mb-0.5"
+          className="text-center font-semibold text-xs mb-0.5"
           style={{ color: textColor }}
         >
           {data.name.replace("The ", "")}
