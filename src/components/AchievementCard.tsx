@@ -7,6 +7,7 @@
 
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
+import { useTheme } from '../hooks/useTheme';
 import type { BadgeDefinition } from '../lib/badge-definitions';
 import type { GlobalAchievement } from '../lib/achievement-definitions';
 
@@ -23,16 +24,7 @@ interface AchievementCardProps {
 /**
  * Get rarity color classes
  */
-function getRarityColors(rarity: string, unlocked: boolean) {
-  if (!unlocked) {
-    return {
-      border: 'border-gray-700',
-      bg: 'bg-gray-800/50',
-      text: 'text-gray-500',
-      glow: '',
-    };
-  }
-
+function getRarityColors(rarity: string) {
   switch (rarity) {
     case 'common':
       return {
@@ -81,7 +73,8 @@ export default function AchievementCard({
   progressPercent = 0,
   compact = false,
 }: AchievementCardProps) {
-  const colors = getRarityColors(achievement.rarity, unlocked);
+  const { colors: themeColors } = useTheme();
+  const colors = getRarityColors(achievement.rarity);
 
   const content = (
     <View
@@ -89,19 +82,18 @@ export default function AchievementCard({
         border-2 rounded-2xl overflow-hidden
         ${colors.border} ${colors.bg} ${colors.glow}
         ${compact ? 'p-3' : 'p-4'}
-        ${unlocked ? '' : 'opacity-60'}
       `}
+      style={{ opacity: unlocked ? 1 : 0.4 }}
     >
       {/* Icon and Title Row */}
       <View className="flex-row items-center mb-2">
-        <Text className={`text-3xl mr-3 ${unlocked ? '' : 'opacity-40'}`}>
+        <Text className="text-3xl mr-3">
           {achievement.icon}
         </Text>
         <View className="flex-1">
           <Text
-            className={`font-['Lora'] font-bold ${compact ? 'text-base' : 'text-lg'} ${
-              unlocked ? 'text-white' : 'text-gray-500'
-            }`}
+            className={`font-['Lora'] font-bold ${compact ? 'text-base' : 'text-lg'}`}
+            style={{ color: themeColors.foreground }}
           >
             {achievement.name}
           </Text>
@@ -120,16 +112,18 @@ export default function AchievementCard({
 
       {/* Description */}
       <Text
-        className={`font-['Inter'] ${compact ? 'text-xs' : 'text-sm'} ${
-          unlocked ? 'text-gray-300' : 'text-gray-600'
-        } mb-2`}
+        className={`font-['Inter'] ${compact ? 'text-xs' : 'text-sm'} mb-2`}
+        style={{ color: themeColors['muted-foreground'] }}
       >
         {achievement.description}
       </Text>
 
       {/* Flavor Text (if unlocked and available) */}
       {unlocked && achievement.flavorText && (
-        <Text className="font-['Inter'] text-xs italic text-gray-400 mb-2">
+        <Text
+          className="font-['Inter'] text-xs italic mb-2"
+          style={{ color: themeColors['muted-foreground'], opacity: 0.8 }}
+        >
           "{achievement.flavorText}"
         </Text>
       )}
@@ -138,14 +132,23 @@ export default function AchievementCard({
       {showProgress && !unlocked && (
         <View className="mt-2">
           <View className="flex-row justify-between items-center mb-1">
-            <Text className="font-['Inter'] text-xs text-gray-400">
+            <Text
+              className="font-['Inter'] text-xs"
+              style={{ color: themeColors['muted-foreground'] }}
+            >
               {progress} / {achievement.threshold}
             </Text>
-            <Text className="font-['Inter'] text-xs text-gray-400">
+            <Text
+              className="font-['Inter'] text-xs"
+              style={{ color: themeColors['muted-foreground'] }}
+            >
               {Math.round(progressPercent)}%
             </Text>
           </View>
-          <View className="h-2 bg-gray-800 rounded-full overflow-hidden">
+          <View
+            className="h-2 rounded-full overflow-hidden"
+            style={{ backgroundColor: themeColors.muted }}
+          >
             <View
               className={`h-full rounded-full ${colors.text.replace('text-', 'bg-')}`}
               style={{ width: `${Math.min(100, progressPercent)}%` }}
@@ -156,7 +159,10 @@ export default function AchievementCard({
 
       {/* Locked Threshold Display */}
       {!showProgress && !unlocked && (
-        <Text className="font-['Inter'] text-xs text-gray-500 mt-1">
+        <Text
+          className="font-['Inter'] text-xs mt-1"
+          style={{ color: themeColors['muted-foreground'] }}
+        >
           Unlock at: {achievement.threshold}
         </Text>
       )}
