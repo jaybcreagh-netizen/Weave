@@ -20,6 +20,7 @@ import { X, Calendar, BarChart3, Sparkles } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../../hooks/useTheme';
 import { MoonPhaseIllustration } from './MoonPhaseIllustration';
+import { PatternsTabContent } from './PatternsTabContent';
 import {
   getYearMoonData,
   getYearStats,
@@ -324,23 +325,7 @@ export function YearInMoonsModal({ isOpen, onClose }: YearInMoonsModalProps) {
                 </View>
               )}
 
-              {currentTab === 'patterns' && (
-                <View className="flex-1 items-center justify-center px-8">
-                  <Text className="text-6xl mb-4">✨</Text>
-                  <Text
-                    className="text-lg font-semibold text-center mb-2"
-                    style={{ color: '#F5F1E8', fontFamily: 'Lora_600SemiBold' }}
-                  >
-                    Pattern Insights Coming Soon
-                  </Text>
-                  <Text
-                    className="text-sm text-center leading-5"
-                    style={{ color: '#8A8F9E', fontFamily: 'Inter_400Regular' }}
-                  >
-                    Discover your cyclical rhythms, correlations, and best connection days.
-                  </Text>
-                </View>
-              )}
+              {currentTab === 'patterns' && <PatternsTabContent />}
             </>
           )}
 
