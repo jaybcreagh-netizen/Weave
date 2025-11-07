@@ -4,11 +4,13 @@ import Animated, { useSharedValue, useAnimatedStyle, withTiming, withSpring, run
 import { BlurView } from 'expo-blur';
 import { Calendar, X } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
+import { Q } from '@nozbe/watermelondb';
 import { useTheme } from '../hooks/useTheme';
 import { getCategoryMetadata } from '../lib/interaction-categories';
 import Intention from '../db/models/Intention';
 import FriendModel from '../db/models/Friend';
 import { InteractionCategory } from './types';
+import { database } from '../db';
 
 interface IntentionActionSheetProps {
   intention: Intention | null;
@@ -36,10 +38,21 @@ export function IntentionActionSheet({
   const sheetTranslateY = useSharedValue(SHEET_HEIGHT);
   const [friend, setFriend] = useState<FriendModel | null>(null);
 
-  // Load friend data
+  // Load friend data through the join table
   useEffect(() => {
     if (intention) {
-      intention.friend.fetch().then(setFriend);
+      const loadFriend = async () => {
+        const intentionFriends = await database
+          .get('intention_friends')
+          .query(Q.where('intention_id', intention.id))
+          .fetch();
+
+        if (intentionFriends.length > 0) {
+          const friendRecord = await intentionFriends[0].friend.fetch();
+          setFriend(friendRecord);
+        }
+      };
+      loadFriend();
     }
   }, [intention]);
 

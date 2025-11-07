@@ -1,0 +1,756 @@
+import React, { useEffect, useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Vibration } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withTiming, Easing } from 'react-native-reanimated';
+import { useRouter } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
+import { format, differenceInDays, startOfDay } from 'date-fns';
+import { Calendar, Flame, Heart, Sparkles, ChevronDown, ChevronUp, CheckCircle2, Cake } from 'lucide-react-native';
+import { Q } from '@nozbe/watermelondb';
+import { useTheme } from '../../../hooks/useTheme';
+import { useFriendStore } from '../../../stores/friendStore';
+import { usePendingPlans } from '../../../hooks/usePendingPlans';
+import { useSuggestions } from '../../../hooks/useSuggestions';
+import { useInteractionStore } from '../../../stores/interactionStore';
+import { getUserProgress } from '../../../lib/milestone-tracker';
+import { calculateCurrentScore } from '../../../lib/weave-engine';
+import { useUIStore } from '../../../stores/uiStore';
+import { PlanWizard } from '../../PlanWizard';
+import { FocusDetailsModal } from '../../FocusDetailsModal';
+import { getCategoryMetadata } from '../../../lib/interaction-categories';
+import { type InteractionCategory } from '../../types';
+import { database } from '../../../db';
+import LifeEvent from '../../../db/models/LifeEvent';
+import FriendModel from '../../../db/models/Friend';
+
+// Not using HomeWidgetBase anymore - rendering card directly
+
+interface UpcomingDate {
+  friend: FriendModel;
+  type: 'birthday' | 'anniversary' | 'life_event';
+  daysUntil: number;
+  title?: string;
+}
+
+type CardState =
+  | { type: 'todays-plan'; plan: any }
+  | { type: 'streak-risk'; lastWeaveDate: Date | null; streakCount: number }
+  | { type: 'friend-fading'; friend: FriendModel; score: number }
+  | { type: 'upcoming-plan'; plan: any }
+  | { type: 'quick-weave'; friend: FriendModel | null; daysSince: number };
+
+/**
+ * Determine the priority card state to show
+ */
+function useFocusCardState(): CardState | null {
+  const { friends } = useFriendStore();
+  const { pendingPlans } = usePendingPlans();
+  const [streakData, setStreakData] = useState<{ lastWeaveDate: Date | null; streakCount: number } | null>(null);
+
+  useEffect(() => {
+    const loadStreak = async () => {
+      const progress = await getUserProgress();
+      setStreakData({
+        lastWeaveDate: progress.lastWeaveDate,
+        streakCount: progress.currentStreak,
+      });
+    };
+    loadStreak();
+  }, []);
+
+  // Priority 1: Today's plan
+  const todaysPlan = pendingPlans.find(p => p.daysUntil === 0);
+  if (todaysPlan) {
+    return { type: 'todays-plan', plan: todaysPlan };
+  }
+
+  // Priority 2: Streak at risk (no weave in 24+ hours and streak > 0)
+  if (streakData) {
+    const lastWeaveDate = streakData.lastWeaveDate;
+    const streakCount = streakData.streakCount;
+
+    if (lastWeaveDate && streakCount > 0) {
+      const daysSinceLastWeave = differenceInDays(startOfDay(new Date()), startOfDay(lastWeaveDate));
+      if (daysSinceLastWeave >= 1) {
+        return { type: 'streak-risk', lastWeaveDate, streakCount };
+      }
+    }
+  }
+
+  // Priority 3: Friend fading (score below 30)
+  const fadingFriends = friends
+    .map(f => ({ friend: f, score: calculateCurrentScore(f) }))
+    .filter(({ score }) => score < 30)
+    .sort((a, b) => a.score - b.score);
+
+  if (fadingFriends.length > 0) {
+    const { friend, score } = fadingFriends[0];
+    return { type: 'friend-fading', friend, score };
+  }
+
+  // Priority 4: Upcoming plan (within 3 days)
+  const upcomingPlan = pendingPlans.find(p => p.daysUntil > 0 && p.daysUntil <= 3);
+  if (upcomingPlan) {
+    return { type: 'upcoming-plan', plan: upcomingPlan };
+  }
+
+  // Priority 5: Quick weave suggestion (friend not contacted recently)
+  const friendsWithLastContact = friends
+    .filter(f => !f.isDormant)
+    .map(f => ({
+      friend: f,
+      daysSince: f.lastUpdated ? differenceInDays(new Date(), f.lastUpdated) : 999,
+    }))
+    .sort((a, b) => b.daysSince - a.daysSince);
+
+  if (friendsWithLastContact.length > 0) {
+    const { friend, daysSince } = friendsWithLastContact[0];
+    return { type: 'quick-weave', friend, daysSince };
+  }
+
+  // Fallback: No friends or no data
+  return { type: 'quick-weave', friend: null, daysSince: 0 };
+}
+
+/**
+ * FocusCardWidget
+ * Expandable card showing priority action + additional context
+ */
+export const FocusCardWidget: React.FC = () => {
+  const { colors, isDarkMode } = useTheme();
+  const router = useRouter();
+  const { friends } = useFriendStore();
+  const { confirmPlan } = useInteractionStore();
+  const cardState = useFocusCardState();
+  const { pendingPlans } = usePendingPlans();
+  const { suggestions } = useSuggestions();
+
+  const [detailsModalOpen, setDetailsModalOpen] = useState(false);
+  const [planWizardOpen, setPlanWizardOpen] = useState(false);
+  const [selectedFriend, setSelectedFriend] = useState<FriendModel | null>(null);
+  const [upcomingDates, setUpcomingDates] = useState<UpcomingDate[]>([]);
+  const [rescheduleWizardOpen, setRescheduleWizardOpen] = useState(false);
+  const [reschedulePlanData, setReschedulePlanData] = useState<any>(null);
+  const [rescheduleInteractionId, setRescheduleInteractionId] = useState<string | null>(null);
+
+  // Load upcoming special dates
+  useEffect(() => {
+    if (!friends || friends.length === 0) return;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const events: UpcomingDate[] = [];
+
+    const loadLifeEvents = async () => {
+      const thirtyDaysFromNow = new Date();
+      thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
+
+      const lifeEvents = await database
+        .get<LifeEvent>('life_events')
+        .query(
+          Q.where('event_date', Q.gte(today.getTime())),
+          Q.where('event_date', Q.lte(thirtyDaysFromNow.getTime()))
+        )
+        .fetch();
+
+      lifeEvents.forEach(event => {
+        const friend = friends.find(f => f.id === event.friendId);
+        if (friend) {
+          events.push({
+            friend,
+            type: 'life_event',
+            daysUntil: differenceInDays(event.eventDate, today),
+            title: event.title,
+          });
+        }
+      });
+
+      friends.forEach(friend => {
+        // Check birthday
+        if (friend.birthday) {
+          const birthdayThisYear = new Date(friend.birthday);
+          birthdayThisYear.setFullYear(today.getFullYear());
+          birthdayThisYear.setHours(0, 0, 0, 0);
+
+          if (birthdayThisYear < today) {
+            birthdayThisYear.setFullYear(today.getFullYear() + 1);
+          }
+
+          const daysUntil = differenceInDays(birthdayThisYear, today);
+          if (daysUntil >= 0 && daysUntil <= 30) {
+            events.push({ friend, type: 'birthday', daysUntil });
+          }
+        }
+
+        // Check anniversary
+        if (friend.anniversary &&
+            friend.relationshipType?.toLowerCase().includes('partner') &&
+            !isNaN(friend.anniversary.getTime())) {
+          const anniversaryThisYear = new Date(friend.anniversary);
+          anniversaryThisYear.setFullYear(today.getFullYear());
+          anniversaryThisYear.setHours(0, 0, 0, 0);
+
+          if (anniversaryThisYear < today) {
+            anniversaryThisYear.setFullYear(today.getFullYear() + 1);
+          }
+
+          const daysUntil = differenceInDays(anniversaryThisYear, today);
+          if (daysUntil >= 0 && daysUntil <= 14) {
+            events.push({ friend, type: 'anniversary', daysUntil });
+          }
+        }
+      });
+
+      events.sort((a, b) => a.daysUntil - b.daysUntil);
+      setUpcomingDates(events.slice(0, 3));
+    };
+
+    loadLifeEvents();
+  }, [friends]);
+
+  if (!cardState) {
+    return null;
+  }
+
+  const handleCardPress = () => {
+    const { friends } = useFriendStore.getState();
+
+    switch (cardState.type) {
+      case 'todays-plan':
+        // Navigate to interaction details or friend profile
+        const friendId = cardState.plan.friends[0]?.id;
+        if (friendId) {
+          router.push(`/friend-profile?friendId=${friendId}`);
+        }
+        break;
+
+      case 'streak-risk':
+        // Open Plan Wizard with a suggested friend (pick one that needs attention)
+        if (friends.length > 0) {
+          const suggestedFriend = friends
+            .filter(f => !f.isDormant)
+            .sort((a, b) => calculateCurrentScore(a) - calculateCurrentScore(b))[0];
+          setSelectedFriend(suggestedFriend || friends[0]);
+          setPlanWizardOpen(true);
+        }
+        break;
+
+      case 'quick-weave':
+        // Open Plan Wizard with preselected friend
+        if (cardState.friend) {
+          setSelectedFriend(cardState.friend);
+          setPlanWizardOpen(true);
+        }
+        break;
+
+      case 'friend-fading':
+        // Navigate to friend profile
+        router.push(`/friend-profile?friendId=${cardState.friend.id}`);
+        break;
+
+      case 'upcoming-plan':
+        // Navigate to friend profile or interaction details
+        const upcomingFriendId = cardState.plan.friends[0]?.id;
+        if (upcomingFriendId) {
+          router.push(`/friend-profile?friendId=${upcomingFriendId}`);
+        }
+        break;
+    }
+  };
+
+  // Render card based on state
+  const renderCard = () => {
+    switch (cardState.type) {
+      case 'todays-plan':
+        return (
+          <TodaysPlanCard
+            plan={cardState.plan}
+            onPress={handleCardPress}
+            colors={colors}
+            isDarkMode={isDarkMode}
+          />
+        );
+
+      case 'streak-risk':
+        return (
+          <StreakRiskCard
+            streakCount={cardState.streakCount}
+            onPress={handleCardPress}
+            colors={colors}
+            isDarkMode={isDarkMode}
+          />
+        );
+
+      case 'friend-fading':
+        return (
+          <FriendFadingCard
+            friend={cardState.friend}
+            score={cardState.score}
+            onPress={handleCardPress}
+            colors={colors}
+            isDarkMode={isDarkMode}
+          />
+        );
+
+      case 'upcoming-plan':
+        return (
+          <UpcomingPlanCard
+            plan={cardState.plan}
+            onPress={handleCardPress}
+            colors={colors}
+            isDarkMode={isDarkMode}
+          />
+        );
+
+      case 'quick-weave':
+        return (
+          <QuickWeaveCard
+            friend={cardState.friend}
+            daysSince={cardState.daysSince}
+            onPress={handleCardPress}
+            colors={colors}
+            isDarkMode={isDarkMode}
+          />
+        );
+    }
+  };
+
+  const handleConfirmPlan = async (interactionId: string) => {
+    try {
+      await confirmPlan(interactionId);
+    } catch (error) {
+      console.error('Error confirming plan:', error);
+    }
+  };
+
+  const handleReschedulePlan = (plan: typeof pendingPlans[0]) => {
+    if (plan.friends.length > 0) {
+      setSelectedFriend(plan.friends[0]);
+      setRescheduleInteractionId(plan.interaction.id);
+      setReschedulePlanData({
+        date: plan.interaction.interactionDate,
+        category: plan.interaction.interactionCategory as InteractionCategory,
+        title: plan.interaction.title,
+        location: plan.interaction.location,
+      });
+      setRescheduleWizardOpen(true);
+    }
+  };
+
+  const handleSuggestionPress = (suggestion: any) => {
+    const friend = friends.find(f => f.id === suggestion.friendId);
+    if (!friend) return;
+
+    if (suggestion.action.type === 'plan') {
+      setSelectedFriend(friend);
+      setPlanWizardOpen(true);
+    } else {
+      router.push(`/friend-profile?friendId=${friend.id}`);
+    }
+  };
+
+  const getDaysText = (days: number) => {
+    if (days === 0) return 'Today';
+    if (days === 1) return 'Tomorrow';
+    return `${days}d`;
+  };
+
+  // Count additional items for badge
+  const additionalItemsCount = pendingPlans.length + upcomingDates.length + suggestions.length;
+
+  return (
+    <>
+      <View
+        style={[
+          styles.cardContainer,
+          {
+            backgroundColor: colors.card,
+            borderColor: colors.border,
+          },
+        ]}
+      >
+        <View style={{ position: 'relative' }}>
+          {renderCard()}
+
+          {/* Details indicator - opens modal */}
+          {additionalItemsCount > 0 && (
+            <TouchableOpacity
+              style={styles.expandIndicator}
+              onPress={() => {
+                Vibration.vibrate(10);
+                setDetailsModalOpen(true);
+              }}
+              activeOpacity={0.7}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <View style={[styles.badge, { backgroundColor: colors.primary }]}>
+                <Text style={styles.badgeText}>{additionalItemsCount}</Text>
+              </View>
+              <ChevronDown size={20} color="rgba(255, 255, 255, 0.8)" />
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+
+      {/* Focus Details Modal */}
+      <FocusDetailsModal
+        visible={detailsModalOpen}
+        onClose={() => setDetailsModalOpen(false)}
+        upcomingDates={upcomingDates}
+        onConfirmPlan={handleConfirmPlan}
+        onReschedulePlan={handleReschedulePlan}
+        onSuggestionPress={handleSuggestionPress}
+      />
+
+      {/* Plan Wizard Modals */}
+      {selectedFriend && (
+        <>
+          <PlanWizard
+            visible={planWizardOpen}
+            onClose={() => {
+              setPlanWizardOpen(false);
+              setSelectedFriend(null);
+            }}
+            initialFriend={selectedFriend}
+          />
+          <PlanWizard
+            visible={rescheduleWizardOpen}
+            onClose={() => {
+              setRescheduleWizardOpen(false);
+              setSelectedFriend(null);
+              setReschedulePlanData(null);
+              setRescheduleInteractionId(null);
+            }}
+            initialFriend={selectedFriend}
+            prefillData={reschedulePlanData}
+            replaceInteractionId={rescheduleInteractionId || undefined}
+          />
+        </>
+      )}
+    </>
+  );
+};
+
+/**
+ * Card Components
+ */
+
+interface CardProps {
+  onPress: () => void;
+  colors: any;
+  isDarkMode: boolean;
+}
+
+const TodaysPlanCard: React.FC<CardProps & { plan: any }> = ({ plan, onPress, colors, isDarkMode }) => {
+  const friendNames = plan.friends.map((f: FriendModel) => f.name).join(', ');
+  const title = plan.interaction.title || plan.interaction.activity || 'Plan';
+
+  return (
+    <LinearGradient
+      colors={isDarkMode ? ['#4C1D95', '#5B21B6'] : ['#8B5CF6', '#A78BFA']}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={styles.gradientCompact}
+    >
+      <View style={styles.cardContent}>
+        <Calendar size={32} color="#FFFFFF" />
+        <Text style={styles.headlineCompact}>Today's Plan</Text>
+        <Text style={styles.subtextCompact}>
+          {title} with {friendNames}
+        </Text>
+        <TouchableOpacity onPress={onPress} style={styles.button} activeOpacity={0.8}>
+          <Text style={styles.buttonText}>View Details</Text>
+        </TouchableOpacity>
+      </View>
+    </LinearGradient>
+  );
+};
+
+const StreakRiskCard: React.FC<CardProps & { streakCount: number }> = ({ streakCount, onPress, colors, isDarkMode }) => {
+  return (
+    <LinearGradient
+      colors={isDarkMode ? ['#DC2626', '#EF4444'] : ['#F87171', '#FCA5A5']}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={styles.gradientCompact}
+    >
+      <View style={styles.cardContent}>
+        <Flame size={32} color="#FFFFFF" />
+        <Text style={styles.headlineCompact}>Keep Your Streak!</Text>
+        <Text style={styles.subtextCompact}>
+          Your {streakCount}-day streak needs attention today
+        </Text>
+        <TouchableOpacity onPress={onPress} style={styles.button} activeOpacity={0.8}>
+          <Text style={styles.buttonText}>Plan a Weave</Text>
+        </TouchableOpacity>
+      </View>
+    </LinearGradient>
+  );
+};
+
+const FriendFadingCard: React.FC<CardProps & { friend: FriendModel; score: number }> = ({ friend, score, onPress, colors, isDarkMode }) => {
+  return (
+    <LinearGradient
+      colors={isDarkMode ? ['#EA580C', '#F97316'] : ['#FB923C', '#FDBA74']}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={styles.gradientCompact}
+    >
+      <View style={styles.cardContent}>
+        <Heart size={32} color="#FFFFFF" />
+        <Text style={styles.headlineCompact}>Friend Needs You</Text>
+        <Text style={styles.subtextCompact}>
+          {friend.name}'s connection is fading
+        </Text>
+        <TouchableOpacity onPress={onPress} style={styles.button} activeOpacity={0.8}>
+          <Text style={styles.buttonText}>Reach Out</Text>
+        </TouchableOpacity>
+      </View>
+    </LinearGradient>
+  );
+};
+
+const UpcomingPlanCard: React.FC<CardProps & { plan: any }> = ({ plan, onPress, colors, isDarkMode }) => {
+  const friendNames = plan.friends.map((f: FriendModel) => f.name).join(', ');
+  const title = plan.interaction.title || plan.interaction.activity || 'Plan';
+  const dateText = plan.daysUntil === 1 ? 'Tomorrow' : `in ${plan.daysUntil} days`;
+
+  return (
+    <LinearGradient
+      colors={isDarkMode ? ['#0891B2', '#06B6D4'] : ['#22D3EE', '#67E8F9']}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={styles.gradientCompact}
+    >
+      <View style={styles.cardContent}>
+        <Calendar size={32} color="#FFFFFF" />
+        <Text style={styles.headlineCompact}>Upcoming Plan</Text>
+        <Text style={styles.subtextCompact}>
+          {title} with {friendNames} · {dateText}
+        </Text>
+        <TouchableOpacity onPress={onPress} style={styles.button} activeOpacity={0.8}>
+          <Text style={styles.buttonText}>View Details</Text>
+        </TouchableOpacity>
+      </View>
+    </LinearGradient>
+  );
+};
+
+const QuickWeaveCard: React.FC<CardProps & { friend: FriendModel | null; daysSince: number }> = ({ friend, daysSince, onPress, colors, isDarkMode }) => {
+  return (
+    <LinearGradient
+      colors={isDarkMode ? ['#7C3AED', '#8B5CF6'] : ['#A78BFA', '#C4B5FD']}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={styles.gradientCompact}
+    >
+      <View style={styles.cardContent}>
+        <Sparkles size={32} color="#FFFFFF" />
+        <Text style={styles.headlineCompact}>Stay Connected</Text>
+        {friend ? (
+          <Text style={styles.subtextCompact}>
+            It's been {daysSince} {daysSince === 1 ? 'day' : 'days'} since you caught up with {friend.name}
+          </Text>
+        ) : (
+          <Text style={styles.subtextCompact}>
+            Reach out to a friend today
+          </Text>
+        )}
+        <TouchableOpacity onPress={onPress} style={styles.button} activeOpacity={0.8}>
+          <Text style={styles.buttonText}>Plan a Weave</Text>
+        </TouchableOpacity>
+      </View>
+    </LinearGradient>
+  );
+};
+
+const styles = StyleSheet.create({
+  cardContainer: {
+    borderRadius: 20,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 5,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  gradientCompact: {
+    borderRadius: 20,
+    minHeight: 160,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+    position: 'relative',
+  },
+  cardContent: {
+    alignItems: 'center',
+    gap: 8,
+  },
+  headlineCompact: {
+    fontFamily: 'Lora_700Bold',
+    fontSize: 22,
+    color: '#FFFFFF',
+    textAlign: 'center',
+  },
+  subtextCompact: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 14,
+    lineHeight: 20,
+    color: 'rgba(255, 255, 255, 0.95)',
+    textAlign: 'center',
+    maxWidth: '85%',
+  },
+  button: {
+    marginTop: 8,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.4)',
+  },
+  buttonText: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 14,
+    color: '#FFFFFF',
+  },
+  expandIndicator: {
+    position: 'absolute',
+    bottom: 12,
+    right: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  badge: {
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 6,
+  },
+  badgeText: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 11,
+    color: '#FFFFFF',
+  },
+  section: {
+    gap: 12,
+  },
+  sectionTitle: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  planCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 16,
+    gap: 12,
+  },
+  planHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  planContent: {
+    flex: 1,
+  },
+  planTitle: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 15,
+    marginBottom: 2,
+  },
+  planSubtitle: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 13,
+  },
+  planActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  confirmButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  confirmButtonText: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 14,
+    color: '#FFFFFF',
+  },
+  rescheduleButton: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  rescheduleButtonText: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 14,
+  },
+  upcomingItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderBottomWidth: 1,
+  },
+  upcomingIcon: {
+    width: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  upcomingName: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 14,
+  },
+  upcomingSubheading: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 12,
+    marginTop: 2,
+  },
+  upcomingBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  upcomingDays: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 12,
+  },
+  suggestionCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 12,
+  },
+  suggestionIcon: {
+    fontSize: 28,
+  },
+  suggestionContent: {
+    flex: 1,
+  },
+  suggestionTitle: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 14,
+    marginBottom: 2,
+  },
+  suggestionSubtitle: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 12,
+  },
+});

@@ -602,10 +602,16 @@ export default function FriendProfile() {
           isOpen={selectedIntentionForAction !== null}
           onClose={() => setSelectedIntentionForAction(null)}
           onSchedule={async (intention, intentionFriend) => {
+            // Mark intention as converted
             await convertToPlannedWeave(intention.id);
             setSelectedIntentionForAction(null);
-            // TODO: Open PlanWizard with prefilled category
-            // For now, user can schedule from friend profile
+
+            // Open Plan Wizard with the friend and prefilled category
+            setSelectedFriends([intentionFriend]);
+            if (intention.interactionCategory) {
+              // TODO: Could prefill category in wizard if we add that feature
+            }
+            setShowPlanWizard(true);
           }}
           onDismiss={async (intention) => {
             await dismissIntention(intention.id);
