@@ -56,14 +56,14 @@ export default function BadgeUnlockModal() {
       // Trigger entrance animation
       opacity.value = withSpring(1);
       scale.value = withSequence(
-        withSpring(1.1, { damping: 8 }),
-        withSpring(1, { damping: 10 })
+        withSpring(1.05, { damping: 20 }),
+        withSpring(1, { damping: 20 })
       );
       iconScale.value = withDelay(
         200,
         withSequence(
-          withSpring(1.3, { damping: 6 }),
-          withSpring(1, { damping: 8 })
+          withSpring(1.1, { damping: 18 }),
+          withSpring(1, { damping: 20 })
         )
       );
     }
@@ -133,7 +133,7 @@ export default function BadgeUnlockModal() {
           <View className="bg-gray-900 border-2 rounded-3xl p-6 items-center">
             {/* Header */}
             <Text className="text-white font-['Lora'] text-2xl font-bold mb-2">
-              {isHidden ? '🔮 Hidden Discovery!' : currentBadge ? '🌟 Badge Earned!' : '🏆 Achievement Unlocked!'}
+              {isHidden ? 'Hidden Discovery!' : currentBadge ? 'Badge Earned!' : 'Achievement Unlocked!'}
             </Text>
 
             {/* Friend Name (for badges) */}
@@ -189,26 +189,6 @@ export default function BadgeUnlockModal() {
                 Continue
               </Text>
             </TouchableOpacity>
-          </View>
-
-          {/* Sparkles/Confetti Effect (simple version) */}
-          <View className="absolute top-0 left-0 right-0 flex-row justify-around px-4">
-            {['✨', '🎉', '⭐', '✨', '🎉'].map((emoji, i) => (
-              <Animated.Text
-                key={i}
-                style={[
-                  iconStyle,
-                  {
-                    fontSize: 24,
-                    position: 'absolute',
-                    left: `${(i + 1) * 20}%`,
-                    top: -20 - Math.random() * 20,
-                  },
-                ]}
-              >
-                {emoji}
-              </Animated.Text>
-            ))}
           </View>
         </Animated.View>
       </View>
