@@ -22,45 +22,87 @@ interface AchievementCardProps {
 }
 
 /**
- * Get rarity color classes
+ * Get rarity color classes - theme-aware
  */
-function getRarityColors(rarity: string) {
-  switch (rarity) {
-    case 'common':
-      return {
-        border: 'border-emerald-600',
-        bg: 'bg-emerald-950/40',
-        text: 'text-emerald-400',
-        glow: 'shadow-lg shadow-emerald-500/20',
-      };
-    case 'rare':
-      return {
-        border: 'border-blue-600',
-        bg: 'bg-blue-950/40',
-        text: 'text-blue-400',
-        glow: 'shadow-lg shadow-blue-500/20',
-      };
-    case 'epic':
-      return {
-        border: 'border-purple-600',
-        bg: 'bg-purple-950/40',
-        text: 'text-purple-400',
-        glow: 'shadow-lg shadow-purple-500/20',
-      };
-    case 'legendary':
-      return {
-        border: 'border-amber-600',
-        bg: 'bg-amber-950/40',
-        text: 'text-amber-400',
-        glow: 'shadow-lg shadow-amber-500/30',
-      };
-    default:
-      return {
-        border: 'border-gray-600',
-        bg: 'bg-gray-800/40',
-        text: 'text-gray-400',
-        glow: '',
-      };
+function getRarityColors(rarity: string, isDark: boolean) {
+  if (isDark) {
+    // Dark mode: vibrant borders, dark backgrounds, bright text
+    switch (rarity) {
+      case 'common':
+        return {
+          border: 'border-emerald-500',
+          bg: 'bg-emerald-950/40',
+          text: 'text-emerald-400',
+          glow: 'shadow-lg shadow-emerald-500/20',
+        };
+      case 'rare':
+        return {
+          border: 'border-blue-500',
+          bg: 'bg-blue-950/40',
+          text: 'text-blue-400',
+          glow: 'shadow-lg shadow-blue-500/20',
+        };
+      case 'epic':
+        return {
+          border: 'border-purple-500',
+          bg: 'bg-purple-950/40',
+          text: 'text-purple-400',
+          glow: 'shadow-lg shadow-purple-500/20',
+        };
+      case 'legendary':
+        return {
+          border: 'border-amber-500',
+          bg: 'bg-amber-950/40',
+          text: 'text-amber-400',
+          glow: 'shadow-lg shadow-amber-500/30',
+        };
+      default:
+        return {
+          border: 'border-gray-600',
+          bg: 'bg-gray-800/40',
+          text: 'text-gray-400',
+          glow: '',
+        };
+    }
+  } else {
+    // Light mode: softer borders, light backgrounds, darker text
+    switch (rarity) {
+      case 'common':
+        return {
+          border: 'border-emerald-400',
+          bg: 'bg-emerald-50',
+          text: 'text-emerald-700',
+          glow: '',
+        };
+      case 'rare':
+        return {
+          border: 'border-blue-400',
+          bg: 'bg-blue-50',
+          text: 'text-blue-700',
+          glow: '',
+        };
+      case 'epic':
+        return {
+          border: 'border-purple-400',
+          bg: 'bg-purple-50',
+          text: 'text-purple-700',
+          glow: '',
+        };
+      case 'legendary':
+        return {
+          border: 'border-amber-400',
+          bg: 'bg-amber-50',
+          text: 'text-amber-700',
+          glow: '',
+        };
+      default:
+        return {
+          border: 'border-gray-400',
+          bg: 'bg-gray-50',
+          text: 'text-gray-700',
+          glow: '',
+        };
+    }
   }
 }
 
@@ -73,8 +115,8 @@ export default function AchievementCard({
   progressPercent = 0,
   compact = false,
 }: AchievementCardProps) {
-  const { colors: themeColors } = useTheme();
-  const colors = getRarityColors(achievement.rarity);
+  const { colors: themeColors, isDarkMode } = useTheme();
+  const colors = getRarityColors(achievement.rarity, isDarkMode);
 
   // Render minimal locked card
   if (!unlocked && !showProgress) {
