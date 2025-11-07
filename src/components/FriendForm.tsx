@@ -8,7 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../hooks/useTheme';
 import FriendModel from '../db/models/Friend';
 import { type Archetype, type FriendFormData, type Tier, type RelationshipType } from './types';
-import { ArchetypeCarouselPicker } from './ArchetypeCarouselPicker';
+import { ArchetypeCard } from './archetype-card';
 import { ArchetypeDetailModal } from './ArchetypeDetailModal';
 
 interface FriendFormProps {
@@ -158,12 +158,19 @@ export function FriendForm({ onSave, friend, initialTier }: FriendFormProps) {
           <View>
             <Text style={[styles.label, { color: colors.foreground }]}>Archetype</Text>
             <Text style={[styles.helperText, { color: colors['muted-foreground'] }]}>
-              How does this friend like to connect?
+              Tap to select • Long-press to learn more
             </Text>
-            <ArchetypeCarouselPicker
-              selectedArchetype={formData.archetype as Archetype}
-              onSelect={(archetype) => setFormData({ ...formData, archetype })}
-            />
+            <View style={styles.archetypeGrid}>
+              {(['Emperor', 'Empress', 'HighPriestess', 'Fool', 'Sun', 'Hermit', 'Magician'] as Archetype[]).map((archetype) => (
+                <View key={archetype} style={styles.archetypeCardWrapper}>
+                  <ArchetypeCard
+                    archetype={archetype}
+                    isSelected={formData.archetype === archetype}
+                    onSelect={(arch) => setFormData({ ...formData, archetype: arch })}
+                  />
+                </View>
+              ))}
+            </View>
           </View>
 
           <View>
@@ -381,6 +388,15 @@ const styles = StyleSheet.create({
         fontWeight: '500',
     },
     tierButtonTextSelected: {},
+    archetypeGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 12,
+        marginTop: 8,
+    },
+    archetypeCardWrapper: {
+        width: '48%',
+    },
     helperText: {
         fontSize: 13,
         lineHeight: 18,

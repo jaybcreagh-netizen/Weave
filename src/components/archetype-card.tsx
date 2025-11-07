@@ -1,5 +1,7 @@
 import React from 'react';
-import { View, Text, Pressable, Vibration, StyleSheet } from 'react-native';
+import { View, Text, Pressable } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import * as Haptics from 'expo-haptics';
 import { useUIStore } from '../stores/uiStore';
 import { type Archetype } from './types';
 import { useTheme } from '../hooks/useTheme';
@@ -11,6 +13,16 @@ interface ArchetypeCardProps {
   isSelected?: boolean;
   onSelect?: (archetype: Archetype) => void;
 }
+
+const ARCHETYPE_GRADIENTS: Record<Archetype, string[]> = {
+  Emperor: ['#ef4444', '#dc2626'],
+  Empress: ['#10b981', '#059669'],
+  HighPriestess: ['#8b5cf6', '#7c3aed'],
+  Fool: ['#f59e0b', '#d97706'],
+  Sun: ['#eab308', '#ca8a04'],
+  Hermit: ['#6366f1', '#4f46e5'],
+  Magician: ['#ec4899', '#db2777'],
+};
 
 export function ArchetypeCard({
     archetype,
@@ -33,9 +45,10 @@ export function ArchetypeCard({
 
   const handleLongPress = () => {
     setArchetypeModal(archetype);
-    Vibration.vibrate(50);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
   };
 
+  const gradient = ARCHETYPE_GRADIENTS[archetype] || ['#6b7280', '#4b5563'];
   const iconColor = isSelected ? colors.primary : colors.foreground;
   const textColor = isSelected ? colors.primary : colors.foreground;
 
@@ -43,77 +56,52 @@ export function ArchetypeCard({
     <Pressable
       onPress={handlePress}
       onLongPress={handleLongPress}
-      style={({ pressed }) => [
-        styles.container,
-        {
-          backgroundColor: colors.card,
-          borderColor: isSelected ? colors.primary : colors.border,
-          shadowColor: isSelected ? colors.primary : '#000',
-          shadowOpacity: isSelected ? 0.15 : 0.05,
-        },
-        isSelected && styles.containerSelected,
-        { transform: [{ scale: pressed ? 0.95 : 1 }] }
-      ]}
+      className="relative rounded-2xl border-2 items-center justify-center p-3 w-full min-h-[120px] overflow-hidden"
+      style={({ pressed }) => ({
+        backgroundColor: colors.card,
+        borderColor: isSelected ? colors.primary : colors.border,
+        shadowColor: isSelected ? colors.primary : '#000',
+        shadowOpacity: isSelected ? 0.15 : 0.05,
+        shadowOffset: isSelected ? { width: 0, height: 4 } : { width: 0, height: 2 },
+        shadowRadius: isSelected ? 12 : 8,
+        elevation: isSelected ? 4 : 2,
+        transform: [{ scale: pressed ? 0.95 : 1 }],
+      })}
     >
-      <View style={[
-        styles.iconBox,
-        {
-          backgroundColor: isSelected ? colors.primary + '15' : colors.background,
-          borderColor: isSelected ? colors.primary : colors.border,
-        }
-      ]}>
-        <ArchetypeIcon archetype={archetype} size={28} color={iconColor} />
+      {/* Gradient Background */}
+      <LinearGradient
+        colors={[...gradient.map(c => c + '15'), 'transparent']}
+        className="absolute inset-0"
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      />
+
+      {/* Content */}
+      <View className="relative z-10 items-center">
+        <View
+          className="w-[52px] h-[52px] rounded-xl border-[1.5px] items-center justify-center mb-2"
+          style={{
+            backgroundColor: isSelected ? colors.primary + '15' : colors.background,
+            borderColor: isSelected ? colors.primary : colors.border,
+          }}
+        >
+          <ArchetypeIcon archetype={archetype} size={28} color={iconColor} />
+        </View>
+        <Text
+          className="text-center font-semibold text-sm mb-0.5"
+          style={{ color: textColor }}
+        >
+          {data.name.replace("The ", "")}
+        </Text>
+        <Text
+          className="text-center text-[10px] leading-[14px] px-1"
+          style={{ color: colors['muted-foreground'] }}
+          numberOfLines={1}
+          ellipsizeMode="tail"
+        >
+          {data.essence}
+        </Text>
       </View>
-      <Text style={[styles.name, { color: textColor }]}>
-        {data.name.replace("The ", "")}
-      </Text>
-      <Text style={[styles.essence, { color: colors['muted-foreground'] }]} numberOfLines={1} ellipsizeMode="tail">
-        {data.essence}
-      </Text>
     </Pressable>
   );
 }
-
-const styles = StyleSheet.create({
-    container: {
-        position: 'relative',
-        borderRadius: 16,
-        borderWidth: 2,
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 12,
-        width: '100%',
-        minHeight: 120,
-        shadowOffset: { width: 0, height: 2 },
-        shadowRadius: 8,
-        elevation: 2,
-    },
-    containerSelected: {
-        shadowOffset: { width: 0, height: 4 },
-        shadowRadius: 12,
-        elevation: 4,
-    },
-    iconBox: {
-        width: 52,
-        height: 52,
-        borderRadius: 12,
-        borderWidth: 1.5,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: 8,
-    },
-    name: {
-        textAlign: 'center',
-        fontWeight: '600',
-        lineHeight: 18,
-        fontSize: 14,
-        marginBottom: 2,
-    },
-    essence: {
-        textAlign: 'center',
-        fontSize: 10,
-        lineHeight: 14,
-        fontWeight: '400',
-        paddingHorizontal: 4,
-    },
-});
