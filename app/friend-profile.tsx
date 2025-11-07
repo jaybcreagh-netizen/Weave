@@ -45,6 +45,7 @@ export default function FriendProfile() {
   const { createIntention, convertToPlannedWeave, dismissIntention } = useIntentionStore();
   const friendIntentions = useFriendIntentions(typeof friendId === 'string' ? friendId : undefined);
   const [selectedInteraction, setSelectedInteraction] = useState<Interaction | null>(null);
+
   const [editingReflection, setEditingReflection] = useState<Interaction | null>(null);
   const [editingInteraction, setEditingInteraction] = useState<Interaction | null>(null);
   const [isDataLoaded, setIsDataLoaded] = useState(false);
@@ -331,16 +332,11 @@ export default function FriendProfile() {
     );
   }, [handleDeleteInteraction, handleEditInteraction, contentHeight, sortedInteractions, timelineSections]);
 
-  // Show loading state until data is actually loaded (AFTER all hooks)
-  if (!isDataLoaded || !friend) {
-    return (
-      <SafeAreaView style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
-        <ActivityIndicator size="large" color={colors.primary} />
-      </SafeAreaView>
-    );
-  }
+  // Define ListHeader before any returns (to satisfy Rules of Hooks)
+  const ListHeader = useMemo(() => {
+    if (!friend) return null;
 
-  const ListHeader = () => (
+    return (
     <View onLayout={(event) => setHeaderHeight(event.nativeEvent.layout.height)}>
         <View style={[styles.header, { borderColor: colors.border }]}>
             <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
@@ -484,7 +480,17 @@ export default function FriendProfile() {
             </Text>
         </View>
     </View>
-  );
+    );
+  }, [friend, colors, headerAnimatedStyle, buttonsAnimatedStyle, activeLifeEvents, router, handleEdit, handleDeleteFriend, setShowPlanChoice, setShowLifeEventModal, setEditingLifeEvent]);
+
+  // Show loading state until data is actually loaded (AFTER all hooks)
+  if (!isDataLoaded || !friend) {
+    return (
+      <SafeAreaView style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </SafeAreaView>
+    );
+  }
 
 
   return (
@@ -494,7 +500,7 @@ export default function FriendProfile() {
     >
         <Animated.View style={[{ flex: 1 }, pageAnimatedStyle]}>
         {/* Sticky Header */}
-        <ListHeader />
+        {ListHeader}
 
         {/* Timeline ScrollView */}
         <View style={styles.timelineContainer}>

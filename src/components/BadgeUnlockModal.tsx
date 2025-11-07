@@ -33,12 +33,13 @@ export default function BadgeUnlockModal() {
   const achievementQueue = useUIStore((state) => state.achievementUnlockQueue);
   const dismissBadge = useUIStore((state) => state.dismissBadgeUnlock);
   const dismissAchievement = useUIStore((state) => state.dismissAchievementUnlock);
+  const [isDismissing, setIsDismissing] = React.useState(false);
 
   // Badge takes priority over achievements
   const currentBadge = badgeQueue[0];
   const currentAchievement = !currentBadge ? achievementQueue[0] : null;
 
-  const visible = !!(currentBadge || currentAchievement);
+  const visible = !!(currentBadge || currentAchievement) && !isDismissing;
 
   // Animation values
   const scale = useSharedValue(0);
@@ -78,16 +79,25 @@ export default function BadgeUnlockModal() {
   }));
 
   async function handleDismiss() {
-    if (currentBadge) {
-      // Mark badge as celebrated in database
-      await markBadgeAsCelebrated(currentBadge.badge.id);
-      // Remove from queue
-      dismissBadge();
-    } else if (currentAchievement) {
-      // Mark achievement as celebrated in database
-      await markAchievementAsCelebrated(currentAchievement.achievement.id);
-      // Remove from queue
-      dismissAchievement();
+    setIsDismissing(true);
+
+    try {
+      if (currentBadge) {
+        // Mark badge as celebrated in database
+        await markBadgeAsCelebrated(currentBadge.badge.id, currentBadge.friendId);
+        // Remove from queue
+        dismissBadge();
+      } else if (currentAchievement) {
+        // Mark achievement as celebrated in database
+        await markAchievementAsCelebrated(currentAchievement.achievement.id);
+        // Remove from queue
+        dismissAchievement();
+      }
+    } finally {
+      // Small delay to prevent flickering
+      setTimeout(() => {
+        setIsDismissing(false);
+      }, 300);
     }
   }
 

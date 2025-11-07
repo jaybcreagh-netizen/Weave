@@ -43,6 +43,9 @@ function FriendBadgeSectionComponent({ friendId, friendName }: FriendBadgeSectio
   useEffect(() => {
     let isCancelled = false;
 
+    // Set loading state immediately
+    setLoading(true);
+
     async function loadBadgeData() {
       try {
         // Load unlocked badges
@@ -81,11 +84,7 @@ function FriendBadgeSectionComponent({ friendId, friendName }: FriendBadgeSectio
   }, [friendId]);
 
   if (loading) {
-    return (
-      <View className="p-4">
-        <Text className="text-gray-400 font-['Inter'] text-sm">Loading badges...</Text>
-      </View>
-    );
+    return null;
   }
 
   const categoryLabels = {

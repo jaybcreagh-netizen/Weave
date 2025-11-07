@@ -332,9 +332,6 @@ export const GLOBAL_ACHIEVEMENTS: GlobalAchievement[] = [
   ...SOCIAL_ACHIEVEMENTS,
 ];
 
-// Hidden achievements are separate
-export { HIDDEN_ACHIEVEMENTS };
-
 // ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
