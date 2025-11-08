@@ -8,6 +8,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../hooks/useTheme';
+import { tierColors } from '../lib/constants';
 
 interface TierSegmentedControlProps {
   activeTier: 'inner' | 'close' | 'community';
@@ -27,6 +28,12 @@ const TIER_LABELS = {
   inner: 'Inner',
   close: 'Close',
   community: 'Community',
+};
+
+const TIER_COLOR_MAP = {
+  inner: tierColors.InnerCircle,
+  close: tierColors.CloseFriends,
+  community: tierColors.Community,
 };
 
 export function TierSegmentedControl({
@@ -115,16 +122,25 @@ export function TierSegmentedControl({
       <View className="flex-1 flex-row">
         {TIERS.map((tier, index) => {
           const isActive = tier === activeTier;
+          const tierColor = TIER_COLOR_MAP[tier];
 
           return (
             <Pressable
               key={tier}
               onPress={() => handlePress(tier)}
-              className="flex-1 items-center justify-center"
+              className="flex-1 items-center justify-center flex-row gap-1.5"
               style={({ pressed }) => ({
                 transform: [{ scale: pressed ? 0.98 : 1 }],
               })}
             >
+              {/* Tier color indicator dot */}
+              <View
+                className="w-1.5 h-1.5 rounded-full"
+                style={{
+                  backgroundColor: tierColor,
+                  opacity: isActive ? 0.9 : 0.4,
+                }}
+              />
               <Text
                 className="text-sm font-semibold"
                 style={{
