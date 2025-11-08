@@ -257,6 +257,7 @@ async function saveDeepeningNudges(nudges: DeepeningNudge[]): Promise<void> {
 /**
  * Schedule a deepening nudge after completing a weave
  * Sends notification 3-6 hours after the weave to encourage reflection
+ * Limited to 2 nudges per day to avoid overwhelming the user
  */
 export async function schedulePostWeaveDeepening(interaction: Interaction): Promise<void> {
   try {
@@ -269,6 +270,17 @@ export async function schedulePostWeaveDeepening(interaction: Interaction): Prom
     const hoursSince = (now.getTime() - interactionDate.getTime()) / (60 * 60 * 1000);
 
     if (hoursSince > 24) return;
+
+    // Limit to 2 deepening nudges per day
+    const existingNudges = await getDeepeningNudges();
+    const startOfDay = new Date(now);
+    startOfDay.setHours(0, 0, 0, 0);
+    const todayNudges = existingNudges.filter(n => n.scheduledAt >= startOfDay.getTime());
+
+    if (todayNudges.length >= 2) {
+      console.log('[Notifications] Daily deepening nudge limit reached (2/day)');
+      return;
+    }
 
     // Random delay between 3-6 hours for natural feeling
     const delayHours = 3 + Math.random() * 3;
