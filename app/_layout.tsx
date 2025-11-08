@@ -14,7 +14,7 @@ import { initializeDataMigrations, initializeUserProfile, initializeUserProgress
 import { appStateManager } from '../src/lib/app-state-manager';
 import { useAppStateChange } from '../src/hooks/useAppState';
 import { useFriendStore } from '../src/stores/friendStore';
-import { requestNotificationPermissions, scheduleWeeklyReflection } from '../src/lib/notification-manager';
+import { initializeNotifications } from '../src/lib/notification-manager-enhanced';
 import {
   useFonts,
   Lora_400Regular,
@@ -83,15 +83,14 @@ export default function RootLayout() {
     };
   }, []);
 
-  // Initialize notification permissions and schedule weekly reflection
+  // Initialize all notification systems (battery, events, deepening, reflection)
   useEffect(() => {
     const setupNotifications = async () => {
-      const granted = await requestNotificationPermissions();
-      if (granted) {
-        await scheduleWeeklyReflection();
-        console.log('[App] Weekly reflection notification scheduled');
-      } else {
-        console.log('[App] Notification permissions not granted');
+      try {
+        await initializeNotifications();
+        console.log('[App] All notification systems initialized');
+      } catch (error) {
+        console.error('[App] Failed to initialize notifications:', error);
       }
     };
 

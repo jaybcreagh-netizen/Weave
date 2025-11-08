@@ -223,6 +223,25 @@ export async function logNewWeave(
     allAchievementUnlocks.push(...renaissanceUnlocks);
   }
 
+  // 7. Schedule notifications based on interaction type
+  if (newInteraction) {
+    try {
+      const { schedulePostWeaveDeepening, scheduleEventReminder } = await import('./notification-manager-enhanced');
+
+      // For completed weaves: schedule deepening nudge
+      if (weaveData.type === 'log' && weaveData.status === 'completed') {
+        await schedulePostWeaveDeepening(newInteraction);
+      }
+
+      // For planned weaves: schedule event reminder
+      if (weaveData.type === 'plan' && weaveData.status === 'planned') {
+        await scheduleEventReminder(newInteraction);
+      }
+    } catch (error) {
+      console.error('Error scheduling notifications:', error);
+    }
+  }
+
   return {
     interactionId,
     badgeUnlocks: allBadgeUnlocks,

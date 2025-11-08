@@ -125,6 +125,10 @@ export const useUserProfileStore = create<UserProfileStore>((set, get) => ({
         }
       });
     });
+
+    // Update notification schedule
+    const { updateBatteryNotificationFromProfile } = await import('../lib/notification-manager-enhanced');
+    await updateBatteryNotificationFromProfile();
   },
 
   getSocialSeason: () => {
