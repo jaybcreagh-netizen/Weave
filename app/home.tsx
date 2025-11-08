@@ -7,6 +7,7 @@ import { TodaysFocusWidget } from '../src/components/home/widgets/TodaysFocusWid
 import { WeavingPracticeWidget } from '../src/components/home/widgets/WeavingPracticeWidget';
 import { SocialBatterySheet } from '../src/components/home/SocialBatterySheet';
 import { WeeklyReflectionModal } from '../src/components/WeeklyReflection/WeeklyReflectionModal';
+import { YearInMoonsModal } from '../src/components/YearInMoons/YearInMoonsModal';
 import { useUserProfileStore } from '../src/stores/userProfileStore';
 import { useFriendStore } from '../src/stores/friendStore';
 import { getLastReflectionDate, shouldShowReflection } from '../src/lib/notification-manager';
@@ -16,6 +17,7 @@ export default function Home() {
   const { observeFriends } = useFriendStore();
   const [showBatterySheet, setShowBatterySheet] = useState(false);
   const [showWeeklyReflection, setShowWeeklyReflection] = useState(false);
+  const [showYearInMoons, setShowYearInMoons] = useState(false);
 
   // Initialize user profile observable on mount
   useEffect(() => {
@@ -125,11 +127,20 @@ export default function Home() {
         isVisible={showBatterySheet}
         onSubmit={handleBatterySubmit}
         onDismiss={() => setShowBatterySheet(false)}
+        onViewYearInMoons={() => {
+          setShowBatterySheet(false);
+          setShowYearInMoons(true);
+        }}
       />
 
       <WeeklyReflectionModal
         isOpen={showWeeklyReflection}
         onClose={() => setShowWeeklyReflection(false)}
+      />
+
+      <YearInMoonsModal
+        isOpen={showYearInMoons}
+        onClose={() => setShowYearInMoons(false)}
       />
     </>
   );
