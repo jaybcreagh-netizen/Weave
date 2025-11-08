@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, View, Text, TouchableOpacity, Switch, Alert, ScrollView, Platform } from 'react-native';
-import { X, Moon, Sun, Palette, RefreshCw, Bug, BarChart3, Battery, Calendar as CalendarIcon, ChevronRight, Bell, Clock } from 'lucide-react-native';
+import { X, Moon, Sun, Palette, RefreshCw, Bug, BarChart3, Battery, Calendar as CalendarIcon, ChevronRight, Bell, Clock, Trophy } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming, runOnJS } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
@@ -36,7 +36,7 @@ export function SettingsModal({
   onOpenBatteryCheckIn,
 }: SettingsModalProps) {
   const insets = useSafeAreaInsets();
-  const { isDarkMode, toggleDarkMode, showDebugScore, toggleShowDebugScore } = useUIStore();
+  const { isDarkMode, toggleDarkMode, showDebugScore, toggleShowDebugScore, openTrophyCabinet } = useUIStore();
   const { profile, updateBatteryPreferences } = useUserProfileStore();
   const { colors } = useTheme();
   const [shouldRender, setShouldRender] = useState(false);
@@ -436,6 +436,24 @@ export function SettingsModal({
             </TouchableOpacity>
 
             <View className="border-t border-border my-2" style={{ borderColor: colors.border }} />
+
+            <TouchableOpacity
+              className="flex-row items-center justify-between"
+              onPress={() => {
+                onClose();
+                setTimeout(() => openTrophyCabinet(), 300);
+              }}
+            >
+              <View className="flex-row items-center gap-3">
+                <View className="w-10 h-10 rounded-lg items-center justify-center" style={{ backgroundColor: colors.muted }}>
+                  <Trophy color={colors.foreground} size={20} />
+                </View>
+                <View>
+                  <Text className="text-base font-inter-medium" style={{ color: colors.foreground }}>Trophy Cabinet</Text>
+                  <Text className="text-sm font-inter-regular" style={{ color: colors['muted-foreground'] }}>View your achievements</Text>
+                </View>
+              </View>
+            </TouchableOpacity>
 
             <View className="flex-row items-center justify-between">
               <View className="flex-row items-center gap-3">

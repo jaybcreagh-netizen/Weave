@@ -9,6 +9,7 @@ import { QuickWeaveProvider } from '../src/components/QuickWeaveProvider';
 import { ToastProvider } from '../src/components/toast_provider';
 import { CardGestureProvider } from '../src/context/CardGestureContext'; // Import the provider
 import { MilestoneCelebration } from '../src/components/MilestoneCelebration';
+import TrophyCabinetModal from '../src/components/TrophyCabinetModal';
 import { useUIStore } from '../src/stores/uiStore';
 import { initializeDataMigrations, initializeUserProfile, initializeUserProgress } from '../src/db';
 import { appStateManager } from '../src/lib/app-state-manager';
@@ -32,6 +33,8 @@ export default function RootLayout() {
   const isDarkMode = useUIStore((state) => state.isDarkMode);
   const milestoneCelebrationData = useUIStore((state) => state.milestoneCelebrationData);
   const hideMilestoneCelebration = useUIStore((state) => state.hideMilestoneCelebration);
+  const isTrophyCabinetOpen = useUIStore((state) => state.isTrophyCabinetOpen);
+  const closeTrophyCabinet = useUIStore((state) => state.closeTrophyCabinet);
 
   const [fontsLoaded, fontError] = useFonts({
     Lora_400Regular,
@@ -123,6 +126,11 @@ export default function RootLayout() {
               visible={milestoneCelebrationData !== null}
               milestone={milestoneCelebrationData}
               onClose={hideMilestoneCelebration}
+            />
+
+            <TrophyCabinetModal
+              visible={isTrophyCabinetOpen}
+              onClose={closeTrophyCabinet}
             />
           </ToastProvider>
         </QuickWeaveProvider>

@@ -42,6 +42,7 @@ interface UIStore {
   badgeUnlockQueue: BadgeUnlock[];
   achievementUnlockQueue: AchievementUnlockData[];
   isDarkMode: boolean;
+  isTrophyCabinetOpen: boolean;
 
   setSelectedFriendId: (id: string | null) => void;
   setArchetypeModal: (archetype: Archetype | null) => void;
@@ -73,6 +74,8 @@ interface UIStore {
   dismissAchievementUnlock: () => void;
   toggleDarkMode: () => void;
   setDarkMode: (isDark: boolean) => void;
+  openTrophyCabinet: () => void;
+  closeTrophyCabinet: () => void;
 }
 
 export const useUIStore = create<UIStore>((set, get) => ({
@@ -99,6 +102,7 @@ export const useUIStore = create<UIStore>((set, get) => ({
   badgeUnlockQueue: [],
   achievementUnlockQueue: [],
   isDarkMode: false,
+  isTrophyCabinetOpen: false,
   
   setSelectedFriendId: (id) => set({ selectedFriendId: id }),
   setArchetypeModal: (archetype) => set({ archetypeModal: archetype }),
@@ -174,4 +178,6 @@ export const useUIStore = create<UIStore>((set, get) => ({
 
   toggleDarkMode: () => set((state) => ({ isDarkMode: !state.isDarkMode })),
   setDarkMode: (isDark) => set({ isDarkMode: isDark }),
+  openTrophyCabinet: () => set({ isTrophyCabinetOpen: true }),
+  closeTrophyCabinet: () => set({ isTrophyCabinetOpen: false }),
 }));
