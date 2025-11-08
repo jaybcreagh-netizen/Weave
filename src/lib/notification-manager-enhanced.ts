@@ -148,8 +148,18 @@ export async function scheduleEventReminder(interaction: Interaction): Promise<v
     // Don't schedule if reminder time is in the past
     if (reminderTime <= now) return;
 
-    // Fetch friend names
-    const friends = await interaction.friends.fetch();
+    // Fetch friend names through join table
+    const joinRecords = await database
+      .get('interaction_friends')
+      .query(Q.where('interaction_id', interaction.id))
+      .fetch();
+
+    const friendIds = joinRecords.map((jr: any) => jr.friendId);
+    const friends = await database
+      .get<Friend>('friends')
+      .query(Q.where('id', Q.oneOf(friendIds)))
+      .fetch();
+
     const friendNames = friends.map(f => f.name).join(', ');
 
     const notificationId = `${EVENT_REMINDER_PREFIX}${interaction.id}`;
@@ -265,8 +275,18 @@ export async function schedulePostWeaveDeepening(interaction: Interaction): Prom
     const delayMs = delayHours * 60 * 60 * 1000;
     const nudgeTime = new Date(now.getTime() + delayMs);
 
-    // Fetch friend names
-    const friends = await interaction.friends.fetch();
+    // Fetch friend names through join table
+    const joinRecords = await database
+      .get('interaction_friends')
+      .query(Q.where('interaction_id', interaction.id))
+      .fetch();
+
+    const friendIds = joinRecords.map((jr: any) => jr.friendId);
+    const friends = await database
+      .get<Friend>('friends')
+      .query(Q.where('id', Q.oneOf(friendIds)))
+      .fetch();
+
     const friendNames = friends.map(f => f.name);
     const primaryFriend = friendNames[0] || 'your friend';
 

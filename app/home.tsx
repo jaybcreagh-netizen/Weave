@@ -2,8 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { View } from 'react-native';
 
 import { HomeWidgetGrid, WidgetGridItem } from '../src/components/home/HomeWidgetGrid';
-import { StatePillsWidget } from '../src/components/home/widgets/StatePillsWidget';
-import { FocusCardWidget } from '../src/components/home/widgets/FocusCardWidget';
+import { SocialSeasonWidget } from '../src/components/home/widgets/SocialSeasonWidget';
+import { TodaysFocusWidget } from '../src/components/home/widgets/TodaysFocusWidget';
 import { WeavingPracticeWidget } from '../src/components/home/widgets/WeavingPracticeWidget';
 import { SocialBatterySheet } from '../src/components/home/SocialBatterySheet';
 import { WeeklyReflectionModal } from '../src/components/WeeklyReflection/WeeklyReflectionModal';
@@ -85,22 +85,22 @@ export default function Home() {
   // Define widget grid - Compass Hub design
   const widgets: WidgetGridItem[] = [
     {
-      id: 'state-pills',
-      component: StatePillsWidget,
+      id: 'social-season',
+      component: SocialSeasonWidget,
       config: {
-        id: 'state-pills',
-        type: 'state-pills',
+        id: 'social-season',
+        type: 'social-season',
         fullWidth: true,
       },
       position: 0,
       visible: true,
     },
     {
-      id: 'focus-card',
-      component: FocusCardWidget,
+      id: 'todays-focus',
+      component: TodaysFocusWidget,
       config: {
-        id: 'focus-card',
-        type: 'focus-card',
+        id: 'todays-focus',
+        type: 'todays-focus',
         fullWidth: true,
       },
       position: 1,

@@ -319,7 +319,7 @@ function detectTrendPattern(history: BatteryHistoryEntry[]): Pattern | null {
       type: 'trend',
       title: 'Energy on the Rise',
       description: `Your battery has increased from ${avgFirst.toFixed(1)}/5 to ${avgSecond.toFixed(1)}/5 recently (+${change.toFixed(1)}).`,
-      insight: 'Something is working! Reflect on what's been different lately.',
+      insight: 'Something is working! Reflect on what has been different lately.',
       confidence: change >= 1.0 ? 'high' : 'medium',
       icon: '📈',
       data: { avgFirst, avgSecond, change },
