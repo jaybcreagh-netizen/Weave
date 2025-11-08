@@ -29,7 +29,7 @@ const WIDGET_CONFIG: HomeWidgetConfig = {
   id: 'social-season',
   type: 'social-season',
   title: 'Your Season',
-  minHeight: 240,
+  minHeight: 120,
   fullWidth: true,
 };
 
@@ -195,43 +195,26 @@ export const SocialSeasonWidget: React.FC = () => {
 
   return (
     <>
-      <Pressable onPress={() => setShowExplanation(true)} onLongPress={() => setShowOverride(true)} delayLongPress={800}>
-        <HomeWidgetBase config={WIDGET_CONFIG} isLoading={isCalculating}>
+      <HomeWidgetBase config={WIDGET_CONFIG} isLoading={isCalculating}>
+        <Pressable onPress={() => setShowExplanation(true)} onLongPress={() => setShowOverride(true)} delayLongPress={800}>
           <LinearGradient colors={gradientColors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.gradient}>
             {/* Battery Badge */}
             <View style={styles.batteryBadge}>
-              <Battery size={14} color="#FFFFFF" />
+              <Battery size={12} color="#FFFFFF" />
               <Text style={styles.batteryText}>{batteryLevel}/5</Text>
             </View>
 
-            {/* Content */}
+            {/* Compact Content */}
             <View style={styles.content}>
-              <Text style={styles.emoji}>{greeting.emoji}</Text>
-              <Text style={styles.headline}>{greeting.headline}</Text>
-              <Text style={styles.subtext}>{greeting.subtext}</Text>
-
-              {/* Action Buttons */}
-              <View style={styles.buttonRow}>
-                {actions.map((action) => (
-                  <TouchableOpacity
-                    key={action.label}
-                    onPress={() => {
-                      if (action.route) router.push(action.route as any);
-                      else if (action.onPress) action.onPress();
-                    }}
-                    style={styles.button}
-                  >
-                    <action.icon size={16} color="#FFFFFF" />
-                    <Text style={styles.buttonText}>{action.label}</Text>
-                  </TouchableOpacity>
-                ))}
+              <Text style={styles.emojiCompact}>{greeting.emoji}</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.headlineCompact}>{getSeasonDisplayName(season)}</Text>
+                <Text style={styles.subtextCompact}>{greeting.subtext}</Text>
               </View>
-
-              <Text style={styles.hint}>Tap for details · Long press to override</Text>
             </View>
           </LinearGradient>
-        </HomeWidgetBase>
-      </Pressable>
+        </Pressable>
+      </HomeWidgetBase>
 
       {/* Explanation Modal */}
       <Modal visible={showExplanation} transparent animationType="fade" onRequestClose={() => setShowExplanation(false)}>
@@ -352,78 +335,49 @@ const styles = StyleSheet.create({
     marginHorizontal: -20,
     marginTop: -20,
     marginBottom: -20,
-    padding: 24,
-    minHeight: 220,
+    padding: 20,
+    minHeight: 100,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   batteryBadge: {
     position: 'absolute',
-    top: 16,
-    right: 16,
+    top: 12,
+    right: 12,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    gap: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
     borderRadius: 999,
   },
   batteryText: {
     color: '#FFFFFF',
     fontFamily: 'Inter_600SemiBold',
-    fontSize: 12,
+    fontSize: 11,
   },
   content: {
     flex: 1,
-    justifyContent: 'center',
+    flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 14,
+    paddingRight: 60, // Space for battery badge
   },
-  emoji: {
-    fontSize: 48,
-    marginBottom: 8,
+  emojiCompact: {
+    fontSize: 36,
   },
-  headline: {
+  headlineCompact: {
     fontFamily: 'Lora_700Bold',
-    fontSize: 24,
+    fontSize: 18,
     color: '#FFFFFF',
-    textAlign: 'center',
+    marginBottom: 2,
   },
-  subtext: {
+  subtextCompact: {
     fontFamily: 'Inter_400Regular',
-    fontSize: 15,
-    lineHeight: 22,
-    color: 'rgba(255, 255, 255, 0.9)',
-    textAlign: 'center',
-    maxWidth: '85%',
-    marginBottom: 8,
-  },
-  buttonRow: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 8,
-  },
-  button: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 999,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-  },
-  buttonText: {
-    fontFamily: 'Inter_600SemiBold',
-    fontSize: 14,
-    color: '#FFFFFF',
-  },
-  hint: {
-    marginTop: 8,
-    color: 'rgba(255, 255, 255, 0.5)',
-    fontFamily: 'Inter_400Regular',
-    fontSize: 11,
-    textAlign: 'center',
+    fontSize: 13,
+    lineHeight: 18,
+    color: 'rgba(255, 255, 255, 0.85)',
   },
   modalOverlay: {
     flex: 1,
