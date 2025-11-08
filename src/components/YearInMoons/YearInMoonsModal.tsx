@@ -49,8 +49,11 @@ export function YearInMoonsModal({ isOpen, onClose }: YearInMoonsModalProps) {
     mostCommonLevel: 0,
     streakDays: 0,
   });
+  const scrollViewRef = React.useRef<ScrollView>(null);
+  const monthRefs = React.useRef<{ [key: number]: View | null }>({});
 
   const currentYear = new Date().getFullYear();
+  const currentMonth = new Date().getMonth(); // 0-11
   const screenWidth = Dimensions.get('window').width;
   const moonSize = Math.floor((screenWidth - 80) / 7); // 7 moons per row with padding
 
@@ -75,6 +78,27 @@ export function YearInMoonsModal({ isOpen, onClose }: YearInMoonsModalProps) {
       setIsLoading(false);
     }
   };
+
+  // Auto-scroll to current month when data loads
+  useEffect(() => {
+    if (!isLoading && yearData.length > 0 && currentTab === 'moons') {
+      // Small delay to ensure layout has completed
+      setTimeout(() => {
+        const monthRef = monthRefs.current[currentMonth];
+        if (monthRef) {
+          monthRef.measureLayout(
+            scrollViewRef.current as any,
+            (_x, y) => {
+              scrollViewRef.current?.scrollTo({ y: Math.max(0, y - 100), animated: true });
+            },
+            () => {
+              console.log('Failed to measure month layout');
+            }
+          );
+        }
+      }, 300);
+    }
+  }, [isLoading, yearData, currentTab]);
 
   const handleClose = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -182,6 +206,7 @@ export function YearInMoonsModal({ isOpen, onClose }: YearInMoonsModalProps) {
             <>
               {currentTab === 'moons' && (
                 <ScrollView
+                  ref={scrollViewRef}
                   className="flex-1 px-5 py-4"
                   showsVerticalScrollIndicator={false}
                 >
@@ -239,6 +264,12 @@ export function YearInMoonsModal({ isOpen, onClose }: YearInMoonsModalProps) {
                       key={`${monthData.year}-${monthData.month}`}
                       entering={FadeIn.delay(monthIndex * 50)}
                       className="mb-6"
+                      ref={(ref) => {
+                        if (ref) {
+                          monthRefs.current[monthData.month] = ref as any;
+                        }
+                      }}
+                      collapsable={false}
                     >
                       {/* Month Header */}
                       <Text
