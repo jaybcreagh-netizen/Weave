@@ -24,7 +24,6 @@ interface SocialBatterySheetProps {
   isVisible: boolean;
   onSubmit: (value: number, note?: string) => void;
   onDismiss: () => void;
-  onViewYearInMoons?: () => void;
 }
 
 // Battery level moon phase states with descriptions
@@ -75,7 +74,6 @@ export const SocialBatterySheet: React.FC<SocialBatterySheetProps> = ({
   isVisible,
   onSubmit,
   onDismiss,
-  onViewYearInMoons,
 }) => {
   const { colors, isDarkMode } = useTheme();
   const [batteryLevel, setBatteryLevel] = useState<number>(3);
@@ -278,21 +276,6 @@ export const SocialBatterySheet: React.FC<SocialBatterySheetProps> = ({
               </Text>
             </TouchableOpacity>
           </View>
-
-          {/* Year in Moons Link */}
-          {onViewYearInMoons && (
-            <TouchableOpacity
-              onPress={onViewYearInMoons}
-              className="mt-4 items-center py-2"
-            >
-              <Text
-                style={{ color: colors.primary }}
-                className="font-inter text-sm font-medium"
-              >
-                View your year in moons →
-              </Text>
-            </TouchableOpacity>
-          )}
         </Animated.View>
       </KeyboardAvoidingView>
     </Modal>

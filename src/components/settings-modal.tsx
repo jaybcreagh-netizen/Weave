@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, View, Text, TouchableOpacity, Switch, Alert, ScrollView } from 'react-native';
-import { X, Moon, Sun, Palette, RefreshCw, Bug, BarChart3, Battery, Calendar as CalendarIcon, ChevronRight } from 'lucide-react-native';
+import { Modal, View, Text, TouchableOpacity, Switch, Alert, ScrollView, Platform } from 'react-native';
+import { X, Moon, Sun, Palette, RefreshCw, Bug, BarChart3, Battery, Calendar as CalendarIcon, ChevronRight, Bell, Clock } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming, runOnJS } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { useUIStore } from '../stores/uiStore';
+import { useUserProfileStore } from '../stores/userProfileStore';
 import { getSuggestionAnalytics } from '../lib/suggestion-tracker';
 import {
   getCalendarSettings,
@@ -15,6 +17,10 @@ import {
   requestCalendarPermissions,
   type CalendarSettings,
 } from '../lib/calendar-service';
+import {
+  scheduleWeeklyReflection,
+  cancelWeeklyReflection,
+} from '../lib/notification-manager-enhanced';
 import { useTheme } from '../hooks/useTheme';
 import { clearDatabase } from '../db';
 
@@ -31,6 +37,7 @@ export function SettingsModal({
 }: SettingsModalProps) {
   const insets = useSafeAreaInsets();
   const { isDarkMode, toggleDarkMode, showDebugScore, toggleShowDebugScore } = useUIStore();
+  const { profile, updateBatteryPreferences } = useUserProfileStore();
   const { colors } = useTheme();
   const [shouldRender, setShouldRender] = useState(false);
 
@@ -68,12 +75,19 @@ export function SettingsModal({
   });
   const [availableCalendars, setAvailableCalendars] = useState<any[]>([]);
 
-  // Load calendar settings on mount
+  // Notification settings state
+  const [batteryNotificationsEnabled, setBatteryNotificationsEnabled] = useState(false);
+  const [batteryNotificationTime, setBatteryNotificationTime] = useState(new Date());
+  const [showTimePicker, setShowTimePicker] = useState(false);
+  const [weeklyReflectionEnabled, setWeeklyReflectionEnabled] = useState(true);
+
+  // Load settings on mount
   useEffect(() => {
     if (isOpen) {
       loadCalendarSettings();
+      loadNotificationSettings();
     }
-  }, [isOpen]);
+  }, [isOpen, profile]);
 
   const loadCalendarSettings = async () => {
     const settings = await getCalendarSettings();
@@ -83,6 +97,20 @@ export function SettingsModal({
       const calendars = await getAvailableCalendars();
       setAvailableCalendars(calendars);
     }
+  };
+
+  const loadNotificationSettings = () => {
+    if (!profile) return;
+
+    // Load battery notification preferences
+    const enabled = profile.batteryCheckinEnabled ?? true;
+    setBatteryNotificationsEnabled(enabled);
+
+    const timeStr = profile.batteryCheckinTime || '20:00';
+    const [hours, minutes] = timeStr.split(':').map(Number);
+    const date = new Date();
+    date.setHours(hours, minutes, 0, 0);
+    setBatteryNotificationTime(date);
   };
 
   const handleToggleCalendar = async (enabled: boolean) => {
@@ -119,6 +147,44 @@ export function SettingsModal({
     buttons.push({ text: 'Cancel', onPress: () => {}, style: 'cancel' } as any);
 
     Alert.alert('Select Calendar', 'Choose which calendar to use for planned weaves', buttons);
+  };
+
+  const handleToggleBatteryNotifications = async (enabled: boolean) => {
+    setBatteryNotificationsEnabled(enabled);
+
+    const hours = batteryNotificationTime.getHours();
+    const minutes = batteryNotificationTime.getMinutes();
+    const timeStr = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+
+    await updateBatteryPreferences(enabled, timeStr);
+  };
+
+  const handleTimeChange = async (event: any, selectedDate?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowTimePicker(false);
+    }
+
+    if (selectedDate) {
+      setBatteryNotificationTime(selectedDate);
+
+      const hours = selectedDate.getHours();
+      const minutes = selectedDate.getMinutes();
+      const timeStr = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+
+      if (batteryNotificationsEnabled) {
+        await updateBatteryPreferences(true, timeStr);
+      }
+    }
+  };
+
+  const handleToggleWeeklyReflection = async (enabled: boolean) => {
+    setWeeklyReflectionEnabled(enabled);
+
+    if (enabled) {
+      await scheduleWeeklyReflection();
+    } else {
+      await cancelWeeklyReflection();
+    }
   };
 
   const handleResetDatabase = () => {
@@ -285,6 +351,72 @@ export function SettingsModal({
                 <ChevronRight color={colors['muted-foreground']} size={20} />
               </TouchableOpacity>
             )}
+
+            <View className="border-t border-border my-2" style={{ borderColor: colors.border }} />
+
+            {/* Notifications Section */}
+            <View className="flex-row items-center justify-between">
+              <View className="flex-row items-center gap-3">
+                <View className="w-10 h-10 rounded-lg items-center justify-center" style={{ backgroundColor: colors.muted }}>
+                  <Bell color={colors.foreground} size={20} />
+                </View>
+                <View>
+                  <Text className="text-base font-inter-medium" style={{ color: colors.foreground }}>Daily Battery Reminder</Text>
+                  <Text className="text-sm font-inter-regular" style={{ color: colors['muted-foreground'] }}>Check in with your energy</Text>
+                </View>
+              </View>
+              <Switch
+                value={batteryNotificationsEnabled}
+                onValueChange={handleToggleBatteryNotifications}
+                trackColor={{ false: colors.muted, true: colors.primary }}
+                thumbColor={colors.card}
+              />
+            </View>
+
+            {batteryNotificationsEnabled && (
+              <TouchableOpacity
+                className="flex-row items-center justify-between pl-13"
+                onPress={() => setShowTimePicker(true)}
+              >
+                <View>
+                  <Text className="text-sm font-inter-medium" style={{ color: colors.foreground }}>Reminder Time</Text>
+                  <Text className="text-xs font-inter-regular" style={{ color: colors['muted-foreground'] }}>
+                    {batteryNotificationTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
+                  </Text>
+                </View>
+                <Clock color={colors['muted-foreground']} size={20} />
+              </TouchableOpacity>
+            )}
+
+            {showTimePicker && (
+              <DateTimePicker
+                value={batteryNotificationTime}
+                mode="time"
+                is24Hour={false}
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                onChange={handleTimeChange}
+              />
+            )}
+
+            <View className="border-t border-border my-2" style={{ borderColor: colors.border }} />
+
+            <View className="flex-row items-center justify-between">
+              <View className="flex-row items-center gap-3">
+                <View className="w-10 h-10 rounded-lg items-center justify-center" style={{ backgroundColor: colors.muted }}>
+                  <CalendarIcon color={colors.foreground} size={20} />
+                </View>
+                <View>
+                  <Text className="text-base font-inter-medium" style={{ color: colors.foreground }}>Weekly Reflection</Text>
+                  <Text className="text-sm font-inter-regular" style={{ color: colors['muted-foreground'] }}>Sunday evening check-in</Text>
+                </View>
+              </View>
+              <Switch
+                value={weeklyReflectionEnabled}
+                onValueChange={handleToggleWeeklyReflection}
+                trackColor={{ false: colors.muted, true: colors.primary }}
+                thumbColor={colors.card}
+              />
+            </View>
 
             <View className="border-t border-border my-2" style={{ borderColor: colors.border }} />
 

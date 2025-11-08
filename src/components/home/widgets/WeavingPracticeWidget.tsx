@@ -10,7 +10,6 @@ import Interaction from '../../../db/models/Interaction';
 
 import TrophyCabinetModal from '../../TrophyCabinetModal';
 import { ReflectionJourneyModal } from '../../ReflectionJourney/ReflectionJourneyModal';
-import { YearInMoonsModal } from '../../YearInMoons/YearInMoonsModal';
 
 const WIDGET_CONFIG: HomeWidgetConfig = {
   id: 'weaving-practice',
@@ -82,7 +81,6 @@ export const WeavingPracticeWidget: React.FC = () => {
   const [weekActivity, setWeekActivity] = useState<boolean[]>([]);
   const [isTrophyCabinetVisible, setTrophyCabinetVisible] = useState(false);
   const [isReflectionJourneyVisible, setReflectionJourneyVisible] = useState(false);
-  const [isYearInMoonsVisible, setYearInMoonsVisible] = useState(false);
 
   useEffect(() => {
     const loadProgress = async () => {
@@ -222,42 +220,23 @@ export const WeavingPracticeWidget: React.FC = () => {
               </Text>
             </View>
 
-            {/* Action Buttons Row */}
-            <View className="mt-3 flex-row gap-2">
-              <TouchableOpacity
-                onPress={(e) => {
-                  e.stopPropagation();
-                  setReflectionJourneyVisible(true);
-                }}
-                className="flex-1 py-2 px-3 rounded-lg flex-row items-center justify-center gap-1"
-                style={{ backgroundColor: colors.muted }}
-                activeOpacity={0.7}
+            {/* Reflection Journey Button */}
+            <TouchableOpacity
+              onPress={(e) => {
+                e.stopPropagation();
+                setReflectionJourneyVisible(true);
+              }}
+              className="mt-3 py-2 px-4 rounded-lg flex-row items-center justify-center gap-1.5"
+              style={{ backgroundColor: colors.muted }}
+              activeOpacity={0.7}
+            >
+              <Text
+                className="font-inter-medium text-xs"
+                style={{ color: colors.foreground }}
               >
-                <Text
-                  className="font-inter-medium text-xs"
-                  style={{ color: colors.foreground }}
-                >
-                  📖 Reflections
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={(e) => {
-                  e.stopPropagation();
-                  setYearInMoonsVisible(true);
-                }}
-                className="flex-1 py-2 px-3 rounded-lg flex-row items-center justify-center gap-1"
-                style={{ backgroundColor: colors.muted }}
-                activeOpacity={0.7}
-              >
-                <Text
-                  className="font-inter-medium text-xs"
-                  style={{ color: colors.foreground }}
-                >
-                  🌙 Year in Moons
-                </Text>
-              </TouchableOpacity>
-            </View>
+                📖 View Reflection Journey
+              </Text>
+            </TouchableOpacity>
           </View>
         </HomeWidgetBase>
       </TouchableOpacity>
@@ -270,11 +249,6 @@ export const WeavingPracticeWidget: React.FC = () => {
       <ReflectionJourneyModal
         isOpen={isReflectionJourneyVisible}
         onClose={() => setReflectionJourneyVisible(false)}
-      />
-
-      <YearInMoonsModal
-        isOpen={isYearInMoonsVisible}
-        onClose={() => setYearInMoonsVisible(false)}
       />
     </>
   );

@@ -5,7 +5,7 @@ import { BlurView } from 'expo-blur';
 import { startOfDay, subDays } from 'date-fns';
 import { Q } from '@nozbe/watermelondb';
 import { useRouter } from 'expo-router';
-import { BookOpen, X, Sparkles, BarChart3, Telescope, Lightbulb, Flame, Battery, Moon } from 'lucide-react-native';
+import { BookOpen, X, Sparkles, BarChart3, Telescope, Lightbulb, Flame, Battery } from 'lucide-react-native';
 import { useTheme } from '../../../hooks/useTheme';
 import { useUserProfileStore } from '../../../stores/userProfileStore';
 import { useFriends } from '../../../hooks/useFriends';
@@ -24,7 +24,6 @@ import { calculateCurrentScore } from '../../../lib/weave-engine';
 import { database } from '../../../db';
 import Interaction from '../../../db/models/Interaction';
 import { generateSeasonExplanation, type SeasonExplanationData } from '../../../lib/narrative-generator';
-import { YearInMoonsModal } from '../../YearInMoons/YearInMoonsModal';
 
 const WIDGET_CONFIG: HomeWidgetConfig = {
   id: 'social-season',
@@ -74,7 +73,6 @@ export const SocialSeasonWidget: React.FC = () => {
   const [seasonData, setSeasonData] = useState<SeasonExplanationData | null>(null);
   const [showExplanation, setShowExplanation] = useState(false);
   const [showOverride, setShowOverride] = useState(false);
-  const [showYearInMoons, setShowYearInMoons] = useState(false);
 
   useEffect(() => {
     calculateAndUpdateSeason();
@@ -171,17 +169,17 @@ export const SocialSeasonWidget: React.FC = () => {
       case 'resting':
         return [
           { label: 'Journal', icon: BookOpen, onPress: () => console.log('📖 Journal') },
-          { label: 'Year View', icon: Moon, onPress: () => setShowYearInMoons(true) },
+          { label: 'View History', icon: BarChart3, onPress: () => console.log('📊 History') },
         ];
       case 'balanced':
         return [
           { label: 'Suggestions', icon: Sparkles, route: '/home' },
-          { label: 'Year View', icon: Moon, onPress: () => setShowYearInMoons(true) },
+          { label: 'Constellation', icon: Telescope, onPress: () => console.log('🌌 Constellation') },
         ];
       case 'blooming':
         return [
           { label: 'Creative Ideas', icon: Lightbulb, onPress: () => console.log('💡 Creative') },
-          { label: 'Year View', icon: Moon, onPress: () => setShowYearInMoons(true) },
+          { label: 'Check In', icon: Flame, onPress: () => console.log('🕯️ Check-in') },
         ];
     }
   };
@@ -344,12 +342,6 @@ export const SocialSeasonWidget: React.FC = () => {
           </View>
         </View>
       </Modal>
-
-      {/* Year in Moons Modal */}
-      <YearInMoonsModal
-        isOpen={showYearInMoons}
-        onClose={() => setShowYearInMoons(false)}
-      />
     </>
   );
 };

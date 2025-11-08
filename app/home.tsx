@@ -3,11 +3,11 @@ import { View } from 'react-native';
 
 import { HomeWidgetGrid, WidgetGridItem } from '../src/components/home/HomeWidgetGrid';
 import { SocialSeasonWidget } from '../src/components/home/widgets/SocialSeasonWidget';
-import { TodaysFocusWidget } from '../src/components/home/widgets/TodaysFocusWidget';
+import { YearInMoonsWidget } from '../src/components/home/widgets/YearInMoonsWidget';
 import { WeavingPracticeWidget } from '../src/components/home/widgets/WeavingPracticeWidget';
+import { FocusPill } from '../src/components/home/widgets/FocusPill';
 import { SocialBatterySheet } from '../src/components/home/SocialBatterySheet';
 import { WeeklyReflectionModal } from '../src/components/WeeklyReflection/WeeklyReflectionModal';
-import { YearInMoonsModal } from '../src/components/YearInMoons/YearInMoonsModal';
 import { useUserProfileStore } from '../src/stores/userProfileStore';
 import { useFriendStore } from '../src/stores/friendStore';
 import { getLastReflectionDate, shouldShowReflection } from '../src/lib/notification-manager';
@@ -17,7 +17,6 @@ export default function Home() {
   const { observeFriends } = useFriendStore();
   const [showBatterySheet, setShowBatterySheet] = useState(false);
   const [showWeeklyReflection, setShowWeeklyReflection] = useState(false);
-  const [showYearInMoons, setShowYearInMoons] = useState(false);
 
   // Initialize user profile observable on mount
   useEffect(() => {
@@ -96,11 +95,11 @@ export default function Home() {
       visible: true,
     },
     {
-      id: 'todays-focus',
-      component: TodaysFocusWidget,
+      id: 'year-in-moons',
+      component: YearInMoonsWidget,
       config: {
-        id: 'todays-focus',
-        type: 'todays-focus',
+        id: 'year-in-moons',
+        type: 'year-in-moons',
         fullWidth: true,
       },
       position: 1,
@@ -121,26 +120,18 @@ export default function Home() {
 
   return (
     <>
+      <FocusPill />
       <HomeWidgetGrid widgets={widgets} />
 
       <SocialBatterySheet
         isVisible={showBatterySheet}
         onSubmit={handleBatterySubmit}
         onDismiss={() => setShowBatterySheet(false)}
-        onViewYearInMoons={() => {
-          setShowBatterySheet(false);
-          setShowYearInMoons(true);
-        }}
       />
 
       <WeeklyReflectionModal
         isOpen={showWeeklyReflection}
         onClose={() => setShowWeeklyReflection(false)}
-      />
-
-      <YearInMoonsModal
-        isOpen={showYearInMoons}
-        onClose={() => setShowYearInMoons(false)}
       />
     </>
   );
