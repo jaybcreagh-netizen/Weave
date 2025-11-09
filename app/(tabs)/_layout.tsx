@@ -21,7 +21,6 @@ export default function TabsLayout() {
   const { submitBatteryCheckin } = useUserProfileStore();
   const { suggestionCount } = useSuggestions();
   const scrollViewRef = useRef<ScrollView>(null);
-  const [isInitialized, setIsInitialized] = useState(false);
 
   const handleTabPress = (tab: 'insights' | 'circle') => {
     setActiveTab(tab);
@@ -36,16 +35,6 @@ export default function TabsLayout() {
       setActiveTab(newTab);
     }
   };
-
-  // Initialize scroll position to Circle tab (index 1) on mount
-  useEffect(() => {
-    if (!isInitialized && scrollViewRef.current) {
-      setTimeout(() => {
-        scrollViewRef.current?.scrollTo({ x: screenWidth, animated: false });
-        setIsInitialized(true);
-      }, 100);
-    }
-  }, [isInitialized]);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
@@ -116,6 +105,7 @@ export default function TabsLayout() {
         onMomentumScrollEnd={onScroll}
         scrollEventThrottle={16}
         style={styles.scrollView}
+        contentOffset={{ x: screenWidth, y: 0 }}
       >
         <View style={{ width: screenWidth }}>
           <HomeScreen />
