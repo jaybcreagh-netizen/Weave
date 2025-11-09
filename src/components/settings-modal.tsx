@@ -297,7 +297,12 @@ export function SettingsModal({
         <Animated.View
           style={[
             animatedSheetStyle,
-            { backgroundColor: colors.card, borderColor: colors.border, paddingBottom: insets.bottom + 20 },
+            {
+              backgroundColor: colors.card,
+              borderColor: colors.border,
+              paddingBottom: insets.bottom + 20,
+              maxHeight: '90%',
+            },
           ]}
           className="absolute bottom-0 left-0 right-0 rounded-t-3xl border-t p-6 shadow-2xl"
         >
@@ -308,7 +313,11 @@ export function SettingsModal({
           </TouchableOpacity>
         </View>
 
-        <ScrollView showsVerticalScrollIndicator={false}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: 20 }}
+          bounces={true}
+        >
           <View className="gap-4">
             <View className="flex-row items-center justify-between">
               <View className="flex-row items-center gap-3">
