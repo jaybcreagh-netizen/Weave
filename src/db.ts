@@ -15,6 +15,7 @@ import UserProgress from './db/models/UserProgress';
 import FriendBadge from './db/models/FriendBadge';
 import AchievementUnlock from './db/models/AchievementUnlock';
 import WeeklyReflection from './db/models/WeeklyReflection';
+import PortfolioSnapshot from './db/models/PortfolioSnapshot';
 
 const adapter = new SQLiteAdapter({
   schema,
@@ -43,6 +44,7 @@ export const database = new Database({
     FriendBadge,
     AchievementUnlock,
     WeeklyReflection,
+    PortfolioSnapshot,
   ],
 });
 

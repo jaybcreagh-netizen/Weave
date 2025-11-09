@@ -327,6 +327,39 @@ export default schemaMigrations({
         }),
       ],
     },
+    {
+      // Migration from schema v22 to v23
+      // Adaptive Decay Pattern Learning + Portfolio Snapshots
+      toVersion: 23,
+      steps: [
+        // Add adaptive decay learning fields to friends
+        addColumns({
+          table: 'friends',
+          columns: [
+            { name: 'typical_interval_days', type: 'number', isOptional: true },
+            { name: 'tolerance_window_days', type: 'number', isOptional: true },
+          ],
+        }),
+        // Create portfolio_snapshots table for trend tracking
+        createTable({
+          name: 'portfolio_snapshots',
+          columns: [
+            { name: 'snapshot_date', type: 'number', isIndexed: true },
+            { name: 'overall_health_score', type: 'number' },
+            { name: 'total_friends', type: 'number' },
+            { name: 'active_friends', type: 'number' },
+            { name: 'drifting_friends', type: 'number' },
+            { name: 'thriving_friends', type: 'number' },
+            { name: 'inner_circle_avg', type: 'number' },
+            { name: 'close_friends_avg', type: 'number' },
+            { name: 'community_avg', type: 'number' },
+            { name: 'interactions_per_week', type: 'number' },
+            { name: 'diversity_score', type: 'number' },
+            { name: 'created_at', type: 'number' },
+          ],
+        }),
+      ],
+    },
   ],
 });
 
