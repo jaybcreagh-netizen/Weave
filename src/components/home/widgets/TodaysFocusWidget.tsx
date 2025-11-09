@@ -505,7 +505,7 @@ export const TodaysFocusWidget: React.FC = () => {
             setReschedulePlanData(null);
             setRescheduleInteractionId(null);
           }}
-          friend={rescheduleFriend}
+          initialFriend={rescheduleFriend}
           prefillData={reschedulePlanData}
           replaceInteractionId={rescheduleInteractionId || undefined}
         />
@@ -517,7 +517,7 @@ export const TodaysFocusWidget: React.FC = () => {
             setPlanWizardOpen(false);
             setSelectedFriend(null);
           }}
-          friend={selectedFriend}
+          initialFriend={selectedFriend}
         />
       )}
     </>
