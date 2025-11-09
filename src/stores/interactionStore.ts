@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { database } from '../db';
 import { Q } from '@nozbe/watermelondb';
 import FriendModel from '../db/models/Friend';
-import { logNewWeave } from '../lib/weave-engine';
+import { logNewWeave, applyScoresForCompletedPlan } from '../lib/weave-engine';
 import { type InteractionType, type InteractionCategory, type Duration, type Vibe } from '../components/types';
 import Interaction from '../db/models/Interaction';
 import InteractionFriend from '../db/models/InteractionFriend';
@@ -222,13 +222,29 @@ export const useInteractionStore = create<InteractionStore>(() => ({
     }
   },
   confirmPlan: async (interactionId: string) => {
+    // 1. Update status to completed
     await database.write(async () => {
       const interaction = await database.get<Interaction>('interactions').find(interactionId);
       await interaction.update(i => {
-        i.status = 'pending_confirm';
-        i.confirmedAt = new Date();
+        i.status = 'completed';
       });
     });
+
+    // 2. Apply weave scores retroactively
+    await applyScoresForCompletedPlan(interactionId, database);
+
+    // 3. Record practice for milestone tracking
+    const newMilestoneIds = await recordPractice('log_weave', interactionId);
+
+    // 4. Show milestone celebration if unlocked
+    if (newMilestoneIds.length > 0) {
+      const milestone = CONSISTENCY_MILESTONES.find(m => m.id === newMilestoneIds[0]);
+      if (milestone) {
+        useUIStore.getState().showMilestoneCelebration(milestone);
+      }
+    }
+
+    console.log(`✓ Plan ${interactionId} confirmed and scored`);
   },
   updateInteraction: async (interactionId: string, updates: {
     title?: string;
@@ -334,6 +350,7 @@ export const useInteractionStore = create<InteractionStore>(() => ({
     // Get interaction first to check for calendar event
     const interaction = await database.get<Interaction>('interactions').find(interactionId);
     const calendarEventId = interaction.calendarEventId;
+    const previousStatus = interaction.status;
 
     // Update database
     await database.write(async () => {
@@ -349,6 +366,24 @@ export const useInteractionStore = create<InteractionStore>(() => ({
         });
       }
     });
+
+    // Apply weave scores if transitioning from planned/pending_confirm to completed
+    if (status === 'completed' && (previousStatus === 'planned' || previousStatus === 'pending_confirm')) {
+      await applyScoresForCompletedPlan(interactionId, database);
+
+      // Record practice for milestone tracking
+      const newMilestoneIds = await recordPractice('log_weave', interactionId);
+
+      // Show milestone celebration if unlocked
+      if (newMilestoneIds.length > 0) {
+        const milestone = CONSISTENCY_MILESTONES.find(m => m.id === newMilestoneIds[0]);
+        if (milestone) {
+          useUIStore.getState().showMilestoneCelebration(milestone);
+        }
+      }
+
+      console.log(`✓ Plan ${interactionId} completed and scored`);
+    }
 
     // Handle calendar event based on new status
     if (calendarEventId) {
