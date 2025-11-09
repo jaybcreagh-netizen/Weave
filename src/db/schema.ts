@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb'
 
 export default appSchema({
-  version: 22, // UPDATED: Added portfolio_snapshots table for trend tracking
+  version: 23, // UPDATED: Added interaction_outcomes table for feedback learning
   tables: [
     tableSchema({
       name: 'friends',
@@ -27,6 +27,9 @@ export default appSchema({
         // NEW v21: Adaptive decay pattern learning
         { name: 'typical_interval_days', type: 'number', isOptional: true }, // Learned average days between interactions
         { name: 'tolerance_window_days', type: 'number', isOptional: true }, // Learned tolerance before decay accelerates
+        // NEW v23: Learned effectiveness from feedback
+        { name: 'category_effectiveness', type: 'string', isOptional: true }, // JSON: Record<category, effectiveness ratio>
+        { name: 'outcome_count', type: 'number', defaultValue: 0 }, // How many outcomes measured
       ]
     }),
     tableSchema({
@@ -190,6 +193,34 @@ export default appSchema({
         { name: 'interactions_per_week', type: 'number' },
         { name: 'diversity_score', type: 'number' }, // 0-1
 
+        { name: 'created_at', type: 'number' },
+      ]
+    }),
+    tableSchema({
+      name: 'interaction_outcomes',
+      columns: [
+        { name: 'interaction_id', type: 'string', isIndexed: true },
+        { name: 'friend_id', type: 'string', isIndexed: true },
+
+        // Score context
+        { name: 'score_before', type: 'number' },
+        { name: 'score_after', type: 'number' }, // Measured at next interaction or 7 days later
+        { name: 'score_change', type: 'number' }, // scoreAfter - scoreBefore
+
+        // Interaction details
+        { name: 'category', type: 'string' },
+        { name: 'duration', type: 'string', isOptional: true },
+        { name: 'vibe', type: 'string', isOptional: true },
+        { name: 'had_reflection', type: 'boolean', defaultValue: false },
+
+        // Effectiveness metrics
+        { name: 'expected_impact', type: 'number' }, // What we predicted
+        { name: 'actual_impact', type: 'number' }, // What happened (accounting for decay)
+        { name: 'effectiveness_ratio', type: 'number' }, // actualImpact / expectedImpact
+
+        // Timestamps
+        { name: 'interaction_date', type: 'number' },
+        { name: 'measured_at', type: 'number' }, // When we measured the outcome
         { name: 'created_at', type: 'number' },
       ]
     })

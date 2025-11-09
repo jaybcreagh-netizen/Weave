@@ -37,4 +37,8 @@ export default class Friend extends Model {
   @field('typical_interval_days') typicalIntervalDays?: number
   @field('tolerance_window_days') toleranceWindowDays?: number
 
+  // Learned effectiveness from feedback (v23)
+  @text('category_effectiveness') categoryEffectiveness?: string // JSON
+  @field('outcome_count') outcomeCount!: number
+
 }

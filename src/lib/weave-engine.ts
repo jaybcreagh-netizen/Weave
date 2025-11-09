@@ -7,6 +7,7 @@ import InteractionModel from '../db/models/Interaction';
 import InteractionFriend from '../db/models/InteractionFriend';
 import { type InteractionFormData } from '../stores/interactionStore';
 import { analyzeInteractionPattern, calculateToleranceWindow, isPatternReliable } from './pattern-analyzer';
+import { captureInteractionOutcome, measurePendingOutcomes, getLearnedEffectiveness } from './feedback-analyzer';
 
 /**
  * Quality metrics for an interaction based on depth and energy
@@ -147,12 +148,26 @@ export function calculatePointsForWeave(
   const qualityMultiplier = 0.7 + (quality.overallQuality / 5) * 0.6;
   const qualityAdjustedPoints = finalPoints * qualityMultiplier;
 
-  // Apply momentum bonus
-  if (currentMomentumScore > 0) {
-    return qualityAdjustedPoints * 1.15;
+  // NEW v23: Apply learned effectiveness multiplier
+  // Blends observed effectiveness with static scoring
+  let effectivenessMultiplier = 1.0;
+  if (weaveData.category && friend.outcomeCount >= 3) {
+    // Only use learned effectiveness after 3+ measured outcomes
+    const learnedEffectiveness = getLearnedEffectiveness(friend, weaveData.category);
+    const confidence = Math.min(1.0, friend.outcomeCount / 10); // Gain confidence over 10 outcomes
+
+    // Blend static (1.0) with learned effectiveness based on confidence
+    effectivenessMultiplier = (1.0 * (1 - confidence)) + (learnedEffectiveness * confidence);
   }
 
-  return qualityAdjustedPoints;
+  const adaptivePoints = qualityAdjustedPoints * effectivenessMultiplier;
+
+  // Apply momentum bonus
+  if (currentMomentumScore > 0) {
+    return adaptivePoints * 1.15;
+  }
+
+  return adaptivePoints;
 }
 
 /**
@@ -282,8 +297,22 @@ export async function logNewWeave(friendsToUpdate: FriendModel[], weaveData: Int
           ifriend.interactionId = newInteraction.id;
           ifriend.friendId = friend.id;
       });
+
+      // 5. NEW v23: Capture interaction outcome for feedback learning
+      // This will be measured later to learn effectiveness
+      await captureInteractionOutcome(
+        newInteraction.id,
+        friend.id,
+        currentScore,
+        pointsToAdd
+      );
     }
   });
+
+  // Measure pending outcomes from previous interactions (async, fire-and-forget)
+  measurePendingOutcomes().catch(err =>
+    console.warn('Failed to measure pending outcomes:', err)
+  );
 
   return interactionId;
 }
