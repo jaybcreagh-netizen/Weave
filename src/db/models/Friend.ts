@@ -33,4 +33,8 @@ export default class Friend extends Model {
   @date('anniversary') anniversary?: Date
   @text('relationship_type') relationshipType?: string
 
+  // Adaptive decay pattern learning (v21)
+  @field('typical_interval_days') typicalIntervalDays?: number
+  @field('tolerance_window_days') toleranceWindowDays?: number
+
 }
