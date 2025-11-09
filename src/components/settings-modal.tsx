@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, View, Text, TouchableOpacity, Switch, Alert, ScrollView, Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { X, Moon, Sun, Palette, RefreshCw, Bug, BarChart3, Battery, Calendar as CalendarIcon, ChevronRight, Bell, Clock, Trophy } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
@@ -21,6 +22,8 @@ import {
 import {
   scheduleWeeklyReflection,
   cancelWeeklyReflection,
+  scheduleAllEventReminders,
+  cancelAllNotifications,
 } from '../lib/notification-manager-enhanced';
 import { useTheme } from '../hooks/useTheme';
 import { clearDatabase } from '../db';
@@ -98,6 +101,8 @@ export function SettingsModal({
   const [batteryNotificationTime, setBatteryNotificationTime] = useState(new Date());
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [weeklyReflectionEnabled, setWeeklyReflectionEnabled] = useState(true);
+  const [eventRemindersEnabled, setEventRemindersEnabled] = useState(true);
+  const [deepeningNudgesEnabled, setDeepeningNudgesEnabled] = useState(true);
 
   // Trophy Cabinet state
   const [showTrophyCabinet, setShowTrophyCabinet] = useState(false);
@@ -120,7 +125,7 @@ export function SettingsModal({
     }
   };
 
-  const loadNotificationSettings = () => {
+  const loadNotificationSettings = async () => {
     if (!profile) return;
 
     // Load battery notification preferences
@@ -132,6 +137,14 @@ export function SettingsModal({
     const date = new Date();
     date.setHours(hours, minutes, 0, 0);
     setBatteryNotificationTime(date);
+
+    // Load event reminders preference
+    const eventRemindersStr = await AsyncStorage.getItem('@weave:event_reminders_enabled');
+    setEventRemindersEnabled(eventRemindersStr ? JSON.parse(eventRemindersStr) : true);
+
+    // Load deepening nudges preference
+    const deepeningNudgesStr = await AsyncStorage.getItem('@weave:deepening_nudges_enabled');
+    setDeepeningNudgesEnabled(deepeningNudgesStr ? JSON.parse(deepeningNudgesStr) : true);
   };
 
   const handleToggleCalendar = async (enabled: boolean) => {
@@ -206,6 +219,22 @@ export function SettingsModal({
     } else {
       await cancelWeeklyReflection();
     }
+  };
+
+  const handleToggleEventReminders = async (enabled: boolean) => {
+    setEventRemindersEnabled(enabled);
+    // Store preference (event reminders will check this when scheduling)
+    await AsyncStorage.setItem('@weave:event_reminders_enabled', JSON.stringify(enabled));
+
+    if (enabled) {
+      await scheduleAllEventReminders();
+    }
+  };
+
+  const handleToggleDeepeningNudges = async (enabled: boolean) => {
+    setDeepeningNudgesEnabled(enabled);
+    // Store preference (deepening nudges will check this when scheduling)
+    await AsyncStorage.setItem('@weave:deepening_nudges_enabled', JSON.stringify(enabled));
   };
 
   const handleResetDatabase = () => {
@@ -469,21 +498,43 @@ export function SettingsModal({
 
             <View className="border-t border-border my-2" style={{ borderColor: colors.border }} />
 
-            <TouchableOpacity
-              className="flex-row items-center justify-between"
-              onPress={() => setShowTrophyCabinet(true)}
-            >
+            <View className="flex-row items-center justify-between">
               <View className="flex-row items-center gap-3">
                 <View className="w-10 h-10 rounded-lg items-center justify-center" style={{ backgroundColor: colors.muted }}>
-                  <Trophy color={colors.foreground} size={20} />
+                  <Bell color={colors.foreground} size={20} />
                 </View>
                 <View>
-                  <Text className="text-base font-inter-medium" style={{ color: colors.foreground }}>Trophy Cabinet</Text>
-                  <Text className="text-sm font-inter-regular" style={{ color: colors['muted-foreground'] }}>View achievements & badges</Text>
+                  <Text className="text-base font-inter-medium" style={{ color: colors.foreground }}>Event Reminders</Text>
+                  <Text className="text-sm font-inter-regular" style={{ color: colors['muted-foreground'] }}>1-hour before planned weaves</Text>
                 </View>
               </View>
-              <ChevronRight color={colors['muted-foreground']} size={20} />
-            </TouchableOpacity>
+              <Switch
+                value={eventRemindersEnabled}
+                onValueChange={handleToggleEventReminders}
+                trackColor={{ false: colors.muted, true: colors.primary }}
+                thumbColor={colors.card}
+              />
+            </View>
+
+            <View className="border-t border-border my-2" style={{ borderColor: colors.border }} />
+
+            <View className="flex-row items-center justify-between">
+              <View className="flex-row items-center gap-3">
+                <View className="w-10 h-10 rounded-lg items-center justify-center" style={{ backgroundColor: colors.muted }}>
+                  <Bell color={colors.foreground} size={20} />
+                </View>
+                <View>
+                  <Text className="text-base font-inter-medium" style={{ color: colors.foreground }}>Deepening Nudges</Text>
+                  <Text className="text-sm font-inter-regular" style={{ color: colors['muted-foreground'] }}>Post-weave reflection prompts</Text>
+                </View>
+              </View>
+              <Switch
+                value={deepeningNudgesEnabled}
+                onValueChange={handleToggleDeepeningNudges}
+                trackColor={{ false: colors.muted, true: colors.primary }}
+                thumbColor={colors.card}
+              />
+            </View>
 
             <View className="border-t border-border my-2" style={{ borderColor: colors.border }} />
 
@@ -521,6 +572,8 @@ export function SettingsModal({
                 </View>
               </View>
             </TouchableOpacity>
+
+            <View className="border-t border-border my-2" style={{ borderColor: colors.border }} />
 
             <View className="flex-row items-center justify-between">
               <View className="flex-row items-center gap-3">
