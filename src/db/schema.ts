@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb'
 
 export default appSchema({
-  version: 21, // UPDATED: Added adaptive decay pattern learning fields to friends
+  version: 22, // UPDATED: Added portfolio_snapshots table for trend tracking
   tables: [
     tableSchema({
       name: 'friends',
@@ -169,6 +169,28 @@ export default appSchema({
 
         { name: 'created_at', type: 'number' },
         { name: 'updated_at', type: 'number' },
+      ]
+    }),
+    tableSchema({
+      name: 'portfolio_snapshots',
+      columns: [
+        { name: 'snapshot_date', type: 'number', isIndexed: true }, // When this snapshot was taken
+        { name: 'overall_health_score', type: 'number' }, // 0-100
+        { name: 'total_friends', type: 'number' },
+        { name: 'active_friends', type: 'number' }, // score > 30
+        { name: 'drifting_friends', type: 'number' }, // score < 40
+        { name: 'thriving_friends', type: 'number' }, // score > 80
+
+        // Tier averages
+        { name: 'inner_circle_avg', type: 'number' },
+        { name: 'close_friends_avg', type: 'number' },
+        { name: 'community_avg', type: 'number' },
+
+        // Activity metrics (last 7 days from snapshot)
+        { name: 'interactions_per_week', type: 'number' },
+        { name: 'diversity_score', type: 'number' }, // 0-1
+
+        { name: 'created_at', type: 'number' },
       ]
     })
   ]

@@ -11,6 +11,7 @@ import UserProfile from './db/models/UserProfile';
 import PracticeLog from './db/models/PracticeLog';
 import LifeEvent from './db/models/LifeEvent';
 import UserProgress from './db/models/UserProgress';
+import PortfolioSnapshot from './db/models/PortfolioSnapshot';
 
 const adapter = new SQLiteAdapter({
   schema,
@@ -35,6 +36,7 @@ export const database = new Database({
     PracticeLog,
     LifeEvent,
     UserProgress,
+    PortfolioSnapshot,
   ],
 });
 

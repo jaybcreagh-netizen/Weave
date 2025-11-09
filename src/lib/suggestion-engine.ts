@@ -19,6 +19,9 @@ import {
   type FriendshipPortfolio,
   type PortfolioImbalance,
 } from './portfolio-analyzer';
+import {
+  type ProactiveSuggestion,
+} from './predictive-insights';
 
 // Friendly category labels for suggestions
 const CATEGORY_LABELS: Record<string, string> = {
@@ -726,6 +729,7 @@ export function getSuggestionCooldownDays(suggestionId: string): number {
   if (suggestionId.startsWith('deepen')) return COOLDOWN_DAYS['deepen'];
   if (suggestionId.startsWith('reflect')) return COOLDOWN_DAYS['reflect'];
   if (suggestionId.startsWith('portfolio')) return 7; // Portfolio insights weekly
+  if (suggestionId.startsWith('proactive-')) return 2; // Proactive predictions refresh often
   return 3; // Default
 }
 
@@ -840,4 +844,47 @@ function convertImbalanceToSuggestion(
     default:
       return null;
   }
+}
+
+/**
+ * Converts proactive predictions into standard suggestion format
+ * These are shown alongside other suggestions to provide forward-looking guidance
+ */
+export function convertProactiveSuggestionsToSuggestions(
+  proactiveSuggestions: ProactiveSuggestion[]
+): Suggestion[] {
+  return proactiveSuggestions.map(proactive => {
+    const baseId = `proactive-${proactive.type}-${proactive.friendId}`;
+
+    // Map proactive type to icon
+    const iconMap: Record<ProactiveSuggestion['type'], string> = {
+      'upcoming-drift': '⏰',
+      'optimal-timing': '🎯',
+      'pattern-break': '⚠️',
+      'momentum-opportunity': '🚀',
+    };
+
+    // Map proactive type to category
+    const categoryMap: Record<ProactiveSuggestion['type'], Suggestion['category']> = {
+      'upcoming-drift': 'drift',
+      'optimal-timing': 'maintain',
+      'pattern-break': 'drift',
+      'momentum-opportunity': 'deepen',
+    };
+
+    return {
+      id: baseId,
+      friendId: proactive.friendId,
+      friendName: proactive.friendName,
+      urgency: proactive.urgency,
+      category: categoryMap[proactive.type],
+      title: proactive.title,
+      subtitle: proactive.message,
+      actionLabel: proactive.type === 'upcoming-drift' ? 'Reach Out Now' : 'Plan Weave',
+      icon: iconMap[proactive.type],
+      action: { type: 'plan' },
+      dismissible: proactive.urgency !== 'critical',
+      createdAt: new Date(),
+    };
+  });
 }

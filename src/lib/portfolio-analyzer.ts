@@ -2,6 +2,7 @@ import { Tier, Archetype } from '../components/types';
 import { InteractionCategory } from '../types/suggestions';
 import { calculateCurrentScore } from './weave-engine';
 import FriendModel from '../db/models/Friend';
+import { capturePortfolioSnapshot } from './trend-analyzer';
 
 /**
  * Portfolio-level metrics for the user's entire friendship network
@@ -195,7 +196,7 @@ export function analyzePortfolio(input: PortfolioAnalysisInput): FriendshipPortf
     categoryDistribution,
   });
 
-  return {
+  const portfolio = {
     overallHealthScore,
     totalFriends: friends.length,
     activeFriends,
@@ -208,6 +209,13 @@ export function analyzePortfolio(input: PortfolioAnalysisInput): FriendshipPortf
     imbalances,
     lastAnalyzed: new Date(),
   };
+
+  // Automatically capture snapshot for trend tracking (fire and forget)
+  capturePortfolioSnapshot(portfolio).catch(err =>
+    console.warn('Failed to capture portfolio snapshot:', err)
+  );
+
+  return portfolio;
 }
 
 /**
