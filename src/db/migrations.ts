@@ -46,6 +46,27 @@ import { schemaMigrations, addColumns, createTable } from '@nozbe/watermelondb/S
  * Migration from v17 to v18:
  * - Add calendar_event_id to interactions table
  * - Enables calendar integration for planned weaves
+ *
+ * Migration from v18 to v19:
+ * - Add intention_friends join table
+ * - Enables many-to-many relationship between intentions and friends
+ *
+ * Migration from v19 to v20:
+ * - Add achievement progress fields to user_progress table
+ * - Enables new achievement tracking system
+ *
+ * Migration from v20 to v21:
+ * - Add typical_interval_days, tolerance_window_days to friends table
+ * - Enables adaptive decay based on learned interaction patterns
+ *
+ * Migration from v21 to v22:
+ * - Add portfolio_snapshots table
+ * - Enables historical trend tracking of network health
+ *
+ * Migration from v22 to v23:
+ * - Add category_effectiveness, outcome_count to friends table
+ * - Add interaction_outcomes table for feedback learning
+ * - Enables interaction success feedback loop and adaptive scoring
  */
 export default schemaMigrations({
   migrations: [
@@ -257,6 +278,75 @@ export default schemaMigrations({
             { name: 'high_priestess_progress', type: 'number', defaultValue: 0 },
             { name: 'scribe_progress', type: 'number', defaultValue: 0 },
             { name: 'curator_progress', type: 'number', defaultValue: 0 },
+          ],
+        }),
+      ],
+    },
+    {
+      // Migration from schema v20 to v21
+      toVersion: 21,
+      steps: [
+        addColumns({
+          table: 'friends',
+          columns: [
+            { name: 'typical_interval_days', type: 'number', isOptional: true },
+            { name: 'tolerance_window_days', type: 'number', isOptional: true },
+          ],
+        }),
+      ],
+    },
+    {
+      // Migration from schema v21 to v22
+      toVersion: 22,
+      steps: [
+        createTable({
+          name: 'portfolio_snapshots',
+          columns: [
+            { name: 'snapshot_date', type: 'number', isIndexed: true },
+            { name: 'overall_health_score', type: 'number' },
+            { name: 'total_friends', type: 'number' },
+            { name: 'active_friends', type: 'number' },
+            { name: 'drifting_friends', type: 'number' },
+            { name: 'thriving_friends', type: 'number' },
+            { name: 'inner_circle_avg', type: 'number' },
+            { name: 'close_friends_avg', type: 'number' },
+            { name: 'community_avg', type: 'number' },
+            { name: 'interactions_per_week', type: 'number' },
+            { name: 'diversity_score', type: 'number' },
+            { name: 'created_at', type: 'number' },
+          ],
+        }),
+      ],
+    },
+    {
+      // Migration from schema v22 to v23
+      toVersion: 23,
+      steps: [
+        addColumns({
+          table: 'friends',
+          columns: [
+            { name: 'category_effectiveness', type: 'string', isOptional: true },
+            { name: 'outcome_count', type: 'number', defaultValue: 0 },
+          ],
+        }),
+        createTable({
+          name: 'interaction_outcomes',
+          columns: [
+            { name: 'interaction_id', type: 'string', isIndexed: true },
+            { name: 'friend_id', type: 'string', isIndexed: true },
+            { name: 'score_before', type: 'number' },
+            { name: 'score_after', type: 'number' },
+            { name: 'score_change', type: 'number' },
+            { name: 'category', type: 'string' },
+            { name: 'duration', type: 'string', isOptional: true },
+            { name: 'vibe', type: 'string', isOptional: true },
+            { name: 'had_reflection', type: 'boolean', defaultValue: false },
+            { name: 'expected_impact', type: 'number' },
+            { name: 'actual_impact', type: 'number' },
+            { name: 'effectiveness_ratio', type: 'number' },
+            { name: 'interaction_date', type: 'number' },
+            { name: 'measured_at', type: 'number' },
+            { name: 'created_at', type: 'number' },
           ],
         }),
       ],

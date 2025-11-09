@@ -175,6 +175,7 @@ export function calculatePointsForWeave(
  */
 export async function logNewWeave(friendsToUpdate: FriendModel[], weaveData: InteractionFormData, database: Database): Promise<string> {
   let interactionId = '';
+  const outcomesToCapture: Array<{ friendId: string; scoreBefore: number; expectedImpact: number }> = [];
 
   await database.write(async () => {
     // 1. Create the Interaction record with the correct data
@@ -298,16 +299,25 @@ export async function logNewWeave(friendsToUpdate: FriendModel[], weaveData: Int
           ifriend.friendId = friend.id;
       });
 
-      // 5. NEW v23: Capture interaction outcome for feedback learning
-      // This will be measured later to learn effectiveness
-      await captureInteractionOutcome(
-        newInteraction.id,
-        friend.id,
-        currentScore,
-        pointsToAdd
-      );
+      // 5. Store outcome data for capture after transaction
+      outcomesToCapture.push({
+        friendId: friend.id,
+        scoreBefore: currentScore,
+        expectedImpact: pointsToAdd,
+      });
     }
   });
+
+  // 6. NEW v23: Capture interaction outcomes for feedback learning (after transaction completes)
+  // This will be measured later to learn effectiveness
+  for (const outcome of outcomesToCapture) {
+    captureInteractionOutcome(
+      interactionId,
+      outcome.friendId,
+      outcome.scoreBefore,
+      outcome.expectedImpact
+    ).catch(err => console.warn('Failed to capture interaction outcome:', err));
+  }
 
   // Measure pending outcomes from previous interactions (async, fire-and-forget)
   measurePendingOutcomes().catch(err =>
