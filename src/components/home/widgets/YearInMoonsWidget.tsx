@@ -5,11 +5,12 @@
 
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Dimensions } from 'react-native';
-import { Moon, TrendingUp } from 'lucide-react-native';
+import { Moon, TrendingUp, BookOpen } from 'lucide-react-native';
 import { useTheme } from '../../../hooks/useTheme';
 import { HomeWidgetBase, HomeWidgetConfig } from '../HomeWidgetBase';
 import { MoonPhaseIllustration } from '../../YearInMoons/MoonPhaseIllustration';
 import { YearInMoonsModal } from '../../YearInMoons/YearInMoonsModal';
+import { WeeklyReflectionModal } from '../../WeeklyReflection/WeeklyReflectionModal';
 import {
   getYearMoonData,
   getYearStats,
@@ -36,6 +37,7 @@ export const YearInMoonsWidget: React.FC = () => {
   });
   const [isLoading, setIsLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [showReflection, setShowReflection] = useState(false);
 
   const screenWidth = Dimensions.get('window').width;
   const moonSize = Math.floor((screenWidth - 120) / 7); // 7 moons per row with padding
@@ -208,15 +210,43 @@ export const YearInMoonsWidget: React.FC = () => {
               ))}
             </View>
 
-            {/* View Full Button */}
-            <View className="mt-3 flex-row items-center justify-center gap-1">
-              <Moon size={14} color={colors.primary} />
-              <Text
-                className="text-xs font-medium"
-                style={{ color: colors.primary, fontFamily: 'Inter_500Medium' }}
+            {/* Action Buttons */}
+            <View className="mt-3 flex-row gap-2">
+              <TouchableOpacity
+                onPress={(e) => {
+                  e.stopPropagation();
+                  setShowReflection(true);
+                }}
+                className="flex-1 py-2 px-3 rounded-lg flex-row items-center justify-center gap-1.5"
+                style={{ backgroundColor: colors.primary }}
+                activeOpacity={0.7}
               >
-                View full year calendar
-              </Text>
+                <BookOpen size={16} color={colors['primary-foreground']} />
+                <Text
+                  className="text-xs font-semibold"
+                  style={{ color: colors['primary-foreground'], fontFamily: 'Inter_600SemiBold' }}
+                >
+                  Journal
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={(e) => {
+                  e.stopPropagation();
+                  setShowModal(true);
+                }}
+                className="flex-1 py-2 px-3 rounded-lg flex-row items-center justify-center gap-1.5"
+                style={{ backgroundColor: colors.muted }}
+                activeOpacity={0.7}
+              >
+                <Moon size={16} color={colors.foreground} />
+                <Text
+                  className="text-xs font-medium"
+                  style={{ color: colors.foreground, fontFamily: 'Inter_500Medium' }}
+                >
+                  Full Year
+                </Text>
+              </TouchableOpacity>
             </View>
           </View>
         </HomeWidgetBase>
@@ -225,6 +255,11 @@ export const YearInMoonsWidget: React.FC = () => {
       <YearInMoonsModal
         isOpen={showModal}
         onClose={() => setShowModal(false)}
+      />
+
+      <WeeklyReflectionModal
+        isOpen={showReflection}
+        onClose={() => setShowReflection(false)}
       />
     </>
   );
