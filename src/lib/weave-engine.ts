@@ -161,3 +161,71 @@ export async function logNewWeave(friendsToUpdate: FriendModel[], weaveData: Int
 
   return interactionId;
 }
+
+/**
+ * Applies weave scores retroactively when a planned interaction is confirmed as completed.
+ * This function is called when users confirm that a planned weave actually happened.
+ *
+ * @param interactionId - The ID of the interaction to score
+ * @param database - WatermelonDB instance
+ */
+export async function applyScoresForCompletedPlan(interactionId: string, database: Database): Promise<void> {
+  await database.write(async () => {
+    // 1. Get the interaction
+    const interaction = await database.get<InteractionModel>('interactions').find(interactionId);
+
+    // 2. Get all friends associated with this interaction
+    const interactionFriends = await database
+      .get<InteractionFriend>('interaction_friends')
+      .query(require('@nozbe/watermelondb').Q.where('interaction_id', interactionId))
+      .fetch();
+
+    const friendIds = interactionFriends.map(ifriend => ifriend.friendId);
+    const friends = await database
+      .get<FriendModel>('friends')
+      .query(require('@nozbe/watermelondb').Q.where('id', require('@nozbe/watermelondb').Q.oneOf(friendIds)))
+      .fetch();
+
+    // 3. Apply scoring logic for each friend (same as logNewWeave)
+    for (const friend of friends) {
+      const currentScore = calculateCurrentScore(friend);
+      const pointsToAdd = calculatePointsForWeave(friend, {
+        category: interaction.interactionCategory as InteractionCategory | undefined,
+        interactionType: interaction.activity as InteractionType,
+        duration: interaction.duration as Duration | null,
+        vibe: interaction.vibe as Vibe | null
+      });
+      const newWeaveScore = Math.min(100, currentScore + pointsToAdd);
+
+      // 4. Update the friend record
+      await friend.update(record => {
+        record.weaveScore = newWeaveScore;
+        record.lastUpdated = new Date();
+
+        // Update resilience if vibe is set
+        if (interaction.vibe) {
+          record.ratedWeavesCount += 1;
+          if (record.ratedWeavesCount >= 5) {
+            let newResilience = record.resilience;
+            if (interaction.vibe === 'WaxingGibbous' || interaction.vibe === 'FullMoon') {
+              newResilience += 0.008;
+            } else if (interaction.vibe === 'NewMoon') {
+              newResilience -= 0.005;
+            }
+            record.resilience = Math.max(0.8, Math.min(1.5, newResilience));
+          }
+        }
+
+        // Reset momentum
+        record.momentumScore = 15;
+        record.momentumLastUpdated = new Date();
+
+        // Reactivate if dormant
+        record.isDormant = false;
+        record.dormantSince = null;
+      });
+    }
+
+    console.log(`✓ Applied weave scores for completed plan ${interactionId}`);
+  });
+}
