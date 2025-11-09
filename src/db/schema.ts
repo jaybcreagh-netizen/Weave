@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb'
 
 export default appSchema({
-  version: 22, // UPDATED: Added weekly_reflections table
+  version: 22, // UPDATED: Added weekly_reflections table + adaptive decay pattern learning fields
   tables: [
     tableSchema({
       name: 'friends',
@@ -24,6 +24,9 @@ export default appSchema({
         { name: 'birthday', type: 'number', isOptional: true }, // Timestamp (month/day, year optional)
         { name: 'anniversary', type: 'number', isOptional: true }, // When you met/became friends
         { name: 'relationship_type', type: 'string', isOptional: true }, // friend, close_friend, family, partner, colleague, acquaintance
+        // NEW v21: Adaptive decay pattern learning
+        { name: 'typical_interval_days', type: 'number', isOptional: true }, // Learned average days between interactions
+        { name: 'tolerance_window_days', type: 'number', isOptional: true }, // Learned tolerance before decay accelerates
       ]
     }),
     tableSchema({

@@ -8,6 +8,13 @@ import { differenceInDays } from 'date-fns';
 import { database } from '../db';
 import LifeEvent, { LifeEventType } from '../db/models/LifeEvent';
 import { Q } from '@nozbe/watermelondb';
+import {
+  analyzeInteractionPattern,
+  calculateToleranceWindow,
+  isPatternReliable,
+  getPatternDescription,
+  type FriendshipPattern,
+} from './pattern-analyzer';
 
 // Friendly category labels for suggestions
 const CATEGORY_LABELS: Record<string, string> = {
@@ -246,9 +253,58 @@ function getDaysText(days: number | undefined): string {
 function getContextualSuggestion(
   recentInteractions: SuggestionInput['recentInteractions'],
   archetype: string,
-  tier: string
+  tier: string,
+  pattern?: FriendshipPattern
 ): string {
-  // Count interaction types to find patterns
+  // Use learned pattern preferences if available
+  if (pattern && pattern.preferredCategories.length > 0) {
+    const preferredCategory = pattern.preferredCategories[0];
+    const suggestions: Record<string, string[]> = {
+      'text-call': [
+        "Send them a quick text like you used to",
+        "Give them a call to catch up",
+        "Drop them a voice note",
+        "Send a funny meme or memory",
+      ],
+      'meal-drink': [
+        "Grab coffee at your usual spot",
+        "Plan dinner like old times",
+        "Meet for drinks and catch up",
+        "Grab lunch together this week",
+      ],
+      'hangout': [
+        "Hang out like you used to",
+        "Plan a chill hangout session",
+        "Meet up for quality time",
+        "Do something spontaneous together",
+      ],
+      'deep-talk': [
+        "Have a heart-to-heart conversation",
+        "Set aside time for a deep catch-up",
+        "Schedule a meaningful conversation",
+        "Create space for vulnerable sharing",
+      ],
+      'activity-hobby': [
+        "Do that activity you both love",
+        "Revisit your shared hobby together",
+        "Plan an adventure like you used to",
+        "Get active together again",
+      ],
+      'event-party': [
+        "Invite them to something fun",
+        "Plan a celebration together",
+        "Organize a group hangout",
+        "Go to an event together",
+      ],
+    };
+
+    const options = suggestions[preferredCategory] || [];
+    if (options.length > 0) {
+      return options[Math.floor(Math.random() * options.length)];
+    }
+  }
+
+  // Count interaction types to find patterns (fallback)
   const categoryCounts: Record<string, number> = {};
   recentInteractions.forEach(i => {
     if (i.category) {
@@ -341,6 +397,16 @@ function getContextualSuggestion(
 export function generateSuggestion(input: SuggestionInput): Suggestion | null {
   const { friend, currentScore, lastInteractionDate, interactionCount, momentumScore, recentInteractions } = input;
 
+  // Analyze friendship pattern from interaction history
+  const pattern = analyzeInteractionPattern(
+    recentInteractions.map(i => ({
+      id: i.id,
+      interactionDate: i.interactionDate,
+      status: 'completed',
+      category: i.category,
+    }))
+  );
+
   // Check for upcoming life event (used in multiple priorities)
   const lifeEvent = checkUpcomingLifeEvent(friend);
 
@@ -374,9 +440,14 @@ export function generateSuggestion(input: SuggestionInput): Suggestion | null {
 
   // PRIORITY 3: Critical drift (Inner Circle emergency)
   if (friend.dunbarTier === 'InnerCircle' && currentScore < 30) {
-    const contextualAction = getContextualSuggestion(recentInteractions, friend.archetype, friend.dunbarTier);
+    const contextualAction = getContextualSuggestion(recentInteractions, friend.archetype, friend.dunbarTier, pattern);
     const eventContext = lifeEvent
       ? ` ${lifeEvent.type === 'birthday' ? '🎂' : '💝'} Their ${lifeEvent.type} ${getDaysText(lifeEvent.daysUntil)}.`
+      : '';
+
+    // Add pattern-aware context if available
+    const patternContext = isPatternReliable(pattern)
+      ? ` You usually connect ${getPatternDescription(pattern)}.`
       : '';
 
     return {
@@ -386,7 +457,7 @@ export function generateSuggestion(input: SuggestionInput): Suggestion | null {
       urgency: 'critical',
       category: 'drift',
       title: `${friend.name} is drifting away`,
-      subtitle: `${contextualAction}.${eventContext}`,
+      subtitle: `${contextualAction}.${patternContext}${eventContext}`,
       actionLabel: 'Reach Out Now',
       icon: '🚨',
       action: {
@@ -405,9 +476,14 @@ export function generateSuggestion(input: SuggestionInput): Suggestion | null {
     (friend.dunbarTier === 'CloseFriends' && currentScore < 35);
 
   if (isHighDrift) {
-    const contextualAction = getContextualSuggestion(recentInteractions, friend.archetype, friend.dunbarTier);
+    const contextualAction = getContextualSuggestion(recentInteractions, friend.archetype, friend.dunbarTier, pattern);
     const eventContext = lifeEvent
       ? ` ${lifeEvent.type === 'birthday' ? '🎂' : '💝'} Their ${lifeEvent.type} ${getDaysText(lifeEvent.daysUntil)}.`
+      : '';
+
+    // Add pattern-aware context
+    const patternContext = isPatternReliable(pattern)
+      ? ` You usually connect ${getPatternDescription(pattern)}.`
       : '';
 
     return {
@@ -417,7 +493,7 @@ export function generateSuggestion(input: SuggestionInput): Suggestion | null {
       urgency: 'high',
       category: 'drift',
       title: `Time to reconnect with ${friend.name}`,
-      subtitle: `${contextualAction}.${eventContext}`,
+      subtitle: `${contextualAction}.${patternContext}${eventContext}`,
       actionLabel: 'Plan a Weave',
       icon: '🧵',
       action: {
@@ -464,7 +540,7 @@ export function generateSuggestion(input: SuggestionInput): Suggestion | null {
       : 999;
 
     if (daysSinceLast <= 7) {
-      const contextualAction = getContextualSuggestion(recentInteractions, friend.archetype, friend.dunbarTier);
+      const contextualAction = getContextualSuggestion(recentInteractions, friend.archetype, friend.dunbarTier, pattern);
 
       return {
         id: `momentum-${friend.id}`,
@@ -491,14 +567,22 @@ export function generateSuggestion(input: SuggestionInput): Suggestion | null {
     ? (Date.now() - lastInteractionDate.getTime()) / 86400000
     : 999;
 
-  const maintenanceThreshold = {
-    InnerCircle: 7,
-    CloseFriends: 14,
-    Community: 21,
-  }[friend.dunbarTier];
+  // Use learned pattern for threshold, or fall back to tier defaults
+  const maintenanceThreshold = isPatternReliable(pattern)
+    ? calculateToleranceWindow(pattern)
+    : {
+        InnerCircle: 7,
+        CloseFriends: 14,
+        Community: 21,
+      }[friend.dunbarTier];
 
   if (currentScore >= 40 && currentScore <= 70 && daysSinceInteraction > maintenanceThreshold) {
-    const contextualAction = getContextualSuggestion(recentInteractions, friend.archetype, friend.dunbarTier);
+    const contextualAction = getContextualSuggestion(recentInteractions, friend.archetype, friend.dunbarTier, pattern);
+
+    // Create pattern-aware title
+    const title = isPatternReliable(pattern)
+      ? `Time for your ${pattern.averageIntervalDays}-day check-in with ${friend.name}`
+      : `Keep the thread warm with ${friend.name}`;
 
     return {
       id: `maintenance-${friend.id}`,
@@ -506,13 +590,13 @@ export function generateSuggestion(input: SuggestionInput): Suggestion | null {
       friendName: friend.name,
       urgency: 'low',
       category: 'maintain',
-      title: `Keep the thread warm with ${friend.name}`,
+      title,
       subtitle: contextualAction,
       actionLabel: 'Plan a Weave',
       icon: '💛',
       action: {
         type: 'plan',
-        prefilledCategory: 'text-call',
+        prefilledCategory: pattern.preferredCategories[0] || 'text-call',
       },
       dismissible: true,
       createdAt: new Date(),
@@ -521,7 +605,7 @@ export function generateSuggestion(input: SuggestionInput): Suggestion | null {
 
   // PRIORITY 8: Deepen (thriving)
   if (currentScore > 85 && friend.dunbarTier !== 'Community') {
-    const contextualAction = getContextualSuggestion(recentInteractions, friend.archetype, friend.dunbarTier);
+    const contextualAction = getContextualSuggestion(recentInteractions, friend.archetype, friend.dunbarTier, pattern);
 
     return {
       id: `deepen-${friend.id}`,
