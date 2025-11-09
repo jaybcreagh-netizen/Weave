@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Modal, View, Text, TouchableOpacity, Switch, Alert, ScrollView, Platform } from 'react-native';
 import { X, Moon, Sun, Palette, RefreshCw, Bug, BarChart3, Battery, Calendar as CalendarIcon, ChevronRight, Bell, Clock, Trophy } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming, runOnJS } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -23,6 +24,7 @@ import {
 } from '../lib/notification-manager-enhanced';
 import { useTheme } from '../hooks/useTheme';
 import { clearDatabase } from '../db';
+import TrophyCabinetModal from './TrophyCabinetModal';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -43,13 +45,29 @@ export function SettingsModal({
 
   const sheetTranslateY = useSharedValue(800);
   const backdropOpacity = useSharedValue(0);
+  const gestureTranslateY = useSharedValue(0);
+
+  // Pan gesture for swipe-to-dismiss
+  const panGesture = Gesture.Pan()
+    .onUpdate((event) => {
+      gestureTranslateY.value = Math.max(0, event.translationY);
+    })
+    .onEnd((event) => {
+      if (event.translationY > 150) {
+        runOnJS(onClose)();
+      } else {
+        gestureTranslateY.value = withSpring(0);
+      }
+    });
 
   useEffect(() => {
     if (isOpen) {
       setShouldRender(true);
+      gestureTranslateY.value = 0;
       sheetTranslateY.value = withSpring(0, { damping: 40, stiffness: 250 });
       backdropOpacity.value = withTiming(1, { duration: 300 });
     } else if (shouldRender) {
+      gestureTranslateY.value = 0;
       sheetTranslateY.value = withTiming(800, { duration: 300 });
       backdropOpacity.value = withTiming(0, { duration: 250 }, (finished) => {
         if (finished) {
@@ -60,7 +78,7 @@ export function SettingsModal({
   }, [isOpen, shouldRender]);
 
   const animatedSheetStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: sheetTranslateY.value }],
+    transform: [{ translateY: sheetTranslateY.value + gestureTranslateY.value }],
   }));
 
   const animatedBackdropStyle = useAnimatedStyle(() => ({
@@ -80,6 +98,9 @@ export function SettingsModal({
   const [batteryNotificationTime, setBatteryNotificationTime] = useState(new Date());
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [weeklyReflectionEnabled, setWeeklyReflectionEnabled] = useState(true);
+
+  // Trophy Cabinet state
+  const [showTrophyCabinet, setShowTrophyCabinet] = useState(false);
 
   // Load settings on mount
   useEffect(() => {
@@ -243,13 +264,14 @@ export function SettingsModal({
         <TouchableOpacity className="absolute inset-0" activeOpacity={1} onPress={onClose} />
       </Animated.View>
 
-      <Animated.View
-        style={[
-          animatedSheetStyle,
-          { backgroundColor: colors.card, borderColor: colors.border, paddingBottom: insets.bottom + 20 },
-        ]}
-        className="absolute bottom-0 left-0 right-0 rounded-t-3xl border-t p-6 shadow-2xl"
-      >
+      <GestureDetector gesture={panGesture}>
+        <Animated.View
+          style={[
+            animatedSheetStyle,
+            { backgroundColor: colors.card, borderColor: colors.border, paddingBottom: insets.bottom + 20 },
+          ]}
+          className="absolute bottom-0 left-0 right-0 rounded-t-3xl border-t p-6 shadow-2xl"
+        >
         <View className="mb-6 flex-row items-center justify-between">
           <Text style={{ color: colors.foreground }} className="font-lora text-[22px] font-bold">Settings</Text>
           <TouchableOpacity onPress={onClose} className="p-2">
@@ -388,12 +410,39 @@ export function SettingsModal({
               </TouchableOpacity>
             )}
 
-            {showTimePicker && (
+            {showTimePicker && Platform.OS === 'ios' && (
+              <Modal transparent animationType="slide">
+                <View className="flex-1 justify-end" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+                  <View style={{ backgroundColor: colors.card }} className="rounded-t-3xl p-4">
+                    <View className="flex-row justify-between items-center mb-4">
+                      <Text className="text-lg font-inter-semibold" style={{ color: colors.foreground }}>
+                        Select Time
+                      </Text>
+                      <TouchableOpacity onPress={() => setShowTimePicker(false)}>
+                        <Text className="text-base font-inter-medium" style={{ color: colors.primary }}>
+                          Done
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                    <DateTimePicker
+                      value={batteryNotificationTime}
+                      mode="time"
+                      is24Hour={false}
+                      display="spinner"
+                      onChange={handleTimeChange}
+                      textColor={colors.foreground}
+                    />
+                  </View>
+                </View>
+              </Modal>
+            )}
+
+            {showTimePicker && Platform.OS === 'android' && (
               <DateTimePicker
                 value={batteryNotificationTime}
                 mode="time"
                 is24Hour={false}
-                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                display="default"
                 onChange={handleTimeChange}
               />
             )}
@@ -417,6 +466,24 @@ export function SettingsModal({
                 thumbColor={colors.card}
               />
             </View>
+
+            <View className="border-t border-border my-2" style={{ borderColor: colors.border }} />
+
+            <TouchableOpacity
+              className="flex-row items-center justify-between"
+              onPress={() => setShowTrophyCabinet(true)}
+            >
+              <View className="flex-row items-center gap-3">
+                <View className="w-10 h-10 rounded-lg items-center justify-center" style={{ backgroundColor: colors.muted }}>
+                  <Trophy color={colors.foreground} size={20} />
+                </View>
+                <View>
+                  <Text className="text-base font-inter-medium" style={{ color: colors.foreground }}>Trophy Cabinet</Text>
+                  <Text className="text-sm font-inter-regular" style={{ color: colors['muted-foreground'] }}>View achievements & badges</Text>
+                </View>
+              </View>
+              <ChevronRight color={colors['muted-foreground']} size={20} />
+            </TouchableOpacity>
 
             <View className="border-t border-border my-2" style={{ borderColor: colors.border }} />
 
@@ -477,7 +544,13 @@ export function SettingsModal({
             Weave • Social Relationship Management
           </Text>
         </View>
-      </Animated.View>
+        </Animated.View>
+      </GestureDetector>
+
+      <TrophyCabinetModal
+        visible={showTrophyCabinet}
+        onClose={() => setShowTrophyCabinet(false)}
+      />
     </Modal>
   );
 }

@@ -33,6 +33,7 @@ export function useActiveIntentions() {
 
 /**
  * Hook to observe intentions for a specific friend
+ * Queries through the intention_friends join table
  */
 export function useFriendIntentions(friendId: string | undefined) {
   const [intentions, setIntentions] = useState<Intention[]>([]);
@@ -43,44 +44,36 @@ export function useFriendIntentions(friendId: string | undefined) {
       return;
     }
 
-    console.log('[useFriendIntentions] Setting up observer for friend:', friendId);
+    // First, observe the join table to get intention IDs for this friend
+    const subscription = database
+      .get('intention_friends')
+      .query(Q.where('friend_id', friendId))
+      .observe()
+      .subscribe(async (intentionFriends) => {
+        if (intentionFriends.length === 0) {
+          setIntentions([]);
+          return;
+        }
 
-    const loadIntentions = async () => {
-      // Get intention_friends records for this friend
-      const intentionFriends = await database
-        .get('intention_friends')
-        .query(Q.where('friend_id', friendId))
-        .fetch();
+        // Extract intention IDs from the join table
+        // Access the foreign key column directly using _raw
+        const intentionIds = intentionFriends.map((ifriend: any) => ifriend._raw.intention_id);
 
-      const intentionIds = intentionFriends.map((if_record: any) => if_record.intentionId);
-      console.log('[useFriendIntentions] Found intention IDs:', intentionIds);
+        // Query the intentions table for these IDs
+        const activeIntentions = await database
+          .get<Intention>('intentions')
+          .query(
+            Q.where('id', Q.oneOf(intentionIds)),
+            Q.where('status', 'active'),
+            Q.sortBy('created_at', Q.desc)
+          )
+          .fetch();
 
-      if (intentionIds.length === 0) {
-        setIntentions([]);
-        return;
-      }
-
-      // Query intentions by IDs
-      const subscription = database
-        .get<Intention>('intentions')
-        .query(
-          Q.where('id', Q.oneOf(intentionIds)),
-          Q.where('status', 'active'),
-          Q.sortBy('created_at', Q.desc)
-        )
-        .observe()
-        .subscribe((newIntentions) => {
-          console.log('[useFriendIntentions] Received intentions update:', newIntentions.length);
-          setIntentions(newIntentions);
-        });
-
-      return subscription;
-    };
-
-    const subscription = loadIntentions();
+        setIntentions(activeIntentions);
+      });
 
     return () => {
-      subscription.then(sub => sub?.unsubscribe());
+      subscription.unsubscribe();
     };
   }, [friendId]);
 

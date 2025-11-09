@@ -10,6 +10,7 @@ import Interaction from '../../../db/models/Interaction';
 
 import TrophyCabinetModal from '../../TrophyCabinetModal';
 import { ReflectionJourneyModal } from '../../ReflectionJourney/ReflectionJourneyModal';
+import { WeeklyReflectionModal } from '../../WeeklyReflection/WeeklyReflectionModal';
 
 const WIDGET_CONFIG: HomeWidgetConfig = {
   id: 'weaving-practice',
@@ -81,6 +82,7 @@ export const WeavingPracticeWidget: React.FC = () => {
   const [weekActivity, setWeekActivity] = useState<boolean[]>([]);
   const [isTrophyCabinetVisible, setTrophyCabinetVisible] = useState(false);
   const [isReflectionJourneyVisible, setReflectionJourneyVisible] = useState(false);
+  const [isWeeklyReflectionVisible, setWeeklyReflectionVisible] = useState(false);
 
   useEffect(() => {
     const loadProgress = async () => {
@@ -220,23 +222,42 @@ export const WeavingPracticeWidget: React.FC = () => {
               </Text>
             </View>
 
-            {/* Reflection Journey Button */}
-            <TouchableOpacity
-              onPress={(e) => {
-                e.stopPropagation();
-                setReflectionJourneyVisible(true);
-              }}
-              className="mt-3 py-2 px-4 rounded-lg flex-row items-center justify-center gap-1.5"
-              style={{ backgroundColor: colors.muted }}
-              activeOpacity={0.7}
-            >
-              <Text
-                className="font-inter-medium text-xs"
-                style={{ color: colors.foreground }}
+            {/* Action Buttons */}
+            <View className="mt-3 flex-row gap-2">
+              <TouchableOpacity
+                onPress={(e) => {
+                  e.stopPropagation();
+                  setWeeklyReflectionVisible(true);
+                }}
+                className="flex-1 py-2 px-3 rounded-lg flex-row items-center justify-center gap-1.5"
+                style={{ backgroundColor: colors.primary }}
+                activeOpacity={0.7}
               >
-                📖 View Reflection Journey
-              </Text>
-            </TouchableOpacity>
+                <Text
+                  className="font-inter-semibold text-xs"
+                  style={{ color: colors.card }}
+                >
+                  ✨ Reflect Now
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={(e) => {
+                  e.stopPropagation();
+                  setReflectionJourneyVisible(true);
+                }}
+                className="flex-1 py-2 px-3 rounded-lg flex-row items-center justify-center gap-1.5"
+                style={{ backgroundColor: colors.muted }}
+                activeOpacity={0.7}
+              >
+                <Text
+                  className="font-inter-medium text-xs"
+                  style={{ color: colors.foreground }}
+                >
+                  📖 Journey
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </HomeWidgetBase>
       </TouchableOpacity>
@@ -249,6 +270,11 @@ export const WeavingPracticeWidget: React.FC = () => {
       <ReflectionJourneyModal
         isOpen={isReflectionJourneyVisible}
         onClose={() => setReflectionJourneyVisible(false)}
+      />
+
+      <WeeklyReflectionModal
+        isOpen={isWeeklyReflectionVisible}
+        onClose={() => setWeeklyReflectionVisible(false)}
       />
     </>
   );
