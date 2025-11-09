@@ -7,6 +7,7 @@ import * as Haptics from 'expo-haptics';
 
 import { FriendListRow } from '../src/components/FriendListRow';
 import { TierSegmentedControl } from '../src/components/TierSegmentedControl';
+import { TierInfo } from '../src/components/TierInfo';
 import { FAB } from '../src/components/fab';
 import { InsightsFAB } from '../src/components/InsightsFAB';
 import { MicroReflectionSheet } from '../src/components/MicroReflectionSheet';
@@ -26,10 +27,24 @@ import { useActiveIntentions } from '../src/hooks/useIntentions';
 import { useIntentionStore } from '../src/stores/intentionStore';
 import { IntentionActionSheet } from '../src/components/IntentionActionSheet';
 import Intention from '../src/db/models/Intention';
+import { tierColors } from '../src/lib/constants';
 
 const { width: screenWidth } = Dimensions.get('window');
 
-const AnimatedFriendListItem = ({ item, index, refreshKey }: { item: FriendModel; index: number; refreshKey: number }) => {
+// Helper to create subtle tier background colors
+const getTierBackground = (tier: 'inner' | 'close' | 'community', isDarkMode: boolean) => {
+  const tierColorMap = {
+    inner: tierColors.InnerCircle,
+    close: tierColors.CloseFriends,
+    community: tierColors.Community,
+  };
+  const color = tierColorMap[tier];
+  // Very subtle tinting - 3% opacity for light mode, 5% for dark mode
+  const opacity = isDarkMode ? '0D' : '08'; // Hex opacity values
+  return `${color}${opacity}`;
+};
+
+const AnimatedFriendCardItem = ({ item, index, refreshKey }: { item: FriendModel; index: number; refreshKey: number }) => {
   const { registerRef, unregisterRef } = useCardGesture();
   const animatedRef = useAnimatedRef<Animated.View>();
 
@@ -62,7 +77,7 @@ const AnimatedFriendListItem = ({ item, index, refreshKey }: { item: FriendModel
 
 function DashboardContent() {
   const router = useRouter();
-  const { colors } = useTheme();
+  const { colors, isDarkMode } = useTheme();
   const { isQuickWeaveOpen, microReflectionData, hideMicroReflectionSheet, showMicroReflectionSheet } = useUIStore();
   const allFriends = useFriends(); // Direct WatermelonDB subscription
   const { updateInteractionVibeAndNotes } = useInteractionStore();
@@ -166,9 +181,11 @@ function DashboardContent() {
 
   const renderTier = (tier: 'inner' | 'close' | 'community', scrollHandler: any) => {
     const currentFriends = friends[tier] || [];
+    const tierBgColor = getTierBackground(tier, isDarkMode);
+
     if (currentFriends.length === 0) {
       return (
-        <View style={[styles.emptyTierContainer, { width: screenWidth }]}>
+        <View style={[styles.emptyTierContainer, { width: screenWidth, backgroundColor: tierBgColor }]}>
           <Text style={styles.emptyTierEmoji}>🧵</Text>
           <Text style={[styles.emptyTierTitle, { color: colors.foreground }]}>Your weave is empty</Text>
         </View>
@@ -176,7 +193,7 @@ function DashboardContent() {
     }
     return (
       <Animated.FlatList
-        style={{ width: screenWidth }}
+        style={{ width: screenWidth, backgroundColor: tierBgColor }}
         contentContainerStyle={styles.tierScrollView}
         data={currentFriends}
         keyExtractor={(item) => `${item.id}-${refreshKey}`}
@@ -184,7 +201,7 @@ function DashboardContent() {
         onScroll={scrollHandler}
         scrollEventThrottle={16}
         renderItem={({ item, index }) => (
-          <AnimatedFriendListItem item={item} index={index} refreshKey={refreshKey} />
+          <AnimatedFriendCardItem item={item} index={index} refreshKey={refreshKey} />
         )}
       />
     );
@@ -201,6 +218,7 @@ function DashboardContent() {
           community: friends.community.length,
         }}
       />
+      <TierInfo activeTier={activeTier} />
 
       <GestureDetector gesture={gesture}>
         <Animated.ScrollView
