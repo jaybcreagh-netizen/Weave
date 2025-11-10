@@ -104,13 +104,24 @@ async function checkUpcomingLifeEvent(friend: SuggestionInput['friend']): Promis
       )
       .fetch();
 
+    console.log('[LifeEvent Check] Found life events for', friend.name, ':', activeLifeEvents.map(e => ({
+      type: e.eventType,
+      date: new Date(e.eventDate).toISOString(),
+      title: e.title,
+      importance: e.importance,
+    })));
+
     // Filter out anniversaries for non-partners
     const filteredEvents = activeLifeEvents.filter(event => {
       if (event.eventType === 'anniversary') {
-        return friend.relationshipType?.toLowerCase().includes('partner');
+        const isPartner = friend.relationshipType?.toLowerCase().includes('partner');
+        console.log('[LifeEvent Check] Anniversary event found - relationshipType:', friend.relationshipType, 'isPartner:', isPartner);
+        return isPartner;
       }
       return true;
     });
+
+    console.log('[LifeEvent Check] After filtering:', filteredEvents.length, 'events remain');
 
     // Prioritize critical and high importance events
     const sortedEvents = filteredEvents.sort((a, b) => {
