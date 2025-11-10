@@ -6,12 +6,14 @@
 
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, Dimensions } from 'react-native';
-import Svg, { Circle, Line, Text as SvgText, G, Path } from 'react-native-svg';
+import Svg, { Circle, Line, Text as SvgText, G, Path, Rect } from 'react-native-svg';
 import { database } from '../../db';
 import { Q } from '@nozbe/watermelondb';
 import FriendModel from '../../db/models/Friend';
 import InteractionModel from '../../db/models/Interaction';
+import WeeklyReflection from '../../db/models/WeeklyReflection';
 import { getYearMoonData, getYearStats } from '../../lib/year-in-moons-data';
+import { STORY_CHIPS } from '../../lib/story-chips';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -25,6 +27,8 @@ export function GraphsTabContent({ year = new Date().getFullYear() }: GraphsTabC
   const [topFriends, setTopFriends] = useState<Array<{ name: string; count: number }>>([]);
   const [archetypeDistribution, setArchetypeDistribution] = useState<Record<string, number>>({});
   const [batteryWeaveData, setBatteryWeaveData] = useState<Array<{ date: Date; battery: number; weaves: number }>>([]);
+  const [storyChipThemes, setStoryChipThemes] = useState<Array<{ chipId: string; label: string; count: number }>>([]);
+  const [depthScoreData, setDepthScoreData] = useState<Array<{ month: string; reflectionRate: number }>>([]);
 
   useEffect(() => {
     loadGraphData();
@@ -133,6 +137,74 @@ export function GraphsTabContent({ year = new Date().getFullYear() }: GraphsTabC
       });
       setArchetypeDistribution(archetypes);
 
+      // 5. Get story chip themes from interactions and weekly reflections
+      const chipCounts: Record<string, number> = {};
+
+      // From interactions
+      interactions.forEach(interaction => {
+        if (interaction.reflection?.chips) {
+          interaction.reflection.chips.forEach((chip: { chipId: string }) => {
+            chipCounts[chip.chipId] = (chipCounts[chip.chipId] || 0) + 1;
+          });
+        }
+      });
+
+      // From weekly reflections
+      const weeklyReflections = await database
+        .get<WeeklyReflection>('weekly_reflections')
+        .query(
+          Q.where('week_end_date', Q.gte(yearStart)),
+          Q.where('week_end_date', Q.lte(yearEnd))
+        )
+        .fetch();
+
+      weeklyReflections.forEach(reflection => {
+        reflection.storyChips.forEach(chip => {
+          chipCounts[chip.chipId] = (chipCounts[chip.chipId] || 0) + 1;
+        });
+      });
+
+      // Convert to array and sort by count
+      const themes = Object.entries(chipCounts)
+        .map(([chipId, count]) => {
+          const chip = STORY_CHIPS.find(c => c.id === chipId);
+          return chip ? { chipId, label: chip.plainText, count } : null;
+        })
+        .filter((t): t is { chipId: string; label: string; count: number } => t !== null)
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 8); // Top 8 themes
+
+      setStoryChipThemes(themes);
+
+      // 6. Calculate depth score (reflection completion rate) by month
+      const monthlyReflectionRate: Array<{ month: string; reflectionRate: number }> = [];
+
+      for (let month = 0; month < 12; month++) {
+        const monthStart = new Date(year, month, 1).getTime();
+        const monthEnd = new Date(year, month + 1, 0, 23, 59, 59).getTime();
+
+        const monthInteractions = await database
+          .get<InteractionModel>('interactions')
+          .query(
+            Q.where('interaction_date', Q.gte(monthStart)),
+            Q.where('interaction_date', Q.lte(monthEnd)),
+            Q.where('status', 'completed')
+          )
+          .fetch();
+
+        if (monthInteractions.length > 0) {
+          const withReflections = monthInteractions.filter(i =>
+            i.reflection && i.reflection.chips && i.reflection.chips.length > 0
+          ).length;
+
+          const rate = (withReflections / monthInteractions.length) * 100;
+          const monthName = new Date(year, month, 1).toLocaleString('en-US', { month: 'short' });
+          monthlyReflectionRate.push({ month: monthName, reflectionRate: rate });
+        }
+      }
+
+      setDepthScoreData(monthlyReflectionRate);
+
     } catch (error) {
       console.error('Error loading graph data:', error);
     } finally {
@@ -239,6 +311,26 @@ export function GraphsTabContent({ year = new Date().getFullYear() }: GraphsTabC
                 </Text>
               </View>
             ))}
+        </View>
+      )}
+
+      {/* Themes Over Time */}
+      {storyChipThemes.length > 0 && (
+        <View style={{ marginBottom: 32 }}>
+          <Text style={{ fontSize: 18, fontWeight: '600', color: '#F5F1E8', fontFamily: 'Lora_600SemiBold', marginBottom: 16 }}>
+            Your Connection Themes
+          </Text>
+          <ThemesBarChart data={storyChipThemes} />
+        </View>
+      )}
+
+      {/* Depth Score Trend */}
+      {depthScoreData.length > 0 && (
+        <View style={{ marginBottom: 32 }}>
+          <Text style={{ fontSize: 18, fontWeight: '600', color: '#F5F1E8', fontFamily: 'Lora_600SemiBold', marginBottom: 16 }}>
+            Reflection Depth
+          </Text>
+          <DepthScoreChart data={depthScoreData} />
         </View>
       )}
 
@@ -450,6 +542,121 @@ function BatteryWeaveChart({ data }: { data: Array<{ date: Date; battery: number
           <Text style={{ fontSize: 12, color: '#8A8F9E', fontFamily: 'Inter_400Regular' }}>Weaves</Text>
         </View>
       </View>
+    </View>
+  );
+}
+
+// Themes Bar Chart Component
+function ThemesBarChart({ data }: { data: Array<{ chipId: string; label: string; count: number }> }) {
+  const maxCount = Math.max(...data.map(d => d.count), 1);
+
+  return (
+    <View style={{ backgroundColor: '#2A2E3F', borderRadius: 20, padding: 20 }}>
+      {data.map((theme, index) => {
+        const barWidth = (theme.count / maxCount) * 100;
+
+        return (
+          <View key={theme.chipId} style={{ marginBottom: index < data.length - 1 ? 12 : 0 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+              <Text style={{ fontSize: 13, color: '#F5F1E8', fontFamily: 'Inter_500Medium', flex: 1 }}>
+                {theme.label}
+              </Text>
+              <Text style={{ fontSize: 13, color: '#8A8F9E', fontFamily: 'Inter_400Regular', marginLeft: 8 }}>
+                {theme.count}
+              </Text>
+            </View>
+            <View style={{ height: 8, backgroundColor: '#3A3E5F', borderRadius: 4, overflow: 'hidden' }}>
+              <View
+                style={{
+                  height: '100%',
+                  width: `${barWidth}%`,
+                  backgroundColor: '#A78BFA',
+                  borderRadius: 4,
+                }}
+              />
+            </View>
+          </View>
+        );
+      })}
+      <Text style={{ marginTop: 12, fontSize: 12, color: '#8A8F9E', fontFamily: 'Inter_400Regular', textAlign: 'center' }}>
+        Most common moments and feelings this year
+      </Text>
+    </View>
+  );
+}
+
+// Depth Score Chart Component
+function DepthScoreChart({ data }: { data: Array<{ month: string; reflectionRate: number }> }) {
+  const chartWidth = screenWidth - 80;
+  const chartHeight = 180;
+  const padding = { top: 20, right: 20, bottom: 40, left: 40 };
+  const barWidth = (chartWidth - padding.left - padding.right) / data.length - 4;
+
+  return (
+    <View style={{ backgroundColor: '#2A2E3F', borderRadius: 20, padding: 20 }}>
+      <Svg width={chartWidth} height={chartHeight}>
+        {/* Y-axis labels */}
+        {[0, 25, 50, 75, 100].map((value, i) => {
+          const y = chartHeight - padding.bottom - (value / 100) * (chartHeight - padding.top - padding.bottom);
+          return (
+            <G key={value}>
+              <Line
+                x1={padding.left}
+                y1={y}
+                x2={chartWidth - padding.right}
+                y2={y}
+                stroke="#3A3E5F"
+                strokeWidth="1"
+                opacity={0.3}
+              />
+              <SvgText
+                x={padding.left - 8}
+                y={y}
+                fontSize="10"
+                fill="#8A8F9E"
+                textAnchor="end"
+                alignmentBaseline="middle"
+                fontFamily="Inter_400Regular"
+              >
+                {value}%
+              </SvgText>
+            </G>
+          );
+        })}
+
+        {/* Bars */}
+        {data.map((d, i) => {
+          const barHeight = (d.reflectionRate / 100) * (chartHeight - padding.top - padding.bottom);
+          const x = padding.left + i * (barWidth + 4);
+          const y = chartHeight - padding.bottom - barHeight;
+
+          return (
+            <G key={d.month}>
+              <Rect
+                x={x}
+                y={y}
+                width={barWidth}
+                height={barHeight}
+                fill="#F5C563"
+                rx={2}
+              />
+              <SvgText
+                x={x + barWidth / 2}
+                y={chartHeight - padding.bottom + 12}
+                fontSize="10"
+                fill="#8A8F9E"
+                textAnchor="middle"
+                fontFamily="Inter_400Regular"
+              >
+                {d.month}
+              </SvgText>
+            </G>
+          );
+        })}
+      </Svg>
+      <Text style={{ marginTop: 12, fontSize: 12, color: '#8A8F9E', fontFamily: 'Inter_400Regular', textAlign: 'center' }}>
+        Percentage of weaves with reflections by month
+      </Text>
     </View>
   );
 }

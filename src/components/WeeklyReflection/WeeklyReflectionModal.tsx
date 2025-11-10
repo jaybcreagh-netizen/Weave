@@ -16,6 +16,7 @@ import { MissedConnectionsList } from './MissedConnectionsList';
 import { GratitudePrompt } from './GratitudePrompt';
 import { database } from '../../db';
 import WeeklyReflection from '../../db/models/WeeklyReflection';
+import { getTopStoryChipSuggestions, WeekStoryChipSuggestion } from '../../lib/weekly-reflection/story-chip-aggregator';
 import * as Haptics from 'expo-haptics';
 
 interface WeeklyReflectionModalProps {
@@ -28,6 +29,7 @@ type Step = 'summary' | 'missed' | 'gratitude';
 export function WeeklyReflectionModal({ isOpen, onClose }: WeeklyReflectionModalProps) {
   const { colors, isDarkMode } = useTheme();
   const [summary, setSummary] = useState<WeeklySummary | null>(null);
+  const [storyChipSuggestions, setStoryChipSuggestions] = useState<WeekStoryChipSuggestion[]>([]);
   const [currentStep, setCurrentStep] = useState<Step>('summary');
   const [isLoading, setIsLoading] = useState(true);
 
@@ -41,8 +43,12 @@ export function WeeklyReflectionModal({ isOpen, onClose }: WeeklyReflectionModal
   const loadSummary = async () => {
     setIsLoading(true);
     try {
-      const data = await calculateWeeklySummary();
+      const [data, chipSuggestions] = await Promise.all([
+        calculateWeeklySummary(),
+        getTopStoryChipSuggestions(6), // Get top 6 suggestions
+      ]);
       setSummary(data);
+      setStoryChipSuggestions(chipSuggestions);
     } catch (error) {
       console.error('Error loading weekly summary:', error);
     } finally {
@@ -50,7 +56,12 @@ export function WeeklyReflectionModal({ isOpen, onClose }: WeeklyReflectionModal
     }
   };
 
-  const handleComplete = async (gratitudeText: string, prompt: string, promptContext: string) => {
+  const handleComplete = async (
+    gratitudeText: string,
+    prompt: string,
+    promptContext: string,
+    storyChips: Array<{ chipId: string; customText?: string }>
+  ) => {
     if (!summary) return;
 
     try {
@@ -67,6 +78,7 @@ export function WeeklyReflectionModal({ isOpen, onClose }: WeeklyReflectionModal
           reflection.gratitudeText = gratitudeText.trim().length > 0 ? gratitudeText : undefined;
           reflection.gratitudePrompt = prompt;
           reflection.promptContext = promptContext;
+          reflection.storyChips = storyChips; // Save story chips
           reflection.completedAt = new Date();
         });
       });
@@ -208,7 +220,11 @@ export function WeeklyReflectionModal({ isOpen, onClose }: WeeklyReflectionModal
 
               {currentStep === 'gratitude' && (
                 <Animated.View entering={SlideInRight} exiting={SlideOutLeft} className="flex-1">
-                  <GratitudePrompt summary={summary} onComplete={handleComplete} />
+                  <GratitudePrompt
+                    summary={summary}
+                    storyChipSuggestions={storyChipSuggestions}
+                    onComplete={handleComplete}
+                  />
                 </Animated.View>
               )}
             </>

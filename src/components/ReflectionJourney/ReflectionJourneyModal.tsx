@@ -12,6 +12,7 @@ import { database } from '../../db';
 import WeeklyReflection from '../../db/models/WeeklyReflection';
 import { Q } from '@nozbe/watermelondb';
 import { format } from 'date-fns';
+import { STORY_CHIPS } from '../../lib/story-chips';
 import * as Haptics from 'expo-haptics';
 
 interface ReflectionJourneyModalProps {
@@ -285,6 +286,39 @@ export function ReflectionJourneyModal({ isOpen, onClose }: ReflectionJourneyMod
                         >
                           {reflection.topActivity} ({reflection.topActivityCount}×)
                         </Text>
+                      </View>
+                    )}
+
+                    {/* Story Chips */}
+                    {reflection.storyChips.length > 0 && (
+                      <View className="mb-3">
+                        <Text
+                          className="text-xs mb-2"
+                          style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
+                        >
+                          Week Themes
+                        </Text>
+                        <View className="flex-row flex-wrap gap-2">
+                          {reflection.storyChips.map((chip, chipIndex) => {
+                            const chipData = STORY_CHIPS.find(c => c.id === chip.chipId);
+                            if (!chipData) return null;
+
+                            return (
+                              <View
+                                key={`${chip.chipId}-${chipIndex}`}
+                                className="px-3 py-1.5 rounded-full"
+                                style={{ backgroundColor: colors.primary + '15' }}
+                              >
+                                <Text
+                                  className="text-xs"
+                                  style={{ color: colors.primary, fontFamily: 'Inter_400Regular' }}
+                                >
+                                  {chipData.plainText}
+                                </Text>
+                              </View>
+                            );
+                          })}
+                        </View>
                       </View>
                     )}
 

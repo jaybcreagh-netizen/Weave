@@ -6,11 +6,13 @@
 import { database } from '../db';
 import UserProfile, { BatteryHistoryEntry } from '../db/models/UserProfile';
 import Interaction from '../db/models/Interaction';
+import WeeklyReflection from '../db/models/WeeklyReflection';
 import { Q } from '@nozbe/watermelondb';
+import { STORY_CHIPS, ChipType } from './story-chips';
 
 export interface Pattern {
   id: string;
-  type: 'cyclical' | 'correlation' | 'best_days' | 'consistency' | 'trend';
+  type: 'cyclical' | 'correlation' | 'best_days' | 'consistency' | 'trend' | 'emotional' | 'thematic';
   title: string;
   description: string;
   insight: string;
@@ -354,6 +356,102 @@ function detectTrendPattern(history: BatteryHistoryEntry[]): Pattern | null {
 }
 
 /**
+ * Detect emotional patterns from story chip data
+ */
+async function detectEmotionalPatterns(weaves: Interaction[]): Promise<Pattern | null> {
+  // Collect all feeling chips from weaves
+  const feelingCounts: Record<string, number> = {};
+
+  weaves.forEach(weave => {
+    if (weave.reflection?.chips) {
+      weave.reflection.chips.forEach((chip: { chipId: string }) => {
+        const chipData = STORY_CHIPS.find(c => c.id === chip.chipId && c.type === 'feeling');
+        if (chipData) {
+          feelingCounts[chip.chipId] = (feelingCounts[chip.chipId] || 0) + 1;
+        }
+      });
+    }
+  });
+
+  const totalFeelings = Object.values(feelingCounts).reduce((sum, count) => sum + count, 0);
+  if (totalFeelings < 5) return null; // Need at least 5 feeling reflections
+
+  // Find dominant feeling
+  const sortedFeelings = Object.entries(feelingCounts)
+    .sort((a, b) => b[1] - a[1]);
+
+  if (sortedFeelings.length === 0) return null;
+
+  const [dominantChipId, count] = sortedFeelings[0];
+  const chipData = STORY_CHIPS.find(c => c.id === dominantChipId);
+  if (!chipData) return null;
+
+  const percentage = (count / totalFeelings) * 100;
+
+  // Only report if this feeling is significantly dominant (>30%)
+  if (percentage < 30) return null;
+
+  return {
+    id: 'dominant-feeling',
+    type: 'emotional',
+    title: 'Your Emotional Signature',
+    description: `You often feel "${chipData.plainText}" in your connections (${count}× this quarter, ${percentage.toFixed(0)}% of reflections).`,
+    insight: 'This recurring feeling reveals something important about what you value in relationships.',
+    confidence: percentage > 50 ? 'high' : 'medium',
+    icon: '💫',
+    data: { chipId: dominantChipId, count, percentage, label: chipData.plainText },
+  };
+}
+
+/**
+ * Detect thematic patterns from story chip data
+ */
+async function detectThematicPatterns(weaves: Interaction[]): Promise<Pattern | null> {
+  // Collect all topic chips from weaves
+  const topicCounts: Record<string, number> = {};
+
+  weaves.forEach(weave => {
+    if (weave.reflection?.chips) {
+      weave.reflection.chips.forEach((chip: { chipId: string }) => {
+        const chipData = STORY_CHIPS.find(c => c.id === chip.chipId && c.type === 'topic');
+        if (chipData) {
+          topicCounts[chip.chipId] = (topicCounts[chip.chipId] || 0) + 1;
+        }
+      });
+    }
+  });
+
+  const totalTopics = Object.values(topicCounts).reduce((sum, count) => sum + count, 0);
+  if (totalTopics < 5) return null; // Need at least 5 topic reflections
+
+  // Find dominant topic
+  const sortedTopics = Object.entries(topicCounts)
+    .sort((a, b) => b[1] - a[1]);
+
+  if (sortedTopics.length === 0) return null;
+
+  const [dominantChipId, count] = sortedTopics[0];
+  const chipData = STORY_CHIPS.find(c => c.id === dominantChipId);
+  if (!chipData) return null;
+
+  const percentage = (count / totalTopics) * 100;
+
+  // Only report if this topic is significantly recurring (>25%)
+  if (percentage < 25) return null;
+
+  return {
+    id: 'recurring-theme',
+    type: 'thematic',
+    title: 'Conversation Pattern',
+    description: `A recurring theme in your connections: "${chipData.plainText}" (${count}× this quarter).`,
+    insight: 'The topics you return to reveal what matters most to you right now.',
+    confidence: percentage > 40 ? 'high' : 'medium',
+    icon: '💬',
+    data: { chipId: dominantChipId, count, percentage, label: chipData.plainText },
+  };
+}
+
+/**
  * Main function: detect all patterns
  */
 export async function detectPatterns(): Promise<Pattern[]> {
@@ -381,6 +479,13 @@ export async function detectPatterns(): Promise<Pattern[]> {
 
   const trendPattern = detectTrendPattern(history);
   if (trendPattern) patterns.push(trendPattern);
+
+  // Qualitative/emotional patterns from story chips
+  const emotionalPattern = await detectEmotionalPatterns(weaves);
+  if (emotionalPattern) patterns.push(emotionalPattern);
+
+  const thematicPattern = await detectThematicPatterns(weaves);
+  if (thematicPattern) patterns.push(thematicPattern);
 
   // Sort by confidence
   const confidenceOrder = { high: 3, medium: 2, low: 1 };

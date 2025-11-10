@@ -360,6 +360,19 @@ export default schemaMigrations({
         }),
       ],
     },
+    {
+      // Migration from schema v23 to v24
+      // Weekly Reflection Story Chips
+      toVersion: 24,
+      steps: [
+        addColumns({
+          table: 'weekly_reflections',
+          columns: [
+            { name: 'story_chips', type: 'string', isOptional: true }, // JSON array
+          ],
+        }),
+      ],
+    },
   ],
 });
 
