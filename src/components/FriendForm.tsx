@@ -410,7 +410,7 @@ const styles = StyleSheet.create({
     removeImageButton: {
         position: 'absolute',
         top: -8,
-        right: 52, // manual adjustment
+        left: 68, // Position at top-right corner of 80px avatar (80 - 12)
         width: 24,
         height: 24,
         backgroundColor: '#ef4444',
@@ -467,18 +467,22 @@ const styles = StyleSheet.create({
     relationshipTypeContainer: {
         flexDirection: 'row',
         flexWrap: 'wrap',
-        gap: 8,
+        gap: 10,
+        rowGap: 10,
     },
     relationshipTypeButton: {
-        paddingVertical: 10,
-        paddingHorizontal: 16,
-        borderRadius: 20,
-        borderWidth: 1,
+        paddingVertical: 12,
+        paddingHorizontal: 18,
+        borderRadius: 24,
+        borderWidth: 1.5,
+        minWidth: 100,
+        alignItems: 'center',
     },
     relationshipTypeButtonSelected: {},
     relationshipTypeButtonText: {
         fontSize: 14,
-        fontWeight: '500',
+        fontWeight: '600',
+        textAlign: 'center',
     },
     dateButton: {
         flexDirection: 'row',
