@@ -19,6 +19,7 @@ import { Q } from '@nozbe/watermelondb';
 const LAST_REFLECTION_KEY = '@weave:last_reflection_date';
 const LAST_BATTERY_NUDGE_KEY = '@weave:last_battery_nudge';
 const DEEPENING_NUDGES_KEY = '@weave:deepening_nudges';
+const NOTIFICATIONS_INITIALIZED_KEY = '@weave:notifications_initialized';
 
 // Notification identifiers
 const WEEKLY_REFLECTION_ID = 'weekly-reflection';
@@ -172,6 +173,8 @@ export async function scheduleEventReminder(interaction: Interaction): Promise<v
         data: {
           type: 'event-reminder',
           interactionId: interaction.id,
+          friendId: friends.length > 0 ? friends[0].id : undefined,
+          friendName: friendNames,
         },
       },
       trigger: reminderTime,
@@ -322,7 +325,8 @@ export async function schedulePostWeaveDeepening(interaction: Interaction): Prom
         data: {
           type: 'deepening-nudge',
           interactionId: interaction.id,
-          friendNames,
+          friendId: friends.length > 0 ? friends[0].id : undefined,
+          friendName: primaryFriend,
         },
       },
       trigger: nudgeTime,
@@ -455,8 +459,40 @@ export async function cancelWeeklyReflection(): Promise<void> {
 // ================================================================================
 
 /**
+ * Check if notifications were already initialized today
+ */
+async function wasInitializedToday(): Promise<boolean> {
+  try {
+    const lastInit = await AsyncStorage.getItem(NOTIFICATIONS_INITIALIZED_KEY);
+    if (!lastInit) return false;
+
+    const lastInitDate = new Date(parseInt(lastInit, 10));
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    lastInitDate.setHours(0, 0, 0, 0);
+
+    return lastInitDate.getTime() === today.getTime();
+  } catch (error) {
+    console.error('Error checking notification initialization:', error);
+    return false;
+  }
+}
+
+/**
+ * Mark notifications as initialized
+ */
+async function markAsInitialized(): Promise<void> {
+  try {
+    await AsyncStorage.setItem(NOTIFICATIONS_INITIALIZED_KEY, Date.now().toString());
+  } catch (error) {
+    console.error('Error marking notifications as initialized:', error);
+  }
+}
+
+/**
  * Initialize all notification systems
  * Call this on app launch
+ * Only reschedules if not already done today (prevents duplicate notifications)
  */
 export async function initializeNotifications(): Promise<void> {
   console.log('[Notifications] Initializing notification system...');
@@ -467,6 +503,17 @@ export async function initializeNotifications(): Promise<void> {
     return;
   }
 
+  // Check if we already initialized today
+  const alreadyInitialized = await wasInitializedToday();
+  if (alreadyInitialized) {
+    console.log('[Notifications] Already initialized today, skipping reschedule');
+    // Only clean up old nudges, don't reschedule everything
+    await cleanupOldDeepeningNudges();
+    return;
+  }
+
+  console.log('[Notifications] First initialization today, setting up all notifications');
+
   // Setup all notification types
   await Promise.all([
     updateBatteryNotificationFromProfile(),
@@ -474,6 +521,9 @@ export async function initializeNotifications(): Promise<void> {
     scheduleAllEventReminders(),
     cleanupOldDeepeningNudges(),
   ]);
+
+  // Mark as initialized
+  await markAsInitialized();
 
   console.log('[Notifications] All notifications initialized');
 }

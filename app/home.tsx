@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View } from 'react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import { HomeWidgetGrid, WidgetGridItem } from '../src/components/home/HomeWidgetGrid';
 import { SocialSeasonWidget } from '../src/components/home/widgets/SocialSeasonWidget';
@@ -20,6 +21,10 @@ export default function Home() {
   const [showWeeklyReflection, setShowWeeklyReflection] = useState(false);
   const [showYearInMoons, setShowYearInMoons] = useState(false);
 
+  // Listen for URL parameters from notification deep links
+  const params = useLocalSearchParams();
+  const router = useRouter();
+
   // Initialize user profile observable on mount
   useEffect(() => {
     const cleanup = observeProfile();
@@ -31,6 +36,21 @@ export default function Home() {
     observeFriends();
     // Note: observeFriends doesn't return cleanup, it manages its own subscription
   }, []);
+
+  // Handle notification deep links via URL parameters
+  useEffect(() => {
+    if (params.showBattery === 'true') {
+      setShowBatterySheet(true);
+      // Clear the parameter to prevent re-triggering
+      router.setParams({ showBattery: undefined });
+    }
+
+    if (params.showReflection === 'true') {
+      setShowWeeklyReflection(true);
+      // Clear the parameter to prevent re-triggering
+      router.setParams({ showReflection: undefined });
+    }
+  }, [params.showBattery, params.showReflection]);
 
   // Check if user should be prompted for battery check-in
   useEffect(() => {
