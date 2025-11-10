@@ -55,6 +55,13 @@ interface FriendStats {
   birthday?: Date;
   favoriteWeaveTypes: InteractionCategory[];
   badgeCount: number;
+  badges: Array<{
+    id: string;
+    name: string;
+    description: string;
+    icon: string;
+    rarity: string;
+  }>;
 }
 
 export default function FriendBadgePopup({
@@ -65,6 +72,7 @@ export default function FriendBadgePopup({
 }: FriendBadgePopupProps) {
   const [stats, setStats] = useState<FriendStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showBadges, setShowBadges] = useState(false);
   const { colors, isDarkMode } = useTheme();
 
   const translateY = useSharedValue(SCREEN_HEIGHT);
@@ -127,20 +135,32 @@ export default function FriendBadgePopup({
 
       console.log('[FriendBadgePopup] Pattern analyzed:', pattern.preferredCategories);
 
-      // Load badges count
-      const badges = await database
+      // Load badges with details
+      const badgeRecords = await database
         .get<FriendBadge>('friend_badges')
-        .query(Q.where('friend_id', friendId))
+        .query(Q.where('friend_id', friendId), Q.sortBy('unlocked_at', Q.desc))
         .fetch();
 
-      console.log('[FriendBadgePopup] Badges count:', badges.length);
+      console.log('[FriendBadgePopup] Badges count:', badgeRecords.length);
+
+      const badgesWithDetails = badgeRecords
+        .map(b => getBadgeById(b.badgeId))
+        .filter((b): b is NonNullable<typeof b> => b !== null)
+        .map(b => ({
+          id: b.id,
+          name: b.name,
+          description: b.description,
+          icon: b.icon,
+          rarity: b.rarity,
+        }));
 
       const newStats = {
         archetype: friend.archetype as Archetype,
         totalWeaves: interactions.length,
         birthday: friend.birthday ? new Date(friend.birthday) : undefined,
         favoriteWeaveTypes: pattern.preferredCategories,
-        badgeCount: badges.length,
+        badgeCount: badgeRecords.length,
+        badges: badgesWithDetails,
       };
 
       console.log('[FriendBadgePopup] Setting stats:', newStats);
@@ -161,6 +181,21 @@ export default function FriendBadgePopup({
   }));
 
   const archetypeInfo = stats ? archetypeData[stats.archetype] : null;
+
+  const getRarityColor = (rarity: string) => {
+    switch (rarity) {
+      case 'common':
+        return '#10b981'; // emerald-500
+      case 'rare':
+        return '#3b82f6'; // blue-500
+      case 'epic':
+        return '#a855f7'; // purple-500
+      case 'legendary':
+        return '#f59e0b'; // amber-500
+      default:
+        return '#6b7280'; // gray-500
+    }
+  };
 
   if (!visible) return null;
 
@@ -263,15 +298,19 @@ export default function FriendBadgePopup({
                       </View>
 
                       {/* Badges */}
-                      <View style={[styles.statCard, { backgroundColor: colors.muted }]}>
+                      <TouchableOpacity
+                        style={[styles.statCard, { backgroundColor: colors.muted }]}
+                        onPress={() => setShowBadges(!showBadges)}
+                        activeOpacity={0.7}
+                      >
                         <Text style={styles.statIcon}>🏆</Text>
                         <Text style={[styles.statValue, { color: colors.foreground }]}>
                           {stats.badgeCount}
                         </Text>
                         <Text style={[styles.statLabel, { color: colors['muted-foreground'] }]}>
-                          Badges Earned
+                          Badges Earned {stats.badgeCount > 0 ? '▼' : ''}
                         </Text>
-                      </View>
+                      </TouchableOpacity>
 
                       {/* Birthday */}
                       {stats.birthday && (
@@ -309,6 +348,51 @@ export default function FriendBadgePopup({
                                 </Text>
                                 <Text style={[styles.favoriteDescription, { color: colors['muted-foreground'] }]}>
                                   {metadata.description}
+                                </Text>
+                              </View>
+                            </View>
+                          );
+                        })}
+                      </View>
+                    </View>
+                  )}
+
+                  {/* Badges Section */}
+                  {showBadges && stats.badges.length > 0 && (
+                    <View style={styles.section}>
+                      <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
+                        Relationship Badges
+                      </Text>
+                      <View style={styles.badgesList}>
+                        {stats.badges.map((badge) => {
+                          const rarityColor = getRarityColor(badge.rarity);
+                          return (
+                            <View
+                              key={badge.id}
+                              style={[styles.badgeCard, { backgroundColor: colors.muted }]}
+                            >
+                              <View
+                                style={[
+                                  styles.badgeIconContainer,
+                                  { borderColor: rarityColor },
+                                ]}
+                              >
+                                <Text style={styles.badgeIcon}>{badge.icon}</Text>
+                              </View>
+                              <View style={styles.badgeInfo}>
+                                <Text style={[styles.badgeName, { color: colors.foreground }]}>
+                                  {badge.name}
+                                </Text>
+                                <Text style={[styles.badgeDescription, { color: colors['muted-foreground'] }]}>
+                                  {badge.description}
+                                </Text>
+                                <Text
+                                  style={[
+                                    styles.badgeRarity,
+                                    { color: rarityColor },
+                                  ]}
+                                >
+                                  {badge.rarity.toUpperCase()}
                                 </Text>
                               </View>
                             </View>
@@ -531,5 +615,44 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     fontFamily: 'Inter_600SemiBold',
+  },
+  badgesList: {
+    gap: 12,
+  },
+  badgeCard: {
+    flexDirection: 'row',
+    borderRadius: 16,
+    padding: 16,
+    gap: 12,
+  },
+  badgeIconContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badgeIcon: {
+    fontSize: 28,
+  },
+  badgeInfo: {
+    flex: 1,
+    gap: 4,
+  },
+  badgeName: {
+    fontSize: 16,
+    fontWeight: '700',
+    fontFamily: 'Lora_700Bold',
+  },
+  badgeDescription: {
+    fontSize: 13,
+    fontFamily: 'Inter_400Regular',
+  },
+  badgeRarity: {
+    fontSize: 10,
+    fontWeight: '700',
+    fontFamily: 'Inter_700Bold',
+    letterSpacing: 0.5,
   },
 });
