@@ -392,6 +392,39 @@ export default schemaMigrations({
         }),
       ],
     },
+    {
+      // Migration from schema v25 to v26
+      // Enhanced Story Chips System - Custom chips and usage tracking for adaptive suggestions
+      toVersion: 26,
+      steps: [
+        createTable({
+          name: 'custom_chips',
+          columns: [
+            { name: 'chip_id', type: 'string', isIndexed: true },
+            { name: 'chip_type', type: 'string' },
+            { name: 'plain_text', type: 'string' },
+            { name: 'template', type: 'string' },
+            { name: 'components', type: 'string', isOptional: true },
+            { name: 'usage_count', type: 'number' },
+            { name: 'last_used_at', type: 'number', isOptional: true },
+            { name: 'created_at', type: 'number' },
+            { name: 'updated_at', type: 'number' },
+          ],
+        }),
+        createTable({
+          name: 'chip_usage',
+          columns: [
+            { name: 'chip_id', type: 'string', isIndexed: true },
+            { name: 'interaction_id', type: 'string', isIndexed: true },
+            { name: 'friend_id', type: 'string', isIndexed: true, isOptional: true },
+            { name: 'chip_type', type: 'string' },
+            { name: 'is_custom', type: 'boolean' },
+            { name: 'used_at', type: 'number' },
+            { name: 'created_at', type: 'number' },
+          ],
+        }),
+      ],
+    },
   ],
 });
 

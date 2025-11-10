@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb'
 
 export default appSchema({
-  version: 25, // UPDATED: Added journal_entries table for ad-hoc journaling
+  version: 26, // UPDATED: Added custom_chips and chip_usage tables for enhanced story chips system
   tables: [
     tableSchema({
       name: 'friends',
@@ -250,6 +250,32 @@ export default appSchema({
         { name: 'friend_ids', type: 'string', isOptional: true }, // JSON: Array of friend IDs tagged in this entry
         { name: 'created_at', type: 'number' },
         { name: 'updated_at', type: 'number' },
+      ]
+    }),
+    tableSchema({
+      name: 'custom_chips',
+      columns: [
+        { name: 'chip_id', type: 'string', isIndexed: true }, // Unique chip ID (custom_timestamp_random)
+        { name: 'chip_type', type: 'string' }, // activity, setting, people, dynamic, topic, feeling, moment, surprise
+        { name: 'plain_text', type: 'string' }, // The chip text
+        { name: 'template', type: 'string' }, // Template (same as plain_text for custom chips)
+        { name: 'components', type: 'string', isOptional: true }, // JSON: Optional components for customization
+        { name: 'usage_count', type: 'number', defaultValue: 0 }, // How many times used
+        { name: 'last_used_at', type: 'number', isOptional: true }, // Last time this chip was used
+        { name: 'created_at', type: 'number' },
+        { name: 'updated_at', type: 'number' },
+      ]
+    }),
+    tableSchema({
+      name: 'chip_usage',
+      columns: [
+        { name: 'chip_id', type: 'string', isIndexed: true }, // Reference to chip (can be standard or custom)
+        { name: 'interaction_id', type: 'string', isIndexed: true }, // Reference to interaction where used
+        { name: 'friend_id', type: 'string', isIndexed: true, isOptional: true }, // Optional: which friend it was used for
+        { name: 'chip_type', type: 'string' }, // For faster filtering
+        { name: 'is_custom', type: 'boolean', defaultValue: false }, // Whether this is a custom chip
+        { name: 'used_at', type: 'number' }, // Timestamp of usage
+        { name: 'created_at', type: 'number' },
       ]
     })
   ]

@@ -4,7 +4,7 @@ import Animated, { FadeIn } from 'react-native-reanimated';
 import { ReflectionStoryChips } from './ReflectionStoryChips';
 import { ReflectionTextInput } from './ReflectionTextInput';
 import { getNextChipType, STORY_CHIPS, type StoryChip, type ChipType } from '../lib/story-chips';
-import { type InteractionCategory, type Archetype, type Vibe } from './types';
+import { type InteractionCategory, type Archetype, type Vibe, type Tier } from './types';
 import { type StructuredReflection } from '../stores/interactionStore';
 import { useTheme } from '../hooks/useTheme';
 
@@ -12,6 +12,9 @@ interface ContextualReflectionInputProps {
   category: InteractionCategory;
   archetype?: Archetype;
   vibe?: Vibe | null;
+  tier?: Tier; // Optional: for tier-aware suggestions
+  interactionCount?: number; // Optional: for history-aware suggestions
+  daysSinceLastInteraction?: number; // Optional: for reconnection context
   value: StructuredReflection;
   onChange: (reflection: StructuredReflection) => void;
 }
@@ -20,17 +23,20 @@ interface ContextualReflectionInputProps {
  * Story builder reflection input
  *
  * Flow:
- * 1. Show next chip type in sequence (activity → people → topic → feeling → moment)
+ * 1. Show next chip type in sequence (activity → setting → people → dynamic → topic → feeling → moment → surprise)
  * 2. User taps chip → appears as bubble card in text input
  * 3. User can tap colored words in bubble to customize
  * 4. Next chip type appears automatically
  * 5. User can type additional notes at any time
- * 6. Clean, aligned, beautiful
+ * 6. Smart filtering based on archetype, tier, history, and frequency
  */
 export function ContextualReflectionInput({
   category,
   archetype,
   vibe,
+  tier,
+  interactionCount,
+  daysSinceLastInteraction,
   value,
   onChange,
 }: ContextualReflectionInputProps) {
@@ -103,6 +109,9 @@ export function ContextualReflectionInput({
           category={category}
           archetype={archetype}
           vibe={vibe}
+          tier={tier}
+          interactionCount={interactionCount}
+          daysSinceLastInteraction={daysSinceLastInteraction}
           onChipSelect={handleChipSelect}
         />
       )}
