@@ -273,15 +273,13 @@ export function GraphsTabContent({ year = new Date().getFullYear() }: GraphsTabC
         {/* Year Activity Heatmap */}
         {heatmapData.length > 0 && (
           <Animated.View entering={FadeInDown.delay(100)} style={{ marginBottom: 32 }}>
-            <Text style={{ fontSize: 18, fontWeight: '600', color: graphTheme.textPrimary, fontFamily: 'Lora_600SemiBold', marginBottom: 8, paddingHorizontal: 0 }}>
+            <Text style={{ fontSize: 18, fontWeight: '600', color: graphTheme.textPrimary, fontFamily: 'Lora_600SemiBold', marginBottom: 8 }}>
               Activity Pattern
             </Text>
             <Text style={{ fontSize: 13, color: graphTheme.textSecondary, fontFamily: 'Inter_400Regular', marginBottom: 16 }}>
               Your logged interactions over the last 16 weeks
             </Text>
-            <View style={{ marginHorizontal: -20 }}>
-              <ActivityHeatmap data={heatmapData} onCellPress={(day) => showTooltip('heatmap', day)} theme={graphTheme} />
-            </View>
+            <ActivityHeatmap data={heatmapData} onCellPress={(day) => showTooltip('heatmap', day)} theme={graphTheme} />
           </Animated.View>
         )}
 
@@ -472,9 +470,14 @@ function ActivityHeatmap({
   onCellPress: (day: any) => void;
   theme: ReturnType<typeof getGraphTheme>;
 }) {
-  const cellSize = 11;
+  const weeksToShow = 16; // 4 months
   const cellGap = 3;
-  const weeksToShow = 16; // 4 months - more compact
+
+  // Calculate cell size to fill the width: (screenWidth - scrollViewPadding - cardPadding - gaps) / weeks
+  // screenWidth - 40 (scrollView padding) - 40 (card padding) - (16-1)*3 (gaps between weeks) = available width
+  // Then divide by 16 weeks
+  const availableWidth = screenWidth - 40 - 40 - (weeksToShow - 1) * cellGap;
+  const cellSize = Math.floor(availableWidth / weeksToShow);
 
   const maxCount = Math.max(...data.map(d => d.count), 1);
 
@@ -492,33 +495,31 @@ function ActivityHeatmap({
 
   return (
     <View style={{ backgroundColor: theme.cardBackground, borderRadius: 16, paddingVertical: 16, paddingHorizontal: 20 }}>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingRight: 20 }}>
-        <View style={{ flexDirection: 'row' }}>
-          {Array.from({ length: weeksToShow }).map((_, weekIndex) => (
-            <View key={weekIndex} style={{ marginRight: cellGap }}>
-              {Array.from({ length: 7 }).map((_, dayIndex) => {
-                const dataIndex = weekIndex * 7 + dayIndex;
-                const dayData = recentData[dataIndex];
-                if (!dayData) return null;
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+        {Array.from({ length: weeksToShow }).map((_, weekIndex) => (
+          <View key={weekIndex}>
+            {Array.from({ length: 7 }).map((_, dayIndex) => {
+              const dataIndex = weekIndex * 7 + dayIndex;
+              const dayData = recentData[dataIndex];
+              if (!dayData) return <View key={dayIndex} style={{ width: cellSize, height: cellSize + cellGap }} />;
 
-                return (
-                  <TouchableOpacity
-                    key={dayIndex}
-                    onPress={() => onCellPress(dayData)}
-                    style={{
-                      width: cellSize,
-                      height: cellSize,
-                      backgroundColor: getHeatColor(dayData.count),
-                      borderRadius: 2,
-                      marginBottom: cellGap,
-                    }}
-                  />
-                );
-              })}
-            </View>
-          ))}
-        </View>
-      </ScrollView>
+              return (
+                <TouchableOpacity
+                  key={dayIndex}
+                  onPress={() => onCellPress(dayData)}
+                  style={{
+                    width: cellSize,
+                    height: cellSize,
+                    backgroundColor: getHeatColor(dayData.count),
+                    borderRadius: 2,
+                    marginBottom: cellGap,
+                  }}
+                />
+              );
+            })}
+          </View>
+        ))}
+      </View>
       {/* Legend */}
       <View style={{ marginTop: 12 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -977,6 +978,18 @@ function BatteryWeaveChart({
 // ============================================
 // ARCHETYPE DONUT CHART
 // ============================================
+
+// Archetype-specific colors matching the selector cards
+const ARCHETYPE_COLORS: Record<string, string> = {
+  Emperor: '#ef4444',       // Red
+  Empress: '#10b981',       // Green
+  HighPriestess: '#8b5cf6', // Purple
+  Fool: '#f59e0b',          // Orange
+  Sun: '#eab308',           // Yellow
+  Hermit: '#6366f1',        // Indigo
+  Magician: '#ec4899',      // Pink
+};
+
 function ArchetypeDonutChart({
   archetypes,
   onSegmentPress,
@@ -994,10 +1007,10 @@ function ArchetypeDonutChart({
   const total = Object.values(archetypes).reduce((sum, count) => sum + count, 0);
   const entries = Object.entries(archetypes).sort((a, b) => b[1] - a[1]);
 
-  const colors = [
-    theme.chartPrimary, theme.chartSecondary, theme.chartTertiary, theme.chartAccent,
-    theme.accentPurple, theme.energyColor, theme.weaveColor, theme.activeBackground
-  ];
+  // Use archetype-specific colors, fallback to theme colors if archetype not found
+  const getArchetypeColor = (archetype: string) => {
+    return ARCHETYPE_COLORS[archetype] || theme.chartPrimary;
+  };
 
   let currentAngle = -Math.PI / 2;
 
@@ -1025,7 +1038,7 @@ function ArchetypeDonutChart({
       Z
     `;
 
-    const result = { path, color: colors[index % colors.length], archetype, count, percentage };
+    const result = { path, color: getArchetypeColor(archetype), archetype, count, percentage };
     currentAngle = endAngle;
     return result;
   });
@@ -1067,15 +1080,16 @@ function ArchetypeDonutChart({
       <View style={{ gap: 8 }}>
         {entries.map(([archetype, count], index) => {
           const percentage = (count / total);
+          const color = getArchetypeColor(archetype);
           return (
             <TouchableOpacity
               key={archetype}
-              onPress={() => onSegmentPress({ archetype, count, percentage, color: colors[index % colors.length] })}
+              onPress={() => onSegmentPress({ archetype, count, percentage, color })}
               style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}
               activeOpacity={0.7}
             >
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: colors[index % colors.length] }} />
+                <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: color }} />
                 <Text style={{ fontSize: 14, color: theme.textPrimary, fontFamily: 'Inter_500Medium' }}>
                   {archetype}
                 </Text>

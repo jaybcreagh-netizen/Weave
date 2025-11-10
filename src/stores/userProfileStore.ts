@@ -14,7 +14,7 @@ interface UserProfileStore {
   updateSocialSeason: (season: SocialSeason) => Promise<void>;
 
   // Social Battery Actions
-  submitBatteryCheckin: (value: number, note?: string) => Promise<void>;
+  submitBatteryCheckin: (value: number, note?: string, customTimestamp?: number) => Promise<void>;
   updateBatteryPreferences: (enabled: boolean, time?: string) => Promise<void>;
 
   // Getters
@@ -84,29 +84,48 @@ export const useUserProfileStore = create<UserProfileStore>((set, get) => ({
     });
   },
 
-  submitBatteryCheckin: async (value: number, note?: string) => {
+  submitBatteryCheckin: async (value: number, note?: string, customTimestamp?: number) => {
     const { profile } = get();
     if (!profile) return;
 
     await database.write(async () => {
       await profile.update(p => {
         const now = Date.now();
+        const timestamp = customTimestamp || now;
 
-        // Update current battery level
-        p.socialBatteryCurrent = value;
-        p.socialBatteryLastCheckin = now;
+        // Only update current battery level if adding a check-in for today
+        if (!customTimestamp || timestamp >= now - 24 * 60 * 60 * 1000) {
+          p.socialBatteryCurrent = value;
+          p.socialBatteryLastCheckin = timestamp;
+        }
 
         // Add to battery history
         const history: BatteryHistoryEntry[] = profile.socialBatteryHistory || [];
-        history.push({
+
+        // Check if there's already a check-in for this date (same calendar day)
+        const targetDate = new Date(timestamp);
+        targetDate.setHours(0, 0, 0, 0);
+        const targetDayStart = targetDate.getTime();
+        const targetDayEnd = targetDayStart + 24 * 60 * 60 * 1000;
+
+        // Remove any existing check-in for this day
+        const filteredHistory = history.filter(entry => {
+          return entry.timestamp < targetDayStart || entry.timestamp >= targetDayEnd;
+        });
+
+        // Add new check-in
+        filteredHistory.push({
           value,
-          timestamp: now,
+          timestamp,
           note,
         });
 
+        // Sort by timestamp
+        filteredHistory.sort((a, b) => a.timestamp - b.timestamp);
+
         // Keep only last 90 days of history (for performance)
         const cutoff = now - 90 * 24 * 60 * 60 * 1000;
-        const recentHistory = history.filter(entry => entry.timestamp >= cutoff);
+        const recentHistory = filteredHistory.filter(entry => entry.timestamp >= cutoff);
 
         p.socialBatteryHistoryRaw = JSON.stringify(recentHistory);
       });

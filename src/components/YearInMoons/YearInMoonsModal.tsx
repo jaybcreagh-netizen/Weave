@@ -19,9 +19,11 @@ import Animated, { FadeIn } from 'react-native-reanimated';
 import { X, Calendar, BarChart3, Sparkles } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../../hooks/useTheme';
+import { useUserProfileStore } from '../../stores/userProfileStore';
 import { MoonPhaseIllustration } from './MoonPhaseIllustration';
 import { PatternsTabContent } from './PatternsTabContent';
 import { GraphsTabContent } from './GraphsTabContent';
+import { SocialBatterySheet } from '../home/SocialBatterySheet';
 import {
   getYearMoonData,
   getYearStats,
@@ -40,10 +42,13 @@ type Tab = 'moons' | 'graphs' | 'patterns';
 
 export function YearInMoonsModal({ isOpen, onClose }: YearInMoonsModalProps) {
   const { colors, isDarkMode } = useTheme();
+  const { submitBatteryCheckin } = useUserProfileStore();
   const [currentTab, setCurrentTab] = useState<Tab>('moons');
   const [yearData, setYearData] = useState<MonthMoonData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedDay, setSelectedDay] = useState<DayMoonData | null>(null);
+  const [batterySheetVisible, setBatterySheetVisible] = useState(false);
+  const [dayForBatteryCheckin, setDayForBatteryCheckin] = useState<Date | null>(null);
   const [yearStats, setYearStats] = useState({
     totalCheckins: 0,
     avgBattery: 0,
@@ -115,6 +120,33 @@ export function YearInMoonsModal({ isOpen, onClose }: YearInMoonsModalProps) {
   const handleMoonPress = (day: DayMoonData) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSelectedDay(day);
+  };
+
+  const handleMoonLongPress = (day: DayMoonData) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setDayForBatteryCheckin(day.date);
+    setBatterySheetVisible(true);
+  };
+
+  const handleBatteryCheckinSubmit = async (value: number, note?: string) => {
+    if (dayForBatteryCheckin) {
+      // Set time to noon on the selected day to avoid timezone issues
+      const timestamp = new Date(dayForBatteryCheckin);
+      timestamp.setHours(12, 0, 0, 0);
+
+      await submitBatteryCheckin(value, note, timestamp.getTime());
+
+      // Reload the year data to reflect the new check-in
+      loadYearData();
+    }
+
+    setBatterySheetVisible(false);
+    setDayForBatteryCheckin(null);
+  };
+
+  const handleBatterySheetDismiss = () => {
+    setBatterySheetVisible(false);
+    setDayForBatteryCheckin(null);
   };
 
   const tabs: { id: Tab; label: string; icon: any }[] = [
@@ -310,6 +342,7 @@ export function YearInMoonsModal({ isOpen, onClose }: YearInMoonsModalProps) {
                           <TouchableOpacity
                             key={day.date.toISOString()}
                             onPress={() => handleMoonPress(day)}
+                            onLongPress={() => handleMoonLongPress(day)}
                             className="items-center justify-center mb-2"
                             style={{ width: moonSize, height: moonSize }}
                           >
@@ -405,6 +438,13 @@ export function YearInMoonsModal({ isOpen, onClose }: YearInMoonsModalProps) {
           )}
         </SafeAreaView>
       </LinearGradient>
+
+      {/* Battery Check-in Sheet */}
+      <SocialBatterySheet
+        isVisible={batterySheetVisible}
+        onSubmit={handleBatteryCheckinSubmit}
+        onDismiss={handleBatterySheetDismiss}
+      />
     </Modal>
   );
 }
