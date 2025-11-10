@@ -273,8 +273,11 @@ export function GraphsTabContent({ year = new Date().getFullYear() }: GraphsTabC
         {/* Year Activity Heatmap */}
         {heatmapData.length > 0 && (
           <Animated.View entering={FadeInDown.delay(100)} style={{ marginBottom: 32 }}>
-            <Text style={{ fontSize: 18, fontWeight: '600', color: graphTheme.textPrimary, fontFamily: 'Lora_600SemiBold', marginBottom: 16 }}>
-              Year at a Glance
+            <Text style={{ fontSize: 18, fontWeight: '600', color: graphTheme.textPrimary, fontFamily: 'Lora_600SemiBold', marginBottom: 8, paddingHorizontal: 0 }}>
+              Activity Pattern
+            </Text>
+            <Text style={{ fontSize: 13, color: graphTheme.textSecondary, fontFamily: 'Inter_400Regular', marginBottom: 16 }}>
+              Your logged interactions over the last 16 weeks
             </Text>
             <View style={{ marginHorizontal: -20 }}>
               <ActivityHeatmap data={heatmapData} onCellPress={(day) => showTooltip('heatmap', day)} theme={graphTheme} />
@@ -488,8 +491,8 @@ function ActivityHeatmap({
   const recentData = data.slice(-weeksToShow * 7);
 
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-      <View style={{ backgroundColor: theme.cardBackground, borderRadius: 20, padding: 16 }}>
+    <View style={{ backgroundColor: theme.cardBackground, borderRadius: 16, paddingVertical: 16, paddingHorizontal: 20 }}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingRight: 20 }}>
         <View style={{ flexDirection: 'row' }}>
           {Array.from({ length: weeksToShow }).map((_, weekIndex) => (
             <View key={weekIndex} style={{ marginRight: cellGap }}>
@@ -515,14 +518,12 @@ function ActivityHeatmap({
             </View>
           ))}
         </View>
-        {/* Clearer subtitle and legend */}
-        <View style={{ marginTop: 12 }}>
-          <Text style={{ fontSize: 11, color: theme.textPrimary, fontFamily: 'Inter_500Medium', marginBottom: 8 }}>
-            Weaves per day - Last 4 months
-          </Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <Text style={{ fontSize: 9, color: theme.textSecondary, fontFamily: 'Inter_400Regular' }}>Less</Text>
+      </ScrollView>
+      {/* Legend */}
+      <View style={{ marginTop: 12 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <Text style={{ fontSize: 9, color: theme.textSecondary, fontFamily: 'Inter_400Regular' }}>Less</Text>
               {[0, 0.25, 0.5, 0.75, 1].map((intensity, i) => (
                 <View
                   key={i}
@@ -537,12 +538,12 @@ function ActivityHeatmap({
               <Text style={{ fontSize: 9, color: theme.textSecondary, fontFamily: 'Inter_400Regular' }}>More</Text>
             </View>
             <Text style={{ fontSize: 9, color: theme.textTertiary, fontFamily: 'Inter_400Regular' }}>
-              Each square = 1 day
+              Tap any day for details
             </Text>
           </View>
         </View>
       </View>
-    </ScrollView>
+    </View>
   );
 }
 
