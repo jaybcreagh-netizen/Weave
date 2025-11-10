@@ -8,6 +8,7 @@ export const ARCHETYPE_NAMES: Archetype[] = [
   "Sun",
   "Hermit",
   "Magician",
+  "Lovers",
 ];
 
 export const ARCHETYPE_DETAILS: Record<Archetype, { essence: string; connectionStyle: string; icon: string }> = {
@@ -45,5 +46,10 @@ export const ARCHETYPE_DETAILS: Record<Archetype, { essence: string; connectionS
     essence: "Represents willpower, manifestation, and resourcefulness. They are creators and problem-solvers.",
     connectionStyle: "Connects by collaborating on projects, teaching or learning skills, and making things happen.",
     icon: "Sparkles",
+  },
+  Lovers: {
+    essence: "Represents harmony, choice, and the beauty of a mirrored soul. They thrive in balanced partnership.",
+    connectionStyle: "Connects through deep reciprocal dialogue, finding perfect alignment in values and humor, and celebrating we-ness.",
+    icon: "GitMerge",
   },
 };

@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-  Crown, Flower2, Moon, Feather, Sun, Mountain, Sparkles
+  Crown, Flower2, Moon, Feather, Sun, Mountain, Sparkles, GitMerge
 } from 'lucide-react-native';
 import { type Archetype } from './types';
 import { ARCHETYPE_DETAILS } from '../lib/archetype-data';
@@ -22,6 +22,7 @@ export function ArchetypeIcon({ archetype, size, color }: ArchetypeIconProps) {
     case 'Sun': return <Sun size={size} color={color} />;
     case 'Mountain': return <Mountain size={size} color={color} />;
     case 'Sparkles': return <Sparkles size={size} color={color} />;
+    case 'GitMerge': return <GitMerge size={size} color={color} />;
     default: return null;
   }
 }
