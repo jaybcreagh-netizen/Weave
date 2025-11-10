@@ -373,6 +373,25 @@ export default schemaMigrations({
         }),
       ],
     },
+    {
+      // Migration from schema v24 to v25
+      // Journal Entries - Ad-hoc journaling separate from weekly reflections
+      toVersion: 25,
+      steps: [
+        createTable({
+          name: 'journal_entries',
+          columns: [
+            { name: 'entry_date', type: 'number', isIndexed: true },
+            { name: 'title', type: 'string', isOptional: true },
+            { name: 'content', type: 'string' },
+            { name: 'story_chips', type: 'string', isOptional: true },
+            { name: 'friend_ids', type: 'string', isOptional: true },
+            { name: 'created_at', type: 'number' },
+            { name: 'updated_at', type: 'number' },
+          ],
+        }),
+      ],
+    },
   ],
 });
 

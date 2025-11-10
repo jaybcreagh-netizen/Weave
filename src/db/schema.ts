@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb'
 
 export default appSchema({
-  version: 24, // UPDATED: Added story_chips to weekly_reflections for qualitative journal insights
+  version: 25, // UPDATED: Added journal_entries table for ad-hoc journaling
   tables: [
     tableSchema({
       name: 'friends',
@@ -238,6 +238,18 @@ export default appSchema({
         { name: 'diversity_score', type: 'number' }, // 0-1
 
         { name: 'created_at', type: 'number' },
+      ]
+    }),
+    tableSchema({
+      name: 'journal_entries',
+      columns: [
+        { name: 'entry_date', type: 'number', isIndexed: true }, // Date this entry is associated with (can be backdated)
+        { name: 'title', type: 'string', isOptional: true },
+        { name: 'content', type: 'string' }, // Main journal text
+        { name: 'story_chips', type: 'string', isOptional: true }, // JSON: Array of story chip selections
+        { name: 'friend_ids', type: 'string', isOptional: true }, // JSON: Array of friend IDs tagged in this entry
+        { name: 'created_at', type: 'number' },
+        { name: 'updated_at', type: 'number' },
       ]
     })
   ]
