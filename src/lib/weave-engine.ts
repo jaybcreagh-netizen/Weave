@@ -8,6 +8,7 @@ import InteractionFriend from '../db/models/InteractionFriend';
 import { type InteractionFormData } from '../stores/interactionStore';
 import { analyzeInteractionPattern, calculateToleranceWindow, isPatternReliable } from './pattern-analyzer';
 import { captureInteractionOutcome, measurePendingOutcomes, getLearnedEffectiveness } from './feedback-analyzer';
+import { updateInitiationStats, type Initiator } from './reciprocity-analyzer';
 
 /**
  * Quality metrics for an interaction based on depth and energy
@@ -268,6 +269,10 @@ export async function logNewWeave(friendsToUpdate: FriendModel[], weaveData: Int
       if (weaveData.eventImportance) {
         interaction.eventImportance = weaveData.eventImportance;
       }
+      // v25: Save initiator for reciprocity tracking
+      if (weaveData.initiator) {
+        interaction.initiator = weaveData.initiator;
+      }
     });
 
     interactionId = newInteraction.id;
@@ -359,6 +364,11 @@ export async function logNewWeave(friendsToUpdate: FriendModel[], weaveData: Int
             record.toleranceWindowDays = calculateToleranceWindow(pattern);
           });
         }
+      }
+
+      // 3c. NEW v25: Update reciprocity stats if initiator is specified
+      if (weaveData.initiator) {
+        await updateInitiationStats(friend, weaveData.initiator as Initiator);
       }
 
       // 4. Create the join table record

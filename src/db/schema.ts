@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb'
 
 export default appSchema({
-  version: 24, // UPDATED: Added event_importance to interactions for event multiplier
+  version: 25, // UPDATED: Added reciprocity tracking (initiator field and balance metrics)
   tables: [
     tableSchema({
       name: 'friends',
@@ -30,6 +30,12 @@ export default appSchema({
         // NEW v23: Learned effectiveness from feedback
         { name: 'category_effectiveness', type: 'string', isOptional: true }, // JSON: Record<category, effectiveness ratio>
         { name: 'outcome_count', type: 'number', defaultValue: 0 }, // How many outcomes measured
+        // NEW v25: Reciprocity tracking
+        { name: 'initiation_ratio', type: 'number', defaultValue: 0.5 }, // 0 = always friend, 1.0 = always user, 0.5 = balanced
+        { name: 'last_initiated_by', type: 'string', isOptional: true }, // 'user' | 'friend' | 'mutual'
+        { name: 'consecutive_user_initiations', type: 'number', defaultValue: 0 }, // Streak of user-initiated interactions
+        { name: 'total_user_initiations', type: 'number', defaultValue: 0 }, // Total times user initiated
+        { name: 'total_friend_initiations', type: 'number', defaultValue: 0 }, // Total times friend initiated
       ]
     }),
     tableSchema({
@@ -59,6 +65,8 @@ export default appSchema({
         { name: 'calendar_event_id', type: 'string', isOptional: true },
         // v24: Event importance for special occasions
         { name: 'event_importance', type: 'string', isOptional: true }, // low, medium, high, critical
+        // v25: Reciprocity tracking
+        { name: 'initiator', type: 'string', isOptional: true }, // 'user' | 'friend' | 'mutual'
       ]
     }),
     tableSchema({

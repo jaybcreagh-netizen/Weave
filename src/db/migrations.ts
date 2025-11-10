@@ -71,6 +71,11 @@ import { schemaMigrations, addColumns, createTable } from '@nozbe/watermelondb/S
  * Migration from v23 to v24:
  * - Add event_importance to interactions table
  * - Enables event multiplier for special occasions and life events
+ *
+ * Migration from v24 to v25:
+ * - Add initiator to interactions table
+ * - Add reciprocity tracking fields to friends table (initiation_ratio, last_initiated_by, etc.)
+ * - Enables reciprocity tracking and detection of one-sided relationships
  */
 export default schemaMigrations({
   migrations: [
@@ -363,6 +368,28 @@ export default schemaMigrations({
           table: 'interactions',
           columns: [
             { name: 'event_importance', type: 'string', isOptional: true },
+          ],
+        }),
+      ],
+    },
+    {
+      // Migration from schema v24 to v25
+      toVersion: 25,
+      steps: [
+        addColumns({
+          table: 'interactions',
+          columns: [
+            { name: 'initiator', type: 'string', isOptional: true },
+          ],
+        }),
+        addColumns({
+          table: 'friends',
+          columns: [
+            { name: 'initiation_ratio', type: 'number', defaultValue: 0.5 },
+            { name: 'last_initiated_by', type: 'string', isOptional: true },
+            { name: 'consecutive_user_initiations', type: 'number', defaultValue: 0 },
+            { name: 'total_user_initiations', type: 'number', defaultValue: 0 },
+            { name: 'total_friend_initiations', type: 'number', defaultValue: 0 },
           ],
         }),
       ],
