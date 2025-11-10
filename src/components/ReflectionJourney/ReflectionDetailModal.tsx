@@ -3,13 +3,14 @@
  * View and edit a past weekly reflection
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Modal, View, Text, TouchableOpacity, SafeAreaView, ScrollView, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
-import { X, Edit3, Save, Calendar, TrendingUp, Plus } from 'lucide-react-native';
+import { X, Edit3, Save, Calendar, TrendingUp, Plus, Users } from 'lucide-react-native';
 import { useTheme } from '../../hooks/useTheme';
 import WeeklyReflection from '../../db/models/WeeklyReflection';
 import { database } from '../../db';
 import { STORY_CHIPS } from '../../lib/story-chips';
+import { getFriendsForReflection, ReflectionFriend } from '../../lib/weekly-reflection/reflection-friends';
 import * as Haptics from 'expo-haptics';
 
 interface ReflectionDetailModalProps {
@@ -25,6 +26,7 @@ export function ReflectionDetailModal({ reflection, isOpen, onClose, onUpdate }:
   const [editedGratitudeText, setEditedGratitudeText] = useState('');
   const [editedStoryChips, setEditedStoryChips] = useState<Set<string>>(new Set());
   const [showAllChips, setShowAllChips] = useState(false);
+  const [friends, setFriends] = useState<ReflectionFriend[]>([]);
 
   React.useEffect(() => {
     if (reflection && isOpen) {
@@ -32,8 +34,14 @@ export function ReflectionDetailModal({ reflection, isOpen, onClose, onUpdate }:
       setEditedStoryChips(new Set(reflection.storyChips.map(c => c.chipId)));
       setIsEditing(false);
       setShowAllChips(false);
+      loadFriends(reflection);
     }
   }, [reflection, isOpen]);
+
+  const loadFriends = async (reflection: WeeklyReflection) => {
+    const reflectionFriends = await getFriendsForReflection(reflection);
+    setFriends(reflectionFriends);
+  };
 
   if (!reflection) return null;
 
@@ -212,6 +220,43 @@ export function ReflectionDetailModal({ reflection, isOpen, onClose, onUpdate }:
                 </Text>
               </View>
             </View>
+
+            {/* Friends Contacted */}
+            {friends.length > 0 && (
+              <View className="mb-4">
+                <View className="flex-row items-center gap-2 mb-2">
+                  <Users size={14} color={colors['muted-foreground']} />
+                  <Text
+                    className="text-xs"
+                    style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
+                  >
+                    Friends Contacted
+                  </Text>
+                </View>
+                <View className="flex-row flex-wrap gap-2">
+                  {friends.map(({friend, interactionCount}) => (
+                    <View
+                      key={friend.id}
+                      className="px-3 py-2 rounded-xl"
+                      style={{ backgroundColor: colors.muted }}
+                    >
+                      <Text
+                        className="text-sm font-medium"
+                        style={{ color: colors.foreground, fontFamily: 'Inter_500Medium' }}
+                      >
+                        {friend.name}
+                      </Text>
+                      <Text
+                        className="text-xs mt-0.5"
+                        style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
+                      >
+                        {interactionCount}× this week
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            )}
 
             {/* Top Activity */}
             {reflection.topActivity && (

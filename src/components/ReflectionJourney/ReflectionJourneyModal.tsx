@@ -15,6 +15,9 @@ import { format } from 'date-fns';
 import { STORY_CHIPS } from '../../lib/story-chips';
 import { ReflectionCalendarView } from './ReflectionCalendarView';
 import { ReflectionDetailModal } from './ReflectionDetailModal';
+import { getAllReflectionFriends, getFriendsForReflection } from '../../lib/weekly-reflection/reflection-friends';
+import { checkAndScheduleMemoryNudges } from '../../lib/notification-manager';
+import FriendModel from '../../db/models/Friend';
 import * as Haptics from 'expo-haptics';
 
 interface ReflectionJourneyModalProps {
@@ -33,11 +36,16 @@ export function ReflectionJourneyModal({ isOpen, onClose }: ReflectionJourneyMod
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedChipFilter, setSelectedChipFilter] = useState<string | null>(null);
+  const [selectedFriendFilter, setSelectedFriendFilter] = useState<string | null>(null);
   const [selectedReflection, setSelectedReflection] = useState<WeeklyReflection | null>(null);
+  const [allFriends, setAllFriends] = useState<FriendModel[]>([]);
+  const [reflectionFriendMap, setReflectionFriendMap] = useState<Map<string, string[]>>(new Map());
 
   useEffect(() => {
     if (isOpen) {
       loadReflections();
+      loadFriends();
+      checkAndScheduleMemoryNudges(); // Check for anniversary reflections
     }
   }, [isOpen]);
 
@@ -52,10 +60,29 @@ export function ReflectionJourneyModal({ isOpen, onClose }: ReflectionJourneyMod
       setReflections(allReflections);
       setTotalReflections(allReflections.length);
       setStreak(calculateStreak(allReflections));
+
+      // Build reflection-to-friends mapping for filtering
+      const friendMap = new Map<string, string[]>();
+      await Promise.all(
+        allReflections.map(async (reflection) => {
+          const friends = await getFriendsForReflection(reflection);
+          friendMap.set(reflection.id, friends.map(f => f.friend.id));
+        })
+      );
+      setReflectionFriendMap(friendMap);
     } catch (error) {
       console.error('Error loading reflections:', error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const loadFriends = async () => {
+    try {
+      const friends = await getAllReflectionFriends();
+      setAllFriends(friends);
+    } catch (error) {
+      console.error('Error loading friends:', error);
     }
   };
 
@@ -101,10 +128,10 @@ export function ReflectionJourneyModal({ isOpen, onClose }: ReflectionJourneyMod
       .filter((c): c is typeof STORY_CHIPS[0] => c !== undefined);
   }, [reflections]);
 
-  // Filter reflections based on search and chip filter
+  // Filter reflections based on search, chip filter, and friend filter
   const filteredReflections = useMemo(() => {
     return reflections.filter(reflection => {
-      // Search filter (searches gratitude text)
+      // Search filter (searches gratitude text and chips)
       if (searchQuery.trim()) {
         const query = searchQuery.toLowerCase();
         const matchesText = reflection.gratitudeText?.toLowerCase().includes(query);
@@ -122,9 +149,17 @@ export function ReflectionJourneyModal({ isOpen, onClose }: ReflectionJourneyMod
         }
       }
 
+      // Friend filter - check if selected friend was contacted during this week
+      if (selectedFriendFilter) {
+        const friendIds = reflectionFriendMap.get(reflection.id);
+        if (!friendIds || !friendIds.includes(selectedFriendFilter)) {
+          return false;
+        }
+      }
+
       return true;
     });
-  }, [reflections, searchQuery, selectedChipFilter]);
+  }, [reflections, searchQuery, selectedChipFilter, selectedFriendFilter, reflectionFriendMap]);
 
   return (
     <Modal
@@ -190,55 +225,124 @@ export function ReflectionJourneyModal({ isOpen, onClose }: ReflectionJourneyMod
 
           {/* Filter Chips */}
           {allChips.length > 0 && (
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              className="flex-row gap-2"
-            >
-              <TouchableOpacity
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setSelectedChipFilter(null);
-                }}
-                className="px-3 py-1.5 rounded-full"
-                style={{
-                  backgroundColor: !selectedChipFilter ? colors.primary : colors.muted,
-                }}
+            <View className="mb-2">
+              <Text
+                className="text-xs mb-2"
+                style={{ color: colors['muted-foreground'], fontFamily: 'Inter_500Medium' }}
               >
-                <Text
-                  className="text-xs"
-                  style={{
-                    color: !selectedChipFilter ? colors['primary-foreground'] : colors['muted-foreground'],
-                    fontFamily: 'Inter_500Medium',
-                  }}
-                >
-                  All
-                </Text>
-              </TouchableOpacity>
-              {allChips.map(chip => (
+                Filter by Theme
+              </Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                className="flex-row gap-2"
+              >
                 <TouchableOpacity
-                  key={chip.id}
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    setSelectedChipFilter(selectedChipFilter === chip.id ? null : chip.id);
+                    setSelectedChipFilter(null);
                   }}
                   className="px-3 py-1.5 rounded-full"
                   style={{
-                    backgroundColor: selectedChipFilter === chip.id ? colors.primary : colors.muted,
+                    backgroundColor: !selectedChipFilter ? colors.primary : colors.muted,
                   }}
                 >
                   <Text
                     className="text-xs"
                     style={{
-                      color: selectedChipFilter === chip.id ? colors['primary-foreground'] : colors['muted-foreground'],
+                      color: !selectedChipFilter ? colors['primary-foreground'] : colors['muted-foreground'],
                       fontFamily: 'Inter_500Medium',
                     }}
                   >
-                    {chip.plainText}
+                    All Themes
                   </Text>
                 </TouchableOpacity>
-              ))}
-            </ScrollView>
+                {allChips.map(chip => (
+                  <TouchableOpacity
+                    key={chip.id}
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      setSelectedChipFilter(selectedChipFilter === chip.id ? null : chip.id);
+                    }}
+                    className="px-3 py-1.5 rounded-full"
+                    style={{
+                      backgroundColor: selectedChipFilter === chip.id ? colors.primary : colors.muted,
+                    }}
+                  >
+                    <Text
+                      className="text-xs"
+                      style={{
+                        color: selectedChipFilter === chip.id ? colors['primary-foreground'] : colors['muted-foreground'],
+                        fontFamily: 'Inter_500Medium',
+                      }}
+                    >
+                      {chip.plainText}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          )}
+
+          {/* Filter by Friends */}
+          {allFriends.length > 0 && (
+            <View>
+              <Text
+                className="text-xs mb-2"
+                style={{ color: colors['muted-foreground'], fontFamily: 'Inter_500Medium' }}
+              >
+                Filter by Friend
+              </Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                className="flex-row gap-2"
+              >
+                <TouchableOpacity
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setSelectedFriendFilter(null);
+                  }}
+                  className="px-3 py-1.5 rounded-full"
+                  style={{
+                    backgroundColor: !selectedFriendFilter ? colors.primary : colors.muted,
+                  }}
+                >
+                  <Text
+                    className="text-xs"
+                    style={{
+                      color: !selectedFriendFilter ? colors['primary-foreground'] : colors['muted-foreground'],
+                      fontFamily: 'Inter_500Medium',
+                    }}
+                  >
+                    All Friends
+                  </Text>
+                </TouchableOpacity>
+                {allFriends.map(friend => (
+                  <TouchableOpacity
+                    key={friend.id}
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      setSelectedFriendFilter(selectedFriendFilter === friend.id ? null : friend.id);
+                    }}
+                    className="px-3 py-1.5 rounded-full"
+                    style={{
+                      backgroundColor: selectedFriendFilter === friend.id ? colors.primary : colors.muted,
+                    }}
+                  >
+                    <Text
+                      className="text-xs"
+                      style={{
+                        color: selectedFriendFilter === friend.id ? colors['primary-foreground'] : colors['muted-foreground'],
+                        fontFamily: 'Inter_500Medium',
+                      }}
+                    >
+                      {friend.name}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
           )}
         </View>
 
@@ -327,7 +431,7 @@ export function ReflectionJourneyModal({ isOpen, onClose }: ReflectionJourneyMod
                   className="text-base font-semibold mb-3"
                   style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold' }}
                 >
-                  {searchQuery || selectedChipFilter ? `${filteredReflections.length} Reflection${filteredReflections.length === 1 ? '' : 's'} Found` : 'Past Reflections'}
+                  {searchQuery || selectedChipFilter || selectedFriendFilter ? `${filteredReflections.length} Reflection${filteredReflections.length === 1 ? '' : 's'} Found` : 'Past Reflections'}
                 </Text>
 
                 {filteredReflections.map((reflection, index) => (
