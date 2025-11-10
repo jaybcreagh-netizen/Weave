@@ -36,6 +36,12 @@ const TIER_COLOR_MAP = {
   community: tierColors.Community,
 };
 
+const TIER_MAX = {
+  inner: 5,
+  close: 15,
+  community: 50,
+};
+
 export function TierSegmentedControl({
   activeTier,
   onTierChange,
@@ -148,7 +154,7 @@ export function TierSegmentedControl({
                   opacity: isActive ? 1 : 0.7,
                 }}
               >
-                {TIER_LABELS[tier]} {counts[tier]}
+                {TIER_LABELS[tier]} ({counts[tier]}/{TIER_MAX[tier]})
               </Text>
             </Pressable>
           );
