@@ -43,9 +43,8 @@ export function ReflectionDetailModal({ reflection, isOpen, onClose, onUpdate }:
     setFriends(reflectionFriends);
   };
 
-  if (!reflection) return null;
-
   const handleSave = async () => {
+    if (!reflection) return;
     try {
       await database.write(async () => {
         await reflection.update(rec => {
@@ -97,23 +96,24 @@ export function ReflectionDetailModal({ reflection, isOpen, onClose, onUpdate }:
 
   return (
     <Modal
-      visible={isOpen}
+      visible={isOpen && reflection !== null}
       animationType="slide"
       presentationStyle="pageSheet"
       onRequestClose={onClose}
     >
-      <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
-        {/* Header */}
-        <View
-          className="flex-row items-center justify-between px-5 py-4"
-          style={{ borderBottomWidth: 1, borderBottomColor: colors.border }}
-        >
-          <View className="flex-1">
-            <Text
-              className="text-lg font-semibold"
-              style={{ color: colors.foreground, fontFamily: 'Lora_600SemiBold' }}
-            >
-              {reflection.getWeekRange()}
+      {reflection && (
+        <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
+          {/* Header */}
+          <View
+            className="flex-row items-center justify-between px-5 py-4"
+            style={{ borderBottomWidth: 1, borderBottomColor: colors.border }}
+          >
+            <View className="flex-1">
+              <Text
+                className="text-lg font-semibold"
+                style={{ color: colors.foreground, fontFamily: 'Lora_600SemiBold' }}
+              >
+                {reflection.getWeekRange()}
             </Text>
             <Text
               className="text-xs mt-0.5"
@@ -424,7 +424,8 @@ export function ReflectionDetailModal({ reflection, isOpen, onClose, onUpdate }:
             </View>
           </ScrollView>
         </KeyboardAvoidingView>
-      </SafeAreaView>
+        </SafeAreaView>
+      )}
     </Modal>
   );
 }
