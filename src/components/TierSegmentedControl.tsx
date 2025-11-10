@@ -8,7 +8,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../hooks/useTheme';
-import { tierColors } from '../lib/constants';
+import { tierColors, isTierAtCapacity } from '../lib/constants';
 
 interface TierSegmentedControlProps {
   activeTier: 'inner' | 'close' | 'community';
@@ -129,6 +129,8 @@ export function TierSegmentedControl({
         {TIERS.map((tier, index) => {
           const isActive = tier === activeTier;
           const tierColor = TIER_COLOR_MAP[tier];
+          const atCapacity = isTierAtCapacity(counts[tier], tier);
+          const overCapacity = counts[tier] > TIER_MAX[tier];
 
           return (
             <Pressable
@@ -139,11 +141,11 @@ export function TierSegmentedControl({
                 transform: [{ scale: pressed ? 0.98 : 1 }],
               })}
             >
-              {/* Tier color indicator dot */}
+              {/* Tier color indicator dot - changes to warning color when at capacity */}
               <View
                 className="w-1.5 h-1.5 rounded-full"
                 style={{
-                  backgroundColor: tierColor,
+                  backgroundColor: atCapacity ? (overCapacity ? '#EF4444' : '#F59E0B') : tierColor,
                   opacity: isActive ? 0.9 : 0.4,
                 }}
               />
@@ -156,6 +158,12 @@ export function TierSegmentedControl({
               >
                 {TIER_LABELS[tier]} ({counts[tier]}/{TIER_MAX[tier]})
               </Text>
+              {/* Warning indicator when at/over capacity */}
+              {atCapacity && (
+                <Text style={{ fontSize: 10, opacity: isActive ? 0.7 : 0.4 }}>
+                  {overCapacity ? '⚠️' : '⚡'}
+                </Text>
+              )}
             </Pressable>
           );
         })}
