@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, TextInput, ScrollView, Image, Platform, StyleSheet } from 'react-native';
-import { ArrowLeft, Camera, X, Calendar, Heart } from 'lucide-react-native';
+import { View, Text, TouchableOpacity, TextInput, ScrollView, Image, Platform, StyleSheet, Modal } from 'react-native';
+import { ArrowLeft, Camera, X, Calendar, Heart, Users } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
+import * as Contacts from 'expo-contacts';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useNavigation, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -10,6 +11,7 @@ import FriendModel from '../db/models/Friend';
 import { type Archetype, type FriendFormData, type Tier, type RelationshipType } from './types';
 import { ArchetypeCard } from './archetype-card';
 import { ArchetypeDetailModal } from './ArchetypeDetailModal';
+import { ContactPickerGrid } from './onboarding/ContactPickerGrid';
 
 interface FriendFormProps {
   onSave: (friendData: FriendFormData) => void;
@@ -43,6 +45,7 @@ export function FriendForm({ onSave, friend, initialTier }: FriendFormProps) {
   const [showBirthdayPicker, setShowBirthdayPicker] = useState(false);
   const [showAnniversaryPicker, setShowAnniversaryPicker] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [showContactPicker, setShowContactPicker] = useState(false);
 
   // Reset image error when friend changes or photoUrl updates
   useEffect(() => {
@@ -84,6 +87,21 @@ export function FriendForm({ onSave, friend, initialTier }: FriendFormProps) {
     setFormData({ ...formData, photoUrl: "" });
   };
 
+  const handleContactSelection = (selectedContacts: Contacts.Contact[]) => {
+    if (selectedContacts.length > 0) {
+      const contact = selectedContacts[0];
+      const contactName = contact.name || '';
+      const contactPhoto = contact.imageAvailable && contact.image ? contact.image.uri : '';
+
+      setFormData({
+        ...formData,
+        name: contactName,
+        photoUrl: contactPhoto
+      });
+      setShowContactPicker(false);
+    }
+  };
+
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { borderColor: colors.border }]}>
@@ -121,9 +139,16 @@ export function FriendForm({ onSave, friend, initialTier }: FriendFormProps) {
                   <X size={12} color="white" />
                 </TouchableOpacity>
               )}
-              <View style={{ flex: 1 }}>
+              <View style={{ flex: 1, gap: 8 }}>
                 <TouchableOpacity onPress={pickImage} style={[styles.addPhotoButton, { borderColor: colors.border }]}>
                   <Text style={{ color: colors.foreground }}>{formData.photoUrl ? "Change Photo" : "Add Photo"}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => setShowContactPicker(true)}
+                  style={[styles.importContactsButton, { borderColor: colors.border, backgroundColor: colors.muted }]}
+                >
+                  <Users size={16} color={colors.foreground} />
+                  <Text style={{ color: colors.foreground, fontSize: 14 }}>Import from Contacts</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -308,6 +333,27 @@ export function FriendForm({ onSave, friend, initialTier }: FriendFormProps) {
 
       {/* Archetype Detail Modal */}
       <ArchetypeDetailModal />
+
+      {/* Contact Picker Modal */}
+      <Modal
+        visible={showContactPicker}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowContactPicker(false)}
+      >
+        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+          <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>Import from Contacts</Text>
+            <TouchableOpacity onPress={() => setShowContactPicker(false)}>
+              <X size={24} color={colors['muted-foreground']} />
+            </TouchableOpacity>
+          </View>
+          <ContactPickerGrid
+            maxSelection={1}
+            onSelectionChange={handleContactSelection}
+          />
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -455,5 +501,27 @@ const styles = StyleSheet.create({
     saveButtonText: {
         fontSize: 18,
         fontWeight: '500',
+    },
+    importContactsButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        height: 40,
+        borderRadius: 12,
+        borderWidth: 1,
+    },
+    modalHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingHorizontal: 20,
+        paddingVertical: 16,
+        borderBottomWidth: 1,
+    },
+    modalTitle: {
+        fontSize: 18,
+        fontWeight: '600',
+        fontFamily: 'Lora_700Bold',
     }
 });
