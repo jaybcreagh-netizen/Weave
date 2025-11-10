@@ -144,7 +144,7 @@ export default function WeaveLoggerScreen() {
   const deepeningMetrics = calculateDeepeningLevel(reflection);
 
   return (
-    <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }} onTouchStart={resetActivityTimer}>
+    <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
       <Stack.Screen options={{ title: `Weave with ${friendName}` }} />
 
       {/* Celebration animation */}

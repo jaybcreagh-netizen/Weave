@@ -160,8 +160,8 @@ async function checkUpcomingLifeEvent(friend: SuggestionInput['friend']): Promis
     }
   }
 
-  // Check anniversary (within 14 days)
-  if (friend.anniversary) {
+  // Check anniversary (within 14 days) - only for partners
+  if (friend.anniversary && friend.relationshipType?.toLowerCase().includes('partner')) {
     const anniversaryThisYear = new Date(friend.anniversary);
 
     // Validate that we have a valid date

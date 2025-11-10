@@ -55,7 +55,8 @@ export const LifeEventsWidget: React.FC = () => {
             specialDates.push({ id: `${friend.id}-birthday`, friend, type: 'birthday', date: eventDate, daysUntil, title: 'Birthday' });
           }
         }
-        if (friend.anniversary) {
+        // Only show anniversaries for partners
+        if (friend.anniversary && friend.relationshipType?.toLowerCase().includes('partner')) {
           const eventDate = new Date(friend.anniversary);
           eventDate.setFullYear(today.getFullYear());
           if (eventDate < today) {
@@ -63,7 +64,7 @@ export const LifeEventsWidget: React.FC = () => {
           }
           const daysUntil = differenceInDays(eventDate, today);
           if (daysUntil >= 0 && daysUntil <= 14) {
-            specialDates.push({ id: `${friend.id}-anniversary`, friend, type: 'anniversary', date: eventDate, daysUntil, title: 'Friendship Anniversary' });
+            specialDates.push({ id: `${friend.id}-anniversary`, friend, type: 'anniversary', date: eventDate, daysUntil, title: 'Relationship Anniversary' });
           }
         }
       });

@@ -155,7 +155,7 @@ export function PlanWizard({ visible, onClose, initialFriend, prefillData, repla
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={handleClose}>
-      <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }} onTouchStart={resetActivityTimer}>
+      <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
         {/* Header */}
         <View
           className="flex-row items-center justify-between px-5 py-4 border-b"

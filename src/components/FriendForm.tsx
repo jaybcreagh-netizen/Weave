@@ -248,8 +248,8 @@ export function FriendForm({ onSave, friend, initialTier }: FriendFormProps) {
           </View>
 
           <View>
-            <Text style={[styles.label, { color: colors.foreground }]}>Anniversary (Optional)</Text>
-            <Text style={[styles.helperText, { color: colors['muted-foreground'] }]}>When you met or became friends</Text>
+            <Text style={[styles.label, { color: colors.foreground }]}>Anniversary (Partners Only)</Text>
+            <Text style={[styles.helperText, { color: colors['muted-foreground'] }]}>Romantic relationship anniversary</Text>
             <TouchableOpacity
               onPress={() => setShowAnniversaryPicker(true)}
               style={[styles.dateButton, { backgroundColor: colors.card, borderColor: colors.border }]}

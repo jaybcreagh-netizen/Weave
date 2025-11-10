@@ -524,23 +524,22 @@ function ActivityHeatmap({
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
             <Text style={{ fontSize: 9, color: theme.textSecondary, fontFamily: 'Inter_400Regular' }}>Less</Text>
-              {[0, 0.25, 0.5, 0.75, 1].map((intensity, i) => (
-                <View
-                  key={i}
-                  style={{
-                    width: 10,
-                    height: 10,
-                    backgroundColor: getHeatColor(intensity * maxCount),
-                    borderRadius: 2,
-                  }}
-                />
-              ))}
-              <Text style={{ fontSize: 9, color: theme.textSecondary, fontFamily: 'Inter_400Regular' }}>More</Text>
-            </View>
-            <Text style={{ fontSize: 9, color: theme.textTertiary, fontFamily: 'Inter_400Regular' }}>
-              Tap any day for details
-            </Text>
+            {[0, 0.25, 0.5, 0.75, 1].map((intensity, i) => (
+              <View
+                key={i}
+                style={{
+                  width: 10,
+                  height: 10,
+                  backgroundColor: getHeatColor(intensity * maxCount),
+                  borderRadius: 2,
+                }}
+              />
+            ))}
+            <Text style={{ fontSize: 9, color: theme.textSecondary, fontFamily: 'Inter_400Regular' }}>More</Text>
           </View>
+          <Text style={{ fontSize: 9, color: theme.textTertiary, fontFamily: 'Inter_400Regular' }}>
+            Tap any day for details
+          </Text>
         </View>
       </View>
     </View>
