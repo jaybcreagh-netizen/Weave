@@ -276,7 +276,9 @@ export function GraphsTabContent({ year = new Date().getFullYear() }: GraphsTabC
             <Text style={{ fontSize: 18, fontWeight: '600', color: graphTheme.textPrimary, fontFamily: 'Lora_600SemiBold', marginBottom: 16 }}>
               Year at a Glance
             </Text>
-            <ActivityHeatmap data={heatmapData} onCellPress={(day) => showTooltip('heatmap', day)} theme={graphTheme} />
+            <View style={{ marginHorizontal: -20 }}>
+              <ActivityHeatmap data={heatmapData} onCellPress={(day) => showTooltip('heatmap', day)} theme={graphTheme} />
+            </View>
           </Animated.View>
         )}
 

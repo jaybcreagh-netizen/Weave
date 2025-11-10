@@ -39,7 +39,7 @@ interface YearInMoonsModalProps {
 type Tab = 'moons' | 'graphs' | 'patterns';
 
 export function YearInMoonsModal({ isOpen, onClose }: YearInMoonsModalProps) {
-  const { colors } = useTheme();
+  const { colors, isDarkMode } = useTheme();
   const [currentTab, setCurrentTab] = useState<Tab>('moons');
   const [yearData, setYearData] = useState<MonthMoonData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -131,7 +131,7 @@ export function YearInMoonsModal({ isOpen, onClose }: YearInMoonsModalProps) {
       onRequestClose={handleClose}
     >
       <LinearGradient
-        colors={['#1a1d2e', '#0f1419']}
+        colors={isDarkMode ? ['#1a1d2e', '#0f1419'] : ['#F8F9FA', '#E8EAF0']}
         style={{ flex: 1 }}
         start={{ x: 0, y: 0 }}
         end={{ x: 0, y: 1 }}
@@ -140,25 +140,25 @@ export function YearInMoonsModal({ isOpen, onClose }: YearInMoonsModalProps) {
           {/* Header */}
           <View
             className="flex-row items-center justify-between px-5 py-4"
-            style={{ borderBottomWidth: 1, borderBottomColor: '#2A2E3F' }}
+            style={{ borderBottomWidth: 1, borderBottomColor: isDarkMode ? '#2A2E3F' : '#E0E3E9' }}
           >
             <View className="flex-1">
               <Text
                 className="text-xl font-bold"
-                style={{ color: '#F5F1E8', fontFamily: 'Lora_700Bold' }}
+                style={{ color: isDarkMode ? '#F5F1E8' : '#2D3142', fontFamily: 'Lora_700Bold' }}
               >
                 Year in Moons
               </Text>
               <Text
                 className="text-xs mt-0.5"
-                style={{ color: '#8A8F9E', fontFamily: 'Inter_400Regular' }}
+                style={{ color: isDarkMode ? '#8A8F9E' : '#6C7589', fontFamily: 'Inter_400Regular' }}
               >
                 {currentYear}
               </Text>
             </View>
 
             <TouchableOpacity onPress={handleClose} className="p-2 -mr-2">
-              <X size={24} color="#8A8F9E" />
+              <X size={24} color={isDarkMode ? '#8A8F9E' : '#6C7589'} />
             </TouchableOpacity>
           </View>
 
@@ -174,14 +174,14 @@ export function YearInMoonsModal({ isOpen, onClose }: YearInMoonsModalProps) {
                   onPress={() => handleTabChange(tab.id)}
                   className="flex-1 py-2.5 rounded-xl flex-row items-center justify-center gap-1.5"
                   style={{
-                    backgroundColor: isActive ? '#2A2E3F' : 'transparent',
+                    backgroundColor: isActive ? (isDarkMode ? '#2A2E3F' : '#FFFFFF') : 'transparent',
                   }}
                 >
-                  <Icon size={16} color={isActive ? '#F5F1E8' : '#8A8F9E'} />
+                  <Icon size={16} color={isActive ? (isDarkMode ? '#F5F1E8' : '#2D3142') : (isDarkMode ? '#8A8F9E' : '#6C7589')} />
                   <Text
                     className="text-sm font-medium"
                     style={{
-                      color: isActive ? '#F5F1E8' : '#8A8F9E',
+                      color: isActive ? (isDarkMode ? '#F5F1E8' : '#2D3142') : (isDarkMode ? '#8A8F9E' : '#6C7589'),
                       fontFamily: 'Inter_500Medium',
                     }}
                   >
@@ -195,10 +195,10 @@ export function YearInMoonsModal({ isOpen, onClose }: YearInMoonsModalProps) {
           {/* Content */}
           {isLoading ? (
             <View className="flex-1 items-center justify-center">
-              <ActivityIndicator size="large" color="#F5F1E8" />
+              <ActivityIndicator size="large" color={isDarkMode ? '#F5F1E8' : '#6366F1'} />
               <Text
                 className="text-sm mt-4"
-                style={{ color: '#8A8F9E', fontFamily: 'Inter_400Regular' }}
+                style={{ color: isDarkMode ? '#8A8F9E' : '#6C7589', fontFamily: 'Inter_400Regular' }}
               >
                 Loading your moon journey...
               </Text>
@@ -213,46 +213,46 @@ export function YearInMoonsModal({ isOpen, onClose }: YearInMoonsModalProps) {
                 >
                   {/* Stats Summary */}
                   <View className="flex-row gap-3 mb-6">
-                    <View className="flex-1 p-3 rounded-xl" style={{ backgroundColor: '#2A2E3F' }}>
+                    <View className="flex-1 p-3 rounded-xl" style={{ backgroundColor: isDarkMode ? '#2A2E3F' : '#FFFFFF' }}>
                       <Text
                         className="text-2xl font-bold mb-0.5"
-                        style={{ color: '#F5F1E8', fontFamily: 'Lora_700Bold' }}
+                        style={{ color: isDarkMode ? '#F5F1E8' : '#2D3142', fontFamily: 'Lora_700Bold' }}
                       >
                         {yearStats.totalCheckins}
                       </Text>
                       <Text
                         className="text-[10px]"
-                        style={{ color: '#8A8F9E', fontFamily: 'Inter_400Regular' }}
+                        style={{ color: isDarkMode ? '#8A8F9E' : '#6C7589', fontFamily: 'Inter_400Regular' }}
                       >
                         Check-ins
                       </Text>
                     </View>
 
-                    <View className="flex-1 p-3 rounded-xl" style={{ backgroundColor: '#2A2E3F' }}>
+                    <View className="flex-1 p-3 rounded-xl" style={{ backgroundColor: isDarkMode ? '#2A2E3F' : '#FFFFFF' }}>
                       <Text
                         className="text-2xl font-bold mb-0.5"
-                        style={{ color: '#F5F1E8', fontFamily: 'Lora_700Bold' }}
+                        style={{ color: isDarkMode ? '#F5F1E8' : '#2D3142', fontFamily: 'Lora_700Bold' }}
                       >
                         {yearStats.streakDays}
                       </Text>
                       <Text
                         className="text-[10px]"
-                        style={{ color: '#8A8F9E', fontFamily: 'Inter_400Regular' }}
+                        style={{ color: isDarkMode ? '#8A8F9E' : '#6C7589', fontFamily: 'Inter_400Regular' }}
                       >
                         Day Streak
                       </Text>
                     </View>
 
-                    <View className="flex-1 p-3 rounded-xl" style={{ backgroundColor: '#2A2E3F' }}>
+                    <View className="flex-1 p-3 rounded-xl" style={{ backgroundColor: isDarkMode ? '#2A2E3F' : '#FFFFFF' }}>
                       <Text
                         className="text-2xl font-bold mb-0.5"
-                        style={{ color: '#F5F1E8', fontFamily: 'Lora_700Bold' }}
+                        style={{ color: isDarkMode ? '#F5F1E8' : '#2D3142', fontFamily: 'Lora_700Bold' }}
                       >
                         {yearStats.avgBattery}/5
                       </Text>
                       <Text
                         className="text-[10px]"
-                        style={{ color: '#8A8F9E', fontFamily: 'Inter_400Regular' }}
+                        style={{ color: isDarkMode ? '#8A8F9E' : '#6C7589', fontFamily: 'Inter_400Regular' }}
                       >
                         Avg Energy
                       </Text>
@@ -275,7 +275,7 @@ export function YearInMoonsModal({ isOpen, onClose }: YearInMoonsModalProps) {
                       {/* Month Header */}
                       <Text
                         className="text-base font-semibold mb-3"
-                        style={{ color: '#F5F1E8', fontFamily: 'Inter_600SemiBold' }}
+                        style={{ color: isDarkMode ? '#F5F1E8' : '#2D3142', fontFamily: 'Inter_600SemiBold' }}
                       >
                         {getMonthName(monthData.month)}
                       </Text>
@@ -290,7 +290,7 @@ export function YearInMoonsModal({ isOpen, onClose }: YearInMoonsModalProps) {
                           >
                             <Text
                               className="text-[10px]"
-                              style={{ color: '#8A8F9E', fontFamily: 'Inter_400Regular' }}
+                              style={{ color: isDarkMode ? '#8A8F9E' : '#6C7589', fontFamily: 'Inter_400Regular' }}
                             >
                               {day}
                             </Text>
@@ -323,7 +323,9 @@ export function YearInMoonsModal({ isOpen, onClose }: YearInMoonsModalProps) {
                             <Text
                               className="text-[9px] mt-0.5"
                               style={{
-                                color: day.hasCheckin ? '#F5F1E8' : '#5A5F6E',
+                                color: day.hasCheckin
+                                  ? (isDarkMode ? '#F5F1E8' : '#2D3142')
+                                  : (isDarkMode ? '#5A5F6E' : '#9CA3AF'),
                                 fontFamily: 'Inter_400Regular',
                               }}
                             >
@@ -350,13 +352,13 @@ export function YearInMoonsModal({ isOpen, onClose }: YearInMoonsModalProps) {
           {selectedDay && (
             <View
               className="absolute bottom-0 left-0 right-0 p-6 rounded-t-3xl"
-              style={{ backgroundColor: '#2A2E3F' }}
+              style={{ backgroundColor: isDarkMode ? '#2A2E3F' : '#FFFFFF' }}
             >
               <View className="flex-row items-start justify-between mb-4">
                 <View>
                   <Text
                     className="text-lg font-bold mb-1"
-                    style={{ color: '#F5F1E8', fontFamily: 'Lora_700Bold' }}
+                    style={{ color: isDarkMode ? '#F5F1E8' : '#2D3142', fontFamily: 'Lora_700Bold' }}
                   >
                     {selectedDay.date.toLocaleDateString('en-US', {
                       month: 'long',
@@ -366,7 +368,7 @@ export function YearInMoonsModal({ isOpen, onClose }: YearInMoonsModalProps) {
                   </Text>
                   <Text
                     className="text-sm"
-                    style={{ color: '#8A8F9E', fontFamily: 'Inter_400Regular' }}
+                    style={{ color: isDarkMode ? '#8A8F9E' : '#6C7589', fontFamily: 'Inter_400Regular' }}
                   >
                     {selectedDay.hasCheckin
                       ? `Energy Level: ${selectedDay.batteryLevel}/5`
@@ -378,7 +380,7 @@ export function YearInMoonsModal({ isOpen, onClose }: YearInMoonsModalProps) {
                   onPress={() => setSelectedDay(null)}
                   className="p-2 -mr-2"
                 >
-                  <X size={20} color="#8A8F9E" />
+                  <X size={20} color={isDarkMode ? '#8A8F9E' : '#6C7589'} />
                 </TouchableOpacity>
               </View>
 
@@ -394,7 +396,7 @@ export function YearInMoonsModal({ isOpen, onClose }: YearInMoonsModalProps) {
               {!selectedDay.hasCheckin && (
                 <Text
                   className="text-xs text-center mb-2"
-                  style={{ color: '#8A8F9E', fontFamily: 'Inter_400Regular' }}
+                  style={{ color: isDarkMode ? '#8A8F9E' : '#6C7589', fontFamily: 'Inter_400Regular' }}
                 >
                   Long-press to add a check-in for this day
                 </Text>
