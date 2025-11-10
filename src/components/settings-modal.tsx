@@ -25,6 +25,11 @@ import {
   scheduleAllEventReminders,
   cancelAllNotifications,
 } from '../lib/notification-manager-enhanced';
+import {
+  updateNotificationPreferences,
+  getStoredNotificationPreferences,
+  type NotificationPreferences,
+} from '../lib/smart-notification-scheduler';
 import { useTheme } from '../hooks/useTheme';
 import { clearDatabase } from '../db';
 import TrophyCabinetModal from './TrophyCabinetModal';
@@ -104,6 +109,11 @@ export function SettingsModal({
   const [eventRemindersEnabled, setEventRemindersEnabled] = useState(true);
   const [deepeningNudgesEnabled, setDeepeningNudgesEnabled] = useState(true);
 
+  // Smart notification preferences
+  const [smartNotificationsEnabled, setSmartNotificationsEnabled] = useState(true);
+  const [notificationFrequency, setNotificationFrequency] = useState<'light' | 'moderate' | 'proactive'>('moderate');
+  const [respectBattery, setRespectBattery] = useState(true);
+
   // Trophy Cabinet state
   const [showTrophyCabinet, setShowTrophyCabinet] = useState(false);
 
@@ -145,6 +155,15 @@ export function SettingsModal({
     // Load deepening nudges preference
     const deepeningNudgesStr = await AsyncStorage.getItem('@weave:deepening_nudges_enabled');
     setDeepeningNudgesEnabled(deepeningNudgesStr ? JSON.parse(deepeningNudgesStr) : true);
+
+    // Load smart notification preferences
+    const smartPrefs = await getStoredNotificationPreferences();
+    setNotificationFrequency(smartPrefs.frequency);
+    setRespectBattery(smartPrefs.respectBattery);
+
+    // Load smart notifications enabled state
+    const smartEnabledStr = await AsyncStorage.getItem('@weave:smart_notifications_enabled');
+    setSmartNotificationsEnabled(smartEnabledStr ? JSON.parse(smartEnabledStr) : true);
   };
 
   const handleToggleCalendar = async (enabled: boolean) => {
@@ -235,6 +254,21 @@ export function SettingsModal({
     setDeepeningNudgesEnabled(enabled);
     // Store preference (deepening nudges will check this when scheduling)
     await AsyncStorage.setItem('@weave:deepening_nudges_enabled', JSON.stringify(enabled));
+  };
+
+  const handleToggleSmartNotifications = async (enabled: boolean) => {
+    setSmartNotificationsEnabled(enabled);
+    await AsyncStorage.setItem('@weave:smart_notifications_enabled', JSON.stringify(enabled));
+  };
+
+  const handleChangeFrequency = async (frequency: 'light' | 'moderate' | 'proactive') => {
+    setNotificationFrequency(frequency);
+    await updateNotificationPreferences({ frequency });
+  };
+
+  const handleToggleRespectBattery = async (enabled: boolean) => {
+    setRespectBattery(enabled);
+    await updateNotificationPreferences({ respectBattery: enabled });
   };
 
   const handleResetDatabase = () => {
@@ -544,6 +578,84 @@ export function SettingsModal({
                 thumbColor={colors.card}
               />
             </View>
+
+            <View className="border-t border-border my-2" style={{ borderColor: colors.border }} />
+
+            {/* Smart Suggestions Section */}
+            <View className="flex-row items-center justify-between">
+              <View className="flex-row items-center gap-3">
+                <View className="w-10 h-10 rounded-lg items-center justify-center" style={{ backgroundColor: colors.muted }}>
+                  <Bell color={colors.foreground} size={20} />
+                </View>
+                <View className="flex-1">
+                  <Text className="text-base font-inter-medium" style={{ color: colors.foreground }}>Smart Suggestions</Text>
+                  <Text className="text-sm font-inter-regular" style={{ color: colors['muted-foreground'] }}>
+                    Intelligent nudges based on your social battery
+                  </Text>
+                </View>
+              </View>
+              <Switch
+                value={smartNotificationsEnabled}
+                onValueChange={handleToggleSmartNotifications}
+                trackColor={{ false: colors.muted, true: colors.primary }}
+                thumbColor={colors.card}
+              />
+            </View>
+
+            {smartNotificationsEnabled && (
+              <>
+                {/* Notification Frequency */}
+                <View className="pl-13 mt-3">
+                  <Text className="text-sm font-inter-medium mb-2" style={{ color: colors.foreground }}>
+                    Frequency
+                  </Text>
+                  <View className="flex-row gap-2">
+                    {(['light', 'moderate', 'proactive'] as const).map((freq) => (
+                      <TouchableOpacity
+                        key={freq}
+                        onPress={() => handleChangeFrequency(freq)}
+                        className="flex-1 py-2 px-3 rounded-lg"
+                        style={{
+                          backgroundColor: notificationFrequency === freq ? colors.primary : colors.muted,
+                        }}
+                      >
+                        <Text
+                          className="text-sm font-inter-medium text-center capitalize"
+                          style={{
+                            color: notificationFrequency === freq ? colors.card : colors['muted-foreground'],
+                          }}
+                        >
+                          {freq}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                  <Text className="text-xs font-inter-regular mt-1" style={{ color: colors['muted-foreground'] }}>
+                    {notificationFrequency === 'light' && 'Max 1 suggestion per day'}
+                    {notificationFrequency === 'moderate' && 'Max 2 suggestions per day'}
+                    {notificationFrequency === 'proactive' && 'Max 4 suggestions per day'}
+                  </Text>
+                </View>
+
+                {/* Respect Battery Level */}
+                <View className="flex-row items-center justify-between pl-13 mt-3">
+                  <View className="flex-1">
+                    <Text className="text-sm font-inter-medium" style={{ color: colors.foreground }}>
+                      Respect Social Battery
+                    </Text>
+                    <Text className="text-xs font-inter-regular" style={{ color: colors['muted-foreground'] }}>
+                      Reduce notifications when energy is low
+                    </Text>
+                  </View>
+                  <Switch
+                    value={respectBattery}
+                    onValueChange={handleToggleRespectBattery}
+                    trackColor={{ false: colors.muted, true: colors.primary }}
+                    thumbColor={colors.card}
+                  />
+                </View>
+              </>
+            )}
 
             <View className="border-t border-border my-2" style={{ borderColor: colors.border }} />
 

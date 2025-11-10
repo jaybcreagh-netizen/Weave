@@ -17,6 +17,10 @@ import { useAppStateChange } from '../src/hooks/useAppState';
 import { useFriendStore } from '../src/stores/friendStore';
 import { initializeNotifications } from '../src/lib/notification-manager-enhanced';
 import {
+  setupNotificationResponseListener,
+  handleNotificationOnLaunch,
+} from '../src/lib/notification-response-handler';
+import {
   useFonts,
   Lora_400Regular,
   Lora_700Bold,
@@ -92,12 +96,22 @@ export default function RootLayout() {
       try {
         await initializeNotifications();
         console.log('[App] All notification systems initialized');
+
+        // Check if app was launched via notification
+        await handleNotificationOnLaunch();
       } catch (error) {
         console.error('[App] Failed to initialize notifications:', error);
       }
     };
 
     setupNotifications();
+
+    // Setup listener for notification taps while app is running
+    const cleanupListener = setupNotificationResponseListener();
+
+    return () => {
+      cleanupListener();
+    };
   }, []);
 
   // Track user activity globally
