@@ -6,11 +6,13 @@
 import { database } from '../db';
 import UserProfile, { BatteryHistoryEntry } from '../db/models/UserProfile';
 import Interaction from '../db/models/Interaction';
+import FriendModel from '../db/models/Friend';
 import { Q } from '@nozbe/watermelondb';
+import { calculateInteractionQuality } from './weave-engine';
 
 export interface Pattern {
   id: string;
-  type: 'cyclical' | 'correlation' | 'best_days' | 'consistency' | 'trend';
+  type: 'cyclical' | 'correlation' | 'best_days' | 'consistency' | 'trend' | 'quality_depth' | 'adaptive_decay' | 'archetype_affinity' | 'momentum' | 'reflection';
   title: string;
   description: string;
   insight: string;
@@ -354,6 +356,217 @@ function detectTrendPattern(history: BatteryHistoryEntry[]): Pattern | null {
 }
 
 /**
+ * Detect quality depth patterns - analyzes interaction quality metrics
+ */
+async function detectQualityDepthPattern(weaves: Interaction[]): Promise<Pattern | null> {
+  if (weaves.length < 10) return null;
+
+  // Calculate quality metrics for all weaves
+  const qualityData = await Promise.all(
+    weaves.map(async (weave) => {
+      const quality = calculateInteractionQuality({
+        vibe: weave.vibe,
+        duration: weave.duration,
+        note: weave.note,
+        reflectionJSON: weave.reflectionJSON,
+      });
+
+      // Get friend names
+      const interactionFriends = await database
+        .get('interaction_friends')
+        .query(Q.where('interaction_id', weave.id))
+        .fetch();
+
+      const friendNames = await Promise.all(
+        interactionFriends.map(async (ifriend) => {
+          try {
+            const friendId = (ifriend as any)._raw.friend_id;
+            const friend = await database.get<FriendModel>('friends').find(friendId);
+            return friend.name;
+          } catch {
+            return null;
+          }
+        })
+      );
+
+      return {
+        quality,
+        friendNames: friendNames.filter((n): n is string => n !== null),
+      };
+    })
+  );
+
+  // Group by friend and calculate average quality
+  const friendQualityMap = new Map<string, { totalQuality: number; count: number }>();
+
+  qualityData.forEach(({ quality, friendNames }) => {
+    friendNames.forEach((name) => {
+      const existing = friendQualityMap.get(name) || { totalQuality: 0, count: 0 };
+      friendQualityMap.set(name, {
+        totalQuality: existing.totalQuality + quality.overallQuality,
+        count: existing.count + 1,
+      });
+    });
+  });
+
+  // Find friends with highest quality scores (need at least 3 interactions)
+  const qualityFriends = Array.from(friendQualityMap.entries())
+    .filter(([_, data]) => data.count >= 3)
+    .map(([name, data]) => ({ name, avgQuality: data.totalQuality / data.count, count: data.count }))
+    .sort((a, b) => b.avgQuality - a.avgQuality);
+
+  if (qualityFriends.length === 0) return null;
+
+  const topFriend = qualityFriends[0];
+  const avgAllQuality =
+    qualityData.reduce((sum, d) => sum + d.quality.overallQuality, 0) / qualityData.length;
+
+  // Only show pattern if there's a meaningful difference
+  if (topFriend.avgQuality - avgAllQuality < 0.5) return null;
+
+  const topFriendsList = qualityFriends.slice(0, 3).map((f) => f.name);
+
+  return {
+    id: 'quality-depth',
+    type: 'quality_depth',
+    title: 'Deep Connections',
+    description: `Your deepest, most intentional interactions are with ${topFriendsList.join(', ')} (${topFriend.avgQuality.toFixed(1)}/5 quality vs ${avgAllQuality.toFixed(1)}/5 average).`,
+    insight: `Consider bringing this level of intentionality to other friendships. Depth creates lasting bonds.`,
+    confidence: topFriend.avgQuality >= 4 ? 'high' : topFriend.avgQuality >= 3.5 ? 'medium' : 'low',
+    icon: '🧘',
+    data: { topFriends: qualityFriends.slice(0, 5), avgAllQuality },
+  };
+}
+
+/**
+ * Detect adaptive decay patterns - shows learned tolerance windows
+ */
+async function detectAdaptiveDecayPattern(): Promise<Pattern | null> {
+  const allFriends = await database.get<FriendModel>('friends').query().fetch();
+
+  // Filter friends with learned tolerance windows (5+ rated interactions)
+  const adaptedFriends = allFriends.filter(
+    (f) => f.toleranceWindowDays && f.totalInteractionsLogged >= 5
+  );
+
+  if (adaptedFriends.length < 3) return null;
+
+  // Find the most interesting adaptive pattern
+  const defaultWindows: Record<string, number> = {
+    InnerCircle: 7,
+    CloseFriends: 14,
+    Community: 21,
+  };
+
+  const adaptations = adaptedFriends.map((f) => {
+    const defaultWindow = defaultWindows[f.dunbarTier] || 14;
+    const learnedWindow = f.toleranceWindowDays || defaultWindow;
+    const difference = learnedWindow - defaultWindow;
+    return { name: f.name, tier: f.dunbarTier, learnedWindow, defaultWindow, difference };
+  });
+
+  // Sort by most significant adaptation (positive or negative)
+  adaptations.sort((a, b) => Math.abs(b.difference) - Math.abs(a.difference));
+
+  const mostAdapted = adaptations[0];
+
+  // Only show if there's meaningful learning (at least 3 days difference)
+  if (Math.abs(mostAdapted.difference) < 3) return null;
+
+  const direction = mostAdapted.difference > 0 ? 'comfortable' : 'closer';
+  const rhythm = mostAdapted.difference > 0 ? 'relaxed' : 'frequent';
+
+  return {
+    id: 'adaptive-decay',
+    type: 'adaptive_decay',
+    title: 'Natural Rhythms Learned',
+    description: `You and ${mostAdapted.name} have settled into a ${rhythm} ${mostAdapted.learnedWindow}-day rhythm (vs typical ${mostAdapted.defaultWindow}-day for ${mostAdapted.tier}).`,
+    insight: `The app has adapted to honor this natural flow. Your authentic connection patterns are being respected.`,
+    confidence: adaptedFriends.length >= 5 ? 'high' : 'medium',
+    icon: '🌊',
+    data: { mostAdapted, allAdaptations: adaptations.slice(0, 5) },
+  };
+}
+
+/**
+ * Detect archetype affinity patterns - which archetypes you connect best with
+ */
+async function detectArchetypeAffinityPattern(weaves: Interaction[]): Promise<Pattern | null> {
+  if (weaves.length < 15) return null;
+
+  // Get all friends to map archetypes
+  const allFriends = await database.get<FriendModel>('friends').query().fetch();
+  const friendArchetypeMap = new Map<string, string>();
+  allFriends.forEach((f) => friendArchetypeMap.set(f.id, f.archetype));
+
+  // Build archetype -> scores mapping
+  const archetypeData = new Map<
+    string,
+    { totalScore: number; count: number; friends: Set<string> }
+  >();
+
+  for (const weave of weaves) {
+    const interactionFriends = await database
+      .get('interaction_friends')
+      .query(Q.where('interaction_id', weave.id))
+      .fetch();
+
+    for (const ifriend of interactionFriends) {
+      const friendId = (ifriend as any)._raw.friend_id;
+      const archetype = friendArchetypeMap.get(friendId);
+      if (!archetype) continue;
+
+      try {
+        const friend = await database.get<FriendModel>('friends').find(friendId);
+        const existing = archetypeData.get(archetype) || {
+          totalScore: 0,
+          count: 0,
+          friends: new Set(),
+        };
+        archetypeData.set(archetype, {
+          totalScore: existing.totalScore + friend.weaveScore,
+          count: existing.count + 1,
+          friends: existing.friends.add(friend.name),
+        });
+      } catch {
+        continue;
+      }
+    }
+  }
+
+  // Calculate average scores per archetype
+  const archetypeScores = Array.from(archetypeData.entries())
+    .filter(([_, data]) => data.count >= 3) // Need at least 3 interactions
+    .map(([archetype, data]) => ({
+      archetype,
+      avgScore: data.totalScore / data.count,
+      count: data.count,
+      friendNames: Array.from(data.friends).slice(0, 3),
+    }))
+    .sort((a, b) => b.avgScore - a.avgScore);
+
+  if (archetypeScores.length < 2) return null;
+
+  const best = archetypeScores[0];
+  const worst = archetypeScores[archetypeScores.length - 1];
+  const scoreDifference = best.avgScore - worst.avgScore;
+
+  // Only show if there's a meaningful difference
+  if (scoreDifference < 15) return null;
+
+  return {
+    id: 'archetype-affinity',
+    type: 'archetype_affinity',
+    title: 'Archetype Affinity',
+    description: `You thrive with ${best.archetype} friends (avg ${Math.round(best.avgScore)} health), but ${worst.archetype} connections need more attention (avg ${Math.round(worst.avgScore)}).`,
+    insight: `Your ${best.archetype} relationships come naturally. Consider being more intentional with ${worst.archetype} friends to maintain balance.`,
+    confidence: scoreDifference >= 25 ? 'high' : 'medium',
+    icon: '🎭',
+    data: { best, worst, allArchetypes: archetypeScores },
+  };
+}
+
+/**
  * Main function: detect all patterns
  */
 export async function detectPatterns(): Promise<Pattern[]> {
@@ -366,7 +579,7 @@ export async function detectPatterns(): Promise<Pattern[]> {
 
   const patterns: Pattern[] = [];
 
-  // Run all detection algorithms
+  // Run all detection algorithms (existing patterns)
   const cyclicalPattern = detectDayOfWeekPatterns(history);
   if (cyclicalPattern) patterns.push(cyclicalPattern);
 
@@ -381,6 +594,16 @@ export async function detectPatterns(): Promise<Pattern[]> {
 
   const trendPattern = detectTrendPattern(history);
   if (trendPattern) patterns.push(trendPattern);
+
+  // Run new pattern detection algorithms
+  const qualityDepthPattern = await detectQualityDepthPattern(weaves);
+  if (qualityDepthPattern) patterns.push(qualityDepthPattern);
+
+  const adaptiveDecayPattern = await detectAdaptiveDecayPattern();
+  if (adaptiveDecayPattern) patterns.push(adaptiveDecayPattern);
+
+  const archetypeAffinityPattern = await detectArchetypeAffinityPattern(weaves);
+  if (archetypeAffinityPattern) patterns.push(archetypeAffinityPattern);
 
   // Sort by confidence
   const confidenceOrder = { high: 3, medium: 2, low: 1 };
