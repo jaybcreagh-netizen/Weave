@@ -10,6 +10,7 @@ import { useInteractionStore } from '../stores/interactionStore';
 import { database } from '../db';
 import Friend from '../db/models/Friend';
 import { type InteractionCategory } from '../components/types';
+import { getTopActivities, isSmartDefaultsEnabled } from '../lib/smart-defaults';
 
 const MENU_RADIUS = 75; // Reduced for compact design
 const HIGHLIGHT_THRESHOLD = 25; // Reduced from 30
@@ -56,7 +57,7 @@ export function useCardGesture() {
 
 function useCardGestureCoordinator(): CardGestureContextType {
   const router = useRouter();
-  const { openQuickWeave, closeQuickWeave, showToast, setJustNurturedFriendId, setSelectedFriendId, showMicroReflectionSheet } = useUIStore();
+  const { openQuickWeave, closeQuickWeave, showToast, setJustNurturedFriendId, setSelectedFriendId, showMicroReflectionSheet, quickWeaveActivities } = useUIStore();
   const { addInteraction } = useInteractionStore();
 
   const cardRefs = useSharedValue<Record<string, React.RefObject<Animated.View>>>({});
@@ -81,6 +82,30 @@ function useCardGestureCoordinator(): CardGestureContextType {
   const animatedScrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => { 'worklet'; scrollOffset.value = event.contentOffset.y; },
   });
+
+  const handleInteractionSelection = async (selectedIndex: number, friendId: string) => {
+    try {
+      // Get the selected category from quickWeaveActivities
+      const currentActivities = quickWeaveActivities.length > 0
+        ? quickWeaveActivities
+        : ACTIVITIES.map(a => a.id as InteractionCategory);
+
+      if (selectedIndex >= currentActivities.length) {
+        console.error('Invalid activity index:', selectedIndex);
+        return;
+      }
+
+      const activityId = currentActivities[selectedIndex];
+
+      // Get label from metadata
+      const activityMetadata = ACTIVITIES.find(a => a.id === activityId);
+      const activityLabel = activityMetadata?.label || activityId;
+
+      await handleInteraction(activityId, activityLabel, friendId);
+    } catch (error) {
+      console.error('Error handling interaction selection:', error);
+    }
+  };
 
   const handleInteraction = async (activityId: string, activityLabel: string, friendId: string) => {
     const friend = await database.get<Friend>(Friend.table).find(friendId);
@@ -125,6 +150,32 @@ function useCardGestureCoordinator(): CardGestureContextType {
   const handleTap = (friendId: string) => {
     setSelectedFriendId(friendId);
     router.push(`/friend-profile?friendId=${friendId}`);
+  };
+
+  const handleOpenQuickWeave = async (friendId: string, centerPoint: { x: number; y: number }) => {
+    try {
+      // Check if smart defaults are enabled
+      const smartDefaultsEnabled = await isSmartDefaultsEnabled();
+
+      let orderedActivities: InteractionCategory[];
+
+      if (smartDefaultsEnabled) {
+        // Fetch friend and calculate smart-ordered activities
+        const friend = await database.get<Friend>(Friend.table).find(friendId);
+        orderedActivities = await getTopActivities(friend, 6);
+      } else {
+        // Use fixed default ordering for muscle memory
+        orderedActivities = ACTIVITIES.map(a => a.id as InteractionCategory);
+      }
+
+      // Open Quick Weave with ordered activities
+      openQuickWeave(friendId, centerPoint, orderedActivities);
+    } catch (error) {
+      console.error('Error opening Quick Weave:', error);
+      // Fallback to default ordering
+      const defaultOrder = ACTIVITIES.map(a => a.id as InteractionCategory);
+      openQuickWeave(friendId, centerPoint, defaultOrder);
+    }
   };
 
   const findTargetCardId = (absoluteX: number, absoluteY: number) => {
@@ -180,7 +231,7 @@ function useCardGestureCoordinator(): CardGestureContextType {
             x: event.absoluteX,
             y: event.absoluteY - scrollOffset.value,
           };
-          runOnJS(openQuickWeave)(targetId, centerPoint);
+          runOnJS(handleOpenQuickWeave)(targetId, centerPoint);
         }
       })
       .onTouchesMove((event, state) => {
@@ -225,8 +276,10 @@ function useCardGestureCoordinator(): CardGestureContextType {
         if (isLongPressActive.value) {
           const distance = Math.sqrt(dragX.value**2 + dragY.value**2);
           if (distance >= SELECTION_THRESHOLD && highlightedIndex.value !== -1 && activeCardId.value) {
-            const selectedActivity = ACTIVITIES[highlightedIndex.value];
-            runOnJS(handleInteraction)(selectedActivity.id, selectedActivity.label, activeCardId.value);
+            // Use the highlighted index to get category from current activities
+            const selectedIndex = highlightedIndex.value;
+            const friendId = activeCardId.value;
+            runOnJS(handleInteractionSelection)(selectedIndex, friendId);
           }
           runOnJS(closeQuickWeave)();
         }
