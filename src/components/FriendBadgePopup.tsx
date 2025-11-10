@@ -209,6 +209,10 @@ export default function FriendBadgePopup({
               showsVerticalScrollIndicator={false}
               bounces={true}
             >
+              {(() => {
+                console.log('[FriendBadgePopup] Rendering - loading:', loading, 'stats:', !!stats, 'archetypeInfo:', !!archetypeInfo);
+                return null;
+              })()}
               {loading ? (
                 <View style={styles.loadingContainer}>
                   <Text style={[styles.loadingText, { color: colors['muted-foreground'] }]}>
@@ -217,6 +221,7 @@ export default function FriendBadgePopup({
                 </View>
               ) : stats ? (
                 <>
+                  {console.log('[FriendBadgePopup] Rendering stats section')}
                   {/* Archetype Section */}
                   {archetypeInfo && (
                     <View style={styles.section}>
@@ -355,12 +360,13 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   contentContainer: {
-    maxHeight: SCREEN_HEIGHT * 0.85,
+    height: SCREEN_HEIGHT * 0.75,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     overflow: 'hidden',
   },
   blurContainer: {
+    flex: 1,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingBottom: 20,
