@@ -744,7 +744,7 @@ function WeeklyRhythmRadial({
               y1={center}
               x2={x2}
               y2={y2}
-              stroke="#3A3E5F"
+              stroke={theme.gridLine}
               strokeWidth="1"
               opacity={0.3}
             />
@@ -764,7 +764,7 @@ function WeeklyRhythmRadial({
                 return `${index === 0 ? 'M' : 'L'} ${x} ${y}`;
               }).join(' ') + ' Z'}
               fill="url(#radialGrad)"
-              stroke="#A78BFA"
+              stroke={theme.energyColor}
               strokeWidth="2.5"
             />
             {/* Data points with glow */}
@@ -776,8 +776,8 @@ function WeeklyRhythmRadial({
               const y = center + Math.sin(angle) * distance;
               return (
                 <G key={`point-${index}`} onPress={() => onDayPress(day)}>
-                  <Circle cx={x} cy={y} r={6} fill="#A78BFA" opacity={0.3} />
-                  <Circle cx={x} cy={y} r={4} fill="#F5F1E8" />
+                  <Circle cx={x} cy={y} r={6} fill={theme.energyColor} opacity={0.3} />
+                  <Circle cx={x} cy={y} r={4} fill={theme.textPrimary} />
                 </G>
               );
             })}
@@ -796,7 +796,7 @@ function WeeklyRhythmRadial({
               x={x}
               y={y}
               fontSize="12"
-              fill="#8A8F9E"
+              fill={theme.textSecondary}
               textAnchor="middle"
               alignmentBaseline="middle"
               fontFamily="Inter_600SemiBold"
@@ -806,7 +806,7 @@ function WeeklyRhythmRadial({
           );
         })}
       </Svg>
-      <Text style={{ marginTop: 12, fontSize: 12, color: '#8A8F9E', fontFamily: 'Inter_400Regular', textAlign: 'center' }}>
+      <Text style={{ marginTop: 12, fontSize: 12, color: theme.textSecondary, fontFamily: 'Inter_400Regular', textAlign: 'center' }}>
         Average energy level by day of week
       </Text>
     </View>
@@ -816,7 +816,13 @@ function WeeklyRhythmRadial({
 // ============================================
 // BATTERY + WEAVES CHART (Enhanced)
 // ============================================
-function BatteryWeaveChart({ data }: { data: Array<{ date: Date; battery: number; weaves: number }> }) {
+function BatteryWeaveChart({
+  data,
+  theme
+}: {
+  data: Array<{ date: Date; battery: number; weaves: number }>;
+  theme: ReturnType<typeof getGraphTheme>;
+}) {
   const chartWidth = screenWidth - 80;
   const chartHeight = 220;
   const padding = 40;
@@ -838,16 +844,16 @@ function BatteryWeaveChart({ data }: { data: Array<{ date: Date; battery: number
   }
 
   return (
-    <View style={{ backgroundColor: '#2A2E3F', borderRadius: 20, padding: 20 }}>
+    <View style={{ backgroundColor: theme.cardBackground, borderRadius: 20, padding: 20 }}>
       <Svg width={chartWidth} height={chartHeight}>
         <Defs>
           <SvgLinearGradient id="batteryGrad" x1="0" y1="0" x2="0" y2="1">
-            <Stop offset="0" stopColor="#A78BFA" stopOpacity="0.4" />
-            <Stop offset="1" stopColor="#A78BFA" stopOpacity="0.05" />
+            <Stop offset="0" stopColor={theme.energyColor} stopOpacity="0.4" />
+            <Stop offset="1" stopColor={theme.energyColor} stopOpacity="0.05" />
           </SvgLinearGradient>
           <SvgLinearGradient id="weaveGrad" x1="0" y1="0" x2="0" y2="1">
-            <Stop offset="0" stopColor="#F5C563" stopOpacity="0.4" />
-            <Stop offset="1" stopColor="#F5C563" stopOpacity="0.05" />
+            <Stop offset="0" stopColor={theme.weaveColor} stopOpacity="0.4" />
+            <Stop offset="1" stopColor={theme.weaveColor} stopOpacity="0.05" />
           </SvgLinearGradient>
         </Defs>
 
@@ -859,7 +865,7 @@ function BatteryWeaveChart({ data }: { data: Array<{ date: Date; battery: number
             y1={chartHeight - padding - (chartHeight - 2 * padding) * ratio}
             x2={chartWidth - padding}
             y2={chartHeight - padding - (chartHeight - 2 * padding) * ratio}
-            stroke="#3A3E5F"
+            stroke={theme.gridLine}
             strokeWidth="1"
             opacity={0.3}
             strokeDasharray="4 4"
@@ -872,7 +878,7 @@ function BatteryWeaveChart({ data }: { data: Array<{ date: Date; battery: number
           y1={chartHeight - padding}
           x2={chartWidth - padding}
           y2={chartHeight - padding}
-          stroke="#3A3E5F"
+          stroke={theme.axisLine}
           strokeWidth="2"
         />
         <Line
@@ -880,7 +886,7 @@ function BatteryWeaveChart({ data }: { data: Array<{ date: Date; battery: number
           y1={padding}
           x2={padding}
           y2={chartHeight - padding}
-          stroke="#3A3E5F"
+          stroke={theme.axisLine}
           strokeWidth="2"
         />
 
@@ -907,7 +913,7 @@ function BatteryWeaveChart({ data }: { data: Array<{ date: Date; battery: number
               const y = chartHeight - padding - (w.avgBattery / maxBattery) * (chartHeight - 2 * padding);
               return `${i === 0 ? 'M' : 'L'} ${x} ${y}`;
             }).join(' ')}
-            stroke="#A78BFA"
+            stroke={theme.energyColor}
             strokeWidth="3"
             fill="none"
           />
@@ -936,17 +942,17 @@ function BatteryWeaveChart({ data }: { data: Array<{ date: Date; battery: number
               const y = chartHeight - padding - (w.avgWeaves / maxWeaves) * (chartHeight - 2 * padding);
               return `${i === 0 ? 'M' : 'L'} ${x} ${y}`;
             }).join(' ')}
-            stroke="#F5C563"
+            stroke={theme.weaveColor}
             strokeWidth="3"
             fill="none"
           />
         )}
 
         {/* Axis labels */}
-        <SvgText x={padding} y={15} fontSize="10" fill="#8A8F9E" fontFamily="Inter_400Regular">
+        <SvgText x={padding} y={15} fontSize="10" fill={theme.textSecondary} fontFamily="Inter_400Regular">
           Energy
         </SvgText>
-        <SvgText x={chartWidth - 60} y={chartHeight - 10} fontSize="10" fill="#8A8F9E" fontFamily="Inter_400Regular" textAnchor="end">
+        <SvgText x={chartWidth - 60} y={chartHeight - 10} fontSize="10" fill={theme.textSecondary} fontFamily="Inter_400Regular" textAnchor="end">
           Weeks
         </SvgText>
       </Svg>
@@ -954,12 +960,12 @@ function BatteryWeaveChart({ data }: { data: Array<{ date: Date; battery: number
       {/* Legend */}
       <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 24, marginTop: 16 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <View style={{ width: 24, height: 4, backgroundColor: '#A78BFA', borderRadius: 2 }} />
-          <Text style={{ fontSize: 12, color: '#8A8F9E', fontFamily: 'Inter_400Regular' }}>Energy</Text>
+          <View style={{ width: 24, height: 4, backgroundColor: theme.energyColor, borderRadius: 2 }} />
+          <Text style={{ fontSize: 12, color: theme.textSecondary, fontFamily: 'Inter_400Regular' }}>Energy</Text>
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <View style={{ width: 24, height: 4, backgroundColor: '#F5C563', borderRadius: 2 }} />
-          <Text style={{ fontSize: 12, color: '#8A8F9E', fontFamily: 'Inter_400Regular' }}>Weaves</Text>
+          <View style={{ width: 24, height: 4, backgroundColor: theme.weaveColor, borderRadius: 2 }} />
+          <Text style={{ fontSize: 12, color: theme.textSecondary, fontFamily: 'Inter_400Regular' }}>Weaves</Text>
         </View>
       </View>
     </View>
@@ -971,10 +977,12 @@ function BatteryWeaveChart({ data }: { data: Array<{ date: Date; battery: number
 // ============================================
 function ArchetypeDonutChart({
   archetypes,
-  onSegmentPress
+  onSegmentPress,
+  theme
 }: {
   archetypes: Record<string, number>;
   onSegmentPress: (data: any) => void;
+  theme: ReturnType<typeof getGraphTheme>;
 }) {
   const size = Math.min(screenWidth - 80, 260);
   const center = size / 2;
@@ -985,8 +993,8 @@ function ArchetypeDonutChart({
   const entries = Object.entries(archetypes).sort((a, b) => b[1] - a[1]);
 
   const colors = [
-    '#7A7EAF', '#A78BFA', '#5A5E8F', '#8B95C9',
-    '#6A6E9F', '#9AA3D3', '#4A4E7F', '#7A84B4'
+    theme.chartPrimary, theme.chartSecondary, theme.chartTertiary, theme.chartAccent,
+    theme.accentPurple, theme.energyColor, theme.weaveColor, theme.activeBackground
   ];
 
   let currentAngle = -Math.PI / 2;
@@ -1021,7 +1029,7 @@ function ArchetypeDonutChart({
   });
 
   return (
-    <View style={{ backgroundColor: '#2A2E3F', borderRadius: 20, padding: 20 }}>
+    <View style={{ backgroundColor: theme.cardBackground, borderRadius: 20, padding: 20 }}>
       <View style={{ alignItems: 'center', marginBottom: 20 }}>
         <Svg width={size} height={size}>
           {paths.map((p, i) => (
@@ -1033,7 +1041,7 @@ function ArchetypeDonutChart({
             x={center}
             y={center}
             fontSize="28"
-            fill="#F5F1E8"
+            fill={theme.textPrimary}
             textAnchor="middle"
             alignmentBaseline="middle"
             fontFamily="Lora_700Bold"
@@ -1044,7 +1052,7 @@ function ArchetypeDonutChart({
             x={center}
             y={center + 20}
             fontSize="11"
-            fill="#8A8F9E"
+            fill={theme.textSecondary}
             textAnchor="middle"
             alignmentBaseline="middle"
             fontFamily="Inter_400Regular"
@@ -1066,11 +1074,11 @@ function ArchetypeDonutChart({
             >
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: colors[index % colors.length] }} />
-                <Text style={{ fontSize: 14, color: '#F5F1E8', fontFamily: 'Inter_500Medium' }}>
+                <Text style={{ fontSize: 14, color: theme.textPrimary, fontFamily: 'Inter_500Medium' }}>
                   {archetype}
                 </Text>
               </View>
-              <Text style={{ fontSize: 13, color: '#8A8F9E', fontFamily: 'Inter_400Regular' }}>
+              <Text style={{ fontSize: 13, color: theme.textSecondary, fontFamily: 'Inter_400Regular' }}>
                 {count} ({Math.round(percentage * 100)}%)
               </Text>
             </TouchableOpacity>
@@ -1092,13 +1100,13 @@ function TooltipModal({ tooltip, onClose, theme }: { tooltip: TooltipData; onClo
       case 'heatmap':
         return (
           <>
-            <Text style={{ fontSize: 20, fontWeight: '700', color: '#F5F1E8', fontFamily: 'Lora_700Bold', marginBottom: 8 }}>
+            <Text style={{ fontSize: 20, fontWeight: '700', color: theme.textPrimary, fontFamily: 'Lora_700Bold', marginBottom: 8 }}>
               {tooltip.data.date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
             </Text>
-            <Text style={{ fontSize: 32, fontWeight: '700', color: '#7A7EAF', fontFamily: 'Lora_700Bold', marginBottom: 4 }}>
+            <Text style={{ fontSize: 32, fontWeight: '700', color: theme.chartPrimary, fontFamily: 'Lora_700Bold', marginBottom: 4 }}>
               {tooltip.data.count}
             </Text>
-            <Text style={{ fontSize: 14, color: '#8A8F9E', fontFamily: 'Inter_400Regular' }}>
+            <Text style={{ fontSize: 14, color: theme.textSecondary, fontFamily: 'Inter_400Regular' }}>
               {tooltip.data.count === 0 ? 'No weaves' : tooltip.data.count === 1 ? 'weave logged' : 'weaves logged'}
             </Text>
           </>
@@ -1108,16 +1116,16 @@ function TooltipModal({ tooltip, onClose, theme }: { tooltip: TooltipData; onClo
         const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
         return (
           <>
-            <Text style={{ fontSize: 20, fontWeight: '700', color: '#F5F1E8', fontFamily: 'Lora_700Bold', marginBottom: 8 }}>
+            <Text style={{ fontSize: 20, fontWeight: '700', color: theme.textPrimary, fontFamily: 'Lora_700Bold', marginBottom: 8 }}>
               {dayNames[tooltip.data.dayOfWeek]}
             </Text>
-            <Text style={{ fontSize: 32, fontWeight: '700', color: '#A78BFA', fontFamily: 'Lora_700Bold', marginBottom: 4 }}>
+            <Text style={{ fontSize: 32, fontWeight: '700', color: theme.energyColor, fontFamily: 'Lora_700Bold', marginBottom: 4 }}>
               {tooltip.data.avgBattery.toFixed(1)}/5
             </Text>
-            <Text style={{ fontSize: 14, color: '#8A8F9E', fontFamily: 'Inter_400Regular' }}>
+            <Text style={{ fontSize: 14, color: theme.textSecondary, fontFamily: 'Inter_400Regular' }}>
               Average energy level
             </Text>
-            <Text style={{ fontSize: 12, color: '#8A8F9E', fontFamily: 'Inter_400Regular', marginTop: 8 }}>
+            <Text style={{ fontSize: 12, color: theme.textSecondary, fontFamily: 'Inter_400Regular', marginTop: 8 }}>
               Based on {tooltip.data.count} check-ins
             </Text>
           </>
@@ -1131,29 +1139,29 @@ function TooltipModal({ tooltip, onClose, theme }: { tooltip: TooltipData; onClo
         };
         return (
           <>
-            <Text style={{ fontSize: 20, fontWeight: '700', color: '#F5F1E8', fontFamily: 'Lora_700Bold', marginBottom: 8 }}>
+            <Text style={{ fontSize: 20, fontWeight: '700', color: theme.textPrimary, fontFamily: 'Lora_700Bold', marginBottom: 8 }}>
               {tierLabels[tooltip.data.tier]}
             </Text>
-            <Text style={{ fontSize: 32, fontWeight: '700', color: '#7A7EAF', fontFamily: 'Lora_700Bold', marginBottom: 4 }}>
+            <Text style={{ fontSize: 32, fontWeight: '700', color: theme.chartPrimary, fontFamily: 'Lora_700Bold', marginBottom: 4 }}>
               {Math.round(tooltip.data.avgScore)}
             </Text>
-            <Text style={{ fontSize: 14, color: '#8A8F9E', fontFamily: 'Inter_400Regular', marginBottom: 8 }}>
+            <Text style={{ fontSize: 14, color: theme.textSecondary, fontFamily: 'Inter_400Regular', marginBottom: 8 }}>
               Average health score
             </Text>
             <View style={{ flexDirection: 'row', gap: 16, marginTop: 8 }}>
               <View>
-                <Text style={{ fontSize: 18, fontWeight: '600', color: '#F5F1E8', fontFamily: 'Inter_600SemiBold' }}>
+                <Text style={{ fontSize: 18, fontWeight: '600', color: theme.textPrimary, fontFamily: 'Inter_600SemiBold' }}>
                   {tooltip.data.count}
                 </Text>
-                <Text style={{ fontSize: 12, color: '#8A8F9E', fontFamily: 'Inter_400Regular' }}>
+                <Text style={{ fontSize: 12, color: theme.textSecondary, fontFamily: 'Inter_400Regular' }}>
                   friends
                 </Text>
               </View>
               <View>
-                <Text style={{ fontSize: 18, fontWeight: '600', color: '#F5F1E8', fontFamily: 'Inter_600SemiBold' }}>
+                <Text style={{ fontSize: 18, fontWeight: '600', color: theme.textPrimary, fontFamily: 'Inter_600SemiBold' }}>
                   {tooltip.data.percentage.toFixed(0)}%
                 </Text>
-                <Text style={{ fontSize: 12, color: '#8A8F9E', fontFamily: 'Inter_400Regular' }}>
+                <Text style={{ fontSize: 12, color: theme.textSecondary, fontFamily: 'Inter_400Regular' }}>
                   of network
                 </Text>
               </View>
@@ -1164,17 +1172,17 @@ function TooltipModal({ tooltip, onClose, theme }: { tooltip: TooltipData; onClo
       case 'friend':
         return (
           <>
-            <Text style={{ fontSize: 24, fontWeight: '700', color: '#F5F1E8', fontFamily: 'Lora_700Bold', marginBottom: 16 }}>
+            <Text style={{ fontSize: 24, fontWeight: '700', color: theme.textPrimary, fontFamily: 'Lora_700Bold', marginBottom: 16 }}>
               {tooltip.data.name}
             </Text>
-            <Text style={{ fontSize: 48, fontWeight: '700', color: '#7A7EAF', fontFamily: 'Lora_700Bold', marginBottom: 4 }}>
+            <Text style={{ fontSize: 48, fontWeight: '700', color: theme.chartPrimary, fontFamily: 'Lora_700Bold', marginBottom: 4 }}>
               {tooltip.data.count}
             </Text>
-            <Text style={{ fontSize: 16, color: '#8A8F9E', fontFamily: 'Inter_400Regular' }}>
+            <Text style={{ fontSize: 16, color: theme.textSecondary, fontFamily: 'Inter_400Regular' }}>
               weaves this year
             </Text>
-            <View style={{ marginTop: 16, padding: 12, backgroundColor: '#1a1d2e', borderRadius: 12 }}>
-              <Text style={{ fontSize: 13, color: '#C5CAD3', fontFamily: 'Inter_400Regular', textAlign: 'center' }}>
+            <View style={{ marginTop: 16, padding: 12, backgroundColor: theme.cardBackgroundDeep, borderRadius: 12 }}>
+              <Text style={{ fontSize: 13, color: theme.textTertiary, fontFamily: 'Inter_400Regular', textAlign: 'center' }}>
                 Your most frequent connection this year!
               </Text>
             </View>
@@ -1184,13 +1192,13 @@ function TooltipModal({ tooltip, onClose, theme }: { tooltip: TooltipData; onClo
       case 'donut':
         return (
           <>
-            <Text style={{ fontSize: 24, fontWeight: '700', color: '#F5F1E8', fontFamily: 'Lora_700Bold', marginBottom: 8 }}>
+            <Text style={{ fontSize: 24, fontWeight: '700', color: theme.textPrimary, fontFamily: 'Lora_700Bold', marginBottom: 8 }}>
               {tooltip.data.archetype}
             </Text>
             <Text style={{ fontSize: 48, fontWeight: '700', color: tooltip.data.color, fontFamily: 'Lora_700Bold', marginBottom: 4 }}>
               {tooltip.data.count}
             </Text>
-            <Text style={{ fontSize: 16, color: '#8A8F9E', fontFamily: 'Inter_400Regular' }}>
+            <Text style={{ fontSize: 16, color: theme.textSecondary, fontFamily: 'Inter_400Regular' }}>
               {tooltip.data.count === 1 ? 'friend' : 'friends'} • {Math.round(tooltip.data.percentage * 100)}% of circle
             </Text>
           </>
