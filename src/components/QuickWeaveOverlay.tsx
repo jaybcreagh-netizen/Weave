@@ -31,17 +31,31 @@ interface RadialMenuItem {
   label: string;
 }
 
-const ACTIVITIES: RadialMenuItem[] = [
-  { id: 'text-call', icon: '📞', label: 'Call' },
-  { id: 'meal-drink', icon: '🍽️', label: 'Meal' },
-  { id: 'hangout', icon: '👥', label: 'Hang' },
-  { id: 'deep-talk', icon: '💭', label: 'Talk' },
-  { id: 'activity-hobby', icon: '🎨', label: 'Do' },
-  { id: 'voice-note', icon: '🎤', label: 'Voice' },
+// Category metadata mapping
+const CATEGORY_METADATA: Record<InteractionCategory, { icon: string; label: string }> = {
+  'text-call': { icon: '📞', label: 'Call' },
+  'meal-drink': { icon: '🍽️', label: 'Meal' },
+  'hangout': { icon: '👥', label: 'Hang' },
+  'deep-talk': { icon: '💭', label: 'Talk' },
+  'activity-hobby': { icon: '🎨', label: 'Do' },
+  'voice-note': { icon: '🎤', label: 'Voice' },
+  'event-party': { icon: '🎉', label: 'Event' },
+  'favor-support': { icon: '🤝', label: 'Help' },
+  'celebration': { icon: '🎊', label: 'Celebrate' },
+};
+
+// Default fallback activities
+const DEFAULT_ACTIVITIES: InteractionCategory[] = [
+  'text-call',
+  'meal-drink',
+  'hangout',
+  'deep-talk',
+  'activity-hobby',
+  'voice-note',
 ];
 
-const itemPositions = ACTIVITIES.map((_, i) => {
-  const angle = (i / ACTIVITIES.length) * 2 * Math.PI - Math.PI / 2;
+const itemPositions = DEFAULT_ACTIVITIES.map((_, i) => {
+  const angle = (i / DEFAULT_ACTIVITIES.length) * 2 * Math.PI - Math.PI / 2;
   return {
     x: MENU_RADIUS * Math.cos(angle),
     y: MENU_RADIUS * Math.sin(angle),
@@ -53,6 +67,7 @@ export function QuickWeaveOverlay() {
   const {
     quickWeaveFriendId,
     quickWeaveCenterPoint,
+    quickWeaveActivities,
     isQuickWeaveClosing,
     _finishClosingQuickWeave,
   } = useUIStore();
@@ -105,6 +120,18 @@ export function QuickWeaveOverlay() {
   if (!quickWeaveCenterPoint || !quickWeaveFriendId || !friend) {
     return null;
   }
+
+  // Use smart-ordered activities or fallback to default
+  const orderedCategories = quickWeaveActivities.length > 0
+    ? quickWeaveActivities.slice(0, 6) // Take first 6
+    : DEFAULT_ACTIVITIES;
+
+  // Map to RadialMenuItem format
+  const ACTIVITIES: RadialMenuItem[] = orderedCategories.map(category => ({
+    id: category,
+    icon: CATEGORY_METADATA[category]?.icon || '❓',
+    label: CATEGORY_METADATA[category]?.label || category,
+  }));
 
   const friendInitial = friend.name.charAt(0).toUpperCase();
 

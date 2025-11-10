@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import { Sparkles } from 'lucide-react-native';
@@ -7,6 +7,7 @@ import { useTheme } from '../../hooks/useTheme';
 import { type InteractionCategory } from '../types';
 import FriendModel from '../../db/models/Friend';
 import { PlanSuggestion } from '../../hooks/usePlanSuggestion';
+import { calculateActivityPriorities } from '../../lib/smart-defaults';
 
 interface PlanWizardStep2Props {
   selectedCategory?: InteractionCategory;
@@ -43,7 +44,34 @@ export function PlanWizardStep2({
 }: PlanWizardStep2Props) {
   const { colors } = useTheme();
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const [orderedCategories, setOrderedCategories] = useState(CATEGORIES);
   const scale = useSharedValue(1);
+
+  // Calculate smart ordering on mount
+  useEffect(() => {
+    const reorderCategories = async () => {
+      try {
+        const priorities = await calculateActivityPriorities(friend);
+
+        // Create a map of category to priority score
+        const scoreMap = new Map(priorities.map(p => [p.category, p.score]));
+
+        // Sort CATEGORIES by priority score (highest first)
+        const sorted = [...CATEGORIES].sort((a, b) => {
+          const scoreA = scoreMap.get(a.value) || 0;
+          const scoreB = scoreMap.get(b.value) || 0;
+          return scoreB - scoreA;
+        });
+
+        setOrderedCategories(sorted);
+      } catch (error) {
+        console.error('Error calculating activity priorities:', error);
+        // Keep default order on error
+      }
+    };
+
+    reorderCategories();
+  }, [friend.id]);
 
   // Create animated style once at the top level
   const animatedStyle = useAnimatedStyle(() => ({
@@ -130,7 +158,7 @@ export function PlanWizardStep2({
 
       {/* Category grid */}
       <View className="gap-3">
-        {CATEGORIES.map(category => {
+        {orderedCategories.map(category => {
           const isSelected = selectedCategory === category.value;
           const isSuggested = suggestion?.suggestedCategory === category.value;
           const isJustSelected = selectedKey === category.value;

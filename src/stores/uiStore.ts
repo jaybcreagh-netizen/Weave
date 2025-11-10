@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { type Archetype, type Interaction } from '../components/types';
+import { type Archetype, type Interaction, type InteractionCategory } from '../components/types';
 import { type Milestone } from '../lib/milestone-tracker';
 import { type BadgeUnlock } from '../lib/badge-tracker';
 import { type AchievementUnlockData } from '../lib/achievement-tracker';
@@ -34,6 +34,7 @@ interface UIStore {
   isQuickWeaveClosing: boolean; // Added this
   quickWeaveFriendId: string | null;
   quickWeaveCenterPoint: { x: number; y: number } | null;
+  quickWeaveActivities: InteractionCategory[]; // Smart-ordered activities
   justNurturedFriendId: string | null;
   justLoggedInteractionId: string | null;
   toastData: ToastData | null;
@@ -57,7 +58,7 @@ interface UIStore {
   closeCalendarView: () => void;
   setCalendarSelectedDate: (date: Date | null) => void;
   toggleShowDebugScore: () => void;
-  openQuickWeave: (friendId: string, centerPoint: { x: number; y: number }) => void;
+  openQuickWeave: (friendId: string, centerPoint: { x: number; y: number }, activities: InteractionCategory[]) => void;
   closeQuickWeave: () => void; // Added this
   _finishClosingQuickWeave: () => void;
   setJustNurturedFriendId: (id: string | null) => void;
@@ -94,6 +95,7 @@ export const useUIStore = create<UIStore>((set, get) => ({
   isQuickWeaveClosing: false, // Added this
   quickWeaveFriendId: null,
   quickWeaveCenterPoint: null,
+  quickWeaveActivities: [],
   justNurturedFriendId: null,
   justLoggedInteractionId: null,
   toastData: null,
@@ -125,11 +127,12 @@ export const useUIStore = create<UIStore>((set, get) => ({
   setCalendarSelectedDate: (date) => set({ calendarSelectedDate: date }),
   toggleShowDebugScore: () => set((state) => ({ showDebugScore: !state.showDebugScore })),
   
-  openQuickWeave: (friendId, centerPoint) => set({ 
-    isQuickWeaveOpen: true, 
+  openQuickWeave: (friendId, centerPoint, activities) => set({
+    isQuickWeaveOpen: true,
     isQuickWeaveClosing: false,
-    quickWeaveFriendId: friendId, 
-    quickWeaveCenterPoint: centerPoint 
+    quickWeaveFriendId: friendId,
+    quickWeaveCenterPoint: centerPoint,
+    quickWeaveActivities: activities
   }),
   
   // This just starts the closing animation
@@ -140,6 +143,7 @@ export const useUIStore = create<UIStore>((set, get) => ({
     isQuickWeaveOpen: false,
     quickWeaveFriendId: null,
     quickWeaveCenterPoint: null,
+    quickWeaveActivities: [],
     isQuickWeaveClosing: false,
   }),
   
