@@ -178,35 +178,6 @@ export async function checkSpecialBadges(
     }
   }
 
-  // Midnight Chat (logged after 11pm)
-  const hour = new Date(interaction.interactionDate).getHours();
-  if (hour >= 23 && !(await isBadgeUnlocked(friendId, 'midnight_chat'))) {
-    await awardSpecialBadge(friendId, 'midnight_chat');
-    const badge = getBadgeById('midnight_chat');
-    if (badge) {
-      unlocks.push({
-        badge,
-        categoryType: 'special',
-        friendId,
-        friendName,
-      });
-    }
-  }
-
-  // Early Bird (logged before 7am)
-  if (hour < 7 && !(await isBadgeUnlocked(friendId, 'early_bird'))) {
-    await awardSpecialBadge(friendId, 'early_bird');
-    const badge = getBadgeById('early_bird');
-    if (badge) {
-      unlocks.push({
-        badge,
-        categoryType: 'special',
-        friendId,
-        friendName,
-      });
-    }
-  }
-
   return unlocks;
 }
 

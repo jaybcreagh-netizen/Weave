@@ -249,26 +249,6 @@ export const SPECIAL_BADGES: BadgeDefinition[] = [
     rarity: 'rare',
     flavorText: 'You honor the day you met',
   },
-  {
-    id: 'midnight_chat',
-    name: 'Midnight Chat',
-    icon: '🌙',
-    description: 'Logged a late-night connection (after 11pm)',
-    threshold: 1,
-    tier: 1,
-    rarity: 'rare',
-    flavorText: 'The best conversations happen under moonlight',
-  },
-  {
-    id: 'early_bird',
-    name: 'Early Bird',
-    icon: '🌄',
-    description: 'Logged an early morning hangout (before 7am)',
-    threshold: 1,
-    tier: 1,
-    rarity: 'rare',
-    flavorText: 'You greet the dawn together',
-  },
 ];
 
 // ============================================================================
