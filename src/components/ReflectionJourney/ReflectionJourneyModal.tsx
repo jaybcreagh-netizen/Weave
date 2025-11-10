@@ -6,19 +6,26 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Modal, View, Text, TouchableOpacity, SafeAreaView, ScrollView, ActivityIndicator, TextInput } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
-import { X, Calendar, TrendingUp, Sparkles, ChevronRight, Search, List, Filter } from 'lucide-react-native';
+import { X, Calendar, TrendingUp, Sparkles, ChevronRight, Search, List, Filter, Plus, BookOpen } from 'lucide-react-native';
 import { useTheme } from '../../hooks/useTheme';
 import { database } from '../../db';
 import WeeklyReflection from '../../db/models/WeeklyReflection';
+import JournalEntry from '../../db/models/JournalEntry';
 import { Q } from '@nozbe/watermelondb';
 import { format } from 'date-fns';
 import { STORY_CHIPS } from '../../lib/story-chips';
 import { ReflectionCalendarView } from './ReflectionCalendarView';
 import { ReflectionDetailModal } from './ReflectionDetailModal';
+import { JournalEntryModal } from '../Journal/JournalEntryModal';
 import { getAllReflectionFriends, getFriendsForReflection } from '../../lib/weekly-reflection/reflection-friends';
 import { checkAndScheduleMemoryNudges } from '../../lib/notification-manager';
 import FriendModel from '../../db/models/Friend';
 import * as Haptics from 'expo-haptics';
+
+// Unified type for displaying both weekly reflections and journal entries
+type JournalItem =
+  | { type: 'weekly_reflection'; data: WeeklyReflection; date: number }
+  | { type: 'journal_entry'; data: JournalEntry; date: number };
 
 interface ReflectionJourneyModalProps {
   isOpen: boolean;
@@ -30,6 +37,7 @@ type ViewMode = 'list' | 'calendar';
 export function ReflectionJourneyModal({ isOpen, onClose }: ReflectionJourneyModalProps) {
   const { colors } = useTheme();
   const [reflections, setReflections] = useState<WeeklyReflection[]>([]);
+  const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [streak, setStreak] = useState(0);
   const [totalReflections, setTotalReflections] = useState(0);
@@ -38,27 +46,37 @@ export function ReflectionJourneyModal({ isOpen, onClose }: ReflectionJourneyMod
   const [selectedChipFilter, setSelectedChipFilter] = useState<string | null>(null);
   const [selectedFriendFilter, setSelectedFriendFilter] = useState<string | null>(null);
   const [selectedReflection, setSelectedReflection] = useState<WeeklyReflection | null>(null);
+  const [selectedJournalEntry, setSelectedJournalEntry] = useState<JournalEntry | null>(null);
+  const [isJournalEntryModalOpen, setIsJournalEntryModalOpen] = useState(false);
   const [allFriends, setAllFriends] = useState<FriendModel[]>([]);
   const [reflectionFriendMap, setReflectionFriendMap] = useState<Map<string, string[]>>(new Map());
 
   useEffect(() => {
     if (isOpen) {
-      loadReflections();
+      loadData();
       loadFriends();
       checkAndScheduleMemoryNudges(); // Check for anniversary reflections
     }
   }, [isOpen]);
 
-  const loadReflections = async () => {
+  const loadData = async () => {
     setIsLoading(true);
     try {
+      // Load weekly reflections
       const allReflections = await database
         .get<WeeklyReflection>('weekly_reflections')
         .query(Q.sortBy('week_end_date', Q.desc))
         .fetch();
 
+      // Load journal entries
+      const allJournalEntries = await database
+        .get<JournalEntry>('journal_entries')
+        .query(Q.sortBy('entry_date', Q.desc))
+        .fetch();
+
       setReflections(allReflections);
-      setTotalReflections(allReflections.length);
+      setJournalEntries(allJournalEntries);
+      setTotalReflections(allReflections.length + allJournalEntries.length);
       setStreak(calculateStreak(allReflections));
 
       // Build reflection-to-friends mapping for filtering
@@ -71,7 +89,7 @@ export function ReflectionJourneyModal({ isOpen, onClose }: ReflectionJourneyMod
       );
       setReflectionFriendMap(friendMap);
     } catch (error) {
-      console.error('Error loading reflections:', error);
+      console.error('Error loading data:', error);
     } finally {
       setIsLoading(false);
     }
@@ -117,49 +135,84 @@ export function ReflectionJourneyModal({ isOpen, onClose }: ReflectionJourneyMod
     onClose();
   };
 
-  // Get all unique story chips from reflections for filtering
+  // Get all unique story chips from both reflections and journal entries
   const allChips = useMemo(() => {
     const chipIds = new Set<string>();
     reflections.forEach(r => {
       r.storyChips.forEach(chip => chipIds.add(chip.chipId));
     });
+    journalEntries.forEach(e => {
+      e.storyChips.forEach(chip => chipIds.add(chip.chipId));
+    });
     return Array.from(chipIds)
       .map(chipId => STORY_CHIPS.find(c => c.id === chipId))
       .filter((c): c is typeof STORY_CHIPS[0] => c !== undefined);
-  }, [reflections]);
+  }, [reflections, journalEntries]);
 
-  // Filter reflections based on search, chip filter, and friend filter
-  const filteredReflections = useMemo(() => {
-    return reflections.filter(reflection => {
-      // Search filter (searches gratitude text and chips)
+  // Merge and filter both types of entries
+  const filteredJournalItems = useMemo(() => {
+    // Create unified list
+    const items: JournalItem[] = [
+      ...reflections.map(r => ({
+        type: 'weekly_reflection' as const,
+        data: r,
+        date: r.weekEndDate,
+      })),
+      ...journalEntries.map(e => ({
+        type: 'journal_entry' as const,
+        data: e,
+        date: e.entryDate,
+      })),
+    ];
+
+    // Filter items
+    return items.filter(item => {
+      // Search filter
       if (searchQuery.trim()) {
         const query = searchQuery.toLowerCase();
-        const matchesText = reflection.gratitudeText?.toLowerCase().includes(query);
-        const matchesChips = reflection.storyChips.some(chip => {
-          const chipData = STORY_CHIPS.find(c => c.id === chip.chipId);
-          return chipData?.plainText.toLowerCase().includes(query);
-        });
-        if (!matchesText && !matchesChips) return false;
+        if (item.type === 'weekly_reflection') {
+          const matchesText = item.data.gratitudeText?.toLowerCase().includes(query);
+          const matchesChips = item.data.storyChips.some(chip => {
+            const chipData = STORY_CHIPS.find(c => c.id === chip.chipId);
+            return chipData?.plainText.toLowerCase().includes(query);
+          });
+          if (!matchesText && !matchesChips) return false;
+        } else {
+          const matchesTitle = item.data.title?.toLowerCase().includes(query);
+          const matchesContent = item.data.content.toLowerCase().includes(query);
+          const matchesChips = item.data.storyChips.some(chip => {
+            const chipData = STORY_CHIPS.find(c => c.id === chip.chipId);
+            return chipData?.plainText.toLowerCase().includes(query);
+          });
+          if (!matchesTitle && !matchesContent && !matchesChips) return false;
+        }
       }
 
       // Chip filter
       if (selectedChipFilter) {
-        if (!reflection.storyChips.some(chip => chip.chipId === selectedChipFilter)) {
+        const storyChips = item.type === 'weekly_reflection' ? item.data.storyChips : item.data.storyChips;
+        if (!storyChips.some(chip => chip.chipId === selectedChipFilter)) {
           return false;
         }
       }
 
-      // Friend filter - check if selected friend was contacted during this week
+      // Friend filter
       if (selectedFriendFilter) {
-        const friendIds = reflectionFriendMap.get(reflection.id);
-        if (!friendIds || !friendIds.includes(selectedFriendFilter)) {
-          return false;
+        if (item.type === 'weekly_reflection') {
+          const friendIds = reflectionFriendMap.get(item.data.id);
+          if (!friendIds || !friendIds.includes(selectedFriendFilter)) {
+            return false;
+          }
+        } else {
+          if (!item.data.friendIds.includes(selectedFriendFilter)) {
+            return false;
+          }
         }
       }
 
       return true;
-    });
-  }, [reflections, searchQuery, selectedChipFilter, selectedFriendFilter, reflectionFriendMap]);
+    }).sort((a, b) => b.date - a.date); // Sort by date descending
+  }, [reflections, journalEntries, searchQuery, selectedChipFilter, selectedFriendFilter, reflectionFriendMap]);
 
   return (
     <Modal
@@ -179,9 +232,27 @@ export function ReflectionJourneyModal({ isOpen, onClose }: ReflectionJourneyMod
               className="text-xl font-bold"
               style={{ color: colors.foreground, fontFamily: 'Lora_700Bold' }}
             >
-              Reflection Journey
+              Journal
             </Text>
             <View className="flex-row items-center gap-2">
+              {/* New Entry Button */}
+              <TouchableOpacity
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setSelectedJournalEntry(null);
+                  setIsJournalEntryModalOpen(true);
+                }}
+                className="px-3 py-1.5 rounded-lg flex-row items-center gap-1.5"
+                style={{ backgroundColor: colors.primary }}
+              >
+                <Plus size={16} color={colors['primary-foreground']} />
+                <Text
+                  className="text-sm font-semibold"
+                  style={{ color: colors['primary-foreground'], fontFamily: 'Inter_600SemiBold' }}
+                >
+                  New
+                </Text>
+              </TouchableOpacity>
               {/* View Toggle */}
               <TouchableOpacity
                 onPress={() => {
@@ -417,29 +488,34 @@ export function ReflectionJourneyModal({ isOpen, onClose }: ReflectionJourneyMod
             {/* View Mode: Calendar */}
             {viewMode === 'calendar' ? (
               <ReflectionCalendarView
-                reflections={filteredReflections}
+                reflections={reflections}
                 onReflectionSelect={(reflection) => {
                   setSelectedReflection(reflection);
                 }}
               />
             ) : (
               <>
-            {/* Reflections List */}
-            {filteredReflections.length > 0 ? (
+            {/* Journal List */}
+            {filteredJournalItems.length > 0 ? (
               <View className="mb-4">
                 <Text
                   className="text-base font-semibold mb-3"
                   style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold' }}
                 >
-                  {searchQuery || selectedChipFilter || selectedFriendFilter ? `${filteredReflections.length} Reflection${filteredReflections.length === 1 ? '' : 's'} Found` : 'Past Reflections'}
+                  {searchQuery || selectedChipFilter || selectedFriendFilter ? `${filteredJournalItems.length} Entr${filteredJournalItems.length === 1 ? 'y' : 'ies'} Found` : 'Journal Entries'}
                 </Text>
 
-                {filteredReflections.map((reflection, index) => (
+                {filteredJournalItems.map((item, index) => (
                   <TouchableOpacity
-                    key={reflection.id}
+                    key={`${item.type}-${item.data.id}`}
                     onPress={() => {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      setSelectedReflection(reflection);
+                      if (item.type === 'weekly_reflection') {
+                        setSelectedReflection(item.data);
+                      } else {
+                        setSelectedJournalEntry(item.data);
+                        setIsJournalEntryModalOpen(true);
+                      }
                     }}
                     activeOpacity={0.7}
                   >
@@ -448,23 +524,36 @@ export function ReflectionJourneyModal({ isOpen, onClose }: ReflectionJourneyMod
                       className="mb-3 p-4 rounded-2xl"
                       style={{ backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 }}
                     >
-                    {/* Date Header */}
-                    <View className="flex-row items-center justify-between mb-3">
+                    {item.type === 'weekly_reflection' ? (
+                      <>
+                    {/* Weekly Reflection Card */}
+                    <View className="flex-row items-center gap-2 mb-2">
+                      <View
+                        className="px-2 py-0.5 rounded"
+                        style={{ backgroundColor: colors.secondary + '20' }}
+                      >
+                        <Text
+                          className="text-[10px] font-semibold"
+                          style={{ color: colors.secondary, fontFamily: 'Inter_600SemiBold' }}
+                        >
+                          WEEKLY
+                        </Text>
+                      </View>
                       <Text
-                        className="text-sm font-semibold"
+                        className="text-sm font-semibold flex-1"
                         style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold' }}
                       >
-                        {reflection.getWeekRange()}
+                        {item.data.getWeekRange()}
                       </Text>
                       <Text
                         className="text-xs"
                         style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
                       >
-                        {reflection.getDaysAgo() === 0
+                        {item.data.getDaysAgo() === 0
                           ? 'Today'
-                          : reflection.getDaysAgo() < 7
-                          ? `${reflection.getDaysAgo()}d ago`
-                          : `${Math.floor(reflection.getDaysAgo() / 7)}w ago`}
+                          : item.data.getDaysAgo() < 7
+                          ? `${item.data.getDaysAgo()}d ago`
+                          : `${Math.floor(item.data.getDaysAgo() / 7)}w ago`}
                       </Text>
                     </View>
 
@@ -478,7 +567,7 @@ export function ReflectionJourneyModal({ isOpen, onClose }: ReflectionJourneyMod
                           className="text-xl font-bold mb-0.5"
                           style={{ color: colors.foreground, fontFamily: 'Lora_700Bold' }}
                         >
-                          {reflection.totalWeaves}
+                          {item.data.totalWeaves}
                         </Text>
                         <Text
                           className="text-[10px]"
@@ -496,7 +585,7 @@ export function ReflectionJourneyModal({ isOpen, onClose }: ReflectionJourneyMod
                           className="text-xl font-bold mb-0.5"
                           style={{ color: colors.foreground, fontFamily: 'Lora_700Bold' }}
                         >
-                          {reflection.friendsContacted}
+                          {item.data.friendsContacted}
                         </Text>
                         <Text
                           className="text-[10px]"
@@ -514,7 +603,7 @@ export function ReflectionJourneyModal({ isOpen, onClose }: ReflectionJourneyMod
                           className="text-xl font-bold mb-0.5"
                           style={{ color: colors.foreground, fontFamily: 'Lora_700Bold' }}
                         >
-                          {reflection.missedFriendsCount}
+                          {item.data.missedFriendsCount}
                         </Text>
                         <Text
                           className="text-[10px]"
@@ -526,7 +615,7 @@ export function ReflectionJourneyModal({ isOpen, onClose }: ReflectionJourneyMod
                     </View>
 
                     {/* Top Activity */}
-                    {reflection.topActivity && (
+                    {item.data.topActivity && (
                       <View className="mb-3">
                         <Text
                           className="text-xs mb-1"
@@ -538,13 +627,13 @@ export function ReflectionJourneyModal({ isOpen, onClose }: ReflectionJourneyMod
                           className="text-sm font-medium"
                           style={{ color: colors.foreground, fontFamily: 'Inter_500Medium' }}
                         >
-                          {reflection.topActivity} ({reflection.topActivityCount}×)
+                          {item.data.topActivity} ({item.data.topActivityCount}×)
                         </Text>
                       </View>
                     )}
 
                     {/* Story Chips */}
-                    {reflection.storyChips.length > 0 && (
+                    {item.data.storyChips.length > 0 && (
                       <View className="mb-3">
                         <Text
                           className="text-xs mb-2"
@@ -553,7 +642,7 @@ export function ReflectionJourneyModal({ isOpen, onClose }: ReflectionJourneyMod
                           Week Themes
                         </Text>
                         <View className="flex-row flex-wrap gap-2">
-                          {reflection.storyChips.map((chip, chipIndex) => {
+                          {item.data.storyChips.map((chip, chipIndex) => {
                             const chipData = STORY_CHIPS.find(c => c.id === chip.chipId);
                             if (!chipData) return null;
 
@@ -577,7 +666,7 @@ export function ReflectionJourneyModal({ isOpen, onClose }: ReflectionJourneyMod
                     )}
 
                     {/* Gratitude */}
-                    {reflection.gratitudeText && (
+                    {item.data.gratitudeText && (
                       <View
                         className="p-3 rounded-xl"
                         style={{ backgroundColor: colors.secondary + '10' }}
@@ -595,17 +684,96 @@ export function ReflectionJourneyModal({ isOpen, onClose }: ReflectionJourneyMod
                           className="text-sm italic leading-5"
                           style={{ color: colors.foreground, fontFamily: 'Lora_400Regular' }}
                         >
-                          "{reflection.gratitudeText}"
+                          "{item.data.gratitudeText}"
                         </Text>
-                        {reflection.gratitudePrompt && (
+                        {item.data.gratitudePrompt && (
                           <Text
                             className="text-xs mt-2"
                             style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
                           >
-                            Prompt: {reflection.gratitudePrompt}
+                            Prompt: {item.data.gratitudePrompt}
                           </Text>
                         )}
                       </View>
+                    )}
+                    </>
+                    ) : (
+                      <>
+                    {/* Journal Entry Card */}
+                    <View className="flex-row items-center gap-2 mb-3">
+                      <View
+                        className="px-2 py-0.5 rounded"
+                        style={{ backgroundColor: colors.primary + '20' }}
+                      >
+                        <Text
+                          className="text-[10px] font-semibold"
+                          style={{ color: colors.primary, fontFamily: 'Inter_600SemiBold' }}
+                        >
+                          ENTRY
+                        </Text>
+                      </View>
+                      {item.data.title && (
+                        <Text
+                          className="text-sm font-semibold flex-1"
+                          style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold' }}
+                        >
+                          {item.data.title}
+                        </Text>
+                      )}
+                      <Text
+                        className="text-xs"
+                        style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
+                      >
+                        {item.data.getFormattedDate()}
+                      </Text>
+                    </View>
+
+                    {/* Content Preview */}
+                    <Text
+                      className="text-sm leading-5 mb-3"
+                      style={{ color: colors.foreground, fontFamily: 'Inter_400Regular' }}
+                      numberOfLines={3}
+                    >
+                      {item.data.content}
+                    </Text>
+
+                    {/* Tagged Friends */}
+                    {item.data.friendIds.length > 0 && (
+                      <View className="flex-row items-center gap-2 mb-3">
+                        <Users size={12} color={colors['muted-foreground']} />
+                        <Text
+                          className="text-xs"
+                          style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
+                        >
+                          {item.data.friendIds.length} friend{item.data.friendIds.length > 1 ? 's' : ''} tagged
+                        </Text>
+                      </View>
+                    )}
+
+                    {/* Story Chips */}
+                    {item.data.storyChips.length > 0 && (
+                      <View className="flex-row flex-wrap gap-2">
+                        {item.data.storyChips.map((chip, chipIndex) => {
+                          const chipData = STORY_CHIPS.find(c => c.id === chip.chipId);
+                          if (!chipData) return null;
+                          return (
+                            <View
+                              key={`${chip.chipId}-${chipIndex}`}
+                              className="px-3 py-1 rounded-full"
+                              style={{ backgroundColor: colors.primary + '15' }}
+                            >
+                              <Text
+                                className="text-xs"
+                                style={{ color: colors.primary, fontFamily: 'Inter_400Regular' }}
+                              >
+                                {chipData.plainText}
+                              </Text>
+                            </View>
+                          );
+                        })}
+                      </View>
+                    )}
+                    </>
                     )}
                   </Animated.View>
                   </TouchableOpacity>
@@ -640,8 +808,22 @@ export function ReflectionJourneyModal({ isOpen, onClose }: ReflectionJourneyMod
         isOpen={selectedReflection !== null}
         onClose={() => setSelectedReflection(null)}
         onUpdate={() => {
-          // Reload reflections after update
-          loadReflections();
+          // Reload data after update
+          loadData();
+        }}
+      />
+
+      {/* Journal Entry Create/Edit Modal */}
+      <JournalEntryModal
+        isOpen={isJournalEntryModalOpen}
+        onClose={() => {
+          setIsJournalEntryModalOpen(false);
+          setSelectedJournalEntry(null);
+        }}
+        entry={selectedJournalEntry}
+        onSave={() => {
+          // Reload data after save
+          loadData();
         }}
       />
     </Modal>
