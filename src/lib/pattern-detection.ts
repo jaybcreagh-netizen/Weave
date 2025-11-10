@@ -7,12 +7,14 @@ import { database } from '../db';
 import UserProfile, { BatteryHistoryEntry } from '../db/models/UserProfile';
 import Interaction from '../db/models/Interaction';
 import FriendModel from '../db/models/Friend';
+import WeeklyReflection from '../db/models/WeeklyReflection';
 import { Q } from '@nozbe/watermelondb';
 import { calculateInteractionQuality } from './weave-engine';
+import { STORY_CHIPS, ChipType } from './story-chips';
 
 export interface Pattern {
   id: string;
-  type: 'cyclical' | 'correlation' | 'best_days' | 'consistency' | 'trend' | 'quality_depth' | 'adaptive_decay' | 'archetype_affinity' | 'momentum' | 'reflection';
+  type: 'cyclical' | 'correlation' | 'best_days' | 'consistency' | 'trend' | 'quality_depth' | 'adaptive_decay' | 'archetype_affinity' | 'momentum' | 'reflection' | 'emotional' | 'thematic';
   title: string;
   description: string;
   insight: string;

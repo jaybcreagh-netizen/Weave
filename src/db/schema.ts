@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb'
 
 export default appSchema({
-  version: 23, // UPDATED: Added weekly_reflections, portfolio_snapshots, adaptive decay, badges/achievements
+  version: 24, // UPDATED: Added story_chips to weekly_reflections for qualitative journal insights
   tables: [
     tableSchema({
       name: 'friends',
@@ -213,6 +213,7 @@ export default appSchema({
         { name: 'gratitude_text', type: 'string', isOptional: true },
         { name: 'gratitude_prompt', type: 'string', isOptional: true },
         { name: 'prompt_context', type: 'string', isOptional: true },
+        { name: 'story_chips', type: 'string', isOptional: true }, // JSON: Array of story chip selections
         { name: 'completed_at', type: 'number' },
         { name: 'created_at', type: 'number' },
       ]

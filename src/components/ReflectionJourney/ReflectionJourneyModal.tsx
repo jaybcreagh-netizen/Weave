@@ -3,15 +3,21 @@
  * View past weekly reflections, gratitude entries, and track reflection streak
  */
 
-import React, { useState, useEffect } from 'react';
-import { Modal, View, Text, TouchableOpacity, SafeAreaView, ScrollView, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Modal, View, Text, TouchableOpacity, SafeAreaView, ScrollView, ActivityIndicator, TextInput } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
-import { X, Calendar, TrendingUp, Sparkles, ChevronRight } from 'lucide-react-native';
+import { X, Calendar, TrendingUp, Sparkles, ChevronRight, Search, List, Filter } from 'lucide-react-native';
 import { useTheme } from '../../hooks/useTheme';
 import { database } from '../../db';
 import WeeklyReflection from '../../db/models/WeeklyReflection';
 import { Q } from '@nozbe/watermelondb';
 import { format } from 'date-fns';
+import { STORY_CHIPS } from '../../lib/story-chips';
+import { ReflectionCalendarView } from './ReflectionCalendarView';
+import { ReflectionDetailModal } from './ReflectionDetailModal';
+import { getAllReflectionFriends, getFriendsForReflection } from '../../lib/weekly-reflection/reflection-friends';
+import { checkAndScheduleMemoryNudges } from '../../lib/notification-manager';
+import FriendModel from '../../db/models/Friend';
 import * as Haptics from 'expo-haptics';
 
 interface ReflectionJourneyModalProps {
@@ -19,16 +25,27 @@ interface ReflectionJourneyModalProps {
   onClose: () => void;
 }
 
+type ViewMode = 'list' | 'calendar';
+
 export function ReflectionJourneyModal({ isOpen, onClose }: ReflectionJourneyModalProps) {
   const { colors } = useTheme();
   const [reflections, setReflections] = useState<WeeklyReflection[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [streak, setStreak] = useState(0);
   const [totalReflections, setTotalReflections] = useState(0);
+  const [viewMode, setViewMode] = useState<ViewMode>('list');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedChipFilter, setSelectedChipFilter] = useState<string | null>(null);
+  const [selectedFriendFilter, setSelectedFriendFilter] = useState<string | null>(null);
+  const [selectedReflection, setSelectedReflection] = useState<WeeklyReflection | null>(null);
+  const [allFriends, setAllFriends] = useState<FriendModel[]>([]);
+  const [reflectionFriendMap, setReflectionFriendMap] = useState<Map<string, string[]>>(new Map());
 
   useEffect(() => {
     if (isOpen) {
       loadReflections();
+      loadFriends();
+      checkAndScheduleMemoryNudges(); // Check for anniversary reflections
     }
   }, [isOpen]);
 
@@ -43,10 +60,29 @@ export function ReflectionJourneyModal({ isOpen, onClose }: ReflectionJourneyMod
       setReflections(allReflections);
       setTotalReflections(allReflections.length);
       setStreak(calculateStreak(allReflections));
+
+      // Build reflection-to-friends mapping for filtering
+      const friendMap = new Map<string, string[]>();
+      await Promise.all(
+        allReflections.map(async (reflection) => {
+          const friends = await getFriendsForReflection(reflection);
+          friendMap.set(reflection.id, friends.map(f => f.friend.id));
+        })
+      );
+      setReflectionFriendMap(friendMap);
     } catch (error) {
       console.error('Error loading reflections:', error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const loadFriends = async () => {
+    try {
+      const friends = await getAllReflectionFriends();
+      setAllFriends(friends);
+    } catch (error) {
+      console.error('Error loading friends:', error);
     }
   };
 
@@ -81,6 +117,50 @@ export function ReflectionJourneyModal({ isOpen, onClose }: ReflectionJourneyMod
     onClose();
   };
 
+  // Get all unique story chips from reflections for filtering
+  const allChips = useMemo(() => {
+    const chipIds = new Set<string>();
+    reflections.forEach(r => {
+      r.storyChips.forEach(chip => chipIds.add(chip.chipId));
+    });
+    return Array.from(chipIds)
+      .map(chipId => STORY_CHIPS.find(c => c.id === chipId))
+      .filter((c): c is typeof STORY_CHIPS[0] => c !== undefined);
+  }, [reflections]);
+
+  // Filter reflections based on search, chip filter, and friend filter
+  const filteredReflections = useMemo(() => {
+    return reflections.filter(reflection => {
+      // Search filter (searches gratitude text and chips)
+      if (searchQuery.trim()) {
+        const query = searchQuery.toLowerCase();
+        const matchesText = reflection.gratitudeText?.toLowerCase().includes(query);
+        const matchesChips = reflection.storyChips.some(chip => {
+          const chipData = STORY_CHIPS.find(c => c.id === chip.chipId);
+          return chipData?.plainText.toLowerCase().includes(query);
+        });
+        if (!matchesText && !matchesChips) return false;
+      }
+
+      // Chip filter
+      if (selectedChipFilter) {
+        if (!reflection.storyChips.some(chip => chip.chipId === selectedChipFilter)) {
+          return false;
+        }
+      }
+
+      // Friend filter - check if selected friend was contacted during this week
+      if (selectedFriendFilter) {
+        const friendIds = reflectionFriendMap.get(reflection.id);
+        if (!friendIds || !friendIds.includes(selectedFriendFilter)) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [reflections, searchQuery, selectedChipFilter, selectedFriendFilter, reflectionFriendMap]);
+
   return (
     <Modal
       visible={isOpen}
@@ -91,21 +171,179 @@ export function ReflectionJourneyModal({ isOpen, onClose }: ReflectionJourneyMod
       <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
         {/* Header */}
         <View
-          className="flex-row items-center justify-between px-5 py-4"
+          className="px-5 py-4"
           style={{ borderBottomWidth: 1, borderBottomColor: colors.border }}
         >
-          <View className="flex-1">
+          <View className="flex-row items-center justify-between mb-3">
             <Text
               className="text-xl font-bold"
               style={{ color: colors.foreground, fontFamily: 'Lora_700Bold' }}
             >
               Reflection Journey
             </Text>
+            <View className="flex-row items-center gap-2">
+              {/* View Toggle */}
+              <TouchableOpacity
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setViewMode(viewMode === 'list' ? 'calendar' : 'list');
+                }}
+                className="p-2"
+              >
+                {viewMode === 'list' ? (
+                  <Calendar size={20} color={colors.foreground} />
+                ) : (
+                  <List size={20} color={colors.foreground} />
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity onPress={handleClose} className="p-2">
+                <X size={24} color={colors['muted-foreground']} />
+              </TouchableOpacity>
+            </View>
           </View>
 
-          <TouchableOpacity onPress={handleClose} className="p-2 -mr-2">
-            <X size={24} color={colors['muted-foreground']} />
-          </TouchableOpacity>
+          {/* Search Bar */}
+          <View
+            className="flex-row items-center px-3 py-2 rounded-xl mb-3"
+            style={{ backgroundColor: colors.muted }}
+          >
+            <Search size={16} color={colors['muted-foreground']} />
+            <TextInput
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder="Search reflections..."
+              placeholderTextColor={colors['muted-foreground']}
+              className="flex-1 ml-2 text-sm"
+              style={{ color: colors.foreground, fontFamily: 'Inter_400Regular' }}
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery('')}>
+                <X size={16} color={colors['muted-foreground']} />
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* Filter Chips */}
+          {allChips.length > 0 && (
+            <View className="mb-2">
+              <Text
+                className="text-xs mb-2"
+                style={{ color: colors['muted-foreground'], fontFamily: 'Inter_500Medium' }}
+              >
+                Filter by Theme
+              </Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                className="flex-row gap-2"
+              >
+                <TouchableOpacity
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setSelectedChipFilter(null);
+                  }}
+                  className="px-3 py-1.5 rounded-full"
+                  style={{
+                    backgroundColor: !selectedChipFilter ? colors.primary : colors.muted,
+                  }}
+                >
+                  <Text
+                    className="text-xs"
+                    style={{
+                      color: !selectedChipFilter ? colors['primary-foreground'] : colors['muted-foreground'],
+                      fontFamily: 'Inter_500Medium',
+                    }}
+                  >
+                    All Themes
+                  </Text>
+                </TouchableOpacity>
+                {allChips.map(chip => (
+                  <TouchableOpacity
+                    key={chip.id}
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      setSelectedChipFilter(selectedChipFilter === chip.id ? null : chip.id);
+                    }}
+                    className="px-3 py-1.5 rounded-full"
+                    style={{
+                      backgroundColor: selectedChipFilter === chip.id ? colors.primary : colors.muted,
+                    }}
+                  >
+                    <Text
+                      className="text-xs"
+                      style={{
+                        color: selectedChipFilter === chip.id ? colors['primary-foreground'] : colors['muted-foreground'],
+                        fontFamily: 'Inter_500Medium',
+                      }}
+                    >
+                      {chip.plainText}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          )}
+
+          {/* Filter by Friends */}
+          {allFriends.length > 0 && (
+            <View>
+              <Text
+                className="text-xs mb-2"
+                style={{ color: colors['muted-foreground'], fontFamily: 'Inter_500Medium' }}
+              >
+                Filter by Friend
+              </Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                className="flex-row gap-2"
+              >
+                <TouchableOpacity
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setSelectedFriendFilter(null);
+                  }}
+                  className="px-3 py-1.5 rounded-full"
+                  style={{
+                    backgroundColor: !selectedFriendFilter ? colors.primary : colors.muted,
+                  }}
+                >
+                  <Text
+                    className="text-xs"
+                    style={{
+                      color: !selectedFriendFilter ? colors['primary-foreground'] : colors['muted-foreground'],
+                      fontFamily: 'Inter_500Medium',
+                    }}
+                  >
+                    All Friends
+                  </Text>
+                </TouchableOpacity>
+                {allFriends.map(friend => (
+                  <TouchableOpacity
+                    key={friend.id}
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      setSelectedFriendFilter(selectedFriendFilter === friend.id ? null : friend.id);
+                    }}
+                    className="px-3 py-1.5 rounded-full"
+                    style={{
+                      backgroundColor: selectedFriendFilter === friend.id ? colors.primary : colors.muted,
+                    }}
+                  >
+                    <Text
+                      className="text-xs"
+                      style={{
+                        color: selectedFriendFilter === friend.id ? colors['primary-foreground'] : colors['muted-foreground'],
+                        fontFamily: 'Inter_500Medium',
+                      }}
+                    >
+                      {friend.name}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          )}
         </View>
 
         {/* Content */}
@@ -176,23 +414,40 @@ export function ReflectionJourneyModal({ isOpen, onClose }: ReflectionJourneyMod
               </Animated.View>
             </View>
 
+            {/* View Mode: Calendar */}
+            {viewMode === 'calendar' ? (
+              <ReflectionCalendarView
+                reflections={filteredReflections}
+                onReflectionSelect={(reflection) => {
+                  setSelectedReflection(reflection);
+                }}
+              />
+            ) : (
+              <>
             {/* Reflections List */}
-            {reflections.length > 0 ? (
+            {filteredReflections.length > 0 ? (
               <View className="mb-4">
                 <Text
                   className="text-base font-semibold mb-3"
                   style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold' }}
                 >
-                  Past Reflections
+                  {searchQuery || selectedChipFilter || selectedFriendFilter ? `${filteredReflections.length} Reflection${filteredReflections.length === 1 ? '' : 's'} Found` : 'Past Reflections'}
                 </Text>
 
-                {reflections.map((reflection, index) => (
-                  <Animated.View
+                {filteredReflections.map((reflection, index) => (
+                  <TouchableOpacity
                     key={reflection.id}
-                    entering={FadeIn.delay(200 + index * 50)}
-                    className="mb-3 p-4 rounded-2xl"
-                    style={{ backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 }}
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      setSelectedReflection(reflection);
+                    }}
+                    activeOpacity={0.7}
                   >
+                    <Animated.View
+                      entering={FadeIn.delay(200 + index * 50)}
+                      className="mb-3 p-4 rounded-2xl"
+                      style={{ backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 }}
+                    >
                     {/* Date Header */}
                     <View className="flex-row items-center justify-between mb-3">
                       <Text
@@ -288,6 +543,39 @@ export function ReflectionJourneyModal({ isOpen, onClose }: ReflectionJourneyMod
                       </View>
                     )}
 
+                    {/* Story Chips */}
+                    {reflection.storyChips.length > 0 && (
+                      <View className="mb-3">
+                        <Text
+                          className="text-xs mb-2"
+                          style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
+                        >
+                          Week Themes
+                        </Text>
+                        <View className="flex-row flex-wrap gap-2">
+                          {reflection.storyChips.map((chip, chipIndex) => {
+                            const chipData = STORY_CHIPS.find(c => c.id === chip.chipId);
+                            if (!chipData) return null;
+
+                            return (
+                              <View
+                                key={`${chip.chipId}-${chipIndex}`}
+                                className="px-3 py-1.5 rounded-full"
+                                style={{ backgroundColor: colors.primary + '15' }}
+                              >
+                                <Text
+                                  className="text-xs"
+                                  style={{ color: colors.primary, fontFamily: 'Inter_400Regular' }}
+                                >
+                                  {chipData.plainText}
+                                </Text>
+                              </View>
+                            );
+                          })}
+                        </View>
+                      </View>
+                    )}
+
                     {/* Gratitude */}
                     {reflection.gratitudeText && (
                       <View
@@ -320,6 +608,7 @@ export function ReflectionJourneyModal({ isOpen, onClose }: ReflectionJourneyMod
                       </View>
                     )}
                   </Animated.View>
+                  </TouchableOpacity>
                 ))}
               </View>
             ) : (
@@ -339,9 +628,22 @@ export function ReflectionJourneyModal({ isOpen, onClose }: ReflectionJourneyMod
                 </Text>
               </View>
             )}
+            </>
+            )}
           </ScrollView>
         )}
       </SafeAreaView>
+
+      {/* Reflection Detail/Edit Modal */}
+      <ReflectionDetailModal
+        reflection={selectedReflection}
+        isOpen={selectedReflection !== null}
+        onClose={() => setSelectedReflection(null)}
+        onUpdate={() => {
+          // Reload reflections after update
+          loadReflections();
+        }}
+      />
     </Modal>
   );
 }

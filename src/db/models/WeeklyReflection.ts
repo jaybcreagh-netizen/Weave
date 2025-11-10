@@ -24,10 +24,25 @@ export default class WeeklyReflection extends Model {
   @text('gratitude_text') gratitudeText?: string; // User's gratitude journal entry
   @text('gratitude_prompt') gratitudePrompt?: string; // The prompt they responded to
   @text('prompt_context') promptContext?: string; // Why this prompt was chosen
+  @text('story_chips') storyChipsRaw?: string; // JSON: Array of story chip selections
 
   // Metadata
   @readonly @date('created_at') createdAt!: Date;
   @date('completed_at') completedAt!: Date; // When user completed reflection
+
+  // Story chips getter/setter
+  get storyChips(): Array<{ chipId: string; customText?: string }> {
+    if (!this.storyChipsRaw) return [];
+    try {
+      return JSON.parse(this.storyChipsRaw);
+    } catch {
+      return [];
+    }
+  }
+
+  set storyChips(chips: Array<{ chipId: string; customText?: string }>) {
+    this.storyChipsRaw = JSON.stringify(chips);
+  }
 
   // Helper to check if this is the current week
   isCurrentWeek(): boolean {
