@@ -5,22 +5,31 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, Dimensions, TouchableOpacity } from 'react-native';
+import { View, Text, ScrollView, Dimensions, TouchableOpacity, Modal, Pressable } from 'react-native';
 import Svg, { Circle, Line, Text as SvgText, G, Path, Rect, Defs, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
+import Animated, { FadeIn, FadeInDown, SlideInRight } from 'react-native-reanimated';
 import { database } from '../../db';
 import { Q } from '@nozbe/watermelondb';
 import FriendModel from '../../db/models/Friend';
 import InteractionModel from '../../db/models/Interaction';
 import { getYearMoonData, getYearStats } from '../../lib/year-in-moons-data';
 import { usePortfolio } from '../../hooks/usePortfolio';
-import { TrendingUp, TrendingDown, Minus } from 'lucide-react-native';
+import { TrendingUp, TrendingDown, Minus, X } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 
 const { width: screenWidth } = Dimensions.get('window');
 
 interface GraphsTabContentProps {
   year?: number;
+}
+
+interface TooltipData {
+  visible: boolean;
+  type: 'heatmap' | 'donut' | 'tier' | 'rhythm' | 'friend' | null;
+  data: any;
+  position?: { x: number; y: number };
 }
 
 export function GraphsTabContent({ year = new Date().getFullYear() }: GraphsTabContentProps) {
@@ -31,6 +40,7 @@ export function GraphsTabContent({ year = new Date().getFullYear() }: GraphsTabC
   const [batteryWeaveData, setBatteryWeaveData] = useState<Array<{ date: Date; battery: number; weaves: number }>>([]);
   const [heatmapData, setHeatmapData] = useState<Array<{ date: Date; count: number }>>([]);
   const { portfolio } = usePortfolio();
+  const [tooltip, setTooltip] = useState<TooltipData>({ visible: false, type: null, data: null });
 
   useEffect(() => {
     loadGraphData();
