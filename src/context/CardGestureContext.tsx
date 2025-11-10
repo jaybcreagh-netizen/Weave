@@ -147,9 +147,16 @@ function useCardGestureCoordinator(): CardGestureContextType {
     }, 200);
   };
 
-  const handleTap = (friendId: string) => {
+  const handleTap = async (friendId: string) => {
     setSelectedFriendId(friendId);
-    router.push(`/friend-profile?friendId=${friendId}`);
+
+    // Check if friend has Unknown archetype - if so, go to edit form
+    const friend = await database.get<Friend>(Friend.table).find(friendId);
+    if (friend && friend.archetype === 'Unknown') {
+      router.push(`/edit-friend?friendId=${friendId}`);
+    } else {
+      router.push(`/friend-profile?friendId=${friendId}`);
+    }
   };
 
   const handleOpenQuickWeave = async (friendId: string, centerPoint: { x: number; y: number }) => {
