@@ -10,7 +10,7 @@ import { useInteractionStore } from '../stores/interactionStore';
 import { database } from '../db';
 import Friend from '../db/models/Friend';
 import { type InteractionCategory } from '../components/types';
-import { getTopActivities } from '../lib/smart-defaults';
+import { getTopActivities, isSmartDefaultsEnabled } from '../lib/smart-defaults';
 
 const MENU_RADIUS = 75; // Reduced for compact design
 const HIGHLIGHT_THRESHOLD = 25; // Reduced from 30
@@ -154,17 +154,21 @@ function useCardGestureCoordinator(): CardGestureContextType {
 
   const handleOpenQuickWeave = async (friendId: string, centerPoint: { x: number; y: number }) => {
     try {
-      // Fetch friend and calculate smart-ordered activities
-      const friend = await database.get<Friend>(Friend.table).find(friendId);
-      const orderedActivities = await getTopActivities(friend, 6);
+      // Check if smart defaults are enabled
+      const smartDefaultsEnabled = await isSmartDefaultsEnabled();
 
-      // Map to the fixed ACTIVITIES format with metadata
-      const activityMetadata = ACTIVITIES.map(a => ({ id: a.id, icon: a.icon, label: a.label }));
-      const orderedActivityData = orderedActivities
-        .map(category => activityMetadata.find(a => a.id === category))
-        .filter(Boolean) as typeof ACTIVITIES;
+      let orderedActivities: InteractionCategory[];
 
-      // Open Quick Weave with smart-ordered activities
+      if (smartDefaultsEnabled) {
+        // Fetch friend and calculate smart-ordered activities
+        const friend = await database.get<Friend>(Friend.table).find(friendId);
+        orderedActivities = await getTopActivities(friend, 6);
+      } else {
+        // Use fixed default ordering for muscle memory
+        orderedActivities = ACTIVITIES.map(a => a.id as InteractionCategory);
+      }
+
+      // Open Quick Weave with ordered activities
       openQuickWeave(friendId, centerPoint, orderedActivities);
     } catch (error) {
       console.error('Error opening Quick Weave:', error);

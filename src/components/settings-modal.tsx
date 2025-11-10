@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, View, Text, TouchableOpacity, Switch, Alert, ScrollView, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { X, Moon, Sun, Palette, RefreshCw, Bug, BarChart3, Battery, Calendar as CalendarIcon, ChevronRight, Bell, Clock, Trophy } from 'lucide-react-native';
+import { X, Moon, Sun, Palette, RefreshCw, Bug, BarChart3, Battery, Calendar as CalendarIcon, ChevronRight, Bell, Clock, Trophy, Sparkles } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming, runOnJS } from 'react-native-reanimated';
@@ -114,6 +114,9 @@ export function SettingsModal({
   const [notificationFrequency, setNotificationFrequency] = useState<'light' | 'moderate' | 'proactive'>('moderate');
   const [respectBattery, setRespectBattery] = useState(true);
 
+  // Smart defaults preference
+  const [smartDefaultsEnabled, setSmartDefaultsEnabled] = useState(true);
+
   // Trophy Cabinet state
   const [showTrophyCabinet, setShowTrophyCabinet] = useState(false);
 
@@ -164,6 +167,10 @@ export function SettingsModal({
     // Load smart notifications enabled state
     const smartEnabledStr = await AsyncStorage.getItem('@weave:smart_notifications_enabled');
     setSmartNotificationsEnabled(smartEnabledStr ? JSON.parse(smartEnabledStr) : true);
+
+    // Load smart defaults enabled state
+    const smartDefaultsStr = await AsyncStorage.getItem('@weave:smart_defaults_enabled');
+    setSmartDefaultsEnabled(smartDefaultsStr ? JSON.parse(smartDefaultsStr) : true);
   };
 
   const handleToggleCalendar = async (enabled: boolean) => {
@@ -259,6 +266,11 @@ export function SettingsModal({
   const handleToggleSmartNotifications = async (enabled: boolean) => {
     setSmartNotificationsEnabled(enabled);
     await AsyncStorage.setItem('@weave:smart_notifications_enabled', JSON.stringify(enabled));
+  };
+
+  const handleToggleSmartDefaults = async (enabled: boolean) => {
+    setSmartDefaultsEnabled(enabled);
+    await AsyncStorage.setItem('@weave:smart_defaults_enabled', JSON.stringify(enabled));
   };
 
   const handleChangeFrequency = async (frequency: 'light' | 'moderate' | 'proactive') => {
@@ -390,6 +402,30 @@ export function SettingsModal({
                 thumbColor={colors.card}
               />
             </View>
+
+            <View className="border-t border-border my-2" style={{ borderColor: colors.border }} />
+
+            <View className="flex-row items-center justify-between">
+              <View className="flex-row items-center gap-3">
+                <View className="w-10 h-10 rounded-lg items-center justify-center" style={{ backgroundColor: colors.muted }}>
+                  <Sparkles color={colors.foreground} size={20} />
+                </View>
+                <View className="flex-1">
+                  <Text className="text-base font-inter-medium" style={{ color: colors.foreground }}>Smart Activity Ordering</Text>
+                  <Text className="text-sm font-inter-regular" style={{ color: colors['muted-foreground'] }}>
+                    Reorder activities by time of day & context
+                  </Text>
+                </View>
+              </View>
+              <Switch
+                value={smartDefaultsEnabled}
+                onValueChange={handleToggleSmartDefaults}
+                trackColor={{ false: colors.muted, true: colors.primary }}
+                thumbColor={colors.card}
+              />
+            </View>
+
+            <View className="border-t border-border my-2" style={{ borderColor: colors.border }} />
 
             {onOpenBatteryCheckIn && (
               <TouchableOpacity

@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { database } from '../db';
 import Interaction from '../db/models/Interaction';
 import FriendModel from '../db/models/Friend';
@@ -20,6 +21,19 @@ export interface ActivityPriority {
   category: InteractionCategory;
   score: number;
   reasons: string[]; // Debug: why this scored high
+}
+
+/**
+ * Check if smart defaults are enabled in settings
+ */
+export async function isSmartDefaultsEnabled(): Promise<boolean> {
+  try {
+    const value = await AsyncStorage.getItem('@weave:smart_defaults_enabled');
+    return value ? JSON.parse(value) : true; // Default to enabled
+  } catch (error) {
+    console.error('Error checking smart defaults setting:', error);
+    return true; // Default to enabled on error
+  }
 }
 
 /**

@@ -7,7 +7,7 @@ import { useTheme } from '../../hooks/useTheme';
 import { type InteractionCategory } from '../types';
 import FriendModel from '../../db/models/Friend';
 import { PlanSuggestion } from '../../hooks/usePlanSuggestion';
-import { calculateActivityPriorities } from '../../lib/smart-defaults';
+import { calculateActivityPriorities, isSmartDefaultsEnabled } from '../../lib/smart-defaults';
 
 interface PlanWizardStep2Props {
   selectedCategory?: InteractionCategory;
@@ -51,6 +51,16 @@ export function PlanWizardStep2({
   useEffect(() => {
     const reorderCategories = async () => {
       try {
+        // Check if smart defaults are enabled
+        const smartDefaultsEnabled = await isSmartDefaultsEnabled();
+
+        if (!smartDefaultsEnabled) {
+          // Use fixed default order for muscle memory
+          setOrderedCategories(CATEGORIES);
+          return;
+        }
+
+        // Calculate smart priorities
         const priorities = await calculateActivityPriorities(friend);
 
         // Create a map of category to priority score
