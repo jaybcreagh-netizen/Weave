@@ -43,6 +43,7 @@ export interface SuggestionInput {
     createdAt: Date;
     birthday?: Date;
     anniversary?: Date;
+    relationshipType?: string;
   };
   currentScore: number;
   lastInteractionDate?: Date;

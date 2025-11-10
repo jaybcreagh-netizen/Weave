@@ -212,6 +212,7 @@ export function useSuggestions() {
             createdAt: friend.createdAt,
             birthday: friend.birthday,
             anniversary: friend.anniversary,
+            relationshipType: friend.relationshipType,
           },
           currentScore,
           lastInteractionDate: lastInteraction?.interactionDate,

@@ -174,7 +174,7 @@ async function checkUpcomingLifeEvent(friend: SuggestionInput['friend']): Promis
 
     // Validate that we have a valid date
     if (isNaN(anniversaryThisYear.getTime())) {
-      console.warn('Invalid anniversary date for friend:', friend.id);
+      console.warn('[Anniversary Check] Invalid anniversary date for friend:', friend.id, friend.anniversary);
       return null;
     }
 
@@ -187,15 +187,27 @@ async function checkUpcomingLifeEvent(friend: SuggestionInput['friend']): Promis
 
     const daysUntil = differenceInDays(anniversaryThisYear, today);
 
+    console.log('[Anniversary Check]', {
+      friendName: friend.name,
+      originalDate: friend.anniversary,
+      thisYearDate: anniversaryThisYear.toISOString(),
+      today: today.toISOString(),
+      daysUntil,
+      relationshipType: friend.relationshipType,
+    });
+
     // Extra validation check
     if (isNaN(daysUntil)) {
-      console.warn('Invalid daysUntil calculation for anniversary:', friend.id);
+      console.warn('[Anniversary Check] Invalid daysUntil calculation for anniversary:', friend.id);
       return null;
     }
 
     if (daysUntil >= 0 && daysUntil <= 14) {
+      console.log('[Anniversary Check] Returning anniversary suggestion for', friend.name, 'in', daysUntil, 'days');
       return { type: 'anniversary', daysUntil, importance: 'medium' };
     }
+
+    console.log('[Anniversary Check] Anniversary not within 14 days, skipping');
   }
 
   return null;
@@ -432,7 +444,7 @@ export function generateSuggestion(input: SuggestionInput): Suggestion | null {
   // PRIORITY 2: Upcoming life event (birthday within 7 days, anniversary within 14 days)
   if (lifeEvent) {
     const eventIcon = lifeEvent.type === 'birthday' ? '🎂' : '💝';
-    const eventLabel = lifeEvent.type === 'birthday' ? 'birthday' : 'friendship anniversary';
+    const eventLabel = lifeEvent.type === 'birthday' ? 'birthday' : 'anniversary';
 
     return {
       id: `life-event-${friend.id}-${lifeEvent.type}`,
