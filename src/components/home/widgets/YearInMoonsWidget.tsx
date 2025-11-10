@@ -10,7 +10,7 @@ import { useTheme } from '../../../hooks/useTheme';
 import { HomeWidgetBase, HomeWidgetConfig } from '../HomeWidgetBase';
 import { MoonPhaseIllustration } from '../../YearInMoons/MoonPhaseIllustration';
 import { YearInMoonsModal } from '../../YearInMoons/YearInMoonsModal';
-import { WeeklyReflectionModal } from '../../WeeklyReflection/WeeklyReflectionModal';
+import { ReflectionJourneyModal } from '../../ReflectionJourney/ReflectionJourneyModal';
 import {
   getYearMoonData,
   getYearStats,
@@ -37,7 +37,7 @@ export const YearInMoonsWidget: React.FC = () => {
   });
   const [isLoading, setIsLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
-  const [showReflection, setShowReflection] = useState(false);
+  const [showJournal, setShowJournal] = useState(false);
 
   const screenWidth = Dimensions.get('window').width;
   const moonSize = Math.floor((screenWidth - 120) / 7); // 7 moons per row with padding
@@ -215,7 +215,7 @@ export const YearInMoonsWidget: React.FC = () => {
               <TouchableOpacity
                 onPress={(e) => {
                   e.stopPropagation();
-                  setShowReflection(true);
+                  setShowJournal(true);
                 }}
                 className="flex-1 py-2 px-3 rounded-lg flex-row items-center justify-center gap-1.5"
                 style={{ backgroundColor: colors.primary }}
@@ -257,9 +257,9 @@ export const YearInMoonsWidget: React.FC = () => {
         onClose={() => setShowModal(false)}
       />
 
-      <WeeklyReflectionModal
-        isOpen={showReflection}
-        onClose={() => setShowReflection(false)}
+      <ReflectionJourneyModal
+        isOpen={showJournal}
+        onClose={() => setShowJournal(false)}
       />
     </>
   );
