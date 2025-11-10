@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb'
 
 export default appSchema({
-  version: 23, // UPDATED: Added interaction_outcomes table for feedback learning
+  version: 24, // UPDATED: Added event_importance to interactions for event multiplier
   tables: [
     tableSchema({
       name: 'friends',
@@ -57,6 +57,8 @@ export default appSchema({
         { name: 'completion_prompted_at', type: 'number', isOptional: true },
         // v18: Calendar integration
         { name: 'calendar_event_id', type: 'string', isOptional: true },
+        // v24: Event importance for special occasions
+        { name: 'event_importance', type: 'string', isOptional: true }, // low, medium, high, critical
       ]
     }),
     tableSchema({

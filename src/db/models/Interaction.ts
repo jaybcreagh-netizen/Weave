@@ -42,6 +42,9 @@ export default class Interaction extends Model {
   // v18: Calendar integration
   @text('calendar_event_id') calendarEventId?: string
 
+  // v24: Event importance for special occasions
+  @field('event_importance') eventImportance?: string // 'low' | 'medium' | 'high' | 'critical'
+
   // Getter for parsed reflection
   get reflection(): StructuredReflection | undefined {
     if (!this.reflectionJSON) return undefined

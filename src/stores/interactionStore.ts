@@ -49,6 +49,8 @@ export interface InteractionFormData {
   // v17: Custom title and location
   title?: string;
   location?: string;
+  // v24: Event importance for special occasions
+  eventImportance?: 'low' | 'medium' | 'high' | 'critical';
 }
 
 interface InteractionStore {

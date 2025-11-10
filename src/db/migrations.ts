@@ -67,6 +67,10 @@ import { schemaMigrations, addColumns, createTable } from '@nozbe/watermelondb/S
  * - Add category_effectiveness, outcome_count to friends table
  * - Add interaction_outcomes table for feedback learning
  * - Enables interaction success feedback loop and adaptive scoring
+ *
+ * Migration from v23 to v24:
+ * - Add event_importance to interactions table
+ * - Enables event multiplier for special occasions and life events
  */
 export default schemaMigrations({
   migrations: [
@@ -347,6 +351,18 @@ export default schemaMigrations({
             { name: 'interaction_date', type: 'number' },
             { name: 'measured_at', type: 'number' },
             { name: 'created_at', type: 'number' },
+          ],
+        }),
+      ],
+    },
+    {
+      // Migration from schema v23 to v24
+      toVersion: 24,
+      steps: [
+        addColumns({
+          table: 'interactions',
+          columns: [
+            { name: 'event_importance', type: 'string', isOptional: true },
           ],
         }),
       ],
