@@ -461,9 +461,9 @@ function TierHealthRings({ portfolio }: { portfolio: any }) {
   });
 
   const tierColors: Record<string, string> = {
-    InnerCircle: '#7A7EAF',
-    CloseFriends: '#5A5E8F',
-    Community: '#4A4E6F',
+    InnerCircle: '#A56A43', // Warm brown - closest connections
+    CloseFriends: '#E58A57', // Friendly orange - important bonds
+    Community: '#6C8EAD',    // Calm blue - wider community
   };
 
   const tierLabels: Record<string, string> = {
