@@ -49,6 +49,7 @@ export function FriendListRow({ friend, animatedRef, variant = 'default' }: Frie
   const [statusLine, setStatusLine] = useState<{ text: string; icon?: string }>({
     text: archetypeData[archetype]?.essence || ''
   });
+  const [imageError, setImageError] = useState(false);
   const { colors, isDarkMode } = useTheme();
   const { setArchetypeModal, justNurturedFriendId, setJustNurturedFriendId } = useUIStore();
   const { activeCardId } = useCardGesture();
@@ -80,6 +81,11 @@ export function FriendListRow({ friend, animatedRef, variant = 'default' }: Frie
   const glowProgress = useSharedValue(0);
   const pressScale = useSharedValue(1);
   const pressOpacity = useSharedValue(gradientOpacity);
+
+  // Reset image error state when photoUrl changes
+  useEffect(() => {
+    setImageError(false);
+  }, [photoUrl]);
 
   // Update intelligent status line
   useEffect(() => {
@@ -190,10 +196,12 @@ export function FriendListRow({ friend, animatedRef, variant = 'default' }: Frie
               borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
             }}
           >
-            {photoUrl ? (
+            {photoUrl && !imageError ? (
               <Image
                 source={{ uri: photoUrl }}
                 className="w-full h-full"
+                resizeMode="cover"
+                onError={() => setImageError(true)}
               />
             ) : (
               <Text

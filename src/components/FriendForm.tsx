@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, TextInput, ScrollView, Image, Platform, StyleSheet } from 'react-native';
 import { ArrowLeft, Camera, X, Calendar, Heart } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
@@ -42,6 +42,12 @@ export function FriendForm({ onSave, friend, initialTier }: FriendFormProps) {
 
   const [showBirthdayPicker, setShowBirthdayPicker] = useState(false);
   const [showAnniversaryPicker, setShowAnniversaryPicker] = useState(false);
+  const [imageError, setImageError] = useState(false);
+
+  // Reset image error when friend changes or photoUrl updates
+  useEffect(() => {
+    setImageError(false);
+  }, [friend?.id, formData.photoUrl]);
 
   const handleSave = () => {
     if (formData.name.trim()) {
@@ -70,6 +76,7 @@ export function FriendForm({ onSave, friend, initialTier }: FriendFormProps) {
 
     if (!result.canceled) {
       setFormData({ ...formData, photoUrl: result.assets[0].uri });
+      setImageError(false); // Reset error state when new image is picked
     }
   };
 
@@ -97,8 +104,13 @@ export function FriendForm({ onSave, friend, initialTier }: FriendFormProps) {
             <View style={styles.imagePickerContainer}>
               <TouchableOpacity onPress={pickImage}>
                 <View style={[styles.avatarContainer, { backgroundColor: colors.muted, borderColor: colors.border }]}>
-                  {formData.photoUrl ? (
-                    <Image source={{ uri: formData.photoUrl }} style={styles.avatarImage} />
+                  {formData.photoUrl && !imageError ? (
+                    <Image
+                      source={{ uri: formData.photoUrl }}
+                      style={styles.avatarImage}
+                      resizeMode="cover"
+                      onError={() => setImageError(true)}
+                    />
                   ) : (
                     <Camera size={24} color={colors['muted-foreground']} />
                   )}
