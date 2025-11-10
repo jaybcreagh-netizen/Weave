@@ -95,6 +95,10 @@ export const SocialBatterySheet: React.FC<SocialBatterySheetProps> = ({
     } else {
       sheetTranslateY.value = withTiming(600, { duration: 250 });
       backdropOpacity.value = withTiming(0, { duration: 250 });
+      // Reset state after modal is closed
+      setTimeout(() => {
+        resetState();
+      }, 300);
     }
   }, [isVisible]);
 
@@ -107,13 +111,13 @@ export const SocialBatterySheet: React.FC<SocialBatterySheetProps> = ({
   const handleSubmit = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     onSubmit(batteryLevel, note || undefined);
-    resetState();
+    // Don't reset state here - it will reset when modal closes
   };
 
   const handleDismiss = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     onDismiss();
-    resetState();
+    // Don't reset state here - it will reset when modal closes
   };
 
   const resetState = () => {

@@ -3,7 +3,6 @@ import { View, Text, TouchableOpacity, Modal, ScrollView, SafeAreaView } from 'r
 import Animated, { SlideInLeft, SlideInRight, SlideOutLeft, SlideOutRight } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
 import { X, ArrowLeft } from 'lucide-react-native';
-import { useActivityKeepAwake } from '../hooks/useActivityKeepAwake';
 import { useTheme } from '../hooks/useTheme';
 import FriendModel from '../db/models/Friend';
 import { type InteractionCategory } from './types';
@@ -45,7 +44,6 @@ export function PlanWizard({ visible, onClose, initialFriend, prefillData, repla
   const { colors, isDarkMode } = useTheme();
   const { addInteraction, deleteInteraction } = useInteractionStore();
   const suggestion = usePlanSuggestion(initialFriend);
-  const resetActivityTimer = useActivityKeepAwake('plan-wizard');
 
   const [currentStep, setCurrentStep] = useState(1); // Start from step 1
   const [direction, setDirection] = useState<'forward' | 'backward'>('forward');

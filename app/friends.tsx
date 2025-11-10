@@ -94,6 +94,8 @@ function DashboardContent() {
     React.useCallback(() => {
       // Reset activeCardId when screen gains focus to prevent stuck scales
       activeCardId.value = null;
+      // Increment refresh key to force friend list re-render (fixes tier changes not updating)
+      setRefreshKey(prev => prev + 1);
       return () => {
         // Also reset when leaving the screen
         activeCardId.value = null;
@@ -115,8 +117,8 @@ function DashboardContent() {
       const tier = friend.dunbarTier === "InnerCircle" ? "inner" : friend.dunbarTier === "CloseFriends" ? "close" : "community";
       acc[tier].push(friend);
       return acc;
-    }, { inner: [], close: [], community: [] });
-  }, [allFriends]);
+    }, { inner: [], close: [], community: [] } as Record<'inner' | 'close' | 'community', FriendModel[]>);
+  }, [allFriends, allFriends.map(f => f.dunbarTier).join(',')]);  // Add tier dependency
 
   const [activeTier, setActiveTier] = React.useState<'inner' | 'close' | 'community'>('inner');
   const scrollViewRef = React.useRef<ScrollView>(null);

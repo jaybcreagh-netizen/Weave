@@ -111,6 +111,15 @@ export const useUserProfileStore = create<UserProfileStore>((set, get) => ({
         p.socialBatteryHistoryRaw = JSON.stringify(recentHistory);
       });
     });
+
+    // Trigger smart notification evaluation after battery check-in
+    // This is a good time since user is engaged and we have fresh battery data
+    try {
+      const { evaluateAndScheduleSmartNotifications } = await import('../lib/smart-notification-scheduler');
+      await evaluateAndScheduleSmartNotifications();
+    } catch (error) {
+      console.error('Error evaluating smart notifications after battery check-in:', error);
+    }
   },
 
   updateBatteryPreferences: async (enabled: boolean, time?: string) => {

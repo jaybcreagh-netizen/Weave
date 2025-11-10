@@ -1,13 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { formatDistanceToNow } from 'date-fns';
 import { Q } from '@nozbe/watermelondb';
+import { Trash2 } from 'lucide-react-native';
 import { useTheme } from '../hooks/useTheme';
 import { getCategoryMetadata } from '../lib/interaction-categories';
 import Intention from '../db/models/Intention';
 import FriendModel from '../db/models/Friend';
 import { InteractionCategory } from './types';
 import { database } from '../db';
+import { useIntentionStore } from '../stores/intentionStore';
 
 interface IntentionWithFriend {
   intention: Intention;
@@ -26,6 +28,14 @@ interface IntentionsListProps {
 export function IntentionsList({ intentions, onIntentionPress }: IntentionsListProps) {
   const { colors } = useTheme();
   const [intentionsWithFriends, setIntentionsWithFriends] = useState<IntentionWithFriend[]>([]);
+  const { clearAllIntentions, cleanupOrphanedIntentions } = useIntentionStore();
+
+  // Clean up orphaned intentions on mount
+  useEffect(() => {
+    cleanupOrphanedIntentions().catch(error => {
+      console.error('Error cleaning orphaned intentions:', error);
+    });
+  }, []);
 
   // Load friend data for each intention
   useEffect(() => {
@@ -59,16 +69,43 @@ export function IntentionsList({ intentions, onIntentionPress }: IntentionsListP
     }
   }, [intentions]);
 
+  const handleClearAll = () => {
+    Alert.alert(
+      'Clear All Intentions',
+      'Are you sure you want to dismiss all active intentions?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Clear All',
+          style: 'destructive',
+          onPress: async () => {
+            await clearAllIntentions();
+          },
+        },
+      ]
+    );
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: colors.muted + '40', borderColor: colors.border }]}>
       <View style={styles.header}>
-        <Text style={[styles.headerTitle, { color: colors.foreground }]}>🌱 Connection Intentions</Text>
-        <Text style={[styles.headerCount, { color: colors['muted-foreground'] }]}>
-          {intentions.length}
-        </Text>
+        <View style={styles.headerLeft}>
+          <Text style={[styles.headerTitle, { color: colors.foreground }]}>🌱 Connection Intentions</Text>
+          <Text style={[styles.headerCount, { color: colors['muted-foreground'] }]}>
+            {intentionsWithFriends.length}
+          </Text>
+        </View>
+        {intentionsWithFriends.length > 0 && (
+          <TouchableOpacity onPress={handleClearAll} style={styles.clearButton}>
+            <Trash2 size={18} color={colors['muted-foreground']} />
+          </TouchableOpacity>
+        )}
       </View>
 
-      {intentions.length === 0 ? (
+      {intentionsWithFriends.length === 0 ? (
         <Text style={[styles.emptyText, { color: colors['muted-foreground'] }]}>
           No intentions set yet
         </Text>
@@ -128,6 +165,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 12,
   },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   headerTitle: {
     fontSize: 16,
     fontWeight: '600',
@@ -136,6 +178,9 @@ const styles = StyleSheet.create({
   headerCount: {
     fontSize: 14,
     fontWeight: '500',
+  },
+  clearButton: {
+    padding: 4,
   },
   emptyText: {
     fontSize: 14,

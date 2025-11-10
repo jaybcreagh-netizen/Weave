@@ -317,6 +317,7 @@ export function YearInMoonsModal({ isOpen, onClose }: YearInMoonsModalProps) {
                               phase={day.moonPhase}
                               size={moonSize - 8}
                               hasCheckin={day.hasCheckin}
+                              batteryLevel={day.batteryLevel}
                             />
                             {/* Day number */}
                             <Text
@@ -386,6 +387,7 @@ export function YearInMoonsModal({ isOpen, onClose }: YearInMoonsModalProps) {
                   phase={selectedDay.moonPhase}
                   size={80}
                   hasCheckin={selectedDay.hasCheckin}
+                  batteryLevel={selectedDay.batteryLevel}
                 />
               </View>
 

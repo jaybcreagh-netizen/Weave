@@ -11,6 +11,7 @@ interface MoonPhaseIllustrationProps {
   phase: number; // 0-1 (0 = new moon/dark, 1 = full moon/bright)
   size?: number;
   hasCheckin?: boolean;
+  batteryLevel?: number | null; // 1-5, if provided directly (avoids round-trip conversion)
 }
 
 // Battery level moon emojis (matching SocialBatterySheet)
@@ -25,7 +26,8 @@ const MOON_EMOJIS = {
 export function MoonPhaseIllustration({
   phase,
   size = 40,
-  hasCheckin = true
+  hasCheckin = true,
+  batteryLevel: providedBatteryLevel
 }: MoonPhaseIllustrationProps) {
   // If no check-in, show a faint new moon
   if (!hasCheckin) {
@@ -36,9 +38,17 @@ export function MoonPhaseIllustration({
     );
   }
 
-  // Convert phase (0-1) to battery level (1-5)
-  const batteryLevel = Math.max(1, Math.min(5, Math.round(phase * 5) || 1)) as 1 | 2 | 3 | 4 | 5;
-  const emoji = MOON_EMOJIS[batteryLevel];
+  // Use provided battery level if available, otherwise convert from phase
+  let level: 1 | 2 | 3 | 4 | 5;
+  if (providedBatteryLevel !== null && providedBatteryLevel !== undefined) {
+    level = Math.max(1, Math.min(5, Math.round(providedBatteryLevel))) as 1 | 2 | 3 | 4 | 5;
+  } else {
+    // Convert phase (0-1) to battery level (1-5)
+    // Need to use ceiling for proper rounding: 0.25 should map to 2, not 1
+    level = Math.max(1, Math.min(5, Math.ceil(phase * 5) || 1)) as 1 | 2 | 3 | 4 | 5;
+  }
+
+  const emoji = MOON_EMOJIS[level];
 
   return (
     <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>

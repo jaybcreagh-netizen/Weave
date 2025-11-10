@@ -72,6 +72,14 @@ export default function RootLayout() {
     console.log('[App] State changed to:', state);
     if (state === 'active') {
       console.log('[App] App is active - resuming operations');
+
+      // Trigger smart notification evaluation when app comes to foreground
+      // This runs async in the background without blocking the UI
+      import('../src/lib/smart-notification-scheduler').then(({ evaluateAndScheduleSmartNotifications }) => {
+        evaluateAndScheduleSmartNotifications().catch((error) => {
+          console.error('[App] Error evaluating smart notifications on foreground:', error);
+        });
+      });
     } else if (state === 'background') {
       console.log('[App] App went to background - pausing heavy operations');
     }

@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, TextInput, ScrollView, Keyboard, TouchableWithoutFeedback, Vibration, Modal } from 'react-native';
-import { useActivityKeepAwake } from '../src/hooks/useActivityKeepAwake';
 import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInUp, useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
@@ -28,7 +27,6 @@ const dateOptions = [
 ];
 
 export default function WeaveLoggerScreen() {
-  const resetActivityTimer = useActivityKeepAwake('weave-logger');
   const router = useRouter();
   const { friendId } = useLocalSearchParams<{ friendId: string }>();
   const { addInteraction } = useInteractionStore();
