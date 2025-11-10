@@ -1,5 +1,5 @@
 export type Tier = 'InnerCircle' | 'CloseFriends' | 'Community';
-export type Archetype = 'Emperor' | 'Empress' | 'HighPriestess' | 'Fool' | 'Sun' | 'Hermit' | 'Magician' | 'Lovers';
+export type Archetype = 'Emperor' | 'Empress' | 'HighPriestess' | 'Fool' | 'Sun' | 'Hermit' | 'Magician' | 'Lovers' | 'Unknown';
 
 // Relationship types for understanding friend context
 // Note: Closeness is handled by Dunbar tiers, these describe the nature of the relationship

@@ -150,6 +150,15 @@ export const ArchetypeMatrixV2: Record<Archetype, Record<InteractionType, number
     'Voice Note': 1.3, 'Movie Night': 1.4, Cooking: 1.7, 'Tea Time': 1.9, 'Reading Together': 1.6,
     Hike: 1.0, Concert: 0.7, Museum: 1.2, Shopping: 1.1, Adventure: 0.9,
   },
+  // Unknown archetype - neutral multipliers for batch-added friends awaiting archetype assignment
+  Unknown: {
+    Event: 1.0, Meal: 1.0, Home: 1.0, Coffee: 1.0, Call: 1.0, Text: 1.0,
+    Walk: 1.0, Chat: 1.0, 'Video Call': 1.0, 'Something else': 1.0, Party: 1.0,
+    'Dinner Party': 1.0, Hangout: 1.0, 'Game Night': 1.0, Birthday: 1.0, Anniversary: 1.0,
+    Milestone: 1.0, Holiday: 1.0, Achievement: 1.0, DM: 1.0, 'Quick Visit': 1.0,
+    'Voice Note': 1.0, 'Movie Night': 1.0, Cooking: 1.0, 'Tea Time': 1.0, 'Reading Together': 1.0,
+    Hike: 1.0, Concert: 1.0, Museum: 1.0, Shopping: 1.0, Adventure: 1.0,
+  },
 };
 
 // NEW: Simplified archetype multipliers for 8 universal categories
@@ -250,6 +259,18 @@ export const CategoryArchetypeMatrix: Record<Archetype, Record<InteractionCatego
     'favor-support': 1.7,    // High - reciprocal care and support
     'celebration': 1.5,      // Good - celebrating relationship milestones
   },
+  // Unknown archetype - neutral multipliers for batch-added friends awaiting archetype assignment
+  Unknown: {
+    'text-call': 1.0,
+    'voice-note': 1.0,
+    'meal-drink': 1.0,
+    'hangout': 1.0,
+    'deep-talk': 1.0,
+    'event-party': 1.0,
+    'activity-hobby': 1.0,
+    'favor-support': 1.0,
+    'celebration': 1.0,
+  },
 };
 
 export const archetypeData: Record<Archetype, { name: string; essence: string; careStyle: string; icon: string; }> = {
@@ -261,6 +282,7 @@ export const archetypeData: Record<Archetype, { name: string; essence: string; c
     Hermit: { icon: "🏮", name: "The Hermit", essence: "The Guardian of Solitude", careStyle: "In patience, in the glow of stillness." },
     Magician: { icon: "⚡", name: "The Magician", essence: "The Spark of Possibility", careStyle: "At thresholds, where sparks leap into being." },
     Lovers: { icon: "💞", name: "The Lovers", essence: "The Mirror of Connection", careStyle: "In reciprocal dialogue, in the beauty of a mirrored soul." },
+    Unknown: { icon: "❓", name: "Unknown", essence: "Awaiting Discovery", careStyle: "A connection yet to be defined." },
 };
 
 export const tierMap: Record<string, Tier> = {
@@ -284,6 +306,7 @@ export const archetypeIcons: Record<Archetype, string> = {
   Hermit: "🏮",
   Magician: "⚡",
   Lovers: "💞",
+  Unknown: "❓",
 };
 
 export const modeIcons: Record<string, string> = {
