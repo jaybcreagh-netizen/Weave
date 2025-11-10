@@ -203,7 +203,7 @@ export function useSuggestions() {
           daysSinceInteraction: Math.round(daysSinceInteraction),
         });
 
-        const suggestion = generateSuggestion({
+        const suggestion = await generateSuggestion({
           friend: {
             id: friend.id,
             name: friend.name,

@@ -220,7 +220,7 @@ async function generateSmartSuggestions(): Promise<Suggestion[]> {
         (Date.now() - friend.momentumLastUpdated.getTime()) / 86400000;
       const momentumScore = Math.max(0, friend.momentumScore - daysSinceMomentumUpdate);
 
-      const suggestion = generateSuggestion({
+      const suggestion = await generateSuggestion({
         friend: {
           id: friend.id,
           name: friend.name,
@@ -229,6 +229,7 @@ async function generateSmartSuggestions(): Promise<Suggestion[]> {
           createdAt: friend.createdAt,
           birthday: friend.birthday,
           anniversary: friend.anniversary,
+          relationshipType: friend.relationshipType,
         },
         currentScore,
         lastInteractionDate: lastInteraction?.interactionDate,

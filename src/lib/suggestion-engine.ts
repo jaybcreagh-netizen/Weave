@@ -149,6 +149,8 @@ async function checkUpcomingLifeEvent(friend: SuggestionInput['friend']): Promis
   }
 
   // Fallback to legacy birthday/anniversary checks from Friend model
+  console.log('[Friend Field Check]', friend.name, '- birthday:', !!friend.birthday, 'anniversary:', !!friend.anniversary, 'relationshipType:', friend.relationshipType);
+
   // Check birthday (within 7 days)
   if (friend.birthday) {
     const birthdayThisYear = new Date(friend.birthday);
@@ -432,7 +434,7 @@ function getContextualSuggestion(
  * occurred (interactionDate <= now). Planned/future interactions should never be included
  * in recentInteractions as they cannot be reflected upon or used for pattern analysis.
  */
-export function generateSuggestion(input: SuggestionInput): Suggestion | null {
+export async function generateSuggestion(input: SuggestionInput): Promise<Suggestion | null> {
   const { friend, currentScore, lastInteractionDate, interactionCount, momentumScore, recentInteractions } = input;
 
   // Analyze friendship pattern from interaction history
@@ -446,7 +448,7 @@ export function generateSuggestion(input: SuggestionInput): Suggestion | null {
   );
 
   // Check for upcoming life event (used in multiple priorities)
-  const lifeEvent = checkUpcomingLifeEvent(friend);
+  const lifeEvent = await checkUpcomingLifeEvent(friend);
 
   // PRIORITY 1: Reflect on recent interaction (only past, completed interactions)
   const recentReflectSuggestion = checkReflectSuggestion(friend, recentInteractions);
