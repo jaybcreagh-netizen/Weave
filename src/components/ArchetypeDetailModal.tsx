@@ -54,7 +54,7 @@ export function ArchetypeDetailModal() {
         >
           <TouchableOpacity activeOpacity={1} className="w-[85%] max-w-[400px] max-h-[80%]">
             <View
-              className="w-full rounded-3xl"
+              className="w-full rounded-3xl p-6"
               style={{
                 backgroundColor: colors.card,
                 shadowColor: '#000',
@@ -72,9 +72,8 @@ export function ArchetypeDetailModal() {
               </TouchableOpacity>
 
               <ScrollView
-                className="px-8 py-6"
                 showsVerticalScrollIndicator={false}
-                contentContainerStyle={{ alignItems: 'center' }}
+                contentContainerStyle={{ alignItems: 'center', paddingHorizontal: 16, paddingBottom: 20 }}
               >
                 <View
                   className="mb-4 mt-2"
@@ -123,7 +122,7 @@ export function ArchetypeDetailModal() {
                 </Text>
 
                 <Text
-                  className="font-inter-regular text-[14px] leading-[20px] mb-4"
+                  className="font-inter-regular text-[14px] leading-[20px]"
                   style={{ color: colors['muted-foreground'] }}
                 >
                   {data.careStyle}
