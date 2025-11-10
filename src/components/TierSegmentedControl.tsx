@@ -134,7 +134,7 @@ export function TierSegmentedControl({
             <Pressable
               key={tier}
               onPress={() => handlePress(tier)}
-              className="flex-1 items-center justify-center flex-row gap-1.5"
+              className="flex-1 items-center justify-center flex-row gap-1"
               style={({ pressed }) => ({
                 transform: [{ scale: pressed ? 0.98 : 1 }],
               })}
@@ -147,15 +147,26 @@ export function TierSegmentedControl({
                   opacity: isActive ? 0.9 : 0.4,
                 }}
               />
-              <Text
-                className="text-sm font-semibold"
-                style={{
-                  color: isActive ? activeTextColor : inactiveTextColor,
-                  opacity: isActive ? 1 : 0.7,
-                }}
-              >
-                {TIER_LABELS[tier]} ({counts[tier]}/{TIER_MAX[tier]})
-              </Text>
+              <View className="flex-row items-baseline gap-1">
+                <Text
+                  className="text-xs font-semibold"
+                  style={{
+                    color: isActive ? activeTextColor : inactiveTextColor,
+                    opacity: isActive ? 1 : 0.7,
+                  }}
+                >
+                  {TIER_LABELS[tier]}
+                </Text>
+                <Text
+                  className="text-[10px] font-medium"
+                  style={{
+                    color: isActive ? activeTextColor : inactiveTextColor,
+                    opacity: isActive ? 0.5 : 0.4,
+                  }}
+                >
+                  {counts[tier]}/{TIER_MAX[tier]}
+                </Text>
+              </View>
             </Pressable>
           );
         })}
