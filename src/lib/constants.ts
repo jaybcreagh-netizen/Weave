@@ -141,6 +141,15 @@ export const ArchetypeMatrixV2: Record<Archetype, Record<InteractionType, number
     'Voice Note': 1.1, 'Movie Night': 1.0, Cooking: 1.5, 'Tea Time': 1.3, 'Reading Together': 1.2,
     Hike: 1.5, Concert: 1.7, Museum: 1.6, Shopping: 1.0, Adventure: 1.8,
   },
+  // The Lovers values harmony, reciprocal dialogue, and the beauty of mirrored connection.
+  Lovers: {
+    Event: 0.9, Meal: 1.5, Home: 1.6, Coffee: 1.5, Call: 1.9, Text: 1.2,
+    Walk: 1.8, Chat: 2.0, 'Video Call': 1.9, 'Something else': 1.0, Party: 0.8,
+    'Dinner Party': 1.8, Hangout: 1.5, 'Game Night': 1.3, Birthday: 1.4, Anniversary: 2.0,
+    Milestone: 1.1, Holiday: 1.0, Achievement: 1.1, DM: 1.2, 'Quick Visit': 1.0,
+    'Voice Note': 1.3, 'Movie Night': 1.4, Cooking: 1.7, 'Tea Time': 1.9, 'Reading Together': 1.6,
+    Hike: 1.0, Concert: 0.7, Museum: 1.2, Shopping: 1.1, Adventure: 0.9,
+  },
 };
 
 // NEW: Simplified archetype multipliers for 8 universal categories
@@ -229,6 +238,18 @@ export const CategoryArchetypeMatrix: Record<Archetype, Record<InteractionCatego
     'favor-support': 1.5,    // Good - enjoys helping solve problems
     'celebration': 1.7,      // High - enjoys meaningful milestones
   },
+  // The Lovers values harmony, reciprocal dialogue, and the beauty of mirrored connection.
+  Lovers: {
+    'text-call': 1.5,        // Good - maintaining connection
+    'voice-note': 1.4,       // Good - thoughtful exchanges
+    'meal-drink': 1.8,       // High - shared meals for dialogue
+    'hangout': 1.6,          // High - quality time together
+    'deep-talk': 2.0,        // Peak - reciprocal dialogue is the sweet spot
+    'event-party': 0.9,      // Low - too many people, less intimate
+    'activity-hobby': 1.5,   // Good - building we-ness through shared activities
+    'favor-support': 1.7,    // High - reciprocal care and support
+    'celebration': 1.5,      // Good - celebrating relationship milestones
+  },
 };
 
 export const archetypeData: Record<Archetype, { name: string; essence: string; careStyle: string; icon: string; }> = {
@@ -239,6 +260,7 @@ export const archetypeData: Record<Archetype, { name: string; essence: string; c
     Sun: { icon: "☀️", name: "The Sun", essence: "The Bringer of Joy", careStyle: "In celebration, in the radiance of being seen." },
     Hermit: { icon: "🏮", name: "The Hermit", essence: "The Guardian of Solitude", careStyle: "In patience, in the glow of stillness." },
     Magician: { icon: "⚡", name: "The Magician", essence: "The Spark of Possibility", careStyle: "At thresholds, where sparks leap into being." },
+    Lovers: { icon: "💞", name: "The Lovers", essence: "The Mirror of Connection", careStyle: "In reciprocal dialogue, in the beauty of a mirrored soul." },
 };
 
 export const tierMap: Record<string, Tier> = {
@@ -261,6 +283,7 @@ export const archetypeIcons: Record<Archetype, string> = {
   Sun: "☀️",
   Hermit: "🏮",
   Magician: "⚡",
+  Lovers: "💞",
 };
 
 export const modeIcons: Record<string, string> = {
