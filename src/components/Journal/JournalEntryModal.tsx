@@ -23,6 +23,7 @@ import { Q } from '@nozbe/watermelondb';
 import { STORY_CHIPS } from '../../lib/story-chips';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as Haptics from 'expo-haptics';
+import { YourPatternsSection } from '../YourPatternsSection';
 
 interface JournalEntryModalProps {
   isOpen: boolean;
@@ -325,6 +326,18 @@ export function JournalEntryModal({ isOpen, onClose, entry, onSave }: JournalEnt
               </Text>
             )}
           </View>
+
+          {/* Your Patterns */}
+          {!isEditMode && (
+            <View className="mb-6">
+              <YourPatternsSection
+                onCustomChipCreated={() => {
+                  // Reload patterns when a custom chip is created
+                  console.log('Custom chip created');
+                }}
+              />
+            </View>
+          )}
 
           {/* Story Chips (Optional) */}
           <View className="mb-4">

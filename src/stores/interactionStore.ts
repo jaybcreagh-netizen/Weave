@@ -11,6 +11,7 @@ import { analyzeAndTagLifeEvents } from '../lib/life-event-detection';
 import { useUIStore } from './uiStore';
 import { deleteWeaveCalendarEvent, updateWeaveCalendarEvent, getCalendarSettings } from '../lib/calendar-service';
 import { getCategoryMetadata } from '../lib/interaction-categories';
+import { recordReflectionChips } from '../lib/adaptive-chips';
 
 /**
  * Single reflection chip/sentence
@@ -79,10 +80,18 @@ export const useInteractionStore = create<InteractionStore>(() => ({
       // 2. Pass the full form data to the engine. The engine is the expert.
       const { interactionId, badgeUnlocks, achievementUnlocks } = await logNewWeave(friends, data, database);
 
-      // 3. Record practice (updates streak) and check for milestone unlocks
+      // 3. Record chip usage for adaptive suggestions (if reflection chips exist)
+      if (data.reflection?.chips && data.reflection.chips.length > 0) {
+        const friendId = friends.length === 1 ? friends[0].id : undefined;
+        await recordReflectionChips(data.reflection.chips, interactionId, friendId).catch(error => {
+          console.error('Error recording chip usage:', error);
+        });
+      }
+
+      // 4. Record practice (updates streak) and check for milestone unlocks
       const newMilestoneIds = await recordPractice('log_weave', interactionId);
 
-      // 4. If a new milestone was unlocked, show celebration
+      // 5. If a new milestone was unlocked, show celebration
       if (newMilestoneIds.length > 0) {
         const milestone = CONSISTENCY_MILESTONES.find(m => m.id === newMilestoneIds[0]);
         if (milestone) {
@@ -90,7 +99,7 @@ export const useInteractionStore = create<InteractionStore>(() => ({
         }
       }
 
-      // 5. If reflection data exists, record it for depth tracking
+      // 6. If reflection data exists, record it for depth tracking
       if (data.vibe || (data.notes && data.notes.trim().length > 0) || data.reflection) {
         const depthMilestoneIds = await recordReflection();
 
@@ -106,7 +115,7 @@ export const useInteractionStore = create<InteractionStore>(() => ({
         }
       }
 
-      // 6. Queue badge and achievement unlock celebrations
+      // 7. Queue badge and achievement unlock celebrations
       // Badge unlocks are shown first, then achievements
       if (badgeUnlocks.length > 0) {
         useUIStore.getState().queueBadgeUnlocks(badgeUnlocks);
@@ -115,7 +124,7 @@ export const useInteractionStore = create<InteractionStore>(() => ({
         useUIStore.getState().queueAchievementUnlocks(achievementUnlocks);
       }
 
-      // 7. Analyze notes/reflections for life events and auto-tag
+      // 8. Analyze notes/reflections for life events and auto-tag
       if (data.notes && data.notes.trim().length > 0) {
         // Run life event detection for each friend
         for (const friend of friends) {
@@ -163,6 +172,20 @@ export const useInteractionStore = create<InteractionStore>(() => ({
         });
       }
     });
+
+    // Record chip usage for adaptive suggestions
+    if (reflection.chips && reflection.chips.length > 0) {
+      // Get friend ID from interaction
+      const interactionFriends = await database
+        .get<InteractionFriend>('interaction_friends')
+        .query(Q.where('interaction_id', interactionId))
+        .fetch();
+
+      const friendId = interactionFriends.length === 1 ? interactionFriends[0].friendId : undefined;
+      await recordReflectionChips(reflection.chips, interactionId, friendId).catch(error => {
+        console.error('Error recording chip usage:', error);
+      });
+    }
   },
   updateInteractionCategory: async (interactionId: string, category: InteractionCategory) => {
     await database.write(async () => {
@@ -287,6 +310,19 @@ export const useInteractionStore = create<InteractionStore>(() => ({
         }
       });
     });
+
+    // Record chip usage if reflection was updated
+    if (updates.reflection?.chips && updates.reflection.chips.length > 0) {
+      const interactionFriends = await database
+        .get<InteractionFriend>('interaction_friends')
+        .query(Q.where('interaction_id', interactionId))
+        .fetch();
+
+      const friendId = interactionFriends.length === 1 ? interactionFriends[0].friendId : undefined;
+      await recordReflectionChips(updates.reflection.chips, interactionId, friendId).catch(error => {
+        console.error('Error recording chip usage:', error);
+      });
+    }
 
     // Update calendar event if this is a planned interaction with a calendar event
     if (calendarEventId && isPlanned) {

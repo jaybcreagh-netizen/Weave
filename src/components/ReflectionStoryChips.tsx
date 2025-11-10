@@ -1,38 +1,71 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { getChipsForType, getChipTypeLabel, type StoryChip, type ChipType } from '../lib/story-chips';
-import { type InteractionCategory, type Archetype, type Vibe } from './types';
+import { type InteractionCategory, type Archetype, type Vibe, type Tier } from './types';
 import { useTheme } from '../hooks/useTheme';
+import { getChipFrequencyScores, getCustomChipsAsStoryChips } from '../lib/adaptive-chips';
 
 interface ReflectionStoryChipsProps {
   chipType: ChipType;
   category: InteractionCategory;
   archetype?: Archetype;
   vibe?: Vibe | null;
+  tier?: Tier; // For tier-aware filtering
+  interactionCount?: number; // Total interactions with friend (for history awareness)
+  daysSinceLastInteraction?: number; // For reconnection context
   onChipSelect: (chip: StoryChip) => void;
 }
 
 /**
  * Displays horizontally scrollable chips for a specific chip type
- * Filtered by context (category, archetype, vibe)
+ * Filtered by smart context (category, archetype, vibe, tier, history, frequency)
  */
 export function ReflectionStoryChips({
   chipType,
   category,
   archetype,
   vibe,
+  tier,
+  interactionCount,
+  daysSinceLastInteraction,
   onChipSelect,
 }: ReflectionStoryChipsProps) {
   const { colors } = useTheme();
+  const [frequencyScores, setFrequencyScores] = useState<Record<string, number>>({});
+  const [customChips, setCustomChips] = useState<StoryChip[]>([]);
 
-  const chips = getChipsForType(chipType, {
+  // Load frequency scores and custom chips on mount
+  useEffect(() => {
+    const loadAdaptiveData = async () => {
+      try {
+        const [scores, custom] = await Promise.all([
+          getChipFrequencyScores(),
+          getCustomChipsAsStoryChips(),
+        ]);
+        setFrequencyScores(scores);
+        setCustomChips(custom.filter(c => c.type === chipType));
+      } catch (error) {
+        console.error('Error loading adaptive chip data:', error);
+      }
+    };
+    loadAdaptiveData();
+  }, [chipType]);
+
+  const standardChips = getChipsForType(chipType, {
     category,
     archetype,
     vibe: vibe || undefined,
+    tier,
+    interactionCount,
+    daysSinceLastInteraction,
+    frequencyScores,
   });
 
-  if (chips.length === 0) {
+  // Combine standard and custom chips
+  const allChips = [...standardChips, ...customChips];
+
+  if (allChips.length === 0) {
     return null;
   }
 
@@ -47,7 +80,7 @@ export function ReflectionStoryChips({
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        {chips.map((chip, index) => (
+        {allChips.map((chip, index) => (
           <Animated.View
             key={chip.id}
             entering={FadeIn.duration(300).delay(index * 50)}
