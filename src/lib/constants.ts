@@ -252,15 +252,63 @@ export const CategoryArchetypeMatrix: Record<Archetype, Record<InteractionCatego
   },
 };
 
-export const archetypeData: Record<Archetype, { name: string; essence: string; careStyle: string; icon: string; }> = {
-    Emperor: { icon: "👑", name: "The Emperor", essence: "The Architect of Order", careStyle: "A promise honored, a plan fulfilled." },
-    Empress: { icon: "🌹", name: "The Empress", essence: "The Nurturer of Comfort", careStyle: "Where care flows, where beauty is made." },
-    HighPriestess: { icon: "🌙", name: "The High Priestess", essence: "The Keeper of Depth", careStyle: "In quiet corners, in the truths beneath words." },
-    Fool: { icon: "🃏", name: "The Fool", essence: "The Spirit of Play", careStyle: "With laughter, with a door left open." },
-    Sun: { icon: "☀️", name: "The Sun", essence: "The Bringer of Joy", careStyle: "In celebration, in the radiance of being seen." },
-    Hermit: { icon: "🏮", name: "The Hermit", essence: "The Guardian of Solitude", careStyle: "In patience, in the glow of stillness." },
-    Magician: { icon: "⚡", name: "The Magician", essence: "The Spark of Possibility", careStyle: "At thresholds, where sparks leap into being." },
-    Lovers: { icon: "💞", name: "The Lovers", essence: "The Mirror of Connection", careStyle: "In reciprocal dialogue, in the beauty of a mirrored soul." },
+export const archetypeData: Record<Archetype, { name: string; essence: string; description: string; careStyle: string; icon: string; }> = {
+    Emperor: {
+        icon: "👑",
+        name: "The Emperor",
+        essence: "The Architect of Order",
+        description: "Emperors are structured, reliable friends who value consistency and follow-through. They appreciate plans, commitments, and organized social structures. They're the friend who remembers your milestones and shows up exactly when they say they will.",
+        careStyle: "Emperors thrive on planned events, structured activities, and commitments honored. Schedule regular catch-ups, celebrate milestones together, and show respect for their time. They value quality one-on-one time and appreciate when you follow through on your promises. Activities like dinner parties, planned outings, or working toward shared goals strengthen your bond."
+    },
+    Empress: {
+        icon: "🌹",
+        name: "The Empress",
+        essence: "The Nurturer of Comfort",
+        description: "Empresses are warm, nurturing friends who create comfort and beauty in their relationships. They show care through acts of service like cooking, hosting, or creating cozy spaces. They're the friend who makes you feel at home and notices when you need care.",
+        careStyle: "Empresses connect through sensory experiences and acts of care. Share meals together, cook for each other, or create beautiful moments. They love hosting at home, enjoying comfort food, and being in nature. Show appreciation for their nurturing by reciprocating care. Tea time, home hangs, and cooking together are particularly meaningful."
+    },
+    HighPriestess: {
+        icon: "🌙",
+        name: "The High Priestess",
+        essence: "The Keeper of Depth",
+        description: "High Priestesses are introspective, intuitive friends who value deep emotional connection and meaningful conversation. They prefer quality over quantity and thrive in intimate, one-on-one settings. They're the friend who truly listens and remembers what matters to you.",
+        careStyle: "High Priestesses connect through deep conversation and quiet presence. They value long phone calls, intimate chats over tea, and meaningful one-on-one time. Superficial interactions drain them. Instead, create space for vulnerability and authentic sharing. Video calls, deep talks, and thoughtful messages resonate most."
+    },
+    Fool: {
+        icon: "🃏",
+        name: "The Fool",
+        essence: "The Spirit of Play",
+        description: "Fools are spontaneous, playful friends who embrace novelty and adventure. They love trying new things, being silly, and keeping life light. They're the friend who suggests impromptu plans and makes ordinary moments feel like an adventure.",
+        careStyle: "Fools thrive on spontaneity and variety. Quick texts, surprise voice notes, and last-minute adventures keep the connection alive. They love trying new activities, exploring new places, and keeping things playful. Casual hangs, fun activities, and maintaining a lighthearted vibe work best. Mix up your interaction styles to keep things fresh."
+    },
+    Sun: {
+        icon: "☀️",
+        name: "The Sun",
+        essence: "The Bringer of Joy",
+        description: "Suns are radiant, celebratory friends who light up social gatherings and bring energy to group settings. They love being seen and celebrated, and they reciprocate by making others feel special. They're the friend who turns any occasion into a celebration.",
+        careStyle: "Suns connect through celebration and shared joy. They thrive at parties, group gatherings, and special events. Celebrate their wins, acknowledge their presence, and include them in social occasions. Birthdays, achievements, and milestones are particularly important. They love being part of your important moments and want you to be part of theirs."
+    },
+    Hermit: {
+        icon: "🏮",
+        name: "The Hermit",
+        essence: "The Guardian of Solitude",
+        description: "Hermits are contemplative, independent friends who value solitude and depth. They need time alone to recharge but form deep, meaningful bonds with a select few. They're the friend who prefers quiet walks and deep chats over crowded social events.",
+        careStyle: "Hermits connect through peaceful, low-key activities and patient presence. They prefer one-on-one time in quiet settings. Walks, tea time, or video calls work well. Respect their need for space and don't take silence personally. Quality matters more than frequency. Thoughtful check-ins and unhurried conversations strengthen your bond without draining them."
+    },
+    Magician: {
+        icon: "⚡",
+        name: "The Magician",
+        essence: "The Spark of Possibility",
+        description: "Magicians are creative, collaborative friends who love building things together and exploring possibilities. They thrive on shared projects, creative endeavors, and intellectual stimulation. They're the friend who inspires you to try new things and celebrates your growth.",
+        careStyle: "Magicians connect through collaboration and creative exploration. Work on projects together, play games, tackle challenges, or explore new ideas. They value achievement and growth. Celebrate milestones and support each other's goals. Game nights, creative collaborations, and trying new hobbies together keep the spark alive."
+    },
+    Lovers: {
+        icon: "💞",
+        name: "The Lovers",
+        essence: "The Mirror of Connection",
+        description: "Lovers are reciprocal, emotionally attuned friends who seek balance and mutual understanding. They value partnerships where both people are equally invested and seen. They're the friend who mirrors your energy and creates beautiful, balanced exchanges.",
+        careStyle: "Lovers thrive on reciprocity and emotional attunement. They notice when the relationship feels one-sided and need to feel equally valued. Show up for them as they show up for you. Deep conversations, mutual support, and balanced exchanges matter most. They appreciate when you listen as well as share, and when effort flows both ways."
+    },
 };
 
 export const tierMap: Record<string, Tier> = {

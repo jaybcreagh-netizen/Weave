@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Modal, TouchableOpacity } from 'react-native';
+import { View, Text, Modal, TouchableOpacity, ScrollView } from 'react-native';
 import { useUIStore } from '../stores/uiStore';
 import { useTheme } from '../hooks/useTheme';
 import { X } from 'lucide-react-native';
@@ -15,6 +15,7 @@ import FoolSvg from '../../assets/TarotIcons/The Fool.svg';
 import SunSvg from '../../assets/TarotIcons/The Sun.svg';
 import HermitSvg from '../../assets/TarotIcons/The Hermit.svg';
 import MagicianSvg from '../../assets/TarotIcons/The Magician.svg';
+import LoversSvg from '../../assets/TarotIcons/The Lovers.svg';
 
 // Map archetypes to their tarot card SVG components
 const TAROT_CARD_COMPONENTS: Record<Archetype, React.FC<any>> = {
@@ -25,6 +26,7 @@ const TAROT_CARD_COMPONENTS: Record<Archetype, React.FC<any>> = {
   Sun: SunSvg,
   Hermit: HermitSvg,
   Magician: MagicianSvg,
+  Lovers: LoversSvg,
 };
 
 export function ArchetypeDetailModal() {
@@ -50,9 +52,9 @@ export function ArchetypeDetailModal() {
           activeOpacity={1}
           onPress={() => setArchetypeModal(null)}
         >
-          <TouchableOpacity activeOpacity={1} className="w-[85%] max-w-[400px]">
+          <TouchableOpacity activeOpacity={1} className="w-[85%] max-w-[400px] max-h-[80%]">
             <View
-              className="w-full rounded-3xl p-6 items-center"
+              className="w-full rounded-3xl"
               style={{
                 backgroundColor: colors.card,
                 shadowColor: '#000',
@@ -69,51 +71,64 @@ export function ArchetypeDetailModal() {
                 <X color={colors['muted-foreground']} size={24} />
               </TouchableOpacity>
 
-              <View
-                className="mb-4 mt-2"
-                style={{
-                  width: 120,
-                  height: 180,
-                }}
+              <ScrollView
+                className="px-8 py-6"
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={{ alignItems: 'center' }}
               >
-                {React.createElement(TAROT_CARD_COMPONENTS[archetypeModal], {
-                  width: 120,
-                  height: 180,
-                })}
-              </View>
+                <View
+                  className="mb-4 mt-2"
+                  style={{
+                    width: 120,
+                    height: 180,
+                  }}
+                >
+                  {React.createElement(TAROT_CARD_COMPONENTS[archetypeModal], {
+                    width: 120,
+                    height: 180,
+                  })}
+                </View>
 
-              <Text
-                className="font-lora-bold text-2xl mb-2 text-center"
-                style={{ color: colors.foreground }}
-              >
-                {data.name}
-              </Text>
+                <Text
+                  className="font-lora-bold text-2xl mb-2 text-center"
+                  style={{ color: colors.foreground }}
+                >
+                  {data.name}
+                </Text>
 
-              <Text
-                className="font-inter-medium text-[15px] mb-5 text-center italic"
-                style={{ color: colors['muted-foreground'] }}
-              >
-                {data.essence}
-              </Text>
+                <Text
+                  className="font-inter-medium text-[15px] mb-4 text-center italic"
+                  style={{ color: colors['muted-foreground'] }}
+                >
+                  {data.essence}
+                </Text>
 
-              <View
-                className="h-[1px] w-full my-5"
-                style={{ backgroundColor: colors.border }}
-              />
+                <Text
+                  className="font-inter-regular text-[15px] text-center leading-[22px] mb-5"
+                  style={{ color: colors.foreground }}
+                >
+                  {data.description}
+                </Text>
 
-              <Text
-                className="font-inter-semibold text-[17px] mb-3"
-                style={{ color: colors.foreground }}
-              >
-                Best Way to Connect
-              </Text>
+                <View
+                  className="h-[1px] w-full my-4"
+                  style={{ backgroundColor: colors.border }}
+                />
 
-              <Text
-                className="font-inter-regular text-[15px] text-center leading-[22px]"
-                style={{ color: colors['muted-foreground'] }}
-              >
-                {data.careStyle}
-              </Text>
+                <Text
+                  className="font-inter-semibold text-[16px] mb-3 self-start"
+                  style={{ color: colors.foreground }}
+                >
+                  How to Connect
+                </Text>
+
+                <Text
+                  className="font-inter-regular text-[14px] leading-[20px] mb-4"
+                  style={{ color: colors['muted-foreground'] }}
+                >
+                  {data.careStyle}
+                </Text>
+              </ScrollView>
             </View>
           </TouchableOpacity>
         </TouchableOpacity>
