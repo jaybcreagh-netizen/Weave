@@ -273,15 +273,13 @@ export function GraphsTabContent({ year = new Date().getFullYear() }: GraphsTabC
         {/* Year Activity Heatmap */}
         {heatmapData.length > 0 && (
           <Animated.View entering={FadeInDown.delay(100)} style={{ marginBottom: 32 }}>
-            <Text style={{ fontSize: 18, fontWeight: '600', color: graphTheme.textPrimary, fontFamily: 'Lora_600SemiBold', marginBottom: 8, paddingHorizontal: 0 }}>
+            <Text style={{ fontSize: 18, fontWeight: '600', color: graphTheme.textPrimary, fontFamily: 'Lora_600SemiBold', marginBottom: 8 }}>
               Activity Pattern
             </Text>
             <Text style={{ fontSize: 13, color: graphTheme.textSecondary, fontFamily: 'Inter_400Regular', marginBottom: 16 }}>
               Your logged interactions over the last 16 weeks
             </Text>
-            <View style={{ marginHorizontal: -20 }}>
-              <ActivityHeatmap data={heatmapData} onCellPress={(day) => showTooltip('heatmap', day)} theme={graphTheme} />
-            </View>
+            <ActivityHeatmap data={heatmapData} onCellPress={(day) => showTooltip('heatmap', day)} theme={graphTheme} />
           </Animated.View>
         )}
 
@@ -472,9 +470,14 @@ function ActivityHeatmap({
   onCellPress: (day: any) => void;
   theme: ReturnType<typeof getGraphTheme>;
 }) {
-  const cellSize = 11;
+  const weeksToShow = 16; // 4 months
   const cellGap = 3;
-  const weeksToShow = 16; // 4 months - more compact
+
+  // Calculate cell size to fill the width: (screenWidth - scrollViewPadding - cardPadding - gaps) / weeks
+  // screenWidth - 40 (scrollView padding) - 40 (card padding) - (16-1)*3 (gaps between weeks) = available width
+  // Then divide by 16 weeks
+  const availableWidth = screenWidth - 40 - 40 - (weeksToShow - 1) * cellGap;
+  const cellSize = Math.floor(availableWidth / weeksToShow);
 
   const maxCount = Math.max(...data.map(d => d.count), 1);
 
@@ -492,33 +495,31 @@ function ActivityHeatmap({
 
   return (
     <View style={{ backgroundColor: theme.cardBackground, borderRadius: 16, paddingVertical: 16, paddingHorizontal: 20 }}>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingRight: 20 }}>
-        <View style={{ flexDirection: 'row' }}>
-          {Array.from({ length: weeksToShow }).map((_, weekIndex) => (
-            <View key={weekIndex} style={{ marginRight: cellGap }}>
-              {Array.from({ length: 7 }).map((_, dayIndex) => {
-                const dataIndex = weekIndex * 7 + dayIndex;
-                const dayData = recentData[dataIndex];
-                if (!dayData) return null;
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+        {Array.from({ length: weeksToShow }).map((_, weekIndex) => (
+          <View key={weekIndex}>
+            {Array.from({ length: 7 }).map((_, dayIndex) => {
+              const dataIndex = weekIndex * 7 + dayIndex;
+              const dayData = recentData[dataIndex];
+              if (!dayData) return <View key={dayIndex} style={{ width: cellSize, height: cellSize + cellGap }} />;
 
-                return (
-                  <TouchableOpacity
-                    key={dayIndex}
-                    onPress={() => onCellPress(dayData)}
-                    style={{
-                      width: cellSize,
-                      height: cellSize,
-                      backgroundColor: getHeatColor(dayData.count),
-                      borderRadius: 2,
-                      marginBottom: cellGap,
-                    }}
-                  />
-                );
-              })}
-            </View>
-          ))}
-        </View>
-      </ScrollView>
+              return (
+                <TouchableOpacity
+                  key={dayIndex}
+                  onPress={() => onCellPress(dayData)}
+                  style={{
+                    width: cellSize,
+                    height: cellSize,
+                    backgroundColor: getHeatColor(dayData.count),
+                    borderRadius: 2,
+                    marginBottom: cellGap,
+                  }}
+                />
+              );
+            })}
+          </View>
+        ))}
+      </View>
       {/* Legend */}
       <View style={{ marginTop: 12 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
