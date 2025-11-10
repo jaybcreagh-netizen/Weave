@@ -979,6 +979,18 @@ function BatteryWeaveChart({
 // ============================================
 // ARCHETYPE DONUT CHART
 // ============================================
+
+// Archetype-specific colors matching the selector cards
+const ARCHETYPE_COLORS: Record<string, string> = {
+  Emperor: '#ef4444',       // Red
+  Empress: '#10b981',       // Green
+  HighPriestess: '#8b5cf6', // Purple
+  Fool: '#f59e0b',          // Orange
+  Sun: '#eab308',           // Yellow
+  Hermit: '#6366f1',        // Indigo
+  Magician: '#ec4899',      // Pink
+};
+
 function ArchetypeDonutChart({
   archetypes,
   onSegmentPress,
@@ -996,10 +1008,10 @@ function ArchetypeDonutChart({
   const total = Object.values(archetypes).reduce((sum, count) => sum + count, 0);
   const entries = Object.entries(archetypes).sort((a, b) => b[1] - a[1]);
 
-  const colors = [
-    theme.chartPrimary, theme.chartSecondary, theme.chartTertiary, theme.chartAccent,
-    theme.accentPurple, theme.energyColor, theme.weaveColor, theme.activeBackground
-  ];
+  // Use archetype-specific colors, fallback to theme colors if archetype not found
+  const getArchetypeColor = (archetype: string) => {
+    return ARCHETYPE_COLORS[archetype] || theme.chartPrimary;
+  };
 
   let currentAngle = -Math.PI / 2;
 
@@ -1027,7 +1039,7 @@ function ArchetypeDonutChart({
       Z
     `;
 
-    const result = { path, color: colors[index % colors.length], archetype, count, percentage };
+    const result = { path, color: getArchetypeColor(archetype), archetype, count, percentage };
     currentAngle = endAngle;
     return result;
   });
@@ -1069,15 +1081,16 @@ function ArchetypeDonutChart({
       <View style={{ gap: 8 }}>
         {entries.map(([archetype, count], index) => {
           const percentage = (count / total);
+          const color = getArchetypeColor(archetype);
           return (
             <TouchableOpacity
               key={archetype}
-              onPress={() => onSegmentPress({ archetype, count, percentage, color: colors[index % colors.length] })}
+              onPress={() => onSegmentPress({ archetype, count, percentage, color })}
               style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}
               activeOpacity={0.7}
             >
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: colors[index % colors.length] }} />
+                <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: color }} />
                 <Text style={{ fontSize: 14, color: theme.textPrimary, fontFamily: 'Inter_500Medium' }}>
                   {archetype}
                 </Text>
