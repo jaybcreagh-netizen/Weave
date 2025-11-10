@@ -694,10 +694,12 @@ function TierHealthRings({
 // ============================================
 function WeeklyRhythmRadial({
   data,
-  onDayPress
+  onDayPress,
+  theme
 }: {
   data: any[];
   onDayPress: (day: any) => void;
+  theme: ReturnType<typeof getGraphTheme>;
 }) {
   const size = Math.min(screenWidth - 80, 300);
   const center = size / 2;
@@ -707,12 +709,12 @@ function WeeklyRhythmRadial({
   const maxBattery = 5;
 
   return (
-    <View style={{ alignItems: 'center', backgroundColor: '#2A2E3F', borderRadius: 20, padding: 20 }}>
+    <View style={{ alignItems: 'center', backgroundColor: theme.cardBackground, borderRadius: 20, padding: 20 }}>
       <Svg width={size} height={size}>
         <Defs>
           <SvgLinearGradient id="radialGrad" x1="0" y1="0" x2="1" y2="1">
-            <Stop offset="0" stopColor="#A78BFA" stopOpacity="0.5" />
-            <Stop offset="1" stopColor="#7A7EAF" stopOpacity="0.3" />
+            <Stop offset="0" stopColor={theme.energyColor} stopOpacity="0.5" />
+            <Stop offset="1" stopColor={theme.chartPrimary} stopOpacity="0.3" />
           </SvgLinearGradient>
         </Defs>
 
@@ -723,7 +725,7 @@ function WeeklyRhythmRadial({
             cx={center}
             cy={center}
             r={radius * scale}
-            stroke="#3A3E5F"
+            stroke={theme.gridLine}
             strokeWidth="1"
             fill="none"
             opacity={0.3}
