@@ -29,6 +29,7 @@ interface FriendStore {
   initializeAppStateListener: () => void;
   cleanupAppStateListener: () => void;
   addFriend: (data: FriendFormData) => Promise<void>;
+  batchAddFriends: (contacts: Array<{ name: string; photoUrl?: string }>, tier: Tier) => Promise<void>;
   updateFriend: (id: string, data: FriendFormData) => Promise<void>;
   deleteFriend: (id: string) => Promise<void>;
 }
@@ -177,7 +178,53 @@ export const useFriendStore = create<FriendStore>((set, get) => ({
       console.error('[addFriend] ERROR: Failed to create friend.', error);
     }
   },
-  
+
+  batchAddFriends: async (contacts: Array<{ name: string; photoUrl?: string }>, tier: Tier) => {
+    console.log('[batchAddFriends] Attempting to batch add friends:', contacts.length);
+    try {
+      await database.write(async () => {
+        // Create all friends in a single transaction
+        for (const contact of contacts) {
+          await database.get('friends').create(friend => {
+            friend.name = contact.name;
+            friend.dunbarTier = tier;
+            friend.archetype = 'Unknown'; // Use Unknown archetype for batch adds
+            friend.photoUrl = contact.photoUrl || '';
+            friend.notes = '';
+            friend.weaveScore = 50; // Start with a neutral score
+            friend.lastUpdated = new Date();
+
+            // Initialize with no life events
+            friend.birthday = null;
+            friend.anniversary = null;
+            friend.relationshipType = null;
+
+            // Initialize intelligence engine fields
+            friend.resilience = 1.0;
+            friend.ratedWeavesCount = 0;
+            friend.momentumScore = 0;
+            friend.momentumLastUpdated = new Date();
+            friend.isDormant = false;
+            friend.dormantSince = null;
+          });
+        }
+
+        // Update curator progress (Unknown archetype doesn't count toward unique archetypes)
+        const allFriends = await database.get<FriendModel>('friends').query().fetch();
+        const archetypes = new Set(allFriends.filter(f => f.archetype !== 'Unknown').map(f => f.archetype));
+
+        const userProgress = await database.get('user_progress').query().fetch();
+        const progress = userProgress[0];
+        await progress.update(p => {
+          p.curatorProgress = archetypes.size;
+        });
+      });
+      console.log('[batchAddFriends] SUCCESS: Created', contacts.length, 'friends.');
+    } catch (error) {
+      console.error('[batchAddFriends] ERROR: Failed to create friends.', error);
+    }
+  },
+
   updateFriend: async (id: string, data: FriendFormData) => {
     await database.write(async () => {
         const friend = await database.get<FriendModel>('friends').find(id);

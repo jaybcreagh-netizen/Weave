@@ -12,6 +12,7 @@ import { FAB } from '../src/components/fab';
 import { InsightsFAB } from '../src/components/InsightsFAB';
 import { MicroReflectionSheet } from '../src/components/MicroReflectionSheet';
 import { InsightsSheet } from '../src/components/InsightsSheet';
+import { AddFriendMenu } from '../src/components/AddFriendMenu';
 import { useUIStore } from '../src/stores/uiStore';
 import { useFriends } from '../src/hooks/useFriends';
 import { useInteractionStore } from '../src/stores/interactionStore';
@@ -87,6 +88,7 @@ function DashboardContent() {
   const intentions = useActiveIntentions();
   const [insightsSheetVisible, setInsightsSheetVisible] = useState(false);
   const [selectedIntention, setSelectedIntention] = useState<Intention | null>(null);
+  const [addFriendMenuVisible, setAddFriendMenuVisible] = useState(false);
 
   const [refreshKey, setRefreshKey] = React.useState(0);
 
@@ -129,7 +131,15 @@ function DashboardContent() {
     scrollViewRef.current?.scrollTo({ x: tiers.indexOf(tier) * screenWidth, animated: true });
   };
 
-  const onAddFriend = () => router.push(`/add-friend?tier=${activeTier}`);
+  const onAddFriend = () => setAddFriendMenuVisible(true);
+
+  const handleAddSingle = () => {
+    router.push(`/add-friend?tier=${activeTier}`);
+  };
+
+  const handleAddBatch = () => {
+    router.push(`/batch-add-friends?tier=${activeTier}`);
+  };
 
   const onScroll = (event: any) => {
     const slide = Math.round(event.nativeEvent.contentOffset.x / screenWidth);
@@ -293,6 +303,13 @@ function DashboardContent() {
           await dismissIntention(intention.id);
           setSelectedIntention(null);
         }}
+      />
+
+      <AddFriendMenu
+        isOpen={addFriendMenuVisible}
+        onClose={() => setAddFriendMenuVisible(false)}
+        onAddSingle={handleAddSingle}
+        onAddBatch={handleAddBatch}
       />
     </View>
   );

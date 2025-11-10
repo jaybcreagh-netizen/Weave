@@ -89,13 +89,19 @@ export function FriendListRow({ friend, animatedRef, variant = 'default' }: Frie
 
   // Update intelligent status line
   useEffect(() => {
+    // Special handling for Unknown archetype
+    if (archetype === 'Unknown') {
+      setStatusLine({ text: 'Tap to assign an archetype', icon: '✨' });
+      return;
+    }
+
     generateIntelligentStatusLine(friend)
       .then(status => setStatusLine(status))
       .catch(error => {
         console.error('Error generating status line:', error);
         setStatusLine({ text: archetypeData[archetype]?.essence || '' });
       });
-  }, [friend, friend.lastUpdated, friend.weaveScore]);
+  }, [friend, friend.lastUpdated, friend.weaveScore, archetype]);
 
   // "Just Nurtured" glow effect
   useEffect(() => {
@@ -251,22 +257,37 @@ export function FriendListRow({ friend, animatedRef, variant = 'default' }: Frie
           </View>
 
           {/* Archetype Button */}
-          <Pressable
-            onLongPress={handleArchetypeLongPress}
-            delayLongPress={500}
-            className="w-9 h-9 rounded-[10px] items-center justify-center"
-            style={{
-              backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)',
-              borderWidth: 0.5,
-              borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)',
-            }}
-          >
-            <ArchetypeIcon
-              archetype={archetype}
-              size={18}
-              color={isDarkMode ? colors.foreground : colors['muted-foreground']}
-            />
-          </Pressable>
+          <View className="relative">
+            <Pressable
+              onLongPress={handleArchetypeLongPress}
+              delayLongPress={500}
+              className="w-9 h-9 rounded-[10px] items-center justify-center"
+              style={{
+                backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)',
+                borderWidth: 0.5,
+                borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)',
+              }}
+            >
+              <ArchetypeIcon
+                archetype={archetype}
+                size={18}
+                color={isDarkMode ? colors.foreground : colors['muted-foreground']}
+              />
+            </Pressable>
+            {/* Unknown Archetype Indicator */}
+            {archetype === 'Unknown' && (
+              <View
+                className="absolute -top-1 -right-1 w-4 h-4 rounded-full items-center justify-center"
+                style={{
+                  backgroundColor: '#f59e0b',
+                  borderWidth: 1.5,
+                  borderColor: colors.card,
+                }}
+              >
+                <Text style={{ fontSize: 8, color: 'white', fontWeight: 'bold' }}>!</Text>
+              </View>
+            )}
+          </View>
         </View>
       </View>
     </Animated.View>
