@@ -90,14 +90,19 @@ export default function FriendBadgePopup({
     setLoading(true);
 
     try {
+      console.log('[FriendBadgePopup] Loading stats for friend:', friendId);
+
       // Load friend data
       const friend = await database.get<Friend>('friends').find(friendId);
+      console.log('[FriendBadgePopup] Friend loaded:', friend.name, friend.archetype);
 
       // Load interactions for pattern analysis
       const interactionFriends = await database
         .get('interaction_friends')
         .query(Q.where('friend_id', friendId))
         .fetch();
+
+      console.log('[FriendBadgePopup] InteractionFriends count:', interactionFriends.length);
 
       const interactionIds = interactionFriends.map(
         (if_: any) => if_.interactionId
@@ -107,6 +112,8 @@ export default function FriendBadgePopup({
         .get('interactions')
         .query(Q.where('id', Q.oneOf(interactionIds)))
         .fetch();
+
+      console.log('[FriendBadgePopup] Interactions loaded:', interactions.length);
 
       // Analyze pattern to get favorite weave types
       const pattern = analyzeInteractionPattern(
@@ -118,21 +125,28 @@ export default function FriendBadgePopup({
         }))
       );
 
+      console.log('[FriendBadgePopup] Pattern analyzed:', pattern.preferredCategories);
+
       // Load badges count
       const badges = await database
         .get<FriendBadge>('friend_badges')
         .query(Q.where('friend_id', friendId))
         .fetch();
 
-      setStats({
+      console.log('[FriendBadgePopup] Badges count:', badges.length);
+
+      const newStats = {
         archetype: friend.archetype as Archetype,
         totalWeaves: interactions.length,
         birthday: friend.birthday ? new Date(friend.birthday) : undefined,
         favoriteWeaveTypes: pattern.preferredCategories,
         badgeCount: badges.length,
-      });
+      };
+
+      console.log('[FriendBadgePopup] Setting stats:', newStats);
+      setStats(newStats);
     } catch (error) {
-      console.error('Error loading friend stats:', error);
+      console.error('[FriendBadgePopup] Error loading friend stats:', error);
     } finally {
       setLoading(false);
     }
@@ -146,9 +160,9 @@ export default function FriendBadgePopup({
     transform: [{ translateY: translateY.value }],
   }));
 
-  if (!stats && !loading) return null;
-
   const archetypeInfo = stats ? archetypeData[stats.archetype] : null;
+
+  if (!visible) return null;
 
   return (
     <Modal visible={visible} transparent animationType="none">
