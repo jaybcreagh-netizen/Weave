@@ -165,6 +165,15 @@ export function GraphsTabContent({ year = new Date().getFullYear() }: GraphsTabC
     }
   };
 
+  const showTooltip = (type: TooltipData['type'], data: any) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setTooltip({ visible: true, type, data });
+  };
+
+  const hideTooltip = () => {
+    setTooltip({ visible: false, type: null, data: null });
+  };
+
   if (isLoading) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 40 }}>
@@ -176,124 +185,129 @@ export function GraphsTabContent({ year = new Date().getFullYear() }: GraphsTabC
   }
 
   return (
-    <ScrollView
-      style={{ flex: 1, paddingHorizontal: 20, paddingTop: 16 }}
-      showsVerticalScrollIndicator={false}
-    >
-      {/* Portfolio Health Score */}
-      {portfolio && (
-        <View style={{ marginBottom: 32 }}>
-          <Text style={{ fontSize: 18, fontWeight: '600', color: '#F5F1E8', fontFamily: 'Lora_600SemiBold', marginBottom: 16 }}>
-            Network Health
-          </Text>
-          <PortfolioHealthCard portfolio={portfolio} />
-        </View>
-      )}
+    <>
+      <ScrollView
+        style={{ flex: 1, paddingHorizontal: 20, paddingTop: 16 }}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Portfolio Health Score */}
+        {portfolio && (
+          <Animated.View entering={FadeInDown.delay(0)} style={{ marginBottom: 32 }}>
+            <Text style={{ fontSize: 18, fontWeight: '600', color: '#F5F1E8', fontFamily: 'Lora_600SemiBold', marginBottom: 16 }}>
+              Network Health
+            </Text>
+            <PortfolioHealthCard portfolio={portfolio} />
+          </Animated.View>
+        )}
 
-      {/* Year Activity Heatmap */}
-      {heatmapData.length > 0 && (
-        <View style={{ marginBottom: 32 }}>
-          <Text style={{ fontSize: 18, fontWeight: '600', color: '#F5F1E8', fontFamily: 'Lora_600SemiBold', marginBottom: 16 }}>
-            Year at a Glance
-          </Text>
-          <ActivityHeatmap data={heatmapData} />
-        </View>
-      )}
+        {/* Year Activity Heatmap */}
+        {heatmapData.length > 0 && (
+          <Animated.View entering={FadeInDown.delay(100)} style={{ marginBottom: 32 }}>
+            <Text style={{ fontSize: 18, fontWeight: '600', color: '#F5F1E8', fontFamily: 'Lora_600SemiBold', marginBottom: 16 }}>
+              Year at a Glance
+            </Text>
+            <ActivityHeatmap data={heatmapData} onCellPress={(day) => showTooltip('heatmap', day)} />
+          </Animated.View>
+        )}
 
-      {/* Tier Health Visualization */}
-      {portfolio && (
-        <View style={{ marginBottom: 32 }}>
-          <Text style={{ fontSize: 18, fontWeight: '600', color: '#F5F1E8', fontFamily: 'Lora_600SemiBold', marginBottom: 16 }}>
-            Tier Health
-          </Text>
-          <TierHealthRings portfolio={portfolio} />
-        </View>
-      )}
+        {/* Tier Health Visualization */}
+        {portfolio && (
+          <Animated.View entering={FadeInDown.delay(200)} style={{ marginBottom: 32 }}>
+            <Text style={{ fontSize: 18, fontWeight: '600', color: '#F5F1E8', fontFamily: 'Lora_600SemiBold', marginBottom: 16 }}>
+              Tier Health
+            </Text>
+            <TierHealthRings portfolio={portfolio} onTierPress={(tier) => showTooltip('tier', tier)} />
+          </Animated.View>
+        )}
 
-      {/* Weekly Energy Rhythm */}
-      {weeklyRhythm.length > 0 && (
-        <View style={{ marginBottom: 32 }}>
-          <Text style={{ fontSize: 18, fontWeight: '600', color: '#F5F1E8', fontFamily: 'Lora_600SemiBold', marginBottom: 16 }}>
-            Weekly Energy Rhythm
-          </Text>
-          <WeeklyRhythmRadial data={weeklyRhythm} />
-        </View>
-      )}
+        {/* Weekly Energy Rhythm */}
+        {weeklyRhythm.length > 0 && (
+          <Animated.View entering={FadeInDown.delay(300)} style={{ marginBottom: 32 }}>
+            <Text style={{ fontSize: 18, fontWeight: '600', color: '#F5F1E8', fontFamily: 'Lora_600SemiBold', marginBottom: 16 }}>
+              Weekly Energy Rhythm
+            </Text>
+            <WeeklyRhythmRadial data={weeklyRhythm} onDayPress={(day) => showTooltip('rhythm', day)} />
+          </Animated.View>
+        )}
 
-      {/* Battery + Weaves Correlation */}
-      {batteryWeaveData.length > 0 && (
-        <View style={{ marginBottom: 32 }}>
-          <Text style={{ fontSize: 18, fontWeight: '600', color: '#F5F1E8', fontFamily: 'Lora_600SemiBold', marginBottom: 16 }}>
-            Energy & Connection
-          </Text>
-          <BatteryWeaveChart data={batteryWeaveData} />
-        </View>
-      )}
+        {/* Battery + Weaves Correlation */}
+        {batteryWeaveData.length > 0 && (
+          <Animated.View entering={FadeInDown.delay(400)} style={{ marginBottom: 32 }}>
+            <Text style={{ fontSize: 18, fontWeight: '600', color: '#F5F1E8', fontFamily: 'Lora_600SemiBold', marginBottom: 16 }}>
+              Energy & Connection
+            </Text>
+            <BatteryWeaveChart data={batteryWeaveData} />
+          </Animated.View>
+        )}
 
-      {/* Top Friends with Sparkles */}
-      {topFriends.length > 0 && (
-        <View style={{ marginBottom: 32 }}>
-          <Text style={{ fontSize: 18, fontWeight: '600', color: '#F5F1E8', fontFamily: 'Lora_600SemiBold', marginBottom: 12 }}>
-            Most Connected
-          </Text>
-          {topFriends.map((friend, index) => (
-            <TouchableOpacity
-              key={friend.name}
-              onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}
-              style={{
-                flexDirection: 'row',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                backgroundColor: index === 0 ? '#3A3E5F' : '#2A2E3F',
-                padding: 14,
-                borderRadius: 16,
-                marginBottom: 8,
-                borderWidth: index === 0 ? 1 : 0,
-                borderColor: index === 0 ? '#5A5F9E' : 'transparent',
-              }}
-              activeOpacity={0.7}
-            >
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                <View
-                  style={{
-                    width: 32,
-                    height: 32,
-                    borderRadius: 16,
-                    backgroundColor: index === 0 ? '#7A7EAF' : '#3A3E5F',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <Text style={{ fontSize: 14, color: '#F5F1E8', fontFamily: 'Inter_700Bold' }}>
-                    {index + 1}
+        {/* Top Friends with Sparkles */}
+        {topFriends.length > 0 && (
+          <Animated.View entering={FadeInDown.delay(500)} style={{ marginBottom: 32 }}>
+            <Text style={{ fontSize: 18, fontWeight: '600', color: '#F5F1E8', fontFamily: 'Lora_600SemiBold', marginBottom: 12 }}>
+              Most Connected
+            </Text>
+            {topFriends.map((friend, index) => (
+              <TouchableOpacity
+                key={friend.name}
+                onPress={() => showTooltip('friend', friend)}
+                style={{
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  backgroundColor: index === 0 ? '#3A3E5F' : '#2A2E3F',
+                  padding: 14,
+                  borderRadius: 16,
+                  marginBottom: 8,
+                  borderWidth: index === 0 ? 1 : 0,
+                  borderColor: index === 0 ? '#5A5F9E' : 'transparent',
+                }}
+                activeOpacity={0.7}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                  <View
+                    style={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: 16,
+                      backgroundColor: index === 0 ? '#7A7EAF' : '#3A3E5F',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Text style={{ fontSize: 14, color: '#F5F1E8', fontFamily: 'Inter_700Bold' }}>
+                      {index + 1}
+                    </Text>
+                  </View>
+                  <Text style={{ fontSize: 16, color: '#F5F1E8', fontFamily: 'Inter_600SemiBold' }}>
+                    {friend.name}
                   </Text>
+                  {index === 0 && <Text style={{ fontSize: 16 }}>✨</Text>}
                 </View>
-                <Text style={{ fontSize: 16, color: '#F5F1E8', fontFamily: 'Inter_600SemiBold' }}>
-                  {friend.name}
+                <Text style={{ fontSize: 14, color: '#8A8F9E', fontFamily: 'Inter_400Regular' }}>
+                  {friend.count} weaves
                 </Text>
-                {index === 0 && <Text style={{ fontSize: 16 }}>✨</Text>}
-              </View>
-              <Text style={{ fontSize: 14, color: '#8A8F9E', fontFamily: 'Inter_400Regular' }}>
-                {friend.count} weaves
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      )}
+              </TouchableOpacity>
+            ))}
+          </Animated.View>
+        )}
 
-      {/* Archetype Distribution */}
-      {Object.keys(archetypeDistribution).length > 0 && (
-        <View style={{ marginBottom: 32 }}>
-          <Text style={{ fontSize: 18, fontWeight: '600', color: '#F5F1E8', fontFamily: 'Lora_600SemiBold', marginBottom: 12 }}>
-            Circle Archetypes
-          </Text>
-          <ArchetypeDonutChart archetypes={archetypeDistribution} />
-        </View>
-      )}
+        {/* Archetype Distribution */}
+        {Object.keys(archetypeDistribution).length > 0 && (
+          <Animated.View entering={FadeInDown.delay(600)} style={{ marginBottom: 32 }}>
+            <Text style={{ fontSize: 18, fontWeight: '600', color: '#F5F1E8', fontFamily: 'Lora_600SemiBold', marginBottom: 12 }}>
+              Circle Archetypes
+            </Text>
+            <ArchetypeDonutChart archetypes={archetypeDistribution} onSegmentPress={(data) => showTooltip('donut', data)} />
+          </Animated.View>
+        )}
 
-      {/* Spacer */}
-      <View style={{ height: 40 }} />
-    </ScrollView>
+        {/* Spacer */}
+        <View style={{ height: 40 }} />
+      </ScrollView>
+
+      {/* Tooltip Modal */}
+      <TooltipModal tooltip={tooltip} onClose={hideTooltip} />
+    </>
   );
 }
 
@@ -374,7 +388,13 @@ function MetricPill({ label, value, color }: { label: string; value: number; col
 // ============================================
 // ACTIVITY HEATMAP (GitHub-style)
 // ============================================
-function ActivityHeatmap({ data }: { data: Array<{ date: Date; count: number }> }) {
+function ActivityHeatmap({
+  data,
+  onCellPress
+}: {
+  data: Array<{ date: Date; count: number }>;
+  onCellPress: (day: any) => void;
+}) {
   const cellSize = 12;
   const cellGap = 3;
   const weeksToShow = 26; // 6 months
@@ -407,7 +427,7 @@ function ActivityHeatmap({ data }: { data: Array<{ date: Date; count: number }> 
                 return (
                   <TouchableOpacity
                     key={dayIndex}
-                    onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}
+                    onPress={() => onCellPress(dayData)}
                     style={{
                       width: cellSize,
                       height: cellSize,
@@ -449,7 +469,13 @@ function ActivityHeatmap({ data }: { data: Array<{ date: Date; count: number }> 
 // ============================================
 // TIER HEALTH RINGS (Concentric Circles)
 // ============================================
-function TierHealthRings({ portfolio }: { portfolio: any }) {
+function TierHealthRings({
+  portfolio,
+  onTierPress
+}: {
+  portfolio: any;
+  onTierPress: (tier: any) => void;
+}) {
   const size = Math.min(screenWidth - 80, 280);
   const center = size / 2;
   const maxRadius = size / 2 - 20;
@@ -550,24 +576,34 @@ function TierHealthRings({ portfolio }: { portfolio: any }) {
 
       {/* Legend */}
       <View style={{ gap: 8 }}>
-        {sortedTiers.map((tier: any) => (
-          <View key={tier.tier} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: tierColors[tier.tier] }} />
-              <Text style={{ fontSize: 13, color: '#F5F1E8', fontFamily: 'Inter_500Medium' }}>
-                {tierLabels[tier.tier]}
-              </Text>
-            </View>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Text style={{ fontSize: 13, color: '#8A8F9E', fontFamily: 'Inter_400Regular' }}>
-                {Math.round(tier.avgScore)}/100
-              </Text>
-              <Text style={{ fontSize: 12, color: '#8A8F9E', fontFamily: 'Inter_400Regular' }}>
-                ({tier.count})
-              </Text>
-            </View>
-          </View>
-        ))}
+        {sortedTiers.map((tier: any) => {
+          const totalFriends = sortedTiers.reduce((sum: number, t: any) => sum + t.count, 0);
+          const percentage = totalFriends > 0 ? (tier.count / totalFriends) * 100 : 0;
+
+          return (
+            <TouchableOpacity
+              key={tier.tier}
+              onPress={() => onTierPress({ tier: tier.tier, avgScore: tier.avgScore, count: tier.count, percentage })}
+              style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}
+              activeOpacity={0.7}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: tierColors[tier.tier] }} />
+                <Text style={{ fontSize: 13, color: '#F5F1E8', fontFamily: 'Inter_500Medium' }}>
+                  {tierLabels[tier.tier]}
+                </Text>
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Text style={{ fontSize: 13, color: '#8A8F9E', fontFamily: 'Inter_400Regular' }}>
+                  {Math.round(tier.avgScore)}/100
+                </Text>
+                <Text style={{ fontSize: 12, color: '#8A8F9E', fontFamily: 'Inter_400Regular' }}>
+                  ({tier.count})
+                </Text>
+              </View>
+            </TouchableOpacity>
+          );
+        })}
       </View>
     </View>
   );
@@ -576,7 +612,13 @@ function TierHealthRings({ portfolio }: { portfolio: any }) {
 // ============================================
 // WEEKLY RHYTHM RADIAL (Enhanced)
 // ============================================
-function WeeklyRhythmRadial({ data }: { data: any[] }) {
+function WeeklyRhythmRadial({
+  data,
+  onDayPress
+}: {
+  data: any[];
+  onDayPress: (day: any) => void;
+}) {
   const size = Math.min(screenWidth - 80, 300);
   const center = size / 2;
   const radius = size / 2 - 40;
@@ -651,7 +693,7 @@ function WeeklyRhythmRadial({ data }: { data: any[] }) {
               const x = center + Math.cos(angle) * distance;
               const y = center + Math.sin(angle) * distance;
               return (
-                <G key={`point-${index}`}>
+                <G key={`point-${index}`} onPress={() => onDayPress(day)}>
                   <Circle cx={x} cy={y} r={6} fill="#A78BFA" opacity={0.3} />
                   <Circle cx={x} cy={y} r={4} fill="#F5F1E8" />
                 </G>
@@ -845,7 +887,13 @@ function BatteryWeaveChart({ data }: { data: Array<{ date: Date; battery: number
 // ============================================
 // ARCHETYPE DONUT CHART
 // ============================================
-function ArchetypeDonutChart({ archetypes }: { archetypes: Record<string, number> }) {
+function ArchetypeDonutChart({
+  archetypes,
+  onSegmentPress
+}: {
+  archetypes: Record<string, number>;
+  onSegmentPress: (data: any) => void;
+}) {
   const size = Math.min(screenWidth - 80, 260);
   const center = size / 2;
   const outerRadius = size / 2 - 30;
@@ -895,7 +943,9 @@ function ArchetypeDonutChart({ archetypes }: { archetypes: Record<string, number
       <View style={{ alignItems: 'center', marginBottom: 20 }}>
         <Svg width={size} height={size}>
           {paths.map((p, i) => (
-            <Path key={i} d={p.path} fill={p.color} />
+            <G key={i} onPress={() => onSegmentPress({ archetype: p.archetype, count: p.count, percentage: p.percentage, color: p.color })}>
+              <Path d={p.path} fill={p.color} />
+            </G>
           ))}
           <SvgText
             x={center}
@@ -923,20 +973,188 @@ function ArchetypeDonutChart({ archetypes }: { archetypes: Record<string, number
       </View>
 
       <View style={{ gap: 8 }}>
-        {entries.map(([archetype, count], index) => (
-          <View key={archetype} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: colors[index % colors.length] }} />
-              <Text style={{ fontSize: 14, color: '#F5F1E8', fontFamily: 'Inter_500Medium' }}>
-                {archetype}
+        {entries.map(([archetype, count], index) => {
+          const percentage = (count / total);
+          return (
+            <TouchableOpacity
+              key={archetype}
+              onPress={() => onSegmentPress({ archetype, count, percentage, color: colors[index % colors.length] })}
+              style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}
+              activeOpacity={0.7}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: colors[index % colors.length] }} />
+                <Text style={{ fontSize: 14, color: '#F5F1E8', fontFamily: 'Inter_500Medium' }}>
+                  {archetype}
+                </Text>
+              </View>
+              <Text style={{ fontSize: 13, color: '#8A8F9E', fontFamily: 'Inter_400Regular' }}>
+                {count} ({Math.round(percentage * 100)}%)
               </Text>
-            </View>
-            <Text style={{ fontSize: 13, color: '#8A8F9E', fontFamily: 'Inter_400Regular' }}>
-              {count} ({Math.round((count / total) * 100)}%)
-            </Text>
-          </View>
-        ))}
+            </TouchableOpacity>
+          );
+        })}
       </View>
     </View>
+  );
+}
+
+// ============================================
+// TOOLTIP MODAL
+// ============================================
+function TooltipModal({ tooltip, onClose }: { tooltip: TooltipData; onClose: () => void }) {
+  if (!tooltip.visible || !tooltip.data) return null;
+
+  const renderContent = () => {
+    switch (tooltip.type) {
+      case 'heatmap':
+        return (
+          <>
+            <Text style={{ fontSize: 20, fontWeight: '700', color: '#F5F1E8', fontFamily: 'Lora_700Bold', marginBottom: 8 }}>
+              {tooltip.data.date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+            </Text>
+            <Text style={{ fontSize: 32, fontWeight: '700', color: '#7A7EAF', fontFamily: 'Lora_700Bold', marginBottom: 4 }}>
+              {tooltip.data.count}
+            </Text>
+            <Text style={{ fontSize: 14, color: '#8A8F9E', fontFamily: 'Inter_400Regular' }}>
+              {tooltip.data.count === 0 ? 'No weaves' : tooltip.data.count === 1 ? 'weave logged' : 'weaves logged'}
+            </Text>
+          </>
+        );
+
+      case 'rhythm':
+        const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        return (
+          <>
+            <Text style={{ fontSize: 20, fontWeight: '700', color: '#F5F1E8', fontFamily: 'Lora_700Bold', marginBottom: 8 }}>
+              {dayNames[tooltip.data.dayOfWeek]}
+            </Text>
+            <Text style={{ fontSize: 32, fontWeight: '700', color: '#A78BFA', fontFamily: 'Lora_700Bold', marginBottom: 4 }}>
+              {tooltip.data.avgBattery.toFixed(1)}/5
+            </Text>
+            <Text style={{ fontSize: 14, color: '#8A8F9E', fontFamily: 'Inter_400Regular' }}>
+              Average energy level
+            </Text>
+            <Text style={{ fontSize: 12, color: '#8A8F9E', fontFamily: 'Inter_400Regular', marginTop: 8 }}>
+              Based on {tooltip.data.count} check-ins
+            </Text>
+          </>
+        );
+
+      case 'tier':
+        const tierLabels: Record<string, string> = {
+          InnerCircle: 'Inner Circle',
+          CloseFriends: 'Close Friends',
+          Community: 'Community',
+        };
+        return (
+          <>
+            <Text style={{ fontSize: 20, fontWeight: '700', color: '#F5F1E8', fontFamily: 'Lora_700Bold', marginBottom: 8 }}>
+              {tierLabels[tooltip.data.tier]}
+            </Text>
+            <Text style={{ fontSize: 32, fontWeight: '700', color: '#7A7EAF', fontFamily: 'Lora_700Bold', marginBottom: 4 }}>
+              {Math.round(tooltip.data.avgScore)}
+            </Text>
+            <Text style={{ fontSize: 14, color: '#8A8F9E', fontFamily: 'Inter_400Regular', marginBottom: 8 }}>
+              Average health score
+            </Text>
+            <View style={{ flexDirection: 'row', gap: 16, marginTop: 8 }}>
+              <View>
+                <Text style={{ fontSize: 18, fontWeight: '600', color: '#F5F1E8', fontFamily: 'Inter_600SemiBold' }}>
+                  {tooltip.data.count}
+                </Text>
+                <Text style={{ fontSize: 12, color: '#8A8F9E', fontFamily: 'Inter_400Regular' }}>
+                  friends
+                </Text>
+              </View>
+              <View>
+                <Text style={{ fontSize: 18, fontWeight: '600', color: '#F5F1E8', fontFamily: 'Inter_600SemiBold' }}>
+                  {tooltip.data.percentage.toFixed(0)}%
+                </Text>
+                <Text style={{ fontSize: 12, color: '#8A8F9E', fontFamily: 'Inter_400Regular' }}>
+                  of network
+                </Text>
+              </View>
+            </View>
+          </>
+        );
+
+      case 'friend':
+        return (
+          <>
+            <Text style={{ fontSize: 24, fontWeight: '700', color: '#F5F1E8', fontFamily: 'Lora_700Bold', marginBottom: 16 }}>
+              {tooltip.data.name}
+            </Text>
+            <Text style={{ fontSize: 48, fontWeight: '700', color: '#7A7EAF', fontFamily: 'Lora_700Bold', marginBottom: 4 }}>
+              {tooltip.data.count}
+            </Text>
+            <Text style={{ fontSize: 16, color: '#8A8F9E', fontFamily: 'Inter_400Regular' }}>
+              weaves this year
+            </Text>
+            <View style={{ marginTop: 16, padding: 12, backgroundColor: '#1a1d2e', borderRadius: 12 }}>
+              <Text style={{ fontSize: 13, color: '#C5CAD3', fontFamily: 'Inter_400Regular', textAlign: 'center' }}>
+                Your most frequent connection this year!
+              </Text>
+            </View>
+          </>
+        );
+
+      case 'donut':
+        return (
+          <>
+            <Text style={{ fontSize: 24, fontWeight: '700', color: '#F5F1E8', fontFamily: 'Lora_700Bold', marginBottom: 8 }}>
+              {tooltip.data.archetype}
+            </Text>
+            <Text style={{ fontSize: 48, fontWeight: '700', color: tooltip.data.color, fontFamily: 'Lora_700Bold', marginBottom: 4 }}>
+              {tooltip.data.count}
+            </Text>
+            <Text style={{ fontSize: 16, color: '#8A8F9E', fontFamily: 'Inter_400Regular' }}>
+              {tooltip.data.count === 1 ? 'friend' : 'friends'} • {Math.round(tooltip.data.percentage * 100)}% of circle
+            </Text>
+          </>
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <Modal visible={tooltip.visible} transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable style={{ flex: 1 }} onPress={onClose}>
+        <BlurView intensity={20} style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 }}>
+          <Animated.View entering={FadeIn.duration(200)}>
+            <Pressable
+              onPress={(e) => e.stopPropagation()}
+              style={{
+                backgroundColor: '#2A2E3F',
+                borderRadius: 24,
+                padding: 32,
+                minWidth: 280,
+                maxWidth: 320,
+                borderWidth: 1,
+                borderColor: '#3A3E5F',
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 8 },
+                shadowOpacity: 0.4,
+                shadowRadius: 16,
+                elevation: 8,
+              }}
+            >
+              <TouchableOpacity
+                onPress={onClose}
+                style={{ position: 'absolute', top: 16, right: 16, padding: 8 }}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <X size={20} color="#8A8F9E" />
+              </TouchableOpacity>
+              <View style={{ alignItems: 'center' }}>
+                {renderContent()}
+              </View>
+            </Pressable>
+          </Animated.View>
+        </BlurView>
+      </Pressable>
+    </Modal>
   );
 }
