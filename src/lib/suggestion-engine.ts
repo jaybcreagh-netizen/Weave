@@ -104,8 +104,16 @@ async function checkUpcomingLifeEvent(friend: SuggestionInput['friend']): Promis
       )
       .fetch();
 
+    // Filter out anniversaries for non-partners
+    const filteredEvents = activeLifeEvents.filter(event => {
+      if (event.eventType === 'anniversary') {
+        return friend.relationshipType?.toLowerCase().includes('partner');
+      }
+      return true;
+    });
+
     // Prioritize critical and high importance events
-    const sortedEvents = activeLifeEvents.sort((a, b) => {
+    const sortedEvents = filteredEvents.sort((a, b) => {
       const importanceOrder = { critical: 4, high: 3, medium: 2, low: 1 };
       const aScore = importanceOrder[a.importance];
       const bScore = importanceOrder[b.importance];

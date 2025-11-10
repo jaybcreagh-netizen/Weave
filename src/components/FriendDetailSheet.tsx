@@ -135,7 +135,7 @@ export const FriendDetailSheet: React.FC<FriendDetailSheetProps> = ({
             </View>
           )}
 
-          {friend.anniversary && (
+          {friend.anniversary && friend.relationshipType?.toLowerCase().includes('partner') && (
             <View className="flex-row items-center gap-3">
               <View
                 style={{ backgroundColor: colors.muted }}

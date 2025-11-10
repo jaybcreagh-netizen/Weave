@@ -247,37 +247,40 @@ export function FriendForm({ onSave, friend, initialTier }: FriendFormProps) {
             )}
           </View>
 
-          <View>
-            <Text style={[styles.label, { color: colors.foreground }]}>Anniversary (Partners Only)</Text>
-            <Text style={[styles.helperText, { color: colors['muted-foreground'] }]}>Romantic relationship anniversary</Text>
-            <TouchableOpacity
-              onPress={() => setShowAnniversaryPicker(true)}
-              style={[styles.dateButton, { backgroundColor: colors.card, borderColor: colors.border }]}
-            >
-              <Heart size={20} color={colors['muted-foreground']} />
-              <Text style={[styles.dateButtonText, { color: formData.anniversary ? colors.foreground : colors['muted-foreground'] }]}>
-                {formData.anniversary ? formData.anniversary.toLocaleDateString() : "Set anniversary"}
-              </Text>
-              {formData.anniversary && (
-                <TouchableOpacity onPress={() => setFormData({ ...formData, anniversary: undefined })}>
-                  <X size={16} color={colors['muted-foreground']} />
-                </TouchableOpacity>
+          {/* Only show anniversary field for partners */}
+          {formData.relationshipType === 'partner' && (
+            <View>
+              <Text style={[styles.label, { color: colors.foreground }]}>Anniversary</Text>
+              <Text style={[styles.helperText, { color: colors['muted-foreground'] }]}>Romantic relationship anniversary</Text>
+              <TouchableOpacity
+                onPress={() => setShowAnniversaryPicker(true)}
+                style={[styles.dateButton, { backgroundColor: colors.card, borderColor: colors.border }]}
+              >
+                <Heart size={20} color={colors['muted-foreground']} />
+                <Text style={[styles.dateButtonText, { color: formData.anniversary ? colors.foreground : colors['muted-foreground'] }]}>
+                  {formData.anniversary ? formData.anniversary.toLocaleDateString() : "Set anniversary"}
+                </Text>
+                {formData.anniversary && (
+                  <TouchableOpacity onPress={() => setFormData({ ...formData, anniversary: undefined })}>
+                    <X size={16} color={colors['muted-foreground']} />
+                  </TouchableOpacity>
+                )}
+              </TouchableOpacity>
+              {showAnniversaryPicker && (
+                <DateTimePicker
+                  value={formData.anniversary || new Date()}
+                  mode="date"
+                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                  onChange={(event, selectedDate) => {
+                    setShowAnniversaryPicker(Platform.OS === 'ios');
+                    if (selectedDate) {
+                      setFormData({ ...formData, anniversary: selectedDate });
+                    }
+                  }}
+                />
               )}
-            </TouchableOpacity>
-            {showAnniversaryPicker && (
-              <DateTimePicker
-                value={formData.anniversary || new Date()}
-                mode="date"
-                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                onChange={(event, selectedDate) => {
-                  setShowAnniversaryPicker(Platform.OS === 'ios');
-                  if (selectedDate) {
-                    setFormData({ ...formData, anniversary: selectedDate });
-                  }
-                }}
-              />
-            )}
-          </View>
+            </View>
+          )}
 
           <View>
             <Text style={[styles.label, { color: colors.foreground }]}>Notes (Optional)</Text>
