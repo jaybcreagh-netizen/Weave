@@ -182,7 +182,20 @@ async function checkUpcomingLifeEvent(friend: SuggestionInput['friend']): Promis
   }
 
   // Check anniversary (within 14 days) - only for partners
-  if (friend.anniversary && friend.relationshipType?.toLowerCase().includes('partner')) {
+  if (friend.anniversary) {
+    console.log('[Anniversary Check] Friend has anniversary field:', {
+      friendName: friend.name,
+      anniversary: friend.anniversary,
+      relationshipType: friend.relationshipType,
+      relationshipTypeLower: friend.relationshipType?.toLowerCase(),
+      includesPartner: friend.relationshipType?.toLowerCase().includes('partner'),
+    });
+
+    if (!friend.relationshipType?.toLowerCase().includes('partner')) {
+      console.log('[Anniversary Check] Skipping - not a partner');
+      return null;
+    }
+
     const anniversaryThisYear = new Date(friend.anniversary);
 
     // Validate that we have a valid date
@@ -456,8 +469,48 @@ export async function generateSuggestion(input: SuggestionInput): Promise<Sugges
 
   // PRIORITY 2: Upcoming life event (birthday within 7 days, anniversary within 14 days)
   if (lifeEvent) {
-    const eventIcon = lifeEvent.type === 'birthday' ? '🎂' : '💝';
-    const eventLabel = lifeEvent.type === 'birthday' ? 'birthday' : 'anniversary';
+    // Map life event types to appropriate icons and labels
+    const eventIconMap: Record<string, string> = {
+      birthday: '🎂',
+      anniversary: '💝',
+      new_job: '💼',
+      moving: '🏠',
+      graduation: '🎓',
+      health_event: '🏥',
+      celebration: '🎉',
+      loss: '🕊️',
+      wedding: '💒',
+      baby: '👶',
+    };
+
+    const eventLabelMap: Record<string, string> = {
+      birthday: 'birthday',
+      anniversary: 'anniversary',
+      new_job: 'new job',
+      moving: 'move',
+      graduation: 'graduation',
+      health_event: 'health event',
+      celebration: 'celebration',
+      loss: 'loss',
+      wedding: 'wedding',
+      baby: 'baby',
+    };
+
+    const eventIcon = eventIconMap[lifeEvent.type] || '📅';
+    const eventLabel = lifeEvent.title || eventLabelMap[lifeEvent.type] || lifeEvent.type;
+    const isPast = lifeEvent.daysUntil < 0;
+
+    // Use archetype-specific suggestions for birthdays/anniversaries, otherwise use life event specific
+    const subtitle = (lifeEvent.type === 'birthday' || lifeEvent.type === 'anniversary')
+      ? getArchetypeCelebrationSuggestion(friend.archetype)
+      : getLifeEventSuggestion(lifeEvent.type, friend.archetype, isPast);
+
+    // Different title and action for past vs upcoming events
+    const title = isPast
+      ? `Check in on ${friend.name}'s ${eventLabel}`
+      : `${friend.name}'s ${eventLabel} ${getDaysText(lifeEvent.daysUntil)}`;
+
+    const actionLabel = isPast ? 'Reach Out' : 'Plan Celebration';
 
     return {
       id: `life-event-${friend.id}-${lifeEvent.type}`,
@@ -465,12 +518,12 @@ export async function generateSuggestion(input: SuggestionInput): Promise<Sugges
       friendName: friend.name,
       urgency: lifeEvent.daysUntil <= 1 ? 'high' : 'medium',
       category: 'life-event',
-      title: `${friend.name}'s ${eventLabel} ${getDaysText(lifeEvent.daysUntil)}`,
-      subtitle: getArchetypeCelebrationSuggestion(friend.archetype),
-      actionLabel: 'Plan Celebration',
+      title,
+      subtitle,
+      actionLabel,
       icon: eventIcon,
       action: {
-        type: 'plan',
+        type: isPast ? 'log' : 'plan',
         prefilledCategory: 'celebration' as any,
       },
       dismissible: true,
