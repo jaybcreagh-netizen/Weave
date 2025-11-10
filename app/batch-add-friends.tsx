@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, SafeAreaView, ActivityIndicator, StyleSheet, FlatList, Image } from 'react-native';
+import { View, Text, TouchableOpacity, SafeAreaView, ActivityIndicator, StyleSheet, FlatList, Image, TextInput } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as Contacts from 'expo-contacts';
-import { ArrowLeft, Check } from 'lucide-react-native';
+import { ArrowLeft, Check, Search } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useFriendStore } from '../src/stores/friendStore';
 import { useTheme } from '../src/hooks/useTheme';
@@ -108,11 +108,13 @@ function BatchContactPicker({
   onSelectionChange: (contacts: Contacts.Contact[]) => void;
   selectedCount: number;
 }) {
+  const { colors, isDarkMode } = useTheme();
   const [contacts, setContacts] = React.useState<Contacts.Contact[]>([]);
   const [selectedContactIds, setSelectedContactIds] = React.useState<string[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [permissionDenied, setPermissionDenied] = React.useState(false);
   const [imageError, setImageError] = React.useState<Record<string, boolean>>({});
+  const [searchQuery, setSearchQuery] = React.useState('');
 
   React.useEffect(() => {
     (async () => {
@@ -178,6 +180,15 @@ function BatchContactPicker({
     return colors[hash % colors.length];
   };
 
+  // Filter contacts based on search query
+  const filteredContacts = React.useMemo(() => {
+    if (!searchQuery.trim()) return contacts;
+    const query = searchQuery.toLowerCase();
+    return contacts.filter(contact =>
+      (contact.name || '').toLowerCase().includes(query)
+    );
+  }, [contacts, searchQuery]);
+
   if (loading) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 80 }}>
@@ -216,72 +227,129 @@ function BatchContactPicker({
   }
 
   return (
-    <FlatList
-      data={contacts}
-      numColumns={3}
-      keyExtractor={(item) => item.id}
-      renderItem={({ item }) => {
-        const isSelected = selectedContactIds.includes(item.id);
-        const avatarColor = getAvatarColor(item.name || '');
+    <View style={{ flex: 1 }}>
+      {/* Search Bar */}
+      <View
+        style={{
+          paddingHorizontal: 16,
+          paddingVertical: 12,
+          backgroundColor: colors.card,
+          borderBottomWidth: 1,
+          borderBottomColor: colors.border,
+        }}
+      >
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.05)',
+            borderRadius: 12,
+            paddingHorizontal: 12,
+            paddingVertical: 10,
+          }}
+        >
+          <Search color={colors['muted-foreground']} size={20} />
+          <TextInput
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder="Search contacts..."
+            placeholderTextColor={colors['muted-foreground']}
+            style={{
+              flex: 1,
+              marginLeft: 8,
+              fontSize: 16,
+              color: colors.foreground,
+            }}
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchQuery('')}>
+              <Text style={{ color: colors['muted-foreground'], fontSize: 14, fontWeight: '500' }}>
+                Clear
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
 
-        return (
-          <TouchableOpacity
-            onPress={() => handleSelectContact(item.id)}
-            style={{ alignItems: 'center', padding: 12, width: '33.33%' }}
-          >
-            <View style={{ position: 'relative' }}>
-              <View
-                style={{
-                  width: 80,
-                  height: 80,
-                  borderRadius: 40,
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  backgroundColor: isSelected ? '#10b981' : avatarColor,
-                  borderWidth: isSelected ? 4 : 0,
-                  borderColor: '#10b981',
-                }}
-              >
-                {item.imageAvailable && item.image && !imageError[item.id] ? (
-                  <Image
-                    source={{ uri: item.image.uri }}
-                    style={{ width: '100%', height: '100%', borderRadius: 40 }}
-                    resizeMode="cover"
-                    onError={() => setImageError(prev => ({ ...prev, [item.id]: true }))}
-                  />
-                ) : (
-                  <Text style={{ fontSize: 24, fontWeight: '600', color: 'white' }}>
-                    {getInitials(item.name)}
-                  </Text>
-                )}
-              </View>
-              {isSelected && (
+      {/* Contacts Grid */}
+      <FlatList
+        data={filteredContacts}
+        numColumns={3}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => {
+          const isSelected = selectedContactIds.includes(item.id);
+          const avatarColor = getAvatarColor(item.name || '');
+
+          return (
+            <TouchableOpacity
+              onPress={() => handleSelectContact(item.id)}
+              style={{ alignItems: 'center', padding: 12, width: '33.33%' }}
+            >
+              <View style={{ position: 'relative' }}>
                 <View
                   style={{
-                    position: 'absolute',
-                    top: -4,
-                    right: -4,
-                    backgroundColor: '#10b981',
-                    borderRadius: 10,
-                    padding: 4,
+                    width: 80,
+                    height: 80,
+                    borderRadius: 40,
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    backgroundColor: isSelected ? '#10b981' : avatarColor,
+                    borderWidth: isSelected ? 4 : 0,
+                    borderColor: '#10b981',
                   }}
                 >
-                  <Check color="white" size={16} strokeWidth={3} />
+                  {item.imageAvailable && item.image && !imageError[item.id] ? (
+                    <Image
+                      source={{ uri: item.image.uri }}
+                      style={{ width: '100%', height: '100%', borderRadius: 40 }}
+                      resizeMode="cover"
+                      onError={() => setImageError(prev => ({ ...prev, [item.id]: true }))}
+                    />
+                  ) : (
+                    <Text style={{ fontSize: 24, fontWeight: '600', color: 'white' }}>
+                      {getInitials(item.name)}
+                    </Text>
+                  )}
                 </View>
-              )}
-            </View>
+                {isSelected && (
+                  <View
+                    style={{
+                      position: 'absolute',
+                      top: -4,
+                      right: -4,
+                      backgroundColor: '#10b981',
+                      borderRadius: 10,
+                      padding: 4,
+                    }}
+                  >
+                    <Check color="white" size={16} strokeWidth={3} />
+                  </View>
+                )}
+              </View>
 
-            <Text
-              style={{ marginTop: 8, textAlign: 'center', fontSize: 14, color: '#374151', fontWeight: '500' }}
-              numberOfLines={2}
-            >
-              {item.name || 'Unknown'}
+              <Text
+                style={{ marginTop: 8, textAlign: 'center', fontSize: 14, color: '#374151', fontWeight: '500' }}
+                numberOfLines={2}
+              >
+                {item.name || 'Unknown'}
+              </Text>
+            </TouchableOpacity>
+          );
+        }}
+        contentContainerStyle={{ paddingBottom: 90, paddingTop: 10 }}
+        ListEmptyComponent={
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 60 }}>
+            <Search size={48} color={colors['muted-foreground']} />
+            <Text style={{ fontSize: 18, fontWeight: '600', color: colors.foreground, marginTop: 16, textAlign: 'center' }}>
+              No contacts found
             </Text>
-          </TouchableOpacity>
-        );
-      }}
-      contentContainerStyle={{ paddingBottom: 90, paddingTop: 10 }}
-    />
+            <Text style={{ fontSize: 14, color: colors['muted-foreground'], marginTop: 8, textAlign: 'center' }}>
+              Try a different search term
+            </Text>
+          </View>
+        }
+      />
+    </View>
   );
 }
 
