@@ -198,7 +198,7 @@ export function FriendForm({ onSave, friend, initialTier }: FriendFormProps) {
               Tap to select • Long-press to learn more
             </Text>
             <View style={styles.archetypeGrid}>
-              {(['Emperor', 'Empress', 'HighPriestess', 'Fool', 'Sun', 'Hermit', 'Magician'] as Archetype[]).map((archetype) => (
+              {(['Emperor', 'Empress', 'HighPriestess', 'Fool', 'Sun', 'Hermit', 'Magician', 'Lovers'] as Archetype[]).map((archetype) => (
                 <View key={archetype} style={styles.archetypeCardWrapper}>
                   <ArchetypeCard
                     archetype={archetype}

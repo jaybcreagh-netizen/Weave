@@ -15,6 +15,7 @@ import FoolSvg from '../../assets/TarotIcons/The Fool.svg';
 import SunSvg from '../../assets/TarotIcons/The Sun.svg';
 import HermitSvg from '../../assets/TarotIcons/The Hermit.svg';
 import MagicianSvg from '../../assets/TarotIcons/The Magician.svg';
+import LoversSvg from '../../assets/TarotIcons/The Lovers.svg';
 
 interface ArchetypeCardProps {
   archetype: Archetype;
@@ -30,6 +31,7 @@ const ARCHETYPE_GRADIENTS: Record<Archetype, string[]> = {
   Sun: ['#eab308', '#ca8a04'],
   Hermit: ['#6366f1', '#4f46e5'],
   Magician: ['#ec4899', '#db2777'],
+  Lovers: ['#fb7185', '#f43f5e'],
 };
 
 // Map archetypes to their tarot card SVG components
@@ -41,6 +43,7 @@ const TAROT_CARD_COMPONENTS: Record<Archetype, React.FC<any>> = {
   Sun: SunSvg,
   Hermit: HermitSvg,
   Magician: MagicianSvg,
+  Lovers: LoversSvg,
 };
 
 export function ArchetypeCard({
