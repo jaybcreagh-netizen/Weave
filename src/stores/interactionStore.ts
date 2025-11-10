@@ -50,6 +50,10 @@ export interface InteractionFormData {
   // v17: Custom title and location
   title?: string;
   location?: string;
+  // v24: Event importance for special occasions
+  eventImportance?: 'low' | 'medium' | 'high' | 'critical';
+  // v25: Reciprocity tracking
+  initiator?: 'user' | 'friend' | 'mutual';
 }
 
 interface InteractionStore {

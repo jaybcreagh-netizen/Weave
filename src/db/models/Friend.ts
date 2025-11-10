@@ -37,4 +37,15 @@ export default class Friend extends Model {
   @field('typical_interval_days') typicalIntervalDays?: number
   @field('tolerance_window_days') toleranceWindowDays?: number
 
+  // Learned effectiveness from feedback (v23)
+  @text('category_effectiveness') categoryEffectiveness?: string // JSON
+  @field('outcome_count') outcomeCount!: number
+
+  // Reciprocity tracking (v25)
+  @field('initiation_ratio') initiationRatio!: number // 0 = always friend, 1.0 = always user, 0.5 = balanced
+  @text('last_initiated_by') lastInitiatedBy?: string // 'user' | 'friend' | 'mutual'
+  @field('consecutive_user_initiations') consecutiveUserInitiations!: number
+  @field('total_user_initiations') totalUserInitiations!: number
+  @field('total_friend_initiations') totalFriendInitiations!: number
+
 }

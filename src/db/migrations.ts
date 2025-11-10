@@ -425,6 +425,55 @@ export default schemaMigrations({
         }),
       ],
     },
+    {
+      // Migration from schema v26 to v27
+      // Interaction outcomes feedback system + reciprocity tracking
+      toVersion: 27,
+      steps: [
+        // Add effectiveness tracking to friends
+        addColumns({
+          table: 'friends',
+          columns: [
+            { name: 'category_effectiveness', type: 'string', isOptional: true },
+            { name: 'outcome_count', type: 'number', defaultValue: 0 },
+            { name: 'initiation_ratio', type: 'number', defaultValue: 0.5 },
+            { name: 'last_initiated_by', type: 'string', isOptional: true },
+            { name: 'consecutive_user_initiations', type: 'number', defaultValue: 0 },
+            { name: 'total_user_initiations', type: 'number', defaultValue: 0 },
+            { name: 'total_friend_initiations', type: 'number', defaultValue: 0 },
+          ],
+        }),
+        // Add event importance and initiator to interactions
+        addColumns({
+          table: 'interactions',
+          columns: [
+            { name: 'event_importance', type: 'string', isOptional: true },
+            { name: 'initiator', type: 'string', isOptional: true },
+          ],
+        }),
+        // Create interaction_outcomes table for adaptive learning
+        createTable({
+          name: 'interaction_outcomes',
+          columns: [
+            { name: 'interaction_id', type: 'string', isIndexed: true },
+            { name: 'friend_id', type: 'string', isIndexed: true },
+            { name: 'score_before', type: 'number' },
+            { name: 'score_after', type: 'number' },
+            { name: 'score_change', type: 'number' },
+            { name: 'category', type: 'string' },
+            { name: 'duration', type: 'string', isOptional: true },
+            { name: 'vibe', type: 'string', isOptional: true },
+            { name: 'had_reflection', type: 'boolean', defaultValue: false },
+            { name: 'expected_impact', type: 'number' },
+            { name: 'actual_impact', type: 'number' },
+            { name: 'effectiveness_ratio', type: 'number' },
+            { name: 'interaction_date', type: 'number' },
+            { name: 'measured_at', type: 'number' },
+            { name: 'created_at', type: 'number' },
+          ],
+        }),
+      ],
+    },
   ],
 });
 

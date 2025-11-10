@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb'
 
 export default appSchema({
-  version: 26, // UPDATED: Added custom_chips and chip_usage tables for enhanced story chips system
+  version: 27, // UPDATED: Merged custom_chips/chip_usage tables + interaction_outcomes feedback system
   tables: [
     tableSchema({
       name: 'friends',
@@ -27,6 +27,15 @@ export default appSchema({
         // NEW v21: Adaptive decay pattern learning
         { name: 'typical_interval_days', type: 'number', isOptional: true }, // Learned average days between interactions
         { name: 'tolerance_window_days', type: 'number', isOptional: true }, // Learned tolerance before decay accelerates
+        // NEW v23: Learned effectiveness from feedback
+        { name: 'category_effectiveness', type: 'string', isOptional: true }, // JSON: Record<category, effectiveness ratio>
+        { name: 'outcome_count', type: 'number', defaultValue: 0 }, // How many outcomes measured
+        // NEW v25: Reciprocity tracking
+        { name: 'initiation_ratio', type: 'number', defaultValue: 0.5 }, // 0 = always friend, 1.0 = always user, 0.5 = balanced
+        { name: 'last_initiated_by', type: 'string', isOptional: true }, // 'user' | 'friend' | 'mutual'
+        { name: 'consecutive_user_initiations', type: 'number', defaultValue: 0 }, // Streak of user-initiated interactions
+        { name: 'total_user_initiations', type: 'number', defaultValue: 0 }, // Total times user initiated
+        { name: 'total_friend_initiations', type: 'number', defaultValue: 0 }, // Total times friend initiated
       ]
     }),
     tableSchema({
@@ -54,6 +63,10 @@ export default appSchema({
         { name: 'completion_prompted_at', type: 'number', isOptional: true },
         // v18: Calendar integration
         { name: 'calendar_event_id', type: 'string', isOptional: true },
+        // v24: Event importance for special occasions
+        { name: 'event_importance', type: 'string', isOptional: true }, // low, medium, high, critical
+        // v25: Reciprocity tracking
+        { name: 'initiator', type: 'string', isOptional: true }, // 'user' | 'friend' | 'mutual'
       ]
     }),
     tableSchema({
@@ -275,6 +288,34 @@ export default appSchema({
         { name: 'chip_type', type: 'string' }, // For faster filtering
         { name: 'is_custom', type: 'boolean', defaultValue: false }, // Whether this is a custom chip
         { name: 'used_at', type: 'number' }, // Timestamp of usage
+        { name: 'created_at', type: 'number' },
+      ]
+    }),
+    tableSchema({
+      name: 'interaction_outcomes',
+      columns: [
+        { name: 'interaction_id', type: 'string', isIndexed: true },
+        { name: 'friend_id', type: 'string', isIndexed: true },
+
+        // Score context
+        { name: 'score_before', type: 'number' },
+        { name: 'score_after', type: 'number' }, // Measured at next interaction or 7 days later
+        { name: 'score_change', type: 'number' }, // scoreAfter - scoreBefore
+
+        // Interaction details
+        { name: 'category', type: 'string' },
+        { name: 'duration', type: 'string', isOptional: true },
+        { name: 'vibe', type: 'string', isOptional: true },
+        { name: 'had_reflection', type: 'boolean', defaultValue: false },
+
+        // Effectiveness metrics
+        { name: 'expected_impact', type: 'number' }, // What we predicted
+        { name: 'actual_impact', type: 'number' }, // What happened (accounting for decay)
+        { name: 'effectiveness_ratio', type: 'number' }, // actualImpact / expectedImpact
+
+        // Timestamps
+        { name: 'interaction_date', type: 'number' },
+        { name: 'measured_at', type: 'number' }, // When we measured the outcome
         { name: 'created_at', type: 'number' },
       ]
     })
