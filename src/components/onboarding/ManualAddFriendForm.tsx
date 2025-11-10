@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import * as ImagePicker from 'expo-image-picker';
@@ -14,6 +14,12 @@ interface ManualAddFriendFormProps {
 export function ManualAddFriendForm({ onComplete }: ManualAddFriendFormProps) {
   const [name, setName] = useState('');
   const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const [imageError, setImageError] = useState(false);
+
+  // Reset image error when photoUri changes
+  useEffect(() => {
+    setImageError(false);
+  }, [photoUri]);
 
   const handleChoosePhoto = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -25,6 +31,7 @@ export function ManualAddFriendForm({ onComplete }: ManualAddFriendFormProps) {
 
     if (!result.canceled) {
       setPhotoUri(result.assets[0].uri);
+      setImageError(false); // Reset error state when new image is picked
     }
   };
 
@@ -46,8 +53,13 @@ export function ManualAddFriendForm({ onComplete }: ManualAddFriendFormProps) {
       <Text style={styles.subtitle}>Start by adding one person who matters to you.</Text>
 
       <TouchableOpacity style={styles.photoContainer} onPress={handleChoosePhoto}>
-        {photoUri ? (
-          <Image source={{ uri: photoUri }} style={styles.photo} />
+        {photoUri && !imageError ? (
+          <Image
+            source={{ uri: photoUri }}
+            style={styles.photo}
+            resizeMode="cover"
+            onError={() => setImageError(true)}
+          />
         ) : (
           <Camera size={40} color={theme.colors['muted-foreground']} />
         )}

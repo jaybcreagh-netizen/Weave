@@ -11,15 +11,17 @@ interface ContactPickerGridProps {
   onAddManually?: () => void;
 }
 
-const ContactItem = ({ 
-  item, 
-  isSelected, 
-  onSelect 
-}: { 
-  item: Contacts.Contact; 
-  isSelected: boolean; 
+const ContactItem = ({
+  item,
+  isSelected,
+  onSelect
+}: {
+  item: Contacts.Contact;
+  isSelected: boolean;
   onSelect: () => void;
 }) => {
+  const [imageError, setImageError] = useState(false);
+
   const getInitials = (name: string) => {
     if (!name) return '?';
     const names = name.split(' ');
@@ -45,12 +47,14 @@ const ContactItem = ({
   return (
     <TouchableOpacity onPress={onSelect} className="items-center p-3 w-1/3">
       <View className="relative">
-        <View 
+        <View
           className={`w-20 h-20 rounded-full justify-center items-center ${isSelected ? 'bg-emerald-500 border-4 border-emerald-500' : colorClasses}`}>
-          {item.imageAvailable && item.image ? (
-            <Image 
-              source={{ uri: item.image.uri }} 
-              className="w-full h-full rounded-full" 
+          {item.imageAvailable && item.image && !imageError ? (
+            <Image
+              source={{ uri: item.image.uri }}
+              className="w-full h-full rounded-full"
+              resizeMode="cover"
+              onError={() => setImageError(true)}
             />
           ) : (
             <Text className={`text-2xl font-semibold ${isSelected ? 'text-white' : ''}`}>
