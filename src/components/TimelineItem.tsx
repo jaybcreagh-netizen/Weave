@@ -551,16 +551,12 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, index,
         {/* Knot on thread - centered on thread */}
         {/* Knots fade from golden (recent) to white (distant) - hollow "O" appearance */}
         <Animated.View
-          className="absolute rounded-full shadow-sm elevation-3"
+          className="absolute w-[10px] h-[10px] top-4 rounded-full border-2 shadow-sm"
           style={[
             knotAnimatedStyle,
             {
               left: THREAD_CENTER - (KNOT_SIZE / 2),
-              top: 16,
-              width: KNOT_SIZE,
-              height: KNOT_SIZE,
               backgroundColor: isFuture ? 'transparent' : (temporalColors.knot === colors.card ? 'transparent' : temporalColors.knot),
-              borderWidth: KNOT_BORDER_WIDTH,
               borderColor: isFuture ? 'rgba(247, 245, 242, 0.6)' : temporalColors.line,
               shadowColor: temporalColors.glow,
               shadowOffset: { width: 0, height: 1 },
@@ -572,14 +568,9 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, index,
           {/* Glow effect for warm/recent knots */}
           {warmth > 0.5 && !isFuture && (
             <View
-              className="absolute rounded-full -z-10"
+              className="absolute w-4 h-4 -top-[3px] -left-[3px] rounded-full -z-10 opacity-20"
               style={{
-                width: KNOT_SIZE + 6,
-                height: KNOT_SIZE + 6,
-                top: -3,
-                left: -3,
                 backgroundColor: temporalColors.glow,
-                opacity: 0.2,
               }}
             />
           )}
