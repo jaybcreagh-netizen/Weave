@@ -70,18 +70,84 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, onDele
     return 'dotted'; // Old past (over a month) - fades like distant memories
   }, [date, isFuture]);
 
-  // Get line color with gradient effect
-  const lineColor = useMemo(() => {
-    const opacity = lineTexture === 'solid' ? 0.8 : lineTexture === 'dashed' ? 0.6 : 0.35;
-
-    if (!isDarkMode) {
-      // Light mode: golden/bronze tones
-      return `rgba(181, 138, 108, ${opacity})`;
+  // Get temporal colors (line and knot) with gradient (golden → amber → white)
+  const temporalColors = useMemo(() => {
+    if (isFuture) {
+      // Future plans: lighter, muted
+      return {
+        line: isDarkMode ? 'rgba(139, 92, 246, 0.4)' : 'rgba(181, 138, 108, 0.35)',
+        knot: 'transparent', // Hollow for future
+        glow: isDarkMode ? colors.accent : colors.glow,
+      };
     }
 
-    // Dark mode: mystic purple tones
-    return `rgba(139, 92, 246, ${opacity})`;
-  }, [lineTexture, isDarkMode]);
+    const today = new Date();
+    const daysAgo = Math.floor((today.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+
+    if (!isDarkMode) {
+      // Light mode: Temporal gradient from golden to white
+      if (daysAgo <= 3) {
+        // Recent: Rich golden
+        return {
+          line: 'rgba(212, 175, 55, 0.9)', // #D4AF37 golden
+          knot: 'rgba(212, 175, 55, 0.15)', // Subtle golden tint
+          glow: '#D4AF37',
+        };
+      } else if (daysAgo <= 14) {
+        // Medium recent: Amber/bronze
+        return {
+          line: 'rgba(181, 138, 108, 0.75)',
+          knot: 'rgba(181, 138, 108, 0.1)',
+          glow: '#B58A6C',
+        };
+      } else if (daysAgo <= 30) {
+        // Older: Light gray-brown
+        return {
+          line: 'rgba(160, 140, 130, 0.55)',
+          knot: 'rgba(160, 140, 130, 0.08)',
+          glow: '#A08C82',
+        };
+      } else {
+        // Distant memory: Very light gray, fading to white
+        return {
+          line: 'rgba(200, 195, 190, 0.35)',
+          knot: colors.card, // Pure card color, fully faded
+          glow: '#C8C3BE',
+        };
+      }
+    } else {
+      // Dark mode: Similar gradient with purple tones
+      if (daysAgo <= 3) {
+        // Recent: Vibrant accent
+        return {
+          line: 'rgba(139, 92, 246, 0.9)',
+          knot: 'rgba(139, 92, 246, 0.15)',
+          glow: colors.accent,
+        };
+      } else if (daysAgo <= 14) {
+        // Medium recent: Medium purple
+        return {
+          line: 'rgba(139, 92, 246, 0.7)',
+          knot: 'rgba(139, 92, 246, 0.1)',
+          glow: colors.accent,
+        };
+      } else if (daysAgo <= 30) {
+        // Older: Muted purple
+        return {
+          line: 'rgba(120, 100, 200, 0.5)',
+          knot: 'rgba(120, 100, 200, 0.08)',
+          glow: '#7864C8',
+        };
+      } else {
+        // Distant memory: Very faint
+        return {
+          line: 'rgba(100, 90, 150, 0.3)',
+          knot: colors.card, // Pure card color, fully faded
+          glow: '#645A96',
+        };
+      }
+    }
+  }, [date, isFuture, isDarkMode, colors]);
 
   // Memoize deepening calculations
   const deepeningMetrics = useMemo(() =>
@@ -194,6 +260,10 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, onDele
   // Line drawing animation
   const lineHeight = useSharedValue(0);
 
+  // Knot appearance animation
+  const knotScale = useSharedValue(0);
+  const knotOpacity = useSharedValue(0);
+
   // Pause pulse animation when app is sleeping (battery optimization)
   const { isSleeping } = usePausableAnimation(pulseAnimation);
 
@@ -202,47 +272,63 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, onDele
   const entranceScale = useSharedValue(0.92);
   const entranceTranslateY = useSharedValue(20);
 
-  // Beautiful staggered entrance - line draws first, then card animates
+  // Sequential flowing animation - line draws down, hits knot, knot pops, card appears
   useEffect(() => {
     const baseDelay = 200; // Let page fade in first
-    const stagger = index * 120; // Slightly longer stagger for smoother cascade
-    const delay = baseDelay + stagger;
+    const itemDuration = 500; // Total time per item in the cascade
+    const lineDuration = 400; // Line drawing duration
 
-    // Line drawing animation - draws down from knot
+    const lineStartDelay = baseDelay + (index * itemDuration);
+    const knotAppearDelay = lineStartDelay + lineDuration; // Knot appears when line finishes
+    const cardStartDelay = knotAppearDelay - 50; // Card starts slightly before knot (overlap)
+
+    // Line drawing animation - draws down from previous knot
     if (!isLastItem) {
       lineHeight.value = withDelay(
-        delay,
+        lineStartDelay,
         withTiming(90, {
-          duration: 400,
+          duration: lineDuration,
           easing: Easing.out(Easing.cubic),
         })
       );
     }
 
-    // Card animations start slightly before line finishes (overlapping for fluidity)
-    const cardDelay = delay + 250; // Start when line is ~60% drawn
+    // Knot pop-in when line arrives (spring for bounce effect)
+    knotScale.value = withDelay(
+      knotAppearDelay,
+      withSpring(1, {
+        damping: 15,
+        stiffness: 200,
+        mass: 0.8,
+      })
+    );
+    knotOpacity.value = withDelay(
+      knotAppearDelay,
+      withTiming(1, {
+        duration: 150,
+        easing: Easing.out(Easing.quad),
+      })
+    );
 
-    // Opacity: Quick fade in
+    // Card animations - fade and slide up as knot pops
     entranceOpacity.value = withDelay(
-      cardDelay,
+      cardStartDelay,
       withTiming(1, {
         duration: 400,
         easing: Easing.out(Easing.quad),
       })
     );
 
-    // Scale: Subtle zoom in
     entranceScale.value = withDelay(
-      cardDelay,
+      cardStartDelay,
       withSpring(1, {
         damping: 20,
         stiffness: 150,
       })
     );
 
-    // TranslateY: Gentle upward float
     entranceTranslateY.value = withDelay(
-      cardDelay,
+      cardStartDelay,
       withSpring(0, {
         damping: 20,
         stiffness: 180,
@@ -292,27 +378,36 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, onDele
     }
   }, [justLoggedInteractionId, interaction.id]);
 
-  // Knot pulse style - very subtle
+  // Knot entrance and pulse style
   const knotAnimatedStyle = useAnimatedStyle(() => {
-    if (warmth <= 0.7 || isFuture) {
-      return {};
+    // Base entrance animation
+    const baseScale = knotScale.value;
+    const baseOpacity = knotOpacity.value;
+
+    // Pulse animation for warm weaves (subtle)
+    if (warmth > 0.7 && !isFuture) {
+      const pulseScale = interpolate(
+        pulseAnimation.value,
+        [0, 0.5, 1],
+        [1, 1.05, 1]
+      );
+
+      const glowOpacity = interpolate(
+        pulseAnimation.value,
+        [0, 0.5, 1],
+        [0.2, 0.4, 0.2]
+      );
+
+      return {
+        transform: [{ scale: baseScale * pulseScale }],
+        opacity: baseOpacity,
+        shadowOpacity: warmth * glowOpacity,
+      };
     }
 
-    const scale = interpolate(
-      pulseAnimation.value,
-      [0, 0.5, 1],
-      [1, 1.05, 1] // Much more subtle scale
-    );
-
-    const glowOpacity = interpolate(
-      pulseAnimation.value,
-      [0, 0.5, 1],
-      [0.2, 0.4, 0.2]
-    );
-
     return {
-      transform: [{ scale }],
-      shadowOpacity: warmth * glowOpacity,
+      transform: [{ scale: baseScale }],
+      opacity: baseOpacity,
     };
   });
 
@@ -545,26 +640,27 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, onDele
         />
 
         {/* Knot on thread - centered on thread */}
-        {/* Future knots are hollow (transparent), past knots are filled */}
+        {/* Knots fade from golden (recent) to white (distant) */}
         <Animated.View
-          className="absolute w-3 h-3 top-4 rounded-full border-[1.5px] border-[rgba(247,245,242,0.9)] shadow-sm elevation-3"
+          className="absolute w-3 h-3 top-4 rounded-full border-[1.5px] shadow-sm elevation-3"
           style={[
             knotAnimatedStyle,
             {
               left: THREAD_CENTER - (KNOT_SIZE / 2),
-              backgroundColor: isFuture ? 'transparent' : colors.card,
-              shadowColor: warmth > 0.5 ? (isDarkMode ? colors.accent : '#D4AF37') : (isDarkMode ? '#000' : '#000'),
+              backgroundColor: temporalColors.knot,
+              borderColor: isFuture ? 'rgba(247, 245, 242, 0.6)' : temporalColors.line,
+              shadowColor: temporalColors.glow,
               shadowOffset: { width: 0, height: 1 },
-              shadowOpacity: 0.3,
+              shadowOpacity: warmth > 0.5 ? 0.3 : 0.2,
               shadowRadius: 4 + (warmth * 8),
             }
           ]}
         >
-          {/* Glow effect for warm knots */}
+          {/* Glow effect for warm/recent knots */}
           {warmth > 0.5 && !isFuture && (
             <View
               className="absolute w-5 h-5 rounded-full -top-1 -left-1 -z-10"
-              style={{ backgroundColor: isDarkMode ? colors.accent : colors.glow }}
+              style={{ backgroundColor: temporalColors.glow }}
             />
           )}
         </Animated.View>
@@ -578,7 +674,7 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, onDele
                 left: THREAD_CENTER,
                 top: 30, // More gap below knot (knot top 16px + knot height 12px + gap 2px)
                 height: lineHeight, // Animated height for drawing effect
-                backgroundColor: lineColor,
+                backgroundColor: temporalColors.line,
                 opacity: lineTexture === 'solid' ? 1 : 0.85,
               }
             ]}
