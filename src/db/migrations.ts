@@ -474,6 +474,20 @@ export default schemaMigrations({
         }),
       ],
     },
+    {
+      // Migration from schema v27 to v28
+      // Changed birthday from timestamp (number) to MM-DD string format (no year)
+      toVersion: 28,
+      steps: [
+        // Since WatermelonDB doesn't support direct column type changes,
+        // and birthday is optional, we'll clear existing values
+        // Users will need to re-enter birthdays in the new format
+        // Future enhancement: Could convert timestamps to MM-DD format with custom SQL
+        {
+          sql: `UPDATE friends SET birthday = NULL WHERE birthday IS NOT NULL;`,
+        },
+      ],
+    },
   ],
 });
 

@@ -29,7 +29,7 @@ export default class Friend extends Model {
   @date('dormant_since') dormantSince?: Date
 
   // Life events and relationship context
-  @date('birthday') birthday?: Date
+  @text('birthday') birthday?: string // Format: "MM-DD"
   @date('anniversary') anniversary?: Date
   @text('relationship_type') relationshipType?: string
 

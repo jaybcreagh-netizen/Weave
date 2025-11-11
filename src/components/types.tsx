@@ -102,7 +102,7 @@ export type FriendFormData = {
   notes: string;
   photoUrl: string;
   // Life events and relationship context
-  birthday?: Date;
+  birthday?: string; // Format: "MM-DD"
   anniversary?: Date;
   relationshipType?: RelationshipType;
 };

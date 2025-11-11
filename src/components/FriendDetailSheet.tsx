@@ -129,7 +129,13 @@ export const FriendDetailSheet: React.FC<FriendDetailSheetProps> = ({
                   style={{ color: colors.foreground }}
                   className="font-inter text-base font-semibold"
                 >
-                  {format(friend.birthday, 'MMMM do, yyyy')}
+                  {(() => {
+                    // Format MM-DD string to "Month Day"
+                    const [month, day] = friend.birthday.split('-');
+                    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                                        'July', 'August', 'September', 'October', 'November', 'December'];
+                    return `${monthNames[parseInt(month) - 1]} ${parseInt(day)}`;
+                  })()}
                 </Text>
               </View>
             </View>

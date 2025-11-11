@@ -178,8 +178,11 @@ export const TodaysFocusWidget: React.FC = () => {
       friends.forEach(friend => {
         // Check birthday
         if (friend.birthday) {
-          const birthdayThisYear = new Date(friend.birthday);
-          birthdayThisYear.setFullYear(today.getFullYear());
+          // Birthday is now in "MM-DD" format
+          const [month, day] = friend.birthday.split('-').map(n => parseInt(n, 10));
+
+          // Create birthday for this year
+          const birthdayThisYear = new Date(today.getFullYear(), month - 1, day);
           birthdayThisYear.setHours(0, 0, 0, 0);
 
           if (birthdayThisYear < today) {
