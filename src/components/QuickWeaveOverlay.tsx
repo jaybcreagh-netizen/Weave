@@ -54,15 +54,6 @@ const DEFAULT_ACTIVITIES: InteractionCategory[] = [
   'voice-note',
 ];
 
-const itemPositions = DEFAULT_ACTIVITIES.map((_, i) => {
-  const angle = (i / DEFAULT_ACTIVITIES.length) * 2 * Math.PI - Math.PI / 2;
-  return {
-    x: MENU_RADIUS * Math.cos(angle),
-    y: MENU_RADIUS * Math.sin(angle),
-    angle,
-  };
-});
-
 export function QuickWeaveOverlay() {
   const {
     quickWeaveFriendId,
@@ -132,6 +123,16 @@ export function QuickWeaveOverlay() {
     icon: CATEGORY_METADATA[category]?.icon || '❓',
     label: CATEGORY_METADATA[category]?.label || category,
   }));
+
+  // Calculate positions dynamically based on actual activity count
+  const itemPositions = ACTIVITIES.map((_, i) => {
+    const angle = (i / ACTIVITIES.length) * 2 * Math.PI - Math.PI / 2;
+    return {
+      x: MENU_RADIUS * Math.cos(angle),
+      y: MENU_RADIUS * Math.sin(angle),
+      angle,
+    };
+  });
 
   const friendInitial = friend.name.charAt(0).toUpperCase();
 
