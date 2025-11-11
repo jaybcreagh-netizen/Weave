@@ -1,17 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, TouchableOpacity, TextInput, ScrollView, Image, Platform, StyleSheet, Modal } from 'react-native';
-import { ArrowLeft, Camera, X, Calendar, Heart, Users } from 'lucide-react-native';
+import { ArrowLeft, Camera, X, Calendar, Heart, Users, AlertCircle } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as Contacts from 'expo-contacts';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useNavigation, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../hooks/useTheme';
+import { useFriends } from '../hooks/useFriends';
 import FriendModel from '../db/models/Friend';
 import { type Archetype, type FriendFormData, type Tier, type RelationshipType } from './types';
 import { ArchetypeCard } from './archetype-card';
 import { ArchetypeDetailModal } from './ArchetypeDetailModal';
 import { ContactPickerGrid } from './onboarding/ContactPickerGrid';
+import { getTierCapacity, getTierDisplayName, isTierAtCapacity } from '../lib/constants';
 
 interface FriendFormProps {
   onSave: (friendData: FriendFormData) => void;
@@ -22,6 +24,7 @@ interface FriendFormProps {
 export function FriendForm({ onSave, friend, initialTier }: FriendFormProps) {
   const router = useRouter();
   const { colors } = useTheme(); // Use the hook
+  const allFriends = useFriends(); // Get all friends to check tier counts
 
   // Helper function to map DB tier to form tier
   const getFormTier = (dbTier?: Tier | string) => {
@@ -46,6 +49,21 @@ export function FriendForm({ onSave, friend, initialTier }: FriendFormProps) {
   const [showAnniversaryPicker, setShowAnniversaryPicker] = useState(false);
   const [imageError, setImageError] = useState(false);
   const [showContactPicker, setShowContactPicker] = useState(false);
+  const [showCapacityWarning, setShowCapacityWarning] = useState(false);
+
+  // Calculate current tier counts
+  const tierCounts = useMemo(() => {
+    const counts = { inner: 0, close: 0, community: 0 };
+    allFriends.forEach(f => {
+      if (f.isDormant) return; // Don't count dormant friends
+      // Skip the current friend being edited
+      if (friend && f.id === friend.id) return;
+
+      const tier = getFormTier(f.dunbarTier);
+      counts[tier as keyof typeof counts]++;
+    });
+    return counts;
+  }, [allFriends, friend]);
 
   // Reset image error when friend changes or photoUrl updates
   useEffect(() => {
@@ -53,13 +71,30 @@ export function FriendForm({ onSave, friend, initialTier }: FriendFormProps) {
   }, [friend?.id, formData.photoUrl]);
 
   const handleSave = () => {
-    if (formData.name.trim()) {
-      onSave(formData);
-      if (router.canGoBack()) {
-        router.back();
-      } else {
-        router.replace('/(tabs)');
-      }
+    if (!formData.name.trim()) return;
+
+    // Check if tier is at capacity (only for new friends or tier changes)
+    const selectedTier = formData.tier as 'inner' | 'close' | 'community';
+    const isChangingTier = friend && getFormTier(friend.dunbarTier) !== selectedTier;
+    const isNewFriend = !friend;
+
+    if ((isNewFriend || isChangingTier) && isTierAtCapacity(tierCounts[selectedTier], selectedTier)) {
+      // Show capacity warning modal
+      setShowCapacityWarning(true);
+      return;
+    }
+
+    // Proceed with save
+    proceedWithSave();
+  };
+
+  const proceedWithSave = () => {
+    setShowCapacityWarning(false);
+    onSave(formData);
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/(tabs)');
     }
   };
 
@@ -354,6 +389,63 @@ export function FriendForm({ onSave, friend, initialTier }: FriendFormProps) {
           />
         </SafeAreaView>
       </Modal>
+
+      {/* Capacity Warning Modal */}
+      <Modal
+        visible={showCapacityWarning}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={() => setShowCapacityWarning(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.capacityWarningContainer, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            {/* Warning Icon */}
+            <View style={[styles.warningIconContainer, { backgroundColor: '#F59E0B20' }]}>
+              <AlertCircle size={32} color="#F59E0B" />
+            </View>
+
+            {/* Title */}
+            <Text style={[styles.warningTitle, { color: colors.foreground }]}>
+              {getTierDisplayName(formData.tier)} is at Capacity
+            </Text>
+
+            {/* Description */}
+            <Text style={[styles.warningDescription, { color: colors['muted-foreground'] }]}>
+              Your {getTierDisplayName(formData.tier)} is designed for about {getTierCapacity(formData.tier)} {formData.tier === 'inner' ? 'closest' : formData.tier === 'close' ? 'important' : ''} relationships.
+              You currently have {tierCounts[formData.tier as 'inner' | 'close' | 'community']}/{getTierCapacity(formData.tier)}.
+            </Text>
+
+            <Text style={[styles.warningDescription, { color: colors['muted-foreground'] }]}>
+              {formData.tier === 'inner'
+                ? 'Adding more than 5 friends to your Inner Circle may make it harder to maintain these closest bonds. Consider if this friend might fit better in Close Friends, or if another friend should be moved.'
+                : formData.tier === 'close'
+                ? 'Close Friends is for your most important ongoing relationships. Consider whether some existing friends might fit better in Community, or if this new friend should start there.'
+                : 'Community is for meaningful acquaintances and broader connections. You can add more friends here, but remember that quality matters more than quantity.'}
+            </Text>
+
+            {/* Action Buttons */}
+            <View style={styles.warningButtonContainer}>
+              <TouchableOpacity
+                onPress={() => setShowCapacityWarning(false)}
+                style={[styles.warningButtonSecondary, { borderColor: colors.border, backgroundColor: colors.muted }]}
+              >
+                <Text style={[styles.warningButtonSecondaryText, { color: colors.foreground }]}>
+                  Let me reconsider
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={proceedWithSave}
+                style={[styles.warningButtonPrimary, { backgroundColor: colors.primary }]}
+              >
+                <Text style={[styles.warningButtonPrimaryText, { color: colors['primary-foreground'] }]}>
+                  Proceed anyway
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -527,5 +619,65 @@ const styles = StyleSheet.create({
         fontSize: 18,
         fontWeight: '600',
         fontFamily: 'Lora_700Bold',
-    }
+    },
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingHorizontal: 24,
+    },
+    capacityWarningContainer: {
+        width: '100%',
+        maxWidth: 400,
+        borderRadius: 20,
+        padding: 24,
+        borderWidth: 1,
+        gap: 16,
+    },
+    warningIconContainer: {
+        width: 64,
+        height: 64,
+        borderRadius: 32,
+        alignItems: 'center',
+        justifyContent: 'center',
+        alignSelf: 'center',
+    },
+    warningTitle: {
+        fontSize: 22,
+        fontWeight: '600',
+        fontFamily: 'Lora_700Bold',
+        textAlign: 'center',
+    },
+    warningDescription: {
+        fontSize: 15,
+        lineHeight: 22,
+        textAlign: 'center',
+    },
+    warningButtonContainer: {
+        flexDirection: 'row',
+        gap: 12,
+        marginTop: 8,
+    },
+    warningButtonSecondary: {
+        flex: 1,
+        paddingVertical: 14,
+        borderRadius: 12,
+        alignItems: 'center',
+        borderWidth: 1,
+    },
+    warningButtonSecondaryText: {
+        fontSize: 15,
+        fontWeight: '500',
+    },
+    warningButtonPrimary: {
+        flex: 1,
+        paddingVertical: 14,
+        borderRadius: 12,
+        alignItems: 'center',
+    },
+    warningButtonPrimaryText: {
+        fontSize: 15,
+        fontWeight: '600',
+    },
 });

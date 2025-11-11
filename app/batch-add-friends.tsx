@@ -51,7 +51,11 @@ export default function BatchAddFriends() {
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
       <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+        <TouchableOpacity onPress={() => {
+if (router.canGoBack()) {
+router.back();
+}
+}} style={styles.backButton}>
           <ArrowLeft color={colors.foreground} size={24} />
         </TouchableOpacity>
         <View style={styles.headerTitle}>

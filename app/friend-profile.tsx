@@ -254,7 +254,9 @@ export default function FriendProfile() {
         { text: "Cancel", style: "cancel" },
         { text: "Delete", style: "destructive", onPress: async () => {
             await deleteFriend(friend.id);
-            router.back();
+            if (router.canGoBack()) {
+              router.back();
+            }
         }},
       ]);
     }
@@ -339,7 +341,11 @@ export default function FriendProfile() {
     return (
     <View onLayout={(event) => setHeaderHeight(event.nativeEvent.layout.height)}>
         <View style={[styles.header, { borderColor: colors.border }]}>
-            <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+            <TouchableOpacity onPress={() => {
+if (router.canGoBack()) {
+router.back();
+}
+}} style={styles.backButton}>
               <ArrowLeft size={20} color={colors['muted-foreground']} />
               <Text style={{ color: colors.foreground }}>Back</Text>
             </TouchableOpacity>

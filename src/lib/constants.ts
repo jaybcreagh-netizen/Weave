@@ -6,6 +6,34 @@ export const TierDecayRates: Record<Tier, number> = {
   Community: 0.5,
 };
 
+// Tier capacity limits (based on Dunbar's layers)
+export const TierCapacity: Record<Tier, number> = {
+  InnerCircle: 5,
+  CloseFriends: 15,
+  Community: 50,
+};
+
+// Helper to get tier capacity by tier name
+export const getTierCapacity = (tier: Tier | string): number => {
+  if (tier === 'inner' || tier === 'InnerCircle') return TierCapacity.InnerCircle;
+  if (tier === 'close' || tier === 'CloseFriends') return TierCapacity.CloseFriends;
+  if (tier === 'community' || tier === 'Community') return TierCapacity.Community;
+  return 50; // default to Community capacity
+};
+
+// Check if a tier is at or over its recommended capacity
+export const isTierAtCapacity = (currentCount: number, tier: Tier | string): boolean => {
+  return currentCount >= getTierCapacity(tier);
+};
+
+// Get the tier display name for educational messaging
+export const getTierDisplayName = (tier: Tier | string): string => {
+  if (tier === 'inner' || tier === 'InnerCircle') return 'Inner Circle';
+  if (tier === 'close' || tier === 'CloseFriends') return 'Close Friends';
+  if (tier === 'community' || tier === 'Community') return 'Community';
+  return 'Community';
+};
+
 // DEPRECATED: Old activity-based scores (kept for backwards compatibility)
 export const InteractionBaseScores: Record<InteractionType, number> = {
   // Original

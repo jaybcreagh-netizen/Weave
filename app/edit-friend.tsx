@@ -22,7 +22,9 @@ const EditFriendComponent = ({ friend }: EditFriendProps) => {
 
   const handleSave = async (friendData: FriendFormData) => {
     await updateFriend(friend.id, friendData);
-    router.back();
+    if (router.canGoBack()) {
+      router.back();
+    }
   };
 
   return <FriendForm onSave={handleSave} friend={friend} />;

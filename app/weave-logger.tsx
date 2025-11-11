@@ -137,7 +137,9 @@ export default function WeaveLoggerScreen() {
 
     // Navigate back after animation
     setTimeout(() => {
-      router.back();
+      if (router.canGoBack()) {
+        router.back();
+      }
     }, 900);
   };
 
