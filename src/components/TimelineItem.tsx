@@ -252,8 +252,8 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, index,
   const reflectionGlow = useSharedValue(0);
   const justLoggedGlow = useSharedValue(0);
 
-  // Line drawing animation - pen stroke effect
-  const strokeDashoffset = useSharedValue(72); // Start hidden (offset = line length)
+  // Line drawing animation - animate line length for true drawing effect
+  const lineY2 = useSharedValue(0); // Start at 0, grow to 72
 
   // Knot appearance animation
   const knotScale = useSharedValue(0);
@@ -329,12 +329,11 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, index,
       })
     );
 
-    // Line drawing animation - pen stroke effect
-    // Animate strokeDashoffset from LINE_LENGTH to 0 for smooth reveal
+    // Line drawing animation - grow line from top to bottom
     if (!isLastItem) {
-      strokeDashoffset.value = withDelay(
+      lineY2.value = withDelay(
         lineStartDelay,
-        withTiming(0, {
+        withTiming(lineTargetHeight, {
           duration: lineDuration,
           easing: Easing.out(Easing.cubic), // Slight ease for natural pen stroke feel
         })
@@ -466,10 +465,10 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, index,
   // Icon subtle rotation for organic feel
   const iconRotation = Math.random() * 4 - 2; // -2° to +2°
 
-  // Animated SVG line props - properly connect SharedValue to SVG
+  // Animated SVG line props - animate line length for drawing effect
   const animatedLineProps = useAnimatedProps(() => {
     return {
-      strokeDashoffset: strokeDashoffset.value,
+      y2: lineY2.value,
     };
   });
 
@@ -602,7 +601,6 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, index,
               x1="1"
               y1="0"
               x2="1"
-              y2="72"
               stroke={temporalColors.line}
               strokeWidth="1"
               strokeDasharray="4 4"
