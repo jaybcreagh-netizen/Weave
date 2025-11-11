@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
+  useAnimatedProps,
   withRepeat,
   withTiming,
   withSpring,
@@ -465,6 +466,13 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, index,
   // Icon subtle rotation for organic feel
   const iconRotation = Math.random() * 4 - 2; // -2° to +2°
 
+  // Animated SVG line props - properly connect SharedValue to SVG
+  const animatedLineProps = useAnimatedProps(() => {
+    return {
+      strokeDashoffset: strokeDashoffset.value,
+    };
+  });
+
   // Container entrance animation - combines all entrance effects
   const containerAnimatedStyle = useAnimatedStyle(() => {
     return {
@@ -597,10 +605,10 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, index,
               y2="72"
               stroke={temporalColors.line}
               strokeWidth="1.5"
-              strokeDasharray={`${LINE_LENGTH}`}
-              strokeDashoffset={strokeDashoffset}
+              strokeDasharray={LINE_LENGTH}
               strokeOpacity={lineOpacity}
               strokeLinecap="round"
+              animatedProps={animatedLineProps}
             />
           </Svg>
         )}
