@@ -107,10 +107,10 @@ export default function TabsLayout() {
         style={styles.scrollView}
         contentOffset={{ x: screenWidth, y: 0 }}
       >
-        <View style={{ width: screenWidth }}>
+        <View style={{ width: screenWidth, flex: 1 }}>
           <HomeScreen />
         </View>
-        <View style={{ width: screenWidth }}>
+        <View style={{ width: screenWidth, flex: 1 }}>
           <FriendsScreen />
         </View>
       </ScrollView>
