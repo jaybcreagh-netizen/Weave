@@ -200,6 +200,7 @@ export function QuickWeaveOverlay() {
             key={item.id}
             item={item}
             index={index}
+            position={itemPositions[index]}
             highlightedIndex={highlightedIndex}
             dragX={dragX}
             dragY={dragY}
@@ -215,6 +216,7 @@ export function QuickWeaveOverlay() {
 function MenuItem({
   item,
   index,
+  position,
   highlightedIndex,
   dragX,
   dragY,
@@ -223,13 +225,14 @@ function MenuItem({
 }: {
   item: RadialMenuItem;
   index: number;
+  position: { x: number; y: number; angle: number };
   highlightedIndex: Animated.SharedValue<number>;
   dragX: Animated.SharedValue<number>;
   dragY: Animated.SharedValue<number>;
   isDarkMode: boolean;
   primaryColor: string;
 }) {
-  const { x: finalX, y: finalY } = itemPositions[index];
+  const { x: finalX, y: finalY } = position;
 
   const animatedStyle = useAnimatedStyle(() => {
     const isHighlighted = highlightedIndex.value === index;
