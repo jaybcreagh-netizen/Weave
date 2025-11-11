@@ -3,7 +3,6 @@ import { View, Text, TouchableOpacity } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
-  useAnimatedProps,
   withRepeat,
   withTiming,
   withSpring,
@@ -13,9 +12,6 @@ import Animated, {
   runOnJS,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
-import Svg, { Line } from 'react-native-svg';
-
-const AnimatedLine = Animated.createAnimatedComponent(Line);
 
 import { useTheme } from '../hooks/useTheme';
 import { formatPoeticDate, calculateWeaveWarmth, getThreadColors } from '../lib/timeline-utils';
@@ -252,8 +248,8 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, index,
   const reflectionGlow = useSharedValue(0);
   const justLoggedGlow = useSharedValue(0);
 
-  // Line drawing animation - animate line length for true drawing effect
-  const lineY2 = useSharedValue(0); // Start at 0, grow to 72
+  // Line drawing animation - animate height for smooth reveal
+  const lineHeight = useSharedValue(0); // Start at 0, grow to 72
 
   // Knot appearance animation
   const knotScale = useSharedValue(0);
@@ -331,7 +327,7 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, index,
 
     // Line drawing animation - grow line from top to bottom
     if (!isLastItem) {
-      lineY2.value = withDelay(
+      lineHeight.value = withDelay(
         lineStartDelay,
         withTiming(lineTargetHeight, {
           duration: lineDuration,
@@ -465,10 +461,10 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, index,
   // Icon subtle rotation for organic feel
   const iconRotation = Math.random() * 4 - 2; // -2° to +2°
 
-  // Animated SVG line props - animate line length for drawing effect
-  const animatedLineProps = useAnimatedProps(() => {
+  // Animated line style - grow height for drawing effect
+  const lineAnimatedStyle = useAnimatedStyle(() => {
     return {
-      y2: lineY2.value,
+      height: lineHeight.value,
     };
   });
 
@@ -585,30 +581,34 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, index,
 
         {/* Vertical line segment connecting to next item (point-to-point) */}
         {/* Line has airgaps at both ends - doesn't touch knots */}
-        {/* SVG line with pen stroke animation - draws on smoothly from top to bottom */}
+        {/* Animated View-based line - draws on smoothly from top to bottom */}
         {!isLastItem && (
-          <Svg
-            style={{
-              position: 'absolute',
-              left: THREAD_CENTER - 0.5,
-              top: 16 + KNOT_SIZE + LINE_GAP,
-              width: 2,
-              height: 72,
-            }}
+          <Animated.View
+            className="absolute overflow-hidden"
+            style={[
+              lineAnimatedStyle,
+              {
+                left: THREAD_CENTER - 0.5,
+                top: 16 + KNOT_SIZE + LINE_GAP,
+                width: 1,
+              }
+            ]}
             pointerEvents="none"
           >
-            <AnimatedLine
-              x1="1"
-              y1="0"
-              x2="1"
-              stroke={temporalColors.line}
-              strokeWidth="1"
-              strokeDasharray="4 4"
-              strokeOpacity={lineOpacity}
-              strokeLinecap="round"
-              animatedProps={animatedLineProps}
-            />
-          </Svg>
+            {/* Create dashed effect with multiple small rectangles */}
+            <View className="flex-col gap-[4px]">
+              {Array.from({ length: 9 }).map((_, i) => (
+                <View
+                  key={i}
+                  className="w-px h-1"
+                  style={{
+                    backgroundColor: temporalColors.line,
+                    opacity: lineOpacity,
+                  }}
+                />
+              ))}
+            </View>
+          </Animated.View>
         )}
       </View>
 
