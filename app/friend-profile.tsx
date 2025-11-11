@@ -282,17 +282,8 @@ export default function FriendProfile() {
     const lastSection = timelineSections[timelineSections.length - 1];
     const isLastItem = lastSection?.data[lastSection.data.length - 1]?.id === interaction.id;
 
-    // Subtle background tint for future section (no divider, gentle shift)
-    const futureBackgroundStyle = isFutureInteraction ? {
-      backgroundColor: colors.secondary + '0D', // 5% opacity tint
-      marginTop: isFirstInSection ? 8 : 0,
-      paddingTop: isFirstInSection ? 16 : 0,
-      marginBottom: isLastInSection ? 8 : 0,
-      paddingBottom: isLastInSection ? 16 : 0,
-    } : {};
-
     return (
-      <View className="px-5" style={futureBackgroundStyle}>
+      <View className="px-5">
         <TimelineItem
           interaction={interaction}
           isFuture={isFutureInteraction}
