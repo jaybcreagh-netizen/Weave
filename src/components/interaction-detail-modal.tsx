@@ -1,6 +1,6 @@
 import React from 'react';
 import { Modal, View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
-import { X, Calendar, MapPin, Heart, MessageCircle, Sparkles } from 'lucide-react-native';
+import { X, Calendar, MapPin, Heart, MessageCircle, Sparkles, Edit3, Trash2 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, runOnJS } from 'react-native-reanimated';
@@ -36,6 +36,8 @@ interface InteractionDetailModalProps {
   onClose: () => void;
   friendName?: string;
   onEditReflection?: (interaction: Interaction) => void;
+  onEdit?: (interactionId: string) => void;
+  onDelete?: (interactionId: string) => void;
 }
 
 export function InteractionDetailModal({
@@ -44,6 +46,8 @@ export function InteractionDetailModal({
   onClose,
   friendName,
   onEditReflection,
+  onEdit,
+  onDelete,
 }: InteractionDetailModalProps) {
   const insets = useSafeAreaInsets();
   const { colors, isDarkMode } = useTheme();
@@ -125,9 +129,35 @@ export function InteractionDetailModal({
                   </Text>
                 </View>
               </View>
-              <TouchableOpacity onPress={onClose} style={{ padding: 8 }}>
-                <X color={colors['muted-foreground']} size={24} />
-              </TouchableOpacity>
+
+              {/* Action buttons */}
+              <View style={styles.headerActions}>
+                {onEdit && (
+                  <TouchableOpacity
+                    onPress={() => {
+                      onEdit(interaction.id);
+                      onClose();
+                    }}
+                    style={styles.actionButton}
+                  >
+                    <Edit3 color={colors.primary} size={20} />
+                  </TouchableOpacity>
+                )}
+                {onDelete && (
+                  <TouchableOpacity
+                    onPress={() => {
+                      onDelete(interaction.id);
+                      onClose();
+                    }}
+                    style={styles.actionButton}
+                  >
+                    <Trash2 color={colors.destructive} size={20} />
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity onPress={onClose} style={styles.actionButton}>
+                  <X color={colors['muted-foreground']} size={24} />
+                </TouchableOpacity>
+              </View>
             </View>
 
             <ScrollView contentContainerStyle={styles.scrollViewContent}>
@@ -255,6 +285,14 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         gap: 12,
         marginBottom: 8,
+    },
+    headerActions: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+    },
+    actionButton: {
+        padding: 8,
     },
     headerIcon: {
         fontSize: 32,
