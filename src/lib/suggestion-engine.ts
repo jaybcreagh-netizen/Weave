@@ -153,17 +153,20 @@ async function checkUpcomingLifeEvent(friend: SuggestionInput['friend']): Promis
 
   // Check birthday (within 7 days)
   if (friend.birthday) {
-    const birthdayThisYear = new Date(friend.birthday);
+    // Birthday is now in "MM-DD" format
+    const [month, day] = friend.birthday.split('-').map(n => parseInt(n, 10));
 
-    // Validate that we have a valid date
-    if (isNaN(birthdayThisYear.getTime())) {
-      console.warn('Invalid birthday date for friend:', friend.id);
+    // Validate parsed values
+    if (isNaN(month) || isNaN(day) || month < 1 || month > 12 || day < 1 || day > 31) {
+      console.warn('Invalid birthday format for friend:', friend.id, friend.birthday);
       return null;
     }
 
-    birthdayThisYear.setFullYear(today.getFullYear());
+    // Create birthday for this year
+    const birthdayThisYear = new Date(today.getFullYear(), month - 1, day);
     birthdayThisYear.setHours(0, 0, 0, 0);
 
+    // If birthday already passed this year, use next year
     if (birthdayThisYear < today) {
       birthdayThisYear.setFullYear(today.getFullYear() + 1);
     }

@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb'
 
 export default appSchema({
-  version: 27, // UPDATED: Merged custom_chips/chip_usage tables + interaction_outcomes feedback system
+  version: 28, // UPDATED: Changed birthday to string format (MM-DD) without year
   tables: [
     tableSchema({
       name: 'friends',
@@ -21,7 +21,7 @@ export default appSchema({
         { name: 'is_dormant', type: 'boolean', defaultValue: false },
         { name: 'dormant_since', type: 'number', isOptional: true },
         // NEW: Life events and relationship context
-        { name: 'birthday', type: 'number', isOptional: true }, // Timestamp (month/day, year optional)
+        { name: 'birthday', type: 'string', isOptional: true }, // Format: "MM-DD" (month and day only)
         { name: 'anniversary', type: 'number', isOptional: true }, // When you met/became friends
         { name: 'relationship_type', type: 'string', isOptional: true }, // friend, close_friend, family, partner, colleague, acquaintance
         // NEW v21: Adaptive decay pattern learning

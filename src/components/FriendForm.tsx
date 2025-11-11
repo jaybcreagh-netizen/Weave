@@ -13,6 +13,7 @@ import { type Archetype, type FriendFormData, type Tier, type RelationshipType }
 import { ArchetypeCard } from './archetype-card';
 import { ArchetypeDetailModal } from './ArchetypeDetailModal';
 import { ContactPickerGrid } from './onboarding/ContactPickerGrid';
+import { MonthDayPicker } from './MonthDayPicker';
 import { getTierCapacity, getTierDisplayName, isTierAtCapacity } from '../lib/constants';
 
 interface FriendFormProps {
@@ -45,7 +46,6 @@ export function FriendForm({ onSave, friend, initialTier }: FriendFormProps) {
     relationshipType: friend?.relationshipType as RelationshipType | undefined,
   });
 
-  const [showBirthdayPicker, setShowBirthdayPicker] = useState(false);
   const [showAnniversaryPicker, setShowAnniversaryPicker] = useState(false);
   const [imageError, setImageError] = useState(false);
   const [showContactPicker, setShowContactPicker] = useState(false);
@@ -278,33 +278,11 @@ export function FriendForm({ onSave, friend, initialTier }: FriendFormProps) {
 
           <View>
             <Text style={[styles.label, { color: colors.foreground }]}>Birthday (Optional)</Text>
-            <TouchableOpacity
-              onPress={() => setShowBirthdayPicker(true)}
-              style={[styles.dateButton, { backgroundColor: colors.card, borderColor: colors.border }]}
-            >
-              <Calendar size={20} color={colors['muted-foreground']} />
-              <Text style={[styles.dateButtonText, { color: formData.birthday ? colors.foreground : colors['muted-foreground'] }]}>
-                {formData.birthday ? formData.birthday.toLocaleDateString() : "Set birthday"}
-              </Text>
-              {formData.birthday && (
-                <TouchableOpacity onPress={() => setFormData({ ...formData, birthday: undefined })}>
-                  <X size={16} color={colors['muted-foreground']} />
-                </TouchableOpacity>
-              )}
-            </TouchableOpacity>
-            {showBirthdayPicker && (
-              <DateTimePicker
-                value={formData.birthday || new Date()}
-                mode="date"
-                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                onChange={(event, selectedDate) => {
-                  setShowBirthdayPicker(Platform.OS === 'ios');
-                  if (selectedDate) {
-                    setFormData({ ...formData, birthday: selectedDate });
-                  }
-                }}
-              />
-            )}
+            <MonthDayPicker
+              value={formData.birthday}
+              onChange={(birthday) => setFormData({ ...formData, birthday })}
+              label="Set birthday"
+            />
           </View>
 
           {/* Only show anniversary field for partners */}

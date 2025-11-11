@@ -96,11 +96,13 @@ export async function checkSpecialBadges(
   // Birthday Celebrated
   if (friend.birthday) {
     const interactionDate = new Date(interaction.interactionDate);
-    const birthdayDate = new Date(friend.birthday);
+
+    // Birthday is now in "MM-DD" format
+    const [month, day] = friend.birthday.split('-').map(n => parseInt(n, 10));
 
     if (
-      interactionDate.getMonth() === birthdayDate.getMonth() &&
-      interactionDate.getDate() === birthdayDate.getDate() &&
+      interactionDate.getMonth() === month - 1 && // JavaScript months are 0-indexed
+      interactionDate.getDate() === day &&
       !(await isBadgeUnlocked(friendId, 'birthday_celebrated'))
     ) {
       await awardSpecialBadge(friendId, 'birthday_celebrated');
