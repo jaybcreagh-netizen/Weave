@@ -36,9 +36,10 @@ interface TimelineItemProps {
   showKnot?: boolean;
   sectionLabel?: string;
   isFirstInSection?: boolean;
+  isLastItem?: boolean; // Is this the last item in the entire timeline?
 }
 
-export const TimelineItem = React.memo(({ interaction, isFuture, onPress, onDelete, onEdit, index, scrollY, itemY = 0, showKnot = true, sectionLabel, isFirstInSection = false }: TimelineItemProps) => {
+export const TimelineItem = React.memo(({ interaction, isFuture, onPress, onDelete, onEdit, index, scrollY, itemY = 0, showKnot = true, sectionLabel, isFirstInSection = false, isLastItem = false }: TimelineItemProps) => {
   const { colors, isDarkMode } = useTheme();
   const { justLoggedInteractionId, setJustLoggedInteractionId } = useUIStore();
 
@@ -55,6 +56,32 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, onDele
   const threadColors = useMemo(() => getThreadColors(warmth, isFuture), [warmth, isFuture]);
   const poeticDate = useMemo(() => formatPoeticDate(date), [date]);
   const { primary, secondary } = poeticDate;
+
+  // Determine line segment texture based on interaction date
+  const lineTexture = useMemo(() => {
+    if (isFuture) return 'dotted';
+
+    const today = new Date();
+    const daysAgo = Math.floor((today.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+
+    if (daysAgo === 0) return 'solid'; // Today
+    if (daysAgo <= 7) return 'solid'; // Recent past (within a week)
+    if (daysAgo <= 30) return 'dashed'; // Medium past (within a month)
+    return 'dotted'; // Old past (over a month) - fades like distant memories
+  }, [date, isFuture]);
+
+  // Get line color with gradient effect
+  const lineColor = useMemo(() => {
+    const opacity = lineTexture === 'solid' ? 0.8 : lineTexture === 'dashed' ? 0.6 : 0.35;
+
+    if (!isDarkMode) {
+      // Light mode: golden/bronze tones
+      return `rgba(181, 138, 108, ${opacity})`;
+    }
+
+    // Dark mode: mystic purple tones
+    return `rgba(139, 92, 246, ${opacity})`;
+  }, [lineTexture, isDarkMode]);
 
   // Memoize deepening calculations
   const deepeningMetrics = useMemo(() =>
@@ -524,6 +551,25 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, onDele
             />
           )}
         </Animated.View>
+
+        {/* Vertical line segment connecting to next item (point-to-point) */}
+        {!isLastItem && (
+          <Animated.View
+            className="absolute w-[1.5px] rounded-full"
+            style={[
+              containerAnimatedStyle,
+              {
+                left: THREAD_CENTER,
+                top: 24, // Below knot (knot top 16px + knot height 8px)
+                height: 90, // Extends down to approximately next knot position
+                backgroundColor: lineColor,
+                borderStyle: lineTexture === 'dotted' ? 'dotted' : lineTexture === 'dashed' ? 'dashed' : 'solid',
+                borderWidth: lineTexture !== 'solid' ? 1.5 : 0,
+                borderColor: lineTexture !== 'solid' ? lineColor : 'transparent',
+              }
+            ]}
+          />
+        )}
       </View>
 
       {/* Date Column */}
@@ -638,7 +684,8 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, onDele
     prevProps.interaction.id === nextProps.interaction.id &&
     prevProps.interaction.updatedAt === nextProps.interaction.updatedAt &&
     prevProps.isFuture === nextProps.isFuture &&
-    prevProps.index === nextProps.index
+    prevProps.index === nextProps.index &&
+    prevProps.isLastItem === nextProps.isLastItem
   );
 });
 
