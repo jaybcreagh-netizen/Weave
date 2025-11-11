@@ -1,4 +1,5 @@
 import { InteractionCategory, Archetype, Vibe, Tier } from '../components/types';
+import { analyzeText, calculateThemeRelevance } from './text-analysis';
 
 /**
  * Story Chip System
@@ -45,6 +46,9 @@ export interface StoryChip {
   isCustom?: boolean;
   createdAt?: number;
   userId?: string;
+
+  // For contextual text-based filtering
+  keywords?: string[]; // Keywords/themes this chip relates to
 }
 
 /**
@@ -68,6 +72,7 @@ export const STORY_CHIPS: StoryChip[] = [
       },
     },
     plainText: 'We shared a meal',
+    keywords: ['meal', 'comfort', 'positive'],
   },
   {
     id: 'activity_cooked-together',
@@ -76,6 +81,7 @@ export const STORY_CHIPS: StoryChip[] = [
     archetypes: ['Empress', 'Magician'],
     template: 'We cooked together',
     plainText: 'We cooked together',
+    keywords: ['meal', 'activity', 'ideas'],
   },
   {
     id: 'activity_hung-out',
@@ -84,6 +90,7 @@ export const STORY_CHIPS: StoryChip[] = [
     archetypes: ['Fool', 'Hermit'],
     template: 'We hung out',
     plainText: 'We hung out',
+    keywords: ['comfort', 'positive'],
   },
   {
     id: 'activity_went-for',
@@ -99,6 +106,7 @@ export const STORY_CHIPS: StoryChip[] = [
       },
     },
     plainText: 'We went for a walk',
+    keywords: ['walk', 'activity', 'comfort'],
   },
   {
     id: 'activity_deep-conversation',
@@ -108,6 +116,7 @@ export const STORY_CHIPS: StoryChip[] = [
     tiers: ['InnerCircle', 'CloseFriends'],
     template: 'We had a deep conversation',
     plainText: 'We had a deep conversation',
+    keywords: ['deep_talk', 'deep', 'talk', 'personal'],
   },
   {
     id: 'activity_caught-up',
@@ -115,6 +124,7 @@ export const STORY_CHIPS: StoryChip[] = [
     category: 'text-call',
     template: 'We caught up',
     plainText: 'We caught up',
+    keywords: ['call', 'talk', 'positive'],
   },
   {
     id: 'activity_texted-all-day',
@@ -123,6 +133,7 @@ export const STORY_CHIPS: StoryChip[] = [
     archetypes: ['Fool', 'Lovers'],
     template: 'We texted throughout the day',
     plainText: 'We texted throughout the day',
+    keywords: ['call', 'talk', 'positive', 'energy'],
   },
   {
     id: 'activity_voice-noted',
@@ -131,6 +142,7 @@ export const STORY_CHIPS: StoryChip[] = [
     archetypes: ['HighPriestess', 'Empress'],
     template: 'We sent voice notes',
     plainText: 'We sent voice notes',
+    keywords: ['call', 'talk', 'deep'],
   },
   {
     id: 'activity_did-activity',
@@ -146,6 +158,7 @@ export const STORY_CHIPS: StoryChip[] = [
       },
     },
     plainText: 'We did something together',
+    keywords: ['activity', 'ideas', 'work'],
   },
   {
     id: 'activity_helped-them',
@@ -154,6 +167,7 @@ export const STORY_CHIPS: StoryChip[] = [
     archetypes: ['Empress', 'Emperor'],
     template: 'I helped them with something',
     plainText: 'I helped them with something',
+    keywords: ['helped', 'positive', 'struggles'],
   },
   {
     id: 'activity_they-helped-me',
@@ -162,6 +176,7 @@ export const STORY_CHIPS: StoryChip[] = [
     archetypes: ['Empress', 'Emperor'],
     template: 'They helped me with something',
     plainText: 'They helped me with something',
+    keywords: ['helped', 'positive', 'struggles'],
   },
   {
     id: 'activity_celebrated',
@@ -177,6 +192,7 @@ export const STORY_CHIPS: StoryChip[] = [
       },
     },
     plainText: 'We celebrated something special',
+    keywords: ['party', 'positive', 'energy'],
   },
   {
     id: 'activity_event',
@@ -192,6 +208,7 @@ export const STORY_CHIPS: StoryChip[] = [
       },
     },
     plainText: 'We went to a gathering',
+    keywords: ['party', 'positive', 'energy'],
   },
   {
     id: 'activity_ran-errands',
@@ -200,6 +217,7 @@ export const STORY_CHIPS: StoryChip[] = [
     archetypes: ['Empress', 'Hermit'],
     template: 'We ran errands together',
     plainText: 'We ran errands together',
+    keywords: ['activity', 'comfort'],
   },
   {
     id: 'activity_watched-something',
@@ -208,6 +226,7 @@ export const STORY_CHIPS: StoryChip[] = [
     archetypes: ['Empress', 'Hermit', 'Fool'],
     template: 'We watched something together',
     plainText: 'We watched something together',
+    keywords: ['activity', 'comfort', 'positive'],
   },
 
   // ====================================================================
@@ -220,6 +239,7 @@ export const STORY_CHIPS: StoryChip[] = [
     archetypes: ['Empress', 'Hermit'],
     template: 'at my place',
     plainText: 'at my place',
+    keywords: ['comfort', 'positive'],
   },
   {
     id: 'setting_their-place',
@@ -228,6 +248,7 @@ export const STORY_CHIPS: StoryChip[] = [
     archetypes: ['Empress', 'Hermit'],
     template: 'at their place',
     plainText: 'at their place',
+    keywords: ['comfort', 'positive'],
   },
   {
     id: 'setting_somewhere-new',
@@ -242,6 +263,7 @@ export const STORY_CHIPS: StoryChip[] = [
       },
     },
     plainText: 'somewhere new',
+    keywords: ['activity', 'energy', 'ideas'],
   },
   {
     id: 'setting_video-call',
@@ -249,6 +271,7 @@ export const STORY_CHIPS: StoryChip[] = [
     category: 'text-call',
     template: 'over video call',
     plainText: 'over video call',
+    keywords: ['call', 'talk'],
   },
   {
     id: 'setting_while-commuting',
@@ -263,12 +286,14 @@ export const STORY_CHIPS: StoryChip[] = [
       },
     },
     plainText: 'while commuting',
+    keywords: ['call', 'walk'],
   },
   {
     id: 'setting_in-public',
     type: 'setting',
     template: 'out in public',
     plainText: 'out in public',
+    keywords: ['activity'],
   },
   {
     id: 'setting_our-spot',
@@ -277,6 +302,7 @@ export const STORY_CHIPS: StoryChip[] = [
     tiers: ['InnerCircle', 'CloseFriends'],
     template: 'at our usual spot',
     plainText: 'at our usual spot',
+    keywords: ['comfort', 'positive', 'past'],
   },
   {
     id: 'setting_spontaneous',
@@ -284,6 +310,7 @@ export const STORY_CHIPS: StoryChip[] = [
     archetypes: ['Fool'],
     template: 'spontaneously, no plan',
     plainText: 'spontaneously, no plan',
+    keywords: ['energy', 'positive'],
   },
 
   // ====================================================================
@@ -295,6 +322,7 @@ export const STORY_CHIPS: StoryChip[] = [
     archetypes: ['Hermit', 'HighPriestess', 'Empress', 'Lovers'],
     template: 'just the two of us',
     plainText: 'just the two of us',
+    keywords: ['deep', 'comfort', 'positive'],
   },
   {
     id: 'people_with-group',
@@ -302,6 +330,7 @@ export const STORY_CHIPS: StoryChip[] = [
     archetypes: ['Sun', 'Fool'],
     template: 'with a group',
     plainText: 'with a group',
+    keywords: ['party', 'energy', 'positive'],
   },
   {
     id: 'people_with-friends',
@@ -316,6 +345,7 @@ export const STORY_CHIPS: StoryChip[] = [
       },
     },
     plainText: 'with mutual friends',
+    keywords: ['party', 'energy', 'relationships'],
   },
   {
     id: 'people_small-gathering',
@@ -323,6 +353,7 @@ export const STORY_CHIPS: StoryChip[] = [
     archetypes: ['Empress', 'Sun'],
     template: 'small intimate group',
     plainText: 'small intimate group',
+    keywords: ['party', 'comfort', 'positive'],
   },
   {
     id: 'people_introduced-them',
@@ -330,6 +361,7 @@ export const STORY_CHIPS: StoryChip[] = [
     archetypes: ['Sun', 'Magician'],
     template: 'introduced them to someone',
     plainText: 'introduced them to someone',
+    keywords: ['party', 'positive', 'relationships'],
   },
   {
     id: 'people_met-their-people',
@@ -344,6 +376,7 @@ export const STORY_CHIPS: StoryChip[] = [
       },
     },
     plainText: 'met their people',
+    keywords: ['party', 'positive', 'relationships'],
   },
 
   // ====================================================================
@@ -355,6 +388,7 @@ export const STORY_CHIPS: StoryChip[] = [
     archetypes: ['Lovers', 'Hermit'],
     template: 'we both shared equally',
     plainText: 'we both shared equally',
+    keywords: ['deep', 'talk', 'positive'],
   },
   {
     id: 'dynamic_i-listened',
@@ -362,6 +396,7 @@ export const STORY_CHIPS: StoryChip[] = [
     archetypes: ['Empress', 'HighPriestess'],
     template: 'I mostly listened',
     plainText: 'I mostly listened',
+    keywords: ['deep', 'talk', 'helped'],
   },
   {
     id: 'dynamic_they-listened',
@@ -369,6 +404,7 @@ export const STORY_CHIPS: StoryChip[] = [
     archetypes: ['Empress', 'HighPriestess'],
     template: 'they mostly listened',
     plainText: 'they mostly listened',
+    keywords: ['deep', 'talk', 'helped'],
   },
   {
     id: 'dynamic_i-opened-up',
@@ -377,6 +413,7 @@ export const STORY_CHIPS: StoryChip[] = [
     tiers: ['InnerCircle', 'CloseFriends'],
     template: 'I opened up first',
     plainText: 'I opened up first',
+    keywords: ['deep', 'deep_talk', 'personal'],
   },
   {
     id: 'dynamic_they-opened-up',
@@ -385,6 +422,7 @@ export const STORY_CHIPS: StoryChip[] = [
     tiers: ['InnerCircle', 'CloseFriends'],
     template: 'they opened up first',
     plainText: 'they opened up first',
+    keywords: ['deep', 'deep_talk', 'personal'],
   },
   {
     id: 'dynamic_picked-up',
@@ -392,6 +430,7 @@ export const STORY_CHIPS: StoryChip[] = [
     archetypes: ['Hermit', 'Empress'],
     template: 'picked up right where we left off',
     plainText: 'picked up right where we left off',
+    keywords: ['comfort', 'positive', 'past'],
   },
   {
     id: 'dynamic_felt-distant',
@@ -406,6 +445,7 @@ export const STORY_CHIPS: StoryChip[] = [
       },
     },
     plainText: 'felt a bit distant',
+    keywords: ['negative', 'mixed', 'struggles'],
   },
   {
     id: 'dynamic_they-led',
@@ -413,6 +453,7 @@ export const STORY_CHIPS: StoryChip[] = [
     archetypes: ['Emperor', 'Magician'],
     template: 'they took the lead',
     plainText: 'they took the lead',
+    keywords: ['activity', 'positive'],
   },
   {
     id: 'dynamic_i-led',
@@ -420,6 +461,7 @@ export const STORY_CHIPS: StoryChip[] = [
     archetypes: ['Emperor', 'Magician'],
     template: 'I took the lead',
     plainText: 'I took the lead',
+    keywords: ['activity', 'positive'],
   },
   {
     id: 'dynamic_flowed-naturally',
@@ -427,6 +469,7 @@ export const STORY_CHIPS: StoryChip[] = [
     archetypes: ['Fool', 'Hermit', 'Lovers'],
     template: 'everything flowed naturally',
     plainText: 'everything flowed naturally',
+    keywords: ['comfort', 'positive', 'energy'],
   },
 
   // ====================================================================
@@ -445,6 +488,7 @@ export const STORY_CHIPS: StoryChip[] = [
       },
     },
     plainText: 'talked about work and dreams',
+    keywords: ['work', 'talk', 'future', 'ideas'],
   },
   {
     id: 'topic_relationships',
@@ -459,6 +503,7 @@ export const STORY_CHIPS: StoryChip[] = [
       },
     },
     plainText: 'discussed relationships',
+    keywords: ['relationships', 'talk', 'personal', 'deep'],
   },
   {
     id: 'topic_fears',
@@ -475,6 +520,7 @@ export const STORY_CHIPS: StoryChip[] = [
       },
     },
     plainText: 'opened up about our fears',
+    keywords: ['deep', 'deep_talk', 'personal', 'struggles', 'negative'],
   },
   {
     id: 'topic_future',
@@ -489,6 +535,7 @@ export const STORY_CHIPS: StoryChip[] = [
       },
     },
     plainText: 'talked about the future',
+    keywords: ['future', 'talk', 'ideas', 'positive'],
   },
   {
     id: 'topic_nothing-specific',
@@ -496,6 +543,7 @@ export const STORY_CHIPS: StoryChip[] = [
     archetypes: ['Fool', 'Hermit'],
     template: 'talked about nothing and everything',
     plainText: 'talked about nothing and everything',
+    keywords: ['talk', 'comfort', 'positive'],
   },
   {
     id: 'topic_memories',
@@ -511,6 +559,7 @@ export const STORY_CHIPS: StoryChip[] = [
       },
     },
     plainText: 'reminisced about old times',
+    keywords: ['past', 'talk', 'positive', 'comfort'],
   },
   {
     id: 'topic_struggles',
@@ -527,6 +576,7 @@ export const STORY_CHIPS: StoryChip[] = [
       },
     },
     plainText: 'talked through what\'s been hard',
+    keywords: ['struggles', 'deep', 'deep_talk', 'negative', 'helped'],
   },
   {
     id: 'topic_ideas',
@@ -541,6 +591,7 @@ export const STORY_CHIPS: StoryChip[] = [
       },
     },
     plainText: 'brainstormed ideas',
+    keywords: ['ideas', 'talk', 'future', 'energy'],
   },
   {
     id: 'topic_culture',
@@ -555,6 +606,7 @@ export const STORY_CHIPS: StoryChip[] = [
       },
     },
     plainText: 'talked about culture and identity',
+    keywords: ['personal', 'deep', 'talk', 'past'],
   },
   {
     id: 'topic_current-events',
@@ -562,6 +614,7 @@ export const STORY_CHIPS: StoryChip[] = [
     archetypes: ['Emperor', 'HighPriestess'],
     template: 'discussed what\'s happening in the world',
     plainText: 'discussed what\'s happening in the world',
+    keywords: ['talk', 'ideas', 'work'],
   },
 
   // ====================================================================
@@ -580,6 +633,7 @@ export const STORY_CHIPS: StoryChip[] = [
       },
     },
     plainText: 'felt really connected',
+    keywords: ['positive', 'deep', 'comfort'],
   },
   {
     id: 'feeling_understood',
@@ -595,6 +649,7 @@ export const STORY_CHIPS: StoryChip[] = [
       },
     },
     plainText: 'felt understood',
+    keywords: ['positive', 'deep', 'comfort'],
   },
   {
     id: 'feeling_comfortable',
@@ -609,6 +664,7 @@ export const STORY_CHIPS: StoryChip[] = [
       },
     },
     plainText: 'it was comfortable',
+    keywords: ['comfort', 'positive'],
   },
   {
     id: 'feeling_joyful',
@@ -624,6 +680,7 @@ export const STORY_CHIPS: StoryChip[] = [
       },
     },
     plainText: 'felt joyful',
+    keywords: ['positive', 'laughter', 'energy'],
   },
   {
     id: 'feeling_nourished',
@@ -639,6 +696,7 @@ export const STORY_CHIPS: StoryChip[] = [
       },
     },
     plainText: 'felt nourished',
+    keywords: ['positive', 'comfort', 'meal'],
   },
   {
     id: 'feeling_inspired',
@@ -653,6 +711,7 @@ export const STORY_CHIPS: StoryChip[] = [
       },
     },
     plainText: 'felt inspired',
+    keywords: ['positive', 'energy', 'ideas'],
   },
   {
     id: 'feeling_grateful',
@@ -668,6 +727,7 @@ export const STORY_CHIPS: StoryChip[] = [
       },
     },
     plainText: 'felt grateful',
+    keywords: ['positive', 'comfort'],
   },
   {
     id: 'feeling_bittersweet',
@@ -676,6 +736,7 @@ export const STORY_CHIPS: StoryChip[] = [
     vibes: ['WaxingCrescent', 'NewMoon'],
     template: 'felt bittersweet',
     plainText: 'felt bittersweet',
+    keywords: ['mixed', 'deep'],
   },
   {
     id: 'feeling_exhausted-good',
@@ -690,6 +751,7 @@ export const STORY_CHIPS: StoryChip[] = [
       },
     },
     plainText: 'emotionally exhausted but in a good way',
+    keywords: ['mixed', 'deep', 'deep_talk'],
   },
   {
     id: 'feeling_awkward-worth-it',
@@ -697,6 +759,7 @@ export const STORY_CHIPS: StoryChip[] = [
     vibes: ['WaxingCrescent'],
     template: 'slightly awkward but worth it',
     plainText: 'slightly awkward but worth it',
+    keywords: ['mixed', 'negative'],
   },
   {
     id: 'feeling_closer',
@@ -712,6 +775,7 @@ export const STORY_CHIPS: StoryChip[] = [
       },
     },
     plainText: 'felt even closer',
+    keywords: ['positive', 'deep', 'comfort'],
   },
   {
     id: 'feeling_needed-space',
@@ -720,6 +784,7 @@ export const STORY_CHIPS: StoryChip[] = [
     vibes: ['NewMoon', 'WaxingCrescent'],
     template: 'needed space after',
     plainText: 'needed space after',
+    keywords: ['negative', 'struggles'],
   },
   {
     id: 'feeling_wanted-more',
@@ -727,6 +792,7 @@ export const STORY_CHIPS: StoryChip[] = [
     archetypes: ['Fool', 'Sun', 'Lovers'],
     template: 'wanted more time',
     plainText: 'wanted more time',
+    keywords: ['positive', 'energy'],
   },
   {
     id: 'feeling_energized',
@@ -734,6 +800,7 @@ export const STORY_CHIPS: StoryChip[] = [
     archetypes: ['Sun', 'Magician'],
     template: 'left feeling energized',
     plainText: 'left feeling energized',
+    keywords: ['positive', 'energy'],
   },
 
   // ====================================================================
@@ -752,6 +819,7 @@ export const STORY_CHIPS: StoryChip[] = [
       },
     },
     plainText: 'laughed so much',
+    keywords: ['laughter', 'positive', 'energy'],
   },
   {
     id: 'moment_silence',
@@ -766,6 +834,7 @@ export const STORY_CHIPS: StoryChip[] = [
       },
     },
     plainText: 'enjoyed comfortable silence',
+    keywords: ['comfort', 'positive', 'deep'],
   },
   {
     id: 'moment_awkward-silence',
@@ -773,6 +842,7 @@ export const STORY_CHIPS: StoryChip[] = [
     vibes: ['NewMoon', 'WaxingCrescent'],
     template: 'had some awkward silences',
     plainText: 'had some awkward silences',
+    keywords: ['negative', 'mixed'],
   },
   {
     id: 'moment_breakthrough',
@@ -790,6 +860,7 @@ export const STORY_CHIPS: StoryChip[] = [
       },
     },
     plainText: 'had a breakthrough',
+    keywords: ['deep', 'deep_talk', 'positive', 'ideas'],
   },
   {
     id: 'moment_lost-track-time',
@@ -797,6 +868,7 @@ export const STORY_CHIPS: StoryChip[] = [
     archetypes: ['Fool', 'Hermit', 'Lovers'],
     template: 'lost track of time',
     plainText: 'lost track of time',
+    keywords: ['positive', 'energy', 'comfort'],
   },
   {
     id: 'moment_they-got-me',
@@ -805,6 +877,7 @@ export const STORY_CHIPS: StoryChip[] = [
     tiers: ['InnerCircle', 'CloseFriends'],
     template: 'they really got me',
     plainText: 'they really got me',
+    keywords: ['deep', 'positive', 'comfort'],
   },
   {
     id: 'moment_misunderstood',
@@ -819,6 +892,7 @@ export const STORY_CHIPS: StoryChip[] = [
       },
     },
     plainText: 'felt misunderstood',
+    keywords: ['negative', 'struggles'],
   },
   {
     id: 'moment_shared-something',
@@ -827,6 +901,7 @@ export const STORY_CHIPS: StoryChip[] = [
     tiers: ['InnerCircle', 'CloseFriends'],
     template: 'shared something I\'ve been holding',
     plainText: 'shared something I\'ve been holding',
+    keywords: ['deep', 'deep_talk', 'personal', 'mixed'],
   },
   {
     id: 'moment_they-shared',
@@ -835,6 +910,7 @@ export const STORY_CHIPS: StoryChip[] = [
     tiers: ['InnerCircle', 'CloseFriends'],
     template: 'they shared something vulnerable',
     plainText: 'they shared something vulnerable',
+    keywords: ['deep', 'deep_talk', 'personal', 'positive'],
   },
   {
     id: 'moment_disagreement',
@@ -842,6 +918,7 @@ export const STORY_CHIPS: StoryChip[] = [
     vibes: ['NewMoon', 'WaxingCrescent'],
     template: 'had a disagreement',
     plainText: 'had a disagreement',
+    keywords: ['negative', 'struggles'],
   },
   {
     id: 'moment_worked-through',
@@ -850,6 +927,7 @@ export const STORY_CHIPS: StoryChip[] = [
     vibes: ['WaxingGibbous', 'FullMoon'],
     template: 'worked through something',
     plainText: 'worked through something',
+    keywords: ['positive', 'struggles', 'deep'],
   },
   {
     id: 'moment_inside-joke',
@@ -858,6 +936,7 @@ export const STORY_CHIPS: StoryChip[] = [
     tiers: ['InnerCircle', 'CloseFriends'],
     template: 'our inside joke came up',
     plainText: 'our inside joke came up',
+    keywords: ['laughter', 'positive', 'past'],
   },
   {
     id: 'moment_new-tradition',
@@ -865,6 +944,7 @@ export const STORY_CHIPS: StoryChip[] = [
     archetypes: ['Empress', 'Emperor'],
     template: 'started a new tradition',
     plainText: 'started a new tradition',
+    keywords: ['positive', 'ideas', 'future'],
   },
   {
     id: 'moment_stayed-up-late',
@@ -872,6 +952,7 @@ export const STORY_CHIPS: StoryChip[] = [
     archetypes: ['Fool', 'Hermit', 'HighPriestess'],
     template: 'stayed up way too late',
     plainText: 'stayed up way too late',
+    keywords: ['talk', 'deep', 'energy'],
   },
 
   // ====================================================================
@@ -890,6 +971,7 @@ export const STORY_CHIPS: StoryChip[] = [
       },
     },
     plainText: 'learned something new about them',
+    keywords: ['positive', 'ideas'],
   },
   {
     id: 'surprise_different-side',
@@ -897,6 +979,7 @@ export const STORY_CHIPS: StoryChip[] = [
     archetypes: ['HighPriestess', 'Magician'],
     template: 'saw a different side of them',
     plainText: 'saw a different side of them',
+    keywords: ['deep', 'positive'],
   },
   {
     id: 'surprise_perspective-shift',
@@ -904,6 +987,7 @@ export const STORY_CHIPS: StoryChip[] = [
     archetypes: ['HighPriestess', 'Magician'],
     template: 'they changed my perspective on something',
     plainText: 'they changed my perspective on something',
+    keywords: ['deep', 'ideas', 'positive'],
   },
   {
     id: 'surprise_unexpected-topic',
@@ -911,6 +995,7 @@ export const STORY_CHIPS: StoryChip[] = [
     archetypes: ['Fool', 'HighPriestess'],
     template: 'they brought up something unexpected',
     plainText: 'they brought up something unexpected',
+    keywords: ['talk', 'mixed'],
   },
   {
     id: 'surprise_deeper-than-expected',
@@ -918,6 +1003,7 @@ export const STORY_CHIPS: StoryChip[] = [
     archetypes: ['HighPriestess', 'Hermit'],
     template: 'went deeper than I expected',
     plainText: 'went deeper than I expected',
+    keywords: ['deep', 'deep_talk', 'positive'],
   },
   {
     id: 'surprise_more-fun',
@@ -925,6 +1011,7 @@ export const STORY_CHIPS: StoryChip[] = [
     archetypes: ['Fool', 'Sun'],
     template: 'was way more fun than expected',
     plainText: 'was way more fun than expected',
+    keywords: ['laughter', 'positive', 'energy'],
   },
   {
     id: 'surprise_they-remembered',
@@ -939,6 +1026,7 @@ export const STORY_CHIPS: StoryChip[] = [
       },
     },
     plainText: 'they remembered something important',
+    keywords: ['positive', 'past', 'comfort'],
   },
   {
     id: 'surprise_coincidence',
@@ -953,6 +1041,7 @@ export const STORY_CHIPS: StoryChip[] = [
       },
     },
     plainText: 'discovered a weird coincidence',
+    keywords: ['laughter', 'positive', 'ideas'],
   },
 ];
 
@@ -967,6 +1056,7 @@ export interface ChipContext {
   interactionCount?: number; // Total interactions with this friend
   daysSinceLastInteraction?: number; // For history awareness
   frequencyScores?: Record<string, number>; // For adaptive suggestions
+  userText?: string; // User's custom text for contextual filtering
 }
 
 /**
@@ -1012,6 +1102,19 @@ export function getChipsForType(
     if (context.frequencyScores) {
       scoreA += (context.frequencyScores[a.id] || 0) * 20; // High multiplier for frequently used chips
       scoreB += (context.frequencyScores[b.id] || 0) * 20;
+    }
+
+    // Text-based contextual matching (HIGHEST PRIORITY - reduces overwhelming choices)
+    if (context.userText && context.userText.trim().length > 0) {
+      const themes = analyzeText(context.userText);
+
+      // Calculate theme relevance for both chips (0-100+ score based on keyword matches)
+      if (a.keywords) {
+        scoreA += calculateThemeRelevance(a.keywords, themes);
+      }
+      if (b.keywords) {
+        scoreB += calculateThemeRelevance(b.keywords, themes);
+      }
     }
 
     // History-aware boosting

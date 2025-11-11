@@ -14,6 +14,7 @@ interface ReflectionStoryChipsProps {
   tier?: Tier; // For tier-aware filtering
   interactionCount?: number; // Total interactions with friend (for history awareness)
   daysSinceLastInteraction?: number; // For reconnection context
+  userText?: string; // User's custom notes for contextual filtering
   onChipSelect: (chip: StoryChip) => void;
 }
 
@@ -29,11 +30,13 @@ export function ReflectionStoryChips({
   tier,
   interactionCount,
   daysSinceLastInteraction,
+  userText,
   onChipSelect,
 }: ReflectionStoryChipsProps) {
   const { colors } = useTheme();
   const [frequencyScores, setFrequencyScores] = useState<Record<string, number>>({});
   const [customChips, setCustomChips] = useState<StoryChip[]>([]);
+  const [showAll, setShowAll] = useState(false);
 
   // Load frequency scores and custom chips on mount
   useEffect(() => {
@@ -60,10 +63,15 @@ export function ReflectionStoryChips({
     interactionCount,
     daysSinceLastInteraction,
     frequencyScores,
+    userText,
   });
 
   // Combine standard and custom chips
   const allChips = [...standardChips, ...customChips];
+
+  // Progressive disclosure: show top 5, then allow expansion
+  const visibleChips = showAll ? allChips : allChips.slice(0, 5);
+  const hasMore = allChips.length > 5;
 
   if (allChips.length === 0) {
     return null;
@@ -80,7 +88,7 @@ export function ReflectionStoryChips({
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        {allChips.map((chip, index) => (
+        {visibleChips.map((chip, index) => (
           <Animated.View
             key={chip.id}
             entering={FadeIn.duration(300).delay(index * 50)}
@@ -102,6 +110,25 @@ export function ReflectionStoryChips({
             </TouchableOpacity>
           </Animated.View>
         ))}
+
+        {/* Show more/less button */}
+        {hasMore && (
+          <TouchableOpacity
+            style={[
+              styles.showMoreButton,
+              {
+                backgroundColor: colors.muted,
+                borderColor: colors.border,
+              },
+            ]}
+            onPress={() => setShowAll(!showAll)}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.showMoreText, { color: colors['muted-foreground'] }]}>
+              {showAll ? 'Show less' : `+${allChips.length - 5} more`}
+            </Text>
+          </TouchableOpacity>
+        )}
       </ScrollView>
     </View>
   );
@@ -133,5 +160,17 @@ const styles = StyleSheet.create({
   chipText: {
     fontSize: 15,
     fontWeight: '500',
+  },
+  showMoreButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  showMoreText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
