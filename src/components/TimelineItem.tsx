@@ -191,6 +191,9 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, onDele
   const reflectionGlow = useSharedValue(0);
   const justLoggedGlow = useSharedValue(0);
 
+  // Line drawing animation
+  const lineHeight = useSharedValue(0);
+
   // Pause pulse animation when app is sleeping (battery optimization)
   const { isSleeping } = usePausableAnimation(pulseAnimation);
 
@@ -199,39 +202,53 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, onDele
   const entranceScale = useSharedValue(0.92);
   const entranceTranslateY = useSharedValue(20);
 
-  // Beautiful staggered entrance - scale + fade + slide
+  // Beautiful staggered entrance - line draws first, then card animates
   useEffect(() => {
-    const baseDelay = 200; // Let thread draw in first
-    const stagger = index * 100; // Stagger each item
+    const baseDelay = 200; // Let page fade in first
+    const stagger = index * 120; // Slightly longer stagger for smoother cascade
     const delay = baseDelay + stagger;
+
+    // Line drawing animation - draws down from knot
+    if (!isLastItem) {
+      lineHeight.value = withDelay(
+        delay,
+        withTiming(90, {
+          duration: 400,
+          easing: Easing.out(Easing.cubic),
+        })
+      );
+    }
+
+    // Card animations start slightly before line finishes (overlapping for fluidity)
+    const cardDelay = delay + 250; // Start when line is ~60% drawn
 
     // Opacity: Quick fade in
     entranceOpacity.value = withDelay(
-      delay,
+      cardDelay,
       withTiming(1, {
-        duration: 400, // Faster fade
+        duration: 400,
         easing: Easing.out(Easing.quad),
       })
     );
 
     // Scale: Subtle zoom in
     entranceScale.value = withDelay(
-      delay,
+      cardDelay,
       withSpring(1, {
         damping: 20,
-        stiffness: 150, // Snappier spring
+        stiffness: 150,
       })
     );
 
     // TranslateY: Gentle upward float
     entranceTranslateY.value = withDelay(
-      delay,
+      cardDelay,
       withSpring(0, {
         damping: 20,
-        stiffness: 180, // Snappier spring
+        stiffness: 180,
       })
     );
-  }, [index]);
+  }, [index, isLastItem]);
 
   // Subtle pulse animation for warm weaves
   useEffect(() => {
@@ -462,7 +479,7 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, onDele
   // knotAbsoluteContainer has left: 20px to offset the padding
   // So knot position should be: 98px (thread) - 20px (wrapper padding) - 20px (container offset) = 58px
   const THREAD_CENTER = 58;
-  const KNOT_SIZE = 8; // Smaller, more subtle knots
+  const KNOT_SIZE = 12; // Bigger knots for better visibility
   const CARD_START = 72 + 16 + 20; // dateColumn + gap + knotContainer
 
   // Get section accent color
@@ -530,7 +547,7 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, onDele
         {/* Knot on thread - centered on thread */}
         {/* Future knots are hollow (transparent), past knots are filled */}
         <Animated.View
-          className="absolute w-2 h-2 top-4 rounded-full border-[1.5px] border-[rgba(247,245,242,0.9)] shadow-sm elevation-3"
+          className="absolute w-3 h-3 top-4 rounded-full border-[1.5px] border-[rgba(247,245,242,0.9)] shadow-sm elevation-3"
           style={[
             knotAnimatedStyle,
             {
@@ -546,7 +563,7 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, onDele
           {/* Glow effect for warm knots */}
           {warmth > 0.5 && !isFuture && (
             <View
-              className="absolute w-4 h-4 rounded-full -top-1 -left-1 -z-10"
+              className="absolute w-5 h-5 rounded-full -top-1 -left-1 -z-10"
               style={{ backgroundColor: isDarkMode ? colors.accent : colors.glow }}
             />
           )}
@@ -555,17 +572,14 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, onDele
         {/* Vertical line segment connecting to next item (point-to-point) */}
         {!isLastItem && (
           <Animated.View
-            className="absolute w-[1.5px] rounded-full"
+            className="absolute w-px"
             style={[
-              containerAnimatedStyle,
               {
                 left: THREAD_CENTER,
-                top: 24, // Below knot (knot top 16px + knot height 8px)
-                height: 90, // Extends down to approximately next knot position
+                top: 30, // More gap below knot (knot top 16px + knot height 12px + gap 2px)
+                height: lineHeight, // Animated height for drawing effect
                 backgroundColor: lineColor,
-                borderStyle: lineTexture === 'dotted' ? 'dotted' : lineTexture === 'dashed' ? 'dashed' : 'solid',
-                borderWidth: lineTexture !== 'solid' ? 1.5 : 0,
-                borderColor: lineTexture !== 'solid' ? lineColor : 'transparent',
+                opacity: lineTexture === 'solid' ? 1 : 0.85,
               }
             ]}
           />
