@@ -12,6 +12,9 @@ import Animated, {
   runOnJS,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
+import Svg, { Line } from 'react-native-svg';
+import AnimatedSvg from 'react-native-svg';
+const AnimatedLine = Animated.createAnimatedComponent(AnimatedSvg.Line);
 
 import { useTheme } from '../hooks/useTheme';
 import { formatPoeticDate, calculateWeaveWarmth, getThreadColors } from '../lib/timeline-utils';
@@ -573,20 +576,29 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, index,
 
         {/* Vertical line segment connecting to next item (point-to-point) */}
         {/* Line has airgaps at both ends - doesn't touch knots */}
-        {/* Subtle solid line with reduced opacity */}
+        {/* SVG line with dashed pattern for reliable cross-platform rendering */}
         {!isLastItem && (
-          <Animated.View
-            className="absolute w-px"
-            style={[
-              {
-                left: THREAD_CENTER - 0.5,
-                top: 16 + KNOT_SIZE + LINE_GAP, // Start after knot bottom + gap
-                height: lineHeight, // Animated height for drawing effect (target: distance to next knot - gaps)
-                backgroundColor: temporalColors.line,
-                opacity: lineOpacity,
-              }
-            ]}
-          />
+          <Svg
+            style={{
+              position: 'absolute',
+              left: THREAD_CENTER - 1,
+              top: 16 + KNOT_SIZE + LINE_GAP,
+              width: 2,
+              height: 72, // Max height container
+            }}
+          >
+            <AnimatedLine
+              x1="1"
+              y1="0"
+              x2="1"
+              y2={lineHeight}
+              stroke={temporalColors.line}
+              strokeWidth="1"
+              strokeDasharray="3,3"
+              strokeOpacity={lineOpacity}
+              strokeLinecap="round"
+            />
+          </Svg>
         )}
       </View>
 
