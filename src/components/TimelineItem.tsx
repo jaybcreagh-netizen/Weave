@@ -573,7 +573,7 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, index,
 
         {/* Vertical line segment connecting to next item (point-to-point) */}
         {/* Line has airgaps at both ends - doesn't touch knots */}
-        {/* Dashed for subtle, lightweight appearance */}
+        {/* Dotted for subtle, lightweight appearance */}
         {!isLastItem && (
           <Animated.View
             className="absolute w-[2px]"
@@ -584,7 +584,7 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, index,
                 height: lineHeight, // Animated height for drawing effect (target: distance to next knot - gaps)
                 borderLeftWidth: 2,
                 borderLeftColor: temporalColors.line,
-                borderStyle: 'dashed',
+                borderStyle: 'dotted',
                 opacity: lineOpacity,
               }
             ]}
