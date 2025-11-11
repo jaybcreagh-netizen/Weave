@@ -11,7 +11,6 @@ import { Q } from '@nozbe/watermelondb';
 
 import { FriendListRow } from '../src/components/FriendListRow';
 import { TimelineItem } from '../src/components/TimelineItem';
-import { ContinuousThread } from '../src/components/ContinuousThread';
 import { useFriendStore } from '../src/stores/friendStore';
 import { useInteractionStore } from '../src/stores/interactionStore';
 import { calculateNextConnectionDate, getPoeticSectionTitle } from '../src/lib/timeline-utils';
@@ -60,9 +59,6 @@ export default function FriendProfile() {
   const [showBadgePopup, setShowBadgePopup] = useState(false);
 
   const scrollY = useSharedValue(0);
-  const [contentHeight, setContentHeight] = useState(0);
-  const [headerHeight, setHeaderHeight] = useState(0);
-  const itemHeights = useRef<Record<string, { y: number; height: number }>>({});
 
   // Page entrance animations
   const pageOpacity = useSharedValue(0);
@@ -139,11 +135,8 @@ export default function FriendProfile() {
 
   useEffect(() => {
     if (friendId && typeof friendId === 'string') {
-      // Reset loading state and clear positions when friendId changes
+      // Reset loading state when friendId changes
       setIsDataLoaded(false);
-      itemHeights.current = {};
-      setContentHeight(0);
-      setHeaderHeight(0);
 
       // Clear any open modals
       setSelectedInteraction(null);
@@ -279,14 +272,15 @@ export default function FriendProfile() {
     }
   }, [interactions]);
 
-  // renderTimelineItem with position tracking and ContinuousThread
+  // renderTimelineItem with point-to-point line segments
   const renderTimelineItem = useCallback(({ item: interaction, section, index }: { item: Interaction; section: { title: string; data: Interaction[] }; index: number }) => {
     const isFutureInteraction = section.title === 'Seeds';
     const isFirstInSection = index === 0;
     const isLastInSection = index === section.data.length - 1;
 
-    // Check if this is the first item overall (for thread rendering)
-    const isVeryFirstItem = timelineSections[0]?.data[0]?.id === interaction.id;
+    // Check if this is the last item in the entire timeline
+    const lastSection = timelineSections[timelineSections.length - 1];
+    const isLastItem = lastSection?.data[lastSection.data.length - 1]?.id === interaction.id;
 
     // Subtle background tint for future section (no divider, gentle shift)
     const futureBackgroundStyle = isFutureInteraction ? {
@@ -298,28 +292,7 @@ export default function FriendProfile() {
     } : {};
 
     return (
-      <View
-        style={[styles.itemWrapper, futureBackgroundStyle]}
-        onLayout={(event) => {
-          const { y, height } = event.nativeEvent.layout;
-          itemHeights.current[interaction.id.toString()] = { y, height };
-        }}
-      >
-        {/* Render continuous thread before the very first item */}
-        {isVeryFirstItem && (
-          <View style={styles.threadContainer}>
-            <ContinuousThread
-              contentHeight={contentHeight}
-              startY={0}
-              interactions={sortedInteractions.map(int => ({
-                id: int.id.toString(),
-                interactionDate: int.interactionDate,
-                y: itemHeights.current[int.id.toString()]?.y || 0,
-              }))}
-            />
-          </View>
-        )}
-
+      <View className="px-5" style={futureBackgroundStyle}>
         <TimelineItem
           interaction={interaction}
           isFuture={isFutureInteraction}
@@ -329,17 +302,18 @@ export default function FriendProfile() {
           index={index}
           sectionLabel={section.title}
           isFirstInSection={isFirstInSection}
+          isLastItem={isLastItem}
         />
       </View>
     );
-  }, [handleDeleteInteraction, handleEditInteraction, contentHeight, sortedInteractions, timelineSections]);
+  }, [handleDeleteInteraction, handleEditInteraction, timelineSections]);
 
   // Define ListHeader before any returns (to satisfy Rules of Hooks)
   const ListHeader = useMemo(() => {
     if (!friend) return null;
 
     return (
-    <View onLayout={(event) => setHeaderHeight(event.nativeEvent.layout.height)}>
+    <View>
         <View style={[styles.header, { borderColor: colors.border }]}>
             <TouchableOpacity onPress={() => {
 if (router.canGoBack()) {
@@ -509,24 +483,23 @@ router.back();
         {ListHeader}
 
         {/* Timeline ScrollView */}
-        <View style={styles.timelineContainer}>
+        <View className="flex-1 relative">
             <AnimatedSectionList
                 key={friendId} // Force remount when friend changes
                 sections={timelineSections}
                 renderItem={renderTimelineItem}
                 keyExtractor={(item) => item.id.toString()}
                 ListEmptyComponent={
-                    <View style={styles.emptyContainer}>
-                        <Text style={styles.emptyEmoji}>🧵</Text>
-                        <Text style={[styles.emptyText, { color: colors['muted-foreground'] }]}>No weaves yet</Text>
-                        <Text style={[styles.emptySubtext, { color: colors['muted-foreground'] }]}>Your timeline will grow as you connect</Text>
+                    <View className="items-center py-12">
+                        <Text className="text-[40px] mb-4 opacity-50">🧵</Text>
+                        <Text style={{ color: colors['muted-foreground'] }}>No weaves yet</Text>
+                        <Text className="text-xs mt-1 opacity-70" style={{ color: colors['muted-foreground'] }}>Your timeline will grow as you connect</Text>
                     </View>
                 }
                 stickySectionHeadersEnabled={false}
                 contentContainerStyle={{ paddingTop: 20, paddingBottom: 100 }}
                 onScroll={animatedScrollHandler}
                 scrollEventThrottle={8}
-                onContentSizeChange={(_, height) => setContentHeight(height)}
                 decelerationRate="fast"
                 showsVerticalScrollIndicator={false}
             />
@@ -702,29 +675,13 @@ const styles = StyleSheet.create({
       letterSpacing: 0.2,
     },
     timelineTitle: { fontSize: 16, fontWeight: '600', marginBottom: 12, marginTop: 8, fontFamily: 'Lora_700Bold' },
-    emptyContainer: { alignItems: 'center', paddingVertical: 48 },
-    emptyEmoji: { fontSize: 40, marginBottom: 16, opacity: 0.5 },
-    emptyText: {},
-    emptySubtext: { fontSize: 12, marginTop: 4, opacity: 0.7 },
-    itemWrapper: {
-        paddingHorizontal: 20,
-    },
-    timelineContainer: {
-        flex: 1,
-        position: 'relative',
-    },
-    itemWrapper: {
-        paddingHorizontal: 20, // Restore padding that was on the SectionList
-    },
-    threadContainer: {
-        position: 'absolute',
-        top: 0,
-        left: 0, // ContinuousThread positions itself at left: 98
-        right: 0,
-        bottom: 0,
-        zIndex: -1, // Behind items
-        pointerEvents: 'none',
-    },
+    // Timeline item wrapper: px-5 (NativeWind)
+    // Timeline container: flex-1 relative (NativeWind)
+    // Thread container: absolute top-0 left-0 right-0 bottom-0 -z-10 pointer-events-none (NativeWind)
+    // Empty state: items-center py-12 (NativeWind)
+    // Empty emoji: text-[40px] mb-4 opacity-50 (NativeWind)
+    // Empty text: muted-foreground color (dynamic)
+    // Empty subtext: text-xs mt-1 opacity-70 (NativeWind)
     lifeEventsSection: {
         paddingHorizontal: 20,
         marginTop: 8,
