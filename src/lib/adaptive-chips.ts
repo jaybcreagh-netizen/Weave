@@ -201,3 +201,92 @@ export async function recordReflectionChips(
     await recordChipUsage(chip.chipId, chipType, interactionId, friendId, isCustom);
   }
 }
+
+/**
+ * Pattern Insight Interface
+ */
+export interface PatternInsight {
+  message: string;
+  type: 'chip_frequency' | 'first_time' | 'reconnection';
+}
+
+/**
+ * Generate pattern insights for a specific friend
+ * Returns relevant patterns to show during reflection
+ */
+export async function generatePatternInsights(
+  friendId?: string,
+  selectedChipIds: string[] = []
+): Promise<PatternInsight[]> {
+  const insights: PatternInsight[] = [];
+
+  if (!friendId) {
+    return insights; // No friend-specific insights without friendId
+  }
+
+  // Get friend's chip usage history
+  const friendUsage = await getFriendChipUsage(friendId);
+
+  // Get friend name (we'll need to query the friend)
+  const friendsCollection = database.get('friends');
+  const friend = await friendsCollection.find(friendId);
+  const friendName = (friend as any).firstName || 'them';
+
+  // Calculate 30-day window
+  const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
+  const recentUsage = friendUsage.filter(u => u.usedAt >= thirtyDaysAgo);
+
+  // Check for chip frequency patterns
+  for (const chipId of selectedChipIds) {
+    const chipUsageCount = recentUsage.filter(u => u.chipId === chipId).length;
+
+    if (chipUsageCount >= 3) {
+      // Get chip plain text from ALL_STORY_CHIPS
+      const { STORY_CHIPS: ALL_CHIPS } = await import('./story-chips');
+      const chip = ALL_CHIPS.find(c => c.id === chipId);
+      const chipText = chip?.plainText || chipId;
+
+      insights.push({
+        message: `${chipUsageCount + 1}${getOrdinalSuffix(chipUsageCount + 1)} time "${chipText}" with ${friendName} this month`,
+        type: 'chip_frequency',
+      });
+    } else if (chipUsageCount === 0) {
+      // First time using this chip with this friend
+      const { STORY_CHIPS: ALL_CHIPS } = await import('./story-chips');
+      const chip = ALL_CHIPS.find(c => c.id === chipId);
+
+      // Only show for significant/notable chips
+      const notableChipIds = [
+        'topic_fears',
+        'topic_struggles',
+        'dynamic_i-opened-up',
+        'dynamic_they-opened-up',
+        'moment_breakthrough',
+        'moment_they-shared',
+        'surprise_deeper-than-expected',
+      ];
+
+      if (notableChipIds.includes(chipId) && chip) {
+        insights.push({
+          message: `First time "${chip.plainText}" with ${friendName}`,
+          type: 'first_time',
+        });
+      }
+    }
+  }
+
+  // Limit to top 2 most relevant insights
+  return insights.slice(0, 2);
+}
+
+/**
+ * Helper to get ordinal suffix (1st, 2nd, 3rd, etc.)
+ */
+function getOrdinalSuffix(n: number): string {
+  const j = n % 10;
+  const k = n % 100;
+  if (j === 1 && k !== 11) return 'st';
+  if (j === 2 && k !== 12) return 'nd';
+  if (j === 3 && k !== 13) return 'rd';
+  return 'th';
+}
