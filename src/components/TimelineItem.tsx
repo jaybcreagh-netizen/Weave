@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -459,112 +459,120 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, onDele
     <View>
       {/* Section label chip - only for first item in section */}
       {isFirstInSection && sectionLabel && (
-        <View style={styles.sectionChipContainer}>
-          <View style={[styles.sectionAccent, { backgroundColor: getSectionAccentColor(sectionLabel) }]} />
-          <Text style={[styles.sectionLabel, dynamicStyles.sectionLabel]}>{sectionLabel}</Text>
+        <View className="flex-row items-center pl-[98px] pb-2 pt-3 gap-1.5">
+          <View className="w-0.5 h-3 rounded-[1px] opacity-60" style={{ backgroundColor: getSectionAccentColor(sectionLabel) }} />
+          <Text className="text-[10px] font-semibold uppercase tracking-widest" style={dynamicStyles.sectionLabel}>{sectionLabel}</Text>
         </View>
       )}
 
-      <View style={styles.swipeContainer}>
+      <View className="relative">
         {/* Edit background (left side - swipe right to reveal) */}
         {onEdit && (
-          <Animated.View style={[styles.editBackground, editBackgroundStyle]}>
+          <Animated.View className="absolute left-5 top-0 bottom-6 justify-center items-start gap-2 pl-[100px] z-[1]" style={editBackgroundStyle}>
             <Edit3 color={colors.primary} size={24} />
-            <Text style={[styles.editText, { color: colors.primary }]}>Edit</Text>
+            <Text className="text-sm font-semibold" style={{ color: colors.primary }}>Edit</Text>
           </Animated.View>
         )}
 
         {/* Delete background (right side - swipe left to reveal) */}
         {onDelete && (
-          <Animated.View style={[styles.deleteBackground, deleteBackgroundStyle]}>
+          <Animated.View className="absolute right-5 top-0 bottom-6 justify-center items-end gap-2 pr-10 z-[1]" style={deleteBackgroundStyle}>
             <Trash2 color={colors.destructive} size={24} />
-            <Text style={[styles.deleteText, { color: colors.destructive }]}>Delete</Text>
+            <Text className="text-sm font-semibold" style={{ color: colors.destructive }}>Delete</Text>
           </Animated.View>
         )}
 
         {/* Swipeable content */}
         <GestureDetector gesture={panGesture}>
-          <Animated.View style={[styles.itemContainer, containerAnimatedStyle, scrollFadeStyle, swipeAnimatedStyle]}>
+          <Animated.View className="flex-row items-center gap-4 pb-6" style={[containerAnimatedStyle, scrollFadeStyle, swipeAnimatedStyle]}>
         {/* Knot positioned absolutely on the thread with connector line */}
-      <View style={styles.knotAbsoluteContainer} pointerEvents="none">
+      <View className="absolute w-full h-10 top-2 left-5 z-10" pointerEvents="none">
         {/* Connector line from thread to card */}
         {/* Future: dotted, Past: solid */}
-        <View style={[
-          styles.connectorLine,
-          {
+        <View
+          className="absolute h-[1.5px] top-5"
+          style={{
             left: THREAD_CENTER,
             width: CARD_START - THREAD_CENTER,
             backgroundColor: isDarkMode ? colors.border : 'rgba(181, 138, 108, 0.5)',
             opacity: isFuture ? 0.5 : 1,
             borderStyle: isFuture ? 'dotted' : 'solid',
-          }
-        ]} />
+          }}
+        />
 
         {/* Knot on thread - centered on thread */}
         {/* Future knots are hollow (transparent), past knots are filled */}
-        <Animated.View style={[
-          styles.knotOnThread,
-          knotAnimatedStyle,
-          {
-            left: THREAD_CENTER - (KNOT_SIZE / 2),
-            backgroundColor: isFuture ? 'transparent' : colors.card,
-            shadowColor: warmth > 0.5 ? (isDarkMode ? colors.accent : '#D4AF37') : (isDarkMode ? '#000' : '#000'),
-            shadowRadius: 4 + (warmth * 8),
-          }
-        ]}>
+        <Animated.View
+          className="absolute w-2 h-2 top-4 rounded-full border-[1.5px] border-[rgba(247,245,242,0.9)] shadow-sm elevation-3"
+          style={[
+            knotAnimatedStyle,
+            {
+              left: THREAD_CENTER - (KNOT_SIZE / 2),
+              backgroundColor: isFuture ? 'transparent' : colors.card,
+              shadowColor: warmth > 0.5 ? (isDarkMode ? colors.accent : '#D4AF37') : (isDarkMode ? '#000' : '#000'),
+              shadowOffset: { width: 0, height: 1 },
+              shadowOpacity: 0.3,
+              shadowRadius: 4 + (warmth * 8),
+            }
+          ]}
+        >
           {/* Glow effect for warm knots */}
           {warmth > 0.5 && !isFuture && (
             <View
-              style={[
-                styles.knotGlow,
-                { backgroundColor: isDarkMode ? colors.accent : colors.glow }
-              ]}
+              className="absolute w-4 h-4 rounded-full -top-1 -left-1 -z-10"
+              style={{ backgroundColor: isDarkMode ? colors.accent : colors.glow }}
             />
           )}
         </Animated.View>
       </View>
 
       {/* Date Column */}
-      <View style={styles.dateColumn}>
-        <Text style={[styles.dateText, dynamicStyles.dateText]} numberOfLines={1}>{primary}</Text>
-        <Text style={[styles.timeText, dynamicStyles.timeText]} numberOfLines={1}>{secondary}</Text>
+      <View className="w-[72px] items-end pt-2 pr-2 shrink-0">
+        <Text className="text-xs font-semibold mb-0.5" style={dynamicStyles.dateText} numberOfLines={1}>{primary}</Text>
+        <Text className="text-[11px] font-normal" style={dynamicStyles.timeText} numberOfLines={1}>{secondary}</Text>
       </View>
 
       {/* Empty spacer where knot used to be */}
-      <View style={styles.knotContainer} />
+      <View className="w-5" />
 
       {/* Card */}
       <TouchableOpacity
-        style={styles.cardContainer}
+        className="flex-1"
         onPress={onPress}
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
         activeOpacity={1}
       >
-        <Animated.View style={[
-          styles.card,
-          dynamicStyles.card,
-          isFuture ? dynamicStyles.cardPlanned : dynamicStyles.cardCompleted,
-          cardAnimatedStyle,
-          // Scale-based border and shadow for deepened weaves
-          deepeningMetrics.level !== 'none' && {
-            borderColor: colors.primary + deepeningVisuals.borderOpacity.toString(16).padStart(2, '0'),
-            borderWidth: deepeningVisuals.borderWidth,
-            shadowColor: colors.primary,
-            shadowOpacity: deepeningVisuals.shadowOpacity,
-            shadowRadius: deepeningVisuals.shadowRadius,
-            shadowOffset: { width: 0, height: 2 },
-          },
-        ]}>
+        <Animated.View
+          className="rounded-2xl overflow-hidden shadow-sm elevation-4 border"
+          style={[
+            dynamicStyles.card,
+            isFuture ? dynamicStyles.cardPlanned : dynamicStyles.cardCompleted,
+            cardAnimatedStyle,
+            {
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+            },
+            // Scale-based border and shadow for deepened weaves
+            deepeningMetrics.level !== 'none' && {
+              borderColor: colors.primary + deepeningVisuals.borderOpacity.toString(16).padStart(2, '0'),
+              borderWidth: deepeningVisuals.borderWidth,
+              shadowColor: colors.primary,
+              shadowOpacity: deepeningVisuals.shadowOpacity,
+              shadowRadius: deepeningVisuals.shadowRadius,
+              shadowOffset: { width: 0, height: 2 },
+            },
+          ]}
+        >
           {/* Simple solid background with color tint overlay */}
-          <View style={[StyleSheet.absoluteFill, { backgroundColor: isDarkMode ? colors.card : colors.card }]} />
-          <View style={[StyleSheet.absoluteFill, { backgroundColor: cardTintColor }]} />
+          <View className="absolute inset-0" style={{ backgroundColor: isDarkMode ? colors.card : colors.card }} />
+          <View className="absolute inset-0" style={{ backgroundColor: cardTintColor }} />
 
           {/* Reflection glow overlay for deepened weaves */}
           {deepeningMetrics.level !== 'none' && !isFuture && (
             <Animated.View
+              className="absolute inset-0"
               style={[
-                StyleSheet.absoluteFill,
                 reflectionGlowStyle,
                 { backgroundColor: colors.primary }
               ]}
@@ -574,43 +582,43 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, onDele
 
           {/* Just-logged celebration glow */}
           <Animated.View
+            className="absolute inset-0 z-20"
             style={[
-              StyleSheet.absoluteFill,
               justLoggedGlowStyle,
-              { backgroundColor: 'white', zIndex: 20 }
+              { backgroundColor: 'white' }
             ]}
             pointerEvents="none"
           />
 
-          <View style={styles.cardContent}>
+          <View className="p-4 flex-row items-start gap-3 z-[1]">
             {/* Icon with deepened indicator */}
             <View>
-              <Text style={[
-                styles.cardIcon,
-                { transform: [{ rotate: `${iconRotation}deg` }] }
-              ]}>
+              <Text
+                className="text-[26px] opacity-90"
+                style={{ transform: [{ rotate: `${iconRotation}deg` }] }}
+              >
                 {displayIcon}
               </Text>
               {/* Deepened weave indicator - scale-based sparkles */}
               {deepeningMetrics.level !== 'none' && (
-                <View style={styles.deepenedIndicator}>
-                  <Text style={styles.deepenedSparkle}>{deepeningVisuals.badgeEmoji}</Text>
+                <View className="absolute -top-1 -right-1">
+                  <Text className="text-sm">{deepeningVisuals.badgeEmoji}</Text>
                 </View>
               )}
             </View>
-            <View style={{ flex: 1 }}>
+            <View className="flex-1">
               {/* Show custom title if it exists, otherwise show category label */}
-              <Text style={[styles.cardTitle, dynamicStyles.cardTitle]}>
+              <Text className="font-semibold mb-1 text-base font-[Lora_700Bold]" style={dynamicStyles.cardTitle}>
                 {interaction.title || displayLabel}
               </Text>
               {/* Show category as subtitle if custom title exists, otherwise show mode */}
-              <Text style={[styles.cardSubtitle, dynamicStyles.cardSubtitle]}>
+              <Text className="text-[13px] capitalize" style={dynamicStyles.cardSubtitle}>
                 {interaction.title ? displayLabel : interaction.mode?.replace('-', ' ')}
               </Text>
               {/* Reflection chip preview - scale-based label */}
               {deepeningMetrics.level !== 'none' && (
-                <View style={styles.reflectionPreview}>
-                  <Text style={[styles.reflectionPreviewText, { color: colors.primary }]} numberOfLines={1}>
+                <View className="mt-1.5">
+                  <Text className="text-[11px] font-medium opacity-70" style={{ color: colors.primary }} numberOfLines={1}>
                     {deepeningVisuals.badgeText}
                   </Text>
                 </View>
@@ -634,165 +642,27 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, onDele
   );
 });
 
-const styles = StyleSheet.create({
-  sectionChipContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingLeft: 98, // Align with thread
-    paddingBottom: 8,
-    paddingTop: 12,
-    gap: 6,
-  },
-  sectionAccent: {
-    width: 2,
-    height: 12,
-    borderRadius: 1,
-    opacity: 0.6,
-  },
-  sectionLabel: {
-    fontSize: 10,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 1.2,
-  },
-  itemContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-    paddingBottom: 24,
-  },
-  dateColumn: {
-    width: 72,
-    alignItems: 'flex-end',
-    paddingTop: 8,
-    paddingRight: 8,
-    flexShrink: 0,
-  },
-  dateText: {
-    fontSize: 12,
-    fontWeight: '600',
-    marginBottom: 2,
-  },
-  timeText: { 
-    fontSize: 11, 
-    fontWeight: '400',
-  },
-  knotContainer: {
-    width: 20, // Fixed width spacer for knot column
-  },
-  knotAbsoluteContainer: {
-    position: 'absolute',
-    width: '100%',
-    height: 40,
-    top: 8,
-    left: 20, // Account for item wrapper padding
-    zIndex: 10,
-  },
-  connectorLine: {
-    position: 'absolute',
-    height: 1.5,
-    top: 20,
-  },
-  knotOnThread: {
-    position: 'absolute',
-    width: 8,
-    height: 8,
-    top: 16, // Adjusted for smaller size
-    borderRadius: 4,
-    borderWidth: 1.5,
-    borderColor: 'rgba(247, 245, 242, 0.9)',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.3,
-    elevation: 3,
-  },
-  knotGlow: {
-    position: 'absolute',
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    top: -4,
-    left: -4,
-    zIndex: -1,
-  },
-  cardContainer: { 
-    flex: 1 
-  },
-  card: { 
-    borderRadius: 16, 
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 4,
-    borderWidth: 1,
-  },
-  cardContent: {
-    padding: 16,
-    flexDirection: 'row', 
-    alignItems: 'flex-start', 
-    gap: 12,
-    zIndex: 1,
-  },
-  cardIcon: {
-    fontSize: 26,
-    opacity: 0.9,
-  },
-  deepenedIndicator: {
-    position: 'absolute',
-    top: -4,
-    right: -4,
-  },
-  deepenedSparkle: {
-    fontSize: 14,
-  },
-  cardTitle: { 
-    fontWeight: '600', 
-    marginBottom: 4, 
-    fontSize: 16,
-    fontFamily: 'Lora_700Bold',
-  },
-  cardSubtitle: {
-    fontSize: 13,
-    textTransform: 'capitalize',
-  },
-  reflectionPreview: {
-    marginTop: 6,
-  },
-  reflectionPreviewText: {
-    fontSize: 11,
-    fontWeight: '500',
-    opacity: 0.7,
-  },
-  swipeContainer: {
-    position: 'relative',
-  },
-  editBackground: {
-    position: 'absolute',
-    left: 20,
-    top: 0,
-    bottom: 24,
-    justifyContent: 'center',
-    alignItems: 'flex-start',
-    gap: 8,
-    paddingLeft: 100,
-    zIndex: 1,
-  },
-  editText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  deleteBackground: {
-    position: 'absolute',
-    right: 20,
-    top: 0,
-    bottom: 24,
-    justifyContent: 'center',
-    alignItems: 'flex-end',
-    gap: 8,
-    paddingRight: 40,
-    zIndex: 1,
-  },
-  deleteText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-});
+// NativeWind classes used throughout TimelineItem:
+// Section Chip: flex-row items-center pl-[98px] pb-2 pt-3 gap-1.5
+// Section Accent: w-0.5 h-3 rounded-[1px] opacity-60
+// Section Label: text-[10px] font-semibold uppercase tracking-widest
+// Swipe Container: relative
+// Edit/Delete Backgrounds: absolute with specific positioning, gap-2
+// Item Container: flex-row items-center gap-4 pb-6
+// Knot Container: absolute w-full h-10 top-2 left-5 z-10
+// Connector Line: absolute h-[1.5px] top-5
+// Knot: absolute w-2 h-2 top-4 rounded-full border-[1.5px] shadow-sm elevation-3
+// Knot Glow: absolute w-4 h-4 rounded-full -top-1 -left-1 -z-10
+// Date Column: w-[72px] items-end pt-2 pr-2 shrink-0
+// Date Text: text-xs font-semibold mb-0.5
+// Time Text: text-[11px] font-normal
+// Knot Spacer: w-5
+// Card Container: flex-1
+// Card: rounded-2xl overflow-hidden shadow-sm elevation-4 border
+// Card Backgrounds: absolute inset-0
+// Card Content: p-4 flex-row items-start gap-3 z-[1]
+// Icon: text-[26px] opacity-90
+// Deepened Indicator: absolute -top-1 -right-1
+// Title: font-semibold mb-1 text-base font-[Lora_700Bold]
+// Subtitle: text-[13px] capitalize
+// Reflection Preview: mt-1.5, text-[11px] font-medium opacity-70

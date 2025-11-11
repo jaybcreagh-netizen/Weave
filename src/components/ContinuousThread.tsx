@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { StyleSheet, Dimensions, View } from 'react-native';
+import { Dimensions, View } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, useAnimatedProps, withTiming, Easing } from 'react-native-reanimated';
 import Svg, { Line } from 'react-native-svg';
 import { isFuture, isToday, differenceInDays } from 'date-fns';
@@ -36,10 +36,15 @@ export function ContinuousThread({ contentHeight, startY = 0, interactions = [] 
   const { colors, isDarkMode } = useTheme();
   const animatedHeight = useSharedValue(0);
 
+  // Thread boundary padding
+  const THREAD_TOP_PADDING = 30; // Padding above first knot
+  const THREAD_BOTTOM_PADDING = 30; // Padding below last knot
+  const MIN_THREAD_LENGTH = 100; // Minimum visible thread for single weave
+
   useEffect(() => {
     // Animate the height to "draw" the line down
     animatedHeight.value = withTiming(contentHeight, {
-      duration: 600, 
+      duration: 600,
       easing: Easing.out(Easing.quad)
     });
   }, [contentHeight]);
@@ -95,7 +100,7 @@ export function ContinuousThread({ contentHeight, startY = 0, interactions = [] 
     return `rgba(${r}, ${g}, ${b}, ${opacity})`;
   };
 
-  // Build thread segments between knots
+  // Build thread segments between knots with bounded boundaries
   const segments: ThreadSegment[] = [];
 
   if (interactions.length > 0) {
@@ -114,6 +119,9 @@ export function ContinuousThread({ contentHeight, startY = 0, interactions = [] 
 
       // Estimate positions evenly distributed
       const itemHeight = 150; // Approximate height per item
+      const firstEstimatedY = Math.max(0, THREAD_TOP_PADDING);
+      const lastEstimatedY = sortedByDate.length * itemHeight;
+
       sortedByDate.forEach((interaction, i) => {
         const estimatedY = i * itemHeight;
         const nextEstimatedY = (i + 1) * itemHeight;
@@ -121,8 +129,8 @@ export function ContinuousThread({ contentHeight, startY = 0, interactions = [] 
         const color = getThreadColor(texture, estimatedY);
 
         segments.push({
-          startY: estimatedY,
-          endY: i === sortedByDate.length - 1 ? contentHeight : nextEstimatedY,
+          startY: i === 0 ? firstEstimatedY : estimatedY,
+          endY: i === sortedByDate.length - 1 ? lastEstimatedY + THREAD_BOTTOM_PADDING : nextEstimatedY,
           texture,
           color,
         });
@@ -132,24 +140,53 @@ export function ContinuousThread({ contentHeight, startY = 0, interactions = [] 
       const sortedByPosition = [...positioned].sort((a, b) => a.y - b.y);
 
       if (sortedByPosition.length === 1) {
+        // Single weave: Create bounded thread with minimum length
         const interaction = sortedByPosition[0];
         const texture = getThreadTexture(interaction.interactionDate);
-        const color = getThreadColor(texture, interaction.y);
+        const knotY = interaction.y;
+
+        // Calculate thread bounds
+        const threadStart = Math.max(0, knotY - THREAD_TOP_PADDING);
+        const threadEnd = knotY + THREAD_BOTTOM_PADDING;
+        const threadLength = threadEnd - threadStart;
+
+        // Ensure minimum thread length for visibility
+        const finalThreadStart = threadLength < MIN_THREAD_LENGTH
+          ? Math.max(0, knotY - (MIN_THREAD_LENGTH / 2))
+          : threadStart;
+        const finalThreadEnd = threadLength < MIN_THREAD_LENGTH
+          ? knotY + (MIN_THREAD_LENGTH / 2)
+          : threadEnd;
+
+        const color = getThreadColor(texture, knotY);
 
         segments.push({
-          startY: 0,
-          endY: contentHeight,
+          startY: finalThreadStart,
+          endY: finalThreadEnd,
           texture,
           color,
         });
       } else {
+        // Multiple weaves: Bounded by first and last knot positions
+        const firstKnot = sortedByPosition[0];
+        const lastKnot = sortedByPosition[sortedByPosition.length - 1];
+
+        // Add initial segment from top padding to first knot
+        const firstTexture = getThreadTexture(firstKnot.interactionDate);
+        const firstColor = getThreadColor(firstTexture, firstKnot.y);
+        segments.push({
+          startY: Math.max(0, firstKnot.y - THREAD_TOP_PADDING),
+          endY: firstKnot.y,
+          texture: firstTexture,
+          color: firstColor,
+        });
+
         // Create segments between consecutive knots
         for (let i = 0; i < sortedByPosition.length - 1; i++) {
           const currentInteraction = sortedByPosition[i];
           const nextInteraction = sortedByPosition[i + 1];
 
           // The segment's texture is determined by the knot it came from (current)
-          // Texture changes only when passing through a knot
           const texture = getThreadTexture(currentInteraction.interactionDate);
           const segmentMidpoint = currentInteraction.y + ((nextInteraction.y - currentInteraction.y) / 2);
           const color = getThreadColor(texture, segmentMidpoint);
@@ -162,14 +199,12 @@ export function ContinuousThread({ contentHeight, startY = 0, interactions = [] 
           });
         }
 
-        // Add segment from last knot to bottom
-        const lastInteraction = sortedByPosition[sortedByPosition.length - 1];
-        const lastTexture = getThreadTexture(lastInteraction.interactionDate);
-        const lastColor = getThreadColor(lastTexture, lastInteraction.y);
-
+        // Add final segment from last knot to bottom padding
+        const lastTexture = getThreadTexture(lastKnot.interactionDate);
+        const lastColor = getThreadColor(lastTexture, lastKnot.y);
         segments.push({
-          startY: lastInteraction.y,
-          endY: contentHeight,
+          startY: lastKnot.y,
+          endY: lastKnot.y + THREAD_BOTTOM_PADDING,
           texture: lastTexture,
           color: lastColor,
         });
@@ -201,86 +236,43 @@ export function ContinuousThread({ contentHeight, startY = 0, interactions = [] 
     );
   };
 
-  // Debug logging removed for performance
+  // Calculate actual thread height and position based on segments
+  const threadStart = segments.length > 0 ? Math.min(...segments.map(s => s.startY)) : 0;
+  const threadEnd = segments.length > 0 ? Math.max(...segments.map(s => s.endY)) : contentHeight;
+  const threadHeight = threadEnd - threadStart;
 
-  // Fallback: if no segments, render a simple solid line
-  if (segments.length === 0 && contentHeight > 0) {
-    return (
-      <View
-        style={[
-          styles.container,
-          {
-            height: contentHeight,
-            top: startY,
-          },
-        ]}
-        pointerEvents="none"
-      >
-        <Animated.View style={animatedSvgStyle}>
-          <Svg width={4} height={contentHeight} style={StyleSheet.absoluteFill}>
-            <Line
-              x1={2}
-              y1={0}
-              x2={2}
-              y2={contentHeight}
-              stroke="rgba(181, 138, 108, 0.6)"
-              strokeWidth={1.5}
-              strokeLinecap="round"
-            />
-          </Svg>
-        </Animated.View>
-      </View>
-    );
+  // Fallback: if no segments, don't render anything (no weaves yet)
+  if (segments.length === 0) {
+    return null;
   }
+
+  // Adjust segment positions to be relative to thread container
+  const adjustedSegments = segments.map(seg => ({
+    ...seg,
+    startY: seg.startY - threadStart,
+    endY: seg.endY - threadStart,
+  }));
 
   return (
     <View
-      style={[
-        styles.container,
-        {
-          height: contentHeight,
-          top: startY,
-        },
-      ]}
+      className="absolute left-[98px] w-1 -z-10"
+      style={{
+        height: threadHeight,
+        top: threadStart,
+      }}
       pointerEvents="none"
     >
-      <Animated.View style={[styles.svgContainer, animatedSvgStyle]}>
-        <Svg width={4} height={contentHeight} style={StyleSheet.absoluteFill}>
-          {segments.map((segment, index) => renderSegment(segment, index))}
+      <Animated.View className="w-full overflow-hidden" style={animatedSvgStyle}>
+        <Svg width={4} height={threadHeight} className="absolute inset-0">
+          {adjustedSegments.map((segment, index) => renderSegment(segment, index))}
         </Svg>
       </Animated.View>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    position: 'absolute',
-    // Positioning: Align with knot markers
-    // dateColumn: 72px + gap: 16px + half knotContainer: 10px = 98px
-    left: 98,
-    width: 4,
-    top: 0, // Dynamic, set via style prop
-    zIndex: -1, // Behind everything
-  },
-  svgContainer: {
-    width: '100%',
-    overflow: 'hidden',
-  },
-  threadCore: {
-    position: 'absolute',
-    width: 1,
-    height: '100%',
-    left: 0,
-  },
-  ropeStrand: {
-    position: 'absolute',
-    width: 1,
-    height: '100%',
-    opacity: 0.6,
-  },
-  gradient: {
-    flex: 1,
-    width: '100%',
-  },
-});
+// NativeWind classes used:
+// - absolute left-[98px] w-1 -z-10: Container positioning (left: 98px aligns with knot markers)
+//   dateColumn: 72px + gap: 16px + half knotContainer: 10px = 98px
+// - w-full overflow-hidden: SVG container
+// - absolute inset-0: SVG fill

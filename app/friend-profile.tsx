@@ -299,7 +299,8 @@ export default function FriendProfile() {
 
     return (
       <View
-        style={[styles.itemWrapper, futureBackgroundStyle]}
+        className="px-5"
+        style={futureBackgroundStyle}
         onLayout={(event) => {
           const { y, height } = event.nativeEvent.layout;
           itemHeights.current[interaction.id.toString()] = { y, height };
@@ -307,7 +308,7 @@ export default function FriendProfile() {
       >
         {/* Render continuous thread before the very first item */}
         {isVeryFirstItem && (
-          <View style={styles.threadContainer}>
+          <View className="absolute top-0 left-0 right-0 bottom-0 -z-10 pointer-events-none">
             <ContinuousThread
               contentHeight={contentHeight}
               startY={0}
@@ -509,17 +510,17 @@ router.back();
         {ListHeader}
 
         {/* Timeline ScrollView */}
-        <View style={styles.timelineContainer}>
+        <View className="flex-1 relative">
             <AnimatedSectionList
                 key={friendId} // Force remount when friend changes
                 sections={timelineSections}
                 renderItem={renderTimelineItem}
                 keyExtractor={(item) => item.id.toString()}
                 ListEmptyComponent={
-                    <View style={styles.emptyContainer}>
-                        <Text style={styles.emptyEmoji}>🧵</Text>
-                        <Text style={[styles.emptyText, { color: colors['muted-foreground'] }]}>No weaves yet</Text>
-                        <Text style={[styles.emptySubtext, { color: colors['muted-foreground'] }]}>Your timeline will grow as you connect</Text>
+                    <View className="items-center py-12">
+                        <Text className="text-[40px] mb-4 opacity-50">🧵</Text>
+                        <Text style={{ color: colors['muted-foreground'] }}>No weaves yet</Text>
+                        <Text className="text-xs mt-1 opacity-70" style={{ color: colors['muted-foreground'] }}>Your timeline will grow as you connect</Text>
                     </View>
                 }
                 stickySectionHeadersEnabled={false}
@@ -702,29 +703,13 @@ const styles = StyleSheet.create({
       letterSpacing: 0.2,
     },
     timelineTitle: { fontSize: 16, fontWeight: '600', marginBottom: 12, marginTop: 8, fontFamily: 'Lora_700Bold' },
-    emptyContainer: { alignItems: 'center', paddingVertical: 48 },
-    emptyEmoji: { fontSize: 40, marginBottom: 16, opacity: 0.5 },
-    emptyText: {},
-    emptySubtext: { fontSize: 12, marginTop: 4, opacity: 0.7 },
-    itemWrapper: {
-        paddingHorizontal: 20,
-    },
-    timelineContainer: {
-        flex: 1,
-        position: 'relative',
-    },
-    itemWrapper: {
-        paddingHorizontal: 20, // Restore padding that was on the SectionList
-    },
-    threadContainer: {
-        position: 'absolute',
-        top: 0,
-        left: 0, // ContinuousThread positions itself at left: 98
-        right: 0,
-        bottom: 0,
-        zIndex: -1, // Behind items
-        pointerEvents: 'none',
-    },
+    // Timeline item wrapper: px-5 (NativeWind)
+    // Timeline container: flex-1 relative (NativeWind)
+    // Thread container: absolute top-0 left-0 right-0 bottom-0 -z-10 pointer-events-none (NativeWind)
+    // Empty state: items-center py-12 (NativeWind)
+    // Empty emoji: text-[40px] mb-4 opacity-50 (NativeWind)
+    // Empty text: muted-foreground color (dynamic)
+    // Empty subtext: text-xs mt-1 opacity-70 (NativeWind)
     lifeEventsSection: {
         paddingHorizontal: 20,
         marginTop: 8,
