@@ -13,8 +13,8 @@ import Animated, {
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import Svg, { Line } from 'react-native-svg';
-import AnimatedSvg from 'react-native-svg';
-const AnimatedLine = Animated.createAnimatedComponent(AnimatedSvg.Line);
+
+const AnimatedLine = Animated.createAnimatedComponent(Line);
 
 import { useTheme } from '../hooks/useTheme';
 import { formatPoeticDate, calculateWeaveWarmth, getThreadColors } from '../lib/timeline-utils';
