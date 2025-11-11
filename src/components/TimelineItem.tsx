@@ -251,8 +251,9 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, index,
   const reflectionGlow = useSharedValue(0);
   const justLoggedGlow = useSharedValue(0);
 
-  // Line drawing animation
+  // Line drawing animation with strokeDashoffset for smooth drawing effect
   const lineHeight = useSharedValue(0);
+  const lineDashOffset = useSharedValue(72); // Start hidden, animate to 0
 
   // Knot appearance animation
   const knotScale = useSharedValue(0);
@@ -329,10 +330,14 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, index,
     );
 
     // Line drawing animation - draws down to next item's knot
+    // Uses strokeDashoffset for smooth continuous drawing effect
     if (!isLastItem) {
-      lineHeight.value = withDelay(
+      lineHeight.value = lineTargetHeight; // Set full height immediately
+
+      // Animate dashOffset from lineTargetHeight to 0 for drawing effect
+      lineDashOffset.value = withDelay(
         lineStartDelay,
-        withTiming(lineTargetHeight, {
+        withTiming(0, {
           duration: lineDuration,
           easing: Easing.linear, // Linear for smooth drawing effect
         })
@@ -576,7 +581,7 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, index,
 
         {/* Vertical line segment connecting to next item (point-to-point) */}
         {/* Line has airgaps at both ends - doesn't touch knots */}
-        {/* SVG line with dashed pattern for reliable cross-platform rendering */}
+        {/* SVG line with strokeDashoffset animation for smooth drawing effect */}
         {!isLastItem && (
           <Svg
             style={{
@@ -591,10 +596,11 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, index,
               x1="1"
               y1="0"
               x2="1"
-              y2={lineHeight}
+              y2="72"
               stroke={temporalColors.line}
               strokeWidth="1"
               strokeDasharray="3,3"
+              strokeDashoffset={lineDashOffset}
               strokeOpacity={lineOpacity}
               strokeLinecap="round"
             />
