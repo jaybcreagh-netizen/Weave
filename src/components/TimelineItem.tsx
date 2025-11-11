@@ -11,8 +11,6 @@ import Animated, {
   Easing,
   runOnJS,
 } from 'react-native-reanimated';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { Trash2, Edit3 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 
 import { useTheme } from '../hooks/useTheme';
@@ -28,8 +26,6 @@ interface TimelineItemProps {
   interaction: Interaction;
   isFuture: boolean;
   onPress: () => void;
-  onDelete?: (interactionId: string) => void;
-  onEdit?: (interactionId: string) => void;
   index: number;
   scrollY?: Animated.SharedValue<number>;
   itemY?: number;
@@ -39,7 +35,7 @@ interface TimelineItemProps {
   isLastItem?: boolean; // Is this the last item in the entire timeline?
 }
 
-export const TimelineItem = React.memo(({ interaction, isFuture, onPress, onDelete, onEdit, index, scrollY, itemY = 0, showKnot = true, sectionLabel, isFirstInSection = false, isLastItem = false }: TimelineItemProps) => {
+export const TimelineItem = React.memo(({ interaction, isFuture, onPress, index, scrollY, itemY = 0, showKnot = true, sectionLabel, isFirstInSection = false, isLastItem = false }: TimelineItemProps) => {
   const { colors, isDarkMode } = useTheme();
   const { justLoggedInteractionId, setJustLoggedInteractionId } = useUIStore();
 
@@ -272,49 +268,48 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, onDele
   const entranceScale = useSharedValue(0.92);
   const entranceTranslateY = useSharedValue(20);
 
-  // Sequential flowing animation - line draws down, hits knot, knot pops, card appears
+  // Sequential flowing animation - cascades from top to bottom
+  // Each item: knot appears → card fades → line draws to next item → next item's knot appears
   useEffect(() => {
-    const baseDelay = 200; // Let page fade in first
-    const itemDuration = 500; // Total time per item in the cascade
-    const lineDuration = 400; // Line drawing duration
+    const baseDelay = 150; // Initial delay before first item
+    const itemDuration = 350; // Time between each item's knot appearance
+    const lineDuration = 250; // Line drawing duration
+    const cardDelay = 80; // Delay between knot and card
 
-    const lineStartDelay = baseDelay + (index * itemDuration);
-    const knotAppearDelay = lineStartDelay + lineDuration; // Knot appears when line finishes
-    const cardStartDelay = knotAppearDelay - 50; // Card starts slightly before knot (overlap)
+    // Calculate line target height with airgaps
+    // Distance to next knot minus both gaps (bottom of current + top of next)
+    const lineTargetHeight = 72; // ~90px item spacing - KNOT_SIZE - (2 * LINE_GAP)
 
-    // Line drawing animation - draws down from previous knot
-    if (!isLastItem) {
-      lineHeight.value = withDelay(
-        lineStartDelay,
-        withTiming(90, {
-          duration: lineDuration,
-          easing: Easing.out(Easing.cubic),
-        })
-      );
-    }
+    // Each item's knot appears at a regular interval
+    const knotAppearDelay = baseDelay + (index * itemDuration);
+    const cardStartDelay = knotAppearDelay + cardDelay;
 
-    // Knot pop-in when line arrives (spring for bounce effect)
+    // Line draws down after knot appears (with small delay so card can start fading in)
+    // Line should finish just as next item's knot is ready to appear
+    const lineStartDelay = knotAppearDelay + (itemDuration - lineDuration);
+
+    // Knot pop-in - subtle spring bounce
     knotScale.value = withDelay(
       knotAppearDelay,
       withSpring(1, {
-        damping: 15,
-        stiffness: 200,
-        mass: 0.8,
+        damping: 18,
+        stiffness: 280,
+        mass: 0.5,
       })
     );
     knotOpacity.value = withDelay(
       knotAppearDelay,
       withTiming(1, {
-        duration: 150,
+        duration: 180,
         easing: Easing.out(Easing.quad),
       })
     );
 
-    // Card animations - fade and slide up as knot pops
+    // Card animations - fade and slide up shortly after knot
     entranceOpacity.value = withDelay(
       cardStartDelay,
       withTiming(1, {
-        duration: 400,
+        duration: 300,
         easing: Easing.out(Easing.quad),
       })
     );
@@ -323,7 +318,7 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, onDele
       cardStartDelay,
       withSpring(1, {
         damping: 20,
-        stiffness: 150,
+        stiffness: 200,
       })
     );
 
@@ -331,9 +326,20 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, onDele
       cardStartDelay,
       withSpring(0, {
         damping: 20,
-        stiffness: 180,
+        stiffness: 220,
       })
     );
+
+    // Line drawing animation - draws down to next item's knot
+    if (!isLastItem) {
+      lineHeight.value = withDelay(
+        lineStartDelay,
+        withTiming(lineTargetHeight, {
+          duration: lineDuration,
+          easing: Easing.linear, // Linear for smooth drawing effect
+        })
+      );
+    }
   }, [index, isLastItem]);
 
   // Subtle pulse animation for warm weaves
@@ -460,77 +466,6 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, onDele
   // Icon subtle rotation for organic feel
   const iconRotation = Math.random() * 4 - 2; // -2° to +2°
 
-  // Swipe to edit/delete
-  const translateX = useSharedValue(0);
-  const itemOpacity = useSharedValue(1);
-  const SWIPE_THRESHOLD = 80; // Swipe 80px to trigger action (left or right)
-
-  // Create non-async wrappers for handlers
-  const handleDelete = React.useCallback(() => {
-    if (onDelete) {
-      onDelete(interaction.id);
-    }
-  }, [onDelete, interaction.id]);
-
-  const handleEdit = React.useCallback(() => {
-    if (onEdit) {
-      onEdit(interaction.id);
-    }
-  }, [onEdit, interaction.id]);
-
-  const hasTriggeredHaptic = useSharedValue(false);
-
-  const triggerHaptic = React.useCallback(() => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-  }, []);
-
-  const panGesture = Gesture.Pan()
-    .enabled(!!(onDelete || onEdit)) // Enable if either handler exists
-    .activeOffsetX([-15, 15]) // Activate for either direction
-    .failOffsetY([-20, 20]) // Fail if vertical movement exceeds 20px
-    .onUpdate((event) => {
-      'worklet';
-      translateX.value = event.translationX;
-
-      // Trigger haptic when crossing threshold
-      if (Math.abs(event.translationX) > SWIPE_THRESHOLD && !hasTriggeredHaptic.value) {
-        hasTriggeredHaptic.value = true;
-        runOnJS(triggerHaptic)();
-      }
-      // Reset haptic trigger when going back below threshold
-      if (Math.abs(event.translationX) < SWIPE_THRESHOLD) {
-        hasTriggeredHaptic.value = false;
-      }
-    })
-    .onEnd((event) => {
-      'worklet';
-      // Swipe right to edit
-      if (event.translationX > SWIPE_THRESHOLD && onEdit) {
-        // Snap back and trigger edit
-        translateX.value = withSpring(0, { damping: 20, stiffness: 300 });
-        runOnJS(handleEdit)();
-      }
-      // Swipe left to delete
-      else if (event.translationX < -SWIPE_THRESHOLD && onDelete) {
-        // Fade out animation, then delete
-        itemOpacity.value = withTiming(0, { duration: 200 }, (finished) => {
-          if (finished) {
-            runOnJS(handleDelete)();
-          }
-        });
-        translateX.value = withTiming(-400, { duration: 200 });
-      } else {
-        // Snap back
-        translateX.value = withSpring(0, { damping: 20, stiffness: 300 });
-      }
-      hasTriggeredHaptic.value = false;
-    });
-
-  const swipeAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: translateX.value }],
-    opacity: itemOpacity.value,
-  }));
-
   // Container entrance animation - combines all entrance effects
   const containerAnimatedStyle = useAnimatedStyle(() => {
     return {
@@ -574,7 +509,9 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, onDele
   // knotAbsoluteContainer has left: 20px to offset the padding
   // So knot position should be: 98px (thread) - 20px (wrapper padding) - 20px (container offset) = 58px
   const THREAD_CENTER = 58;
-  const KNOT_SIZE = 12; // Bigger knots for better visibility
+  const KNOT_SIZE = 10; // Smaller knots - more like "O" rings
+  const KNOT_BORDER_WIDTH = 2; // Thicker border for hollow appearance
+  const LINE_GAP = 4; // Gap between line and knot (top and bottom)
   const CARD_START = 72 + 16 + 20; // dateColumn + gap + knotContainer
 
   // Get section accent color
@@ -584,15 +521,6 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, onDele
     if (label.includes('Today')) return isDarkMode ? colors.primary + '90' : 'rgba(212, 175, 55, 0.8)';
     return isDarkMode ? colors.secondary + '70' : 'rgba(181, 138, 108, 0.6)';
   };
-
-  // Action backgrounds visibility
-  const editBackgroundStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(translateX.value, [0, SWIPE_THRESHOLD], [0, 1], 'clamp'),
-  }));
-
-  const deleteBackgroundStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(translateX.value, [0, -SWIPE_THRESHOLD], [0, 1], 'clamp'),
-  }));
 
   return (
     <View>
@@ -604,26 +532,7 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, onDele
         </View>
       )}
 
-      <View className="relative">
-        {/* Edit background (left side - swipe right to reveal) */}
-        {onEdit && (
-          <Animated.View className="absolute left-5 top-0 bottom-6 justify-center items-start gap-2 pl-[100px] z-[1]" style={editBackgroundStyle}>
-            <Edit3 color={colors.primary} size={24} />
-            <Text className="text-sm font-semibold" style={{ color: colors.primary }}>Edit</Text>
-          </Animated.View>
-        )}
-
-        {/* Delete background (right side - swipe left to reveal) */}
-        {onDelete && (
-          <Animated.View className="absolute right-5 top-0 bottom-6 justify-center items-end gap-2 pr-10 z-[1]" style={deleteBackgroundStyle}>
-            <Trash2 color={colors.destructive} size={24} />
-            <Text className="text-sm font-semibold" style={{ color: colors.destructive }}>Delete</Text>
-          </Animated.View>
-        )}
-
-        {/* Swipeable content */}
-        <GestureDetector gesture={panGesture}>
-          <Animated.View className="flex-row items-center gap-4 pb-6" style={[containerAnimatedStyle, scrollFadeStyle, swipeAnimatedStyle]}>
+      <Animated.View className="flex-row items-center gap-4 pb-6" style={[containerAnimatedStyle, scrollFadeStyle]}>
         {/* Knot positioned absolutely on the thread with connector line */}
       <View className="absolute w-full h-10 top-2 left-5 z-10" pointerEvents="none">
         {/* Connector line from thread to card */}
@@ -640,40 +549,52 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, onDele
         />
 
         {/* Knot on thread - centered on thread */}
-        {/* Knots fade from golden (recent) to white (distant) */}
+        {/* Knots fade from golden (recent) to white (distant) - hollow "O" appearance */}
         <Animated.View
-          className="absolute w-3 h-3 top-4 rounded-full border-[1.5px] shadow-sm elevation-3"
+          className="absolute rounded-full shadow-sm elevation-3"
           style={[
             knotAnimatedStyle,
             {
               left: THREAD_CENTER - (KNOT_SIZE / 2),
-              backgroundColor: temporalColors.knot,
+              top: 16,
+              width: KNOT_SIZE,
+              height: KNOT_SIZE,
+              backgroundColor: isFuture ? 'transparent' : (temporalColors.knot === colors.card ? 'transparent' : temporalColors.knot),
+              borderWidth: KNOT_BORDER_WIDTH,
               borderColor: isFuture ? 'rgba(247, 245, 242, 0.6)' : temporalColors.line,
               shadowColor: temporalColors.glow,
               shadowOffset: { width: 0, height: 1 },
-              shadowOpacity: warmth > 0.5 ? 0.3 : 0.2,
-              shadowRadius: 4 + (warmth * 8),
+              shadowOpacity: warmth > 0.5 ? 0.3 : 0.15,
+              shadowRadius: 3 + (warmth * 6),
             }
           ]}
         >
           {/* Glow effect for warm/recent knots */}
           {warmth > 0.5 && !isFuture && (
             <View
-              className="absolute w-5 h-5 rounded-full -top-1 -left-1 -z-10"
-              style={{ backgroundColor: temporalColors.glow }}
+              className="absolute rounded-full -z-10"
+              style={{
+                width: KNOT_SIZE + 6,
+                height: KNOT_SIZE + 6,
+                top: -3,
+                left: -3,
+                backgroundColor: temporalColors.glow,
+                opacity: 0.2,
+              }}
             />
           )}
         </Animated.View>
 
         {/* Vertical line segment connecting to next item (point-to-point) */}
+        {/* Line has airgaps at both ends - doesn't touch knots */}
         {!isLastItem && (
           <Animated.View
             className="absolute w-px"
             style={[
               {
                 left: THREAD_CENTER,
-                top: 30, // More gap below knot (knot top 16px + knot height 12px + gap 2px)
-                height: lineHeight, // Animated height for drawing effect
+                top: 16 + KNOT_SIZE + LINE_GAP, // Start after knot bottom + gap
+                height: lineHeight, // Animated height for drawing effect (target: distance to next knot - gaps)
                 backgroundColor: temporalColors.line,
                 opacity: lineTexture === 'solid' ? 1 : 0.85,
               }
@@ -783,9 +704,7 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, onDele
           </View>
         </Animated.View>
       </TouchableOpacity>
-          </Animated.View>
-        </GestureDetector>
-      </View>
+      </Animated.View>
     </View>
   );
 }, (prevProps, nextProps) => {

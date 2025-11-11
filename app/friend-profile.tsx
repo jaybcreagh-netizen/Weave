@@ -505,6 +505,8 @@ router.back();
               setEditingReflection(interaction);
               setSelectedInteraction(null); // Close detail modal
             }}
+            onEdit={handleEditInteraction}
+            onDelete={handleDeleteInteraction}
         />
 
         <EditReflectionModal
