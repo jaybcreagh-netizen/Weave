@@ -173,3 +173,67 @@ export function generateContextualPrompt(themes: TextThemes): string | null {
 
   return null;
 }
+
+/**
+ * Reflection Quality Score
+ */
+export interface ReflectionQuality {
+  level: 'quick' | 'meaningful' | 'rich';
+  score: number; // 0-100
+  label: string;
+  emoji: string;
+}
+
+/**
+ * Calculate reflection quality based on chip diversity, text depth, and emotional honesty
+ */
+export function calculateReflectionQuality(
+  chipCount: number,
+  uniqueChipTypes: number,
+  customNotesLength: number,
+  hasVulnerabilityChips: boolean,
+  sentiment: 'positive' | 'negative' | 'neutral' | 'mixed'
+): ReflectionQuality {
+  let score = 0;
+
+  // Chip diversity (0-40 points)
+  score += Math.min(chipCount * 5, 25); // Up to 25 points for chip count (5 chips max)
+  score += uniqueChipTypes * 3; // Up to 15 points for diversity (5 types = 15 pts)
+
+  // Text depth (0-30 points)
+  if (customNotesLength > 0) {
+    score += 5; // Base points for any text
+    if (customNotesLength > 20) score += 10; // Short note
+    if (customNotesLength > 50) score += 10; // Medium note
+    if (customNotesLength > 100) score += 5; // Detailed note
+  }
+
+  // Emotional honesty (0-30 points)
+  if (hasVulnerabilityChips) score += 15; // Vulnerable/deep chips
+  if (sentiment === 'mixed' || sentiment === 'negative') score += 10; // Honest about complex/difficult feelings
+  if (sentiment === 'positive') score += 5; // Sharing positive experiences
+
+  // Determine level based on score
+  if (score >= 70) {
+    return {
+      level: 'rich',
+      score,
+      label: 'Rich reflection',
+      emoji: '✨',
+    };
+  } else if (score >= 40) {
+    return {
+      level: 'meaningful',
+      score,
+      label: 'Meaningful reflection',
+      emoji: '🌱',
+    };
+  } else {
+    return {
+      level: 'quick',
+      score,
+      label: 'Quick note',
+      emoji: '📝',
+    };
+  }
+}
