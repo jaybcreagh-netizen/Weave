@@ -80,15 +80,10 @@ export const TodaysFocusWidget: React.FC = () => {
     });
   }, [expanded]);
 
-  // Calculate streak
+  // Calculate streak - REACTIVE to database changes
   useEffect(() => {
-    const calculateStreak = async () => {
+    const calculateStreak = (interactions: Interaction[]) => {
       try {
-        const interactions = await database
-          .get<Interaction>('interactions')
-          .query(Q.where('status', 'completed'), Q.sortBy('interaction_date', Q.desc))
-          .fetch();
-
         if (interactions.length === 0) {
           setStreakCount(0);
           return;
@@ -116,7 +111,16 @@ export const TodaysFocusWidget: React.FC = () => {
       }
     };
 
-    calculateStreak();
+    // Subscribe to interactions changes
+    const subscription = database
+      .get<Interaction>('interactions')
+      .query(Q.where('status', 'completed'), Q.sortBy('interaction_date', Q.desc))
+      .observe()
+      .subscribe(interactions => {
+        calculateStreak(interactions);
+      });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   // Find fading friend (lowest score)
@@ -587,16 +591,16 @@ const StreakRiskCard: React.FC<CardProps & { streakCount: number }> = ({ streakC
   return (
     <TouchableOpacity onPress={onPress} activeOpacity={0.9}>
       <LinearGradient
-        colors={isDarkMode ? ['#DC2626', '#EF4444'] : ['#F87171', '#FCA5A5']}
+        colors={isDarkMode ? ['#7C3AED', '#8B5CF6'] : ['#A78BFA', '#C4B5FD']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.gradientCard}
       >
         <View style={styles.cardContent}>
           <Flame size={32} color="#FFFFFF" />
-          <Text style={styles.headlineCompact}>Keep Your Streak!</Text>
+          <Text style={styles.headlineCompact}>Stay in the Flow</Text>
           <Text style={styles.subtextCompact}>
-            Your {streakCount}-day streak needs attention today
+            You're on a {streakCount}-day streak! Log, plan or journal to keep it up
           </Text>
         </View>
 
