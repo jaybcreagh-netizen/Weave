@@ -147,16 +147,9 @@ function useCardGestureCoordinator(): CardGestureContextType {
     }, 200);
   };
 
-  const handleTap = async (friendId: string) => {
+  const handleTap = (friendId: string) => {
     setSelectedFriendId(friendId);
-
-    // Check if friend has Unknown archetype - if so, go to edit form
-    const friend = await database.get<Friend>(Friend.table).find(friendId);
-    if (friend && friend.archetype === 'Unknown') {
-      router.push(`/edit-friend?friendId=${friendId}`);
-    } else {
-      router.push(`/friend-profile?friendId=${friendId}`);
-    }
+    router.push(`/friend-profile?friendId=${friendId}`);
   };
 
   const handleOpenQuickWeave = async (friendId: string, centerPoint: { x: number; y: number }) => {
@@ -236,7 +229,7 @@ function useCardGestureCoordinator(): CardGestureContextType {
           runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Medium);
           const centerPoint = {
             x: event.absoluteX,
-            y: event.absoluteY - scrollOffset.value,
+            y: event.absoluteY, // Use absolute position since overlay is screen-positioned
           };
           runOnJS(handleOpenQuickWeave)(targetId, centerPoint);
         }
@@ -281,14 +274,16 @@ function useCardGestureCoordinator(): CardGestureContextType {
       .onEnd((event, success) => {
         'worklet';
         if (isLongPressActive.value) {
+          // Close the overlay first
+          runOnJS(closeQuickWeave)();
+
           const distance = Math.sqrt(dragX.value**2 + dragY.value**2);
           if (distance >= SELECTION_THRESHOLD && highlightedIndex.value !== -1 && activeCardId.value) {
-            // Use the highlighted index to get category from current activities
+            // Process interaction selection after overlay closes
             const selectedIndex = highlightedIndex.value;
             const friendId = activeCardId.value;
             runOnJS(handleInteractionSelection)(selectedIndex, friendId);
           }
-          runOnJS(closeQuickWeave)();
         }
 
         // Reset all state immediately - always, regardless of gesture state
