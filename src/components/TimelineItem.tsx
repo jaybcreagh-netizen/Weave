@@ -53,18 +53,13 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, index,
   const poeticDate = useMemo(() => formatPoeticDate(date), [date]);
   const { primary, secondary } = poeticDate;
 
-  // Determine line segment texture based on interaction date
-  const lineTexture = useMemo(() => {
-    if (isFuture) return 'dotted';
-
-    const today = new Date();
-    const daysAgo = Math.floor((today.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
-
-    if (daysAgo === 0) return 'solid'; // Today
-    if (daysAgo <= 7) return 'solid'; // Recent past (within a week)
-    if (daysAgo <= 30) return 'dashed'; // Medium past (within a month)
-    return 'dotted'; // Old past (over a month) - fades like distant memories
-  }, [date, isFuture]);
+  // All lines are dashed for a more subtle, lightweight appearance
+  const lineOpacity = useMemo(() => {
+    // Future plans: lighter/more transparent
+    if (isFuture) return 0.3;
+    // Past: subtle but visible
+    return 0.5;
+  }, [isFuture]);
 
   // Get temporal colors (line and knot) with gradient (golden → amber → white)
   const temporalColors = useMemo(() => {
@@ -526,7 +521,7 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, index,
     <View>
       {/* Section label chip - only for first item in section */}
       {isFirstInSection && sectionLabel && (
-        <View className="flex-row items-center pl-[98px] pb-2 pt-3 gap-1.5">
+        <View className="flex-row items-center pl-[98px] pb-2 gap-1.5">
           <View className="w-0.5 h-3 rounded-[1px] opacity-60" style={{ backgroundColor: getSectionAccentColor(sectionLabel) }} />
           <Text className="text-[10px] font-semibold uppercase tracking-widest" style={dynamicStyles.sectionLabel}>{sectionLabel}</Text>
         </View>
@@ -578,16 +573,19 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, index,
 
         {/* Vertical line segment connecting to next item (point-to-point) */}
         {/* Line has airgaps at both ends - doesn't touch knots */}
+        {/* Dashed for subtle, lightweight appearance */}
         {!isLastItem && (
           <Animated.View
-            className="absolute w-px"
+            className="absolute"
             style={[
               {
-                left: THREAD_CENTER,
+                left: THREAD_CENTER - 0.5, // Center the border
                 top: 16 + KNOT_SIZE + LINE_GAP, // Start after knot bottom + gap
                 height: lineHeight, // Animated height for drawing effect (target: distance to next knot - gaps)
-                backgroundColor: temporalColors.line,
-                opacity: lineTexture === 'solid' ? 1 : 0.85,
+                borderLeftWidth: 1,
+                borderLeftColor: temporalColors.line,
+                borderStyle: 'dashed',
+                opacity: lineOpacity,
               }
             ]}
           />
