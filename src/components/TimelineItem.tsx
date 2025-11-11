@@ -251,9 +251,8 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, index,
   const reflectionGlow = useSharedValue(0);
   const justLoggedGlow = useSharedValue(0);
 
-  // Line drawing animation with strokeDashoffset for smooth drawing effect
-  const lineHeight = useSharedValue(0);
-  const lineDashOffset = useSharedValue(72); // Start hidden, animate to 0
+  // Line drawing animation - pen stroke effect
+  const strokeDashoffset = useSharedValue(72); // Start hidden (offset = line length)
 
   // Knot appearance animation
   const knotScale = useSharedValue(0);
@@ -329,17 +328,14 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, index,
       })
     );
 
-    // Line drawing animation - draws down to next item's knot
-    // Uses strokeDashoffset for smooth continuous drawing effect
+    // Line drawing animation - pen stroke effect
+    // Animate strokeDashoffset from LINE_LENGTH to 0 for smooth reveal
     if (!isLastItem) {
-      lineHeight.value = lineTargetHeight; // Set full height immediately
-
-      // Animate dashOffset from lineTargetHeight to 0 for drawing effect
-      lineDashOffset.value = withDelay(
+      strokeDashoffset.value = withDelay(
         lineStartDelay,
         withTiming(0, {
           duration: lineDuration,
-          easing: Easing.linear, // Linear for smooth drawing effect
+          easing: Easing.out(Easing.cubic), // Slight ease for natural pen stroke feel
         })
       );
     }
@@ -515,6 +511,7 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, index,
   const KNOT_SIZE = 10; // Smaller knots - more like "O" rings
   const KNOT_BORDER_WIDTH = 2; // Thicker border for hollow appearance
   const LINE_GAP = 4; // Gap between line and knot (top and bottom)
+  const LINE_LENGTH = 72; // Total line length for SVG path animation
   const CARD_START = 72 + 16 + 20; // dateColumn + gap + knotContainer
 
   // Get section accent color
@@ -581,16 +578,17 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, index,
 
         {/* Vertical line segment connecting to next item (point-to-point) */}
         {/* Line has airgaps at both ends - doesn't touch knots */}
-        {/* SVG line with strokeDashoffset animation for smooth drawing effect */}
+        {/* SVG line with pen stroke animation - draws on smoothly from top to bottom */}
         {!isLastItem && (
           <Svg
             style={{
               position: 'absolute',
-              left: THREAD_CENTER - 1,
+              left: THREAD_CENTER - 0.5,
               top: 16 + KNOT_SIZE + LINE_GAP,
               width: 2,
-              height: 72, // Max height container
+              height: 72,
             }}
+            pointerEvents="none"
           >
             <AnimatedLine
               x1="1"
@@ -598,9 +596,9 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, index,
               x2="1"
               y2="72"
               stroke={temporalColors.line}
-              strokeWidth="1"
-              strokeDasharray="3,3"
-              strokeDashoffset={lineDashOffset}
+              strokeWidth="1.5"
+              strokeDasharray={`${LINE_LENGTH}`}
+              strokeDashoffset={strokeDashoffset}
               strokeOpacity={lineOpacity}
               strokeLinecap="round"
             />
