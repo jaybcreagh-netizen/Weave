@@ -56,9 +56,9 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, index,
   // All lines are dashed for a more subtle, lightweight appearance
   const lineOpacity = useMemo(() => {
     // Future plans: lighter/more transparent
-    if (isFuture) return 0.3;
+    if (isFuture) return 0.5;
     // Past: subtle but visible
-    return 0.5;
+    return 0.7;
   }, [isFuture]);
 
   // Get temporal colors (line and knot) with gradient (golden → amber → white)
@@ -576,13 +576,13 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, index,
         {/* Dashed for subtle, lightweight appearance */}
         {!isLastItem && (
           <Animated.View
-            className="absolute"
+            className="absolute w-[2px]"
             style={[
               {
-                left: THREAD_CENTER - 0.5, // Center the border
+                left: THREAD_CENTER - 1, // Center the border
                 top: 16 + KNOT_SIZE + LINE_GAP, // Start after knot bottom + gap
                 height: lineHeight, // Animated height for drawing effect (target: distance to next knot - gaps)
-                borderLeftWidth: 1,
+                borderLeftWidth: 2,
                 borderLeftColor: temporalColors.line,
                 borderStyle: 'dashed',
                 opacity: lineOpacity,
