@@ -105,14 +105,15 @@ function DashboardContent() {
 
   const [refreshKey, setRefreshKey] = React.useState(0);
 
-  // QuickWeave tutorial state - simple approach
+  // Circle dashboard tutorial state - comprehensive approach
   const hasAddedFirstFriend = useTutorialStore((state) => state.hasAddedFirstFriend);
   const hasSeenQuickWeaveIntro = useTutorialStore((state) => state.hasSeenQuickWeaveIntro);
   const hasPerformedQuickWeave = useTutorialStore((state) => state.hasPerformedQuickWeave);
   const markQuickWeaveIntroSeen = useTutorialStore((state) => state.markQuickWeaveIntroSeen);
   const markQuickWeavePerformed = useTutorialStore((state) => state.markQuickWeavePerformed);
 
-  const [showQuickWeaveTutorial, setShowQuickWeaveTutorial] = useState(false);
+  const [showCircleTutorial, setShowCircleTutorial] = useState(false);
+  const [circleTutorialStep, setCircleTutorialStep] = useState(0);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -133,12 +134,13 @@ function DashboardContent() {
     }
   }, [allFriends]);
 
-  // Show QuickWeave tutorial when user has added first friend but hasn't seen intro
+  // Show Circle dashboard tutorial when user has added first friend but hasn't seen intro
   useEffect(() => {
     if (hasAddedFirstFriend && !hasSeenQuickWeaveIntro && !hasPerformedQuickWeave && allFriends.length > 0) {
       // Wait a brief moment for the UI to settle
       const timer = setTimeout(() => {
-        setShowQuickWeaveTutorial(true);
+        setShowCircleTutorial(true);
+        setCircleTutorialStep(0);
       }, 500);
       return () => clearTimeout(timer);
     }
@@ -146,11 +148,11 @@ function DashboardContent() {
 
   // Watch for QuickWeave being opened - this means user performed the gesture
   useEffect(() => {
-    if (showQuickWeaveTutorial && isQuickWeaveOpen) {
+    if (showCircleTutorial && circleTutorialStep === 1 && isQuickWeaveOpen) {
       // User successfully performed QuickWeave gesture!
-      handleQuickWeaveTutorialComplete();
+      handleCircleTutorialComplete();
     }
-  }, [isQuickWeaveOpen, showQuickWeaveTutorial]);
+  }, [isQuickWeaveOpen, showCircleTutorial, circleTutorialStep]);
 
   const friends = useMemo(() => {
     const processedFriends = [...allFriends]
@@ -172,17 +174,27 @@ function DashboardContent() {
     scrollViewRef.current?.scrollTo({ x: tiers.indexOf(tier) * screenWidth, animated: true });
   };
 
-  // QuickWeave tutorial handlers
-  const handleQuickWeaveTutorialComplete = useCallback(async () => {
+  // Circle dashboard tutorial handlers
+  const handleCircleTutorialNext = useCallback(() => {
+    if (circleTutorialStep === 0) {
+      // Move from "tap to open" to "press and hold" step
+      setCircleTutorialStep(1);
+    } else {
+      // Tutorial complete - user will perform gesture or skip
+      setShowCircleTutorial(false);
+    }
+  }, [circleTutorialStep]);
+
+  const handleCircleTutorialComplete = useCallback(async () => {
     await markQuickWeaveIntroSeen();
     await markQuickWeavePerformed();
-    setShowQuickWeaveTutorial(false);
+    setShowCircleTutorial(false);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   }, [markQuickWeaveIntroSeen, markQuickWeavePerformed]);
 
-  const handleQuickWeaveTutorialSkip = useCallback(async () => {
+  const handleCircleTutorialSkip = useCallback(async () => {
     await markQuickWeaveIntroSeen();
-    setShowQuickWeaveTutorial(false);
+    setShowCircleTutorial(false);
   }, [markQuickWeaveIntroSeen]);
 
   const onAddFriend = () => setAddFriendMenuVisible(true);
@@ -370,13 +382,27 @@ function DashboardContent() {
         onAddBatch={handleAddBatch}
       />
 
-      {/* QuickWeave Tutorial Tooltip */}
-      {showQuickWeaveTutorial && (
+      {/* Circle Dashboard Tutorial Tooltips */}
+      {showCircleTutorial && circleTutorialStep === 0 && (
         <SimpleTutorialTooltip
           visible={true}
-          title="Your first QuickWeave"
-          description="Press and hold any friend card to log a moment together. A radial menu will appear with interaction options."
-          onSkip={handleQuickWeaveTutorialSkip}
+          title="Your Circle dashboard"
+          description="Tap any friend card to open their profile, where you can set intentions, plan future weaves, or log past moments in detail."
+          onNext={handleCircleTutorialNext}
+          onSkip={handleCircleTutorialSkip}
+          currentStep={0}
+          totalSteps={2}
+        />
+      )}
+
+      {showCircleTutorial && circleTutorialStep === 1 && (
+        <SimpleTutorialTooltip
+          visible={true}
+          title="QuickWeave: The fast way"
+          description="For quick logging, press and hold any friend card. A radial menu will appear with interaction options."
+          onSkip={handleCircleTutorialSkip}
+          currentStep={1}
+          totalSteps={2}
         />
       )}
     </View>
