@@ -203,18 +203,7 @@ export default function Home() {
   return (
     <>
       <FocusPill />
-      <View ref={focusWidgetRef} onLayout={() => {
-        // Measure position when layout is complete
-        if (showTodaysFocusTutorial && focusWidgetRef.current) {
-          setTimeout(() => {
-            focusWidgetRef.current?.measure((x, y, width, height, pageX, pageY) => {
-              setFocusWidgetPosition({ x: pageX, y: pageY, width, height });
-            });
-          }, 100);
-        }
-      }}>
-        <HomeWidgetGrid widgets={widgets} />
-      </View>
+      <HomeWidgetGrid widgets={widgets} />
 
       <SocialBatterySheet
         isVisible={showBatterySheet}
