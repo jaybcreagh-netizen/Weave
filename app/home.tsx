@@ -35,6 +35,11 @@ export default function Home() {
   const [focusWidgetPosition, setFocusWidgetPosition] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
   const focusWidgetRef = useRef<View>(null);
 
+  // Social Battery tutorial state
+  const hasSeenSocialBattery = useTutorialStore((state) => state.hasSeenSocialBattery);
+  const markSocialBatterySeen = useTutorialStore((state) => state.markSocialBatterySeen);
+  const [showSocialBatteryTutorial, setShowSocialBatteryTutorial] = useState(false);
+
   // Initialize user profile observable on mount
   useEffect(() => {
     const cleanup = observeProfile();
@@ -137,6 +142,24 @@ export default function Home() {
     setShowTodaysFocusTutorial(false);
   };
 
+  // Show Social Battery tutorial when battery sheet first appears
+  useEffect(() => {
+    if (showBatterySheet && !hasSeenSocialBattery) {
+      // Wait for battery sheet animation to complete
+      const timer = setTimeout(() => {
+        setShowSocialBatteryTutorial(true);
+      }, 400);
+      return () => clearTimeout(timer);
+    } else {
+      setShowSocialBatteryTutorial(false);
+    }
+  }, [showBatterySheet, hasSeenSocialBattery]);
+
+  const handleSocialBatteryTutorialClose = async () => {
+    await markSocialBatterySeen();
+    setShowSocialBatteryTutorial(false);
+  };
+
   // Define widget grid - Compass Hub design
   // Order: Context (Season) → Celebration (Practice) → Action (Focus)
   const widgets: WidgetGridItem[] = [
@@ -224,6 +247,21 @@ export default function Home() {
           }}
           onNext={handleTodaysFocusTutorialClose}
           onSkip={handleTodaysFocusTutorialClose}
+        />
+      )}
+
+      {/* Social Battery Tutorial */}
+      {showSocialBatteryTutorial && (
+        <TutorialOverlay
+          visible={true}
+          step={{
+            id: 'social-battery-intro',
+            title: 'Track your social energy',
+            description: 'Your Social Battery helps you stay mindful of your capacity for connection. Check in daily to track patterns, or disable this in Settings if you prefer.',
+            tooltipPosition: 'bottom',
+          }}
+          onNext={handleSocialBatteryTutorialClose}
+          onSkip={handleSocialBatteryTutorialClose}
         />
       )}
     </>
