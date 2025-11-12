@@ -69,9 +69,9 @@ const FloatingBubble = ({ phrase, delay, index }: { phrase: string; delay: numbe
   return (
     <Animated.View
       style={animatedStyle}
-      className="bg-card rounded-2xl py-3 px-5 shadow-md border border-border"
+      className="bg-[#4A3728] rounded-2xl py-3 px-5 shadow-md border border-[#6B5444]"
     >
-      <Text className="text-base text-muted-foreground italic font-inter-regular">
+      <Text className="text-base text-[#D4C4B0] italic font-inter-regular">
         {phrase}
       </Text>
     </Animated.View>

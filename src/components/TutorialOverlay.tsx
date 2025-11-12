@@ -89,40 +89,34 @@ export function TutorialOverlay({
   return (
     <Modal transparent visible={visible} animationType="none">
       <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
-        {/* Dimmed background */}
+        {/* Dimmed background - much lighter and allows touches through */}
         <Animated.View
           style={StyleSheet.absoluteFill}
           entering={FadeIn.duration(300)}
           exiting={FadeOut.duration(200)}
-          pointerEvents="box-none"
+          pointerEvents="none"
         >
-          <BlurView
-            intensity={isDarkMode ? 40 : 30}
-            tint={isDarkMode ? 'dark' : 'light'}
-            style={StyleSheet.absoluteFill}
-          >
-            <View
-              style={[
-                StyleSheet.absoluteFill,
-                { backgroundColor: isDarkMode ? 'rgba(0,0,0,0.7)' : 'rgba(0,0,0,0.5)' },
-              ]}
-            />
-          </BlurView>
+          <View
+            style={[
+              StyleSheet.absoluteFill,
+              { backgroundColor: isDarkMode ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.2)' },
+            ]}
+          />
         </Animated.View>
 
-        {/* Spotlight cutout effect */}
+        {/* Spotlight border - non-blocking */}
         {step.targetPosition && (
           <Animated.View
             style={[
               spotlightStyle,
               {
-                borderWidth: 3,
+                borderWidth: 2,
                 borderColor: colors.primary,
                 backgroundColor: 'transparent',
                 shadowColor: colors.primary,
                 shadowOffset: { width: 0, height: 0 },
-                shadowOpacity: 0.8,
-                shadowRadius: 20,
+                shadowOpacity: 0.6,
+                shadowRadius: 12,
                 elevation: 10,
               },
             ]}

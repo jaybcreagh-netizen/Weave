@@ -114,8 +114,9 @@ export default function Home() {
   }, [showBatterySheet]);
 
   // Show Today's Focus tutorial on first visit after onboarding
+  // DISABLED FOR NOW - will enable after fixing tutorial UX
   useEffect(() => {
-    if (hasCompletedOnboarding && !hasSeenTodaysFocus) {
+    if (false && hasCompletedOnboarding && !hasSeenTodaysFocus) {
       // Wait for UI to settle and battery sheet to potentially appear
       const timer = setTimeout(() => {
         if (!showBatterySheet) {
@@ -143,8 +144,9 @@ export default function Home() {
   };
 
   // Show Social Battery tutorial when battery sheet first appears
+  // DISABLED FOR NOW - will enable after fixing tutorial UX
   useEffect(() => {
-    if (showBatterySheet && !hasSeenSocialBattery) {
+    if (false && showBatterySheet && !hasSeenSocialBattery) {
       // Wait for battery sheet animation to complete
       const timer = setTimeout(() => {
         setShowSocialBatteryTutorial(true);
