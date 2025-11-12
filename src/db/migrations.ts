@@ -501,6 +501,21 @@ export default schemaMigrations({
         }),
       ],
     },
+    {
+      // Migration from schema v29 to v30
+      // Add notification permission tracking to user_profile
+      toVersion: 30,
+      steps: [
+        addColumns({
+          table: 'user_profile',
+          columns: [
+            { name: 'notification_permission_requested', type: 'boolean', isOptional: true },
+            { name: 'notification_permission_granted', type: 'boolean', isOptional: true },
+            { name: 'notification_permission_requested_at', type: 'number', isOptional: true },
+          ],
+        }),
+      ],
+    },
   ],
 });
 

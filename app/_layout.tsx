@@ -10,7 +10,9 @@ import { ToastProvider } from '../src/components/toast_provider';
 import { CardGestureProvider } from '../src/context/CardGestureContext'; // Import the provider
 import { MilestoneCelebration } from '../src/components/MilestoneCelebration';
 import TrophyCabinetModal from '../src/components/TrophyCabinetModal';
+import { NotificationPermissionModal } from '../src/components/NotificationPermissionModal';
 import { useUIStore } from '../src/stores/uiStore';
+import { useUserProfileStore } from '../src/stores/userProfileStore';
 import { initializeDataMigrations, initializeUserProfile, initializeUserProgress } from '../src/db';
 import { appStateManager } from '../src/lib/app-state-manager';
 import { useAppStateChange } from '../src/hooks/useAppState';
@@ -39,6 +41,9 @@ export default function RootLayout() {
   const hideMilestoneCelebration = useUIStore((state) => state.hideMilestoneCelebration);
   const isTrophyCabinetOpen = useUIStore((state) => state.isTrophyCabinetOpen);
   const closeTrophyCabinet = useUIStore((state) => state.closeTrophyCabinet);
+  const showNotificationPermissionModal = useUIStore((state) => state.showNotificationPermissionModal);
+  const closeNotificationPermissionModal = useUIStore((state) => state.closeNotificationPermissionModal);
+  const markNotificationPermissionRequested = useUserProfileStore((state) => state.markNotificationPermissionRequested);
 
   const [fontsLoaded, fontError] = useFonts({
     Lora_400Regular,
@@ -153,6 +158,29 @@ export default function RootLayout() {
             <TrophyCabinetModal
               visible={isTrophyCabinetOpen}
               onClose={closeTrophyCabinet}
+            />
+
+            {/* Notification Permission Modal (after first weave) */}
+            <NotificationPermissionModal
+              visible={showNotificationPermissionModal}
+              onRequestPermission={async () => {
+                // Request OS permission
+                const { requestNotificationPermissions } = await import('../src/lib/notification-manager-enhanced');
+                const granted = await requestNotificationPermissions();
+
+                // Mark as requested in profile
+                await markNotificationPermissionRequested(granted);
+
+                // Close modal
+                closeNotificationPermissionModal();
+              }}
+              onDismiss={async () => {
+                // Mark as requested (but not granted)
+                await markNotificationPermissionRequested(false);
+
+                // Close modal
+                closeNotificationPermissionModal();
+              }}
             />
           </ToastProvider>
         </QuickWeaveProvider>

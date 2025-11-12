@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb'
 
 export default appSchema({
-  version: 29, // UPDATED: Added fulfillment tracking to intentions
+  version: 30, // UPDATED: Added notification permission tracking to user_profile
   tables: [
     tableSchema({
       name: 'friends',
@@ -131,6 +131,11 @@ export default appSchema({
         // Preferences
         { name: 'battery_checkin_enabled', type: 'boolean', isOptional: true },
         { name: 'battery_checkin_time', type: 'string', isOptional: true }, // HH:mm format, default '09:00'
+
+        // Notification Permission Tracking (v30)
+        { name: 'notification_permission_requested', type: 'boolean', isOptional: true, defaultValue: false },
+        { name: 'notification_permission_granted', type: 'boolean', isOptional: true },
+        { name: 'notification_permission_requested_at', type: 'number', isOptional: true },
 
         // Metadata
         { name: 'created_at', type: 'number' },

@@ -493,13 +493,15 @@ async function markAsInitialized(): Promise<void> {
  * Initialize all notification systems
  * Call this on app launch
  * Only reschedules if not already done today (prevents duplicate notifications)
+ * NOTE: Does NOT request permission - only checks if already granted
  */
 export async function initializeNotifications(): Promise<void> {
   console.log('[Notifications] Initializing notification system...');
 
-  const hasPermission = await requestNotificationPermissions();
-  if (!hasPermission) {
-    console.log('[Notifications] Permission denied, skipping setup');
+  // Check if permission is already granted (don't request it)
+  const { status } = await Notifications.getPermissionsAsync();
+  if (status !== 'granted') {
+    console.log('[Notifications] Permission not granted, skipping setup');
     return;
   }
 

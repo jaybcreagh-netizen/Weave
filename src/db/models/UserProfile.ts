@@ -32,6 +32,11 @@ export default class UserProfile extends Model {
   @field('battery_checkin_enabled') batteryCheckinEnabled?: boolean;
   @text('battery_checkin_time') batteryCheckinTime?: string; // HH:mm format
 
+  // Notification Permission Tracking
+  @field('notification_permission_requested') notificationPermissionRequested?: boolean;
+  @field('notification_permission_granted') notificationPermissionGranted?: boolean;
+  @field('notification_permission_requested_at') notificationPermissionRequestedAt?: number;
+
   // Metadata
   @readonly @date('created_at') createdAt!: Date;
   @date('updated_at') updatedAt!: Date;

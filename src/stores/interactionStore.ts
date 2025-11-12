@@ -165,6 +165,26 @@ export const useInteractionStore = create<InteractionStore>((set, get) => ({
         }
       }
 
+      // 9. Check if we should show notification permission modal (after first completed weave)
+      if (data.status === 'completed') {
+        try {
+          const { useUserProfileStore } = await import('./userProfileStore');
+          const profile = useUserProfileStore.getState().profile;
+
+          // Show modal if:
+          // - Profile exists
+          // - Permission has NOT been requested yet
+          if (profile && !profile.notificationPermissionRequested) {
+            // Delay slightly so modal doesn't conflict with other celebrations
+            setTimeout(() => {
+              useUIStore.getState().openNotificationPermissionModal();
+            }, 1000);
+          }
+        } catch (error) {
+          console.error('Error checking notification permission state:', error);
+        }
+      }
+
       return interactionId;
     }
     throw new Error('No friends found');

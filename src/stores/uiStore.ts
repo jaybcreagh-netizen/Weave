@@ -44,6 +44,7 @@ interface UIStore {
   achievementUnlockQueue: AchievementUnlockData[];
   isDarkMode: boolean;
   isTrophyCabinetOpen: boolean;
+  showNotificationPermissionModal: boolean;
 
   setSelectedFriendId: (id: string | null) => void;
   setArchetypeModal: (archetype: Archetype | null) => void;
@@ -77,6 +78,8 @@ interface UIStore {
   setDarkMode: (isDark: boolean) => void;
   openTrophyCabinet: () => void;
   closeTrophyCabinet: () => void;
+  openNotificationPermissionModal: () => void;
+  closeNotificationPermissionModal: () => void;
 }
 
 export const useUIStore = create<UIStore>((set, get) => ({
@@ -105,7 +108,8 @@ export const useUIStore = create<UIStore>((set, get) => ({
   achievementUnlockQueue: [],
   isDarkMode: false,
   isTrophyCabinetOpen: false,
-  
+  showNotificationPermissionModal: false,
+
   setSelectedFriendId: (id) => set({ selectedFriendId: id }),
   setArchetypeModal: (archetype) => set({ archetypeModal: archetype }),
   openTimelineView: () => set({ timelineViewOpen: true }),
@@ -184,4 +188,6 @@ export const useUIStore = create<UIStore>((set, get) => ({
   setDarkMode: (isDark) => set({ isDarkMode: isDark }),
   openTrophyCabinet: () => set({ isTrophyCabinetOpen: true }),
   closeTrophyCabinet: () => set({ isTrophyCabinetOpen: false }),
+  openNotificationPermissionModal: () => set({ showNotificationPermissionModal: true }),
+  closeNotificationPermissionModal: () => set({ showNotificationPermissionModal: false }),
 }));

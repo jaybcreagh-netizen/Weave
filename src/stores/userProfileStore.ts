@@ -17,6 +17,9 @@ interface UserProfileStore {
   submitBatteryCheckin: (value: number, note?: string, customTimestamp?: number) => Promise<void>;
   updateBatteryPreferences: (enabled: boolean, time?: string) => Promise<void>;
 
+  // Notification Permission Actions
+  markNotificationPermissionRequested: (granted: boolean) => Promise<void>;
+
   // Getters
   getSocialSeason: () => SocialSeason | null;
   getRecentBatteryAverage: (days?: number) => number | null;
@@ -157,6 +160,25 @@ export const useUserProfileStore = create<UserProfileStore>((set, get) => ({
     // Update notification schedule
     const { updateBatteryNotificationFromProfile } = await import('../lib/notification-manager-enhanced');
     await updateBatteryNotificationFromProfile();
+  },
+
+  markNotificationPermissionRequested: async (granted: boolean) => {
+    const { profile } = get();
+    if (!profile) return;
+
+    await database.write(async () => {
+      await profile.update(p => {
+        p.notificationPermissionRequested = true;
+        p.notificationPermissionGranted = granted;
+        p.notificationPermissionRequestedAt = Date.now();
+      });
+    });
+
+    // If granted, initialize all notifications
+    if (granted) {
+      const { initializeNotifications } = await import('../lib/notification-manager-enhanced');
+      await initializeNotifications();
+    }
   },
 
   getSocialSeason: () => {
