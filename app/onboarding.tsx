@@ -56,7 +56,7 @@ export default function Onboarding() {
             <Text style={styles.bodyText}>
               Life gets busy. Friendships fade without intention.
               {'\n\n'}
-              Weave helps you stay connected—not through guilt, but through gentle guidance.
+              Weave helps you stay close to what matters, not through guilt, but through gentle guidance.
             </Text>
           </Animated.View>
         );
@@ -64,8 +64,8 @@ export default function Onboarding() {
       case 'pathways':
         return (
           <Animated.View style={styles.stepContainer} entering={FadeInDown.duration(600)}>
-            <Text style={styles.title}>Three ways to stay connected</Text>
-            <Text style={styles.subtitle}>Use whichever feels right in the moment</Text>
+            <Text style={styles.title}>Three ways to weave connection</Text>
+            <Text style={styles.subtitle}>Follow what feels right in each moment</Text>
 
             <View style={styles.pyramidContainer}>
               {/* Row 1: Intentions (top) */}
@@ -73,8 +73,8 @@ export default function Onboarding() {
                 <PathwayCard
                   icon={<Lightbulb size={24} color={theme.colors.primary} />}
                   title="Intentions"
-                  subtitle="Hold the thought"
-                  description="Want to connect but not sure when? Set an intention without commitment."
+                  subtitle="Hold the thread"
+                  description="A gentle wish to reconnect, without the weight of when or how."
                   delay={300}
                 />
               </View>
@@ -85,8 +85,8 @@ export default function Onboarding() {
                   <PathwayCard
                     icon={<Calendar size={24} color={theme.colors.primary} />}
                     title="Plans"
-                    subtitle="Make it real"
-                    description="Ready to commit? Schedule with a specific date."
+                    subtitle="Weave the future"
+                    description="When a day and time feel right, set them in place."
                     delay={500}
                     compact
                   />
@@ -95,8 +95,8 @@ export default function Onboarding() {
                   <PathwayCard
                     icon={<CheckCircle2 size={24} color={theme.colors.primary} />}
                     title="Logs"
-                    subtitle="Remember"
-                    description="Already connected? Log it to track your bond."
+                    subtitle="Remember the past"
+                    description="Honor the moments you've already shared."
                     delay={700}
                     compact
                   />
@@ -105,7 +105,7 @@ export default function Onboarding() {
             </View>
 
             <Text style={styles.footerText}>
-              You'll learn each one as you need it—no pressure.
+              You'll discover each one naturally as you explore.
             </Text>
           </Animated.View>
         );
@@ -116,13 +116,14 @@ export default function Onboarding() {
             <Text style={styles.celebrationEmoji}>✨</Text>
             <Text style={styles.title}>Ready to begin?</Text>
             <Text style={styles.bodyText}>
-              Let's add your first friend.{'\n\n'}
-              We'll guide you step-by-step as you go—learning by doing, not by reading.
+              Let's start by adding someone you care about.
+              {'\n\n'}
+              Weave will guide you gently as you go, learning through practice rather than instruction.
             </Text>
             <View style={styles.featuresList}>
-              <FeatureItem text="Add a friend and choose their archetype" />
-              <FeatureItem text="Try your first QuickWeave (it's magic)" />
-              <FeatureItem text="Discover your home compass" />
+              <FeatureItem text="Add a friend and discover their archetype" />
+              <FeatureItem text="Experience your first QuickWeave" />
+              <FeatureItem text="Find your compass home" />
             </View>
           </Animated.View>
         );
