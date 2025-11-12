@@ -1,4 +1,4 @@
-import { schemaMigrations, addColumns, createTable } from '@nozbe/watermelondb/Schema/migrations';
+import { schemaMigrations, addColumns, createTable, unsafeExecuteSql } from '@nozbe/watermelondb/Schema/migrations';
 
 /**
  * Database migrations for WatermelonDB
@@ -483,9 +483,22 @@ export default schemaMigrations({
         // and birthday is optional, we'll clear existing values
         // Users will need to re-enter birthdays in the new format
         // Future enhancement: Could convert timestamps to MM-DD format with custom SQL
-        {
-          sql: `UPDATE friends SET birthday = NULL WHERE birthday IS NOT NULL;`,
-        },
+        unsafeExecuteSql(`UPDATE friends SET birthday = NULL WHERE birthday IS NOT NULL;`),
+      ],
+    },
+    {
+      // Migration from schema v28 to v29
+      // Intention fulfillment tracking for pattern analysis and celebration
+      toVersion: 29,
+      steps: [
+        addColumns({
+          table: 'intentions',
+          columns: [
+            { name: 'linked_interaction_id', type: 'string', isOptional: true },
+            { name: 'fulfilled_at', type: 'number', isOptional: true },
+            { name: 'days_to_fulfillment', type: 'number', isOptional: true },
+          ],
+        }),
       ],
     },
   ],
