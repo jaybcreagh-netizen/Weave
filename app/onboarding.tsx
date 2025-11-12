@@ -160,7 +160,7 @@ export default function Onboarding() {
           activeOpacity={0.8}
         >
           <Text style={styles.nextButtonText}>
-            {isLastStep ? 'Let's go' : 'Continue'}
+            {isLastStep ? 'Let\'s go' : 'Continue'}
           </Text>
           <ArrowRight size={20} color="white" />
         </TouchableOpacity>
