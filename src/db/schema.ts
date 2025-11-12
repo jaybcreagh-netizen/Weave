@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb'
 
 export default appSchema({
-  version: 28, // UPDATED: Changed birthday to string format (MM-DD) without year
+  version: 29, // UPDATED: Added fulfillment tracking to intentions
   tables: [
     tableSchema({
       name: 'friends',
@@ -98,10 +98,14 @@ export default appSchema({
       columns: [
         { name: 'description', type: 'string', isOptional: true },
         { name: 'interaction_category', type: 'string', isOptional: true },
-        { name: 'status', type: 'string' }, // active, converted, dismissed
+        { name: 'status', type: 'string' }, // active, converted, dismissed, fulfilled
         { name: 'created_at', type: 'number' },
         { name: 'updated_at', type: 'number' },
         { name: 'last_reminded_at', type: 'number', isOptional: true },
+        // v29: Fulfillment tracking for pattern analysis
+        { name: 'linked_interaction_id', type: 'string', isOptional: true }, // Interaction that fulfilled this intention
+        { name: 'fulfilled_at', type: 'number', isOptional: true }, // When it was fulfilled
+        { name: 'days_to_fulfillment', type: 'number', isOptional: true }, // Time from creation to fulfillment
       ]
     }),
     tableSchema({

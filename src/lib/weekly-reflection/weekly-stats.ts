@@ -8,6 +8,7 @@ import { Q } from '@nozbe/watermelondb';
 import FriendModel from '../../db/models/Friend';
 import InteractionModel from '../../db/models/Interaction';
 import InteractionFriend from '../../db/models/InteractionFriend';
+import Intention from '../../db/models/Intention';
 import { Archetype } from '../../components/types';
 import { getRandomActionForArchetype, getArchetypeValue } from './archetype-actions';
 
@@ -25,6 +26,7 @@ export interface WeeklySummary {
   missedFriends: MissedFriend[];
   topActivity: string;
   topActivityCount: number;
+  fulfilledIntentions: number; // v29: Count of intentions fulfilled this week
   weekStartDate: Date;
   weekEndDate: Date;
 }
@@ -143,12 +145,22 @@ export async function calculateWeeklySummary(): Promise<WeeklySummary> {
   const sortedActivities = Object.entries(activityCounts).sort(([, a], [, b]) => b - a);
   const [topActivity, topActivityCount] = sortedActivities[0] || ['None', 0];
 
+  // v29: Count fulfilled intentions from this week
+  const fulfilledIntentions = await database
+    .get<Intention>('intentions')
+    .query(
+      Q.where('status', 'fulfilled'),
+      Q.where('fulfilled_at', Q.gte(weekAgo))
+    )
+    .fetch();
+
   return {
     totalWeaves: interactions.length,
     friendsContacted: contactedFriendIds.size,
     missedFriends,
     topActivity: formatActivityName(topActivity),
     topActivityCount,
+    fulfilledIntentions: fulfilledIntentions.length,
     weekStartDate: weekStart,
     weekEndDate: weekEnd,
   };

@@ -17,11 +17,16 @@ export default class Intention extends Model {
   @field('interaction_category') interactionCategory?: string;
 
   // Status tracking
-  @field('status') status!: 'active' | 'converted' | 'dismissed';
+  @field('status') status!: 'active' | 'converted' | 'dismissed' | 'fulfilled';
 
   @readonly @date('created_at') createdAt!: Date;
   @date('updated_at') updatedAt!: Date;
 
   // Track when last reminded (for suggestion engine)
   @date('last_reminded_at') lastRemindedAt?: Date;
+
+  // v29: Fulfillment tracking for pattern analysis and celebration
+  @text('linked_interaction_id') linkedInteractionId?: string; // The interaction that fulfilled this intention
+  @date('fulfilled_at') fulfilledAt?: Date; // When it was fulfilled
+  @field('days_to_fulfillment') daysToFulfillment?: number; // Time from creation to fulfillment
 }

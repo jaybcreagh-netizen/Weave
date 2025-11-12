@@ -6,6 +6,7 @@ import FriendModel from '../db/models/Friend';
 import InteractionModel from '../db/models/Interaction';
 import InteractionFriend from '../db/models/InteractionFriend';
 import UserProgress from '../db/models/UserProgress';
+import Intention from '../db/models/Intention';
 import { type InteractionFormData } from '../stores/interactionStore';
 import { checkAndAwardFriendBadges, checkSpecialBadges, BadgeUnlock } from './badge-tracker';
 import { checkAndAwardGlobalAchievements, checkHiddenAchievements, AchievementUnlockData } from './achievement-tracker';
@@ -236,6 +237,52 @@ export function calculatePointsForWeave(
 }
 
 /**
+ * Check if a weave fulfills any active intentions for a friend
+ * Returns the intention if found, null otherwise
+ */
+async function checkIntentionFulfillment(
+  friendId: string,
+  category: InteractionCategory | undefined,
+  database: Database
+): Promise<Intention | null> {
+  if (!category) return null;
+
+  try {
+    // Get active intentions for this friend through join table
+    const intentionFriends = await database
+      .get('intention_friends')
+      .query(Q.where('friend_id', friendId))
+      .fetch();
+
+    if (intentionFriends.length === 0) return null;
+
+    // Get intention IDs
+    const intentionIds = intentionFriends.map((ifriend: any) => ifriend._raw.intention_id);
+
+    // Find active intentions that match the category (or have no specific category)
+    const matchingIntentions = await database
+      .get<Intention>('intentions')
+      .query(
+        Q.where('id', Q.oneOf(intentionIds)),
+        Q.where('status', 'active'),
+        Q.sortBy('created_at', Q.asc) // Oldest first
+      )
+      .fetch();
+
+    // Return first matching intention (category match or no category specified)
+    for (const intention of matchingIntentions) {
+      if (!intention.interactionCategory || intention.interactionCategory === category) {
+        return intention;
+      }
+    }
+  } catch (error) {
+    console.error('Error checking intention fulfillment:', error);
+  }
+
+  return null;
+}
+
+/**
  * Logs a new interaction, calculates the new scores, and updates the database in a single transaction.
  * Returns the interaction ID and any badge/achievement unlocks.
  */
@@ -303,7 +350,15 @@ export async function logNewWeave(
 
       // 2. Calculate scores using the relevant part of the weaveData
       const currentScore = calculateCurrentScore(friend);
-      const pointsToAdd = calculatePointsForWeave(friend, {
+
+      // v29: Check if this weave fulfills an active intention
+      const fulfilledIntention = await checkIntentionFulfillment(
+        friend.id,
+        weaveData.category as InteractionCategory | undefined,
+        database
+      );
+
+      let pointsToAdd = calculatePointsForWeave(friend, {
           // NEW: Use category if available, otherwise fall back to old activity
           category: weaveData.category as InteractionCategory | undefined,
           interactionType: weaveData.activity as InteractionType,
@@ -316,6 +371,13 @@ export async function logNewWeave(
           groupSize: friendsToUpdate.length,
           eventImportance: weaveData.eventImportance,
       });
+
+      // v29: Apply intention fulfillment bonus (1.15x, same as momentum)
+      if (fulfilledIntention) {
+        pointsToAdd = pointsToAdd * 1.15;
+        console.log(`[IntentionBonus] Applied 1.15x multiplier for fulfilling intention ${fulfilledIntention.id}`);
+      }
+
       const newWeaveScore = Math.min(100, currentScore + pointsToAdd);
 
       // 3. Update the friend record with all new scores and states
@@ -389,6 +451,22 @@ export async function logNewWeave(
           ifriend.interactionId = newInteraction!.id;
           ifriend.friendId = friend.id;
       });
+
+      // 4b. v29: Mark intention as fulfilled if this weave fulfilled an intention
+      if (fulfilledIntention) {
+        const daysSinceCreated = Math.floor(
+          (Date.now() - fulfilledIntention.createdAt.getTime()) / (24 * 60 * 60 * 1000)
+        );
+
+        await fulfilledIntention.update(intention => {
+          intention.status = 'fulfilled';
+          intention.linkedInteractionId = newInteraction!.id;
+          intention.fulfilledAt = new Date();
+          intention.daysToFulfillment = daysSinceCreated;
+        });
+
+        console.log(`[IntentionFulfillment] Marked intention ${fulfilledIntention.id} as fulfilled after ${daysSinceCreated} days`);
+      }
 
       // 5. Store outcome data for capture after transaction
       outcomesToCapture.push({

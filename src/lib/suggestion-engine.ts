@@ -7,6 +7,7 @@ import {
 import { differenceInDays } from 'date-fns';
 import { database } from '../db';
 import LifeEvent, { LifeEventType } from '../db/models/LifeEvent';
+import Intention from '../db/models/Intention';
 import { Q } from '@nozbe/watermelondb';
 import {
   analyzeInteractionPattern,
@@ -44,6 +45,7 @@ const COOLDOWN_DAYS = {
   'high-drift': 2,
   'first-weave': 2,
   'life-event': 1, // Show again tomorrow if still upcoming
+  'intention-reminder': 2, // Remind about intentions every 2 days
   'archetype-mismatch': 3,
   'momentum': 7,
   'maintenance': 3,
@@ -237,6 +239,47 @@ async function checkUpcomingLifeEvent(friend: SuggestionInput['friend']): Promis
     }
 
     console.log('[Anniversary Check] Anniversary not within 14 days, skipping');
+  }
+
+  return null;
+}
+
+/**
+ * Check if friend has any aging active intentions that should be reminded
+ * Returns the oldest active intention if it's been 7+ days
+ */
+async function checkAgingIntention(friend: SuggestionInput['friend']): Promise<Intention | null> {
+  const today = Date.now();
+  const sevenDaysAgo = today - (7 * 24 * 60 * 60 * 1000);
+
+  try {
+    // Get all active intentions for this friend through the join table
+    const intentionFriends = await database
+      .get('intention_friends')
+      .query(Q.where('friend_id', friend.id))
+      .fetch();
+
+    if (intentionFriends.length === 0) return null;
+
+    // Get intention IDs
+    const intentionIds = intentionFriends.map((ifriend: any) => ifriend._raw.intention_id);
+
+    // Query for active intentions that are 7+ days old
+    const agingIntentions = await database
+      .get<Intention>('intentions')
+      .query(
+        Q.where('id', Q.oneOf(intentionIds)),
+        Q.where('status', 'active'),
+        Q.where('created_at', Q.lte(sevenDaysAgo)),
+        Q.sortBy('created_at', Q.asc) // Oldest first
+      )
+      .fetch();
+
+    if (agingIntentions.length > 0) {
+      return agingIntentions[0]; // Return oldest intention
+    }
+  } catch (error) {
+    console.error('Error checking aging intentions:', error);
   }
 
   return null;
@@ -534,6 +577,43 @@ export async function generateSuggestion(input: SuggestionInput): Promise<Sugges
     };
   }
 
+  // PRIORITY 2.5: Aging intentions (gentle reminder to follow through)
+  const agingIntention = await checkAgingIntention(friend);
+  if (agingIntention) {
+    const daysSinceCreated = differenceInDays(new Date(), agingIntention.createdAt);
+
+    // Determine urgency based on age
+    let urgency: 'medium' | 'high' = 'medium';
+    if (daysSinceCreated >= 14) urgency = 'high';
+
+    // Build subtitle with intention details
+    const categoryHint = agingIntention.interactionCategory
+      ? ` (${getCategoryLabel(agingIntention.interactionCategory)})`
+      : '';
+
+    const subtitle = agingIntention.description
+      ? `"${agingIntention.description}"${categoryHint}`
+      : `Time to make it happen${categoryHint}`;
+
+    return {
+      id: `intention-reminder-${agingIntention.id}`,
+      friendId: friend.id,
+      friendName: friend.name,
+      urgency,
+      category: 'maintain',
+      title: `You wanted to connect with ${friend.name}`,
+      subtitle,
+      actionLabel: 'Schedule It',
+      icon: '💫',
+      action: {
+        type: 'plan',
+        prefilledCategory: agingIntention.interactionCategory as any,
+      },
+      dismissible: true,
+      createdAt: new Date(),
+    };
+  }
+
   // PRIORITY 3: Critical drift (Inner Circle emergency)
   if (friend.dunbarTier === 'InnerCircle' && currentScore < 30) {
     const contextualAction = getContextualSuggestion(recentInteractions, friend.archetype, friend.dunbarTier, pattern);
@@ -812,6 +892,7 @@ export function getSuggestionCooldownDays(suggestionId: string): number {
   if (suggestionId.startsWith('high-drift')) return COOLDOWN_DAYS['high-drift'];
   if (suggestionId.startsWith('first-weave')) return COOLDOWN_DAYS['first-weave'];
   if (suggestionId.startsWith('life-event')) return COOLDOWN_DAYS['life-event'];
+  if (suggestionId.startsWith('intention-reminder')) return COOLDOWN_DAYS['intention-reminder'];
   if (suggestionId.startsWith('archetype-mismatch')) return COOLDOWN_DAYS['archetype-mismatch'];
   if (suggestionId.startsWith('momentum')) return COOLDOWN_DAYS['momentum'];
   if (suggestionId.startsWith('maintenance')) return COOLDOWN_DAYS['maintenance'];
