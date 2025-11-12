@@ -315,7 +315,7 @@ router.back();
               <Text style={{ color: colors.foreground }}>Back</Text>
             </TouchableOpacity>
             <View style={styles.headerActions}>
-                <TouchableOpacity onPress={() => {}} style={{ padding: 8 }}>
+                <TouchableOpacity onPress={() => router.push('/global-calendar')} style={{ padding: 8 }}>
                     <Calendar size={20} color={colors['muted-foreground']} />
                 </TouchableOpacity>
                 <TouchableOpacity onPress={handleEdit} style={{ padding: 8 }}>
