@@ -13,8 +13,6 @@ import { YearInMoonsModal } from '../src/components/YearInMoons/YearInMoonsModal
 import { useUserProfileStore } from '../src/stores/userProfileStore';
 import { useFriendStore } from '../src/stores/friendStore';
 import { getLastReflectionDate, shouldShowReflection } from '../src/lib/notification-manager';
-import { TutorialOverlay } from '../src/components/TutorialOverlay';
-import { useTutorialStore } from '../src/stores/tutorialStore';
 
 export default function Home() {
   const { observeProfile, profile, submitBatteryCheckin } = useUserProfileStore();
@@ -26,19 +24,6 @@ export default function Home() {
   // Listen for URL parameters from notification deep links
   const params = useLocalSearchParams();
   const router = useRouter();
-
-  // Today's Focus tutorial state
-  const hasCompletedOnboarding = useTutorialStore((state) => state.hasCompletedOnboarding);
-  const hasSeenTodaysFocus = useTutorialStore((state) => state.hasSeenTodaysFocus);
-  const markTodaysFocusSeen = useTutorialStore((state) => state.markTodaysFocusSeen);
-  const [showTodaysFocusTutorial, setShowTodaysFocusTutorial] = useState(false);
-  const [focusWidgetPosition, setFocusWidgetPosition] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
-  const focusWidgetRef = useRef<View>(null);
-
-  // Social Battery tutorial state
-  const hasSeenSocialBattery = useTutorialStore((state) => state.hasSeenSocialBattery);
-  const markSocialBatterySeen = useTutorialStore((state) => state.markSocialBatterySeen);
-  const [showSocialBatteryTutorial, setShowSocialBatteryTutorial] = useState(false);
 
   // Initialize user profile observable on mount
   useEffect(() => {
@@ -113,53 +98,9 @@ export default function Home() {
     checkWeeklyReflection();
   }, [showBatterySheet]);
 
-  // Show Today's Focus tutorial on first visit after onboarding
-  // DISABLED FOR NOW - will enable after fixing tutorial UX
-  useEffect(() => {
-    if (false && hasCompletedOnboarding && !hasSeenTodaysFocus) {
-      // Wait for UI to settle and battery sheet to potentially appear
-      const timer = setTimeout(() => {
-        if (!showBatterySheet) {
-          setShowTodaysFocusTutorial(true);
-          // Try to measure the widget position
-          if (focusWidgetRef.current) {
-            focusWidgetRef.current.measure((x, y, width, height, pageX, pageY) => {
-              setFocusWidgetPosition({ x: pageX, y: pageY, width, height });
-            });
-          }
-        }
-      }, 1500);
-      return () => clearTimeout(timer);
-    }
-  }, [hasCompletedOnboarding, hasSeenTodaysFocus, showBatterySheet]);
-
   const handleBatterySubmit = async (value: number, note?: string) => {
     await submitBatteryCheckin(value, note);
     setShowBatterySheet(false);
-  };
-
-  const handleTodaysFocusTutorialClose = async () => {
-    await markTodaysFocusSeen();
-    setShowTodaysFocusTutorial(false);
-  };
-
-  // Show Social Battery tutorial when battery sheet first appears
-  // DISABLED FOR NOW - will enable after fixing tutorial UX
-  useEffect(() => {
-    if (false && showBatterySheet && !hasSeenSocialBattery) {
-      // Wait for battery sheet animation to complete
-      const timer = setTimeout(() => {
-        setShowSocialBatteryTutorial(true);
-      }, 400);
-      return () => clearTimeout(timer);
-    } else {
-      setShowSocialBatteryTutorial(false);
-    }
-  }, [showBatterySheet, hasSeenSocialBattery]);
-
-  const handleSocialBatteryTutorialClose = async () => {
-    await markSocialBatterySeen();
-    setShowSocialBatteryTutorial(false);
   };
 
   // Define widget grid - Compass Hub design
@@ -224,37 +165,6 @@ export default function Home() {
         isOpen={showYearInMoons}
         onClose={() => setShowYearInMoons(false)}
       />
-
-      {/* Today's Focus Tutorial */}
-      {showTodaysFocusTutorial && (
-        <TutorialOverlay
-          visible={true}
-          step={{
-            id: 'todays-focus-intro',
-            title: 'Your compass for connection',
-            description: "Today's Focus shows what matters most right now: plans for today, friends who need attention, and upcoming celebrations. Check here daily to stay grounded.",
-            targetPosition: focusWidgetPosition || undefined,
-            tooltipPosition: 'bottom',
-          }}
-          onNext={handleTodaysFocusTutorialClose}
-          onSkip={handleTodaysFocusTutorialClose}
-        />
-      )}
-
-      {/* Social Battery Tutorial */}
-      {showSocialBatteryTutorial && (
-        <TutorialOverlay
-          visible={true}
-          step={{
-            id: 'social-battery-intro',
-            title: 'Track your social energy',
-            description: 'Your Social Battery helps you stay mindful of your capacity for connection. Check in daily to track patterns, or disable this in Settings if you prefer.',
-            tooltipPosition: 'bottom',
-          }}
-          onNext={handleSocialBatteryTutorialClose}
-          onSkip={handleSocialBatteryTutorialClose}
-        />
-      )}
     </>
   );
 }
