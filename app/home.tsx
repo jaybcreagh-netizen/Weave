@@ -13,6 +13,7 @@ import { YearInMoonsModal } from '../src/components/YearInMoons/YearInMoonsModal
 import { useUserProfileStore } from '../src/stores/userProfileStore';
 import { useFriendStore } from '../src/stores/friendStore';
 import { getLastReflectionDate, shouldShowReflection } from '../src/lib/notification-manager';
+import { useTutorialStore } from '../src/stores/tutorialStore';
 
 export default function Home() {
   const { observeProfile, profile, submitBatteryCheckin } = useUserProfileStore();
@@ -20,6 +21,9 @@ export default function Home() {
   const [showBatterySheet, setShowBatterySheet] = useState(false);
   const [showWeeklyReflection, setShowWeeklyReflection] = useState(false);
   const [showYearInMoons, setShowYearInMoons] = useState(false);
+
+  // Tutorial state - check if QuickWeave tutorial is done
+  const hasPerformedQuickWeave = useTutorialStore((state) => state.hasPerformedQuickWeave);
 
   // Listen for URL parameters from notification deep links
   const params = useLocalSearchParams();
@@ -53,11 +57,16 @@ export default function Home() {
   }, [params.showBattery, params.showReflection]);
 
   // Check if user should be prompted for battery check-in
+  // Wait until QuickWeave tutorial is complete before showing (avoid conflicts)
   useEffect(() => {
     // Default to enabled if not explicitly set
     if (!profile) return;
     const isEnabled = profile.batteryCheckinEnabled ?? true;
     if (!isEnabled) return;
+
+    // Don't show battery sheet during onboarding flow
+    // Wait until user has completed their first QuickWeave
+    if (!hasPerformedQuickWeave) return;
 
     const lastCheckin = profile.socialBatteryLastCheckin;
     if (!lastCheckin) {
@@ -77,7 +86,7 @@ export default function Home() {
       const timer = setTimeout(() => setShowBatterySheet(true), 600);
       return () => clearTimeout(timer);
     }
-  }, [profile]);
+  }, [profile, hasPerformedQuickWeave]);
 
   // Check if weekly reflection should be shown
   useEffect(() => {
