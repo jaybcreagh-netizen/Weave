@@ -6,7 +6,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform, UIManager } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 
 // Enable LayoutAnimation on Android
@@ -49,7 +49,7 @@ interface UpcomingDate {
   title?: string;
 }
 
-type PriorityState = 'todays-plan' | 'streak-risk' | 'friend-fading' | 'upcoming-plan' | 'quick-weave';
+type PriorityState = 'todays-plan' | 'streak-risk' | 'friend-fading' | 'upcoming-plan' | 'quick-weave' | 'all-clear';
 
 export const TodaysFocusWidget: React.FC = () => {
   const { colors, isDarkMode } = useTheme();
@@ -69,16 +69,131 @@ export const TodaysFocusWidget: React.FC = () => {
   const [expanded, setExpanded] = useState(false);
   const [streakCount, setStreakCount] = useState(0);
   const [fadingFriend, setFadingFriend] = useState<{ friend: FriendModel; score: number } | null>(null);
+  const [batteryMatchedFriend, setBatteryMatchedFriend] = useState<FriendModel | null>(null);
 
   const expansionProgress = useSharedValue(0);
 
-  // Animate expansion with spring
+  // Animate expansion with timing (smooth, predictable)
   useEffect(() => {
-    expansionProgress.value = withSpring(expanded ? 1 : 0, {
-      damping: 20,
-      stiffness: 200,
+    expansionProgress.value = withTiming(expanded ? 1 : 0, {
+      duration: 300, // Fast, smooth
     });
   }, [expanded]);
+
+  // Helper: Get daily index for rotation (same result for same day)
+  const getDailyRotation = (arrayLength: number): number => {
+    if (arrayLength === 0) return 0;
+    const today = new Date();
+    const dayOfYear = Math.floor((today.getTime() - new Date(today.getFullYear(), 0, 0).getTime()) / 1000 / 60 / 60 / 24);
+    return dayOfYear % arrayLength;
+  };
+
+  // Helper: Get intelligent message for streak-risk state
+  const getStreakMessage = (streakCount: number, friend: FriendModel, batteryLevel: number): string => {
+    const messages = [];
+
+    // Battery-aware messages
+    if (batteryLevel <= 35) {
+      messages.push(`You're on a ${streakCount}-day streak! A quiet moment with ${friend.name} could keep it going`);
+      messages.push(`${streakCount} days strong! Maybe a low-key chat with ${friend.name} today?`);
+    } else if (batteryLevel <= 70) {
+      messages.push(`You're on a ${streakCount}-day streak! Connect with ${friend.name} to keep it up`);
+      messages.push(`${streakCount} days in a row! ${friend.name} might be perfect for today`);
+    } else {
+      messages.push(`You're on a ${streakCount}-day streak! ${friend.name} could be great for your energy today`);
+      messages.push(`${streakCount} days strong! Keep it alive with ${friend.name}`);
+    }
+
+    return messages[getDailyRotation(messages.length)];
+  };
+
+  // Helper: Get intelligent message for quick-weave state
+  const getQuickWeaveMessage = (friend: FriendModel, daysSince: number): string => {
+    const messages = [];
+
+    if (daysSince <= 3) {
+      messages.push(`${friend.name} has been on your mind lately`);
+      messages.push(`Keep the momentum going with ${friend.name}`);
+    } else if (daysSince <= 7) {
+      messages.push(`It's been ${daysSince} days since you caught up with ${friend.name}`);
+      messages.push(`${friend.name} might appreciate hearing from you`);
+    } else if (daysSince <= 14) {
+      messages.push(`It's been a while since you connected with ${friend.name}`);
+      messages.push(`${friend.name} would love to hear from you`);
+    } else {
+      messages.push(`It's been ${daysSince} days—${friend.name} is probably wondering about you`);
+      messages.push(`Time to reconnect with ${friend.name}`);
+    }
+
+    return messages[getDailyRotation(messages.length)];
+  };
+
+  // Helper: Get intelligent message for friend-fading state
+  const getFadingMessage = (friend: FriendModel, score: number): string => {
+    const messages = [];
+    const archetype = friend.archetype;
+
+    if (score < 20) {
+      messages.push(`${friend.name}'s connection is fading—reach out soon`);
+      messages.push(`Don't let ${friend.name} slip away`);
+    } else if (score < 30) {
+      messages.push(`${friend.name} could use some attention`);
+      messages.push(`Time to reconnect with ${friend.name}`);
+    } else {
+      messages.push(`${friend.name}'s connection is weakening`);
+      messages.push(`${friend.name} would appreciate hearing from you`);
+    }
+
+    return messages[getDailyRotation(messages.length)];
+  };
+
+  // Helper: Get intelligent "all clear" message
+  const getAllClearMessage = (): { headline: string; subtext: string } => {
+    const messages = [
+      { headline: 'All Caught Up', subtext: 'Your relationships are thriving—enjoy the moment' },
+      { headline: 'Everything\'s Flowing', subtext: 'You\'ve been nurturing your connections beautifully' },
+      { headline: 'You\'re in Harmony', subtext: 'Your social garden is well-tended right now' },
+      { headline: 'Nicely Balanced', subtext: 'All your important connections are healthy' },
+    ];
+
+    return messages[getDailyRotation(messages.length)];
+  };
+
+  // Helper: Get archetypes that match battery energy level
+  const getArchetypesForBattery = (batteryLevel: number): string[] => {
+    if (batteryLevel <= 35) {
+      // Low energy: intimate, low-key connections
+      return ['Hermit', 'HighPriestess'];
+    } else if (batteryLevel <= 70) {
+      // Medium energy: balanced connections
+      return ['Empress', 'Magician', 'Lovers'];
+    } else {
+      // High energy: active, social connections
+      return ['Sun', 'Fool', 'Emperor'];
+    }
+  };
+
+  // Find friend that matches current battery level
+  useEffect(() => {
+    if (!friends || friends.length === 0 || !profile) return;
+
+    const batteryLevel = profile.socialBatteryCurrent || 50; // Default to medium
+    const suitableArchetypes = getArchetypesForBattery(batteryLevel);
+
+    // Filter friends by suitable archetypes
+    const matchingFriends = friends.filter(f =>
+      suitableArchetypes.includes(f.archetype)
+    );
+
+    if (matchingFriends.length > 0) {
+      // Rotate through matching friends daily
+      const index = getDailyRotation(matchingFriends.length);
+      setBatteryMatchedFriend(matchingFriends[index]);
+    } else {
+      // Fallback: any friend
+      setBatteryMatchedFriend(friends.length > 0 ? friends[0] : null);
+    }
+  }, [friends, profile]);
 
   // Calculate streak - REACTIVE to database changes
   useEffect(() => {
@@ -132,12 +247,15 @@ export const TodaysFocusWidget: React.FC = () => {
       score: calculateCurrentScore(f),
     }));
 
-    const lowestScore = friendsWithScores.reduce((min, current) =>
-      current.score < min.score ? current : min
-    );
+    // Get all friends below threshold for variety
+    const fadingFriends = friendsWithScores
+      .filter(f => f.score < 40)
+      .sort((a, b) => a.score - b.score); // Sort by score, lowest first
 
-    if (lowestScore.score < 40) {
-      setFadingFriend(lowestScore);
+    if (fadingFriends.length > 0) {
+      // Rotate through fading friends daily
+      const index = getDailyRotation(fadingFriends.length);
+      setFadingFriend(fadingFriends[index]);
     } else {
       setFadingFriend(null);
     }
@@ -222,38 +340,54 @@ export const TodaysFocusWidget: React.FC = () => {
     loadLifeEvents();
   }, [friends]);
 
-  // Priority logic
+  // Priority logic with daily rotation for variance
   const getPriority = (): { state: PriorityState; data?: any } => {
-    // 1. Today's plan (highest priority)
-    const todaysPlan = pendingPlans.find(p => p.daysUntil === 0);
-    if (todaysPlan) return { state: 'todays-plan', data: todaysPlan };
-
-    // 2. Streak at risk (no weave today and streak > 0)
-    if (streakCount > 0 && !todaysPlan) {
-      return { state: 'streak-risk', data: { streakCount } };
+    // 1. Today's plan (highest priority) - rotate if multiple
+    const todaysPlans = pendingPlans.filter(p => p.daysUntil === 0);
+    if (todaysPlans.length > 0) {
+      const index = getDailyRotation(todaysPlans.length);
+      return { state: 'todays-plan', data: todaysPlans[index] };
     }
 
-    // 3. Friend fading
+    // 2. Streak at risk (no weave today and streak > 0) - suggest battery-matched friend
+    if (streakCount > 0 && batteryMatchedFriend) {
+      const batteryLevel = profile?.socialBatteryCurrent || 50;
+      return { state: 'streak-risk', data: { streakCount, friend: batteryMatchedFriend, batteryLevel } };
+    }
+
+    // 3. Friend fading (already rotated in useEffect)
     if (fadingFriend) {
       return { state: 'friend-fading', data: fadingFriend };
     }
 
-    // 4. Upcoming plan (within next 3 days)
-    const upcomingPlan = pendingPlans.find(p => p.daysUntil > 0 && p.daysUntil <= 3);
-    if (upcomingPlan) return { state: 'upcoming-plan', data: upcomingPlan };
+    // 4. Upcoming plan (within next 3 days) - rotate if multiple
+    const upcomingPlans = pendingPlans.filter(p => p.daysUntil > 0 && p.daysUntil <= 3);
+    if (upcomingPlans.length > 0) {
+      const index = getDailyRotation(upcomingPlans.length);
+      return { state: 'upcoming-plan', data: upcomingPlans[index] };
+    }
 
-    // 5. Quick weave (default)
-    // Filter to only friends with interactions, then sort by longest time
+    // 5. Check if everything is in good shape (all clear)
+    const allFriendsHealthy = friends.every(f => calculateCurrentScore(f) >= 40);
+    const noUrgentItems = !fadingFriend && pendingPlans.length === 0 && streakCount === 0;
+
+    if (allFriendsHealthy && noUrgentItems) {
+      return { state: 'all-clear', data: null };
+    }
+
+    // 6. Quick weave (default) - rotate through top 5 longest since last interaction
     const friendsWithInteractions = friends
-      .filter(f => f.lastInteraction)
-      .map(f => ({ friend: f, daysSince: differenceInDays(new Date(), f.lastInteraction!) }))
-      .sort((a, b) => b.daysSince - a.daysSince);
+      .filter(f => f.lastUpdated)
+      .map(f => ({ friend: f, daysSince: differenceInDays(new Date(), f.lastUpdated!) }))
+      .sort((a, b) => b.daysSince - a.daysSince)
+      .slice(0, 5); // Top 5 candidates
 
-    const lastInteraction = friendsWithInteractions.length > 0
-      ? friendsWithInteractions[0]
-      : null;
+    if (friendsWithInteractions.length > 0) {
+      const index = getDailyRotation(friendsWithInteractions.length);
+      return { state: 'quick-weave', data: friendsWithInteractions[index] };
+    }
 
-    return { state: 'quick-weave', data: lastInteraction };
+    return { state: 'quick-weave', data: null };
   };
 
   const priority = getPriority();
@@ -303,11 +437,25 @@ export const TodaysFocusWidget: React.FC = () => {
   };
 
   const handleCardPress = () => {
-    if (priority.state === 'todays-plan' || priority.state === 'upcoming-plan') {
+    if (priority.state === 'todays-plan' || priority.state === 'upcoming-plan' || priority.state === 'all-clear') {
+      // Expand to show more details
       setExpanded(!expanded);
-    } else if (priority.state === 'streak-risk' || priority.state === 'quick-weave') {
-      // Open quick weave
-      router.push('/weave-logger');
+    } else if (priority.state === 'streak-risk') {
+      // Route to specific battery-matched friend's weave logger
+      const friend = priority.data?.friend;
+      if (friend) {
+        router.push(`/weave-logger?friendId=${friend.id}`);
+      } else {
+        router.push('/weave-logger');
+      }
+    } else if (priority.state === 'quick-weave') {
+      // Route to specific friend if available
+      const friend = priority.data?.friend;
+      if (friend) {
+        router.push(`/weave-logger?friendId=${friend.id}`);
+      } else {
+        router.push('/weave-logger');
+      }
     } else if (priority.state === 'friend-fading') {
       const friend = priority.data.friend;
       setSelectedFriend(friend);
@@ -333,17 +481,33 @@ export const TodaysFocusWidget: React.FC = () => {
       case 'todays-plan':
         return <TodaysPlanCard plan={priority.data} {...cardProps} />;
       case 'streak-risk':
-        return <StreakRiskCard streakCount={priority.data.streakCount} {...cardProps} />;
+        return <StreakRiskCard
+          streakCount={priority.data.streakCount}
+          friend={priority.data.friend}
+          batteryLevel={priority.data.batteryLevel}
+          message={getStreakMessage(priority.data.streakCount, priority.data.friend, priority.data.batteryLevel)}
+          {...cardProps}
+        />;
       case 'friend-fading':
-        return <FriendFadingCard friend={priority.data.friend} score={priority.data.score} {...cardProps} />;
+        return <FriendFadingCard
+          friend={priority.data.friend}
+          score={priority.data.score}
+          message={getFadingMessage(priority.data.friend, priority.data.score)}
+          {...cardProps}
+        />;
       case 'upcoming-plan':
         return <UpcomingPlanCard plan={priority.data} {...cardProps} />;
       case 'quick-weave':
+        const friend = priority.data?.friend;
+        const daysSince = priority.data?.daysSince || 0;
         return <QuickWeaveCard
-          friend={priority.data?.friend || null}
-          daysSince={priority.data?.daysSince || 0}
+          friend={friend}
+          daysSince={daysSince}
+          message={friend ? getQuickWeaveMessage(friend, daysSince) : 'Reach out to a friend today'}
           {...cardProps}
         />;
+      case 'all-clear':
+        return <AllClearCard message={getAllClearMessage()} {...cardProps} />;
     }
   };
 
@@ -478,7 +642,7 @@ export const TodaysFocusWidget: React.FC = () => {
           <View style={{ position: 'relative' }}>
             {renderCard()}
 
-            {/* Expand indicator - separate touchable */}
+            {/* Expand indicator - centered */}
             {additionalItemsCount > 0 && (
               <TouchableOpacity
                 style={styles.expandIndicator}
@@ -486,15 +650,18 @@ export const TodaysFocusWidget: React.FC = () => {
                 activeOpacity={0.7}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
-                {!expanded && (
-                  <View style={[styles.badge, { backgroundColor: colors.primary }]}>
-                    <Text style={styles.badgeText}>{additionalItemsCount}</Text>
-                  </View>
-                )}
                 {expanded ? (
-                  <ChevronUp size={20} color="rgba(255, 255, 255, 0.8)" />
+                  <>
+                    <Text style={styles.expandText}>Show less</Text>
+                    <ChevronUp size={18} color="rgba(255, 255, 255, 0.9)" />
+                  </>
                 ) : (
-                  <ChevronDown size={20} color="rgba(255, 255, 255, 0.8)" />
+                  <>
+                    <Text style={styles.expandText}>
+                      See all {additionalItemsCount + 1}
+                    </Text>
+                    <ChevronDown size={18} color="rgba(255, 255, 255, 0.9)" />
+                  </>
                 )}
               </TouchableOpacity>
             )}
@@ -582,7 +749,16 @@ const TodaysPlanCard: React.FC<CardProps & { plan: any }> = ({ plan, onPress, is
   );
 };
 
-const StreakRiskCard: React.FC<CardProps & { streakCount: number }> = ({ streakCount, onPress, isDarkMode, expansionProgress, expandedContent }) => {
+const StreakRiskCard: React.FC<CardProps & { streakCount: number; friend: FriendModel; batteryLevel: number; message: string }> = ({
+  streakCount,
+  friend,
+  batteryLevel,
+  message,
+  onPress,
+  isDarkMode,
+  expansionProgress,
+  expandedContent
+}) => {
   const expandedStyle = useAnimatedStyle(() => {
     'worklet';
     return {
@@ -603,7 +779,7 @@ const StreakRiskCard: React.FC<CardProps & { streakCount: number }> = ({ streakC
           <Flame size={32} color="#FFFFFF" />
           <Text style={styles.headlineCompact}>Stay in the Flow</Text>
           <Text style={styles.subtextCompact}>
-            You're on a {streakCount}-day streak! Log, plan or journal to keep it up
+            {message}
           </Text>
         </View>
 
@@ -615,7 +791,15 @@ const StreakRiskCard: React.FC<CardProps & { streakCount: number }> = ({ streakC
   );
 };
 
-const FriendFadingCard: React.FC<CardProps & { friend: FriendModel; score: number }> = ({ friend, onPress, isDarkMode, expansionProgress, expandedContent }) => {
+const FriendFadingCard: React.FC<CardProps & { friend: FriendModel; score: number; message: string }> = ({
+  friend,
+  score,
+  message,
+  onPress,
+  isDarkMode,
+  expansionProgress,
+  expandedContent
+}) => {
   const expandedStyle = useAnimatedStyle(() => {
     'worklet';
     return {
@@ -636,7 +820,7 @@ const FriendFadingCard: React.FC<CardProps & { friend: FriendModel; score: numbe
           <Heart size={32} color="#FFFFFF" />
           <Text style={styles.headlineCompact}>Friend Needs You</Text>
           <Text style={styles.subtextCompact}>
-            {friend.name}'s connection is fading
+            {message}
           </Text>
         </View>
 
@@ -685,7 +869,15 @@ const UpcomingPlanCard: React.FC<CardProps & { plan: any }> = ({ plan, onPress, 
   );
 };
 
-const QuickWeaveCard: React.FC<CardProps & { friend: FriendModel | null; daysSince: number }> = ({ friend, daysSince, onPress, isDarkMode, expansionProgress, expandedContent }) => {
+const QuickWeaveCard: React.FC<CardProps & { friend: FriendModel | null; daysSince: number; message: string }> = ({
+  friend,
+  daysSince,
+  message,
+  onPress,
+  isDarkMode,
+  expansionProgress,
+  expandedContent
+}) => {
   const expandedStyle = useAnimatedStyle(() => {
     'worklet';
     return {
@@ -705,15 +897,48 @@ const QuickWeaveCard: React.FC<CardProps & { friend: FriendModel | null; daysSin
         <View style={styles.cardContent}>
           <Sparkles size={32} color="#FFFFFF" />
           <Text style={styles.headlineCompact}>Stay Connected</Text>
-          {friend ? (
-            <Text style={styles.subtextCompact}>
-              It's been {daysSince} {daysSince === 1 ? 'day' : 'days'} since you caught up with {friend.name}
-            </Text>
-          ) : (
-            <Text style={styles.subtextCompact}>
-              Reach out to a friend today
-            </Text>
-          )}
+          <Text style={styles.subtextCompact}>
+            {message}
+          </Text>
+        </View>
+
+        <Animated.View style={[styles.expandedSection, expandedStyle]}>
+          {expandedContent}
+        </Animated.View>
+      </LinearGradient>
+    </TouchableOpacity>
+  );
+};
+
+const AllClearCard: React.FC<CardProps & { message: { headline: string; subtext: string } }> = ({
+  message,
+  onPress,
+  isDarkMode,
+  expansionProgress,
+  expandedContent
+}) => {
+  const expandedStyle = useAnimatedStyle(() => {
+    'worklet';
+    return {
+      opacity: expansionProgress.value,
+      maxHeight: expansionProgress.value * 1000,
+    };
+  });
+
+  return (
+    <TouchableOpacity onPress={onPress} activeOpacity={0.9}>
+      <LinearGradient
+        colors={isDarkMode ? ['#059669', '#10B981'] : ['#34D399', '#6EE7B7']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.gradientCard}
+      >
+        <View style={styles.cardContent}>
+          <CheckCircle2 size={32} color="#FFFFFF" />
+          <Text style={styles.headlineCompact}>{message.headline}</Text>
+          <Text style={styles.subtextCompact}>
+            {message.subtext}
+          </Text>
         </View>
 
         <Animated.View style={[styles.expandedSection, expandedStyle]}>
@@ -735,6 +960,7 @@ const styles = StyleSheet.create({
     marginBottom: -20,
     minHeight: 140,
     padding: 20,
+    paddingBottom: 60, // Extra space for expand button
     position: 'relative',
     overflow: 'hidden',
   },
@@ -752,25 +978,30 @@ const styles = StyleSheet.create({
   },
   headlineCompact: {
     fontFamily: 'Lora_700Bold',
-    fontSize: 22,
+    fontSize: 20,
     color: '#FFFFFF',
     textAlign: 'center',
   },
   subtextCompact: {
     fontFamily: 'Inter_400Regular',
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 13,
+    lineHeight: 17,
     color: 'rgba(255, 255, 255, 0.95)',
     textAlign: 'center',
     maxWidth: '85%',
   },
   expandIndicator: {
     position: 'absolute',
-    bottom: 12,
-    right: 12,
+    bottom: 0,
+    left: 0,
+    right: 0,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 14,
+    paddingTop: 20,
+    backgroundColor: 'transparent', // No background - relies on gradient
   },
   badge: {
     minWidth: 20,

@@ -208,6 +208,8 @@ export function FriendListRow({ friend, animatedRef, variant = 'default' }: Frie
                 className="w-full h-full"
                 resizeMode="cover"
                 onError={() => setImageError(true)}
+                cache="force-cache"
+                fadeDuration={0}
               />
             ) : (
               <Text
