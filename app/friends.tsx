@@ -1,4 +1,4 @@
-import React, { useMemo, useEffect, useState } from 'react';
+import React, { useMemo, useEffect, useState, useRef, useCallback } from 'react';
 import { View, Text, ScrollView, Dimensions, StyleSheet, FlatList } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withDelay, withTiming, useAnimatedRef, runOnUI } from 'react-native-reanimated';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -29,6 +29,8 @@ import { useIntentionStore } from '../src/stores/intentionStore';
 import { IntentionActionSheet } from '../src/components/IntentionActionSheet';
 import Intention from '../src/db/models/Intention';
 import { tierColors } from '../src/lib/constants';
+import { TutorialOverlay, type TutorialStep } from '../src/components/TutorialOverlay';
+import { useTutorialStore } from '../src/stores/tutorialStore';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -45,7 +47,19 @@ const getTierBackground = (tier: 'inner' | 'close' | 'community', isDarkMode: bo
   return `${color}${opacity}`;
 };
 
-const AnimatedFriendCardItem = ({ item, index, refreshKey }: { item: FriendModel; index: number; refreshKey: number }) => {
+const AnimatedFriendCardItem = ({
+  item,
+  index,
+  refreshKey,
+  tutorialRef,
+  onLayout
+}: {
+  item: FriendModel;
+  index: number;
+  refreshKey: number;
+  tutorialRef?: React.RefObject<View>;
+  onLayout?: (event: any) => void;
+}) => {
   const { registerRef, unregisterRef } = useCardGesture();
   const animatedRef = useAnimatedRef<Animated.View>();
 
@@ -70,7 +84,12 @@ const AnimatedFriendCardItem = ({ item, index, refreshKey }: { item: FriendModel
   }));
 
   return (
-    <Animated.View style={[animatedStyle, { marginBottom: 12 }]} key={`${item.id}-${refreshKey}`}>
+    <Animated.View
+      ref={tutorialRef as any}
+      onLayout={onLayout}
+      style={[animatedStyle, { marginBottom: 12 }]}
+      key={`${item.id}-${refreshKey}`}
+    >
       <FriendListRow friend={item} animatedRef={animatedRef} />
     </Animated.View>
   );
@@ -92,6 +111,17 @@ function DashboardContent() {
 
   const [refreshKey, setRefreshKey] = React.useState(0);
 
+  // QuickWeave tutorial state
+  const hasAddedFirstFriend = useTutorialStore((state) => state.hasAddedFirstFriend);
+  const hasSeenQuickWeaveIntro = useTutorialStore((state) => state.hasSeenQuickWeaveIntro);
+  const hasPerformedQuickWeave = useTutorialStore((state) => state.hasPerformedQuickWeave);
+  const markQuickWeaveIntroSeen = useTutorialStore((state) => state.markQuickWeaveIntroSeen);
+  const markQuickWeavePerformed = useTutorialStore((state) => state.markQuickWeavePerformed);
+
+  const [showQuickWeaveTutorial, setShowQuickWeaveTutorial] = useState(false);
+  const [firstFriendCardPosition, setFirstFriendCardPosition] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
+  const firstFriendCardRef = useRef<View>(null);
+
   useFocusEffect(
     React.useCallback(() => {
       // Reset activeCardId when screen gains focus to prevent stuck scales
@@ -110,6 +140,25 @@ function DashboardContent() {
       checkAndApplyDormancy(allFriends);
     }
   }, [allFriends]);
+
+  // Show QuickWeave tutorial when user has added first friend but hasn't seen intro
+  useEffect(() => {
+    if (hasAddedFirstFriend && !hasSeenQuickWeaveIntro && !hasPerformedQuickWeave && allFriends.length > 0) {
+      // Wait a brief moment for the UI to settle
+      const timer = setTimeout(() => {
+        setShowQuickWeaveTutorial(true);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [hasAddedFirstFriend, hasSeenQuickWeaveIntro, hasPerformedQuickWeave, allFriends.length]);
+
+  // Watch for QuickWeave being opened - this means user performed the gesture
+  useEffect(() => {
+    if (showQuickWeaveTutorial && isQuickWeaveOpen) {
+      // User successfully performed QuickWeave gesture!
+      handleQuickWeaveTutorialComplete();
+    }
+  }, [isQuickWeaveOpen, showQuickWeaveTutorial]);
 
   const friends = useMemo(() => {
     const processedFriends = [...allFriends]
@@ -130,6 +179,19 @@ function DashboardContent() {
     setActiveTier(tier);
     scrollViewRef.current?.scrollTo({ x: tiers.indexOf(tier) * screenWidth, animated: true });
   };
+
+  // QuickWeave tutorial handlers
+  const handleQuickWeaveTutorialComplete = useCallback(async () => {
+    await markQuickWeaveIntroSeen();
+    await markQuickWeavePerformed();
+    setShowQuickWeaveTutorial(false);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  }, [markQuickWeaveIntroSeen, markQuickWeavePerformed]);
+
+  const handleQuickWeaveTutorialSkip = useCallback(async () => {
+    await markQuickWeaveIntroSeen();
+    setShowQuickWeaveTutorial(false);
+  }, [markQuickWeaveIntroSeen]);
 
   const onAddFriend = () => setAddFriendMenuVisible(true);
 
@@ -195,6 +257,15 @@ function DashboardContent() {
     const currentFriends = friends[tier] || [];
     const tierBgColor = getTierBackground(tier, isDarkMode);
 
+    // Measure first card position for tutorial
+    const handleFirstCardLayout = (event: any) => {
+      if (showQuickWeaveTutorial && tier === activeTier) {
+        firstFriendCardRef.current?.measure((x, y, width, height, pageX, pageY) => {
+          setFirstFriendCardPosition({ x: pageX, y: pageY, width, height });
+        });
+      }
+    };
+
     if (currentFriends.length === 0) {
       return (
         <View style={[styles.emptyTierContainer, { width: screenWidth, backgroundColor: tierBgColor }]}>
@@ -213,7 +284,13 @@ function DashboardContent() {
         onScroll={scrollHandler}
         scrollEventThrottle={16}
         renderItem={({ item, index }) => (
-          <AnimatedFriendCardItem item={item} index={index} refreshKey={refreshKey} />
+          <AnimatedFriendCardItem
+            item={item}
+            index={index}
+            refreshKey={refreshKey}
+            tutorialRef={index === 0 && showQuickWeaveTutorial && tier === activeTier ? firstFriendCardRef : undefined}
+            onLayout={index === 0 && showQuickWeaveTutorial && tier === activeTier ? handleFirstCardLayout : undefined}
+          />
         )}
       />
     );
@@ -311,6 +388,21 @@ function DashboardContent() {
         onAddSingle={handleAddSingle}
         onAddBatch={handleAddBatch}
       />
+
+      {/* QuickWeave Tutorial Overlay */}
+      {showQuickWeaveTutorial && firstFriendCardPosition && (
+        <TutorialOverlay
+          visible={true}
+          step={{
+            id: 'quickweave-gesture',
+            title: 'Your first QuickWeave',
+            description: 'Press and hold any friend card to log a moment together. A radial menu will appear with interaction options.',
+            targetPosition: firstFriendCardPosition,
+            tooltipPosition: 'bottom',
+          }}
+          onSkip={handleQuickWeaveTutorialSkip}
+        />
+      )}
     </View>
   );
 }
