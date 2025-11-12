@@ -113,8 +113,19 @@ export default function Home() {
   };
 
   // Define widget grid - Compass Hub design
-  // Order: Context (Season) → Celebration (Practice) → Action (Focus)
+  // Order: Action (Focus) → Context (Season) → Reflection (Moons)
   const widgets: WidgetGridItem[] = [
+    {
+      id: 'todays-focus',
+      component: TodaysFocusWidget,
+      config: {
+        id: 'todays-focus',
+        type: 'todays-focus',
+        fullWidth: true,
+      },
+      position: 0,
+      visible: true,
+    },
     {
       id: 'social-season',
       component: SocialSeasonWidget,
@@ -123,7 +134,7 @@ export default function Home() {
         type: 'social-season',
         fullWidth: true,
       },
-      position: 0,
+      position: 1,
       visible: true,
     },
     {
@@ -132,17 +143,6 @@ export default function Home() {
       config: {
         id: 'year-in-moons',
         type: 'year-in-moons',
-        fullWidth: true,
-      },
-      position: 1,
-      visible: true,
-    },
-    {
-      id: 'todays-focus',
-      component: TodaysFocusWidget,
-      config: {
-        id: 'todays-focus',
-        type: 'todays-focus',
         fullWidth: true,
       },
       position: 2,

@@ -487,14 +487,22 @@ export const TodaysFocusWidget: React.FC = () => {
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
                 {!expanded && (
-                  <View style={[styles.badge, { backgroundColor: colors.primary }]}>
-                    <Text style={styles.badgeText}>{additionalItemsCount}</Text>
-                  </View>
+                  <>
+                    <Text style={styles.expandText}>
+                      See all {additionalItemsCount + 1}
+                    </Text>
+                    <View style={[styles.badge, { backgroundColor: colors.primary }]}>
+                      <Text style={styles.badgeText}>+{additionalItemsCount}</Text>
+                    </View>
+                  </>
                 )}
                 {expanded ? (
-                  <ChevronUp size={20} color="rgba(255, 255, 255, 0.8)" />
+                  <>
+                    <Text style={styles.expandText}>Show less</Text>
+                    <ChevronUp size={20} color="rgba(255, 255, 255, 0.9)" />
+                  </>
                 ) : (
-                  <ChevronDown size={20} color="rgba(255, 255, 255, 0.8)" />
+                  <ChevronDown size={20} color="rgba(255, 255, 255, 0.9)" />
                 )}
               </TouchableOpacity>
             )}
@@ -784,6 +792,11 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_600SemiBold',
     fontSize: 11,
     color: '#FFFFFF',
+  },
+  expandText: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.9)',
   },
   section: {
     gap: 12,
