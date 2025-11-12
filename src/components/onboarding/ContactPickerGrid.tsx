@@ -4,6 +4,7 @@ import { View, Text, FlatList, TouchableOpacity, Image, ActivityIndicator } from
 import * as Contacts from 'expo-contacts';
 import { CheckCircle2, Users, Plus } from 'lucide-react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
+import { normalizeContactImageUri } from '../../lib/image-utils';
 
 interface ContactPickerGridProps {
   maxSelection: number;
@@ -51,7 +52,7 @@ const ContactItem = ({
           className={`w-20 h-20 rounded-full justify-center items-center ${isSelected ? 'bg-emerald-500 border-4 border-emerald-500' : colorClasses}`}>
           {item.imageAvailable && item.image && !imageError ? (
             <Image
-              source={{ uri: item.image.uri }}
+              source={{ uri: normalizeContactImageUri(item.image.uri) }}
               className="w-full h-full rounded-full"
               resizeMode="cover"
               onError={() => setImageError(true)}

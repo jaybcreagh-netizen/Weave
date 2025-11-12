@@ -21,6 +21,7 @@ import FriendModel from '../db/models/Friend';
 import { useCardGesture } from '../context/CardGestureContext';
 import { calculateCurrentScore } from '../lib/weave-engine';
 import { generateIntelligentStatusLine } from '../lib/intelligent-status-line';
+import { normalizeContactImageUri } from '../lib/image-utils';
 
 const ATTENTION_THRESHOLD = 35;
 const STABLE_THRESHOLD = 65;
@@ -204,7 +205,7 @@ export function FriendListRow({ friend, animatedRef, variant = 'default' }: Frie
           >
             {photoUrl && !imageError ? (
               <Image
-                source={{ uri: photoUrl }}
+                source={{ uri: normalizeContactImageUri(photoUrl) }}
                 className="w-full h-full"
                 resizeMode="cover"
                 onError={() => setImageError(true)}

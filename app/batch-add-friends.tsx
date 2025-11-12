@@ -6,6 +6,7 @@ import { ArrowLeft, Check, Search } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useFriendStore } from '../src/stores/friendStore';
 import { useTheme } from '../src/hooks/useTheme';
+import { normalizeContactImageUri } from '../src/lib/image-utils';
 
 export default function BatchAddFriends() {
   const router = useRouter();
@@ -33,7 +34,9 @@ export default function BatchAddFriends() {
       await batchAddFriends(
         selectedContacts.map(contact => ({
           name: contact.name || 'Unknown',
-          photoUrl: contact.imageAvailable && contact.image ? contact.image.uri : undefined,
+          photoUrl: contact.imageAvailable && contact.image
+            ? normalizeContactImageUri(contact.image.uri)
+            : undefined,
         })),
         tierMap[tier as 'inner' | 'close' | 'community'] as 'InnerCircle' | 'CloseFriends' | 'Community'
       );
@@ -304,7 +307,7 @@ function BatchContactPicker({
                 >
                   {item.imageAvailable && item.image && !imageError[item.id] ? (
                     <Image
-                      source={{ uri: item.image.uri }}
+                      source={{ uri: normalizeContactImageUri(item.image.uri) }}
                       style={{ width: '100%', height: '100%', borderRadius: 40 }}
                       resizeMode="cover"
                       onError={() => setImageError(prev => ({ ...prev, [item.id]: true }))}
