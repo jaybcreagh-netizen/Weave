@@ -15,7 +15,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 }
 import { useRouter } from 'expo-router';
 import { differenceInDays, format } from 'date-fns';
-import { Cake, Heart, ChevronDown, ChevronUp, Calendar, CheckCircle2, Sparkles, Flame } from 'lucide-react-native';
+import { Cake, Heart, ChevronDown, ChevronUp, Calendar, CheckCircle2, Sparkles, Flame, X } from 'lucide-react-native';
 import { useTheme } from '../../../hooks/useTheme';
 import { HomeWidgetBase, HomeWidgetConfig } from '../HomeWidgetBase';
 import { useFriendStore } from '../../../stores/friendStore';
@@ -55,7 +55,7 @@ export const TodaysFocusWidget: React.FC = () => {
   const { colors, isDarkMode } = useTheme();
   const router = useRouter();
   const { friends } = useFriendStore();
-  const { suggestions } = useSuggestions();
+  const { suggestions, dismissSuggestion } = useSuggestions();
   const { pendingPlans } = usePendingPlans();
   const { confirmPlan } = useInteractionStore();
   const { profile } = useUserProfileStore();
@@ -573,7 +573,7 @@ export const TodaysFocusWidget: React.FC = () => {
           <Text style={styles.sectionTitle}>
             UPCOMING
           </Text>
-          {upcomingDates.map((event) => (
+          {upcomingDates.slice(0, 3).map((event) => (
             <TouchableOpacity
               key={`${event.friend.id}-${event.type}`}
               onPress={() => router.push(`/friend-profile?friendId=${event.friend.id}`)}
@@ -612,22 +612,30 @@ export const TodaysFocusWidget: React.FC = () => {
           <Text style={styles.sectionTitle}>
             SUGGESTIONS
           </Text>
-          {suggestions.slice(0, 3).map((suggestion) => (
-            <TouchableOpacity
-              key={suggestion.id}
-              onPress={() => handleSuggestionPress(suggestion)}
-              style={styles.suggestionCard}
-            >
-              <Text style={styles.suggestionIcon}>{suggestion.icon}</Text>
-              <View style={styles.suggestionContent}>
-                <Text style={styles.suggestionTitle}>
-                  {suggestion.title}
-                </Text>
-                <Text style={styles.suggestionSubtitle}>
-                  {suggestion.subtitle}
-                </Text>
-              </View>
-            </TouchableOpacity>
+          {suggestions.slice(0, 2).map((suggestion) => (
+            <View key={suggestion.id} style={styles.suggestionCard}>
+              <TouchableOpacity
+                onPress={() => handleSuggestionPress(suggestion)}
+                style={styles.suggestionPressable}
+              >
+                <Text style={styles.suggestionIcon}>{suggestion.icon}</Text>
+                <View style={styles.suggestionContent}>
+                  <Text style={styles.suggestionTitle}>
+                    {suggestion.title}
+                  </Text>
+                  <Text style={styles.suggestionSubtitle}>
+                    {suggestion.subtitle}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => dismissSuggestion(suggestion.id, 7)}
+                style={styles.dismissButton}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <X size={16} color="rgba(255, 255, 255, 0.5)" />
+              </TouchableOpacity>
+            </View>
           ))}
         </View>
       )}
@@ -1016,6 +1024,11 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#FFFFFF',
   },
+  expandText: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.9)',
+  },
   section: {
     gap: 12,
   },
@@ -1125,14 +1138,26 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   suggestionCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
+    position: 'relative',
     borderRadius: 10,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.2)',
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  suggestionPressable: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
     padding: 10,
+    paddingRight: 36, // Make room for dismiss button
+  },
+  dismissButton: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    padding: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   suggestionIcon: {
     fontSize: 24,
