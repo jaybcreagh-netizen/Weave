@@ -24,6 +24,7 @@ interface SocialBatterySheetProps {
   isVisible: boolean;
   onSubmit: (value: number, note?: string) => void;
   onDismiss: () => void;
+  onViewYearInMoons?: () => void;
 }
 
 // Battery level moon phase states with descriptions
