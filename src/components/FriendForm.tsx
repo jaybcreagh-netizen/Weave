@@ -15,6 +15,7 @@ import { ArchetypeDetailModal } from './ArchetypeDetailModal';
 import { ContactPickerGrid } from './onboarding/ContactPickerGrid';
 import { MonthDayPicker } from './MonthDayPicker';
 import { getTierCapacity, getTierDisplayName, isTierAtCapacity } from '../lib/constants';
+import { normalizeContactImageUri } from '../lib/image-utils';
 
 interface FriendFormProps {
   onSave: (friendData: FriendFormData) => void;
@@ -126,7 +127,9 @@ export function FriendForm({ onSave, friend, initialTier }: FriendFormProps) {
     if (selectedContacts.length > 0) {
       const contact = selectedContacts[0];
       const contactName = contact.name || '';
-      const contactPhoto = contact.imageAvailable && contact.image ? contact.image.uri : '';
+      const contactPhoto = contact.imageAvailable && contact.image
+        ? normalizeContactImageUri(contact.image.uri)
+        : '';
 
       setFormData({
         ...formData,
@@ -159,7 +162,7 @@ export function FriendForm({ onSave, friend, initialTier }: FriendFormProps) {
                 <View style={[styles.avatarContainer, { backgroundColor: colors.muted, borderColor: colors.border }]}>
                   {formData.photoUrl && !imageError ? (
                     <Image
-                      source={{ uri: formData.photoUrl }}
+                      source={{ uri: normalizeContactImageUri(formData.photoUrl) }}
                       style={styles.avatarImage}
                       resizeMode="cover"
                       onError={() => setImageError(true)}
