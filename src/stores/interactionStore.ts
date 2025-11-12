@@ -57,6 +57,9 @@ export interface InteractionFormData {
 }
 
 interface InteractionStore {
+  allInteractions: any[];
+  observeAllInteractions: () => void;
+  unobserveAllInteractions: () => void;
   addInteraction: (data: InteractionFormData) => Promise<string>;
   deleteInteraction: (id: string) => Promise<void>;
   updateReflection: (interactionId: string, reflection: StructuredReflection) => Promise<void>;
@@ -75,7 +78,31 @@ interface InteractionStore {
   updatePlanStatus: (interactionId: string, status: 'planned' | 'pending_confirm' | 'completed' | 'cancelled' | 'missed') => Promise<void>;
 }
 
-export const useInteractionStore = create<InteractionStore>(() => ({
+let allInteractionsSubscription: any = null;
+
+export const useInteractionStore = create<InteractionStore>((set, get) => ({
+  allInteractions: [],
+
+  observeAllInteractions: () => {
+    if (allInteractionsSubscription) return;
+
+    allInteractionsSubscription = database
+      .get<Interaction>('interactions')
+      .query(Q.sortBy('interaction_date', Q.desc))
+      .observe()
+      .subscribe((interactions) => {
+        set({ allInteractions: interactions as any[] });
+      });
+  },
+
+  unobserveAllInteractions: () => {
+    if (allInteractionsSubscription) {
+      allInteractionsSubscription.unsubscribe();
+      allInteractionsSubscription = null;
+    }
+    set({ allInteractions: [] });
+  },
+
   addInteraction: async (data: InteractionFormData): Promise<string> => {
     // 1. Fetch the full FriendModel objects
     const friends = await database.get<FriendModel>('friends').query(Q.where('id', Q.oneOf(data.friendIds))).fetch();
