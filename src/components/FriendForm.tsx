@@ -15,7 +15,7 @@ import { ArchetypeDetailModal } from './ArchetypeDetailModal';
 import { ContactPickerGrid } from './onboarding/ContactPickerGrid';
 import { MonthDayPicker } from './MonthDayPicker';
 import { getTierCapacity, getTierDisplayName, isTierAtCapacity } from '../lib/constants';
-import { TutorialOverlay, type TutorialStep } from './TutorialOverlay';
+import { SimpleTutorialTooltip } from './SimpleTutorialTooltip';
 import { useTutorialStore } from '../stores/tutorialStore';
 
 interface FriendFormProps {
@@ -30,66 +30,27 @@ export function FriendForm({ onSave, friend, initialTier, fromOnboarding }: Frie
   const { colors } = useTheme(); // Use the hook
   const allFriends = useFriends(); // Get all friends to check tier counts
 
-  // Tutorial state
+  // Tutorial state - simple approach
   const hasAddedFirstFriend = useTutorialStore((state) => state.hasAddedFirstFriend);
   const markFirstFriendAdded = useTutorialStore((state) => state.markFirstFriendAdded);
   const [currentTutorialStep, setCurrentTutorialStep] = useState(0);
-  const [tierSelectorPosition, setTierSelectorPosition] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
-  const [archetypeGridPosition, setArchetypeGridPosition] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
-
-  // Refs for measuring positions
-  const tierSelectorRef = useRef<View>(null);
-  const archetypeGridRef = useRef<View>(null);
-
-  // Tutorial steps definition
-  const tutorialSteps: TutorialStep[] = [
-    {
-      id: 'tier-selector',
-      title: 'Choose their circle',
-      description: 'Inner circles are your closest bonds (up to 5). Close friends are important relationships (up to 15). Community holds enriching connections (up to 50).',
-      targetPosition: tierSelectorPosition || undefined,
-      tooltipPosition: 'bottom',
-    },
-    {
-      id: 'archetype-selector',
-      title: 'Discover their archetype',
-      description: 'Each friend has a unique way of connecting. Tap to choose, or press and hold any archetype to learn more about their patterns.',
-      targetPosition: archetypeGridPosition || undefined,
-      tooltipPosition: 'bottom',
-    },
-  ];
 
   // Tutorial handlers
   const showTutorial = fromOnboarding && !hasAddedFirstFriend && !friend;
-  const currentStep = tutorialSteps[currentTutorialStep];
 
   const handleTutorialNext = useCallback(() => {
-    if (currentTutorialStep < tutorialSteps.length - 1) {
+    if (currentTutorialStep < 1) {
       setCurrentTutorialStep(prev => prev + 1);
     } else {
-      // Tutorial complete, wait for user to save
+      // Tutorial complete
       setCurrentTutorialStep(-1);
     }
-  }, [currentTutorialStep, tutorialSteps.length]);
+  }, [currentTutorialStep]);
 
   const handleTutorialSkip = useCallback(async () => {
     await markFirstFriendAdded();
     setCurrentTutorialStep(-1);
   }, [markFirstFriendAdded]);
-
-  // Measure positions when tutorial should be shown
-  useEffect(() => {
-    if (showTutorial && currentTutorialStep === 0 && tierSelectorRef.current) {
-      tierSelectorRef.current.measure((x, y, width, height, pageX, pageY) => {
-        setTierSelectorPosition({ x: pageX, y: pageY, width, height });
-      });
-    }
-    if (showTutorial && currentTutorialStep === 1 && archetypeGridRef.current) {
-      archetypeGridRef.current.measure((x, y, width, height, pageX, pageY) => {
-        setArchetypeGridPosition({ x: pageX, y: pageY, width, height });
-      });
-    }
-  }, [showTutorial, currentTutorialStep]);
 
   // Helper function to map DB tier to form tier
   const getFormTier = (dbTier?: Tier | string) => {
@@ -272,7 +233,7 @@ export function FriendForm({ onSave, friend, initialTier, fromOnboarding }: Frie
 
           <View>
             <Text style={[styles.label, { color: colors.foreground }]}>Connection Tier</Text>
-            <View ref={tierSelectorRef} style={styles.tierSelectorContainer}>
+            <View style={styles.tierSelectorContainer}>
               {[
                 { id: "inner", label: "Inner" },
                 { id: "close", label: "Close" },
@@ -302,7 +263,7 @@ export function FriendForm({ onSave, friend, initialTier, fromOnboarding }: Frie
             <Text style={[styles.helperText, { color: colors['muted-foreground'] }]}>
               Tap to select • Long-press to learn more
             </Text>
-            <View ref={archetypeGridRef} style={styles.archetypeGrid}>
+            <View style={styles.archetypeGrid}>
               {(['Emperor', 'Empress', 'HighPriestess', 'Fool', 'Sun', 'Hermit', 'Magician', 'Lovers'] as Archetype[]).map((archetype) => (
                 <View key={archetype} style={styles.archetypeCardWrapper}>
                   <ArchetypeCard
@@ -495,15 +456,28 @@ export function FriendForm({ onSave, friend, initialTier, fromOnboarding }: Frie
         </View>
       </Modal>
 
-      {/* Tutorial Overlay */}
-      {showTutorial && currentTutorialStep >= 0 && currentStep && (
-        <TutorialOverlay
+      {/* Tutorial Tooltip */}
+      {showTutorial && currentTutorialStep === 0 && (
+        <SimpleTutorialTooltip
           visible={true}
-          step={currentStep}
+          title="Choose their circle"
+          description="Inner circles are your closest bonds (up to 5). Close friends are important relationships (up to 15). Community holds enriching connections (up to 50)."
           onNext={handleTutorialNext}
           onSkip={handleTutorialSkip}
-          currentStep={currentTutorialStep}
-          totalSteps={tutorialSteps.length}
+          currentStep={0}
+          totalSteps={2}
+        />
+      )}
+
+      {showTutorial && currentTutorialStep === 1 && (
+        <SimpleTutorialTooltip
+          visible={true}
+          title="Discover their archetype"
+          description="Each friend has a unique way of connecting. Tap to choose, or press and hold any archetype to learn more about their patterns."
+          onNext={handleTutorialNext}
+          onSkip={handleTutorialSkip}
+          currentStep={1}
+          totalSteps={2}
         />
       )}
     </SafeAreaView>

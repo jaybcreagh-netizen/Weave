@@ -29,7 +29,7 @@ import { useIntentionStore } from '../src/stores/intentionStore';
 import { IntentionActionSheet } from '../src/components/IntentionActionSheet';
 import Intention from '../src/db/models/Intention';
 import { tierColors } from '../src/lib/constants';
-import { TutorialOverlay, type TutorialStep } from '../src/components/TutorialOverlay';
+import { SimpleTutorialTooltip } from '../src/components/SimpleTutorialTooltip';
 import { useTutorialStore } from '../src/stores/tutorialStore';
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -51,14 +51,10 @@ const AnimatedFriendCardItem = ({
   item,
   index,
   refreshKey,
-  tutorialRef,
-  onLayout
 }: {
   item: FriendModel;
   index: number;
   refreshKey: number;
-  tutorialRef?: React.RefObject<View>;
-  onLayout?: (event: any) => void;
 }) => {
   const { registerRef, unregisterRef } = useCardGesture();
   const animatedRef = useAnimatedRef<Animated.View>();
@@ -85,8 +81,6 @@ const AnimatedFriendCardItem = ({
 
   return (
     <Animated.View
-      ref={tutorialRef as any}
-      onLayout={onLayout}
       style={[animatedStyle, { marginBottom: 12 }]}
       key={`${item.id}-${refreshKey}`}
     >
@@ -111,7 +105,7 @@ function DashboardContent() {
 
   const [refreshKey, setRefreshKey] = React.useState(0);
 
-  // QuickWeave tutorial state
+  // QuickWeave tutorial state - simple approach
   const hasAddedFirstFriend = useTutorialStore((state) => state.hasAddedFirstFriend);
   const hasSeenQuickWeaveIntro = useTutorialStore((state) => state.hasSeenQuickWeaveIntro);
   const hasPerformedQuickWeave = useTutorialStore((state) => state.hasPerformedQuickWeave);
@@ -119,8 +113,6 @@ function DashboardContent() {
   const markQuickWeavePerformed = useTutorialStore((state) => state.markQuickWeavePerformed);
 
   const [showQuickWeaveTutorial, setShowQuickWeaveTutorial] = useState(false);
-  const [firstFriendCardPosition, setFirstFriendCardPosition] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
-  const firstFriendCardRef = useRef<View>(null);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -257,15 +249,6 @@ function DashboardContent() {
     const currentFriends = friends[tier] || [];
     const tierBgColor = getTierBackground(tier, isDarkMode);
 
-    // Measure first card position for tutorial
-    const handleFirstCardLayout = (event: any) => {
-      if (showQuickWeaveTutorial && tier === activeTier) {
-        firstFriendCardRef.current?.measure((x, y, width, height, pageX, pageY) => {
-          setFirstFriendCardPosition({ x: pageX, y: pageY, width, height });
-        });
-      }
-    };
-
     if (currentFriends.length === 0) {
       return (
         <View style={[styles.emptyTierContainer, { width: screenWidth, backgroundColor: tierBgColor }]}>
@@ -288,8 +271,6 @@ function DashboardContent() {
             item={item}
             index={index}
             refreshKey={refreshKey}
-            tutorialRef={index === 0 && showQuickWeaveTutorial && tier === activeTier ? firstFriendCardRef : undefined}
-            onLayout={index === 0 && showQuickWeaveTutorial && tier === activeTier ? handleFirstCardLayout : undefined}
           />
         )}
       />
@@ -389,17 +370,12 @@ function DashboardContent() {
         onAddBatch={handleAddBatch}
       />
 
-      {/* QuickWeave Tutorial Overlay */}
-      {showQuickWeaveTutorial && firstFriendCardPosition && (
-        <TutorialOverlay
+      {/* QuickWeave Tutorial Tooltip */}
+      {showQuickWeaveTutorial && (
+        <SimpleTutorialTooltip
           visible={true}
-          step={{
-            id: 'quickweave-gesture',
-            title: 'Your first QuickWeave',
-            description: 'Press and hold any friend card to log a moment together. A radial menu will appear with interaction options.',
-            targetPosition: firstFriendCardPosition,
-            tooltipPosition: 'bottom',
-          }}
+          title="Your first QuickWeave"
+          description="Press and hold any friend card to log a moment together. A radial menu will appear with interaction options."
           onSkip={handleQuickWeaveTutorialSkip}
         />
       )}
