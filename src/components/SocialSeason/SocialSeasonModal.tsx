@@ -70,7 +70,7 @@ export function SocialSeasonModal({
       onRequestClose={onClose}
     >
       <LinearGradient
-        colors={isDarkMode ? ['#1a1d2e', '#0f1419'] : ['#F8F9FA', '#E8EAF0']}
+        colors={isDarkMode ? ['#1a1d2e', '#0f1419'] : ['#FAF1E0', '#F3EAD8']}
         style={{ flex: 1 }}
         start={{ x: 0, y: 0 }}
         end={{ x: 0, y: 1 }}
@@ -113,7 +113,7 @@ export function SocialSeasonModal({
                   onPress={() => handleTabChange(tab.id)}
                   className="flex-1 py-2.5 rounded-xl flex-row items-center justify-center gap-1.5"
                   style={{
-                    backgroundColor: isActive ? (isDarkMode ? '#2A2E3F' : '#FFFFFF') : 'transparent',
+                    backgroundColor: isActive ? (isDarkMode ? '#2A2E3F' : '#FFF8ED') : 'transparent',
                   }}
                 >
                   <Icon size={16} color={isActive ? (isDarkMode ? '#F5F1E8' : '#2D3142') : (isDarkMode ? '#8A8F9E' : '#6C7589')} />
@@ -184,7 +184,7 @@ function PulseTabContent({
       {explanation && (
         <View
           className="p-5 rounded-2xl"
-          style={{ backgroundColor: isDarkMode ? '#2A2E3F' : '#FFFFFF' }}
+          style={{ backgroundColor: isDarkMode ? '#2A2E3F' : '#FFF8ED' }}
         >
           <Text
             className="text-lg font-bold mb-3"
@@ -222,7 +222,7 @@ function PulseTabContent({
 
           <View
             className="p-3 rounded-xl"
-            style={{ backgroundColor: isDarkMode ? '#1a1d2e' : '#F8F9FA' }}
+            style={{ backgroundColor: isDarkMode ? '#1a1d2e' : '#FFF8ED' }}
           >
             <Text
               className="text-sm leading-5"
@@ -237,7 +237,7 @@ function PulseTabContent({
       {/* This Week Stats */}
       <View
         className="p-5 rounded-2xl"
-        style={{ backgroundColor: isDarkMode ? '#2A2E3F' : '#FFFFFF' }}
+        style={{ backgroundColor: isDarkMode ? '#2A2E3F' : '#FFF8ED' }}
       >
         <Text
           className="text-lg font-bold mb-4"
@@ -247,7 +247,7 @@ function PulseTabContent({
         </Text>
 
         <View className="flex-row gap-3">
-          <View className="flex-1 p-3 rounded-xl" style={{ backgroundColor: isDarkMode ? '#1a1d2e' : '#F8F9FA' }}>
+          <View className="flex-1 p-3 rounded-xl" style={{ backgroundColor: isDarkMode ? '#1a1d2e' : '#FFF8ED' }}>
             <Text
               className="text-2xl font-bold mb-1"
               style={{ color: isDarkMode ? '#F5F1E8' : '#2D3142', fontFamily: 'Lora_700Bold' }}
@@ -262,7 +262,7 @@ function PulseTabContent({
             </Text>
           </View>
 
-          <View className="flex-1 p-3 rounded-xl" style={{ backgroundColor: isDarkMode ? '#1a1d2e' : '#F8F9FA' }}>
+          <View className="flex-1 p-3 rounded-xl" style={{ backgroundColor: isDarkMode ? '#1a1d2e' : '#FFF8ED' }}>
             <Text
               className="text-2xl font-bold mb-1"
               style={{ color: isDarkMode ? '#F5F1E8' : '#2D3142', fontFamily: 'Lora_700Bold' }}
@@ -303,7 +303,7 @@ function HealthTabContent({ isDarkMode }: { isDarkMode: boolean }) {
       <View className="gap-6">
         <View
           className="p-5 rounded-2xl items-center justify-center"
-          style={{ backgroundColor: isDarkMode ? '#2A2E3F' : '#FFFFFF', minHeight: 200 }}
+          style={{ backgroundColor: isDarkMode ? '#2A2E3F' : '#FFF8ED', minHeight: 200 }}
         >
           <Text className="text-4xl mb-3">📊</Text>
           <Text
@@ -324,7 +324,7 @@ function HealthTabContent({ isDarkMode }: { isDarkMode: boolean }) {
       {/* Portfolio Health Card */}
       <View
         className="p-5 rounded-2xl"
-        style={{ backgroundColor: isDarkMode ? '#2A2E3F' : '#FFFFFF' }}
+        style={{ backgroundColor: isDarkMode ? '#2A2E3F' : '#FFF8ED' }}
       >
         <Text
           className="text-lg font-bold mb-4"
@@ -426,7 +426,7 @@ function TierHealthSection({ portfolio, isDarkMode }: { portfolio: any; isDarkMo
   return (
     <View
       className="p-5 rounded-2xl"
-      style={{ backgroundColor: isDarkMode ? '#2A2E3F' : '#FFFFFF' }}
+      style={{ backgroundColor: isDarkMode ? '#2A2E3F' : '#FFF8ED' }}
     >
       <Text
         className="text-lg font-bold mb-4"
@@ -473,7 +473,7 @@ function TierHealthSection({ portfolio, isDarkMode }: { portfolio: any; isDarkMo
                   cx={center}
                   cy={center}
                   r={radius}
-                  stroke={isDarkMode ? '#1F2332' : '#F8F9FA'}
+                  stroke={isDarkMode ? '#1F2332' : '#FFF8ED'}
                   strokeWidth={strokeWidth}
                   fill="none"
                 />

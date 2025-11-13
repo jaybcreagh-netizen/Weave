@@ -64,7 +64,7 @@ export function FriendForm({ onSave, friend, initialTier, fromOnboarding }: Frie
 
   const [formData, setFormData] = useState<FriendFormData>({
     name: friend?.name || "",
-    tier: friend ? getFormTier(friend.dunbarTier) : initialTier || 'close',
+    tier: friend ? getFormTier(friend.dunbarTier) : initialTier || 'inner',
     archetype: friend?.archetype || "Emperor",
     notes: friend?.notes || "",
     photoUrl: friend?.photoUrl || "",

@@ -8,14 +8,14 @@ import { archetypeData } from '../lib/constants';
 import { BlurView } from 'expo-blur';
 
 // Import SVG files as components
-import EmperorSvg from '../../assets/TarotIcons/The Emperor.svg';
-import EmpressSvg from '../../assets/TarotIcons/The Empress.svg';
-import HighPriestessSvg from '../../assets/TarotIcons/High Priestess.svg';
-import FoolSvg from '../../assets/TarotIcons/The Fool.svg';
-import SunSvg from '../../assets/TarotIcons/The Sun.svg';
-import HermitSvg from '../../assets/TarotIcons/The Hermit.svg';
-import MagicianSvg from '../../assets/TarotIcons/The Magician.svg';
-import LoversSvg from '../../assets/TarotIcons/The Lovers.svg';
+import EmperorSvg from '../../assets/TarotIcons/TheEmperor.svg';
+import EmpressSvg from '../../assets/TarotIcons/TheEmpress.svg';
+import HighPriestessSvg from '../../assets/TarotIcons/HighPriestess.svg';
+import FoolSvg from '../../assets/TarotIcons/TheFool.svg';
+import SunSvg from '../../assets/TarotIcons/TheSun.svg';
+import HermitSvg from '../../assets/TarotIcons/TheHermit.svg';
+import MagicianSvg from '../../assets/TarotIcons/TheMagician.svg';
+import LoversSvg from '../../assets/TarotIcons/TheLovers.svg';
 
 // Map archetypes to their tarot card SVG components
 const TAROT_CARD_COMPONENTS: Record<Archetype, React.FC<any>> = {

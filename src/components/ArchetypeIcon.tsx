@@ -1,9 +1,16 @@
 import React from 'react';
-import {
-  Crown, Flower2, Moon, Feather, Sun, Mountain, Sparkles, GitMerge
-} from 'lucide-react-native';
 import { type Archetype } from './types';
-import { ARCHETYPE_DETAILS } from '../lib/archetype-data';
+import { SvgProps } from 'react-native-svg';
+
+// Import tarot SVG icons - using require for SVG imports
+const EmperorIcon = require('../../assets/TarotIcons/TheEmperor.svg').default;
+const EmpressIcon = require('../../assets/TarotIcons/TheEmpress.svg').default;
+const HighPriestessIcon = require('../../assets/TarotIcons/HighPriestess.svg').default;
+const FoolIcon = require('../../assets/TarotIcons/TheFool.svg').default;
+const SunIcon = require('../../assets/TarotIcons/TheSun.svg').default;
+const HermitIcon = require('../../assets/TarotIcons/TheHermit.svg').default;
+const MagicianIcon = require('../../assets/TarotIcons/TheMagician.svg').default;
+const LoversIcon = require('../../assets/TarotIcons/TheLovers.svg').default;
 
 interface ArchetypeIconProps {
   archetype: Archetype;
@@ -12,17 +19,22 @@ interface ArchetypeIconProps {
 }
 
 export function ArchetypeIcon({ archetype, size, color }: ArchetypeIconProps) {
-  const iconName = ARCHETYPE_DETAILS[archetype]?.icon;
+  const iconProps: SvgProps = {
+    width: size,
+    height: size,
+    fill: color,
+  };
 
-  switch (iconName) {
-    case 'Crown': return <Crown size={size} color={color} />;
-    case 'Flower2': return <Flower2 size={size} color={color} />;
-    case 'Moon': return <Moon size={size} color={color} />;
-    case 'Feather': return <Feather size={size} color={color} />;
-    case 'Sun': return <Sun size={size} color={color} />;
-    case 'Mountain': return <Mountain size={size} color={color} />;
-    case 'Sparkles': return <Sparkles size={size} color={color} />;
-    case 'GitMerge': return <GitMerge size={size} color={color} />;
+  switch (archetype) {
+    case 'Emperor': return <EmperorIcon {...iconProps} />;
+    case 'Empress': return <EmpressIcon {...iconProps} />;
+    case 'HighPriestess': return <HighPriestessIcon {...iconProps} />;
+    case 'Fool': return <FoolIcon {...iconProps} />;
+    case 'Sun': return <SunIcon {...iconProps} />;
+    case 'Hermit': return <HermitIcon {...iconProps} />;
+    case 'Magician': return <MagicianIcon {...iconProps} />;
+    case 'Lovers': return <LoversIcon {...iconProps} />;
+    case 'Unknown': return null;
     default: return null;
   }
 }

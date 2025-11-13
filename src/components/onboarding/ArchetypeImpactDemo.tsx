@@ -9,6 +9,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { theme } from '../../theme';
+import { ArchetypeIcon } from '../ArchetypeIcon';
 
 interface ScoreBarProps {
   score: number;
@@ -76,7 +77,7 @@ export function ArchetypeImpactDemo() {
       <View style={styles.demoCard}>
         <View style={styles.friendHeader}>
           <View style={styles.archetypeIcon}>
-            <Text style={styles.archetypeEmoji}>👑</Text>
+            <ArchetypeIcon archetype="Emperor" size={24} color={theme.colors.primary} />
           </View>
           <View>
             <Text style={styles.friendName}>Alex (The Emperor)</Text>
@@ -175,9 +176,6 @@ const styles = StyleSheet.create({
     backgroundColor: `${theme.colors.primary}15`,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  archetypeEmoji: {
-    fontSize: 24,
   },
   friendName: {
     fontSize: 18,
