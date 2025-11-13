@@ -7,7 +7,15 @@ import * as Sentry from '@sentry/react-native';
 import Constants from 'expo-constants';
 import { useTheme } from '../hooks/useTheme';
 import { trackEvent, AnalyticsEvents } from '../lib/analytics';
-import { captureRef } from 'react-native-view-shot';
+
+// Optional: Lazy-load react-native-view-shot to avoid crash if not installed
+let captureRef: any = null;
+try {
+  const viewShot = require('react-native-view-shot');
+  captureRef = viewShot.captureRef;
+} catch (e) {
+  console.log('[FeedbackModal] react-native-view-shot not available, screenshot feature disabled');
+}
 
 interface FeedbackModalProps {
   visible: boolean;
