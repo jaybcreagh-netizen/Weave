@@ -75,7 +75,7 @@ export function InsightsSheet({
       <Animated.View
         style={[
           styles.sheet,
-          { backgroundColor: colors.card },
+          { backgroundColor: colors.muted },
           sheetStyle,
         ]}
         pointerEvents="box-none"
