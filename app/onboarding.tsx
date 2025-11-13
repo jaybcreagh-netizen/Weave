@@ -8,6 +8,7 @@ import * as Haptics from 'expo-haptics';
 
 import { theme } from '../src/theme';
 import { AnimatedThoughtBubbles } from '../src/components/onboarding/AnimatedThoughtBubbles';
+import { ArchetypeImpactDemo } from '../src/components/onboarding/ArchetypeImpactDemo';
 import { useTutorialStore } from '../src/stores/tutorialStore';
 
 /**
@@ -25,7 +26,7 @@ export default function Onboarding() {
   const completeOnboarding = useTutorialStore(state => state.completeOnboarding);
 
   const [currentStep, setCurrentStep] = useState(0);
-  const steps = ['hook', 'pathways', 'ready'];
+  const steps = ['hook', 'pathways', 'archetypes', 'ready'];
   const currentStepName = steps[currentStep];
   const isLastStep = currentStep === steps.length - 1;
 
@@ -39,6 +40,12 @@ export default function Onboarding() {
     } else {
       setCurrentStep(prev => prev + 1);
     }
+  };
+
+  const handleSkip = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    await completeOnboarding();
+    router.replace('/add-friend?fromOnboarding=true');
   };
 
   const renderStepContent = () => {
@@ -110,6 +117,9 @@ export default function Onboarding() {
           </Animated.View>
         );
 
+      case 'archetypes':
+        return <ArchetypeImpactDemo />;
+
       case 'ready':
         return (
           <Animated.View style={styles.stepContainer} entering={FadeInDown.duration(600)}>
@@ -148,6 +158,11 @@ export default function Onboarding() {
             />
           ))}
         </View>
+        {!isLastStep && (
+          <TouchableOpacity onPress={handleSkip} style={styles.skipButton} activeOpacity={0.7}>
+            <Text style={styles.skipButtonText}>Skip</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
@@ -210,12 +225,27 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.background,
   },
   header: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: 20,
+    paddingHorizontal: 24,
+    position: 'relative',
   },
   progressDots: {
     flexDirection: 'row',
     gap: 8,
+  },
+  skipButton: {
+    position: 'absolute',
+    right: 24,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  skipButtonText: {
+    fontSize: 16,
+    color: theme.colors['muted-foreground'],
+    fontWeight: '600',
   },
   dot: {
     width: 8,
