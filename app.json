@@ -33,7 +33,15 @@
     "extra": {},
     "plugins": [
       "expo-router",
-      "expo-font"
+      "expo-font",
+      [
+        "@sentry/react-native/expo",
+        {
+          "url": "https://sentry.io/",
+          "project": "react-native",
+          "organization": "jay-creagh"
+        }
+      ]
     ]
   }
 }

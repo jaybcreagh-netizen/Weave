@@ -81,7 +81,7 @@ const AnimatedFriendCardItem = React.memo(({
 
   return (
     <Animated.View
-      style={[animatedStyle, { marginBottom: 12 }]]>
+      style={[animatedStyle, { marginBottom: 12 }]}>
       <FriendListRow friend={item} animatedRef={animatedRef} />
     </Animated.View>
   );

@@ -33,11 +33,31 @@ import {
   Inter_400Regular,
   Inter_600SemiBold,
 } from '@expo-google-fonts/inter';
+import * as Sentry from '@sentry/react-native';
+
+Sentry.init({
+  dsn: 'https://1b94b04a0400cdc5a0378c0f485a2435@o4510357596471296.ingest.de.sentry.io/4510357600993360',
+
+  // Adds more context data to events (IP address, cookies, user, etc.)
+  // For more information, visit: https://docs.sentry.io/platforms/react-native/data-management/data-collected/
+  sendDefaultPii: true,
+
+  // Enable Logs
+  enableLogs: true,
+
+  // Configure Session Replay
+  replaysSessionSampleRate: 0.1,
+  replaysOnErrorSampleRate: 1,
+  integrations: [Sentry.mobileReplayIntegration(), Sentry.feedbackIntegration()],
+
+  // uncomment the line below to enable Spotlight (https://spotlightjs.com)
+  // spotlight: __DEV__,
+});
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
 
-export default function RootLayout() {
+export default Sentry.wrap(function RootLayout() {
   const { colors } = useTheme();
   const isDarkMode = useUIStore((state) => state.isDarkMode);
   const milestoneCelebrationData = useUIStore((state) => state.milestoneCelebrationData);
@@ -225,4 +245,4 @@ export default function RootLayout() {
       </CardGestureProvider>
     </GestureHandlerRootView>
   );
-}
+});
