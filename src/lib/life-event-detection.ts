@@ -279,7 +279,6 @@ export async function tagFriendWithLifeEvent(
       });
     });
 
-    console.log(`✅ Tagged ${friendId} with life event: ${eventType} (${importance})`);
     return newEvent;
   } catch (error) {
     console.error('Error tagging life event:', error);

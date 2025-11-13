@@ -311,8 +311,6 @@ export const useInteractionStore = create<InteractionStore>((set, get) => ({
         useUIStore.getState().showMilestoneCelebration(milestone);
       }
     }
-
-    console.log(`✓ Plan ${interactionId} confirmed and scored`);
   },
   updateInteraction: async (interactionId: string, updates: {
     title?: string;
@@ -463,8 +461,6 @@ export const useInteractionStore = create<InteractionStore>((set, get) => ({
           useUIStore.getState().showMilestoneCelebration(milestone);
         }
       }
-
-      console.log(`✓ Plan ${interactionId} completed and scored`);
     }
 
     // Handle calendar event based on new status

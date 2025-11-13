@@ -106,24 +106,14 @@ async function checkUpcomingLifeEvent(friend: SuggestionInput['friend']): Promis
       )
       .fetch();
 
-    console.log('[LifeEvent Check] Found life events for', friend.name, ':', activeLifeEvents.map(e => ({
-      type: e.eventType,
-      date: new Date(e.eventDate).toISOString(),
-      title: e.title,
-      importance: e.importance,
-    })));
-
     // Filter out anniversaries for non-partners
     const filteredEvents = activeLifeEvents.filter(event => {
       if (event.eventType === 'anniversary') {
         const isPartner = friend.relationshipType?.toLowerCase().includes('partner');
-        console.log('[LifeEvent Check] Anniversary event found - relationshipType:', friend.relationshipType, 'isPartner:', isPartner);
         return isPartner;
       }
       return true;
     });
-
-    console.log('[LifeEvent Check] After filtering:', filteredEvents.length, 'events remain');
 
     // Prioritize critical and high importance events
     const sortedEvents = filteredEvents.sort((a, b) => {
@@ -151,8 +141,6 @@ async function checkUpcomingLifeEvent(friend: SuggestionInput['friend']): Promis
   }
 
   // Fallback to legacy birthday/anniversary checks from Friend model
-  console.log('[Friend Field Check]', friend.name, '- birthday:', !!friend.birthday, 'anniversary:', !!friend.anniversary, 'relationshipType:', friend.relationshipType);
-
   // Check birthday (within 7 days)
   if (friend.birthday) {
     // Birthday is now in "MM-DD" format
@@ -188,16 +176,7 @@ async function checkUpcomingLifeEvent(friend: SuggestionInput['friend']): Promis
 
   // Check anniversary (within 14 days) - only for partners
   if (friend.anniversary) {
-    console.log('[Anniversary Check] Friend has anniversary field:', {
-      friendName: friend.name,
-      anniversary: friend.anniversary,
-      relationshipType: friend.relationshipType,
-      relationshipTypeLower: friend.relationshipType?.toLowerCase(),
-      includesPartner: friend.relationshipType?.toLowerCase().includes('partner'),
-    });
-
     if (!friend.relationshipType?.toLowerCase().includes('partner')) {
-      console.log('[Anniversary Check] Skipping - not a partner');
       return null;
     }
 
@@ -218,15 +197,6 @@ async function checkUpcomingLifeEvent(friend: SuggestionInput['friend']): Promis
 
     const daysUntil = differenceInDays(anniversaryThisYear, today);
 
-    console.log('[Anniversary Check]', {
-      friendName: friend.name,
-      originalDate: friend.anniversary,
-      thisYearDate: anniversaryThisYear.toISOString(),
-      today: today.toISOString(),
-      daysUntil,
-      relationshipType: friend.relationshipType,
-    });
-
     // Extra validation check
     if (isNaN(daysUntil)) {
       console.warn('[Anniversary Check] Invalid daysUntil calculation for anniversary:', friend.id);
@@ -234,11 +204,8 @@ async function checkUpcomingLifeEvent(friend: SuggestionInput['friend']): Promis
     }
 
     if (daysUntil >= 0 && daysUntil <= 14) {
-      console.log('[Anniversary Check] Returning anniversary suggestion for', friend.name, 'in', daysUntil, 'days');
       return { type: 'anniversary', daysUntil, importance: 'medium' };
     }
-
-    console.log('[Anniversary Check] Anniversary not within 14 days, skipping');
   }
 
   return null;

@@ -24,7 +24,6 @@ interface IntentionStore {
 
 export const useIntentionStore = create<IntentionStore>(() => ({
   createIntention: async (data: IntentionData): Promise<string> => {
-    console.log('[IntentionStore] Creating intention with data:', data);
     let intentionId = '';
 
     try {
@@ -35,7 +34,6 @@ export const useIntentionStore = create<IntentionStore>(() => ({
           i.status = 'active';
         });
         intentionId = intention.id;
-        console.log('[IntentionStore] Created intention with ID:', intentionId);
 
         // Create entries in the join table for each friend
         for (const friendId of data.friendIds) {
@@ -43,11 +41,9 @@ export const useIntentionStore = create<IntentionStore>(() => ({
             intentionFriend.intentionId = intention.id;
             intentionFriend.friendId = friendId;
           });
-          console.log('[IntentionStore] Created intention_friend link for:', friendId);
         }
       });
 
-      console.log('[IntentionStore] Successfully created intention:', intentionId);
       return intentionId;
     } catch (error) {
       console.error('[IntentionStore] Error creating intention:', error);
@@ -107,7 +103,6 @@ export const useIntentionStore = create<IntentionStore>(() => ({
   },
 
   clearAllIntentions: async () => {
-    console.log('[IntentionStore] Clearing all active intentions');
     await database.write(async () => {
       const activeIntentions = await database
         .get<Intention>('intentions')
@@ -120,11 +115,9 @@ export const useIntentionStore = create<IntentionStore>(() => ({
         });
       }
     });
-    console.log('[IntentionStore] Cleared all intentions');
   },
 
   cleanupOrphanedIntentions: async (): Promise<number> => {
-    console.log('[IntentionStore] Cleaning up orphaned intentions...');
     let cleanedCount = 0;
 
     try {
@@ -148,12 +141,10 @@ export const useIntentionStore = create<IntentionStore>(() => ({
               i.status = 'dismissed';
             });
             cleanedCount++;
-            console.log('[IntentionStore] Cleaned orphaned intention:', intention.id);
           }
         }
       });
 
-      console.log(`[IntentionStore] Cleanup complete. Removed ${cleanedCount} orphaned intentions`);
       return cleanedCount;
     } catch (error) {
       console.error('[IntentionStore] Error cleaning up orphaned intentions:', error);

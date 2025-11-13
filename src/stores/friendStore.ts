@@ -137,11 +137,9 @@ export const useFriendStore = create<FriendStore>((set, get) => ({
   },
 
   addFriend: async (data: FriendFormData) => {
-    console.log('[addFriend] Attempting to add friend with data:', data);
     try {
       await database.write(async () => {
           const newFriend = await database.get('friends').create(friend => {
-              console.log('[addFriend] Inside create block');
               friend.name = data.name;
               friend.dunbarTier = tierMap[data.tier] || 'Community';
               friend.archetype = data.archetype;
@@ -173,14 +171,12 @@ export const useFriendStore = create<FriendStore>((set, get) => ({
             p.curatorProgress = archetypes.size;
           });
       });
-      console.log('[addFriend] SUCCESS: Friend should be created.');
     } catch (error) {
       console.error('[addFriend] ERROR: Failed to create friend.', error);
     }
   },
 
   batchAddFriends: async (contacts: Array<{ name: string; photoUrl?: string }>, tier: Tier) => {
-    console.log('[batchAddFriends] Attempting to batch add friends:', contacts.length);
     try {
       await database.write(async () => {
         // Create all friends in a single transaction
@@ -219,7 +215,6 @@ export const useFriendStore = create<FriendStore>((set, get) => ({
           p.curatorProgress = archetypes.size;
         });
       });
-      console.log('[batchAddFriends] SUCCESS: Created', contacts.length, 'friends.');
     } catch (error) {
       console.error('[batchAddFriends] ERROR: Failed to create friends.', error);
     }
@@ -251,7 +246,6 @@ export const useFriendStore = create<FriendStore>((set, get) => ({
   },
 
   pauseObservers: () => {
-    console.log('[FriendStore] Pausing observers (app sleeping)');
     const { friendsSubscription, friendSubscription, interactionSubscription, pendingFriendId } = get();
 
     // Store the current friend ID so we can resume later
@@ -296,11 +290,8 @@ export const useFriendStore = create<FriendStore>((set, get) => ({
   initializeAppStateListener: () => {
     const currentSubscription = get().appStateSubscription;
     if (currentSubscription) {
-      console.log('[FriendStore] App state listener already initialized');
       return;
     }
-
-    console.log('[FriendStore] Initializing app state listener');
 
     // Subscribe to app state changes (both app state and idle state)
     const handleSleepStateChange = () => {
@@ -337,7 +328,6 @@ export const useFriendStore = create<FriendStore>((set, get) => ({
   cleanupAppStateListener: () => {
     const { appStateSubscription } = get();
     if (appStateSubscription) {
-      console.log('[FriendStore] Cleaning up app state listener');
       appStateSubscription();
       set({ appStateSubscription: null });
     }
