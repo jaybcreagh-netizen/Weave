@@ -77,51 +77,92 @@ const ConnectionLine: React.FC<ConnectionLineProps> = ({
 
   // Create curved path
   const path = useDerivedValue(() => {
+    'worklet';
     const pathString = getCurvedPath(centerX, centerY, position.x, position.y, 0.15);
     return Skia.Path.MakeFromSVGString(pathString);
   }, [centerX, centerY, position]);
 
-  // Calculate flowing particle positions
-  const particlePositions = useDerivedValue(() => {
-    const positions: { x: number; y: number }[] = [];
-    for (let i = 0; i < CONNECTION_CONFIG.particleCount; i++) {
-      const offset = i / CONNECTION_CONFIG.particleCount;
-      const t = (flowProgress + offset) % 1.0;
-      const point = getPointOnPath(centerX, centerY, position.x, position.y, t, 0.15);
-      positions.push(point);
-    }
-    return positions;
-  }, [flowProgress, centerX, centerY, position]);
+  // Generate static particle indices
+  const particleIndices = Array.from({ length: CONNECTION_CONFIG.particleCount }, (_, i) => i);
 
   return (
     <Group opacity={opacity}>
       {/* Connection line */}
-      {path.value && (
-        <Path
-          path={path.value}
-          style="stroke"
-          strokeWidth={strokeWidth}
-          color={healthColor}
-          opacity={0.4}
-        />
-      )}
+      <Path
+        path={path}
+        style="stroke"
+        strokeWidth={strokeWidth}
+        color={healthColor}
+        opacity={0.4}
+      />
 
-      {/* Flowing particles */}
-      {particlePositions.value.map((pos, i) => (
-        <Circle
+      {/* Flowing particles - create each particle's position as a derived value */}
+      {particleIndices.map((i) => (
+        <FlowingParticle
           key={i}
-          cx={pos.x}
-          cy={pos.y}
-          r={2.5}
-          opacity={0.8}
-        >
-          <RadialGradient
-            c={vec(2.5, 2.5)}
-            r={2.5}
-            colors={[healthColor, healthColor + '00']}
-          />
-        </Circle>
+          index={i}
+          totalParticles={CONNECTION_CONFIG.particleCount}
+          flowProgress={flowProgress}
+          centerX={centerX}
+          centerY={centerY}
+          position={position}
+          healthColor={healthColor}
+        />
       ))}
     </Group>
+  );
+};
+
+interface FlowingParticleProps {
+  index: number;
+  totalParticles: number;
+  flowProgress: number;
+  centerX: number;
+  centerY: number;
+  position: ConstellationPosition;
+  healthColor: string;
+}
+
+const FlowingParticle: React.FC<FlowingParticleProps> = ({
+  index,
+  totalParticles,
+  flowProgress,
+  centerX,
+  centerY,
+  position,
+  healthColor,
+}) => {
+  // Calculate this particle's position along the path
+  const particleX = useDerivedValue(() => {
+    'worklet';
+    const progressValue = typeof flowProgress === 'number' ? flowProgress : flowProgress.value;
+    const offset = index / totalParticles;
+    const t = (progressValue + offset) % 1.0;
+    const point = getPointOnPath(centerX, centerY, position.x, position.y, t, 0.15);
+    return point.x;
+  }, [flowProgress, index, totalParticles, centerX, centerY, position]);
+
+  const particleY = useDerivedValue(() => {
+    'worklet';
+    const progressValue = typeof flowProgress === 'number' ? flowProgress : flowProgress.value;
+    const offset = index / totalParticles;
+    const t = (progressValue + offset) % 1.0;
+    const point = getPointOnPath(centerX, centerY, position.x, position.y, t, 0.15);
+    return point.y;
+  }, [flowProgress, index, totalParticles, centerX, centerY, position]);
+
+  return (
+    <Circle
+      cx={particleX}
+      cy={particleY}
+      r={2.5}
+      opacity={0.8}
+    >
+      <RadialGradient
+        c={vec(2.5, 2.5)}
+        r={2.5}
+        colors={[healthColor, healthColor + '00']}
+      />
+    </Circle>
   );
 };

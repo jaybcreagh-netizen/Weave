@@ -478,9 +478,12 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   constellationCanvas: {
+    width: SCREEN_WIDTH - 48,
+    height: SCREEN_HEIGHT * 0.5,
     borderRadius: 16,
     overflow: 'hidden',
     marginBottom: 12,
+    backgroundColor: '#000000',
   },
   statsBar: {
     flexDirection: 'row',

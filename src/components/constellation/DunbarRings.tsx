@@ -71,25 +71,15 @@ const DunbarRing: React.FC<DunbarRingProps> = ({
     return circlePath;
   }, [centerX, centerY, radius]);
 
-  // Calculate rotation angle
-  const rotation = useDerivedValue(() => {
-    return rotationProgress * 360; // Full rotation over the animation loop
-  }, [rotationProgress]);
-
   // Determine opacity based on highlight state
   const opacity = isHighlighted ? 1.0 : 0.4;
   const glowOpacity = isHighlighted ? RING_CONFIG.glowIntensity * 1.5 : RING_CONFIG.glowIntensity;
 
+  // TODO: Re-enable rotation animation with proper Skia animation support
+  // For now, render static rings to avoid SharedValue in transform error
+
   return (
-    <Group
-      transform={[
-        { translateX: centerX },
-        { translateY: centerY },
-        { rotate: degToRad(rotation.value) },
-        { translateX: -centerX },
-        { translateY: -centerY },
-      ]}
-    >
+    <Group>
       {/* Outer glow */}
       <Path
         path={path}

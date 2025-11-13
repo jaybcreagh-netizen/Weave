@@ -3,11 +3,11 @@
  * Main orchestrator for the mystical constellation visualization
  */
 
-import React, { useMemo, useCallback } from 'react';
+import React, { useMemo, useCallback, useEffect } from 'react';
 import { StyleSheet, Dimensions, View } from 'react-native';
-import { Canvas, useLoop } from '@shopify/react-native-skia';
+import { Canvas } from '@shopify/react-native-skia';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { useSharedValue, withSpring, withTiming, useDerivedValue } from 'react-native-reanimated';
+import { useSharedValue, withSpring, withTiming, useDerivedValue, withRepeat, Easing } from 'react-native-reanimated';
 import { ConstellationFriend, ConstellationFilter, SeasonTheme } from './types';
 import { SocialSeason } from '../../db/models/UserProfile';
 import {
@@ -49,11 +49,12 @@ export const ConstellationView: React.FC<ConstellationViewProps> = ({
   const centerX = width / 2;
   const centerY = height / 2;
 
-  // Animation loops
-  const particleLoop = useLoop({ duration: ANIMATION_DURATIONS.particleDrift });
-  const ringRotationLoop = useLoop({ duration: ANIMATION_DURATIONS.ringRotation });
-  const pulseLoop = useLoop({ duration: ANIMATION_DURATIONS.nodeAppear });
-  const flowLoop = useLoop({ duration: 5000 }); // Connection particle flow
+  // Static progress values for now (animations disabled to avoid render conflicts)
+  // TODO: Re-enable animations once Skia transform issue is resolved
+  const particleProgress = useSharedValue(0.5);
+  const ringProgress = useSharedValue(0);
+  const pulseProgress = useSharedValue(0.5);
+  const flowProgress = useSharedValue(0.5);
 
   // Gesture state
   const zoom = useSharedValue(ZOOM_CONFIG.default);
@@ -73,8 +74,8 @@ export const ConstellationView: React.FC<ConstellationViewProps> = ({
     if (!filter || filter.mode === 'all') {
       return {
         filteredFriends: new Set(friends.map(f => f.id)),
-        filteredOpacity: 1.0,
-        filteredScale: 1.0,
+        filteredOpacity: () => 1.0,
+        filteredScale: () => 1.0,
       };
     }
 
@@ -151,23 +152,6 @@ export const ConstellationView: React.FC<ConstellationViewProps> = ({
     doubleTapGesture
   );
 
-  // Normalized animation values (0-1)
-  const particleProgress = useDerivedValue(() => {
-    return particleLoop.current / ANIMATION_DURATIONS.particleDrift;
-  }, [particleLoop]);
-
-  const ringProgress = useDerivedValue(() => {
-    return ringRotationLoop.current / ANIMATION_DURATIONS.ringRotation;
-  }, [ringRotationLoop]);
-
-  const pulseProgress = useDerivedValue(() => {
-    return pulseLoop.current / ANIMATION_DURATIONS.nodeAppear;
-  }, [pulseLoop]);
-
-  const flowProgress = useDerivedValue(() => {
-    return flowLoop.current / 5000;
-  }, [flowLoop]);
-
   return (
     <View style={[styles.container, { width, height }]}>
       <GestureDetector gesture={composedGesture}>
@@ -178,7 +162,7 @@ export const ConstellationView: React.FC<ConstellationViewProps> = ({
           {/* Particle field */}
           <ParticleField
             config={particleConfig}
-            progress={particleProgress.value}
+            progress={particleProgress}
             width={width}
             height={height}
           />
@@ -193,7 +177,7 @@ export const ConstellationView: React.FC<ConstellationViewProps> = ({
             centerX={centerX}
             centerY={centerY}
             theme={theme}
-            rotationProgress={ringProgress.value}
+            rotationProgress={ringProgress}
             highlightedTier={filter?.mode === 'tier' ? filter.value : undefined}
           />
 
@@ -204,7 +188,7 @@ export const ConstellationView: React.FC<ConstellationViewProps> = ({
             centerX={centerX}
             centerY={centerY}
             theme={theme}
-            flowProgress={flowProgress.value}
+            flowProgress={flowProgress}
             opacity={1.0}
           />
 
@@ -217,7 +201,7 @@ export const ConstellationView: React.FC<ConstellationViewProps> = ({
                 friends={[friend]}
                 positions={friendPositions}
                 theme={theme}
-                pulseProgress={pulseProgress.value}
+                pulseProgress={pulseProgress}
                 opacity={filteredOpacity(isMatching)}
                 scale={filteredScale(isMatching)}
               />

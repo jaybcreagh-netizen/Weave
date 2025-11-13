@@ -79,23 +79,16 @@ const FriendNode: React.FC<FriendNodeProps> = ({
   const nodeSize = getNodeSize(friend.weaveScore);
   const healthColor = getHealthColor(friend.weaveScore, theme);
 
-  // Pulse animation for friends with momentum
-  const pulseScale = useDerivedValue(() => {
-    if (!friend.hasMomentum) return 1.0;
-    return 1.0 + 0.15 * Math.sin(pulseProgress * Math.PI * 2);
-  }, [pulseProgress, friend.hasMomentum]);
-
-  // Combined scale (filter + pulse)
-  const totalScale = useDerivedValue(() => {
-    return scale * pulseScale.value;
-  }, [scale, pulseScale]);
+  // TODO: Re-enable pulse/scale animation with proper Skia animation support
+  // For now, use static scale to avoid SharedValue in transform error
+  const staticScale = scale;
 
   return (
     <Group
       transform={[
         { translateX: position.x },
         { translateY: position.y },
-        { scale: totalScale },
+        { scale: staticScale },
         { translateX: -position.x },
         { translateY: -position.y },
       ]}
@@ -159,7 +152,7 @@ const FriendNode: React.FC<FriendNodeProps> = ({
           cx={position.x + nodeSize * 0.7}
           cy={position.y - nodeSize * 0.7}
           r={4}
-          opacity={pulseScale}
+          opacity={0.8}
         >
           <RadialGradient
             c={vec(position.x + nodeSize * 0.7, position.y - nodeSize * 0.7)}

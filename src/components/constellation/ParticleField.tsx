@@ -95,18 +95,24 @@ const ParticleCircle: React.FC<ParticleCircleProps> = ({
 }) => {
   // Calculate current position with wrapping
   const x = useDerivedValue(() => {
-    const newX = particle.initialX + particle.vx * progress * 100;
+    'worklet';
+    const progressValue = typeof progress === 'number' ? progress : progress.value;
+    const newX = particle.initialX + particle.vx * progressValue * 100;
     return ((newX % width) + width) % width;
   }, [progress, particle, width]);
 
   const y = useDerivedValue(() => {
-    const newY = particle.initialY + particle.vy * progress * 100;
+    'worklet';
+    const progressValue = typeof progress === 'number' ? progress : progress.value;
+    const newY = particle.initialY + particle.vy * progressValue * 100;
     return ((newY % height) + height) % height;
   }, [progress, particle, height]);
 
   // Pulsing opacity
   const opacity = useDerivedValue(() => {
-    const pulse = Math.sin(progress * Math.PI * 2 + particle.phaseOffset);
+    'worklet';
+    const progressValue = typeof progress === 'number' ? progress : progress.value;
+    const pulse = Math.sin(progressValue * Math.PI * 2 + particle.phaseOffset);
     return particle.opacity * (0.7 + 0.3 * pulse);
   }, [progress, particle]);
 

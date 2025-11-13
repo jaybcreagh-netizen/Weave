@@ -97,6 +97,7 @@ export function getCurvedPath(
   endY: number,
   curveFactor: number = 0.2
 ): string {
+  'worklet';
   const dx = endX - startX;
   const dy = endY - startY;
 
@@ -132,6 +133,7 @@ export function clamp(value: number, min: number, max: number): number {
  * Convert degrees to radians
  */
 export function degToRad(degrees: number): number {
+  'worklet';
   return (degrees * Math.PI) / 180;
 }
 
@@ -162,6 +164,7 @@ export function getPointOnPath(
   t: number,
   curveFactor: number = 0.2
 ): { x: number; y: number } {
+  'worklet';
   const dx = endX - startX;
   const dy = endY - startY;
 
