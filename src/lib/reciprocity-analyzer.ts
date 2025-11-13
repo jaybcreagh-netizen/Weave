@@ -1,9 +1,17 @@
 import FriendModel from '../db/models/Friend';
+import { clamp, FRIEND_VALIDATION_BOUNDS } from './validation-helpers';
 
 /**
  * Type definition for who initiated an interaction
  */
 export type Initiator = 'user' | 'friend' | 'mutual';
+
+/**
+ * Constants for validation bounds (imported from validation-helpers)
+ */
+const MAX_CONSECUTIVE_INITIATIONS = FRIEND_VALIDATION_BOUNDS.consecutiveUserInitiations.max;
+const MIN_RATIO = FRIEND_VALIDATION_BOUNDS.initiationRatio.min;
+const MAX_RATIO = FRIEND_VALIDATION_BOUNDS.initiationRatio.max;
 
 /**
  * Reciprocity analysis results for a friend
@@ -32,10 +40,28 @@ export async function updateInitiationStats(
   initiator: Initiator
 ): Promise<void> {
   await friend.update(record => {
+    // Validate current values are non-negative (data integrity check)
+    if (record.totalUserInitiations < 0) {
+      console.warn('[ReciprocityAnalyzer] Negative totalUserInitiations detected, resetting to 0');
+      record.totalUserInitiations = 0;
+    }
+    if (record.totalFriendInitiations < 0) {
+      console.warn('[ReciprocityAnalyzer] Negative totalFriendInitiations detected, resetting to 0');
+      record.totalFriendInitiations = 0;
+    }
+    if (record.consecutiveUserInitiations < 0) {
+      console.warn('[ReciprocityAnalyzer] Negative consecutiveUserInitiations detected, resetting to 0');
+      record.consecutiveUserInitiations = 0;
+    }
+
     // Update counters
     if (initiator === 'user') {
       record.totalUserInitiations += 1;
-      record.consecutiveUserInitiations += 1;
+      // Cap consecutive initiations to prevent overflow
+      record.consecutiveUserInitiations = Math.min(
+        record.consecutiveUserInitiations + 1,
+        MAX_CONSECUTIVE_INITIATIONS
+      );
     } else if (initiator === 'friend') {
       record.totalFriendInitiations += 1;
       record.consecutiveUserInitiations = 0; // Reset streak
@@ -46,10 +72,21 @@ export async function updateInitiationStats(
       record.consecutiveUserInitiations = 0; // Reset streak
     }
 
-    // Calculate new ratio
+    // Calculate new ratio with bounds checking
     const total = record.totalUserInitiations + record.totalFriendInitiations;
     if (total > 0) {
-      record.initiationRatio = record.totalUserInitiations / total;
+      const rawRatio = record.totalUserInitiations / total;
+      // Clamp ratio to valid range (0.0-1.0) to prevent floating point errors
+      record.initiationRatio = clamp(rawRatio, MIN_RATIO, MAX_RATIO);
+
+      // Paranoid check: if ratio is NaN or Infinity, reset to balanced
+      if (!Number.isFinite(record.initiationRatio)) {
+        console.error('[ReciprocityAnalyzer] Invalid ratio calculated, resetting to 0.5');
+        record.initiationRatio = 0.5;
+      }
+    } else {
+      // No interactions yet, default to balanced
+      record.initiationRatio = 0.5;
     }
 
     // Update last initiator
@@ -61,10 +98,22 @@ export async function updateInitiationStats(
  * Analyzes the reciprocity balance of a friendship
  */
 export function analyzeReciprocity(friend: FriendModel): ReciprocityAnalysis {
-  const userInitiations = friend.totalUserInitiations;
-  const friendInitiations = friend.totalFriendInitiations;
+  // Ensure values are non-negative (data integrity)
+  const userInitiations = Math.max(0, friend.totalUserInitiations);
+  const friendInitiations = Math.max(0, friend.totalFriendInitiations);
   const totalInitiations = userInitiations + friendInitiations;
-  const ratio = friend.initiationRatio;
+
+  // Clamp ratio to valid range and handle edge cases
+  let ratio = clamp(friend.initiationRatio, MIN_RATIO, MAX_RATIO);
+
+  // If ratio is invalid (NaN, Infinity), recalculate from totals
+  if (!Number.isFinite(ratio)) {
+    if (totalInitiations > 0) {
+      ratio = clamp(userInitiations / totalInitiations, MIN_RATIO, MAX_RATIO);
+    } else {
+      ratio = 0.5; // Default to balanced
+    }
+  }
 
   // Determine balance level
   let balance: ReciprocityAnalysis['balance'];
@@ -95,12 +144,19 @@ export function analyzeReciprocity(friend: FriendModel): ReciprocityAnalysis {
     }
   }
 
+  // Ensure consecutive initiations is non-negative and within bounds
+  const consecutiveUserInitiations = clamp(
+    friend.consecutiveUserInitiations,
+    0,
+    MAX_CONSECUTIVE_INITIATIONS
+  );
+
   return {
     initiationRatio: ratio,
     totalInitiations,
     userInitiations,
     friendInitiations,
-    consecutiveUserInitiations: friend.consecutiveUserInitiations,
+    consecutiveUserInitiations,
     lastInitiatedBy: friend.lastInitiatedBy as Initiator | undefined,
     balance,
     warning,
@@ -118,9 +174,10 @@ export function detectImbalance(friend: FriendModel): ImbalanceLevel {
   if (totalInitiations < 5) return 'none';
 
   const ratio = analysis.initiationRatio;
+  const consecutiveInitiations = analysis.consecutiveUserInitiations; // Use validated value
 
   // Severe: > 85% one-sided AND 5+ consecutive user initiations
-  if ((ratio > 0.85 || ratio < 0.15) && friend.consecutiveUserInitiations >= 5) {
+  if ((ratio > 0.85 || ratio < 0.15) && consecutiveInitiations >= 5) {
     return 'severe';
   }
 

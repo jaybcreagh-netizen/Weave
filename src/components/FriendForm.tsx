@@ -18,6 +18,7 @@ import { getTierCapacity, getTierDisplayName, isTierAtCapacity } from '../lib/co
 import { normalizeContactImageUri } from '../lib/image-utils';
 import { SimpleTutorialTooltip } from './SimpleTutorialTooltip';
 import { useTutorialStore } from '../stores/tutorialStore';
+import { validateMMDDFormat } from '../lib/validation-helpers';
 
 interface FriendFormProps {
   onSave: (friendData: FriendFormData) => void;
@@ -99,16 +100,12 @@ export function FriendForm({ onSave, friend, initialTier, fromOnboarding }: Frie
   // Validation helper functions
   const validateBirthdayFormat = (birthday?: string): boolean => {
     if (!birthday) return true; // Birthday is optional
-    // Expected format: MM-DD (e.g., "03-15" for March 15)
-    const birthdayRegex = /^(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
-    return birthdayRegex.test(birthday);
+    return validateMMDDFormat(birthday);
   };
 
   const validateAnniversaryFormat = (anniversary?: string): boolean => {
     if (!anniversary) return true; // Anniversary is optional
-    // Expected format: MM-DD
-    const anniversaryRegex = /^(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
-    return anniversaryRegex.test(anniversary);
+    return validateMMDDFormat(anniversary);
   };
 
   const checkDuplicateName = (name: string): boolean => {
