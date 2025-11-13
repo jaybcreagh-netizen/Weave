@@ -35,6 +35,7 @@ import {
 } from '@expo-google-fonts/inter';
 import * as Sentry from '@sentry/react-native';
 import { initializeAnalytics, trackEvent, trackRetentionMetrics, AnalyticsEvents } from '../src/lib/analytics';
+import { PostHogProvider } from 'posthog-react-native';
 
 Sentry.init({
   dsn: 'https://1b94b04a0400cdc5a0378c0f485a2435@o4510357596471296.ingest.de.sentry.io/4510357600993360',
@@ -215,44 +216,50 @@ export default Sentry.wrap(function RootLayout() {
   }
 
   return (
-    <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.background }} onTouchStart={handleUserActivity}>
-      <StatusBar style={isDarkMode ? 'light' : 'dark'} />
-      {/* Wrap with CardGestureProvider so both Dashboard and Overlay can access it */}
-      <CardGestureProvider>
-        <QuickWeaveProvider>
-          <ToastProvider>
-            <ErrorBoundary
-              onError={(error, errorInfo) => {
-                console.error('[App] Global error caught:', error);
-                console.error('[App] Error info:', errorInfo);
-                // TODO: Send to error tracking service (e.g., Sentry)
-              }}
-            >
-              {/* Animated wrapper for smooth fade-in */}
-              <Animated.View style={[{ flex: 1 }, contentStyle]}>
-                <Stack screenOptions={{ headerShown: false }}>
-                  {/* The Stack navigator will automatically discover all files in the app directory */}
-                </Stack>
+    <PostHogProvider
+      apiKey="phc_7zVVcjN8nMJWbw2XgIANio1B7EqNUn4jxWiZZzGActJ"
+      options={{ host: 'https://eu.i.posthog.com', enableSessionReplay: true }}
+      autocapture
+    >
+      <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.background }} onTouchStart={handleUserActivity}>
+        <StatusBar style={isDarkMode ? 'light' : 'dark'} />
+        {/* Wrap with CardGestureProvider so both Dashboard and Overlay can access it */}
+        <CardGestureProvider>
+          <QuickWeaveProvider>
+            <ToastProvider>
+              <ErrorBoundary
+                onError={(error, errorInfo) => {
+                  console.error('[App] Global error caught:', error);
+                  console.error('[App] Error info:', errorInfo);
+                  // TODO: Send to error tracking service (e.g., Sentry)
+                }}
+              >
+                {/* Animated wrapper for smooth fade-in */}
+                <Animated.View style={[{ flex: 1 }, contentStyle]}>
+                  <Stack screenOptions={{ headerShown: false }}>
+                    {/* The Stack navigator will automatically discover all files in the app directory */}
+                  </Stack>
 
-                {/* Global Milestone Celebration Modal */}
-                <MilestoneCelebration
-                  visible={milestoneCelebrationData !== null}
-                  milestone={milestoneCelebrationData}
-                  onClose={hideMilestoneCelebration}
-                />
+                  {/* Global Milestone Celebration Modal */}
+                  <MilestoneCelebration
+                    visible={milestoneCelebrationData !== null}
+                    milestone={milestoneCelebrationData}
+                    onClose={hideMilestoneCelebration}
+                  />
 
-                <TrophyCabinetModal
-                  visible={isTrophyCabinetOpen}
-                  onClose={closeTrophyCabinet}
-                />
-              </Animated.View>
+                  <TrophyCabinetModal
+                    visible={isTrophyCabinetOpen}
+                    onClose={closeTrophyCabinet}
+                  />
+                </Animated.View>
 
-              {/* Loading Screen - shows until data is loaded AND UI is mounted */}
-              <LoadingScreen visible={fontsLoaded && (!dataLoaded || !uiMounted)} />
-            </ErrorBoundary>
-          </ToastProvider>
-        </QuickWeaveProvider>
-      </CardGestureProvider>
-    </GestureHandlerRootView>
+                {/* Loading Screen - shows until data is loaded AND UI is mounted */}
+                <LoadingScreen visible={fontsLoaded && (!dataLoaded || !uiMounted)} />
+              </ErrorBoundary>
+            </ToastProvider>
+          </QuickWeaveProvider>
+        </CardGestureProvider>
+      </GestureHandlerRootView>
+    </PostHogProvider>
   );
 });

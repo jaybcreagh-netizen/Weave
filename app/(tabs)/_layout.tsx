@@ -39,7 +39,7 @@ export default function TabsLayout() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       {/* Tab Bar */}
-      <View style={[styles.tabBar, { backgroundColor: 'transparent', borderBottomColor: colors.border }]}>
+      <View style={[styles.tabBar, { backgroundColor: 'transparent', borderBottomColor: colors.border }]}>  
         <View style={styles.tabsContainer}>
           <TouchableOpacity
             style={[styles.tab, activeTab === 'insights' && styles.activeTab]}
@@ -72,7 +72,10 @@ export default function TabsLayout() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.tab, activeTab === 'circle' && styles.activeTab]}
+            style={[
+              styles.tab,
+              activeTab === 'circle' && styles.activeTab,
+            ]}
             onPress={() => handleTabPress('circle')}
           >
             <Users
