@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, View, Text, TouchableOpacity, Switch, Alert, ScrollView, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { X, Moon, Sun, Palette, RefreshCw, Bug, BarChart3, Battery, Calendar as CalendarIcon, ChevronRight, Bell, Clock, Trophy, Sparkles } from 'lucide-react-native';
+import { X, Moon, Sun, Palette, RefreshCw, Bug, BarChart3, Battery, Calendar as CalendarIcon, ChevronRight, Bell, Clock, Trophy, Sparkles, Wrench } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming, runOnJS } from 'react-native-reanimated';
@@ -33,6 +33,7 @@ import {
 import { useTheme } from '../hooks/useTheme';
 import { clearDatabase } from '../db';
 import TrophyCabinetModal from './TrophyCabinetModal';
+import { DebugPanel } from './DebugPanel';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -119,6 +120,9 @@ export function SettingsModal({
 
   // Trophy Cabinet state
   const [showTrophyCabinet, setShowTrophyCabinet] = useState(false);
+
+  // Debug Panel state
+  const [showDebugPanel, setShowDebugPanel] = useState(false);
 
   // Load settings on mount
   useEffect(() => {
@@ -732,20 +736,34 @@ export function SettingsModal({
 
             <View className="border-t border-border my-2" style={{ borderColor: colors.border }} />
 
-            <View className="flex-row items-center justify-between">
+            {/* Debug & Developer Section */}
+            <TouchableOpacity
+              className="flex-row items-center justify-between"
+              onPress={() => setShowDebugPanel(!showDebugPanel)}
+            >
               <View className="flex-row items-center gap-3">
-                <View className="w-10 h-10 rounded-lg items-center justify-center" style={{ backgroundColor: colors.destructive + '1A' }}>
-                  <RefreshCw color={colors.destructive} size={20} />
+                <View className="w-10 h-10 rounded-lg items-center justify-center" style={{ backgroundColor: colors.muted }}>
+                  <Wrench color={colors.foreground} size={20} />
                 </View>
                 <View>
-                  <Text className="text-base font-inter-medium" style={{ color: colors.foreground }}>Reset Database</Text>
-                  <Text className="text-sm font-inter-regular" style={{ color: colors['muted-foreground'] }}>Clear all data and start fresh</Text>
+                  <Text className="text-base font-inter-medium" style={{ color: colors.foreground }}>Debug & Support</Text>
+                  <Text className="text-sm font-inter-regular" style={{ color: colors['muted-foreground'] }}>App info, errors, and data management</Text>
                 </View>
               </View>
-              <TouchableOpacity onPress={handleResetDatabase} className="py-2 px-4 rounded-lg border" style={{ borderColor: colors.destructive + '33' }}>
-                <Text className="font-inter-medium" style={{ color: colors.destructive }}>Reset</Text>
-              </TouchableOpacity>
-            </View>
+              <ChevronRight
+                size={20}
+                color={colors['muted-foreground']}
+                style={{
+                  transform: [{ rotate: showDebugPanel ? '90deg' : '0deg' }],
+                }}
+              />
+            </TouchableOpacity>
+
+            {showDebugPanel && (
+              <View className="mt-4 px-2">
+                <DebugPanel />
+              </View>
+            )}
           </View>
         </ScrollView>
 

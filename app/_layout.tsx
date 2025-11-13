@@ -12,6 +12,7 @@ import { CardGestureProvider } from '../src/context/CardGestureContext'; // Impo
 import { MilestoneCelebration } from '../src/components/MilestoneCelebration';
 import TrophyCabinetModal from '../src/components/TrophyCabinetModal';
 import { LoadingScreen } from '../src/components/LoadingScreen';
+import { ErrorBoundary } from '../src/components/ErrorBoundary';
 import { useUIStore } from '../src/stores/uiStore';
 import { useTheme } from '../src/hooks/useTheme';
 import { initializeDataMigrations, initializeUserProfile, initializeUserProgress } from '../src/db';
@@ -23,6 +24,9 @@ import {
   setupNotificationResponseListener,
   handleNotificationOnLaunch,
 } from '../src/lib/notification-response-handler';
+import { initializeSentry } from '../src/lib/sentry';
+import { setupGlobalErrorHandlers } from '../src/lib/error-logger';
+import { initializePostHog } from '../src/lib/posthog';
 import {
   useFonts,
   Lora_400Regular,
@@ -32,6 +36,11 @@ import {
   Inter_400Regular,
   Inter_600SemiBold,
 } from '@expo-google-fonts/inter';
+
+// Initialize error monitoring and analytics
+initializeSentry();
+setupGlobalErrorHandlers();
+initializePostHog();
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -184,36 +193,38 @@ export default function RootLayout() {
   }
 
   return (
-    <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.background }} onTouchStart={handleUserActivity}>
-      <StatusBar style={isDarkMode ? 'light' : 'dark'} />
-      {/* Wrap with CardGestureProvider so both Dashboard and Overlay can access it */}
-      <CardGestureProvider>
-        <QuickWeaveProvider>
-          <ToastProvider>
-            {/* Animated wrapper for smooth fade-in */}
-            <Animated.View style={[{ flex: 1 }, contentStyle]}>
-              <Stack screenOptions={{ headerShown: false }}>
-                {/* The Stack navigator will automatically discover all files in the app directory */}
-              </Stack>
+    <ErrorBoundary>
+      <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.background }} onTouchStart={handleUserActivity}>
+        <StatusBar style={isDarkMode ? 'light' : 'dark'} />
+        {/* Wrap with CardGestureProvider so both Dashboard and Overlay can access it */}
+        <CardGestureProvider>
+          <QuickWeaveProvider>
+            <ToastProvider>
+              {/* Animated wrapper for smooth fade-in */}
+              <Animated.View style={[{ flex: 1 }, contentStyle]}>
+                <Stack screenOptions={{ headerShown: false }}>
+                  {/* The Stack navigator will automatically discover all files in the app directory */}
+                </Stack>
 
-              {/* Global Milestone Celebration Modal */}
-              <MilestoneCelebration
-                visible={milestoneCelebrationData !== null}
-                milestone={milestoneCelebrationData}
-                onClose={hideMilestoneCelebration}
-              />
+                {/* Global Milestone Celebration Modal */}
+                <MilestoneCelebration
+                  visible={milestoneCelebrationData !== null}
+                  milestone={milestoneCelebrationData}
+                  onClose={hideMilestoneCelebration}
+                />
 
-              <TrophyCabinetModal
-                visible={isTrophyCabinetOpen}
-                onClose={closeTrophyCabinet}
-              />
-            </Animated.View>
+                <TrophyCabinetModal
+                  visible={isTrophyCabinetOpen}
+                  onClose={closeTrophyCabinet}
+                />
+              </Animated.View>
 
-            {/* Loading Screen - shows until data is loaded AND UI is mounted */}
-            <LoadingScreen visible={fontsLoaded && (!dataLoaded || !uiMounted)} />
-          </ToastProvider>
-        </QuickWeaveProvider>
-      </CardGestureProvider>
-    </GestureHandlerRootView>
+              {/* Loading Screen - shows until data is loaded AND UI is mounted */}
+              <LoadingScreen visible={fontsLoaded && (!dataLoaded || !uiMounted)} />
+            </ToastProvider>
+          </QuickWeaveProvider>
+        </CardGestureProvider>
+      </GestureHandlerRootView>
+    </ErrorBoundary>
   );
 }

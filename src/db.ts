@@ -133,8 +133,88 @@ export const initializeUserProgress = async () => {
   }
 };
 
+/**
+ * DANGER: Completely wipes all app data
+ * - Deletes all WatermelonDB records
+ * - Clears all AsyncStorage keys
+ * - Resets to factory state
+ */
 export const clearDatabase = async () => {
-    console.log("clearDatabase is a no-op in this new architecture");
+  try {
+    console.log('[clearDatabase] Starting complete data wipe...');
+
+    // 1. Clear all WatermelonDB collections
+    await database.write(async () => {
+      const collections = [
+        'friends',
+        'interactions',
+        'interaction_friends',
+        'suggestion_events',
+        'intentions',
+        'intention_friends',
+        'user_profile',
+        'practice_logs',
+        'life_events',
+        'user_progress',
+        'friend_badges',
+        'achievement_unlocks',
+        'weekly_reflections',
+        'portfolio_snapshots',
+        'journal_entries',
+        'custom_chips',
+        'chip_usage',
+        'interaction_outcomes',
+      ];
+
+      for (const collectionName of collections) {
+        try {
+          const collection = database.get(collectionName);
+          const allRecords = await collection.query().fetch();
+          console.log(`[clearDatabase] Deleting ${allRecords.length} records from ${collectionName}`);
+
+          // Mark all records for deletion
+          await Promise.all(
+            allRecords.map(record => record.markAsDeleted())
+          );
+        } catch (error) {
+          console.error(`[clearDatabase] Error clearing collection ${collectionName}:`, error);
+        }
+      }
+    });
+
+    // 2. Clear all AsyncStorage keys
+    const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+    const storageKeys = [
+      '@weave_tutorial_state',
+      '@weave:smart_defaults_enabled',
+      '@weave:last_smart_notification',
+      '@weave:smart_notification_count',
+      '@weave:notification_preferences',
+      '@weave_calendar_settings',
+      '@weave:last_reflection_date',
+      '@weave:last_memory_check',
+      '@weave:event_reminders_enabled',
+      '@weave:deepening_nudges_enabled',
+      '@weave:smart_notifications_enabled',
+      '@weave:last_battery_nudge',
+      '@weave:deepening_nudges',
+      '@weave:notifications_initialized',
+    ];
+
+    console.log(`[clearDatabase] Clearing ${storageKeys.length} AsyncStorage keys`);
+    await AsyncStorage.multiRemove(storageKeys);
+
+    // 3. Reinitialize default data
+    console.log('[clearDatabase] Reinitializing default data...');
+    await initializeUserProfile();
+    await initializeUserProgress();
+
+    console.log('[clearDatabase] ✅ Complete data wipe finished successfully');
+    return { success: true };
+  } catch (error) {
+    console.error('[clearDatabase] ❌ Error during data wipe:', error);
+    throw error;
+  }
 };
 
 /**
