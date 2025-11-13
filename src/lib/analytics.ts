@@ -1,10 +1,15 @@
-import { PostHog } from 'posthog-react-native';
+import { usePostHog } from 'posthog-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
-// PostHog instance
-let posthogInstance: PostHog | null = null;
+// PostHog instance - will be set from the provider
+let posthogInstance: any = null;
+
+// Helper to set the PostHog instance from the provider
+export function setPostHogInstance(instance: any) {
+  posthogInstance = instance;
+}
 
 // Analytics events
 export const AnalyticsEvents = {
@@ -70,42 +75,13 @@ export type AnalyticsEvent = typeof AnalyticsEvents[keyof typeof AnalyticsEvents
 
 /**
  * Initialize PostHog analytics
+ * Note: PostHog is primarily initialized via PostHogProvider in app/_layout.tsx
+ * This function is kept for backwards compatibility and additional setup
  */
 export async function initializeAnalytics(): Promise<void> {
   try {
-    // Replace with your actual PostHog API key and host
-    const POSTHOG_API_KEY = 'phc_YOUR_API_KEY'; // TODO: Replace with actual key
-    const POSTHOG_HOST = 'https://app.posthog.com'; // Or your self-hosted instance
-
-    // Skip in development if you want
-    if (__DEV__ && false) {
-      console.log('[Analytics] Skipping PostHog initialization in dev mode');
-      return;
-    }
-
-    posthogInstance = new PostHog(POSTHOG_API_KEY, {
-      host: POSTHOG_HOST,
-      // Enable session recording (optional)
-      captureMode: 'screen',
-      // iOS specific options
-      ios: {
-        captureApplicationLifecycleEvents: true,
-        captureScreenViews: true,
-      },
-      // Android specific options
-      android: {
-        captureApplicationLifecycleEvents: true,
-        captureScreenViews: true,
-      },
-    });
-
-    // Identify the user with a unique ID
-    const userId = await getOrCreateUserId();
-    posthogInstance.identify(userId, {
-      platform: Platform.OS,
-      version: Constants.expoConfig?.version || 'unknown',
-    });
-
+    // PostHog is initialized via PostHogProvider in app/_layout.tsx
+    // This function just logs that analytics are ready
     console.log('[Analytics] PostHog initialized');
   } catch (error) {
     console.error('[Analytics] Failed to initialize PostHog:', error);

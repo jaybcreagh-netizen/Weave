@@ -34,8 +34,8 @@ import {
   Inter_600SemiBold,
 } from '@expo-google-fonts/inter';
 import * as Sentry from '@sentry/react-native';
-import { initializeAnalytics, trackEvent, trackRetentionMetrics, AnalyticsEvents } from '../src/lib/analytics';
-import { PostHogProvider } from 'posthog-react-native';
+import { initializeAnalytics, trackEvent, trackRetentionMetrics, AnalyticsEvents, setPostHogInstance } from '../src/lib/analytics';
+import { PostHogProvider, usePostHog } from 'posthog-react-native';
 
 Sentry.init({
   dsn: 'https://1b94b04a0400cdc5a0378c0f485a2435@o4510357596471296.ingest.de.sentry.io/4510357600993360',
@@ -58,6 +58,19 @@ Sentry.init({
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
+
+// Component to connect PostHog instance to analytics module
+function PostHogConnector({ children }: { children: React.ReactNode }) {
+  const posthog = usePostHog();
+
+  React.useEffect(() => {
+    if (posthog) {
+      setPostHogInstance(posthog);
+    }
+  }, [posthog]);
+
+  return <>{children}</>;
+}
 
 export default Sentry.wrap(function RootLayout() {
   const { colors } = useTheme();
@@ -221,7 +234,8 @@ export default Sentry.wrap(function RootLayout() {
       options={{ host: 'https://eu.i.posthog.com', enableSessionReplay: true }}
       autocapture
     >
-      <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.background }} onTouchStart={handleUserActivity}>
+      <PostHogConnector>
+        <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.background }} onTouchStart={handleUserActivity}>
         <StatusBar style={isDarkMode ? 'light' : 'dark'} />
         {/* Wrap with CardGestureProvider so both Dashboard and Overlay can access it */}
         <CardGestureProvider>
@@ -259,7 +273,8 @@ export default Sentry.wrap(function RootLayout() {
             </ToastProvider>
           </QuickWeaveProvider>
         </CardGestureProvider>
-      </GestureHandlerRootView>
+        </GestureHandlerRootView>
+      </PostHogConnector>
     </PostHogProvider>
   );
 });
