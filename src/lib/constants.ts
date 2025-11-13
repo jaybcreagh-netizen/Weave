@@ -305,58 +305,58 @@ export const archetypeData: Record<Archetype, { name: string; essence: string; d
     Emperor: {
         icon: "👑",
         name: "The Emperor",
-        essence: "The Architect of Order",
-        description: "Emperors are structured, reliable friends who value consistency and follow-through. They appreciate plans, commitments, and organized social structures. They're the friend who remembers your milestones and shows up exactly when they say they will.",
-        careStyle: "Emperors thrive on planned events, structured activities, and commitments honored. Schedule regular catch-ups, celebrate milestones together, and show respect for their time. They value quality one-on-one time and appreciate when you follow through on your promises. Activities like dinner parties, planned outings, or working toward shared goals strengthen your bond."
+        essence: "Structure & Leadership",
+        description: "In tarot, the Emperor represents authority, stability, and order. In friendship, this means valuing reliability and commitment. They appreciate when plans are made and kept, when you show up on time, and when intentions are clear.",
+        careStyle: "Structured dinners • Planned outings • Regular check-ins • Achievement celebrations • Goal-oriented activities • Milestone events"
     },
     Empress: {
         icon: "🌹",
         name: "The Empress",
-        essence: "The Nurturer of Comfort",
-        description: "Empresses are warm, nurturing friends who create comfort and beauty in their relationships. They show care through acts of service like cooking, hosting, or creating cozy spaces. They're the friend who makes you feel at home and notices when you need care.",
-        careStyle: "Empresses connect through sensory experiences and acts of care. Share meals together, cook for each other, or create beautiful moments. They love hosting at home, enjoying comfort food, and being in nature. Show appreciation for their nurturing by reciprocating care. Tea time, home hangs, and cooking together are particularly meaningful."
+        essence: "Abundance & Nurture",
+        description: "In tarot, the Empress embodies nurturing, sensory pleasure, and creation. In friendship, this means caring through comfort and generosity. They notice when you need support and create warmth through food, beauty, and cozy spaces.",
+        careStyle: "Cooking together • Home hangs • Sharing meals • Gift-giving • Nature walks • Cozy gatherings • Comfort food"
     },
     HighPriestess: {
         icon: "🌙",
         name: "The High Priestess",
-        essence: "The Keeper of Depth",
-        description: "High Priestesses are introspective, intuitive friends who value deep emotional connection and meaningful conversation. They prefer quality over quantity and thrive in intimate, one-on-one settings. They're the friend who truly listens and remembers what matters to you.",
-        careStyle: "High Priestesses connect through deep conversation and quiet presence. They value long phone calls, intimate chats over tea, and meaningful one-on-one time. Superficial interactions drain them. Instead, create space for vulnerability and authentic sharing. Video calls, deep talks, and thoughtful messages resonate most."
+        essence: "Intuition & Mystery",
+        description: "In tarot, the High Priestess represents inner wisdom, intuition, and the unseen. In friendship, this means valuing depth and privacy. They prefer meaningful one-on-one connection over surface-level socializing and need space to recharge.",
+        careStyle: "Deep conversations • Quiet cafes • Long phone calls • Tea time • Thoughtful messages • One-on-one hangs • Contemplative activities"
     },
     Fool: {
         icon: "🃏",
         name: "The Fool",
-        essence: "The Spirit of Play",
-        description: "Fools are spontaneous, playful friends who embrace novelty and adventure. They love trying new things, being silly, and keeping life light. They're the friend who suggests impromptu plans and makes ordinary moments feel like an adventure.",
-        careStyle: "Fools thrive on spontaneity and variety. Quick texts, surprise voice notes, and last-minute adventures keep the connection alive. They love trying new activities, exploring new places, and keeping things playful. Casual hangs, fun activities, and maintaining a lighthearted vibe work best. Mix up your interaction styles to keep things fresh."
+        essence: "Freedom & Adventure",
+        description: "In tarot, the Fool represents new beginnings, spontaneity, and trust in the journey. In friendship, this means embracing playfulness and novelty. They keep things light, suggest last-minute plans, and turn ordinary moments into adventures.",
+        careStyle: "Spontaneous hangs • Trying new things • Quick texts • Adventures • Playful activities • Exploring new places • Last-minute plans"
     },
     Sun: {
         icon: "☀️",
         name: "The Sun",
-        essence: "The Bringer of Joy",
-        description: "Suns are radiant, celebratory friends who light up social gatherings and bring energy to group settings. They love being seen and celebrated, and they reciprocate by making others feel special. They're the friend who turns any occasion into a celebration.",
-        careStyle: "Suns connect through celebration and shared joy. They thrive at parties, group gatherings, and special events. Celebrate their wins, acknowledge their presence, and include them in social occasions. Birthdays, achievements, and milestones are particularly important. They love being part of your important moments and want you to be part of theirs."
+        essence: "Vitality & Celebration",
+        description: "In tarot, the Sun represents joy, success, and radiant energy. In friendship, this means loving celebration and visibility. They bring warmth to gatherings, make others feel special, and thrive when there's something to celebrate together.",
+        careStyle: "Parties • Group events • Birthdays • Achievement celebrations • Social gatherings • Public celebrations • Big moments"
     },
     Hermit: {
         icon: "🏮",
         name: "The Hermit",
-        essence: "The Guardian of Solitude",
-        description: "Hermits are contemplative, independent friends who value solitude and depth. They need time alone to recharge but form deep, meaningful bonds with a select few. They're the friend who prefers quiet walks and deep chats over crowded social events.",
-        careStyle: "Hermits connect through peaceful, low-key activities and patient presence. They prefer one-on-one time in quiet settings. Walks, tea time, or video calls work well. Respect their need for space and don't take silence personally. Quality matters more than frequency. Thoughtful check-ins and unhurried conversations strengthen your bond without draining them."
+        essence: "Solitude & Reflection",
+        description: "In tarot, the Hermit represents introspection, wisdom through withdrawal, and inner guidance. In friendship, this means needing solitude to recharge while valuing deep connection with a select few. They prefer quiet settings and meaningful presence.",
+        careStyle: "Walks • One-on-one time • Video calls • Quiet spaces • Tea time • Thoughtful check-ins • Low-key hangs"
     },
     Magician: {
         icon: "⚡",
         name: "The Magician",
-        essence: "The Spark of Possibility",
-        description: "Magicians are creative, collaborative friends who love building things together and exploring possibilities. They thrive on shared projects, creative endeavors, and intellectual stimulation. They're the friend who inspires you to try new things and celebrates your growth.",
-        careStyle: "Magicians connect through collaboration and creative exploration. Work on projects together, play games, tackle challenges, or explore new ideas. They value achievement and growth. Celebrate milestones and support each other's goals. Game nights, creative collaborations, and trying new hobbies together keep the spark alive."
+        essence: "Skill & Manifestation",
+        description: "In tarot, the Magician represents resourcefulness, transformation, and bringing ideas to life. In friendship, this means loving collaboration and creation. They enjoy building things together, exploring possibilities, and celebrating growth.",
+        careStyle: "Creative projects • Game nights • Building things together • Learning new skills • Problem-solving • Brainstorming • Shared goals"
     },
     Lovers: {
         icon: "💞",
         name: "The Lovers",
-        essence: "The Mirror of Connection",
-        description: "Lovers are reciprocal, emotionally attuned friends who seek balance and mutual understanding. They value partnerships where both people are equally invested and seen. They're the friend who mirrors your energy and creates beautiful, balanced exchanges.",
-        careStyle: "Lovers thrive on reciprocity and emotional attunement. They notice when the relationship feels one-sided and need to feel equally valued. Show up for them as they show up for you. Deep conversations, mutual support, and balanced exchanges matter most. They appreciate when you listen as well as share, and when effort flows both ways."
+        essence: "Union & Harmony",
+        description: "In tarot, the Lovers represent partnership, choice, and meaningful connection. In friendship, this means valuing reciprocity and balance. They need to feel equally seen and valued, and they notice when effort flows only one way.",
+        careStyle: "Deep conversations • Reciprocal check-ins • Shared experiences • Equal give-and-take • Emotional support • Quality time • Meaningful dialogue"
     },
     Unknown: {
         icon: "❓",
