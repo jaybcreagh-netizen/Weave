@@ -4,7 +4,7 @@ export const lightTheme = {
       secondary: '#E5E1DC',
       background: '#FAF1E0',
       foreground: '#3C3C3C',
-      muted: '#E5E1DC',
+      muted: '#FFF8ED',
       'muted-foreground': '#8A8A8A',
       destructive: '#ef4444',
       card: '#FFFFFF',

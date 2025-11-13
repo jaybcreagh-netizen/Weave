@@ -88,7 +88,7 @@ export function IntentionsDrawer({
         <Animated.View
           style={[
             styles.drawer,
-            { backgroundColor: colors.card },
+            { backgroundColor: colors.muted },
             drawerStyle,
           ]}
         >

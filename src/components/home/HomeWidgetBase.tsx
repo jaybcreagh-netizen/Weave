@@ -36,7 +36,7 @@ export const HomeWidgetBase: React.FC<HomeWidgetBaseProps> = ({
   const containerStyle = [
     styles.container,
     {
-      backgroundColor: colors.card,
+      backgroundColor: colors.muted,
       borderColor: colors.border,
       minHeight: config.minHeight || 160,
     },

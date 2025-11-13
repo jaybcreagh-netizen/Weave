@@ -22,7 +22,7 @@ export function SuggestionCard({ suggestion, onAct, onLater }: SuggestionCardPro
   const urgencyColor = urgencyColors[suggestion.urgency];
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.card, borderColor: colors.border }]}>
+    <View style={[styles.container, { backgroundColor: colors.muted, borderColor: colors.border }]}>
       <View style={styles.header}>
         <Text style={styles.icon}>{suggestion.icon}</Text>
         <View style={styles.headerText}>

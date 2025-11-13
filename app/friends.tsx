@@ -31,6 +31,7 @@ import Intention from '../src/db/models/Intention';
 import { tierColors } from '../src/lib/constants';
 import { SimpleTutorialTooltip } from '../src/components/SimpleTutorialTooltip';
 import { useTutorialStore } from '../src/stores/tutorialStore';
+import { WeaveIcon } from '../src/components/WeaveIcon';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -270,7 +271,9 @@ function DashboardContent() {
     if (currentFriends.length === 0) {
       return (
         <View style={[styles.emptyTierContainer, { width: screenWidth, backgroundColor: tierBgColor }]}>
-          <Text style={styles.emptyTierEmoji}>🧵</Text>
+          <View style={styles.emptyTierEmoji}>
+            <WeaveIcon size={120} color={colors['muted-foreground']} />
+          </View>
           <Text style={[styles.emptyTierTitle, { color: colors.foreground }]}>Your weave is empty</Text>
         </View>
       );
