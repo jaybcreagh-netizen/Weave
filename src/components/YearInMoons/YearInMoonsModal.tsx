@@ -22,7 +22,7 @@ import { useTheme } from '../../hooks/useTheme';
 import { useUserProfileStore } from '../../stores/userProfileStore';
 import { MoonPhaseIllustration } from './MoonPhaseIllustration';
 import { PatternsTabContent } from './PatternsTabContent';
-import { GraphsTabContent } from './GraphsTabContent';
+import { ReflectionJourneyContent } from '../ReflectionJourney/ReflectionJourneyContent';
 import { SocialBatterySheet } from '../home/SocialBatterySheet';
 import {
   getYearMoonData,
@@ -38,7 +38,7 @@ interface YearInMoonsModalProps {
   onClose: () => void;
 }
 
-type Tab = 'moons' | 'graphs' | 'patterns';
+type Tab = 'moons' | 'journal' | 'patterns';
 
 export function YearInMoonsModal({ isOpen, onClose }: YearInMoonsModalProps) {
   const { colors, isDarkMode } = useTheme();
@@ -151,7 +151,7 @@ export function YearInMoonsModal({ isOpen, onClose }: YearInMoonsModalProps) {
 
   const tabs: { id: Tab; label: string; icon: any }[] = [
     { id: 'moons', label: 'Moons', icon: Calendar },
-    { id: 'graphs', label: 'Graphs', icon: BarChart3 },
+    { id: 'journal', label: 'Journal', icon: BarChart3 },
     { id: 'patterns', label: 'Patterns', icon: Sparkles },
   ];
 
@@ -375,7 +375,7 @@ export function YearInMoonsModal({ isOpen, onClose }: YearInMoonsModalProps) {
                 </ScrollView>
               )}
 
-              {currentTab === 'graphs' && <GraphsTabContent year={currentYear} />}
+              {currentTab === 'journal' && <ReflectionJourneyContent />}
 
               {currentTab === 'patterns' && <PatternsTabContent />}
             </>
