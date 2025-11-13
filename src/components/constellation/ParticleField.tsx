@@ -5,7 +5,7 @@
 
 import React, { useMemo } from 'react';
 import { Circle, Group, RadialGradient, vec } from '@shopify/react-native-skia';
-import { useDerivedValue, useSharedValue } from 'react-native-reanimated';
+import { useDerivedValue, useSharedValue, SharedValue } from 'react-native-reanimated';
 import { ParticleConfig } from './types';
 import { CANVAS_SIZE } from './config';
 import { getSeededRandom } from './utils';
@@ -23,7 +23,7 @@ interface Particle {
 
 interface ParticleFieldProps {
   config: ParticleConfig;
-  progress: number; // Animation progress (0-1, loops)
+  progress: SharedValue<number> | number; // Animation progress (0-1, loops)
   width?: number;
   height?: number;
 }
@@ -80,7 +80,7 @@ export const ParticleField: React.FC<ParticleFieldProps> = ({
 
 interface ParticleCircleProps {
   particle: Particle;
-  progress: number;
+  progress: SharedValue<number> | number;
   color: string;
   width: number;
   height: number;

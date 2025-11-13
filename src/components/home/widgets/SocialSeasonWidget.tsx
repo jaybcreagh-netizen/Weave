@@ -24,7 +24,6 @@ import { calculateCurrentScore } from '../../../lib/weave-engine';
 import { database } from '../../../db';
 import Interaction from '../../../db/models/Interaction';
 import { generateSeasonExplanation, type SeasonExplanationData } from '../../../lib/narrative-generator';
-import { SocialSeasonModal } from '../../SocialSeasonModal';
 
 const WIDGET_CONFIG: HomeWidgetConfig = {
   id: 'social-season',
@@ -72,7 +71,6 @@ export const SocialSeasonWidget: React.FC = () => {
   const [isCalculating, setIsCalculating] = useState(false);
   const [season, setSeason] = useState<SocialSeason>('balanced');
   const [seasonData, setSeasonData] = useState<SeasonExplanationData | null>(null);
-  const [showExplanation, setShowExplanation] = useState(false);
   const [showOverride, setShowOverride] = useState(false);
 
   useEffect(() => {
@@ -197,7 +195,7 @@ export const SocialSeasonWidget: React.FC = () => {
   return (
     <>
       <HomeWidgetBase config={WIDGET_CONFIG} isLoading={isCalculating}>
-        <Pressable onPress={() => setShowExplanation(true)} onLongPress={() => setShowOverride(true)} delayLongPress={800}>
+        <Pressable onPress={() => router.push('/constellation')} onLongPress={() => setShowOverride(true)} delayLongPress={800}>
           <LinearGradient colors={gradientColors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.gradient}>
             {/* Battery Badge */}
             <View style={styles.batteryBadge}>
@@ -216,13 +214,6 @@ export const SocialSeasonWidget: React.FC = () => {
           </LinearGradient>
         </Pressable>
       </HomeWidgetBase>
-
-      {/* New Comprehensive Social Season Modal with Constellation */}
-      <SocialSeasonModal
-        visible={showExplanation}
-        onClose={() => setShowExplanation(false)}
-        seasonData={seasonData}
-      />
 
       {/* Override Modal */}
       <Modal visible={showOverride} transparent animationType="fade" onRequestClose={() => setShowOverride(false)}>

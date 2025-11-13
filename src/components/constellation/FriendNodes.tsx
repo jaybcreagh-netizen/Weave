@@ -15,7 +15,7 @@ import {
   Paint,
   Skia,
 } from '@shopify/react-native-skia';
-import { useDerivedValue } from 'react-native-reanimated';
+import { useDerivedValue, SharedValue } from 'react-native-reanimated';
 import { ConstellationFriend, ConstellationPosition, SeasonTheme } from './types';
 import { NODE_CONFIG, getNodeSize, getHealthColor } from './config';
 
@@ -23,7 +23,7 @@ interface FriendNodesProps {
   friends: ConstellationFriend[];
   positions: Map<string, ConstellationPosition>;
   theme: SeasonTheme;
-  pulseProgress: number; // 0-1, for momentum pulse animation
+  pulseProgress: SharedValue<number> | number; // 0-1, for momentum pulse animation
   onFriendPress?: (friendId: string) => void;
   opacity?: number; // For filter effects
   scale?: number; // For filter highlight
@@ -63,7 +63,7 @@ interface FriendNodeProps {
   friend: ConstellationFriend;
   position: ConstellationPosition;
   theme: SeasonTheme;
-  pulseProgress: number;
+  pulseProgress: SharedValue<number> | number;
   opacity: number;
   scale: number;
 }

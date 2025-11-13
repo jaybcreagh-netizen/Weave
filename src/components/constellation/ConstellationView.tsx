@@ -7,7 +7,7 @@ import React, { useMemo, useCallback, useEffect } from 'react';
 import { StyleSheet, Dimensions, View } from 'react-native';
 import { Canvas } from '@shopify/react-native-skia';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { useSharedValue, withSpring, withTiming, useDerivedValue, withRepeat, Easing } from 'react-native-reanimated';
+import { useSharedValue, withSpring, withTiming, withRepeat, Easing } from 'react-native-reanimated';
 import { ConstellationFriend, ConstellationFilter, SeasonTheme } from './types';
 import { SocialSeason } from '../../db/models/UserProfile';
 import {
@@ -49,12 +49,42 @@ export const ConstellationView: React.FC<ConstellationViewProps> = ({
   const centerX = width / 2;
   const centerY = height / 2;
 
-  // Static progress values for now (animations disabled to avoid render conflicts)
-  // TODO: Re-enable animations once Skia transform issue is resolved
-  const particleProgress = useSharedValue(0.5);
+  // Animated progress values using withRepeat for continuous magical loops ✨
+  const particleProgress = useSharedValue(0);
   const ringProgress = useSharedValue(0);
-  const pulseProgress = useSharedValue(0.5);
-  const flowProgress = useSharedValue(0.5);
+  const pulseProgress = useSharedValue(0);
+  const flowProgress = useSharedValue(0);
+
+  // Start animations on mount
+  useEffect(() => {
+    // Particle drift - slow, continuous
+    particleProgress.value = withRepeat(
+      withTiming(1, { duration: ANIMATION_DURATIONS.particleDrift, easing: Easing.linear }),
+      -1, // Infinite
+      false // Don't reverse
+    );
+
+    // Ring rotation - very slow
+    ringProgress.value = withRepeat(
+      withTiming(1, { duration: ANIMATION_DURATIONS.ringRotation, easing: Easing.linear }),
+      -1,
+      false
+    );
+
+    // Pulse for momentum nodes - gentle wave
+    pulseProgress.value = withRepeat(
+      withTiming(1, { duration: 2000, easing: Easing.inOut(Easing.ease) }),
+      -1,
+      true // Reverse (0 -> 1 -> 0)
+    );
+
+    // Flow particles along connections
+    flowProgress.value = withRepeat(
+      withTiming(1, { duration: 5000, easing: Easing.linear }),
+      -1,
+      false
+    );
+  }, []);
 
   // Gesture state
   const zoom = useSharedValue(ZOOM_CONFIG.default);
@@ -159,7 +189,7 @@ export const ConstellationView: React.FC<ConstellationViewProps> = ({
           {/* Background */}
           <ConstellationBackground width={width} height={height} theme={theme} />
 
-          {/* Particle field */}
+          {/* Particle field - Pass SharedValue directly now */}
           <ParticleField
             config={particleConfig}
             progress={particleProgress}
@@ -167,12 +197,7 @@ export const ConstellationView: React.FC<ConstellationViewProps> = ({
             height={height}
           />
 
-          {/* Main constellation (with zoom/pan transform) */}
-          {/* Note: Skia doesn't have direct Group transforms for zoom/pan,
-              so we'll apply transforms to individual components or use a different approach.
-              For now, rendering without pan/zoom - we can add this enhancement later */}
-
-          {/* Dunbar rings */}
+          {/* Dunbar rings - Pass SharedValue directly */}
           <DunbarRings
             centerX={centerX}
             centerY={centerY}
@@ -181,7 +206,7 @@ export const ConstellationView: React.FC<ConstellationViewProps> = ({
             highlightedTier={filter?.mode === 'tier' ? filter.value : undefined}
           />
 
-          {/* Connection lines */}
+          {/* Connection lines - Pass SharedValue directly */}
           <ConnectionLines
             friends={friends}
             positions={friendPositions}
@@ -192,7 +217,7 @@ export const ConstellationView: React.FC<ConstellationViewProps> = ({
             opacity={1.0}
           />
 
-          {/* Friend nodes */}
+          {/* Friend nodes - Pass SharedValue directly */}
           {friends.map(friend => {
             const isMatching = filteredFriends.has(friend.id);
             return (

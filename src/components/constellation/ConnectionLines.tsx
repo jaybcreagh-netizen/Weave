@@ -6,7 +6,7 @@
 
 import React from 'react';
 import { Circle, Group, Path, Skia, RadialGradient, vec } from '@shopify/react-native-skia';
-import { useDerivedValue } from 'react-native-reanimated';
+import { useDerivedValue, SharedValue } from 'react-native-reanimated';
 import { ConstellationFriend, ConstellationPosition, SeasonTheme } from './types';
 import { CONNECTION_CONFIG, getConnectionWidth, getHealthColor } from './config';
 import { getCurvedPath, getPointOnPath } from './utils';
@@ -17,7 +17,7 @@ interface ConnectionLinesProps {
   centerX: number;
   centerY: number;
   theme: SeasonTheme;
-  flowProgress: number; // 0-1, for particle flow animation
+  flowProgress: SharedValue<number> | number; // 0-1, for particle flow animation
   opacity?: number; // For filter effects
 }
 
@@ -59,7 +59,7 @@ interface ConnectionLineProps {
   centerX: number;
   centerY: number;
   theme: SeasonTheme;
-  flowProgress: number;
+  flowProgress: SharedValue<number> | number;
   opacity: number;
 }
 

@@ -5,7 +5,7 @@
 
 import React from 'react';
 import { Circle, Group, Path, Skia, DashPathEffect, BlurMask } from '@shopify/react-native-skia';
-import { useDerivedValue } from 'react-native-reanimated';
+import { useDerivedValue, SharedValue } from 'react-native-reanimated';
 import { Tier } from '../types';
 import { RING_RADII, RING_CONFIG } from './config';
 import { SeasonTheme } from './types';
@@ -15,7 +15,7 @@ interface DunbarRingsProps {
   centerX: number;
   centerY: number;
   theme: SeasonTheme;
-  rotationProgress: number; // 0-1, for slow rotation animation
+  rotationProgress: SharedValue<number> | number; // 0-1, for slow rotation animation
   highlightedTier?: Tier; // Optional tier to highlight
 }
 
@@ -50,7 +50,7 @@ interface DunbarRingProps {
   centerX: number;
   centerY: number;
   theme: SeasonTheme;
-  rotationProgress: number;
+  rotationProgress: SharedValue<number> | number;
   isHighlighted: boolean;
 }
 
