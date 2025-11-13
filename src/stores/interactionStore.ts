@@ -123,7 +123,7 @@ export const useInteractionStore = create<InteractionStore>((set, get) => ({
       const { interactionId, badgeUnlocks, achievementUnlocks } = await logNewWeave(friends, data, database);
 
       // 2.5. Record weave for retention tracking and cancel decay warnings
-      import('../lib/retention-notification-manager').then(async ({ recordWeaveLogged, cancelDecayWarning, checkMilestoneCelebrations }) => {
+      import('../lib/retention-notification-manager').then(async ({ recordWeaveLogged, cancelDecayWarning, checkMilestoneCelebrations, scheduleGratitudePrompt }) => {
         await recordWeaveLogged();
         // Cancel decay warnings for all friends involved in this weave
         for (const friend of friends) {
@@ -131,6 +131,10 @@ export const useInteractionStore = create<InteractionStore>((set, get) => ({
         }
         // Check for milestone celebrations (weave count, streaks)
         await checkMilestoneCelebrations();
+
+        // Schedule gratitude prompt if this was a highly-rated weave (Phase 2)
+        const interaction = await database.get<Interaction>('interactions').find(interactionId);
+        await scheduleGratitudePrompt(interaction, friends);
       }).catch(error => {
         console.error('[InteractionStore] Error in retention tracking:', error);
       });

@@ -2,11 +2,18 @@
  * Retention Notification Manager
  * Critical notifications for user retention, especially in early days
  *
- * Key Features:
+ * Phase 1 Features:
  * - Onboarding sequence (days 1-14) to build habits
  * - At-risk user detection & re-engagement
  * - Decay warning alerts for critical friends
  * - Smart timing based on user behavior patterns
+ * - Milestone celebrations (weaves & streaks)
+ *
+ * Phase 2 Features (Emotional Depth):
+ * - Archetype-aware notification language
+ * - Tier-specific relationship insights
+ * - Gratitude prompts after positive weaves
+ * - Birthday and anniversary reminders
  */
 
 import * as Notifications from 'expo-notifications';
@@ -18,6 +25,8 @@ import Interaction from '../db/models/Interaction';
 import { calculateCurrentScore } from './weave-engine';
 import { trackEvent, AnalyticsEvents } from './analytics';
 import { Q } from '@nozbe/watermelondb';
+import { archetypeData } from './constants';
+import type { Archetype, Tier } from '../components/types';
 
 // AsyncStorage keys
 const ONBOARDING_STATE_KEY = '@weave:onboarding_notifications';
@@ -25,12 +34,18 @@ const LAST_APP_OPEN_KEY = '@weave:last_app_open';
 const LAST_WEAVE_LOGGED_KEY = '@weave:last_weave_logged';
 const OPTIMAL_SEND_TIMES_KEY = '@weave:optimal_send_times';
 const NOTIFICATION_ENGAGEMENT_KEY = '@weave:notification_engagement';
+const LAST_GRATITUDE_PROMPT_KEY = '@weave:last_gratitude_prompt';
+const BIRTHDAY_CHECK_KEY = '@weave:last_birthday_check';
 
 // Notification identifiers
 const ONBOARDING_PREFIX = 'onboarding-';
 const REENGAGEMENT_ID = 'reengagement';
 const DECAY_WARNING_PREFIX = 'decay-warning-';
 const MILESTONE_PREFIX = 'milestone-';
+const GRATITUDE_PROMPT_PREFIX = 'gratitude-';
+const BIRTHDAY_PREFIX = 'birthday-';
+const ANNIVERSARY_PREFIX = 'anniversary-';
+const TIER_INSIGHT_PREFIX = 'tier-insight-';
 
 // ================================================================================
 // TYPES & INTERFACES
@@ -325,8 +340,10 @@ async function scheduleReengagementNotification(
     // Get a friend who needs attention
     const needsAttention = await getFriendNeedingAttention();
     if (needsAttention) {
-      title = `${needsAttention.name} misses you 💭`;
-      body = `It's been ${Math.floor(timeSince)} days—time to reconnect?`;
+      // Use archetype-aware messaging (Phase 2)
+      const message = getArchetypeReengagementMessage(needsAttention);
+      title = message.title;
+      body = message.body;
     } else {
       title = "Time to weave? 🕸️";
       body = "Your friendships thrive with regular connection";
@@ -426,28 +443,10 @@ async function scheduleDecayWarning(friend: Friend, currentScore: number): Promi
   }
 
   const scorePercent = Math.round(currentScore);
-  const tierLabel = {
-    InnerCircle: 'Inner Circle',
-    CloseFriends: 'Close Friend',
-    Community: 'Community',
-  }[friend.dunbarTier];
 
-  const messages = [
-    {
-      title: `${friend.name} needs attention 🌙`,
-      body: `Your ${tierLabel} connection is fading (${scorePercent}%)—reach out soon?`,
-    },
-    {
-      title: `Don't lose touch with ${friend.name} 💭`,
-      body: `${tierLabel} • ${scorePercent}% strength • Time to reconnect?`,
-    },
-    {
-      title: `${friend.name} is drifting 🕸️`,
-      body: `Your bond is weakening (${scorePercent}%)—a small gesture goes a long way`,
-    },
-  ];
-
-  const random = messages[Math.floor(Math.random() * messages.length)];
+  // Use archetype-aware messaging (Phase 2)
+  const message = getArchetypeDecayWarning(friend, scorePercent);
+  const { title, body } = message;
 
   // Schedule for optimal time
   const optimalTime = await getOptimalSendTime();
@@ -824,6 +823,626 @@ export async function getNotificationEngagement(): Promise<NotificationEngagemen
 }
 
 // ================================================================================
+// PHASE 2: ARCHETYPE-AWARE NOTIFICATIONS
+// ================================================================================
+
+/**
+ * Get archetype-specific message for re-engagement
+ */
+function getArchetypeReengagementMessage(friend: Friend): { title: string; body: string } {
+  const archetype = friend.archetype as Archetype;
+  const data = archetypeData[archetype];
+  const icon = data.icon;
+
+  const messages: Record<Archetype, Array<{ title: string; body: string }>> = {
+    Emperor: [
+      {
+        title: `${friend.name} values your consistency ${icon}`,
+        body: `Time for a structured check-in?`,
+      },
+      {
+        title: `Keep your commitment to ${friend.name} ${icon}`,
+        body: `They appreciate when you show up reliably`,
+      },
+    ],
+    Empress: [
+      {
+        title: `${friend.name} would love some cozy time ${icon}`,
+        body: `A meal together? A warm chat?`,
+      },
+      {
+        title: `Nurture your bond with ${friend.name} ${icon}`,
+        body: `They thrive on comfort and care`,
+      },
+    ],
+    HighPriestess: [
+      {
+        title: `${friend.name} might need depth right now ${icon}`,
+        body: `A meaningful conversation could be perfect`,
+      },
+      {
+        title: `Connect intuitively with ${friend.name} ${icon}`,
+        body: `They value privacy and deep understanding`,
+      },
+    ],
+    Fool: [
+      {
+        title: `${friend.name} is probably ready for fun ${icon}`,
+        body: `Something spontaneous? They'd be in!`,
+      },
+      {
+        title: `Adventure awaits with ${friend.name} ${icon}`,
+        body: `Keep things light and playful`,
+      },
+    ],
+    Sun: [
+      {
+        title: `${friend.name} loves celebration ${icon}`,
+        body: `Time to gather and share some joy?`,
+      },
+      {
+        title: `Bring energy to ${friend.name}'s day ${icon}`,
+        body: `They thrive in vibrant connection`,
+      },
+    ],
+    Hermit: [
+      {
+        title: `${friend.name} values quiet connection ${icon}`,
+        body: `A peaceful walk or call might be ideal`,
+      },
+      {
+        title: `Meaningful time with ${friend.name} ${icon}`,
+        body: `They prefer depth over frequency`,
+      },
+    ],
+    Magician: [
+      {
+        title: `Create something with ${friend.name} ${icon}`,
+        body: `They love collaboration and growth`,
+      },
+      {
+        title: `${friend.name} enjoys building together ${icon}`,
+        body: `A project or creative session?`,
+      },
+    ],
+    Lovers: [
+      {
+        title: `${friend.name} values reciprocity ${icon}`,
+        body: `Time for mutual connection and balance`,
+      },
+      {
+        title: `Restore harmony with ${friend.name} ${icon}`,
+        body: `They notice when things feel one-sided`,
+      },
+    ],
+    Unknown: [
+      {
+        title: `Check in with ${friend.name}`,
+        body: `Your friendship needs attention`,
+      },
+    ],
+  };
+
+  const options = messages[archetype] || messages.Unknown;
+  return options[Math.floor(Math.random() * options.length)];
+}
+
+/**
+ * Get archetype-specific decay warning
+ */
+function getArchetypeDecayWarning(friend: Friend, scorePercent: number): { title: string; body: string } {
+  const archetype = friend.archetype as Archetype;
+  const data = archetypeData[archetype];
+  const icon = data.icon;
+  const tierLabel = {
+    InnerCircle: 'Inner Circle',
+    CloseFriends: 'Close Friend',
+    Community: 'Community',
+  }[friend.dunbarTier];
+
+  const messages: Record<Archetype, Array<{ title: string; body: string }>> = {
+    Emperor: [
+      {
+        title: `${friend.name} expects consistency ${icon}`,
+        body: `${tierLabel} • ${scorePercent}% • Structure matters to them`,
+      },
+    ],
+    Empress: [
+      {
+        title: `${friend.name} needs nurturing ${icon}`,
+        body: `${tierLabel} • ${scorePercent}% • Show them comfort and care`,
+      },
+    ],
+    HighPriestess: [
+      {
+        title: `${friend.name} values depth ${icon}`,
+        body: `${tierLabel} • ${scorePercent}% • A meaningful reach out?`,
+      },
+    ],
+    Fool: [
+      {
+        title: `Keep the fun alive with ${friend.name} ${icon}`,
+        body: `${tierLabel} • ${scorePercent}% • Something spontaneous?`,
+      },
+    ],
+    Sun: [
+      {
+        title: `${friend.name} thrives on celebration ${icon}`,
+        body: `${tierLabel} • ${scorePercent}% • Bring some energy back`,
+      },
+    ],
+    Hermit: [
+      {
+        title: `${friend.name} prefers quiet quality ${icon}`,
+        body: `${tierLabel} • ${scorePercent}% • One-on-one time?`,
+      },
+    ],
+    Magician: [
+      {
+        title: `Build with ${friend.name} ${icon}`,
+        body: `${tierLabel} • ${scorePercent}% • Collaborate and create`,
+      },
+    ],
+    Lovers: [
+      {
+        title: `Balance matters to ${friend.name} ${icon}`,
+        body: `${tierLabel} • ${scorePercent}% • Restore reciprocity`,
+      },
+    ],
+    Unknown: [
+      {
+        title: `${friend.name} needs attention`,
+        body: `${tierLabel} • ${scorePercent}% • Time to reconnect`,
+      },
+    ],
+  };
+
+  const options = messages[archetype] || messages.Unknown;
+  return options[Math.floor(Math.random() * options.length)];
+}
+
+// ================================================================================
+// PHASE 2: GRATITUDE PROMPTS
+// ================================================================================
+
+/**
+ * Check retention preferences
+ */
+export interface RetentionPreferences {
+  gratitudePromptsEnabled: boolean;
+  birthdayRemindersEnabled: boolean;
+  anniversaryRemindersEnabled: boolean;
+  tierInsightsEnabled: boolean;
+}
+
+const DEFAULT_RETENTION_PREFS: RetentionPreferences = {
+  gratitudePromptsEnabled: true,
+  birthdayRemindersEnabled: true,
+  anniversaryRemindersEnabled: true,
+  tierInsightsEnabled: true,
+};
+
+/**
+ * Get retention preferences
+ */
+export async function getRetentionPreferences(): Promise<RetentionPreferences> {
+  try {
+    const stored = await AsyncStorage.getItem('@weave:retention_preferences');
+    if (stored) {
+      return { ...DEFAULT_RETENTION_PREFS, ...JSON.parse(stored) };
+    }
+  } catch (error) {
+    console.error('Error loading retention preferences:', error);
+  }
+  return DEFAULT_RETENTION_PREFS;
+}
+
+/**
+ * Update retention preferences
+ */
+export async function updateRetentionPreferences(prefs: Partial<RetentionPreferences>): Promise<void> {
+  try {
+    const current = await getRetentionPreferences();
+    const updated = { ...current, ...prefs };
+    await AsyncStorage.setItem('@weave:retention_preferences', JSON.stringify(updated));
+    console.log('[Retention] Preferences updated:', updated);
+  } catch (error) {
+    console.error('Error updating retention preferences:', error);
+  }
+}
+
+/**
+ * Schedule gratitude prompt after a highly-rated weave
+ * Call this after logging a weave with positive vibe
+ */
+export async function scheduleGratitudePrompt(
+  interaction: Interaction,
+  friends: Friend[]
+): Promise<void> {
+  try {
+    // Check preferences
+    const prefs = await getRetentionPreferences();
+    if (!prefs.gratitudePromptsEnabled) return;
+
+    // Only for FullMoon or WaxingGibbous vibes
+    if (interaction.vibe !== 'FullMoon' && interaction.vibe !== 'WaxingGibbous') return;
+
+    // Check if we already sent a gratitude prompt recently
+    const lastPromptStr = await AsyncStorage.getItem(LAST_GRATITUDE_PROMPT_KEY);
+    if (lastPromptStr) {
+      const lastPrompt = parseInt(lastPromptStr, 10);
+      const hoursSince = (Date.now() - lastPrompt) / 3600000;
+      if (hoursSince < 24) {
+        console.log('[Retention] Gratitude prompt sent recently, skipping');
+        return;
+      }
+    }
+
+    const friendNames = friends.map(f => f.name).join(', ');
+    const primaryFriend = friends[0];
+
+    // Schedule for 2-4 hours after the weave (while the feeling is fresh)
+    const delayHours = 2 + Math.random() * 2;
+    const sendTime = new Date(Date.now() + delayHours * 60 * 60 * 1000);
+
+    const messages = [
+      {
+        title: `That connection with ${friendNames} ✨`,
+        body: `What are you grateful for from that time together?`,
+      },
+      {
+        title: `Reflecting on ${friendNames} 🌙`,
+        body: `What made that weave special for you?`,
+      },
+      {
+        title: `Savoring your time with ${friendNames} 💫`,
+        body: `Take a moment to appreciate what you shared`,
+      },
+    ];
+
+    const message = messages[Math.floor(Math.random() * messages.length)];
+
+    await Notifications.scheduleNotificationAsync({
+      identifier: `${GRATITUDE_PROMPT_PREFIX}${interaction.id}`,
+      content: {
+        title: message.title,
+        body: message.body,
+        data: {
+          type: 'deepening-nudge', // Reuse deepening nudge flow
+          interactionId: interaction.id,
+          friendId: primaryFriend.id,
+          friendName: primaryFriend.name,
+        },
+      },
+      trigger: sendTime,
+    });
+
+    // Mark as sent
+    await AsyncStorage.setItem(LAST_GRATITUDE_PROMPT_KEY, Date.now().toString());
+
+    console.log(`[Retention] Gratitude prompt scheduled for ${sendTime.toLocaleString()}`);
+  } catch (error) {
+    console.error('Error scheduling gratitude prompt:', error);
+  }
+}
+
+// ================================================================================
+// PHASE 2: BIRTHDAY & ANNIVERSARY REMINDERS
+// ================================================================================
+
+/**
+ * Check for upcoming birthdays and anniversaries
+ */
+export async function checkBirthdaysAndAnniversaries(): Promise<void> {
+  try {
+    // Check preferences
+    const prefs = await getRetentionPreferences();
+    if (!prefs.birthdayRemindersEnabled && !prefs.anniversaryRemindersEnabled) return;
+
+    // Check if we already checked today
+    const lastCheckStr = await AsyncStorage.getItem(BIRTHDAY_CHECK_KEY);
+    if (lastCheckStr) {
+      const lastCheck = new Date(parseInt(lastCheckStr, 10));
+      const today = new Date();
+      if (
+        lastCheck.getFullYear() === today.getFullYear() &&
+        lastCheck.getMonth() === today.getMonth() &&
+        lastCheck.getDate() === today.getDate()
+      ) {
+        return; // Already checked today
+      }
+    }
+
+    const friends = await database
+      .get<Friend>('friends')
+      .query(Q.where('is_dormant', false))
+      .fetch();
+
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    for (const friend of friends) {
+      // Check birthday
+      if (prefs.birthdayRemindersEnabled && friend.birthday) {
+        const birthday = new Date(friend.birthday);
+        if (
+          birthday.getMonth() === tomorrow.getMonth() &&
+          birthday.getDate() === tomorrow.getDate()
+        ) {
+          await scheduleBirthdayReminder(friend);
+        }
+      }
+
+      // Check anniversary
+      if (prefs.anniversaryRemindersEnabled && friend.anniversary) {
+        const anniversary = new Date(friend.anniversary);
+        if (
+          anniversary.getMonth() === tomorrow.getMonth() &&
+          anniversary.getDate() === tomorrow.getDate()
+        ) {
+          await scheduleAnniversaryReminder(friend);
+        }
+      }
+    }
+
+    // Mark as checked
+    await AsyncStorage.setItem(BIRTHDAY_CHECK_KEY, Date.now().toString());
+  } catch (error) {
+    console.error('Error checking birthdays and anniversaries:', error);
+  }
+}
+
+/**
+ * Schedule birthday reminder
+ */
+async function scheduleBirthdayReminder(friend: Friend): Promise<void> {
+  const notificationId = `${BIRTHDAY_PREFIX}${friend.id}`;
+
+  // Check if already scheduled
+  const existingNotifications = await Notifications.getAllScheduledNotificationsAsync();
+  if (existingNotifications.some(n => n.identifier === notificationId)) {
+    return;
+  }
+
+  const archetype = friend.archetype as Archetype;
+  const icon = archetypeData[archetype].icon;
+
+  // Send notification tomorrow morning at 9am
+  const sendTime = new Date();
+  sendTime.setDate(sendTime.getDate() + 1);
+  sendTime.setHours(9, 0, 0, 0);
+
+  await Notifications.scheduleNotificationAsync({
+    identifier: notificationId,
+    content: {
+      title: `${friend.name}'s birthday is today! 🎂`,
+      body: `They'll appreciate you remembering ${icon}`,
+      data: {
+        type: 'life-event',
+        friendId: friend.id,
+        friendName: friend.name,
+      },
+    },
+    trigger: sendTime,
+  });
+
+  trackEvent(AnalyticsEvents.NOTIFICATION_ENGAGEMENT, {
+    type: 'birthday-reminder',
+    friendId: friend.id,
+  });
+
+  console.log(`[Retention] Birthday reminder scheduled for ${friend.name}`);
+}
+
+/**
+ * Schedule anniversary reminder
+ */
+async function scheduleAnniversaryReminder(friend: Friend): Promise<void> {
+  const notificationId = `${ANNIVERSARY_PREFIX}${friend.id}`;
+
+  // Check if already scheduled
+  const existingNotifications = await Notifications.getAllScheduledNotificationsAsync();
+  if (existingNotifications.some(n => n.identifier === notificationId)) {
+    return;
+  }
+
+  const archetype = friend.archetype as Archetype;
+  const icon = archetypeData[archetype].icon;
+
+  // Send notification tomorrow morning at 9am
+  const sendTime = new Date();
+  sendTime.setDate(sendTime.getDate() + 1);
+  sendTime.setHours(9, 0, 0, 0);
+
+  // Calculate years (if anniversary date has year)
+  let yearsText = '';
+  if (friend.anniversary) {
+    const anniversary = new Date(friend.anniversary);
+    const years = new Date().getFullYear() - anniversary.getFullYear();
+    if (years > 0) {
+      yearsText = ` (${years} ${years === 1 ? 'year' : 'years'})`;
+    }
+  }
+
+  await Notifications.scheduleNotificationAsync({
+    identifier: notificationId,
+    content: {
+      title: `Your friendship anniversary with ${friend.name}${yearsText} 💫`,
+      body: `A special day worth celebrating ${icon}`,
+      data: {
+        type: 'life-event',
+        friendId: friend.id,
+        friendName: friend.name,
+      },
+    },
+    trigger: sendTime,
+  });
+
+  trackEvent(AnalyticsEvents.NOTIFICATION_ENGAGEMENT, {
+    type: 'anniversary-reminder',
+    friendId: friend.id,
+  });
+
+  console.log(`[Retention] Anniversary reminder scheduled for ${friend.name}`);
+}
+
+// ================================================================================
+// PHASE 2: TIER-SPECIFIC INSIGHTS
+// ================================================================================
+
+/**
+ * Check for tier-specific insights and schedule notifications
+ */
+export async function checkTierInsights(): Promise<void> {
+  try {
+    // Check preferences
+    const prefs = await getRetentionPreferences();
+    if (!prefs.tierInsightsEnabled) return;
+
+    const friends = await database
+      .get<Friend>('friends')
+      .query(Q.where('is_dormant', false))
+      .fetch();
+
+    // Group by tier
+    const tierCounts = {
+      InnerCircle: 0,
+      CloseFriends: 0,
+      Community: 0,
+    };
+
+    for (const friend of friends) {
+      tierCounts[friend.dunbarTier as Tier]++;
+    }
+
+    // Check if Inner Circle needs attention
+    const innerCircleFriends = friends.filter(f => f.dunbarTier === 'InnerCircle');
+    if (innerCircleFriends.length > 0) {
+      const avgScore =
+        innerCircleFriends.reduce((sum, f) => sum + calculateCurrentScore(f), 0) /
+        innerCircleFriends.length;
+
+      // If average Inner Circle score is below 60, send insight
+      if (avgScore < 60) {
+        await scheduleTierInsight('InnerCircle', avgScore, tierCounts.InnerCircle);
+      }
+    }
+
+    // Check if user has unbalanced portfolio (e.g., too many Community, not enough Close Friends)
+    if (tierCounts.Community > 20 && tierCounts.CloseFriends < 5) {
+      await schedulePortfolioInsight(tierCounts);
+    }
+  } catch (error) {
+    console.error('Error checking tier insights:', error);
+  }
+}
+
+/**
+ * Schedule tier-specific insight notification
+ */
+async function scheduleTierInsight(tier: Tier, avgScore: number, count: number): Promise<void> {
+  const notificationId = `${TIER_INSIGHT_PREFIX}${tier}`;
+
+  // Don't spam - check if we already sent this insight in the last 7 days
+  const existingNotifications = await Notifications.getAllScheduledNotificationsAsync();
+  if (existingNotifications.some(n => n.identifier === notificationId)) {
+    return;
+  }
+
+  const scorePercent = Math.round(avgScore);
+
+  const messages = {
+    InnerCircle: {
+      title: `Your Inner Circle needs attention 🌙`,
+      body: `Average health: ${scorePercent}% across ${count} ${count === 1 ? 'person' : 'people'}—time to prioritize?`,
+    },
+    CloseFriends: {
+      title: `Your Close Friends could use care 💫`,
+      body: `Average health: ${scorePercent}% across ${count} friends—small efforts add up`,
+    },
+    Community: {
+      title: `Your Community is drifting ✨`,
+      body: `Average health: ${scorePercent}%—even brief check-ins matter`,
+    },
+  };
+
+  const message = messages[tier];
+
+  // Schedule for optimal time
+  const optimalTime = await getOptimalSendTime();
+  const sendTime = new Date();
+  sendTime.setHours(optimalTime, 15, 0, 0); // +15 min offset
+
+  if (sendTime.getTime() <= Date.now()) {
+    sendTime.setDate(sendTime.getDate() + 1);
+  }
+
+  await Notifications.scheduleNotificationAsync({
+    identifier: notificationId,
+    content: {
+      title: message.title,
+      body: message.body,
+      data: {
+        type: 'portfolio-insight',
+        tier,
+        avgScore: scorePercent,
+      },
+    },
+    trigger: sendTime,
+  });
+
+  trackEvent(AnalyticsEvents.NOTIFICATION_ENGAGEMENT, {
+    type: 'tier-insight',
+    tier,
+    avgScore: scorePercent,
+  });
+
+  console.log(`[Retention] Tier insight scheduled for ${tier}`);
+}
+
+/**
+ * Schedule portfolio balance insight
+ */
+async function schedulePortfolioInsight(tierCounts: Record<Tier, number>): Promise<void> {
+  const notificationId = `${TIER_INSIGHT_PREFIX}portfolio-balance`;
+
+  // Don't spam - check if we already sent this in the last 14 days
+  const existingNotifications = await Notifications.getAllScheduledNotificationsAsync();
+  if (existingNotifications.some(n => n.identifier === notificationId)) {
+    return;
+  }
+
+  // Schedule for optimal time
+  const optimalTime = await getOptimalSendTime();
+  const sendTime = new Date();
+  sendTime.setHours(optimalTime, 20, 0, 0); // +20 min offset
+
+  if (sendTime.getTime() <= Date.now()) {
+    sendTime.setDate(sendTime.getDate() + 1);
+  }
+
+  await Notifications.scheduleNotificationAsync({
+    identifier: notificationId,
+    content: {
+      title: `Consider your relationship portfolio 🌿`,
+      body: `You have ${tierCounts.Community} Community members but only ${tierCounts.CloseFriends} Close Friends—quality over quantity?`,
+      data: {
+        type: 'portfolio-insight',
+      },
+    },
+    trigger: sendTime,
+  });
+
+  trackEvent(AnalyticsEvents.NOTIFICATION_ENGAGEMENT, {
+    type: 'portfolio-balance',
+    tierCounts,
+  });
+
+  console.log('[Retention] Portfolio balance insight scheduled');
+}
+
+// ================================================================================
 // MASTER RETENTION CHECK
 // ================================================================================
 
@@ -839,6 +1458,8 @@ export async function runRetentionChecks(): Promise<void> {
       checkAtRiskUsers(),
       checkDecayWarnings(),
       checkMilestoneCelebrations(),
+      checkBirthdaysAndAnniversaries(), // Phase 2
+      checkTierInsights(), // Phase 2
     ]);
 
     console.log('[Retention] All checks complete');

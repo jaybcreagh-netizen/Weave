@@ -30,6 +30,11 @@ import {
   getStoredNotificationPreferences,
   type NotificationPreferences,
 } from '../lib/smart-notification-scheduler';
+import {
+  getRetentionPreferences,
+  updateRetentionPreferences,
+  type RetentionPreferences,
+} from '../lib/retention-notification-manager';
 import { useTheme } from '../hooks/useTheme';
 import { clearDatabase } from '../db';
 import TrophyCabinetModal from './TrophyCabinetModal';
@@ -117,6 +122,12 @@ export function SettingsModal({
   const [notificationFrequency, setNotificationFrequency] = useState<'light' | 'moderate' | 'proactive'>('moderate');
   const [respectBattery, setRespectBattery] = useState(true);
 
+  // Retention notification preferences (Phase 2)
+  const [gratitudePromptsEnabled, setGratitudePromptsEnabled] = useState(true);
+  const [birthdayRemindersEnabled, setBirthdayRemindersEnabled] = useState(true);
+  const [anniversaryRemindersEnabled, setAnniversaryRemindersEnabled] = useState(true);
+  const [tierInsightsEnabled, setTierInsightsEnabled] = useState(true);
+
   // Smart defaults preference
   const [smartDefaultsEnabled, setSmartDefaultsEnabled] = useState(true);
 
@@ -177,6 +188,13 @@ export function SettingsModal({
     // Load smart defaults enabled state
     const smartDefaultsStr = await AsyncStorage.getItem('@weave:smart_defaults_enabled');
     setSmartDefaultsEnabled(smartDefaultsStr ? JSON.parse(smartDefaultsStr) : true);
+
+    // Load retention notification preferences (Phase 2)
+    const retentionPrefs = await getRetentionPreferences();
+    setGratitudePromptsEnabled(retentionPrefs.gratitudePromptsEnabled);
+    setBirthdayRemindersEnabled(retentionPrefs.birthdayRemindersEnabled);
+    setAnniversaryRemindersEnabled(retentionPrefs.anniversaryRemindersEnabled);
+    setTierInsightsEnabled(retentionPrefs.tierInsightsEnabled);
   };
 
   const handleToggleCalendar = async (enabled: boolean) => {
@@ -287,6 +305,27 @@ export function SettingsModal({
   const handleToggleRespectBattery = async (enabled: boolean) => {
     setRespectBattery(enabled);
     await updateNotificationPreferences({ respectBattery: enabled });
+  };
+
+  // Retention notification handlers (Phase 2)
+  const handleToggleGratitudePrompts = async (enabled: boolean) => {
+    setGratitudePromptsEnabled(enabled);
+    await updateRetentionPreferences({ gratitudePromptsEnabled: enabled });
+  };
+
+  const handleToggleBirthdayReminders = async (enabled: boolean) => {
+    setBirthdayRemindersEnabled(enabled);
+    await updateRetentionPreferences({ birthdayRemindersEnabled: enabled });
+  };
+
+  const handleToggleAnniversaryReminders = async (enabled: boolean) => {
+    setAnniversaryRemindersEnabled(enabled);
+    await updateRetentionPreferences({ anniversaryRemindersEnabled: enabled });
+  };
+
+  const handleToggleTierInsights = async (enabled: boolean) => {
+    setTierInsightsEnabled(enabled);
+    await updateRetentionPreferences({ tierInsightsEnabled: enabled });
   };
 
   const handleResetDatabase = () => {
@@ -785,6 +824,83 @@ export function SettingsModal({
                 </View>
               </>
             )}
+
+            <View className="border-t border-border my-2" style={{ borderColor: colors.border }} />
+
+            {/* Retention Notifications (Phase 2) */}
+            <View>
+              <Text className="text-xs font-inter-semibold uppercase tracking-wider mb-2" style={{ color: colors['muted-foreground'] }}>
+                Retention & Engagement
+              </Text>
+            </View>
+
+            <View className="flex-row items-center justify-between">
+              <View className="flex-1">
+                <Text className="text-sm font-inter-medium" style={{ color: colors.foreground }}>
+                  Gratitude Prompts
+                </Text>
+                <Text className="text-xs font-inter-regular" style={{ color: colors['muted-foreground'] }}>
+                  Reflect after meaningful connections
+                </Text>
+              </View>
+              <Switch
+                value={gratitudePromptsEnabled}
+                onValueChange={handleToggleGratitudePrompts}
+                trackColor={{ false: colors.muted, true: colors.primary }}
+                thumbColor={colors.card}
+              />
+            </View>
+
+            <View className="flex-row items-center justify-between mt-3">
+              <View className="flex-1">
+                <Text className="text-sm font-inter-medium" style={{ color: colors.foreground }}>
+                  Birthday Reminders
+                </Text>
+                <Text className="text-xs font-inter-regular" style={{ color: colors['muted-foreground'] }}>
+                  Never miss a friend's birthday
+                </Text>
+              </View>
+              <Switch
+                value={birthdayRemindersEnabled}
+                onValueChange={handleToggleBirthdayReminders}
+                trackColor={{ false: colors.muted, true: colors.primary }}
+                thumbColor={colors.card}
+              />
+            </View>
+
+            <View className="flex-row items-center justify-between mt-3">
+              <View className="flex-1">
+                <Text className="text-sm font-inter-medium" style={{ color: colors.foreground }}>
+                  Anniversary Reminders
+                </Text>
+                <Text className="text-xs font-inter-regular" style={{ color: colors['muted-foreground'] }}>
+                  Celebrate friendship milestones
+                </Text>
+              </View>
+              <Switch
+                value={anniversaryRemindersEnabled}
+                onValueChange={handleToggleAnniversaryReminders}
+                trackColor={{ false: colors.muted, true: colors.primary }}
+                thumbColor={colors.card}
+              />
+            </View>
+
+            <View className="flex-row items-center justify-between mt-3">
+              <View className="flex-1">
+                <Text className="text-sm font-inter-medium" style={{ color: colors.foreground }}>
+                  Tier Insights
+                </Text>
+                <Text className="text-xs font-inter-regular" style={{ color: colors['muted-foreground'] }}>
+                  Get notified about portfolio health
+                </Text>
+              </View>
+              <Switch
+                value={tierInsightsEnabled}
+                onValueChange={handleToggleTierInsights}
+                trackColor={{ false: colors.muted, true: colors.primary }}
+                thumbColor={colors.card}
+              />
+            </View>
 
             <View className="border-t border-border my-2" style={{ borderColor: colors.border }} />
 
