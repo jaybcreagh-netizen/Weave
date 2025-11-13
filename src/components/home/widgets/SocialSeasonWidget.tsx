@@ -24,6 +24,7 @@ import { calculateCurrentScore } from '../../../lib/weave-engine';
 import { database } from '../../../db';
 import Interaction from '../../../db/models/Interaction';
 import { generateSeasonExplanation, type SeasonExplanationData } from '../../../lib/narrative-generator';
+import { SocialSeasonModal } from '../../SocialSeasonModal';
 
 const WIDGET_CONFIG: HomeWidgetConfig = {
   id: 'social-season',
@@ -216,70 +217,12 @@ export const SocialSeasonWidget: React.FC = () => {
         </Pressable>
       </HomeWidgetBase>
 
-      {/* Explanation Modal */}
-      <Modal visible={showExplanation} transparent animationType="fade" onRequestClose={() => setShowExplanation(false)}>
-        <View style={styles.modalOverlay}>
-          <BlurView intensity={isDarkMode ? 40 : 20} style={StyleSheet.absoluteFill} />
-          <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setShowExplanation(false)} />
-
-          <View style={styles.modalContent}>
-            <View style={[styles.modalCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <TouchableOpacity
-                onPress={() => setShowExplanation(false)}
-                style={styles.closeButton}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              >
-                <X size={20} color={colors['muted-foreground']} />
-              </TouchableOpacity>
-
-              {seasonData ? (() => {
-                const explanation = generateSeasonExplanation(seasonData);
-                return (
-                  <>
-                    <Text style={[styles.modalTitle, { color: colors.foreground }]}>{explanation.headline}</Text>
-
-                    {/* Data-driven reasons */}
-                    {explanation.reasons.length > 0 && (
-                      <View style={styles.reasonsContainer}>
-                        <Text style={[styles.reasonsLabel, { color: colors['muted-foreground'] }]}>
-                          Based on:
-                        </Text>
-                        {explanation.reasons.map((reason, index) => (
-                          <View key={index} style={styles.reasonItem}>
-                            <Text style={[styles.reasonBullet, { color: colors.primary }]}>•</Text>
-                            <Text style={[styles.reasonText, { color: colors.foreground }]}>{reason}</Text>
-                          </View>
-                        ))}
-                      </View>
-                    )}
-
-                    <View style={[styles.meaningBox, { backgroundColor: colors.muted }]}>
-                      <Text style={[styles.meaningText, { color: colors.foreground }]}>{explanation.insight}</Text>
-                    </View>
-
-                    <TouchableOpacity onPress={() => setShowExplanation(false)} style={[styles.gotItButton, { backgroundColor: colors.primary }]}>
-                      <Text style={styles.gotItText}>Got it</Text>
-                    </TouchableOpacity>
-                  </>
-                );
-              })() : (
-                <>
-                  <Text style={[styles.modalTitle, { color: colors.foreground }]}>{SEASON_EXPLANATIONS[season].title}</Text>
-                  <Text style={[styles.modalDescription, { color: colors['muted-foreground'] }]}>{SEASON_EXPLANATIONS[season].description}</Text>
-
-                  <View style={[styles.meaningBox, { backgroundColor: colors.muted }]}>
-                    <Text style={[styles.meaningText, { color: colors.foreground }]}>{SEASON_EXPLANATIONS[season].meaning}</Text>
-                  </View>
-
-                  <TouchableOpacity onPress={() => setShowExplanation(false)} style={[styles.gotItButton, { backgroundColor: colors.primary }]}>
-                    <Text style={styles.gotItText}>Got it</Text>
-                  </TouchableOpacity>
-                </>
-              )}
-            </View>
-          </View>
-        </View>
-      </Modal>
+      {/* New Comprehensive Social Season Modal with Constellation */}
+      <SocialSeasonModal
+        visible={showExplanation}
+        onClose={() => setShowExplanation(false)}
+        seasonData={seasonData}
+      />
 
       {/* Override Modal */}
       <Modal visible={showOverride} transparent animationType="fade" onRequestClose={() => setShowOverride(false)}>
