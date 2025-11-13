@@ -563,6 +563,29 @@ export async function logNewWeave(
     console.warn('Failed to measure pending outcomes:', err)
   );
 
+  // Track analytics
+  if (weaveData.type === 'log') {
+    const { trackEvent, AnalyticsEvents } = await import('./posthog');
+    trackEvent(AnalyticsEvents.INTERACTION_LOGGED, {
+      activity: weaveData.activity,
+      category: weaveData.category,
+      mode: weaveData.mode,
+      duration: weaveData.duration,
+      vibe: weaveData.vibe,
+      friends_count: friendsToUpdate.length,
+      has_notes: !!weaveData.notes,
+      has_reflection: !!weaveData.reflection,
+      event_importance: weaveData.eventImportance,
+    });
+  } else if (weaveData.type === 'plan') {
+    const { trackEvent, AnalyticsEvents } = await import('./posthog');
+    trackEvent(AnalyticsEvents.INTERACTION_PLANNED, {
+      activity: weaveData.activity,
+      category: weaveData.category,
+      friends_count: friendsToUpdate.length,
+    });
+  }
+
   return {
     interactionId,
     badgeUnlocks: allBadgeUnlocks,

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, View, Text, TouchableOpacity, Switch, Alert, ScrollView, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { X, Moon, Sun, Palette, RefreshCw, Bug, BarChart3, Battery, Calendar as CalendarIcon, ChevronRight, Bell, Clock, Trophy, Sparkles, Wrench } from 'lucide-react-native';
+import { X, Moon, Sun, Palette, RefreshCw, Bug, BarChart3, Battery, Calendar as CalendarIcon, ChevronRight, Bell, Clock, Trophy, Sparkles, Wrench, MessageSquare } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming, runOnJS } from 'react-native-reanimated';
@@ -34,6 +34,7 @@ import { useTheme } from '../hooks/useTheme';
 import { clearDatabase } from '../db';
 import TrophyCabinetModal from './TrophyCabinetModal';
 import { DebugPanel } from './DebugPanel';
+import { FeedbackForm } from './FeedbackForm';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -123,6 +124,9 @@ export function SettingsModal({
 
   // Debug Panel state
   const [showDebugPanel, setShowDebugPanel] = useState(false);
+
+  // Feedback Form state
+  const [showFeedbackForm, setShowFeedbackForm] = useState(false);
 
   // Load settings on mount
   useEffect(() => {
@@ -733,6 +737,43 @@ export function SettingsModal({
                 </View>
               </View>
             </TouchableOpacity>
+
+            <View className="border-t border-border my-2" style={{ borderColor: colors.border }} />
+
+            {/* Feedback Form Section */}
+            <TouchableOpacity
+              className="flex-row items-center justify-between"
+              onPress={() => setShowFeedbackForm(!showFeedbackForm)}
+            >
+              <View className="flex-row items-center gap-3">
+                <View className="w-10 h-10 rounded-lg items-center justify-center" style={{ backgroundColor: colors.muted }}>
+                  <MessageSquare color={colors.foreground} size={20} />
+                </View>
+                <View>
+                  <Text className="text-base font-inter-medium" style={{ color: colors.foreground }}>Send Feedback</Text>
+                  <Text className="text-sm font-inter-regular" style={{ color: colors['muted-foreground'] }}>Report bugs or suggest features</Text>
+                </View>
+              </View>
+              <ChevronRight
+                size={20}
+                color={colors['muted-foreground']}
+                style={{
+                  transform: [{ rotate: showFeedbackForm ? '90deg' : '0deg' }],
+                }}
+              />
+            </TouchableOpacity>
+
+            {showFeedbackForm && (
+              <View className="mt-4 px-2">
+                <FeedbackForm
+                  onClose={() => setShowFeedbackForm(false)}
+                  onSubmit={() => {
+                    // Optional: Track feedback submission
+                    console.log('[Settings] Feedback submitted');
+                  }}
+                />
+              </View>
+            )}
 
             <View className="border-t border-border my-2" style={{ borderColor: colors.border }} />
 

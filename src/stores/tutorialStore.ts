@@ -64,6 +64,10 @@ export const useTutorialStore = create<TutorialState>((set, get) => ({
   completeOnboarding: async () => {
     const { persistState } = get() as any;
     await persistState({ hasCompletedOnboarding: true });
+
+    // Track analytics
+    const { trackEvent, AnalyticsEvents } = await import('../lib/posthog');
+    trackEvent(AnalyticsEvents.ONBOARDING_COMPLETED);
   },
 
   markFirstFriendAdded: async () => {

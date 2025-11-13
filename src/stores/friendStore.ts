@@ -9,6 +9,7 @@ import { switchMap } from 'rxjs/operators';
 import { Q } from '@nozbe/watermelondb';
 import { tierMap } from '../lib/constants';
 import { appStateManager } from '../lib/app-state-manager';
+import { trackEvent, AnalyticsEvents } from '../lib/posthog';
 
 interface FriendStore {
   friends: FriendModel[];
@@ -174,6 +175,16 @@ export const useFriendStore = create<FriendStore>((set, get) => ({
           });
       });
       console.log('[addFriend] SUCCESS: Friend should be created.');
+
+      // Track analytics
+      trackEvent(AnalyticsEvents.FRIEND_ADDED, {
+        archetype: data.archetype,
+        tier: data.tier,
+        source: 'manual',
+        has_photo: !!data.photoUrl,
+        has_notes: !!data.notes,
+        has_birthday: !!data.birthday,
+      });
     } catch (error) {
       console.error('[addFriend] ERROR: Failed to create friend.', error);
     }
@@ -220,6 +231,14 @@ export const useFriendStore = create<FriendStore>((set, get) => ({
         });
       });
       console.log('[batchAddFriends] SUCCESS: Created', contacts.length, 'friends.');
+
+      // Track analytics
+      trackEvent(AnalyticsEvents.FRIEND_ADDED, {
+        archetype: 'Unknown',
+        tier,
+        source: 'batch_import',
+        count: contacts.length,
+      });
     } catch (error) {
       console.error('[batchAddFriends] ERROR: Failed to create friends.', error);
     }
@@ -241,13 +260,34 @@ export const useFriendStore = create<FriendStore>((set, get) => ({
             record.relationshipType = data.relationshipType || null;
         });
     });
+
+    // Track analytics
+    trackEvent(AnalyticsEvents.FRIEND_EDITED, {
+      archetype: data.archetype,
+      tier: data.tier,
+    });
   },
   
   deleteFriend: async (id: string) => {
+    let friendData: { archetype: string; tier: string } | null = null;
+
     await database.write(async () => {
         const friend = await database.get<FriendModel>('friends').find(id);
+        // Capture data before deletion
+        friendData = {
+          archetype: friend.archetype,
+          tier: friend.dunbarTier,
+        };
         await friend.destroyPermanently();
     });
+
+    // Track analytics
+    if (friendData) {
+      trackEvent(AnalyticsEvents.FRIEND_DELETED, {
+        archetype: friendData.archetype,
+        tier: friendData.tier,
+      });
+    }
   },
 
   pauseObservers: () => {

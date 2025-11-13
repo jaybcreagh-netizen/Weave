@@ -81,6 +81,10 @@ export default function RootLayout() {
         await initializeUserProfile();
         await initializeUserProgress();
         setDataLoaded(true);
+
+        // Track app opened event
+        const { trackEvent } = await import('../src/lib/posthog');
+        trackEvent('app_opened');
       } catch (error) {
         console.error('Failed to initialize app data:', error);
         setDataLoaded(true); // Still mark as loaded to prevent infinite loading

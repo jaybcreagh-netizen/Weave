@@ -74,6 +74,62 @@ export function DebugPanel() {
     }
   };
 
+  const handleExportUserData = async () => {
+    try {
+      // Export all user data as JSON
+      const friends = await database.get('friends').query().fetch();
+      const interactions = await database.get('interactions').query().fetch();
+      const intentions = await database.get('intentions').query().fetch();
+
+      const exportData = {
+        exportDate: new Date().toISOString(),
+        appVersion: Constants.expoConfig?.version,
+        friends: friends.map(f => ({
+          name: f.name,
+          archetype: f.archetype,
+          tier: f.dunbarTier,
+          weaveScore: f.weaveScore,
+          photoUrl: f.photoUrl,
+          notes: f.notes,
+          birthday: f.birthday,
+          isDormant: f.isDormant,
+        })),
+        interactions: interactions.map(i => ({
+          date: i.interactionDate,
+          activity: i.activity,
+          type: i.interactionType,
+          status: i.status,
+          mode: i.mode,
+          category: i.interactionCategory,
+          duration: i.duration,
+          vibe: i.vibe,
+          note: i.note,
+        })),
+        intentions: intentions.map(i => ({
+          category: i.category,
+          status: i.status,
+          createdAt: i.createdAt,
+          targetDate: i.targetDate,
+        })),
+      };
+
+      const jsonStr = JSON.stringify(exportData, null, 2);
+
+      if (Platform.OS === 'ios' || Platform.OS === 'android') {
+        await Share.share({
+          message: jsonStr,
+          title: 'Weave Data Export',
+        });
+      } else {
+        await Clipboard.setStringAsync(jsonStr);
+        Alert.alert('Copied', 'Data exported to clipboard');
+      }
+    } catch (error) {
+      console.error('Failed to export user data:', error);
+      Alert.alert('Error', 'Failed to export data');
+    }
+  };
+
   const handleExportDebugData = async () => {
     try {
       const errorLogText = await exportErrorLogs();
@@ -327,11 +383,19 @@ End of Debug Report
       {/* Actions */}
       <View className="mb-6">
         <TouchableOpacity
-          onPress={handleExportDebugData}
+          onPress={handleExportUserData}
           className="bg-indigo-600 rounded-lg p-4 mb-3 flex-row items-center justify-center"
         >
           <Download size={20} color="white" />
-          <Text className="text-white font-semibold ml-2">Export Debug Report</Text>
+          <Text className="text-white font-semibold ml-2">Export My Data (JSON)</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={handleExportDebugData}
+          className="bg-neutral-700 rounded-lg p-4 mb-3 flex-row items-center justify-center"
+        >
+          <Bug size={20} color="#a3a3a3" />
+          <Text className="text-neutral-300 font-semibold ml-2">Export Debug Report</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
