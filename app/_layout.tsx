@@ -12,6 +12,7 @@ import { CardGestureProvider } from '../src/context/CardGestureContext'; // Impo
 import { MilestoneCelebration } from '../src/components/MilestoneCelebration';
 import TrophyCabinetModal from '../src/components/TrophyCabinetModal';
 import { LoadingScreen } from '../src/components/LoadingScreen';
+import { ErrorBoundary } from '../src/components/ErrorBoundary';
 import { useUIStore } from '../src/stores/uiStore';
 import { useTheme } from '../src/hooks/useTheme';
 import { initializeDataMigrations, initializeUserProfile, initializeUserProgress } from '../src/db';
@@ -190,27 +191,35 @@ export default function RootLayout() {
       <CardGestureProvider>
         <QuickWeaveProvider>
           <ToastProvider>
-            {/* Animated wrapper for smooth fade-in */}
-            <Animated.View style={[{ flex: 1 }, contentStyle]}>
-              <Stack screenOptions={{ headerShown: false }}>
-                {/* The Stack navigator will automatically discover all files in the app directory */}
-              </Stack>
+            <ErrorBoundary
+              onError={(error, errorInfo) => {
+                console.error('[App] Global error caught:', error);
+                console.error('[App] Error info:', errorInfo);
+                // TODO: Send to error tracking service (e.g., Sentry)
+              }}
+            >
+              {/* Animated wrapper for smooth fade-in */}
+              <Animated.View style={[{ flex: 1 }, contentStyle]}>
+                <Stack screenOptions={{ headerShown: false }}>
+                  {/* The Stack navigator will automatically discover all files in the app directory */}
+                </Stack>
 
-              {/* Global Milestone Celebration Modal */}
-              <MilestoneCelebration
-                visible={milestoneCelebrationData !== null}
-                milestone={milestoneCelebrationData}
-                onClose={hideMilestoneCelebration}
-              />
+                {/* Global Milestone Celebration Modal */}
+                <MilestoneCelebration
+                  visible={milestoneCelebrationData !== null}
+                  milestone={milestoneCelebrationData}
+                  onClose={hideMilestoneCelebration}
+                />
 
-              <TrophyCabinetModal
-                visible={isTrophyCabinetOpen}
-                onClose={closeTrophyCabinet}
-              />
-            </Animated.View>
+                <TrophyCabinetModal
+                  visible={isTrophyCabinetOpen}
+                  onClose={closeTrophyCabinet}
+                />
+              </Animated.View>
 
-            {/* Loading Screen - shows until data is loaded AND UI is mounted */}
-            <LoadingScreen visible={fontsLoaded && (!dataLoaded || !uiMounted)} />
+              {/* Loading Screen - shows until data is loaded AND UI is mounted */}
+              <LoadingScreen visible={fontsLoaded && (!dataLoaded || !uiMounted)} />
+            </ErrorBoundary>
           </ToastProvider>
         </QuickWeaveProvider>
       </CardGestureProvider>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { View, Text, TouchableOpacity, TextInput, ScrollView, Image, Platform, StyleSheet, Modal } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput, ScrollView, Image, Platform, StyleSheet, Modal, Alert } from 'react-native';
 import { ArrowLeft, Camera, X, Calendar, Heart, Users, AlertCircle } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as Contacts from 'expo-contacts';
@@ -96,8 +96,67 @@ export function FriendForm({ onSave, friend, initialTier, fromOnboarding }: Frie
     setImageError(false);
   }, [friend?.id, formData.photoUrl]);
 
+  // Validation helper functions
+  const validateBirthdayFormat = (birthday?: string): boolean => {
+    if (!birthday) return true; // Birthday is optional
+    // Expected format: MM-DD (e.g., "03-15" for March 15)
+    const birthdayRegex = /^(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
+    return birthdayRegex.test(birthday);
+  };
+
+  const validateAnniversaryFormat = (anniversary?: string): boolean => {
+    if (!anniversary) return true; // Anniversary is optional
+    // Expected format: MM-DD
+    const anniversaryRegex = /^(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
+    return anniversaryRegex.test(anniversary);
+  };
+
+  const checkDuplicateName = (name: string): boolean => {
+    if (!name.trim()) return false;
+    // Check if name already exists (case-insensitive), excluding current friend
+    const isDuplicate = allFriends.some(f =>
+      f.name.toLowerCase() === name.trim().toLowerCase() &&
+      f.id !== friend?.id
+    );
+    return isDuplicate;
+  };
+
   const handleSave = () => {
-    if (!formData.name.trim()) return;
+    // 1. Validate name
+    if (!formData.name.trim()) {
+      Alert.alert('Name Required', 'Please enter a name for your friend.');
+      return;
+    }
+
+    // 2. Check for duplicate names
+    if (checkDuplicateName(formData.name)) {
+      Alert.alert(
+        'Duplicate Name',
+        `You already have a friend named "${formData.name}". Please use a different name or nickname.`,
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
+    // 3. Validate birthday format
+    if (formData.birthday && !validateBirthdayFormat(formData.birthday)) {
+      Alert.alert(
+        'Invalid Birthday',
+        'Birthday must be in MM-DD format (e.g., "03-15" for March 15).',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
+    // 4. Validate anniversary format
+    if (formData.anniversary && !validateAnniversaryFormat(formData.anniversary)) {
+      Alert.alert(
+        'Invalid Anniversary',
+        'Anniversary must be in MM-DD format (e.g., "06-20" for June 20).',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
 
     // Check if tier is at capacity (only for new friends or tier changes)
     const selectedTier = formData.tier as 'inner' | 'close' | 'community';

@@ -126,7 +126,9 @@ export const useInteractionStore = create<InteractionStore>((set, get) => ({
       if (data.reflection?.chips && data.reflection.chips.length > 0) {
         const friendId = friends.length === 1 ? friends[0].id : undefined;
         await recordReflectionChips(data.reflection.chips, interactionId, friendId).catch(error => {
-          console.error('Error recording chip usage:', error);
+          console.error('[InteractionStore] Failed to record chip usage for interaction', interactionId, error);
+          // Non-blocking: chip tracking is supplementary, don't fail the interaction
+          // TODO: Consider adding a retry queue or showing a warning toast to user
         });
       }
 
@@ -225,7 +227,8 @@ export const useInteractionStore = create<InteractionStore>((set, get) => ({
 
       const friendId = interactionFriends.length === 1 ? interactionFriends[0].friendId : undefined;
       await recordReflectionChips(reflection.chips, interactionId, friendId).catch(error => {
-        console.error('Error recording chip usage:', error);
+        console.error('[InteractionStore] Failed to record chip usage while updating reflection', interactionId, error);
+        // Non-blocking: chip tracking is supplementary
       });
     }
   },
@@ -362,7 +365,8 @@ export const useInteractionStore = create<InteractionStore>((set, get) => ({
 
       const friendId = interactionFriends.length === 1 ? interactionFriends[0].friendId : undefined;
       await recordReflectionChips(updates.reflection.chips, interactionId, friendId).catch(error => {
-        console.error('Error recording chip usage:', error);
+        console.error('[InteractionStore] Failed to record chip usage while updating interaction', interactionId, error);
+        // Non-blocking: chip tracking is supplementary
       });
     }
 

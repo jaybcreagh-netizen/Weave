@@ -31,14 +31,24 @@ export default function Home() {
 
   // Initialize user profile observable on mount
   useEffect(() => {
-    const cleanup = observeProfile();
-    return cleanup;
+    try {
+      const cleanup = observeProfile();
+      return cleanup;
+    } catch (error) {
+      console.error('[Home] Failed to observe profile:', error);
+      // Optionally show error toast to user
+    }
   }, []);
 
   // Initialize friends observable on mount (needed for Life Events widget)
   useEffect(() => {
-    observeFriends();
-    // Note: observeFriends doesn't return cleanup, it manages its own subscription
+    try {
+      observeFriends();
+      // Note: observeFriends doesn't return cleanup, it manages its own subscription
+    } catch (error) {
+      console.error('[Home] Failed to observe friends:', error);
+      // Optionally show error toast to user
+    }
   }, []);
 
   // Handle notification deep links via URL parameters
