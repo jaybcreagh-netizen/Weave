@@ -22,6 +22,7 @@ import { useCardGesture } from '../context/CardGestureContext';
 import { calculateCurrentScore } from '../lib/weave-engine';
 import { generateIntelligentStatusLine } from '../lib/intelligent-status-line';
 import { normalizeContactImageUri } from '../lib/image-utils';
+import { statusLineCache } from '../lib/status-line-cache';
 
 const ATTENTION_THRESHOLD = 35;
 const STABLE_THRESHOLD = 65;
@@ -88,7 +89,7 @@ export const FriendListRow = React.memo(({ friend, animatedRef, variant = 'defau
     setImageError(false);
   }, [photoUrl]);
 
-  // Update intelligent status line with debouncing to prevent excessive calls
+  // Update intelligent status line with caching for performance
   useEffect(() => {
     // Special handling for Unknown archetype
     if (archetype === 'Unknown') {
@@ -96,13 +97,31 @@ export const FriendListRow = React.memo(({ friend, animatedRef, variant = 'defau
       return;
     }
 
-    // Debounce status line generation - only run after 300ms of inactivity
+    // Try cache first
+    const cacheKey = {
+      friendId: friend.id,
+      lastUpdated: friend.lastUpdated.getTime(),
+      weaveScore: friend.weaveScore,
+      archetype: friend.archetype,
+    };
+
+    const cached = statusLineCache.get(cacheKey);
+    if (cached) {
+      setStatusLine(cached);
+      return;
+    }
+
+    // Generate and cache if not found
     const timeoutId = setTimeout(() => {
       generateIntelligentStatusLine(friend)
-        .then(status => setStatusLine(status))
+        .then(status => {
+          statusLineCache.set(cacheKey, status);
+          setStatusLine(status);
+        })
         .catch(error => {
           console.error('Error generating status line:', error);
-          setStatusLine({ text: archetypeData[archetype]?.essence || '' });
+          const fallback = { text: archetypeData[archetype]?.essence || '' };
+          setStatusLine(fallback);
         });
     }, 300);
 

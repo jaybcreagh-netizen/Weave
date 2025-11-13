@@ -58,9 +58,10 @@ const AnimatedFriendCardItem = React.memo(({
 }) => {
   const { registerRef, unregisterRef } = useCardGesture();
   const animatedRef = useAnimatedRef<Animated.View>();
+  const hasAnimated = useRef(false);
 
-  const opacity = useSharedValue(0);
-  const translateY = useSharedValue(25);
+  const opacity = useSharedValue(hasAnimated.current ? 1 : 0);
+  const translateY = useSharedValue(hasAnimated.current ? 0 : 25);
 
   useEffect(() => {
     runOnUI(registerRef)(item.id, animatedRef);
@@ -69,9 +70,13 @@ const AnimatedFriendCardItem = React.memo(({
     };
   }, [item.id, animatedRef, registerRef, unregisterRef]);
 
+  // Only animate on initial mount, not on refreshKey changes
   useEffect(() => {
-    opacity.value = withDelay(index * 50, withTiming(1, { duration: 300 }));
-    translateY.value = withDelay(index * 50, withTiming(0, { duration: 300 }));
+    if (!hasAnimated.current) {
+      opacity.value = withDelay(index * 35, withTiming(1, { duration: 250 }));
+      translateY.value = withDelay(index * 35, withTiming(0, { duration: 250 }));
+      hasAnimated.current = true;
+    }
   }, [index]);
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -263,9 +268,24 @@ function DashboardContent() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
+  // Determine which tiers should be rendered (current + adjacent for smooth swiping)
+  const shouldRenderTier = useCallback((tier: 'inner' | 'close' | 'community') => {
+    const currentIndex = tiers.indexOf(activeTier);
+    const tierIndex = tiers.indexOf(tier);
+    // Render current tier and adjacent tiers (one before, one after)
+    return Math.abs(currentIndex - tierIndex) <= 1;
+  }, [activeTier, tiers]);
+
   const renderTier = (tier: 'inner' | 'close' | 'community', scrollHandler: any) => {
     const currentFriends = friends[tier] || [];
     const tierBgColor = getTierBackground(tier, isDarkMode);
+
+    // Lazy rendering: only render visible and adjacent tiers
+    if (!shouldRenderTier(tier)) {
+      return (
+        <View style={{ width: screenWidth, backgroundColor: tierBgColor }} />
+      );
+    }
 
     if (currentFriends.length === 0) {
       return (
@@ -283,7 +303,7 @@ function DashboardContent() {
         keyExtractor={(item) => item.id}
         scrollEnabled={!isQuickWeaveOpen}
         onScroll={scrollHandler}
-        scrollEventThrottle={16}
+        scrollEventThrottle={8} // 120fps (was 16 for 60fps)
         renderItem={({ item, index }) => (
           <AnimatedFriendCardItem
             item={item}
@@ -291,12 +311,18 @@ function DashboardContent() {
             refreshKey={refreshKey}
           />
         )}
-        // Performance optimizations
+        // Performance optimizations for 120fps scrolling
         removeClippedSubviews={true}
-        maxToRenderPerBatch={10}
-        updateCellsBatchingPeriod={50}
-        initialNumToRender={10}
-        windowSize={5}
+        maxToRenderPerBatch={5} // Smaller batches for smoother rendering
+        updateCellsBatchingPeriod={30} // Faster batching (was 50ms)
+        initialNumToRender={8} // Render fewer items initially
+        windowSize={3} // Smaller window for better memory usage
+        getItemLayout={(data, index) => ({
+          length: 72, // Approximate item height (card + margin)
+          offset: 72 * index,
+          index,
+        })}
+        disableIntervalMomentum={true} // Smoother scroll feel
       />
     );
   };
