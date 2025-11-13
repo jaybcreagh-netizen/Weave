@@ -118,21 +118,6 @@ export const YearInMoonsWidget: React.FC = () => {
                   className="text-lg font-bold"
                   style={{ color: colors.foreground, fontFamily: 'Lora_700Bold' }}
                 >
-                  {yearStats.streakDays}
-                </Text>
-                <Text
-                  className="text-[9px]"
-                  style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
-                >
-                  Day Streak
-                </Text>
-              </View>
-
-              <View className="flex-1 p-2.5 rounded-xl" style={{ backgroundColor: colors.muted }}>
-                <Text
-                  className="text-lg font-bold"
-                  style={{ color: colors.foreground, fontFamily: 'Lora_700Bold' }}
-                >
                   {yearStats.totalCheckins}
                 </Text>
                 <Text

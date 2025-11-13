@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, Modal, Pressable, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
-import { startOfDay, subDays } from 'date-fns';
+import { startOfDay, subDays, differenceInDays } from 'date-fns';
 import { Q } from '@nozbe/watermelondb';
 import { useRouter } from 'expo-router';
 import { BookOpen, X, Sparkles, BarChart3, Telescope, Lightbulb, Flame, Battery } from 'lucide-react-native';
@@ -23,7 +23,9 @@ import { SeasonCalculationInput, SocialSeason } from '../../../lib/social-season
 import { calculateCurrentScore } from '../../../lib/weave-engine';
 import { database } from '../../../db';
 import Interaction from '../../../db/models/Interaction';
+import WeeklyReflection from '../../../db/models/WeeklyReflection';
 import { generateSeasonExplanation, type SeasonExplanationData } from '../../../lib/narrative-generator';
+import { SocialSeasonModal } from '../../SocialSeason/SocialSeasonModal';
 
 const WIDGET_CONFIG: HomeWidgetConfig = {
   id: 'social-season',
@@ -71,14 +73,99 @@ export const SocialSeasonWidget: React.FC = () => {
   const [isCalculating, setIsCalculating] = useState(false);
   const [season, setSeason] = useState<SocialSeason>('balanced');
   const [seasonData, setSeasonData] = useState<SeasonExplanationData | null>(null);
-  const [showExplanation, setShowExplanation] = useState(false);
+  const [showModal, setShowModal] = useState(false);
   const [showOverride, setShowOverride] = useState(false);
+  const [activityKnots, setActivityKnots] = useState<boolean[]>([false, false, false, false, false, false, false]);
+  const [weeklyWeaves, setWeeklyWeaves] = useState(0);
+  const [currentStreak, setCurrentStreak] = useState(0);
+  const [networkHealth, setNetworkHealth] = useState(0);
 
   useEffect(() => {
     calculateAndUpdateSeason();
-    const interval = setInterval(calculateAndUpdateSeason, 60 * 60 * 1000);
+    calculateActivityStats();
+    const interval = setInterval(() => {
+      calculateAndUpdateSeason();
+      calculateActivityStats();
+    }, 60 * 60 * 1000);
     return () => clearInterval(interval);
   }, [friends, profile]);
+
+  const calculateActivityStats = async () => {
+    try {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      // Calculate last 7 days activity (M-S, where today is the rightmost)
+      const knots: boolean[] = [];
+      let weaveCount = 0;
+
+      for (let i = 6; i >= 0; i--) {
+        const dayDate = new Date(today);
+        dayDate.setDate(today.getDate() - i);
+        const dayStart = dayDate.getTime();
+        const dayEnd = dayStart + 24 * 60 * 60 * 1000;
+
+        // Check for any activity: weaves, battery check-ins, or journal entries
+        const [weaves, batteryCheckins, journalEntries] = await Promise.all([
+          database
+            .get<Interaction>('interactions')
+            .query(
+              Q.where('created_at', Q.gte(dayStart)),
+              Q.where('created_at', Q.lt(dayEnd))
+            )
+            .fetchCount(),
+          profile?.socialBatteryHistory?.filter(
+            entry => entry.timestamp >= dayStart && entry.timestamp < dayEnd
+          ).length || 0,
+          database
+            .get<WeeklyReflection>('weekly_reflections')
+            .query(
+              Q.where('created_at', Q.gte(dayStart)),
+              Q.where('created_at', Q.lt(dayEnd))
+            )
+            .fetchCount(),
+        ]);
+
+        const hasActivity = weaves > 0 || batteryCheckins > 0 || journalEntries > 0;
+        knots.push(hasActivity);
+
+        // Count completed weaves for the week
+        const completedWeaves = await database
+          .get<Interaction>('interactions')
+          .query(
+            Q.where('status', 'completed'),
+            Q.where('interaction_date', Q.gte(dayStart)),
+            Q.where('interaction_date', Q.lt(dayEnd))
+          )
+          .fetchCount();
+        weaveCount += completedWeaves;
+      }
+
+      setActivityKnots(knots);
+      setWeeklyWeaves(weaveCount);
+
+      // Calculate streak - consecutive days with activity from today backwards
+      let streak = 0;
+      for (let i = knots.length - 1; i >= 0; i--) {
+        if (knots[i]) {
+          streak++;
+        } else {
+          break;
+        }
+      }
+      setCurrentStreak(streak);
+
+      // Calculate network health (average friend scores)
+      if (friends.length > 0) {
+        const avgScore = friends.reduce((sum, f) => sum + calculateCurrentScore(f), 0) / friends.length;
+        setNetworkHealth(Math.round(avgScore));
+      } else {
+        setNetworkHealth(0);
+      }
+    } catch (error) {
+      console.error('Error calculating activity stats:', error);
+    }
+  };
 
   const calculateAndUpdateSeason = async () => {
     if (!profile || friends.length === 0) return;
@@ -196,90 +283,53 @@ export const SocialSeasonWidget: React.FC = () => {
   return (
     <>
       <HomeWidgetBase config={WIDGET_CONFIG} isLoading={isCalculating}>
-        <Pressable onPress={() => setShowExplanation(true)} onLongPress={() => setShowOverride(true)} delayLongPress={800}>
+        <Pressable onPress={() => setShowModal(true)} onLongPress={() => setShowOverride(true)} delayLongPress={800}>
           <LinearGradient colors={gradientColors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.gradient}>
-            {/* Battery Badge */}
-            <View style={styles.batteryBadge}>
-              <Battery size={12} color="#FFFFFF" />
-              <Text style={styles.batteryText}>{batteryLevel}/5</Text>
+            {/* Header */}
+            <View style={styles.header}>
+              <Text style={styles.emoji}>{greeting.emoji}</Text>
+              <Text style={styles.headline}>{getSeasonDisplayName(season)}</Text>
+              <Text style={styles.subtext}>{greeting.subtext}</Text>
             </View>
 
-            {/* Compact Content */}
-            <View style={styles.content}>
-              <Text style={styles.emojiCompact}>{greeting.emoji}</Text>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.headlineCompact}>{getSeasonDisplayName(season)}</Text>
-                <Text style={styles.subtextCompact}>{greeting.subtext}</Text>
-              </View>
+            {/* Activity Knots */}
+            <View style={styles.knotsContainer}>
+              {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, index) => (
+                <View key={index} style={styles.knotColumn}>
+                  <View style={[styles.knot, activityKnots[index] && styles.knotFilled]} />
+                  <Text style={styles.knotLabel}>{day}</Text>
+                </View>
+              ))}
+            </View>
+
+            {/* Stats Row */}
+            <View style={styles.statsRow}>
+              <Text style={styles.statText}>
+                {weeklyWeaves} {weeklyWeaves === 1 ? 'weave' : 'weaves'}
+              </Text>
+              <Text style={styles.statDivider}>·</Text>
+              <Text style={styles.statText}>{currentStreak}-day streak</Text>
+            </View>
+
+            {/* Network Health */}
+            <View style={styles.healthRow}>
+              <Text style={styles.healthLabel}>Network Health</Text>
+              <Text style={styles.healthValue}>{networkHealth}</Text>
             </View>
           </LinearGradient>
         </Pressable>
       </HomeWidgetBase>
 
-      {/* Explanation Modal */}
-      <Modal visible={showExplanation} transparent animationType="fade" onRequestClose={() => setShowExplanation(false)}>
-        <View style={styles.modalOverlay}>
-          <BlurView intensity={isDarkMode ? 40 : 20} style={StyleSheet.absoluteFill} />
-          <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setShowExplanation(false)} />
-
-          <View style={styles.modalContent}>
-            <View style={[styles.modalCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <TouchableOpacity
-                onPress={() => setShowExplanation(false)}
-                style={styles.closeButton}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              >
-                <X size={20} color={colors['muted-foreground']} />
-              </TouchableOpacity>
-
-              {seasonData ? (() => {
-                const explanation = generateSeasonExplanation(seasonData);
-                return (
-                  <>
-                    <Text style={[styles.modalTitle, { color: colors.foreground }]}>{explanation.headline}</Text>
-
-                    {/* Data-driven reasons */}
-                    {explanation.reasons.length > 0 && (
-                      <View style={styles.reasonsContainer}>
-                        <Text style={[styles.reasonsLabel, { color: colors['muted-foreground'] }]}>
-                          Based on:
-                        </Text>
-                        {explanation.reasons.map((reason, index) => (
-                          <View key={index} style={styles.reasonItem}>
-                            <Text style={[styles.reasonBullet, { color: colors.primary }]}>•</Text>
-                            <Text style={[styles.reasonText, { color: colors.foreground }]}>{reason}</Text>
-                          </View>
-                        ))}
-                      </View>
-                    )}
-
-                    <View style={[styles.meaningBox, { backgroundColor: colors.muted }]}>
-                      <Text style={[styles.meaningText, { color: colors.foreground }]}>{explanation.insight}</Text>
-                    </View>
-
-                    <TouchableOpacity onPress={() => setShowExplanation(false)} style={[styles.gotItButton, { backgroundColor: colors.primary }]}>
-                      <Text style={styles.gotItText}>Got it</Text>
-                    </TouchableOpacity>
-                  </>
-                );
-              })() : (
-                <>
-                  <Text style={[styles.modalTitle, { color: colors.foreground }]}>{SEASON_EXPLANATIONS[season].title}</Text>
-                  <Text style={[styles.modalDescription, { color: colors['muted-foreground'] }]}>{SEASON_EXPLANATIONS[season].description}</Text>
-
-                  <View style={[styles.meaningBox, { backgroundColor: colors.muted }]}>
-                    <Text style={[styles.meaningText, { color: colors.foreground }]}>{SEASON_EXPLANATIONS[season].meaning}</Text>
-                  </View>
-
-                  <TouchableOpacity onPress={() => setShowExplanation(false)} style={[styles.gotItButton, { backgroundColor: colors.primary }]}>
-                    <Text style={styles.gotItText}>Got it</Text>
-                  </TouchableOpacity>
-                </>
-              )}
-            </View>
-          </View>
-        </View>
-      </Modal>
+      {/* Social Season Modal */}
+      <SocialSeasonModal
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        season={season}
+        seasonData={seasonData}
+        weeklyWeaves={weeklyWeaves}
+        currentStreak={currentStreak}
+        networkHealth={networkHealth}
+      />
 
       {/* Override Modal */}
       <Modal visible={showOverride} transparent animationType="fade" onRequestClose={() => setShowOverride(false)}>
@@ -336,48 +386,89 @@ const styles = StyleSheet.create({
     marginTop: -20,
     marginBottom: -20,
     padding: 20,
-    minHeight: 100,
-    flexDirection: 'row',
-    alignItems: 'center',
+    minHeight: 180,
+    gap: 16,
   },
-  batteryBadge: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    flexDirection: 'row',
+  header: {
     alignItems: 'center',
     gap: 4,
-    backgroundColor: 'rgba(255, 255, 255, 0.25)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 999,
   },
-  batteryText: {
-    color: '#FFFFFF',
-    fontFamily: 'Inter_600SemiBold',
-    fontSize: 11,
+  emoji: {
+    fontSize: 32,
   },
-  content: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    paddingRight: 60, // Space for battery badge
-  },
-  emojiCompact: {
-    fontSize: 36,
-  },
-  headlineCompact: {
+  headline: {
     fontFamily: 'Lora_700Bold',
-    fontSize: 18,
+    fontSize: 20,
     color: '#FFFFFF',
-    marginBottom: 2,
+    textAlign: 'center',
   },
-  subtextCompact: {
+  subtext: {
     fontFamily: 'Inter_400Regular',
     fontSize: 13,
-    lineHeight: 18,
+    lineHeight: 17,
+    color: 'rgba(255, 255, 255, 0.9)',
+    textAlign: 'center',
+  },
+  knotsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 8,
+  },
+  knotColumn: {
+    alignItems: 'center',
+    gap: 6,
+  },
+  knot: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.4)',
+    backgroundColor: 'transparent',
+  },
+  knotFilled: {
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    borderColor: 'rgba(255, 255, 255, 0.9)',
+  },
+  knotLabel: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 10,
+    color: 'rgba(255, 255, 255, 0.8)',
+  },
+  statsRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+  },
+  statText: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.95)',
+  },
+  statDivider: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.6)',
+  },
+  healthRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  healthLabel: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 13,
     color: 'rgba(255, 255, 255, 0.85)',
+  },
+  healthValue: {
+    fontFamily: 'Lora_700Bold',
+    fontSize: 20,
+    color: '#FFFFFF',
   },
   modalOverlay: {
     flex: 1,
