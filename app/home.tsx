@@ -11,13 +11,11 @@ import { SocialBatterySheet } from '../src/components/home/SocialBatterySheet';
 import { WeeklyReflectionModal } from '../src/components/WeeklyReflection/WeeklyReflectionModal';
 import { YearInMoonsModal } from '../src/components/YearInMoons/YearInMoonsModal';
 import { useUserProfileStore } from '../src/stores/userProfileStore';
-import { useFriendStore } from '../src/stores/friendStore';
 import { getLastReflectionDate, shouldShowReflection } from '../src/lib/notification-manager';
 import { useTutorialStore } from '../src/stores/tutorialStore';
 
 export default function Home() {
-  const { observeProfile, profile, submitBatteryCheckin } = useUserProfileStore();
-  const { observeFriends } = useFriendStore();
+  const { profile, submitBatteryCheckin } = useUserProfileStore();
   const [showBatterySheet, setShowBatterySheet] = useState(false);
   const [showWeeklyReflection, setShowWeeklyReflection] = useState(false);
   const [showYearInMoons, setShowYearInMoons] = useState(false);
@@ -28,28 +26,6 @@ export default function Home() {
   // Listen for URL parameters from notification deep links
   const params = useLocalSearchParams();
   const router = useRouter();
-
-  // Initialize user profile observable on mount
-  useEffect(() => {
-    try {
-      const cleanup = observeProfile();
-      return cleanup;
-    } catch (error) {
-      console.error('[Home] Failed to observe profile:', error);
-      // Optionally show error toast to user
-    }
-  }, []);
-
-  // Initialize friends observable on mount (needed for Life Events widget)
-  useEffect(() => {
-    try {
-      observeFriends();
-      // Note: observeFriends doesn't return cleanup, it manages its own subscription
-    } catch (error) {
-      console.error('[Home] Failed to observe friends:', error);
-      // Optionally show error toast to user
-    }
-  }, []);
 
   // Handle notification deep links via URL parameters
   useEffect(() => {

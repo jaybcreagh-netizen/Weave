@@ -1,14 +1,17 @@
 import { create } from 'zustand';
 import { database, initializeUserProfile } from '../db';
 import UserProfile, { SocialSeason, BatteryHistoryEntry, SeasonHistoryEntry } from '../db/models/UserProfile';
+import { Subscription } from 'rxjs';
 
 interface UserProfileStore {
   // State
   profile: UserProfile | null;
   isLoading: boolean;
+  profileSubscription: Subscription | null;
 
   // Observables
   observeProfile: () => void;
+  unobserveProfile: () => void;
 
   // Social Season Actions
   updateSocialSeason: (season: SocialSeason) => Promise<void>;
@@ -26,8 +29,16 @@ interface UserProfileStore {
 export const useUserProfileStore = create<UserProfileStore>((set, get) => ({
   profile: null,
   isLoading: true,
+  profileSubscription: null,
 
   observeProfile: () => {
+    // Prevent duplicate subscriptions
+    const currentSubscription = get().profileSubscription;
+    if (currentSubscription) {
+      console.log('[UserProfileStore] observeProfile called but subscription already exists');
+      return;
+    }
+
     // Initialize profile if it doesn't exist
     initializeUserProfile();
 
@@ -43,8 +54,16 @@ export const useUserProfileStore = create<UserProfileStore>((set, get) => ({
         });
       });
 
-    // Return cleanup function (though Zustand doesn't use it directly)
-    return () => subscription.unsubscribe();
+    // Store subscription in state
+    set({ profileSubscription: subscription });
+  },
+
+  unobserveProfile: () => {
+    const currentSubscription = get().profileSubscription;
+    if (currentSubscription) {
+      currentSubscription.unsubscribe();
+      set({ profileSubscription: null, profile: null, isLoading: true });
+    }
   },
 
   updateSocialSeason: async (season: SocialSeason) => {

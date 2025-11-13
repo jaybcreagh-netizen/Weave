@@ -19,6 +19,7 @@ import { initializeDataMigrations, initializeUserProfile, initializeUserProgress
 import { appStateManager } from '../src/lib/app-state-manager';
 import { useAppStateChange } from '../src/hooks/useAppState';
 import { useFriendStore } from '../src/stores/friendStore';
+import { useUserProfileStore } from '../src/stores/userProfileStore';
 import { initializeNotifications } from '../src/lib/notification-manager-enhanced';
 import {
   setupNotificationResponseListener,
@@ -122,6 +123,30 @@ export default Sentry.wrap(function RootLayout() {
 
     initializeData();
   }, []);
+
+  // Initialize global data observers (user profile and friends)
+  useEffect(() => {
+    if (!dataLoaded) return;
+
+    console.log('[App] Initializing global data observers');
+
+    // Start observing user profile (app-wide data)
+    const { observeProfile } = useUserProfileStore.getState();
+    observeProfile();
+
+    // Start observing friends list (app-wide data)
+    const { observeFriends } = useFriendStore.getState();
+    observeFriends();
+
+    // Cleanup on app unmount (rarely happens, but for completeness)
+    return () => {
+      console.log('[App] Cleaning up global observers');
+      const { unobserveProfile } = useUserProfileStore.getState();
+      const { unobserveFriends } = useFriendStore.getState();
+      unobserveProfile();
+      unobserveFriends();
+    };
+  }, [dataLoaded]);
 
   // Wait for friends to be loaded before marking UI as mounted
   useEffect(() => {
