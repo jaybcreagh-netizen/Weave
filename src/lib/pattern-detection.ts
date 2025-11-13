@@ -6,6 +6,7 @@
 import { database } from '../db';
 import UserProfile, { BatteryHistoryEntry } from '../db/models/UserProfile';
 import Interaction from '../db/models/Interaction';
+import InteractionFriend from '../db/models/InteractionFriend';
 import FriendModel from '../db/models/Friend';
 import WeeklyReflection from '../db/models/WeeklyReflection';
 import { Q } from '@nozbe/watermelondb';
@@ -20,7 +21,7 @@ export interface Pattern {
   insight: string;
   confidence: 'high' | 'medium' | 'low'; // How confident we are in this pattern
   icon: string; // Emoji
-  data?: any; // Optional supporting data
+  data?: unknown; // Optional supporting data (use type guards before accessing)
 }
 
 interface DayOfWeekData {
@@ -375,14 +376,14 @@ async function detectQualityDepthPattern(weaves: Interaction[]): Promise<Pattern
 
       // Get friend names
       const interactionFriends = await database
-        .get('interaction_friends')
+        .get<InteractionFriend>('interaction_friends')
         .query(Q.where('interaction_id', weave.id))
         .fetch();
 
       const friendNames = await Promise.all(
-        interactionFriends.map(async (ifriend) => {
+        interactionFriends.map(async (ifriend: InteractionFriend) => {
           try {
-            const friendId = (ifriend as any)._raw.friend_id;
+            const friendId = ifriend._raw.friend_id as string;
             const friend = await database.get<FriendModel>('friends').find(friendId);
             return friend.name;
           } catch {
@@ -509,12 +510,12 @@ async function detectArchetypeAffinityPattern(weaves: Interaction[]): Promise<Pa
 
   for (const weave of weaves) {
     const interactionFriends = await database
-      .get('interaction_friends')
+      .get<InteractionFriend>('interaction_friends')
       .query(Q.where('interaction_id', weave.id))
       .fetch();
 
     for (const ifriend of interactionFriends) {
-      const friendId = (ifriend as any)._raw.friend_id;
+      const friendId = ifriend._raw.friend_id as string;
       const archetype = friendArchetypeMap.get(friendId);
       if (!archetype) continue;
 

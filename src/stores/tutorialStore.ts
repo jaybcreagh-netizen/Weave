@@ -15,6 +15,9 @@ interface TutorialState {
   hasSeenSocialBattery: boolean;
   hasSeenInsightsTab: boolean;
 
+  // Helper
+  persistState: (updates: Partial<TutorialState>) => Promise<void>;
+
   // Actions
   completeOnboarding: () => Promise<void>;
   markFirstFriendAdded: () => Promise<void>;
@@ -62,57 +65,57 @@ export const useTutorialStore = create<TutorialState>((set, get) => ({
   },
 
   completeOnboarding: async () => {
-    const { persistState } = get() as any;
+    const { persistState } = get();
     await persistState({ hasCompletedOnboarding: true });
   },
 
   markFirstFriendAdded: async () => {
-    const { persistState } = get() as any;
+    const { persistState } = get();
     await persistState({ hasAddedFirstFriend: true });
   },
 
   markQuickWeaveIntroSeen: async () => {
-    const { persistState } = get() as any;
+    const { persistState } = get();
     await persistState({ hasSeenQuickWeaveIntro: true });
   },
 
   markQuickWeavePerformed: async () => {
-    const { persistState } = get() as any;
+    const { persistState } = get();
     await persistState({ hasPerformedQuickWeave: true });
   },
 
   markIntentionIntroSeen: async () => {
-    const { persistState } = get() as any;
+    const { persistState } = get();
     await persistState({ hasSeenIntentionIntro: true });
   },
 
   markIntentionSet: async () => {
-    const { persistState } = get() as any;
+    const { persistState } = get();
     await persistState({ hasSetIntention: true });
   },
 
   markPlanIntroSeen: async () => {
-    const { persistState } = get() as any;
+    const { persistState } = get();
     await persistState({ hasSeenPlanIntro: true });
   },
 
   markPlanCreated: async () => {
-    const { persistState } = get() as any;
+    const { persistState } = get();
     await persistState({ hasCreatedPlan: true });
   },
 
   markTodaysFocusSeen: async () => {
-    const { persistState } = get() as any;
+    const { persistState } = get();
     await persistState({ hasSeenTodaysFocus: true });
   },
 
   markSocialBatterySeen: async () => {
-    const { persistState } = get() as any;
+    const { persistState } = get();
     await persistState({ hasSeenSocialBattery: true });
   },
 
   markInsightsTabSeen: async () => {
-    const { persistState } = get() as any;
+    const { persistState } = get();
     await persistState({ hasSeenInsightsTab: true });
   },
 

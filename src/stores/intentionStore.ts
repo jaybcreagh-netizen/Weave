@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { Q } from '@nozbe/watermelondb';
 import { database } from '../db';
 import Intention from '../db/models/Intention';
+import IntentionFriend from '../db/models/IntentionFriend';
 import { InteractionCategory } from '../components/types';
 
 interface IntentionData {
@@ -38,7 +39,7 @@ export const useIntentionStore = create<IntentionStore>(() => ({
 
         // Create entries in the join table for each friend
         for (const friendId of data.friendIds) {
-          await database.get('intention_friends').create((intentionFriend: any) => {
+          await database.get<IntentionFriend>('intention_friends').create((intentionFriend: IntentionFriend) => {
             intentionFriend.intentionId = intention.id;
             intentionFriend.friendId = friendId;
           });

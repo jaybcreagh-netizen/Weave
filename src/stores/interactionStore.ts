@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { database } from '../db';
 import { Q } from '@nozbe/watermelondb';
+import { Subscription } from 'rxjs';
 import FriendModel from '../db/models/Friend';
 import { logNewWeave, applyScoresForCompletedPlan } from '../lib/weave-engine';
 import { type InteractionType, type InteractionCategory, type Duration, type Vibe } from '../components/types';
@@ -12,6 +13,16 @@ import { useUIStore } from './uiStore';
 import { deleteWeaveCalendarEvent, updateWeaveCalendarEvent, getCalendarSettings } from '../lib/calendar-service';
 import { getCategoryMetadata } from '../lib/interaction-categories';
 import { recordReflectionChips } from '../lib/adaptive-chips';
+
+/**
+ * Calendar event update payload
+ */
+interface CalendarEventUpdate {
+  title?: string;
+  date?: Date;
+  location?: string;
+  notes?: string;
+}
 
 /**
  * Single reflection chip/sentence
@@ -57,7 +68,7 @@ export interface InteractionFormData {
 }
 
 interface InteractionStore {
-  allInteractions: any[];
+  allInteractions: Interaction[];
   observeAllInteractions: () => void;
   unobserveAllInteractions: () => void;
   addInteraction: (data: InteractionFormData) => Promise<string>;
@@ -78,7 +89,7 @@ interface InteractionStore {
   updatePlanStatus: (interactionId: string, status: 'planned' | 'pending_confirm' | 'completed' | 'cancelled' | 'missed') => Promise<void>;
 }
 
-let allInteractionsSubscription: any = null;
+let allInteractionsSubscription: Subscription | null = null;
 
 export const useInteractionStore = create<InteractionStore>((set, get) => ({
   allInteractions: [],
@@ -91,7 +102,7 @@ export const useInteractionStore = create<InteractionStore>((set, get) => ({
       .query(Q.sortBy('interaction_date', Q.desc))
       .observe()
       .subscribe((interactions) => {
-        set({ allInteractions: interactions as any[] });
+        set({ allInteractions: interactions });
       });
   },
 
@@ -357,7 +368,7 @@ export const useInteractionStore = create<InteractionStore>((set, get) => ({
 
     // Update calendar event if this is a planned interaction with a calendar event
     if (calendarEventId && isPlanned) {
-      const calendarUpdates: any = {};
+      const calendarUpdates: CalendarEventUpdate = {};
 
       // Check if we need to update calendar
       const needsCalendarUpdate =

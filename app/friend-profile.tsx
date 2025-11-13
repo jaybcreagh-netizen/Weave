@@ -32,6 +32,7 @@ import { WeaveIcon } from '../src/components/WeaveIcon';
 import FriendBadgePopup from '../src/components/FriendBadgePopup';
 import { database } from '../src/db';
 import LifeEvent from '../src/db/models/LifeEvent';
+import Intention from '../src/db/models/Intention';
 
 const AnimatedSectionList = Animated.createAnimatedComponent(SectionList);
 
@@ -53,7 +54,7 @@ export default function FriendProfile() {
   const [showPlanWizard, setShowPlanWizard] = useState(false);
   const [showIntentionForm, setShowIntentionForm] = useState(false);
   const [showIntentionsDrawer, setShowIntentionsDrawer] = useState(false);
-  const [selectedIntentionForAction, setSelectedIntentionForAction] = useState<any>(null);
+  const [selectedIntentionForAction, setSelectedIntentionForAction] = useState<Intention | null>(null);
   const [showLifeEventModal, setShowLifeEventModal] = useState(false);
   const [editingLifeEvent, setEditingLifeEvent] = useState<LifeEvent | null>(null);
   const [activeLifeEvents, setActiveLifeEvents] = useState<LifeEvent[]>([]);
@@ -169,7 +170,6 @@ export default function FriendProfile() {
       const events = await database
         .get<LifeEvent>('life_events')
         .query(
-          // @ts-ignore
           Q.where('friend_id', friendId),
           Q.or(
             Q.where('event_date', Q.gte(sixtyDaysAgo)),

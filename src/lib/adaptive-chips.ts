@@ -12,6 +12,8 @@ import { database } from '../db';
 import { Q } from '@nozbe/watermelondb';
 import CustomChip from '../db/models/CustomChip';
 import ChipUsage from '../db/models/ChipUsage';
+import Interaction from '../db/models/Interaction';
+import FriendModel from '../db/models/Friend';
 import { calculateChipFrequency, suggestCustomChip, createCustomChip, type StoryChip, type ChipType } from './story-chips';
 import { type ReflectionChip } from '../components/types';
 
@@ -109,12 +111,12 @@ export async function analyzeCustomNotesForPatterns(
   minOccurrences: number = 3
 ): Promise<{ suggestedText: string; occurrences: number } | null> {
   // Get all interactions with custom notes
-  const interactionsCollection = database.get('interactions');
+  const interactionsCollection = database.get<Interaction>('interactions');
   const interactions = await interactionsCollection.query().fetch();
 
   const customNotes: string[] = [];
 
-  interactions.forEach((interaction: any) => {
+  interactions.forEach((interaction: Interaction) => {
     if (interaction.reflection?.customNotes) {
       customNotes.push(interaction.reflection.customNotes);
     }
@@ -228,9 +230,9 @@ export async function generatePatternInsights(
   const friendUsage = await getFriendChipUsage(friendId);
 
   // Get friend name (we'll need to query the friend)
-  const friendsCollection = database.get('friends');
+  const friendsCollection = database.get<FriendModel>('friends');
   const friend = await friendsCollection.find(friendId);
-  const friendName = (friend as any).firstName || 'them';
+  const friendName = friend.name || 'them';
 
   // Calculate 30-day window
   const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);

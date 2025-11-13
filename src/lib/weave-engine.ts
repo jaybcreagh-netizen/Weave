@@ -5,6 +5,7 @@ import { TierDecayRates, InteractionBaseScores, CategoryBaseScores, DurationModi
 import FriendModel from '../db/models/Friend';
 import InteractionModel from '../db/models/Interaction';
 import InteractionFriend from '../db/models/InteractionFriend';
+import IntentionFriend from '../db/models/IntentionFriend';
 import UserProgress from '../db/models/UserProgress';
 import Intention from '../db/models/Intention';
 import { type InteractionFormData } from '../stores/interactionStore';
@@ -250,14 +251,14 @@ async function checkIntentionFulfillment(
   try {
     // Get active intentions for this friend through join table
     const intentionFriends = await database
-      .get('intention_friends')
+      .get<IntentionFriend>('intention_friends')
       .query(Q.where('friend_id', friendId))
       .fetch();
 
     if (intentionFriends.length === 0) return null;
 
     // Get intention IDs
-    const intentionIds = intentionFriends.map((ifriend: any) => ifriend._raw.intention_id);
+    const intentionIds = intentionFriends.map((ifriend: IntentionFriend) => ifriend._raw.intention_id as string);
 
     // Find active intentions that match the category (or have no specific category)
     const matchingIntentions = await database
@@ -406,13 +407,13 @@ export async function logNewWeave(
 
       // 3b. NEW: Learn interaction patterns for adaptive decay (after 5+ interactions)
       const interactionFriends = await database
-        .get('interaction_friends')
+        .get<InteractionFriend>('interaction_friends')
         .query(Q.where('friend_id', friend.id))
         .fetch();
 
       if (interactionFriends.length >= 5) {
         // Get all completed interactions for this friend
-        const interactionIds = interactionFriends.map(if_ => (if_ as any).interactionId);
+        const interactionIds = interactionFriends.map((if_: InteractionFriend) => if_.interactionId);
         const friendInteractions = await database
           .get<InteractionModel>('interactions')
           .query(
