@@ -22,7 +22,7 @@ import { useTheme } from '../../hooks/useTheme';
 import { useUserProfileStore } from '../../stores/userProfileStore';
 import { MoonPhaseIllustration } from './MoonPhaseIllustration';
 import { PatternsTabContent } from './PatternsTabContent';
-import { ReflectionJourneyContent } from '../ReflectionJourney/ReflectionJourneyContent';
+import { ReflectionJourneyModal } from '../ReflectionJourney/ReflectionJourneyModal';
 import { SocialBatterySheet } from '../home/SocialBatterySheet';
 import {
   getYearMoonData,
@@ -49,6 +49,7 @@ export function YearInMoonsModal({ isOpen, onClose }: YearInMoonsModalProps) {
   const [selectedDay, setSelectedDay] = useState<DayMoonData | null>(null);
   const [batterySheetVisible, setBatterySheetVisible] = useState(false);
   const [dayForBatteryCheckin, setDayForBatteryCheckin] = useState<Date | null>(null);
+  const [showJournalModal, setShowJournalModal] = useState(false);
   const [yearStats, setYearStats] = useState({
     totalCheckins: 0,
     avgBattery: 0,
@@ -114,7 +115,11 @@ export function YearInMoonsModal({ isOpen, onClose }: YearInMoonsModalProps) {
 
   const handleTabChange = (tab: Tab) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setCurrentTab(tab);
+    if (tab === 'journal') {
+      setShowJournalModal(true);
+    } else {
+      setCurrentTab(tab);
+    }
   };
 
   const handleMoonPress = (day: DayMoonData) => {
@@ -237,147 +242,147 @@ export function YearInMoonsModal({ isOpen, onClose }: YearInMoonsModalProps) {
             </View>
           ) : (
             <>
-              {currentTab === 'moons' && (
-                <ScrollView
-                  ref={scrollViewRef}
-                  className="flex-1 px-5 py-4"
-                  showsVerticalScrollIndicator={false}
-                >
-                  {/* Stats Summary */}
-                  <View className="flex-row gap-3 mb-6">
-                    <View className="flex-1 p-3 rounded-xl" style={{ backgroundColor: isDarkMode ? '#2A2E3F' : '#FFF8ED' }}>
-                      <Text
-                        className="text-2xl font-bold mb-0.5"
-                        style={{ color: isDarkMode ? '#F5F1E8' : '#2D3142', fontFamily: 'Lora_700Bold' }}
-                      >
-                        {yearStats.totalCheckins}
-                      </Text>
-                      <Text
-                        className="text-[10px]"
-                        style={{ color: isDarkMode ? '#8A8F9E' : '#6C7589', fontFamily: 'Inter_400Regular' }}
-                      >
-                        Check-ins
-                      </Text>
-                    </View>
-
-                    <View className="flex-1 p-3 rounded-xl" style={{ backgroundColor: isDarkMode ? '#2A2E3F' : '#FFF8ED' }}>
-                      <Text
-                        className="text-2xl font-bold mb-0.5"
-                        style={{ color: isDarkMode ? '#F5F1E8' : '#2D3142', fontFamily: 'Lora_700Bold' }}
-                      >
-                        {yearStats.streakDays}
-                      </Text>
-                      <Text
-                        className="text-[10px]"
-                        style={{ color: isDarkMode ? '#8A8F9E' : '#6C7589', fontFamily: 'Inter_400Regular' }}
-                      >
-                        Day Streak
-                      </Text>
-                    </View>
-
-                    <View className="flex-1 p-3 rounded-xl" style={{ backgroundColor: isDarkMode ? '#2A2E3F' : '#FFF8ED' }}>
-                      <Text
-                        className="text-2xl font-bold mb-0.5"
-                        style={{ color: isDarkMode ? '#F5F1E8' : '#2D3142', fontFamily: 'Lora_700Bold' }}
-                      >
-                        {yearStats.avgBattery}/5
-                      </Text>
-                      <Text
-                        className="text-[10px]"
-                        style={{ color: isDarkMode ? '#8A8F9E' : '#6C7589', fontFamily: 'Inter_400Regular' }}
-                      >
-                        Avg Energy
-                      </Text>
-                    </View>
-                  </View>
-
-                  {/* Moon Calendar - Month by Month */}
-                  {yearData.map((monthData, monthIndex) => (
-                    <Animated.View
-                      key={`${monthData.year}-${monthData.month}`}
-                      entering={FadeIn.delay(monthIndex * 50)}
-                      className="mb-6"
-                      ref={(ref) => {
-                        if (ref) {
-                          monthRefs.current[monthData.month] = ref as any;
-                        }
-                      }}
-                      collapsable={false}
-                    >
-                      {/* Month Header */}
-                      <Text
-                        className="text-base font-semibold mb-3"
-                        style={{ color: isDarkMode ? '#F5F1E8' : '#2D3142', fontFamily: 'Inter_600SemiBold' }}
-                      >
-                        {getMonthName(monthData.month)}
-                      </Text>
-
-                      {/* Week Day Labels */}
-                      <View className="flex-row mb-2">
-                        {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, i) => (
-                          <View
-                            key={i}
-                            style={{ width: moonSize }}
-                            className="items-center"
-                          >
-                            <Text
-                              className="text-[10px]"
-                              style={{ color: isDarkMode ? '#8A8F9E' : '#6C7589', fontFamily: 'Inter_400Regular' }}
-                            >
-                              {day}
-                            </Text>
-                          </View>
-                        ))}
+              <ScrollView
+                ref={scrollViewRef}
+                className="flex-1 px-5 py-4"
+                showsVerticalScrollIndicator={false}
+              >
+                {currentTab === 'moons' && (
+                  <>
+                    {/* Stats Summary */}
+                    <View className="flex-row gap-3 mb-6">
+                      <View className="flex-1 p-3 rounded-xl" style={{ backgroundColor: isDarkMode ? '#2A2E3F' : '#FFF8ED' }}>
+                        <Text
+                          className="text-2xl font-bold mb-0.5"
+                          style={{ color: isDarkMode ? '#F5F1E8' : '#2D3142', fontFamily: 'Lora_700Bold' }}
+                        >
+                          {yearStats.totalCheckins}
+                        </Text>
+                        <Text
+                          className="text-[10px]"
+                          style={{ color: isDarkMode ? '#8A8F9E' : '#6C7589', fontFamily: 'Inter_400Regular' }}
+                        >
+                          Check-ins
+                        </Text>
                       </View>
 
-                      {/* Moon Grid */}
-                      <View className="flex-row flex-wrap">
-                        {/* Padding for first day of month */}
-                        {Array.from({ length: monthData.days[0].date.getDay() }).map((_, i) => (
-                          <View key={`pad-${i}`} style={{ width: moonSize, height: moonSize }} />
-                        ))}
-
-                        {/* Moon days */}
-                        {monthData.days.map((day) => (
-                          <TouchableOpacity
-                            key={day.date.toISOString()}
-                            onPress={() => handleMoonPress(day)}
-                            onLongPress={() => handleMoonLongPress(day)}
-                            className="items-center justify-center mb-2"
-                            style={{ width: moonSize, height: moonSize }}
-                          >
-                            <MoonPhaseIllustration
-                              phase={day.moonPhase}
-                              size={moonSize - 8}
-                              hasCheckin={day.hasCheckin}
-                              batteryLevel={day.batteryLevel}
-                            />
-                            {/* Day number */}
-                            <Text
-                              className="text-[9px] mt-0.5"
-                              style={{
-                                color: day.hasCheckin
-                                  ? (isDarkMode ? '#F5F1E8' : '#2D3142')
-                                  : (isDarkMode ? '#5A5F6E' : '#9CA3AF'),
-                                fontFamily: 'Inter_400Regular',
-                              }}
-                            >
-                              {day.date.getDate()}
-                            </Text>
-                          </TouchableOpacity>
-                        ))}
+                      <View className="flex-1 p-3 rounded-xl" style={{ backgroundColor: isDarkMode ? '#2A2E3F' : '#FFF8ED' }}>
+                        <Text
+                          className="text-2xl font-bold mb-0.5"
+                          style={{ color: isDarkMode ? '#F5F1E8' : '#2D3142', fontFamily: 'Lora_700Bold' }}
+                        >
+                          {yearStats.streakDays}
+                        </Text>
+                        <Text
+                          className="text-[10px]"
+                          style={{ color: isDarkMode ? '#8A8F9E' : '#6C7589', fontFamily: 'Inter_400Regular' }}
+                        >
+                          Day Streak
+                        </Text>
                       </View>
-                    </Animated.View>
-                  ))}
 
-                  {/* End of year spacer */}
-                  <View className="h-8" />
-                </ScrollView>
-              )}
+                      <View className="flex-1 p-3 rounded-xl" style={{ backgroundColor: isDarkMode ? '#2A2E3F' : '#FFF8ED' }}>
+                        <Text
+                          className="text-2xl font-bold mb-0.5"
+                          style={{ color: isDarkMode ? '#F5F1E8' : '#2D3142', fontFamily: 'Lora_700Bold' }}
+                        >
+                          {yearStats.avgBattery}/5
+                        </Text>
+                        <Text
+                          className="text-[10px]"
+                          style={{ color: isDarkMode ? '#8A8F9E' : '#6C7589', fontFamily: 'Inter_400Regular' }}
+                        >
+                          Avg Energy
+                        </Text>
+                      </View>
+                    </View>
 
-              {currentTab === 'journal' && <ReflectionJourneyContent />}
+                    {/* Moon Calendar - Month by Month */}
+                    {yearData.map((monthData, monthIndex) => (
+                      <Animated.View
+                        key={`${monthData.year}-${monthData.month}`}
+                        entering={FadeIn.delay(monthIndex * 50)}
+                        className="mb-6"
+                        ref={(ref) => {
+                          if (ref) {
+                            monthRefs.current[monthData.month] = ref as any;
+                          }
+                        }}
+                        collapsable={false}
+                      >
+                        {/* Month Header */}
+                        <Text
+                          className="text-base font-semibold mb-3"
+                          style={{ color: isDarkMode ? '#F5F1E8' : '#2D3142', fontFamily: 'Inter_600SemiBold' }}
+                        >
+                          {getMonthName(monthData.month)}
+                        </Text>
 
-              {currentTab === 'patterns' && <PatternsTabContent />}
+                        {/* Week Day Labels */}
+                        <View className="flex-row mb-2">
+                          {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, i) => (
+                            <View
+                              key={i}
+                              style={{ width: moonSize }}
+                              className="items-center"
+                            >
+                              <Text
+                                className="text-[10px]"
+                                style={{ color: isDarkMode ? '#8A8F9E' : '#6C7589', fontFamily: 'Inter_400Regular' }}
+                              >
+                                {day}
+                              </Text>
+                            </View>
+                          ))}
+                        </View>
+
+                        {/* Moon Grid */}
+                        <View className="flex-row flex-wrap">
+                          {/* Padding for first day of month */}
+                          {Array.from({ length: monthData.days[0].date.getDay() }).map((_, i) => (
+                            <View key={`pad-${i}`} style={{ width: moonSize, height: moonSize }} />
+                          ))}
+
+                          {/* Moon days */}
+                          {monthData.days.map((day) => (
+                            <TouchableOpacity
+                              key={day.date.toISOString()}
+                              onPress={() => handleMoonPress(day)}
+                              onLongPress={() => handleMoonLongPress(day)}
+                              className="items-center justify-center mb-2"
+                              style={{ width: moonSize, height: moonSize }}
+                            >
+                              <MoonPhaseIllustration
+                                phase={day.moonPhase}
+                                size={moonSize - 8}
+                                hasCheckin={day.hasCheckin}
+                                batteryLevel={day.batteryLevel}
+                              />
+                              {/* Day number */}
+                              <Text
+                                className="text-[9px] mt-0.5"
+                                style={{
+                                  color: day.hasCheckin
+                                    ? (isDarkMode ? '#F5F1E8' : '#2D3142')
+                                    : (isDarkMode ? '#5A5F6E' : '#9CA3AF'),
+                                  fontFamily: 'Inter_400Regular',
+                                }}
+                              >
+                                {day.date.getDate()}
+                              </Text>
+                            </TouchableOpacity>
+                          ))}
+                        </View>
+                      </Animated.View>
+                    ))}
+
+                    {/* End of year spacer */}
+                    <View className="h-8" />
+                  </>
+                )}
+
+                {currentTab === 'patterns' && <PatternsTabContent />}
+              </ScrollView>
             </>
           )}
 
@@ -444,6 +449,12 @@ export function YearInMoonsModal({ isOpen, onClose }: YearInMoonsModalProps) {
         isVisible={batterySheetVisible}
         onSubmit={handleBatteryCheckinSubmit}
         onDismiss={handleBatterySheetDismiss}
+      />
+
+      {/* Journal Modal */}
+      <ReflectionJourneyModal
+        isOpen={showJournalModal}
+        onClose={() => setShowJournalModal(false)}
       />
     </Modal>
   );
