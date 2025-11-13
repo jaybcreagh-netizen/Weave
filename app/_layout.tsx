@@ -34,6 +34,7 @@ import {
   Inter_600SemiBold,
 } from '@expo-google-fonts/inter';
 import * as Sentry from '@sentry/react-native';
+import { initializeAnalytics, trackEvent, trackRetentionMetrics, AnalyticsEvents } from '../src/lib/analytics';
 
 Sentry.init({
   dsn: 'https://1b94b04a0400cdc5a0378c0f485a2435@o4510357596471296.ingest.de.sentry.io/4510357600993360',
@@ -92,9 +93,15 @@ export default Sentry.wrap(function RootLayout() {
         await initializeDataMigrations();
         await initializeUserProfile();
         await initializeUserProgress();
+        // Initialize analytics
+        await initializeAnalytics();
+        // Track app open and retention metrics
+        trackEvent(AnalyticsEvents.APP_OPENED);
+        await trackRetentionMetrics();
         setDataLoaded(true);
       } catch (error) {
         console.error('Failed to initialize app data:', error);
+        Sentry.captureException(error);
         setDataLoaded(true); // Still mark as loaded to prevent infinite loading
       }
     };
@@ -144,6 +151,8 @@ export default Sentry.wrap(function RootLayout() {
     console.log('[App] State changed to:', state);
     if (state === 'active') {
       console.log('[App] App is active - resuming operations');
+      trackEvent(AnalyticsEvents.APP_OPENED);
+      trackRetentionMetrics();
 
       // Trigger smart notification evaluation when app comes to foreground
       // This runs async in the background without blocking the UI
@@ -154,6 +163,7 @@ export default Sentry.wrap(function RootLayout() {
       });
     } else if (state === 'background') {
       console.log('[App] App went to background - pausing heavy operations');
+      trackEvent(AnalyticsEvents.APP_BACKGROUNDED);
     }
   });
 

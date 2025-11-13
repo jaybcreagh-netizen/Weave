@@ -9,6 +9,7 @@ import { switchMap } from 'rxjs/operators';
 import { Q } from '@nozbe/watermelondb';
 import { tierMap } from '../lib/constants';
 import { appStateManager } from '../lib/app-state-manager';
+import { trackEvent, AnalyticsEvents } from '../lib/analytics';
 
 interface FriendStore {
   friends: FriendModel[];
@@ -171,6 +172,15 @@ export const useFriendStore = create<FriendStore>((set, get) => ({
             p.curatorProgress = archetypes.size;
           });
       });
+
+      // Track analytics
+      trackEvent(AnalyticsEvents.FRIEND_ADDED, {
+        archetype: data.archetype,
+        tier: data.tier,
+        source: 'manual',
+        has_photo: !!data.photoUrl,
+        has_notes: !!data.notes,
+      });
     } catch (error) {
       console.error('[addFriend] ERROR: Failed to create friend.', error);
     }
@@ -215,6 +225,13 @@ export const useFriendStore = create<FriendStore>((set, get) => ({
           p.curatorProgress = archetypes.size;
         });
       });
+
+      // Track analytics
+      trackEvent(AnalyticsEvents.FRIEND_BATCH_ADDED, {
+        count: contacts.length,
+        tier: tier,
+        source: 'batch_import',
+      });
     } catch (error) {
       console.error('[batchAddFriends] ERROR: Failed to create friends.', error);
     }
@@ -236,13 +253,22 @@ export const useFriendStore = create<FriendStore>((set, get) => ({
             record.relationshipType = data.relationshipType || null;
         });
     });
+
+    // Track analytics
+    trackEvent(AnalyticsEvents.FRIEND_UPDATED, {
+      archetype: data.archetype,
+      tier: data.tier,
+    });
   },
-  
+
   deleteFriend: async (id: string) => {
     await database.write(async () => {
         const friend = await database.get<FriendModel>('friends').find(id);
         await friend.destroyPermanently();
     });
+
+    // Track analytics
+    trackEvent(AnalyticsEvents.FRIEND_DELETED);
   },
 
   pauseObservers: () => {

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, View, Text, TouchableOpacity, Switch, Alert, ScrollView, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { X, Moon, Sun, Palette, RefreshCw, Bug, BarChart3, Battery, Calendar as CalendarIcon, ChevronRight, Bell, Clock, Trophy, Sparkles } from 'lucide-react-native';
+import { X, Moon, Sun, Palette, RefreshCw, Bug, BarChart3, Battery, Calendar as CalendarIcon, ChevronRight, Bell, Clock, Trophy, Sparkles, MessageSquare, Download, Database, Trash2 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming, runOnJS } from 'react-native-reanimated';
@@ -33,6 +33,9 @@ import {
 import { useTheme } from '../hooks/useTheme';
 import { clearDatabase } from '../db';
 import TrophyCabinetModal from './TrophyCabinetModal';
+import { FeedbackModal } from './FeedbackModal';
+import { exportAndShareData, getExportStats } from '../lib/data-export';
+import { generateStressTestData, clearStressTestData, getDataStats } from '../lib/stress-test-seed-data';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -119,6 +122,9 @@ export function SettingsModal({
 
   // Trophy Cabinet state
   const [showTrophyCabinet, setShowTrophyCabinet] = useState(false);
+
+  // Feedback modal state
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
 
   // Load settings on mount
   useEffect(() => {
@@ -327,6 +333,93 @@ export function SettingsModal({
     } catch (error) {
       console.error('Failed to get analytics:', error);
       Alert.alert('Error', 'Failed to load analytics.');
+    }
+  };
+
+  const handleExportData = async () => {
+    try {
+      const stats = await getExportStats();
+      Alert.alert(
+        'Export Data',
+        `Export your data for backup or analysis.\n\nFriends: ${stats.totalFriends}\nInteractions: ${stats.totalInteractions}\nEstimated size: ${stats.estimatedSizeKB}KB`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Export',
+            onPress: async () => {
+              try {
+                await exportAndShareData();
+              } catch (error) {
+                console.error('Export failed:', error);
+              }
+            },
+          },
+        ]
+      );
+    } catch (error) {
+      console.error('Failed to prepare export:', error);
+      Alert.alert('Error', 'Failed to prepare data export.');
+    }
+  };
+
+  const handleGenerateStressTest = () => {
+    Alert.alert(
+      'Generate Stress Test Data',
+      'This will create 100 test friends with 5 interactions each for performance testing. Continue?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Generate',
+          onPress: async () => {
+            try {
+              await generateStressTestData(100, 5);
+              const stats = await getDataStats();
+              Alert.alert(
+                'Stress Test Data Generated',
+                `Created ${stats.stressTestFriends} test friends!\n\nTotal friends: ${stats.totalFriends}\nTotal interactions: ${stats.totalInteractions}`,
+                [{ text: 'OK' }]
+              );
+            } catch (error) {
+              console.error('Failed to generate stress test data:', error);
+              Alert.alert('Error', 'Failed to generate stress test data.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleClearStressTest = async () => {
+    try {
+      const stats = await getDataStats();
+      if (stats.stressTestFriends === 0) {
+        Alert.alert('No Stress Test Data', 'There is no stress test data to clear.');
+        return;
+      }
+
+      Alert.alert(
+        'Clear Stress Test Data',
+        `This will remove ${stats.stressTestFriends} test friends and their interactions. Continue?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Clear',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                await clearStressTestData();
+                Alert.alert('Cleared', 'Stress test data has been removed.', [{ text: 'OK' }]);
+              } catch (error) {
+                console.error('Failed to clear stress test data:', error);
+                Alert.alert('Error', 'Failed to clear stress test data.');
+              }
+            },
+          },
+        ]
+      );
+    } catch (error) {
+      console.error('Failed to check stress test data:', error);
+      Alert.alert('Error', 'Failed to check stress test data.');
     }
   };
 
@@ -716,6 +809,26 @@ export function SettingsModal({
               className="flex-row items-center justify-between"
               onPress={() => {
                 onClose();
+                setTimeout(() => setShowFeedbackModal(true), 300);
+              }}
+            >
+              <View className="flex-row items-center gap-3">
+                <View className="w-10 h-10 rounded-lg items-center justify-center" style={{ backgroundColor: colors.muted }}>
+                  <MessageSquare color={colors.foreground} size={20} />
+                </View>
+                <View>
+                  <Text className="text-base font-inter-medium" style={{ color: colors.foreground }}>Send Feedback</Text>
+                  <Text className="text-sm font-inter-regular" style={{ color: colors['muted-foreground'] }}>Report bugs or share ideas</Text>
+                </View>
+              </View>
+            </TouchableOpacity>
+
+            <View className="border-t border-border my-2" style={{ borderColor: colors.border }} />
+
+            <TouchableOpacity
+              className="flex-row items-center justify-between"
+              onPress={() => {
+                onClose();
                 setTimeout(() => openTrophyCabinet(), 300);
               }}
             >
@@ -726,6 +839,65 @@ export function SettingsModal({
                 <View>
                   <Text className="text-base font-inter-medium" style={{ color: colors.foreground }}>Trophy Cabinet</Text>
                   <Text className="text-sm font-inter-regular" style={{ color: colors['muted-foreground'] }}>View your achievements</Text>
+                </View>
+              </View>
+            </TouchableOpacity>
+
+            <View className="border-t border-border my-2" style={{ borderColor: colors.border }} />
+
+            {/* Data Export */}
+            <TouchableOpacity
+              className="flex-row items-center justify-between"
+              onPress={handleExportData}
+            >
+              <View className="flex-row items-center gap-3">
+                <View className="w-10 h-10 rounded-lg items-center justify-center" style={{ backgroundColor: colors.muted }}>
+                  <Download color={colors.foreground} size={20} />
+                </View>
+                <View>
+                  <Text className="text-base font-inter-medium" style={{ color: colors.foreground }}>Export Data</Text>
+                  <Text className="text-sm font-inter-regular" style={{ color: colors['muted-foreground'] }}>Backup your data as JSON</Text>
+                </View>
+              </View>
+            </TouchableOpacity>
+
+            <View className="border-t border-border my-2" style={{ borderColor: colors.border }} />
+
+            {/* Debug Section Title */}
+            <Text className="text-xs font-inter-semibold uppercase tracking-wide mb-2" style={{ color: colors['muted-foreground'] }}>
+              Debug Tools
+            </Text>
+
+            {/* Stress Test - Generate */}
+            <TouchableOpacity
+              className="flex-row items-center justify-between"
+              onPress={handleGenerateStressTest}
+            >
+              <View className="flex-row items-center gap-3">
+                <View className="w-10 h-10 rounded-lg items-center justify-center" style={{ backgroundColor: colors.muted }}>
+                  <Database color={colors.foreground} size={20} />
+                </View>
+                <View>
+                  <Text className="text-base font-inter-medium" style={{ color: colors.foreground }}>Generate Test Data</Text>
+                  <Text className="text-sm font-inter-regular" style={{ color: colors['muted-foreground'] }}>Create 100 test friends</Text>
+                </View>
+              </View>
+            </TouchableOpacity>
+
+            <View className="border-t border-border my-2" style={{ borderColor: colors.border }} />
+
+            {/* Stress Test - Clear */}
+            <TouchableOpacity
+              className="flex-row items-center justify-between"
+              onPress={handleClearStressTest}
+            >
+              <View className="flex-row items-center gap-3">
+                <View className="w-10 h-10 rounded-lg items-center justify-center" style={{ backgroundColor: colors.muted }}>
+                  <Trash2 color={colors.foreground} size={20} />
+                </View>
+                <View>
+                  <Text className="text-base font-inter-medium" style={{ color: colors.foreground }}>Clear Test Data</Text>
+                  <Text className="text-sm font-inter-regular" style={{ color: colors['muted-foreground'] }}>Remove stress test friends</Text>
                 </View>
               </View>
             </TouchableOpacity>
@@ -760,6 +932,11 @@ export function SettingsModal({
       <TrophyCabinetModal
         visible={showTrophyCabinet}
         onClose={() => setShowTrophyCabinet(false)}
+      />
+
+      <FeedbackModal
+        visible={showFeedbackModal}
+        onClose={() => setShowFeedbackModal(false)}
       />
     </Modal>
   );

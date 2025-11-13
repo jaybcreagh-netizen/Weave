@@ -14,6 +14,7 @@ import { checkAndAwardGlobalAchievements, checkHiddenAchievements, AchievementUn
 import { analyzeInteractionPattern, calculateToleranceWindow, isPatternReliable } from './pattern-analyzer';
 import { captureInteractionOutcome, measurePendingOutcomes, getLearnedEffectiveness } from './feedback-analyzer';
 import { updateInitiationStats, type Initiator } from './reciprocity-analyzer';
+import { trackEvent, AnalyticsEvents, updateLastInteractionTimestamp } from './analytics';
 
 /**
  * Quality metrics for an interaction based on depth and energy
@@ -563,6 +564,30 @@ export async function logNewWeave(
   measurePendingOutcomes().catch(err =>
     console.warn('Failed to measure pending outcomes:', err)
   );
+
+  // Track analytics
+  if (weaveData.type === 'log') {
+    trackEvent(AnalyticsEvents.INTERACTION_LOGGED, {
+      activity: weaveData.activity,
+      category: weaveData.category,
+      duration: weaveData.duration,
+      vibe: weaveData.vibe,
+      friends_count: friendsToUpdate.length,
+      has_notes: !!weaveData.notes,
+      has_reflection: !!weaveData.reflection,
+      mode: weaveData.mode,
+      status: weaveData.status,
+    });
+    // Update last interaction timestamp for retention tracking
+    updateLastInteractionTimestamp();
+  } else if (weaveData.type === 'plan') {
+    trackEvent(AnalyticsEvents.INTERACTION_PLANNED, {
+      activity: weaveData.activity,
+      category: weaveData.category,
+      friends_count: friendsToUpdate.length,
+      planned_date: weaveData.date.toISOString(),
+    });
+  }
 
   return {
     interactionId,
