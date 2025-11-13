@@ -3,6 +3,7 @@ import { TouchableOpacity, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming, Easing } from 'react-native-reanimated';
 import { useTheme } from '../hooks/useTheme';
+import { WeaveIcon } from './WeaveIcon';
 
 interface InsightsFABProps {
   hasSuggestions: boolean;
@@ -44,7 +45,9 @@ export function InsightsFAB({ hasSuggestions, hasCritical, onClick }: InsightsFA
 
   return (
     <TouchableOpacity onPress={onClick} style={fabStyle}>
-      <Animated.Text style={[styles.icon, iconStyle]}>🧵</Animated.Text>
+      <Animated.View style={iconStyle}>
+        <WeaveIcon size={28} color={colors.foreground} />
+      </Animated.View>
     </TouchableOpacity>
   );
 }

@@ -28,6 +28,7 @@ import { IntentionActionSheet } from '../src/components/IntentionActionSheet';
 import { useIntentionStore } from '../src/stores/intentionStore';
 import { useFriendIntentions } from '../src/hooks/useIntentions';
 import { LifeEventModal } from '../src/components/LifeEventModal';
+import { WeaveIcon } from '../src/components/WeaveIcon';
 import FriendBadgePopup from '../src/components/FriendBadgePopup';
 import { database } from '../src/db';
 import LifeEvent from '../src/db/models/LifeEvent';
@@ -482,7 +483,9 @@ router.back();
                 keyExtractor={(item) => item.id.toString()}
                 ListEmptyComponent={
                     <View className="items-center py-12">
-                        <Text className="text-[40px] mb-4 opacity-50">🧵</Text>
+                        <View className="mb-4 opacity-50">
+                            <WeaveIcon size={40} color={colors['muted-foreground']} />
+                        </View>
                         <Text style={{ color: colors['muted-foreground'] }}>No weaves yet</Text>
                         <Text className="text-xs mt-1 opacity-70" style={{ color: colors['muted-foreground'] }}>Your timeline will grow as you connect</Text>
                     </View>

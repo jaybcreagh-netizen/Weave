@@ -1,8 +1,9 @@
 import '../global.css';
 import { Stack, SplashScreen, useRouter } from 'expo-router';
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { TouchableWithoutFeedback, View } from 'react-native';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
 import { StatusBar } from 'expo-status-bar';
 import * as Notifications from 'expo-notifications';
 import { QuickWeaveProvider } from '../src/components/QuickWeaveProvider';
@@ -10,7 +11,9 @@ import { ToastProvider } from '../src/components/toast_provider';
 import { CardGestureProvider } from '../src/context/CardGestureContext'; // Import the provider
 import { MilestoneCelebration } from '../src/components/MilestoneCelebration';
 import TrophyCabinetModal from '../src/components/TrophyCabinetModal';
+import { LoadingScreen } from '../src/components/LoadingScreen';
 import { useUIStore } from '../src/stores/uiStore';
+import { useTheme } from '../src/hooks/useTheme';
 import { initializeDataMigrations, initializeUserProfile, initializeUserProgress } from '../src/db';
 import { appStateManager } from '../src/lib/app-state-manager';
 import { useAppStateChange } from '../src/hooks/useAppState';
@@ -34,6 +37,7 @@ import {
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
+  const { colors } = useTheme();
   const isDarkMode = useUIStore((state) => state.isDarkMode);
   const milestoneCelebrationData = useUIStore((state) => state.milestoneCelebrationData);
   const hideMilestoneCelebration = useUIStore((state) => state.hideMilestoneCelebration);
@@ -47,6 +51,12 @@ export default function RootLayout() {
     Inter_600SemiBold,
   });
 
+  const [dataLoaded, setDataLoaded] = useState(false);
+  const [uiMounted, setUiMounted] = useState(false);
+
+  // Animated opacity for smooth fade-in of content
+  const contentOpacity = useSharedValue(0);
+
   useEffect(() => {
     if (fontsLoaded || fontError) {
       // Hide the splash screen after the fonts have loaded or an error occurred
@@ -56,16 +66,57 @@ export default function RootLayout() {
 
   // Run data migrations and initialize user profile on app startup
   useEffect(() => {
-    initializeDataMigrations().catch((error) => {
-      console.error('Failed to run data migrations:', error);
-    });
-    initializeUserProfile().catch((error) => {
-      console.error('Failed to initialize user profile:', error);
-    });
-    initializeUserProgress().catch((error) => {
-      console.error('Failed to initialize user progress:', error);
-    });
+    const initializeData = async () => {
+      try {
+        await initializeDataMigrations();
+        await initializeUserProfile();
+        await initializeUserProgress();
+        setDataLoaded(true);
+      } catch (error) {
+        console.error('Failed to initialize app data:', error);
+        setDataLoaded(true); // Still mark as loaded to prevent infinite loading
+      }
+    };
+
+    initializeData();
   }, []);
+
+  // Wait for friends to be loaded before marking UI as mounted
+  useEffect(() => {
+    if (!dataLoaded) return;
+
+    const checkFriendsLoaded = () => {
+      const friends = useFriendStore.getState().friends;
+      // Mark UI as mounted once we have friends data (even if empty)
+      // Give a small delay to ensure lists are rendered
+      if (friends !== null) {
+        setTimeout(() => {
+          setUiMounted(true);
+        }, 300); // Small delay to ensure UI is painted
+      }
+    };
+
+    // Subscribe to friend store
+    const unsubscribe = useFriendStore.subscribe(checkFriendsLoaded);
+    checkFriendsLoaded(); // Check immediately
+
+    return () => unsubscribe();
+  }, [dataLoaded]);
+
+  // Fade in content when UI is mounted
+  useEffect(() => {
+    if (uiMounted) {
+      // Delay slightly to overlap with loading screen fade out
+      contentOpacity.value = withTiming(1, {
+        duration: 800,
+        easing: Easing.out(Easing.ease),
+      });
+    }
+  }, [uiMounted]);
+
+  const contentStyle = useAnimatedStyle(() => ({
+    opacity: contentOpacity.value,
+  }));
 
   // Monitor app state changes for logging
   useAppStateChange((state) => {
@@ -133,27 +184,33 @@ export default function RootLayout() {
   }
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }} onTouchStart={handleUserActivity}>
+    <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.background }} onTouchStart={handleUserActivity}>
       <StatusBar style={isDarkMode ? 'light' : 'dark'} />
       {/* Wrap with CardGestureProvider so both Dashboard and Overlay can access it */}
       <CardGestureProvider>
         <QuickWeaveProvider>
           <ToastProvider>
-            <Stack screenOptions={{ headerShown: false }}>
-              {/* The Stack navigator will automatically discover all files in the app directory */}
-            </Stack>
+            {/* Animated wrapper for smooth fade-in */}
+            <Animated.View style={[{ flex: 1 }, contentStyle]}>
+              <Stack screenOptions={{ headerShown: false }}>
+                {/* The Stack navigator will automatically discover all files in the app directory */}
+              </Stack>
 
-            {/* Global Milestone Celebration Modal */}
-            <MilestoneCelebration
-              visible={milestoneCelebrationData !== null}
-              milestone={milestoneCelebrationData}
-              onClose={hideMilestoneCelebration}
-            />
+              {/* Global Milestone Celebration Modal */}
+              <MilestoneCelebration
+                visible={milestoneCelebrationData !== null}
+                milestone={milestoneCelebrationData}
+                onClose={hideMilestoneCelebration}
+              />
 
-            <TrophyCabinetModal
-              visible={isTrophyCabinetOpen}
-              onClose={closeTrophyCabinet}
-            />
+              <TrophyCabinetModal
+                visible={isTrophyCabinetOpen}
+                onClose={closeTrophyCabinet}
+              />
+            </Animated.View>
+
+            {/* Loading Screen - shows until data is loaded AND UI is mounted */}
+            <LoadingScreen visible={fontsLoaded && (!dataLoaded || !uiMounted)} />
           </ToastProvider>
         </QuickWeaveProvider>
       </CardGestureProvider>
