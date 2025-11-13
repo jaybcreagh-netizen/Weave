@@ -21,6 +21,7 @@ export const AnalyticsEvents = {
   ONBOARDING_STARTED: 'onboarding_started',
   ONBOARDING_COMPLETED: 'onboarding_completed',
   ONBOARDING_SKIPPED: 'onboarding_skipped',
+  ONBOARDING_STEP_COMPLETED: 'onboarding_step_completed',
 
   // Friends
   FRIEND_ADDED: 'friend_added',
@@ -47,6 +48,12 @@ export const AnalyticsEvents = {
   USER_RETURNED: 'user_returned',
   USER_AT_RISK: 'user_at_risk', // 3+ days no interaction
   USER_CHURNED: 'user_churned', // 5+ days no app open
+
+  // Retention Notifications
+  REENGAGEMENT_NOTIFICATION_SENT: 'reengagement_notification_sent',
+  DECAY_WARNING_SENT: 'decay_warning_sent',
+  MILESTONE_REACHED: 'milestone_reached',
+  NOTIFICATION_ENGAGEMENT: 'notification_engagement',
 
   // Features
   CALENDAR_INTEGRATION_ENABLED: 'calendar_integration_enabled',

@@ -523,6 +523,13 @@ export async function initializeNotifications(): Promise<void> {
     cleanupOldDeepeningNudges(),
   ]);
 
+  // Run retention checks (at-risk users, decay warnings)
+  import('./retention-notification-manager').then(({ runRetentionChecks }) => {
+    runRetentionChecks().catch(error => {
+      console.error('[Notifications] Error running retention checks:', error);
+    });
+  });
+
   // Mark as initialized
   await markAsInitialized();
 

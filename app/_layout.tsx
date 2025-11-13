@@ -168,6 +168,13 @@ export default Sentry.wrap(function RootLayout() {
       trackEvent(AnalyticsEvents.APP_OPENED);
       trackRetentionMetrics();
 
+      // Record app open for retention tracking
+      import('../src/lib/retention-notification-manager').then(({ recordAppOpen }) => {
+        recordAppOpen().catch((error) => {
+          console.error('[App] Error recording app open:', error);
+        });
+      });
+
       // Trigger smart notification evaluation when app comes to foreground
       // This runs async in the background without blocking the UI
       import('../src/lib/smart-notification-scheduler').then(({ evaluateAndScheduleSmartNotifications }) => {
@@ -194,12 +201,17 @@ export default Sentry.wrap(function RootLayout() {
     };
   }, []);
 
-  // Initialize all notification systems (battery, events, deepening, reflection)
+  // Initialize all notification systems (battery, events, deepening, reflection, retention)
   useEffect(() => {
     const setupNotifications = async () => {
       try {
         await initializeNotifications();
         console.log('[App] All notification systems initialized');
+
+        // Initialize retention system (onboarding, re-engagement, decay warnings)
+        const { initializeRetentionSystem } = await import('../src/lib/retention-notification-manager');
+        await initializeRetentionSystem();
+        console.log('[App] Retention system initialized');
 
         // Check if app was launched via notification
         await handleNotificationOnLaunch();

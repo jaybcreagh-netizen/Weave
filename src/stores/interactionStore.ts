@@ -122,6 +122,19 @@ export const useInteractionStore = create<InteractionStore>((set, get) => ({
       // 2. Pass the full form data to the engine. The engine is the expert.
       const { interactionId, badgeUnlocks, achievementUnlocks } = await logNewWeave(friends, data, database);
 
+      // 2.5. Record weave for retention tracking and cancel decay warnings
+      import('../lib/retention-notification-manager').then(async ({ recordWeaveLogged, cancelDecayWarning, checkMilestoneCelebrations }) => {
+        await recordWeaveLogged();
+        // Cancel decay warnings for all friends involved in this weave
+        for (const friend of friends) {
+          await cancelDecayWarning(friend.id);
+        }
+        // Check for milestone celebrations (weave count, streaks)
+        await checkMilestoneCelebrations();
+      }).catch(error => {
+        console.error('[InteractionStore] Error in retention tracking:', error);
+      });
+
       // 3. Record chip usage for adaptive suggestions (if reflection chips exist)
       if (data.reflection?.chips && data.reflection.chips.length > 0) {
         const friendId = friends.length === 1 ? friends[0].id : undefined;

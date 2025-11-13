@@ -16,13 +16,26 @@ export interface NotificationData {
     | 'deepening-nudge'
     | 'friend-suggestion'
     | 'portfolio-insight'
-    | 'life-event';
+    | 'life-event'
+    | 'onboarding'
+    | 'reengagement'
+    | 'decay-warning'
+    | 'milestone';
 
   // Optional navigation data
   friendId?: string;
   friendName?: string;
   interactionId?: string;
   suggestionId?: string;
+
+  // Retention-specific data
+  step?: string;
+  reason?: string;
+  currentScore?: number;
+  milestone?: string;
+  count?: number;
+  days?: number;
+  onboarding?: boolean;
 }
 
 /**
@@ -43,11 +56,11 @@ export function handleNotificationResponse(
   // Handle different notification types
   switch (data.type) {
     case 'battery-checkin':
-      handleBatteryCheckinNotification();
+      handleBatteryCheckinNotification(data);
       break;
 
     case 'weekly-reflection':
-      handleWeeklyReflectionNotification();
+      handleWeeklyReflectionNotification(data);
       break;
 
     case 'event-reminder':
@@ -70,6 +83,22 @@ export function handleNotificationResponse(
       handleLifeEventNotification(data);
       break;
 
+    case 'onboarding':
+      handleOnboardingNotification(data);
+      break;
+
+    case 'reengagement':
+      handleReengagementNotification(data);
+      break;
+
+    case 'decay-warning':
+      handleDecayWarningNotification(data);
+      break;
+
+    case 'milestone':
+      handleMilestoneNotification(data);
+      break;
+
     default:
       console.warn('[Notifications] Unknown notification type:', data.type);
   }
@@ -78,7 +107,7 @@ export function handleNotificationResponse(
 /**
  * Navigate to home tab and trigger battery check-in modal
  */
-function handleBatteryCheckinNotification(): void {
+function handleBatteryCheckinNotification(data: NotificationData): void {
   // Navigate to home tab
   router.push('/(tabs)/home');
 
@@ -87,12 +116,17 @@ function handleBatteryCheckinNotification(): void {
   setTimeout(() => {
     router.setParams({ showBattery: 'true' });
   }, 300);
+
+  // Track engagement
+  import('../lib/retention-notification-manager').then(({ trackNotificationEngagement }) => {
+    trackNotificationEngagement('opened');
+  });
 }
 
 /**
  * Navigate to home tab and trigger weekly reflection modal
  */
-function handleWeeklyReflectionNotification(): void {
+function handleWeeklyReflectionNotification(data: NotificationData): void {
   // Navigate to home tab
   router.push('/(tabs)/home');
 
@@ -100,6 +134,11 @@ function handleWeeklyReflectionNotification(): void {
   setTimeout(() => {
     router.setParams({ showReflection: 'true' });
   }, 300);
+
+  // Track engagement
+  import('../lib/retention-notification-manager').then(({ trackNotificationEngagement }) => {
+    trackNotificationEngagement('opened');
+  });
 }
 
 /**
@@ -183,6 +222,112 @@ function handleLifeEventNotification(data: NotificationData): void {
     // Fallback to friends tab
     router.push('/(tabs)/friends');
   }
+}
+
+/**
+ * Handle onboarding notification tap
+ */
+function handleOnboardingNotification(data: NotificationData): void {
+  // Complete the onboarding step
+  if (data.step) {
+    import('../lib/retention-notification-manager').then(({ completeOnboardingStep }) => {
+      completeOnboardingStep(data.step!);
+    });
+  }
+
+  // Navigate based on step
+  if (data.step === 'first-weave') {
+    // Open Quick Weave overlay
+    router.push('/(tabs)/home');
+    setTimeout(() => {
+      router.setParams({ openQuickWeave: 'true' });
+    }, 300);
+  } else if (data.step === 'learn-archetypes' || data.step === 'learn-planning') {
+    // Navigate to friends tab
+    router.push('/(tabs)/friends');
+  } else {
+    // Default to home
+    router.push('/(tabs)/home');
+  }
+
+  // Track engagement
+  import('../lib/retention-notification-manager').then(({ trackNotificationEngagement }) => {
+    trackNotificationEngagement('opened');
+  });
+}
+
+/**
+ * Handle re-engagement notification tap
+ */
+function handleReengagementNotification(data: NotificationData): void {
+  // Navigate to home or friends tab depending on reason
+  if (data.reason === 'weave-absence' && data.friendId) {
+    // Take them directly to the friend who needs attention
+    router.push({
+      pathname: '/friend-profile',
+      params: { id: data.friendId },
+    });
+  } else if (data.reason === 'weave-absence') {
+    // Show friends list
+    router.push('/(tabs)/friends');
+  } else {
+    // General re-engagement - show home
+    router.push('/(tabs)/home');
+  }
+
+  // Track engagement
+  import('../lib/retention-notification-manager').then(({ trackNotificationEngagement }) => {
+    trackNotificationEngagement('opened');
+  });
+}
+
+/**
+ * Handle decay warning notification tap
+ */
+function handleDecayWarningNotification(data: NotificationData): void {
+  if (data.friendId) {
+    // Navigate to friend profile
+    router.push({
+      pathname: '/friend-profile',
+      params: { id: data.friendId },
+    });
+
+    // Cancel the warning since user is engaging
+    import('../lib/retention-notification-manager').then(({ cancelDecayWarning }) => {
+      cancelDecayWarning(data.friendId!);
+    });
+  } else {
+    // Fallback to friends tab
+    router.push('/(tabs)/friends');
+  }
+
+  // Track engagement
+  import('../lib/retention-notification-manager').then(({ trackNotificationEngagement }) => {
+    trackNotificationEngagement('opened');
+  });
+}
+
+/**
+ * Handle milestone notification tap
+ */
+function handleMilestoneNotification(data: NotificationData): void {
+  // Show a celebration view - for now navigate to home with a flag
+  router.push('/(tabs)/home');
+
+  // Could add a URL param to trigger celebration modal
+  if (data.milestone && data.count) {
+    setTimeout(() => {
+      router.setParams({
+        celebrateMilestone: data.milestone,
+        milestoneValue: data.count.toString(),
+      });
+    }, 300);
+  }
+
+  // Track engagement
+  import('../lib/retention-notification-manager').then(({ trackNotificationEngagement }) => {
+    trackNotificationEngagement('opened');
+  });
 }
 
 /**
