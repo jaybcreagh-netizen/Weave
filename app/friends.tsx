@@ -47,7 +47,7 @@ const getTierBackground = (tier: 'inner' | 'close' | 'community', isDarkMode: bo
   return `${color}${opacity}`;
 };
 
-const AnimatedFriendCardItem = ({
+const AnimatedFriendCardItem = React.memo(({
   item,
   index,
   refreshKey,
@@ -81,13 +81,19 @@ const AnimatedFriendCardItem = ({
 
   return (
     <Animated.View
-      style={[animatedStyle, { marginBottom: 12 }]}
-      key={`${item.id}-${refreshKey}`}
-    >
+      style={[animatedStyle, { marginBottom: 12 }]]>
       <FriendListRow friend={item} animatedRef={animatedRef} />
     </Animated.View>
   );
-};
+}, (prevProps, nextProps) => {
+  // Custom comparison: only re-render if friend data actually changed
+  return (
+    prevProps.item.id === nextProps.item.id &&
+    prevProps.item.weaveScore === nextProps.item.weaveScore &&
+    prevProps.item.lastUpdated === nextProps.item.lastUpdated &&
+    prevProps.refreshKey === nextProps.refreshKey
+  );
+});
 
 function DashboardContent() {
   const router = useRouter();
@@ -163,7 +169,7 @@ function DashboardContent() {
       acc[tier].push(friend);
       return acc;
     }, { inner: [], close: [], community: [] } as Record<'inner' | 'close' | 'community', FriendModel[]>);
-  }, [allFriends, allFriends.map(f => f.dunbarTier).join(',')]);  // Add tier dependency
+  }, [allFriends]);  // Add tier dependency
 
   const [activeTier, setActiveTier] = React.useState<'inner' | 'close' | 'community'>('inner');
   const scrollViewRef = React.useRef<ScrollView>(null);
@@ -274,7 +280,7 @@ function DashboardContent() {
         style={{ width: screenWidth, backgroundColor: tierBgColor }}
         contentContainerStyle={styles.tierScrollView}
         data={currentFriends}
-        keyExtractor={(item) => `${item.id}-${refreshKey}`}
+        keyExtractor={(item) => item.id}
         scrollEnabled={!isQuickWeaveOpen}
         onScroll={scrollHandler}
         scrollEventThrottle={16}
@@ -285,6 +291,12 @@ function DashboardContent() {
             refreshKey={refreshKey}
           />
         )}
+        // Performance optimizations
+        removeClippedSubviews={true}
+        maxToRenderPerBatch={10}
+        updateCellsBatchingPeriod={50}
+        initialNumToRender={10}
+        windowSize={5}
       />
     );
   };

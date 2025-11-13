@@ -43,7 +43,7 @@ interface FriendListRowProps {
   variant?: 'default' | 'full';
 }
 
-export function FriendListRow({ friend, animatedRef, variant = 'default' }: FriendListRowProps) {
+export const FriendListRow = React.memo(({ friend, animatedRef, variant = 'default' }: FriendListRowProps) => {
   if (!friend) return null;
 
   const { id, name, archetype, isDormant = false, photoUrl, relationshipType } = friend;
@@ -55,10 +55,10 @@ export function FriendListRow({ friend, animatedRef, variant = 'default' }: Frie
   const { setArchetypeModal, justNurturedFriendId, setJustNurturedFriendId } = useUIStore();
   const { activeCardId } = useCardGesture();
 
-  // Calculate current score with decay
+  // Calculate current score with decay - memoized by ID to avoid recalculation
   const weaveScore = useMemo(
     () => calculateCurrentScore(friend),
-    [friend, friend.lastUpdated]
+    [friend.id, friend.weaveScore, friend.lastUpdated]
   );
 
   // Determine gradient colors based on score
@@ -88,7 +88,7 @@ export function FriendListRow({ friend, animatedRef, variant = 'default' }: Frie
     setImageError(false);
   }, [photoUrl]);
 
-  // Update intelligent status line
+  // Update intelligent status line with debouncing to prevent excessive calls
   useEffect(() => {
     // Special handling for Unknown archetype
     if (archetype === 'Unknown') {
@@ -96,13 +96,18 @@ export function FriendListRow({ friend, animatedRef, variant = 'default' }: Frie
       return;
     }
 
-    generateIntelligentStatusLine(friend)
-      .then(status => setStatusLine(status))
-      .catch(error => {
-        console.error('Error generating status line:', error);
-        setStatusLine({ text: archetypeData[archetype]?.essence || '' });
-      });
-  }, [friend, friend.lastUpdated, friend.weaveScore, archetype]);
+    // Debounce status line generation - only run after 300ms of inactivity
+    const timeoutId = setTimeout(() => {
+      generateIntelligentStatusLine(friend)
+        .then(status => setStatusLine(status))
+        .catch(error => {
+          console.error('Error generating status line:', error);
+          setStatusLine({ text: archetypeData[archetype]?.essence || '' });
+        });
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [friend.id, friend.lastUpdated.getTime(), friend.weaveScore, archetype]);
 
   // "Just Nurtured" glow effect
   useEffect(() => {
@@ -295,4 +300,14 @@ export function FriendListRow({ friend, animatedRef, variant = 'default' }: Frie
       </View>
     </Animated.View>
   );
-}
+}, (prevProps, nextProps) => {
+  // Custom comparison: only re-render if relevant friend data changed
+  return (
+    prevProps.friend.id === nextProps.friend.id &&
+    prevProps.friend.weaveScore === nextProps.friend.weaveScore &&
+    prevProps.friend.lastUpdated.getTime() === nextProps.friend.lastUpdated.getTime() &&
+    prevProps.friend.archetype === nextProps.friend.archetype &&
+    prevProps.friend.photoUrl === nextProps.friend.photoUrl &&
+    prevProps.variant === nextProps.variant
+  );
+});
