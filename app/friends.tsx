@@ -1,4 +1,4 @@
-import React, { useMemo, useEffect, useState } from 'react';
+import React, { useMemo, useEffect, useState, useRef, useCallback } from 'react';
 import { View, Text, ScrollView, Dimensions, StyleSheet, FlatList } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withDelay, withTiming, useAnimatedRef, runOnUI } from 'react-native-reanimated';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -29,6 +29,8 @@ import { useIntentionStore } from '../src/stores/intentionStore';
 import { IntentionActionSheet } from '../src/components/IntentionActionSheet';
 import Intention from '../src/db/models/Intention';
 import { tierColors } from '../src/lib/constants';
+import { SimpleTutorialTooltip } from '../src/components/SimpleTutorialTooltip';
+import { useTutorialStore } from '../src/stores/tutorialStore';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -45,7 +47,15 @@ const getTierBackground = (tier: 'inner' | 'close' | 'community', isDarkMode: bo
   return `${color}${opacity}`;
 };
 
-const AnimatedFriendCardItem = ({ item, index, refreshKey }: { item: FriendModel; index: number; refreshKey: number }) => {
+const AnimatedFriendCardItem = ({
+  item,
+  index,
+  refreshKey,
+}: {
+  item: FriendModel;
+  index: number;
+  refreshKey: number;
+}) => {
   const { registerRef, unregisterRef } = useCardGesture();
   const animatedRef = useAnimatedRef<Animated.View>();
 
@@ -70,7 +80,10 @@ const AnimatedFriendCardItem = ({ item, index, refreshKey }: { item: FriendModel
   }));
 
   return (
-    <Animated.View style={[animatedStyle, { marginBottom: 12 }]} key={`${item.id}-${refreshKey}`}>
+    <Animated.View
+      style={[animatedStyle, { marginBottom: 12 }]}
+      key={`${item.id}-${refreshKey}`}
+    >
       <FriendListRow friend={item} animatedRef={animatedRef} />
     </Animated.View>
   );
@@ -92,6 +105,16 @@ function DashboardContent() {
 
   const [refreshKey, setRefreshKey] = React.useState(0);
 
+  // Circle dashboard tutorial state - comprehensive approach
+  const hasAddedFirstFriend = useTutorialStore((state) => state.hasAddedFirstFriend);
+  const hasSeenQuickWeaveIntro = useTutorialStore((state) => state.hasSeenQuickWeaveIntro);
+  const hasPerformedQuickWeave = useTutorialStore((state) => state.hasPerformedQuickWeave);
+  const markQuickWeaveIntroSeen = useTutorialStore((state) => state.markQuickWeaveIntroSeen);
+  const markQuickWeavePerformed = useTutorialStore((state) => state.markQuickWeavePerformed);
+
+  const [showCircleTutorial, setShowCircleTutorial] = useState(false);
+  const [circleTutorialStep, setCircleTutorialStep] = useState(0);
+
   useFocusEffect(
     React.useCallback(() => {
       // Reset activeCardId when screen gains focus to prevent stuck scales
@@ -110,6 +133,26 @@ function DashboardContent() {
       checkAndApplyDormancy(allFriends);
     }
   }, [allFriends]);
+
+  // Show Circle dashboard tutorial when user has added first friend but hasn't seen intro
+  useEffect(() => {
+    if (hasAddedFirstFriend && !hasSeenQuickWeaveIntro && !hasPerformedQuickWeave && allFriends.length > 0) {
+      // Wait a brief moment for the UI to settle
+      const timer = setTimeout(() => {
+        setShowCircleTutorial(true);
+        setCircleTutorialStep(0);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [hasAddedFirstFriend, hasSeenQuickWeaveIntro, hasPerformedQuickWeave, allFriends.length]);
+
+  // Watch for QuickWeave being opened - this means user performed the gesture
+  useEffect(() => {
+    if (showCircleTutorial && circleTutorialStep === 1 && isQuickWeaveOpen) {
+      // User successfully performed QuickWeave gesture!
+      handleCircleTutorialComplete();
+    }
+  }, [isQuickWeaveOpen, showCircleTutorial, circleTutorialStep]);
 
   const friends = useMemo(() => {
     const processedFriends = [...allFriends]
@@ -130,6 +173,29 @@ function DashboardContent() {
     setActiveTier(tier);
     scrollViewRef.current?.scrollTo({ x: tiers.indexOf(tier) * screenWidth, animated: true });
   };
+
+  // Circle dashboard tutorial handlers
+  const handleCircleTutorialNext = useCallback(() => {
+    if (circleTutorialStep === 0) {
+      // Move from "tap to open" to "press and hold" step
+      setCircleTutorialStep(1);
+    } else {
+      // Tutorial complete - user will perform gesture or skip
+      setShowCircleTutorial(false);
+    }
+  }, [circleTutorialStep]);
+
+  const handleCircleTutorialComplete = useCallback(async () => {
+    await markQuickWeaveIntroSeen();
+    await markQuickWeavePerformed();
+    setShowCircleTutorial(false);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  }, [markQuickWeaveIntroSeen, markQuickWeavePerformed]);
+
+  const handleCircleTutorialSkip = useCallback(async () => {
+    await markQuickWeaveIntroSeen();
+    setShowCircleTutorial(false);
+  }, [markQuickWeaveIntroSeen]);
 
   const onAddFriend = () => setAddFriendMenuVisible(true);
 
@@ -213,7 +279,11 @@ function DashboardContent() {
         onScroll={scrollHandler}
         scrollEventThrottle={16}
         renderItem={({ item, index }) => (
-          <AnimatedFriendCardItem item={item} index={index} refreshKey={refreshKey} />
+          <AnimatedFriendCardItem
+            item={item}
+            index={index}
+            refreshKey={refreshKey}
+          />
         )}
       />
     );
@@ -311,6 +381,30 @@ function DashboardContent() {
         onAddSingle={handleAddSingle}
         onAddBatch={handleAddBatch}
       />
+
+      {/* Circle Dashboard Tutorial Tooltips */}
+      {showCircleTutorial && circleTutorialStep === 0 && (
+        <SimpleTutorialTooltip
+          visible={true}
+          title="Your Circle dashboard"
+          description="Tap any friend card to open their profile, where you can set intentions, plan future weaves, or log past moments in detail."
+          onNext={handleCircleTutorialNext}
+          onSkip={handleCircleTutorialSkip}
+          currentStep={0}
+          totalSteps={2}
+        />
+      )}
+
+      {showCircleTutorial && circleTutorialStep === 1 && (
+        <SimpleTutorialTooltip
+          visible={true}
+          title="QuickWeave: The fast way"
+          description="For quick logging, press and hold any friend card. A radial menu will appear with interaction options."
+          onSkip={handleCircleTutorialSkip}
+          currentStep={1}
+          totalSteps={2}
+        />
+      )}
     </View>
   );
 }

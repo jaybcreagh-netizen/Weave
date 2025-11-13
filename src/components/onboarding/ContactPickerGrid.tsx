@@ -12,7 +12,7 @@ interface ContactPickerGridProps {
   onAddManually?: () => void;
 }
 
-const ContactItem = ({
+const ContactItem = React.memo(({
   item,
   isSelected,
   onSelect
@@ -22,6 +22,7 @@ const ContactItem = ({
   onSelect: () => void;
 }) => {
   const [imageError, setImageError] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(false);
 
   const getInitials = (name: string) => {
     if (!name) return '?';
@@ -44,19 +45,34 @@ const ContactItem = ({
   };
 
   const colorClasses = getAvatarColor(item.name || '');
+  const shouldShowImage = item.imageAvailable && item.image && !imageError;
 
   return (
     <TouchableOpacity onPress={onSelect} className="items-center p-3 w-1/3">
       <View className="relative">
         <View
           className={`w-20 h-20 rounded-full justify-center items-center ${isSelected ? 'bg-emerald-500 border-4 border-emerald-500' : colorClasses}`}>
-          {item.imageAvailable && item.image && !imageError ? (
-            <Image
-              source={{ uri: normalizeContactImageUri(item.image.uri) }}
-              className="w-full h-full rounded-full"
-              resizeMode="cover"
-              onError={() => setImageError(true)}
-            />
+          {shouldShowImage ? (
+            <>
+              <Image
+                source={{ uri: normalizeContactImageUri(item.image.uri) }}
+                className="w-full h-full rounded-full"
+                resizeMode="cover"
+                onError={() => setImageError(true)}
+                onLoad={() => setImageLoaded(true)}
+                // Add cache control to prevent duplicate loads
+                cache="force-cache"
+                fadeDuration={0}
+              />
+              {/* Show initials while loading */}
+              {!imageLoaded && (
+                <View className="absolute inset-0 justify-center items-center">
+                  <Text className={`text-2xl font-semibold ${isSelected ? 'text-white' : ''}`}>
+                    {getInitials(item.name)}
+                  </Text>
+                </View>
+              )}
+            </>
           ) : (
             <Text className={`text-2xl font-semibold ${isSelected ? 'text-white' : ''}`}>
               {getInitials(item.name)}
@@ -73,15 +89,15 @@ const ContactItem = ({
         )}
       </View>
       
-      <Text 
-        className="mt-2 text-center text-sm text-gray-700 font-medium" 
+      <Text
+        className="mt-2 text-center text-sm text-gray-700 font-medium"
         numberOfLines={2}
       >
         {item.name || 'Unknown'}
       </Text>
     </TouchableOpacity>
   );
-};
+});
 
 export function ContactPickerGrid({ maxSelection, onSelectionChange, onAddManually }: ContactPickerGridProps) {
   const [contacts, setContacts] = useState<Contacts.Contact[]>([]);
@@ -203,6 +219,16 @@ export function ContactPickerGrid({ maxSelection, onSelectionChange, onAddManual
             />
           )}
           contentContainerStyle={{ paddingBottom: 90, paddingTop: 10 }}
+          // Performance optimizations
+          removeClippedSubviews={true}
+          maxToRenderPerBatch={15}
+          initialNumToRender={15}
+          windowSize={7}
+          getItemLayout={(data, index) => ({
+            length: 120, // Approximate height of each item (avatar + name)
+            offset: 120 * Math.floor(index / 3), // 3 columns
+            index,
+          })}
         />
       )}
     </Animated.View>

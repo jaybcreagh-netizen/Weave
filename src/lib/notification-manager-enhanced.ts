@@ -497,9 +497,10 @@ async function markAsInitialized(): Promise<void> {
 export async function initializeNotifications(): Promise<void> {
   console.log('[Notifications] Initializing notification system...');
 
-  const hasPermission = await requestNotificationPermissions();
-  if (!hasPermission) {
-    console.log('[Notifications] Permission denied, skipping setup');
+  // Check existing permissions WITHOUT requesting them
+  const { status: existingStatus } = await Notifications.getPermissionsAsync();
+  if (existingStatus !== 'granted') {
+    console.log('[Notifications] Permissions not granted yet, skipping setup');
     return;
   }
 

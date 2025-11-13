@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { View, Text, TouchableOpacity, TextInput, ScrollView, Image, Platform, StyleSheet, Modal } from 'react-native';
 import { ArrowLeft, Camera, X, Calendar, Heart, Users, AlertCircle } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
@@ -16,17 +16,42 @@ import { ContactPickerGrid } from './onboarding/ContactPickerGrid';
 import { MonthDayPicker } from './MonthDayPicker';
 import { getTierCapacity, getTierDisplayName, isTierAtCapacity } from '../lib/constants';
 import { normalizeContactImageUri } from '../lib/image-utils';
+import { SimpleTutorialTooltip } from './SimpleTutorialTooltip';
+import { useTutorialStore } from '../stores/tutorialStore';
 
 interface FriendFormProps {
   onSave: (friendData: FriendFormData) => void;
   friend?: FriendModel;
   initialTier?: 'inner' | 'close' | 'community';
+  fromOnboarding?: boolean;
 }
 
-export function FriendForm({ onSave, friend, initialTier }: FriendFormProps) {
+export function FriendForm({ onSave, friend, initialTier, fromOnboarding }: FriendFormProps) {
   const router = useRouter();
   const { colors } = useTheme(); // Use the hook
   const allFriends = useFriends(); // Get all friends to check tier counts
+
+  // Tutorial state - simple approach
+  const hasAddedFirstFriend = useTutorialStore((state) => state.hasAddedFirstFriend);
+  const markFirstFriendAdded = useTutorialStore((state) => state.markFirstFriendAdded);
+  const [currentTutorialStep, setCurrentTutorialStep] = useState(0);
+
+  // Tutorial handlers
+  const showTutorial = fromOnboarding && !hasAddedFirstFriend && !friend;
+
+  const handleTutorialNext = useCallback(() => {
+    if (currentTutorialStep < 1) {
+      setCurrentTutorialStep(prev => prev + 1);
+    } else {
+      // Tutorial complete
+      setCurrentTutorialStep(-1);
+    }
+  }, [currentTutorialStep]);
+
+  const handleTutorialSkip = useCallback(async () => {
+    await markFirstFriendAdded();
+    setCurrentTutorialStep(-1);
+  }, [markFirstFriendAdded]);
 
   // Helper function to map DB tier to form tier
   const getFormTier = (dbTier?: Tier | string) => {
@@ -89,9 +114,15 @@ export function FriendForm({ onSave, friend, initialTier }: FriendFormProps) {
     proceedWithSave();
   };
 
-  const proceedWithSave = () => {
+  const proceedWithSave = async () => {
     setShowCapacityWarning(false);
     onSave(formData);
+
+    // Mark first friend added if this is from onboarding
+    if (showTutorial && !friend) {
+      await markFirstFriendAdded();
+    }
+
     if (router.canGoBack()) {
       router.back();
     } else {
@@ -427,6 +458,31 @@ export function FriendForm({ onSave, friend, initialTier }: FriendFormProps) {
           </View>
         </View>
       </Modal>
+
+      {/* Tutorial Tooltip */}
+      {showTutorial && currentTutorialStep === 0 && (
+        <SimpleTutorialTooltip
+          visible={true}
+          title="Choose their circle"
+          description="Inner circles are your closest bonds (up to 5). Close friends are important relationships (up to 15). Community holds enriching connections (up to 50)."
+          onNext={handleTutorialNext}
+          onSkip={handleTutorialSkip}
+          currentStep={0}
+          totalSteps={2}
+        />
+      )}
+
+      {showTutorial && currentTutorialStep === 1 && (
+        <SimpleTutorialTooltip
+          visible={true}
+          title="Discover their archetype"
+          description="Each friend has a unique way of connecting. Tap to choose, or press and hold any archetype to learn more about their patterns."
+          onNext={handleTutorialNext}
+          onSkip={handleTutorialSkip}
+          currentStep={1}
+          totalSteps={2}
+        />
+      )}
     </SafeAreaView>
   );
 }

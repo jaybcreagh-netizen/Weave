@@ -6,7 +6,10 @@ import { type FriendFormData } from '../src/components/types';
 
 function AddFriend() {
   const router = useRouter();
-  const { tier } = useLocalSearchParams<{ tier: 'inner' | 'close' | 'community' }>();
+  const { tier, fromOnboarding } = useLocalSearchParams<{
+    tier?: 'inner' | 'close' | 'community';
+    fromOnboarding?: string;
+  }>();
   const addFriend = useFriendStore((state) => state.addFriend);
 
   const handleSave = async (friendData: FriendFormData) => {
@@ -16,7 +19,13 @@ function AddFriend() {
     }
   };
 
-  return <FriendForm onSave={handleSave} initialTier={tier} />;
+  return (
+    <FriendForm
+      onSave={handleSave}
+      initialTier={tier}
+      fromOnboarding={fromOnboarding === 'true'}
+    />
+  );
 }
 
 export default AddFriend;
