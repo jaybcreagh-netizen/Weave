@@ -5,7 +5,7 @@ import { BlurView } from 'expo-blur';
 import { startOfDay, subDays, differenceInDays } from 'date-fns';
 import { Q } from '@nozbe/watermelondb';
 import { useRouter } from 'expo-router';
-import { BookOpen, X, Sparkles, BarChart3, Telescope, Lightbulb, Flame, Battery } from 'lucide-react-native';
+import { BookOpen, X, Sparkles, BarChart3, Telescope, Lightbulb, Flame, Battery, ChevronDown } from 'lucide-react-native';
 import { useTheme } from '../../../hooks/useTheme';
 import { useUserProfileStore } from '../../../stores/userProfileStore';
 import { useFriends } from '../../../hooks/useFriends';
@@ -95,13 +95,21 @@ export const SocialSeasonWidget: React.FC = () => {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
-      // Calculate last 7 days activity (M-S, where today is the rightmost)
+      // Calculate current week (Monday-Sunday)
+      const currentDayOfWeek = today.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+      const daysFromMonday = currentDayOfWeek === 0 ? 6 : currentDayOfWeek - 1; // Convert to Monday = 0
+
+      const monday = new Date(today);
+      monday.setDate(today.getDate() - daysFromMonday);
+      monday.setHours(0, 0, 0, 0);
+
       const knots: boolean[] = [];
       let weaveCount = 0;
 
-      for (let i = 6; i >= 0; i--) {
-        const dayDate = new Date(today);
-        dayDate.setDate(today.getDate() - i);
+      // Loop through Monday (0) to Sunday (6)
+      for (let i = 0; i < 7; i++) {
+        const dayDate = new Date(monday);
+        dayDate.setDate(monday.getDate() + i);
         const dayStart = dayDate.getTime();
         const dayEnd = dayStart + 24 * 60 * 60 * 1000;
 
@@ -145,8 +153,12 @@ export const SocialSeasonWidget: React.FC = () => {
       setWeeklyWeaves(weaveCount);
 
       // Calculate streak - consecutive days with activity from today backwards
+      const todayDayOfWeek = today.getDay();
+      const todayIndex = todayDayOfWeek === 0 ? 6 : todayDayOfWeek - 1; // Convert to Monday=0
+
       let streak = 0;
-      for (let i = knots.length - 1; i >= 0; i--) {
+      // Only count from today backwards (don't count future days)
+      for (let i = todayIndex; i >= 0; i--) {
         if (knots[i]) {
           streak++;
         } else {
@@ -294,12 +306,37 @@ export const SocialSeasonWidget: React.FC = () => {
 
             {/* Activity Knots */}
             <View style={styles.knotsContainer}>
-              {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, index) => (
-                <View key={index} style={styles.knotColumn}>
-                  <View style={[styles.knot, activityKnots[index] && styles.knotFilled]} />
-                  <Text style={styles.knotLabel}>{day}</Text>
-                </View>
-              ))}
+              {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, index) => {
+                const today = new Date();
+                const currentDayOfWeek = today.getDay();
+                const daysFromMonday = currentDayOfWeek === 0 ? 6 : currentDayOfWeek - 1;
+                const isToday = index === daysFromMonday;
+                const isFilled = activityKnots[index];
+
+                return (
+                  <View key={index} style={styles.knotColumn}>
+                    <View style={[
+                      styles.knot,
+                      isToday && styles.knotToday,
+                      isFilled && styles.knotFilledBorder
+                    ]}>
+                      {isFilled && (
+                        <LinearGradient
+                          colors={['#FFD700', '#F59E0B']}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 1 }}
+                          style={[
+                            StyleSheet.absoluteFill,
+                            styles.knotGradient,
+                            isToday && styles.knotTodayGradient
+                          ]}
+                        />
+                      )}
+                    </View>
+                    <Text style={[styles.knotLabel, isToday && styles.knotLabelToday]}>{day}</Text>
+                  </View>
+                );
+              })}
             </View>
 
             {/* Stats Row */}
@@ -311,10 +348,10 @@ export const SocialSeasonWidget: React.FC = () => {
               <Text style={styles.statText}>{currentStreak}-day streak</Text>
             </View>
 
-            {/* Network Health */}
-            <View style={styles.healthRow}>
-              <Text style={styles.healthLabel}>Network Health</Text>
-              <Text style={styles.healthValue}>{networkHealth}</Text>
+            {/* Tap to see more */}
+            <View style={styles.tapToSeeMoreRow}>
+              <Text style={styles.tapToSeeMoreText}>Tap to see more</Text>
+              <ChevronDown size={14} color="rgba(255, 255, 255, 0.7)" />
             </View>
           </LinearGradient>
         </Pressable>
@@ -426,15 +463,43 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: 'rgba(255, 255, 255, 0.4)',
     backgroundColor: 'transparent',
+    overflow: 'hidden',
   },
-  knotFilled: {
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    borderColor: 'rgba(255, 255, 255, 0.9)',
+  knotToday: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    shadowColor: '#FFD700',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.6,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  knotFilledBorder: {
+    borderColor: '#FFD700',
+  },
+  knotGradient: {
+    borderRadius: 12,
+    shadowColor: '#FFD700',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 6,
+    elevation: 8,
+  },
+  knotTodayGradient: {
+    borderRadius: 14,
+    shadowRadius: 10,
+    shadowOpacity: 1,
+    elevation: 10,
   },
   knotLabel: {
     fontFamily: 'Inter_600SemiBold',
     fontSize: 10,
     color: 'rgba(255, 255, 255, 0.8)',
+  },
+  knotLabelToday: {
+    color: 'rgba(255, 255, 255, 1)',
+    fontFamily: 'Inter_700Bold',
   },
   statsRow: {
     flexDirection: 'row',
@@ -452,23 +517,18 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: 'rgba(255, 255, 255, 0.6)',
   },
-  healthRow: {
+  tapToSeeMoreRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    gap: 4,
+    paddingTop: 8,
   },
-  healthLabel: {
+  tapToSeeMoreText: {
     fontFamily: 'Inter_500Medium',
-    fontSize: 13,
-    color: 'rgba(255, 255, 255, 0.85)',
-  },
-  healthValue: {
-    fontFamily: 'Lora_700Bold',
-    fontSize: 20,
-    color: '#FFFFFF',
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.7)',
+    letterSpacing: 0.3,
   },
   modalOverlay: {
     flex: 1,
