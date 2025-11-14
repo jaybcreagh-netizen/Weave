@@ -32,6 +32,11 @@ export default class UserProfile extends Model {
   @field('battery_checkin_enabled') batteryCheckinEnabled?: boolean;
   @text('battery_checkin_time') batteryCheckinTime?: string; // HH:mm format
 
+  // Weekly Reflection Preferences
+  @field('reflection_day') reflectionDay?: number; // 0-6 (0=Sunday, 1=Monday, etc.)
+  @field('reflection_auto_show') reflectionAutoShow?: boolean; // Auto-show prompt on reflection day
+  @field('reflection_last_snoozed') reflectionLastSnoozed?: number; // Timestamp when user last snoozed
+
   // Metadata
   @readonly @date('created_at') createdAt!: Date;
   @date('updated_at') updatedAt!: Date;

@@ -56,7 +56,7 @@ export function SettingsModal({
 }: SettingsModalProps) {
   const insets = useSafeAreaInsets();
   const { isDarkMode, toggleDarkMode, showDebugScore, toggleShowDebugScore, openTrophyCabinet } = useUIStore();
-  const { profile, updateBatteryPreferences } = useUserProfileStore();
+  const { profile, updateBatteryPreferences, updateProfile } = useUserProfileStore();
   const { colors } = useTheme();
   const [shouldRender, setShouldRender] = useState(false);
 
@@ -115,6 +115,9 @@ export function SettingsModal({
   const [batteryNotificationTime, setBatteryNotificationTime] = useState(new Date());
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [weeklyReflectionEnabled, setWeeklyReflectionEnabled] = useState(true);
+  const [reflectionAutoShow, setReflectionAutoShow] = useState(true);
+  const [reflectionDay, setReflectionDay] = useState(0); // 0 = Sunday
+  const [showDayPicker, setShowDayPicker] = useState(false);
   const [eventRemindersEnabled, setEventRemindersEnabled] = useState(true);
   const [deepeningNudgesEnabled, setDeepeningNudgesEnabled] = useState(true);
 
@@ -168,6 +171,13 @@ export function SettingsModal({
     const date = new Date();
     date.setHours(hours, minutes, 0, 0);
     setBatteryNotificationTime(date);
+
+    // Load weekly reflection preferences
+    const reflAutoShow = profile.reflectionAutoShow ?? true;
+    setReflectionAutoShow(reflAutoShow);
+
+    const reflDay = profile.reflectionDay ?? 0; // Default to Sunday
+    setReflectionDay(reflDay);
 
     // Load event reminders preference
     const eventRemindersStr = await AsyncStorage.getItem('@weave:event_reminders_enabled');
@@ -268,6 +278,17 @@ export function SettingsModal({
     } else {
       await cancelWeeklyReflection();
     }
+  };
+
+  const handleToggleReflectionAutoShow = async (enabled: boolean) => {
+    setReflectionAutoShow(enabled);
+    await updateProfile({ reflectionAutoShow: enabled });
+  };
+
+  const handleChangeReflectionDay = async (day: number) => {
+    setReflectionDay(day);
+    await updateProfile({ reflectionDay: day });
+    setShowDayPicker(false);
   };
 
   const handleToggleEventReminders = async (enabled: boolean) => {
@@ -770,11 +791,11 @@ export function SettingsModal({
             <View className="flex-row items-center justify-between">
               <View className="flex-row items-center gap-3">
                 <View className="w-10 h-10 rounded-lg items-center justify-center" style={{ backgroundColor: colors.muted }}>
-                  <CalendarIcon color={colors.foreground} size={20} />
+                  <BookOpen color={colors.foreground} size={20} />
                 </View>
                 <View>
                   <Text className="text-base font-inter-medium" style={{ color: colors.foreground }}>Weekly Reflection</Text>
-                  <Text className="text-sm font-inter-regular" style={{ color: colors['muted-foreground'] }}>Sunday evening check-in</Text>
+                  <Text className="text-sm font-inter-regular" style={{ color: colors['muted-foreground'] }}>Notifications enabled</Text>
                 </View>
               </View>
               <Switch
@@ -784,6 +805,77 @@ export function SettingsModal({
                 thumbColor={colors.card}
               />
             </View>
+
+            {weeklyReflectionEnabled && (
+              <>
+                <TouchableOpacity
+                  className="flex-row items-center justify-between pl-13 mt-3"
+                  onPress={() => setShowDayPicker(true)}
+                >
+                  <View>
+                    <Text className="text-sm font-inter-medium" style={{ color: colors.foreground }}>Reflection Day</Text>
+                    <Text className="text-xs font-inter-regular" style={{ color: colors['muted-foreground'] }}>
+                      {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][reflectionDay]}
+                    </Text>
+                  </View>
+                  <ChevronRight color={colors['muted-foreground']} size={20} />
+                </TouchableOpacity>
+
+                <View className="flex-row items-center justify-between pl-13 mt-3">
+                  <View className="flex-1">
+                    <Text className="text-sm font-inter-medium" style={{ color: colors.foreground }}>Auto-show Prompt</Text>
+                    <Text className="text-xs font-inter-regular" style={{ color: colors['muted-foreground'] }}>
+                      Automatically show on reflection day
+                    </Text>
+                  </View>
+                  <Switch
+                    value={reflectionAutoShow}
+                    onValueChange={handleToggleReflectionAutoShow}
+                    trackColor={{ false: colors.muted, true: colors.primary }}
+                    thumbColor={colors.card}
+                  />
+                </View>
+              </>
+            )}
+
+            {showDayPicker && (
+              <Modal transparent animationType="slide">
+                <View className="flex-1 justify-end" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+                  <View style={{ backgroundColor: colors.card }} className="rounded-t-3xl p-4">
+                    <View className="flex-row justify-between items-center mb-4">
+                      <Text className="text-lg font-inter-semibold" style={{ color: colors.foreground }}>
+                        Select Reflection Day
+                      </Text>
+                      <TouchableOpacity onPress={() => setShowDayPicker(false)}>
+                        <Text className="text-base font-inter-medium" style={{ color: colors.primary }}>
+                          Done
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                    {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map((day, index) => (
+                      <TouchableOpacity
+                        key={day}
+                        onPress={() => handleChangeReflectionDay(index)}
+                        className="py-4 border-b"
+                        style={{ borderBottomColor: colors.border }}
+                      >
+                        <View className="flex-row justify-between items-center">
+                          <Text
+                            className="text-base"
+                            style={{ color: index === reflectionDay ? colors.primary : colors.foreground, fontFamily: 'Inter_500Medium' }}
+                          >
+                            {day}
+                          </Text>
+                          {index === reflectionDay && (
+                            <Text style={{ color: colors.primary }}>✓</Text>
+                          )}
+                        </View>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              </Modal>
+            )}
 
             <View className="border-t border-border my-2" style={{ borderColor: colors.border }} />
 

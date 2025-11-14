@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb'
 
 export default appSchema({
-  version: 31, // UPDATED: Added user accounts infrastructure (user_id + sync columns for cloud sync & freemium)
+  version: 32, // UPDATED: Added weekly reflection preferences (day, auto-show, snooze tracking)
   tables: [
     tableSchema({
       name: 'friends',
@@ -154,6 +154,11 @@ export default appSchema({
         // Preferences
         { name: 'battery_checkin_enabled', type: 'boolean', isOptional: true },
         { name: 'battery_checkin_time', type: 'string', isOptional: true }, // HH:mm format, default '09:00'
+
+        // Weekly Reflection Preferences
+        { name: 'reflection_day', type: 'number', isOptional: true }, // 0-6 (0=Sunday, 1=Monday, etc.), default 0
+        { name: 'reflection_auto_show', type: 'boolean', isOptional: true }, // Auto-show prompt on reflection day, default true
+        { name: 'reflection_last_snoozed', type: 'number', isOptional: true }, // Timestamp when user last snoozed
 
         // Metadata
         { name: 'created_at', type: 'number' },

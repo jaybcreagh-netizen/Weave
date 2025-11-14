@@ -631,6 +631,21 @@ export default schemaMigrations({
         // For now, adding sync columns to core relationship data only
       ],
     },
+    {
+      // Migration from schema v31 to v32
+      // Weekly Reflection Preferences - User control over reflection prompts
+      toVersion: 32,
+      steps: [
+        addColumns({
+          table: 'user_profile',
+          columns: [
+            { name: 'reflection_day', type: 'number', isOptional: true }, // 0-6 (0=Sunday)
+            { name: 'reflection_auto_show', type: 'boolean', isOptional: true }, // Auto-show prompt
+            { name: 'reflection_last_snoozed', type: 'number', isOptional: true }, // Snooze timestamp
+          ],
+        }),
+      ],
+    },
   ],
 });
 

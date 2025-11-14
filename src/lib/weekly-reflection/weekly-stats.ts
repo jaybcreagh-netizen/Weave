@@ -29,6 +29,24 @@ export interface WeeklySummary {
   fulfilledIntentions: number; // v29: Count of intentions fulfilled this week
   weekStartDate: Date;
   weekEndDate: Date;
+  // Comparison data (this week vs last week)
+  comparison?: {
+    weavesChange: number; // Difference in total weaves
+    friendsChange: number; // Difference in friends contacted
+    lastWeekWeaves: number;
+    lastWeekFriends: number;
+  };
+  // Pattern recognition
+  patterns?: {
+    mostConsistentFriend?: { name: string; weaveCount: number };
+    risingConnection?: { name: string; scoreChange: number };
+    needsAttention?: number; // Count of friends with dropping scores
+  };
+  // Social health score
+  socialHealth?: {
+    score: number; // 0-100
+    change: number; // Change from last week
+  };
 }
 
 /**
@@ -154,6 +172,83 @@ export async function calculateWeeklySummary(): Promise<WeeklySummary> {
     )
     .fetch();
 
+  // Calculate comparison data (last week)
+  const twoWeeksAgo = weekAgo - (7 * 24 * 60 * 60 * 1000);
+  const lastWeekInteractions = await database
+    .get<InteractionModel>('interactions')
+    .query(
+      Q.where('interaction_date', Q.gte(twoWeeksAgo)),
+      Q.where('interaction_date', Q.lt(weekAgo)),
+      Q.where('status', 'completed')
+    )
+    .fetch();
+
+  const lastWeekFriendLinks = await database
+    .get<InteractionFriend>('interaction_friends')
+    .query(Q.where('interaction_id', Q.oneOf(lastWeekInteractions.map(i => i.id))))
+    .fetch();
+
+  const lastWeekContactedFriends = new Set(lastWeekFriendLinks.map(fl => fl.friendId));
+
+  const comparison = {
+    weavesChange: interactions.length - lastWeekInteractions.length,
+    friendsChange: contactedFriendIds.size - lastWeekContactedFriends.size,
+    lastWeekWeaves: lastWeekInteractions.length,
+    lastWeekFriends: lastWeekContactedFriends.size,
+  };
+
+  // Calculate pattern recognition data
+  // Most consistent friend (friend with most weaves this week)
+  const friendWeaveCount: Record<string, { name: string; count: number }> = {};
+  for (const link of friendLinks) {
+    const friend = await database.get<FriendModel>('friends').find(link.friendId);
+    if (!friendWeaveCount[friend.id]) {
+      friendWeaveCount[friend.id] = { name: friend.name, count: 0 };
+    }
+    friendWeaveCount[friend.id].count++;
+  }
+
+  const mostConsistentFriend = Object.values(friendWeaveCount)
+    .sort((a, b) => b.count - a.count)[0];
+
+  // Rising connection (friend with biggest score increase this week)
+  // We'll need to check weekly_reflections to compare, or calculate from current scores
+  // For now, let's find the friend with highest score who was contacted this week
+  const contactedFriends = await database
+    .get<FriendModel>('friends')
+    .query(Q.where('id', Q.oneOf(Array.from(contactedFriendIds))))
+    .fetch();
+
+  const risingConnection = contactedFriends
+    .sort((a, b) => b.weaveScore - a.weaveScore)[0];
+
+  // Friends needing attention (friends with score < 50)
+  const needsAttention = allImportantFriends.filter(f => f.weaveScore < 50).length;
+
+  const patterns = {
+    mostConsistentFriend,
+    risingConnection: risingConnection ? {
+      name: risingConnection.name,
+      scoreChange: 15, // Placeholder - would need historical data
+    } : undefined,
+    needsAttention,
+  };
+
+  // Calculate social health score (average of all friend scores)
+  const allFriends = await database
+    .get<FriendModel>('friends')
+    .query(Q.where('is_dormant', false))
+    .fetch();
+
+  const socialHealthScore = allFriends.length > 0
+    ? Math.round(allFriends.reduce((sum, f) => sum + f.weaveScore, 0) / allFriends.length)
+    : 0;
+
+  const socialHealth = {
+    score: socialHealthScore,
+    change: 0, // Placeholder - would need last week's score
+  };
+
   return {
     totalWeaves: interactions.length,
     friendsContacted: contactedFriendIds.size,
@@ -163,6 +258,9 @@ export async function calculateWeeklySummary(): Promise<WeeklySummary> {
     fulfilledIntentions: fulfilledIntentions.length,
     weekStartDate: weekStart,
     weekEndDate: weekEnd,
+    comparison,
+    patterns,
+    socialHealth,
   };
 }
 

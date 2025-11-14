@@ -4,9 +4,9 @@
  */
 
 import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { TrendingUp, Users, Activity } from 'lucide-react-native';
+import { TrendingUp, Users, Activity, ArrowUp, ArrowDown, Minus, Heart, Sparkles, AlertCircle } from 'lucide-react-native';
 import { useTheme } from '../../hooks/useTheme';
 import { WeeklySummary } from '../../lib/weekly-reflection/weekly-stats';
 import { format } from 'date-fns';
@@ -42,7 +42,7 @@ export function WeekSummary({ summary, onNext }: WeekSummaryProps) {
   ];
 
   return (
-    <View className="flex-1">
+    <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
       {/* Header */}
       <View className="mb-6">
         <Text
@@ -119,7 +119,7 @@ export function WeekSummary({ summary, onNext }: WeekSummaryProps) {
       )}
 
       {/* Stats Grid */}
-      <View className="gap-3 mb-8">
+      <View className="gap-3 mb-6">
         {stats.map((stat, index) => (
           <Animated.View
             key={stat.label}
@@ -161,6 +161,186 @@ export function WeekSummary({ summary, onNext }: WeekSummaryProps) {
         ))}
       </View>
 
+      {/* Comparison Insights (vs Last Week) */}
+      {summary.comparison && (
+        <Animated.View
+          entering={FadeInDown.delay(500)}
+          className="mb-6 p-4 rounded-xl"
+          style={{ backgroundColor: colors.muted }}
+        >
+          <Text
+            className="text-sm font-semibold mb-3"
+            style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold' }}
+          >
+            📈 This Week vs Last Week
+          </Text>
+          <View className="gap-2">
+            {/* Weaves comparison */}
+            <View className="flex-row items-center">
+              {summary.comparison.weavesChange > 0 ? (
+                <ArrowUp size={16} color="#10b981" />
+              ) : summary.comparison.weavesChange < 0 ? (
+                <ArrowDown size={16} color="#ef4444" />
+              ) : (
+                <Minus size={16} color={colors['muted-foreground']} />
+              )}
+              <Text
+                className="text-xs ml-2"
+                style={{
+                  color: summary.comparison.weavesChange > 0 ? '#10b981' :
+                         summary.comparison.weavesChange < 0 ? '#ef4444' :
+                         colors['muted-foreground'],
+                  fontFamily: 'Inter_400Regular'
+                }}
+              >
+                {summary.comparison.weavesChange > 0 ? '+' : ''}{summary.comparison.weavesChange} weaves
+                {summary.comparison.weavesChange > 0 ? ' from last week' : ' vs last week'}
+              </Text>
+            </View>
+            {/* Friends comparison */}
+            <View className="flex-row items-center">
+              {summary.comparison.friendsChange > 0 ? (
+                <ArrowUp size={16} color="#10b981" />
+              ) : summary.comparison.friendsChange < 0 ? (
+                <ArrowDown size={16} color="#ef4444" />
+              ) : (
+                <Minus size={16} color={colors['muted-foreground']} />
+              )}
+              <Text
+                className="text-xs ml-2"
+                style={{
+                  color: summary.comparison.friendsChange > 0 ? '#10b981' :
+                         summary.comparison.friendsChange < 0 ? '#ef4444' :
+                         colors['muted-foreground'],
+                  fontFamily: 'Inter_400Regular'
+                }}
+              >
+                {summary.comparison.friendsChange > 0 ? '+' : ''}{summary.comparison.friendsChange} friends contacted
+              </Text>
+            </View>
+          </View>
+        </Animated.View>
+      )}
+
+      {/* Pattern Recognition */}
+      {summary.patterns && (
+        <Animated.View
+          entering={FadeInDown.delay(600)}
+          className="mb-6 gap-3"
+        >
+          {/* Most Consistent Friend */}
+          {summary.patterns.mostConsistentFriend && summary.patterns.mostConsistentFriend.count > 1 && (
+            <View
+              className="flex-row items-center p-4 rounded-xl"
+              style={{ backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 }}
+            >
+              <Heart size={20} color={colors.primary} />
+              <View className="flex-1 ml-3">
+                <Text
+                  className="text-xs mb-1"
+                  style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
+                >
+                  💪 Most consistent
+                </Text>
+                <Text
+                  className="text-sm font-semibold"
+                  style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold' }}
+                >
+                  {summary.patterns.mostConsistentFriend.name} ({summary.patterns.mostConsistentFriend.count} weaves)
+                </Text>
+              </View>
+            </View>
+          )}
+
+          {/* Rising Connection */}
+          {summary.patterns.risingConnection && (
+            <View
+              className="flex-row items-center p-4 rounded-xl"
+              style={{ backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 }}
+            >
+              <Sparkles size={20} color="#10b981" />
+              <View className="flex-1 ml-3">
+                <Text
+                  className="text-xs mb-1"
+                  style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
+                >
+                  🌟 Strongest connection
+                </Text>
+                <Text
+                  className="text-sm font-semibold"
+                  style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold' }}
+                >
+                  {summary.patterns.risingConnection.name}
+                </Text>
+              </View>
+            </View>
+          )}
+
+          {/* Needs Attention */}
+          {summary.patterns.needsAttention > 0 && (
+            <View
+              className="flex-row items-center p-4 rounded-xl"
+              style={{ backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 }}
+            >
+              <AlertCircle size={20} color="#f59e0b" />
+              <View className="flex-1 ml-3">
+                <Text
+                  className="text-xs mb-1"
+                  style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
+                >
+                  💭 Needs attention
+                </Text>
+                <Text
+                  className="text-sm font-semibold"
+                  style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold' }}
+                >
+                  {summary.patterns.needsAttention} friend{summary.patterns.needsAttention > 1 ? 's' : ''}
+                </Text>
+              </View>
+            </View>
+          )}
+        </Animated.View>
+      )}
+
+      {/* Social Health Score */}
+      {summary.socialHealth && (
+        <Animated.View
+          entering={FadeInDown.delay(700)}
+          className="mb-8 p-5 rounded-xl"
+          style={{
+            backgroundColor: summary.socialHealth.score >= 70 ? '#10b98120' :
+                            summary.socialHealth.score >= 50 ? '#f59e0b20' :
+                            '#ef444420'
+          }}
+        >
+          <Text
+            className="text-sm font-semibold mb-2"
+            style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold' }}
+          >
+            Your Weave Health
+          </Text>
+          <View className="flex-row items-center">
+            <Text
+              className="text-4xl font-bold mr-3"
+              style={{
+                color: summary.socialHealth.score >= 70 ? '#10b981' :
+                       summary.socialHealth.score >= 50 ? '#f59e0b' :
+                       '#ef4444',
+                fontFamily: 'Lora_700Bold'
+              }}
+            >
+              {summary.socialHealth.score}%
+            </Text>
+            <Text
+              className="text-sm flex-1"
+              style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
+            >
+              Average of all your friendship scores
+            </Text>
+          </View>
+        </Animated.View>
+      )}
+
       {/* Continue Button */}
       <TouchableOpacity
         onPress={onNext}
@@ -174,6 +354,6 @@ export function WeekSummary({ summary, onNext }: WeekSummaryProps) {
           {summary.missedFriends.length > 0 ? 'See Who Needs Attention' : 'Continue'}
         </Text>
       </TouchableOpacity>
-    </View>
+    </ScrollView>
   );
 }

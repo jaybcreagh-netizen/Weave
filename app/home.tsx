@@ -6,9 +6,11 @@ import { HomeWidgetGrid, WidgetGridItem } from '../src/components/home/HomeWidge
 import { SocialSeasonWidget } from '../src/components/home/widgets/SocialSeasonWidget';
 import { YearInMoonsWidget } from '../src/components/home/widgets/YearInMoonsWidget';
 import { TodaysFocusWidget } from '../src/components/home/widgets/TodaysFocusWidget';
+import { ReflectionReadyWidget } from '../src/components/home/widgets/ReflectionReadyWidget';
 import { FocusPill } from '../src/components/home/widgets/FocusPill';
 import { SocialBatterySheet } from '../src/components/home/SocialBatterySheet';
 import { WeeklyReflectionModal } from '../src/components/WeeklyReflection/WeeklyReflectionModal';
+import { ReflectionReadyPrompt } from '../src/components/WeeklyReflection/ReflectionReadyPrompt';
 import { YearInMoonsModal } from '../src/components/YearInMoons/YearInMoonsModal';
 import { SuggestedWeaves } from '../src/components/SuggestedWeaves';
 import { useUserProfileStore } from '../src/stores/userProfileStore';
@@ -17,11 +19,13 @@ import { getLastReflectionDate, shouldShowReflection } from '../src/lib/notifica
 import { useTutorialStore } from '../src/stores/tutorialStore';
 
 export default function Home() {
-  const { observeProfile, profile, submitBatteryCheckin } = useUserProfileStore();
+  const { observeProfile, profile, submitBatteryCheckin, updateProfile } = useUserProfileStore();
   const { observeFriends } = useFriendStore();
   const [showBatterySheet, setShowBatterySheet] = useState(false);
+  const [showReflectionPrompt, setShowReflectionPrompt] = useState(false);
   const [showWeeklyReflection, setShowWeeklyReflection] = useState(false);
   const [showYearInMoons, setShowYearInMoons] = useState(false);
+  const [isReflectionDue, setIsReflectionDue] = useState(false);
 
   // Tutorial state - check if QuickWeave tutorial is done
   const hasPerformedQuickWeave = useTutorialStore((state) => state.hasPerformedQuickWeave);
@@ -102,13 +106,39 @@ export default function Home() {
   // Check if weekly reflection should be shown
   useEffect(() => {
     const checkWeeklyReflection = async () => {
+      if (!profile) return;
+
       const lastDate = await getLastReflectionDate();
-      if (shouldShowReflection(lastDate)) {
+      const isDue = shouldShowReflection(lastDate);
+      setIsReflectionDue(isDue);
+
+      if (!isDue) return;
+
+      // Get user preferences (defaults: Sunday, auto-show enabled)
+      const reflectionDay = profile.reflectionDay ?? 0; // 0 = Sunday
+      const autoShow = profile.reflectionAutoShow ?? true;
+      const lastSnoozed = profile.reflectionLastSnoozed;
+
+      // Check if today is the reflection day
+      const today = new Date();
+      const currentDay = today.getDay();
+
+      // Check if snoozed (snooze lasts until next day at 9 AM)
+      let isSnoozed = false;
+      if (lastSnoozed) {
+        const snoozeUntil = new Date(lastSnoozed);
+        snoozeUntil.setDate(snoozeUntil.getDate() + 1);
+        snoozeUntil.setHours(9, 0, 0, 0);
+        isSnoozed = today < snoozeUntil;
+      }
+
+      // Only auto-show if it's the reflection day, auto-show is enabled, and not snoozed
+      if (currentDay === reflectionDay && autoShow && !isSnoozed) {
         // Wait longer than battery check-in so it doesn't conflict
         // Show after 2 seconds if battery sheet is dismissed or not shown
         const timer = setTimeout(() => {
           if (!showBatterySheet) {
-            setShowWeeklyReflection(true);
+            setShowReflectionPrompt(true);
           }
         }, 2000);
         return () => clearTimeout(timer);
@@ -116,15 +146,30 @@ export default function Home() {
     };
 
     checkWeeklyReflection();
-  }, [showBatterySheet]);
+  }, [profile, showBatterySheet]);
 
   const handleBatterySubmit = async (value: number, note?: string) => {
     await submitBatteryCheckin(value, note);
     setShowBatterySheet(false);
   };
 
+  const handleReflectionStart = () => {
+    setShowReflectionPrompt(false);
+    setShowWeeklyReflection(true);
+  };
+
+  const handleReflectionRemindLater = async () => {
+    setShowReflectionPrompt(false);
+    // Save snooze timestamp to profile
+    if (profile) {
+      await updateProfile({
+        reflectionLastSnoozed: Date.now(),
+      });
+    }
+  };
+
   // Define widget grid - Compass Hub design
-  // Order: Action (Focus) → Context (Season) → Reflection (Moons)
+  // Order: Action (Focus) → Context (Season) → Reflection (Moons) → Reflection Ready (if due)
   const widgets: WidgetGridItem[] = [
     {
       id: 'todays-focus',
@@ -159,6 +204,20 @@ export default function Home() {
       position: 2,
       visible: true,
     },
+    {
+      id: 'reflection-ready',
+      component: ReflectionReadyWidget,
+      config: {
+        id: 'reflection-ready',
+        type: 'reflection-ready',
+        fullWidth: true,
+      },
+      props: {
+        onPress: () => setShowReflectionPrompt(true),
+      },
+      position: 3,
+      visible: isReflectionDue,
+    },
   ];
 
   return (
@@ -176,6 +235,13 @@ export default function Home() {
           setShowBatterySheet(false);
           setShowYearInMoons(true);
         }}
+      />
+
+      <ReflectionReadyPrompt
+        isVisible={showReflectionPrompt}
+        onStart={handleReflectionStart}
+        onRemindLater={handleReflectionRemindLater}
+        onDismiss={() => setShowReflectionPrompt(false)}
       />
 
       <WeeklyReflectionModal
