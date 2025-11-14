@@ -13,6 +13,7 @@ import { MilestoneCelebration } from '../src/components/MilestoneCelebration';
 import TrophyCabinetModal from '../src/components/TrophyCabinetModal';
 import { LoadingScreen } from '../src/components/LoadingScreen';
 import { ErrorBoundary } from '../src/components/ErrorBoundary';
+import { EventSuggestionModal } from '../src/components/EventSuggestionModal';
 import { useUIStore } from '../src/stores/uiStore';
 import { useTheme } from '../src/hooks/useTheme';
 import { initializeDataMigrations, initializeUserProfile, initializeUserProgress } from '../src/db';
@@ -120,6 +121,13 @@ export default Sentry.wrap(function RootLayout() {
           });
         });
 
+        // Scan for event suggestions on app launch (non-blocking)
+        import('../src/stores/eventSuggestionStore').then(({ useEventSuggestionStore }) => {
+          useEventSuggestionStore.getState().scanForSuggestions().catch((error) => {
+            console.error('[App] Error scanning for event suggestions on launch:', error);
+          });
+        });
+
         setDataLoaded(true);
       } catch (error) {
         console.error('Failed to initialize app data:', error);
@@ -189,6 +197,14 @@ export default Sentry.wrap(function RootLayout() {
       import('../src/stores/interactionStore').then(({ useInteractionStore }) => {
         useInteractionStore.getState().syncWithCalendar().catch((error) => {
           console.error('[App] Error syncing calendar on foreground:', error);
+        });
+      });
+
+      // Scan for event suggestions (birthdays, holidays, past events)
+      // This runs async in the background without blocking the UI
+      import('../src/stores/eventSuggestionStore').then(({ useEventSuggestionStore }) => {
+        useEventSuggestionStore.getState().scanForSuggestions().catch((error) => {
+          console.error('[App] Error scanning for event suggestions:', error);
         });
       });
     } else if (state === 'background') {
@@ -281,6 +297,9 @@ export default Sentry.wrap(function RootLayout() {
                     visible={isTrophyCabinetOpen}
                     onClose={closeTrophyCabinet}
                   />
+
+                  {/* Global Event Suggestion Modal */}
+                  <EventSuggestionModal />
                 </Animated.View>
 
                 {/* Loading Screen - shows until data is loaded AND UI is mounted */}
