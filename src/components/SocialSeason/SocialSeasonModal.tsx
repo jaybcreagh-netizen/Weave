@@ -385,26 +385,15 @@ function PulseTabContent({
         className="p-5 rounded-2xl"
         style={{ backgroundColor: isDarkMode ? '#2A2E3F' : '#FFF8ED' }}
       >
-        <View className="flex-row items-center justify-between mb-4">
-          <Text
-            className="text-lg font-bold"
-            style={{ color: isDarkMode ? '#F5F1E8' : '#2D3142', fontFamily: 'Lora_700Bold' }}
-          >
-            {format(today, 'MMMM yyyy')}
-          </Text>
-          <View className="flex-row items-center gap-2">
-            <View className="w-2.5 h-2.5 rounded-full bg-gradient-to-r from-yellow-400 to-amber-500" style={{ backgroundColor: '#FFD700' }} />
-            <Text
-              className="text-xs"
-              style={{ color: isDarkMode ? '#8A8F9E' : '#6C7589', fontFamily: 'Inter_400Regular' }}
-            >
-              Active Day
-            </Text>
-          </View>
-        </View>
+        <Text
+          className="text-lg font-bold mb-4"
+          style={{ color: isDarkMode ? '#F5F1E8' : '#2D3142', fontFamily: 'Lora_700Bold' }}
+        >
+          {format(today, 'MMMM yyyy')}
+        </Text>
 
         {/* Weekday headers */}
-        <View className="flex-row mb-3">
+        <View className="flex-row mb-2">
           {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, index) => (
             <View key={index} style={calendarStyles.dayHeader}>
               <Text
@@ -426,14 +415,23 @@ function PulseTabContent({
             const hasActivity = monthlyActivity.get(dateKey) || false;
             const isToday = isSameDay(day, today);
             const isCurrentMonth = day.getMonth() === today.getMonth();
+            const isFutureDate = day > today;
+
+            // Check if this day is in the current week
+            const currentDayOfWeek = today.getDay();
+            const daysFromMonday = currentDayOfWeek === 0 ? 6 : currentDayOfWeek - 1;
+            const monday = new Date(today);
+            monday.setDate(today.getDate() - daysFromMonday);
+            monday.setHours(0, 0, 0, 0);
+            const sunday = new Date(monday);
+            sunday.setDate(monday.getDate() + 6);
+            sunday.setHours(23, 59, 59, 999);
+            const isCurrentWeek = day >= monday && day <= sunday;
 
             return (
               <View
                 key={index}
-                style={[
-                  calendarStyles.dayCell,
-                  isToday && calendarStyles.todayCell,
-                ]}
+                style={calendarStyles.dayCell}
               >
                 {hasActivity ? (
                   <LinearGradient
@@ -442,16 +440,16 @@ function PulseTabContent({
                     end={{ x: 1, y: 1 }}
                     style={[
                       calendarStyles.activityDot,
-                      isToday && calendarStyles.todayDot,
+                      isCurrentWeek && calendarStyles.currentWeekDot,
                     ]}
                   />
                 ) : (
                   <View
                     style={[
                       calendarStyles.emptyDot,
-                      { borderColor: isDarkMode ? '#3A3E4F' : '#E0E3E9' },
+                      { backgroundColor: isDarkMode ? '#1a1d2e' : '#F3EAD8' },
                       !isCurrentMonth && calendarStyles.otherMonthDot,
-                      isToday && [calendarStyles.todayEmptyDot, { borderColor: '#FFD700' }],
+                      isFutureDate && calendarStyles.futureDot,
                     ]}
                   />
                 )}
@@ -586,66 +584,43 @@ const calendarStyles = StyleSheet.create({
   dayHeader: {
     flex: 1,
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   dayHeaderText: {
-    fontFamily: 'Inter_600SemiBold',
-    fontSize: 11,
-    letterSpacing: 0.5,
+    fontFamily: 'Inter_500Medium',
+    fontSize: 10,
+    letterSpacing: 0.3,
+    opacity: 0.6,
   },
   calendarGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 4,
+    gap: 2,
   },
   dayCell: {
-    width: '13.5%', // Slightly smaller to account for gap
+    width: '13.7%', // Slightly smaller to account for gap
     aspectRatio: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  todayCell: {
-    // Special styling for today if needed
-  },
   activityDot: {
-    width: '85%',
-    height: '85%',
+    width: '42%',
+    height: '42%',
     borderRadius: 999,
-    shadowColor: '#FFD700',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 3,
-    elevation: 3,
   },
-  todayDot: {
-    width: '95%',
-    height: '95%',
-    shadowColor: '#FFD700',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.6,
-    shadowRadius: 8,
-    elevation: 8,
-    borderWidth: 2,
-    borderColor: '#FFF',
+  currentWeekDot: {
+    opacity: 0.5,
   },
   emptyDot: {
-    width: '70%',
-    height: '70%',
+    width: '30%',
+    height: '30%',
     borderRadius: 999,
-    borderWidth: 2,
-    backgroundColor: 'transparent',
-  },
-  todayEmptyDot: {
-    width: '80%',
-    height: '80%',
-    borderWidth: 2.5,
-    shadowColor: '#FFD700',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 3,
+    opacity: 0.3,
   },
   otherMonthDot: {
-    opacity: 0.25,
+    opacity: 0.15,
+  },
+  futureDot: {
+    opacity: 0.2,
   },
 });
