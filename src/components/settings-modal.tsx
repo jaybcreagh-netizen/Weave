@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, View, Text, TouchableOpacity, Switch, Alert, ScrollView, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { X, Moon, Sun, Palette, RefreshCw, Bug, BarChart3, Battery, Calendar as CalendarIcon, ChevronRight, Bell, Clock, Trophy, Sparkles, MessageSquare, Download, Database, Trash2, BookOpen, Users } from 'lucide-react-native';
+import { X, Moon, Sun, Palette, RefreshCw, Bug, BarChart3, Battery, Calendar as CalendarIcon, ChevronRight, Bell, Clock, Trophy, Sparkles, MessageSquare, Download, Upload, Database, Trash2, BookOpen, Users } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming, runOnJS } from 'react-native-reanimated';
@@ -38,6 +38,9 @@ import { FeedbackModal } from './FeedbackModal';
 import { ArchetypeLibrary } from './ArchetypeLibrary';
 import { FriendManagementModal } from './FriendManagementModal';
 import { exportAndShareData, getExportStats } from '../lib/data-export';
+import { importData, getImportPreview } from '../lib/data-import';
+import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system';
 import { generateStressTestData, clearStressTestData, getDataStats } from '../lib/stress-test-seed-data';
 
 interface SettingsModalProps {
@@ -373,6 +376,89 @@ export function SettingsModal({
     } catch (error) {
       console.error('Failed to prepare export:', error);
       Alert.alert('Error', 'Failed to prepare data export.');
+    }
+  };
+
+  const handleImportData = async () => {
+    try {
+      // Pick a document
+      const result = await DocumentPicker.getDocumentAsync({
+        type: 'application/json',
+        copyToCacheDirectory: true,
+      });
+
+      if (result.canceled) {
+        return;
+      }
+
+      const fileUri = result.assets[0].uri;
+      console.log('[Settings] Selected file:', fileUri);
+
+      // Read the file
+      const fileContent = await FileSystem.readAsStringAsync(fileUri);
+
+      // Get preview
+      const preview = getImportPreview(fileContent);
+
+      if (!preview.valid) {
+        Alert.alert('Invalid File', preview.error || 'The selected file is not a valid Weave export.');
+        return;
+      }
+
+      // Show confirmation with preview
+      Alert.alert(
+        'Import Data',
+        `This will restore your data from the backup:\n\n` +
+        `Export Date: ${new Date(preview.preview!.exportDate).toLocaleDateString()}\n` +
+        `Friends: ${preview.preview!.totalFriends}\n` +
+        `Interactions: ${preview.preview!.totalInteractions}\n\n` +
+        `⚠️ WARNING: This will DELETE all your current data and replace it with the backup.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Import',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                // Show loading
+                Alert.alert('Importing...', 'Please wait while we restore your data.');
+
+                const result = await importData(fileContent, true);
+
+                if (result.success) {
+                  Alert.alert(
+                    'Import Successful!',
+                    `Your data has been restored:\n\n` +
+                    `${result.friendsImported} friends imported\n` +
+                    `${result.interactionsImported} interactions imported\n\n` +
+                    `Please restart the app to see your restored data.`,
+                    [
+                      {
+                        text: 'OK',
+                        onPress: () => {
+                          onClose();
+                        },
+                      },
+                    ]
+                  );
+                } else {
+                  Alert.alert(
+                    'Import Failed',
+                    `Failed to import data:\n\n${result.errors.join('\n')}`,
+                    [{ text: 'OK' }]
+                  );
+                }
+              } catch (error) {
+                console.error('Import failed:', error);
+                Alert.alert('Import Failed', 'An error occurred while importing data.');
+              }
+            },
+          },
+        ]
+      );
+    } catch (error) {
+      console.error('Failed to import data:', error);
+      Alert.alert('Error', 'Failed to read the selected file.');
     }
   };
 
@@ -925,6 +1011,24 @@ export function SettingsModal({
                 <View>
                   <Text className="text-base font-inter-medium" style={{ color: colors.foreground }}>Export Data</Text>
                   <Text className="text-sm font-inter-regular" style={{ color: colors['muted-foreground'] }}>Backup your data as JSON</Text>
+                </View>
+              </View>
+            </TouchableOpacity>
+
+            <View className="border-t border-border my-2" style={{ borderColor: colors.border }} />
+
+            {/* Data Import */}
+            <TouchableOpacity
+              className="flex-row items-center justify-between"
+              onPress={handleImportData}
+            >
+              <View className="flex-row items-center gap-3">
+                <View className="w-10 h-10 rounded-lg items-center justify-center" style={{ backgroundColor: colors.muted }}>
+                  <Upload color={colors.foreground} size={20} />
+                </View>
+                <View>
+                  <Text className="text-base font-inter-medium" style={{ color: colors.foreground }}>Import Data</Text>
+                  <Text className="text-sm font-inter-regular" style={{ color: colors['muted-foreground'] }}>Restore from backup file</Text>
                 </View>
               </View>
             </TouchableOpacity>

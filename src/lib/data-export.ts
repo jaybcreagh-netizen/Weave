@@ -5,6 +5,7 @@ import InteractionFriend from '../db/models/InteractionFriend';
 import UserProgress from '../db/models/UserProgress';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform, Alert, Share } from 'react-native';
+import * as FileSystem from 'expo-file-system';
 
 interface ExportData {
   exportDate: string;
@@ -159,7 +160,7 @@ export async function exportAllData(): Promise<string> {
 }
 
 /**
- * Export data and copy to clipboard or save locally
+ * Export data and save as file, then share
  */
 export async function exportAndShareData(): Promise<void> {
   try {
@@ -170,25 +171,46 @@ export async function exportAndShareData(): Promise<void> {
     await AsyncStorage.setItem(exportKey, jsonString);
     console.log('[DataExport] Data saved to AsyncStorage:', exportKey);
 
-    // Try to share using native Share API (text only)
-    const stats = await getExportStats();
-    const shareMessage = `Weave Data Export\n\nFriends: ${stats.totalFriends}\nInteractions: ${stats.totalInteractions}\nSize: ${stats.estimatedSizeKB}KB\n\nData saved to device storage. You can access it through the debug tools or email it to yourself.`;
+    // Save to file system
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const fileName = `weave-export-${timestamp}.json`;
+    const fileUri = `${FileSystem.documentDirectory}${fileName}`;
 
-    const result = await Share.share({
-      message: shareMessage,
-      title: 'Export Weave Data',
+    await FileSystem.writeAsStringAsync(fileUri, jsonString, {
+      encoding: FileSystem.EncodingType.UTF8,
     });
 
-    if (result.action === Share.sharedAction) {
-      Alert.alert(
-        'Export Successful',
-        `Your data has been exported and saved locally.\n\n${stats.totalFriends} friends, ${stats.totalInteractions} interactions\n\nTo retrieve the full JSON data, check AsyncStorage key: ${exportKey}`,
-        [{ text: 'OK' }]
-      );
-    } else {
+    console.log('[DataExport] Data saved to file:', fileUri);
+
+    // Share the file
+    const stats = await getExportStats();
+    const shareMessage = `Weave Data Export\n\nFriends: ${stats.totalFriends}\nInteractions: ${stats.totalInteractions}\nExport Date: ${new Date().toLocaleDateString()}\n\nThis file contains all your Weave data and can be used to restore your profile.`;
+
+    try {
+      const result = await Share.share({
+        message: shareMessage,
+        url: fileUri,
+        title: 'Export Weave Data',
+      });
+
+      if (result.action === Share.sharedAction) {
+        Alert.alert(
+          'Export Successful',
+          `Your data has been exported successfully!\n\n${stats.totalFriends} friends\n${stats.totalInteractions} interactions\n\nFile saved to: ${fileName}`,
+          [{ text: 'OK' }]
+        );
+      } else if (result.action === Share.dismissedAction) {
+        Alert.alert(
+          'Export Saved',
+          `Your data has been saved to:\n${fileName}\n\nYou can find it in your app's documents folder.`,
+          [{ text: 'OK' }]
+        );
+      }
+    } catch (shareError) {
+      // If sharing fails, at least the file is saved
       Alert.alert(
         'Export Saved',
-        `Your data has been saved locally at:\n${exportKey}\n\nYou can retrieve it through the app's debug tools.`,
+        `Your data has been saved to:\n${fileName}\n\nLocation: ${fileUri}\n\nYou can access this file through your device's file manager.`,
         [{ text: 'OK' }]
       );
     }
