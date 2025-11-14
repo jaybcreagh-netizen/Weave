@@ -1,7 +1,7 @@
 import { Database } from '@nozbe/watermelondb';
 import { Q } from '@nozbe/watermelondb';
 import { Friend, Interaction, Tier, Archetype, InteractionType, InteractionCategory, Duration, Vibe } from '../components/types';
-import { TierDecayRates, InteractionBaseScores, CategoryBaseScores, DurationModifiers, VibeMultipliers, RecencyFactors, ArchetypeMatrixV2, CategoryArchetypeMatrix } from './constants';
+import { TierDecayRates, InteractionBaseScores, CategoryBaseScores, DurationModifiers, VibeMultipliers, RecencyFactors, ArchetypeMatrixV2, CategoryArchetypeMatrix, TierWeights, TierHealthThresholds } from './constants';
 import FriendModel from '../db/models/Friend';
 import InteractionModel from '../db/models/Interaction';
 import InteractionFriend from '../db/models/InteractionFriend';
@@ -90,6 +90,60 @@ export function calculateCurrentScore(friend: FriendModel): number {
   }
 
   return Math.max(0, friend.weaveScore - decayAmount);
+}
+
+/**
+ * Calculates weighted network health score across all tiers.
+ * Uses tier-specific weights (Inner: 50%, Close: 35%, Community: 15%)
+ * to prevent low-engagement community friends from dragging down overall health.
+ *
+ * @param friends - Array of all friends
+ * @returns Weighted network health score (0-100)
+ */
+export function calculateWeightedNetworkHealth(friends: FriendModel[]): number {
+  if (friends.length === 0) return 0;
+
+  // Group friends by tier
+  const innerCircle = friends.filter(f => f.dunbarTier === 'InnerCircle');
+  const closeFriends = friends.filter(f => f.dunbarTier === 'CloseFriends');
+  const community = friends.filter(f => f.dunbarTier === 'Community');
+
+  // Calculate average score for each tier
+  const innerAvg = innerCircle.length > 0
+    ? innerCircle.reduce((sum, f) => sum + calculateCurrentScore(f), 0) / innerCircle.length
+    : 0;
+
+  const closeAvg = closeFriends.length > 0
+    ? closeFriends.reduce((sum, f) => sum + calculateCurrentScore(f), 0) / closeFriends.length
+    : 0;
+
+  const communityAvg = community.length > 0
+    ? community.reduce((sum, f) => sum + calculateCurrentScore(f), 0) / community.length
+    : 0;
+
+  // Handle cases where some tiers are empty - redistribute weight to populated tiers
+  let totalWeight = 0;
+  let weightedSum = 0;
+
+  if (innerCircle.length > 0) {
+    totalWeight += TierWeights.InnerCircle;
+    weightedSum += innerAvg * TierWeights.InnerCircle;
+  }
+
+  if (closeFriends.length > 0) {
+    totalWeight += TierWeights.CloseFriends;
+    weightedSum += closeAvg * TierWeights.CloseFriends;
+  }
+
+  if (community.length > 0) {
+    totalWeight += TierWeights.Community;
+    weightedSum += communityAvg * TierWeights.Community;
+  }
+
+  // Normalize by total weight (in case some tiers are empty)
+  const networkHealth = totalWeight > 0 ? weightedSum / totalWeight : 0;
+
+  return Math.round(networkHealth);
 }
 
 /**
