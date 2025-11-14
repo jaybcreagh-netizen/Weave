@@ -68,6 +68,14 @@ export function MonthDayPicker({ value, onChange, label = 'Set birthday', displa
     }
   };
 
+  // Derive modal title from label (e.g., "Set birthday" -> "Select Birthday")
+  const getModalTitle = () => {
+    if (label.toLowerCase().includes('anniversary')) {
+      return 'Select Anniversary';
+    }
+    return 'Select Birthday';
+  };
+
   // Get available days for selected month
   const daysInMonth = getDaysInMonth(selectedMonth);
   const days = Array.from({ length: daysInMonth }, (_, i) => {
@@ -112,7 +120,7 @@ export function MonthDayPicker({ value, onChange, label = 'Set birthday', displa
           <View style={[styles.pickerContainer, { backgroundColor: colors.card, borderColor: colors.border }]}>
             {/* Header */}
             <View style={[styles.header, { borderBottomColor: colors.border }]}>
-              <Text style={[styles.headerTitle, { color: colors.foreground }]}>Select Birthday</Text>
+              <Text style={[styles.headerTitle, { color: colors.foreground }]}>{getModalTitle()}</Text>
               <TouchableOpacity onPress={() => setShowPicker(false)}>
                 <X size={24} color={colors['muted-foreground']} />
               </TouchableOpacity>
