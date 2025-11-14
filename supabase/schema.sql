@@ -600,3 +600,101 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION handle_new_user();
+
+-- =====================================================
+-- STORAGE BUCKETS FOR IMAGES
+-- =====================================================
+-- Run this in Supabase Dashboard > Storage > Create new bucket
+-- Or use the Supabase Storage API to create programmatically
+
+-- Bucket: profile-pictures
+-- Public: false (user images are private)
+-- File size limit: 5MB
+-- Allowed MIME types: image/jpeg, image/png, image/webp
+
+-- Note: Create bucket manually in Supabase Dashboard, then apply RLS policies below
+
+-- RLS policies for profile-pictures bucket
+-- Users can upload their own profile pictures
+CREATE POLICY "Users can upload own profile pictures"
+  ON storage.objects FOR INSERT
+  WITH CHECK (
+    bucket_id = 'profile-pictures' AND
+    auth.uid()::text = (storage.foldername(name))[1]
+  );
+
+-- Users can view their own profile pictures
+CREATE POLICY "Users can view own profile pictures"
+  ON storage.objects FOR SELECT
+  USING (
+    bucket_id = 'profile-pictures' AND
+    auth.uid()::text = (storage.foldername(name))[1]
+  );
+
+-- Users can update their own profile pictures
+CREATE POLICY "Users can update own profile pictures"
+  ON storage.objects FOR UPDATE
+  USING (
+    bucket_id = 'profile-pictures' AND
+    auth.uid()::text = (storage.foldername(name))[1]
+  );
+
+-- Users can delete their own profile pictures
+CREATE POLICY "Users can delete own profile pictures"
+  ON storage.objects FOR DELETE
+  USING (
+    bucket_id = 'profile-pictures' AND
+    auth.uid()::text = (storage.foldername(name))[1]
+  );
+
+-- Bucket: journal-photos
+-- Public: false
+-- File size limit: 10MB
+-- Allowed MIME types: image/jpeg, image/png, image/webp
+
+-- RLS policies for journal-photos bucket
+CREATE POLICY "Users can upload own journal photos"
+  ON storage.objects FOR INSERT
+  WITH CHECK (
+    bucket_id = 'journal-photos' AND
+    auth.uid()::text = (storage.foldername(name))[1]
+  );
+
+CREATE POLICY "Users can view own journal photos"
+  ON storage.objects FOR SELECT
+  USING (
+    bucket_id = 'journal-photos' AND
+    auth.uid()::text = (storage.foldername(name))[1]
+  );
+
+CREATE POLICY "Users can update own journal photos"
+  ON storage.objects FOR UPDATE
+  USING (
+    bucket_id = 'journal-photos' AND
+    auth.uid()::text = (storage.foldername(name))[1]
+  );
+
+CREATE POLICY "Users can delete own journal photos"
+  ON storage.objects FOR DELETE
+  USING (
+    bucket_id = 'journal-photos' AND
+    auth.uid()::text = (storage.foldername(name))[1]
+  );
+
+-- =====================================================
+-- STORAGE SETUP INSTRUCTIONS
+-- =====================================================
+-- After running this schema:
+--
+-- 1. Go to Supabase Dashboard > Storage
+-- 2. Create two buckets:
+--    - profile-pictures (Private, 5MB limit)
+--    - journal-photos (Private, 10MB limit)
+--
+-- 3. The RLS policies above will automatically apply
+--
+-- 4. File structure:
+--    - profile-pictures/{user_id}/{friend_id}.jpg
+--    - journal-photos/{user_id}/{interaction_id}_{timestamp}.jpg
+--
+-- 5. Enable in ImageService by setting ENABLE_CLOUD_STORAGE = true
