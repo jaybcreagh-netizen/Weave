@@ -175,6 +175,7 @@ function PulseTabContent({
 }) {
   const explanation = seasonData ? generateSeasonExplanation(seasonData) : null;
   const [monthlyActivity, setMonthlyActivity] = useState<Map<string, boolean>>(new Map());
+  const [completedWeaves, setCompletedWeaves] = useState<Map<string, boolean>>(new Map());
   const [monthlyWeaves, setMonthlyWeaves] = useState(0);
   const [longestStreak, setLongestStreak] = useState({ count: 0, startDate: '', endDate: '' });
   const [avgWeeklyWeaves, setAvgWeeklyWeaves] = useState(0);
@@ -205,11 +206,15 @@ function PulseTabContent({
 
       setMonthlyWeaves(monthlyInteractions.length);
 
-      // Build activity map for calendar
+      // Build separate maps for completed weaves and all activity
       const activityMap = new Map<string, boolean>();
+      const completedWeavesMap = new Map<string, boolean>();
+
+      // Track completed weaves
       monthlyInteractions.forEach(interaction => {
         const dateKey = format(interaction.interactionDate, 'yyyy-MM-dd');
         activityMap.set(dateKey, true);
+        completedWeavesMap.set(dateKey, true);
       });
 
       // Also check for battery check-ins and journal entries
@@ -240,6 +245,7 @@ function PulseTabContent({
       }
 
       setMonthlyActivity(activityMap);
+      setCompletedWeaves(completedWeavesMap);
 
       // Calculate longest streak ever
       const allInteractions = await database
@@ -454,6 +460,7 @@ function PulseTabContent({
           {calendarDays.map((day, index) => {
             const dateKey = format(day, 'yyyy-MM-dd');
             const hasActivity = monthlyActivity.get(dateKey) || false;
+            const hasCompletedWeave = completedWeaves.get(dateKey) || false;
             const isToday = isSameDay(day, today);
             const isCurrentMonth = day.getMonth() === today.getMonth();
             const isFutureDate = day > today;
@@ -477,15 +484,23 @@ function PulseTabContent({
               >
                 <View style={calendarStyles.cellContent}>
                   {hasActivity ? (
-                    <LinearGradient
-                      colors={['#FFD700', '#F59E0B']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                      style={[
-                        calendarStyles.activityDot,
-                        isCurrentWeek && calendarStyles.currentWeekDot,
-                      ]}
-                    />
+                    <>
+                      {hasCompletedWeave && (
+                        <View style={[
+                          calendarStyles.weaveRing,
+                          isCurrentWeek && calendarStyles.currentWeekRing,
+                        ]} />
+                      )}
+                      <LinearGradient
+                        colors={['#FFD700', '#F59E0B']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={[
+                          calendarStyles.activityDot,
+                          isCurrentWeek && calendarStyles.currentWeekDot,
+                        ]}
+                      />
+                    </>
                   ) : (
                     <View
                       style={[
@@ -627,6 +642,23 @@ const calendarStyles = StyleSheet.create({
   },
   currentWeekDot: {
     opacity: 0.5,
+  },
+  weaveRing: {
+    width: '70%',
+    height: '70%',
+    borderRadius: 999,
+    borderWidth: 1.5,
+    borderColor: '#FFD700',
+    position: 'absolute',
+    shadowColor: '#FFD700',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.4,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  currentWeekRing: {
+    opacity: 0.5,
+    borderWidth: 1,
   },
   emptyDot: {
     width: '30%',
