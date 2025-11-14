@@ -20,6 +20,7 @@ import JournalEntry from './db/models/JournalEntry';
 import CustomChip from './db/models/CustomChip';
 import ChipUsage from './db/models/ChipUsage';
 import InteractionOutcome from './db/models/InteractionOutcome';
+import EventSuggestionFeedback from './db/models/EventSuggestionFeedback';
 
 const adapter = new SQLiteAdapter({
   schema,
@@ -53,6 +54,7 @@ export const database = new Database({
     CustomChip,
     ChipUsage,
     InteractionOutcome,
+    EventSuggestionFeedback,
   ],
 });
 

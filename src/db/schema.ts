@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb'
 
 export default appSchema({
-  version: 32, // UPDATED: Added weekly reflection preferences (day, auto-show, snooze tracking)
+  version: 33, // UPDATED: Added event_suggestion_feedback table for intelligent ambient logging
   tables: [
     tableSchema({
       name: 'friends',
@@ -380,6 +380,49 @@ export default appSchema({
         // Timestamps
         { name: 'interaction_date', type: 'number' },
         { name: 'measured_at', type: 'number' }, // When we measured the outcome
+        { name: 'created_at', type: 'number' },
+      ]
+    }),
+    tableSchema({
+      name: 'event_suggestion_feedback',
+      columns: [
+        // Event identification
+        { name: 'calendar_event_id', type: 'string', isIndexed: true }, // Original calendar event ID
+        { name: 'event_title', type: 'string' },
+        { name: 'event_date', type: 'number' },
+        { name: 'event_location', type: 'string', isOptional: true },
+
+        // Suggested friends
+        { name: 'suggested_friend_ids', type: 'string' }, // JSON array of friend IDs
+        { name: 'suggested_category', type: 'string', isOptional: true },
+
+        // User action
+        { name: 'action', type: 'string' }, // 'accepted', 'dismissed', 'corrected', 'snoozed'
+        { name: 'dismissal_reason', type: 'string', isOptional: true }, // 'wrong-friends', 'not-social', 'already-logged', 'not-relevant'
+
+        // Corrections (if user accepted but changed details)
+        { name: 'corrected_friend_ids', type: 'string', isOptional: true }, // JSON array if user changed friends
+        { name: 'corrected_category', type: 'string', isOptional: true },
+
+        // Snooze info
+        { name: 'snoozed_until', type: 'number', isOptional: true },
+        { name: 'snooze_type', type: 'string', isOptional: true }, // 'friend', 'event-pattern', 'all'
+        { name: 'snoozed_friend_ids', type: 'string', isOptional: true }, // JSON array
+
+        // Emotional context (if user provided)
+        { name: 'emotional_rating', type: 'number', isOptional: true }, // 1-5 scale
+        { name: 'reflection_notes', type: 'string', isOptional: true },
+
+        // Linked interaction (if accepted and logged)
+        { name: 'resulting_interaction_id', type: 'string', isOptional: true },
+
+        // Learning metadata
+        { name: 'confidence_score', type: 'number' }, // Initial AI confidence (0-1)
+        { name: 'match_quality', type: 'number' }, // Friend match quality (0-1)
+
+        // Timestamps
+        { name: 'suggested_at', type: 'number' },
+        { name: 'responded_at', type: 'number', isOptional: true },
         { name: 'created_at', type: 'number' },
       ]
     })
