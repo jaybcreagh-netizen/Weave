@@ -30,7 +30,7 @@ export default class Friend extends Model {
 
   // Life events and relationship context
   @text('birthday') birthday?: string // Format: "MM-DD"
-  @date('anniversary') anniversary?: Date
+  @text('anniversary') anniversary?: string // Format: "MM-DD"
   @text('relationship_type') relationshipType?: string
 
   // Adaptive decay pattern learning (v21)

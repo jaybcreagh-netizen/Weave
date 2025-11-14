@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb'
 
 export default appSchema({
-  version: 29, // UPDATED: Added fulfillment tracking to intentions
+  version: 30, // UPDATED: Changed anniversary from Date to string (MM-DD format)
   tables: [
     tableSchema({
       name: 'friends',
@@ -22,7 +22,7 @@ export default appSchema({
         { name: 'dormant_since', type: 'number', isOptional: true },
         // NEW: Life events and relationship context
         { name: 'birthday', type: 'string', isOptional: true }, // Format: "MM-DD" (month and day only)
-        { name: 'anniversary', type: 'number', isOptional: true }, // When you met/became friends
+        { name: 'anniversary', type: 'string', isOptional: true }, // Format: "MM-DD" (month and day only)
         { name: 'relationship_type', type: 'string', isOptional: true }, // friend, close_friend, family, partner, colleague, acquaintance
         // NEW v21: Adaptive decay pattern learning
         { name: 'typical_interval_days', type: 'number', isOptional: true }, // Learned average days between interactions

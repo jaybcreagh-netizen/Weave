@@ -501,6 +501,17 @@ export default schemaMigrations({
         }),
       ],
     },
+    {
+      // Migration from schema v29 to v30
+      // Changed anniversary from timestamp (number) to MM-DD string format (no year)
+      toVersion: 30,
+      steps: [
+        // Since WatermelonDB doesn't support direct column type changes,
+        // and anniversary is optional, we'll clear existing values
+        // Users will need to re-enter anniversaries in the new format
+        unsafeExecuteSql(`UPDATE friends SET anniversary = NULL WHERE anniversary IS NOT NULL;`),
+      ],
+    },
   ],
 });
 

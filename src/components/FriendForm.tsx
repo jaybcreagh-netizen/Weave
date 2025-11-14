@@ -3,7 +3,6 @@ import { View, Text, TouchableOpacity, TextInput, ScrollView, Image, Platform, S
 import { ArrowLeft, Camera, X, Calendar, Heart, Users, AlertCircle } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as Contacts from 'expo-contacts';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { useNavigation, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../hooks/useTheme';
@@ -73,7 +72,6 @@ export function FriendForm({ onSave, friend, initialTier, fromOnboarding }: Frie
     relationshipType: friend?.relationshipType as RelationshipType | undefined,
   });
 
-  const [showAnniversaryPicker, setShowAnniversaryPicker] = useState(false);
   const [imageError, setImageError] = useState(false);
   const [showContactPicker, setShowContactPicker] = useState(false);
   const [showCapacityWarning, setShowCapacityWarning] = useState(false);
@@ -135,21 +133,21 @@ export function FriendForm({ onSave, friend, initialTier, fromOnboarding }: Frie
       return;
     }
 
-    // 3. Validate birthday format
+    // 3. Validate birthday format (should always be valid from MonthDayPicker)
     if (formData.birthday && !validateBirthdayFormat(formData.birthday)) {
       Alert.alert(
         'Invalid Birthday',
-        'Birthday must be in MM-DD format (e.g., "03-15" for March 15).',
+        'Please select a valid birthday using the date picker.',
         [{ text: 'OK' }]
       );
       return;
     }
 
-    // 4. Validate anniversary format
+    // 4. Validate anniversary format (should always be valid from MonthDayPicker)
     if (formData.anniversary && !validateAnniversaryFormat(formData.anniversary)) {
       Alert.alert(
         'Invalid Anniversary',
-        'Anniversary must be in MM-DD format (e.g., "06-20" for June 20).',
+        'Please select a valid anniversary using the date picker.',
         [{ text: 'OK' }]
       );
       return;
@@ -378,35 +376,13 @@ export function FriendForm({ onSave, friend, initialTier, fromOnboarding }: Frie
           {/* Only show anniversary field for partners */}
           {formData.relationshipType === 'partner' && (
             <View>
-              <Text style={[styles.label, { color: colors.foreground }]}>Anniversary</Text>
+              <Text style={[styles.label, { color: colors.foreground }]}>Anniversary (Optional)</Text>
               <Text style={[styles.helperText, { color: colors['muted-foreground'] }]}>Romantic relationship anniversary</Text>
-              <TouchableOpacity
-                onPress={() => setShowAnniversaryPicker(true)}
-                style={[styles.dateButton, { backgroundColor: colors.card, borderColor: colors.border }]}
-              >
-                <Heart size={20} color={colors['muted-foreground']} />
-                <Text style={[styles.dateButtonText, { color: formData.anniversary ? colors.foreground : colors['muted-foreground'] }]}>
-                  {formData.anniversary ? formData.anniversary.toLocaleDateString() : "Set anniversary"}
-                </Text>
-                {formData.anniversary && (
-                  <TouchableOpacity onPress={() => setFormData({ ...formData, anniversary: undefined })}>
-                    <X size={16} color={colors['muted-foreground']} />
-                  </TouchableOpacity>
-                )}
-              </TouchableOpacity>
-              {showAnniversaryPicker && (
-                <DateTimePicker
-                  value={formData.anniversary || new Date()}
-                  mode="date"
-                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                  onChange={(event, selectedDate) => {
-                    setShowAnniversaryPicker(Platform.OS === 'ios');
-                    if (selectedDate) {
-                      setFormData({ ...formData, anniversary: selectedDate });
-                    }
-                  }}
-                />
-              )}
+              <MonthDayPicker
+                value={formData.anniversary}
+                onChange={(anniversary) => setFormData({ ...formData, anniversary })}
+                label="Set anniversary"
+              />
             </View>
           )}
 

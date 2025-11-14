@@ -103,6 +103,6 @@ export type FriendFormData = {
   photoUrl: string;
   // Life events and relationship context
   birthday?: string; // Format: "MM-DD"
-  anniversary?: Date;
+  anniversary?: string; // Format: "MM-DD"
   relationshipType?: RelationshipType;
 };

@@ -4,9 +4,10 @@ import { X, Calendar } from 'lucide-react-native';
 import { useTheme } from '../hooks/useTheme';
 
 interface MonthDayPickerProps {
-  value?: string; // Format: "MM-DD"
+  value?: string; // Format: "MM-DD" (stored format)
   onChange: (value: string) => void;
   label?: string;
+  displayFormat?: 'MM-DD' | 'DD-MM'; // Display format (defaults to DD-MM for UK)
 }
 
 const MONTHS = [
@@ -32,16 +33,17 @@ const getDaysInMonth = (month: string): number => {
   return daysMap[month] || 31;
 };
 
-export function MonthDayPicker({ value, onChange, label = 'Set birthday' }: MonthDayPickerProps) {
+export function MonthDayPicker({ value, onChange, label = 'Set birthday', displayFormat = 'DD-MM' }: MonthDayPickerProps) {
   const { colors } = useTheme();
   const [showPicker, setShowPicker] = useState(false);
 
-  // Parse current value
+  // Parse current value (stored as MM-DD)
   const [month, day] = value ? value.split('-') : ['01', '01'];
   const [selectedMonth, setSelectedMonth] = useState(month);
   const [selectedDay, setSelectedDay] = useState(day);
 
   const handleSave = () => {
+    // Always store as MM-DD
     onChange(`${selectedMonth}-${selectedDay}`);
     setShowPicker(false);
   };
@@ -55,7 +57,15 @@ export function MonthDayPicker({ value, onChange, label = 'Set birthday' }: Mont
     if (!value) return label;
     const [m, d] = value.split('-');
     const monthLabel = MONTHS.find(month => month.value === m)?.label || '';
-    return `${monthLabel} ${parseInt(d)}`;
+    const dayNum = parseInt(d);
+
+    // Format based on display preference
+    if (displayFormat === 'MM-DD') {
+      return `${monthLabel} ${dayNum}`;
+    } else {
+      // DD-MM format: "15 January"
+      return `${dayNum} ${monthLabel}`;
+    }
   };
 
   // Get available days for selected month
@@ -110,71 +120,144 @@ export function MonthDayPicker({ value, onChange, label = 'Set birthday' }: Mont
 
             {/* Picker Content */}
             <View style={styles.pickersRow}>
-              {/* Month Picker */}
-              <View style={styles.pickerColumn}>
-                <Text style={[styles.columnLabel, { color: colors['muted-foreground'] }]}>Month</Text>
-                <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-                  {MONTHS.map((monthItem) => (
-                    <TouchableOpacity
-                      key={monthItem.value}
-                      onPress={() => setSelectedMonth(monthItem.value)}
-                      style={[
-                        styles.pickerItem,
-                        selectedMonth === monthItem.value && [
-                          styles.pickerItemSelected,
-                          { backgroundColor: colors.primary + '20', borderColor: colors.primary }
-                        ]
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.pickerItemText,
-                          { color: colors.foreground },
-                          selectedMonth === monthItem.value && [
-                            styles.pickerItemTextSelected,
-                            { color: colors.primary }
-                          ]
-                        ]}
-                      >
-                        {monthItem.label}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              </View>
+              {/* Show Day first for DD-MM, Month first for MM-DD */}
+              {displayFormat === 'DD-MM' ? (
+                <>
+                  {/* Day Picker */}
+                  <View style={styles.pickerColumn}>
+                    <Text style={[styles.columnLabel, { color: colors['muted-foreground'] }]}>Day</Text>
+                    <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+                      {days.map((dayItem) => (
+                        <TouchableOpacity
+                          key={dayItem.value}
+                          onPress={() => setSelectedDay(dayItem.value)}
+                          style={[
+                            styles.pickerItem,
+                            selectedDay === dayItem.value && [
+                              styles.pickerItemSelected,
+                              { backgroundColor: colors.primary + '20', borderColor: colors.primary }
+                            ]
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.pickerItemText,
+                              { color: colors.foreground },
+                              selectedDay === dayItem.value && [
+                                styles.pickerItemTextSelected,
+                                { color: colors.primary }
+                              ]
+                            ]}
+                          >
+                            {dayItem.label}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
 
-              {/* Day Picker */}
-              <View style={styles.pickerColumn}>
-                <Text style={[styles.columnLabel, { color: colors['muted-foreground'] }]}>Day</Text>
-                <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-                  {days.map((dayItem) => (
-                    <TouchableOpacity
-                      key={dayItem.value}
-                      onPress={() => setSelectedDay(dayItem.value)}
-                      style={[
-                        styles.pickerItem,
-                        selectedDay === dayItem.value && [
-                          styles.pickerItemSelected,
-                          { backgroundColor: colors.primary + '20', borderColor: colors.primary }
-                        ]
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.pickerItemText,
-                          { color: colors.foreground },
-                          selectedDay === dayItem.value && [
-                            styles.pickerItemTextSelected,
-                            { color: colors.primary }
-                          ]
-                        ]}
-                      >
-                        {dayItem.label}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              </View>
+                  {/* Month Picker */}
+                  <View style={styles.pickerColumn}>
+                    <Text style={[styles.columnLabel, { color: colors['muted-foreground'] }]}>Month</Text>
+                    <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+                      {MONTHS.map((monthItem) => (
+                        <TouchableOpacity
+                          key={monthItem.value}
+                          onPress={() => setSelectedMonth(monthItem.value)}
+                          style={[
+                            styles.pickerItem,
+                            selectedMonth === monthItem.value && [
+                              styles.pickerItemSelected,
+                              { backgroundColor: colors.primary + '20', borderColor: colors.primary }
+                            ]
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.pickerItemText,
+                              { color: colors.foreground },
+                              selectedMonth === monthItem.value && [
+                                styles.pickerItemTextSelected,
+                                { color: colors.primary }
+                              ]
+                            ]}
+                          >
+                            {monthItem.label}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+                </>
+              ) : (
+                <>
+                  {/* Month Picker */}
+                  <View style={styles.pickerColumn}>
+                    <Text style={[styles.columnLabel, { color: colors['muted-foreground'] }]}>Month</Text>
+                    <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+                      {MONTHS.map((monthItem) => (
+                        <TouchableOpacity
+                          key={monthItem.value}
+                          onPress={() => setSelectedMonth(monthItem.value)}
+                          style={[
+                            styles.pickerItem,
+                            selectedMonth === monthItem.value && [
+                              styles.pickerItemSelected,
+                              { backgroundColor: colors.primary + '20', borderColor: colors.primary }
+                            ]
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.pickerItemText,
+                              { color: colors.foreground },
+                              selectedMonth === monthItem.value && [
+                                styles.pickerItemTextSelected,
+                                { color: colors.primary }
+                              ]
+                            ]}
+                          >
+                            {monthItem.label}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+
+                  {/* Day Picker */}
+                  <View style={styles.pickerColumn}>
+                    <Text style={[styles.columnLabel, { color: colors['muted-foreground'] }]}>Day</Text>
+                    <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+                      {days.map((dayItem) => (
+                        <TouchableOpacity
+                          key={dayItem.value}
+                          onPress={() => setSelectedDay(dayItem.value)}
+                          style={[
+                            styles.pickerItem,
+                            selectedDay === dayItem.value && [
+                              styles.pickerItemSelected,
+                              { backgroundColor: colors.primary + '20', borderColor: colors.primary }
+                            ]
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.pickerItemText,
+                              { color: colors.foreground },
+                              selectedDay === dayItem.value && [
+                                styles.pickerItemTextSelected,
+                                { color: colors.primary }
+                              ]
+                            ]}
+                          >
+                            {dayItem.label}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+                </>
+              )}
             </View>
 
             {/* Footer Buttons */}
