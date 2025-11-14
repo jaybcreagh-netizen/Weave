@@ -269,7 +269,22 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, index,
 
   // Sequential flowing animation - cascades from top to bottom
   // Each item: knot appears → card fades → line draws to next item → next item's knot appears
+  // Performance optimization: Only animate first 20 items, instant appearance for older items
   useEffect(() => {
+    const ANIMATION_THRESHOLD = 20; // Only animate first 20 items
+
+    // Skip animations for items beyond threshold - instant appearance
+    if (index >= ANIMATION_THRESHOLD) {
+      // Instant appearance - no delays or animations
+      knotScale.value = 1;
+      knotOpacity.value = 1;
+      entranceOpacity.value = 1;
+      entranceScale.value = 1;
+      entranceTranslateY.value = 0;
+      strokeDashoffset.value = 0;
+      return;
+    }
+
     const baseDelay = 150; // Initial delay before first item
     const itemDuration = 350; // Time between each item's knot appearance
     const lineDuration = 250; // Line drawing duration

@@ -21,10 +21,15 @@ interface FriendStore {
   appStateSubscription: (() => void) | null;
   isSleeping: boolean;
   pendingFriendId: string | null; // Track friend to observe when app wakes
+  interactionsPageSize: number;
+  loadedInteractionsCount: number;
+  totalInteractionsCount: number;
+  hasMoreInteractions: boolean;
   observeFriends: () => void;
   unobserveFriends: () => void;
-  observeFriend: (friendId: string) => void;
+  observeFriend: (friendId: string, initialPageSize?: number) => void;
   unobserveFriend: () => void;
+  loadMoreInteractions: () => Promise<void>;
   pauseObservers: () => void;
   resumeObservers: () => void;
   initializeAppStateListener: () => void;
@@ -46,6 +51,10 @@ export const useFriendStore = create<FriendStore>((set, get) => ({
   appStateSubscription: null,
   isSleeping: false,
   pendingFriendId: null,
+  interactionsPageSize: 50, // Initial page size
+  loadedInteractionsCount: 0,
+  totalInteractionsCount: 0,
+  hasMoreInteractions: false,
 
   observeFriends: () => {
     const currentSubscription = get().friendsSubscription;
@@ -91,28 +100,57 @@ export const useFriendStore = create<FriendStore>((set, get) => ({
     }
   },
 
-  observeFriend: (friendId: string) => {
+  observeFriend: (friendId: string, initialPageSize: number = 50) => {
     get().unobserveFriend(); // Unsubscribe from previous friend
+
+    // Reset pagination state
+    set({
+      interactionsPageSize: initialPageSize,
+      loadedInteractionsCount: 0,
+      totalInteractionsCount: 0,
+      hasMoreInteractions: false,
+    });
 
     const friendSub = database.get<FriendModel>('friends').findAndObserve(friendId).subscribe(friend => {
       set({ activeFriend: friend });
 
       if (friend) {
-        // Manually and correctly fetch interactions for the friend
+        // Fetch total count and initial interactions separately for pagination control
         const interactionFriendsSub = database.get<InteractionFriend>('interaction_friends')
           .query(Q.where('friend_id', friend.id))
           .observe();
-        
+
         const interactionSub = interactionFriendsSub.pipe(
-          switchMap(interactionFriends => {
+          switchMap(async (interactionFriends) => {
             const interactionIds = interactionFriends.map(ifriend => ifriend.interactionId);
-            if (interactionIds.length === 0) {
-              return of([]); // Return an empty observable if no interactions
+            const totalCount = interactionIds.length;
+
+            if (totalCount === 0) {
+              set({
+                totalInteractionsCount: 0,
+                loadedInteractionsCount: 0,
+                hasMoreInteractions: false,
+              });
+              return of([]);
             }
-            return database.get<InteractionModel>('interactions').query(
-              Q.where('id', Q.oneOf(interactionIds))
-            ).observe();
-          })
+
+            // Get interactions sorted by date, limited to initial page size
+            const interactions = await database.get<InteractionModel>('interactions').query(
+              Q.where('id', Q.oneOf(interactionIds)),
+              Q.sortBy('interaction_date', Q.desc),
+              Q.take(initialPageSize)
+            ).fetch();
+
+            set({
+              totalInteractionsCount: totalCount,
+              loadedInteractionsCount: interactions.length,
+              hasMoreInteractions: interactions.length < totalCount,
+            });
+
+            // Return as observable for consistency
+            return of(interactions);
+          }),
+          switchMap(obs => obs)
         ).subscribe(interactions => {
           set({ activeFriendInteractions: interactions });
         });
@@ -120,7 +158,13 @@ export const useFriendStore = create<FriendStore>((set, get) => ({
         set({ interactionSubscription: interactionSub });
       } else {
         // If friend is not found or null, clear interactions
-        set({ activeFriendInteractions: [], interactionSubscription: null });
+        set({
+          activeFriendInteractions: [],
+          interactionSubscription: null,
+          totalInteractionsCount: 0,
+          loadedInteractionsCount: 0,
+          hasMoreInteractions: false,
+        });
       }
     });
 
@@ -135,7 +179,64 @@ export const useFriendStore = create<FriendStore>((set, get) => ({
     if (interactionSubscription) {
       interactionSubscription.unsubscribe();
     }
-    set({ friendSubscription: null, interactionSubscription: null, activeFriend: null, activeFriendInteractions: [] });
+    set({
+      friendSubscription: null,
+      interactionSubscription: null,
+      activeFriend: null,
+      activeFriendInteractions: [],
+      loadedInteractionsCount: 0,
+      totalInteractionsCount: 0,
+      hasMoreInteractions: false,
+    });
+  },
+
+  loadMoreInteractions: async () => {
+    const {
+      activeFriend,
+      activeFriendInteractions,
+      loadedInteractionsCount,
+      totalInteractionsCount,
+      hasMoreInteractions,
+      interactionsPageSize,
+    } = get();
+
+    // Guard: no more to load or no active friend
+    if (!hasMoreInteractions || !activeFriend) {
+      return;
+    }
+
+    try {
+      // Get interaction IDs for this friend
+      const interactionFriends = await database.get<InteractionFriend>('interaction_friends')
+        .query(Q.where('friend_id', activeFriend.id))
+        .fetch();
+
+      const interactionIds = interactionFriends.map(ifriend => ifriend.interactionId);
+
+      if (interactionIds.length === 0) {
+        return;
+      }
+
+      // Fetch next batch of interactions
+      const nextBatch = await database.get<InteractionModel>('interactions').query(
+        Q.where('id', Q.oneOf(interactionIds)),
+        Q.sortBy('interaction_date', Q.desc),
+        Q.skip(loadedInteractionsCount),
+        Q.take(interactionsPageSize)
+      ).fetch();
+
+      // Append to existing interactions
+      const updatedInteractions = [...activeFriendInteractions, ...nextBatch];
+      const newLoadedCount = updatedInteractions.length;
+
+      set({
+        activeFriendInteractions: updatedInteractions,
+        loadedInteractionsCount: newLoadedCount,
+        hasMoreInteractions: newLoadedCount < totalInteractionsCount,
+      });
+    } catch (error) {
+      console.error('[loadMoreInteractions] Error loading more interactions:', error);
+    }
   },
 
   addFriend: async (data: FriendFormData) => {
