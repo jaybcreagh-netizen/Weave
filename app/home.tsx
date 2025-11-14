@@ -12,7 +12,7 @@ import { WeeklyReflectionModal } from '../src/components/WeeklyReflection/Weekly
 import { YearInMoonsModal } from '../src/components/YearInMoons/YearInMoonsModal';
 import { useUserProfileStore } from '../src/stores/userProfileStore';
 import { useFriendStore } from '../src/stores/friendStore';
-import { getLastReflectionDate, shouldShowReflection } from '../src/lib/notification-manager';
+import { getLastReflectionDate, shouldShowReflection } from '../src/lib/notification-manager-enhanced';
 import { useTutorialStore } from '../src/stores/tutorialStore';
 
 export default function Home() {

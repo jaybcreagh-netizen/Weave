@@ -6,6 +6,7 @@
 
 import * as Notifications from 'expo-notifications';
 import { router } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 import { useUIStore } from '../stores/uiStore';
 
 export interface NotificationData {
@@ -16,13 +17,16 @@ export interface NotificationData {
     | 'deepening-nudge'
     | 'friend-suggestion'
     | 'portfolio-insight'
-    | 'life-event';
+    | 'life-event'
+    | 'memory-nudge';
 
   // Optional navigation data
   friendId?: string;
   friendName?: string;
   interactionId?: string;
   suggestionId?: string;
+  reflectionId?: string;
+  weekRange?: string;
 }
 
 /**
@@ -34,6 +38,9 @@ export function handleNotificationResponse(
   const data = response.notification.request.content.data as NotificationData;
 
   console.log('[Notifications] User tapped notification:', data);
+
+  // Provide haptic feedback for notification tap
+  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
   if (!data?.type) {
     console.warn('[Notifications] No type in notification data, ignoring');
@@ -68,6 +75,10 @@ export function handleNotificationResponse(
 
     case 'life-event':
       handleLifeEventNotification(data);
+      break;
+
+    case 'memory-nudge':
+      handleMemoryNudgeNotification(data);
       break;
 
     default:
@@ -183,6 +194,22 @@ function handleLifeEventNotification(data: NotificationData): void {
     // Fallback to friends tab
     router.push('/(tabs)/friends');
   }
+}
+
+/**
+ * Navigate to home tab and show anniversary reflection
+ */
+function handleMemoryNudgeNotification(data: NotificationData): void {
+  // Navigate to home tab
+  router.push('/(tabs)/home');
+
+  // Trigger memory reflection modal via URL parameter
+  setTimeout(() => {
+    router.setParams({
+      showMemory: 'true',
+      reflectionId: data.reflectionId,
+    });
+  }, 300);
 }
 
 /**

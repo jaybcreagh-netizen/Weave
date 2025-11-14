@@ -10,7 +10,7 @@ import Animated, { FadeIn, SlideInRight, SlideOutLeft } from 'react-native-reani
 import { X, ChevronLeft } from 'lucide-react-native';
 import { useTheme } from '../../hooks/useTheme';
 import { WeeklySummary, calculateWeeklySummary } from '../../lib/weekly-reflection/weekly-stats';
-import { markReflectionComplete } from '../../lib/notification-manager';
+import { markReflectionComplete } from '../../lib/notification-manager-enhanced';
 import { WeekSummary } from './WeekSummary';
 import { MissedConnectionsList } from './MissedConnectionsList';
 import { GratitudePrompt } from './GratitudePrompt';
