@@ -10,6 +10,7 @@ import { Q } from '@nozbe/watermelondb';
 import { tierMap } from '../lib/constants';
 import { appStateManager } from '../lib/app-state-manager';
 import { trackEvent, AnalyticsEvents } from '../lib/analytics';
+import { deleteImage } from '../lib/image-service';
 
 interface FriendStore {
   friends: FriendModel[];
@@ -364,25 +365,63 @@ export const useFriendStore = create<FriendStore>((set, get) => ({
   },
 
   deleteFriend: async (id: string) => {
+    // Get friend data before deletion to access photoUrl
+    const friend = await database.get<FriendModel>('friends').find(id);
+    const photoUrl = friend.photoUrl;
+
+    // Delete from database
     await database.write(async () => {
-        const friend = await database.get<FriendModel>('friends').find(id);
         await friend.destroyPermanently();
     });
+
+    // Delete associated profile picture (if exists)
+    if (photoUrl) {
+      try {
+        await deleteImage({
+          imageId: id,
+          type: 'profilePicture',
+          // userId will be populated when accounts are enabled
+        });
+        console.log('[FriendStore] Deleted profile picture for friend:', id);
+      } catch (error) {
+        console.error('[FriendStore] Error deleting profile picture:', error);
+        // Don't fail the whole operation if image deletion fails
+      }
+    }
 
     // Track analytics
     trackEvent(AnalyticsEvents.FRIEND_DELETED);
   },
 
   batchDeleteFriends: async (ids: string[]) => {
-    await database.write(async () => {
-      const friendsToDelete = await database.get<FriendModel>('friends').query(
-        Q.where('id', Q.oneOf(ids))
-      ).fetch();
+    // Get friends data before deletion to access photoUrls
+    const friendsToDelete = await database.get<FriendModel>('friends').query(
+      Q.where('id', Q.oneOf(ids))
+    ).fetch();
 
+    // Delete from database
+    await database.write(async () => {
       await database.batch(
         ...friendsToDelete.map(friend => friend.prepareDestroyPermanently())
       );
     });
+
+    // Delete associated profile pictures (if exist)
+    for (const friend of friendsToDelete) {
+      if (friend.photoUrl) {
+        try {
+          await deleteImage({
+            imageId: friend.id,
+            type: 'profilePicture',
+            // userId will be populated when accounts are enabled
+          });
+          console.log('[FriendStore] Deleted profile picture for friend:', friend.id);
+        } catch (error) {
+          console.error('[FriendStore] Error deleting profile picture:', error);
+          // Don't fail the whole operation if image deletion fails
+        }
+      }
+    }
 
     // Track analytics
     trackEvent(AnalyticsEvents.FRIEND_DELETED, { count: ids.length, batch: true });

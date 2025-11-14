@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { View, Text, TouchableOpacity, TextInput, ScrollView, Image, Platform, StyleSheet, Modal, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput, ScrollView, Image, Platform, StyleSheet, Modal, Alert, ActivityIndicator } from 'react-native';
 import { ArrowLeft, Camera, X, Calendar, Heart, Users, AlertCircle } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as Contacts from 'expo-contacts';
@@ -18,6 +18,7 @@ import { normalizeContactImageUri } from '../lib/image-utils';
 import { SimpleTutorialTooltip } from './SimpleTutorialTooltip';
 import { useTutorialStore } from '../stores/tutorialStore';
 import { validateMMDDFormat } from '../lib/validation-helpers';
+import { processAndStoreImage } from '../lib/image-service';
 
 interface FriendFormProps {
   onSave: (friendData: FriendFormData) => void;
@@ -73,6 +74,7 @@ export function FriendForm({ onSave, friend, initialTier, fromOnboarding }: Frie
   });
 
   const [imageError, setImageError] = useState(false);
+  const [imageProcessing, setImageProcessing] = useState(false);
   const [showContactPicker, setShowContactPicker] = useState(false);
   const [showCapacityWarning, setShowCapacityWarning] = useState(false);
 
@@ -195,12 +197,48 @@ export function FriendForm({ onSave, friend, initialTier, fromOnboarding }: Frie
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [1, 1],
-      quality: 1,
+      quality: 0.8, // Reduced from 1 for better performance
     });
 
     if (!result.canceled) {
-      setFormData({ ...formData, photoUrl: result.assets[0].uri });
-      setImageError(false); // Reset error state when new image is picked
+      setImageProcessing(true);
+
+      try {
+        // Generate a temporary ID for new friends, or use existing friend ID
+        const imageId = friend?.id || `temp_${Date.now()}`;
+
+        // Process and store the image using ImageService
+        const imageResult = await processAndStoreImage({
+          uri: result.assets[0].uri,
+          type: 'profilePicture',
+          imageId,
+          // userId will be populated when accounts are enabled
+          // For now it's undefined and only local storage is used
+        });
+
+        if (imageResult.success) {
+          // Store the persistent local URI (not the temporary picker URI)
+          setFormData({ ...formData, photoUrl: imageResult.localUri });
+          setImageError(false);
+          console.log('[FriendForm] Image processed and stored:', imageResult.localUri);
+        } else {
+          console.error('[FriendForm] Image processing failed:', imageResult.error);
+          Alert.alert(
+            'Image Processing Failed',
+            'Could not save the image. Please try again.',
+            [{ text: 'OK' }]
+          );
+        }
+      } catch (error) {
+        console.error('[FriendForm] Error processing image:', error);
+        Alert.alert(
+          'Image Processing Failed',
+          'Could not save the image. Please try again.',
+          [{ text: 'OK' }]
+        );
+      } finally {
+        setImageProcessing(false);
+      }
     }
   };
 
@@ -208,18 +246,41 @@ export function FriendForm({ onSave, friend, initialTier, fromOnboarding }: Frie
     setFormData({ ...formData, photoUrl: "" });
   };
 
-  const handleContactSelection = (selectedContacts: Contacts.Contact[]) => {
+  const handleContactSelection = async (selectedContacts: Contacts.Contact[]) => {
     if (selectedContacts.length > 0) {
       const contact = selectedContacts[0];
       const contactName = contact.name || '';
-      const contactPhoto = contact.imageAvailable && contact.image
-        ? normalizeContactImageUri(contact.image.uri)
-        : '';
+      let contactPhotoUrl = '';
+
+      // Process contact photo if available
+      if (contact.imageAvailable && contact.image) {
+        setImageProcessing(true);
+
+        try {
+          const normalizedUri = normalizeContactImageUri(contact.image.uri);
+          const imageId = friend?.id || `temp_${Date.now()}`;
+
+          const imageResult = await processAndStoreImage({
+            uri: normalizedUri,
+            type: 'profilePicture',
+            imageId,
+          });
+
+          if (imageResult.success) {
+            contactPhotoUrl = imageResult.localUri;
+            console.log('[FriendForm] Contact photo processed:', contactPhotoUrl);
+          }
+        } catch (error) {
+          console.error('[FriendForm] Error processing contact photo:', error);
+        } finally {
+          setImageProcessing(false);
+        }
+      }
 
       setFormData({
         ...formData,
         name: contactName,
-        photoUrl: contactPhoto
+        photoUrl: contactPhotoUrl
       });
       setShowContactPicker(false);
     }
@@ -243,9 +304,11 @@ export function FriendForm({ onSave, friend, initialTier, fromOnboarding }: Frie
           <View>
             <Text style={[styles.label, { color: colors.foreground }]}>Portrait</Text>
             <View style={styles.imagePickerContainer}>
-              <TouchableOpacity onPress={pickImage}>
+              <TouchableOpacity onPress={pickImage} disabled={imageProcessing}>
                 <View style={[styles.avatarContainer, { backgroundColor: colors.muted, borderColor: colors.border }]}>
-                  {formData.photoUrl && !imageError ? (
+                  {imageProcessing ? (
+                    <ActivityIndicator size="large" color={colors.primary} />
+                  ) : formData.photoUrl && !imageError ? (
                     <Image
                       source={{ uri: normalizeContactImageUri(formData.photoUrl) }}
                       style={styles.avatarImage}
@@ -263,8 +326,14 @@ export function FriendForm({ onSave, friend, initialTier, fromOnboarding }: Frie
                 </TouchableOpacity>
               )}
               <View style={{ flex: 1, gap: 8 }}>
-                <TouchableOpacity onPress={pickImage} style={[styles.addPhotoButton, { borderColor: colors.border }]}>
-                  <Text style={{ color: colors.foreground }}>{formData.photoUrl ? "Change Photo" : "Add Photo"}</Text>
+                <TouchableOpacity
+                  onPress={pickImage}
+                  disabled={imageProcessing}
+                  style={[styles.addPhotoButton, { borderColor: colors.border, opacity: imageProcessing ? 0.5 : 1 }]}
+                >
+                  <Text style={{ color: colors.foreground }}>
+                    {imageProcessing ? "Processing..." : formData.photoUrl ? "Change Photo" : "Add Photo"}
+                  </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={() => setShowContactPicker(true)}
