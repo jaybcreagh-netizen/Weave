@@ -1,5 +1,5 @@
 import React from 'react';
-import { SvgProps } from 'react-native-svg';
+import Svg, { SvgProps } from 'react-native-svg';
 import { type SocialSeason } from '../lib/social-season/season-types';
 
 // Import season SVG icons
@@ -13,11 +13,13 @@ interface SeasonIconProps {
   color?: string;
 }
 
-export function SeasonIcon({ season, size, color }: SeasonIconProps) {
-  const iconProps: SvgProps = {
+export function SeasonIcon({ season, size, color = '#000000' }: SeasonIconProps) {
+  const iconProps = {
     width: size,
     height: size,
-    ...(color && { fill: color, stroke: color }),
+    fill: color,
+    stroke: color,
+    color: color,
   };
 
   switch (season) {
