@@ -112,6 +112,14 @@ export default Sentry.wrap(function RootLayout() {
         // Track app open and retention metrics
         trackEvent(AnalyticsEvents.APP_OPENED);
         await trackRetentionMetrics();
+
+        // Sync calendar changes on app launch (non-blocking)
+        import('../src/stores/interactionStore').then(({ useInteractionStore }) => {
+          useInteractionStore.getState().syncWithCalendar().catch((error) => {
+            console.error('[App] Error syncing calendar on launch:', error);
+          });
+        });
+
         setDataLoaded(true);
       } catch (error) {
         console.error('Failed to initialize app data:', error);
@@ -173,6 +181,14 @@ export default Sentry.wrap(function RootLayout() {
       import('../src/lib/smart-notification-scheduler').then(({ evaluateAndScheduleSmartNotifications }) => {
         evaluateAndScheduleSmartNotifications().catch((error) => {
           console.error('[App] Error evaluating smart notifications on foreground:', error);
+        });
+      });
+
+      // Sync calendar changes when app becomes active
+      // This runs async in the background without blocking the UI
+      import('../src/stores/interactionStore').then(({ useInteractionStore }) => {
+        useInteractionStore.getState().syncWithCalendar().catch((error) => {
+          console.error('[App] Error syncing calendar on foreground:', error);
         });
       });
     } else if (state === 'background') {

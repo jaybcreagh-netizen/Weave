@@ -13,6 +13,7 @@ import { useUIStore } from './uiStore';
 import { deleteWeaveCalendarEvent, updateWeaveCalendarEvent, getCalendarSettings } from '../lib/calendar-service';
 import { getCategoryMetadata } from '../lib/interaction-categories';
 import { recordReflectionChips } from '../lib/adaptive-chips';
+import { syncCalendarChanges, type CalendarSyncResult } from '../lib/calendar-sync-service';
 
 /**
  * Calendar event update payload
@@ -87,12 +88,18 @@ interface InteractionStore {
   }) => Promise<void>;
   confirmPlan: (interactionId: string) => Promise<void>;
   updatePlanStatus: (interactionId: string, status: 'planned' | 'pending_confirm' | 'completed' | 'cancelled' | 'missed') => Promise<void>;
+  // Calendar sync
+  isSyncing: boolean;
+  lastSyncTime: Date | null;
+  syncWithCalendar: () => Promise<CalendarSyncResult | null>;
 }
 
 let allInteractionsSubscription: Subscription | null = null;
 
 export const useInteractionStore = create<InteractionStore>((set, get) => ({
   allInteractions: [],
+  isSyncing: false,
+  lastSyncTime: null,
 
   observeAllInteractions: () => {
     if (allInteractionsSubscription) return;
@@ -473,6 +480,47 @@ export const useInteractionStore = create<InteractionStore>((set, get) => ({
       }
       // Note: For 'completed' status, we keep the calendar event as a record
       // For 'pending_confirm', we keep it active since plan might still happen
+    }
+  },
+  syncWithCalendar: async (): Promise<CalendarSyncResult | null> => {
+    const state = get();
+    if (state.isSyncing) {
+      console.log('[InteractionStore] Sync already in progress, skipping');
+      return null;
+    }
+
+    set({ isSyncing: true });
+
+    try {
+      const result = await syncCalendarChanges();
+      set({ lastSyncTime: new Date(), isSyncing: false });
+
+      // Show toast notification if there were changes
+      if (result.changes.length > 0) {
+        const syncedCount = result.synced;
+        const deletedCount = result.deleted;
+
+        let message = '';
+        if (syncedCount > 0 && deletedCount > 0) {
+          message = `Synced ${syncedCount} change${syncedCount === 1 ? '' : 's'} and ${deletedCount} deleted event${deletedCount === 1 ? '' : 's'}`;
+        } else if (syncedCount > 0) {
+          message = `Synced ${syncedCount} change${syncedCount === 1 ? '' : 's'}`;
+        } else if (deletedCount > 0) {
+          message = `${deletedCount} plan${deletedCount === 1 ? '' : 's'} cancelled`;
+        }
+
+        if (message) {
+          console.log('[InteractionStore] Calendar sync:', message);
+          // Show toast notification to user
+          useUIStore.getState().showToast(message, 'Calendar');
+        }
+      }
+
+      return result;
+    } catch (error) {
+      console.error('[InteractionStore] Error syncing calendar:', error);
+      set({ isSyncing: false });
+      return null;
     }
   },
 }));

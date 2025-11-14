@@ -8,12 +8,14 @@ export interface CalendarSettings {
   enabled: boolean;
   calendarId: string | null;
   reminderMinutes: number; // Minutes before event to remind (default: 60)
+  twoWaySync: boolean; // Enable two-way sync from calendar to Weave (default: true)
 }
 
 const DEFAULT_SETTINGS: CalendarSettings = {
   enabled: false,
   calendarId: null,
   reminderMinutes: 60,
+  twoWaySync: true,
 };
 
 /**
@@ -404,5 +406,14 @@ export async function setPreferredCalendar(calendarId: string): Promise<void> {
 export async function setReminderTime(minutes: number): Promise<void> {
   const settings = await getCalendarSettings();
   settings.reminderMinutes = minutes;
+  await saveCalendarSettings(settings);
+}
+
+/**
+ * Enable/disable two-way calendar sync
+ */
+export async function toggleTwoWaySync(enabled: boolean): Promise<void> {
+  const settings = await getCalendarSettings();
+  settings.twoWaySync = enabled;
   await saveCalendarSettings(settings);
 }
