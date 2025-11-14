@@ -898,10 +898,7 @@ export function SettingsModal({
 
             <TouchableOpacity
               className="flex-row items-center justify-between"
-              onPress={() => {
-                onClose();
-                setTimeout(() => setShowFriendManagement(true), 300);
-              }}
+              onPress={() => setShowFriendManagement(true)}
             >
               <View className="flex-row items-center gap-3">
                 <View className="w-10 h-10 rounded-lg items-center justify-center" style={{ backgroundColor: colors.muted }}>
