@@ -385,15 +385,26 @@ function PulseTabContent({
         className="p-5 rounded-2xl"
         style={{ backgroundColor: isDarkMode ? '#2A2E3F' : '#FFF8ED' }}
       >
-        <Text
-          className="text-lg font-bold mb-4"
-          style={{ color: isDarkMode ? '#F5F1E8' : '#2D3142', fontFamily: 'Lora_700Bold' }}
-        >
-          {format(today, 'MMMM yyyy')}
-        </Text>
+        <View className="flex-row items-center justify-between mb-4">
+          <Text
+            className="text-lg font-bold"
+            style={{ color: isDarkMode ? '#F5F1E8' : '#2D3142', fontFamily: 'Lora_700Bold' }}
+          >
+            {format(today, 'MMMM yyyy')}
+          </Text>
+          <View className="flex-row items-center gap-2">
+            <View className="w-2.5 h-2.5 rounded-full bg-gradient-to-r from-yellow-400 to-amber-500" style={{ backgroundColor: '#FFD700' }} />
+            <Text
+              className="text-xs"
+              style={{ color: isDarkMode ? '#8A8F9E' : '#6C7589', fontFamily: 'Inter_400Regular' }}
+            >
+              Active Day
+            </Text>
+          </View>
+        </View>
 
         {/* Weekday headers */}
-        <View className="flex-row mb-2">
+        <View className="flex-row mb-3">
           {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, index) => (
             <View key={index} style={calendarStyles.dayHeader}>
               <Text
@@ -426,7 +437,7 @@ function PulseTabContent({
               >
                 {hasActivity ? (
                   <LinearGradient
-                    colors={gradientColors}
+                    colors={['#FFD700', '#F59E0B']}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                     style={[
@@ -440,6 +451,7 @@ function PulseTabContent({
                       calendarStyles.emptyDot,
                       { borderColor: isDarkMode ? '#3A3E4F' : '#E0E3E9' },
                       !isCurrentMonth && calendarStyles.otherMonthDot,
+                      isToday && [calendarStyles.todayEmptyDot, { borderColor: '#FFD700' }],
                     ]}
                   />
                 )}
@@ -574,48 +586,66 @@ const calendarStyles = StyleSheet.create({
   dayHeader: {
     flex: 1,
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 12,
   },
   dayHeaderText: {
     fontFamily: 'Inter_600SemiBold',
     fontSize: 11,
+    letterSpacing: 0.5,
   },
   calendarGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    gap: 4,
   },
   dayCell: {
-    width: '14.28%', // 7 days per week
+    width: '13.5%', // Slightly smaller to account for gap
     aspectRatio: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 2,
   },
   todayCell: {
     // Special styling for today if needed
   },
   activityDot: {
-    width: '80%',
-    height: '80%',
+    width: '85%',
+    height: '85%',
     borderRadius: 999,
+    shadowColor: '#FFD700',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 3,
   },
   todayDot: {
-    width: '90%',
-    height: '90%',
+    width: '95%',
+    height: '95%',
     shadowColor: '#FFD700',
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.4,
-    shadowRadius: 4,
-    elevation: 4,
+    shadowOpacity: 0.6,
+    shadowRadius: 8,
+    elevation: 8,
+    borderWidth: 2,
+    borderColor: '#FFF',
   },
   emptyDot: {
     width: '70%',
     height: '70%',
     borderRadius: 999,
-    borderWidth: 1.5,
+    borderWidth: 2,
     backgroundColor: 'transparent',
   },
+  todayEmptyDot: {
+    width: '80%',
+    height: '80%',
+    borderWidth: 2.5,
+    shadowColor: '#FFD700',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
+  },
   otherMonthDot: {
-    opacity: 0.3,
+    opacity: 0.25,
   },
 });
