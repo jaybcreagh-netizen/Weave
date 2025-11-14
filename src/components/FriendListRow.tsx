@@ -23,6 +23,7 @@ import { calculateCurrentScore } from '../lib/weave-engine';
 import { generateIntelligentStatusLine } from '../lib/intelligent-status-line';
 import { normalizeContactImageUri } from '../lib/image-utils';
 import { statusLineCache } from '../lib/status-line-cache';
+import { FriendDetailSheet } from './FriendDetailSheet';
 
 const ATTENTION_THRESHOLD = 35;
 const STABLE_THRESHOLD = 65;
@@ -52,6 +53,7 @@ export const FriendListRow = React.memo(({ friend, animatedRef, variant = 'defau
     text: archetypeData[archetype]?.essence || ''
   });
   const [imageError, setImageError] = useState(false);
+  const [showDetailSheet, setShowDetailSheet] = useState(false);
   const { colors, isDarkMode } = useTheme();
   const { setArchetypeModal, justNurturedFriendId, setJustNurturedFriendId } = useUIStore();
   const { activeCardId } = useCardGesture();
@@ -139,8 +141,8 @@ export const FriendListRow = React.memo(({ friend, animatedRef, variant = 'defau
     }
   }, [justNurturedFriendId, id]);
 
-  const handleArchetypeLongPress = () => {
-    setArchetypeModal(archetype);
+  const handleCardLongPress = () => {
+    setShowDetailSheet(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
   };
 
@@ -217,7 +219,11 @@ export const FriendListRow = React.memo(({ friend, animatedRef, variant = 'defau
         />
 
         {/* Content */}
-        <View className="flex-row items-center p-3 gap-3">
+        <Pressable
+          onLongPress={handleCardLongPress}
+          delayLongPress={500}
+          className="flex-row items-center p-3 gap-3"
+        >
           {/* Avatar */}
           <View
             className="w-avatar-sm h-avatar-sm rounded-full overflow-hidden items-center justify-center"
@@ -283,11 +289,9 @@ export const FriendListRow = React.memo(({ friend, animatedRef, variant = 'defau
             </View>
           </View>
 
-          {/* Archetype Button */}
+          {/* Archetype Icon */}
           <View className="relative">
-            <Pressable
-              onLongPress={handleArchetypeLongPress}
-              delayLongPress={500}
+            <View
               className="w-9 h-9 rounded-[10px] items-center justify-center"
               style={{
                 backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)',
@@ -300,7 +304,7 @@ export const FriendListRow = React.memo(({ friend, animatedRef, variant = 'defau
                 size={18}
                 color={isDarkMode ? colors.foreground : colors['muted-foreground']}
               />
-            </Pressable>
+            </View>
             {/* Unknown Archetype Indicator */}
             {archetype === 'Unknown' && (
               <View
@@ -315,8 +319,15 @@ export const FriendListRow = React.memo(({ friend, animatedRef, variant = 'defau
               </View>
             )}
           </View>
-        </View>
+        </Pressable>
       </View>
+
+      {/* Friend Detail Sheet */}
+      <FriendDetailSheet
+        isVisible={showDetailSheet}
+        onClose={() => setShowDetailSheet(false)}
+        friend={friend}
+      />
     </Animated.View>
   );
 }, (prevProps, nextProps) => {

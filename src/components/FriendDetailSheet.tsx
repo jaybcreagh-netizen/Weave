@@ -13,11 +13,33 @@ import { format } from 'date-fns';
 
 import { useTheme } from '../hooks/useTheme';
 import { ArchetypeIcon } from './ArchetypeIcon';
-import { archetypeData } from '../lib/constants';
+import { archetypeData, CategoryArchetypeMatrix } from '../lib/constants';
+import { CATEGORY_METADATA } from '../lib/interaction-categories';
+import { type InteractionCategory } from './types';
 import FriendModel from '../db/models/Friend';
 import { useFriendStore } from '../stores/friendStore';
 import { calculateCurrentScore } from '../lib/weave-engine';
 import { getFriendMilestones, Milestone } from '../lib/milestone-tracker';
+
+// Helper: Get top interaction suggestions for an archetype
+function getTopInteractions(archetype: string): Array<{ category: InteractionCategory; multiplier: number; level: 'peak' | 'high' | 'good' }> {
+  if (archetype === 'Unknown') return [];
+
+  const affinities = CategoryArchetypeMatrix[archetype];
+  if (!affinities) return [];
+
+  const suggestions = Object.entries(affinities)
+    .map(([category, multiplier]) => ({
+      category: category as InteractionCategory,
+      multiplier,
+      level: multiplier >= 1.8 ? 'peak' : multiplier >= 1.5 ? 'high' : 'good' as 'peak' | 'high' | 'good'
+    }))
+    .filter(item => item.multiplier >= 1.4) // Only show good+ affinities
+    .sort((a, b) => b.multiplier - a.multiplier)
+    .slice(0, 5); // Top 5
+
+  return suggestions;
+}
 
 interface FriendDetailSheetProps {
   isVisible: boolean;
@@ -74,6 +96,14 @@ export const FriendDetailSheet: React.FC<FriendDetailSheetProps> = ({
   const weaveScore = calculateCurrentScore(friend);
   const totalWeaves = activeFriendInteractions?.length || 0;
   const completedWeaves = activeFriendInteractions?.filter(i => i.status === 'completed').length || 0;
+  const topInteractions = getTopInteractions(friend.archetype);
+
+  // Color scheme for affinity levels
+  const getAffinityColor = (level: 'peak' | 'high' | 'good') => {
+    if (level === 'peak') return '#10b981'; // Green
+    if (level === 'high') return '#3b82f6'; // Blue
+    return '#8b5cf6'; // Purple
+  };
 
   return (
     <Modal transparent visible={isVisible} onRequestClose={onClose} animationType="none">
@@ -192,10 +222,58 @@ export const FriendDetailSheet: React.FC<FriendDetailSheetProps> = ({
           </View>
           <Text
             style={{ color: colors['muted-foreground'] }}
-            className="font-inter text-sm leading-5"
+            className="font-inter text-sm leading-5 mb-4"
           >
             {archetypeInfo?.description || 'A unique archetype'}
           </Text>
+
+          {/* Perfect Connections */}
+          {topInteractions.length > 0 && (
+            <>
+              <View className="flex-row items-center gap-2 mb-3 mt-2">
+                <Sparkles size={14} color={colors.primary} />
+                <Text
+                  className="font-inter-semibold text-[14px]"
+                  style={{ color: colors.foreground }}
+                >
+                  Perfect Connections
+                </Text>
+              </View>
+
+              <View className="flex-row flex-wrap gap-2">
+                {topInteractions.map(({ category, level }) => {
+                  const metadata = CATEGORY_METADATA[category];
+                  const affinityColor = getAffinityColor(level);
+
+                  return (
+                    <View
+                      key={category}
+                      className="flex-row items-center gap-1.5 rounded-full px-2.5 py-1.5"
+                      style={{
+                        backgroundColor: `${affinityColor}15`,
+                        borderWidth: 1,
+                        borderColor: `${affinityColor}40`,
+                      }}
+                    >
+                      <Text className="text-sm">{metadata.icon}</Text>
+                      <Text
+                        className="font-inter text-[12px] font-semibold"
+                        style={{ color: affinityColor }}
+                      >
+                        {metadata.label}
+                      </Text>
+                      <Text
+                        className="font-inter text-[10px] font-medium"
+                        style={{ color: `${affinityColor}CC` }}
+                      >
+                        {level === 'peak' ? '★' : level === 'high' ? '✦' : '◆'}
+                      </Text>
+                    </View>
+                  );
+                })}
+              </View>
+            </>
+          )}
         </View>
 
         {/* Milestones */}
