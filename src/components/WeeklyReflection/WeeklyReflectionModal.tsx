@@ -1,7 +1,7 @@
 /**
  * WeeklyReflectionModal
  * Main modal for weekly reflection ritual
- * Beautiful, native-feeling 3-step flow
+ * Beautiful, native-feeling 4-step flow: Summary → Calendar Events → Reconnect → Gratitude
  */
 
 import React, { useState, useEffect } from 'react';
@@ -14,9 +14,12 @@ import { markReflectionComplete } from '../../lib/notification-manager-enhanced'
 import { WeekSummary } from './WeekSummary';
 import { MissedConnectionsList } from './MissedConnectionsList';
 import { GratitudePrompt } from './GratitudePrompt';
+import { CalendarEventsStep } from './CalendarEventsStep';
 import { database } from '../../db';
 import WeeklyReflection from '../../db/models/WeeklyReflection';
 import { getTopStoryChipSuggestions, WeekStoryChipSuggestion } from '../../lib/weekly-reflection/story-chip-aggregator';
+import { batchLogCalendarEvents } from '../../lib/weekly-event-review';
+import { ScannedEvent } from '../../lib/event-scanner';
 import * as Haptics from 'expo-haptics';
 
 interface WeeklyReflectionModalProps {
@@ -24,7 +27,7 @@ interface WeeklyReflectionModalProps {
   onClose: () => void;
 }
 
-type Step = 'summary' | 'missed' | 'gratitude';
+type Step = 'summary' | 'events' | 'missed' | 'gratitude';
 
 export function WeeklyReflectionModal({ isOpen, onClose }: WeeklyReflectionModalProps) {
   const { colors, isDarkMode } = useTheme();
@@ -32,6 +35,7 @@ export function WeeklyReflectionModal({ isOpen, onClose }: WeeklyReflectionModal
   const [storyChipSuggestions, setStoryChipSuggestions] = useState<WeekStoryChipSuggestion[]>([]);
   const [currentStep, setCurrentStep] = useState<Step>('summary');
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedEvents, setSelectedEvents] = useState<ScannedEvent[]>([]);
 
   useEffect(() => {
     if (isOpen) {
@@ -65,6 +69,17 @@ export function WeeklyReflectionModal({ isOpen, onClose }: WeeklyReflectionModal
     if (!summary) return;
 
     try {
+      // Batch log selected calendar events if any
+      if (selectedEvents.length > 0) {
+        const emotionalRating = gratitudeText.trim().length > 0 ? 8 : undefined; // High rating if they wrote gratitude
+        await batchLogCalendarEvents({
+          events: selectedEvents,
+          emotionalRating,
+          reflectionNotes: gratitudeText.trim().length > 0 ? gratitudeText : undefined,
+        });
+        console.log(`[WeeklyReflection] Batch logged ${selectedEvents.length} calendar events`);
+      }
+
       // Save weekly reflection to database
       await database.write(async () => {
         await database.get<WeeklyReflection>('weekly_reflections').create((reflection) => {
@@ -100,8 +115,10 @@ export function WeeklyReflectionModal({ isOpen, onClose }: WeeklyReflectionModal
 
   const handleBack = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    if (currentStep === 'missed') {
+    if (currentStep === 'events') {
       setCurrentStep('summary');
+    } else if (currentStep === 'missed') {
+      setCurrentStep('events');
     } else if (currentStep === 'gratitude') {
       setCurrentStep('missed');
     }
@@ -114,6 +131,7 @@ export function WeeklyReflectionModal({ isOpen, onClose }: WeeklyReflectionModal
 
   const stepTitles: Record<Step, string> = {
     summary: 'Your Week',
+    events: 'Calendar Events',
     missed: 'Reconnect',
     gratitude: 'Gratitude',
   };
@@ -158,8 +176,8 @@ export function WeeklyReflectionModal({ isOpen, onClose }: WeeklyReflectionModal
 
         {/* Step Indicator */}
         <View className="flex-row px-5 py-4 gap-2">
-          {(['summary', 'missed', 'gratitude'] as Step[]).map((step, index) => {
-            const stepIndex = ['summary', 'missed', 'gratitude'].indexOf(currentStep);
+          {(['summary', 'events', 'missed', 'gratitude'] as Step[]).map((step, index) => {
+            const stepIndex = ['summary', 'events', 'missed', 'gratitude'].indexOf(currentStep);
             const isActive = step === currentStep;
             const isCompleted = index < stepIndex;
 
@@ -195,6 +213,23 @@ export function WeeklyReflectionModal({ isOpen, onClose }: WeeklyReflectionModal
                   <WeekSummary
                     summary={summary}
                     onNext={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      setCurrentStep('events');
+                    }}
+                  />
+                </Animated.View>
+              )}
+
+              {currentStep === 'events' && (
+                <Animated.View entering={SlideInRight} exiting={SlideOutLeft} className="flex-1">
+                  <CalendarEventsStep
+                    onNext={(events) => {
+                      setSelectedEvents(events);
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      setCurrentStep('missed');
+                    }}
+                    onSkip={() => {
+                      setSelectedEvents([]);
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                       setCurrentStep('missed');
                     }}
