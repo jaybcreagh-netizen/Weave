@@ -1,4 +1,4 @@
-import { differenceInHours, differenceInDays, differenceInWeeks, differenceInMonths, format, isToday, isYesterday, isSameWeek } from 'date-fns';
+import { differenceInHours, differenceInDays, differenceInWeeks, differenceInMonths, format, isToday, isYesterday, isPast } from 'date-fns';
 
 /**
  * Formats a date into poetic, human-readable language
@@ -35,24 +35,22 @@ export const formatPoeticDate = (date: Date | string): {
   else if (isToday(d)) {
     if (hoursAgo < 1) {
       primary = 'Just now';
-    } else if (hoursAgo < 4) {
+    } else if (hoursAgo < 3) {
       primary = 'Earlier today';
-    } else if (hoursAgo < 8) {
-      primary = 'Today';
     } else {
-      primary = 'Earlier today';
+      primary = 'Today';
     }
   }
   // Yesterday
   else if (isYesterday(d)) {
     primary = 'Yesterday';
   }
-  // This week
-  else if (isSameWeek(d, now)) {
+  // This week (2-6 days ago)
+  else if (daysAgo >= 2 && daysAgo <= 6) {
     primary = format(d, 'EEEE'); // "Monday", "Tuesday", etc.
   }
-  // Last week
-  else if (daysAgo < 14) {
+  // Last week (7-13 days ago)
+  else if (daysAgo >= 7 && daysAgo <= 13) {
     primary = `Last ${format(d, 'EEEE')}`;
   }
   // This month
