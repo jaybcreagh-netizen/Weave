@@ -142,6 +142,9 @@ export const FriendListRow = React.memo(({ friend, animatedRef, variant = 'defau
   }, [justNurturedFriendId, id]);
 
   const handleCardLongPress = () => {
+    // Only allow long press on friend profile page (variant='full'), not on dashboard
+    if (variant !== 'full') return;
+
     setShowDetailSheet(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
   };
