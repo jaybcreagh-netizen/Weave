@@ -16,6 +16,10 @@ import Interaction from '../db/models/Interaction';
 import Friend from '../db/models/Friend';
 import WeeklyReflection from '../db/models/WeeklyReflection';
 import { Q } from '@nozbe/watermelondb';
+import {
+  shouldSendWeeklyReflectionNotification,
+  shouldSendSocialBatteryNotification,
+} from './notification-grace-periods';
 
 // AsyncStorage keys
 const LAST_REFLECTION_KEY = '@weave:last_reflection_date';
@@ -61,12 +65,20 @@ export async function requestNotificationPermissions(): Promise<boolean> {
 
 /**
  * Schedule daily battery check-in notification
+ * Note: Only schedules if user meets grace period requirements (48+ hours old, 3+ interactions)
  * @param time - Time in "HH:mm" format (24-hour), e.g., "20:00" for 8 PM
  */
 export async function scheduleDailyBatteryCheckin(time: string = '20:00'): Promise<void> {
   try {
     // Cancel existing notification
     await Notifications.cancelScheduledNotificationAsync(DAILY_BATTERY_ID);
+
+    // Check grace period before scheduling
+    const gracePeriodCheck = await shouldSendSocialBatteryNotification();
+    if (!gracePeriodCheck.shouldSend) {
+      console.log('[Notifications] Battery check-in NOT scheduled:', gracePeriodCheck.reason);
+      return;
+    }
 
     // Parse time
     const [hourStr, minuteStr] = time.split(':');
@@ -392,10 +404,18 @@ export async function cleanupOldDeepeningNudges(): Promise<void> {
 
 /**
  * Schedule weekly reflection notification for Sunday at 7 PM
+ * Note: Only schedules if user meets grace period requirements (7+ days old, 1+ interaction)
  */
 export async function scheduleWeeklyReflection(): Promise<void> {
   try {
     await Notifications.cancelScheduledNotificationAsync(WEEKLY_REFLECTION_ID);
+
+    // Check grace period before scheduling
+    const gracePeriodCheck = await shouldSendWeeklyReflectionNotification();
+    if (!gracePeriodCheck.shouldSend) {
+      console.log('[Notifications] Weekly reflection NOT scheduled:', gracePeriodCheck.reason);
+      return;
+    }
 
     await Notifications.scheduleNotificationAsync({
       identifier: WEEKLY_REFLECTION_ID,

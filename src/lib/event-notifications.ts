@@ -2,6 +2,7 @@ import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { ScannedEvent } from './event-scanner';
 import { format } from 'date-fns';
+import { shouldSendAmbientLoggingNotification } from './notification-grace-periods';
 
 /**
  * Configure notification handler
@@ -55,11 +56,19 @@ export async function requestNotificationPermissions(): Promise<boolean> {
 
 /**
  * Schedule a notification suggesting to log a calendar event
+ * Note: Only schedules if user meets grace period requirements (3+ days old, 2+ friends)
  */
 export async function scheduleEventSuggestionNotification(
   event: ScannedEvent
 ): Promise<string | null> {
   try {
+    // Check grace period before sending notification
+    const gracePeriodCheck = await shouldSendAmbientLoggingNotification();
+    if (!gracePeriodCheck.shouldSend) {
+      console.log('[Notifications] Event suggestion NOT scheduled:', gracePeriodCheck.reason);
+      return null;
+    }
+
     // Check if we have permission
     const { status } = await Notifications.getPermissionsAsync();
     if (status !== 'granted') {
