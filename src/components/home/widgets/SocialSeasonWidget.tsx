@@ -300,7 +300,7 @@ export const SocialSeasonWidget: React.FC = () => {
           <LinearGradient colors={gradientColors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.gradient}>
             {/* Header */}
             <View style={styles.header}>
-              <SeasonIcon season={season} size={48} />
+              <SeasonIcon season={season} size={48} color="#FFFFFF" />
               <Text style={styles.headline}>{getSeasonDisplayName(season)}</Text>
               <Text style={styles.subtext}>{greeting.subtext}</Text>
             </View>
@@ -402,7 +402,7 @@ export const SocialSeasonWidget: React.FC = () => {
                     ]}
                   >
                     <View style={styles.overrideIconContainer}>
-                      <SeasonIcon season={s} size={32} />
+                      <SeasonIcon season={s} size={32} color={colors.foreground} />
                     </View>
                     <View style={styles.overrideOptionText}>
                       <Text style={[styles.overrideOptionTitle, { color: colors.foreground }]}>{getSeasonDisplayName(s)}</Text>
