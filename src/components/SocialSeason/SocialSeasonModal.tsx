@@ -175,6 +175,7 @@ function PulseTabContent({
 }) {
   const explanation = seasonData ? generateSeasonExplanation(seasonData) : null;
   const [monthlyActivity, setMonthlyActivity] = useState<Map<string, boolean>>(new Map());
+  const [completedWeaves, setCompletedWeaves] = useState<Map<string, boolean>>(new Map());
   const [monthlyWeaves, setMonthlyWeaves] = useState(0);
   const [longestStreak, setLongestStreak] = useState({ count: 0, startDate: '', endDate: '' });
   const [avgWeeklyWeaves, setAvgWeeklyWeaves] = useState(0);
@@ -205,11 +206,15 @@ function PulseTabContent({
 
       setMonthlyWeaves(monthlyInteractions.length);
 
-      // Build activity map for calendar
+      // Build separate maps for completed weaves and all activity
       const activityMap = new Map<string, boolean>();
+      const completedWeavesMap = new Map<string, boolean>();
+
+      // Track completed weaves
       monthlyInteractions.forEach(interaction => {
         const dateKey = format(interaction.interactionDate, 'yyyy-MM-dd');
         activityMap.set(dateKey, true);
+        completedWeavesMap.set(dateKey, true);
       });
 
       // Also check for battery check-ins and journal entries
@@ -240,6 +245,7 @@ function PulseTabContent({
       }
 
       setMonthlyActivity(activityMap);
+      setCompletedWeaves(completedWeavesMap);
 
       // Calculate longest streak ever
       const allInteractions = await database
@@ -385,12 +391,53 @@ function PulseTabContent({
         className="p-5 rounded-2xl"
         style={{ backgroundColor: isDarkMode ? '#2A2E3F' : '#FFF8ED' }}
       >
-        <Text
-          className="text-lg font-bold mb-4"
-          style={{ color: isDarkMode ? '#F5F1E8' : '#2D3142', fontFamily: 'Lora_700Bold' }}
-        >
-          {format(today, 'MMMM yyyy')}
-        </Text>
+        <View className="flex-row items-center justify-between mb-4">
+          <Text
+            className="text-lg font-bold"
+            style={{ color: isDarkMode ? '#F5F1E8' : '#2D3142', fontFamily: 'Lora_700Bold' }}
+          >
+            Activity Streak
+          </Text>
+          <Text
+            className="text-sm"
+            style={{ color: isDarkMode ? '#8A8F9E' : '#6C7589', fontFamily: 'Inter_400Regular' }}
+          >
+            {format(today, 'MMMM yyyy')}
+          </Text>
+        </View>
+
+        {/* Streak Stats */}
+        <View className="flex-row gap-3 mb-4">
+          <View className="flex-1 p-3 rounded-xl" style={{ backgroundColor: isDarkMode ? '#1a1d2e' : '#FFF' }}>
+            <Text
+              className="text-2xl font-bold mb-0.5"
+              style={{ color: '#FFD700', fontFamily: 'Lora_700Bold' }}
+            >
+              {currentStreak}
+            </Text>
+            <Text
+              className="text-xs"
+              style={{ color: isDarkMode ? '#8A8F9E' : '#6C7589', fontFamily: 'Inter_400Regular' }}
+            >
+              Day Streak
+            </Text>
+          </View>
+
+          <View className="flex-1 p-3 rounded-xl" style={{ backgroundColor: isDarkMode ? '#1a1d2e' : '#FFF' }}>
+            <Text
+              className="text-2xl font-bold mb-0.5"
+              style={{ color: isDarkMode ? '#F5F1E8' : '#2D3142', fontFamily: 'Lora_700Bold' }}
+            >
+              {weeklyWeaves}
+            </Text>
+            <Text
+              className="text-xs"
+              style={{ color: isDarkMode ? '#8A8F9E' : '#6C7589', fontFamily: 'Inter_400Regular' }}
+            >
+              This Week
+            </Text>
+          </View>
+        </View>
 
         {/* Weekday headers */}
         <View className="flex-row mb-2">
@@ -413,9 +460,11 @@ function PulseTabContent({
           {calendarDays.map((day, index) => {
             const dateKey = format(day, 'yyyy-MM-dd');
             const hasActivity = monthlyActivity.get(dateKey) || false;
+            const hasCompletedWeave = completedWeaves.get(dateKey) || false;
             const isToday = isSameDay(day, today);
             const isCurrentMonth = day.getMonth() === today.getMonth();
             const isFutureDate = day > today;
+            const dayNumber = day.getDate();
 
             // Check if this day is in the current week
             const currentDayOfWeek = today.getDay();
@@ -433,74 +482,49 @@ function PulseTabContent({
                 key={index}
                 style={calendarStyles.dayCell}
               >
-                {hasActivity ? (
-                  <LinearGradient
-                    colors={['#FFD700', '#F59E0B']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
+                <View style={calendarStyles.cellContent}>
+                  {hasActivity ? (
+                    <>
+                      {hasCompletedWeave && (
+                        <View style={[
+                          calendarStyles.weaveRing,
+                          isCurrentWeek && calendarStyles.currentWeekRing,
+                        ]} />
+                      )}
+                      <LinearGradient
+                        colors={['#FFD700', '#F59E0B']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={[
+                          calendarStyles.activityDot,
+                          isCurrentWeek && calendarStyles.currentWeekDot,
+                        ]}
+                      />
+                    </>
+                  ) : (
+                    <View
+                      style={[
+                        calendarStyles.emptyDot,
+                        { backgroundColor: isDarkMode ? '#1a1d2e' : '#F3EAD8' },
+                        !isCurrentMonth && calendarStyles.otherMonthDot,
+                        isFutureDate && calendarStyles.futureDot,
+                      ]}
+                    />
+                  )}
+                  <Text
                     style={[
-                      calendarStyles.activityDot,
-                      isCurrentWeek && calendarStyles.currentWeekDot,
+                      calendarStyles.dateNumber,
+                      { color: isDarkMode ? '#8A8F9E' : '#6C7589' },
+                      !isCurrentMonth && calendarStyles.otherMonthDate,
+                      isToday && [calendarStyles.todayDate, { color: '#FFD700' }],
                     ]}
-                  />
-                ) : (
-                  <View
-                    style={[
-                      calendarStyles.emptyDot,
-                      { backgroundColor: isDarkMode ? '#1a1d2e' : '#F3EAD8' },
-                      !isCurrentMonth && calendarStyles.otherMonthDot,
-                      isFutureDate && calendarStyles.futureDot,
-                    ]}
-                  />
-                )}
+                  >
+                    {dayNumber}
+                  </Text>
+                </View>
               </View>
             );
           })}
-        </View>
-      </View>
-
-      {/* This Week Stats */}
-      <View
-        className="p-5 rounded-2xl"
-        style={{ backgroundColor: isDarkMode ? '#2A2E3F' : '#FFF8ED' }}
-      >
-        <Text
-          className="text-lg font-bold mb-4"
-          style={{ color: isDarkMode ? '#F5F1E8' : '#2D3142', fontFamily: 'Lora_700Bold' }}
-        >
-          This Week
-        </Text>
-
-        <View className="flex-row gap-3">
-          <View className="flex-1 p-3 rounded-xl" style={{ backgroundColor: isDarkMode ? '#1a1d2e' : '#FFF8ED' }}>
-            <Text
-              className="text-2xl font-bold mb-1"
-              style={{ color: isDarkMode ? '#F5F1E8' : '#2D3142', fontFamily: 'Lora_700Bold' }}
-            >
-              {weeklyWeaves}
-            </Text>
-            <Text
-              className="text-xs"
-              style={{ color: isDarkMode ? '#8A8F9E' : '#6C7589', fontFamily: 'Inter_400Regular' }}
-            >
-              Weaves
-            </Text>
-          </View>
-
-          <View className="flex-1 p-3 rounded-xl" style={{ backgroundColor: isDarkMode ? '#1a1d2e' : '#FFF8ED' }}>
-            <Text
-              className="text-2xl font-bold mb-1"
-              style={{ color: isDarkMode ? '#F5F1E8' : '#2D3142', fontFamily: 'Lora_700Bold' }}
-            >
-              {currentStreak}
-            </Text>
-            <Text
-              className="text-xs"
-              style={{ color: isDarkMode ? '#8A8F9E' : '#6C7589', fontFamily: 'Inter_400Regular' }}
-            >
-              Day Streak
-            </Text>
-          </View>
         </View>
       </View>
 
@@ -603,24 +627,64 @@ const calendarStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  cellContent: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
   activityDot: {
     width: '42%',
     height: '42%',
     borderRadius: 999,
+    position: 'absolute',
   },
   currentWeekDot: {
     opacity: 0.5,
+  },
+  weaveRing: {
+    width: '70%',
+    height: '70%',
+    borderRadius: 999,
+    borderWidth: 1.5,
+    borderColor: '#FFD700',
+    position: 'absolute',
+    shadowColor: '#FFD700',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.4,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  currentWeekRing: {
+    opacity: 0.5,
+    borderWidth: 1,
   },
   emptyDot: {
     width: '30%',
     height: '30%',
     borderRadius: 999,
     opacity: 0.3,
+    position: 'absolute',
   },
   otherMonthDot: {
     opacity: 0.15,
   },
   futureDot: {
     opacity: 0.2,
+  },
+  dateNumber: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 10,
+    position: 'absolute',
+    opacity: 0.5,
+  },
+  todayDate: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 11,
+    opacity: 1,
+  },
+  otherMonthDate: {
+    opacity: 0.25,
   },
 });
