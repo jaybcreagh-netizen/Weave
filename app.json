@@ -11,7 +11,10 @@
         "ITSAppUsesNonExemptEncryption": false,
         "NSContactsUsageDescription": "Weave uses your contacts to help you select friends to add to your circles.",
         "NSCalendarsUsageDescription": "Weave adds your planned interactions to your calendar so you never miss a connection.",
-        "NSRemindersUsageDescription": "Weave can set reminders for your planned interactions."
+        "NSRemindersUsageDescription": "Weave can set reminders for your planned interactions.",
+        "UIBackgroundModes": [
+          "fetch"
+        ]
       }
     },
     "android": {

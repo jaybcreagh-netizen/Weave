@@ -42,6 +42,8 @@ import { importData, getImportPreview } from '../lib/data-import';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
 import { generateStressTestData, clearStressTestData, getDataStats } from '../lib/stress-test-seed-data';
+import { useBackgroundSyncStore, getBackgroundFetchStatusLabel } from '../stores/backgroundSyncStore';
+import type { BackgroundSyncSettings } from '../lib/background-event-sync';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -141,11 +143,21 @@ export function SettingsModal({
   // Friend Management state
   const [showFriendManagement, setShowFriendManagement] = useState(false);
 
+  // Background sync store
+  const {
+    settings: backgroundSyncSettings,
+    loadSettings: loadBackgroundSyncSettings,
+    updateSettings: updateBackgroundSyncSettings,
+    toggleEnabled: toggleBackgroundSync,
+    backgroundFetchStatus,
+  } = useBackgroundSyncStore();
+
   // Load settings on mount
   useEffect(() => {
     if (isOpen) {
       loadCalendarSettings();
       loadNotificationSettings();
+      loadBackgroundSyncSettings();
     }
   }, [isOpen, profile]);
 
@@ -224,6 +236,17 @@ export function SettingsModal({
   const handleToggleTwoWaySync = async (enabled: boolean) => {
     await toggleTwoWaySync(enabled);
     setCalendarSettings((prev) => ({ ...prev, twoWaySync: enabled }));
+  };
+
+  const handleToggleBackgroundSync = async (enabled: boolean) => {
+    const success = await toggleBackgroundSync();
+    if (!success && enabled) {
+      Alert.alert(
+        'Background Sync Unavailable',
+        'Background sync could not be enabled. Make sure you have granted notification permissions and that Background App Refresh is enabled in your device settings.',
+        [{ text: 'OK' }]
+      );
+    }
   };
 
   const handleSelectCalendar = async () => {
@@ -707,6 +730,30 @@ export function SettingsModal({
                 <Switch
                   value={calendarSettings.twoWaySync}
                   onValueChange={handleToggleTwoWaySync}
+                  trackColor={{ false: colors.muted, true: colors.primary }}
+                  thumbColor={colors.card}
+                />
+              </View>
+            )}
+
+            {calendarSettings.enabled && calendarSettings.twoWaySync && (
+              <View className="flex-row items-center justify-between pl-13 mt-3">
+                <View className="flex-1">
+                  <Text className="text-sm font-inter-medium" style={{ color: colors.foreground }}>
+                    Ambient Event Logging
+                  </Text>
+                  <Text className="text-xs font-inter-regular" style={{ color: colors['muted-foreground'] }}>
+                    Daily background scan for past calendar events with friends
+                  </Text>
+                  {backgroundSyncSettings.enabled && backgroundSyncSettings.lastSyncTimestamp && (
+                    <Text className="text-xs font-inter-regular mt-1" style={{ color: colors['muted-foreground'] }}>
+                      Last sync: {new Date(backgroundSyncSettings.lastSyncTimestamp).toLocaleString()}
+                    </Text>
+                  )}
+                </View>
+                <Switch
+                  value={backgroundSyncSettings.enabled}
+                  onValueChange={handleToggleBackgroundSync}
                   trackColor={{ false: colors.muted, true: colors.primary }}
                   thumbColor={colors.card}
                 />

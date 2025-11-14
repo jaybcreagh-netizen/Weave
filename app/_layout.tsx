@@ -30,6 +30,11 @@ import {
   setupNotificationResponseListener,
   handleNotificationOnLaunch,
 } from '../src/lib/notification-response-handler';
+import {
+  configureNotificationHandler,
+  handleEventSuggestionTap,
+} from '../src/lib/event-notifications';
+import { useBackgroundSyncStore } from '../src/stores/backgroundSyncStore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   useFonts,
@@ -240,6 +245,9 @@ export default Sentry.wrap(function RootLayout() {
   useEffect(() => {
     const setupNotifications = async () => {
       try {
+        // Configure notification handler for event suggestions
+        configureNotificationHandler();
+
         await initializeNotifications();
         console.log('[App] All notification systems initialized');
 
@@ -258,6 +266,21 @@ export default Sentry.wrap(function RootLayout() {
     return () => {
       cleanupListener();
     };
+  }, []);
+
+  // Initialize background sync on app startup
+  useEffect(() => {
+    const initBackgroundSync = async () => {
+      try {
+        // Load settings (will register task if enabled)
+        await useBackgroundSyncStore.getState().loadSettings();
+        console.log('[App] Background sync settings loaded');
+      } catch (error) {
+        console.error('[App] Failed to initialize background sync:', error);
+      }
+    };
+
+    initBackgroundSync();
   }, []);
 
   // Check if we should show notification permission modal

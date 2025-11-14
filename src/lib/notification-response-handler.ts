@@ -18,7 +18,8 @@ export interface NotificationData {
     | 'friend-suggestion'
     | 'portfolio-insight'
     | 'life-event'
-    | 'memory-nudge';
+    | 'memory-nudge'
+    | 'event-suggestion';
 
   // Optional navigation data
   friendId?: string;
@@ -27,6 +28,15 @@ export interface NotificationData {
   suggestionId?: string;
   reflectionId?: string;
   weekRange?: string;
+
+  // Event suggestion specific data
+  eventId?: string;
+  friendIds?: string[];
+  eventTitle?: string;
+  eventDate?: string;
+  suggestedCategory?: string;
+  location?: string;
+  notes?: string;
 }
 
 /**
@@ -79,6 +89,10 @@ export function handleNotificationResponse(
 
     case 'memory-nudge':
       handleMemoryNudgeNotification(data);
+      break;
+
+    case 'event-suggestion':
+      handleEventSuggestionNotification(data);
       break;
 
     default:
@@ -210,6 +224,46 @@ function handleMemoryNudgeNotification(data: NotificationData): void {
       reflectionId: data.reflectionId,
     });
   }, 300);
+}
+
+/**
+ * Navigate to interaction form with pre-filled data from calendar event
+ */
+function handleEventSuggestionNotification(data: NotificationData): void {
+  if (!data.friendIds || data.friendIds.length === 0) {
+    console.warn('[Notifications] Event suggestion missing friend IDs');
+    router.push('/(tabs)/friends');
+    return;
+  }
+
+  // Build query params for interaction form
+  const params = new URLSearchParams({
+    type: 'log',
+    friendIds: data.friendIds.join(','),
+  });
+
+  if (data.eventDate) {
+    params.append('date', data.eventDate);
+  }
+
+  if (data.eventTitle) {
+    params.append('title', data.eventTitle);
+  }
+
+  if (data.suggestedCategory) {
+    params.append('category', data.suggestedCategory);
+  }
+
+  if (data.location) {
+    params.append('location', data.location);
+  }
+
+  if (data.notes) {
+    params.append('notes', data.notes);
+  }
+
+  // Navigate to interaction form
+  router.push(`/interaction-form?${params.toString()}`);
 }
 
 /**
