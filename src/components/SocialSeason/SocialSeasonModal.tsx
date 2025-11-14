@@ -3,7 +3,7 @@
  * Full network health hub with tabs: Pulse, Health, Insights
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Modal,
   View,
@@ -11,14 +11,21 @@ import {
   TouchableOpacity,
   SafeAreaView,
   ScrollView,
+  StyleSheet,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { X, Activity, BarChart3 } from 'lucide-react-native';
+import { startOfMonth, endOfMonth, eachDayOfInterval, format, isSameDay, startOfWeek, endOfWeek, differenceInDays } from 'date-fns';
+import { Q } from '@nozbe/watermelondb';
 import { useTheme } from '../../hooks/useTheme';
 import { type SocialSeason, type SeasonExplanationData } from '../../lib/social-season/season-types';
 import { SEASON_STYLES, getSeasonDisplayName } from '../../lib/social-season/season-content';
 import { generateSeasonExplanation } from '../../lib/narrative-generator';
 import { GraphsTabContent } from '../YearInMoons/GraphsTabContent';
+import { database } from '../../db';
+import Interaction from '../../db/models/Interaction';
+import WeeklyReflection from '../../db/models/WeeklyReflection';
+import { useUserProfileStore } from '../../stores/userProfileStore';
 
 interface SocialSeasonModalProps {
   isOpen: boolean;
@@ -167,6 +174,155 @@ function PulseTabContent({
   isDarkMode: boolean;
 }) {
   const explanation = seasonData ? generateSeasonExplanation(seasonData) : null;
+  const [monthlyActivity, setMonthlyActivity] = useState<Map<string, boolean>>(new Map());
+  const [monthlyWeaves, setMonthlyWeaves] = useState(0);
+  const [longestStreak, setLongestStreak] = useState({ count: 0, startDate: '', endDate: '' });
+  const [avgWeeklyWeaves, setAvgWeeklyWeaves] = useState(0);
+  const { profile } = useUserProfileStore();
+
+  const seasonStyle = SEASON_STYLES[season];
+  const gradientColors = isDarkMode ? seasonStyle.gradientColorsDark : seasonStyle.gradientColorsLight;
+
+  useEffect(() => {
+    loadMonthlyStats();
+  }, []);
+
+  const loadMonthlyStats = async () => {
+    try {
+      const today = new Date();
+      const monthStart = startOfMonth(today);
+      const monthEnd = endOfMonth(today);
+
+      // Get all interactions in the current month
+      const monthlyInteractions = await database
+        .get<Interaction>('interactions')
+        .query(
+          Q.where('status', 'completed'),
+          Q.where('interaction_date', Q.gte(monthStart.getTime())),
+          Q.where('interaction_date', Q.lte(monthEnd.getTime()))
+        )
+        .fetch();
+
+      setMonthlyWeaves(monthlyInteractions.length);
+
+      // Build activity map for calendar
+      const activityMap = new Map<string, boolean>();
+      monthlyInteractions.forEach(interaction => {
+        const dateKey = format(interaction.interactionDate, 'yyyy-MM-dd');
+        activityMap.set(dateKey, true);
+      });
+
+      // Also check for battery check-ins and journal entries
+      const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
+      for (const day of days) {
+        const dayStart = day.getTime();
+        const dayEnd = dayStart + 24 * 60 * 60 * 1000;
+        const dateKey = format(day, 'yyyy-MM-dd');
+
+        if (!activityMap.has(dateKey)) {
+          const [batteryCheckins, journalEntries] = await Promise.all([
+            profile?.socialBatteryHistory?.filter(
+              entry => entry.timestamp >= dayStart && entry.timestamp < dayEnd
+            ).length || 0,
+            database
+              .get<WeeklyReflection>('weekly_reflections')
+              .query(
+                Q.where('created_at', Q.gte(dayStart)),
+                Q.where('created_at', Q.lt(dayEnd))
+              )
+              .fetchCount(),
+          ]);
+
+          if (batteryCheckins > 0 || journalEntries > 0) {
+            activityMap.set(dateKey, true);
+          }
+        }
+      }
+
+      setMonthlyActivity(activityMap);
+
+      // Calculate longest streak ever
+      const allInteractions = await database
+        .get<Interaction>('interactions')
+        .query(Q.where('status', 'completed'), Q.sortBy('interaction_date', Q.desc))
+        .fetch();
+
+      let maxStreak = 0;
+      let currentStreakCount = 0;
+      let streakStart = '';
+      let streakEnd = '';
+      let maxStreakStart = '';
+      let maxStreakEnd = '';
+
+      const sortedDates = allInteractions
+        .map(i => format(i.interactionDate, 'yyyy-MM-dd'))
+        .filter((v, i, a) => a.indexOf(v) === i) // unique dates
+        .sort()
+        .reverse();
+
+      for (let i = 0; i < sortedDates.length; i++) {
+        if (i === 0) {
+          currentStreakCount = 1;
+          streakStart = sortedDates[i];
+          streakEnd = sortedDates[i];
+        } else {
+          const prevDate = new Date(sortedDates[i - 1]);
+          const currDate = new Date(sortedDates[i]);
+          const daysDiff = differenceInDays(prevDate, currDate);
+
+          if (daysDiff === 1) {
+            currentStreakCount++;
+            streakStart = sortedDates[i];
+          } else {
+            if (currentStreakCount > maxStreak) {
+              maxStreak = currentStreakCount;
+              maxStreakStart = streakStart;
+              maxStreakEnd = streakEnd;
+            }
+            currentStreakCount = 1;
+            streakStart = sortedDates[i];
+            streakEnd = sortedDates[i];
+          }
+        }
+      }
+
+      if (currentStreakCount > maxStreak) {
+        maxStreak = currentStreakCount;
+        maxStreakStart = streakStart;
+        maxStreakEnd = streakEnd;
+      }
+
+      setLongestStreak({
+        count: maxStreak,
+        startDate: maxStreakStart,
+        endDate: maxStreakEnd,
+      });
+
+      // Calculate average weekly weaves (last 4 weeks)
+      const fourWeeksAgo = new Date();
+      fourWeeksAgo.setDate(fourWeeksAgo.getDate() - 28);
+
+      const recentInteractions = await database
+        .get<Interaction>('interactions')
+        .query(
+          Q.where('status', 'completed'),
+          Q.where('interaction_date', Q.gte(fourWeeksAgo.getTime()))
+        )
+        .fetchCount();
+
+      setAvgWeeklyWeaves(Math.round((recentInteractions / 4) * 10) / 10);
+    } catch (error) {
+      console.error('Error loading monthly stats:', error);
+    }
+  };
+
+  // Generate calendar grid
+  const today = new Date();
+  const monthStart = startOfMonth(today);
+  const monthEnd = endOfMonth(today);
+  const calendarStart = startOfWeek(monthStart, { weekStartsOn: 1 }); // Monday
+  const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 1 });
+  const calendarDays = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
 
   return (
     <View className="gap-6">
@@ -224,6 +380,75 @@ function PulseTabContent({
         </View>
       )}
 
+      {/* Streak Calendar */}
+      <View
+        className="p-5 rounded-2xl"
+        style={{ backgroundColor: isDarkMode ? '#2A2E3F' : '#FFF8ED' }}
+      >
+        <Text
+          className="text-lg font-bold mb-4"
+          style={{ color: isDarkMode ? '#F5F1E8' : '#2D3142', fontFamily: 'Lora_700Bold' }}
+        >
+          {format(today, 'MMMM yyyy')}
+        </Text>
+
+        {/* Weekday headers */}
+        <View className="flex-row mb-2">
+          {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, index) => (
+            <View key={index} style={calendarStyles.dayHeader}>
+              <Text
+                style={[
+                  calendarStyles.dayHeaderText,
+                  { color: isDarkMode ? '#8A8F9E' : '#6C7589' }
+                ]}
+              >
+                {day}
+              </Text>
+            </View>
+          ))}
+        </View>
+
+        {/* Calendar grid */}
+        <View style={calendarStyles.calendarGrid}>
+          {calendarDays.map((day, index) => {
+            const dateKey = format(day, 'yyyy-MM-dd');
+            const hasActivity = monthlyActivity.get(dateKey) || false;
+            const isToday = isSameDay(day, today);
+            const isCurrentMonth = day.getMonth() === today.getMonth();
+
+            return (
+              <View
+                key={index}
+                style={[
+                  calendarStyles.dayCell,
+                  isToday && calendarStyles.todayCell,
+                ]}
+              >
+                {hasActivity ? (
+                  <LinearGradient
+                    colors={gradientColors}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={[
+                      calendarStyles.activityDot,
+                      isToday && calendarStyles.todayDot,
+                    ]}
+                  />
+                ) : (
+                  <View
+                    style={[
+                      calendarStyles.emptyDot,
+                      { borderColor: isDarkMode ? '#3A3E4F' : '#E0E3E9' },
+                      !isCurrentMonth && calendarStyles.otherMonthDot,
+                    ]}
+                  />
+                )}
+              </View>
+            );
+          })}
+        </View>
+      </View>
+
       {/* This Week Stats */}
       <View
         className="p-5 rounded-2xl"
@@ -269,6 +494,66 @@ function PulseTabContent({
         </View>
       </View>
 
+      {/* Additional Stats */}
+      <View
+        className="p-5 rounded-2xl"
+        style={{ backgroundColor: isDarkMode ? '#2A2E3F' : '#FFF8ED' }}
+      >
+        <Text
+          className="text-lg font-bold mb-4"
+          style={{ color: isDarkMode ? '#F5F1E8' : '#2D3142', fontFamily: 'Lora_700Bold' }}
+        >
+          All Time
+        </Text>
+
+        <View className="gap-3">
+          <View className="flex-row items-center justify-between p-3 rounded-xl" style={{ backgroundColor: isDarkMode ? '#1a1d2e' : '#FFF8ED' }}>
+            <Text
+              className="text-sm"
+              style={{ color: isDarkMode ? '#8A8F9E' : '#6C7589', fontFamily: 'Inter_400Regular' }}
+            >
+              This month
+            </Text>
+            <Text
+              className="text-lg font-bold"
+              style={{ color: isDarkMode ? '#F5F1E8' : '#2D3142', fontFamily: 'Lora_700Bold' }}
+            >
+              {monthlyWeaves} {monthlyWeaves === 1 ? 'weave' : 'weaves'}
+            </Text>
+          </View>
+
+          <View className="flex-row items-center justify-between p-3 rounded-xl" style={{ backgroundColor: isDarkMode ? '#1a1d2e' : '#FFF8ED' }}>
+            <Text
+              className="text-sm"
+              style={{ color: isDarkMode ? '#8A8F9E' : '#6C7589', fontFamily: 'Inter_400Regular' }}
+            >
+              Longest streak
+            </Text>
+            <Text
+              className="text-lg font-bold"
+              style={{ color: isDarkMode ? '#F5F1E8' : '#2D3142', fontFamily: 'Lora_700Bold' }}
+            >
+              {longestStreak.count} {longestStreak.count === 1 ? 'day' : 'days'}
+            </Text>
+          </View>
+
+          <View className="flex-row items-center justify-between p-3 rounded-xl" style={{ backgroundColor: isDarkMode ? '#1a1d2e' : '#FFF8ED' }}>
+            <Text
+              className="text-sm"
+              style={{ color: isDarkMode ? '#8A8F9E' : '#6C7589', fontFamily: 'Inter_400Regular' }}
+            >
+              Avg per week
+            </Text>
+            <Text
+              className="text-lg font-bold"
+              style={{ color: isDarkMode ? '#F5F1E8' : '#2D3142', fontFamily: 'Lora_700Bold' }}
+            >
+              {avgWeeklyWeaves} weaves
+            </Text>
+          </View>
+        </View>
+      </View>
+
       {/* Spacer */}
       <View className="h-8" />
     </View>
@@ -281,3 +566,56 @@ function PulseTabContent({
 function InsightsTabContent({ isDarkMode }: { isDarkMode: boolean }) {
   return <GraphsTabContent />;
 }
+
+// ============================================
+// CALENDAR STYLES
+// ============================================
+const calendarStyles = StyleSheet.create({
+  dayHeader: {
+    flex: 1,
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  dayHeaderText: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 11,
+  },
+  calendarGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  dayCell: {
+    width: '14.28%', // 7 days per week
+    aspectRatio: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 2,
+  },
+  todayCell: {
+    // Special styling for today if needed
+  },
+  activityDot: {
+    width: '80%',
+    height: '80%',
+    borderRadius: 999,
+  },
+  todayDot: {
+    width: '90%',
+    height: '90%',
+    shadowColor: '#FFD700',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.4,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  emptyDot: {
+    width: '70%',
+    height: '70%',
+    borderRadius: 999,
+    borderWidth: 1.5,
+    backgroundColor: 'transparent',
+  },
+  otherMonthDot: {
+    opacity: 0.3,
+  },
+});
