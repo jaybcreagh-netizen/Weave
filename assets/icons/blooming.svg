@@ -5,7 +5,7 @@
 
 <defs>
 
-<style>.j{fill:none;stroke-linecap:round;stroke-linejoin:round;}</style>
+<style>.j{fill:none;stroke:currentColor;stroke-linecap:round;stroke-linejoin:round;}</style>
 
 </defs>
 
