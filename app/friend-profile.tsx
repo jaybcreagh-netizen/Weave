@@ -269,7 +269,16 @@ export default function FriendProfile() {
   const handleEditInteraction = useCallback((interactionId: string) => {
     const interaction = interactions.find(i => i.id === interactionId);
     if (interaction) {
-      setEditingInteraction(interaction);
+      // Check if this is a future planned weave
+      const interactionDate = new Date(interaction.interactionDate);
+      if (isFuture(interactionDate)) {
+        // Open PlanWizard for future interactions
+        setEditingInteraction(interaction); // Store the interaction being edited
+        setShowPlanWizard(true);
+      } else {
+        // Open EditInteractionModal for past/completed interactions
+        setEditingInteraction(interaction);
+      }
     }
   }, [interactions]);
 
@@ -522,7 +531,7 @@ router.back();
 
         <EditInteractionModal
             interaction={editingInteraction}
-            isOpen={editingInteraction !== null}
+            isOpen={editingInteraction !== null && !isFuture(new Date(editingInteraction?.interactionDate || Date.now()))}
             onClose={() => setEditingInteraction(null)}
             onSave={updateInteraction}
         />
@@ -545,8 +554,18 @@ router.back();
         {friend && (
           <PlanWizard
             visible={showPlanWizard}
-            onClose={() => setShowPlanWizard(false)}
+            onClose={() => {
+              setShowPlanWizard(false);
+              setEditingInteraction(null); // Clear editing state
+            }}
             initialFriend={friend}
+            prefillData={editingInteraction && isFuture(new Date(editingInteraction.interactionDate)) ? {
+              date: new Date(editingInteraction.interactionDate),
+              category: editingInteraction.interactionCategory || editingInteraction.activity,
+              title: editingInteraction.title,
+              location: editingInteraction.location,
+            } : undefined}
+            replaceInteractionId={editingInteraction && isFuture(new Date(editingInteraction.interactionDate)) ? editingInteraction.id : undefined}
           />
         )}
 
