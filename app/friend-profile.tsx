@@ -40,7 +40,14 @@ export default function FriendProfile() {
   const router = useRouter();
   const { colors } = useTheme();
   const { friendId } = useLocalSearchParams();
-  const { activeFriend: friend, activeFriendInteractions: interactions, observeFriend, unobserveFriend } = useFriendStore();
+  const {
+    activeFriend: friend,
+    activeFriendInteractions: interactions,
+    observeFriend,
+    unobserveFriend,
+    loadMoreInteractions,
+    hasMoreInteractions,
+  } = useFriendStore();
   const { deleteFriend } = useFriendStore();
   const { deleteInteraction, updateReflection, updateInteraction } = useInteractionStore();
   const { createIntention, convertToPlannedWeave, dismissIntention } = useIntentionStore();
@@ -59,6 +66,7 @@ export default function FriendProfile() {
   const [editingLifeEvent, setEditingLifeEvent] = useState<LifeEvent | null>(null);
   const [activeLifeEvents, setActiveLifeEvents] = useState<LifeEvent[]>([]);
   const [showBadgePopup, setShowBadgePopup] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   const scrollY = useSharedValue(0);
 
@@ -282,6 +290,21 @@ export default function FriendProfile() {
     }
   }, [interactions]);
 
+  const handleLoadMore = useCallback(async () => {
+    if (isLoadingMore || !hasMoreInteractions) {
+      return;
+    }
+
+    setIsLoadingMore(true);
+    try {
+      await loadMoreInteractions();
+    } catch (error) {
+      console.error('Error loading more interactions:', error);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [isLoadingMore, hasMoreInteractions, loadMoreInteractions]);
+
   // renderTimelineItem with point-to-point line segments
   const renderTimelineItem = useCallback(({ item: interaction, section, index }: { item: Interaction; section: { title: string; data: Interaction[] }; index: number }) => {
     const isFutureInteraction = section.title === 'Seeds';
@@ -499,12 +522,30 @@ router.back();
                         <Text className="text-xs mt-1 opacity-70" style={{ color: colors['muted-foreground'] }}>Your timeline will grow as you connect</Text>
                     </View>
                 }
+                ListFooterComponent={
+                    hasMoreInteractions ? (
+                        <View className="py-4 items-center">
+                            <ActivityIndicator size="small" color={colors.primary} />
+                            <Text className="text-xs mt-2 opacity-70" style={{ color: colors['muted-foreground'] }}>
+                                Loading more weaves...
+                            </Text>
+                        </View>
+                    ) : null
+                }
                 stickySectionHeadersEnabled={false}
                 contentContainerStyle={{ paddingTop: 20, paddingBottom: 100 }}
                 onScroll={animatedScrollHandler}
                 scrollEventThrottle={8}
                 decelerationRate="fast"
                 showsVerticalScrollIndicator={false}
+                // Performance optimizations
+                initialNumToRender={20}
+                maxToRenderPerBatch={10}
+                windowSize={5}
+                removeClippedSubviews={true}
+                // Infinite scroll
+                onEndReached={handleLoadMore}
+                onEndReachedThreshold={0.5}
             />
         </View>
 
