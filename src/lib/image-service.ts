@@ -13,7 +13,7 @@
  * 3. Graceful fallback: Works offline, syncs when online
  */
 
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as ImageManipulator from 'expo-image-manipulator';
 
 // Lazy-load supabase only when cloud storage is enabled
