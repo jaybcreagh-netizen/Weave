@@ -5,7 +5,7 @@ import InteractionFriend from '../db/models/InteractionFriend';
 import UserProgress from '../db/models/UserProgress';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform, Alert, Share } from 'react-native';
-import * as FileSystem from 'expo-file-system';
+import { Paths, File } from 'expo-file-system';
 
 interface ExportData {
   exportDate: string;
@@ -174,11 +174,10 @@ export async function exportAndShareData(): Promise<void> {
     // Save to file system
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
     const fileName = `weave-export-${timestamp}.json`;
-    const fileUri = `${FileSystem.documentDirectory}${fileName}`;
+    const exportFile = new File(Paths.document, fileName);
 
-    await FileSystem.writeAsStringAsync(fileUri, jsonString, {
-      encoding: FileSystem.EncodingType.UTF8,
-    });
+    exportFile.write(jsonString);
+    const fileUri = exportFile.uri; // Get URI for sharing
 
     console.log('[DataExport] Data saved to file:', fileUri);
 

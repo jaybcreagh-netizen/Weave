@@ -13,7 +13,7 @@
  * 3. Graceful fallback: Works offline, syncs when online
  */
 
-import * as FileSystem from 'expo-file-system/legacy';
+import { Paths, Directory, File } from 'expo-file-system';
 import * as ImageManipulator from 'expo-image-manipulator';
 
 // Lazy-load supabase only when cloud storage is enabled
@@ -61,7 +61,7 @@ const IMAGE_SETTINGS = {
 /**
  * Storage paths
  */
-const LOCAL_STORAGE_DIR = `${FileSystem.documentDirectory}weave_images/`;
+const LOCAL_STORAGE_DIR = new Directory(Paths.document, 'weave_images');
 const SUPABASE_BUCKETS = {
   profilePictures: 'profile-pictures',
   journalPhotos: 'journal-photos',
@@ -95,12 +95,9 @@ export interface ImageResult {
  * Ensure local storage directory exists
  */
 async function ensureDirectoryExists(): Promise<void> {
-  const dirInfo = await FileSystem.getInfoAsync(LOCAL_STORAGE_DIR);
-  if (!dirInfo.exists) {
-    await FileSystem.makeDirectoryAsync(LOCAL_STORAGE_DIR, {
-      intermediates: true,
-    });
-    console.log('[ImageService] Created local storage directory:', LOCAL_STORAGE_DIR);
+  if (!LOCAL_STORAGE_DIR.exists) {
+    LOCAL_STORAGE_DIR.create();
+    console.log('[ImageService] Created local storage directory:', LOCAL_STORAGE_DIR.uri);
   }
 }
 
@@ -158,14 +155,11 @@ export async function processAndStoreImage(
 
     // Step 2: Save to local storage (persistent)
     const fileName = `${type}_${imageId}.jpg`;
-    const localUri = `${LOCAL_STORAGE_DIR}${fileName}`;
+    const tempFile = new File(manipulatedImage.uri);
+    tempFile.copy(LOCAL_STORAGE_DIR, { as: fileName });
+    const localFile = new File(LOCAL_STORAGE_DIR, fileName);
 
-    await FileSystem.copyAsync({
-      from: manipulatedImage.uri,
-      to: localUri,
-    });
-
-    console.log('[ImageService] Saved locally:', localUri);
+    console.log('[ImageService] Saved locally:', localFile.uri);
 
     // Step 3: Upload to cloud storage (if enabled)
     let cloudUrl: string | undefined;
@@ -173,7 +167,7 @@ export async function processAndStoreImage(
     if (ENABLE_CLOUD_STORAGE && userId) {
       try {
         cloudUrl = await uploadToSupabase({
-          localUri,
+          localFile,
           userId,
           imageId,
           type,
@@ -186,7 +180,7 @@ export async function processAndStoreImage(
     }
 
     return {
-      localUri,
+      localUri: localFile.uri,
       cloudUrl,
       success: true,
     };
@@ -208,12 +202,12 @@ export async function processAndStoreImage(
  * - journal-photos/{userId}/{imageId}.jpg
  */
 async function uploadToSupabase(params: {
-  localUri: string;
+  localFile: File;
   userId: string;
   imageId: string;
   type: ImageType;
 }): Promise<string> {
-  const { localUri, userId, imageId, type } = params;
+  const { localFile, userId, imageId, type } = params;
 
   const bucket =
     type === 'profilePicture'
@@ -223,9 +217,7 @@ async function uploadToSupabase(params: {
   const filePath = `${userId}/${imageId}.jpg`;
 
   // Read file as base64
-  const base64 = await FileSystem.readAsStringAsync(localUri, {
-    encoding: FileSystem.EncodingType.Base64,
-  });
+  const base64 = await localFile.base64();
 
   // Convert to blob
   const blob = base64ToBlob(base64, 'image/jpeg');
@@ -264,12 +256,11 @@ export async function deleteImage(params: {
   try {
     // Delete local file
     const fileName = `${type}_${imageId}.jpg`;
-    const localUri = `${LOCAL_STORAGE_DIR}${fileName}`;
+    const localFile = new File(LOCAL_STORAGE_DIR, fileName);
 
-    const fileInfo = await FileSystem.getInfoAsync(localUri);
-    if (fileInfo.exists) {
-      await FileSystem.deleteAsync(localUri, { idempotent: true });
-      console.log('[ImageService] Deleted local file:', localUri);
+    if (localFile.exists) {
+      localFile.delete();
+      console.log('[ImageService] Deleted local file:', localFile.uri);
     }
 
     // Delete from cloud (if enabled)
@@ -329,19 +320,18 @@ export async function getImageUri(params: {
 
   // Check local storage first
   const fileName = `${type}_${imageId}.jpg`;
-  const localUri = `${LOCAL_STORAGE_DIR}${fileName}`;
+  const localFile = new File(LOCAL_STORAGE_DIR, fileName);
 
-  const fileInfo = await FileSystem.getInfoAsync(localUri);
-  if (fileInfo.exists) {
-    return localUri;
+  if (localFile.exists) {
+    return localFile.uri;
   }
 
   // If cloud URL exists, download and cache
   if (cloudUrl && ENABLE_CLOUD_STORAGE) {
     try {
-      await FileSystem.downloadAsync(cloudUrl, localUri);
-      console.log('[ImageService] Downloaded from cloud to cache:', localUri);
-      return localUri;
+      await File.downloadFileAsync(cloudUrl, LOCAL_STORAGE_DIR, { as: fileName });
+      console.log('[ImageService] Downloaded from cloud to cache:', localFile.uri);
+      return localFile.uri;
     } catch (error) {
       console.warn('[ImageService] Failed to download from cloud:', error);
     }
@@ -361,21 +351,19 @@ export async function cleanupOrphanedImages(
   type: ImageType
 ): Promise<void> {
   try {
-    const dirInfo = await FileSystem.getInfoAsync(LOCAL_STORAGE_DIR);
-    if (!dirInfo.exists) return;
+    if (!LOCAL_STORAGE_DIR.exists) return;
 
-    const files = await FileSystem.readDirectoryAsync(LOCAL_STORAGE_DIR);
+    const contents = LOCAL_STORAGE_DIR.list();
     const prefix = `${type}_`;
 
-    for (const file of files) {
-      if (file.startsWith(prefix)) {
+    for (const item of contents) {
+      if (item instanceof File && item.name.startsWith(prefix)) {
         // Extract imageId from filename (e.g., "profilePicture_123.jpg" -> "123")
-        const imageId = file.replace(prefix, '').replace('.jpg', '');
+        const imageId = item.name.replace(prefix, '').replace('.jpg', '');
 
         if (!activeImageIds.includes(imageId)) {
-          const fileUri = `${LOCAL_STORAGE_DIR}${file}`;
-          await FileSystem.deleteAsync(fileUri, { idempotent: true });
-          console.log('[ImageService] Cleaned up orphaned image:', file);
+          item.delete();
+          console.log('[ImageService] Cleaned up orphaned image:', item.name);
         }
       }
     }
@@ -420,8 +408,7 @@ export async function getStorageStats(): Promise<{
   estimatedSizeMB: number;
 }> {
   try {
-    const dirInfo = await FileSystem.getInfoAsync(LOCAL_STORAGE_DIR);
-    if (!dirInfo.exists) {
+    if (!LOCAL_STORAGE_DIR.exists) {
       return {
         totalImages: 0,
         profilePictures: 0,
@@ -430,28 +417,28 @@ export async function getStorageStats(): Promise<{
       };
     }
 
-    const files = await FileSystem.readDirectoryAsync(LOCAL_STORAGE_DIR);
+    const contents = LOCAL_STORAGE_DIR.list();
     let totalSize = 0;
     let profileCount = 0;
     let journalCount = 0;
+    let fileCount = 0;
 
-    for (const file of files) {
-      const fileUri = `${LOCAL_STORAGE_DIR}${file}`;
-      const fileInfo = await FileSystem.getInfoAsync(fileUri);
+    for (const item of contents) {
+      if (item instanceof File) {
+        fileCount++;
+        const info = item.info();
+        totalSize += info.size;
 
-      if (fileInfo.exists && fileInfo.size) {
-        totalSize += fileInfo.size;
-
-        if (file.startsWith('profilePicture_')) {
+        if (item.name.startsWith('profilePicture_')) {
           profileCount++;
-        } else if (file.startsWith('journalPhoto_')) {
+        } else if (item.name.startsWith('journalPhoto_')) {
           journalCount++;
         }
       }
     }
 
     return {
-      totalImages: files.length,
+      totalImages: fileCount,
       profilePictures: profileCount,
       journalPhotos: journalCount,
       estimatedSizeMB: totalSize / (1024 * 1024),
@@ -473,6 +460,6 @@ export async function getStorageStats(): Promise<{
 
 export const ImageServiceConfig = {
   isCloudStorageEnabled: ENABLE_CLOUD_STORAGE,
-  localStorageDir: LOCAL_STORAGE_DIR,
+  localStorageDir: LOCAL_STORAGE_DIR.uri,
   imageSettings: IMAGE_SETTINGS,
 };

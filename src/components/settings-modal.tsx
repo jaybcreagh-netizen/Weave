@@ -40,7 +40,7 @@ import { FriendManagementModal } from './FriendManagementModal';
 import { exportAndShareData, getExportStats } from '../lib/data-export';
 import { importData, getImportPreview } from '../lib/data-import';
 import * as DocumentPicker from 'expo-document-picker';
-import * as FileSystem from 'expo-file-system';
+import { File } from 'expo-file-system';
 import { generateStressTestData, clearStressTestData, getDataStats } from '../lib/stress-test-seed-data';
 import { useBackgroundSyncStore, getBackgroundFetchStatusLabel } from '../stores/backgroundSyncStore';
 import type { BackgroundSyncSettings } from '../lib/background-event-sync';
@@ -439,7 +439,8 @@ export function SettingsModal({
       console.log('[Settings] Selected file:', fileUri);
 
       // Read the file
-      const fileContent = await FileSystem.readAsStringAsync(fileUri);
+      const importFile = new File(fileUri);
+      const fileContent = await importFile.text();
 
       // Get preview
       const preview = getImportPreview(fileContent);
