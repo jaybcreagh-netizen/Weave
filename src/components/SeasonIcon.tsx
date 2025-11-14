@@ -17,7 +17,7 @@ export function SeasonIcon({ season, size, color }: SeasonIconProps) {
   const iconProps: SvgProps = {
     width: size,
     height: size,
-    ...(color && { fill: color, color: color }),
+    ...(color && { fill: color, stroke: color }),
   };
 
   switch (season) {
