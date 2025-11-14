@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb'
 
 export default appSchema({
-  version: 30, // UPDATED: Changed anniversary from Date to string (MM-DD format) + Added streak forgiveness mechanics
+  version: 31, // UPDATED: Added user accounts infrastructure (user_id + sync columns for cloud sync & freemium)
   tables: [
     tableSchema({
       name: 'friends',
@@ -36,6 +36,11 @@ export default appSchema({
         { name: 'consecutive_user_initiations', type: 'number', defaultValue: 0 }, // Streak of user-initiated interactions
         { name: 'total_user_initiations', type: 'number', defaultValue: 0 }, // Total times user initiated
         { name: 'total_friend_initiations', type: 'number', defaultValue: 0 }, // Total times friend initiated
+        // NEW v31: Accounts and sync infrastructure
+        { name: 'user_id', type: 'string', isOptional: true, isIndexed: true }, // Links record to user account
+        { name: 'synced_at', type: 'number', isOptional: true }, // Last successful sync timestamp
+        { name: 'sync_status', type: 'string', isOptional: true }, // 'pending' | 'synced' | 'conflict'
+        { name: 'server_updated_at', type: 'number', isOptional: true }, // Server's last update time
       ]
     }),
     tableSchema({
@@ -67,6 +72,11 @@ export default appSchema({
         { name: 'event_importance', type: 'string', isOptional: true }, // low, medium, high, critical
         // v25: Reciprocity tracking
         { name: 'initiator', type: 'string', isOptional: true }, // 'user' | 'friend' | 'mutual'
+        // NEW v31: Accounts and sync infrastructure
+        { name: 'user_id', type: 'string', isOptional: true, isIndexed: true },
+        { name: 'synced_at', type: 'number', isOptional: true },
+        { name: 'sync_status', type: 'string', isOptional: true },
+        { name: 'server_updated_at', type: 'number', isOptional: true },
       ]
     }),
     tableSchema({
@@ -74,6 +84,10 @@ export default appSchema({
         columns: [
             { name: 'interaction_id', type: 'string', isIndexed: true },
             { name: 'friend_id', type: 'string', isIndexed: true },
+            // NEW v31: Accounts and sync infrastructure
+            { name: 'user_id', type: 'string', isOptional: true, isIndexed: true },
+            { name: 'synced_at', type: 'number', isOptional: true },
+            { name: 'sync_status', type: 'string', isOptional: true },
         ]
     }),
     tableSchema({
@@ -106,6 +120,11 @@ export default appSchema({
         { name: 'linked_interaction_id', type: 'string', isOptional: true }, // Interaction that fulfilled this intention
         { name: 'fulfilled_at', type: 'number', isOptional: true }, // When it was fulfilled
         { name: 'days_to_fulfillment', type: 'number', isOptional: true }, // Time from creation to fulfillment
+        // NEW v31: Accounts and sync infrastructure
+        { name: 'user_id', type: 'string', isOptional: true, isIndexed: true },
+        { name: 'synced_at', type: 'number', isOptional: true },
+        { name: 'sync_status', type: 'string', isOptional: true },
+        { name: 'server_updated_at', type: 'number', isOptional: true },
       ]
     }),
     tableSchema({
@@ -113,6 +132,10 @@ export default appSchema({
       columns: [
           { name: 'intention_id', type: 'string', isIndexed: true },
           { name: 'friend_id', type: 'string', isIndexed: true },
+          // NEW v31: Accounts and sync infrastructure
+          { name: 'user_id', type: 'string', isOptional: true, isIndexed: true },
+          { name: 'synced_at', type: 'number', isOptional: true },
+          { name: 'sync_status', type: 'string', isOptional: true },
       ]
     }),
     tableSchema({
@@ -135,6 +158,12 @@ export default appSchema({
         // Metadata
         { name: 'created_at', type: 'number' },
         { name: 'updated_at', type: 'number' },
+
+        // NEW v31: Accounts and sync infrastructure
+        { name: 'user_id', type: 'string', isOptional: true, isIndexed: true },
+        { name: 'synced_at', type: 'number', isOptional: true },
+        { name: 'sync_status', type: 'string', isOptional: true },
+        { name: 'server_updated_at', type: 'number', isOptional: true },
       ]
     }),
     tableSchema({
@@ -160,6 +189,11 @@ export default appSchema({
         { name: 'reminded', type: 'boolean', defaultValue: false }, // Has user been notified
         { name: 'created_at', type: 'number' },
         { name: 'updated_at', type: 'number' },
+        // NEW v31: Accounts and sync infrastructure
+        { name: 'user_id', type: 'string', isOptional: true, isIndexed: true },
+        { name: 'synced_at', type: 'number', isOptional: true },
+        { name: 'sync_status', type: 'string', isOptional: true },
+        { name: 'server_updated_at', type: 'number', isOptional: true },
       ]
     }),
     tableSchema({
@@ -196,6 +230,12 @@ export default appSchema({
 
         { name: 'created_at', type: 'number' },
         { name: 'updated_at', type: 'number' },
+
+        // NEW v31: Accounts and sync infrastructure
+        { name: 'user_id', type: 'string', isOptional: true, isIndexed: true },
+        { name: 'synced_at', type: 'number', isOptional: true },
+        { name: 'sync_status', type: 'string', isOptional: true },
+        { name: 'server_updated_at', type: 'number', isOptional: true },
       ]
     }),
     tableSchema({
@@ -238,6 +278,11 @@ export default appSchema({
         { name: 'story_chips', type: 'string', isOptional: true }, // JSON: Array of story chip selections
         { name: 'completed_at', type: 'number' },
         { name: 'created_at', type: 'number' },
+        // NEW v31: Accounts and sync infrastructure
+        { name: 'user_id', type: 'string', isOptional: true, isIndexed: true },
+        { name: 'synced_at', type: 'number', isOptional: true },
+        { name: 'sync_status', type: 'string', isOptional: true },
+        { name: 'server_updated_at', type: 'number', isOptional: true },
       ]
     }),
     tableSchema({
@@ -272,6 +317,11 @@ export default appSchema({
         { name: 'friend_ids', type: 'string', isOptional: true }, // JSON: Array of friend IDs tagged in this entry
         { name: 'created_at', type: 'number' },
         { name: 'updated_at', type: 'number' },
+        // NEW v31: Accounts and sync infrastructure
+        { name: 'user_id', type: 'string', isOptional: true, isIndexed: true },
+        { name: 'synced_at', type: 'number', isOptional: true },
+        { name: 'sync_status', type: 'string', isOptional: true },
+        { name: 'server_updated_at', type: 'number', isOptional: true },
       ]
     }),
     tableSchema({
