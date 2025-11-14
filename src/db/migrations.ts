@@ -510,6 +510,125 @@ export default schemaMigrations({
         // and anniversary is optional, we'll clear existing values
         // Users will need to re-enter anniversaries in the new format
         unsafeExecuteSql(`UPDATE friends SET anniversary = NULL WHERE anniversary IS NOT NULL;`),
+        // Add streak forgiveness mechanics
+        addColumns({
+          table: 'user_progress',
+          columns: [
+            { name: 'last_streak_count', type: 'number', defaultValue: 0 },
+            { name: 'streak_released_date', type: 'number', isOptional: true },
+            { name: 'longest_streak_ever', type: 'number', defaultValue: 0 },
+          ],
+        }),
+      ],
+    },
+    {
+      // Migration from schema v30 to v31
+      // Accounts System Infrastructure - Add user_id and sync columns to all tables
+      // Enables cloud sync, multi-device support, and freemium model
+      toVersion: 31,
+      steps: [
+        // Add account columns to friends table
+        addColumns({
+          table: 'friends',
+          columns: [
+            { name: 'user_id', type: 'string', isOptional: true, isIndexed: true },
+            { name: 'synced_at', type: 'number', isOptional: true },
+            { name: 'sync_status', type: 'string', isOptional: true },
+            { name: 'server_updated_at', type: 'number', isOptional: true },
+          ],
+        }),
+        // Add account columns to interactions table
+        addColumns({
+          table: 'interactions',
+          columns: [
+            { name: 'user_id', type: 'string', isOptional: true, isIndexed: true },
+            { name: 'synced_at', type: 'number', isOptional: true },
+            { name: 'sync_status', type: 'string', isOptional: true },
+            { name: 'server_updated_at', type: 'number', isOptional: true },
+          ],
+        }),
+        // Add account columns to interaction_friends table
+        addColumns({
+          table: 'interaction_friends',
+          columns: [
+            { name: 'user_id', type: 'string', isOptional: true, isIndexed: true },
+            { name: 'synced_at', type: 'number', isOptional: true },
+            { name: 'sync_status', type: 'string', isOptional: true },
+          ],
+        }),
+        // Add account columns to intentions table
+        addColumns({
+          table: 'intentions',
+          columns: [
+            { name: 'user_id', type: 'string', isOptional: true, isIndexed: true },
+            { name: 'synced_at', type: 'number', isOptional: true },
+            { name: 'sync_status', type: 'string', isOptional: true },
+            { name: 'server_updated_at', type: 'number', isOptional: true },
+          ],
+        }),
+        // Add account columns to intention_friends table
+        addColumns({
+          table: 'intention_friends',
+          columns: [
+            { name: 'user_id', type: 'string', isOptional: true, isIndexed: true },
+            { name: 'synced_at', type: 'number', isOptional: true },
+            { name: 'sync_status', type: 'string', isOptional: true },
+          ],
+        }),
+        // Add account columns to user_profile table (will become per-user)
+        addColumns({
+          table: 'user_profile',
+          columns: [
+            { name: 'user_id', type: 'string', isOptional: true, isIndexed: true },
+            { name: 'synced_at', type: 'number', isOptional: true },
+            { name: 'sync_status', type: 'string', isOptional: true },
+            { name: 'server_updated_at', type: 'number', isOptional: true },
+          ],
+        }),
+        // Add account columns to user_progress table
+        addColumns({
+          table: 'user_progress',
+          columns: [
+            { name: 'user_id', type: 'string', isOptional: true, isIndexed: true },
+            { name: 'synced_at', type: 'number', isOptional: true },
+            { name: 'sync_status', type: 'string', isOptional: true },
+            { name: 'server_updated_at', type: 'number', isOptional: true },
+          ],
+        }),
+        // Add account columns to life_events table
+        addColumns({
+          table: 'life_events',
+          columns: [
+            { name: 'user_id', type: 'string', isOptional: true, isIndexed: true },
+            { name: 'synced_at', type: 'number', isOptional: true },
+            { name: 'sync_status', type: 'string', isOptional: true },
+            { name: 'server_updated_at', type: 'number', isOptional: true },
+          ],
+        }),
+        // Add account columns to weekly_reflections table
+        addColumns({
+          table: 'weekly_reflections',
+          columns: [
+            { name: 'user_id', type: 'string', isOptional: true, isIndexed: true },
+            { name: 'synced_at', type: 'number', isOptional: true },
+            { name: 'sync_status', type: 'string', isOptional: true },
+            { name: 'server_updated_at', type: 'number', isOptional: true },
+          ],
+        }),
+        // Add account columns to journal_entries table
+        addColumns({
+          table: 'journal_entries',
+          columns: [
+            { name: 'user_id', type: 'string', isOptional: true, isIndexed: true },
+            { name: 'synced_at', type: 'number', isOptional: true },
+            { name: 'sync_status', type: 'string', isOptional: true },
+            { name: 'server_updated_at', type: 'number', isOptional: true },
+          ],
+        }),
+        // Note: Some tables like suggestion_events, practice_log, friend_badges,
+        // achievement_unlocks, portfolio_snapshots, custom_chips, chip_usage,
+        // and interaction_outcomes may be local-only or synced later
+        // For now, adding sync columns to core relationship data only
       ],
     },
   ],
