@@ -16,6 +16,7 @@ import { SuggestedWeaves } from '../src/components/SuggestedWeaves';
 import { useUserProfileStore } from '../src/stores/userProfileStore';
 import { useFriendStore } from '../src/stores/friendStore';
 import { getLastReflectionDate, shouldShowReflection } from '../src/lib/notification-manager-enhanced';
+import { getUserAccountAge } from '../src/lib/notification-grace-periods';
 import { useTutorialStore } from '../src/stores/tutorialStore';
 
 export default function Home() {
@@ -110,18 +111,25 @@ export default function Home() {
 
       const lastDate = await getLastReflectionDate();
       const isDue = shouldShowReflection(lastDate);
-      setIsReflectionDue(isDue);
 
-      if (!isDue) return;
+      // Check grace period: only show widget after 3+ days of app usage
+      const accountAge = await getUserAccountAge();
+      const meetsGracePeriod = accountAge !== null && accountAge >= 3;
+
+      // Check if today is Sunday (reflection day)
+      const today = new Date();
+      const currentDay = today.getDay();
+      const isSunday = currentDay === 0;
+
+      // Widget should only be visible if reflection is due, account is 3+ days old, and it's Sunday
+      setIsReflectionDue(isDue && meetsGracePeriod && isSunday);
+
+      if (!isDue || !meetsGracePeriod) return;
 
       // Get user preferences (defaults: Sunday, auto-show enabled)
       const reflectionDay = profile.reflectionDay ?? 0; // 0 = Sunday
       const autoShow = profile.reflectionAutoShow ?? true;
       const lastSnoozed = profile.reflectionLastSnoozed;
-
-      // Check if today is the reflection day
-      const today = new Date();
-      const currentDay = today.getDay();
 
       // Check if snoozed (snooze lasts until next day at 9 AM)
       let isSnoozed = false;
