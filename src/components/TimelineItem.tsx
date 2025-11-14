@@ -432,6 +432,7 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, index,
     transform: [{ scale: pressScale.value }],
     shadowOpacity: interpolate(cardShadow.value, [1, 2], [0.05, 0.08]),
     shadowRadius: interpolate(cardShadow.value, [1, 2], [4, 8]),
+    opacity: isFuture ? 0.6 : 1, // Reduced opacity for future plans
   }));
 
   // Reflection glow overlay style - subtle pulse for deep reflections
