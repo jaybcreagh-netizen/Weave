@@ -302,7 +302,7 @@ export const FriendListRow = React.memo(({ friend, animatedRef, variant = 'defau
               <ArchetypeIcon
                 archetype={archetype}
                 size={18}
-                color={isDarkMode ? colors.foreground : colors['muted-foreground']}
+                color={isDarkMode ? '#FFFFFF' : colors['muted-foreground']}
               />
             </View>
             {/* Unknown Archetype Indicator */}
