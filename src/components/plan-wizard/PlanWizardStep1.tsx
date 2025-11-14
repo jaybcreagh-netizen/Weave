@@ -196,8 +196,8 @@ export function PlanWizardStep1({ selectedDate, onDateSelect, onContinue, canCon
             className="p-5 rounded-2xl flex-row items-center justify-between"
             style={{
               backgroundColor: colors.card,
-              borderWidth: selectedDate?.getTime() === today.getTime() ? 2 : 1,
-              borderColor: selectedDate?.getTime() === today.getTime() ? colors.primary : colors.border,
+              borderWidth: selectedKey === 'today' ? 2 : 1,
+              borderColor: selectedKey === 'today' ? colors.primary : colors.border,
               shadowColor: '#000',
               shadowOffset: { width: 0, height: 2 },
               shadowOpacity: 0.05,
@@ -231,8 +231,8 @@ export function PlanWizardStep1({ selectedDate, onDateSelect, onContinue, canCon
             className="p-5 rounded-2xl flex-row items-center justify-between"
             style={{
               backgroundColor: colors.card,
-              borderWidth: selectedDate && isSaturday(selectedDate) ? 2 : 1,
-              borderColor: selectedDate && isSaturday(selectedDate) ? colors.primary : colors.border,
+              borderWidth: selectedKey === 'weekend' ? 2 : 1,
+              borderColor: selectedKey === 'weekend' ? colors.primary : colors.border,
               shadowColor: '#000',
               shadowOffset: { width: 0, height: 2 },
               shadowOpacity: 0.05,
@@ -267,8 +267,8 @@ export function PlanWizardStep1({ selectedDate, onDateSelect, onContinue, canCon
               className="p-5 rounded-2xl flex-row items-center justify-between"
               style={{
                 backgroundColor: colors.card,
-                borderWidth: selectedDate?.getTime() === mostCommonDay.date.getTime() ? 2 : 1,
-                borderColor: selectedDate?.getTime() === mostCommonDay.date.getTime() ? colors.primary : colors.border,
+                borderWidth: selectedKey === 'usual' ? 2 : 1,
+                borderColor: selectedKey === 'usual' ? colors.primary : colors.border,
                 shadowColor: '#000',
                 shadowOffset: { width: 0, height: 2 },
                 shadowOpacity: 0.05,
