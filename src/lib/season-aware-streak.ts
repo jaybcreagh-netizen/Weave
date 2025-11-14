@@ -228,9 +228,11 @@ export async function updateStreakAfterActivity(): Promise<void> {
         // Streak is continuing or starting
         progress.currentStreak = currentStreak;
 
-        // Update longest streak ever if needed
-        if (currentStreak > progress.longestStreakEver) {
-          progress.longestStreakEver = currentStreak;
+        // Update longest streak ever if needed (check if property exists for older DBs)
+        if ('longestStreakEver' in progress) {
+          if (currentStreak > (progress.longestStreakEver || 0)) {
+            progress.longestStreakEver = currentStreak;
+          }
         }
 
         // Update best streak (legacy field)
@@ -238,10 +240,14 @@ export async function updateStreakAfterActivity(): Promise<void> {
           progress.bestStreak = currentStreak;
         }
 
-        // If streak broke (and it was non-zero), store forgiveness data
+        // If streak broke (and it was non-zero), store forgiveness data (check if property exists for older DBs)
         if (previousStreak > 0 && currentStreak === 0) {
-          progress.lastStreakCount = previousStreak;
-          progress.streakReleasedDate = new Date();
+          if ('lastStreakCount' in progress) {
+            progress.lastStreakCount = previousStreak;
+          }
+          if ('streakReleasedDate' in progress) {
+            progress.streakReleasedDate = new Date();
+          }
         }
 
         progress.lastPracticeDate = new Date();

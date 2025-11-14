@@ -130,6 +130,9 @@ export const initializeUserProgress = async () => {
         p.totalWeaves = 0;
         p.globalAchievements = [];
         p.hiddenAchievements = [];
+        // Streak forgiveness mechanics (v30)
+        p.lastStreakCount = 0;
+        p.longestStreakEver = 0;
       });
     });
   }

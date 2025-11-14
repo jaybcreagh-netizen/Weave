@@ -109,10 +109,94 @@ export async function isDataMigrationComplete(database: Database): Promise<boole
 }
 
 /**
+ * Ensure user_progress table has v30 streak forgiveness columns
+ * This handles cases where schema migration didn't run properly
+ */
+export async function ensureUserProgressColumns(database: Database): Promise<void> {
+  try {
+    console.log('[Data Migration] Checking user_progress columns...');
+
+    const progressCollection = database.get('user_progress');
+    const progress = await progressCollection.query().fetch();
+
+    if (progress.length === 0) {
+      console.log('[Data Migration] No user_progress record found, skipping column check');
+      return;
+    }
+
+    const userProgress = progress[0];
+
+    // Check if the record has the v30 fields
+    const hasV30Fields =
+      'last_streak_count' in userProgress._raw &&
+      'longest_streak_ever' in userProgress._raw;
+
+    if (!hasV30Fields) {
+      console.log('[Data Migration] Missing v30 streak fields, adding columns via SQL...');
+
+      // Add columns directly via SQL ALTER TABLE
+      // This is a workaround for cases where schema migrations didn't run
+      try {
+        const adapter = database.adapter;
+
+        await database.write(async () => {
+          // Add last_streak_count column if missing
+          if (!('last_streak_count' in userProgress._raw)) {
+            await adapter.unsafeExecute({
+              sqls: [
+                ['ALTER TABLE user_progress ADD COLUMN last_streak_count INTEGER DEFAULT 0', []],
+              ],
+            });
+            console.log('[Data Migration] Added last_streak_count column');
+          }
+
+          // Add longest_streak_ever column if missing
+          if (!('longest_streak_ever' in userProgress._raw)) {
+            await adapter.unsafeExecute({
+              sqls: [
+                ['ALTER TABLE user_progress ADD COLUMN longest_streak_ever INTEGER DEFAULT 0', []],
+              ],
+            });
+            console.log('[Data Migration] Added longest_streak_ever column');
+          }
+
+          // Add streak_released_date column if missing
+          if (!('streak_released_date' in userProgress._raw)) {
+            await adapter.unsafeExecute({
+              sqls: [
+                ['ALTER TABLE user_progress ADD COLUMN streak_released_date INTEGER', []],
+              ],
+            });
+            console.log('[Data Migration] Added streak_released_date column');
+          }
+
+          // Initialize longest_streak_ever to current best_streak if needed
+          await adapter.unsafeExecute({
+            sqls: [
+              ['UPDATE user_progress SET longest_streak_ever = best_streak WHERE longest_streak_ever = 0', []],
+            ],
+          });
+        });
+
+        console.log('[Data Migration] ✅ Successfully added v30 streak columns');
+      } catch (error) {
+        console.error('[Data Migration] ⚠️ Could not add columns via SQL:', error);
+        console.log('[Data Migration] User may need to reinstall app for fresh database');
+      }
+    } else {
+      console.log('[Data Migration] ✅ user_progress has v30 fields');
+    }
+  } catch (error) {
+    console.error('[Data Migration] Error checking user_progress columns:', error);
+  }
+}
+
+/**
  * Run data migration if needed
  * Safe to call multiple times - will only run once
  */
 export async function runDataMigrationIfNeeded(database: Database): Promise<void> {
+  // Run interaction category migration
   const isComplete = await isDataMigrationComplete(database);
 
   if (!isComplete) {
@@ -121,4 +205,7 @@ export async function runDataMigrationIfNeeded(database: Database): Promise<void
   } else {
     console.log('[Data Migration] ✅ Data already migrated, skipping');
   }
+
+  // Ensure user_progress has v30 columns
+  await ensureUserProgressColumns(database);
 }
