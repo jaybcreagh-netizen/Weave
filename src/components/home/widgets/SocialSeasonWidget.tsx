@@ -20,7 +20,7 @@ import {
   getSeasonDisplayName,
 } from '../../../lib/social-season/season-content';
 import { SeasonCalculationInput, SocialSeason } from '../../../lib/social-season/season-types';
-import { calculateCurrentScore } from '../../../lib/weave-engine';
+import { calculateCurrentScore, calculateWeightedNetworkHealth } from '../../../lib/weave-engine';
 import { database } from '../../../db';
 import Interaction from '../../../db/models/Interaction';
 import WeeklyReflection from '../../../db/models/WeeklyReflection';
@@ -168,13 +168,9 @@ export const SocialSeasonWidget: React.FC = () => {
       }
       setCurrentStreak(streak);
 
-      // Calculate network health (average friend scores)
-      if (friends.length > 0) {
-        const avgScore = friends.reduce((sum, f) => sum + calculateCurrentScore(f), 0) / friends.length;
-        setNetworkHealth(Math.round(avgScore));
-      } else {
-        setNetworkHealth(0);
-      }
+      // Calculate weighted network health (tier-weighted average)
+      const weightedHealth = calculateWeightedNetworkHealth(friends);
+      setNetworkHealth(weightedHealth);
     } catch (error) {
       console.error('Error calculating activity stats:', error);
     }
@@ -200,8 +196,8 @@ export const SocialSeasonWidget: React.FC = () => {
         .query(Q.where('status', 'completed'), Q.where('interaction_date', Q.gte(thirtyDaysAgo)))
         .fetchCount();
 
-      const friendScores = friends.map(f => calculateCurrentScore(f));
-      const avgScoreAllFriends = friendScores.reduce((sum, score) => sum + score, 0) / friendScores.length || 0;
+      // Use weighted network health for overall score
+      const avgScoreAllFriends = calculateWeightedNetworkHealth(friends);
 
       const innerCircleFriends = friends.filter(f => f.dunbarTier === 'InnerCircle');
       const innerCircleScores = innerCircleFriends.map(f => calculateCurrentScore(f));
@@ -253,7 +249,7 @@ export const SocialSeasonWidget: React.FC = () => {
   const context = calculateSeasonContext({
     weavesLast7Days: 0,
     weavesLast30Days: 0,
-    avgScoreAllFriends: friends.reduce((sum, f) => sum + calculateCurrentScore(f), 0) / friends.length || 50,
+    avgScoreAllFriends: calculateWeightedNetworkHealth(friends) || 50,
     avgScoreInnerCircle: friends.filter(f => f.dunbarTier === 'InnerCircle').reduce((sum, f) => sum + calculateCurrentScore(f), 0) / friends.filter(f => f.dunbarTier === 'InnerCircle').length || 50,
     momentumCount: friends.filter(f => f.momentumScore > 10).length,
     batteryLast7DaysAvg: getRecentBatteryAverage(7),

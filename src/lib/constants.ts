@@ -13,6 +13,22 @@ export const TierCapacity: Record<Tier, number> = {
   Community: 50,
 };
 
+// Tier health thresholds - what score is considered "healthy" for each tier
+// Accounts for different natural interaction frequencies
+export const TierHealthThresholds: Record<Tier, number> = {
+  InnerCircle: 75,     // Inner circle needs frequent attention
+  CloseFriends: 65,    // Close friends need regular connection
+  Community: 50,       // Community can be healthy with less frequent contact
+};
+
+// Tier weights for calculating overall network health
+// Closer relationships contribute more to overall wellbeing
+export const TierWeights: Record<Tier, number> = {
+  InnerCircle: 0.50,   // 50% of network health
+  CloseFriends: 0.35,  // 35% of network health
+  Community: 0.15,     // 15% of network health
+};
+
 // Helper to get tier capacity by tier name
 export const getTierCapacity = (tier: Tier | string): number => {
   if (tier === 'inner' || tier === 'InnerCircle') return TierCapacity.InnerCircle;
