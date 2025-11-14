@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, View, Text, TouchableOpacity, Switch, Alert, ScrollView, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { X, Moon, Sun, Palette, RefreshCw, Bug, BarChart3, Battery, Calendar as CalendarIcon, ChevronRight, Bell, Clock, Trophy, Sparkles, MessageSquare, Download, Database, Trash2, BookOpen } from 'lucide-react-native';
+import { X, Moon, Sun, Palette, RefreshCw, Bug, BarChart3, Battery, Calendar as CalendarIcon, ChevronRight, Bell, Clock, Trophy, Sparkles, MessageSquare, Download, Database, Trash2, BookOpen, Users } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming, runOnJS } from 'react-native-reanimated';
@@ -36,6 +36,7 @@ import { clearDatabase } from '../db';
 import TrophyCabinetModal from './TrophyCabinetModal';
 import { FeedbackModal } from './FeedbackModal';
 import { ArchetypeLibrary } from './ArchetypeLibrary';
+import { FriendManagementModal } from './FriendManagementModal';
 import { exportAndShareData, getExportStats } from '../lib/data-export';
 import { generateStressTestData, clearStressTestData, getDataStats } from '../lib/stress-test-seed-data';
 
@@ -130,6 +131,9 @@ export function SettingsModal({
 
   // Archetype Library state
   const [showArchetypeLibrary, setShowArchetypeLibrary] = useState(false);
+
+  // Friend Management state
+  const [showFriendManagement, setShowFriendManagement] = useState(false);
 
   // Load settings on mount
   useEffect(() => {
@@ -892,6 +896,26 @@ export function SettingsModal({
 
             <View className="border-t border-border my-2" style={{ borderColor: colors.border }} />
 
+            <TouchableOpacity
+              className="flex-row items-center justify-between"
+              onPress={() => {
+                onClose();
+                setTimeout(() => setShowFriendManagement(true), 300);
+              }}
+            >
+              <View className="flex-row items-center gap-3">
+                <View className="w-10 h-10 rounded-lg items-center justify-center" style={{ backgroundColor: colors.muted }}>
+                  <Users color={colors.foreground} size={20} />
+                </View>
+                <View>
+                  <Text className="text-base font-inter-medium" style={{ color: colors.foreground }}>Manage Friends</Text>
+                  <Text className="text-sm font-inter-regular" style={{ color: colors['muted-foreground'] }}>Batch remove friends</Text>
+                </View>
+              </View>
+            </TouchableOpacity>
+
+            <View className="border-t border-border my-2" style={{ borderColor: colors.border }} />
+
             {/* Data Export */}
             <TouchableOpacity
               className="flex-row items-center justify-between"
@@ -989,6 +1013,11 @@ export function SettingsModal({
       <ArchetypeLibrary
         isVisible={showArchetypeLibrary}
         onClose={() => setShowArchetypeLibrary(false)}
+      />
+
+      <FriendManagementModal
+        visible={showFriendManagement}
+        onClose={() => setShowFriendManagement(false)}
       />
     </Modal>
   );

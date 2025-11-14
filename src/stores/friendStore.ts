@@ -33,6 +33,7 @@ interface FriendStore {
   batchAddFriends: (contacts: Array<{ name: string; photoUrl?: string }>, tier: Tier) => Promise<void>;
   updateFriend: (id: string, data: FriendFormData) => Promise<void>;
   deleteFriend: (id: string) => Promise<void>;
+  batchDeleteFriends: (ids: string[]) => Promise<void>;
 }
 
 export const useFriendStore = create<FriendStore>((set, get) => ({
@@ -269,6 +270,21 @@ export const useFriendStore = create<FriendStore>((set, get) => ({
 
     // Track analytics
     trackEvent(AnalyticsEvents.FRIEND_DELETED);
+  },
+
+  batchDeleteFriends: async (ids: string[]) => {
+    await database.write(async () => {
+      const friendsToDelete = await database.get<FriendModel>('friends').query(
+        Q.where('id', Q.oneOf(ids))
+      ).fetch();
+
+      await database.batch(
+        ...friendsToDelete.map(friend => friend.prepareDestroyPermanently())
+      );
+    });
+
+    // Track analytics
+    trackEvent(AnalyticsEvents.FRIEND_DELETED, { count: ids.length, batch: true });
   },
 
   pauseObservers: () => {
