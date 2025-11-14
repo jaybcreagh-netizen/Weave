@@ -115,6 +115,8 @@ TaskManager.defineTask(BACKGROUND_EVENT_SYNC_TASK, async () => {
     console.log(`[BackgroundSync] Scanned ${scanResult.totalScanned} events, found ${scanResult.matchedEvents} with friend matches`);
 
     // Process matched events
+    // NOTE: Regular events are handled in weekly reflection (no notifications)
+    // Only send immediate notifications for life events (birthdays, anniversaries)
     let suggestionsCreated = 0;
     for (const event of scanResult.events) {
       if (event.matchedFriends.length === 0) continue;
@@ -129,10 +131,18 @@ TaskManager.defineTask(BACKGROUND_EVENT_SYNC_TASK, async () => {
       // Track that we've seen this event
       await trackSuggestedEvent(event.id, event.matchedFriends.map(m => m.friend.id));
 
-      // Schedule notification if enabled
-      if (settings.notificationsEnabled) {
+      // Only send immediate notifications for time-sensitive life events
+      const isLifeEvent = event.eventType === 'birthday' ||
+                         event.eventType === 'anniversary' ||
+                         event.holidayName !== undefined;
+
+      if (isLifeEvent && settings.notificationsEnabled) {
         await scheduleEventSuggestionNotification(event);
         suggestionsCreated++;
+        console.log(`[BackgroundSync] Scheduled notification for life event: ${event.title}`);
+      } else {
+        // Regular events will be shown in weekly reflection
+        console.log(`[BackgroundSync] Event "${event.title}" will appear in weekly reflection`);
       }
     }
 
