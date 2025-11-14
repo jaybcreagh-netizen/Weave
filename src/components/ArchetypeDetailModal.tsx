@@ -2,9 +2,10 @@ import React from 'react';
 import { View, Text, Modal, TouchableOpacity, ScrollView } from 'react-native';
 import { useUIStore } from '../stores/uiStore';
 import { useTheme } from '../hooks/useTheme';
-import { X } from 'lucide-react-native';
-import { type Archetype } from './types';
-import { archetypeData } from '../lib/constants';
+import { X, Sparkles } from 'lucide-react-native';
+import { type Archetype, type InteractionCategory } from './types';
+import { archetypeData, CategoryArchetypeMatrix } from '../lib/constants';
+import { CATEGORY_METADATA } from '../lib/interaction-categories';
 import { BlurView } from 'expo-blur';
 
 // Import SVG files as components
@@ -29,6 +30,24 @@ const TAROT_CARD_COMPONENTS: Record<Archetype, React.FC<any>> = {
   Lovers: LoversSvg,
 };
 
+// Helper: Get top interaction suggestions for an archetype
+function getTopInteractions(archetype: Archetype): Array<{ category: InteractionCategory; multiplier: number; level: 'peak' | 'high' | 'good' }> {
+  if (archetype === 'Unknown') return [];
+
+  const affinities = CategoryArchetypeMatrix[archetype];
+  const suggestions = Object.entries(affinities)
+    .map(([category, multiplier]) => ({
+      category: category as InteractionCategory,
+      multiplier,
+      level: multiplier >= 1.8 ? 'peak' : multiplier >= 1.5 ? 'high' : 'good' as 'peak' | 'high' | 'good'
+    }))
+    .filter(item => item.multiplier >= 1.4) // Only show good+ affinities
+    .sort((a, b) => b.multiplier - a.multiplier)
+    .slice(0, 5); // Top 5
+
+  return suggestions;
+}
+
 export function ArchetypeDetailModal() {
   const { archetypeModal, setArchetypeModal } = useUIStore();
   const { colors, isDarkMode } = useTheme();
@@ -38,6 +57,14 @@ export function ArchetypeDetailModal() {
   }
 
   const data = archetypeData[archetypeModal];
+  const topInteractions = getTopInteractions(archetypeModal);
+
+  // Color scheme for affinity levels
+  const getAffinityColor = (level: 'peak' | 'high' | 'good') => {
+    if (level === 'peak') return '#10b981'; // Green
+    if (level === 'high') return '#3b82f6'; // Blue
+    return '#8b5cf6'; // Purple
+  };
 
   return (
     <Modal
@@ -122,11 +149,89 @@ export function ArchetypeDetailModal() {
                 </Text>
 
                 <Text
-                  className="font-inter-regular text-[14px] leading-[20px]"
+                  className="font-inter-regular text-[14px] leading-[20px] mb-4"
                   style={{ color: colors['muted-foreground'] }}
                 >
                   {data.careStyle}
                 </Text>
+
+                {/* Top Interaction Suggestions */}
+                {topInteractions.length > 0 && (
+                  <>
+                    <View
+                      className="h-[1px] w-full my-4"
+                      style={{ backgroundColor: colors.border }}
+                    />
+
+                    <View className="flex-row items-center gap-2 mb-3 self-start">
+                      <Sparkles size={16} color={colors.primary} />
+                      <Text
+                        className="font-inter-semibold text-[16px]"
+                        style={{ color: colors.foreground }}
+                      >
+                        Perfect Connections
+                      </Text>
+                    </View>
+
+                    <Text
+                      className="font-inter-regular text-[13px] leading-[18px] mb-3"
+                      style={{ color: colors['muted-foreground'] }}
+                    >
+                      These interactions resonate most with this archetype
+                    </Text>
+
+                    <View className="flex-row flex-wrap gap-2">
+                      {topInteractions.map(({ category, level, multiplier }) => {
+                        const metadata = CATEGORY_METADATA[category];
+                        const affinityColor = getAffinityColor(level);
+
+                        return (
+                          <View
+                            key={category}
+                            className="flex-row items-center gap-1.5 rounded-full px-3 py-2"
+                            style={{
+                              backgroundColor: `${affinityColor}15`,
+                              borderWidth: 1,
+                              borderColor: `${affinityColor}40`,
+                            }}
+                          >
+                            <Text className="text-base">{metadata.icon}</Text>
+                            <Text
+                              className="font-inter text-[13px] font-semibold"
+                              style={{ color: affinityColor }}
+                            >
+                              {metadata.label}
+                            </Text>
+                            <Text
+                              className="font-inter text-[11px] font-medium"
+                              style={{ color: `${affinityColor}CC` }}
+                            >
+                              {level === 'peak' ? '★' : level === 'high' ? '✦' : '◆'}
+                            </Text>
+                          </View>
+                        );
+                      })}
+                    </View>
+
+                    <View className="mt-3 flex-row items-start gap-1.5 px-1">
+                      <Text className="font-inter text-[11px]" style={{ color: colors['muted-foreground'] }}>
+                        ★ Peak
+                      </Text>
+                      <Text className="font-inter text-[11px]" style={{ color: colors['muted-foreground'] }}>
+                        •
+                      </Text>
+                      <Text className="font-inter text-[11px]" style={{ color: colors['muted-foreground'] }}>
+                        ✦ High
+                      </Text>
+                      <Text className="font-inter text-[11px]" style={{ color: colors['muted-foreground'] }}>
+                        •
+                      </Text>
+                      <Text className="font-inter text-[11px]" style={{ color: colors['muted-foreground'] }}>
+                        ◆ Good
+                      </Text>
+                    </View>
+                  </>
+                )}
               </ScrollView>
             </View>
           </TouchableOpacity>
