@@ -1,10 +1,11 @@
 /**
- * Enhanced Notification Manager
- * Handles all notification types:
+ * Notification Manager
+ * Unified notification system handling all notification types:
  * - Daily battery check-in reminders
- * - Upcoming event reminders
- * - Post-weave deepening nudges
- * - Weekly reflection reminders
+ * - Upcoming event reminders (1 hour before planned interactions)
+ * - Post-weave deepening nudges (3-6 hours after logging)
+ * - Weekly reflection reminders (Sunday at 7 PM)
+ * - Memory nudges (anniversary reflections from one year ago)
  */
 
 import * as Notifications from 'expo-notifications';
@@ -13,6 +14,7 @@ import { database } from '../db';
 import UserProfile from '../db/models/UserProfile';
 import Interaction from '../db/models/Interaction';
 import Friend from '../db/models/Friend';
+import WeeklyReflection from '../db/models/WeeklyReflection';
 import { Q } from '@nozbe/watermelondb';
 
 // AsyncStorage keys
@@ -20,12 +22,14 @@ const LAST_REFLECTION_KEY = '@weave:last_reflection_date';
 const LAST_BATTERY_NUDGE_KEY = '@weave:last_battery_nudge';
 const DEEPENING_NUDGES_KEY = '@weave:deepening_nudges';
 const NOTIFICATIONS_INITIALIZED_KEY = '@weave:notifications_initialized';
+const LAST_MEMORY_CHECK_KEY = '@weave:last_memory_check';
 
 // Notification identifiers
 const WEEKLY_REFLECTION_ID = 'weekly-reflection';
 const DAILY_BATTERY_ID = 'daily-battery-checkin';
 const EVENT_REMINDER_PREFIX = 'event-reminder-';
 const DEEPENING_NUDGE_PREFIX = 'deepening-nudge-';
+const MEMORY_NUDGE_ID_PREFIX = 'memory-nudge-';
 
 // Configure notification handler
 Notifications.setNotificationHandler({
@@ -455,6 +459,114 @@ export async function cancelWeeklyReflection(): Promise<void> {
 }
 
 // ================================================================================
+// MEMORY NUDGES (ANNIVERSARY REFLECTIONS)
+// ================================================================================
+
+/**
+ * Check for reflections from exactly a year ago and schedule memory nudges
+ * Call this daily to check for anniversary reflections
+ */
+export async function scheduleMemoryNudges(): Promise<void> {
+  try {
+    // Get date range for this week from exactly one year ago
+    const now = new Date();
+    const oneYearAgo = new Date(now);
+    oneYearAgo.setFullYear(now.getFullYear() - 1);
+
+    // Check for reflections from a week around this date last year
+    // (±3 days to catch reflections even if dates don't align perfectly)
+    const startRange = new Date(oneYearAgo);
+    startRange.setDate(startRange.getDate() - 3);
+    const endRange = new Date(oneYearAgo);
+    endRange.setDate(endRange.getDate() + 3);
+
+    const reflections = await database
+      .get<WeeklyReflection>('weekly_reflections')
+      .query(
+        Q.where('week_end_date', Q.gte(startRange.getTime())),
+        Q.where('week_end_date', Q.lte(endRange.getTime()))
+      )
+      .fetch();
+
+    // Cancel any existing memory nudge notifications
+    const allNotifications = await Notifications.getAllScheduledNotificationsAsync();
+    for (const notification of allNotifications) {
+      if (notification.identifier.startsWith(MEMORY_NUDGE_ID_PREFIX)) {
+        await Notifications.cancelScheduledNotificationAsync(notification.identifier);
+      }
+    }
+
+    // Schedule notifications for each anniversary reflection
+    for (const reflection of reflections) {
+      // Get meaningful preview text
+      let previewText = '';
+      if (reflection.gratitudeText && reflection.gratitudeText.length > 0) {
+        previewText = reflection.gratitudeText.substring(0, 100);
+        if (reflection.gratitudeText.length > 100) previewText += '...';
+      } else if (reflection.storyChips.length > 0) {
+        const chipLabels = reflection.storyChips
+          .map(chip => {
+            const chipData = require('./story-chips').STORY_CHIPS.find((c: any) => c.id === chip.chipId);
+            return chipData?.plainText;
+          })
+          .filter(Boolean)
+          .join(', ');
+        previewText = `Themes: ${chipLabels}`;
+      } else {
+        previewText = `${reflection.totalWeaves} weaves with ${reflection.friendsContacted} friends`;
+      }
+
+      // Schedule notification for tomorrow morning at 9 AM
+      const notificationDate = new Date();
+      notificationDate.setDate(notificationDate.getDate() + 1);
+      notificationDate.setHours(9, 0, 0, 0);
+
+      await Notifications.scheduleNotificationAsync({
+        identifier: `${MEMORY_NUDGE_ID_PREFIX}${reflection.id}`,
+        content: {
+          title: '🌙 A year ago this week...',
+          body: previewText,
+          data: {
+            type: 'memory-nudge',
+            reflectionId: reflection.id,
+            weekRange: reflection.getWeekRange(),
+          },
+        },
+        trigger: notificationDate,
+      });
+    }
+
+    console.log(`[Notifications] Scheduled ${reflections.length} memory nudges`);
+  } catch (error) {
+    console.error('Error scheduling memory nudges:', error);
+  }
+}
+
+/**
+ * Check and schedule memory nudges on app open
+ * Should be called when app starts or when user opens journal
+ */
+export async function checkAndScheduleMemoryNudges(): Promise<void> {
+  try {
+    // Check if we've already checked today
+    const lastCheck = await AsyncStorage.getItem(LAST_MEMORY_CHECK_KEY);
+    const today = new Date().toDateString();
+
+    if (lastCheck === today) {
+      return; // Already checked today
+    }
+
+    // Schedule memory nudges
+    await scheduleMemoryNudges();
+
+    // Mark as checked
+    await AsyncStorage.setItem(LAST_MEMORY_CHECK_KEY, today);
+  } catch (error) {
+    console.error('Error checking memory nudges:', error);
+  }
+}
+
+// ================================================================================
 // MASTER SETUP & CLEANUP
 // ================================================================================
 
@@ -521,6 +633,7 @@ export async function initializeNotifications(): Promise<void> {
     scheduleWeeklyReflection(),
     scheduleAllEventReminders(),
     cleanupOldDeepeningNudges(),
+    checkAndScheduleMemoryNudges(),
   ]);
 
   // Mark as initialized

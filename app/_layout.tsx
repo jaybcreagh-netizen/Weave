@@ -11,6 +11,7 @@ import { ToastProvider } from '../src/components/toast_provider';
 import { CardGestureProvider } from '../src/context/CardGestureContext'; // Import the provider
 import { MilestoneCelebration } from '../src/components/MilestoneCelebration';
 import TrophyCabinetModal from '../src/components/TrophyCabinetModal';
+import { NotificationPermissionModal } from '../src/components/NotificationPermissionModal';
 import { LoadingScreen } from '../src/components/LoadingScreen';
 import { ErrorBoundary } from '../src/components/ErrorBoundary';
 import { useUIStore } from '../src/stores/uiStore';
@@ -19,11 +20,16 @@ import { initializeDataMigrations, initializeUserProfile, initializeUserProgress
 import { appStateManager } from '../src/lib/app-state-manager';
 import { useAppStateChange } from '../src/hooks/useAppState';
 import { useFriendStore } from '../src/stores/friendStore';
-import { initializeNotifications } from '../src/lib/notification-manager-enhanced';
+import { useTutorialStore } from '../src/stores/tutorialStore';
+import {
+  initializeNotifications,
+  requestNotificationPermissions,
+} from '../src/lib/notification-manager-enhanced';
 import {
   setupNotificationResponseListener,
   handleNotificationOnLaunch,
 } from '../src/lib/notification-response-handler';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   useFonts,
   Lora_400Regular,
@@ -72,6 +78,8 @@ function PostHogConnector({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+const NOTIFICATION_PERMISSION_ASKED_KEY = '@weave:notification_permission_asked';
+
 export default Sentry.wrap(function RootLayout() {
   const { colors } = useTheme();
   const isDarkMode = useUIStore((state) => state.isDarkMode);
@@ -79,6 +87,7 @@ export default Sentry.wrap(function RootLayout() {
   const hideMilestoneCelebration = useUIStore((state) => state.hideMilestoneCelebration);
   const isTrophyCabinetOpen = useUIStore((state) => state.isTrophyCabinetOpen);
   const closeTrophyCabinet = useUIStore((state) => state.closeTrophyCabinet);
+  const hasCompletedOnboarding = useTutorialStore((state) => state.hasCompletedOnboarding);
 
   const [fontsLoaded, fontError] = useFonts({
     Lora_400Regular,
@@ -89,6 +98,7 @@ export default Sentry.wrap(function RootLayout() {
 
   const [dataLoaded, setDataLoaded] = useState(false);
   const [uiMounted, setUiMounted] = useState(false);
+  const [showNotificationPermissionModal, setShowNotificationPermissionModal] = useState(false);
 
   // Animated opacity for smooth fade-in of content
   const contentOpacity = useSharedValue(0);
@@ -218,6 +228,66 @@ export default Sentry.wrap(function RootLayout() {
     };
   }, []);
 
+  // Check if we should show notification permission modal
+  useEffect(() => {
+    const checkNotificationPermissions = async () => {
+      if (!hasCompletedOnboarding || !dataLoaded) return;
+
+      try {
+        // Check if we've already asked for permissions
+        const hasAsked = await AsyncStorage.getItem(NOTIFICATION_PERMISSION_ASKED_KEY);
+        if (hasAsked === 'true') return;
+
+        // Check current permission status
+        const { status } = await Notifications.getPermissionsAsync();
+        if (status === 'granted') {
+          // Already have permissions, mark as asked
+          await AsyncStorage.setItem(NOTIFICATION_PERMISSION_ASKED_KEY, 'true');
+          return;
+        }
+
+        // Show permission modal after a short delay to let UI settle
+        setTimeout(() => {
+          setShowNotificationPermissionModal(true);
+        }, 1000);
+      } catch (error) {
+        console.error('[App] Error checking notification permissions:', error);
+      }
+    };
+
+    checkNotificationPermissions();
+  }, [hasCompletedOnboarding, dataLoaded]);
+
+  // Handle notification permission request
+  const handleRequestNotificationPermission = async () => {
+    try {
+      const granted = await requestNotificationPermissions();
+      await AsyncStorage.setItem(NOTIFICATION_PERMISSION_ASKED_KEY, 'true');
+      setShowNotificationPermissionModal(false);
+
+      if (granted) {
+        console.log('[App] Notification permissions granted, initializing notifications');
+        await initializeNotifications();
+      } else {
+        console.log('[App] Notification permissions denied');
+      }
+    } catch (error) {
+      console.error('[App] Error requesting notification permissions:', error);
+      setShowNotificationPermissionModal(false);
+    }
+  };
+
+  // Handle skipping notification permissions
+  const handleSkipNotificationPermission = async () => {
+    try {
+      await AsyncStorage.setItem(NOTIFICATION_PERMISSION_ASKED_KEY, 'true');
+      setShowNotificationPermissionModal(false);
+      console.log('[App] User skipped notification permissions');
+    } catch (error) {
+      console.error('[App] Error skipping notification permissions:', error);
+    }
+  };
+
   // Track user activity globally
   const handleUserActivity = () => {
     appStateManager.recordActivity();
@@ -264,6 +334,13 @@ export default Sentry.wrap(function RootLayout() {
                   <TrophyCabinetModal
                     visible={isTrophyCabinetOpen}
                     onClose={closeTrophyCabinet}
+                  />
+
+                  {/* Notification Permission Modal */}
+                  <NotificationPermissionModal
+                    visible={showNotificationPermissionModal}
+                    onRequestPermission={handleRequestNotificationPermission}
+                    onSkip={handleSkipNotificationPermission}
                   />
                 </Animated.View>
 

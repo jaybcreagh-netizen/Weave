@@ -18,7 +18,7 @@ import { ReflectionCalendarView } from './ReflectionCalendarView';
 import { ReflectionDetailModal } from './ReflectionDetailModal';
 import { JournalEntryModal } from '../Journal/JournalEntryModal';
 import { getAllReflectionFriends, getFriendsForReflection } from '../../lib/weekly-reflection/reflection-friends';
-import { checkAndScheduleMemoryNudges } from '../../lib/notification-manager';
+import { checkAndScheduleMemoryNudges } from '../../lib/notification-manager-enhanced';
 import FriendModel from '../../db/models/Friend';
 import * as Haptics from 'expo-haptics';
 

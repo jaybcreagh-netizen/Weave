@@ -16,13 +16,16 @@ export interface NotificationData {
     | 'deepening-nudge'
     | 'friend-suggestion'
     | 'portfolio-insight'
-    | 'life-event';
+    | 'life-event'
+    | 'memory-nudge';
 
   // Optional navigation data
   friendId?: string;
   friendName?: string;
   interactionId?: string;
   suggestionId?: string;
+  reflectionId?: string;
+  weekRange?: string;
 }
 
 /**
@@ -68,6 +71,10 @@ export function handleNotificationResponse(
 
     case 'life-event':
       handleLifeEventNotification(data);
+      break;
+
+    case 'memory-nudge':
+      handleMemoryNudgeNotification(data);
       break;
 
     default:
@@ -183,6 +190,22 @@ function handleLifeEventNotification(data: NotificationData): void {
     // Fallback to friends tab
     router.push('/(tabs)/friends');
   }
+}
+
+/**
+ * Navigate to home tab and show anniversary reflection
+ */
+function handleMemoryNudgeNotification(data: NotificationData): void {
+  // Navigate to home tab
+  router.push('/(tabs)/home');
+
+  // Trigger memory reflection modal via URL parameter
+  setTimeout(() => {
+    router.setParams({
+      showMemory: 'true',
+      reflectionId: data.reflectionId,
+    });
+  }, 300);
 }
 
 /**
