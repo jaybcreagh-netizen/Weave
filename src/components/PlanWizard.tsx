@@ -29,6 +29,8 @@ interface PlanWizardProps {
   };
   // Optional: ID of existing interaction to replace (for reschedule)
   replaceInteractionId?: string;
+  // Optional: Starting step (1-3), defaults to 1
+  initialStep?: number;
 }
 
 export interface PlanFormData {
@@ -40,12 +42,12 @@ export interface PlanFormData {
   notes?: string;
 }
 
-export function PlanWizard({ visible, onClose, initialFriend, prefillData, replaceInteractionId }: PlanWizardProps) {
+export function PlanWizard({ visible, onClose, initialFriend, prefillData, replaceInteractionId, initialStep = 1 }: PlanWizardProps) {
   const { colors, isDarkMode } = useTheme();
   const { addInteraction, deleteInteraction } = useInteractionStore();
   const suggestion = usePlanSuggestion(initialFriend);
 
-  const [currentStep, setCurrentStep] = useState(1); // Start from step 1
+  const [currentStep, setCurrentStep] = useState(initialStep); // Start from initialStep
   const [direction, setDirection] = useState<'forward' | 'backward'>('forward');
   const [selectedFriends, setSelectedFriends] = useState<FriendModel[]>([initialFriend]); // Manage internally
   const [formData, setFormData] = useState<Partial<PlanFormData>>({
@@ -59,6 +61,13 @@ export function PlanWizard({ visible, onClose, initialFriend, prefillData, repla
   const updateFormData = (updates: Partial<PlanFormData>) => {
     setFormData(prev => ({ ...prev, ...updates }));
   };
+
+  // Reset to initialStep when modal opens or initialStep changes
+  useEffect(() => {
+    if (visible) {
+      setCurrentStep(initialStep);
+    }
+  }, [visible, initialStep]);
 
   const goToNextStep = () => {
     if (currentStep < 3) { // Max step is 3
@@ -76,7 +85,7 @@ export function PlanWizard({ visible, onClose, initialFriend, prefillData, repla
 
   const handleClose = () => {
     // Reset state
-    setCurrentStep(1);
+    setCurrentStep(initialStep);
     setSelectedFriends([initialFriend]); // Reset selected friends
     setFormData({});
     onClose();

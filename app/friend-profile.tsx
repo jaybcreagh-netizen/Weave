@@ -566,6 +566,7 @@ router.back();
               location: editingInteraction.location,
             } : undefined}
             replaceInteractionId={editingInteraction && isFuture(new Date(editingInteraction.interactionDate)) ? editingInteraction.id : undefined}
+            initialStep={editingInteraction && isFuture(new Date(editingInteraction.interactionDate)) ? 3 : 1}
           />
         )}
 
