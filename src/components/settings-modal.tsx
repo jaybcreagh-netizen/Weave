@@ -517,7 +517,7 @@ export function SettingsModal({
                 <View className="w-10 h-10 rounded-lg items-center justify-center" style={{ backgroundColor: colors.muted }}>
                   <Sparkles color={colors.foreground} size={20} />
                 </View>
-                <View className="flex-1">
+                <View>
                   <Text className="text-base font-inter-medium" style={{ color: colors.foreground }}>Smart Activity Ordering</Text>
                   <Text className="text-sm font-inter-regular" style={{ color: colors['muted-foreground'] }}>
                     Reorder activities by time of day & context
