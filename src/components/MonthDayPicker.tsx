@@ -304,7 +304,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     borderWidth: 1,
-    maxHeight: '70%',
+    height: 500, // Fixed height to ensure pickers are visible
   },
   header: {
     flexDirection: 'row',
