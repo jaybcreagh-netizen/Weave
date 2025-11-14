@@ -54,12 +54,12 @@ const SEASON_EXPLANATIONS: Record<SocialSeason, {
     meaning: 'Your weave holds even when you need space. Rest is productive. The app will minimize suggestions and focus on reflection tools. Your friendships understand and wait patiently.',
   },
   balanced: {
-    title: 'Balanced Season ☀️',
+    title: 'Balanced Season 💧',
     description: 'You\'re in a sustainable rhythm of connection.',
     meaning: 'You\'re connecting mindfully while listening to your needs. This consistency is something to celebrate. The app will offer gentle, context-aware suggestions to maintain your flow.',
   },
   blooming: {
-    title: 'Blooming Season ✨',
+    title: 'Blooming Season 🌱',
     description: 'You\'re radiating connection and high social energy.',
     meaning: 'Your connections are thriving! Remember to check in with yourself and avoid burnout. The app will offer creative ideas while gently reminding you to maintain balance.',
   },

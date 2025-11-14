@@ -29,11 +29,11 @@ export const SEASON_STYLES: Record<SocialSeason, SeasonStyle> = {
     animation: 'gentle-pulse',
   },
   balanced: {
-    primaryColor: '#38BDF8', // Sky blue - calm, sustainable, encouraging
-    lightColor: '#7DD3FC',
-    darkColor: '#0EA5E9',
-    gradientColorsLight: ['#7DD3FC', '#38BDF8'], // Soft sky blue
-    gradientColorsDark: ['#0EA5E9', '#0284C7'], // Deep ocean blue
+    primaryColor: '#7DD3FC', // Softer sky blue - calm, sustainable, encouraging
+    lightColor: '#A5F3FC',
+    darkColor: '#38BDF8',
+    gradientColorsLight: ['#BAE6FD', '#7DD3FC'], // Very soft sky blue
+    gradientColorsDark: ['#38BDF8', '#0EA5E9'], // Gentle ocean blue
     animation: 'subtle-wave',
   },
   blooming: {

@@ -154,7 +154,7 @@ export async function getSeasonAwareStreakData(
       isVisible: true,
       message,
       emoji: '💙',
-      color: '#38BDF8', // Sky blue
+      color: '#7DD3FC', // Softer sky blue
     };
   }
 
