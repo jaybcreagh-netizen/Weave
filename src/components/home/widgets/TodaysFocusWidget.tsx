@@ -49,7 +49,7 @@ interface UpcomingDate {
   title?: string;
 }
 
-type PriorityState = 'todays-plan' | 'streak-risk' | 'friend-fading' | 'upcoming-plan' | 'quick-weave' | 'all-clear';
+type PriorityState = 'pressing-event' | 'todays-plan' | 'streak-risk' | 'friend-fading' | 'upcoming-plan' | 'quick-weave' | 'all-clear';
 
 export const TodaysFocusWidget: React.FC = () => {
   const { colors, isDarkMode } = useTheme();
@@ -342,32 +342,43 @@ export const TodaysFocusWidget: React.FC = () => {
 
   // Priority logic with daily rotation for variance
   const getPriority = (): { state: PriorityState; data?: any } => {
-    // 1. Today's plan (highest priority) - rotate if multiple
-    const todaysPlans = pendingPlans.filter(p => p.daysUntil === 0);
-    if (todaysPlans.length > 0) {
-      const index = getDailyRotation(todaysPlans.length);
-      return { state: 'todays-plan', data: todaysPlans[index] };
+    // 1. Pressing events (birthdays within 3 days, medium+ life events within 7 days)
+    const pressingEvents = upcomingDates.filter(event => {
+      if (event.type === 'birthday' && event.daysUntil <= 3) return true;
+      if (event.type === 'life_event' && event.daysUntil <= 7) return true;
+      return false;
+    });
+    if (pressingEvents.length > 0) {
+      // Sort by urgency (soonest first)
+      pressingEvents.sort((a, b) => a.daysUntil - b.daysUntil);
+      return { state: 'pressing-event', data: pressingEvents[0] };
     }
 
-    // 2. Streak at risk (no weave today and streak > 0) - suggest battery-matched friend
+    // 2. Today's plans - show all at a glance
+    const todaysPlans = pendingPlans.filter(p => p.daysUntil === 0);
+    if (todaysPlans.length > 0) {
+      return { state: 'todays-plan', data: { plans: todaysPlans, count: todaysPlans.length } };
+    }
+
+    // 3. Streak at risk (no weave today and streak > 0) - suggest battery-matched friend
     if (streakCount > 0 && batteryMatchedFriend) {
       const batteryLevel = profile?.socialBatteryCurrent || 50;
       return { state: 'streak-risk', data: { streakCount, friend: batteryMatchedFriend, batteryLevel } };
     }
 
-    // 3. Friend fading (already rotated in useEffect)
+    // 4. Friend fading (already rotated in useEffect)
     if (fadingFriend) {
       return { state: 'friend-fading', data: fadingFriend };
     }
 
-    // 4. Upcoming plan (within next 3 days) - rotate if multiple
+    // 5. Upcoming plan (within next 3 days) - rotate if multiple
     const upcomingPlans = pendingPlans.filter(p => p.daysUntil > 0 && p.daysUntil <= 3);
     if (upcomingPlans.length > 0) {
       const index = getDailyRotation(upcomingPlans.length);
       return { state: 'upcoming-plan', data: upcomingPlans[index] };
     }
 
-    // 5. Check if everything is in good shape (all clear)
+    // 6. Check if everything is in good shape (all clear)
     const allFriendsHealthy = friends.every(f => calculateCurrentScore(f) >= 40);
     const noUrgentItems = !fadingFriend && pendingPlans.length === 0 && streakCount === 0;
 
@@ -375,7 +386,7 @@ export const TodaysFocusWidget: React.FC = () => {
       return { state: 'all-clear', data: null };
     }
 
-    // 6. Quick weave (default) - rotate through top 5 longest since last interaction
+    // 7. Quick weave (default) - rotate through top 5 longest since last interaction
     const friendsWithInteractions = friends
       .filter(f => f.lastUpdated)
       .map(f => ({ friend: f, daysSince: differenceInDays(new Date(), f.lastUpdated!) }))
@@ -437,7 +448,11 @@ export const TodaysFocusWidget: React.FC = () => {
   };
 
   const handleCardPress = () => {
-    if (priority.state === 'todays-plan' || priority.state === 'upcoming-plan' || priority.state === 'all-clear') {
+    if (priority.state === 'pressing-event') {
+      // Navigate to friend profile
+      const event = priority.data as UpcomingDate;
+      router.push(`/friend-profile?friendId=${event.friend.id}`);
+    } else if (priority.state === 'todays-plan' || priority.state === 'upcoming-plan' || priority.state === 'all-clear') {
       // Expand to show more details
       setExpanded(!expanded);
     } else if (priority.state === 'streak-risk') {
@@ -478,8 +493,10 @@ export const TodaysFocusWidget: React.FC = () => {
     };
 
     switch (priority.state) {
+      case 'pressing-event':
+        return <PressingEventCard event={priority.data} {...cardProps} />;
       case 'todays-plan':
-        return <TodaysPlanCard plan={priority.data} {...cardProps} />;
+        return <TodaysPlanCard data={priority.data} {...cardProps} />;
       case 'streak-risk':
         return <StreakRiskCard
           streakCount={priority.data.streakCount}
@@ -719,9 +736,55 @@ interface CardProps {
   expansionProgress: Animated.SharedValue<number>;
 }
 
-const TodaysPlanCard: React.FC<CardProps & { plan: any }> = ({ plan, onPress, isDarkMode, expansionProgress, expandedContent }) => {
-  const friendNames = plan.friends.map((f: FriendModel) => f.name).join(', ');
-  const title = plan.interaction.title || plan.interaction.activity || 'Plan';
+const PressingEventCard: React.FC<CardProps & { event: UpcomingDate }> = ({ event, onPress, isDarkMode, expansionProgress, expandedContent }) => {
+  const expandedStyle = useAnimatedStyle(() => {
+    'worklet';
+    return {
+      opacity: expansionProgress.value,
+      maxHeight: expansionProgress.value * 1000,
+    };
+  });
+
+  const getEventTitle = () => {
+    if (event.type === 'birthday') return `${event.friend.name}'s Birthday`;
+    if (event.type === 'anniversary') return `${event.friend.name}'s Anniversary`;
+    return event.title || 'Life Event';
+  };
+
+  const getEventSubtext = () => {
+    if (event.daysUntil === 0) return 'Today!';
+    if (event.daysUntil === 1) return 'Tomorrow';
+    return `In ${event.daysUntil} days`;
+  };
+
+  const Icon = event.type === 'birthday' ? Cake : event.type === 'anniversary' ? Heart : Calendar;
+
+  return (
+    <TouchableOpacity onPress={onPress} activeOpacity={0.9}>
+      <LinearGradient
+        colors={isDarkMode ? ['#DC2626', '#EF4444'] : ['#F87171', '#FCA5A5']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.gradientCard}
+      >
+        <View style={styles.cardContent}>
+          <Icon size={32} color="#FFFFFF" />
+          <Text style={styles.headlineCompact}>Upcoming Event</Text>
+          <Text style={styles.subtextCompact}>
+            {getEventTitle()} · {getEventSubtext()}
+          </Text>
+        </View>
+
+        <Animated.View style={[styles.expandedSection, expandedStyle]}>
+          {expandedContent}
+        </Animated.View>
+      </LinearGradient>
+    </TouchableOpacity>
+  );
+};
+
+const TodaysPlanCard: React.FC<CardProps & { data: { plans: any[], count: number } }> = ({ data, onPress, isDarkMode, expansionProgress, expandedContent }) => {
+  const { plans, count } = data;
 
   const expandedStyle = useAnimatedStyle(() => {
     'worklet';
@@ -730,6 +793,39 @@ const TodaysPlanCard: React.FC<CardProps & { plan: any }> = ({ plan, onPress, is
       maxHeight: expansionProgress.value * 1000, // Large enough to fit content
     };
   });
+
+  const getCategoryMetadataLocal = (category: any) => {
+    try {
+      return getCategoryMetadata(category as InteractionCategory);
+    } catch {
+      return null;
+    }
+  };
+
+  // Generate summary list
+  const getSummaryText = () => {
+    if (count === 1) {
+      const plan = plans[0];
+      const friendNames = plan.friends.map((f: FriendModel) => f.name).join(', ');
+      const categoryData = plan.interaction.interactionCategory
+        ? getCategoryMetadataLocal(plan.interaction.interactionCategory)
+        : null;
+      const title = plan.interaction.title || categoryData?.label || plan.interaction.activity;
+      return `${title} - ${friendNames}`;
+    }
+
+    // Multiple plans: show list
+    return plans.slice(0, 3).map((plan: any) => {
+      const friendNames = plan.friends.map((f: FriendModel) => f.name).join(', ');
+      const categoryData = plan.interaction.interactionCategory
+        ? getCategoryMetadataLocal(plan.interaction.interactionCategory)
+        : null;
+      const title = plan.interaction.title || categoryData?.label || plan.interaction.activity;
+      return `${title} - ${friendNames}`;
+    });
+  };
+
+  const summaryText = getSummaryText();
 
   return (
     <TouchableOpacity onPress={onPress} activeOpacity={0.9}>
@@ -742,10 +838,25 @@ const TodaysPlanCard: React.FC<CardProps & { plan: any }> = ({ plan, onPress, is
         {/* Hero Content */}
         <View style={styles.cardContent}>
           <Calendar size={32} color="#FFFFFF" />
-          <Text style={styles.headlineCompact}>Today's Plan</Text>
-          <Text style={styles.subtextCompact}>
-            {title} with {friendNames}
+          <Text style={styles.headlineCompact}>
+            {count === 1 ? "Today's Plan" : `${count} Plans Today`}
           </Text>
+          {count === 1 ? (
+            <Text style={styles.subtextCompact}>{summaryText}</Text>
+          ) : (
+            <View style={styles.planSummaryList}>
+              {(summaryText as string[]).map((text, index) => (
+                <Text key={index} style={styles.planSummaryItem}>
+                  • {text}
+                </Text>
+              ))}
+              {count > 3 && (
+                <Text style={styles.planSummaryItem}>
+                  + {count - 3} more
+                </Text>
+              )}
+            </View>
+          )}
         </View>
 
         {/* Expanded Content - Animated */}
@@ -997,6 +1108,18 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.95)',
     textAlign: 'center',
     maxWidth: '85%',
+  },
+  planSummaryList: {
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 4,
+  },
+  planSummaryItem: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 12,
+    lineHeight: 16,
+    color: 'rgba(255, 255, 255, 0.9)',
+    textAlign: 'center',
   },
   expandIndicator: {
     position: 'absolute',

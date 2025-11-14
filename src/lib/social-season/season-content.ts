@@ -29,19 +29,19 @@ export const SEASON_STYLES: Record<SocialSeason, SeasonStyle> = {
     animation: 'gentle-pulse',
   },
   balanced: {
-    primaryColor: '#EBC867', // Warm gold/sun
-    lightColor: '#E5BA50',
-    darkColor: '#EBC867',
-    gradientColorsLight: ['#EBC867', '#E5BA50'], // Use new, softer gold from theme
-    gradientColorsDark: ['#EBC867', '#E5BA50'], // Use new, softer gold from theme
+    primaryColor: '#38BDF8', // Sky blue - calm, sustainable, encouraging
+    lightColor: '#7DD3FC',
+    darkColor: '#0EA5E9',
+    gradientColorsLight: ['#7DD3FC', '#38BDF8'], // Soft sky blue
+    gradientColorsDark: ['#0EA5E9', '#0284C7'], // Deep ocean blue
     animation: 'subtle-wave',
   },
   blooming: {
-    primaryColor: '#A78BFA', // Vibrant purple
-    lightColor: '#C4B5FD',
-    darkColor: '#8B5CF6',
-    gradientColorsLight: ['#C4B5FD', '#A78BFA'], // Soft violet
-    gradientColorsDark: ['#8B5CF6', '#7C3AED'], // Rich purple
+    primaryColor: '#34D399', // Emerald green - growth, thriving
+    lightColor: '#6EE7B7',
+    darkColor: '#10B981',
+    gradientColorsLight: ['#6EE7B7', '#34D399'], // Soft emerald
+    gradientColorsDark: ['#10B981', '#059669'], // Rich green
     animation: 'sparkle',
   },
 };
@@ -84,28 +84,28 @@ const SEASON_GREETINGS: Record<
     default: {
       headline: "You're in a beautiful rhythm",
       subtext: 'Connecting mindfully and listening to your needs. This consistency is something to celebrate.',
-      emoji: '☀️',
+      emoji: '💧',
     },
     contextVariants: {
       innerCircleStrong: {
         headline: 'Steady & strong',
         subtext: 'Your closest connections are thriving. This is what balance feels like.',
-        emoji: '☀️',
+        emoji: '💧',
       },
       highActivity: {
         headline: 'Mindful momentum',
         subtext: 'Lots of weaving lately—remember to check in with your energy.',
-        emoji: '☀️',
+        emoji: '💧',
       },
       batteryHigh: {
         headline: 'Energized balance',
         subtext: 'Your social battery is charged and your rhythm is sustainable.',
-        emoji: '☀️',
+        emoji: '💧',
       },
       innerCircleWeak: {
         headline: 'Rebalancing',
         subtext: "You're active, but your Inner Circle could use a little extra care.",
-        emoji: '☀️',
+        emoji: '💧',
       },
     },
   },
@@ -113,23 +113,23 @@ const SEASON_GREETINGS: Record<
     default: {
       headline: "You're blooming!",
       subtext: "You're radiating connection. Remember to check in with yourself.",
-      emoji: '✨',
+      emoji: '🌱',
     },
     contextVariants: {
       innerCircleStrong: {
         headline: 'Thriving together',
         subtext: 'Your Inner Circle is radiant. This is the magic of intentional connection.',
-        emoji: '✨',
+        emoji: '🌱',
       },
       highActivity: {
         headline: 'Connection abundance',
         subtext: "You're weaving at a beautiful pace. Stay mindful of your energy.",
-        emoji: '✨',
+        emoji: '🌱',
       },
       batteryHigh: {
         headline: 'Peak bloom',
         subtext: 'Your connections are glowing. Remember: this season is temporary too.',
-        emoji: '✨',
+        emoji: '🌱',
       },
     },
   },
@@ -179,8 +179,8 @@ export function getSeasonGreeting(
 export function getSeasonIcon(season: SocialSeason): string {
   const icons: Record<SocialSeason, string> = {
     resting: '🌙',
-    balanced: '☀️',
-    blooming: '✨',
+    balanced: '💧',
+    blooming: '🌱',
   };
   return icons[season];
 }

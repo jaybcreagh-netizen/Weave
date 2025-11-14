@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb'
 
 export default appSchema({
-  version: 30, // UPDATED: Changed anniversary from Date to string (MM-DD format)
+  version: 30, // UPDATED: Changed anniversary from Date to string (MM-DD format) + Added streak forgiveness mechanics
   tables: [
     tableSchema({
       name: 'friends',
@@ -170,6 +170,11 @@ export default appSchema({
         { name: 'best_streak', type: 'number', defaultValue: 0 },
         { name: 'last_practice_date', type: 'number', isOptional: true },
         { name: 'consistency_milestones', type: 'string', isOptional: true }, // JSON array
+
+        // v30: Streak forgiveness mechanics
+        { name: 'last_streak_count', type: 'number', defaultValue: 0 }, // Streak count before it was broken
+        { name: 'streak_released_date', type: 'number', isOptional: true }, // When the streak was released
+        { name: 'longest_streak_ever', type: 'number', defaultValue: 0 }, // Never decreases
 
         // Path of Depth
         { name: 'total_reflections', type: 'number', defaultValue: 0 },

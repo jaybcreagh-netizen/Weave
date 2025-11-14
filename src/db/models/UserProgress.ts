@@ -17,6 +17,11 @@ export default class UserProgress extends Model {
   @field('best_streak') bestStreak!: number;
   @date('last_practice_date') lastPracticeDate!: Date;
 
+  // Streak forgiveness mechanics (v30)
+  @field('last_streak_count') lastStreakCount!: number; // Count before break
+  @date('streak_released_date') streakReleasedDate?: Date; // When streak was released
+  @field('longest_streak_ever') longestStreakEver!: number; // Never decreases
+
   // JSON array of unlocked consistency milestone IDs
   // e.g., ['thread-starter', 'consistent-weaver']
   @json('consistency_milestones', (json) => json) consistencyMilestones!: string[];
