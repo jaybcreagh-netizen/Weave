@@ -201,7 +201,7 @@ function getBloomingMessage(streak: number): string {
 /**
  * Get forgiveness message when streak is broken
  */
-export function getForgiveness Message(lastStreakCount: number): string {
+export function getForgivenessMessage(lastStreakCount: number): string {
   if (lastStreakCount === 0) return '';
   if (lastStreakCount === 1) return 'You took a pause. That\'s okay—rhythms change.';
   if (lastStreakCount < 7) return `You released your ${lastStreakCount}-day streak. Some seasons need different rhythms. You can always begin a new one when you're ready.`;
