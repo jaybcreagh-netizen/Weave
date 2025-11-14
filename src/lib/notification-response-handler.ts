@@ -6,6 +6,7 @@
 
 import * as Notifications from 'expo-notifications';
 import { router } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 import { useUIStore } from '../stores/uiStore';
 
 export interface NotificationData {
@@ -37,6 +38,9 @@ export function handleNotificationResponse(
   const data = response.notification.request.content.data as NotificationData;
 
   console.log('[Notifications] User tapped notification:', data);
+
+  // Provide haptic feedback for notification tap
+  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
   if (!data?.type) {
     console.warn('[Notifications] No type in notification data, ignoring');

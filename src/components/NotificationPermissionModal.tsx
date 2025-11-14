@@ -23,7 +23,7 @@ export function NotificationPermissionModal({
   onSkip,
 }: NotificationPermissionModalProps) {
   const handleRequestPermission = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     onRequestPermission();
   };
 

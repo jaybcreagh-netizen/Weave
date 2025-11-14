@@ -19,6 +19,10 @@ import { Q } from '@nozbe/watermelondb';
 // AsyncStorage keys
 const LAST_SMART_NOTIFICATION_KEY = '@weave:last_smart_notification';
 const SMART_NOTIFICATION_COUNT_KEY = '@weave:smart_notification_count';
+const SCHEDULED_SMART_NOTIFICATIONS_KEY = '@weave:scheduled_smart_notifications';
+
+// Minimum hours between smart notifications (prevents immediate spam)
+const MIN_HOURS_BETWEEN_NOTIFICATIONS = 2;
 
 // Notification preferences (will be moved to user settings)
 export interface NotificationPreferences {
@@ -118,6 +122,82 @@ async function incrementNotificationCount(): Promise<void> {
     );
   } catch (error) {
     console.error('Error incrementing notification count:', error);
+  }
+}
+
+/**
+ * Get the last time a smart notification was scheduled
+ */
+async function getLastNotificationTime(): Promise<number | null> {
+  try {
+    const stored = await AsyncStorage.getItem(LAST_SMART_NOTIFICATION_KEY);
+    return stored ? parseInt(stored, 10) : null;
+  } catch (error) {
+    console.error('Error getting last notification time:', error);
+    return null;
+  }
+}
+
+/**
+ * Update the last notification time
+ */
+async function updateLastNotificationTime(): Promise<void> {
+  try {
+    await AsyncStorage.setItem(LAST_SMART_NOTIFICATION_KEY, Date.now().toString());
+  } catch (error) {
+    console.error('Error updating last notification time:', error);
+  }
+}
+
+/**
+ * Check if enough time has passed since last notification
+ */
+async function hasMinimumCooldownPassed(): Promise<boolean> {
+  const lastTime = await getLastNotificationTime();
+  if (!lastTime) return true; // No previous notification, ok to send
+
+  const hoursSince = (Date.now() - lastTime) / (1000 * 60 * 60);
+  return hoursSince >= MIN_HOURS_BETWEEN_NOTIFICATIONS;
+}
+
+/**
+ * Get list of already scheduled smart notification IDs for today
+ */
+async function getScheduledNotifications(): Promise<string[]> {
+  try {
+    const stored = await AsyncStorage.getItem(SCHEDULED_SMART_NOTIFICATIONS_KEY);
+    if (!stored) return [];
+
+    const { date, ids } = JSON.parse(stored);
+    const today = new Date().toDateString();
+
+    if (date === today) {
+      return ids;
+    }
+
+    // Reset for new day
+    return [];
+  } catch (error) {
+    console.error('Error getting scheduled notifications:', error);
+    return [];
+  }
+}
+
+/**
+ * Add a notification ID to the scheduled list
+ */
+async function addScheduledNotification(notificationId: string): Promise<void> {
+  try {
+    const today = new Date().toDateString();
+    const current = await getScheduledNotifications();
+    current.push(notificationId);
+
+    await AsyncStorage.setItem(
+      SCHEDULED_SMART_NOTIFICATIONS_KEY,
+      JSON.stringify({ date: today, ids: current })
+    );
+  } catch (error) {
+    console.error('Error adding scheduled notification:', error);
   }
 }
 
@@ -287,11 +367,80 @@ async function scheduleSuggestionNotification(
 }
 
 /**
+ * Calculate delay times to spread notifications throughout the day
+ * Returns delays in minutes for each notification
+ */
+function calculateSpreadDelays(count: number, prefs: NotificationPreferences): number[] {
+  const now = new Date();
+  const currentHour = now.getHours();
+  const currentMinute = now.getMinutes();
+
+  // Define time slots throughout the day (in hours from now)
+  const timeSlots: number[] = [];
+
+  // Morning slot (9-11 AM)
+  if (currentHour < 9) {
+    timeSlots.push(9 - currentHour);
+  }
+
+  // Midday slot (12-2 PM)
+  if (currentHour < 12) {
+    const hoursUntil = 12 - currentHour;
+    if (hoursUntil >= MIN_HOURS_BETWEEN_NOTIFICATIONS) {
+      timeSlots.push(hoursUntil);
+    }
+  }
+
+  // Afternoon slot (3-5 PM)
+  if (currentHour < 15) {
+    const hoursUntil = 15 - currentHour;
+    if (hoursUntil >= MIN_HOURS_BETWEEN_NOTIFICATIONS) {
+      timeSlots.push(hoursUntil);
+    }
+  }
+
+  // Evening slot (6-8 PM, before quiet hours)
+  if (currentHour < 18 && prefs.quietHoursStart > 18) {
+    const hoursUntil = 18 - currentHour;
+    if (hoursUntil >= MIN_HOURS_BETWEEN_NOTIFICATIONS) {
+      timeSlots.push(hoursUntil);
+    }
+  }
+
+  // If no future slots today, schedule throughout remaining hours
+  if (timeSlots.length === 0) {
+    const hoursUntilQuiet = prefs.quietHoursStart - currentHour;
+    if (hoursUntilQuiet > MIN_HOURS_BETWEEN_NOTIFICATIONS) {
+      // Spread across remaining hours
+      for (let i = 1; i <= count && i * MIN_HOURS_BETWEEN_NOTIFICATIONS < hoursUntilQuiet; i++) {
+        timeSlots.push(i * MIN_HOURS_BETWEEN_NOTIFICATIONS);
+      }
+    }
+  }
+
+  // Convert hours to minutes and add some randomness (±15 min) for natural feel
+  const delays = timeSlots.slice(0, count).map(hours => {
+    const baseMinutes = hours * 60 - currentMinute;
+    const randomOffset = Math.floor(Math.random() * 30) - 15; // ±15 min
+    return Math.max(MIN_HOURS_BETWEEN_NOTIFICATIONS * 60, baseMinutes + randomOffset);
+  });
+
+  return delays;
+}
+
+/**
  * Main intelligent notification decision engine
- * Call this periodically (e.g., morning, afternoon, evening)
+ * Schedules notifications spread throughout the day to avoid spam
  */
 export async function evaluateAndScheduleSmartNotifications(): Promise<void> {
   console.log('[Smart Notifications] Evaluating what to send...');
+
+  // Check if minimum cooldown has passed
+  const cooldownPassed = await hasMinimumCooldownPassed();
+  if (!cooldownPassed) {
+    console.log('[Smart Notifications] Cooldown period active, skipping');
+    return;
+  }
 
   // Load preferences
   const prefs = await getNotificationPreferences();
@@ -299,6 +448,25 @@ export async function evaluateAndScheduleSmartNotifications(): Promise<void> {
   // Check quiet hours
   if (isQuietHours(prefs)) {
     console.log('[Smart Notifications] Currently in quiet hours, skipping');
+    return;
+  }
+
+  // Check if we already have notifications scheduled for today
+  const alreadyScheduled = await getScheduledNotifications();
+  const todayCount = await getTodayNotificationCount();
+
+  // Frequency-based limits
+  const limits = {
+    light: 1,
+    moderate: 2,
+    proactive: 4,
+  };
+
+  const maxAllowed = limits[prefs.frequency];
+  const remainingSlots = maxAllowed - alreadyScheduled.length;
+
+  if (remainingSlots <= 0) {
+    console.log('[Smart Notifications] All notification slots filled for today');
     return;
   }
 
@@ -316,33 +484,42 @@ export async function evaluateAndScheduleSmartNotifications(): Promise<void> {
     (a, b) => urgencyOrder[a.urgency] - urgencyOrder[b.urgency]
   );
 
-  // Find the best notification to send
+  // Filter suggestions that pass battery check
+  const eligible: Suggestion[] = [];
   for (const suggestion of sorted) {
-    // Check if we can send this notification
-    const canSend = await canSendNotification(prefs, suggestion.urgency);
-    if (!canSend) {
-      console.log('[Smart Notifications] Daily limit reached');
-      break;
-    }
-
-    // Check if battery level allows this notification
     const batteryAllows = shouldRespectBattery(batteryLevel, suggestion.urgency, prefs);
-    if (!batteryAllows) {
-      console.log(
-        `[Smart Notifications] Battery too low (${batteryLevel}) for ${suggestion.urgency} notification`
-      );
-      continue;
+    if (batteryAllows) {
+      eligible.push(suggestion);
     }
-
-    // Schedule this notification
-    await scheduleSuggestionNotification(suggestion);
-    await incrementNotificationCount();
-
-    console.log(`[Smart Notifications] Sent: ${suggestion.title}`);
-    return; // Only send one per evaluation
   }
 
-  console.log('[Smart Notifications] No suitable notification to send');
+  if (eligible.length === 0) {
+    console.log('[Smart Notifications] No eligible suggestions to send');
+    return;
+  }
+
+  // Select top suggestions up to remaining slots
+  const toSchedule = eligible.slice(0, remainingSlots);
+
+  // Calculate delays to spread throughout the day
+  const delays = calculateSpreadDelays(toSchedule.length, prefs);
+
+  // Schedule each notification with appropriate delay
+  for (let i = 0; i < toSchedule.length; i++) {
+    const suggestion = toSchedule[i];
+    const delayMinutes = delays[i] || (i + 1) * MIN_HOURS_BETWEEN_NOTIFICATIONS * 60;
+
+    await scheduleSuggestionNotification(suggestion, delayMinutes);
+    await incrementNotificationCount();
+    await addScheduledNotification(`smart-suggestion-${suggestion.id}`);
+
+    console.log(`[Smart Notifications] Scheduled: ${suggestion.title} (in ${delayMinutes}m)`);
+  }
+
+  // Update last notification time
+  await updateLastNotificationTime();
+
+  console.log(`[Smart Notifications] Scheduled ${toSchedule.length} notifications spread throughout the day`);
 }
 
 /**
