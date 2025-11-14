@@ -26,6 +26,7 @@ import Interaction from '../../../db/models/Interaction';
 import WeeklyReflection from '../../../db/models/WeeklyReflection';
 import { generateSeasonExplanation, type SeasonExplanationData } from '../../../lib/narrative-generator';
 import { SocialSeasonModal } from '../../SocialSeason/SocialSeasonModal';
+import { SeasonIcon } from '../../SeasonIcon';
 
 const WIDGET_CONFIG: HomeWidgetConfig = {
   id: 'social-season',
@@ -54,12 +55,12 @@ const SEASON_EXPLANATIONS: Record<SocialSeason, {
     meaning: 'Your weave holds even when you need space. Rest is productive. The app will minimize suggestions and focus on reflection tools. Your friendships understand and wait patiently.',
   },
   balanced: {
-    title: 'Balanced Season ☀️',
+    title: 'Balanced Season 💧',
     description: 'You\'re in a sustainable rhythm of connection.',
     meaning: 'You\'re connecting mindfully while listening to your needs. This consistency is something to celebrate. The app will offer gentle, context-aware suggestions to maintain your flow.',
   },
   blooming: {
-    title: 'Blooming Season ✨',
+    title: 'Blooming Season 🌱',
     description: 'You\'re radiating connection and high social energy.',
     meaning: 'Your connections are thriving! Remember to check in with yourself and avoid burnout. The app will offer creative ideas while gently reminding you to maintain balance.',
   },
@@ -299,7 +300,7 @@ export const SocialSeasonWidget: React.FC = () => {
           <LinearGradient colors={gradientColors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.gradient}>
             {/* Header */}
             <View style={styles.header}>
-              <Text style={styles.emoji}>{greeting.emoji}</Text>
+              <SeasonIcon season={season} size={48} />
               <Text style={styles.headline}>{getSeasonDisplayName(season)}</Text>
               <Text style={styles.subtext}>{greeting.subtext}</Text>
             </View>
@@ -400,7 +401,9 @@ export const SocialSeasonWidget: React.FC = () => {
                       season === s && { borderWidth: 2, borderColor: colors.primary },
                     ]}
                   >
-                    <Text style={styles.overrideEmoji}>{SEASON_EXPLANATIONS[s].title.split(' ')[2]}</Text>
+                    <View style={styles.overrideIconContainer}>
+                      <SeasonIcon season={s} size={32} />
+                    </View>
                     <View style={styles.overrideOptionText}>
                       <Text style={[styles.overrideOptionTitle, { color: colors.foreground }]}>{getSeasonDisplayName(s)}</Text>
                       <Text style={[styles.overrideOptionDesc, { color: colors['muted-foreground'] }]}>{SEASON_EXPLANATIONS[s].description}</Text>
@@ -632,8 +635,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
   },
-  overrideEmoji: {
-    fontSize: 32,
+  overrideIconContainer: {
+    width: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   overrideOptionText: {
     flex: 1,
