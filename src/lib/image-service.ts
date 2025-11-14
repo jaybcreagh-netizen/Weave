@@ -15,7 +15,16 @@
 
 import * as FileSystem from 'expo-file-system';
 import * as ImageManipulator from 'expo-image-manipulator';
-import { supabase } from './supabase';
+
+// Lazy-load supabase only when cloud storage is enabled
+let supabase: any = null;
+const getSupabase = async () => {
+  if (!supabase) {
+    const { supabase: supabaseClient } = await import('./supabase');
+    supabase = supabaseClient;
+  }
+  return supabase;
+};
 
 // =====================================================
 // CONFIGURATION
@@ -221,8 +230,11 @@ async function uploadToSupabase(params: {
   // Convert to blob
   const blob = base64ToBlob(base64, 'image/jpeg');
 
+  // Get Supabase client
+  const supabaseClient = await getSupabase();
+
   // Upload to Supabase Storage
-  const { data, error } = await supabase.storage
+  const { data, error } = await supabaseClient.storage
     .from(bucket)
     .upload(filePath, blob, {
       contentType: 'image/jpeg',
@@ -234,7 +246,7 @@ async function uploadToSupabase(params: {
   }
 
   // Get public URL (even though bucket is private, this is the reference URL)
-  const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(filePath);
+  const { data: urlData } = supabaseClient.storage.from(bucket).getPublicUrl(filePath);
 
   return urlData.publicUrl;
 }
@@ -291,7 +303,10 @@ async function deleteFromSupabase(params: {
 
   const filePath = `${userId}/${imageId}.jpg`;
 
-  const { error } = await supabase.storage.from(bucket).remove([filePath]);
+  // Get Supabase client
+  const supabaseClient = await getSupabase();
+
+  const { error } = await supabaseClient.storage.from(bucket).remove([filePath]);
 
   if (error) {
     throw new Error(`Supabase deletion failed: ${error.message}`);
