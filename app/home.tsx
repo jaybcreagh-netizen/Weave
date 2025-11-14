@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View } from 'react-native';
+import { View, ScrollView } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import { HomeWidgetGrid, WidgetGridItem } from '../src/components/home/HomeWidgetGrid';
@@ -10,6 +10,7 @@ import { FocusPill } from '../src/components/home/widgets/FocusPill';
 import { SocialBatterySheet } from '../src/components/home/SocialBatterySheet';
 import { WeeklyReflectionModal } from '../src/components/WeeklyReflection/WeeklyReflectionModal';
 import { YearInMoonsModal } from '../src/components/YearInMoons/YearInMoonsModal';
+import { SuggestedWeaves } from '../src/components/SuggestedWeaves';
 import { useUserProfileStore } from '../src/stores/userProfileStore';
 import { useFriendStore } from '../src/stores/friendStore';
 import { getLastReflectionDate, shouldShowReflection } from '../src/lib/notification-manager-enhanced';
@@ -163,6 +164,8 @@ export default function Home() {
   return (
     <>
       <FocusPill />
+      {/* Event suggestions from calendar */}
+      <SuggestedWeaves />
       <HomeWidgetGrid widgets={widgets} />
 
       <SocialBatterySheet

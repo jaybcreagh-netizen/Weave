@@ -17,6 +17,7 @@ import {
   setPreferredCalendar,
   setReminderTime,
   requestCalendarPermissions,
+  toggleTwoWaySync,
   type CalendarSettings,
 } from '../lib/calendar-service';
 import {
@@ -197,6 +198,11 @@ export function SettingsModal({
 
     await toggleCalendarIntegration(enabled);
     setCalendarSettings((prev) => ({ ...prev, enabled }));
+  };
+
+  const handleToggleTwoWaySync = async (enabled: boolean) => {
+    await toggleTwoWaySync(enabled);
+    setCalendarSettings((prev) => ({ ...prev, twoWaySync: enabled }));
   };
 
   const handleSelectCalendar = async () => {
@@ -573,6 +579,23 @@ export function SettingsModal({
                 </View>
                 <ChevronRight color={colors['muted-foreground']} size={20} />
               </TouchableOpacity>
+            )}
+
+            {calendarSettings.enabled && (
+              <View className="flex-row items-center justify-between pl-13 mt-3">
+                <View className="flex-1">
+                  <Text className="text-sm font-inter-medium" style={{ color: colors.foreground }}>Two-Way Sync</Text>
+                  <Text className="text-xs font-inter-regular" style={{ color: colors['muted-foreground'] }}>
+                    Detect and sync changes made in calendar app
+                  </Text>
+                </View>
+                <Switch
+                  value={calendarSettings.twoWaySync}
+                  onValueChange={handleToggleTwoWaySync}
+                  trackColor={{ false: colors.muted, true: colors.primary }}
+                  thumbColor={colors.card}
+                />
+              </View>
             )}
 
             <View className="border-t border-border my-2" style={{ borderColor: colors.border }} />
