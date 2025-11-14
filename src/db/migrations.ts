@@ -646,6 +646,39 @@ export default schemaMigrations({
         }),
       ],
     },
+    {
+      // Migration from schema v32 to v33
+      // Event Suggestion Feedback - Learning system for ambient logging
+      toVersion: 33,
+      steps: [
+        createTable({
+          name: 'event_suggestion_feedback',
+          columns: [
+            { name: 'calendar_event_id', type: 'string', isIndexed: true },
+            { name: 'event_title', type: 'string' },
+            { name: 'event_date', type: 'number' },
+            { name: 'event_location', type: 'string', isOptional: true },
+            { name: 'suggested_friend_ids', type: 'string' },
+            { name: 'suggested_category', type: 'string', isOptional: true },
+            { name: 'action', type: 'string' },
+            { name: 'dismissal_reason', type: 'string', isOptional: true },
+            { name: 'corrected_friend_ids', type: 'string', isOptional: true },
+            { name: 'corrected_category', type: 'string', isOptional: true },
+            { name: 'snoozed_until', type: 'number', isOptional: true },
+            { name: 'snooze_type', type: 'string', isOptional: true },
+            { name: 'snoozed_friend_ids', type: 'string', isOptional: true },
+            { name: 'emotional_rating', type: 'number', isOptional: true },
+            { name: 'reflection_notes', type: 'string', isOptional: true },
+            { name: 'resulting_interaction_id', type: 'string', isOptional: true },
+            { name: 'confidence_score', type: 'number' },
+            { name: 'match_quality', type: 'number' },
+            { name: 'suggested_at', type: 'number' },
+            { name: 'responded_at', type: 'number', isOptional: true },
+            { name: 'created_at', type: 'number' },
+          ],
+        }),
+      ],
+    },
   ],
 });
 
