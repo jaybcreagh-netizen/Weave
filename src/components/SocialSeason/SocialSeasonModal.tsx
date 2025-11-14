@@ -179,6 +179,8 @@ function PulseTabContent({
   const [monthlyWeaves, setMonthlyWeaves] = useState(0);
   const [longestStreak, setLongestStreak] = useState({ count: 0, startDate: '', endDate: '' });
   const [avgWeeklyWeaves, setAvgWeeklyWeaves] = useState(0);
+  const [totalWeaves, setTotalWeaves] = useState(0);
+  const [totalDaysActive, setTotalDaysActive] = useState(0);
   const { profile } = useUserProfileStore();
 
   const seasonStyle = SEASON_STYLES[season];
@@ -317,6 +319,24 @@ function PulseTabContent({
         .fetchCount();
 
       setAvgWeeklyWeaves(Math.round((recentInteractions / 4) * 10) / 10);
+
+      // Calculate total weaves (all time)
+      const allCompletedWeaves = await database
+        .get<Interaction>('interactions')
+        .query(Q.where('status', 'completed'))
+        .fetchCount();
+
+      setTotalWeaves(allCompletedWeaves);
+
+      // Calculate total days active (days with any activity)
+      // Reuse allInteractions from longest streak calculation
+      const uniqueDays = new Set<string>();
+      allInteractions.forEach(interaction => {
+        const dateKey = format(interaction.interactionDate, 'yyyy-MM-dd');
+        uniqueDays.add(dateKey);
+      });
+
+      setTotalDaysActive(uniqueDays.size);
     } catch (error) {
       console.error('Error loading monthly stats:', error);
     }
@@ -434,7 +454,7 @@ function PulseTabContent({
               className="text-xs"
               style={{ color: isDarkMode ? '#8A8F9E' : '#6C7589', fontFamily: 'Inter_400Regular' }}
             >
-              This Week
+              Interactions This Week
             </Text>
           </View>
         </View>
@@ -546,13 +566,43 @@ function PulseTabContent({
               className="text-sm"
               style={{ color: isDarkMode ? '#8A8F9E' : '#6C7589', fontFamily: 'Inter_400Regular' }}
             >
+              Total weaves
+            </Text>
+            <Text
+              className="text-lg font-bold"
+              style={{ color: isDarkMode ? '#F5F1E8' : '#2D3142', fontFamily: 'Lora_700Bold' }}
+            >
+              {totalWeaves}
+            </Text>
+          </View>
+
+          <View className="flex-row items-center justify-between p-3 rounded-xl" style={{ backgroundColor: isDarkMode ? '#1a1d2e' : '#FFF8ED' }}>
+            <Text
+              className="text-sm"
+              style={{ color: isDarkMode ? '#8A8F9E' : '#6C7589', fontFamily: 'Inter_400Regular' }}
+            >
               This month
             </Text>
             <Text
               className="text-lg font-bold"
               style={{ color: isDarkMode ? '#F5F1E8' : '#2D3142', fontFamily: 'Lora_700Bold' }}
             >
-              {monthlyWeaves} {monthlyWeaves === 1 ? 'weave' : 'weaves'}
+              {monthlyWeaves}
+            </Text>
+          </View>
+
+          <View className="flex-row items-center justify-between p-3 rounded-xl" style={{ backgroundColor: isDarkMode ? '#1a1d2e' : '#FFF8ED' }}>
+            <Text
+              className="text-sm"
+              style={{ color: isDarkMode ? '#8A8F9E' : '#6C7589', fontFamily: 'Inter_400Regular' }}
+            >
+              Total days active
+            </Text>
+            <Text
+              className="text-lg font-bold"
+              style={{ color: isDarkMode ? '#F5F1E8' : '#2D3142', fontFamily: 'Lora_700Bold' }}
+            >
+              {totalDaysActive}
             </Text>
           </View>
 
@@ -582,7 +632,7 @@ function PulseTabContent({
               className="text-lg font-bold"
               style={{ color: isDarkMode ? '#F5F1E8' : '#2D3142', fontFamily: 'Lora_700Bold' }}
             >
-              {avgWeeklyWeaves} weaves
+              {avgWeeklyWeaves}
             </Text>
           </View>
         </View>
