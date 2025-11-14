@@ -35,8 +35,8 @@ export default function Onboarding() {
 
     if (isLastStep) {
       await completeOnboarding();
-      // Redirect to add-friend where contextual tutorials will take over
-      router.replace('/add-friend?fromOnboarding=true');
+      // Redirect to permissions screen, then to add-friend
+      router.replace('/permissions');
     } else {
       setCurrentStep(prev => prev + 1);
     }
@@ -45,7 +45,7 @@ export default function Onboarding() {
   const handleSkip = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     await completeOnboarding();
-    router.replace('/add-friend?fromOnboarding=true');
+    router.replace('/permissions');
   };
 
   const renderStepContent = () => {

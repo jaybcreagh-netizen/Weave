@@ -107,8 +107,15 @@ export function ContactPickerGrid({ maxSelection, onSelectionChange, onAddManual
 
   useEffect(() => {
     (async () => {
-      const { status } = await Contacts.requestPermissionsAsync();
-      
+      // Check if already granted first
+      let { status } = await Contacts.getPermissionsAsync();
+
+      // Only request if not already granted
+      if (status !== 'granted') {
+        const result = await Contacts.requestPermissionsAsync();
+        status = result.status;
+      }
+
       if (status !== 'granted') {
         setPermissionDenied(true);
         setLoading(false);
