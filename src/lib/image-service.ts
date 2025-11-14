@@ -156,8 +156,8 @@ export async function processAndStoreImage(
     // Step 2: Save to local storage (persistent)
     const fileName = `${type}_${imageId}.jpg`;
     const tempFile = new File(manipulatedImage.uri);
-    tempFile.copy(LOCAL_STORAGE_DIR, { as: fileName });
     const localFile = new File(LOCAL_STORAGE_DIR, fileName);
+    tempFile.copy(localFile);
 
     console.log('[ImageService] Saved locally:', localFile.uri);
 
@@ -329,7 +329,7 @@ export async function getImageUri(params: {
   // If cloud URL exists, download and cache
   if (cloudUrl && ENABLE_CLOUD_STORAGE) {
     try {
-      await File.downloadFileAsync(cloudUrl, LOCAL_STORAGE_DIR, { as: fileName });
+      await File.downloadFileAsync(cloudUrl, localFile);
       console.log('[ImageService] Downloaded from cloud to cache:', localFile.uri);
       return localFile.uri;
     } catch (error) {
