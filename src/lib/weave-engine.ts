@@ -389,6 +389,8 @@ export async function logNewWeave(
       if (weaveData.initiator) {
         interaction.initiator = weaveData.initiator;
       }
+      // Mark for cloud sync
+      interaction.syncStatus = 'pending';
     });
 
     interactionId = newInteraction.id;
@@ -400,6 +402,8 @@ export async function logNewWeave(
         await database.get<InteractionFriend>('interaction_friends').create(ifriend => {
             ifriend.interactionId = newInteraction!.id;
             ifriend.friendId = friend.id;
+            // Mark for cloud sync
+            ifriend.syncStatus = 'pending';
         });
         continue; // Skip all the scoring logic
       }
@@ -506,6 +510,8 @@ export async function logNewWeave(
       await database.get<InteractionFriend>('interaction_friends').create(ifriend => {
           ifriend.interactionId = newInteraction!.id;
           ifriend.friendId = friend.id;
+          // Mark for cloud sync
+          ifriend.syncStatus = 'pending';
       });
 
       // 4b. v29: Mark intention as fulfilled if this weave fulfilled an intention

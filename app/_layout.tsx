@@ -22,6 +22,7 @@ import { appStateManager } from '../src/lib/app-state-manager';
 import { useAppStateChange } from '../src/hooks/useAppState';
 import { useFriendStore } from '../src/stores/friendStore';
 import { useTutorialStore } from '../src/stores/tutorialStore';
+import { useAuthStore } from '../src/stores/authStore';
 import {
   initializeNotifications,
   requestNotificationPermissions,
@@ -115,6 +116,9 @@ export default Sentry.wrap(function RootLayout() {
   useEffect(() => {
     const initializeData = async () => {
       try {
+        // Initialize auth system (will check for existing session)
+        await useAuthStore.getState().initialize();
+
         await initializeDataMigrations();
         await initializeUserProfile();
         await initializeUserProgress();
@@ -193,6 +197,16 @@ export default Sentry.wrap(function RootLayout() {
       console.log('[App] App is active - resuming operations');
       trackEvent(AnalyticsEvents.APP_OPENED);
       trackRetentionMetrics();
+
+      // Trigger cloud sync if user is authenticated
+      const user = useAuthStore.getState().user;
+      if (user) {
+        import('../src/lib/sync-engine').then(({ triggerAutoSync }) => {
+          triggerAutoSync(user.id).catch((error) => {
+            console.error('[App] Error syncing on foreground:', error);
+          });
+        });
+      }
 
       // Trigger smart notification evaluation when app comes to foreground
       // This runs async in the background without blocking the UI

@@ -3,7 +3,7 @@
  * Handles conflict resolution, delta sync, and offline support
  */
 
-import { database } from '@/db';
+import { database } from '../db';
 import { supabase } from './supabase';
 import { Q } from '@nozbe/watermelondb';
 import type { Model } from '@nozbe/watermelondb';

@@ -263,6 +263,9 @@ export const useFriendStore = create<FriendStore>((set, get) => ({
               friend.momentumLastUpdated = new Date();
               friend.isDormant = false;
               friend.dormantSince = null;
+
+              // Mark for sync
+              friend.syncStatus = 'pending';
           });
 
           const allFriends = await database.get<FriendModel>('friends').query().fetch();
@@ -353,6 +356,9 @@ export const useFriendStore = create<FriendStore>((set, get) => ({
             record.birthday = data.birthday || null;
             record.anniversary = data.anniversary || null;
             record.relationshipType = data.relationshipType || null;
+
+            // Mark for sync
+            record.syncStatus = 'pending';
         });
     });
 

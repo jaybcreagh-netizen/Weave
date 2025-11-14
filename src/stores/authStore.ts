@@ -4,9 +4,10 @@
  */
 
 import { create } from 'zustand';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '../lib/supabase';
 import type { User, Session } from '@supabase/supabase-js';
-import type { SubscriptionTier } from '@/lib/subscription-tiers';
+// import type { SubscriptionTier } from '../lib/subscription-tiers'; // TODO: Create this file later
+type SubscriptionTier = 'free' | 'plus' | 'premium';
 
 interface UserSubscription {
   tier: SubscriptionTier;
