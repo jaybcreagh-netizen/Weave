@@ -102,6 +102,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 12,
     elevation: 8,
+    zIndex: 9999, // Ensure tooltip appears above all other elements (FAB, buttons, etc.)
   },
   progressContainer: {
     marginBottom: 8,
