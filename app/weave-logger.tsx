@@ -94,53 +94,74 @@ export default function WeaveLoggerScreen() {
   const handleSave = async () => {
     if (!selectedCategory || !friendId || !selectedDate) return;
 
-    // Build legacy notes field from chips + custom notes for backward compatibility
-    const legacyNotes = [
-      ...(reflection.chips || []).map(chip => {
-        const { STORY_CHIPS } = require('../src/lib/story-chips');
-        const storyChip = STORY_CHIPS.find((s: any) => s.id === chip.chipId);
-        if (!storyChip) return '';
+    try {
+      // Build legacy notes field from chips + custom notes for backward compatibility
+      const legacyNotes = [
+        ...(reflection.chips || []).map(chip => {
+          const { STORY_CHIPS } = require('../src/lib/story-chips');
+          const storyChip = STORY_CHIPS.find((s: any) => s.id === chip.chipId);
+          if (!storyChip) return '';
 
-        let text = storyChip.template;
+          let text = storyChip.template;
 
-        if (storyChip.components) {
-          Object.entries(storyChip.components).forEach(([componentId, component]: [string, any]) => {
-            const value = chip.componentOverrides[componentId] || component.original;
-            text = text.replace(`{${componentId}}`, value);
-          });
+          if (storyChip.components) {
+            Object.entries(storyChip.components).forEach(([componentId, component]: [string, any]) => {
+              const value = chip.componentOverrides[componentId] || component.original;
+              text = text.replace(`{${componentId}}`, value);
+            });
+          }
+
+          return text;
+        }),
+        reflection.customNotes || '',
+      ]
+        .filter(Boolean)
+        .join(' ');
+
+      await addInteraction({
+        friendIds: [friendId],
+        category: selectedCategory,
+        activity: selectedCategory,
+        notes: legacyNotes,
+        date: selectedDate,
+        type: 'log',
+        status: 'completed',
+        mode: 'one-on-one',
+        vibe: selectedVibe,
+        reflection,
+        title: title.trim() || undefined,
+      });
+
+      // Show celebration animation
+      setShowCelebration(true);
+      Vibration.vibrate();
+
+      // Navigate back after animation
+      setTimeout(() => {
+        try {
+          if (router.canGoBack()) {
+            router.back();
+          } else {
+            // Fallback: navigate to home/dashboard
+            router.replace('/');
+          }
+        } catch (navError) {
+          console.error('[WeaveLogger] Navigation error:', navError);
+          // Force navigate to home as last resort
+          router.replace('/');
         }
-
-        return text;
-      }),
-      reflection.customNotes || '',
-    ]
-      .filter(Boolean)
-      .join(' ');
-
-    await addInteraction({
-      friendIds: [friendId],
-      category: selectedCategory,
-      activity: selectedCategory,
-      notes: legacyNotes,
-      date: selectedDate,
-      type: 'log',
-      status: 'completed',
-      mode: 'one-on-one',
-      vibe: selectedVibe,
-      reflection,
-      title: title.trim() || undefined,
-    });
-
-    // Show celebration animation
-    setShowCelebration(true);
-    Vibration.vibrate();
-
-    // Navigate back after animation
-    setTimeout(() => {
-      if (router.canGoBack()) {
-        router.back();
-      }
-    }, 900);
+      }, 900);
+    } catch (error) {
+      console.error('[WeaveLogger] Error saving weave:', error);
+      // Show error to user but still try to navigate back
+      setTimeout(() => {
+        if (router.canGoBack()) {
+          router.back();
+        } else {
+          router.replace('/');
+        }
+      }, 100);
+    }
   };
 
   const deepeningMetrics = calculateDeepeningLevel(reflection);
