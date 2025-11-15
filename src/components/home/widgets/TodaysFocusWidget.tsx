@@ -681,6 +681,14 @@ export const TodaysFocusWidget: React.FC = () => {
     </>
   );
 
+  // Get upcoming birthdays (not already shown in collapsed card)
+  const upcomingBirthdays = upcomingDates.filter(event => {
+    const isBirthday = event.type === 'birthday' || (event.type === 'life_event' && event.title?.toLowerCase().includes('birthday'));
+    // Only show if not already in pressing event (which handles today's birthdays)
+    const notAlreadyShown = !(isBirthday && event.daysUntil === 0 && priority.state === 'pressing-event');
+    return isBirthday && notAlreadyShown && event.daysUntil >= 0 && event.daysUntil <= 7;
+  });
+
   return (
     <>
       <HomeWidgetBase config={WIDGET_CONFIG}>
@@ -688,6 +696,29 @@ export const TodaysFocusWidget: React.FC = () => {
           {/* Hero Card with Integrated Expansion */}
           <View style={{ position: 'relative' }}>
             {renderCard()}
+
+            {/* Upcoming Birthdays - Always visible when collapsed */}
+            {!expanded && upcomingBirthdays.length > 0 && (
+              <View style={styles.collapsedBirthdaysSection}>
+                {upcomingBirthdays.slice(0, 2).map((event, index) => (
+                  <TouchableOpacity
+                    key={`${event.friend.id}-${event.type}-${index}`}
+                    onPress={() => router.push(`/friend-profile?friendId=${event.friend.id}`)}
+                    style={styles.collapsedBirthdayItem}
+                  >
+                    <Cake size={14} color={colors['muted-foreground']} />
+                    <Text style={[styles.collapsedBirthdayText, { color: colors.foreground }]}>
+                      {event.friend.name}'s birthday
+                    </Text>
+                    <View style={[styles.collapsedBirthdayBadge, { backgroundColor: colors.muted }]}>
+                      <Text style={[styles.collapsedBirthdayDays, { color: colors['muted-foreground'] }]}>
+                        {event.daysUntil === 0 ? 'Today' : event.daysUntil === 1 ? 'Tomorrow' : `${event.daysUntil}d`}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
 
             {/* Expand indicator - centered */}
             {additionalItemsCount > 0 && (
@@ -1340,5 +1371,33 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_400Regular',
     fontSize: 11,
     color: 'rgba(255, 255, 255, 0.75)',
+  },
+  collapsedBirthdaysSection: {
+    marginTop: 12,
+    gap: 8,
+    paddingHorizontal: 20,
+  },
+  collapsedBirthdayItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  collapsedBirthdayText: {
+    flex: 1,
+    fontFamily: 'Inter_500Medium',
+    fontSize: 13,
+  },
+  collapsedBirthdayBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  collapsedBirthdayDays: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 11,
   },
 });
