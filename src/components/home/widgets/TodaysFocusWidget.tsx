@@ -49,7 +49,7 @@ interface UpcomingDate {
   title?: string;
 }
 
-type PriorityState = 'pressing-event' | 'todays-plan' | 'streak-risk' | 'friend-fading' | 'upcoming-plan' | 'quick-weave' | 'all-clear';
+type PriorityState = 'birthday-today' | 'pressing-event' | 'todays-plan' | 'streak-risk' | 'friend-fading' | 'upcoming-plan' | 'quick-weave' | 'all-clear';
 
 export const TodaysFocusWidget: React.FC = () => {
   const { colors, isDarkMode } = useTheme();
@@ -342,9 +342,17 @@ export const TodaysFocusWidget: React.FC = () => {
 
   // Priority logic with daily rotation for variance
   const getPriority = (): { state: PriorityState; data?: any } => {
+    // 0. Birthday TODAY - highest priority!
+    const birthdaysToday = upcomingDates.filter(event =>
+      event.type === 'birthday' && event.daysUntil === 0
+    );
+    if (birthdaysToday.length > 0) {
+      return { state: 'birthday-today', data: birthdaysToday[0] };
+    }
+
     // 1. Pressing events (birthdays within 3 days, medium+ life events within 7 days)
     const pressingEvents = upcomingDates.filter(event => {
-      if (event.type === 'birthday' && event.daysUntil <= 3) return true;
+      if (event.type === 'birthday' && event.daysUntil > 0 && event.daysUntil <= 3) return true;
       if (event.type === 'life_event' && event.daysUntil <= 7) return true;
       return false;
     });
@@ -448,7 +456,11 @@ export const TodaysFocusWidget: React.FC = () => {
   };
 
   const handleCardPress = () => {
-    if (priority.state === 'pressing-event') {
+    if (priority.state === 'birthday-today') {
+      // Navigate to friend profile for birthday
+      const event = priority.data as UpcomingDate;
+      router.push(`/friend-profile?friendId=${event.friend.id}`);
+    } else if (priority.state === 'pressing-event') {
       // Navigate to friend profile
       const event = priority.data as UpcomingDate;
       router.push(`/friend-profile?friendId=${event.friend.id}`);
@@ -493,6 +505,8 @@ export const TodaysFocusWidget: React.FC = () => {
     };
 
     switch (priority.state) {
+      case 'birthday-today':
+        return <BirthdayTodayCard event={priority.data} {...cardProps} />;
       case 'pressing-event':
         return <PressingEventCard event={priority.data} {...cardProps} />;
       case 'todays-plan':
@@ -735,6 +749,41 @@ interface CardProps {
   expandedContent: React.ReactNode;
   expansionProgress: Animated.SharedValue<number>;
 }
+
+const BirthdayTodayCard: React.FC<CardProps & { event: UpcomingDate }> = ({ event, onPress, isDarkMode, expansionProgress, expandedContent }) => {
+  const expandedStyle = useAnimatedStyle(() => {
+    'worklet';
+    return {
+      opacity: expansionProgress.value,
+      maxHeight: expansionProgress.value * 1000,
+    };
+  });
+
+  return (
+    <TouchableOpacity onPress={onPress} activeOpacity={0.9}>
+      <LinearGradient
+        colors={isDarkMode ? ['#C026D3', '#E879F9'] : ['#F0ABFC', '#FDE68A']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.gradientCard}
+      >
+        <View style={styles.cardContent}>
+          <Cake size={40} color="#FFFFFF" />
+          <Text style={[styles.headlineCompact, { fontSize: 24 }]}>
+            It's {event.friend.name}'s Birthday!
+          </Text>
+          <Text style={styles.subtextCompact}>
+            Tap to reach out and celebrate
+          </Text>
+        </View>
+
+        <Animated.View style={[styles.expandedSection, expandedStyle]}>
+          {expandedContent}
+        </Animated.View>
+      </LinearGradient>
+    </TouchableOpacity>
+  );
+};
 
 const PressingEventCard: React.FC<CardProps & { event: UpcomingDate }> = ({ event, onPress, isDarkMode, expansionProgress, expandedContent }) => {
   const expandedStyle = useAnimatedStyle(() => {
