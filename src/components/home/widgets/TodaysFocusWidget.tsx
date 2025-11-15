@@ -758,12 +758,23 @@ const PressingEventCard: React.FC<CardProps & { event: UpcomingDate }> = ({ even
   };
 
   const getHeadline = () => {
+    // For events happening TODAY, make the friend's name prominent
     if (event.daysUntil === 0) {
-      if (event.type === 'birthday') return 'Birthday Today';
-      if (event.type === 'anniversary') return 'Anniversary Today';
-      return 'Event Today';
+      return getEventTitle(); // e.g., "John's Birthday"
     }
+    // For future events, show generic headline
     return 'Upcoming Event';
+  };
+
+  const getSubtext = () => {
+    // For events happening TODAY, emphasize it's today
+    if (event.daysUntil === 0) {
+      if (event.type === 'birthday') return "It's their birthday!";
+      if (event.type === 'anniversary') return "It's their anniversary!";
+      return 'Happening today';
+    }
+    // For future events, show the standard format
+    return `${getEventTitle()} · ${getEventSubtext()}`;
   };
 
   const Icon = event.type === 'birthday' ? Cake : event.type === 'anniversary' ? Heart : Calendar;
@@ -780,7 +791,7 @@ const PressingEventCard: React.FC<CardProps & { event: UpcomingDate }> = ({ even
           <Icon size={32} color="#FFFFFF" />
           <Text style={styles.headlineCompact}>{getHeadline()}</Text>
           <Text style={styles.subtextCompact}>
-            {getEventTitle()} · {getEventSubtext()}
+            {getSubtext()}
           </Text>
         </View>
 
