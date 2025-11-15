@@ -511,6 +511,7 @@ export const TodaysFocusWidget: React.FC = () => {
       expandedContent: renderExpandedContent(),
       expansionProgress,
       todaysBirthdays,
+      urgentItems,
       router,
     };
 
@@ -681,8 +682,23 @@ export const TodaysFocusWidget: React.FC = () => {
     </>
   );
 
-  // Get today's birthdays for collapsed message
-  const todaysBirthdays = upcomingDates.filter(event => {
+  // Get urgent items to show in collapsed card (birthdays today + medium+ life events within 3 days)
+  const urgentItems = upcomingDates.filter(event => {
+    // Today's birthdays
+    const isBirthday = event.type === 'birthday' || (event.type === 'life_event' && event.title?.toLowerCase().includes('birthday'));
+    if (isBirthday && event.daysUntil === 0) return true;
+
+    // Medium or high importance life events within 3 days
+    if (event.type === 'life_event' &&
+        (event.importance === 'medium' || event.importance === 'high') &&
+        event.daysUntil >= 0 &&
+        event.daysUntil <= 3) return true;
+
+    return false;
+  });
+
+  // For backwards compatibility, keep todaysBirthdays as well
+  const todaysBirthdays = urgentItems.filter(event => {
     const isBirthday = event.type === 'birthday' || (event.type === 'life_event' && event.title?.toLowerCase().includes('birthday'));
     return isBirthday && event.daysUntil === 0;
   });
@@ -763,26 +779,47 @@ interface CardProps {
   expandedContent: React.ReactNode;
   expansionProgress: Animated.SharedValue<number>;
   todaysBirthdays: UpcomingDate[];
+  urgentItems: UpcomingDate[];
   router: any;
 }
 
-// Reusable birthday message component for inside cards
-const BirthdayMessageInCard: React.FC<{ birthday: UpcomingDate; router: any }> = ({ birthday, router }) => (
-  <TouchableOpacity
-    onPress={(e) => {
-      e.stopPropagation();
-      router.push(`/friend-profile?friendId=${birthday.friend.id}`);
-    }}
-    style={styles.birthdayMessageInCard}
-  >
-    <Cake size={14} color="rgba(255, 255, 255, 0.95)" />
-    <Text style={styles.birthdayMessageInCardText}>
-      It's {birthday.friend.name}'s birthday — reach out today
-    </Text>
-  </TouchableOpacity>
-);
+// Reusable urgent item message component for inside cards (birthdays + important life events)
+const UrgentItemMessage: React.FC<{ item: UpcomingDate; router: any }> = ({ item, router }) => {
+  const isBirthday = item.type === 'birthday' || (item.type === 'life_event' && item.title?.toLowerCase().includes('birthday'));
 
-const PressingEventCard: React.FC<CardProps & { event: UpcomingDate }> = ({ event, onPress, isDarkMode, expansionProgress, expandedContent, todaysBirthdays, router }) => {
+  const getMessage = () => {
+    if (isBirthday && item.daysUntil === 0) {
+      return `It's ${item.friend.name}'s birthday — reach out today`;
+    }
+    if (item.type === 'life_event' && item.title) {
+      const daysText = item.daysUntil === 0 ? 'today' : item.daysUntil === 1 ? 'tomorrow' : `in ${item.daysUntil}d`;
+      return `${item.friend.name}: ${item.title} ${daysText}`;
+    }
+    return `${item.friend.name} has something important coming up`;
+  };
+
+  const getIcon = () => {
+    if (isBirthday) return <Cake size={14} color="rgba(255, 255, 255, 0.95)" />;
+    return <Calendar size={14} color="rgba(255, 255, 255, 0.95)" />;
+  };
+
+  return (
+    <TouchableOpacity
+      onPress={(e) => {
+        e.stopPropagation();
+        router.push(`/friend-profile?friendId=${item.friend.id}`);
+      }}
+      style={styles.birthdayMessageInCard}
+    >
+      {getIcon()}
+      <Text style={styles.birthdayMessageInCardText}>
+        {getMessage()}
+      </Text>
+    </TouchableOpacity>
+  );
+};
+
+const PressingEventCard: React.FC<CardProps & { event: UpcomingDate }> = ({ event, onPress, isDarkMode, expansionProgress, expandedContent, urgentItems, router }) => {
   const expandedStyle = useAnimatedStyle(() => {
     'worklet';
     return {
@@ -839,7 +876,7 @@ const PressingEventCard: React.FC<CardProps & { event: UpcomingDate }> = ({ even
           <Text style={styles.subtextCompact}>
             {getSubtext()}
           </Text>
-          {todaysBirthdays.length > 0 && <BirthdayMessageInCard birthday={todaysBirthdays[0]} router={router} />}
+          {urgentItems.length > 0 && <UrgentItemMessage item={urgentItems[0]} router={router} />}
         </View>
 
         <Animated.View style={[styles.expandedSection, expandedStyle]}>
@@ -1063,7 +1100,7 @@ const QuickWeaveCard: React.FC<CardProps & { friend: FriendModel | null; daysSin
   isDarkMode,
   expansionProgress,
   expandedContent,
-  todaysBirthdays,
+  urgentItems,
   router,
 }) => {
   const expandedStyle = useAnimatedStyle(() => {
@@ -1089,8 +1126,8 @@ const QuickWeaveCard: React.FC<CardProps & { friend: FriendModel | null; daysSin
             {message}
           </Text>
 
-          {/* Birthday message inside the card */}
-          {todaysBirthdays.length > 0 && <BirthdayMessageInCard birthday={todaysBirthdays[0]} router={router} />}
+          {/* Urgent item message inside the card (birthdays + important life events) */}
+          {urgentItems.length > 0 && <UrgentItemMessage item={urgentItems[0]} router={router} />}
         </View>
 
         <Animated.View style={[styles.expandedSection, expandedStyle]}>
