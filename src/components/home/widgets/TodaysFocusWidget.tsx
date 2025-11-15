@@ -47,6 +47,7 @@ interface UpcomingDate {
   type: 'birthday' | 'anniversary' | 'life_event';
   daysUntil: number;
   title?: string;
+  importance?: 'low' | 'medium' | 'high' | 'critical';
 }
 
 type PriorityState = 'pressing-event' | 'todays-plan' | 'streak-risk' | 'friend-fading' | 'upcoming-plan' | 'quick-weave' | 'all-clear';
@@ -291,6 +292,7 @@ export const TodaysFocusWidget: React.FC = () => {
             type: 'life_event',
             daysUntil: differenceInDays(event.eventDate, today),
             title: event.title,
+            importance: event.importance,
           });
         }
       });
@@ -353,12 +355,12 @@ export const TodaysFocusWidget: React.FC = () => {
 
   // Priority logic with daily rotation for variance
   const getPriority = (): { state: PriorityState; data?: any } => {
-    // 1. Pressing events (birthdays today or within 3 days, life events within 7 days)
+    // 1. Pressing events (ONLY birthdays TODAY or critical life events within 7 days)
     const pressingEvents = upcomingDates.filter(event => {
-      // Include birthdays happening today or within next 3 days
-      if ((event.type === 'birthday' || (event.type === 'life_event' && event.title?.toLowerCase().includes('birthday'))) && event.daysUntil >= 0 && event.daysUntil <= 3) return true;
-      // Include other life events within 7 days
-      if (event.type === 'life_event' && !event.title?.toLowerCase().includes('birthday') && event.daysUntil <= 7) return true;
+      // Include birthdays happening TODAY only (including life_events tagged as birthdays)
+      if ((event.type === 'birthday' || (event.type === 'life_event' && event.title?.toLowerCase().includes('birthday'))) && event.daysUntil === 0) return true;
+      // Include CRITICAL life events within 7 days
+      if (event.type === 'life_event' && event.importance === 'critical' && event.daysUntil >= 0 && event.daysUntil <= 7) return true;
       return false;
     });
     if (pressingEvents.length > 0) {
