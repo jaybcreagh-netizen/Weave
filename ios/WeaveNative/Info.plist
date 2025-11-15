@@ -8,6 +8,10 @@
     <string>$(DEVELOPMENT_LANGUAGE)</string>
     <key>CFBundleDisplayName</key>
     <string>WeaveNative</string>
+    <key>CFBundleIconFiles</key>
+    <array>
+      <string>icon.png</string>
+    </array>
     <key>CFBundleExecutable</key>
     <string>$(EXECUTABLE_NAME)</string>
     <key>CFBundleIdentifier</key>
