@@ -586,9 +586,11 @@ router.back();
           }}
           onSchedulePlan={() => {
             setShowPlanChoice(false);
-            if (friend) {
-              setShowPlanWizard(true);
-            }
+            setTimeout(() => {
+              if (friend) {
+                setShowPlanWizard(true);
+              }
+            }, 100);
           }}
         />
 

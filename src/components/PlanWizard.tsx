@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, Modal, ScrollView, SafeAreaView } from 'react-native';
 import Animated, { SlideInLeft, SlideInRight, SlideOutLeft, SlideOutRight } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
@@ -58,6 +58,9 @@ export function PlanWizard({ visible, onClose, initialFriend, prefillData, repla
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Track whether we've transitioned between steps (vs initial render)
+  const hasTransitioned = useRef(false);
+
   const updateFormData = (updates: Partial<PlanFormData>) => {
     setFormData(prev => ({ ...prev, ...updates }));
   };
@@ -66,12 +69,14 @@ export function PlanWizard({ visible, onClose, initialFriend, prefillData, repla
   useEffect(() => {
     if (visible) {
       setCurrentStep(initialStep);
+      hasTransitioned.current = false; // Reset on modal open
     }
   }, [visible, initialStep]);
 
   const goToNextStep = () => {
     if (currentStep < 3) { // Max step is 3
       setDirection('forward');
+      hasTransitioned.current = true; // Mark that we've transitioned
       setCurrentStep(currentStep + 1);
     }
   };
@@ -79,6 +84,7 @@ export function PlanWizard({ visible, onClose, initialFriend, prefillData, repla
   const goToPreviousStep = () => {
     if (currentStep > 1) { // Min step is 1
       setDirection('backward');
+      hasTransitioned.current = true; // Mark that we've transitioned
       setCurrentStep(currentStep - 1);
     }
   };
@@ -210,7 +216,7 @@ export function PlanWizard({ visible, onClose, initialFriend, prefillData, repla
           {currentStep === 1 && (
             <Animated.View
               key="step1"
-              entering={direction === 'forward' ? SlideInRight.duration(300) : SlideInLeft.duration(300)}
+              entering={hasTransitioned.current ? (direction === 'forward' ? SlideInRight.duration(300) : SlideInLeft.duration(300)) : undefined}
               exiting={direction === 'forward' ? SlideOutLeft.duration(300) : SlideOutRight.duration(300)}
             >
               <PlanWizardStep1
@@ -226,7 +232,7 @@ export function PlanWizard({ visible, onClose, initialFriend, prefillData, repla
           {currentStep === 2 && (
             <Animated.View
               key="step2"
-              entering={direction === 'forward' ? SlideInRight.duration(300) : SlideInLeft.duration(300)}
+              entering={hasTransitioned.current ? (direction === 'forward' ? SlideInRight.duration(300) : SlideInLeft.duration(300)) : undefined}
               exiting={direction === 'forward' ? SlideOutLeft.duration(300) : SlideOutRight.duration(300)}
             >
               <PlanWizardStep2
@@ -243,7 +249,7 @@ export function PlanWizard({ visible, onClose, initialFriend, prefillData, repla
           {currentStep === 3 && (
             <Animated.View
               key="step3"
-              entering={direction === 'forward' ? SlideInRight.duration(300) : SlideInLeft.duration(300)}
+              entering={hasTransitioned.current ? (direction === 'forward' ? SlideInRight.duration(300) : SlideInLeft.duration(300)) : undefined}
               exiting={direction === 'forward' ? SlideOutLeft.duration(300) : SlideOutRight.duration(300)}
             >
               <PlanWizardStep3
