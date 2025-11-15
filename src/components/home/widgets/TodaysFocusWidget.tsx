@@ -264,9 +264,7 @@ export const TodaysFocusWidget: React.FC = () => {
 
   // Calculate upcoming special dates (30 days)
   useEffect(() => {
-    console.log('[TodaysFocus] useEffect triggered. Friends count:', friends?.length);
     if (!friends || friends.length === 0) {
-      console.log('[TodaysFocus] No friends, exiting useEffect');
       return;
     }
 
@@ -274,7 +272,6 @@ export const TodaysFocusWidget: React.FC = () => {
     today.setHours(0, 0, 0, 0);
     const events: UpcomingDate[] = [];
 
-    console.log('[TodaysFocus] Starting loadLifeEvents...');
     const loadLifeEvents = async () => {
       const thirtyDaysFromNow = new Date();
       thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
@@ -300,12 +297,10 @@ export const TodaysFocusWidget: React.FC = () => {
         }
       });
 
-      console.log('[TodaysFocus] Processing birthdays for', friends.length, 'friends');
       friends.forEach(friend => {
         // Check birthday
         try {
           if (friend.birthday) {
-            console.log('[TodaysFocus] Processing birthday for', friend.name, '- birthday value:', friend.birthday);
             // Birthday is in "MM-DD" format
             const [month, day] = friend.birthday.split('-').map(n => parseInt(n, 10));
 
@@ -318,13 +313,9 @@ export const TodaysFocusWidget: React.FC = () => {
             }
 
             const daysUntil = differenceInDays(birthdayThisYear, today);
-            console.log('[TodaysFocus]', friend.name, 'birthday calc:', { day, month, birthdayThisYear: birthdayThisYear.toISOString(), today: today.toISOString(), daysUntil });
             if (daysUntil >= 0 && daysUntil <= 30) {
-              console.log('[TodaysFocus] Adding', friend.name, 'birthday to events (daysUntil:', daysUntil, ')');
               events.push({ friend, type: 'birthday', daysUntil });
             }
-          } else {
-            console.log('[TodaysFocus] No birthday field for', friend.name);
           }
         } catch (error) {
           console.error('[TodaysFocus] Error processing birthday for', friend.name, ':', error);
@@ -362,7 +353,6 @@ export const TodaysFocusWidget: React.FC = () => {
 
       // Sort by proximity and show all (we'll limit in display)
       events.sort((a, b) => a.daysUntil - b.daysUntil);
-      console.log('[TodaysFocus] Final events array before setUpcomingDates:', events.map(e => ({ name: e.friend.name, type: e.type, daysUntil: e.daysUntil, title: e.title })));
       setUpcomingDates(events);
     };
 
@@ -371,11 +361,9 @@ export const TodaysFocusWidget: React.FC = () => {
 
   // Priority logic with daily rotation for variance
   const getPriority = (): { state: PriorityState; data?: any } => {
-    // 1. Pressing events (ONLY birthdays TODAY or critical life events within 7 days)
+    // 1. Pressing events (ONLY critical life events within 7 days - birthdays handled separately)
     const pressingEvents = upcomingDates.filter(event => {
-      // Include birthdays happening TODAY only (including life_events tagged as birthdays)
-      if ((event.type === 'birthday' || (event.type === 'life_event' && event.title?.toLowerCase().includes('birthday'))) && event.daysUntil === 0) return true;
-      // Include CRITICAL life events within 7 days
+      // Include CRITICAL life events within 7 days (NOT birthdays)
       if (event.type === 'life_event' && event.importance === 'critical' && event.daysUntil >= 0 && event.daysUntil <= 7) return true;
       return false;
     });
@@ -690,21 +678,10 @@ export const TodaysFocusWidget: React.FC = () => {
     </>
   );
 
-  // Get upcoming birthdays (not already shown in collapsed card)
-  const upcomingBirthdays = upcomingDates.filter(event => {
+  // Get today's birthdays for collapsed message
+  const todaysBirthdays = upcomingDates.filter(event => {
     const isBirthday = event.type === 'birthday' || (event.type === 'life_event' && event.title?.toLowerCase().includes('birthday'));
-    // Only show if not already in pressing event (which handles today's birthdays)
-    const notAlreadyShown = !(isBirthday && event.daysUntil === 0 && priority.state === 'pressing-event');
-    return isBirthday && notAlreadyShown && event.daysUntil >= 0 && event.daysUntil <= 7;
-  });
-
-  console.log('[TodaysFocus] Collapsed birthdays debug:', {
-    expanded,
-    upcomingDatesCount: upcomingDates.length,
-    upcomingDates: upcomingDates.map(e => ({ name: e.friend.name, type: e.type, daysUntil: e.daysUntil, title: e.title })),
-    upcomingBirthdaysCount: upcomingBirthdays.length,
-    upcomingBirthdays: upcomingBirthdays.map(e => ({ name: e.friend.name, daysUntil: e.daysUntil })),
-    priorityState: priority.state,
+    return isBirthday && event.daysUntil === 0;
   });
 
   return (
@@ -715,26 +692,18 @@ export const TodaysFocusWidget: React.FC = () => {
           <View style={{ position: 'relative' }}>
             {renderCard()}
 
-            {/* Upcoming Birthdays - Always visible when collapsed */}
-            {!expanded && upcomingBirthdays.length > 0 && (
-              <View style={styles.collapsedBirthdaysSection}>
-                {upcomingBirthdays.slice(0, 2).map((event, index) => (
-                  <TouchableOpacity
-                    key={`${event.friend.id}-${event.type}-${index}`}
-                    onPress={() => router.push(`/friend-profile?friendId=${event.friend.id}`)}
-                    style={styles.collapsedBirthdayItem}
-                  >
-                    <Cake size={14} color={colors['muted-foreground']} />
-                    <Text style={[styles.collapsedBirthdayText, { color: colors.foreground }]}>
-                      {event.friend.name}'s birthday
-                    </Text>
-                    <View style={[styles.collapsedBirthdayBadge, { backgroundColor: colors.muted }]}>
-                      <Text style={[styles.collapsedBirthdayDays, { color: colors['muted-foreground'] }]}>
-                        {event.daysUntil === 0 ? 'Today' : event.daysUntil === 1 ? 'Tomorrow' : `${event.daysUntil}d`}
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
-                ))}
+            {/* Today's Birthday Message - Subtle reminder in collapsed view */}
+            {!expanded && todaysBirthdays.length > 0 && (
+              <View style={styles.birthdayMessageSection}>
+                <TouchableOpacity
+                  onPress={() => router.push(`/friend-profile?friendId=${todaysBirthdays[0].friend.id}`)}
+                  style={styles.birthdayMessage}
+                >
+                  <Cake size={16} color={colors.primary} />
+                  <Text style={[styles.birthdayMessageText, { color: colors.foreground }]}>
+                    It's {todaysBirthdays[0].friend.name}'s birthday — reach out to them on their special day
+                  </Text>
+                </TouchableOpacity>
               </View>
             )}
 
@@ -1390,32 +1359,23 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: 'rgba(255, 255, 255, 0.75)',
   },
-  collapsedBirthdaysSection: {
-    marginTop: 12,
-    gap: 8,
+  birthdayMessageSection: {
+    marginTop: 16,
     paddingHorizontal: 20,
   },
-  collapsedBirthdayItem: {
+  birthdayMessage: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
+    gap: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 12,
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
   },
-  collapsedBirthdayText: {
+  birthdayMessageText: {
     flex: 1,
-    fontFamily: 'Inter_500Medium',
+    fontFamily: 'Inter_400Regular',
     fontSize: 13,
-  },
-  collapsedBirthdayBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  collapsedBirthdayDays: {
-    fontFamily: 'Inter_600SemiBold',
-    fontSize: 11,
+    lineHeight: 18,
   },
 });
