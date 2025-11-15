@@ -318,6 +318,11 @@ export const useInteractionStore = create<InteractionStore>((set, get) => ({
         useUIStore.getState().showMilestoneCelebration(milestone);
       }
     }
+
+    // 5. Update iOS widget
+    import('../lib/widget-updater').then(({ updateWidget }) => {
+      updateWidget().catch(err => console.warn('[Widget] Failed to update after plan confirmation:', err));
+    }).catch(() => {});
   },
   updateInteraction: async (interactionId: string, updates: {
     title?: string;

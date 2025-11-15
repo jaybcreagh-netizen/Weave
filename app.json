@@ -7,6 +7,11 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.jaycreagh.WeaveNative",
+      "entitlements": {
+        "com.apple.security.application-groups": [
+          "group.com.jaycreagh.WeaveNative.widget"
+        ]
+      },
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSContactsUsageDescription": "Weave uses your contacts to help you select friends to add to your circles.",
@@ -47,7 +52,8 @@
       ],
       "expo-localization",
       "expo-secure-store",
-      "expo-web-browser"
+      "expo-web-browser",
+      "@bacons/apple-targets"
     ]
   }
 }

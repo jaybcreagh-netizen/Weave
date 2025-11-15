@@ -643,6 +643,11 @@ export async function logNewWeave(
     });
   }
 
+  // Update iOS widget with new data
+  import('./widget-updater').then(({ updateWidget }) => {
+    updateWidget().catch(err => console.warn('[Widget] Failed to update after weave:', err));
+  }).catch(() => {});
+
   return {
     interactionId,
     badgeUnlocks: allBadgeUnlocks,

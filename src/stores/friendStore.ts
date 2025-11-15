@@ -284,6 +284,11 @@ export const useFriendStore = create<FriendStore>((set, get) => ({
         has_photo: !!data.photoUrl,
         has_notes: !!data.notes,
       });
+
+      // Update iOS widget
+      import('../lib/widget-updater').then(({ updateWidget }) => {
+        updateWidget().catch(err => console.warn('[Widget] Failed to update after friend added:', err));
+      }).catch(() => {});
     } catch (error) {
       console.error('[addFriend] ERROR: Failed to create friend.', error);
     }
@@ -362,6 +367,11 @@ export const useFriendStore = create<FriendStore>((set, get) => ({
       archetype: data.archetype,
       tier: data.tier,
     });
+
+    // Update iOS widget
+    import('../lib/widget-updater').then(({ updateWidget }) => {
+      updateWidget().catch(err => console.warn('[Widget] Failed to update after friend updated:', err));
+    }).catch(() => {});
   },
 
   deleteFriend: async (id: string) => {
@@ -391,6 +401,11 @@ export const useFriendStore = create<FriendStore>((set, get) => ({
 
     // Track analytics
     trackEvent(AnalyticsEvents.FRIEND_DELETED);
+
+    // Update iOS widget
+    import('../lib/widget-updater').then(({ updateWidget }) => {
+      updateWidget().catch(err => console.warn('[Widget] Failed to update after friend deleted:', err));
+    }).catch(() => {});
   },
 
   batchDeleteFriends: async (ids: string[]) => {

@@ -49,6 +49,7 @@ import {
 import * as Sentry from '@sentry/react-native';
 import { initializeAnalytics, trackEvent, trackRetentionMetrics, AnalyticsEvents, setPostHogInstance } from '../src/lib/analytics';
 import { PostHogProvider, usePostHog } from 'posthog-react-native';
+import { useWidgetUpdater } from '../src/hooks/useWidgetUpdater';
 
 Sentry.init({
   dsn: 'https://1b94b04a0400cdc5a0378c0f485a2435@o4510357596471296.ingest.de.sentry.io/4510357600993360',
@@ -90,6 +91,9 @@ const NOTIFICATION_PERMISSION_ASKED_KEY = '@weave:notification_permission_asked'
 export default Sentry.wrap(function RootLayout() {
   // Apply the activity-based keep-awake logic globally
   useActivityKeepAwake();
+
+  // Enable iOS widget updates
+  useWidgetUpdater();
 
   const { colors } = useTheme();
   const isDarkMode = useUIStore((state) => state.isDarkMode);

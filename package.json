@@ -69,6 +69,7 @@
   "devDependencies": {
     "@babel/core": "^7.20.0",
     "@babel/plugin-proposal-decorators": "^7.24.1",
+    "@bacons/apple-targets": "^3.0.5",
     "@react-native-community/cli": "^20.0.2",
     "@types/react": "~19.1.10",
     "@types/uuid": "^10.0.0",
