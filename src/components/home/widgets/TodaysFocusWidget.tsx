@@ -264,7 +264,9 @@ export const TodaysFocusWidget: React.FC = () => {
 
   // Calculate upcoming special dates (30 days)
   useEffect(() => {
+    console.log('[TodaysFocus] useEffect triggered. Friends count:', friends?.length);
     if (!friends || friends.length === 0) {
+      console.log('[TodaysFocus] No friends, exiting useEffect');
       return;
     }
 
@@ -272,6 +274,7 @@ export const TodaysFocusWidget: React.FC = () => {
     today.setHours(0, 0, 0, 0);
     const events: UpcomingDate[] = [];
 
+    console.log('[TodaysFocus] Starting loadLifeEvents...');
     const loadLifeEvents = async () => {
       const thirtyDaysFromNow = new Date();
       thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
@@ -297,10 +300,12 @@ export const TodaysFocusWidget: React.FC = () => {
         }
       });
 
+      console.log('[TodaysFocus] Processing birthdays for', friends.length, 'friends');
       friends.forEach(friend => {
         // Check birthday
         try {
           if (friend.birthday) {
+            console.log('[TodaysFocus] Processing birthday for', friend.name, '- birthday value:', friend.birthday);
             // Birthday is in "DD-MM" format
             const [day, month] = friend.birthday.split('-').map(n => parseInt(n, 10));
 
@@ -313,9 +318,13 @@ export const TodaysFocusWidget: React.FC = () => {
             }
 
             const daysUntil = differenceInDays(birthdayThisYear, today);
+            console.log('[TodaysFocus]', friend.name, 'birthday calc:', { day, month, birthdayThisYear: birthdayThisYear.toISOString(), today: today.toISOString(), daysUntil });
             if (daysUntil >= 0 && daysUntil <= 30) {
+              console.log('[TodaysFocus] Adding', friend.name, 'birthday to events (daysUntil:', daysUntil, ')');
               events.push({ friend, type: 'birthday', daysUntil });
             }
+          } else {
+            console.log('[TodaysFocus] No birthday field for', friend.name);
           }
         } catch (error) {
           console.error('[TodaysFocus] Error processing birthday for', friend.name, ':', error);
@@ -353,6 +362,7 @@ export const TodaysFocusWidget: React.FC = () => {
 
       // Sort by proximity and show all (we'll limit in display)
       events.sort((a, b) => a.daysUntil - b.daysUntil);
+      console.log('[TodaysFocus] Final events array before setUpcomingDates:', events.map(e => ({ name: e.friend.name, type: e.type, daysUntil: e.daysUntil, title: e.title })));
       setUpcomingDates(events);
     };
 
