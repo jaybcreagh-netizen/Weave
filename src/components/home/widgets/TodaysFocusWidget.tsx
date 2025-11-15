@@ -692,21 +692,6 @@ export const TodaysFocusWidget: React.FC = () => {
           <View style={{ position: 'relative' }}>
             {renderCard()}
 
-            {/* Today's Birthday Message - Subtle reminder in collapsed view */}
-            {!expanded && todaysBirthdays.length > 0 && (
-              <View style={styles.birthdayMessageSection}>
-                <TouchableOpacity
-                  onPress={() => router.push(`/friend-profile?friendId=${todaysBirthdays[0].friend.id}`)}
-                  style={styles.birthdayMessage}
-                >
-                  <Cake size={16} color={colors.primary} />
-                  <Text style={[styles.birthdayMessageText, { color: colors.foreground }]}>
-                    It's {todaysBirthdays[0].friend.name}'s birthday — reach out to them on their special day
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            )}
-
             {/* Expand indicator - centered */}
             {additionalItemsCount > 0 && (
               <TouchableOpacity
@@ -731,6 +716,19 @@ export const TodaysFocusWidget: React.FC = () => {
               </TouchableOpacity>
             )}
           </View>
+
+          {/* Today's Birthday Message - Below the gradient card */}
+          {!expanded && todaysBirthdays.length > 0 && (
+            <TouchableOpacity
+              onPress={() => router.push(`/friend-profile?friendId=${todaysBirthdays[0].friend.id}`)}
+              style={[styles.birthdayMessage, { backgroundColor: colors.card, borderColor: colors.border }]}
+            >
+              <Cake size={16} color={colors.primary} />
+              <Text style={[styles.birthdayMessageText, { color: colors.foreground }]}>
+                It's {todaysBirthdays[0].friend.name}'s birthday — reach out to them on their special day
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
       </HomeWidgetBase>
 
@@ -1359,23 +1357,20 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: 'rgba(255, 255, 255, 0.75)',
   },
-  birthdayMessageSection: {
-    marginTop: 16,
-    paddingHorizontal: 20,
-  },
   birthdayMessage: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    gap: 8,
+    marginTop: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    borderWidth: 1,
   },
   birthdayMessageText: {
     flex: 1,
     fontFamily: 'Inter_400Regular',
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: 12,
+    lineHeight: 16,
   },
 });
