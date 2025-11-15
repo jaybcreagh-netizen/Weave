@@ -313,16 +313,164 @@ function getDaysText(days: number | undefined): string {
 }
 
 /**
+ * Category complementarity map: what to suggest when stuck in a rut
+ * Maps overused categories to fresh, complementary alternatives
+ */
+const CATEGORY_VARIETY_MAP: Record<string, string[]> = {
+  'text-call': ['meal-drink', 'hangout', 'activity-hobby'], // Virtual → In-person
+  'meal-drink': ['activity-hobby', 'deep-talk', 'hangout'], // Structured meals → More variety
+  'hangout': ['meal-drink', 'activity-hobby', 'event-party'], // Casual → More intentional
+  'deep-talk': ['meal-drink', 'hangout', 'activity-hobby'], // Intense → Lighter
+  'activity-hobby': ['meal-drink', 'hangout', 'deep-talk'], // Active → Chill
+  'event-party': ['meal-drink', 'deep-talk', 'hangout'], // Group → Intimate
+};
+
+/**
+ * Contextual messages for variety suggestions
+ * Acknowledges the pattern and suggests something fresh
+ */
+const VARIETY_MESSAGES: Record<string, { pattern: string; suggestions: string[] }> = {
+  'text-call': {
+    pattern: "You and {name} chat a lot",
+    suggestions: [
+      "maybe it's time for a meal to catch up in person?",
+      "how about meeting up for coffee or a bite?",
+      "consider planning something in person together?",
+      "perhaps do an activity together instead?",
+    ],
+  },
+  'meal-drink': {
+    pattern: "You and {name} share a lot of meals",
+    suggestions: [
+      "maybe try an activity or hobby together?",
+      "how about mixing it up with something more active?",
+      "consider doing something different for a change?",
+      "perhaps create space for deeper conversation?",
+    ],
+  },
+  'hangout': {
+    pattern: "You and {name} hang out often",
+    suggestions: [
+      "maybe plan something more intentional, like a meal?",
+      "how about trying a new activity together?",
+      "consider mixing it up with something structured?",
+      "perhaps explore a shared interest or hobby?",
+    ],
+  },
+  'deep-talk': {
+    pattern: "You and {name} have deep conversations",
+    suggestions: [
+      "maybe lighten things up with a casual hangout?",
+      "how about doing something fun and active together?",
+      "consider balancing depth with lighter connection?",
+      "perhaps share a meal in a relaxed setting?",
+    ],
+  },
+  'activity-hobby': {
+    pattern: "You and {name} do a lot of activities together",
+    suggestions: [
+      "maybe slow down with a meal or coffee?",
+      "how about creating space for deeper conversation?",
+      "consider balancing active time with chill hangouts?",
+      "perhaps just relax and catch up over food?",
+    ],
+  },
+  'event-party': {
+    pattern: "You and {name} go to events together",
+    suggestions: [
+      "maybe plan some one-on-one quality time?",
+      "how about a quieter, more intimate hangout?",
+      "consider connecting without the crowd?",
+      "perhaps share a meal just the two of you?",
+    ],
+  },
+};
+
+/**
+ * Detects if interactions are stuck in a rut (too repetitive)
+ * Returns the dominant category if a rut is detected, null otherwise
+ */
+function detectRut(
+  recentInteractions: SuggestionInput['recentInteractions'],
+  threshold: number = 0.8 // 80% of interactions in same category = rut
+): { category: string; count: number } | null {
+  // Need at least 5 interactions to detect a meaningful rut
+  if (recentInteractions.length < 5) return null;
+
+  // Look at last 5 interactions
+  const last5 = recentInteractions.slice(0, 5);
+
+  // Count by category
+  const categoryCounts: Record<string, number> = {};
+  last5.forEach(i => {
+    if (i.category) {
+      categoryCounts[i.category] = (categoryCounts[i.category] || 0) + 1;
+    }
+  });
+
+  // Find dominant category
+  const entries = Object.entries(categoryCounts);
+  if (entries.length === 0) return null;
+
+  const [topCategory, count] = entries.sort(([,a], [,b]) => b - a)[0];
+
+  // Check if it exceeds threshold (e.g., 4 out of 5 = 80%)
+  if (count / last5.length >= threshold) {
+    return { category: topCategory, count };
+  }
+
+  return null;
+}
+
+/**
+ * Generates a contextual variety suggestion when stuck in a rut
+ * Acknowledges the pattern and suggests fresh alternatives
+ */
+function getVarietySuggestion(
+  rutCategory: string,
+  friendName: string,
+  archetype: string,
+  tier: string
+): string {
+  const varietyData = VARIETY_MESSAGES[rutCategory];
+
+  if (!varietyData) {
+    // Fallback for unknown categories
+    return "Maybe try something different this time?";
+  }
+
+  // Get random suggestion from the category's options
+  const randomSuggestion = varietyData.suggestions[
+    Math.floor(Math.random() * varietyData.suggestions.length)
+  ];
+
+  // Build the message: "{pattern}, {suggestion}"
+  const pattern = varietyData.pattern.replace('{name}', friendName);
+  return `${pattern}, ${randomSuggestion}`;
+}
+
+/**
  * Analyzes past interactions to suggest specific, personalized activities
  * based on what this friendship has done before.
+ *
+ * ENHANCED: Now includes variety detection to break out of repetitive ruts!
  */
 function getContextualSuggestion(
   recentInteractions: SuggestionInput['recentInteractions'],
   archetype: string,
   tier: string,
-  pattern?: FriendshipPattern
+  pattern?: FriendshipPattern,
+  friendName?: string // Added for variety messages
 ): string {
-  // Use learned pattern preferences if available
+  // STEP 1: Check for ruts (repetitive interaction patterns)
+  // If detected, suggest variety instead of continuing the pattern
+  const rut = detectRut(recentInteractions);
+  if (rut && friendName) {
+    // Found a rut! Suggest something different
+    return getVarietySuggestion(rut.category, friendName, archetype, tier);
+  }
+
+  // STEP 2: Use learned pattern preferences if available (no rut detected)
   if (pattern && pattern.preferredCategories.length > 0) {
     const preferredCategory = pattern.preferredCategories[0];
     const suggestions: Record<string, string[]> = {
@@ -583,7 +731,7 @@ export async function generateSuggestion(input: SuggestionInput): Promise<Sugges
 
   // PRIORITY 3: Critical drift (Inner Circle emergency)
   if (friend.dunbarTier === 'InnerCircle' && currentScore < 30) {
-    const contextualAction = getContextualSuggestion(recentInteractions, friend.archetype, friend.dunbarTier, pattern);
+    const contextualAction = getContextualSuggestion(recentInteractions, friend.archetype, friend.dunbarTier, pattern, friend.name);
     const eventContext = lifeEvent
       ? ` ${lifeEvent.type === 'birthday' ? '🎂' : '💝'} Their ${lifeEvent.type} ${getDaysText(lifeEvent.daysUntil)}.`
       : '';
@@ -619,7 +767,7 @@ export async function generateSuggestion(input: SuggestionInput): Promise<Sugges
     (friend.dunbarTier === 'CloseFriends' && currentScore < 35);
 
   if (isHighDrift) {
-    const contextualAction = getContextualSuggestion(recentInteractions, friend.archetype, friend.dunbarTier, pattern);
+    const contextualAction = getContextualSuggestion(recentInteractions, friend.archetype, friend.dunbarTier, pattern, friend.name);
     const eventContext = lifeEvent
       ? ` ${lifeEvent.type === 'birthday' ? '🎂' : '💝'} Their ${lifeEvent.type} ${getDaysText(lifeEvent.daysUntil)}.`
       : '';
@@ -683,7 +831,7 @@ export async function generateSuggestion(input: SuggestionInput): Promise<Sugges
       : 999;
 
     if (daysSinceLast <= 7) {
-      const contextualAction = getContextualSuggestion(recentInteractions, friend.archetype, friend.dunbarTier, pattern);
+      const contextualAction = getContextualSuggestion(recentInteractions, friend.archetype, friend.dunbarTier, pattern, friend.name);
 
       return {
         id: `momentum-${friend.id}`,
@@ -720,7 +868,7 @@ export async function generateSuggestion(input: SuggestionInput): Promise<Sugges
       }[friend.dunbarTier];
 
   if (currentScore >= 40 && currentScore <= 70 && daysSinceInteraction > maintenanceThreshold) {
-    const contextualAction = getContextualSuggestion(recentInteractions, friend.archetype, friend.dunbarTier, pattern);
+    const contextualAction = getContextualSuggestion(recentInteractions, friend.archetype, friend.dunbarTier, pattern, friend.name);
 
     // Create pattern-aware title
     const title = isPatternReliable(pattern)
@@ -748,7 +896,7 @@ export async function generateSuggestion(input: SuggestionInput): Promise<Sugges
 
   // PRIORITY 8: Deepen (thriving)
   if (currentScore > 85 && friend.dunbarTier !== 'Community') {
-    const contextualAction = getContextualSuggestion(recentInteractions, friend.archetype, friend.dunbarTier, pattern);
+    const contextualAction = getContextualSuggestion(recentInteractions, friend.archetype, friend.dunbarTier, pattern, friend.name);
 
     return {
       id: `deepen-${friend.id}`,
