@@ -301,23 +301,27 @@ export const TodaysFocusWidget: React.FC = () => {
       friends.forEach(friend => {
         console.log('[TodaysFocus] Checking friend:', friend.name, 'birthday value:', friend.birthday, 'type:', typeof friend.birthday);
         // Check birthday
-        if (friend.birthday) {
-          // Birthday is in "DD-MM" format
-          const [day, month] = friend.birthday.split('-').map(n => parseInt(n, 10));
+        try {
+          if (friend.birthday) {
+            // Birthday is in "DD-MM" format
+            const [day, month] = friend.birthday.split('-').map(n => parseInt(n, 10));
 
-          // Create birthday for this year
-          const birthdayThisYear = new Date(today.getFullYear(), month - 1, day);
-          birthdayThisYear.setHours(0, 0, 0, 0);
+            // Create birthday for this year
+            const birthdayThisYear = new Date(today.getFullYear(), month - 1, day);
+            birthdayThisYear.setHours(0, 0, 0, 0);
 
-          if (birthdayThisYear < today) {
-            birthdayThisYear.setFullYear(today.getFullYear() + 1);
+            if (birthdayThisYear < today) {
+              birthdayThisYear.setFullYear(today.getFullYear() + 1);
+            }
+
+            const daysUntil = differenceInDays(birthdayThisYear, today);
+            console.log(`[TodaysFocus] ${friend.name} birthday: ${friend.birthday}, daysUntil: ${daysUntil}, today: ${today.toISOString()}, birthdayDate: ${birthdayThisYear.toISOString()}`);
+            if (daysUntil >= 0 && daysUntil <= 30) {
+              events.push({ friend, type: 'birthday', daysUntil });
+            }
           }
-
-          const daysUntil = differenceInDays(birthdayThisYear, today);
-          console.log(`[TodaysFocus] ${friend.name} birthday: ${friend.birthday}, daysUntil: ${daysUntil}, today: ${today.toISOString()}, birthdayDate: ${birthdayThisYear.toISOString()}`);
-          if (daysUntil >= 0 && daysUntil <= 30) {
-            events.push({ friend, type: 'birthday', daysUntil });
-          }
+        } catch (error) {
+          console.error('[TodaysFocus] Error processing birthday for', friend.name, ':', error);
         }
 
         // Check anniversary (only show for partners/romantic relationships)
