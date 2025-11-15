@@ -306,8 +306,8 @@ export const TodaysFocusWidget: React.FC = () => {
         try {
           if (friend.birthday) {
             console.log('[TodaysFocus] Processing birthday for', friend.name, '- birthday value:', friend.birthday);
-            // Birthday is in "DD-MM" format
-            const [day, month] = friend.birthday.split('-').map(n => parseInt(n, 10));
+            // Birthday is in "MM-DD" format
+            const [month, day] = friend.birthday.split('-').map(n => parseInt(n, 10));
 
             // Create birthday for this year
             const birthdayThisYear = new Date(today.getFullYear(), month - 1, day);
