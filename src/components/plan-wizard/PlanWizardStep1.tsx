@@ -298,12 +298,17 @@ export function PlanWizardStep1({ selectedDate, onDateSelect, onContinue, canCon
 
         {/* Pick a Date */}
         <TouchableOpacity
-          onPress={() => setShowDatePicker(true)}
+          onPress={() => {
+            if (!selectedDate) {
+              onDateSelect(today);
+            }
+            setShowDatePicker(true);
+          }}
           className="p-5 rounded-2xl flex-row items-center justify-between"
           style={{
             backgroundColor: colors.card,
-            borderWidth: 1,
-            borderColor: colors.border,
+            borderWidth: selectedKey === 'calendar' ? 2 : 1,
+            borderColor: selectedKey === 'calendar' ? colors.primary : colors.border,
             shadowColor: '#000',
             shadowOffset: { width: 0, height: 2 },
             shadowOpacity: 0.05,
