@@ -293,7 +293,9 @@ export const TodaysFocusWidget: React.FC = () => {
         }
       });
 
+      console.log('[TodaysFocus] Checking birthdays. Total friends:', friends.length);
       friends.forEach(friend => {
+        console.log('[TodaysFocus] Checking friend:', friend.name, 'birthday value:', friend.birthday, 'type:', typeof friend.birthday);
         // Check birthday
         if (friend.birthday) {
           // Birthday is in "DD-MM" format
