@@ -509,6 +509,8 @@ export const TodaysFocusWidget: React.FC = () => {
       expanded,
       expandedContent: renderExpandedContent(),
       expansionProgress,
+      todaysBirthdays,
+      router,
     };
 
     switch (priority.state) {
@@ -716,19 +718,6 @@ export const TodaysFocusWidget: React.FC = () => {
               </TouchableOpacity>
             )}
           </View>
-
-          {/* Today's Birthday Message - Below the gradient card */}
-          {!expanded && todaysBirthdays.length > 0 && (
-            <TouchableOpacity
-              onPress={() => router.push(`/friend-profile?friendId=${todaysBirthdays[0].friend.id}`)}
-              style={[styles.birthdayMessage, { backgroundColor: colors.card, borderColor: colors.border }]}
-            >
-              <Cake size={16} color={colors.primary} />
-              <Text style={[styles.birthdayMessageText, { color: colors.foreground }]}>
-                It's {todaysBirthdays[0].friend.name}'s birthday — reach out to them on their special day
-              </Text>
-            </TouchableOpacity>
-          )}
         </View>
       </HomeWidgetBase>
 
@@ -772,9 +761,27 @@ interface CardProps {
   expanded: boolean;
   expandedContent: React.ReactNode;
   expansionProgress: Animated.SharedValue<number>;
+  todaysBirthdays: UpcomingDate[];
+  router: any;
 }
 
-const PressingEventCard: React.FC<CardProps & { event: UpcomingDate }> = ({ event, onPress, isDarkMode, expansionProgress, expandedContent }) => {
+// Reusable birthday message component for inside cards
+const BirthdayMessageInCard: React.FC<{ birthday: UpcomingDate; router: any }> = ({ birthday, router }) => (
+  <TouchableOpacity
+    onPress={(e) => {
+      e.stopPropagation();
+      router.push(`/friend-profile?friendId=${birthday.friend.id}`);
+    }}
+    style={styles.birthdayMessageInCard}
+  >
+    <Cake size={14} color="rgba(255, 255, 255, 0.95)" />
+    <Text style={styles.birthdayMessageInCardText}>
+      It's {birthday.friend.name}'s birthday — reach out today
+    </Text>
+  </TouchableOpacity>
+);
+
+const PressingEventCard: React.FC<CardProps & { event: UpcomingDate }> = ({ event, onPress, isDarkMode, expansionProgress, expandedContent, todaysBirthdays, router }) => {
   const expandedStyle = useAnimatedStyle(() => {
     'worklet';
     return {
@@ -831,6 +838,7 @@ const PressingEventCard: React.FC<CardProps & { event: UpcomingDate }> = ({ even
           <Text style={styles.subtextCompact}>
             {getSubtext()}
           </Text>
+          {todaysBirthdays.length > 0 && <BirthdayMessageInCard birthday={todaysBirthdays[0]} router={router} />}
         </View>
 
         <Animated.View style={[styles.expandedSection, expandedStyle]}>
@@ -1053,7 +1061,9 @@ const QuickWeaveCard: React.FC<CardProps & { friend: FriendModel | null; daysSin
   onPress,
   isDarkMode,
   expansionProgress,
-  expandedContent
+  expandedContent,
+  todaysBirthdays,
+  router,
 }) => {
   const expandedStyle = useAnimatedStyle(() => {
     'worklet';
@@ -1077,6 +1087,9 @@ const QuickWeaveCard: React.FC<CardProps & { friend: FriendModel | null; daysSin
           <Text style={styles.subtextCompact}>
             {message}
           </Text>
+
+          {/* Birthday message inside the card */}
+          {todaysBirthdays.length > 0 && <BirthdayMessageInCard birthday={todaysBirthdays[0]} router={router} />}
         </View>
 
         <Animated.View style={[styles.expandedSection, expandedStyle]}>
@@ -1357,20 +1370,24 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: 'rgba(255, 255, 255, 0.75)',
   },
-  birthdayMessage: {
+  birthdayMessageInCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginTop: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 10,
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
     borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
   },
-  birthdayMessageText: {
-    flex: 1,
+  birthdayMessageInCardText: {
     fontFamily: 'Inter_400Regular',
-    fontSize: 12,
-    lineHeight: 16,
+    fontSize: 11,
+    lineHeight: 14,
+    color: 'rgba(255, 255, 255, 0.95)',
+    textAlign: 'center',
   },
 });
