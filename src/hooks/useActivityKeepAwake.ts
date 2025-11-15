@@ -1,47 +1,37 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect } from 'react';
 import { activateKeepAwake, deactivateKeepAwake } from 'expo-keep-awake';
-
-const INACTIVITY_TIMEOUT = 30000; // 30 seconds
+import { appStateManager } from '../lib/app-state-manager';
 
 /**
- * Custom hook that keeps the screen awake while user is active,
- * but allows it to sleep after 30 seconds of inactivity.
+ * Custom hook that keeps the screen awake while the user is active,
+ * and allows it to sleep when the app is idle.
+ * It uses the global appStateManager to determine idleness.
  */
-export function useActivityKeepAwake(tag: string = 'activity-keep-awake') {
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const isActiveRef = useRef(false);
-
-  const resetTimer = useCallback(() => {
-    // Clear existing timeout
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-    }
-
-    // Activate keep awake if not already active
-    if (!isActiveRef.current) {
-      activateKeepAwake(tag);
-      isActiveRef.current = true;
-    }
-
-    // Set new timeout to deactivate after 30 seconds
-    timeoutRef.current = setTimeout(() => {
-      deactivateKeepAwake(tag);
-      isActiveRef.current = false;
-    }, INACTIVITY_TIMEOUT);
-  }, [tag]);
-
-  // Initial activation and cleanup
+export function useActivityKeepAwake(tag: string = 'global-keep-awake') {
   useEffect(() => {
-    resetTimer();
-
-    return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
+    const handleIdleChange = (isIdle: boolean) => {
+      if (isIdle) {
+        console.log('[useActivityKeepAwake] App is idle, deactivating keep-awake.');
+        deactivateKeepAwake(tag);
+      } else {
+        console.log('[useActivityKeepAwake] App is active, activating keep-awake.');
+        activateKeepAwake(tag);
       }
-      deactivateKeepAwake(tag);
-      isActiveRef.current = false;
     };
-  }, [tag, resetTimer]);
 
-  return resetTimer;
+    // When the component mounts, if the app is not idle, we should activate keep awake.
+    if (!appStateManager.isIdle()) {
+        activateKeepAwake(tag);
+    }
+
+    // Subscribe to future idle state changes
+    const unsubscribe = appStateManager.subscribeToIdle(handleIdleChange);
+
+    // Cleanup on unmount
+    return () => {
+      console.log('[useActivityKeepAwake] Cleaning up, deactivating keep-awake.');
+      unsubscribe();
+      deactivateKeepAwake(tag); // Ensure it's deactivated on unmount
+    };
+  }, [tag]);
 }

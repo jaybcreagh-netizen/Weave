@@ -17,6 +17,7 @@ import { ErrorBoundary } from '../src/components/ErrorBoundary';
 import { EventSuggestionModal } from '../src/components/EventSuggestionModal';
 import { useUIStore } from '../src/stores/uiStore';
 import { useTheme } from '../src/hooks/useTheme';
+import { useActivityKeepAwake } from '../src/hooks/useActivityKeepAwake';
 import { initializeDataMigrations, initializeUserProfile, initializeUserProgress } from '../src/db';
 import { appStateManager } from '../src/lib/app-state-manager';
 import { useAppStateChange } from '../src/hooks/useAppState';
@@ -87,6 +88,9 @@ function PostHogConnector({ children }: { children: React.ReactNode }) {
 const NOTIFICATION_PERMISSION_ASKED_KEY = '@weave:notification_permission_asked';
 
 export default Sentry.wrap(function RootLayout() {
+  // Apply the activity-based keep-awake logic globally
+  useActivityKeepAwake();
+
   const { colors } = useTheme();
   const isDarkMode = useUIStore((state) => state.isDarkMode);
   const milestoneCelebrationData = useUIStore((state) => state.milestoneCelebrationData);
@@ -343,11 +347,6 @@ export default Sentry.wrap(function RootLayout() {
     }
   };
 
-  // Track user activity globally
-  const handleUserActivity = () => {
-    appStateManager.recordActivity();
-  };
-
   // Prevent rendering until the font has loaded or an error was returned
   if (!fontsLoaded && !fontError) {
     return null;
@@ -360,7 +359,7 @@ export default Sentry.wrap(function RootLayout() {
       autocapture
     >
       <PostHogConnector>
-        <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.background }} onTouchStart={handleUserActivity}>
+        <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.background }}>
         <StatusBar style={isDarkMode ? 'light' : 'dark'} />
         {/* Wrap with CardGestureProvider so both Dashboard and Overlay can access it */}
         <CardGestureProvider>
