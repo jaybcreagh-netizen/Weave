@@ -325,21 +325,25 @@ export const TodaysFocusWidget: React.FC = () => {
         }
 
         // Check anniversary (only show for partners/romantic relationships)
-        if (friend.anniversary &&
-            friend.relationshipType?.toLowerCase().includes('partner') &&
-            !isNaN(friend.anniversary.getTime())) {
-          const anniversaryThisYear = new Date(friend.anniversary);
-          anniversaryThisYear.setFullYear(today.getFullYear());
-          anniversaryThisYear.setHours(0, 0, 0, 0);
+        try {
+          if (friend.anniversary &&
+              friend.relationshipType?.toLowerCase().includes('partner') &&
+              !isNaN(friend.anniversary.getTime())) {
+            const anniversaryThisYear = new Date(friend.anniversary);
+            anniversaryThisYear.setFullYear(today.getFullYear());
+            anniversaryThisYear.setHours(0, 0, 0, 0);
 
-          if (anniversaryThisYear < today) {
-            anniversaryThisYear.setFullYear(today.getFullYear() + 1);
-          }
+            if (anniversaryThisYear < today) {
+              anniversaryThisYear.setFullYear(today.getFullYear() + 1);
+            }
 
-          const daysUntil = differenceInDays(anniversaryThisYear, today);
-          if (daysUntil >= 0 && daysUntil <= 14) {
-            events.push({ friend, type: 'anniversary', daysUntil });
+            const daysUntil = differenceInDays(anniversaryThisYear, today);
+            if (daysUntil >= 0 && daysUntil <= 14) {
+              events.push({ friend, type: 'anniversary', daysUntil });
+            }
           }
+        } catch (error) {
+          console.error('[TodaysFocus] Error processing anniversary for', friend.name, ':', error);
         }
       });
 
