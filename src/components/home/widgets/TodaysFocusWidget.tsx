@@ -351,10 +351,9 @@ export const TodaysFocusWidget: React.FC = () => {
         }
       });
 
-      // Sort by proximity and show top 3
+      // Sort by proximity and show all (we'll limit in display)
       events.sort((a, b) => a.daysUntil - b.daysUntil);
-      const topEvents = events.slice(0, 3);
-      setUpcomingDates(topEvents);
+      setUpcomingDates(events);
     };
 
     loadLifeEvents();
@@ -687,6 +686,15 @@ export const TodaysFocusWidget: React.FC = () => {
     // Only show if not already in pressing event (which handles today's birthdays)
     const notAlreadyShown = !(isBirthday && event.daysUntil === 0 && priority.state === 'pressing-event');
     return isBirthday && notAlreadyShown && event.daysUntil >= 0 && event.daysUntil <= 7;
+  });
+
+  console.log('[TodaysFocus] Collapsed birthdays debug:', {
+    expanded,
+    upcomingDatesCount: upcomingDates.length,
+    upcomingDates: upcomingDates.map(e => ({ name: e.friend.name, type: e.type, daysUntil: e.daysUntil, title: e.title })),
+    upcomingBirthdaysCount: upcomingBirthdays.length,
+    upcomingBirthdays: upcomingBirthdays.map(e => ({ name: e.friend.name, daysUntil: e.daysUntil })),
+    priorityState: priority.state,
   });
 
   return (
