@@ -313,7 +313,8 @@ export const TodaysFocusWidget: React.FC = () => {
             }
 
             const daysUntil = differenceInDays(birthdayThisYear, today);
-            if (daysUntil >= 0 && daysUntil <= 30) {
+            // Only show birthdays within next 7 days
+            if (daysUntil >= 0 && daysUntil <= 7) {
               events.push({ friend, type: 'birthday', daysUntil });
             }
           }
