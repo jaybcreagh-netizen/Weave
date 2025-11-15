@@ -13,6 +13,7 @@ import { PlanWizardStep3 } from './plan-wizard/PlanWizardStep3';
 import { useInteractionStore } from '../stores/interactionStore';
 import { createWeaveCalendarEvent, getCalendarSettings } from '../lib/calendar-service';
 import { getCategoryMetadata } from '../lib/interaction-categories';
+import { getDefaultTimeForCategory } from '../lib/smart-defaults';
 import { database } from '../db';
 import Interaction from '../db/models/Interaction';
 
@@ -65,6 +66,18 @@ export function PlanWizard({ visible, onClose, initialFriend, prefillData, repla
     setFormData(prev => ({ ...prev, ...updates }));
   };
 
+  // Handler for category selection with smart time defaults
+  const handleCategorySelect = (category: InteractionCategory) => {
+    // Apply smart default time when category is selected
+    const planDate = formData.date || new Date();
+    const defaultTime = getDefaultTimeForCategory(category, planDate);
+
+    updateFormData({
+      category,
+      time: defaultTime, // Set smart default time
+    });
+  };
+
   // Reset to initialStep when modal opens or initialStep changes
   useEffect(() => {
     if (visible) {
@@ -110,13 +123,25 @@ export function PlanWizard({ visible, onClose, initialFriend, prefillData, repla
         await deleteInteraction(replaceInteractionId);
       }
 
+      // Merge date and time if time is set
+      let finalDate = formData.date;
+      if (formData.time) {
+        finalDate = new Date(formData.date);
+        finalDate.setHours(
+          formData.time.getHours(),
+          formData.time.getMinutes(),
+          0,
+          0
+        );
+      }
+
       // Create the interaction
       const interactionId = await addInteraction({
         friendIds: selectedFriends.map(f => f.id),
         activity: formData.category,
         category: formData.category,
         notes: formData.notes,
-        date: formData.date,
+        date: finalDate,
         type: 'plan',
         status: 'planned',
         mode: selectedFriends.length > 1 ? 'group' : 'one-on-one',
@@ -137,7 +162,7 @@ export function PlanWizard({ visible, onClose, initialFriend, prefillData, repla
             title: eventTitle,
             friendNames: friendNames, // Pass all friend names
             category: categoryMeta?.label || formData.category,
-            date: formData.date,
+            date: finalDate, // Use the merged date with time
             location: formData.location?.trim(),
             notes: formData.notes?.trim(),
           });
@@ -237,7 +262,7 @@ export function PlanWizard({ visible, onClose, initialFriend, prefillData, repla
             >
               <PlanWizardStep2
                 selectedCategory={formData.category}
-                onCategorySelect={category => updateFormData({ category })}
+                onCategorySelect={handleCategorySelect}
                 onContinue={goToNextStep}
                 canContinue={canProceedFromStep2}
                 friend={initialFriend}
