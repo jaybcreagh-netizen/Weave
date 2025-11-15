@@ -280,3 +280,73 @@ export async function getTopActivity(
     confidence,
   };
 }
+
+/**
+ * Default times for each category (24-hour format)
+ * Based on typical social patterns
+ */
+const CATEGORY_DEFAULT_TIMES: Record<InteractionCategory, { hour: number; minute: number }> = {
+  'text-call': { hour: 10, minute: 0 },      // Mid-morning check-in
+  'voice-note': { hour: 20, minute: 0 },     // Evening, time to listen
+  'meal-drink': { hour: 19, minute: 0 },     // Default to dinner (context-aware below)
+  'hangout': { hour: 15, minute: 0 },        // Afternoon hangout
+  'deep-talk': { hour: 10, minute: 30 },     // Late morning, focused time
+  'event-party': { hour: 19, minute: 0 },    // Evening start
+  'activity-hobby': { hour: 14, minute: 0 }, // Afternoon, good energy
+  'favor-support': { hour: 11, minute: 0 },  // Mid-morning, practical help
+  'celebration': { hour: 18, minute: 0 },    // Early evening for special occasions
+};
+
+/**
+ * Helper to set time on a date object
+ */
+function setTimeOnDate(date: Date, hour: number, minute: number = 0): Date {
+  const newDate = new Date(date);
+  newDate.setHours(hour, minute, 0, 0);
+  return newDate;
+}
+
+/**
+ * Get context-aware default time for meal-drink category
+ * Suggests coffee, lunch, or dinner based on current time
+ */
+function getMealDrinkDefaultTime(planDate: Date, currentTime: Date = new Date()): Date {
+  const currentHour = currentTime.getHours();
+
+  // If planning for a different day, use time of day on that day to determine meal
+  const referenceHour = planDate.toDateString() === currentTime.toDateString()
+    ? currentHour
+    : planDate.getHours();
+
+  // Morning (before 10am): suggest coffee at 9am
+  if (referenceHour < 10) {
+    return setTimeOnDate(planDate, 9, 0);
+  }
+
+  // Midday (10am-3pm): suggest lunch at 12:30pm
+  if (referenceHour < 15) {
+    return setTimeOnDate(planDate, 12, 30);
+  }
+
+  // Afternoon/Evening (3pm+): suggest dinner at 7pm
+  return setTimeOnDate(planDate, 19, 0);
+}
+
+/**
+ * Get smart default time for a given category
+ * Returns a date object with the suggested time set
+ */
+export function getDefaultTimeForCategory(
+  category: InteractionCategory,
+  planDate: Date,
+  currentTime: Date = new Date()
+): Date {
+  // Special case: meal-drink is context-aware
+  if (category === 'meal-drink') {
+    return getMealDrinkDefaultTime(planDate, currentTime);
+  }
+
+  // All other categories use fixed defaults
+  const defaultTime = CATEGORY_DEFAULT_TIMES[category];
+  return setTimeOnDate(planDate, defaultTime.hour, defaultTime.minute);
+}
