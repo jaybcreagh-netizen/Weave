@@ -757,6 +757,15 @@ const PressingEventCard: React.FC<CardProps & { event: UpcomingDate }> = ({ even
     return `In ${event.daysUntil} days`;
   };
 
+  const getHeadline = () => {
+    if (event.daysUntil === 0) {
+      if (event.type === 'birthday') return 'Birthday Today';
+      if (event.type === 'anniversary') return 'Anniversary Today';
+      return 'Event Today';
+    }
+    return 'Upcoming Event';
+  };
+
   const Icon = event.type === 'birthday' ? Cake : event.type === 'anniversary' ? Heart : Calendar;
 
   return (
@@ -769,7 +778,7 @@ const PressingEventCard: React.FC<CardProps & { event: UpcomingDate }> = ({ even
       >
         <View style={styles.cardContent}>
           <Icon size={32} color="#FFFFFF" />
-          <Text style={styles.headlineCompact}>Upcoming Event</Text>
+          <Text style={styles.headlineCompact}>{getHeadline()}</Text>
           <Text style={styles.subtextCompact}>
             {getEventTitle()} · {getEventSubtext()}
           </Text>
