@@ -590,9 +590,9 @@ export const TodaysFocusWidget: React.FC = () => {
           <Text style={styles.sectionTitle}>
             UPCOMING
           </Text>
-          {upcomingDates.slice(0, 3).map((event) => (
+          {upcomingDates.slice(0, 3).map((event, index) => (
             <TouchableOpacity
-              key={`${event.friend.id}-${event.type}`}
+              key={`${event.friend.id}-${event.type}-${event.title || event.daysUntil}-${index}`}
               onPress={() => router.push(`/friend-profile?friendId=${event.friend.id}`)}
               style={styles.upcomingItem}
             >
