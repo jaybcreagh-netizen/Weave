@@ -263,7 +263,11 @@ export const TodaysFocusWidget: React.FC = () => {
 
   // Calculate upcoming special dates (30 days)
   useEffect(() => {
-    if (!friends || friends.length === 0) return;
+    console.log('[TodaysFocus] Birthday useEffect running. Friends:', friends?.length || 0);
+    if (!friends || friends.length === 0) {
+      console.log('[TodaysFocus] No friends found, returning early');
+      return;
+    }
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
