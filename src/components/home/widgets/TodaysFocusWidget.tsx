@@ -308,6 +308,7 @@ export const TodaysFocusWidget: React.FC = () => {
           }
 
           const daysUntil = differenceInDays(birthdayThisYear, today);
+          console.log(`[TodaysFocus] ${friend.name} birthday: ${friend.birthday}, daysUntil: ${daysUntil}, today: ${today.toISOString()}, birthdayDate: ${birthdayThisYear.toISOString()}`);
           if (daysUntil >= 0 && daysUntil <= 30) {
             events.push({ friend, type: 'birthday', daysUntil });
           }
@@ -334,7 +335,9 @@ export const TodaysFocusWidget: React.FC = () => {
 
       // Sort by proximity and show top 3
       events.sort((a, b) => a.daysUntil - b.daysUntil);
-      setUpcomingDates(events.slice(0, 3));
+      const topEvents = events.slice(0, 3);
+      console.log('[TodaysFocus] Upcoming events:', topEvents.map(e => ({ name: e.friend.name, type: e.type, daysUntil: e.daysUntil })));
+      setUpcomingDates(topEvents);
     };
 
     loadLifeEvents();
@@ -346,7 +349,9 @@ export const TodaysFocusWidget: React.FC = () => {
     const birthdaysToday = upcomingDates.filter(event =>
       event.type === 'birthday' && event.daysUntil === 0
     );
+    console.log('[TodaysFocus] Checking for birthdays today. upcomingDates:', upcomingDates.map(e => ({ name: e.friend.name, type: e.type, daysUntil: e.daysUntil })), 'birthdaysToday:', birthdaysToday.length);
     if (birthdaysToday.length > 0) {
+      console.log('[TodaysFocus] BIRTHDAY TODAY DETECTED:', birthdaysToday[0].friend.name);
       return { state: 'birthday-today', data: birthdaysToday[0] };
     }
 
