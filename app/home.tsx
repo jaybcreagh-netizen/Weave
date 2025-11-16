@@ -19,6 +19,11 @@ import { getLastReflectionDate, shouldShowReflection } from '../src/lib/notifica
 import { getUserAccountAge } from '../src/lib/notification-grace-periods';
 import { useTutorialStore } from '../src/stores/tutorialStore';
 
+/**
+ * The home screen of the application.
+ * Displays a grid of widgets and handles modals for social battery check-ins and weekly reflections.
+ * @returns {React.ReactElement} The rendered home screen.
+ */
 export default function Home() {
   const { observeProfile, profile, submitBatteryCheckin, updateProfile } = useUserProfileStore();
   const { observeFriends } = useFriendStore();

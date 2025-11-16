@@ -6,11 +6,22 @@ import { X } from 'lucide-react-native';
 import { useTheme } from '../hooks/useTheme';
 import { useAchievements, Achievement } from '../hooks/useAchievements';
 
+/**
+ * @interface AchievementsModalProps
+ * @property {boolean} visible - Whether the modal is visible.
+ * @property {() => void} onClose - Function to call when the modal is closed.
+ */
 interface AchievementsModalProps {
   visible: boolean;
   onClose: () => void;
 }
 
+/**
+ * A modal component to display the user's achievements.
+ *
+ * @param {AchievementsModalProps} props - The props for the component.
+ * @returns {React.ReactElement | null} The rendered AchievementsModal component.
+ */
 export const AchievementsModal: React.FC<AchievementsModalProps> = ({ visible, onClose }) => {
   const { colors, isDarkMode } = useTheme();
   const { achievements, loading } = useAchievements();

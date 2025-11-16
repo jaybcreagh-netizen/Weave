@@ -12,6 +12,18 @@ import { Q } from '@nozbe/watermelondb';
 import { CONSISTENCY_MILESTONES } from './milestone-tracker';
 import { calculateCurrentScore } from './weave-engine';
 
+/**
+ * @interface GlobalAchievement
+ * @property {string} id - The unique identifier for the achievement.
+ * @property {string} name - The name of the achievement.
+ * @property {string} icon - The icon for the achievement.
+ * @property {string} description - The description of the achievement.
+ * @property {number} threshold - The threshold to unlock the achievement.
+ * @property {'weaving' | 'consistency' | 'depth' | 'social' | 'hidden'} category - The category of the achievement.
+ * @property {'common' | 'rare' | 'epic' | 'legendary'} rarity - The rarity of the achievement.
+ * @property {string} [flavorText] - Optional flavor text for the achievement.
+ * @property {(userProgress: UserProgress) => number | Promise<number>} calculateProgress - Function to calculate the progress of the achievement.
+ */
 export interface GlobalAchievement {
   id: string;
   name: string;
@@ -337,7 +349,9 @@ export const GLOBAL_ACHIEVEMENTS: GlobalAchievement[] = [
 // ============================================================================
 
 /**
- * Get achievement by ID
+ * Retrieves an achievement by its ID.
+ * @param {string} achievementId - The ID of the achievement to retrieve.
+ * @returns {GlobalAchievement | null} The achievement object, or null if not found.
  */
 export function getAchievementById(achievementId: string): GlobalAchievement | null {
   const all = [...GLOBAL_ACHIEVEMENTS, ...HIDDEN_ACHIEVEMENTS];
@@ -345,7 +359,9 @@ export function getAchievementById(achievementId: string): GlobalAchievement | n
 }
 
 /**
- * Get achievements by category
+ * Retrieves all achievements in a given category.
+ * @param {GlobalAchievement['category']} category - The category to filter by.
+ * @returns {GlobalAchievement[]} An array of achievements in the specified category.
  */
 export function getAchievementsByCategory(
   category: GlobalAchievement['category']
@@ -354,7 +370,9 @@ export function getAchievementsByCategory(
 }
 
 /**
- * Get achievements by rarity
+ * Retrieves all achievements of a given rarity.
+ * @param {GlobalAchievement['rarity']} rarity - The rarity to filter by.
+ * @returns {GlobalAchievement[]} An array of achievements with the specified rarity.
  */
 export function getAchievementsByRarity(
   rarity: GlobalAchievement['rarity']
@@ -363,7 +381,9 @@ export function getAchievementsByRarity(
 }
 
 /**
- * Check if achievement is hidden
+ * Checks if an achievement is hidden.
+ * @param {string} achievementId - The ID of the achievement to check.
+ * @returns {boolean} True if the achievement is hidden, false otherwise.
  */
 export function isHiddenAchievement(achievementId: string): boolean {
   return HIDDEN_ACHIEVEMENTS.some(a => a.id === achievementId);

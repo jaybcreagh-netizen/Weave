@@ -3,11 +3,21 @@ import { database } from '../db';
 import UserProgress from '../db/models/UserProgress';
 import { CONSISTENCY_MILESTONES, Milestone } from '../lib/milestone-tracker';
 
+/**
+ * @interface Achievement
+ * @extends Milestone
+ * @property {boolean} isUnlocked - Whether the achievement is unlocked.
+ * @property {number} progress - The progress towards the achievement.
+ */
 export interface Achievement extends Milestone {
   isUnlocked: boolean;
   progress: number;
 }
 
+/**
+ * A custom hook to fetch and manage the user's achievements.
+ * @returns {{achievements: Achievement[], loading: boolean}} An object containing the achievements and a loading state.
+ */
 export const useAchievements = () => {
   const [achievements, setAchievements] = useState<Achievement[]>([]);
   const [loading, setLoading] = useState(true);
