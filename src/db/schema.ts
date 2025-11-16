@@ -1,8 +1,27 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb'
 
 export default appSchema({
-  version: 33, // UPDATED: Added event_suggestion_feedback table for intelligent ambient logging
+  version: 34, // UPDATED: Added oracle_insights and oracle_usage tables
   tables: [
+    tableSchema({
+      name: 'oracle_insights',
+      columns: [
+        { name: 'insight_type', type: 'string' },
+        { name: 'content', type: 'string' },
+        { name: 'metadata', type: 'string' }, // JSON
+        { name: 'valid_until', type: 'number' },
+        { name: 'created_at', type: 'number' }
+      ]
+    }),
+    tableSchema({
+      name: 'oracle_usage',
+      columns: [
+        { name: 'endpoint', type: 'string' },
+        { name: 'tokens_used', type: 'number' },
+        { name: 'cost_cents', type: 'number' },
+        { name: 'created_at', type: 'number' }
+      ]
+    }),
     tableSchema({
       name: 'friends',
       columns: [
