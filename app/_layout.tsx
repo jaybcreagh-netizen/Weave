@@ -72,7 +72,11 @@ Sentry.init({
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
 
-// Component to connect PostHog instance to analytics module
+/**
+ * A component to connect the PostHog instance to the analytics module.
+ * @param {{children: React.ReactNode}} props - The component props.
+ * @returns {React.ReactElement} The rendered component.
+ */
 function PostHogConnector({ children }: { children: React.ReactNode }) {
   const posthog = usePostHog();
 
@@ -87,6 +91,11 @@ function PostHogConnector({ children }: { children: React.ReactNode }) {
 
 const NOTIFICATION_PERMISSION_ASKED_KEY = '@weave:notification_permission_asked';
 
+/**
+ * The root layout component for the application.
+ * This component sets up the global providers, navigators, and modals.
+ * @returns {React.ReactElement | null} The rendered root layout.
+ */
 export default Sentry.wrap(function RootLayout() {
   // Apply the activity-based keep-awake logic globally
   useActivityKeepAwake();

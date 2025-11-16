@@ -6,6 +6,13 @@ import { UserPlus, Users, X } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../hooks/useTheme';
 
+/**
+ * @interface AddFriendMenuProps
+ * @property {boolean} isOpen - Whether the menu is open.
+ * @property {() => void} onClose - Function to call when the menu is closed.
+ * @property {() => void} onAddSingle - Function to call when the single friend option is selected.
+ * @property {() => void} onAddBatch - Function to call when the batch add option is selected.
+ */
 interface AddFriendMenuProps {
   isOpen: boolean;
   onClose: () => void;
@@ -16,7 +23,10 @@ interface AddFriendMenuProps {
 const SHEET_HEIGHT = 260;
 
 /**
- * Action sheet menu for adding friends - single or batch
+ * An action sheet menu for adding friends, with options for adding a single friend or batch-adding from contacts.
+ *
+ * @param {AddFriendMenuProps} props - The props for the component.
+ * @returns {React.ReactElement | null} The rendered AddFriendMenu component.
  */
 export function AddFriendMenu({
   isOpen,

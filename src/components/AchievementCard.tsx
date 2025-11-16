@@ -11,6 +11,16 @@ import { useTheme } from '../hooks/useTheme';
 import type { BadgeDefinition } from '../lib/badge-definitions';
 import type { GlobalAchievement } from '../lib/achievement-definitions';
 
+/**
+ * @interface AchievementCardProps
+ * @property {BadgeDefinition | GlobalAchievement} achievement - The achievement data to display.
+ * @property {boolean} unlocked - Whether the achievement is unlocked.
+ * @property {() => void} [onPress] - Optional function to call when the card is pressed.
+ * @property {boolean} [showProgress] - Optional flag to show the progress bar.
+ * @property {number} [progress] - Optional progress value.
+ * @property {number} [progressPercent] - Optional progress percentage.
+ * @property {boolean} [compact] - Optional flag for a more compact layout.
+ */
 interface AchievementCardProps {
   achievement: BadgeDefinition | GlobalAchievement;
   unlocked: boolean;
@@ -22,7 +32,10 @@ interface AchievementCardProps {
 }
 
 /**
- * Get rarity color classes - theme-aware
+ * Get rarity color classes - theme-aware.
+ * @param {string} rarity - The rarity of the achievement.
+ * @param {boolean} isDark - Whether dark mode is enabled.
+ * @returns {{border: string, bg: string, text: string, glow: string}} - The color classes.
  */
 function getRarityColors(rarity: string, isDark: boolean) {
   if (isDark) {
@@ -106,6 +119,13 @@ function getRarityColors(rarity: string, isDark: boolean) {
   }
 }
 
+/**
+ * A reusable card component for displaying badges and achievements.
+ * It can show the achievement in a locked, unlocked, or progress state.
+ *
+ * @param {AchievementCardProps} props - The props for the component.
+ * @returns {React.ReactElement} The rendered AchievementCard component.
+ */
 export default function AchievementCard({
   achievement,
   unlocked,

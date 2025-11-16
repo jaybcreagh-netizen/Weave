@@ -17,7 +17,10 @@ import { updateInitiationStats, type Initiator } from './reciprocity-analyzer';
 import { trackEvent, AnalyticsEvents, updateLastInteractionTimestamp } from './analytics';
 
 /**
- * Quality metrics for an interaction based on depth and energy
+ * @interface InteractionQualityMetrics
+ * @property {number} depthScore - A score from 1-5 based on reflection and notes.
+ * @property {number} energyScore - A score from 1-5 based on vibe and duration.
+ * @property {number} overallQuality - A composite score from 1-5.
  */
 export interface InteractionQualityMetrics {
   depthScore: number; // 1-5 based on reflection + notes
@@ -26,7 +29,13 @@ export interface InteractionQualityMetrics {
 }
 
 /**
- * Calculates quality metrics for an interaction to weight scoring
+ * Calculates quality metrics for an interaction to weight scoring.
+ * @param interaction - The interaction data.
+ * @param {Vibe} [interaction.vibe] - The vibe of the interaction.
+ * @param {Duration} [interaction.duration] - The duration of the interaction.
+ * @param {string} [interaction.note] - The note for the interaction.
+ * @param {string} [interaction.reflectionJSON] - The reflection for the interaction.
+ * @returns {InteractionQualityMetrics} The quality metrics for the interaction.
  */
 export function calculateInteractionQuality(
   interaction: {
@@ -64,6 +73,8 @@ export function calculateInteractionQuality(
 /**
  * Calculates the decayed score of a friend based on the time since the last update.
  * Uses adaptive decay that respects each friendship's natural rhythm.
+ * @param {FriendModel} friend - The friend model to calculate the score for.
+ * @returns {number} The current score of the friend.
  */
 export function calculateCurrentScore(friend: FriendModel): number {
   const daysSinceLastUpdate = (Date.now() - friend.lastUpdated.getTime()) / 86400000;
@@ -97,8 +108,8 @@ export function calculateCurrentScore(friend: FriendModel): number {
  * Uses tier-specific weights (Inner: 50%, Close: 35%, Community: 15%)
  * to prevent low-engagement community friends from dragging down overall health.
  *
- * @param friends - Array of all friends
- * @returns Weighted network health score (0-100)
+ * @param {FriendModel[]} friends - Array of all friends.
+ * @returns {number} Weighted network health score (0-100).
  */
 export function calculateWeightedNetworkHealth(friends: FriendModel[]): number {
   if (friends.length === 0) return 0;
@@ -149,6 +160,8 @@ export function calculateWeightedNetworkHealth(friends: FriendModel[]): number {
 /**
  * Calculates group dilution factor based on the number of people in the interaction.
  * Larger groups mean less individual attention and depth per person.
+ * @param {number} groupSize - The number of people in the interaction.
+ * @returns {number} The dilution factor.
  */
 export function calculateGroupDilution(groupSize: number): number {
   if (groupSize === 1) return 1.0;      // Full points for 1-on-1
@@ -161,6 +174,9 @@ export function calculateGroupDilution(groupSize: number): number {
 /**
  * Calculates event multiplier for special occasions and life events.
  * Peak moments and milestone support create stronger relationship bonds.
+ * @param {InteractionCategory} [category] - The category of the interaction.
+ * @param {'low' | 'medium' | 'high' | 'critical'} [eventImportance] - The importance of the event.
+ * @returns {number} The event multiplier.
  */
 export function calculateEventMultiplier(
   category?: InteractionCategory,
@@ -193,6 +209,17 @@ export function calculateEventMultiplier(
  * Calculates the points for a new interaction.
  * Supports both old activity-based and new category-based systems.
  * Now includes quality-weighted scoring for more nuanced relationship health.
+ * @param {FriendModel} friend - The friend model.
+ * @param weaveData - The weave data.
+ * @param {InteractionType} [weaveData.interactionType] - The type of interaction.
+ * @param {InteractionCategory} [weaveData.category] - The category of the interaction.
+ * @param {Duration | null} weaveData.duration - The duration of the interaction.
+ * @param {Vibe | null} weaveData.vibe - The vibe of the interaction.
+ * @param {string} [weaveData.note] - The note for the interaction.
+ * @param {string} [weaveData.reflectionJSON] - The reflection for the interaction.
+ * @param {number} [weaveData.groupSize] - The size of the group.
+ * @param {'low' | 'medium' | 'high' | 'critical'} [weaveData.eventImportance] - The importance of the event.
+ * @returns {number} The points for the weave.
  */
 export function calculatePointsForWeave(
   friend: FriendModel,
@@ -293,8 +320,11 @@ export function calculatePointsForWeave(
 }
 
 /**
- * Check if a weave fulfills any active intentions for a friend
- * Returns the intention if found, null otherwise
+ * Checks if a weave fulfills any active intentions for a friend.
+ * @param {string} friendId - The ID of the friend.
+ * @param {InteractionCategory} [category] - The category of the interaction.
+ * @param {Database} database - The database instance.
+ * @returns {Promise<Intention | null>} The fulfilled intention, or null if none was fulfilled.
  */
 async function checkIntentionFulfillment(
   friendId: string,
@@ -340,7 +370,10 @@ async function checkIntentionFulfillment(
 
 /**
  * Logs a new interaction, calculates the new scores, and updates the database in a single transaction.
- * Returns the interaction ID and any badge/achievement unlocks.
+ * @param {FriendModel[]} friendsToUpdate - The friends to update.
+ * @param {InteractionFormData} weaveData - The data for the new weave.
+ * @param {Database} database - The database instance.
+ * @returns {Promise<{interactionId: string, badgeUnlocks: BadgeUnlock[], achievementUnlocks: AchievementUnlockData[]}>} The ID of the new interaction and any unlocks.
  */
 export async function logNewWeave(
   friendsToUpdate: FriendModel[],
@@ -654,8 +687,9 @@ export async function logNewWeave(
  * Applies weave scores retroactively when a planned interaction is confirmed as completed.
  * This function is called when users confirm that a planned weave actually happened.
  *
- * @param interactionId - The ID of the interaction to score
- * @param database - WatermelonDB instance
+ * @param {string} interactionId - The ID of the interaction to score.
+ * @param {Database} database - The WatermelonDB instance.
+ * @returns {Promise<void>}
  */
 export async function applyScoresForCompletedPlan(interactionId: string, database: Database): Promise<void> {
   await database.write(async () => {
