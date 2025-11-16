@@ -4,7 +4,7 @@ import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { X } from 'lucide-react-native';
 import { STORY_CHIPS, type StoryChip } from '../lib/story-chips';
 import { type ReflectionChip } from '../stores/interactionStore';
-import { useTheme } from '../hooks/useTheme';
+import { useTheme } from '@/shared/hooks/useTheme';
 
 interface ReflectionTextInputProps {
   chips: ReflectionChip[];

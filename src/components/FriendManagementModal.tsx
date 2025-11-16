@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, View, Text, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { X, Trash2, Check } from 'lucide-react-native';
-import { useTheme } from '../hooks/useTheme';
+import { useTheme } from '@/shared/hooks/useTheme';
 import { useFriendStore } from '../stores/friendStore';
 import { calculateCurrentScore } from '../lib/weave-engine';
 import type FriendModel from '../db/models/Friend';

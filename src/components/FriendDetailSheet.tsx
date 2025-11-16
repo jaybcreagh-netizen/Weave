@@ -11,9 +11,9 @@ import { BlurView } from 'expo-blur';
 import { Calendar, Heart, Sparkles, X } from 'lucide-react-native';
 import { format } from 'date-fns';
 
-import { useTheme } from '../hooks/useTheme';
+import { useTheme } from '@/shared/hooks/useTheme';
 import { ArchetypeIcon } from './ArchetypeIcon';
-import { archetypeData, CategoryArchetypeMatrix } from '../lib/constants';
+import { archetypeData, CategoryArchetypeMatrix } from '@/shared/constants/constants';
 import { CATEGORY_METADATA } from '../lib/interaction-categories';
 import { type InteractionCategory } from './types';
 import FriendModel from '../db/models/Friend';

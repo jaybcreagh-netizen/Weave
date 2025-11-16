@@ -5,7 +5,7 @@ import { BlurView } from 'expo-blur';
 import { Calendar, X } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { Q } from '@nozbe/watermelondb';
-import { useTheme } from '../hooks/useTheme';
+import { useTheme } from '@/shared/hooks/useTheme';
 import { getCategoryMetadata } from '../lib/interaction-categories';
 import Intention from '../db/models/Intention';
 import FriendModel from '../db/models/Friend';

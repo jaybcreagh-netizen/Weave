@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Suggestion } from '../types/suggestions';
-import { useTheme } from '../hooks/useTheme';
+import { useTheme } from '@/shared/hooks/useTheme';
 
 interface SuggestionCardProps {
   suggestion: Suggestion;

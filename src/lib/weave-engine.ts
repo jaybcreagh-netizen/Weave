@@ -1,7 +1,7 @@
 import { Database } from '@nozbe/watermelondb';
 import { Q } from '@nozbe/watermelondb';
 import { Friend, Interaction, Tier, Archetype, InteractionType, InteractionCategory, Duration, Vibe } from '../components/types';
-import { TierDecayRates, InteractionBaseScores, CategoryBaseScores, DurationModifiers, VibeMultipliers, RecencyFactors, ArchetypeMatrixV2, CategoryArchetypeMatrix, TierWeights, TierHealthThresholds } from './constants';
+import { TierDecayRates, InteractionBaseScores, CategoryBaseScores, DurationModifiers, VibeMultipliers, RecencyFactors, ArchetypeMatrixV2, CategoryArchetypeMatrix, TierWeights, TierHealthThresholds } from '@/shared/constants/constants';
 import FriendModel from '../db/models/Friend';
 import InteractionModel from '../db/models/Interaction';
 import InteractionFriend from '../db/models/InteractionFriend';

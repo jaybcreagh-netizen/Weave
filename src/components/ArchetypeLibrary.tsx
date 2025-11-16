@@ -6,9 +6,9 @@ import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 
 import { type Archetype, type InteractionCategory } from './types';
-import { archetypeData, CategoryArchetypeMatrix } from '../lib/constants';
+import { archetypeData, CategoryArchetypeMatrix } from '@/shared/constants/constants';
 import { CATEGORY_METADATA } from '../lib/interaction-categories';
-import { useTheme } from '../hooks/useTheme';
+import { useTheme } from '@/shared/hooks/useTheme';
 
 // Import SVG files as components
 import EmperorSvg from '../../assets/TarotIcons/TheEmperor.svg';

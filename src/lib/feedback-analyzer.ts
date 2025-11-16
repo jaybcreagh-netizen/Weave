@@ -5,7 +5,7 @@ import InteractionOutcome from '../db/models/InteractionOutcome';
 import { Q } from '@nozbe/watermelondb';
 import { calculateCurrentScore } from './weave-engine';
 import { InteractionCategory } from '../types/suggestions';
-import { TierDecayRates } from './constants';
+import { TierDecayRates } from '@/shared/constants/constants';
 import { Tier } from '../components/types';
 
 /**

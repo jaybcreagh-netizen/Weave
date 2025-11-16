@@ -8,7 +8,7 @@ import { View, Text, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { differenceInDays } from 'date-fns';
 import { Cake, Heart, AlertCircle } from 'lucide-react-native';
-import { useTheme } from '../../../hooks/useTheme';
+import { useTheme } from '@/shared/hooks/useTheme';
 import { useFriendStore } from '../../../stores/friendStore';
 import { useSuggestions } from '../../../hooks/useSuggestions';
 import FriendModel from '../../../db/models/Friend';

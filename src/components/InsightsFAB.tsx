@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { TouchableOpacity, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming, Easing } from 'react-native-reanimated';
-import { useTheme } from '../hooks/useTheme';
+import { useTheme } from '@/shared/hooks/useTheme';
 import { WeaveIcon } from './WeaveIcon';
 
 interface InsightsFABProps {

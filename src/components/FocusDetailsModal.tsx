@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, Modal, ScrollView, StyleSheet } from 'rea
 import { BlurView } from 'expo-blur';
 import { X, Calendar, CheckCircle2, Cake, Heart } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
-import { useTheme } from '../hooks/useTheme';
+import { useTheme } from '@/shared/hooks/useTheme';
 import { usePendingPlans } from '../hooks/usePendingPlans';
 import { useSuggestions } from '../hooks/useSuggestions';
 import { useInteractionStore } from '../stores/interactionStore';

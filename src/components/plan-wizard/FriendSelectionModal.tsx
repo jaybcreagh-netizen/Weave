@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Modal, SafeAreaView } from 'react-native';
 import { CheckCircle, Circle, X } from 'lucide-react-native';
-import { useTheme } from '../../hooks/useTheme';
+import { useTheme } from '@/shared/hooks/useTheme';
 import FriendModel from '../../db/models/Friend';
 import { useFriends } from '../../hooks/useFriends';
 

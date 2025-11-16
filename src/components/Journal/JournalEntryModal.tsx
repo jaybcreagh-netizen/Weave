@@ -15,7 +15,7 @@ import {
   Platform,
 } from 'react-native';
 import { X, Calendar, Users, Sparkles } from 'lucide-react-native';
-import { useTheme } from '../../hooks/useTheme';
+import { useTheme } from '@/shared/hooks/useTheme';
 import { database } from '../../db';
 import JournalEntry from '../../db/models/JournalEntry';
 import FriendModel from '../../db/models/Friend';

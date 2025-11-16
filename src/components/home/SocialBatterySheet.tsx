@@ -18,7 +18,7 @@ import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import Slider from '@react-native-community/slider';
 
-import { useTheme } from '../../hooks/useTheme';
+import { useTheme } from '@/shared/hooks/useTheme';
 
 interface SocialBatterySheetProps {
   isVisible: boolean;

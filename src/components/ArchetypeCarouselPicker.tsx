@@ -27,9 +27,9 @@ import Animated, {
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useTheme } from '../hooks/useTheme';
+import { useTheme } from '@/shared/hooks/useTheme';
 import { type Archetype } from './types';
-import { archetypeData } from '../lib/constants';
+import { archetypeData } from '@/shared/constants/constants';
 import { ChevronLeft, ChevronRight, Info } from 'lucide-react-native';
 import { useUIStore } from '../stores/uiStore';
 

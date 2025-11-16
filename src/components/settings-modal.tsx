@@ -31,7 +31,7 @@ import {
   getStoredNotificationPreferences,
   type NotificationPreferences,
 } from '../lib/smart-notification-scheduler';
-import { useTheme } from '../hooks/useTheme';
+import { useTheme } from '@/shared/hooks/useTheme';
 import { clearDatabase } from '../db';
 import TrophyCabinetModal from './TrophyCabinetModal';
 import { FeedbackModal } from './FeedbackModal';

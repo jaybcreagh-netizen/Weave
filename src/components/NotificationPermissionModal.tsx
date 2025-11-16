@@ -9,7 +9,7 @@ import { View, Text, Modal, TouchableOpacity, ScrollView } from 'react-native';
 import { Bell, Calendar, Heart, Sparkles, X } from 'lucide-react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
-import { theme } from '../theme';
+import { theme } from '@/shared/theme/theme';
 
 interface NotificationPermissionModalProps {
   visible: boolean;

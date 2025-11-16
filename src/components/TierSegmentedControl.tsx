@@ -7,8 +7,8 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
-import { useTheme } from '../hooks/useTheme';
-import { tierColors, isTierAtCapacity } from '../lib/constants';
+import { useTheme } from '@/shared/hooks/useTheme';
+import { tierColors, isTierAtCapacity } from '@/shared/constants/constants';
 
 interface TierSegmentedControlProps {
   activeTier: 'inner' | 'close' | 'community';

@@ -1,10 +1,10 @@
 import React from 'react';
 import { View, Text, Modal, TouchableOpacity, ScrollView } from 'react-native';
 import { useUIStore } from '../stores/uiStore';
-import { useTheme } from '../hooks/useTheme';
+import { useTheme } from '@/shared/hooks/useTheme';
 import { X, Sparkles } from 'lucide-react-native';
 import { type Archetype, type InteractionCategory } from './types';
-import { archetypeData, CategoryArchetypeMatrix } from '../lib/constants';
+import { archetypeData, CategoryArchetypeMatrix } from '@/shared/constants/constants';
 import { CATEGORY_METADATA } from '../lib/interaction-categories';
 import { BlurView } from 'expo-blur';
 

@@ -4,7 +4,7 @@ import Animated, { useSharedValue, useAnimatedStyle, withTiming, withSpring, run
 import { BlurView } from 'expo-blur';
 import { UserPlus, Users, X } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
-import { useTheme } from '../hooks/useTheme';
+import { useTheme } from '@/shared/hooks/useTheme';
 
 /**
  * @interface AddFriendMenuProps

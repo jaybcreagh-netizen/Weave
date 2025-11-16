@@ -7,7 +7,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Modal, View, Text, TouchableOpacity, SafeAreaView, ScrollView, ActivityIndicator, TextInput } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { X, Calendar, TrendingUp, Sparkles, ChevronRight, Search, List, Filter, Plus, BookOpen, Users } from 'lucide-react-native';
-import { useTheme } from '../../hooks/useTheme';
+import { useTheme } from '@/shared/hooks/useTheme';
 import { database } from '../../db';
 import WeeklyReflection from '../../db/models/WeeklyReflection';
 import JournalEntry from '../../db/models/JournalEntry';

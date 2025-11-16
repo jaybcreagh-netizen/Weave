@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import { Sparkles } from 'lucide-react-native';
 import { format } from 'date-fns';
-import { useTheme } from '../../hooks/useTheme';
+import { useTheme } from '@/shared/hooks/useTheme';
 import { type InteractionCategory } from '../types';
 import FriendModel from '../../db/models/Friend';
 import { PlanSuggestion } from '../../hooks/usePlanSuggestion';

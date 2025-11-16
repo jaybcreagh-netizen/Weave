@@ -7,7 +7,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import Animated, { FadeInRight } from 'react-native-reanimated';
 import { ChevronRight, Heart, AlertCircle } from 'lucide-react-native';
-import { useTheme } from '../../hooks/useTheme';
+import { useTheme } from '@/shared/hooks/useTheme';
 import { useRouter } from 'expo-router';
 import { MissedFriend } from '../../lib/weekly-reflection/weekly-stats';
 import { ArchetypeIcon } from '../ArchetypeIcon';

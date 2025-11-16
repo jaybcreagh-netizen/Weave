@@ -3,7 +3,7 @@ import { Modal, View, Text, TouchableOpacity, TextInput, StyleSheet, ScrollView 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { X } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
-import { useTheme } from '../hooks/useTheme';
+import { useTheme } from '@/shared/hooks/useTheme';
 import { InteractionCategory } from './types';
 import { getCategoryMetadata, INTERACTION_CATEGORIES } from '../lib/interaction-categories';
 

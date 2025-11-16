@@ -11,7 +11,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
-import { useTheme } from '../hooks/useTheme';
+import { useTheme } from '@/shared/hooks/useTheme';
 
 export interface TutorialStep {
   id: string;

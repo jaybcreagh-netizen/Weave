@@ -5,7 +5,7 @@ import { X, Send, Camera } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Sentry from '@sentry/react-native';
 import Constants from 'expo-constants';
-import { useTheme } from '../hooks/useTheme';
+import { useTheme } from '@/shared/hooks/useTheme';
 import { trackEvent, AnalyticsEvents } from '../lib/analytics';
 
 // Optional: Lazy-load react-native-view-shot to avoid crash if not installed

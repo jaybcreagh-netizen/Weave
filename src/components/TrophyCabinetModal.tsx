@@ -16,7 +16,7 @@ import {
   SafeAreaView,
   Dimensions,
 } from 'react-native';
-import { useTheme } from '../hooks/useTheme';
+import { useTheme } from '@/shared/hooks/useTheme';
 import { database } from '../db';
 import UserProgress from '../db/models/UserProgress';
 import {

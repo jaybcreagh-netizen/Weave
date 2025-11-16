@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
-import { useTheme } from '../../hooks/useTheme';
+import { useTheme } from '@/shared/hooks/useTheme';
 
 export interface HomeWidgetConfig {
   id: string;

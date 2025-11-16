@@ -6,7 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Dimensions } from 'react-native';
 import { Moon, TrendingUp, BookOpen } from 'lucide-react-native';
-import { useTheme } from '../../../hooks/useTheme';
+import { useTheme } from '@/shared/hooks/useTheme';
 import { HomeWidgetBase, HomeWidgetConfig } from '../HomeWidgetBase';
 import { MoonPhaseIllustration } from '../../YearInMoons/MoonPhaseIllustration';
 import { YearInMoonsModal } from '../../YearInMoons/YearInMoonsModal';

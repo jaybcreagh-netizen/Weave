@@ -6,7 +6,7 @@ import { startOfDay, subDays, differenceInDays } from 'date-fns';
 import { Q } from '@nozbe/watermelondb';
 import { useRouter } from 'expo-router';
 import { BookOpen, X, Sparkles, BarChart3, Telescope, Lightbulb, Flame, Battery, ChevronDown } from 'lucide-react-native';
-import { useTheme } from '../../../hooks/useTheme';
+import { useTheme } from '@/shared/hooks/useTheme';
 import { useUserProfileStore } from '../../../stores/userProfileStore';
 import { useFriends } from '../../../hooks/useFriends';
 import { useInteractionStore } from '../../../stores/interactionStore';

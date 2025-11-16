@@ -16,7 +16,7 @@ import Animated, {
   withSequence,
   Easing,
 } from 'react-native-reanimated';
-import { useTheme } from '../hooks/useTheme';
+import { useTheme } from '@/shared/hooks/useTheme';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 

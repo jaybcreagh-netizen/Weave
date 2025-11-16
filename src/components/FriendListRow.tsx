@@ -14,9 +14,9 @@ import Animated, {
 
 import { useUIStore } from '../stores/uiStore';
 import { type Archetype, type RelationshipType } from './types';
-import { useTheme } from '../hooks/useTheme';
+import { useTheme } from '@/shared/hooks/useTheme';
 import { ArchetypeIcon } from './ArchetypeIcon';
-import { archetypeData } from '../lib/constants';
+import { archetypeData } from '@/shared/constants/constants';
 import FriendModel from '../db/models/Friend';
 import { useCardGesture } from '../context/CardGestureContext';
 import { calculateCurrentScore } from '../lib/weave-engine';

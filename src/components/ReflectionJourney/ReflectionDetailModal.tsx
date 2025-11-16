@@ -6,7 +6,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Modal, View, Text, TouchableOpacity, SafeAreaView, ScrollView, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { X, Edit3, Save, Calendar, TrendingUp, Plus, Users } from 'lucide-react-native';
-import { useTheme } from '../../hooks/useTheme';
+import { useTheme } from '@/shared/hooks/useTheme';
 import WeeklyReflection from '../../db/models/WeeklyReflection';
 import { database } from '../../db';
 import { STORY_CHIPS } from '../../lib/story-chips';
