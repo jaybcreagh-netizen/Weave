@@ -11,7 +11,7 @@ import UserProfile from '../db/models/UserProfile';
 import Friend from '../db/models/Friend';
 import { Suggestion } from '../types/suggestions';
 import { generateSuggestion } from './suggestion-engine';
-import { calculateCurrentScore } from './weave-engine';
+import { calculateCurrentScore } from '@/modules/intelligence/services/orchestrator.service';
 import Interaction from '../db/models/Interaction';
 import InteractionFriend from '../db/models/InteractionFriend';
 import { Q } from '@nozbe/watermelondb';

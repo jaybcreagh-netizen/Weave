@@ -21,7 +21,7 @@ import {
   getSeasonDisplayName,
 } from '../../../lib/social-season/season-content';
 import { SeasonCalculationInput, SocialSeason } from '../../../lib/social-season/season-types';
-import { calculateCurrentScore, calculateWeightedNetworkHealth } from '../../../lib/weave-engine';
+import { calculateCurrentScore, calculateWeightedNetworkHealth } from '@/modules/intelligence/services/orchestrator.service';
 import { database } from '../../../db';
 import Interaction from '../../../db/models/Interaction';
 import WeeklyReflection from '../../../db/models/WeeklyReflection';

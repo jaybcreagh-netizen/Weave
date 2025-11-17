@@ -1,6 +1,6 @@
 // src/modules/intelligence/services/decay.service.ts
 import type Friend from '@/db/models/Friend';
-import { TierDecayRates } from '@/shared/constants/constants';
+import { TierDecayRates } from '../constants';
 import { daysSince } from '@/shared/utils/date-utils';
 
 export function applyDecay(friend: Friend): number {

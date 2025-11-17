@@ -1,6 +1,6 @@
 import { Tier, Archetype } from '../components/types';
 import { InteractionCategory } from '../types/suggestions';
-import { calculateCurrentScore } from './weave-engine';
+import { calculateCurrentScore } from '@/modules/intelligence/services/orchestrator.service';
 import FriendModel from '../db/models/Friend';
 import { capturePortfolioSnapshot } from './trend-analyzer';
 

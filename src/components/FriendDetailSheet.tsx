@@ -18,7 +18,7 @@ import { CATEGORY_METADATA } from '@/shared/constants/interaction-categories';
 import { type InteractionCategory } from './types';
 import FriendModel from '../db/models/Friend';
 import { useFriendStore } from '../stores/friendStore';
-import { calculateCurrentScore } from '@/modules/intelligence/services/decay.service';
+import { calculateCurrentScore } from '@/modules/intelligence/services/orchestrator.service';
 import { getFriendMilestones, Milestone } from '../lib/milestone-tracker';
 
 // Helper: Get top interaction suggestions for an archetype

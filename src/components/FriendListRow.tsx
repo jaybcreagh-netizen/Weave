@@ -19,7 +19,7 @@ import { ArchetypeIcon } from './ArchetypeIcon';
 import { archetypeData } from '@/shared/constants/constants';
 import FriendModel from '../db/models/Friend';
 import { useCardGesture } from '../context/CardGestureContext';
-import { calculateCurrentScore } from '@/modules/intelligence/services/decay.service';
+import { calculateCurrentScore } from '@/modules/intelligence/services/orchestrator.service';
 import { generateIntelligentStatusLine } from '../lib/intelligent-status-line';
 import { normalizeContactImageUri } from '../lib/image-utils';
 import { statusLineCache } from '../lib/status-line-cache';

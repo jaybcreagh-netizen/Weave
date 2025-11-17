@@ -1,5 +1,5 @@
 import FriendModel from '../db/models/Friend';
-import { calculateCurrentScore } from './weave-engine';
+import { calculateCurrentScore } from '@/modules/intelligence/services/orchestrator.service';
 import { analyzeInteractionPattern, predictNextInteraction, type FriendshipPattern } from './pattern-analyzer';
 import { TierDecayRates } from '@/shared/constants/constants';
 import { Tier } from '../components/types';

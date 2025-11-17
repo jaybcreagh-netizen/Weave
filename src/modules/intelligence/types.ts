@@ -1,18 +1,18 @@
-import type { ScoreComponentsDTO } from '@/shared/types/dtos';
-
-export interface ScoringInput {
-  currentScore: number;
-  interactionQuality: number;
-  daysSinceLastInteraction: number;
-}
-
-export interface ScoringOutput extends ScoreComponentsDTO {
+export interface ScoreUpdate {
   friendId: string;
-  timestamp: Date;
+  scoreBefore: number;
+  scoreAfter: number;
+  pointsEarned: number;
 }
 
-export interface DecayParams {
-  baseScore: number;
-  daysSinceLastContact: number;
-  tier: number;
+export interface QualityMetrics {
+  depthScore: number;
+  energyScore: number;
+  overallQuality: number;
+}
+
+export interface DecayResult {
+  currentScore: number;
+  decayedAmount: number;
+  daysSinceUpdate: number;
 }

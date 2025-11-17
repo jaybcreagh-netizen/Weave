@@ -31,7 +31,7 @@ import { useUserProfileStore } from '../../../stores/userProfileStore';
 import { database } from '../../../db';
 import LifeEvent from '../../../db/models/LifeEvent';
 import { Q } from '@nozbe/watermelondb';
-import { calculateCurrentScore } from '../../../lib/weave-engine';
+import { calculateCurrentScore } from '@/modules/intelligence/services/orchestrator.service';
 import Interaction from '../../../db/models/Interaction';
 
 const WIDGET_CONFIG: HomeWidgetConfig = {

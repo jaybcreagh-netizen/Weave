@@ -1,6 +1,6 @@
 import { database } from '../db';
 import FriendModel from '../db/models/Friend';
-import { calculateCurrentScore } from './weave-engine';
+import { calculateCurrentScore } from '@/modules/intelligence/services/orchestrator.service';
 import Intention from '../db/models/Intention';
 import { Q } from '@nozbe/watermelondb';
 

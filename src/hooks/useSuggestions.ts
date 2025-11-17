@@ -5,7 +5,7 @@ import { database } from '../db';
 import { generateSuggestion } from '../lib/suggestion-engine';
 import { getDismissedSuggestions, dismissSuggestion as dismissSuggestionStorage } from '../lib/suggestion-storage';
 import { Suggestion } from '../types/suggestions';
-import { calculateCurrentScore } from '@/modules/intelligence/services/decay.service';
+import { calculateCurrentScore } from '@/modules/intelligence/services/orchestrator.service';
 import Interaction from '../db/models/Interaction';
 import InteractionFriend from '../db/models/InteractionFriend';
 import { trackSuggestionShown, trackSuggestionDismissed } from '../lib/suggestion-tracker';

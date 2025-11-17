@@ -3,7 +3,7 @@ import FriendModel from '../db/models/Friend';
 import InteractionModel from '../db/models/Interaction';
 import InteractionOutcome from '../db/models/InteractionOutcome';
 import { Q } from '@nozbe/watermelondb';
-import { calculateCurrentScore } from './weave-engine';
+import { calculateCurrentScore } from '@/modules/intelligence/services/orchestrator.service';
 import { InteractionCategory } from '../types/suggestions';
 import { TierDecayRates } from '@/shared/constants/constants';
 import { Tier } from '../components/types';

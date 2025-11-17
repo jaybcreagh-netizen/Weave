@@ -8,7 +8,7 @@ import {
   InteractionBaseScores,
   VibeMultipliers,
   ArchetypeMatrixV2,
-} from '@/shared/constants/constants';
+} from '../constants';
 import { daysSince } from '@/shared/utils/date-utils';
 import { getLearnedEffectiveness } from '@/lib/feedback-analyzer';
 import { calculateInteractionQuality } from '@/modules/intelligence';

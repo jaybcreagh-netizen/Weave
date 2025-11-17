@@ -3,7 +3,9 @@ import { database } from '../db';
 import { Q } from '@nozbe/watermelondb';
 import { Subscription } from 'rxjs';
 import FriendModel from '../db/models/Friend';
-import { logNewWeave, applyScoresForCompletedPlan } from '../lib/weave-engine';
+import { processWeaveScoring } from '@/modules/intelligence/services/orchestrator.service';
+import { checkAndAwardBadges, checkAndAwardGlobalAchievements } from '@/modules/gamification';
+import { trackEvent, AnalyticsEvents, updateLastInteractionTimestamp } from '../lib/analytics';
 import { type InteractionType, type InteractionCategory, type Duration, type Vibe } from '../components/types';
 import Interaction from '../db/models/Interaction';
 import InteractionFriend from '../db/models/InteractionFriend';
@@ -126,8 +128,49 @@ export const useInteractionStore = create<InteractionStore>((set, get) => ({
     const friends = await database.get<FriendModel>('friends').query(Q.where('id', Q.oneOf(data.friendIds))).fetch();
 
     if (friends.length > 0) {
-      // 2. Pass the full form data to the engine. The engine is the expert.
-      const { interactionId, badgeUnlocks, achievementUnlocks } = await logNewWeave(friends, data, database);
+      // 2. Create the interaction and then process scoring
+      const { interaction, badgeUnlocks, achievementUnlocks } = await database.write(async () => {
+        const newInteraction = await database.get<Interaction>('interactions').create(interaction => {
+          interaction.interactionDate = data.date;
+          interaction.interactionType = data.type;
+          interaction.activity = data.activity;
+          interaction.status = data.status;
+          interaction.mode = data.mode;
+          interaction.note = data.notes;
+          interaction.vibe = data.vibe;
+          interaction.duration = data.duration;
+          if (data.category) {
+            interaction.interactionCategory = data.category;
+          }
+          if (data.reflection) {
+            interaction.reflectionJSON = JSON.stringify(data.reflection);
+          }
+        });
+
+        await processWeaveScoring(friends, data, database);
+
+        const allBadgeUnlocks = [];
+        for (const friend of friends) {
+            const { newBadges } = await checkAndAwardBadges(friend.id);
+            allBadgeUnlocks.push(...newBadges);
+        }
+
+        const allAchievementUnlocks = await checkAndAwardGlobalAchievements();
+
+        trackEvent(AnalyticsEvents.INTERACTION_LOGGED, {
+            activity: data.activity,
+            category: data.category,
+            duration: data.duration,
+            vibe: data.vibe,
+            friends_count: friends.length,
+            has_notes: !!data.notes,
+            has_reflection: !!data.reflection,
+        });
+        updateLastInteractionTimestamp();
+
+        return { interaction: newInteraction, badgeUnlocks: allBadgeUnlocks, achievementUnlocks: allAchievementUnlocks };
+      });
+      const interactionId = interaction.id;
 
       // 3. Record chip usage for adaptive suggestions (if reflection chips exist)
       if (data.reflection?.chips && data.reflection.chips.length > 0) {
@@ -297,16 +340,34 @@ export const useInteractionStore = create<InteractionStore>((set, get) => ({
     }
   },
   confirmPlan: async (interactionId: string) => {
+    const interaction = await database.get<Interaction>('interactions').find(interactionId);
     // 1. Update status to completed
     await database.write(async () => {
-      const interaction = await database.get<Interaction>('interactions').find(interactionId);
       await interaction.update(i => {
         i.status = 'completed';
       });
     });
 
     // 2. Apply weave scores retroactively
-    await applyScoresForCompletedPlan(interactionId, database);
+    const interactionFriends = await database.get<InteractionFriend>('interaction_friends').query(Q.where('interaction_id', interactionId)).fetch();
+    const friendIds = interactionFriends.map(ifriend => ifriend.friendId);
+    const friends = await database.get<FriendModel>('friends').query(Q.where('id', Q.oneOf(friendIds))).fetch();
+
+    const interactionData = {
+      friendIds: friendIds,
+      activity: interaction.activity,
+      notes: interaction.note,
+      date: interaction.interactionDate,
+      type: 'log',
+      status: 'completed',
+      mode: interaction.mode,
+      vibe: interaction.vibe,
+      duration: interaction.duration,
+      category: interaction.interactionCategory,
+      reflection: interaction.reflectionJSON ? JSON.parse(interaction.reflectionJSON) : undefined,
+    } as InteractionFormData;
+
+    await processWeaveScoring(friends, interactionData, database);
 
     // 3. Record practice for milestone tracking
     const newMilestoneIds = await recordPractice('log_weave', interactionId);
@@ -456,7 +517,25 @@ export const useInteractionStore = create<InteractionStore>((set, get) => ({
 
     // Apply weave scores if transitioning from planned/pending_confirm to completed
     if (status === 'completed' && (previousStatus === 'planned' || previousStatus === 'pending_confirm')) {
-      await applyScoresForCompletedPlan(interactionId, database);
+        const interactionFriends = await database.get<InteractionFriend>('interaction_friends').query(Q.where('interaction_id', interactionId)).fetch();
+        const friendIds = interactionFriends.map(ifriend => ifriend.friendId);
+        const friends = await database.get<FriendModel>('friends').query(Q.where('id', Q.oneOf(friendIds))).fetch();
+
+        const interactionData = {
+            friendIds: friendIds,
+            activity: interaction.activity,
+            notes: interaction.note,
+            date: interaction.interactionDate,
+            type: 'log',
+            status: 'completed',
+            mode: interaction.mode,
+            vibe: interaction.vibe,
+            duration: interaction.duration,
+            category: interaction.interactionCategory,
+            reflection: interaction.reflectionJSON ? JSON.parse(interaction.reflectionJSON) : undefined,
+        } as InteractionFormData;
+
+        await processWeaveScoring(friends, interactionData, database);
 
       // Record practice for milestone tracking
       const newMilestoneIds = await recordPractice('log_weave', interactionId);

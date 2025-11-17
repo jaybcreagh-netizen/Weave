@@ -10,7 +10,7 @@ import UserProgress from '../db/models/UserProgress';
 import Friend from '../db/models/Friend';
 import { Q } from '@nozbe/watermelondb';
 import { CONSISTENCY_MILESTONES } from './milestone-tracker';
-import { calculateCurrentScore } from './weave-engine';
+import { calculateCurrentScore } from '@/modules/intelligence/services/orchestrator.service';
 
 /**
  * @interface GlobalAchievement
