@@ -7,7 +7,7 @@ import * as Haptics from 'expo-haptics';
 
 import { type Archetype, type InteractionCategory } from './types';
 import { archetypeData, CategoryArchetypeMatrix } from '@/shared/constants/constants';
-import { CATEGORY_METADATA } from '../lib/interaction-categories';
+import { CATEGORY_METADATA } from '@/shared/constants/interaction-categories';
 import { useTheme } from '@/shared/hooks/useTheme';
 
 // Import SVG files as components

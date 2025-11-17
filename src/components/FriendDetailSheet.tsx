@@ -14,7 +14,7 @@ import { format } from 'date-fns';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { ArchetypeIcon } from './ArchetypeIcon';
 import { archetypeData, CategoryArchetypeMatrix } from '@/shared/constants/constants';
-import { CATEGORY_METADATA } from '../lib/interaction-categories';
+import { CATEGORY_METADATA } from '@/shared/constants/interaction-categories';
 import { type InteractionCategory } from './types';
 import FriendModel from '../db/models/Friend';
 import { useFriendStore } from '../stores/friendStore';

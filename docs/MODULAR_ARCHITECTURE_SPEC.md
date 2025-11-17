@@ -1,10 +1,9 @@
 # Weave Modular Architecture Refactor - Technical Specification
 
-**Version:** 2.0
+**Version:** 1.0
 **Date:** 2025-11-16
-**Status:** Planning Phase - Ready for Implementation
+**Status:** Planning Phase
 **Author:** Architecture Review
-**Reviewed By:** Claude Code (Critical Issues Addressed)
 
 ---
 
@@ -17,7 +16,7 @@ This document outlines a comprehensive plan to refactor Weave from a monolithic 
 - **9 Zustand stores** to be module-scoped
 - **16 custom hooks** to be distributed to appropriate modules
 - **99+ components** to be organized by feature
-- **Estimated Timeline:** 12-16 weeks (conservative estimate for solo developer)
+- **Estimated Timeline:** 8-10 weeks
 - **Risk Level:** Medium (with careful phased approach)
 
 ---
@@ -144,27 +143,6 @@ Files with related functionality are scattered:
 - `lib/weaving-insights.ts`
 - And more...
 
-#### Problem 5: Business Logic in Database Models
-
-Database models currently contain business logic mixed with data access:
-
-```typescript
-// db/models/Friend.ts
-@lazy currentScore = this.observe('weave_score').pipe(
-  map(() => calculateCurrentScore(this))  // Imports from lib/
-);
-
-async checkAndMarkDormant() {
-  // Business logic in model...
-}
-```
-
-**Impact:**
-- Models import from `lib/` → Circular dependency risks
-- Logic is hidden → Not discoverable in module services
-- Hard to test → Requires database mocks
-- Violates separation of concerns → Models should only persist data
-
 ### 1.3 Current Dependencies
 
 **Store Dependencies:**
@@ -194,7 +172,6 @@ Lib files → Other lib files (uncontrolled ✗)
 3. **Explicit Dependencies**: Modules communicate through well-defined public APIs
 4. **Single Responsibility**: Each module owns one business domain
 5. **Dependency Inversion**: Modules depend on abstractions, not concrete implementations
-6. **Event-Driven Communication**: Modules publish domain events for side effects; other modules subscribe as needed to avoid tight coupling
 
 ### 2.2 New Structure
 
@@ -304,58 +281,22 @@ module/
   │   └── use*.ts          # Custom hooks wrapping services/stores
   │
   ├── services/            # Domain Logic Layer
-  │   └── *.service.ts     # Pure business logic (no React, no state)
+  │   └── *.service.ts     # Pure business logic (no React)
   │
   ├── store.ts             # Application State Layer
-  │                        # Zustand store (UI state only, orchestrates services)
+  │                        # Zustand store (orchestrates services)
   │
   ├── types.ts             # Module-specific types
   ├── constants.ts         # Module-specific constants
   └── index.ts             # Public API (ONLY way to access module)
 ```
 
-**Layer Responsibilities:**
-
-**Services:**
-- Pure business logic (scoring, validation, calculations)
-- No React dependencies (can run in Node.js, browser, React Native)
-- Async operations (database, network)
-- Stateless - accept parameters, return results
-- Highly testable with unit tests
-
-**Stores (Zustand):**
-- **UI state only** (loading flags, modal visibility, form state)
-- Orchestrate service calls
-- Subscribe to WatermelonDB observables for reactive data
-- Should NOT duplicate database state
-- Cache transient data (search results, filters)
-
-**Example:**
-```typescript
-// ✅ Service - Pure logic
-export async function calculateBadgesToAward(input: BadgeInput): Promise<string[]> {
-  // Pure calculation, no state
-}
-
-// ✅ Store - UI state + orchestration
-export const useGamificationStore = create((set) => ({
-  isUnlockModalOpen: false,  // UI state
-  unlockedBadges: [],        // Transient cache
-
-  checkBadges: async (friendId: string) => {
-    const badges = await calculateBadgesToAward(friendId);  // Call service
-    set({ unlockedBadges: badges, isUnlockModalOpen: badges.length > 0 });
-  }
-}));
-```
-
 **Dependency Rules:**
 ```
 Components → Hooks
 Hooks → Services + Stores
-Services → Database + Other Services (same module) + DTOs from other modules
+Services → Database + Other Services (same module)
 Stores → Services
-Events → Any module can publish/subscribe
 
 Cross-Module:
 Module A → Module B's index.ts ONLY
@@ -447,15 +388,10 @@ export { PlanWizard } from './components/PlanWizard';
 
 **Dependencies:**
 - `db/models/Interaction`
-- `modules/intelligence` (for core scoring logic)
-- `modules/relationships` (for friend data)
-- `shared/events` (publishes events for side effects)
-
-**Publishes Events:**
-- `weave:logged` - When interaction is created (consumed by gamification, insights, notifications)
-- `plan:created` - When plan is scheduled
-- `plan:completed` - When plan is marked done
-- `plan:missed` - When plan deadline passes
+- `modules/intelligence` (to trigger scoring)
+- `modules/gamification` (to trigger achievements)
+- `modules/insights` (to capture patterns)
+- `modules/notifications` (to schedule reminders)
 
 ---
 
@@ -482,159 +418,32 @@ services/
 
 **Public API:**
 ```typescript
-// Types (DTOs - plain objects, no database models)
-export type {
-  FriendScoringInput,
-  InteractionScoringInput,
-  RecentActivityInput,
-  ScoreResult,
-  DecayResult,
-  QualityMetrics,
-  MomentumState
-} from './types';
-
-// Services (pure functions accepting DTOs)
-export { calculateInteractionPoints } from './services/scoring.service';
-export { applyDecay, getCurrentScore } from './services/decay.service';
+// Services
+export { calculateScore } from './services/scoring.service';
+export { applyDecay } from './services/decay.service';
 export { calculateQuality } from './services/quality.service';
-export { calculateMomentumBonus, updateMomentum } from './services/momentum.service';
-export { updateResilience } from './services/resilience.service';
+export { updateMomentum } from './services/momentum.service';
+
+// Main orchestration
+export { processWeaveScoring } from './services/orchestrator.service';
+
+// Types
+export type { ScoreUpdate, QualityMetrics, MomentumState } from './types';
 
 // Constants
 export {
-  TIER_DECAY_RATES,
-  DURATION_MODIFIERS,
-  VIBE_MULTIPLIERS,
-  INTERACTION_SCORES,
-  ARCHETYPE_AFFINITY_MATRIX
+  TierDecayRates,
+  DurationModifiers,
+  VibeMultipliers
 } from './constants';
 ```
 
 **Dependencies:**
-- `shared/types` (for Tier, Archetype, Duration, Vibe enums)
-- `shared/constants` (if needed)
+- `db/models/Friend`
+- `db/models/Interaction`
+- `shared/utils`
 
-**NO dependencies on:**
-- ❌ `db/models` (uses DTOs instead)
-- ❌ Other modules
-- ❌ React
-- ❌ WatermelonDB
-
-**Note:** This is the **CORE** module. It contains **pure business logic** with zero side effects. Other modules depend on it, but it depends on NO other modules (except shared). All functions accept DTOs (plain objects) as parameters, making them:
-- Testable without database
-- Portable across platforms
-- Reusable (could extract to `@weave/scoring` package)
-
-### 3.3.1 Data Transfer Objects (DTOs)
-
-The Intelligence module uses DTOs to maintain independence from database models.
-
-**Why DTOs?**
-- **Testable** - No database required for unit tests
-- **Portable** - Works in Node.js, browser, React Native, or any JavaScript environment
-- **No hidden dependencies** - Explicit inputs/outputs
-- **Future-proof** - Can extract to standalone npm package
-- **Performance** - Pure functions with no I/O
-
-**DTO Examples:**
-
-```typescript
-// modules/intelligence/types.ts
-
-/** Input for scoring calculations - plain object, no database model */
-export interface FriendScoringInput {
-  tier: Tier;
-  archetype: Archetype;
-  weaveScore: number;
-  lastUpdated: Date;
-  resilience: number;
-  momentumScore: number;
-  momentumLastUpdated: Date | null;
-}
-
-export interface InteractionScoringInput {
-  type: InteractionType;
-  duration: Duration;
-  vibe: Vibe;
-  quality?: number;
-}
-
-export interface ScoreResult {
-  pointsEarned: number;
-  newScore: number;
-  decayApplied: number;
-  momentumBonus: number;
-  qualityMultiplier: number;
-}
-```
-
-**Service Using DTOs:**
-
-```typescript
-// modules/intelligence/services/scoring.service.ts
-import { FriendScoringInput, InteractionScoringInput, ScoreResult } from '../types';
-
-// ✅ Pure function - accepts DTOs, returns DTO
-export function calculateInteractionPoints(
-  friend: FriendScoringInput,  // DTO, not database model
-  interaction: InteractionScoringInput,  // DTO, not database model
-  recentActivity: RecentActivityInput
-): ScoreResult {
-  const baseScore = INTERACTION_SCORES[interaction.type] || 10;
-  const affinityMultiplier = getAffinityMultiplier(friend.archetype, interaction.type);
-  const durationMultiplier = DURATION_MODIFIERS[interaction.duration] || 1.0;
-
-  const points = baseScore * affinityMultiplier * durationMultiplier;
-
-  return {
-    pointsEarned: points,
-    newScore: Math.min(100, friend.weaveScore + points),
-    decayApplied: 0,
-    momentumBonus: 0,
-    qualityMultiplier: affinityMultiplier * durationMultiplier
-  };
-}
-```
-
-**Calling Module Converts Models → DTOs:**
-
-```typescript
-// modules/interactions/services/weave-logging.service.ts
-import { calculateInteractionPoints } from '@/modules/intelligence';
-import type { FriendScoringInput } from '@/modules/intelligence';
-
-export async function logWeave(data: InteractionFormData) {
-  const friends = await database.get('friends').query(...).fetch();
-
-  for (const friend of friends) {
-    // Convert database model → DTO
-    const friendInput: FriendScoringInput = {
-      tier: friend.tier,
-      archetype: friend.archetype,
-      weaveScore: friend.weaveScore,
-      lastUpdated: friend.lastUpdated,
-      resilience: friend.resilience,
-      momentumScore: friend.momentumScore,
-      momentumLastUpdated: friend.momentumLastUpdated
-    };
-
-    // Call Intelligence service with DTO
-    const result = calculateInteractionPoints(friendInput, interactionInput, activityInput);
-
-    // Apply result to database
-    await friend.update(f => {
-      f.weaveScore = result.newScore;
-      f.lastUpdated = new Date();
-    });
-  }
-}
-```
-
-**Conversion Responsibility:**
-- **Calling modules** (Interactions, Relationships) fetch database models
-- **Calling modules** convert models → DTOs
-- **Intelligence module** processes DTOs (pure logic)
-- **Calling modules** convert results → database updates
+**Note:** This is the **CORE** module. Other modules depend on it, but it should depend on NO other modules (except shared).
 
 ---
 
@@ -745,14 +554,7 @@ export { BadgeUnlockModal } from './components/BadgeUnlockModal';
 **Dependencies:**
 - `db/models` (FriendBadge, AchievementUnlock)
 - `modules/relationships` (for friend data)
-- `shared/events` (subscribes to weave:logged)
-
-**Subscribes to Events:**
-- `weave:logged` → Check and award friend badges
-- `weave:logged` → Check and award global achievements
-- `plan:completed` → Award consistency badges
-
-**Note:** Gamification does NOT directly import from Interactions module. It reacts to events to avoid circular dependencies.
+- `modules/interactions` (for interaction data)
 
 ---
 
@@ -983,113 +785,9 @@ For each module:
 
 ## 5. Implementation Phases
 
-### Phase 0.5: Database Model Cleanup (Week 0.5)
-
-**Goal:** Remove business logic from database models
-
-**Why First?**
-- Models currently import from `lib/` → circular dependencies
-- Models have computed properties with logic (@lazy decorators)
-- Models have business methods (checkAndMarkDormant(), etc.)
-- Must clean this up before modules can depend on clean models
-
-**Current Problems:**
-
-```typescript
-// db/models/Friend.ts (BEFORE - BAD)
-import { calculateCurrentScore } from '../../lib/weave-engine';  // ❌ Imports from lib
-
-@lazy currentScore = this.observe('weave_score').pipe(
-  map(() => calculateCurrentScore(this))  // ❌ Business logic in model
-);
-
-async checkAndMarkDormant() {  // ❌ Business method in model
-  const daysSince = (Date.now() - this.lastUpdated.getTime()) / 86400000;
-  if (daysSince > 60) {
-    await this.update(f => { f.isDormant = true; });
-  }
-}
-```
-
-**Tasks:**
-
-1. **Audit all models for business logic:**
-   ```bash
-   # Find models with imports from lib/
-   grep -r "from.*lib/" src/db/models/
-
-   # Find models with @lazy decorators (likely have logic)
-   grep -r "@lazy" src/db/models/
-
-   # Find models with methods (beyond simple getters)
-   grep -r "async.*(" src/db/models/
-   ```
-
-2. **Clean up Friend model:**
-   ```typescript
-   // db/models/Friend.ts (AFTER - GOOD)
-   import { Model, Query } from '@nozbe/watermelondb';
-   import { field, date, children } from '@nozbe/watermelondb/decorators';
-
-   export class Friend extends Model {
-     static table = 'friends';
-
-     // ✅ Just data fields
-     @field('name') name!: string;
-     @field('tier') tier!: string;
-     @field('archetype') archetype!: string;
-     @field('weave_score') weaveScore!: number;
-     @field('last_updated') lastUpdated!: Date;
-     @field('resilience') resilience!: number;
-     @field('is_dormant') isDormant!: boolean;
-
-     // ✅ Relations are OK
-     @children('interactions') interactions!: Query<Interaction>;
-
-     // ✅ Timestamps
-     @readonly @date('created_at') createdAt!: Date;
-     @readonly @date('updated_at') updatedAt!: Date;
-
-     // ❌ NO @lazy decorators with calculations
-     // ❌ NO business methods
-     // ❌ NO imports from lib/
-   }
-   ```
-
-3. **Move logic to appropriate modules:**
-   - `@lazy currentScore` → `modules/intelligence/services/decay.service.ts::getCurrentScore()`
-   - `@lazy isAtRisk` → `modules/relationships/services/friend.service.ts::isFriendAtRisk()`
-   - `checkAndMarkDormant()` → `modules/relationships/services/lifecycle.service.ts::checkAndApplyDormancy()`
-
-4. **Update components to call services:**
-   ```typescript
-   // BEFORE
-   const score = friend.currentScore;  // ❌ Using model property
-
-   // AFTER
-   import { getCurrentScore } from '@/modules/intelligence';
-   const score = getCurrentScore(friend);  // ✅ Calling service
-   ```
-
-5. **Clean up Interaction model** (similar process)
-
-6. **Clean up other models** (JournalEntry, etc.)
-
-**Deliverables:**
-- [ ] All database models are pure data (no logic)
-- [ ] All imports from `lib/` removed from models
-- [ ] All `@lazy` computed properties with logic removed
-- [ ] All business methods moved to module services
-- [ ] Components updated to call services instead of model methods
-- [ ] All tests passing
-
-**Time Estimate:** 2-3 days
-
----
-
 ### Phase 1: Foundation (Week 1-2)
 
-**Goal:** Set up module infrastructure and event bus
+**Goal:** Set up module infrastructure
 
 **Tasks:**
 1. Create `src/modules/` directory
@@ -1097,49 +795,18 @@ async checkAndMarkDormant() {  // ❌ Business method in model
 3. Move shared utilities to `shared/utils/`
 4. Move shared types to `shared/types/`
 5. Move shared constants to `shared/constants/`
-6. **Create `shared/events/event-bus.ts`** (for cross-module communication):
-   ```typescript
-   // shared/events/event-bus.ts
-   type EventHandler = (data: any) => void | Promise<void>;
-
-   class EventBus {
-     private handlers: Map<string, EventHandler[]> = new Map();
-
-     on(event: string, handler: EventHandler) {
-       if (!this.handlers.has(event)) {
-         this.handlers.set(event, []);
-       }
-       this.handlers.get(event)!.push(handler);
-     }
-
-     async emit(event: string, data: any) {
-       const handlers = this.handlers.get(event) || [];
-       await Promise.all(handlers.map(h => h(data)));
-     }
-
-     off(event: string, handler: EventHandler) {
-       const handlers = this.handlers.get(event) || [];
-       this.handlers.set(event, handlers.filter(h => h !== handler));
-     }
-   }
-
-   export const eventBus = new EventBus();
-   export type { EventHandler };
-   ```
-7. Create module template/boilerplate
-8. Update TypeScript path aliases (`@/modules/*`, `@/shared/*`, etc.)
+6. Create module template/boilerplate
+7. Update TypeScript path aliases
 
 **Deliverables:**
 - [ ] Module directory structure exists
 - [ ] Shared module is functional
-- [ ] Event bus implemented and tested
 - [ ] Path aliases configured
 - [ ] Template README for modules created
 
 **Testing:**
 - Verify app still runs
 - No import errors
-- Event bus works (simple test: emit/subscribe)
 
 ---
 
@@ -1435,25 +1102,13 @@ async checkAndMarkDormant() {  // ❌ Business method in model
 7. Create `hooks/useInteractions.ts`
 8. Create `hooks/usePlans.ts`
 9. Move components: `QuickWeaveOverlay.tsx`, `PlanWizard.tsx`, etc.
-10. Wire up dependencies using **event-driven architecture**:
+10. Wire up dependencies:
     ```typescript
     // Inside weave-logging.service.ts
-    import { calculateInteractionPoints } from '@/modules/intelligence';  // Direct dependency - core logic
-    import { eventBus } from '@/shared/events';  // For side effects
-
-    export async function logWeave(data: InteractionFormData) {
-      const interaction = await createInteractionRecord(data);
-      const scoreUpdates = await processWeaveScoring(data);  // Intelligence module
-
-      // Publish event - other modules subscribe
-      await eventBus.emit('weave:logged', {
-        interaction,
-        scoreUpdates,
-        friendIds: data.friendIds
-      });
-
-      return interaction;
-    }
+    import { processWeaveScoring } from '@/modules/intelligence';
+    import { checkFriendBadges } from '@/modules/gamification';
+    import { trackInitiation } from '@/modules/insights';
+    import { scheduleReminder } from '@/modules/notifications';
     ```
 11. Create `index.ts`
 12. Update all imports
@@ -1581,129 +1236,25 @@ async checkAndMarkDormant() {  // ❌ Business method in model
 
 **Module Dependency Matrix:**
 
-| Module         | Direct Imports Allowed                    | Gets Data Via                    |
-|----------------|------------------------------------------|----------------------------------|
-| **shared**     | (none)                                   | -                                |
-| **intelligence** | shared                                   | DTOs passed as parameters        |
-| **relationships** | shared, intelligence                     | Database, Intelligence DTOs      |
-| **interactions** | shared, intelligence, relationships      | Database, other modules          |
-| **gamification** | shared, relationships                    | Database, **events**             |
-| **insights**   | shared, relationships                    | Database, **events**             |
-| **reflection** | shared, relationships                    | Database, **events**             |
-| **notifications** | shared                                   | Database, **events**             |
-| **auth**       | shared, (all modules for sync)           | Database, all modules            |
-
-**Key Rules:**
-
-1. ✅ **Interactions** can directly import from Intelligence and Relationships
-2. ❌ **Gamification CANNOT** directly import from Interactions (circular dependency risk)
-3. ✅ **Gamification** reacts to `weave:logged` event from Interactions
-4. ✅ **All modules** can query database directly (no need to go through other modules)
-5. ❌ **Never import upward** in the dependency chain (see diagram below)
-6. ✅ **Intelligence** accepts DTOs only (no database models as parameters)
-
-### 6.1.1 Dependency Flow Diagram
-
-```
-┌─────────────┐
-│   shared    │  ← Lowest level (utilities, types, constants)
-└──────┬──────┘
-       │
-┌──────▼──────────┐
-│  intelligence   │  ← Pure scoring logic (DTOs only, no modules)
-└──────┬──────────┘
-       │
-┌──────▼──────────┐
-│ relationships   │  ← Friend management
-└──────┬──────────┘
-       │
-┌──────▼──────────┐
-│  interactions   │  ← Weave logging (HIGH LEVEL - orchestrates)
-└─────────────────┘
-       │
-       │ (publishes events)
-       │
-       ▼
-┌────────────────────────────────────────┐
-│  gamification, insights, notifications │  ← React to events (peer modules)
-└────────────────────────────────────────┘
-```
-
-**Arrows point UP** = "can import from"
-- Modules lower in the diagram can import from modules above
-- Modules at the same level (gamification, insights, notifications) communicate via **events**, NOT direct imports
-- Never import "downward" or "sideways" without events
+| Module         | Can Import From                                    |
+|----------------|---------------------------------------------------|
+| shared         | (none - lowest level)                             |
+| intelligence   | shared, db                                        |
+| gamification   | shared, db, relationships, interactions           |
+| relationships  | shared, db, intelligence                          |
+| interactions   | shared, db, intelligence, relationships           |
+| insights       | shared, db, intelligence, relationships, interactions |
+| reflection     | shared, db, relationships, interactions           |
+| notifications  | shared, db, interactions                          |
+| auth           | shared, db, (all modules for sync)                |
 
 ### 6.2 Preventing Circular Dependencies
 
 **Rules:**
 1. Modules can only import from a module's `index.ts` (public API)
-2. Never import `../` from inside a module (use absolute paths with `@/`)
-3. Dependencies flow in ONE direction (see diagram in 6.1.1)
-4. If two modules at same level need to communicate, use **events**
-5. Use **ESLint rules** to enforce boundaries (see Section 11.2)
-
-**Example: Avoiding Gamification ↔ Interactions Circular Dependency**
-
-❌ **WRONG:**
-```typescript
-// modules/gamification/services/badge.service.ts
-import { getRecentInteractions } from '@/modules/interactions';  // ❌ Circular dependency!
-
-export async function checkStreakBadge(friendId: string) {
-  const recent = await getRecentInteractions(friendId, 7);  // Importing from Interactions
-  if (recent.length >= 7) {
-    await awardBadge(friendId, 'streak_7_day');
-  }
-}
-```
-
-✅ **RIGHT (Option 1): Query database directly**
-```typescript
-// modules/gamification/services/badge.service.ts
-import { database } from '@/db';
-import { Q } from '@nozbe/watermelondb';
-
-export async function checkStreakBadge(friendId: string) {
-  // Query database directly - no dependency on Interactions module
-  const recentCount = await database.get('interactions')
-    .query(
-      Q.where('friend_id', friendId),
-      Q.where('created_at', Q.gt(Date.now() - 7 * 86400000))
-    )
-    .fetchCount();
-
-  if (recentCount >= 7) {
-    await awardBadge(friendId, 'streak_7_day');
-  }
-}
-```
-
-✅ **RIGHT (Option 2): React to events**
-```typescript
-// modules/gamification/index.ts (module initialization)
-import { eventBus } from '@/shared/events';
-import { checkStreakBadge } from './services/badge.service';
-
-// Subscribe to event - no import from Interactions module
-eventBus.on('weave:logged', async ({ friendId }) => {
-  await checkStreakBadge(friendId);
-});
-```
-
-**Automated Enforcement:**
-
-Add to `.eslintrc.js`:
-```javascript
-'no-restricted-imports': ['error', {
-  patterns: [
-    {
-      group: ['**/interactions/**'],
-      message: 'Gamification cannot import from Interactions. Use events or database queries.'
-    }
-  ]
-}]
-```
+2. Never import `../` from inside a module (use absolute paths)
+3. If two modules need to talk, one must depend on the other (choose based on business logic)
+4. Use **dependency inversion** if needed (events, callbacks)
 
 **Example: Interactions → Intelligence**
 
@@ -1739,168 +1290,39 @@ export function calculateInteractionPoints(
 
 ### 6.3 Cross-Module Communication Patterns
 
-**Pattern 1: Direct Dependency (For Core Logic)**
-
-Use when Module A's **primary responsibility** requires Module B.
-
-**Example:** Interactions → Intelligence (scoring is core to logging a weave)
-
+**Pattern 1: Direct Dependency (Preferred)**
 ```typescript
-// modules/interactions/services/weave-logging.service.ts
-import { calculateInteractionPoints } from '@/modules/intelligence';
-
-export async function logWeave(data: InteractionFormData) {
-  const interaction = await createInteractionRecord(data);
-
-  // Direct dependency - scoring is core logic
-  const scoreResult = calculateInteractionPoints(friendInput, interactionInput);
-
-  await updateFriendScore(scoreResult);
-  return interaction;
-}
+// interactions module calls intelligence module
+import { processWeaveScoring } from '@/modules/intelligence';
+await processWeaveScoring(...);
 ```
 
-**When to use:**
-- Module A cannot function without Module B
-- The relationship is part of the core domain logic
-- Module B is "lower" in dependency hierarchy
-
----
-
-**Pattern 2: Event Bus (For Side Effects)**
-
-Use when Module A's action triggers **optional side effects** in other modules.
-
-**Implementation:**
-
+**Pattern 2: Callback Pattern (For Notifications)**
 ```typescript
-// shared/events/event-bus.ts
-type EventHandler = (data: any) => void | Promise<void>;
-
-class EventBus {
-  private handlers: Map<string, EventHandler[]> = new Map();
-
-  on(event: string, handler: EventHandler) {
-    if (!this.handlers.has(event)) {
-      this.handlers.set(event, []);
-    }
-    this.handlers.get(event)!.push(handler);
-  }
-
-  async emit(event: string, data: any) {
-    const handlers = this.handlers.get(event) || [];
-    await Promise.all(handlers.map(h => h(data)));
-  }
-
-  off(event: string, handler: EventHandler) {
-    const handlers = this.handlers.get(event) || [];
-    this.handlers.set(event, handlers.filter(h => h !== handler));
-  }
-}
-
-export const eventBus = new EventBus();
-```
-
-**Example:** Interactions publishes, Gamification/Insights/Notifications subscribe
-
-```typescript
-// modules/interactions/services/weave-logging.service.ts
-import { eventBus } from '@/shared/events';
-
-export async function logWeave(data: InteractionFormData) {
-  const interaction = await createInteractionRecord(data);
-  const scoreUpdates = await processWeaveScoring(data);
-
-  // Publish event - don't know/care who subscribes
-  await eventBus.emit('weave:logged', {
-    interaction,
-    scoreUpdates,
-    friendIds: data.friendIds,
-    interactionData: data
-  });
-
-  return interaction;
-}
-```
-
-```typescript
-// modules/gamification/index.ts (module initialization)
-import { eventBus } from '@/shared/events';
-import { checkFriendBadges } from './services/badge.service';
-
-eventBus.on('weave:logged', async ({ friendIds }) => {
-  await checkFriendBadges(friendIds);
-});
-```
-
-```typescript
-// modules/insights/index.ts
-import { eventBus } from '@/shared/events';
-import { analyzePattern, trackInitiation } from './services';
-
-eventBus.on('weave:logged', async ({ interaction, interactionData }) => {
-  await analyzePattern(interaction);
-  await trackInitiation(interactionData);
-});
-```
-
-```typescript
-// modules/notifications/index.ts
-import { eventBus } from '@/shared/events';
-import { scheduleReminder } from './services/scheduler.service';
-
-eventBus.on('weave:logged', async ({ interaction }) => {
-  if (interaction.scheduledFor) {
-    await scheduleReminder(interaction);
-  }
-});
-```
-
-**When to use:**
-- Multiple modules need to react to an action
-- Reactions are side effects, not core logic
-- You want to add/remove features without changing the publisher
-- Modules are at same level in dependency hierarchy
-
-**Benefits:**
-- **Decoupling** - Interactions doesn't know about Gamification
-- **Extensibility** - Add new subscriber without touching publisher
-- **Testability** - Test Interactions without mocking 4 modules
-- **Feature flags** - Disable gamification by not subscribing
-
----
-
-**Pattern 3: Callback Pattern (Rare)**
-
-Use only when you need **synchronous notification** AND event bus doesn't fit.
-
-```typescript
+// intelligence module accepts callbacks
 export async function processWeaveScoring(
   data: InteractionFormData,
   callbacks?: {
     onScoreUpdated?: (update: ScoreUpdate) => void;
+    onBadgeUnlocked?: (badge: Badge) => void;
   }
-) {
-  const update = calculateUpdate(data);
-  callbacks?.onScoreUpdated?.(update);  // Synchronous callback
-  return update;
-}
+)
 ```
 
-**When to use:**
-- Need synchronous execution (rare)
-- Caller needs to handle result immediately
-- Not suitable for event bus (very rare)
+**Pattern 3: Event Bus (Last Resort)**
+```typescript
+// shared/events/bus.ts
+export const eventBus = {
+  emit(event: string, data: any) { ... },
+  on(event: string, handler: Function) { ... }
+};
 
----
+// Module A
+eventBus.emit('weave:logged', { interactionId });
 
-**Summary:**
-
-| Pattern | Use Case | Example |
-|---------|----------|---------|
-| **Direct Dependency** | Core logic | Interactions → Intelligence |
-| **Event Bus** | Side effects, fan-out | Interactions publishes, Gamification/Insights subscribe |
-| **Callbacks** | Synchronous notification (rare) | Progress updates |
+// Module B
+eventBus.on('weave:logged', (data) => { ... });
+```
 
 ---
 
@@ -1949,246 +1371,12 @@ describe('Logging a Weave', () => {
 });
 ```
 
-### 7.1.4 Testability Patterns
-
-**Challenge:** How to test services that access the database without slow integration tests?
-
-**Pattern 1: Pure Functions with DTOs (Preferred)**
-
-Extract business logic into pure functions that accept plain objects.
-
-**Example:**
-
-```typescript
-// modules/gamification/services/badge.service.ts
-
-/**
- * Pure function - calculates which badges to award
- * NO database access, NO async, NO side effects
- */
-export function calculateBadgesToAward(input: {
-  interactionCount: number;
-  consecutiveDays: number;
-  currentBadges: string[];
-}): string[] {
-  const badgesToAward: string[] = [];
-
-  // Social Butterfly: 10+ interactions
-  if (input.interactionCount >= 10 && !input.currentBadges.includes('social_butterfly')) {
-    badgesToAward.push('social_butterfly');
-  }
-
-  // Consistency: 7+ consecutive days
-  if (input.consecutiveDays >= 7 && !input.currentBadges.includes('consistent_7')) {
-    badgesToAward.push('consistent_7');
-  }
-
-  return badgesToAward;
-}
-
-/**
- * Orchestrator - handles I/O (database, async)
- */
-export async function checkAndAwardBadges(friendId: string): Promise<BadgeUnlock[]> {
-  // 1. Fetch data from database
-  const interactionCount = await database.get('interactions')
-    .query(Q.where('friend_id', friendId))
-    .fetchCount();
-
-  const currentBadges = await database.get('friend_badges')
-    .query(Q.where('friend_id', friendId))
-    .fetch();
-
-  // 2. Call pure function (testable!)
-  const badgesToAward = calculateBadgesToAward({
-    interactionCount,
-    consecutiveDays: 0,  // TODO: calculate
-    currentBadges: currentBadges.map(b => b.badgeId)
-  });
-
-  // 3. Save to database
-  const unlocked: BadgeUnlock[] = [];
-  await database.write(async () => {
-    for (const badgeId of badgesToAward) {
-      const badge = await database.get('friend_badges').create(b => {
-        b.friendId = friendId;
-        b.badgeId = badgeId;
-        b.unlockedAt = new Date();
-      });
-      unlocked.push(badge);
-    }
-  });
-
-  return unlocked;
-}
-```
-
-**Test:**
-
-```typescript
-// __tests__/badge.service.test.ts
-import { calculateBadgesToAward } from '../badge.service';
-
-describe('calculateBadgesToAward', () => {
-  it('awards Social Butterfly for 10+ interactions', () => {
-    const badges = calculateBadgesToAward({
-      interactionCount: 12,
-      consecutiveDays: 0,
-      currentBadges: []
-    });
-
-    expect(badges).toContain('social_butterfly');
-  });
-
-  it('does not award duplicate badges', () => {
-    const badges = calculateBadgesToAward({
-      interactionCount: 12,
-      consecutiveDays: 0,
-      currentBadges: ['social_butterfly']  // Already has it
-    });
-
-    expect(badges).not.toContain('social_butterfly');
-  });
-
-  it('awards multiple badges when criteria met', () => {
-    const badges = calculateBadgesToAward({
-      interactionCount: 15,
-      consecutiveDays: 10,
-      currentBadges: []
-    });
-
-    expect(badges).toHaveLength(2);
-    expect(badges).toContain('social_butterfly');
-    expect(badges).toContain('consistent_7');
-  });
-});
-```
-
-**Benefits:**
-- ✅ **Fast** - No database, no I/O
-- ✅ **Simple** - Just input → output
-- ✅ **Comprehensive** - Test all edge cases easily
-- ✅ **No mocks** - Pure functions need no mocks
-
----
-
-**Pattern 2: Repository Pattern (When Needed)**
-
-For services with complex data access, use dependency injection with repository interface.
-
-**Example:**
-
-```typescript
-// modules/gamification/repositories/friend.repository.ts
-
-export interface IFriendRepository {
-  getFriend(id: string): Promise<Friend>;
-  getInteractionCount(friendId: string, sinceDate: Date): Promise<number>;
-}
-
-export class WatermelonFriendRepository implements IFriendRepository {
-  constructor(private db: Database) {}
-
-  async getFriend(id: string): Promise<Friend> {
-    return this.db.get('friends').find(id);
-  }
-
-  async getInteractionCount(friendId: string, sinceDate: Date): Promise<number> {
-    return this.db.get('interactions')
-      .query(
-        Q.where('friend_id', friendId),
-        Q.where('created_at', Q.gte(sinceDate.getTime()))
-      )
-      .fetchCount();
-  }
-}
-```
-
-**Service accepts repository:**
-
-```typescript
-// modules/gamification/services/badge.service.ts
-import type { IFriendRepository } from '../repositories/friend.repository';
-import { WatermelonFriendRepository } from '../repositories/friend.repository';
-import { database } from '@/db';
-
-export async function checkFriendBadges(
-  friendId: string,
-  repo: IFriendRepository = new WatermelonFriendRepository(database)  // Default
-): Promise<BadgeUnlock[]> {
-  const friend = await repo.getFriend(friendId);
-  const interactionCount = await repo.getInteractionCount(
-    friendId,
-    new Date(Date.now() - 30 * 86400000)
-  );
-
-  // Badge logic...
-  return badges;
-}
-```
-
-**Test with mock:**
-
-```typescript
-// __tests__/badge.service.test.ts
-import { checkFriendBadges } from '../badge.service';
-import type { IFriendRepository } from '../../repositories/friend.repository';
-
-describe('checkFriendBadges', () => {
-  it('awards badge for 10+ interactions', async () => {
-    // Mock repository
-    const mockRepo: IFriendRepository = {
-      getFriend: jest.fn().mockResolvedValue({
-        id: 'friend-1',
-        name: 'Alice',
-        tier: 'Inner Circle'
-      }),
-      getInteractionCount: jest.fn().mockResolvedValue(12)  // 12 interactions
-    };
-
-    // Inject mock
-    const badges = await checkFriendBadges('friend-1', mockRepo);
-
-    expect(mockRepo.getInteractionCount).toHaveBeenCalledWith(
-      'friend-1',
-      expect.any(Date)
-    );
-    expect(badges).toHaveLength(1);
-  });
-});
-```
-
-**Benefits:**
-- ✅ **Testable** - Inject mock repository
-- ✅ **Flexible** - Can swap database implementations
-- ✅ **Isolated** - Test service without real database
-
----
-
-**When to Use Which:**
-
-| Pattern | Use When | Example |
-|---------|----------|---------|
-| **Pure Functions + DTOs** | Logic can be separated from I/O (90% of cases) | Scoring calculations, badge logic, validation |
-| **Repository Pattern** | Service needs complex database queries | Badge checking with multiple queries |
-| **Integration Tests** | Testing full flow with real database | End-to-end weave logging |
-
 ### 7.2 Test Coverage Targets
 
-**By Layer:**
-
-- **Pure business logic functions**: 90%+ coverage (easy to test, critical)
-- **Service orchestrators** (with I/O): 60%+ coverage
+- **Services**: 80%+ coverage
 - **Stores**: 70%+ coverage
-- **Hooks**: 50%+ coverage
-- **Components**: 40%+ coverage (focus on critical components)
-
-**Priority Order:**
-
-1. **Pure functions** (scoring, calculations, badge logic) - Test exhaustively
-2. **Service orchestrators** - Test happy path + error cases
-3. **Integration tests** - Test critical flows (weave logging, plan completion)
-4. **Component tests** - Test critical UI components only
+- **Hooks**: 60%+ coverage
+- **Components**: 50%+ coverage (focus on critical components)
 
 ### 7.3 Regression Testing
 
@@ -2426,128 +1614,6 @@ modules/[module-name]/
       └── integration.test.ts
 ```
 
-### 11.4 Migration Scripts
-
-To automate repetitive refactoring tasks, create migration scripts using tools like `jscodeshift` or simple Node scripts.
-
-**Example: Update Imports Script**
-
-```javascript
-// scripts/update-imports.js
-const fs = require('fs');
-const path = require('path');
-
-const importMappings = {
-  // Old import → New import
-  "from '../lib/badge-tracker'": "from '@/modules/gamification'",
-  "from '../lib/weave-engine'": "from '@/modules/intelligence'",
-  "from '../lib/lifecycle-manager'": "from '@/modules/relationships'",
-};
-
-function updateImports(filePath) {
-  let content = fs.readFileSync(filePath, 'utf8');
-  let modified = false;
-
-  for (const [oldImport, newImport] of Object.entries(importMappings)) {
-    if (content.includes(oldImport)) {
-      content = content.replace(new RegExp(oldImport, 'g'), newImport);
-      modified = true;
-    }
-  }
-
-  if (modified) {
-    fs.writeFileSync(filePath, content, 'utf8');
-    console.log(`✅ Updated: ${filePath}`);
-  }
-}
-
-// Usage: node scripts/update-imports.js
-```
-
-**Example: Using jscodeshift**
-
-```bash
-# Install jscodeshift
-npm install -g jscodeshift
-
-# Create transform
-cat > scripts/migrate-badge-imports.js << 'EOF'
-module.exports = function(fileInfo, api) {
-  const j = api.jscodeshift;
-  const root = j(fileInfo.source);
-
-  // Find all imports from old badge-tracker
-  root.find(j.ImportDeclaration, {
-    source: { value: '../lib/badge-tracker' }
-  })
-  .forEach(path => {
-    // Replace with new module import
-    path.node.source.value = '@/modules/gamification';
-  });
-
-  return root.toSource();
-};
-EOF
-
-# Run transform
-jscodeshift -t scripts/migrate-badge-imports.js src/
-```
-
-**Useful Migration Tasks:**
-
-1. **Update imports** - Change `../lib/foo` to `@/modules/bar`
-2. **Move files** - Automate file relocation to new module structure
-3. **Rename exports** - Update function/type names to match new API
-4. **Add DTOs** - Generate DTO types from existing models
-5. **Extract event subscriptions** - Find weave-engine calls and convert to events
-
-**Example: Batch File Move Script**
-
-```javascript
-// scripts/move-gamification-files.js
-const fs = require('fs-extra');
-
-const filesToMove = [
-  { from: 'src/lib/badge-tracker.ts', to: 'src/modules/gamification/services/badge.service.ts' },
-  { from: 'src/lib/badge-definitions.ts', to: 'src/modules/gamification/constants/badges.ts' },
-  { from: 'src/lib/achievement-tracker.ts', to: 'src/modules/gamification/services/achievement.service.ts' },
-];
-
-filesToMove.forEach(({ from, to }) => {
-  if (fs.existsSync(from)) {
-    fs.ensureDirSync(path.dirname(to));
-    fs.moveSync(from, to);
-    console.log(`Moved: ${from} → ${to}`);
-  }
-});
-```
-
-**Verification Script:**
-
-```javascript
-// scripts/verify-no-lib-imports.js
-const glob = require('glob');
-const fs = require('fs');
-
-const files = glob.sync('src/**/*.{ts,tsx}', { ignore: 'src/lib/**' });
-const badImports = [];
-
-files.forEach(file => {
-  const content = fs.readFileSync(file, 'utf8');
-  if (content.includes("from '../lib/") || content.includes("from '../../lib/")) {
-    badImports.push(file);
-  }
-});
-
-if (badImports.length > 0) {
-  console.error('❌ Found imports from lib/ in:');
-  badImports.forEach(f => console.error(`   ${f}`));
-  process.exit(1);
-} else {
-  console.log('✅ No lib/ imports found!');
-}
-```
-
 ---
 
 ## 12. Getting Started
@@ -2584,16 +1650,6 @@ The phased approach ensures we can **migrate safely** without breaking the app, 
 
 ---
 
-**Document Version:** 2.0
+**Document Version:** 1.0
 **Last Updated:** 2025-11-16
-**Changes in v2.0:**
-- Added Phase 0.5 for database model cleanup
-- Updated timeline to 12-16 weeks (more realistic)
-- Added event-driven architecture as primary cross-module communication pattern
-- Updated Intelligence module to use DTOs (Data Transfer Objects) for true independence
-- Updated dependency matrix to prevent circular dependencies
-- Added comprehensive testability patterns (pure functions + repository pattern)
-- Added migration scripts section
-- Clarified Store vs Service responsibilities
-
-**Next Review:** After Phase 0.5 completion
+**Next Review:** After Phase 1 completion

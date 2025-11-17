@@ -5,7 +5,7 @@ import { X } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { InteractionCategory } from './types';
-import { getCategoryMetadata, INTERACTION_CATEGORIES } from '../lib/interaction-categories';
+import { getCategoryMetadata, INTERACTION_CATEGORIES } from '@/shared/constants/interaction-categories';
 
 interface IntentionFormModalProps {
   isOpen: boolean;

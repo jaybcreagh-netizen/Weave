@@ -12,7 +12,7 @@ import { PlanWizardStep2 } from './plan-wizard/PlanWizardStep2';
 import { PlanWizardStep3 } from './plan-wizard/PlanWizardStep3';
 import { useInteractionStore } from '../stores/interactionStore';
 import { createWeaveCalendarEvent, getCalendarSettings } from '../lib/calendar-service';
-import { getCategoryMetadata } from '../lib/interaction-categories';
+import { getCategoryMetadata } from '@/shared/constants/interaction-categories';
 import { getDefaultTimeForCategory } from '../lib/smart-defaults';
 import { database } from '../db';
 import Interaction from '../db/models/Interaction';

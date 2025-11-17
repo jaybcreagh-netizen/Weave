@@ -22,7 +22,7 @@ import { useFriendStore } from '../../../stores/friendStore';
 import { useSuggestions } from '../../../hooks/useSuggestions';
 import { usePendingPlans } from '../../../hooks/usePendingPlans';
 import { useInteractionStore } from '../../../stores/interactionStore';
-import { getCategoryMetadata } from '../../../lib/interaction-categories';
+import { getCategoryMetadata } from '@/shared/constants/interaction-categories';
 import { PlanWizard } from '../../PlanWizard';
 import { type InteractionCategory } from '../../types';
 import FriendModel from '../../../db/models/Friend';

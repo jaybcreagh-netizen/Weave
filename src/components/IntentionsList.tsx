@@ -4,7 +4,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { Q } from '@nozbe/watermelondb';
 import { Trash2 } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
-import { getCategoryMetadata } from '../lib/interaction-categories';
+import { getCategoryMetadata } from '@/shared/constants/interaction-categories';
 import Intention from '../db/models/Intention';
 import FriendModel from '../db/models/Friend';
 import { InteractionCategory } from './types';

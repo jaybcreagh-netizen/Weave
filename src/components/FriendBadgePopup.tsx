@@ -36,7 +36,7 @@ import { Q } from '@nozbe/watermelondb';
 import { getBadgeById } from '../lib/badge-definitions';
 import { analyzeInteractionPattern } from '../lib/pattern-analyzer';
 import { archetypeData } from '@/shared/constants/constants';
-import { CATEGORY_METADATA } from '../lib/interaction-categories';
+import { CATEGORY_METADATA } from '@/shared/constants/interaction-categories';
 import { useTheme } from '@/shared/hooks/useTheme';
 import type { Archetype, InteractionCategory } from '../components/types';
 

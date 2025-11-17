@@ -20,7 +20,7 @@ const AnimatedLine = Animated.createAnimatedComponent(Line);
 import { useTheme } from '@/shared/hooks/useTheme';
 import { formatPoeticDate, calculateWeaveWarmth, getThreadColors } from '../lib/timeline-utils';
 import { modeIcons } from '@/shared/constants/constants';
-import { getCategoryMetadata } from '../lib/interaction-categories';
+import { getCategoryMetadata } from '@/shared/constants/interaction-categories';
 import { type Interaction, type InteractionCategory } from './types';
 import { calculateDeepeningLevel, getDeepeningVisuals } from '../lib/deepening-utils';
 import { usePausableAnimation } from '@/shared/hooks/usePausableAnimation';

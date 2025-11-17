@@ -11,7 +11,7 @@ import { recordPractice, recordReflection, CONSISTENCY_MILESTONES, DEPTH_MILESTO
 import { analyzeAndTagLifeEvents } from '../lib/life-event-detection';
 import { useUIStore } from './uiStore';
 import { deleteWeaveCalendarEvent, updateWeaveCalendarEvent, getCalendarSettings } from '../lib/calendar-service';
-import { getCategoryMetadata } from '../lib/interaction-categories';
+import { getCategoryMetadata } from '@/shared/constants/interaction-categories';
 import { recordReflectionChips } from '../lib/adaptive-chips';
 import { syncCalendarChanges, type CalendarSyncResult } from '../lib/calendar-sync-service';
 

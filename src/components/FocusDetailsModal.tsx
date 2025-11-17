@@ -7,7 +7,7 @@ import { useTheme } from '@/shared/hooks/useTheme';
 import { usePendingPlans } from '../hooks/usePendingPlans';
 import { useSuggestions } from '../hooks/useSuggestions';
 import { useInteractionStore } from '../stores/interactionStore';
-import { getCategoryMetadata } from '../lib/interaction-categories';
+import { getCategoryMetadata } from '@/shared/constants/interaction-categories';
 import { type InteractionCategory } from './types';
 import FriendModel from '../db/models/Friend';
 
