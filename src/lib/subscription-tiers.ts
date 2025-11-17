@@ -11,7 +11,7 @@ export type SubscriptionTier = 'free' | 'plus' | 'premium';
 export const TIER_LIMITS = {
   free: {
     maxFriends: 20,
-    maxWeaves PerMonth: 50,
+    maxWeavesPerMonth: 50,
     canExportData: false,
     canCustomizeArchetypes: false,
     canAccessAdvancedAnalytics: false,

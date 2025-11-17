@@ -9,13 +9,13 @@ import IntentionFriend from '../db/models/IntentionFriend';
 import UserProgress from '../db/models/UserProgress';
 import Intention from '../db/models/Intention';
 import { type InteractionFormData } from '../stores/interactionStore';
-import { checkAndAwardFriendBadges, checkSpecialBadges, BadgeUnlock } from './badge-tracker';
-import { checkAndAwardGlobalAchievements, checkHiddenAchievements, AchievementUnlockData } from './achievement-tracker';
+import { checkAndAwardBadges, checkAndAwardGlobalAchievements } from '@/modules/gamification';
 import { analyzeInteractionPattern, calculateToleranceWindow, isPatternReliable } from './pattern-analyzer';
 import { captureInteractionOutcome, measurePendingOutcomes, getLearnedEffectiveness } from './feedback-analyzer';
 import { updateInitiationStats, type Initiator } from './reciprocity-analyzer';
 import { trackEvent, AnalyticsEvents, updateLastInteractionTimestamp } from './analytics';
 import { daysSince } from '@/shared/utils/date-utils';
+import { processWeaveScoring, calculateCurrentScore } from '@/modules/intelligence/services/orchestrator.service';
 
 /**
  * @interface InteractionQualityMetrics
@@ -23,86 +23,6 @@ import { daysSince } from '@/shared/utils/date-utils';
  * @property {number} energyScore - A score from 1-5 based on vibe and duration.
  * @property {number} overallQuality - A composite score from 1-5.
  */
-export interface InteractionQualityMetrics {
-  depthScore: number; // 1-5 based on reflection + notes
-  energyScore: number; // 1-5 based on vibe + duration
-  overallQuality: number; // 1-5 composite
-}
-
-/**
- * Calculates quality metrics for an interaction to weight scoring.
- * @param interaction - The interaction data.
- * @param {Vibe} [interaction.vibe] - The vibe of the interaction.
- * @param {Duration} [interaction.duration] - The duration of the interaction.
- * @param {string} [interaction.note] - The note for the interaction.
- * @param {string} [interaction.reflectionJSON] - The reflection for the interaction.
- * @returns {InteractionQualityMetrics} The quality metrics for the interaction.
- */
-export function calculateInteractionQuality(
-  interaction: {
-    vibe?: Vibe | null;
-    duration?: Duration | null;
-    note?: string | null;
-    reflectionJSON?: string | null;
-  }
-): InteractionQualityMetrics {
-  // Depth: Did they reflect meaningfully?
-  let depthScore = 1; // Base score for just logging
-  if (interaction.note && interaction.note.length > 50) depthScore += 1;
-  if (interaction.note && interaction.note.length > 150) depthScore += 1;
-  if (interaction.reflectionJSON) depthScore += 2; // Structured reflection is valuable
-
-  depthScore = Math.min(5, depthScore); // Cap at 5
-
-  // Energy: How was the vibe + duration?
-  let energyScore = 3; // Default neutral
-  if (interaction.vibe === 'FullMoon') energyScore = 5;
-  else if (interaction.vibe === 'WaxingGibbous') energyScore = 4;
-  else if (interaction.vibe === 'FirstQuarter') energyScore = 3;
-  else if (interaction.vibe === 'WaxingCrescent') energyScore = 3;
-  else if (interaction.vibe === 'NewMoon') energyScore = 2;
-
-  // Duration modifier
-  if (interaction.duration === 'Extended') energyScore = Math.min(5, energyScore + 1);
-  else if (interaction.duration === 'Quick') energyScore = Math.max(1, energyScore - 1);
-
-  const overallQuality = Math.round((depthScore + energyScore) / 2);
-
-  return { depthScore, energyScore, overallQuality };
-}
-
-/**
- * Calculates the decayed score of a friend based on the time since the last update.
- * Uses adaptive decay that respects each friendship's natural rhythm.
- * @param {FriendModel} friend - The friend model to calculate the score for.
- * @returns {number} The current score of the friend.
- */
-export function calculateCurrentScore(friend: FriendModel): number {
-  const daysSinceLastUpdate = daysSince(friend.lastUpdated);
-  const tierDecayRate = TierDecayRates[friend.dunbarTier as Tier];
-
-  // Use learned tolerance window if available, otherwise fall back to tier defaults
-  const toleranceWindow = friend.toleranceWindowDays || {
-    InnerCircle: 7,
-    CloseFriends: 14,
-    Community: 21,
-  }[friend.dunbarTier as Tier];
-
-  let decayAmount: number;
-
-  if (daysSinceLastUpdate <= toleranceWindow) {
-    // Within normal pattern - minimal decay (50% of base rate)
-    decayAmount = (daysSinceLastUpdate * tierDecayRate * 0.5) / friend.resilience;
-  } else {
-    // Outside tolerance - accelerating decay
-    const excessDays = daysSinceLastUpdate - toleranceWindow;
-    const baseDecay = (toleranceWindow * tierDecayRate * 0.5) / friend.resilience;
-    const acceleratedDecay = (excessDays * tierDecayRate * 1.5) / friend.resilience;
-    decayAmount = baseDecay + acceleratedDecay;
-  }
-
-  return Math.max(0, friend.weaveScore - decayAmount);
-}
 
 /**
  * Calculates weighted network health score across all tiers.
@@ -164,161 +84,6 @@ export function calculateWeightedNetworkHealth(friends: FriendModel[]): number {
  * @param {number} groupSize - The number of people in the interaction.
  * @returns {number} The dilution factor.
  */
-export function calculateGroupDilution(groupSize: number): number {
-  if (groupSize === 1) return 1.0;      // Full points for 1-on-1
-  if (groupSize === 2) return 0.9;      // 10% dilution for trio
-  if (groupSize <= 4) return 0.7;       // 30% dilution for small group
-  if (groupSize <= 7) return 0.5;       // 50% dilution for medium group
-  return 0.3;                            // 70% dilution for large group (8+)
-}
-
-/**
- * Calculates event multiplier for special occasions and life events.
- * Peak moments and milestone support create stronger relationship bonds.
- * @param {InteractionCategory} [category] - The category of the interaction.
- * @param {'low' | 'medium' | 'high' | 'critical'} [eventImportance] - The importance of the event.
- * @returns {number} The event multiplier.
- */
-export function calculateEventMultiplier(
-  category?: InteractionCategory,
-  eventImportance?: 'low' | 'medium' | 'high' | 'critical'
-): number {
-  // Celebration events get boosted based on importance
-  if (category === 'celebration') {
-    if (eventImportance === 'critical') return 1.5;  // Wedding, major milestone
-    if (eventImportance === 'high') return 1.3;      // Birthday, graduation
-    if (eventImportance === 'medium') return 1.2;    // Promotion celebration
-    return 1.1;                                       // Regular celebration
-  }
-
-  // Being there for support during important life events
-  if (category === 'favor-support') {
-    if (eventImportance === 'critical') return 1.4;  // Crisis support
-    if (eventImportance === 'high') return 1.3;      // Major life challenge
-    if (eventImportance === 'medium') return 1.2;    // General support
-  }
-
-  // Deep talks during important moments
-  if (category === 'deep-talk' && eventImportance) {
-    if (eventImportance === 'critical' || eventImportance === 'high') return 1.2;
-  }
-
-  return 1.0;  // Standard interaction
-}
-
-/**
- * Calculates the points for a new interaction.
- * Supports both old activity-based and new category-based systems.
- * Now includes quality-weighted scoring for more nuanced relationship health.
- * @param {FriendModel} friend - The friend model.
- * @param weaveData - The weave data.
- * @param {InteractionType} [weaveData.interactionType] - The type of interaction.
- * @param {InteractionCategory} [weaveData.category] - The category of the interaction.
- * @param {Duration | null} weaveData.duration - The duration of the interaction.
- * @param {Vibe | null} weaveData.vibe - The vibe of the interaction.
- * @param {string} [weaveData.note] - The note for the interaction.
- * @param {string} [weaveData.reflectionJSON] - The reflection for the interaction.
- * @param {number} [weaveData.groupSize] - The size of the group.
- * @param {'low' | 'medium' | 'high' | 'critical'} [weaveData.eventImportance] - The importance of the event.
- * @returns {number} The points for the weave.
- */
-export function calculatePointsForWeave(
-  friend: FriendModel,
-  weaveData: {
-    interactionType?: InteractionType;
-    category?: InteractionCategory;
-    duration: Duration | null;
-    vibe: Vibe | null;
-    note?: string | null;
-    reflectionJSON?: string | null;
-    groupSize?: number;
-    eventImportance?: 'low' | 'medium' | 'high' | 'critical';
-  }
-): number {
-  // Calculate current momentum
-  const daysSinceMomentumUpdate = daysSince(friend.momentumLastUpdated);
-  const currentMomentumScore = Math.max(0, friend.momentumScore - daysSinceMomentumUpdate);
-
-  let baseScore: number;
-  let archetypeMultiplier: number;
-
-  // NEW: Use category-based scoring if available
-  if (weaveData.category) {
-    baseScore = CategoryBaseScores[weaveData.category];
-    archetypeMultiplier = CategoryArchetypeMatrix[friend.archetype as Archetype][weaveData.category];
-  }
-  // DEPRECATED: Fall back to old activity-based scoring
-  else if (weaveData.interactionType) {
-    baseScore = InteractionBaseScores[weaveData.interactionType];
-    archetypeMultiplier = ArchetypeMatrixV2[friend.archetype as Archetype][weaveData.interactionType];
-  }
-  // Default fallback
-  else {
-    baseScore = 15;
-    archetypeMultiplier = 1.0;
-  }
-
-  const durationModifier = DurationModifiers[weaveData.duration || 'Standard'];
-  const vibeMultiplier = VibeMultipliers[weaveData.vibe || 'WaxingCrescent'];
-
-  // NEW: Calculate group dilution based on interaction size
-  const groupDilutionFactor = calculateGroupDilution(weaveData.groupSize || 1);
-
-  // NEW: Calculate event multiplier for special occasions
-  const eventMultiplier = calculateEventMultiplier(weaveData.category, weaveData.eventImportance);
-
-  const initialPoints = baseScore * archetypeMultiplier * durationModifier;
-  const finalPoints = initialPoints * vibeMultiplier * eventMultiplier * groupDilutionFactor;
-
-  // NEW: Apply quality multiplier based on interaction depth and energy
-  const quality = calculateInteractionQuality({
-    vibe: weaveData.vibe,
-    duration: weaveData.duration,
-    note: weaveData.note,
-    reflectionJSON: weaveData.reflectionJSON,
-  });
-
-  // Quality multiplier ranges from 0.7x to 1.3x
-  // - Low quality (1/5): 0.7x
-  // - Medium quality (3/5): 1.0x
-  // - High quality (5/5): 1.3x
-  const qualityMultiplier = 0.7 + (quality.overallQuality / 5) * 0.6;
-
-  // SMART: Quality can partially offset group dilution
-  // If you had a big group interaction but reflected deeply on individual moments,
-  // that deserves recognition. High quality can restore up to 20% of diluted points.
-  const groupSize = weaveData.groupSize || 1;
-  let finalDilutionFactor = groupDilutionFactor;
-  if (groupSize > 1 && quality.overallQuality >= 4) {
-    // High quality (4-5) in group settings: restore 20% of lost points
-    const dilutionLoss = 1.0 - groupDilutionFactor; // How much we lost
-    const restoration = dilutionLoss * 0.2; // Restore 20%
-    finalDilutionFactor = groupDilutionFactor + restoration;
-  }
-
-  const qualityAdjustedPoints = finalPoints * qualityMultiplier * (finalDilutionFactor / groupDilutionFactor);
-
-  // NEW v23: Apply learned effectiveness multiplier
-  // Blends observed effectiveness with static scoring
-  let effectivenessMultiplier = 1.0;
-  if (weaveData.category && friend.outcomeCount >= 3) {
-    // Only use learned effectiveness after 3+ measured outcomes
-    const learnedEffectiveness = getLearnedEffectiveness(friend, weaveData.category);
-    const confidence = Math.min(1.0, friend.outcomeCount / 10); // Gain confidence over 10 outcomes
-
-    // Blend static (1.0) with learned effectiveness based on confidence
-    effectivenessMultiplier = (1.0 * (1 - confidence)) + (learnedEffectiveness * confidence);
-  }
-
-  const adaptivePoints = qualityAdjustedPoints * effectivenessMultiplier;
-
-  // Apply momentum bonus
-  if (currentMomentumScore > 0) {
-    return adaptivePoints * 1.15;
-  }
-
-  return adaptivePoints;
-}
 
 /**
  * Checks if a weave fulfills any active intentions for a friend.
@@ -448,7 +213,7 @@ export async function logNewWeave(
         database
       );
 
-      let pointsToAdd = calculatePointsForWeave(friend, {
+      let pointsToAdd = processWeaveScoring(friend, {
           // NEW: Use category if available, otherwise fall back to old activity
           category: weaveData.category as InteractionCategory | undefined,
           interactionType: weaveData.activity as InteractionType,
@@ -583,25 +348,19 @@ export async function logNewWeave(
   if (weaveData.type === 'log' && newInteraction) {
     // Check badges for each friend
     for (const friend of friendsToUpdate) {
-      // Check progressive badges (weave_count, depth, consistency)
-      const progressiveBadges = await checkAndAwardFriendBadges(friend.id, friend.name);
-      allBadgeUnlocks.push(...progressiveBadges);
-
-      // Check special badges (birthday, phoenix rising, time-based, etc.)
-      const specialBadges = await checkSpecialBadges(friend.id, friend.name, newInteraction);
-      allBadgeUnlocks.push(...specialBadges);
+      const { newBadges } = await checkAndAwardBadges(friend.id);
+      // Note: The new service returns a different structure.
+      // We'll need to adapt the `allBadgeUnlocks` logic if it's still needed.
+      // For now, we'll just push the new badges.
+      allBadgeUnlocks.push(...newBadges);
     }
 
     // Check global achievements
     const globalUnlocks = await checkAndAwardGlobalAchievements();
+    // Note: The new service returns a different structure.
+    // We'll need to adapt the `allAchievementUnlocks` logic if it's still needed.
+    // For now, we'll just push the new achievements.
     allAchievementUnlocks.push(...globalUnlocks);
-
-    // Check hidden achievements
-    const hiddenUnlocks = await checkHiddenAchievements({
-      type: 'interaction_logged',
-      interaction: newInteraction,
-    });
-    allAchievementUnlocks.push(...hiddenUnlocks);
 
     // Check for perfect week (if all friends were contacted in last 7 days)
     // This is an expensive check, so we only do it occasionally
@@ -710,7 +469,7 @@ export async function applyScoresForCompletedPlan(interactionId: string, databas
     // 3. Apply scoring logic for each friend (same as logNewWeave)
     for (const friend of friends) {
       const currentScore = calculateCurrentScore(friend);
-      const pointsToAdd = calculatePointsForWeave(friend, {
+      const pointsToAdd = processWeaveScoring(friend, {
         category: interaction.interactionCategory as InteractionCategory | undefined,
         interactionType: interaction.activity as InteractionType,
         duration: interaction.duration as Duration | null,

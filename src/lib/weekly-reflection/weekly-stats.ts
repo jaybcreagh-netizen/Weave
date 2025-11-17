@@ -199,17 +199,17 @@ export async function calculateWeeklySummary(): Promise<WeeklySummary> {
 
   // Calculate pattern recognition data
   // Most consistent friend (friend with most weaves this week)
-  const friendWeaveCount: Record<string, { name: string; count: number }> = {};
+  const friendWeaveCount: Record<string, { name: string; weaveCount: number }> = {};
   for (const link of friendLinks) {
     const friend = await database.get<FriendModel>('friends').find(link.friendId);
     if (!friendWeaveCount[friend.id]) {
-      friendWeaveCount[friend.id] = { name: friend.name, count: 0 };
+      friendWeaveCount[friend.id] = { name: friend.name, weaveCount: 0 };
     }
-    friendWeaveCount[friend.id].count++;
+    friendWeaveCount[friend.id].weaveCount++;
   }
 
   const mostConsistentFriend = Object.values(friendWeaveCount)
-    .sort((a, b) => b.count - a.count)[0];
+    .sort((a, b) => b.weaveCount - a.weaveCount)[0];
 
   // Rising connection (friend with biggest score increase this week)
   // We'll need to check weekly_reflections to compare, or calculate from current scores
