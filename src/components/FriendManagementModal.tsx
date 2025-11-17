@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Modal, View, Text, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { X, Trash2, Check } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
-import { useFriendStore } from '../stores/friendStore';
+import { useRelationshipsStore } from '@/modules/relationships';
 import { calculateCurrentScore } from '@/modules/intelligence/services/orchestrator.service';
 import type FriendModel from '../db/models/Friend';
 
@@ -13,7 +13,7 @@ interface FriendManagementModalProps {
 
 export function FriendManagementModal({ visible, onClose }: FriendManagementModalProps) {
   const { colors } = useTheme();
-  const { friends, batchDeleteFriends } = useFriendStore();
+  const { friends, batchDeleteFriends } = useRelationshipsStore();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isDeleting, setIsDeleting] = useState(false);
 

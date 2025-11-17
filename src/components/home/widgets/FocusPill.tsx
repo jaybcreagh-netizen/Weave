@@ -9,7 +9,7 @@ import { useRouter } from 'expo-router';
 import { differenceInDays } from 'date-fns';
 import { Cake, Heart, AlertCircle } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
-import { useFriendStore } from '../../../stores/friendStore';
+import { useRelationshipsStore } from '@/modules/relationships';
 import { useSuggestions } from '../../../hooks/useSuggestions';
 import FriendModel from '../../../db/models/Friend';
 import { database } from '../../../db';
@@ -27,7 +27,7 @@ interface FocusItem {
 export const FocusPill: React.FC = () => {
   const { colors } = useTheme();
   const router = useRouter();
-  const { friends } = useFriendStore();
+  const { friends } = useRelationshipsStore();
   const { suggestions, hasCritical } = useSuggestions();
   const [focusItem, setFocusItem] = useState<FocusItem | null>(null);
 

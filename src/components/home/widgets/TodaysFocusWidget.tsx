@@ -18,7 +18,7 @@ import { differenceInDays, format } from 'date-fns';
 import { Cake, Heart, ChevronDown, ChevronUp, Calendar, CheckCircle2, Sparkles, Flame, X } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { HomeWidgetBase, HomeWidgetConfig } from '../HomeWidgetBase';
-import { useFriendStore } from '../../../stores/friendStore';
+import { useRelationshipsStore } from '@/modules/relationships';
 import { useSuggestions } from '../../../hooks/useSuggestions';
 import { usePendingPlans } from '../../../hooks/usePendingPlans';
 import { useInteractionStore } from '../../../stores/interactionStore';
@@ -55,7 +55,7 @@ type PriorityState = 'pressing-event' | 'todays-plan' | 'streak-risk' | 'friend-
 export const TodaysFocusWidget: React.FC = () => {
   const { colors, isDarkMode } = useTheme();
   const router = useRouter();
-  const { friends } = useFriendStore();
+  const { friends } = useRelationshipsStore();
   const { suggestions, dismissSuggestion } = useSuggestions();
   const { pendingPlans } = usePendingPlans();
   const { confirmPlan } = useInteractionStore();

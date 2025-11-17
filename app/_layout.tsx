@@ -21,7 +21,7 @@ import { useActivityKeepAwake } from '../src/hooks/useActivityKeepAwake';
 import { initializeDataMigrations, initializeUserProfile, initializeUserProgress } from '../src/db';
 import { appStateManager } from '../src/lib/app-state-manager';
 import { useAppStateChange } from '../src/hooks/useAppState';
-import { useFriendStore } from '../src/stores/friendStore';
+import { useRelationshipsStore } from '../src/modules/relationships';
 import { useTutorialStore } from '../src/stores/tutorialStore';
 import {
   initializeNotifications,
@@ -172,7 +172,7 @@ export default Sentry.wrap(function RootLayout() {
     if (!dataLoaded) return;
 
     const checkFriendsLoaded = () => {
-      const friends = useFriendStore.getState().friends;
+      const friends = useRelationshipsStore.getState().friends;
       // Mark UI as mounted once we have friends data (even if empty)
       // Give a small delay to ensure lists are rendered
       if (friends !== null) {
@@ -183,7 +183,7 @@ export default Sentry.wrap(function RootLayout() {
     };
 
     // Subscribe to friend store
-    const unsubscribe = useFriendStore.subscribe(checkFriendsLoaded);
+    const unsubscribe = useRelationshipsStore.subscribe(checkFriendsLoaded);
     checkFriendsLoaded(); // Check immediately
 
     return () => unsubscribe();
@@ -244,12 +244,12 @@ export default Sentry.wrap(function RootLayout() {
   // Initialize app state listeners for stores (battery optimization)
   useEffect(() => {
     console.log('[App] Initializing store app state listeners');
-    const initializeAppStateListener = useFriendStore.getState().initializeAppStateListener;
+    const initializeAppStateListener = useRelationshipsStore.getState().initializeAppStateListener;
     initializeAppStateListener();
 
     // Cleanup on unmount (though app layout rarely unmounts)
     return () => {
-      const cleanupAppStateListener = useFriendStore.getState().cleanupAppStateListener;
+      const cleanupAppStateListener = useRelationshipsStore.getState().cleanupAppStateListener;
       cleanupAppStateListener();
     };
   }, []);

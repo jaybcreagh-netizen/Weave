@@ -15,9 +15,9 @@ import { useTheme } from '@/shared/hooks/useTheme';
 import { ArchetypeIcon } from './ArchetypeIcon';
 import { archetypeData, CategoryArchetypeMatrix } from '@/shared/constants/constants';
 import { CATEGORY_METADATA } from '@/shared/constants/interaction-categories';
-import { type InteractionCategory } from './types';
-import FriendModel from '../db/models/Friend';
-import { useFriendStore } from '../stores/friendStore';
+import { type InteractionCategory } from '../types';
+import FriendModel from '../../../db/models/Friend';
+import { useRelationshipsStore } from '../store';
 import { calculateCurrentScore } from '@/modules/intelligence/services/orchestrator.service';
 import { getFriendMilestones, Milestone } from '../lib/milestone-tracker';
 
@@ -53,7 +53,7 @@ export const FriendDetailSheet: React.FC<FriendDetailSheetProps> = ({
   friend,
 }) => {
   const { colors, isDarkMode } = useTheme();
-  const { activeFriendInteractions } = useFriendStore();
+  const { activeFriendInteractions } = useRelationshipsStore();
   const [shouldRender, setShouldRender] = useState(false);
   const [milestones, setMilestones] = useState<Milestone[]>([]);
 

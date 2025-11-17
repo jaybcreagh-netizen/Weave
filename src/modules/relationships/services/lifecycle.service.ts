@@ -20,3 +20,13 @@ export async function checkAndApplyDormancy(): Promise<void> {
     }
   });
 }
+
+export async function reactivateFriend(id: string): Promise<void> {
+  await database.write(async () => {
+    const friend = await database.get<Friend>('friends').find(id);
+    await friend.update(f => {
+      f.isDormant = false;
+      f.lastUpdated = new Date();
+    });
+  });
+}

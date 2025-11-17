@@ -9,9 +9,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { isFuture, isToday, isPast, format, differenceInDays } from 'date-fns';
 import { Q } from '@nozbe/watermelondb';
 
-import { FriendListRow } from '../src/components/FriendListRow';
+import { FriendListRow } from '../src/modules/relationships';
 import { TimelineItem } from '../src/components/TimelineItem';
-import { useFriendStore } from '../src/stores/friendStore';
+import { useRelationshipsStore } from '../src/modules/relationships';
 import { useInteractionStore } from '../src/stores/interactionStore';
 import { calculateNextConnectionDate, getPoeticSectionTitle } from '../src/lib/timeline-utils';
 import { useTheme } from '../src/hooks/useTheme';
@@ -47,8 +47,8 @@ export default function FriendProfile() {
     unobserveFriend,
     loadMoreInteractions,
     hasMoreInteractions,
-  } = useFriendStore();
-  const { deleteFriend } = useFriendStore();
+  } = useRelationshipsStore();
+  const { deleteFriend } = useRelationshipsStore();
   const { deleteInteraction, updateReflection, updateInteraction } = useInteractionStore();
   const { createIntention, convertToPlannedWeave, dismissIntention } = useIntentionStore();
   const friendIntentions = useFriendIntentions(typeof friendId === 'string' ? friendId : undefined);

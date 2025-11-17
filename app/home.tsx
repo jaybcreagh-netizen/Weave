@@ -14,7 +14,7 @@ import { ReflectionReadyPrompt } from '../src/components/WeeklyReflection/Reflec
 import { YearInMoonsModal } from '../src/components/YearInMoons/YearInMoonsModal';
 import { SuggestedWeaves } from '../src/components/SuggestedWeaves';
 import { useUserProfileStore } from '../src/stores/userProfileStore';
-import { useFriendStore } from '../src/stores/friendStore';
+import { useRelationshipsStore } from '../src/modules/relationships';
 import { getLastReflectionDate, shouldShowReflection } from '../src/lib/notification-manager-enhanced';
 import { getUserAccountAge } from '../src/lib/notification-grace-periods';
 import { useTutorialStore } from '../src/stores/tutorialStore';
@@ -26,7 +26,7 @@ import { useTutorialStore } from '../src/stores/tutorialStore';
  */
 export default function Home() {
   const { observeProfile, profile, submitBatteryCheckin, updateProfile } = useUserProfileStore();
-  const { observeFriends } = useFriendStore();
+  const { observeFriends } = useRelationshipsStore();
   const [showBatterySheet, setShowBatterySheet] = useState(false);
   const [showReflectionPrompt, setShowReflectionPrompt] = useState(false);
   const [showWeeklyReflection, setShowWeeklyReflection] = useState(false);
