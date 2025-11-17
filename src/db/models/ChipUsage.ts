@@ -23,15 +23,4 @@ export default class ChipUsage extends Model {
   // System
   @readonly @date('created_at') createdAt!: Date;
 
-  // Helper to get usage age in days
-  getDaysAgo(): number {
-    const now = Date.now();
-    const days = Math.floor((now - this.usedAt) / (24 * 60 * 60 * 1000));
-    return days;
-  }
-
-  // Helper to check if usage is recent (within 30 days)
-  isRecent(): boolean {
-    return this.getDaysAgo() <= 30;
-  }
 }

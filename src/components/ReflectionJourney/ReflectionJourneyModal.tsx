@@ -8,6 +8,8 @@ import { Modal, View, Text, TouchableOpacity, SafeAreaView, ScrollView, Activity
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { X, Calendar, TrendingUp, Sparkles, ChevronRight, Search, List, Filter, Plus, BookOpen, Users } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
+import { formatWeaveDate, daysAgo } from '@/shared/utils/date-utils';
+import { getWeekRange } from '@/modules/reflection/services/weekly-reflection.service';
 import { database } from '../../db';
 import WeeklyReflection from '../../db/models/WeeklyReflection';
 import JournalEntry from '../../db/models/JournalEntry';
@@ -543,17 +545,17 @@ export function ReflectionJourneyModal({ isOpen, onClose }: ReflectionJourneyMod
                         className="text-sm font-semibold flex-1"
                         style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold' }}
                       >
-                        {item.data.getWeekRange()}
+                        {getWeekRange(item.data)}
                       </Text>
                       <Text
                         className="text-xs"
                         style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
                       >
-                        {item.data.getDaysAgo() === 0
+                        {daysAgo(new Date(item.data.entryDate)) === 0
                           ? 'Today'
-                          : item.data.getDaysAgo() < 7
-                          ? `${item.data.getDaysAgo()}d ago`
-                          : `${Math.floor(item.data.getDaysAgo() / 7)}w ago`}
+                          : daysAgo(new Date(item.data.entryDate)) < 7
+                          ? `${daysAgo(new Date(item.data.entryDate))}d ago`
+                          : `${Math.floor(daysAgo(new Date(item.data.entryDate)) / 7)}w ago`}
                       </Text>
                     </View>
 
@@ -724,7 +726,7 @@ export function ReflectionJourneyModal({ isOpen, onClose }: ReflectionJourneyMod
                         className="text-xs"
                         style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
                       >
-                        {item.data.getFormattedDate()}
+                        {formatWeaveDate(new Date(item.data.entryDate))}
                       </Text>
                     </View>
 

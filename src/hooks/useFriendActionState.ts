@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Interaction } from '../db/models/Interaction';
 import Friend from '../db/models/Friend';
 import { generateSuggestion } from '../lib/suggestion-engine';
-import { calculateCurrentScore } from '../lib/weave-engine';
+import { calculateCurrentScore } from '@/modules/intelligence/services/decay.service';
 import { Suggestion } from '../types/suggestions';
 
 export function useFriendActionState(

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { database, initializeUserProfile } from '../db';
 import UserProfile, { SocialSeason, BatteryHistoryEntry, SeasonHistoryEntry } from '../db/models/UserProfile';
+import { getRecentBatteryAverage, getBatteryTrend } from '@/modules/auth/services/user-profile.service';
 
 interface UserProfileStore {
   // State
@@ -180,11 +181,13 @@ export const useUserProfileStore = create<UserProfileStore>((set, get) => ({
 
   getRecentBatteryAverage: (days: number = 7) => {
     const { profile } = get();
-    return profile?.getRecentBatteryAverage(days) || null;
+    if (!profile) return null;
+    return getRecentBatteryAverage(profile, days);
   },
 
   getBatteryTrend: () => {
     const { profile } = get();
-    return profile?.getBatteryTrend() || null;
+    if (!profile) return null;
+    return getBatteryTrend(profile);
   },
 }));

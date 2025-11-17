@@ -15,6 +15,7 @@ import { analyzeInteractionPattern, calculateToleranceWindow, isPatternReliable 
 import { captureInteractionOutcome, measurePendingOutcomes, getLearnedEffectiveness } from './feedback-analyzer';
 import { updateInitiationStats, type Initiator } from './reciprocity-analyzer';
 import { trackEvent, AnalyticsEvents, updateLastInteractionTimestamp } from './analytics';
+import { daysSince } from '@/shared/utils/date-utils';
 
 /**
  * @interface InteractionQualityMetrics
@@ -77,7 +78,7 @@ export function calculateInteractionQuality(
  * @returns {number} The current score of the friend.
  */
 export function calculateCurrentScore(friend: FriendModel): number {
-  const daysSinceLastUpdate = (Date.now() - friend.lastUpdated.getTime()) / 86400000;
+  const daysSinceLastUpdate = daysSince(friend.lastUpdated);
   const tierDecayRate = TierDecayRates[friend.dunbarTier as Tier];
 
   // Use learned tolerance window if available, otherwise fall back to tier defaults
@@ -235,7 +236,7 @@ export function calculatePointsForWeave(
   }
 ): number {
   // Calculate current momentum
-  const daysSinceMomentumUpdate = (Date.now() - friend.momentumLastUpdated.getTime()) / 86400000;
+  const daysSinceMomentumUpdate = daysSince(friend.momentumLastUpdated);
   const currentMomentumScore = Math.max(0, friend.momentumScore - daysSinceMomentumUpdate);
 
   let baseScore: number;
@@ -543,9 +544,7 @@ export async function logNewWeave(
 
       // 4b. v29: Mark intention as fulfilled if this weave fulfilled an intention
       if (fulfilledIntention) {
-        const daysSinceCreated = Math.floor(
-          (Date.now() - fulfilledIntention.createdAt.getTime()) / (24 * 60 * 60 * 1000)
-        );
+        const daysSinceCreated = daysSince(fulfilledIntention.createdAt);
 
         await fulfilledIntention.update(intention => {
           intention.status = 'fulfilled';

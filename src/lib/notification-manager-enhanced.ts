@@ -20,6 +20,7 @@ import {
   shouldSendWeeklyReflectionNotification,
   shouldSendSocialBatteryNotification,
 } from './notification-grace-periods';
+import { getWeekRange } from '@/modules/reflection/services/weekly-reflection.service';
 
 // AsyncStorage keys
 const LAST_REFLECTION_KEY = '@weave:last_reflection_date';
@@ -549,7 +550,7 @@ export async function scheduleMemoryNudges(): Promise<void> {
           data: {
             type: 'memory-nudge',
             reflectionId: reflection.id,
-            weekRange: reflection.getWeekRange(),
+            weekRange: getWeekRange(reflection),
           },
         },
         trigger: notificationDate,

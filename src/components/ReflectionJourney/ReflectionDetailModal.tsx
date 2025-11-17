@@ -7,6 +7,8 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Modal, View, Text, TouchableOpacity, SafeAreaView, ScrollView, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { X, Edit3, Save, Calendar, TrendingUp, Plus, Users } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
+import { formatWeaveDate, daysAgo } from '@/shared/utils/date-utils';
+import { getWeekRange } from '@/modules/reflection/services/weekly-reflection.service';
 import WeeklyReflection from '../../db/models/WeeklyReflection';
 import { database } from '../../db';
 import { STORY_CHIPS } from '../../lib/story-chips';
@@ -113,17 +115,17 @@ export function ReflectionDetailModal({ reflection, isOpen, onClose, onUpdate }:
                 className="text-lg font-semibold"
                 style={{ color: colors.foreground, fontFamily: 'Lora_600SemiBold' }}
               >
-                {reflection.getWeekRange()}
+                {getWeekRange(reflection)}
             </Text>
             <Text
               className="text-xs mt-0.5"
               style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
             >
-              {reflection.getDaysAgo() === 0
+              {daysAgo(new Date(reflection.weekEndDate)) === 0
                 ? 'This week'
-                : reflection.getDaysAgo() < 7
-                ? `${reflection.getDaysAgo()}d ago`
-                : `${Math.floor(reflection.getDaysAgo() / 7)}w ago`}
+                : daysAgo(new Date(reflection.weekEndDate)) < 7
+                ? `${daysAgo(new Date(reflection.weekEndDate))}d ago`
+                : `${Math.floor(daysAgo(new Date(reflection.weekEndDate)) / 7)}w ago`}
             </Text>
           </View>
 

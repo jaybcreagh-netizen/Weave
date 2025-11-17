@@ -48,21 +48,4 @@ export default class JournalEntry extends Model {
     this.friendIdsRaw = JSON.stringify(ids);
   }
 
-  // Helper to format entry date
-  getFormattedDate(): string {
-    const date = new Date(this.entryDate);
-    return date.toLocaleDateString('en-US', {
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
-    });
-  }
-
-  // Helper to get days ago
-  getDaysAgo(): number {
-    const now = Date.now();
-    const days = Math.floor((now - this.entryDate) / (24 * 60 * 60 * 1000));
-    return days;
-  }
 }
