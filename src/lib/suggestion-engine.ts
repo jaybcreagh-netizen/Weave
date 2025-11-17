@@ -181,15 +181,22 @@ async function checkUpcomingLifeEvent(friend: SuggestionInput['friend']): Promis
       return null;
     }
 
-    const anniversaryThisYear = new Date(friend.anniversary);
+    const [month, day] = friend.anniversary.split('-').map(n => parseInt(n, 10));
+
+    // Validate parsed values
+    if (isNaN(month) || isNaN(day) || month < 1 || month > 12 || day < 1 || day > 31) {
+      console.warn('[Anniversary Check] Invalid anniversary format for friend:', friend.id, friend.anniversary);
+      return null;
+    }
+
+    // Create anniversary for this year
+    const anniversaryThisYear = new Date(today.getFullYear(), month - 1, day);
 
     // Validate that we have a valid date
     if (isNaN(anniversaryThisYear.getTime())) {
       console.warn('[Anniversary Check] Invalid anniversary date for friend:', friend.id, friend.anniversary);
       return null;
     }
-
-    anniversaryThisYear.setFullYear(today.getFullYear());
     anniversaryThisYear.setHours(0, 0, 0, 0);
 
     if (anniversaryThisYear < today) {

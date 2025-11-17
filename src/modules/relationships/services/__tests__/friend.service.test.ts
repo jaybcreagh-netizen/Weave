@@ -3,36 +3,42 @@ import { createFriend, updateFriend, deleteFriend, batchAddFriends } from '../fr
 import { database } from '@/db';
 import { FriendFormData } from '../../types';
 
+const mockUserProgress = {
+  id: 'progress-1',
+  update: jest.fn(),
+};
+
+const mockFriend = {
+  id: '1',
+  update: jest.fn(),
+  destroyPermanently: jest.fn(),
+  photoUrl: 'test.jpg',
+};
+
+const mockFriendsCollection = {
+  create: jest.fn(),
+  find: jest.fn().mockResolvedValue(mockFriend),
+  query: jest.fn().mockReturnValue({
+    fetch: jest.fn().mockResolvedValue([]),
+  }),
+};
+
+const mockUserProgressCollection = {
+  query: jest.fn().mockReturnValue({
+    fetch: jest.fn().mockResolvedValue([mockUserProgress]),
+  }),
+};
+
 // A more robust mock for WatermelonDB
 jest.mock('@/db', () => ({
   database: {
     write: jest.fn(async (fn) => await fn()), // Ensure the passed function is awaited
     get: jest.fn((model) => {
       if (model === 'user_progress') {
-        return {
-          query: jest.fn().mockReturnValue({
-            fetch: jest.fn().mockResolvedValue([
-              {
-                id: 'progress-1',
-                update: jest.fn(),
-              },
-            ]),
-          }),
-        };
+        return mockUserProgressCollection;
       }
       if (model === 'friends') {
-        return {
-          create: jest.fn(),
-          find: jest.fn().mockImplementation((id) => Promise.resolve({
-            id,
-            update: jest.fn(),
-            destroyPermanently: jest.fn(),
-            photoUrl: 'test.jpg',
-          })),
-          query: jest.fn().mockReturnValue({
-            fetch: jest.fn().mockResolvedValue([]),
-          }),
-        };
+        return mockFriendsCollection;
       }
       return {
         create: jest.fn(),
@@ -74,10 +80,9 @@ describe('friend.service', () => {
     };
     await createFriend(friendData);
     expect(database.get).toHaveBeenCalledWith('friends');
-    expect(database.get('friends').create).toHaveBeenCalled();
+    expect(mockFriendsCollection.create).toHaveBeenCalled();
     expect(database.get).toHaveBeenCalledWith('user_progress');
-    const progressFetch = await database.get('user_progress').query().fetch();
-    expect(progressFetch[0].update).toHaveBeenCalled();
+    expect(mockUserProgress.update).toHaveBeenCalled();
   });
 
   it('should update a friend', async () => {
@@ -90,17 +95,15 @@ describe('friend.service', () => {
     };
     await updateFriend('1', friendData);
     expect(database.get).toHaveBeenCalledWith('friends');
-    expect(database.get('friends').find).toHaveBeenCalledWith('1');
-    const friend = await database.get('friends').find('1');
-    expect(friend.update).toHaveBeenCalled();
+    expect(mockFriendsCollection.find).toHaveBeenCalledWith('1');
+    expect(mockFriend.update).toHaveBeenCalled();
   });
 
   it('should delete a friend and their photo', async () => {
     await deleteFriend('1');
     expect(database.get).toHaveBeenCalledWith('friends');
-    expect(database.get('friends').find).toHaveBeenCalledWith('1');
-    const friend = await database.get('friends').find('1');
-    expect(friend.destroyPermanently).toHaveBeenCalled();
+    expect(mockFriendsCollection.find).toHaveBeenCalledWith('1');
+    expect(mockFriend.destroyPermanently).toHaveBeenCalled();
     expect(require('@/lib/image-service').deleteImage).toHaveBeenCalledWith({
       imageId: '1',
       type: 'profilePicture',
@@ -111,6 +114,6 @@ describe('friend.service', () => {
     const contacts = [{ name: 'John Doe' }, { name: 'Jane Doe' }];
     await batchAddFriends(contacts, 'CloseFriends');
     expect(database.get).toHaveBeenCalledWith('friends');
-    expect(database.get('friends').create).toHaveBeenCalledTimes(2);
+    expect(mockFriendsCollection.create).toHaveBeenCalledTimes(2);
   });
 });

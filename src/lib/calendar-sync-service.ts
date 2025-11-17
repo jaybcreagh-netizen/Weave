@@ -122,8 +122,6 @@ async function markInteractionAsCancelled(interaction: Interaction): Promise<voi
   await database.write(async () => {
     await interaction.update((i) => {
       i.status = 'cancelled';
-      // Clear calendar event ID since event no longer exists
-      i.calendarEventId = undefined;
     });
   });
 }

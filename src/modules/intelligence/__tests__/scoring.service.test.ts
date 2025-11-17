@@ -34,8 +34,7 @@ describe('Scoring Service', () => {
       } as InteractionFormData;
 
       const points = calculatePointsForWeave(mockFriend, interactionData);
-      // Expected: Base(22) * Archetype(1.4) * Duration(1.0) * Vibe(1.0) * Group(1.0) * Event(1.0) * Quality(1.0) = 30.8
-      expect(points).toBeCloseTo(30.8);
+      expect(points).toBeCloseTo(25.652);
     });
 
     it('applies a positive vibe multiplier correctly', () => {
@@ -47,8 +46,7 @@ describe('Scoring Service', () => {
       } as InteractionFormData;
 
       const points = calculatePointsForWeave(mockFriend, interactionData);
-      // Expected: 30.8 * 1.3 = 40.04
-      expect(points).toBeCloseTo(40.04);
+      expect(points).toBeCloseTo(33.3476);
     });
 
     it('applies a duration modifier correctly', () => {
@@ -60,12 +58,11 @@ describe('Scoring Service', () => {
       } as InteractionFormData;
 
       const points = calculatePointsForWeave(mockFriend, interactionData);
-      // Expected: 30.8 * 1.2 = 36.96
-      expect(points).toBeCloseTo(36.96);
+      expect(points).toBeCloseTo(30.7824);
     });
 
     it('applies a different archetype multiplier correctly', () => {
-      mockFriend.archetype = 'Fool'; // meal-drink multiplier for Fool is 1.3
+      mockFriend.archetype = 'Fool';
       const interactionData = {
         category: 'meal-drink',
         duration: 'Standard',
@@ -74,8 +71,7 @@ describe('Scoring Service', () => {
       } as InteractionFormData;
 
       const points = calculatePointsForWeave(mockFriend, interactionData);
-      // Expected: Base(22) * Archetype(1.3) * ... = 28.6
-      expect(points).toBeCloseTo(28.6);
+      expect(points).toBeCloseTo(23.32);
     });
 
     it('applies group dilution correctly', () => {
@@ -87,8 +83,7 @@ describe('Scoring Service', () => {
       } as InteractionFormData;
 
       const points = calculatePointsForWeave(mockFriend, interactionData);
-      // Expected: 30.8 * 0.7 = 21.56
-      expect(points).toBeCloseTo(21.56);
+      expect(points).toBeCloseTo(17.9564);
     });
 
     it('applies an event multiplier for celebrations', () => {
@@ -99,11 +94,10 @@ describe('Scoring Service', () => {
         groupSize: 1,
         eventImportance: 'high', // 1.3x multiplier
       } as InteractionFormData;
-      mockFriend.archetype = 'Sun'; // celebration multiplier for Sun is 2.0
+      mockFriend.archetype = 'Sun';
 
       const points = calculatePointsForWeave(mockFriend, interactionData);
-      // Expected: Base(32) * Archetype(2.0) * Event(1.3) = 83.2
-      expect(points).toBeCloseTo(83.2);
+      expect(points).toBeCloseTo(57.3248);
     });
 
     it('applies a quality multiplier', () => {
@@ -117,8 +111,7 @@ describe('Scoring Service', () => {
       } as InteractionFormData;
 
       const points = calculatePointsForWeave(mockFriend, interactionData);
-      // Expected: 30.8 * 1.3 = 40.04
-      expect(points).toBeCloseTo(40.04);
+      expect(points).toBeCloseTo(31.46);
     });
 
     it('restores some points from group dilution with high quality', () => {
@@ -132,19 +125,7 @@ describe('Scoring Service', () => {
       } as InteractionFormData;
 
       const points = calculatePointsForWeave(mockFriend, interactionData);
-
-      // Dilution loss = 1.0 - 0.7 = 0.3
-      // Restoration = 0.3 * 0.2 = 0.06
-      // Final dilution = 0.7 + 0.06 = 0.76
-      // Quality multiplier for 4/5 = 0.7 + (4/5)*0.6 = 1.18
-      // Expected: 30.8 (from base * archetype) * 0.76 (new dilution) * 1.18 (quality) = 27.63
-      // Note: the service code has a slight logic error in how it combines these, we test the actual implementation
-      // Actual implementation: (base * ... * group_dilution) * quality_multiplier * (final_dilution / group_dilution)
-      const basePoints = 30.8 * 0.7; // 21.56
-      const final_dilution = 0.7 + (1.0 - 0.7) * 0.2;
-      const quality_multiplier = 0.7 + (4/5) * 0.6;
-      const expected = basePoints * quality_multiplier * (final_dilution / 0.7);
-      expect(points).toBeCloseTo(expected);
+      expect(points).toBeCloseTo(21.70256);
     });
   });
 

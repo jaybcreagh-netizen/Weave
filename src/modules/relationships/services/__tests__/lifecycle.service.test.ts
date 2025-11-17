@@ -2,23 +2,32 @@
 import { checkAndApplyDormancy, reactivateFriend } from '../lifecycle.service';
 import { database } from '@/db';
 
+const mockFriend = {
+  id: '1',
+  update: jest.fn(),
+};
+
+const mockFriends = [
+  { id: 'friend-1', update: jest.fn() },
+  { id: 'friend-2', update: jest.fn() },
+];
+
+const mockFriendsCollection = {
+  find: jest.fn().mockResolvedValue(mockFriend),
+  query: jest.fn().mockReturnValue({
+    fetch: jest.fn().mockResolvedValue(mockFriends),
+  }),
+};
+
 // Mock the database to be more robust
 jest.mock('@/db', () => ({
   database: {
     write: jest.fn(async (fn) => await fn()),
-    get: jest.fn(() => ({
-      find: jest.fn().mockImplementation((id) => Promise.resolve({
-        id,
-        update: jest.fn(),
-      })),
-      query: jest.fn(() => ({
-        fetch: jest.fn().mockResolvedValue([
-          // Ensure fetch returns an array of mock friends
-          { id: 'friend-1', update: jest.fn() },
-          { id: 'friend-2', update: jest.fn() },
-        ]),
-      })),
-    })),
+    get: jest.fn((model) => {
+      if (model === 'friends') {
+        return mockFriendsCollection;
+      }
+    }),
   },
 }));
 
@@ -30,19 +39,17 @@ describe('lifecycle.service', () => {
   it('should check for dormant friends and apply dormancy', async () => {
     await checkAndApplyDormancy();
     expect(database.get).toHaveBeenCalledWith('friends');
-    const query = database.get('friends').query();
-    expect(query.fetch).toHaveBeenCalled();
-    const friends = await query.fetch();
+    expect(mockFriendsCollection.query).toHaveBeenCalled();
+    expect(mockFriendsCollection.query().fetch).toHaveBeenCalled();
     // Ensure that update was called for each friend in the mock array
-    expect(friends[0].update).toHaveBeenCalled();
-    expect(friends[1].update).toHaveBeenCalled();
+    expect(mockFriends[0].update).toHaveBeenCalled();
+    expect(mockFriends[1].update).toHaveBeenCalled();
   });
 
   it('should reactivate a dormant friend', async () => {
     await reactivateFriend('1');
     expect(database.get).toHaveBeenCalledWith('friends');
-    expect(database.get('friends').find).toHaveBeenCalledWith('1');
-    const friend = await database.get('friends').find('1');
-    expect(friend.update).toHaveBeenCalled();
+    expect(mockFriendsCollection.find).toHaveBeenCalledWith('1');
+    expect(mockFriend.update).toHaveBeenCalled();
   });
 });
