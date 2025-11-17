@@ -7,6 +7,7 @@ import {
 import { differenceInDays } from 'date-fns';
 import { database } from '../db';
 import LifeEvent, { LifeEventType } from '../db/models/LifeEvent';
+import { daysUntil, isPast as isPastService } from '@/modules/relationships/services/life-event.service';
 import Intention from '../db/models/Intention';
 import { Q } from '@nozbe/watermelondb';
 import {
@@ -271,8 +272,8 @@ function getLifeEventDisplay(eventType: LifeEventType | 'birthday' | 'anniversar
 }
 
 // Get appropriate suggestion text for event type
-function getLifeEventSuggestion(eventType: LifeEventType | 'birthday' | 'anniversary', archetype: string, isPast: boolean): string {
-  if (isPast) {
+function getLifeEventSuggestion(eventType: LifeEventType | 'birthday' | 'anniversary', archetype: string, lifeEvent: LifeEvent): string {
+  if (isPastService(lifeEvent)) {
     // Follow-up suggestions for past events
     const followUps: Record<string, string> = {
       wedding: 'Check in on how married life is going',
@@ -511,32 +512,31 @@ export async function generateSuggestion(input: SuggestionInput): Promise<Sugges
 
     const eventIcon = eventIconMap[lifeEvent.type] || '📅';
     const eventLabel = lifeEvent.title || eventLabelMap[lifeEvent.type] || lifeEvent.type;
-    const isPast = lifeEvent.daysUntil < 0;
 
     // Use archetype-specific suggestions for birthdays/anniversaries, otherwise use life event specific
     const subtitle = (lifeEvent.type === 'birthday' || lifeEvent.type === 'anniversary')
       ? getArchetypeCelebrationSuggestion(friend.archetype)
-      : getLifeEventSuggestion(lifeEvent.type, friend.archetype, isPast);
+      : getLifeEventSuggestion(lifeEvent.type, friend.archetype, lifeEvent);
 
     // Different title and action for past vs upcoming events
-    const title = isPast
+    const title = isPastService(lifeEvent)
       ? `Check in on ${friend.name}'s ${eventLabel}`
-      : `${friend.name}'s ${eventLabel} ${getDaysText(lifeEvent.daysUntil)}`;
+      : `${friend.name}'s ${eventLabel} ${getDaysText(daysUntil(lifeEvent))}`;
 
-    const actionLabel = isPast ? 'Reach Out' : 'Plan Celebration';
+    const actionLabel = isPastService(lifeEvent) ? 'Reach Out' : 'Plan Celebration';
 
     return {
       id: `life-event-${friend.id}-${lifeEvent.type}`,
       friendId: friend.id,
       friendName: friend.name,
-      urgency: lifeEvent.daysUntil <= 1 ? 'high' : 'medium',
+      urgency: daysUntil(lifeEvent) <= 1 ? 'high' : 'medium',
       category: 'life-event',
       title,
       subtitle,
       actionLabel,
       icon: eventIcon,
       action: {
-        type: isPast ? 'log' : 'plan',
+        type: isPastService(lifeEvent) ? 'log' : 'plan',
         prefilledCategory: 'celebration' as any,
       },
       dismissible: true,
@@ -621,7 +621,7 @@ export async function generateSuggestion(input: SuggestionInput): Promise<Sugges
   if (isHighDrift) {
     const contextualAction = getContextualSuggestion(recentInteractions, friend.archetype, friend.dunbarTier, pattern);
     const eventContext = lifeEvent
-      ? ` ${lifeEvent.type === 'birthday' ? '🎂' : '💝'} Their ${lifeEvent.type} ${getDaysText(lifeEvent.daysUntil)}.`
+      ? ` ${lifeEvent.type === 'birthday' ? '🎂' : '💝'} Their ${lifeEvent.type} ${getDaysText(daysUntil(lifeEvent))}.`
       : '';
 
     // Add pattern-aware context

@@ -2,7 +2,7 @@ import React from 'react';
 import { TouchableOpacity, StyleSheet, View, Text } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
-import { useTheme } from '../hooks/useTheme';
+import { useTheme } from '@/shared/hooks/useTheme';
 
 interface IntentionsFABProps {
   count: number;

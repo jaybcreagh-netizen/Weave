@@ -7,7 +7,7 @@ import React, { useState, useMemo } from 'react';
 import { View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { Sparkles, Check, Lightbulb, Plus } from 'lucide-react-native';
-import { useTheme } from '../../hooks/useTheme';
+import { useTheme } from '@/shared/hooks/useTheme';
 import { WeeklySummary } from '../../lib/weekly-reflection/weekly-stats';
 import { generateContextualPrompts, selectBestPrompt } from '../../lib/weekly-reflection/contextual-prompts';
 import { WeekStoryChipSuggestion } from '../../lib/weekly-reflection/story-chip-aggregator';

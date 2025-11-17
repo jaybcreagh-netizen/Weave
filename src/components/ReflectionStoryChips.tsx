@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-nati
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { getChipsForType, getChipTypeLabel, type StoryChip, type ChipType } from '../lib/story-chips';
 import { type InteractionCategory, type Archetype, type Vibe, type Tier } from './types';
-import { useTheme } from '../hooks/useTheme';
+import { useTheme } from '@/shared/hooks/useTheme';
 import { getChipFrequencyScores, getCustomChipsAsStoryChips } from '../lib/adaptive-chips';
 
 interface ReflectionStoryChipsProps {

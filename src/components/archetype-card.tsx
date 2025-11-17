@@ -4,8 +4,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { useUIStore } from '../stores/uiStore';
 import { type Archetype } from './types';
-import { useTheme } from '../hooks/useTheme';
-import { archetypeData } from '../lib/constants';
+import { useTheme } from '@/shared/hooks/useTheme';
+import { archetypeData } from '@/shared/constants/constants';
 
 // Import SVG files as components
 import EmperorSvg from '../../assets/TarotIcons/TheEmperor.svg';

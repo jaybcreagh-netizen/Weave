@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, TextInput, Platform } from 'react-native'
 import { ChevronDown, ChevronUp, Clock, Users } from 'lucide-react-native';
 import { format } from 'date-fns';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { useTheme } from '../../hooks/useTheme';
+import { useTheme } from '@/shared/hooks/useTheme';
 import { PlanFormData } from '../PlanWizard';
 import FriendModel from '../../db/models/Friend';
 import { PlanSuggestion } from '../../hooks/usePlanSuggestion';

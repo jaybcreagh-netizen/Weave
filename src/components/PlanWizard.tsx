@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, Modal, ScrollView, SafeAreaView } from 'r
 import Animated, { SlideInLeft, SlideInRight, SlideOutLeft, SlideOutRight } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
 import { X, ArrowLeft } from 'lucide-react-native';
-import { useTheme } from '../hooks/useTheme';
+import { useTheme } from '@/shared/hooks/useTheme';
 import FriendModel from '../db/models/Friend';
 import { type InteractionCategory } from './types';
 import { usePlanSuggestion } from '../hooks/usePlanSuggestion';

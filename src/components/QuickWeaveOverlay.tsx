@@ -15,7 +15,7 @@ import { BlurView } from 'expo-blur';
 import { useUIStore } from '../stores/uiStore';
 import { useFriends } from '../hooks/useFriends';
 import { useCardGesture } from '../context/CardGestureContext';
-import { useTheme } from '../hooks/useTheme';
+import { useTheme } from '@/shared/hooks/useTheme';
 import { type InteractionCategory } from './types';
 
 // Compact sizing for sleeker feel

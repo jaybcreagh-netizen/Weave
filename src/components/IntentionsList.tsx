@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { formatDistanceToNow } from 'date-fns';
 import { Q } from '@nozbe/watermelondb';
 import { Trash2 } from 'lucide-react-native';
-import { useTheme } from '../hooks/useTheme';
+import { useTheme } from '@/shared/hooks/useTheme';
 import { getCategoryMetadata } from '../lib/interaction-categories';
 import Intention from '../db/models/Intention';
 import FriendModel from '../db/models/Friend';

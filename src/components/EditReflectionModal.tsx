@@ -5,7 +5,7 @@ import { X } from 'lucide-react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { ContextualReflectionInput } from './ContextualReflectionInput';
 import { CelebrationAnimation } from './CelebrationAnimation';
-import { useTheme } from '../hooks/useTheme';
+import { useTheme } from '@/shared/hooks/useTheme';
 import { type Interaction, type StructuredReflection, type InteractionCategory, type Archetype, type Vibe } from './types';
 import { calculateDeepeningLevel } from '../lib/deepening-utils';
 

@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { View } from 'react-native';
 import { Calendar, DateData } from 'react-native-calendars';
-import { useTheme } from '../hooks/useTheme';
+import { useTheme } from '@/shared/hooks/useTheme';
 import { format, startOfDay } from 'date-fns';
 
 interface CustomCalendarProps {

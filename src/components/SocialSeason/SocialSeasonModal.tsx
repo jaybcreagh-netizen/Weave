@@ -17,7 +17,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { X, Activity, BarChart3 } from 'lucide-react-native';
 import { startOfMonth, endOfMonth, eachDayOfInterval, format, isSameDay, startOfWeek, endOfWeek, differenceInDays } from 'date-fns';
 import { Q } from '@nozbe/watermelondb';
-import { useTheme } from '../../hooks/useTheme';
+import { useTheme } from '@/shared/hooks/useTheme';
 import { type SocialSeason, type SeasonExplanationData } from '../../lib/social-season/season-types';
 import { SEASON_STYLES, getSeasonDisplayName } from '../../lib/social-season/season-content';
 import { generateSeasonExplanation } from '../../lib/narrative-generator';

@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { theme } from '../theme';
-import { moonPhasesData } from '../lib/constants';
+import { theme } from '@/shared/theme/theme';
+import { moonPhasesData } from '@/shared/constants/constants';
 import { type Vibe } from './types';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 

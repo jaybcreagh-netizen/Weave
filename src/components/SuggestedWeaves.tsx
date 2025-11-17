@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { Sparkles, X, Calendar, MapPin } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useEventSuggestionStore, type EventSuggestion } from '../stores/eventSuggestionStore';
-import { useTheme } from '../hooks/useTheme';
+import { useTheme } from '@/shared/hooks/useTheme';
 import { format, formatDistanceToNow } from 'date-fns';
 
 /**

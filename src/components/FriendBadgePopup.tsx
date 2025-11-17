@@ -35,9 +35,9 @@ import Friend from '../db/models/Friend';
 import { Q } from '@nozbe/watermelondb';
 import { getBadgeById } from '../lib/badge-definitions';
 import { analyzeInteractionPattern } from '../lib/pattern-analyzer';
-import { archetypeData } from '../lib/constants';
+import { archetypeData } from '@/shared/constants/constants';
 import { CATEGORY_METADATA } from '../lib/interaction-categories';
-import { useTheme } from '../hooks/useTheme';
+import { useTheme } from '@/shared/hooks/useTheme';
 import type { Archetype, InteractionCategory } from '../components/types';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');

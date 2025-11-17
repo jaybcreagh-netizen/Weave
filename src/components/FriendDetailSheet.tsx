@@ -11,14 +11,14 @@ import { BlurView } from 'expo-blur';
 import { Calendar, Heart, Sparkles, X } from 'lucide-react-native';
 import { format } from 'date-fns';
 
-import { useTheme } from '../hooks/useTheme';
+import { useTheme } from '@/shared/hooks/useTheme';
 import { ArchetypeIcon } from './ArchetypeIcon';
-import { archetypeData, CategoryArchetypeMatrix } from '../lib/constants';
+import { archetypeData, CategoryArchetypeMatrix } from '@/shared/constants/constants';
 import { CATEGORY_METADATA } from '../lib/interaction-categories';
 import { type InteractionCategory } from './types';
 import FriendModel from '../db/models/Friend';
 import { useFriendStore } from '../stores/friendStore';
-import { calculateCurrentScore } from '../lib/weave-engine';
+import { calculateCurrentScore } from '@/modules/intelligence/services/decay.service';
 import { getFriendMilestones, Milestone } from '../lib/milestone-tracker';
 
 // Helper: Get top interaction suggestions for an archetype

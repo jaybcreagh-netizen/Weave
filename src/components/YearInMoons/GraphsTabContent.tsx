@@ -16,7 +16,7 @@ import FriendModel from '../../db/models/Friend';
 import InteractionModel from '../../db/models/Interaction';
 import { getYearMoonData, getYearStats } from '../../lib/year-in-moons-data';
 import { usePortfolio } from '../../hooks/usePortfolio';
-import { useTheme } from '../../hooks/useTheme';
+import { useTheme } from '@/shared/hooks/useTheme';
 import { TrendingUp, TrendingDown, Minus, X } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 

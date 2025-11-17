@@ -44,23 +44,4 @@ export default class WeeklyReflection extends Model {
     this.storyChipsRaw = JSON.stringify(chips);
   }
 
-  // Helper to check if this is the current week
-  isCurrentWeek(): boolean {
-    const now = Date.now();
-    return now >= this.weekStartDate && now <= this.weekEndDate;
-  }
-
-  // Helper to format week range
-  getWeekRange(): string {
-    const start = new Date(this.weekStartDate);
-    const end = new Date(this.weekEndDate);
-    return `${start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
-  }
-
-  // Helper to get days ago
-  getDaysAgo(): number {
-    const now = Date.now();
-    const days = Math.floor((now - this.weekEndDate) / (24 * 60 * 60 * 1000));
-    return days;
-  }
 }

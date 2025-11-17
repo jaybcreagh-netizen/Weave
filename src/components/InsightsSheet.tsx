@@ -5,7 +5,7 @@ import { BlurView } from 'expo-blur';
 import { Suggestion } from '../types/suggestions';
 import { SuggestionCard } from './SuggestionCard';
 import { IntentionsList } from './IntentionsList';
-import { useTheme } from '../hooks/useTheme';
+import { useTheme } from '@/shared/hooks/useTheme';
 import Intention from '../db/models/Intention';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');

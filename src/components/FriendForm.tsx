@@ -5,7 +5,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as Contacts from 'expo-contacts';
 import { useNavigation, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useTheme } from '../hooks/useTheme';
+import { useTheme } from '@/shared/hooks/useTheme';
 import { useFriends } from '../hooks/useFriends';
 import FriendModel from '../db/models/Friend';
 import { type Archetype, type FriendFormData, type Tier, type RelationshipType } from './types';
@@ -13,11 +13,11 @@ import { ArchetypeCard } from './archetype-card';
 import { ArchetypeDetailModal } from './ArchetypeDetailModal';
 import { ContactPickerGrid } from './onboarding/ContactPickerGrid';
 import { MonthDayPicker } from './MonthDayPicker';
-import { getTierCapacity, getTierDisplayName, isTierAtCapacity } from '../lib/constants';
+import { getTierCapacity, getTierDisplayName, isTierAtCapacity } from '@/shared/constants/constants';
 import { normalizeContactImageUri } from '../lib/image-utils';
 import { SimpleTutorialTooltip } from './SimpleTutorialTooltip';
 import { useTutorialStore } from '../stores/tutorialStore';
-import { validateMMDDFormat } from '../lib/validation-helpers';
+import { validateMMDDFormat } from '@/shared/utils/validation-helpers';
 import { processAndStoreImage } from '../lib/image-service';
 
 interface FriendFormProps {

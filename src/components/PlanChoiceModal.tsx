@@ -4,7 +4,7 @@ import { X, Lightbulb, Calendar } from 'lucide-react-native';
 import { BlurView } from 'expo-blur';
 import Animated, { FadeIn, useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useTheme } from '../hooks/useTheme';
+import { useTheme } from '@/shared/hooks/useTheme';
 
 interface PlanChoiceModalProps {
   isOpen: boolean;

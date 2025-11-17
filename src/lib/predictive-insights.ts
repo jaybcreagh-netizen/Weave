@@ -1,7 +1,7 @@
 import FriendModel from '../db/models/Friend';
 import { calculateCurrentScore } from './weave-engine';
 import { analyzeInteractionPattern, predictNextInteraction, type FriendshipPattern } from './pattern-analyzer';
-import { TierDecayRates } from './constants';
+import { TierDecayRates } from '@/shared/constants/constants';
 import { Tier } from '../components/types';
 import { differenceInDays } from 'date-fns';
 

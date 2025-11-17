@@ -5,9 +5,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, runOnJS } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
-import { useTheme } from '../hooks/useTheme';
+import { useTheme } from '@/shared/hooks/useTheme';
 import { type Interaction, type MoonPhase, type InteractionCategory } from './types';
-import { modeIcons } from '../lib/constants';
+import { modeIcons } from '@/shared/constants/constants';
 import { getCategoryMetadata } from '../lib/interaction-categories';
 import { STORY_CHIPS } from '../lib/story-chips';
 

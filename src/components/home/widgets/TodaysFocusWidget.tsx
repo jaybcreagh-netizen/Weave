@@ -16,7 +16,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 import { useRouter } from 'expo-router';
 import { differenceInDays, format } from 'date-fns';
 import { Cake, Heart, ChevronDown, ChevronUp, Calendar, CheckCircle2, Sparkles, Flame, X } from 'lucide-react-native';
-import { useTheme } from '../../../hooks/useTheme';
+import { useTheme } from '@/shared/hooks/useTheme';
 import { HomeWidgetBase, HomeWidgetConfig } from '../HomeWidgetBase';
 import { useFriendStore } from '../../../stores/friendStore';
 import { useSuggestions } from '../../../hooks/useSuggestions';

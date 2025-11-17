@@ -16,7 +16,7 @@ import {
   startOfDay,
   isFuture,
 } from 'date-fns';
-import { useTheme } from '../hooks/useTheme';
+import { useTheme } from '@/shared/hooks/useTheme';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 
 interface Interaction {

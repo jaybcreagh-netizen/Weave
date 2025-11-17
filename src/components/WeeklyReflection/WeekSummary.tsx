@@ -7,7 +7,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { TrendingUp, Users, Activity, ArrowUp, ArrowDown, Minus, Heart, Sparkles, AlertCircle } from 'lucide-react-native';
-import { useTheme } from '../../hooks/useTheme';
+import { useTheme } from '@/shared/hooks/useTheme';
 import { WeeklySummary } from '../../lib/weekly-reflection/weekly-stats';
 import { format } from 'date-fns';
 

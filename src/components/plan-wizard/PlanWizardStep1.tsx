@@ -5,7 +5,7 @@ import { Calendar, Sun, Moon, X, TrendingUp, CalendarDays } from 'lucide-react-n
 import { BlurView } from 'expo-blur';
 import { startOfDay, addDays, format, isSaturday, nextSaturday, getDay, nextDay } from 'date-fns';
 import { Q } from '@nozbe/watermelondb';
-import { useTheme } from '../../hooks/useTheme';
+import { useTheme } from '@/shared/hooks/useTheme';
 import { CustomCalendar } from '../CustomCalendar';
 import { database } from '../../db';
 import InteractionModel from '../../db/models/Interaction';

@@ -7,7 +7,7 @@
 
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
-import { useTheme } from '../hooks/useTheme';
+import { useTheme } from '@/shared/hooks/useTheme';
 import type { BadgeDefinition } from '../lib/badge-definitions';
 import type { GlobalAchievement } from '../lib/achievement-definitions';
 

@@ -17,23 +17,4 @@ export default class PracticeLog extends Model {
 
   @readonly @date('created_at') createdAt!: Date;
 
-  // Helper to truncate timestamp to day start (for grouping)
-  static truncateToDay(timestamp: number): number {
-    const date = new Date(timestamp);
-    date.setHours(0, 0, 0, 0);
-    return date.getTime();
-  }
-
-  // Helper to check if practice was today
-  isToday(): boolean {
-    const today = PracticeLog.truncateToDay(Date.now());
-    return this.practiceDate === today;
-  }
-
-  // Helper to get day difference from today
-  daysAgo(): number {
-    const today = PracticeLog.truncateToDay(Date.now());
-    const daysDiff = Math.floor((today - this.practiceDate) / (24 * 60 * 60 * 1000));
-    return daysDiff;
-  }
 }

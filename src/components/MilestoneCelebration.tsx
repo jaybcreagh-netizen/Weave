@@ -10,7 +10,7 @@ import Animated, {
   Easing,
   runOnJS,
 } from 'react-native-reanimated';
-import { useTheme } from '../hooks/useTheme';
+import { useTheme } from '@/shared/hooks/useTheme';
 import { Milestone } from '../lib/milestone-tracker';
 import * as Haptics from 'expo-haptics';
 

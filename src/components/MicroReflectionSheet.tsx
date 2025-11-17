@@ -4,7 +4,7 @@ import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming, run
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 
-import { useTheme } from '../hooks/useTheme';
+import { useTheme } from '@/shared/hooks/useTheme';
 import { type Vibe } from './types';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');

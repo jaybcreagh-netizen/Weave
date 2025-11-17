@@ -53,11 +53,4 @@ export default class CustomChip extends Model {
     };
   }
 
-  // Increment usage count
-  async incrementUsage() {
-    await this.update(chip => {
-      chip.usageCount = chip.usageCount + 1;
-      chip.lastUsedAt = Date.now();
-    });
-  }
 }

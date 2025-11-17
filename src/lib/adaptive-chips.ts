@@ -9,8 +9,9 @@
  */
 
 import { database } from '../db';
-import { Q } from '@nozbe/watermelondb';
-import CustomChip from '../db/models/CustomChip';
+import { database } from '@/db';
+import CustomChip from '@/db/models/CustomChip';
+import { incrementUsage } from '@/modules/reflection/services/custom-chip.service';
 import ChipUsage from '../db/models/ChipUsage';
 import Interaction from '../db/models/Interaction';
 import FriendModel from '../db/models/Friend';
@@ -45,7 +46,7 @@ export async function recordChipUsage(
       ).fetch();
 
       if (customChip.length > 0) {
-        await customChip[0].incrementUsage();
+        await incrementUsage(customChip[0]);
       }
     }
   });

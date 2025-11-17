@@ -7,7 +7,7 @@ import { type Archetype, type Tier, type Status, type FriendFormData } from '../
 import { Subscription, of } from 'rxjs';
 import { switchMap } from 'rxjs/operators';
 import { Q } from '@nozbe/watermelondb';
-import { tierMap } from '../lib/constants';
+import { tierMap } from '@/shared/constants/constants';
 import { appStateManager } from '../lib/app-state-manager';
 import { trackEvent, AnalyticsEvents } from '../lib/analytics';
 import { deleteImage } from '../lib/image-service';
