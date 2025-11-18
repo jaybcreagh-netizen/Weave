@@ -20,10 +20,9 @@ import { useTheme } from '@/shared/hooks/useTheme';
 import { HomeWidgetBase, HomeWidgetConfig } from '../HomeWidgetBase';
 import { useRelationshipsStore } from '@/modules/relationships';
 import { useSuggestions } from '../../../hooks/useSuggestions';
-import { usePendingPlans } from '../../../hooks/usePendingPlans';
-import { useInteractionStore } from '../../../stores/interactionStore';
+import { usePlans } from '@/modules/interactions';
 import { getCategoryMetadata } from '@/shared/constants/interaction-categories';
-import { PlanWizard } from '../../PlanWizard';
+import { PlanWizard } from '@/modules/interactions';
 import { type InteractionCategory } from '../../types';
 import FriendModel from '../../../db/models/Friend';
 import { type Suggestion } from '../../../types/suggestions';
@@ -57,8 +56,7 @@ export const TodaysFocusWidget: React.FC = () => {
   const router = useRouter();
   const { friends } = useRelationshipsStore();
   const { suggestions, dismissSuggestion } = useSuggestions();
-  const { pendingPlans } = usePendingPlans();
-  const { confirmPlan } = useInteractionStore();
+  const { pendingConfirmations, completePlan } = usePlans();
   const { profile } = useUserProfileStore();
   const [upcomingDates, setUpcomingDates] = useState<UpcomingDate[]>([]);
   const [rescheduleWizardOpen, setRescheduleWizardOpen] = useState(false);
@@ -375,7 +373,7 @@ export const TodaysFocusWidget: React.FC = () => {
     }
 
     // 2. Today's plans - show all at a glance
-    const todaysPlans = pendingPlans.filter(p => p.daysUntil === 0);
+    const todaysPlans = pendingConfirmations.filter(p => differenceInDays(p.interactionDate, new Date()) === 0);
     if (todaysPlans.length > 0) {
       return { state: 'todays-plan', data: { plans: todaysPlans, count: todaysPlans.length } };
     }
@@ -425,15 +423,16 @@ export const TodaysFocusWidget: React.FC = () => {
 
   const handleConfirmPlan = async (interactionId: string) => {
     try {
-      await confirmPlan(interactionId);
+      await completePlan(interactionId);
     } catch (error) {
       console.error('Error confirming plan:', error);
     }
   };
 
-  const handleReschedulePlan = (plan: typeof pendingPlans[0]) => {
-    if (plan.friends.length > 0) {
-      setRescheduleFriend(plan.friends[0]);
+  const handleReschedulePlan = async (plan: Interaction) => {
+    const friends = await plan.friends.fetch();
+    if (friends.length > 0) {
+      setRescheduleFriend(friends[0]);
       setRescheduleInteractionId(plan.interaction.id);
       setReschedulePlanData({
         date: plan.interaction.interactionDate,
@@ -499,7 +498,7 @@ export const TodaysFocusWidget: React.FC = () => {
   };
 
   // Count additional items
-  const additionalItemsCount = pendingPlans.length + suggestions.length + upcomingDates.length - 1;
+  const additionalItemsCount = pendingConfirmations.length + suggestions.length + upcomingDates.length - 1;
 
   // Render hero card based on priority
   const renderCard = () => {
@@ -555,14 +554,14 @@ export const TodaysFocusWidget: React.FC = () => {
   const renderExpandedContent = () => (
     <>
       {/* Pending Plans */}
-      {pendingPlans.length > 0 && (
+      {pendingConfirmations.length > 0 && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>
             PENDING PLANS
           </Text>
-          {pendingPlans.slice(0, 2).map((plan) => {
+          {pendingConfirmations.slice(0, 2).map((plan) => {
             const friendName = plan.friends.map(f => f.name).join(', ');
-            const dateText = getDaysText(plan.daysUntil);
+            const dateText = getDaysText(differenceInDays(new Date(), plan.interactionDate));
             const categoryData = plan.interaction.interactionCategory
               ? getCategoryMetadata(plan.interaction.interactionCategory as InteractionCategory)
               : null;

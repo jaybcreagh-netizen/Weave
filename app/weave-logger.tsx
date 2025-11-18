@@ -7,7 +7,7 @@ import { CelebrationAnimation } from '../src/components/CelebrationAnimation';
 import { calculateDeepeningLevel } from '../src/lib/deepening-utils';
 import { BlurView } from 'expo-blur';
 
-import { useInteractionStore, type StructuredReflection } from '../src/stores/interactionStore';
+import { useInteractions, type StructuredReflection } from '../src/modules/interactions';
 import { Calendar as CalendarIcon, X, Sparkles } from 'lucide-react-native';
 import { CustomCalendar } from '../src/components/CustomCalendar';
 import { MoonPhaseSelector } from '../src/components/MoonPhaseSelector';
@@ -29,7 +29,7 @@ const dateOptions = [
 export default function WeaveLoggerScreen() {
   const router = useRouter();
   const { friendId } = useLocalSearchParams<{ friendId: string }>();
-  const { addInteraction } = useInteractionStore();
+  const { logWeave } = useInteractions();
   const { colors, isDarkMode } = useTheme();
 
   const [friendName, setFriendName] = useState<string>('');
@@ -118,7 +118,7 @@ export default function WeaveLoggerScreen() {
         .filter(Boolean)
         .join(' ');
 
-      await addInteraction({
+      await logWeave({
         friendIds: [friendId],
         category: selectedCategory,
         activity: selectedCategory,

@@ -15,7 +15,7 @@ import { InsightsSheet } from '../src/components/InsightsSheet';
 import { AddFriendMenu } from '../src/components/AddFriendMenu';
 import { useUIStore } from '../src/stores/uiStore';
 import { useFriends } from '../src/hooks/useFriends';
-import { useInteractionStore } from '../src/stores/interactionStore';
+import { useInteractions, usePlans, PlanService } from '../src/modules/interactions';
 import { useSuggestions } from '../src/hooks/useSuggestions';
 import { getSuggestionCooldownDays } from '../src/lib/suggestion-engine';
 import { Suggestion } from '../src/types/suggestions';
@@ -24,8 +24,6 @@ import FriendModel from '../src/db/models/Friend';
 import { useTheme } from '../src/hooks/useTheme';
 import { CardGestureProvider, useCardGesture } from '../src/context/CardGestureContext';
 import { trackSuggestionActed } from '../src/lib/suggestion-tracker';
-import { useActiveIntentions } from '../src/hooks/useIntentions';
-import { useIntentionStore } from '../src/stores/intentionStore';
 import { IntentionActionSheet } from '../src/components/IntentionActionSheet';
 import Intention from '../src/db/models/Intention';
 import { tierColors } from '../src/lib/constants';
@@ -106,11 +104,10 @@ function DashboardContent() {
   const { colors, isDarkMode } = useTheme();
   const { isQuickWeaveOpen, microReflectionData, hideMicroReflectionSheet, showMicroReflectionSheet } = useUIStore();
   const allFriends = useFriends(); // Direct WatermelonDB subscription
-  const { updateInteractionVibeAndNotes } = useInteractionStore();
+  const { updateInteractionVibeAndNotes } = useInteractions();
   const { gesture, animatedScrollHandler, activeCardId } = useCardGesture();
   const { suggestions, suggestionCount, hasCritical, dismissSuggestion } = useSuggestions();
-  const { convertToPlannedWeave, dismissIntention } = useIntentionStore();
-  const intentions = useActiveIntentions();
+  const { dismissIntention, intentions } = usePlans();
   const [insightsSheetVisible, setInsightsSheetVisible] = useState(false);
   const [selectedIntention, setSelectedIntention] = useState<Intention | null>(null);
   const [addFriendMenuVisible, setAddFriendMenuVisible] = useState(false);
@@ -405,7 +402,7 @@ function DashboardContent() {
         isOpen={selectedIntention !== null}
         onClose={() => setSelectedIntention(null)}
         onSchedule={async (intention, intentionFriend) => {
-          await convertToPlannedWeave(intention.id);
+          await PlanService.convertIntentionToPlan(intention.id);
           setSelectedIntention(null);
           // Navigate to friend profile where they can schedule with PlanWizard
           router.push({ pathname: '/friend-profile', params: { friendId: intentionFriend.id } });

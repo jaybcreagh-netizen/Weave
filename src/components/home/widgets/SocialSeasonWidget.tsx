@@ -9,7 +9,7 @@ import { BookOpen, X, Sparkles, BarChart3, Telescope, Lightbulb, Flame, Battery,
 import { useTheme } from '@/shared/hooks/useTheme';
 import { useUserProfileStore } from '../../../stores/userProfileStore';
 import { useFriends } from '../../../hooks/useFriends';
-import { useInteractionStore } from '../../../stores/interactionStore';
+import { useInteractions } from '@/modules/interactions';
 import { HomeWidgetBase, HomeWidgetConfig } from '../HomeWidgetBase';
 import {
   calculateSocialSeason,
@@ -72,7 +72,7 @@ export const SocialSeasonWidget: React.FC = () => {
   const router = useRouter();
   const { profile, updateSocialSeason, getRecentBatteryAverage, getBatteryTrend } = useUserProfileStore();
   const friends = useFriends();
-  const { allInteractions, observeAllInteractions, unobserveAllInteractions } = useInteractionStore();
+  const { allInteractions } = useInteractions();
   const [isCalculating, setIsCalculating] = useState(false);
   const [season, setSeason] = useState<SocialSeason>('balanced');
   const [seasonData, setSeasonData] = useState<SeasonExplanationData | null>(null);
@@ -82,12 +82,6 @@ export const SocialSeasonWidget: React.FC = () => {
   const [weeklyWeaves, setWeeklyWeaves] = useState(0);
   const [currentStreak, setCurrentStreak] = useState(0);
   const [networkHealth, setNetworkHealth] = useState(0);
-
-  // Observe interactions to update stats when new weaves are logged
-  useEffect(() => {
-    observeAllInteractions();
-    return () => unobserveAllInteractions();
-  }, []);
 
   // Recalculate stats when interactions change
   useEffect(() => {

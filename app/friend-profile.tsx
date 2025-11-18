@@ -12,7 +12,7 @@ import { Q } from '@nozbe/watermelondb';
 import { FriendListRow } from '../src/modules/relationships';
 import { TimelineItem } from '../src/components/TimelineItem';
 import { useRelationshipsStore } from '../src/modules/relationships';
-import { useInteractionStore } from '../src/stores/interactionStore';
+import { useInteractions, usePlans, PlanService } from '../src/modules/interactions';
 import { calculateNextConnectionDate, getPoeticSectionTitle } from '../src/lib/timeline-utils';
 import { useTheme } from '../src/hooks/useTheme';
 import { type Interaction, type Tier } from '../src/components/types';
@@ -20,13 +20,11 @@ import { InteractionDetailModal } from '../src/components/interaction-detail-mod
 import { EditReflectionModal } from '../src/components/EditReflectionModal';
 import { EditInteractionModal } from '../src/components/EditInteractionModal';
 import { PlanChoiceModal } from '../src/components/PlanChoiceModal';
-import { PlanWizard } from '../src/components/PlanWizard';
+import { PlanWizard } from '../src/modules/interactions';
 import { IntentionFormModal } from '../src/components/IntentionFormModal';
 import { IntentionsDrawer } from '../src/components/IntentionsDrawer';
 import { IntentionsFAB } from '../src/components/IntentionsFAB';
 import { IntentionActionSheet } from '../src/components/IntentionActionSheet';
-import { useIntentionStore } from '../src/stores/intentionStore';
-import { useFriendIntentions } from '../src/hooks/useIntentions';
 import { LifeEventModal } from '../src/components/LifeEventModal';
 import { WeaveIcon } from '../src/components/WeaveIcon';
 import FriendBadgePopup from '../src/components/FriendBadgePopup';
@@ -49,9 +47,9 @@ export default function FriendProfile() {
     hasMoreInteractions,
   } = useRelationshipsStore();
   const { deleteFriend } = useRelationshipsStore();
-  const { deleteInteraction, updateReflection, updateInteraction } = useInteractionStore();
-  const { createIntention, convertToPlannedWeave, dismissIntention } = useIntentionStore();
-  const friendIntentions = useFriendIntentions(typeof friendId === 'string' ? friendId : undefined);
+  const { deleteWeave, updateReflection, updateInteraction } = useInteractions();
+  const { createIntention, dismissIntention, getFriendIntentions } = usePlans();
+  const friendIntentions = getFriendIntentions(typeof friendId === 'string' ? friendId : '');
   const [selectedInteraction, setSelectedInteraction] = useState<Interaction | null>(null);
 
   const [editingReflection, setEditingReflection] = useState<Interaction | null>(null);
@@ -266,13 +264,13 @@ export default function FriendProfile() {
 
   const handleDeleteInteraction = useCallback(async (interactionId: string) => {
     try {
-      await deleteInteraction(interactionId);
+      await deleteWeave(interactionId);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (error) {
       console.error('Error deleting interaction:', error);
       Alert.alert('Error', 'Failed to delete weave. Please try again.');
     }
-  }, [deleteInteraction]);
+  }, [deleteWeave]);
 
   const handleEditInteraction = useCallback((interactionId: string) => {
     const interaction = interactions.find(i => i.id === interactionId);
@@ -640,12 +638,10 @@ router.back();
           isOpen={selectedIntentionForAction !== null}
           onClose={() => setSelectedIntentionForAction(null)}
           onSchedule={async (intention, intentionFriend) => {
-            // Mark intention as converted
-            await convertToPlannedWeave(intention.id);
+            await PlanService.convertIntentionToPlan(intention.id);
             setSelectedIntentionForAction(null);
 
             // Open Plan Wizard with the friend and prefilled category
-            setSelectedFriends([intentionFriend]);
             if (intention.interactionCategory) {
               // TODO: Could prefill category in wizard if we add that feature
             }

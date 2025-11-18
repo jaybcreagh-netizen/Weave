@@ -7,7 +7,7 @@ import { format, isToday, isFuture } from 'date-fns';
 import * as Haptics from 'expo-haptics';
 
 import { GlobalYearCalendar } from '../src/components/GlobalYearCalendar';
-import { useInteractionStore } from '../src/stores/interactionStore';
+import { useInteractions } from '../src/modules/interactions';
 import { useTheme } from '../src/hooks/useTheme';
 import { database } from '../src/db';
 import { Q } from '@nozbe/watermelondb';
@@ -18,19 +18,12 @@ import { getCategoryMetadata } from '../src/lib/interaction-categories';
 export default function GlobalCalendar() {
   const router = useRouter();
   const { colors } = useTheme();
-  const { allInteractions, observeAllInteractions, unobserveAllInteractions } = useInteractionStore();
+  const { allInteractions } = useInteractions();
 
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedDateInteractions, setSelectedDateInteractions] = useState<any[]>([]);
   const [dayDetailModalVisible, setDayDetailModalVisible] = useState(false);
   const [interactionFriends, setInteractionFriends] = useState<Map<string, FriendModel[]>>(new Map());
-
-  useEffect(() => {
-    observeAllInteractions();
-    return () => {
-      unobserveAllInteractions();
-    };
-  }, []);
 
   // Load friends for interactions when modal opens
   useEffect(() => {

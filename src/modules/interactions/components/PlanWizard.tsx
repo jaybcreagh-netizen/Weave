@@ -4,18 +4,18 @@ import Animated, { SlideInLeft, SlideInRight, SlideOutLeft, SlideOutRight } from
 import { BlurView } from 'expo-blur';
 import { X, ArrowLeft } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
-import FriendModel from '../db/models/Friend';
-import { type InteractionCategory } from './types';
+import FriendModel from '@/db/models/Friend';
+import { InteractionCategory } from '@/shared/constants/interaction-categories';
 import { usePlanSuggestion } from '../hooks/usePlanSuggestion';
 import { PlanWizardStep1 } from './plan-wizard/PlanWizardStep1';
 import { PlanWizardStep2 } from './plan-wizard/PlanWizardStep2';
 import { PlanWizardStep3 } from './plan-wizard/PlanWizardStep3';
-import { useInteractionStore } from '../stores/interactionStore';
-import { createWeaveCalendarEvent, getCalendarSettings } from '../lib/calendar-service';
+import { usePlans } from '../hooks/usePlans';
+import * as CalendarService from '../services/calendar.service';
 import { getCategoryMetadata } from '@/shared/constants/interaction-categories';
-import { getDefaultTimeForCategory } from '../lib/smart-defaults';
-import { database } from '../db';
-import Interaction from '../db/models/Interaction';
+import { getDefaultTimeForCategory } from '@/lib/smart-defaults';
+import { database } from '@/db';
+import Interaction from '@/db/models/Interaction';
 
 interface PlanWizardProps {
   visible: boolean;
@@ -45,7 +45,7 @@ export interface PlanFormData {
 
 export function PlanWizard({ visible, onClose, initialFriend, prefillData, replaceInteractionId, initialStep = 1 }: PlanWizardProps) {
   const { colors, isDarkMode } = useTheme();
-  const { addInteraction, deleteInteraction } = useInteractionStore();
+  const { planWeave, deleteWeave } = usePlans();
   const suggestion = usePlanSuggestion(initialFriend);
 
   const [currentStep, setCurrentStep] = useState(initialStep); // Start from initialStep
@@ -120,7 +120,7 @@ export function PlanWizard({ visible, onClose, initialFriend, prefillData, repla
     try {
       // If rescheduling, delete the old plan first
       if (replaceInteractionId) {
-        await deleteInteraction(replaceInteractionId);
+        await deleteWeave(replaceInteractionId);
       }
 
       // Merge date and time if time is set
@@ -136,7 +136,7 @@ export function PlanWizard({ visible, onClose, initialFriend, prefillData, repla
       }
 
       // Create the interaction
-      const interactionId = await addInteraction({
+      const newPlan = await planWeave({
         friendIds: selectedFriends.map(f => f.id),
         activity: formData.category,
         category: formData.category,
@@ -152,13 +152,13 @@ export function PlanWizard({ visible, onClose, initialFriend, prefillData, repla
 
       // Try to create calendar event if settings enabled
       try {
-        const settings = await getCalendarSettings();
+        const settings = await CalendarService.getCalendarSettings();
         if (settings.enabled) {
           const categoryMeta = getCategoryMetadata(formData.category);
           const friendNames = selectedFriends.map(f => f.name).join(', ');
           const eventTitle = formData.title?.trim() || `${categoryMeta?.label || formData.category} with ${friendNames}`;
 
-          const calendarEventId = await createWeaveCalendarEvent({
+          const calendarEventId = await CalendarService.createWeaveCalendarEvent({
             title: eventTitle,
             friendNames: friendNames, // Pass all friend names
             category: categoryMeta?.label || formData.category,
@@ -168,9 +168,9 @@ export function PlanWizard({ visible, onClose, initialFriend, prefillData, repla
           });
 
           // If calendar event created successfully, update the interaction with the event ID
-          if (calendarEventId && interactionId) {
+          if (calendarEventId && newPlan.id) {
             await database.write(async () => {
-              const interaction = await database.get<Interaction>('interactions').find(interactionId);
+              const interaction = await database.get<Interaction>('interactions').find(newPlan.id);
               await interaction.update(i => {
                 i.calendarEventId = calendarEventId;
               });

@@ -143,8 +143,8 @@ export default Sentry.wrap(function RootLayout() {
         await trackRetentionMetrics();
 
         // Sync calendar changes on app launch (non-blocking)
-        import('../src/stores/interactionStore').then(({ useInteractionStore }) => {
-          useInteractionStore.getState().syncWithCalendar().catch((error) => {
+        import('@/modules/interactions').then(({ useInteractionsStore }) => {
+          useInteractionsStore.getState().syncCalendar().catch((error) => {
             console.error('[App] Error syncing calendar on launch:', error);
           });
         });
@@ -222,8 +222,8 @@ export default Sentry.wrap(function RootLayout() {
 
       // Sync calendar changes when app becomes active
       // This runs async in the background without blocking the UI
-      import('../src/stores/interactionStore').then(({ useInteractionStore }) => {
-        useInteractionStore.getState().syncWithCalendar().catch((error) => {
+        import('@/modules/interactions').then(({ useInteractionsStore }) => {
+          useInteractionsStore.getState().syncCalendar().catch((error) => {
           console.error('[App] Error syncing calendar on foreground:', error);
         });
       });
