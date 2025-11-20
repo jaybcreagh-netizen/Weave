@@ -10,7 +10,11 @@ import Interaction from '../db/models/Interaction';
 import InteractionFriend from '../db/models/InteractionFriend';
 import { trackSuggestionShown, trackSuggestionDismissed } from '../lib/suggestion-tracker';
 import { filterSuggestionsByTime } from '../lib/time-aware-filter';
-import { generatePortfolioInsights, analyzeArchetypeBalance, PortfolioAnalysis } from '../lib/portfolio-insights';
+import {
+  generatePortfolioInsights,
+  analyzeArchetypeBalance,
+  type PortfolioAnalysisStats
+} from '@/modules/insights';
 
 /**
  * Selects diverse suggestions to provide a balanced "options menu" experience.
@@ -155,7 +159,7 @@ export function useSuggestions() {
       trackedSuggestions.current.clear();
 
       const allSuggestions: Suggestion[] = [];
-      const friendStats: PortfolioAnalysis['friends'] = [];
+      const friendStats: PortfolioAnalysisStats['friends'] = [];
 
       for (const friend of friends) {
         // Query friend's interactions through the junction table
@@ -263,7 +267,7 @@ export function useSuggestions() {
           friends: uniqueFriendStats.map(f => ({ name: f.name, tier: f.tier, score: f.score }))
         });
 
-        const portfolioAnalysis: PortfolioAnalysis = {
+        const portfolioAnalysis: PortfolioAnalysisStats = {
           friends: uniqueFriendStats,
           tierScores,
           archetypeBalance: analyzeArchetypeBalance(uniqueFriendStats),

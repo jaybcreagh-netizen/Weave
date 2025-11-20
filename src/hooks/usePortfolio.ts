@@ -9,7 +9,7 @@ import {
   getPortfolioHealthSummary,
   getWeeklyFocusRecommendation,
   type FriendshipPortfolio,
-} from '../lib/portfolio-analyzer';
+} from '@/modules/insights';
 import { generatePortfolioSuggestions } from '../lib/suggestion-engine';
 import { type Suggestion } from '../types/suggestions';
 
@@ -22,9 +22,6 @@ export function usePortfolio() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    let friendsSubscription: any;
-    let interactionsSubscription: any;
-
     const loadPortfolio = async () => {
       try {
         // Get all friends
@@ -79,7 +76,7 @@ export function usePortfolio() {
     loadPortfolio();
 
     // Subscribe to friends changes
-    friendsSubscription = database
+    const friendsSubscription = database
       .get<FriendModel>('friends')
       .query()
       .observe()
@@ -88,7 +85,7 @@ export function usePortfolio() {
       });
 
     // Subscribe to interactions changes
-    interactionsSubscription = database
+    const interactionsSubscription = database
       .get<InteractionModel>('interactions')
       .query()
       .observe()

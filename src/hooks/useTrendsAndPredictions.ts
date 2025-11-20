@@ -1,15 +1,17 @@
 import { useState, useEffect } from 'react';
 import { usePortfolio } from './usePortfolio';
 import { useFriends } from './useFriends';
-import { analyzeTrends, getHistoricalSnapshots, type TrendAnalysis } from '../lib/trend-analyzer';
 import {
+  analyzeTrends,
+  getHistoricalSnapshots,
   predictFriendDrift,
   generateProactiveSuggestions,
   forecastNetworkHealth,
+  analyzeInteractionPattern,
+  type TrendAnalysis,
   type FriendPrediction,
   type ProactiveSuggestion,
-} from '../lib/predictive-insights';
-import { analyzeInteractionPattern } from '../lib/pattern-analyzer';
+} from '@/modules/insights';
 import { database } from '../db';
 import InteractionModel from '../db/models/Interaction';
 import InteractionFriend from '../db/models/InteractionFriend';

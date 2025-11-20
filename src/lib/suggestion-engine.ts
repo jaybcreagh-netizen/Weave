@@ -16,14 +16,10 @@ import {
   isPatternReliable,
   getPatternDescription,
   type FriendshipPattern,
-} from './pattern-analyzer';
-import {
   type FriendshipPortfolio,
   type PortfolioImbalance,
-} from './portfolio-analyzer';
-import {
   type ProactiveSuggestion,
-} from './predictive-insights';
+} from '@/modules/insights';
 
 // Friendly category labels for suggestions
 const CATEGORY_LABELS: Record<string, string> = {
@@ -90,7 +86,7 @@ async function checkUpcomingLifeEvent(friend: SuggestionInput['friend']): Promis
     const activeLifeEvents = await database
       .get<LifeEvent>('life_events')
       .query(
-        // @ts-ignore
+        // @ts-expect-error friend_id is dynamic
         Q.where('friend_id', friend.id),
         Q.or(
           // Upcoming events (within next 30 days)
