@@ -8,7 +8,7 @@ import { checkFriendBadges, checkGlobalAchievements, recordMilestone } from '@/m
 import { InteractionFormData } from '../types';
 
 // TODO: These should be moved to the insights module
-import { trackEvent, AnalyticsEvents, updateLastInteractionTimestamp } from '@/lib/analytics';
+import { trackEvent, AnalyticsEvents, updateLastInteractionTimestamp } from '@/shared/services/analytics.service';
 import { analyzeAndTagLifeEvents } from '@/lib/life-event-detection';
 import { deleteWeaveCalendarEvent } from './calendar.service';
 

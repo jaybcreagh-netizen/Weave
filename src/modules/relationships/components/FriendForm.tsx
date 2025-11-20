@@ -18,7 +18,7 @@ import { normalizeContactImageUri } from '@/lib/image-utils';
 import { SimpleTutorialTooltip } from './SimpleTutorialTooltip';
 import { useTutorialStore } from '../stores/tutorialStore';
 import { validateMMDDFormat } from '@/shared/utils/validation-helpers';
-import { processAndStoreImage } from '@/lib/image-service';
+import { processAndStoreImage } from '@/modules/relationships/services/image.service';
 
 interface FriendFormProps {
   onSave: (friendData: FriendFormData) => void;

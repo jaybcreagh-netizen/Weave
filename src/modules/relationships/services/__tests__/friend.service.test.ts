@@ -50,7 +50,7 @@ jest.mock('@/db', () => ({
 }));
 
 // Mock analytics
-jest.mock('@/lib/analytics', () => ({
+jest.mock('@/shared/services/analytics.service', () => ({
   trackEvent: jest.fn(),
   AnalyticsEvents: {
     FRIEND_ADDED: 'FRIEND_ADDED',
@@ -61,7 +61,7 @@ jest.mock('@/lib/analytics', () => ({
 }));
 
 // Mock image-service
-jest.mock('@/lib/image-service', () => ({
+jest.mock('@/modules/relationships/services/image.service', () => ({
   deleteImage: jest.fn(),
 }));
 
@@ -104,7 +104,7 @@ describe('friend.service', () => {
     expect(database.get).toHaveBeenCalledWith('friends');
     expect(mockFriendsCollection.find).toHaveBeenCalledWith('1');
     expect(mockFriend.destroyPermanently).toHaveBeenCalled();
-    expect(require('@/lib/image-service').deleteImage).toHaveBeenCalledWith({
+    expect(require('@/modules/relationships/services/image.service').deleteImage).toHaveBeenCalledWith({
       imageId: '1',
       type: 'profilePicture',
     });

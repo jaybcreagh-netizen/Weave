@@ -7,7 +7,7 @@ import { useTheme } from '@/shared/hooks/useTheme';
 import { type InteractionCategory } from '../types';
 import FriendModel from '../../db/models/Friend';
 import { PlanSuggestion } from '../../hooks/usePlanSuggestion';
-import { calculateActivityPriorities, isSmartDefaultsEnabled } from '@/lib/smart-defaults';
+import { calculateActivityPriorities, isSmartDefaultsEnabled } from '@/modules/interactions/services/smart-defaults.service';
 
 interface PlanWizardStep2Props {
   selectedCategory?: InteractionCategory;

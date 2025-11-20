@@ -4,8 +4,8 @@ import Friend from '@/db/models/Friend';
 import { Q } from '@nozbe/watermelondb';
 import { type FriendFormData } from '../types';
 import { tierMap } from '@/shared/constants/constants';
-import { trackEvent, AnalyticsEvents } from '@/lib/analytics';
-import { deleteImage } from '@/lib/image-service';
+import { trackEvent, AnalyticsEvents } from '@/shared/services/analytics.service';
+import { deleteImage } from '@/modules/relationships/services/image.service';
 
 export async function createFriend(data: FriendFormData): Promise<Friend> {
   let newFriend: Friend | undefined;

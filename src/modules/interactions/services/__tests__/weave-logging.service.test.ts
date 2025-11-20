@@ -3,7 +3,7 @@ import { logWeave, planWeave, deleteWeave } from '../weave-logging.service';
 import { InteractionFormData } from '../../types';
 import { processWeaveScoring } from '@/modules/intelligence';
 import { checkFriendBadges, checkGlobalAchievements, recordMilestone } from '@/modules/gamification';
-import { trackEvent, AnalyticsEvents, updateLastInteractionTimestamp } from '@/lib/analytics';
+import { trackEvent, AnalyticsEvents, updateLastInteractionTimestamp } from '@/shared/services/analytics.service';
 import { analyzeAndTagLifeEvents } from '@/lib/life-event-detection';
 import { deleteWeaveCalendarEvent } from '../calendar.service';
 
@@ -30,7 +30,7 @@ jest.mock('@/modules/gamification', () => ({
   recordMilestone: jest.fn(),
 }));
 
-jest.mock('@/lib/analytics', () => ({
+jest.mock('@/shared/services/analytics.service', () => ({
   trackEvent: jest.fn(),
   AnalyticsEvents: {
     INTERACTION_LOGGED: 'INTERACTION_LOGGED',

@@ -1,10 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { database } from '../db';
-import Interaction from '../db/models/Interaction';
-import FriendModel from '../db/models/Friend';
+import { database } from '@/db';
+import Interaction from '@/db/models/Interaction';
+import FriendModel from '@/db/models/Friend';
 import { Q } from '@nozbe/watermelondb';
-import { type InteractionCategory } from '../components/types';
-import { getArchetypePreferredCategory } from './archetype-content';
+import { type InteractionCategory } from '@/components/types';
+import { getArchetypePreferredCategory } from '@/lib/archetype-content';
 
 /**
  * Smart Defaults Engine
