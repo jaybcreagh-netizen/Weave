@@ -1,15 +1,13 @@
-/**
- * @deprecated Use @/modules/insights/services/effectiveness.service.ts instead
- */
-import { database } from '../db';
-import FriendModel from '../db/models/Friend';
-import InteractionModel from '../db/models/Interaction';
-import InteractionOutcome from '../db/models/InteractionOutcome';
+import { database } from '@/db';
+import FriendModel from '@/db/models/Friend';
+import InteractionModel from '@/db/models/Interaction';
+import InteractionOutcome from '@/db/models/InteractionOutcome';
 import { Q } from '@nozbe/watermelondb';
-import { calculateCurrentScore } from '@/modules/intelligence/services/orchestrator.service';
-import { InteractionCategory } from '../types/suggestions';
+import { calculateCurrentScore } from '@/modules/intelligence';
+import { InteractionCategory } from '@/shared/types/interactions';
 import { TierDecayRates } from '@/shared/constants/constants';
-import { Tier } from '../components/types';
+import { Tier } from '@/shared/types/core';
+import { EffectivenessInsights } from '../types';
 
 /**
  * Captures the effectiveness outcome of a logged interaction
@@ -32,6 +30,7 @@ export async function captureInteractionOutcome(
   }
 
   const interaction = await database.get<InteractionModel>('interactions').find(interactionId);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const friend = await database.get<FriendModel>('friends').find(friendId);
 
   // Store initial data - we'll measure outcome later
@@ -98,7 +97,7 @@ export async function measurePendingOutcomes(): Promise<void> {
         measuredAt = nextInteraction.interactionDate;
       } else if (daysSinceInteraction >= 7) {
         // No next interaction yet, measure now (7+ days later)
-        scoreAfter = calculateCurrentScore(friend);
+        scoreAfter = await calculateCurrentScore(friend.id);
         measuredAt = new Date();
       } else {
         // Not ready to measure yet
@@ -225,6 +224,7 @@ export function getAllLearnedEffectiveness(
     'activity-hobby': 1.0,
     'favor-support': 1.0,
     'celebration': 1.0,
+    'social-media': 1.0, // Added to match InteractionCategory
   };
 
   if (!friend.categoryEffectiveness) {
@@ -243,14 +243,6 @@ export function getAllLearnedEffectiveness(
 /**
  * Analyzes effectiveness patterns for insights
  */
-export interface EffectivenessInsights {
-  mostEffective: Array<{ category: InteractionCategory; ratio: number }>;
-  leastEffective: Array<{ category: InteractionCategory; ratio: number }>;
-  confidenceLevel: 'low' | 'medium' | 'high';
-  sampleSize: number;
-  recommendations: string[];
-}
-
 export function analyzeEffectiveness(friend: FriendModel): EffectivenessInsights {
   const allEffectiveness = getAllLearnedEffectiveness(friend);
   const sampleSize = friend.outcomeCount || 0;
@@ -271,8 +263,8 @@ export function analyzeEffectiveness(friend: FriendModel): EffectivenessInsights
     .filter(([_, ratio]) => ratio !== 1.0) // Only show categories with learned data
     .sort(([_, a], [__, b]) => b - a);
 
-  const mostEffective = sorted.slice(0, 3);
-  const leastEffective = sorted.slice(-3).reverse();
+  const mostEffective = sorted.slice(0, 3).map(([category, ratio]) => ({ category, ratio }));
+  const leastEffective = sorted.slice(-3).reverse().map(([category, ratio]) => ({ category, ratio }));
 
   // Generate recommendations
   const recommendations: string[] = [];

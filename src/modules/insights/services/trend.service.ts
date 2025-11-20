@@ -1,48 +1,8 @@
-/**
- * @deprecated Use @/modules/insights/services/trend.service.ts instead
- */
-import { database } from '../db';
-import PortfolioSnapshot from '../db/models/PortfolioSnapshot';
+import { database } from '@/db';
+import PortfolioSnapshot from '@/db/models/PortfolioSnapshot';
 import { Q } from '@nozbe/watermelondb';
-import { type FriendshipPortfolio } from './portfolio-analyzer';
-import { Tier } from '../components/types';
-
-/**
- * Trend direction for a metric
- */
-export type TrendDirection = 'improving' | 'stable' | 'declining';
-
-/**
- * Trend analysis for a specific metric over time
- */
-export interface MetricTrend {
-  metric: string;
-  currentValue: number;
-  previousValue: number | null;
-  changeAmount: number;
-  changePercent: number;
-  direction: TrendDirection;
-  significance: 'major' | 'moderate' | 'minor' | 'none';
-}
-
-/**
- * Complete trend analysis comparing current state to historical data
- */
-export interface TrendAnalysis {
-  timeframe: 'week' | 'month' | '3months';
-  overallHealthTrend: MetricTrend;
-  tierTrends: {
-    tier: Tier;
-    trend: MetricTrend;
-  }[];
-  activeFriendsTrend: MetricTrend;
-  driftingFriendsTrend: MetricTrend;
-  activityTrend: MetricTrend; // interactions per week
-  diversityTrend: MetricTrend;
-
-  summary: string; // Human-readable summary
-  alerts: string[]; // Notable changes to highlight
-}
+import { Tier } from '@/shared/types/core';
+import { FriendshipPortfolio, TrendAnalysis, MetricTrend, TrendDirection } from '../types';
 
 /**
  * Creates a snapshot of the current portfolio state for trend tracking

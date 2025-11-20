@@ -1,3 +1,6 @@
+/**
+ * @deprecated Use @/modules/insights/services/portfolio.service.ts instead
+ */
 import { Suggestion } from '../types/suggestions';
 import { Archetype, Tier } from '../types/core';
 

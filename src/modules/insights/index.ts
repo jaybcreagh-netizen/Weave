@@ -9,15 +9,10 @@
 // Services
 export * from './services/pattern.service';
 export * from './services/reciprocity.service';
+export * from './services/trend.service';
+export * from './services/portfolio.service';
+export * from './services/prediction.service';
+export * from './services/effectiveness.service';
 
-// Types (if any specific ones are needed, otherwise services export them)
-export type {
-  FriendshipPattern,
-  PatternInteractionData,
-} from './services/pattern.service';
-
-export type {
-  ReciprocityAnalysis,
-  Initiator,
-  ImbalanceLevel,
-} from './services/reciprocity.service';
+// Types
+export * from './types';

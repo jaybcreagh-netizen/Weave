@@ -1,5 +1,5 @@
 import { differenceInDays } from 'date-fns';
-import { InteractionCategory } from '@/components/types.tsx';
+import { InteractionCategory } from '@/shared/types/interactions';
 
 /**
  * Represents the learned interaction pattern for a friendship
