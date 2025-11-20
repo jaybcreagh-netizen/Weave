@@ -1,68 +1,12 @@
-export type Tier = 'InnerCircle' | 'CloseFriends' | 'Community';
-export type Archetype = 'Emperor' | 'Empress' | 'HighPriestess' | 'Fool' | 'Sun' | 'Hermit' | 'Magician' | 'Lovers' | 'Unknown';
+// src/components/types.tsx
+// Re-export from shared/types/common for backward compatibility
+export * from '@/shared/types/common';
 
-// Relationship types for understanding friend context
-// Note: Closeness is handled by Dunbar tiers, these describe the nature of the relationship
-export type RelationshipType = 'friend' | 'family' | 'partner' | 'colleague' | 'neighbor' | 'mentor' | 'creative';
+// Re-exporting types that were defined here but not yet moved to common if any unique ones exist
+// In this case, we moved everything to common.ts, so we just re-export.
+import { InteractionCategory, InteractionType, Duration, Vibe, StructuredReflection, ActivityType, Archetype, Tier, RelationshipType, LifeEventType, LifeEventImportance, LifeEventSource } from '@/shared/types/common';
 
-// Life event types for tracking important moments
-export type LifeEventType =
-  | 'birthday'
-  | 'anniversary'
-  | 'new_job'
-  | 'moving'
-  | 'graduation'
-  | 'health_event'
-  | 'celebration'
-  | 'loss'
-  | 'wedding'
-  | 'baby'
-  | 'other';
-
-export type LifeEventImportance = 'low' | 'medium' | 'high' | 'critical';
-export type LifeEventSource = 'manual' | 'keyword_detected' | 'recurring';
-
-// NEW: Simplified 9 universal interaction categories
-export type InteractionCategory =
-  | 'text-call'       // 💬 Text/Call
-  | 'voice-note'      // 🎤 Voice Note
-  | 'meal-drink'      // 🍽️ Meal/Drink
-  | 'hangout'         // 🏠 Hangout
-  | 'deep-talk'       // 💭 Deep Talk
-  | 'event-party'     // 🎉 Event/Party
-  | 'activity-hobby'  // 🎨 Activity/Hobby
-  | 'favor-support'   // 🤝 Support
-  | 'celebration';    // 🎂 Celebration
-
-// DEPRECATED: Old activity types (kept for backwards compatibility during migration)
-export type ActivityType =
-  // Original
-  'Event' | 'Meal' | 'Home' | 'Coffee' | 'Call' | 'Text' |
-  // New Additions
-  'Walk' | 'Chat' | 'Video Call' | 'Something else' | 'Party' |
-  'Dinner Party' | 'Hangout' | 'Game Night' | 'Birthday' | 'Anniversary' |
-  'Milestone' | 'Holiday' | 'Achievement' | 'DM' | 'Quick Visit' |
-  'Voice Note' | 'Movie Night' | 'Cooking' | 'Tea Time' | 'Reading Together' |
-  'Hike' | 'Concert' | 'Museum' | 'Shopping' | 'Adventure';
-
-// For backwards compatibility - will be removed after migration
-export type InteractionType = ActivityType;
-
-export type Duration = 'Quick' | 'Standard' | 'Extended';
-export type Vibe = 'NewMoon' | 'WaxingCrescent' | 'FirstQuarter' | 'WaxingGibbous' | 'FullMoon';
-
-// Reflection chip structure
-export interface ReflectionChip {
-  chipId: string;
-  componentOverrides: Record<string, string>;
-}
-
-export interface StructuredReflection {
-  chips?: ReflectionChip[];
-  customNotes?: string;
-}
-
-// Used for manually added friends during onboarding
+// Re-declaring types that might be used as values or need specific augmentation if any (none for now)
 export type MockContact = {
   id: string;
   name: string;

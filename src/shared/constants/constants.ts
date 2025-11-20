@@ -1,153 +1,259 @@
-import { Tier, Archetype } from '../components/types';
+import { Tier, Archetype, InteractionCategory, ActivityType } from '../types/common';
 
-// Tier capacity limits (based on Dunbar's layers)
-export const TierCapacity: Record<Tier, number> = {
-  InnerCircle: 5,
-  CloseFriends: 15,
-  Community: 50,
-};
+export const TIER_CONFIG = {
+  InnerCircle: {
+    displayName: 'Inner Circle',
+    maxCount: 5,
+    decayRate: 0.05, // 5% per week
+    idealFrequency: 7, // Days
+  },
+  CloseFriends: {
+    displayName: 'Close Friends',
+    maxCount: 15,
+    decayRate: 0.10, // 10% per week
+    idealFrequency: 14, // Days
+  },
+  Community: {
+    displayName: 'Community',
+    maxCount: 50, // Soft limit, Dunbar says 150 total relationships
+    decayRate: 0.15, // 15% per week
+    idealFrequency: 30, // Days
+  },
+} as const;
 
-// Tier health thresholds - what score is considered "healthy" for each tier
-// Accounts for different natural interaction frequencies
-export const TierHealthThresholds: Record<Tier, number> = {
-  InnerCircle: 75,     // Inner circle needs frequent attention
-  CloseFriends: 65,    // Close friends need regular connection
-  Community: 50,       // Community can be healthy with less frequent contact
-};
-
-// Tier weights for calculating overall network health
-// Closer relationships contribute more to overall wellbeing
-export const TierWeights: Record<Tier, number> = {
-  InnerCircle: 0.50,   // 50% of network health
-  CloseFriends: 0.35,  // 35% of network health
-  Community: 0.15,     // 15% of network health
-};
-
-// Helper to get tier capacity by tier name
-export const getTierCapacity = (tier: Tier | string): number => {
-  if (tier === 'inner' || tier === 'InnerCircle') return TierCapacity.InnerCircle;
-  if (tier === 'close' || tier === 'CloseFriends') return TierCapacity.CloseFriends;
-  if (tier === 'community' || tier === 'Community') return TierCapacity.Community;
-  return 50; // default to Community capacity
-};
-
-// Check if a tier is at or over its recommended capacity
-export const isTierAtCapacity = (currentCount: number, tier: Tier | string): boolean => {
-  return currentCount >= getTierCapacity(tier);
-};
-
-// Get the tier display name for educational messaging
-export const getTierDisplayName = (tier: Tier | string): string => {
-  if (tier === 'inner' || tier === 'InnerCircle') return 'Inner Circle';
-  if (tier === 'close' || tier === 'CloseFriends') return 'Close Friends';
-  if (tier === 'community' || tier === 'Community') return 'Community';
+export const getTierDisplayName = (tier?: string) => {
+  if (tier === 'InnerCircle' || tier === 'inner') return 'Inner Circle';
+  if (tier === 'CloseFriends' || tier === 'close') return 'Close Friends';
   return 'Community';
 };
 
-export const archetypeData: Record<Archetype, { name: string; essence: string; description: string; careStyle: string; icon: string; }> = {
-    Emperor: {
-        icon: "👑",
-        name: "The Emperor",
-        essence: "Structure & Leadership",
-        description: "In tarot, the Emperor represents authority, stability, and order. In friendship, this means valuing reliability and commitment. They appreciate when plans are made and kept, when you show up on time, and when intentions are clear.",
-        careStyle: "Structured dinners • Planned outings • Regular check-ins • Achievement celebrations • Goal-oriented activities • Milestone events"
-    },
-    Empress: {
-        icon: "🌹",
-        name: "The Empress",
-        essence: "Abundance & Nurture",
-        description: "In tarot, the Empress embodies nurturing, sensory pleasure, and creation. In friendship, this means caring through comfort and generosity. They notice when you need support and create warmth through food, beauty, and cozy spaces.",
-        careStyle: "Cooking together • Home hangs • Sharing meals • Gift-giving • Nature walks • Cozy gatherings • Comfort food"
-    },
-    HighPriestess: {
-        icon: "🌙",
-        name: "The High Priestess",
-        essence: "Intuition & Mystery",
-        description: "In tarot, the High Priestess represents inner wisdom, intuition, and the unseen. In friendship, this means valuing depth and privacy. They prefer meaningful one-on-one connection over surface-level socializing and need space to recharge.",
-        careStyle: "Deep conversations • Quiet cafes • Long phone calls • Tea time • Thoughtful messages • One-on-one hangs • Contemplative activities"
-    },
-    Fool: {
-        icon: "🃏",
-        name: "The Fool",
-        essence: "Freedom & Adventure",
-        description: "In tarot, the Fool represents new beginnings, spontaneity, and trust in the journey. In friendship, this means embracing playfulness and novelty. They keep things light, suggest last-minute plans, and turn ordinary moments into adventures.",
-        careStyle: "Spontaneous hangs • Trying new things • Quick texts • Adventures • Playful activities • Exploring new places • Last-minute plans"
-    },
-    Sun: {
-        icon: "☀️",
-        name: "The Sun",
-        essence: "Vitality & Celebration",
-        description: "In tarot, the Sun represents joy, success, and radiant energy. In friendship, this means loving celebration and visibility. They bring warmth to gatherings, make others feel special, and thrive when there's something to celebrate together.",
-        careStyle: "Parties • Group events • Birthdays • Achievement celebrations • Social gatherings • Public celebrations • Big moments"
-    },
-    Hermit: {
-        icon: "🏮",
-        name: "The Hermit",
-        essence: "Solitude & Reflection",
-        description: "In tarot, the Hermit represents introspection, wisdom through withdrawal, and inner guidance. In friendship, this means needing solitude to recharge while valuing deep connection with a select few. They prefer quiet settings and meaningful presence.",
-        careStyle: "Walks • One-on-one time • Video calls • Quiet spaces • Tea time • Thoughtful check-ins • Low-key hangs"
-    },
-    Magician: {
-        icon: "⚡",
-        name: "The Magician",
-        essence: "Skill & Manifestation",
-        description: "In tarot, the Magician represents resourcefulness, transformation, and bringing ideas to life. In friendship, this means loving collaboration and creation. They enjoy building things together, exploring possibilities, and celebrating growth.",
-        careStyle: "Creative projects • Game nights • Building things together • Learning new skills • Problem-solving • Brainstorming • Shared goals"
-    },
-    Lovers: {
-        icon: "💞",
-        name: "The Lovers",
-        essence: "Union & Harmony",
-        description: "In tarot, the Lovers represent partnership, choice, and meaningful connection. In friendship, this means valuing reciprocity and balance. They need to feel equally seen and valued, and they notice when effort flows only one way.",
-        careStyle: "Deep conversations • Reciprocal check-ins • Shared experiences • Equal give-and-take • Emotional support • Quality time • Meaningful dialogue"
-    },
-    Unknown: {
-        icon: "❓",
-        name: "Unknown",
-        essence: "Awaiting Discovery",
-        description: "This friend's archetype hasn't been defined yet. As you get to know them better, you'll discover their unique connection style and what helps your relationship thrive.",
-        careStyle: "Take time to observe how this friend naturally connects. Do they prefer deep talks or light fun? Planned events or spontaneity? Large groups or one-on-one time? Let the relationship guide you to their archetype."
-    },
+export const getTierCapacity = (tier?: string) => {
+  if (tier === 'InnerCircle' || tier === 'inner') return 5;
+  if (tier === 'CloseFriends' || tier === 'close') return 15;
+  return 50;
+};
+
+export const isTierAtCapacity = (currentCount: number, tier: string) => {
+  const capacity = getTierCapacity(tier);
+  return currentCount >= capacity;
+};
+
+export const archetypeData: Record<Archetype, { name: string; essence: string; description: string; traits: string[]; icon: string; careStyle: string }> = {
+  Emperor: {
+    name: 'The Emperor',
+    essence: 'Protector & Builder',
+    description: 'Provides stability, structure, and practical support. They are reliable foundations in your life.',
+    traits: ['Reliable', 'Protective', 'Structured', 'Practical'],
+    icon: '🏰',
+    careStyle: 'Acts of Service'
+  },
+  Empress: {
+    name: 'The Empress',
+    essence: 'Nurturer & Creator',
+    description: 'Brings warmth, abundance, and emotional nourishment. They help you grow and feel cared for.',
+    traits: ['Nurturing', 'Creative', 'Warm', 'Abundant'],
+    icon: '🌱',
+    careStyle: 'Gifts & Nurturing'
+  },
+  HighPriestess: {
+    name: 'The High Priestess',
+    essence: 'Intuitive & Confidant',
+    description: 'Understands the unspoken. A safe harbor for secrets, deep feelings, and spiritual connection.',
+    traits: ['Intuitive', 'Deep', 'Mysterious', 'Understanding'],
+    icon: '🌙',
+    careStyle: 'Deep Listening'
+  },
+  Fool: {
+    name: 'The Fool',
+    essence: 'Adventurer & Joy-Bringer',
+    description: 'Brings spontaneity, fun, and new experiences. They remind you not to take life too seriously.',
+    traits: ['Spontaneous', 'Playful', 'Optimistic', 'Free-spirited'],
+    icon: '🎒',
+    careStyle: 'Play & Adventure'
+  },
+  Sun: {
+    name: 'The Sun',
+    essence: 'Optimist & Energizer',
+    description: 'Radiates positivity and vitality. Being around them recharges your batteries and lifts your spirits.',
+    traits: ['Radiant', 'Optimistic', 'Energetic', 'Joyful'],
+    icon: '☀️',
+    careStyle: 'Celebration & Energy'
+  },
+  Hermit: {
+    name: 'The Hermit',
+    essence: 'Guide & Truth-Seeker',
+    description: 'Values deep, one-on-one connection and wisdom. They help you find clarity and inner truth.',
+    traits: ['Wise', 'Introspective', 'Authentic', 'Patient'],
+    icon: '🏮',
+    careStyle: 'Presence & Wisdom'
+  },
+  Magician: {
+    name: 'The Magician',
+    essence: 'Catalyst & Inspirer',
+    description: 'Makes things happen. They inspire you to take action, transform, and realize your potential.',
+    traits: ['Transformative', 'Inspiring', 'Resourceful', 'Active'],
+    icon: '✨',
+    careStyle: 'Shared Projects'
+  },
+  Lovers: {
+    name: 'The Lovers',
+    essence: 'Mirror & Harmonizer',
+    description: 'Reflects your values and seeks harmony. A connection based on mutual choice and deep alignment.',
+    traits: ['Harmonious', 'Aligned', 'Reflective', 'Connected'],
+    icon: '❤️',
+    careStyle: 'Quality Time'
+  },
+  Unknown: {
+    name: 'Unknown',
+    essence: 'Unassigned Archetype',
+    description: 'This friend has not been assigned an archetype yet.',
+    traits: [],
+    icon: '❓',
+    careStyle: 'Unknown'
+  }
+};
+
+export const archetypeIcons: Record<Archetype, any> = {
+    Emperor: require('../../../assets/icon.png'),
+    Empress: require('../../../assets/icon.png'),
+    HighPriestess: require('../../../assets/icon.png'),
+    Fool: require('../../../assets/icon.png'),
+    Sun: require('../../../assets/icon.png'),
+    Hermit: require('../../../assets/icon.png'),
+    Magician: require('../../../assets/icon.png'),
+    Lovers: require('../../../assets/icon.png'),
+    Unknown: require('../../../assets/icon.png'),
+};
+
+export const tierColors = {
+    InnerCircle: '#10B981',
+    CloseFriends: '#3B82F6',
+    Community: '#8B5CF6',
 };
 
 export const tierMap: Record<string, Tier> = {
-  inner: "InnerCircle",
-  close: "CloseFriends",
-  community: "Community",
+    inner: 'InnerCircle',
+    close: 'CloseFriends',
+    community: 'Community',
+    InnerCircle: 'InnerCircle',
+    CloseFriends: 'CloseFriends',
+    Community: 'Community',
 };
 
-export const tierColors: Record<Tier, string> = {
-  InnerCircle: '#A56A43', // A warm, deep brown for the closest circle
-  CloseFriends: '#E58A57', // A friendly, approachable orange
-  Community: '#6C8EAD',    // A calm, gentle blue for the wider community
+export const moonPhasesData = {
+    NewMoon: { icon: '🌑', label: 'New Moon' },
+    WaxingCrescent: { icon: '🌒', label: 'Waxing Crescent' },
+    FirstQuarter: { icon: '🌓', label: 'First Quarter' },
+    WaxingGibbous: { icon: '🌔', label: 'Waxing Gibbous' },
+    FullMoon: { icon: '🌕', label: 'Full Moon' },
 };
 
-export const archetypeIcons: Record<Archetype, string> = {
-  Emperor: "👑",
-  Empress: "🌹",
-  HighPriestess: "🌙",
-  Fool: "🃏",
-  Sun: "☀️",
-  Hermit: "🏮",
-  Magician: "⚡",
-  Lovers: "💞",
-  Unknown: "❓",
+export const modeIcons = {
+    light: '☀️',
+    dark: '🌙',
+    system: '⚙️',
 };
 
-export const modeIcons: Record<string, string> = {
-  'one-on-one': '🌿',
-  'group-flow': '🌊',
-  'celebration': '🔥',
-  'quick-touch': '🌀',
-  'cozy-time': '🌙',
-  'out-and-about': '☀️',
-  default: '💫',
+// V2 Matrix: Maps Archetype -> Interaction Category -> Multiplier (0.5 to 2.0)
+// This replaces the old Activity-based matrix
+export const CategoryArchetypeMatrix: Record<Archetype, Record<InteractionCategory, number>> = {
+  Emperor: {
+    'favor-support': 2.0,    // Loves being useful
+    'meal-drink': 1.5,       // Traditional bonding
+    'text-call': 1.2,        // Keeping in touch
+    'activity-hobby': 1.0,
+    'event-party': 0.8,      // Can be overwhelming
+    'hangout': 1.2,
+    'deep-talk': 1.0,
+    'celebration': 1.0,
+    'voice-note': 0.8
+  },
+  Empress: {
+    'meal-drink': 1.8,       // Nurturing through food
+    'hangout': 1.8,          // Cozy time
+    'celebration': 1.5,      // Loves gathering
+    'text-call': 1.2,
+    'voice-note': 1.2,
+    'favor-support': 1.5,    // Emotional support
+    'deep-talk': 1.2,
+    'event-party': 1.2,
+    'activity-hobby': 1.0
+  },
+  HighPriestess: {
+    'deep-talk': 2.0,        // The core need
+    'voice-note': 1.5,       // Personal, asynchronous depth
+    'hangout': 1.5,          // Quiet time
+    'text-call': 1.0,
+    'meal-drink': 1.0,
+    'activity-hobby': 0.8,
+    'favor-support': 1.2,
+    'celebration': 0.8,      // Prefers intimacy
+    'event-party': 0.6       // Dislikes crowds
+  },
+  Fool: {
+    'activity-hobby': 1.8,   // Adventure!
+    'event-party': 1.8,      // Fun!
+    'hangout': 1.5,          // Spontaneous
+    'celebration': 1.5,
+    'meal-drink': 1.2,
+    'text-call': 1.0,
+    'voice-note': 1.0,
+    'favor-support': 0.8,    // Can be heavy
+    'deep-talk': 0.8
+  },
+  Sun: {
+    'event-party': 2.0,      // Shines in groups
+    'celebration': 2.0,      // Loves joy
+    'activity-hobby': 1.5,   // Active
+    'meal-drink': 1.2,
+    'hangout': 1.2,
+    'text-call': 1.2,
+    'voice-note': 1.2,
+    'favor-support': 1.0,
+    'deep-talk': 1.0
+  },
+  Hermit: {
+    'deep-talk': 1.8,        // Wisdom sharing
+    'hangout': 1.5,          // Quiet parallel play
+    'text-call': 1.2,        // One-on-one
+    'meal-drink': 1.2,
+    'activity-hobby': 1.0,
+    'voice-note': 1.0,
+    'favor-support': 1.0,
+    'celebration': 0.8,
+    'event-party': 0.5       // Drains battery
+  },
+  Magician: {
+    'activity-hobby': 1.8,   // Creating together
+    'deep-talk': 1.5,        // Brainstorming
+    'celebration': 1.5,      // Milestones
+    'event-party': 1.2,
+    'favor-support': 1.2,    // Solving problems
+    'text-call': 1.2,
+    'voice-note': 1.2,
+    'meal-drink': 1.0,
+    'hangout': 1.0
+  },
+  Lovers: {
+    'meal-drink': 1.8,       // Intimate dates
+    'deep-talk': 1.8,        // Connection
+    'hangout': 1.5,          // Quality time
+    'text-call': 1.5,        // Constant contact
+    'voice-note': 1.5,
+    'celebration': 1.5,
+    'favor-support': 1.5,
+    'activity-hobby': 1.2,
+    'event-party': 1.0
+  },
+  Unknown: {
+    'text-call': 1.0,
+    'voice-note': 1.0,
+    'meal-drink': 1.0,
+    'hangout': 1.0,
+    'deep-talk': 1.0,
+    'event-party': 1.0,
+    'activity-hobby': 1.0,
+    'favor-support': 1.0,
+    'celebration': 1.0
+  }
 };
-
-export const moonPhasesData: { phase: string; icon: string; microcopy: string }[] = [
-  { phase: "NewMoon", icon: "🌑", microcopy: "The night is dark. A new thread awaits." },
-  { phase: "WaxingCrescent", icon: "🌒", microcopy: "The crescent stirs with quiet promise." },
-  { phase: "FirstQuarter", icon: "🌓", microcopy: "Steady light holds the weave." },
-  { phase: "WaxingGibbous", icon: "🌔", microcopy: "The glow gathers strength." },
-  { phase: "FullMoon", icon: "🌕", microcopy: "The moon is full, the bond complete." },
-];

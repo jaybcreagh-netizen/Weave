@@ -9,6 +9,11 @@ jest.mock('../services/quality.service', () => ({
   calculateInteractionQuality: jest.fn(),
 }));
 
+// Mock the insights module to prevent DB initialization issues
+jest.mock('@/modules/insights', () => ({
+  getLearnedEffectiveness: jest.fn().mockReturnValue(1.0),
+}));
+
 describe('Scoring Service', () => {
   let mockFriend: FriendModel;
 

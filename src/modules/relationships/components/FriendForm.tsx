@@ -14,11 +14,11 @@ import { ArchetypeDetailModal } from './ArchetypeDetailModal';
 import { ContactPickerGrid } from './onboarding/ContactPickerGrid';
 import { MonthDayPicker } from './MonthDayPicker';
 import { getTierCapacity, getTierDisplayName, isTierAtCapacity } from '@/shared/constants/constants';
-import { normalizeContactImageUri } from '../lib/image-utils';
+import { normalizeContactImageUri } from '@/lib/image-utils';
 import { SimpleTutorialTooltip } from './SimpleTutorialTooltip';
 import { useTutorialStore } from '../stores/tutorialStore';
 import { validateMMDDFormat } from '@/shared/utils/validation-helpers';
-import { processAndStoreImage } from '../lib/image-service';
+import { processAndStoreImage } from '@/lib/image-service';
 
 interface FriendFormProps {
   onSave: (friendData: FriendFormData) => void;
