@@ -20,7 +20,7 @@ import { Q } from '@nozbe/watermelondb';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { type SocialSeason, type SeasonExplanationData } from '../../lib/social-season/season-types';
 import { SEASON_STYLES, getSeasonDisplayName } from '../../lib/social-season/season-content';
-import { generateSeasonExplanation } from '../../lib/narrative-generator';
+import { generateSeasonExplanation } from '@/modules/reflection';
 import { GraphsTabContent } from '../YearInMoons/GraphsTabContent';
 import { database } from '../../db';
 import Interaction from '../../db/models/Interaction';

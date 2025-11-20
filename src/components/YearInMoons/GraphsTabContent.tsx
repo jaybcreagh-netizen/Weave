@@ -15,7 +15,7 @@ import { Q } from '@nozbe/watermelondb';
 import FriendModel from '../../db/models/Friend';
 import InteractionModel from '../../db/models/Interaction';
 import { getYearMoonData, getYearStats } from '../../lib/year-in-moons-data';
-import { usePortfolio } from '../../hooks/usePortfolio';
+import { usePortfolio } from '@/modules/insights';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { TrendingUp, TrendingDown, Minus, X } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';

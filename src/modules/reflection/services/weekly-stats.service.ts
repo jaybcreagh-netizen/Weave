@@ -3,14 +3,14 @@
  * Calculates summary statistics for the past week's weaving activity
  */
 
-import { database } from '../../db';
+import { database } from '@/db';
 import { Q } from '@nozbe/watermelondb';
-import FriendModel from '../../db/models/Friend';
-import InteractionModel from '../../db/models/Interaction';
-import InteractionFriend from '../../db/models/InteractionFriend';
-import Intention from '../../db/models/Intention';
-import { Archetype } from '../../components/types';
-import { getRandomActionForArchetype, getArchetypeValue } from './archetype-actions';
+import FriendModel from '@/db/models/Friend';
+import InteractionModel from '@/db/models/Interaction';
+import InteractionFriend from '@/db/models/InteractionFriend';
+import Intention from '@/db/models/Intention';
+import { Archetype } from '@/components/types';
+import { getRandomActionForArchetype, getArchetypeValue } from './archetype-actions.service';
 
 export interface MissedFriend {
   friend: FriendModel;

@@ -3,7 +3,7 @@
  * Generates personalized prompts based on user's weekly activity
  */
 
-import { WeeklySummary } from './weekly-stats';
+import { WeeklySummary } from './weekly-stats.service';
 
 export interface ContextualPrompt {
   prompt: string;

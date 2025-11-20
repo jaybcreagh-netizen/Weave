@@ -3,8 +3,8 @@ import { View, Text, TouchableOpacity, Modal, ScrollView, StyleSheet } from 'rea
 import { BlurView } from 'expo-blur';
 import { X } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
-import { useUserProfileStore } from '../stores/userProfileStore';
-import { generateSeasonExplanation, type SeasonExplanationData } from '../lib/narrative-generator';
+import { useUserProfileStore } from '@/modules/auth';
+import { generateSeasonExplanation, type SeasonExplanationData } from '@/modules/reflection';
 import { SeasonCalculationInput } from '../lib/social-season/season-types';
 
 interface SeasonExplanationModalProps {

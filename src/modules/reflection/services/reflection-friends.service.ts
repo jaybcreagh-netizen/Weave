@@ -3,12 +3,12 @@
  * Fetch friends associated with a reflection week
  */
 
-import { database } from '../../db';
+import { database } from '@/db';
 import { Q } from '@nozbe/watermelondb';
-import FriendModel from '../../db/models/Friend';
-import InteractionModel from '../../db/models/Interaction';
-import InteractionFriend from '../../db/models/InteractionFriend';
-import WeeklyReflection from '../../db/models/WeeklyReflection';
+import FriendModel from '@/db/models/Friend';
+import InteractionModel from '@/db/models/Interaction';
+import InteractionFriend from '@/db/models/InteractionFriend';
+import WeeklyReflection from '@/db/models/WeeklyReflection';
 
 export interface ReflectionFriend {
   friend: FriendModel;

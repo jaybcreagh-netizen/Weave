@@ -7,7 +7,7 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Modal } from 'react-native';
 import { Check, X, Crown, Star, Sparkles } from 'lucide-react-native';
-import { useAuthStore } from '@/stores/authStore';
+import { useAuthStore } from '@/modules/auth';
 import { TIER_LIMITS, FEATURE_DESCRIPTIONS } from '@/lib/subscription-tiers';
 import { useTierInfo } from '@/hooks/useFeatureGate';
 

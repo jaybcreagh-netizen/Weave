@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { database } from '../db';
+import { database } from '@/db';
 import { Q } from '@nozbe/watermelondb';
-import FriendModel from '../db/models/Friend';
+import FriendModel from '@/db/models/Friend';
 import {
   analyzeReciprocity,
   detectImbalance,
@@ -9,7 +9,7 @@ import {
   calculateReciprocityScore,
   type ReciprocityAnalysis,
   type ImbalanceLevel,
-} from '../lib/reciprocity-analyzer';
+} from '@/modules/insights/services/reciprocity.service';
 
 /**
  * Hook to get reciprocity analysis for a specific friend

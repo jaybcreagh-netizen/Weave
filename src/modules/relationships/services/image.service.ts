@@ -20,7 +20,7 @@ import * as ImageManipulator from 'expo-image-manipulator';
 let supabase: any = null;
 const getSupabase = async () => {
   if (!supabase) {
-    const { supabase: supabaseClient } = await import('@/lib/supabase');
+    const { supabase: supabaseClient } = await import('@/modules/auth/services/supabase.service');
     supabase = supabaseClient;
   }
   return supabase;

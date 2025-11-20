@@ -1,15 +1,15 @@
 import { useEffect, useState, useRef } from 'react';
 import { Q } from '@nozbe/watermelondb';
-import { useFriends } from './useFriends';
-import { database } from '../db';
-import { generateSuggestion } from '../lib/suggestion-engine';
-import { getDismissedSuggestions, dismissSuggestion as dismissSuggestionStorage } from '../lib/suggestion-storage';
-import { Suggestion } from '../types/suggestions';
+import { useFriends } from '@/hooks/useFriends';
+import { database } from '@/db';
+import { generateSuggestion } from '@/modules/interactions/services/suggestion-engine.service';
+import { getDismissedSuggestions, dismissSuggestion as dismissSuggestionStorage } from '@/lib/suggestion-storage';
+import { Suggestion } from '@/types/suggestions';
 import { calculateCurrentScore } from '@/modules/intelligence/services/orchestrator.service';
-import Interaction from '../db/models/Interaction';
-import InteractionFriend from '../db/models/InteractionFriend';
-import { trackSuggestionShown, trackSuggestionDismissed } from '../lib/suggestion-tracker';
-import { filterSuggestionsByTime } from '../lib/time-aware-filter';
+import Interaction from '@/db/models/Interaction';
+import InteractionFriend from '@/db/models/InteractionFriend';
+import { trackSuggestionShown, trackSuggestionDismissed } from '@/lib/suggestion-tracker';
+import { filterSuggestionsByTime } from '@/lib/time-aware-filter';
 import {
   generatePortfolioInsights,
   analyzeArchetypeBalance,

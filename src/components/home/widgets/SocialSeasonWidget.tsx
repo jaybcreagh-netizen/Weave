@@ -25,7 +25,7 @@ import { calculateCurrentScore, calculateWeightedNetworkHealth } from '@/modules
 import { database } from '../../../db';
 import Interaction from '../../../db/models/Interaction';
 import WeeklyReflection from '../../../db/models/WeeklyReflection';
-import { generateSeasonExplanation, type SeasonExplanationData } from '../../../lib/narrative-generator';
+import { generateSeasonExplanation, type SeasonExplanationData } from '@/modules/reflection';
 import { SocialSeasonModal } from '../../SocialSeason/SocialSeasonModal';
 import { SeasonIcon } from '../../SeasonIcon';
 

@@ -3,7 +3,7 @@
  * Easy-to-use React hook for checking feature access and limits
  */
 
-import { useAuthStore } from '@/stores/authStore';
+import { useAuthStore } from '@/modules/auth';
 import {
   hasFeatureAccess,
   isAtLimit,

@@ -13,7 +13,7 @@ import { WeeklyReflectionModal } from '../src/components/WeeklyReflection/Weekly
 import { ReflectionReadyPrompt } from '../src/components/WeeklyReflection/ReflectionReadyPrompt';
 import { YearInMoonsModal } from '../src/components/YearInMoons/YearInMoonsModal';
 import { SuggestedWeaves } from '../src/components/SuggestedWeaves';
-import { useUserProfileStore } from '../src/stores/userProfileStore';
+import { useUserProfileStore } from '@/modules/auth';
 import { useRelationshipsStore } from '../src/modules/relationships';
 import { getLastReflectionDate, shouldShowReflection } from '../src/lib/notification-manager-enhanced';
 import { getUserAccountAge } from '../src/lib/notification-grace-periods';

@@ -9,7 +9,7 @@ import Animated, { FadeInRight } from 'react-native-reanimated';
 import { ChevronRight, Heart, AlertCircle } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { useRouter } from 'expo-router';
-import { MissedFriend } from '../../lib/weekly-reflection/weekly-stats';
+import { MissedFriend } from '@/modules/reflection';
 import { ArchetypeIcon } from '../ArchetypeIcon';
 import { Archetype } from '../types';
 import * as Haptics from 'expo-haptics';

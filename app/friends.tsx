@@ -17,7 +17,7 @@ import { useUIStore } from '../src/stores/uiStore';
 import { useFriends } from '../src/hooks/useFriends';
 import { useInteractions, usePlans, PlanService } from '../src/modules/interactions';
 import { useSuggestions } from '../src/hooks/useSuggestions';
-import { getSuggestionCooldownDays } from '../src/lib/suggestion-engine';
+import { getSuggestionCooldownDays } from '@/modules/interactions/services/suggestion-engine.service';
 import { Suggestion } from '../src/types/suggestions';
 import { checkAndApplyDormancy } from '../src/lib/lifecycle-manager';
 import FriendModel from '../src/db/models/Friend';

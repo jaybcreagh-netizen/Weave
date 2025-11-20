@@ -5,9 +5,9 @@
  * Tracks dismissals, corrections, and patterns to become more intelligent.
  */
 
-import { database } from '../db';
-import EventSuggestionFeedback from '../db/models/EventSuggestionFeedback';
-import FriendModel from '../db/models/Friend';
+import { database } from '@/db';
+import EventSuggestionFeedback from '@/db/models/EventSuggestionFeedback';
+import FriendModel from '@/db/models/Friend';
 import { Q } from '@nozbe/watermelondb';
 import type { ScannedEvent } from './event-scanner';
 import AsyncStorage from '@react-native-async-storage/async-storage';

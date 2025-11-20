@@ -1,17 +1,17 @@
 import { useState, useEffect } from 'react';
-import { database } from '../db';
-import FriendModel from '../db/models/Friend';
-import InteractionModel from '../db/models/Interaction';
-import InteractionFriend from '../db/models/InteractionFriend';
+import { database } from '@/db';
+import FriendModel from '@/db/models/Friend';
+import InteractionModel from '@/db/models/Interaction';
+import InteractionFriend from '@/db/models/InteractionFriend';
 import { Q } from '@nozbe/watermelondb';
 import {
   analyzePortfolio,
   getPortfolioHealthSummary,
   getWeeklyFocusRecommendation,
   type FriendshipPortfolio,
-} from '@/modules/insights';
-import { generatePortfolioSuggestions } from '../lib/suggestion-engine';
-import { type Suggestion } from '../types/suggestions';
+} from '@/modules/insights/services/portfolio.service';
+import { generatePortfolioSuggestions } from '@/modules/interactions/services/suggestion-engine.service';
+import { type Suggestion } from '@/types/suggestions';
 
 /**
  * Hook to access portfolio-level friendship network analytics

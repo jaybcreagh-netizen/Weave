@@ -8,11 +8,10 @@ import { Modal, View, Text, TouchableOpacity, SafeAreaView, ScrollView, TextInpu
 import { X, Edit3, Save, Calendar, TrendingUp, Plus, Users } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { formatWeaveDate, daysAgo } from '@/shared/utils/date-utils';
-import { getWeekRange } from '@/modules/reflection/services/weekly-reflection.service';
+import { getWeekRange, getFriendsForReflection, ReflectionFriend } from '@/modules/reflection';
 import WeeklyReflection from '../../db/models/WeeklyReflection';
 import { database } from '../../db';
 import { STORY_CHIPS } from '../../lib/story-chips';
-import { getFriendsForReflection, ReflectionFriend } from '../../lib/weekly-reflection/reflection-friends';
 import * as Haptics from 'expo-haptics';
 
 interface ReflectionDetailModalProps {

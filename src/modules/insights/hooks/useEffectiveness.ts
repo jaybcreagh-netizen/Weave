@@ -1,14 +1,14 @@
 import { useState, useEffect } from 'react';
-import { database } from '../db';
-import FriendModel from '../db/models/Friend';
-import InteractionOutcome from '../db/models/InteractionOutcome';
+import { database } from '@/db';
+import FriendModel from '@/db/models/Friend';
+import InteractionOutcome from '@/db/models/InteractionOutcome';
 import { Q } from '@nozbe/watermelondb';
 import {
   getAllLearnedEffectiveness,
   analyzeEffectiveness,
   type EffectivenessInsights,
-} from '@/modules/insights';
-import { InteractionCategory } from '../types/suggestions';
+} from '@/modules/insights/services/effectiveness.service';
+import { InteractionCategory } from '@/types/suggestions';
 
 /**
  * Hook to get learned effectiveness data for a friend

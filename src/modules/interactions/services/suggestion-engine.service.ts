@@ -5,10 +5,10 @@ import {
   getArchetypeMomentumSuggestion,
 } from './archetype-content';
 import { differenceInDays } from 'date-fns';
-import { database } from '../db';
-import LifeEvent, { LifeEventType } from '../db/models/LifeEvent';
+import { database } from '@/db';
+import LifeEvent, { LifeEventType } from '@/db/models/LifeEvent';
 import { daysUntil, isPast as isPastService } from '@/modules/relationships/services/life-event.service';
-import Intention from '../db/models/Intention';
+import Intention from '@/db/models/Intention';
 import { Q } from '@nozbe/watermelondb';
 import {
   analyzeInteractionPattern,

@@ -8,9 +8,7 @@ import { View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { Sparkles, Check, Lightbulb, Plus } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
-import { WeeklySummary } from '../../lib/weekly-reflection/weekly-stats';
-import { generateContextualPrompts, selectBestPrompt } from '../../lib/weekly-reflection/contextual-prompts';
-import { WeekStoryChipSuggestion } from '../../lib/weekly-reflection/story-chip-aggregator';
+import { WeeklySummary, generateContextualPrompts, selectBestPrompt, WeekStoryChipSuggestion } from '@/modules/reflection';
 import { STORY_CHIPS } from '../../lib/story-chips';
 import * as Haptics from 'expo-haptics';
 

@@ -20,7 +20,7 @@ import {
   shouldSendWeeklyReflectionNotification,
   shouldSendSocialBatteryNotification,
 } from './notification-grace-periods';
-import { getWeekRange } from '@/modules/reflection/services/weekly-reflection.service';
+import { getWeekRange } from '@/modules/reflection';
 
 // AsyncStorage keys
 const LAST_REFLECTION_KEY = '@weave:last_reflection_date';

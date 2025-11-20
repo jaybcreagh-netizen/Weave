@@ -3,10 +3,10 @@
  * Extracts and aggregates story chips from a week's interactions
  */
 
-import { database } from '../../db';
+import { database } from '@/db';
 import { Q } from '@nozbe/watermelondb';
-import InteractionModel from '../../db/models/Interaction';
-import { STORY_CHIPS, StoryChip } from '../story-chips';
+import InteractionModel from '@/db/models/Interaction';
+import { STORY_CHIPS, StoryChip } from '@/lib/story-chips';
 
 export interface WeekStoryChipSuggestion {
   chipId: string;

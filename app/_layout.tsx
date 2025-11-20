@@ -35,7 +35,7 @@ import {
   configureNotificationHandler,
   handleEventSuggestionTap,
 } from '../src/lib/event-notifications';
-import { useBackgroundSyncStore } from '../src/stores/backgroundSyncStore';
+import { useBackgroundSyncStore } from '@/modules/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   useFonts,
@@ -150,7 +150,7 @@ export default Sentry.wrap(function RootLayout() {
         });
 
         // Scan for event suggestions on app launch (non-blocking)
-        import('../src/stores/eventSuggestionStore').then(({ useEventSuggestionStore }) => {
+        import('@/modules/interactions').then(({ useEventSuggestionStore }) => {
           useEventSuggestionStore.getState().scanForSuggestions().catch((error) => {
             console.error('[App] Error scanning for event suggestions on launch:', error);
           });
@@ -230,7 +230,7 @@ export default Sentry.wrap(function RootLayout() {
 
       // Scan for event suggestions (birthdays, holidays, past events)
       // This runs async in the background without blocking the UI
-      import('../src/stores/eventSuggestionStore').then(({ useEventSuggestionStore }) => {
+      import('@/modules/interactions').then(({ useEventSuggestionStore }) => {
         useEventSuggestionStore.getState().scanForSuggestions().catch((error) => {
           console.error('[App] Error scanning for event suggestions:', error);
         });

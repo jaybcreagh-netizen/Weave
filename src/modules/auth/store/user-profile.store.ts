@@ -1,7 +1,7 @@
 import { create } from 'zustand';
-import { database, initializeUserProfile } from '../db';
-import UserProfile, { SocialSeason, BatteryHistoryEntry, SeasonHistoryEntry } from '../db/models/UserProfile';
-import { getRecentBatteryAverage, getBatteryTrend } from '@/modules/auth/services/user-profile.service';
+import { database, initializeUserProfile } from '@/db';
+import UserProfile, { SocialSeason, BatteryHistoryEntry, SeasonHistoryEntry } from '@/db/models/UserProfile';
+// Removed service imports as logic is now inline
 
 interface UserProfileStore {
   // State
@@ -138,7 +138,7 @@ export const useUserProfileStore = create<UserProfileStore>((set, get) => ({
     // Trigger smart notification evaluation after battery check-in
     // This is a good time since user is engaged and we have fresh battery data
     try {
-      const { evaluateAndScheduleSmartNotifications } = await import('../lib/smart-notification-scheduler');
+      const { evaluateAndScheduleSmartNotifications } = await import('@/lib/smart-notification-scheduler');
       await evaluateAndScheduleSmartNotifications();
     } catch (error) {
       console.error('Error evaluating smart notifications after battery check-in:', error);
@@ -159,7 +159,7 @@ export const useUserProfileStore = create<UserProfileStore>((set, get) => ({
     });
 
     // Update notification schedule
-    const { updateBatteryNotificationFromProfile } = await import('../lib/notification-manager-enhanced');
+    const { updateBatteryNotificationFromProfile } = await import('@/lib/notification-manager-enhanced');
     await updateBatteryNotificationFromProfile();
   },
 
@@ -182,12 +182,35 @@ export const useUserProfileStore = create<UserProfileStore>((set, get) => ({
   getRecentBatteryAverage: (days: number = 7) => {
     const { profile } = get();
     if (!profile) return null;
-    return getRecentBatteryAverage(profile, days);
+    // Calculate locally since the service function was removed/refactored
+    const history = profile.socialBatteryHistory;
+    if (!history || history.length === 0) return null;
+
+    const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+    const recentEntries = history.filter(e => e.timestamp >= cutoff);
+
+    if (recentEntries.length === 0) return null;
+    const sum = recentEntries.reduce((acc, e) => acc + e.value, 0);
+    return sum / recentEntries.length;
   },
 
   getBatteryTrend: () => {
     const { profile } = get();
     if (!profile) return null;
-    return getBatteryTrend(profile);
+    // Calculate locally - restore original moving average logic
+    const history = profile.socialBatteryHistory;
+    if (!history || history.length < 6) return 'stable'; // Need enough data for 3-day comparison
+
+    // Get last 3 entries and previous 3 entries
+    const recent = history.slice(-6);
+    const currentWindow = recent.slice(-3);
+    const previousWindow = recent.slice(0, 3);
+
+    const currentAvg = currentWindow.reduce((sum, e) => sum + e.value, 0) / 3;
+    const previousAvg = previousWindow.reduce((sum, e) => sum + e.value, 0) / 3;
+
+    if (currentAvg > previousAvg + 0.5) return 'rising';
+    if (currentAvg < previousAvg - 0.5) return 'falling';
+    return 'stable';
   },
 }));
