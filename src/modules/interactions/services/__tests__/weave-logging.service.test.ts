@@ -85,6 +85,19 @@ describe('WeaveLoggingService', () => {
     expect(recordMilestone).toHaveBeenCalledWith('log_weave');
   });
 
+  it('should throw validation error if data is invalid', async () => {
+    const invalidData: any = {
+      friendIds: [], // Invalid: min(1)
+      activity: '', // Invalid: min(1)
+      date: new Date(),
+      type: 'log',
+      status: 'completed',
+      mode: 'one-on-one',
+    };
+
+    await expect(logWeave(invalidData)).rejects.toThrow(/Invalid weave data/);
+  });
+
   it('should plan a new weave', async () => {
     const mockFriend = { id: 'friend1', name: 'Test Friend' };
     const mockInteraction = { id: 'interaction1', activity: 'Test Plan', status: 'planned' };

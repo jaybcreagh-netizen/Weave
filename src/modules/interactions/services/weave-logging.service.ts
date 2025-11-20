@@ -6,6 +6,7 @@ import InteractionFriend from '@/db/models/InteractionFriend';
 import { processWeaveScoring } from '@/modules/intelligence';
 import { checkFriendBadges, checkGlobalAchievements, recordMilestone } from '@/modules/gamification';
 import { InteractionFormData } from '../types';
+import { WeaveLogSchema } from '@/shared/types/validators';
 
 // TODO: These should be moved to the insights module
 import { trackEvent, AnalyticsEvents, updateLastInteractionTimestamp } from '@/shared/services/analytics.service';
@@ -13,6 +14,13 @@ import { analyzeAndTagLifeEvents } from '@/lib/life-event-detection';
 import { deleteWeaveCalendarEvent } from './calendar.service';
 
 export async function logWeave(data: InteractionFormData): Promise<Interaction> {
+    // Validate input data
+    try {
+        WeaveLogSchema.parse(data);
+    } catch (error) {
+        throw new Error(`Invalid weave data: ${error instanceof Error ? error.message : String(error)}`);
+    }
+
     const friends = await database.get<FriendModel>('friends').query(Q.where('id', Q.oneOf(data.friendIds))).fetch();
 
     if (friends.length === 0) {
