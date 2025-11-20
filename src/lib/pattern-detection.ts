@@ -10,7 +10,7 @@ import InteractionFriend from '../db/models/InteractionFriend';
 import FriendModel from '../db/models/Friend';
 import WeeklyReflection from '../db/models/WeeklyReflection';
 import { Q } from '@nozbe/watermelondb';
-import { calculateInteractionQuality } from './weave-engine';
+import { calculateInteractionQuality } from '@/modules/intelligence';
 import { STORY_CHIPS, ChipType } from './story-chips';
 
 export interface Pattern {

@@ -7,7 +7,13 @@
  */
 
 // Services
-export * from './services/badge.service';
+export {
+  checkAndAwardFriendBadges,
+  checkSpecialBadges,
+  getUncelebratedBadgeUnlocks,
+  markBadgeAsCelebrated,
+  type BadgeUnlock
+} from './services/badge.service';
 export * from './services/achievement.service';
 
 // Types

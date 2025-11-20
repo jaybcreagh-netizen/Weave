@@ -23,8 +23,8 @@ import Animated, {
   withDelay,
 } from 'react-native-reanimated';
 import { useUIStore } from '../stores/uiStore';
-import { markBadgeAsCelebrated } from '../lib/badge-tracker';
-import { markAchievementAsCelebrated } from '../lib/achievement-tracker';
+import { markBadgeAsCelebrated } from '@/modules/gamification';
+import { markAchievementAsCelebrated } from '@/modules/gamification';
 
 const { width, height } = Dimensions.get('window');
 

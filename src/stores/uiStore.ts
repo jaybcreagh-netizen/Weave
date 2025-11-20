@@ -1,8 +1,8 @@
 import { create } from 'zustand';
 import { type Archetype, type Interaction, type InteractionCategory } from '../components/types';
 import { type Milestone } from '../lib/milestone-tracker';
-import { type BadgeUnlock } from '../lib/badge-tracker';
-import { type AchievementUnlockData } from '../lib/achievement-tracker';
+import { type BadgeUnlock } from '@/modules/gamification';
+import { type AchievementUnlockData } from '@/modules/gamification';
 
 interface ToastData {
   message: string;

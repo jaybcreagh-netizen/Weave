@@ -246,3 +246,60 @@ async function isBadgeUnlocked(friendId: string, badgeId: string): Promise<boole
 
   return count > 0;
 }
+
+/**
+ * Get all unlocks that haven't been celebrated yet
+ * Used to queue unlock modals on app startup
+ */
+export async function getUncelebratedBadgeUnlocks(): Promise<BadgeUnlock[]> {
+  const unlocks = await database
+    .get<AchievementUnlock>('achievement_unlocks')
+    .query(
+      Q.where('achievement_type', 'friend_badge'),
+      Q.where('has_been_celebrated', false),
+      Q.sortBy('unlocked_at', 'asc')
+    )
+    .fetch();
+
+  const badgeUnlocks: BadgeUnlock[] = [];
+
+  for (const unlock of unlocks) {
+    const badge = getBadgeById(unlock.achievementId);
+    if (!badge || !unlock.relatedFriendId) continue;
+
+    const friend = await database.get<Friend>('friends').find(unlock.relatedFriendId);
+
+    badgeUnlocks.push({
+      badge,
+      categoryType: 'friend_badge', // We'll determine from badge ID if needed
+      friendId: unlock.relatedFriendId,
+      friendName: friend.name,
+    });
+  }
+
+  return badgeUnlocks;
+}
+
+/**
+ * Mark a badge unlock as celebrated
+ */
+export async function markBadgeAsCelebrated(badgeId: string, friendId: string): Promise<void> {
+  const unlocks = await database
+    .get<AchievementUnlock>('achievement_unlocks')
+    .query(
+      Q.where('achievement_id', badgeId),
+      Q.where('related_friend_id', friendId),
+      Q.where('has_been_celebrated', false)
+    )
+    .fetch();
+
+  if (unlocks.length > 0) {
+    await database.write(async () => {
+      for (const unlock of unlocks) {
+        await unlock.update(u => {
+          u.hasBeenCelebrated = true;
+        });
+      }
+    });
+  }
+}

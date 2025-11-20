@@ -1,5 +1,5 @@
-import FriendModel from '../db/models/Friend';
-import { clamp, FRIEND_VALIDATION_BOUNDS } from './validation-helpers';
+import FriendModel from '@/db/models/Friend';
+import { clamp, FRIEND_VALIDATION_BOUNDS } from '@/shared/utils/validation-helpers';
 
 /**
  * Type definition for who initiated an interaction
@@ -7,7 +7,7 @@ import { clamp, FRIEND_VALIDATION_BOUNDS } from './validation-helpers';
 export type Initiator = 'user' | 'friend' | 'mutual';
 
 /**
- * Constants for validation bounds (imported from validation-helpers)
+ * Constants for validation bounds
  */
 const MAX_CONSECUTIVE_INITIATIONS = FRIEND_VALIDATION_BOUNDS.consecutiveUserInitiations.max;
 const MIN_RATIO = FRIEND_VALIDATION_BOUNDS.initiationRatio.min;

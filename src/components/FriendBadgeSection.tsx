@@ -17,8 +17,8 @@ import {
   CONSISTENCY_BADGES,
   SPECIAL_BADGES,
   type BadgeDefinition,
-} from '../lib/badge-definitions';
-import { calculateFriendBadgeProgress, type BadgeProgress } from '../lib/badge-calculator';
+} from '@/modules/gamification';
+import { calculateFriendBadgeProgress, type BadgeProgress } from '@/lib/badge-calculator';
 import AchievementCard from './AchievementCard';
 
 interface FriendBadgeSectionProps {
