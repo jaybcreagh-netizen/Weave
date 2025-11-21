@@ -10,12 +10,16 @@ module.exports = tseslint.config(
         {
           patterns: [
             {
-              group: ["../modules/*"],
-              message: "Import from module index.ts only (e.g., @/modules/intelligence)",
+              group: ["src/lib/*", "@/lib/*"],
+              message: "Importing from src/lib is forbidden. Move code to modules or shared.",
             },
             {
               group: ["../../*"],
-              message: "Use absolute imports (@/) instead of relative imports for cross-module dependencies",
+              message: "Use absolute imports (@/) instead of relative imports that go up two levels.",
+            },
+            {
+              group: ["@/modules/*/*"],
+              message: "Import from module index.ts only (e.g., import { X } from '@/modules/gamification'). Deep imports are forbidden.",
             },
           ],
         },
