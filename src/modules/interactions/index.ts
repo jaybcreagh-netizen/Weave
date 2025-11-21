@@ -12,6 +12,7 @@ export * as PlanService from './services/plan.service';
 export * as CalendarService from './services/calendar.service';
 export * from './services/smart-defaults.service';
 export * from './services/suggestion-engine.service';
+export * as suggestionEngine from './services/suggestion-engine.service';
 export * from './services/event-suggestion-learning.service';
 
 // Stores

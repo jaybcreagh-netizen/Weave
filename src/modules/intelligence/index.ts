@@ -8,7 +8,8 @@
  */
 
 // Services
-export { processWeaveScoring, calculateCurrentScore } from './services/orchestrator.service';
+export { processWeaveScoring, calculateCurrentScore, calculateWeightedNetworkHealth } from './services/orchestrator.service';
+export * as orchestrator from './services/orchestrator.service';
 export { calculateInteractionQuality } from './services/quality.service';
 
 // Types

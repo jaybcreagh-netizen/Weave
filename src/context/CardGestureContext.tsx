@@ -10,7 +10,7 @@ import { useInteractions } from '@/modules/interactions';
 import { database } from '../db';
 import Friend from '../db/models/Friend';
 import { type InteractionCategory } from '../components/types';
-import { getTopActivities, isSmartDefaultsEnabled } from '@/modules/interactions/services/smart-defaults.service';
+import { getTopActivities, isSmartDefaultsEnabled } from '@/modules/interactions';
 
 const MENU_RADIUS = 75; // Reduced for compact design
 const HIGHLIGHT_THRESHOLD = 25; // Reduced from 30

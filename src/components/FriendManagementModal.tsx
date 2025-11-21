@@ -3,7 +3,7 @@ import { Modal, View, Text, TouchableOpacity, ScrollView, Alert } from 'react-na
 import { X, Trash2, Check } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { useRelationshipsStore } from '@/modules/relationships';
-import { calculateCurrentScore } from '@/modules/intelligence/services/orchestrator.service';
+import { calculateCurrentScore } from '@/modules/intelligence';
 import type FriendModel from '../db/models/Friend';
 
 interface FriendManagementModalProps {

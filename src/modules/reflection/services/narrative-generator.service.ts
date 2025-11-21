@@ -8,7 +8,7 @@
 import { SocialSeason } from '@/lib/social-season/season-types';
 import { Suggestion } from '@/types/suggestions';
 import FriendModel from '@/db/models/Friend';
-import { calculateCurrentScore } from '@/modules/intelligence/services/orchestrator.service';
+import { calculateCurrentScore } from '@/modules/intelligence';
 import { differenceInDays } from 'date-fns';
 
 // ============================================================================

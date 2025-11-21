@@ -5,7 +5,7 @@ import FriendModel from '../db/models/Friend';
 import Interaction from '../db/models/Interaction';
 import InteractionFriend from '../db/models/InteractionFriend';
 import { Q } from '@nozbe/watermelondb';
-import { calculateCurrentScore } from '@/modules/intelligence/services/orchestrator.service';
+import { calculateCurrentScore } from '@/modules/intelligence';
 
 interface StatusLine {
   text: string;
