@@ -10,6 +10,7 @@ import { AlertCircle } from 'lucide-react-native';
 import { detectPatterns, Pattern } from '@/shared/lib/pattern-detection';
 import { useTheme } from '@/shared/hooks/useTheme';
 
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 interface PatternsTabContentProps {}
 
 export function PatternsTabContent({}: PatternsTabContentProps) {

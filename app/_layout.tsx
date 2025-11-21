@@ -49,6 +49,9 @@ import {
 import * as Sentry from '@sentry/react-native';
 import { initializeAnalytics, trackEvent, trackRetentionMetrics, AnalyticsEvents, setPostHogInstance } from '@/shared/services/analytics.service';
 import { PostHogProvider, usePostHog } from 'posthog-react-native';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+const queryClient = new QueryClient();
 
 Sentry.init({
   dsn: 'https://1b94b04a0400cdc5a0378c0f485a2435@o4510357596471296.ingest.de.sentry.io/4510357600993360',
@@ -368,6 +371,7 @@ export default Sentry.wrap(function RootLayout() {
       autocapture
     >
       <PostHogConnector>
+        <QueryClientProvider client={queryClient}>
         <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.background }}>
         <StatusBar style={isDarkMode ? 'light' : 'dark'} />
         {/* Wrap with CardGestureProvider so both Dashboard and Overlay can access it */}
@@ -417,6 +421,7 @@ export default Sentry.wrap(function RootLayout() {
           </QuickWeaveProvider>
         </CardGestureProvider>
         </GestureHandlerRootView>
+        </QueryClientProvider>
       </PostHogConnector>
     </PostHogProvider>
   );

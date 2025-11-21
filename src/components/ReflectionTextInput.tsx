@@ -36,7 +36,7 @@ export function ReflectionTextInput({
     if (!storyChip) return [];
 
     const parts: Array<{ type: 'text' | 'component'; value: string; componentId?: string }> = [];
-    let remaining = storyChip.template;
+    const remaining = storyChip.template;
     const regex = /\{([^}]+)\}/g;
     let lastIndex = 0;
     let match;

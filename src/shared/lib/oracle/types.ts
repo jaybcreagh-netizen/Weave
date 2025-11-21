@@ -1,5 +1,6 @@
 // src/lib/oracle/types.ts
 
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface SuggestionContext {
   // Define the properties of SuggestionContext here
 }

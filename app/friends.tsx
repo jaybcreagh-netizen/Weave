@@ -1,6 +1,7 @@
 import React, { useMemo, useEffect, useState, useRef, useCallback } from 'react';
-import { View, Text, ScrollView, Dimensions, StyleSheet, FlatList } from 'react-native';
+import { View, Text, ScrollView, Dimensions, StyleSheet } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withDelay, withTiming, useAnimatedRef, runOnUI } from 'react-native-reanimated';
+import { FlashList } from '@shopify/flash-list';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { GestureDetector } from 'react-native-gesture-handler';
 import * as Haptics from 'expo-haptics';
@@ -31,6 +32,7 @@ import { useTutorialStore } from '@/stores/tutorialStore';
 import { WeaveIcon } from '@/components/WeaveIcon';
 
 const { width: screenWidth } = Dimensions.get('window');
+const AnimatedFlashList = Animated.createAnimatedComponent(FlashList);
 
 // Helper to create subtle tier background colors
 const getTierBackground = (tier: 'inner' | 'close' | 'community', isDarkMode: boolean) => {
@@ -295,34 +297,25 @@ function DashboardContent() {
       );
     }
     return (
-      <Animated.FlatList
-        style={{ width: screenWidth, backgroundColor: tierBgColor }}
-        contentContainerStyle={styles.tierScrollView}
-        data={currentFriends}
-        keyExtractor={(item) => item.id}
-        scrollEnabled={!isQuickWeaveOpen}
-        onScroll={scrollHandler}
-        scrollEventThrottle={8} // 120fps (was 16 for 60fps)
-        renderItem={({ item, index }) => (
-          <AnimatedFriendCardItem
-            item={item}
-            index={index}
-            refreshKey={refreshKey}
-          />
-        )}
-        // Performance optimizations for 120fps scrolling
-        removeClippedSubviews={true}
-        maxToRenderPerBatch={5} // Smaller batches for smoother rendering
-        updateCellsBatchingPeriod={30} // Faster batching (was 50ms)
-        initialNumToRender={8} // Render fewer items initially
-        windowSize={3} // Smaller window for better memory usage
-        getItemLayout={(data, index) => ({
-          length: 72, // Approximate item height (card + margin)
-          offset: 72 * index,
-          index,
-        })}
-        disableIntervalMomentum={true} // Smoother scroll feel
-      />
+      <View style={{ width: screenWidth, height: '100%', backgroundColor: tierBgColor }}>
+        <AnimatedFlashList
+          contentContainerStyle={styles.tierScrollView}
+          data={currentFriends}
+          estimatedItemSize={72}
+          keyExtractor={(item) => item.id}
+          scrollEnabled={!isQuickWeaveOpen}
+          onScroll={scrollHandler}
+          scrollEventThrottle={8}
+          renderItem={({ item, index }) => (
+            <AnimatedFriendCardItem
+              item={item}
+              index={index}
+              refreshKey={refreshKey}
+            />
+          )}
+          disableIntervalMomentum={true}
+        />
+      </View>
     );
   };
 
