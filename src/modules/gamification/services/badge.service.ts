@@ -7,7 +7,7 @@ import AchievementUnlock from '@/db/models/AchievementUnlock';
 import Interaction from '@/db/models/Interaction';
 import Friend from '@/db/models/Friend';
 import { Q } from '@nozbe/watermelondb';
-import { calculateFriendBadgeProgress } from '@/lib/badge-calculator';
+import { calculateFriendBadgeProgress } from './badge-calculator.service';
 
 export interface BadgeUnlock {
   badge: BadgeDefinition;

@@ -5,9 +5,9 @@ import { Sparkles } from 'lucide-react-native';
 import { format } from 'date-fns';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { type InteractionCategory } from '../types';
-import FriendModel from '@/modules/interactions/db/models/Friend';
-import { PlanSuggestion } from '@/modules/interactions/hooks/usePlanSuggestion';
-import { calculateActivityPriorities, isSmartDefaultsEnabled } from '@/modules/interactions/services/smart-defaults.service';
+import FriendModel from '@/db/models/Friend';
+import { PlanSuggestion } from '@/modules/interactions';
+import { calculateActivityPriorities, isSmartDefaultsEnabled } from '@/modules/interactions';
 
 interface PlanWizardStep2Props {
   selectedCategory?: InteractionCategory;

@@ -1,7 +1,7 @@
 // src/modules/relationships/services/__tests__/friend.service.test.ts
 import { createFriend, updateFriend, deleteFriend, batchAddFriends } from '../friend.service';
 import { database } from '@/db';
-import { FriendFormData } from '@/modules/relationships/types';
+import { FriendFormData } from '@/modules/relationships';
 
 const mockUserProgress = {
   id: 'progress-1',
@@ -104,6 +104,7 @@ describe('friend.service', () => {
     expect(database.get).toHaveBeenCalledWith('friends');
     expect(mockFriendsCollection.find).toHaveBeenCalledWith('1');
     expect(mockFriend.destroyPermanently).toHaveBeenCalled();
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     expect(require('@/modules/relationships/services/image.service').deleteImage).toHaveBeenCalledWith({
       imageId: '1',
       type: 'profilePicture',

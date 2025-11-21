@@ -6,7 +6,7 @@ import { ArrowLeft, Check, Search } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useRelationshipsStore } from '@/modules/relationships';
 import { useTheme } from '@/hooks/useTheme';
-import { normalizeContactImageUri } from '@/lib/image-utils';
+import { normalizeContactImageUri } from '@/modules/relationships';
 
 export default function BatchAddFriends() {
   const router = useRouter();

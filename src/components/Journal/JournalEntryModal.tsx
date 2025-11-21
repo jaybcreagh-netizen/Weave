@@ -20,7 +20,7 @@ import { database } from '@/db';
 import JournalEntry from '@/db/models/JournalEntry';
 import FriendModel from '@/db/models/Friend';
 import { Q } from '@nozbe/watermelondb';
-import { STORY_CHIPS } from '@/lib/story-chips';
+import { STORY_CHIPS } from '@/modules/reflection';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as Haptics from 'expo-haptics';
 import { YourPatternsSection } from '../YourPatternsSection';

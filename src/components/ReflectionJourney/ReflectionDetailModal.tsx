@@ -11,7 +11,7 @@ import { formatWeaveDate, daysAgo } from '@/shared/utils/date-utils';
 import { getWeekRange, getFriendsForReflection, ReflectionFriend } from '@/modules/reflection';
 import WeeklyReflection from '@/db/models/WeeklyReflection';
 import { database } from '@/db';
-import { STORY_CHIPS } from '@/lib/story-chips';
+import { STORY_CHIPS } from '@/modules/reflection';
 import * as Haptics from 'expo-haptics';
 
 interface ReflectionDetailModalProps {

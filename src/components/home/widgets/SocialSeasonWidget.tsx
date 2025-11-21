@@ -14,13 +14,13 @@ import { HomeWidgetBase, HomeWidgetConfig } from '../HomeWidgetBase';
 import {
   calculateSocialSeason,
   calculateSeasonContext,
-} from '@/lib/social-season/season-calculator';
+} from '@/modules/intelligence';
 import {
   getSeasonGreeting,
   SEASON_STYLES,
   getSeasonDisplayName,
-} from '@/lib/social-season/season-content';
-import { SeasonCalculationInput, SocialSeason } from '@/lib/social-season/season-types';
+} from '@/modules/intelligence';
+import { SeasonCalculationInput, SocialSeason } from '@/modules/intelligence';
 import { calculateCurrentScore, calculateWeightedNetworkHealth } from '@/modules/intelligence';
 import { database } from '@/db';
 import Interaction from '@/db/models/Interaction';

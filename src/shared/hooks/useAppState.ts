@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { AppStateStatus } from 'react-native';
-import { appStateManager } from '@/lib/app-state-manager';
+import { appStateManager } from '@/shared/services/app-state-manager.service';
 
 /**
  * Hook to track app state (active, background, inactive)
@@ -77,6 +77,6 @@ export function usePausableEffect(
     }
 
     return effect();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line
   }, [isSleeping, ...deps]);
 }

@@ -1,5 +1,5 @@
-import { InteractionCategory, Archetype, Vibe, Tier } from '../components/types';
-import { analyzeText, calculateThemeRelevance } from './text-analysis';
+import { InteractionCategory, Archetype, Vibe, Tier } from '@/components/types';
+import { analyzeText, calculateThemeRelevance } from '../utils/text-analysis';
 
 /**
  * Story Chip System

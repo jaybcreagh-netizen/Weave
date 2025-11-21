@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
-import { getChipsForType, getChipTypeLabel, type StoryChip, type ChipType } from '../lib/story-chips';
+import { getChipsForType, getChipTypeLabel, type StoryChip, type ChipType } from '@/modules/reflection';
 import { type InteractionCategory, type Archetype, type Vibe, type Tier } from './types';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { getChipFrequencyScores, getCustomChipsAsStoryChips } from '../lib/adaptive-chips';

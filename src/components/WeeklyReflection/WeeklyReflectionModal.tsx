@@ -18,7 +18,7 @@ import { CalendarEventsStep } from './CalendarEventsStep';
 import { database } from '@/db';
 import WeeklyReflection from '@/db/models/WeeklyReflection';
 import { batchLogCalendarEvents } from '@/lib/weekly-event-review';
-import { ScannedEvent } from '@/lib/event-scanner';
+import { ScannedEvent } from '@/modules/interactions/services/event-scanner';
 import * as Haptics from 'expo-haptics';
 
 interface WeeklyReflectionModalProps {

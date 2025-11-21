@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, TextInput, StyleSheet, Modal } from 'react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { X } from 'lucide-react-native';
-import { STORY_CHIPS, type StoryChip } from '../lib/story-chips';
+import { STORY_CHIPS, type StoryChip } from '@/modules/reflection';
 import { type ReflectionChip } from '../stores/interactionStore';
 import { useTheme } from '@/shared/hooks/useTheme';
 

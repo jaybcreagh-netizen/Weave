@@ -9,7 +9,7 @@ import { useTheme } from '@/shared/hooks/useTheme';
 import { type Interaction, type MoonPhase, type InteractionCategory } from './types';
 import { modeIcons } from '@/shared/constants/constants';
 import { getCategoryMetadata } from '@/shared/constants/interaction-categories';
-import { STORY_CHIPS } from '../lib/story-chips';
+import { STORY_CHIPS } from '@/modules/reflection';
 
 const moonPhaseIcons: Record<MoonPhase, string> = {
   'NewMoon': '🌑',

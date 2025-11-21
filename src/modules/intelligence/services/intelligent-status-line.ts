@@ -3,7 +3,6 @@ import { database } from '../db';
 import LifeEvent from '../db/models/LifeEvent';
 import FriendModel from '../db/models/Friend';
 import Interaction from '../db/models/Interaction';
-import InteractionFriend from '../db/models/InteractionFriend';
 import { Q } from '@nozbe/watermelondb';
 import { calculateCurrentScore } from '@/modules/intelligence';
 
@@ -83,7 +82,7 @@ async function checkLifeEventStatus(friend: FriendModel): Promise<StatusLine | n
     const activeLifeEvents = await database
       .get<LifeEvent>('life_events')
       .query(
-        // @ts-ignore
+        // @ts-expect-error: WatermelonDB Q types are complex
         Q.where('friend_id', friend.id),
         Q.or(
           // Upcoming events (within next 30 days)

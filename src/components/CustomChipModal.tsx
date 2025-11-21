@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Modal, ScrollView } from 'react-native';
 import { X } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
-import { type ChipType, getChipTypeLabel } from '../lib/story-chips';
+import { type ChipType, getChipTypeLabel } from '@/modules/reflection';
 import { createNewCustomChip } from '../lib/adaptive-chips';
 
 interface CustomChipModalProps {

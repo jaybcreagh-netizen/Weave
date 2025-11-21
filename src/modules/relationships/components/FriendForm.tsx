@@ -14,11 +14,11 @@ import { ArchetypeDetailModal } from './ArchetypeDetailModal';
 import { ContactPickerGrid } from './onboarding/ContactPickerGrid';
 import { MonthDayPicker } from './MonthDayPicker';
 import { getTierCapacity, getTierDisplayName, isTierAtCapacity } from '@/shared/constants/constants';
-import { normalizeContactImageUri } from '@/lib/image-utils';
+import { normalizeContactImageUri } from '../utils/image.utils';
 import { SimpleTutorialTooltip } from './SimpleTutorialTooltip';
 import { useTutorialStore } from '../stores/tutorialStore';
 import { validateMMDDFormat } from '@/shared/utils/validation-helpers';
-import { processAndStoreImage } from '@/modules/relationships/services/image.service';
+import { processAndStoreImage } from '../services/image.service';
 
 interface FriendFormProps {
   onSave: (friendData: FriendFormData) => void;
@@ -193,7 +193,7 @@ export function FriendForm({ onSave, friend, initialTier, fromOnboarding }: Frie
       return;
     }
 
-    let result = await ImagePicker.launchImageLibraryAsync({
+    const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [1, 1],

@@ -13,7 +13,7 @@ import { PlanWizardStep3 } from './plan-wizard/PlanWizardStep3';
 import { usePlans } from '../hooks/usePlans';
 import * as CalendarService from '../services/calendar.service';
 import { getCategoryMetadata } from '@/shared/constants/interaction-categories';
-import { getDefaultTimeForCategory } from '@/modules/interactions/services/smart-defaults.service';
+import { getDefaultTimeForCategory } from '@/modules/interactions';
 import { database } from '@/db';
 import Interaction from '@/db/models/Interaction';
 

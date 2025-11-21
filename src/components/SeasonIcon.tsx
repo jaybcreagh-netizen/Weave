@@ -1,6 +1,6 @@
 import React from 'react';
 import Svg, { SvgProps } from 'react-native-svg';
-import { type SocialSeason } from '../lib/social-season/season-types';
+import { type SocialSeason } from '@/modules/intelligence';
 
 // Import season SVG icons
 const RestingIcon = require('@/assets/icons/resting.svg').default;

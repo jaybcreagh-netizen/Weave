@@ -142,8 +142,8 @@ export async function createWeaveCalendarEvent(params: {
     const startDate = new Date(params.date);
     const hasTime = startDate.getHours() !== 0 || startDate.getMinutes() !== 0;
 
-    let eventTitle = `🧵 Weave with ${params.friendNames} - ${params.title || params.category}`;
-    let eventNotes = `📅 Planned weave with ${params.friendNames}\n\nActivity: ${params.category}\nLocation: ${params.location || 'N/A'}\n\nNotes:\n${params.notes || ''}\n\n---\nCreated by Weave`;
+    const eventTitle = `🧵 Weave with ${params.friendNames} - ${params.title || params.category}`;
+    const eventNotes = `📅 Planned weave with ${params.friendNames}\n\nActivity: ${params.category}\nLocation: ${params.location || 'N/A'}\n\nNotes:\n${params.notes || ''}\n\n---\nCreated by Weave`;
 
     const eventDetails: Calendar.Event = {
       title: eventTitle,

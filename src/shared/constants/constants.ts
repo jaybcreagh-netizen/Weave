@@ -114,14 +114,23 @@ export const archetypeData: Record<Archetype, { name: string; essence: string; d
 };
 
 export const archetypeIcons: Record<Archetype, any> = {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     Emperor: require('@/assets/icon.png'),
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     Empress: require('@/assets/icon.png'),
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     HighPriestess: require('@/assets/icon.png'),
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     Fool: require('@/assets/icon.png'),
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     Sun: require('@/assets/icon.png'),
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     Hermit: require('@/assets/icon.png'),
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     Magician: require('@/assets/icon.png'),
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     Lovers: require('@/assets/icon.png'),
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     Unknown: require('@/assets/icon.png'),
 };
 

@@ -7,3 +7,5 @@ export * from './services/story-chip-aggregator.service';
 export * from './services/weekly-reflection.service';
 export * from './services/weekly-stats.service';
 export * from './services/narrative-generator.service';
+export * from './services/story-chips.service';
+export * from './utils/text-analysis';

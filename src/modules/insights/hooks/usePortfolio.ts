@@ -9,7 +9,7 @@ import {
   getPortfolioHealthSummary,
   getWeeklyFocusRecommendation,
   type FriendshipPortfolio,
-} from '@/modules/insights/services/portfolio.service';
+} from '@/modules/insights';
 import { generatePortfolioSuggestions } from '@/modules/interactions';
 import { type Suggestion } from '@/types/suggestions';
 

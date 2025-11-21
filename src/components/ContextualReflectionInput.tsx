@@ -3,12 +3,12 @@ import { View, Text, StyleSheet } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { ReflectionStoryChips } from './ReflectionStoryChips';
 import { ReflectionTextInput } from './ReflectionTextInput';
-import { getNextChipType, STORY_CHIPS, type StoryChip, type ChipType } from '../lib/story-chips';
+import { getNextChipType, STORY_CHIPS, type StoryChip, type ChipType } from '@/modules/reflection';
 import { type InteractionCategory, type Archetype, type Vibe, type Tier } from './types';
 import { type StructuredReflection } from '../stores/interactionStore';
 import { useTheme } from '@/shared/hooks/useTheme';
-import { analyzeText, generateContextualPrompt, calculateReflectionQuality } from '../lib/text-analysis';
-import { STORY_CHIPS as ALL_STORY_CHIPS } from '../lib/story-chips';
+import { analyzeText, generateContextualPrompt, calculateReflectionQuality } from '@/modules/reflection';
+import { STORY_CHIPS as ALL_STORY_CHIPS } from '@/modules/reflection';
 import { generatePatternInsights, type PatternInsight } from '../lib/adaptive-chips';
 
 interface ContextualReflectionInputProps {

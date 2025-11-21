@@ -11,7 +11,7 @@ import Animated, {
   runOnJS,
 } from 'react-native-reanimated';
 import { useTheme } from '@/shared/hooks/useTheme';
-import { Milestone } from '../lib/milestone-tracker';
+import { Milestone } from '@/modules/gamification';
 import * as Haptics from 'expo-haptics';
 
 /**

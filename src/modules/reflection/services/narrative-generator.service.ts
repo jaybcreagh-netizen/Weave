@@ -5,7 +5,7 @@
  * Tone: Mix of therapist (supportive, validating) and coach (actionable, clear)
  */
 
-import { SocialSeason } from '@/lib/social-season/season-types';
+import { SocialSeason } from '@/modules/intelligence';
 import { Suggestion } from '@/types/suggestions';
 import FriendModel from '@/db/models/Friend';
 import { calculateCurrentScore } from '@/modules/intelligence';

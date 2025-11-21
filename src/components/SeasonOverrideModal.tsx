@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, Modal, StyleSheet } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { X } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
-import { SocialSeason } from '../lib/social-season/season-types';
+import { SocialSeason } from '@/modules/intelligence';
 
 interface SeasonOverrideModalProps {
   visible: boolean;

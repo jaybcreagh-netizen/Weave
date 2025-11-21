@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { usePortfolio } from './usePortfolio';
 import { useFriends } from '@/hooks/useFriends';
-import { analyzeTrends, getHistoricalSnapshots, type TrendAnalysis } from '@/modules/insights/services/trend.service';
-import { predictFriendDrift, generateProactiveSuggestions, forecastNetworkHealth, type FriendPrediction, type ProactiveSuggestion } from '@/modules/insights/services/prediction.service';
-import { analyzeInteractionPattern } from '@/modules/insights/services/pattern.service';
+import { analyzeTrends, getHistoricalSnapshots, type TrendAnalysis } from '@/modules/insights';
+import { predictFriendDrift, generateProactiveSuggestions, forecastNetworkHealth, type FriendPrediction, type ProactiveSuggestion } from '@/modules/insights';
+import { analyzeInteractionPattern } from '@/modules/insights';
 import { database } from '@/db';
 import InteractionModel from '@/db/models/Interaction';
 import { Q } from '@nozbe/watermelondb';

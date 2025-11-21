@@ -18,7 +18,7 @@ import {
   SPECIAL_BADGES,
   type BadgeDefinition,
 } from '@/modules/gamification';
-import { calculateFriendBadgeProgress, type BadgeProgress } from '@/lib/badge-calculator';
+import { calculateFriendBadgeProgress, type BadgeProgress } from '@/modules/gamification';
 import AchievementCard from './AchievementCard';
 
 interface FriendBadgeSectionProps {

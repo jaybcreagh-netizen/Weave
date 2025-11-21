@@ -9,7 +9,7 @@ import Animated, { FadeIn } from 'react-native-reanimated';
 import { Sparkles, Check, Lightbulb, Plus } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { WeeklySummary, generateContextualPrompts, selectBestPrompt, WeekStoryChipSuggestion } from '@/modules/reflection';
-import { STORY_CHIPS } from '@/lib/story-chips';
+import { STORY_CHIPS } from '@/modules/reflection';
 import * as Haptics from 'expo-haptics';
 
 interface GratitudePromptProps {

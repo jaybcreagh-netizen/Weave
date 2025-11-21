@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { type Archetype, type Interaction, type InteractionCategory } from '../components/types';
-import { type Milestone } from '../lib/milestone-tracker';
+import { type Milestone } from '@/modules/gamification';
 import { type BadgeUnlock } from '@/modules/gamification';
 import { type AchievementUnlockData } from '@/modules/gamification';
 

@@ -20,9 +20,9 @@ import { archetypeData } from '@/shared/constants/constants';
 import FriendModel from '../db/models/Friend';
 import { useCardGesture } from '../context/CardGestureContext';
 import { calculateCurrentScore } from '@/modules/intelligence';
-import { generateIntelligentStatusLine } from '@/lib/intelligent-status-line';
-import { normalizeContactImageUri } from '@/lib/image-utils';
-import { statusLineCache } from '@/lib/status-line-cache';
+import { generateIntelligentStatusLine } from '@/modules/intelligence';
+import { normalizeContactImageUri } from '../utils/image.utils';
+import { statusLineCache } from '@/modules/intelligence';
 import { FriendDetailSheet } from './FriendDetailSheet';
 
 const ATTENTION_THRESHOLD = 35;

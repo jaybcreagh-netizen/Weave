@@ -1,10 +1,10 @@
 import { database } from '@/db';
 import { logWeave, planWeave, deleteWeave } from '../weave-logging.service';
-import { InteractionFormData } from '@/modules/interactions/types';
+import { InteractionFormData } from '@/modules/interactions';
 import { processWeaveScoring } from '@/modules/intelligence';
 import { checkFriendBadges, checkGlobalAchievements, recordMilestone } from '@/modules/gamification';
 import { trackEvent, AnalyticsEvents, updateLastInteractionTimestamp } from '@/shared/services/analytics.service';
-import { analyzeAndTagLifeEvents } from '@/lib/life-event-detection';
+import { analyzeAndTagLifeEvents } from '@/modules/relationships';
 import { deleteWeaveCalendarEvent } from '../calendar.service';
 
 jest.mock('@/db', () => ({
@@ -39,7 +39,7 @@ jest.mock('@/shared/services/analytics.service', () => ({
   updateLastInteractionTimestamp: jest.fn(),
 }));
 
-jest.mock('@/lib/life-event-detection', () => ({
+jest.mock('@/modules/relationships', () => ({
   analyzeAndTagLifeEvents: jest.fn(),
 }));
 

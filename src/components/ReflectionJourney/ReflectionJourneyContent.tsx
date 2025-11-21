@@ -13,7 +13,7 @@ import WeeklyReflection from '@/db/models/WeeklyReflection';
 import JournalEntry from '@/db/models/JournalEntry';
 import { Q } from '@nozbe/watermelondb';
 import { format } from 'date-fns';
-import { STORY_CHIPS } from '@/lib/story-chips';
+import { STORY_CHIPS } from '@/modules/reflection';
 import { ReflectionDetailModal } from './ReflectionDetailModal';
 import { JournalEntryModal } from '../Journal/JournalEntryModal';
 import * as Haptics from 'expo-haptics';

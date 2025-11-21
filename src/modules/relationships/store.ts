@@ -7,7 +7,7 @@ import InteractionFriend from '@/db/models/InteractionFriend';
 import { Subscription, of } from 'rxjs';
 import { switchMap } from 'rxjs/operators';
 import { Q } from '@nozbe/watermelondb';
-import { appStateManager } from '@/lib/app-state-manager';
+import { appStateManager } from '@/shared/services/app-state-manager.service';
 import {
   createFriend,
   updateFriend,

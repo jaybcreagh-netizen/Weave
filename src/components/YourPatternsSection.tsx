@@ -8,7 +8,7 @@ import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator
 import { TrendingUp, Plus } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { getMostUsedChips, analyzeCustomNotesForPatterns } from '../lib/adaptive-chips';
-import { STORY_CHIPS, type ChipType } from '../lib/story-chips';
+import { STORY_CHIPS, type ChipType } from '@/modules/reflection';
 import { CustomChipModal } from './CustomChipModal';
 import Animated, { FadeIn } from 'react-native-reanimated';
 

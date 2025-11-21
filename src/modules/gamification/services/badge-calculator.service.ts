@@ -5,16 +5,16 @@
  * Determines which badges are unlocked and progress toward next tier
  */
 
-import { database } from '../db';
+import { database } from '@/db';
 import { Q } from '@nozbe/watermelondb';
-import FriendBadge from '../db/models/FriendBadge';
-import Interaction from '../db/models/Interaction';
+import FriendBadge from '@/db/models/FriendBadge';
+import Interaction from '@/db/models/Interaction';
 import {
   FRIEND_BADGE_CATEGORIES,
   BadgeDefinition,
   getBadgeById,
   getNextBadgeInCategory,
-} from './badge-definitions';
+} from '../constants/badge-definitions';
 import { differenceInMonths, startOfMonth } from 'date-fns';
 
 export interface BadgeProgress {

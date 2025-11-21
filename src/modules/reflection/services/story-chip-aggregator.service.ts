@@ -6,7 +6,7 @@
 import { database } from '@/db';
 import { Q } from '@nozbe/watermelondb';
 import InteractionModel from '@/db/models/Interaction';
-import { STORY_CHIPS, StoryChip } from '@/lib/story-chips';
+import { STORY_CHIPS, StoryChip } from './story-chips.service';
 
 export interface WeekStoryChipSuggestion {
   chipId: string;
