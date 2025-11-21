@@ -8,15 +8,15 @@
  * - Suggesting new custom chips based on patterns
  */
 
-import { database } from '../db';
 import { database } from '@/db';
 import CustomChip from '@/db/models/CustomChip';
-import { incrementUsage } from '@/modules/reflection/services/custom-chip.service';
-import ChipUsage from '../db/models/ChipUsage';
-import Interaction from '../db/models/Interaction';
-import FriendModel from '../db/models/Friend';
+import ChipUsage from '@/db/models/ChipUsage';
+import { incrementUsage } from '@/modules/reflection';
+import Interaction from '@/db/models/Interaction';
+import FriendModel from '@/db/models/Friend';
 import { calculateChipFrequency, suggestCustomChip, createCustomChip, type StoryChip, type ChipType } from './story-chips';
-import { type ReflectionChip } from '../components/types';
+import { type ReflectionChip } from '@/components/types';
+import { Q } from '@nozbe/watermelondb';
 
 /**
  * Record chip usage in the database for adaptive tracking
@@ -35,7 +35,7 @@ export async function recordChipUsage(
       usage.interactionId = interactionId;
       usage.friendId = friendId;
       usage.isCustom = isCustom;
-      usage.usedAt = Date.now();
+      usage.usedAt = new Date();
     });
 
     // If custom chip, increment its usage count
@@ -62,7 +62,7 @@ export async function getChipFrequencyScores(): Promise<Record<string, number>> 
 
   const usageHistory = allUsage.map(usage => ({
     chipId: usage.chipId,
-    timestamp: usage.usedAt,
+    timestamp: usage.usedAt.getTime(),
   }));
 
   return calculateChipFrequency(usageHistory);
@@ -131,10 +131,10 @@ export async function analyzeCustomNotesForPatterns(
  */
 export async function getMostUsedChips(limit: number = 5): Promise<Array<{ chipId: string; count: number; isCustom: boolean }>> {
   const chipUsageCollection = database.get<ChipUsage>('chip_usage');
-  const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
+  const thirtyDaysAgo = new Date(Date.now() - (30 * 24 * 60 * 60 * 1000));
 
   const recentUsage = await chipUsageCollection.query(
-    Q.where('used_at', Q.gte(thirtyDaysAgo))
+    Q.where('used_at', Q.gte(thirtyDaysAgo.getTime()))
   ).fetch();
 
   // Count usage by chip
@@ -236,8 +236,8 @@ export async function generatePatternInsights(
   const friendName = friend.name || 'them';
 
   // Calculate 30-day window
-  const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
-  const recentUsage = friendUsage.filter(u => u.usedAt >= thirtyDaysAgo);
+  const thirtyDaysAgo = new Date(Date.now() - (30 * 24 * 60 * 60 * 1000));
+  const recentUsage = friendUsage.filter(u => u.usedAt.getTime() >= thirtyDaysAgo.getTime());
 
   // Check for chip frequency patterns
   for (const chipId of selectedChipIds) {

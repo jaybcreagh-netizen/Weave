@@ -19,7 +19,7 @@ import { useUIStore } from '@/stores/uiStore';
 import { useTheme } from '@/hooks/useTheme';
 import { useActivityKeepAwake } from '@/hooks/useActivityKeepAwake';
 import { initializeDataMigrations, initializeUserProfile, initializeUserProgress } from '@/db';
-import { appStateManager } from '@/lib/app-state-manager';
+import { appStateManager } from '@/shared/services/app-state-manager.service';
 import { useAppStateChange } from '@/hooks/useAppState';
 import { useRelationshipsStore } from '@/modules/relationships';
 import { useTutorialStore } from '@/stores/tutorialStore';
@@ -47,7 +47,7 @@ import {
   Inter_600SemiBold,
 } from '@expo-google-fonts/inter';
 import * as Sentry from '@sentry/react-native';
-import { initializeAnalytics, trackEvent, trackRetentionMetrics, AnalyticsEvents, setPostHogInstance } from '@/lib/analytics';
+import { initializeAnalytics, trackEvent, trackRetentionMetrics, AnalyticsEvents, setPostHogInstance } from '@/shared/services/analytics.service';
 import { PostHogProvider, usePostHog } from 'posthog-react-native';
 
 Sentry.init({

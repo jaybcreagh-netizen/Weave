@@ -5,12 +5,12 @@
  * for mindful, batched logging. Integrates with learning system to filter noise.
  */
 
-import { database } from '../db';
-import InteractionModel from '../db/models/Interaction';
+import { database } from '@/db';
+import InteractionModel from '@/db/models/Interaction';
 import { Q } from '@nozbe/watermelondb';
-import { scanCalendarEvents, type ScannedEvent } from './event-scanner';
-import { shouldFilterEvent, isAmbiguousEvent, recordFeedback } from './event-suggestion-learning';
-import { getCalendarSettings } from './calendar-service';
+import { scanCalendarEvents, type ScannedEvent } from '@/modules/interactions';
+import { shouldFilterEvent, isAmbiguousEvent, recordFeedback } from '@/modules/interactions';
+import { CalendarService } from '@/modules/interactions';
 
 export interface WeeklyEventReview {
   events: ScannedEvent[];
@@ -26,7 +26,7 @@ export interface WeeklyEventReview {
 export async function scanWeekForUnloggedEvents(): Promise<WeeklyEventReview> {
   try {
     // Check if calendar integration is enabled
-    const calendarSettings = await getCalendarSettings();
+    const calendarSettings = await CalendarService.getCalendarSettings();
     if (!calendarSettings.enabled || !calendarSettings.twoWaySync) {
       console.log('[WeeklyReview] Calendar sync disabled');
       return {
@@ -55,7 +55,7 @@ export async function scanWeekForUnloggedEvents(): Promise<WeeklyEventReview> {
     console.log(`[WeeklyReview] Found ${scanResult.totalScanned} events, ${scanResult.matchedEvents} with friend matches`);
 
     // Filter to only events with friend matches
-    let candidateEvents = scanResult.events.filter(e => e.matchedFriends.length > 0);
+    const candidateEvents = scanResult.events.filter(e => e.matchedFriends.length > 0);
 
     // Check if already logged
     const unloggedEvents: ScannedEvent[] = [];

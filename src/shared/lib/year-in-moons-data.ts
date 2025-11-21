@@ -3,8 +3,8 @@
  * Fetches battery check-ins from UserProfile and maps them to moon phases for calendar visualization
  */
 
-import { database } from '../db';
-import UserProfile, { BatteryHistoryEntry } from '../db/models/UserProfile';
+import { database } from '@/db';
+import UserProfile, { BatteryHistoryEntry } from '@/db/models/UserProfile';
 
 export interface DayMoonData {
   date: Date;
@@ -172,7 +172,7 @@ export async function getYearStats(year: number): Promise<{
   // Calculate current streak (consecutive days with check-ins from today backwards)
   const now = new Date();
   let streakDays = 0;
-  let checkDate = new Date(now);
+  const checkDate = new Date(now); // Use const here and only modify via setDate
   checkDate.setHours(0, 0, 0, 0);
 
   while (streakDays < 365) {

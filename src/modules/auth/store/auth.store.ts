@@ -4,9 +4,9 @@
  */
 
 import { create } from 'zustand';
-import { supabase } from '@/modules/auth/services/supabase.service';
+import { supabase } from '../services/supabase.service';
 import type { User, Session } from '@supabase/supabase-js';
-import type { SubscriptionTier } from '@/lib/subscription-tiers';
+import type { SubscriptionTier } from '@/shared/lib/subscription-tiers';
 
 interface UserSubscription {
   tier: SubscriptionTier;

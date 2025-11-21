@@ -7,7 +7,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, ActivityIndicator } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { AlertCircle } from 'lucide-react-native';
-import { detectPatterns, Pattern } from '@/lib/pattern-detection';
+import { detectPatterns, Pattern } from '@/shared/lib/pattern-detection';
 import { useTheme } from '@/shared/hooks/useTheme';
 
 interface PatternsTabContentProps {}

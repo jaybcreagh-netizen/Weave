@@ -7,6 +7,7 @@ import AchievementUnlock from '@/db/models/AchievementUnlock';
 import Interaction from '@/db/models/Interaction';
 import Friend from '@/db/models/Friend';
 import { Q } from '@nozbe/watermelondb';
+// Relative import to avoid circular dependency via index
 import { calculateFriendBadgeProgress } from './badge-calculator.service';
 
 export interface BadgeUnlock {

@@ -30,7 +30,7 @@ import {
   getMonthName,
   MonthMoonData,
   DayMoonData,
-} from '@/lib/year-in-moons-data';
+} from '@/shared/lib/year-in-moons-data';
 import * as Haptics from 'expo-haptics';
 
 interface YearInMoonsModalProps {

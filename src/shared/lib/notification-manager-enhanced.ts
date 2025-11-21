@@ -10,11 +10,11 @@
 
 import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { database } from '../db';
-import UserProfile from '../db/models/UserProfile';
-import Interaction from '../db/models/Interaction';
-import Friend from '../db/models/Friend';
-import WeeklyReflection from '../db/models/WeeklyReflection';
+import { database } from '@/db';
+import UserProfile from '@/db/models/UserProfile';
+import Interaction from '@/db/models/Interaction';
+import Friend from '@/db/models/Friend';
+import WeeklyReflection from '@/db/models/WeeklyReflection';
 import { Q } from '@nozbe/watermelondb';
 import {
   shouldSendWeeklyReflectionNotification,
@@ -24,7 +24,6 @@ import { getWeekRange } from '@/modules/reflection';
 
 // AsyncStorage keys
 const LAST_REFLECTION_KEY = '@weave:last_reflection_date';
-const LAST_BATTERY_NUDGE_KEY = '@weave:last_battery_nudge';
 const DEEPENING_NUDGES_KEY = '@weave:deepening_nudges';
 const NOTIFICATIONS_INITIALIZED_KEY = '@weave:notifications_initialized';
 const LAST_MEMORY_CHECK_KEY = '@weave:last_memory_check';
@@ -525,8 +524,10 @@ export async function scheduleMemoryNudges(): Promise<void> {
         previewText = reflection.gratitudeText.substring(0, 100);
         if (reflection.gratitudeText.length > 100) previewText += '...';
       } else if (reflection.storyChips.length > 0) {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
         const chipLabels = reflection.storyChips
           .map(chip => {
+            // eslint-disable-next-line @typescript-eslint/no-require-imports
             const chipData = require('./story-chips').STORY_CHIPS.find((c: any) => c.id === chip.chipId);
             return chipData?.plainText;
           })

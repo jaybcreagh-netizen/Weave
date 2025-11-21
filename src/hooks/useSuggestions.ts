@@ -3,13 +3,13 @@ import { Q } from '@nozbe/watermelondb';
 import { useFriends } from '@/hooks/useFriends';
 import { database } from '@/db';
 import { generateSuggestion } from '@/modules/interactions';
-import { getDismissedSuggestions, dismissSuggestion as dismissSuggestionStorage } from '@/lib/suggestion-storage';
+import { getDismissedSuggestions, dismissSuggestion as dismissSuggestionStorage } from '@/shared/lib/suggestion-storage';
 import { Suggestion } from '@/types/suggestions';
 import { calculateCurrentScore } from '@/modules/intelligence';
 import Interaction from '@/db/models/Interaction';
 import InteractionFriend from '@/db/models/InteractionFriend';
-import { trackSuggestionShown, trackSuggestionDismissed } from '@/lib/suggestion-tracker';
-import { filterSuggestionsByTime } from '@/lib/time-aware-filter';
+import { trackSuggestionShown, trackSuggestionDismissed } from '@/shared/lib/suggestion-tracker';
+import { filterSuggestionsByTime } from '@/shared/lib/time-aware-filter';
 import {
   generatePortfolioInsights,
   analyzeArchetypeBalance,

@@ -7,10 +7,8 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import { Calendar, MapPin, Users, Check, ChevronRight } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
-import { scanWeekForUnloggedEvents, type WeeklyEventReview } from '@/lib/weekly-event-review';
-import { ScannedEvent } from '@/modules/interactions/services/event-scanner';
-import { format } from 'date-fns';
-import Animated, { FadeIn } from 'react-native-reanimated';
+import { scanWeekForUnloggedEvents, type WeeklyEventReview } from '@/shared/lib/weekly-event-review';
+import { ScannedEvent } from '@/modules/interactions';
 
 interface CalendarEventsStepProps {
   onNext: (selectedEvents: ScannedEvent[]) => void;

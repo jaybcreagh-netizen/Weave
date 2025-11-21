@@ -15,8 +15,8 @@ import { YearInMoonsModal } from '@/components/YearInMoons/YearInMoonsModal';
 import { SuggestedWeaves } from '@/components/SuggestedWeaves';
 import { useUserProfileStore } from '@/modules/auth';
 import { useRelationshipsStore } from '@/modules/relationships';
-import { getLastReflectionDate, shouldShowReflection } from '@/lib/notification-manager-enhanced';
-import { getUserAccountAge } from '@/lib/notification-grace-periods';
+import { getLastReflectionDate, shouldShowReflection } from '@/shared/lib/notification-manager-enhanced';
+import { getUserAccountAge } from '@/shared/lib/notification-grace-periods';
 import { useTutorialStore } from '@/stores/tutorialStore';
 
 /**

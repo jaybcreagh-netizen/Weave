@@ -8,6 +8,7 @@ import { supabase } from './supabase';
 import { Q } from '@nozbe/watermelondb';
 import type { Model } from '@nozbe/watermelondb';
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 interface SyncConfig {
   userId: string;
   lastSyncTimestamp?: number;
@@ -37,6 +38,7 @@ const SYNC_TABLES = [
   'journal_entries',
 ] as const;
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 type SyncTable = typeof SYNC_TABLES[number];
 
 /**
@@ -288,6 +290,7 @@ export class SyncEngine {
   /**
    * Serialize local record for server upload
    */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   private serializeForServer(record: Model, tableName: string): any {
     const raw = record._raw;
     const serverRecord: any = {

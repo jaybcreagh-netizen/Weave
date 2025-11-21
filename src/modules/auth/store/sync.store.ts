@@ -7,8 +7,8 @@ import {
   unregisterBackgroundSyncTask,
   getBackgroundFetchStatus,
   triggerManualSync,
-} from '@/lib/background-event-sync';
-import { requestNotificationPermissions } from '@/lib/event-notifications';
+} from '@/shared/lib/background-event-sync';
+import { requestNotificationPermissions } from '@/shared/lib/event-notifications';
 import * as BackgroundFetch from 'expo-background-fetch';
 
 interface BackgroundSyncStore {

@@ -138,7 +138,7 @@ export const useUserProfileStore = create<UserProfileStore>((set, get) => ({
     // Trigger smart notification evaluation after battery check-in
     // This is a good time since user is engaged and we have fresh battery data
     try {
-      const { evaluateAndScheduleSmartNotifications } = await import('@/lib/smart-notification-scheduler');
+      const { evaluateAndScheduleSmartNotifications } = await import('@/shared/lib/smart-notification-scheduler');
       await evaluateAndScheduleSmartNotifications();
     } catch (error) {
       console.error('Error evaluating smart notifications after battery check-in:', error);
@@ -159,7 +159,7 @@ export const useUserProfileStore = create<UserProfileStore>((set, get) => ({
     });
 
     // Update notification schedule
-    const { updateBatteryNotificationFromProfile } = await import('@/lib/notification-manager-enhanced');
+    const { updateBatteryNotificationFromProfile } = await import('@/shared/lib/notification-manager-enhanced');
     await updateBatteryNotificationFromProfile();
   },
 

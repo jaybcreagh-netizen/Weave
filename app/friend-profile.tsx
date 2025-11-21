@@ -13,7 +13,7 @@ import { FriendListRow } from '@/modules/relationships';
 import { TimelineItem } from '@/components/TimelineItem';
 import { useRelationshipsStore } from '@/modules/relationships';
 import { useInteractions, usePlans, PlanService } from '@/modules/interactions';
-import { calculateNextConnectionDate, getPoeticSectionTitle } from '@/lib/timeline-utils';
+import { calculateNextConnectionDate, getPoeticSectionTitle } from '@/shared/lib/timeline-utils';
 import { useTheme } from '@/hooks/useTheme';
 import { type Interaction, type Tier } from '@/components/types';
 import { InteractionDetailModal } from '@/components/interaction-detail-modal';

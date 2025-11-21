@@ -1,0 +1,517 @@
+
+/app/app/(tabs)/_layout.tsx
+  1:35  warning  'useEffect' is defined but never used  @typescript-eslint/no-unused-vars
+
+/app/app/_layout.tsx
+   2:31  warning  'useRouter' is defined but never used                 @typescript-eslint/no-unused-vars
+   5:10  warning  'TouchableWithoutFeedback' is defined but never used  @typescript-eslint/no-unused-vars
+   5:36  warning  'View' is defined but never used                      @typescript-eslint/no-unused-vars
+  22:10  warning  'appStateManager' is defined but never used           @typescript-eslint/no-unused-vars
+  36:3   warning  'handleEventSuggestionTap' is defined but never used  @typescript-eslint/no-unused-vars
+
+/app/app/batch-add-friends.tsx
+  113:3  warning  'selectedCount' is defined but never used  @typescript-eslint/no-unused-vars
+
+/app/app/friend-profile.tsx
+    1:47  warning  'useRef' is defined but never used                       @typescript-eslint/no-unused-vars
+    2:72  warning  'LayoutChangeEvent' is defined but never used            @typescript-eslint/no-unused-vars
+    9:37  warning  'format' is defined but never used                       @typescript-eslint/no-unused-vars
+   16:39  warning  'getPoeticSectionTitle' is defined but never used        @typescript-eslint/no-unused-vars
+  233:9   warning  'nextConnectionDate' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  310:11  warning  'isLastInSection' is assigned a value but never used     @typescript-eslint/no-unused-vars
+  640:41  warning  'intentionFriend' is defined but never used              @typescript-eslint/no-unused-vars
+
+/app/app/friends.tsx
+   2:58  warning  'FlatList' is defined but never used             @typescript-eslint/no-unused-vars
+  24:10  warning  'CardGestureProvider' is defined but never used  @typescript-eslint/no-unused-vars
+  51:3   warning  'refreshKey' is defined but never used           @typescript-eslint/no-unused-vars
+
+/app/app/global-calendar.tsx
+    2:59  warning  'Pressable' is defined but never used        @typescript-eslint/no-unused-vars
+  179:25  warning  'future' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/app/app/home.tsx
+  1:38  warning  'useRef' is defined but never used      @typescript-eslint/no-unused-vars
+  2:10  warning  'View' is defined but never used        @typescript-eslint/no-unused-vars
+  2:16  warning  'ScrollView' is defined but never used  @typescript-eslint/no-unused-vars
+
+/app/app/weave-logger.tsx
+   49:9   warning  'animatedStyle' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  101:35  error    A `require()` style import is forbidden             @typescript-eslint/no-require-imports
+
+/app/src/components/AddFriendMenu.tsx
+  2:10  warning  'Modal' is defined but never used  @typescript-eslint/no-unused-vars
+
+/app/src/components/ArchetypeCarouselPicker.tsx
+   17:3   warning  'Vibration' is defined but never used         @typescript-eslint/no-unused-vars
+   21:8   warning  'Animated' is defined but never used          @typescript-eslint/no-unused-vars
+   22:3   warning  'useAnimatedStyle' is defined but never used  @typescript-eslint/no-unused-vars
+   23:3   warning  'withSpring' is defined but never used        @typescript-eslint/no-unused-vars
+   24:3   warning  'useSharedValue' is defined but never used    @typescript-eslint/no-unused-vars
+   25:3   warning  'interpolate' is defined but never used       @typescript-eslint/no-unused-vars
+   26:3   warning  'Extrapolation' is defined but never used     @typescript-eslint/no-unused-vars
+   57:12  error    A `require()` style import is forbidden       @typescript-eslint/no-require-imports
+   58:12  error    A `require()` style import is forbidden       @typescript-eslint/no-require-imports
+   59:18  error    A `require()` style import is forbidden       @typescript-eslint/no-require-imports
+   60:9   error    A `require()` style import is forbidden       @typescript-eslint/no-require-imports
+   61:8   error    A `require()` style import is forbidden       @typescript-eslint/no-require-imports
+   62:11  error    A `require()` style import is forbidden       @typescript-eslint/no-require-imports
+   63:13  error    A `require()` style import is forbidden       @typescript-eslint/no-require-imports
+  121:36  warning  'index' is defined but never used             @typescript-eslint/no-unused-vars
+
+/app/src/components/ArchetypeDetailModal.tsx
+  184:64  warning  'multiplier' is defined but never used  @typescript-eslint/no-unused-vars
+
+/app/src/components/ArchetypeIcon.tsx
+   6:21  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+   7:21  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+   8:27  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+   9:18  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  10:17  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  11:20  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  12:22  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  13:20  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+/app/src/components/BadgeUnlockModal.tsx
+  29:9   warning  'width' is assigned a value but never used   @typescript-eslint/no-unused-vars
+  29:16  warning  'height' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/app/src/components/CelebrationAnimation.tsx
+  13:10  warning  'Sparkles' is defined but never used  @typescript-eslint/no-unused-vars
+
+/app/src/components/EventSuggestionModal.tsx
+  2:47  warning  'ScrollView' is defined but never used  @typescript-eslint/no-unused-vars
+
+/app/src/components/FeedbackModal.tsx
+  14:20  error    A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  16:10  warning  'e' is defined but never used            @typescript-eslint/no-unused-vars
+
+/app/src/components/FriendBadgePopup.tsx
+  43:16  warning  'SCREEN_WIDTH' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/app/src/components/FriendBadgeSection.tsx
+  15:3  warning  'WEAVE_COUNT_BADGES' is defined but never used  @typescript-eslint/no-unused-vars
+  16:3  warning  'DEPTH_BADGES' is defined but never used        @typescript-eslint/no-unused-vars
+  17:3  warning  'CONSISTENCY_BADGES' is defined but never used  @typescript-eslint/no-unused-vars
+
+/app/src/components/FriendManagementModal.tsx
+  7:13  warning  'FriendModel' is defined but never used  @typescript-eslint/no-unused-vars
+
+/app/src/components/GlobalYearCalendar.tsx
+    3:49  warning  'CalendarIcon' is defined but never used     @typescript-eslint/no-unused-vars
+   13:3   warning  'isSameDay' is defined but never used        @typescript-eslint/no-unused-vars
+   14:3   warning  'isAfter' is defined but never used          @typescript-eslint/no-unused-vars
+   15:3   warning  'isBefore' is defined but never used         @typescript-eslint/no-unused-vars
+   20:8   warning  'Animated' is defined but never used         @typescript-eslint/no-unused-vars
+   20:20  warning  'FadeIn' is defined but never used           @typescript-eslint/no-unused-vars
+   20:28  warning  'FadeOut' is defined but never used          @typescript-eslint/no-unused-vars
+  144:19  warning  'future' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/app/src/components/InsightsFAB.tsx
+  14:47  warning  'hasCritical' is defined but never used  @typescript-eslint/no-unused-vars
+
+/app/src/components/IntentionActionSheet.tsx
+  2:10  warning  'Modal' is defined but never used  @typescript-eslint/no-unused-vars
+
+/app/src/components/IntentionsDrawer.tsx
+  1:28  warning  'useState' is defined but never used  @typescript-eslint/no-unused-vars
+
+/app/src/components/Journal/JournalEntryModal.tsx
+  17:23  warning  'Users' is defined but never used  @typescript-eslint/no-unused-vars
+
+/app/src/components/MicroReflectionSheet.tsx
+  35:3  warning  'activityId' is defined but never used  @typescript-eslint/no-unused-vars
+
+/app/src/components/MilestoneCelebration.tsx
+  10:3  warning  'Easing' is defined but never used   @typescript-eslint/no-unused-vars
+  11:3  warning  'runOnJS' is defined but never used  @typescript-eslint/no-unused-vars
+
+/app/src/components/NotificationPermissionModal.tsx
+  9:43  warning  'X' is defined but never used  @typescript-eslint/no-unused-vars
+
+/app/src/components/ReflectionJourney/ReflectionCalendarView.tsx
+  27:9  warning  'monthEnd' is assigned a value but never used           @typescript-eslint/no-unused-vars
+  32:9  warning  'reflectionsByWeek' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/app/src/components/ReflectionJourney/ReflectionDetailModal.tsx
+   6:36  warning  'useEffect' is defined but never used        @typescript-eslint/no-unused-vars
+   8:26  warning  'Calendar' is defined but never used         @typescript-eslint/no-unused-vars
+   8:36  warning  'TrendingUp' is defined but never used       @typescript-eslint/no-unused-vars
+  10:10  warning  'formatWeaveDate' is defined but never used  @typescript-eslint/no-unused-vars
+
+/app/src/components/ReflectionJourney/ReflectionJourneyContent.tsx
+   9:20  warning  'Sparkles' is defined but never used         @typescript-eslint/no-unused-vars
+  26:11  warning  'colors' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/app/src/components/ReflectionJourney/ReflectionJourneyModal.tsx
+   9:45  warning  'ChevronRight' is defined but never used  @typescript-eslint/no-unused-vars
+   9:73  warning  'Filter' is defined but never used        @typescript-eslint/no-unused-vars
+   9:87  warning  'BookOpen' is defined but never used      @typescript-eslint/no-unused-vars
+  17:10  warning  'format' is defined but never used        @typescript-eslint/no-unused-vars
+
+/app/src/components/ReflectionTextInput.tsx
+   5:28  warning  'StoryChip' is defined but never used                 @typescript-eslint/no-unused-vars
+  39:9   error    'remaining' is never reassigned. Use 'const' instead  prefer-const
+
+/app/src/components/SeasonExplanationModal.tsx
+  7:42  warning  'SeasonExplanationData' is defined but never used  @typescript-eslint/no-unused-vars
+
+/app/src/components/SeasonIcon.tsx
+  2:8   warning  'Svg' is defined but never used          @typescript-eslint/no-unused-vars
+  2:15  warning  'SvgProps' is defined but never used     @typescript-eslint/no-unused-vars
+  6:21  error    A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  7:22  error    A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  8:22  error    A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+/app/src/components/SocialSeason/SocialSeasonModal.tsx
+   49:3   warning  'networkHealth' is defined but never used            @typescript-eslint/no-unused-vars
+   51:11  warning  'colors' is assigned a value but never used          @typescript-eslint/no-unused-vars
+   55:9   warning  'gradientColors' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  187:9   warning  'gradientColors' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  650:31  warning  'isDarkMode' is defined but never used               @typescript-eslint/no-unused-vars
+
+/app/src/components/TierSegmentedControl.tsx
+   52:10  warning  'containerWidth' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  129:27  warning  'index' is defined but never used                    @typescript-eslint/no-unused-vars
+
+/app/src/components/TimelineItem.tsx
+   13:3    warning  'runOnJS' is defined but never used                     @typescript-eslint/no-unused-vars
+   15:13   warning  'Haptics' is defined but never used                     @typescript-eslint/no-unused-vars
+   42:102  warning  'showKnot' is assigned a value but never used           @typescript-eslint/no-unused-vars
+   56:9    warning  'threadColors' is assigned a value but never used       @typescript-eslint/no-unused-vars
+  295:11   warning  'lineTargetHeight' is assigned a value but never used   @typescript-eslint/no-unused-vars
+  536:9    warning  'KNOT_BORDER_WIDTH' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  538:9    warning  'LINE_LENGTH' is assigned a value but never used        @typescript-eslint/no-unused-vars
+
+/app/src/components/TrophyCabinetModal.tsx
+  17:3   warning  'Dimensions' is defined but never used             @typescript-eslint/no-unused-vars
+  25:8   warning  'GlobalAchievement' is defined but never used      @typescript-eslint/no-unused-vars
+  37:19  warning  'isDarkMode' is assigned a value but never used    @typescript-eslint/no-unused-vars
+  39:10  warning  'userProgress' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/app/src/components/TutorialOverlay.tsx
+   1:28  warning  'ReactNode' is defined but never used   @typescript-eslint/no-unused-vars
+  10:3   warning  'withTiming' is defined but never used  @typescript-eslint/no-unused-vars
+  12:10  warning  'BlurView' is defined but never used    @typescript-eslint/no-unused-vars
+
+/app/src/components/UpgradeModal.tsx
+    9:33  warning  'Sparkles' is defined but never used              @typescript-eslint/no-unused-vars
+   10:10  warning  'useAuthStore' is defined but never used          @typescript-eslint/no-unused-vars
+   11:10  warning  'TIER_LIMITS' is defined but never used           @typescript-eslint/no-unused-vars
+   11:23  warning  'FEATURE_DESCRIPTIONS' is defined but never used  @typescript-eslint/no-unused-vars
+   21:17  warning  'currentTier' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  203:39  warning  'index' is defined but never used                 @typescript-eslint/no-unused-vars
+
+/app/src/components/WeeklyReflection/GratitudePrompt.tsx
+  135:23  warning  'isSuggested' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/app/src/components/WeeklyReflection/MissedConnectionsList.tsx
+  31:45  warning  'friendName' is defined but never used  @typescript-eslint/no-unused-vars
+
+/app/src/components/WeeklyReflection/WeeklyReflectionModal.tsx
+  9:20  warning  'FadeIn' is defined but never used  @typescript-eslint/no-unused-vars
+
+/app/src/components/YearInMoons/GraphsTabContent.tsx
+     9:55  warning  'Rect' is defined but never used          @typescript-eslint/no-unused-vars
+    12:40  warning  'SlideInRight' is defined but never used  @typescript-eslint/no-unused-vars
+    17:27  warning  'getYearStats' is defined but never used  @typescript-eslint/no-unused-vars
+    20:10  warning  'TrendingUp' is defined but never used    @typescript-eslint/no-unused-vars
+    20:22  warning  'TrendingDown' is defined but never used  @typescript-eslint/no-unused-vars
+    20:36  warning  'Minus' is defined but never used         @typescript-eslint/no-unused-vars
+   589:42  warning  'index' is defined but never used         @typescript-eslint/no-unused-vars
+  1017:50  warning  'index' is defined but never used         @typescript-eslint/no-unused-vars
+  1081:43  warning  'index' is defined but never used         @typescript-eslint/no-unused-vars
+
+/app/src/components/YearInMoons/PatternsTabContent.tsx
+  13:11  error  An empty interface declaration allows any non-nullish value, including literals like `0` and `""`.
+- If that's what you want, disable this lint rule with an inline comment or configure the 'allowInterfaces' rule option.
+- If you want a type meaning "any object", you probably want `object` instead.
+- If you want a type meaning "any value", you probably want `unknown` instead  @typescript-eslint/no-empty-object-type
+
+/app/src/components/YearInMoons/YearInMoonsModal.tsx
+  44:11  warning  'colors' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/app/src/components/YourPatternsSection.tsx
+  55:9  warning  'getChipType' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/app/src/components/home/HomeWidgetGrid.tsx
+  69:3  warning  'refreshing' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/app/src/components/home/widgets/FocusPill.tsx
+  15:10  warning  'database' is defined but never used   @typescript-eslint/no-unused-vars
+  16:8   warning  'LifeEvent' is defined but never used  @typescript-eslint/no-unused-vars
+  17:10  warning  'Q' is defined but never used          @typescript-eslint/no-unused-vars
+
+/app/src/components/home/widgets/SocialSeasonWidget.tsx
+    5:31  warning  'differenceInDays' is defined but never used           @typescript-eslint/no-unused-vars
+    8:73  warning  'Battery' is defined but never used                    @typescript-eslint/no-unused-vars
+   28:10  warning  'generateSeasonExplanation' is defined but never used  @typescript-eslint/no-unused-vars
+   72:9   warning  'router' is assigned a value but never used            @typescript-eslint/no-unused-vars
+  268:9   warning  'batteryLevel' is assigned a value but never used      @typescript-eslint/no-unused-vars
+  290:9   warning  'actions' is assigned a value but never used           @typescript-eslint/no-unused-vars
+
+/app/src/components/home/widgets/TodaysFocusWidget.tsx
+    17:28  warning  'format' is defined but never used              @typescript-eslint/no-unused-vars
+   133:11  warning  'archetype' is assigned a value but never used  @typescript-eslint/no-unused-vars
+   975:3   warning  'streakCount' is defined but never used         @typescript-eslint/no-unused-vars
+   976:3   warning  'friend' is defined but never used              @typescript-eslint/no-unused-vars
+   977:3   warning  'batteryLevel' is defined but never used        @typescript-eslint/no-unused-vars
+  1017:3   warning  'friend' is defined but never used              @typescript-eslint/no-unused-vars
+  1018:3   warning  'score' is defined but never used               @typescript-eslint/no-unused-vars
+  1095:3   warning  'friend' is defined but never used              @typescript-eslint/no-unused-vars
+  1096:3   warning  'daysSince' is defined but never used           @typescript-eslint/no-unused-vars
+
+/app/src/components/home/widgets/YearInMoonsWidget.tsx
+    8:16  warning  'TrendingUp' is defined but never used  @typescript-eslint/no-unused-vars
+  173:61  warning  'index' is defined but never used       @typescript-eslint/no-unused-vars
+
+/app/src/components/settings-modal.tsx
+    4:24  warning  'Palette' is defined but never used                                @typescript-eslint/no-unused-vars
+   18:3   warning  'setReminderTime' is defined but never used                        @typescript-eslint/no-unused-vars
+   27:3   warning  'cancelAllNotifications' is defined but never used                 @typescript-eslint/no-unused-vars
+   32:8   warning  'NotificationPreferences' is defined but never used                @typescript-eslint/no-unused-vars
+   45:34  warning  'getBackgroundFetchStatusLabel' is defined but never used          @typescript-eslint/no-unused-vars
+   46:15  warning  'BackgroundSyncSettings' is defined but never used                 @typescript-eslint/no-unused-vars
+  150:21  warning  'updateBackgroundSyncSettings' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  152:5   warning  'backgroundFetchStatus' is assigned a value but never used         @typescript-eslint/no-unused-vars
+
+/app/src/components/toast_notification.tsx
+   7:3   warning  'withDelay' is defined but never used  @typescript-eslint/no-unused-vars
+   9:3   warning  'runOnJS' is defined but never used    @typescript-eslint/no-unused-vars
+  12:10  warning  'Check' is defined but never used      @typescript-eslint/no-unused-vars
+
+/app/src/components/types.tsx
+  7:86   warning  'ActivityType' is defined but never used         @typescript-eslint/no-unused-vars
+  7:135  warning  'LifeEventType' is defined but never used        @typescript-eslint/no-unused-vars
+  7:150  warning  'LifeEventImportance' is defined but never used  @typescript-eslint/no-unused-vars
+  7:171  warning  'LifeEventSource' is defined but never used      @typescript-eslint/no-unused-vars
+
+/app/src/context/CardGestureContext.tsx
+  237:30  warning  'state' is defined but never used    @typescript-eslint/no-unused-vars
+  274:15  warning  'event' is defined but never used    @typescript-eslint/no-unused-vars
+  274:22  warning  'success' is defined but never used  @typescript-eslint/no-unused-vars
+
+/app/src/db/data-migration.ts
+  2:10  warning  'InteractionCategory' is defined but never used  @typescript-eslint/no-unused-vars
+
+/app/src/db/models/Friend.ts
+  2:39  warning  'lazy' is defined but never used  @typescript-eslint/no-unused-vars
+  3:10  warning  'Q' is defined but never used     @typescript-eslint/no-unused-vars
+
+/app/src/db/models/Intention.ts
+  2:39  warning  'relation' is defined but never used     @typescript-eslint/no-unused-vars
+  3:8   warning  'FriendModel' is defined but never used  @typescript-eslint/no-unused-vars
+
+/app/src/db/models/Interaction.ts
+  2:39  warning  'lazy' is defined but never used  @typescript-eslint/no-unused-vars
+  3:10  warning  'Q' is defined but never used     @typescript-eslint/no-unused-vars
+
+/app/src/db/models/LifeEvent.ts
+  1:17  warning  'Q' is defined but never used  @typescript-eslint/no-unused-vars
+
+/app/src/hooks/useFeatureGate.ts
+   40:9  warning  'usage' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  140:9  warning  'tier' is assigned a value but never used   @typescript-eslint/no-unused-vars
+
+/app/src/hooks/usePlanSuggestion.ts
+  135:15  warning  '_' is defined but never used   @typescript-eslint/no-unused-vars
+  136:13  warning  '_' is defined but never used   @typescript-eslint/no-unused-vars
+  136:21  warning  '__' is defined but never used  @typescript-eslint/no-unused-vars
+  177:15  warning  '_' is defined but never used   @typescript-eslint/no-unused-vars
+
+/app/src/modules/auth/store/auth.store.ts
+  255:34  warning  'feature' is defined but never used        @typescript-eslint/no-unused-vars
+  256:9   warning  'tier' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  272:30  warning  'feature' is defined but never used        @typescript-eslint/no-unused-vars
+  273:9   warning  'tier' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/app/src/modules/gamification/services/achievement.service.ts
+   2:10  warning  'Achievement' is defined but never used          @typescript-eslint/no-unused-vars
+   6:3   warning  'HIDDEN_ACHIEVEMENTS' is defined but never used  @typescript-eslint/no-unused-vars
+  11:8   warning  'AchievementUnlock' is defined but never used    @typescript-eslint/no-unused-vars
+  13:8   warning  'Friend' is defined but never used               @typescript-eslint/no-unused-vars
+  14:10  warning  'Q' is defined but never used                    @typescript-eslint/no-unused-vars
+  89:3   warning  'userProgress' is defined but never used         @typescript-eslint/no-unused-vars
+  90:3   warning  'achievementId' is defined but never used        @typescript-eslint/no-unused-vars
+  96:3   warning  'userProgress' is defined but never used         @typescript-eslint/no-unused-vars
+  97:3   warning  'achievementId' is defined but never used        @typescript-eslint/no-unused-vars
+
+/app/src/modules/gamification/services/badge-calculator.service.ts
+   16:3   warning  'getNextBadgeInCategory' is defined but never used  @typescript-eslint/no-unused-vars
+   18:10  warning  'differenceInMonths' is defined but never used      @typescript-eslint/no-unused-vars
+  120:14  warning  'e' is defined but never used                       @typescript-eslint/no-unused-vars
+
+/app/src/modules/gamification/services/badge.service.ts
+  2:10  warning  'Badge' is defined but never used             @typescript-eslint/no-unused-vars
+  2:17  warning  'BadgeCheckResult' is defined but never used  @typescript-eslint/no-unused-vars
+
+/app/src/modules/insights/hooks/usePortfolio.ts
+  5:8  warning  'InteractionFriend' is defined but never used  @typescript-eslint/no-unused-vars
+
+/app/src/modules/insights/services/effectiveness.service.ts
+  263:15  warning  '_' is defined but never used   @typescript-eslint/no-unused-vars
+  264:13  warning  '_' is defined but never used   @typescript-eslint/no-unused-vars
+  264:21  warning  '__' is defined but never used  @typescript-eslint/no-unused-vars
+
+/app/src/modules/insights/services/portfolio.service.ts
+   23:11  warning  'friends' is assigned a value but never used             @typescript-eslint/no-unused-vars
+   23:20  warning  'recentInteractions' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  444:57  warning  '_' is defined but never used                            @typescript-eslint/no-unused-vars
+
+/app/src/modules/insights/services/prediction.service.ts
+  2:10  warning  'calculateCurrentScore' is defined but never used  @typescript-eslint/no-unused-vars
+
+/app/src/modules/intelligence/__tests__/decay.service.test.ts
+  3:10  warning  'Tier' is defined but never used  @typescript-eslint/no-unused-vars
+
+/app/src/modules/intelligence/__tests__/resilience.service.test.ts
+  3:10  warning  'Vibe' is defined but never used  @typescript-eslint/no-unused-vars
+
+/app/src/modules/intelligence/__tests__/scoring.service.test.ts
+  4:10  warning  'Archetype' is defined but never used            @typescript-eslint/no-unused-vars
+  4:21  warning  'Duration' is defined but never used             @typescript-eslint/no-unused-vars
+  4:31  warning  'Vibe' is defined but never used                 @typescript-eslint/no-unused-vars
+  4:37  warning  'InteractionCategory' is defined but never used  @typescript-eslint/no-unused-vars
+
+/app/src/modules/intelligence/services/momentum.service.ts
+  41:32  warning  'friend' is defined but never used  @typescript-eslint/no-unused-vars
+
+/app/src/modules/intelligence/services/social-season/season-calculator.ts
+  157:5  warning  'avgScoreAllFriends' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/app/src/modules/interactions/components/PlanWizard.tsx
+   4:10  warning  'BlurView' is defined but never used             @typescript-eslint/no-unused-vars
+  47:19  warning  'isDarkMode' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/app/src/modules/interactions/components/QuickWeaveOverlay.tsx
+    9:3   warning  'withSpring' is defined but never used                    @typescript-eslint/no-unused-vars
+   12:13  warning  'Haptics' is defined but never used                       @typescript-eslint/no-unused-vars
+   26:7   warning  'SELECTION_THRESHOLD' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  224:3   warning  'primaryColor' is defined but never used                  @typescript-eslint/no-unused-vars
+
+/app/src/modules/interactions/components/plan-wizard/PlanWizardStep0.tsx
+  1:17  warning  'useState' is defined but never used  @typescript-eslint/no-unused-vars
+
+/app/src/modules/interactions/components/plan-wizard/PlanWizardStep1.tsx
+  2:40  warning  'Platform' is defined but never used     @typescript-eslint/no-unused-vars
+  3:54  warning  'withSpring' is defined but never used   @typescript-eslint/no-unused-vars
+  3:74  warning  'SlideInDown' is defined but never used  @typescript-eslint/no-unused-vars
+  4:25  warning  'Moon' is defined but never used         @typescript-eslint/no-unused-vars
+  6:73  warning  'nextDay' is defined but never used      @typescript-eslint/no-unused-vars
+
+/app/src/modules/interactions/components/plan-wizard/PlanWizardStep2.tsx
+   2:40  warning  'ScrollView' is defined but never used   @typescript-eslint/no-unused-vars
+   5:10  warning  'format' is defined but never used       @typescript-eslint/no-unused-vars
+  41:3   warning  'canContinue' is defined but never used  @typescript-eslint/no-unused-vars
+
+/app/src/modules/interactions/services/__tests__/weave-logging.service.test.ts
+  6:22  warning  'AnalyticsEvents' is defined but never used          @typescript-eslint/no-unused-vars
+  7:10  warning  'analyzeAndTagLifeEvents' is defined but never used  @typescript-eslint/no-unused-vars
+
+/app/src/modules/interactions/services/calendar.service.ts
+    2:10  warning  'Platform' is defined but never used  @typescript-eslint/no-unused-vars
+  249:14  warning  'error' is defined but never used     @typescript-eslint/no-unused-vars
+
+/app/src/modules/interactions/services/event-suggestion-learning.service.ts
+   10:8   warning  'FriendModel' is defined but never used  @typescript-eslint/no-unused-vars
+  331:17  warning  'pattern' is defined but never used      @typescript-eslint/no-unused-vars
+
+/app/src/modules/interactions/services/plan.service.ts
+  1:22  warning  'subDays' is defined but never used  @typescript-eslint/no-unused-vars
+
+/app/src/modules/interactions/services/suggestion-engine.service.ts
+    4:3   warning  'getArchetypeDriftSuggestion' is defined but never used     @typescript-eslint/no-unused-vars
+    5:3   warning  'getArchetypeMomentumSuggestion' is defined but never used  @typescript-eslint/no-unused-vars
+  260:10  warning  'getLifeEventDisplay' is defined but never used             @typescript-eslint/no-unused-vars
+  430:22  warning  'count' is assigned a value but never used                  @typescript-eslint/no-unused-vars
+  899:3   warning  'portfolio' is defined but never used                       @typescript-eslint/no-unused-vars
+
+/app/src/modules/interactions/store/event-suggestion.store.ts
+  106:12  warning  'error' is defined but never used  @typescript-eslint/no-unused-vars
+
+/app/src/modules/reflection/services/contextual-prompts.service.ts
+  41:11  warning  'randomContactedIndex' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/app/src/modules/relationships/components/FriendDetailSheet.tsx
+  97:9  warning  'totalWeaves' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/app/src/modules/relationships/components/FriendForm.tsx
+  1:47  warning  'useRef' is defined but never used         @typescript-eslint/no-unused-vars
+  2:70  warning  'Platform' is defined but never used       @typescript-eslint/no-unused-vars
+  3:32  warning  'Calendar' is defined but never used       @typescript-eslint/no-unused-vars
+  3:42  warning  'Heart' is defined but never used          @typescript-eslint/no-unused-vars
+  6:10  warning  'useNavigation' is defined but never used  @typescript-eslint/no-unused-vars
+
+/app/src/modules/relationships/components/FriendListRow.tsx
+   16:15  warning  'Archetype' is defined but never used                    @typescript-eslint/no-unused-vars
+   58:11  warning  'setArchetypeModal' is assigned a value but never used   @typescript-eslint/no-unused-vars
+   86:9   warning  'pressScale' is assigned a value but never used          @typescript-eslint/no-unused-vars
+   87:9   warning  'pressOpacity' is assigned a value but never used        @typescript-eslint/no-unused-vars
+  156:11  warning  'targetPressOpacity' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/app/src/modules/relationships/services/__tests__/image.service.test.ts
+  2:48  warning  'processAndStoreImage' is defined but never used  @typescript-eslint/no-unused-vars
+  2:70  warning  'deleteImage' is defined but never used           @typescript-eslint/no-unused-vars
+  4:10  warning  'File' is defined but never used                  @typescript-eslint/no-unused-vars
+
+/app/src/modules/relationships/services/friend.service.ts
+  4:10  warning  'Q' is defined but never used  @typescript-eslint/no-unused-vars
+
+/app/src/modules/relationships/services/image.service.ts
+  229:11  warning  'data' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/app/src/shared/components/LoadingScreen.tsx
+  8:10  warning  'View' is defined but never used  @typescript-eslint/no-unused-vars
+
+/app/src/shared/constants/constants.ts
+  1:48  warning  'ActivityType' is defined but never used  @typescript-eslint/no-unused-vars
+
+/app/src/shared/hooks/useAppState.ts
+  80:5  warning  Unused eslint-disable directive (no problems were reported)
+
+/app/src/shared/lib/data-export.ts
+  208:14  warning  'shareError' is defined but never used  @typescript-eslint/no-unused-vars
+
+/app/src/shared/lib/data-import.ts
+  6:10  warning  'Q' is defined but never used  @typescript-eslint/no-unused-vars
+
+/app/src/shared/lib/notification-manager-enhanced.ts
+  527:9  warning  Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-require-imports')
+
+/app/src/shared/lib/notification-response-handler.ts
+  10:10  warning  'useUIStore' is defined but never used  @typescript-eslint/no-unused-vars
+
+/app/src/shared/lib/oracle/types.ts
+  3:18  error  An empty interface declaration allows any non-nullish value, including literals like `0` and `""`.
+- If that's what you want, disable this lint rule with an inline comment or configure the 'allowInterfaces' rule option.
+- If you want a type meaning "any object", you probably want `object` instead.
+- If you want a type meaning "any value", you probably want `unknown` instead  @typescript-eslint/no-empty-object-type
+
+/app/src/shared/lib/pattern-detection.ts
+   11:8   warning  'WeeklyReflection' is defined but never used    @typescript-eslint/no-unused-vars
+   14:10  warning  'STORY_CHIPS' is defined but never used         @typescript-eslint/no-unused-vars
+   14:23  warning  'ChipType' is defined but never used            @typescript-eslint/no-unused-vars
+  417:15  warning  '_' is defined but never used                   @typescript-eslint/no-unused-vars
+  479:9   warning  'direction' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  542:15  warning  '_' is defined but never used                   @typescript-eslint/no-unused-vars
+
+/app/src/shared/lib/season-aware-streak.ts
+  43:11  warning  'todayTimestamp' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/app/src/shared/lib/smart-notification-scheduler.ts
+  207:16  warning  'canSendNotification' is defined but never used  @typescript-eslint/no-unused-vars
+  456:9   warning  'todayCount' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/app/src/shared/lib/sync-engine.ts
+  164:22  warning  'error' is defined but never used  @typescript-eslint/no-unused-vars
+
+/app/src/shared/lib/weaving-insights.ts
+  1:23  warning  'startOfDay' is defined but never used  @typescript-eslint/no-unused-vars
+
+/app/src/shared/services/analytics.service.ts
+   1:10  warning  'usePostHog' is defined but never used         @typescript-eslint/no-unused-vars
+   3:8   warning  'Constants' is defined but never used          @typescript-eslint/no-unused-vars
+  94:16  warning  'getOrCreateUserId' is defined but never used  @typescript-eslint/no-unused-vars
+
+✖ 292 problems (23 errors, 269 warnings)
+  1 error and 2 warnings potentially fixable with the `--fix` option.

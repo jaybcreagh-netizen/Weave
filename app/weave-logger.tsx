@@ -4,7 +4,7 @@ import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInUp, useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import { CelebrationAnimation } from '@/components/CelebrationAnimation';
-import { calculateDeepeningLevel } from '@/lib/deepening-utils';
+import { calculateDeepeningLevel } from '@/shared/lib/deepening-utils';
 import { BlurView } from 'expo-blur';
 
 import { useInteractions, type StructuredReflection } from '@/modules/interactions';
@@ -15,7 +15,7 @@ import { ContextualReflectionInput } from '@/components/ContextualReflectionInpu
 import { format, subDays, isSameDay, startOfDay } from 'date-fns';
 import { type Vibe, type InteractionCategory, type Archetype } from '@/components/types';
 import { useTheme } from '@/hooks/useTheme';
-import { getAllCategories, type CategoryMetadata } from '@/lib/interaction-categories';
+import { getAllCategories, type CategoryMetadata } from '@/shared/lib/interaction-categories';
 import { database } from '@/db';
 import FriendModel from '@/db/models/Friend';
 
@@ -98,7 +98,8 @@ export default function WeaveLoggerScreen() {
       // Build legacy notes field from chips + custom notes for backward compatibility
       const legacyNotes = [
         ...(reflection.chips || []).map(chip => {
-          const { STORY_CHIPS } = require('@/lib/story-chips');
+          // eslint-disable-next-line @typescript-eslint/no-require-imports
+          const { STORY_CHIPS } = require('@/shared/lib/story-chips');
           const storyChip = STORY_CHIPS.find((s: any) => s.id === chip.chipId);
           if (!storyChip) return '';
 

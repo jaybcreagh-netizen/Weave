@@ -118,6 +118,22 @@ export function FriendForm({ onSave, friend, initialTier, fromOnboarding }: Frie
     return isDuplicate;
   };
 
+  const proceedWithSave = async () => {
+    setShowCapacityWarning(false);
+    onSave(formData);
+
+    // Mark first friend added if this is from onboarding
+    if (showTutorial && !friend) {
+      await markFirstFriendAdded();
+    }
+
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/(tabs)');
+    }
+  };
+
   const handleSave = () => {
     // 1. Validate name
     if (!formData.name.trim()) {
@@ -168,22 +184,6 @@ export function FriendForm({ onSave, friend, initialTier, fromOnboarding }: Frie
 
     // Proceed with save
     proceedWithSave();
-  };
-
-  const proceedWithSave = async () => {
-    setShowCapacityWarning(false);
-    onSave(formData);
-
-    // Mark first friend added if this is from onboarding
-    if (showTutorial && !friend) {
-      await markFirstFriendAdded();
-    }
-
-    if (router.canGoBack()) {
-      router.back();
-    } else {
-      router.replace('/(tabs)');
-    }
   };
 
   const pickImage = async () => {
