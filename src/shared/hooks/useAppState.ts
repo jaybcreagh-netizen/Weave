@@ -77,6 +77,6 @@ export function usePausableEffect(
     }
 
     return effect();
-    // eslint-disable-next-line
+
   }, [isSleeping, ...deps]);
 }

@@ -1,8 +1,8 @@
 import { differenceInDays, format } from 'date-fns';
-import { database } from '../db';
-import LifeEvent from '../db/models/LifeEvent';
-import FriendModel from '../db/models/Friend';
-import Interaction from '../db/models/Interaction';
+import { database } from '@/db';
+import LifeEvent from '@/db/models/LifeEvent';
+import FriendModel from '@/db/models/Friend';
+import Interaction from '@/db/models/Interaction';
 import { Q } from '@nozbe/watermelondb';
 import { calculateCurrentScore } from '@/modules/intelligence';
 

@@ -22,7 +22,7 @@ import { Suggestion } from '@/types/suggestions';
 import { checkAndApplyDormancy } from '@/shared/lib/lifecycle-manager';
 import FriendModel from '@/db/models/Friend';
 import { useTheme } from '@/hooks/useTheme';
-import { CardGestureProvider, useCardGesture } from '@/context/CardGestureContext';
+import { useCardGesture } from '@/context/CardGestureContext';
 import { trackSuggestionActed } from '@/shared/lib/suggestion-tracker';
 import { IntentionActionSheet } from '@/components/IntentionActionSheet';
 import Intention from '@/db/models/Intention';
@@ -50,7 +50,6 @@ const getTierBackground = (tier: 'inner' | 'close' | 'community', isDarkMode: bo
 const AnimatedFriendCardItem = React.memo(({
   item,
   index,
-  refreshKey,
 }: {
   item: FriendModel;
   index: number;

@@ -1,5 +1,5 @@
 import * as Calendar from 'expo-calendar';
-import { Platform, Linking, Alert } from 'react-native';
+import { Linking, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { database } from '@/db';
 import Interaction from '@/db/models/Interaction';

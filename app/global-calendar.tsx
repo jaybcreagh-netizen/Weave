@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, Modal, ScrollView, Pressable } from 'react-native';
+import { View, Text, TouchableOpacity, Modal, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft, X, Calendar as CalendarIcon, Users } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
-import { format, isToday, isFuture } from 'date-fns';
+import { format, isToday } from 'date-fns';
 import * as Haptics from 'expo-haptics';
 
 import { GlobalYearCalendar } from '@/components/GlobalYearCalendar';
@@ -176,7 +176,6 @@ export default function GlobalCalendar() {
                 {selectedDateInteractions.map((interaction) => {
                   const { friendNames, displayTitle } = getInteractionDisplay(interaction);
                   const isPlanned = interaction.status === 'planned' || interaction.status === 'pending_confirm';
-                  const future = isFuture(new Date(interaction.interactionDate));
 
                   return (
                     <TouchableOpacity

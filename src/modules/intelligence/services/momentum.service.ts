@@ -38,7 +38,7 @@ export function calculateMomentumBonus(friend: Friend): number {
  * @param friend - The friend model instance to be updated.
  * @returns The new momentum score.
  */
-export function updateMomentum(friend: Friend): { momentumScore: number; momentumLastUpdated: Date } {
+export function updateMomentum(_friend: Friend): { momentumScore: number; momentumLastUpdated: Date } {
   // The logic from weave-engine.ts simply resets the momentum.
   const newMomentumScore = 15;
 

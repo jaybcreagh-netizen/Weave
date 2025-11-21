@@ -524,7 +524,7 @@ export async function scheduleMemoryNudges(): Promise<void> {
         previewText = reflection.gratitudeText.substring(0, 100);
         if (reflection.gratitudeText.length > 100) previewText += '...';
       } else if (reflection.storyChips.length > 0) {
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
+
         const chipLabels = reflection.storyChips
           .map(chip => {
             // eslint-disable-next-line @typescript-eslint/no-require-imports

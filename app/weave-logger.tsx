@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, TextInput, ScrollView, Keyboard, TouchableWithoutFeedback, Vibration, Modal } from 'react-native';
 import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Animated, { FadeInUp, useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
+import Animated, { FadeInUp, useSharedValue, withSpring } from 'react-native-reanimated';
 import { CelebrationAnimation } from '@/components/CelebrationAnimation';
 import { calculateDeepeningLevel } from '@/shared/lib/deepening-utils';
 import { BlurView } from 'expo-blur';
@@ -46,9 +46,6 @@ export default function WeaveLoggerScreen() {
   const scale = useSharedValue(1);
   const [detailsSectionY, setDetailsSectionY] = useState(0);
 
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
 
   // Fetch friend's name and archetype
   useEffect(() => {

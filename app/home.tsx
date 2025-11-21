@@ -1,5 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { View, ScrollView } from 'react-native';
+import React, { useEffect, useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import { HomeWidgetGrid, WidgetGridItem } from '@/components/home/HomeWidgetGrid';

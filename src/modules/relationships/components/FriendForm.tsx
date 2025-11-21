@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { View, Text, TouchableOpacity, TextInput, ScrollView, Image, Platform, StyleSheet, Modal, Alert, ActivityIndicator } from 'react-native';
-import { ArrowLeft, Camera, X, Calendar, Heart, Users, AlertCircle } from 'lucide-react-native';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { View, Text, TouchableOpacity, TextInput, ScrollView, Image, StyleSheet, Modal, Alert, ActivityIndicator } from 'react-native';
+import { ArrowLeft, Camera, X, Users, AlertCircle } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as Contacts from 'expo-contacts';
-import { useNavigation, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { useFriends } from '../hooks/useFriends';

@@ -110,7 +110,6 @@ router.back();
 // since we have our own header in the parent component
 function BatchContactPicker({
   onSelectionChange,
-  selectedCount
 }: {
   onSelectionChange: (contacts: Contacts.Contact[]) => void;
   selectedCount: number;

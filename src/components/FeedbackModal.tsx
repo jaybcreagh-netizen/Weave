@@ -11,6 +11,7 @@ import { trackEvent, AnalyticsEvents } from '../shared/services/analytics.servic
 // Optional: Lazy-load react-native-view-shot to avoid crash if not installed
 let captureRef: any = null;
 try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const viewShot = require('react-native-view-shot');
   captureRef = viewShot.captureRef;
 } catch (e) {

@@ -1,8 +1,7 @@
 import '../global.css';
-import { Stack, SplashScreen, useRouter } from 'expo-router';
+import { Stack, SplashScreen } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { TouchableWithoutFeedback, View } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
 import { StatusBar } from 'expo-status-bar';
 import * as Notifications from 'expo-notifications';
@@ -19,7 +18,6 @@ import { useUIStore } from '@/stores/uiStore';
 import { useTheme } from '@/hooks/useTheme';
 import { useActivityKeepAwake } from '@/hooks/useActivityKeepAwake';
 import { initializeDataMigrations, initializeUserProfile, initializeUserProgress } from '@/db';
-import { appStateManager } from '@/shared/services/app-state-manager.service';
 import { useAppStateChange } from '@/hooks/useAppState';
 import { useRelationshipsStore } from '@/modules/relationships';
 import { useTutorialStore } from '@/stores/tutorialStore';
@@ -33,7 +31,6 @@ import {
 } from '../src/lib/notification-response-handler';
 import {
   configureNotificationHandler,
-  handleEventSuggestionTap,
 } from '../src/lib/event-notifications';
 import { useBackgroundSyncStore } from '@/modules/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';

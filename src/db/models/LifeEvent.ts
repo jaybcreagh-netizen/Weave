@@ -1,4 +1,4 @@
-import { Model, Q } from '@nozbe/watermelondb';
+import { Model } from '@nozbe/watermelondb';
 import { field, text, readonly, date, relation } from '@nozbe/watermelondb/decorators';
 import Friend from './Friend';
 

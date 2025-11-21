@@ -14,6 +14,13 @@ jest.mock('@/modules/insights', () => ({
   getLearnedEffectiveness: jest.fn().mockReturnValue(1.0),
 }));
 
+// Mock the database initialization
+jest.mock('@/db', () => ({
+  database: {
+    get: jest.fn(),
+  },
+}));
+
 describe('Scoring Service', () => {
   let mockFriend: FriendModel;
 

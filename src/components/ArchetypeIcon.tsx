@@ -2,15 +2,14 @@ import React from 'react';
 import { type Archetype } from './types';
 import { SvgProps } from 'react-native-svg';
 
-// Import tarot SVG icons - using require for SVG imports
-const EmperorIcon = require('@/assets/TarotIcons/TheEmperor.svg').default;
-const EmpressIcon = require('@/assets/TarotIcons/TheEmpress.svg').default;
-const HighPriestessIcon = require('@/assets/TarotIcons/HighPriestess.svg').default;
-const FoolIcon = require('@/assets/TarotIcons/TheFool.svg').default;
-const SunIcon = require('@/assets/TarotIcons/TheSun.svg').default;
-const HermitIcon = require('@/assets/TarotIcons/TheHermit.svg').default;
-const MagicianIcon = require('@/assets/TarotIcons/TheMagician.svg').default;
-const LoversIcon = require('@/assets/TarotIcons/TheLovers.svg').default;
+import EmperorIcon from '@/assets/TarotIcons/TheEmperor.svg';
+import EmpressIcon from '@/assets/TarotIcons/TheEmpress.svg';
+import HighPriestessIcon from '@/assets/TarotIcons/HighPriestess.svg';
+import FoolIcon from '@/assets/TarotIcons/TheFool.svg';
+import SunIcon from '@/assets/TarotIcons/TheSun.svg';
+import HermitIcon from '@/assets/TarotIcons/TheHermit.svg';
+import MagicianIcon from '@/assets/TarotIcons/TheMagician.svg';
+import LoversIcon from '@/assets/TarotIcons/TheLovers.svg';
 
 interface ArchetypeIconProps {
   archetype: Archetype;

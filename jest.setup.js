@@ -1,4 +1,5 @@
 // jest.setup.js
+/* eslint-disable @typescript-eslint/no-require-imports */
 
 // This global variable is required by React Native's native module system.
 // In a Jest environment, it's not set automatically, leading to the

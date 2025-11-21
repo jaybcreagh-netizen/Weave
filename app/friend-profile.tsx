@@ -1,19 +1,19 @@
-import React, { useEffect, useMemo, useState, useRef, useCallback } from 'react';
-import { View, Text, TouchableOpacity, Alert, StyleSheet, SectionList, LayoutChangeEvent, ActivityIndicator } from 'react-native';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import { View, Text, TouchableOpacity, Alert, StyleSheet, SectionList, ActivityIndicator } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, withDelay, Easing, useAnimatedScrollHandler, runOnJS } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { ArrowLeft, Edit, Trash2, Calendar, Plus } from 'lucide-react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { isFuture, isToday, isPast, format, differenceInDays } from 'date-fns';
+import { isFuture, isToday, differenceInDays } from 'date-fns';
 import { Q } from '@nozbe/watermelondb';
 
 import { FriendListRow } from '@/modules/relationships';
 import { TimelineItem } from '@/components/TimelineItem';
 import { useRelationshipsStore } from '@/modules/relationships';
 import { useInteractions, usePlans, PlanService } from '@/modules/interactions';
-import { calculateNextConnectionDate, getPoeticSectionTitle } from '@/shared/lib/timeline-utils';
+import { calculateNextConnectionDate } from '@/shared/lib/timeline-utils';
 import { useTheme } from '@/hooks/useTheme';
 import { type Interaction, type Tier } from '@/components/types';
 import { InteractionDetailModal } from '@/components/interaction-detail-modal';
@@ -307,7 +307,7 @@ export default function FriendProfile() {
   const renderTimelineItem = useCallback(({ item: interaction, section, index }: { item: Interaction; section: { title: string; data: Interaction[] }; index: number }) => {
     const isFutureInteraction = section.title === 'Seeds';
     const isFirstInSection = index === 0;
-    const isLastInSection = index === section.data.length - 1;
+    // const isLastInSection = index === section.data.length - 1;
 
     // Check if this is the last item in the entire timeline
     const lastSection = timelineSections[timelineSections.length - 1];
@@ -637,7 +637,7 @@ router.back();
           intention={selectedIntentionForAction}
           isOpen={selectedIntentionForAction !== null}
           onClose={() => setSelectedIntentionForAction(null)}
-          onSchedule={async (intention, intentionFriend) => {
+          onSchedule={async (intention) => {
             await PlanService.convertIntentionToPlan(intention.id);
             setSelectedIntentionForAction(null);
 

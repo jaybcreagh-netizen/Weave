@@ -154,7 +154,6 @@ export function calculateSocialSeason(
 export function calculateSeasonContext(input: SeasonCalculationInput): SeasonContext {
   const {
     weavesLast7Days,
-    avgScoreAllFriends,
     avgScoreInnerCircle,
     batteryLast7DaysAvg,
   } = input;

@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Platform, Modal } from 'react-native';
-import Animated, { useSharedValue, useAnimatedStyle, withSpring, FadeIn, SlideInDown } from 'react-native-reanimated';
-import { Calendar, Sun, Moon, X, TrendingUp, CalendarDays } from 'lucide-react-native';
+import { View, Text, TouchableOpacity, Modal } from 'react-native';
+import Animated, { useSharedValue, useAnimatedStyle, FadeIn } from 'react-native-reanimated';
+import { Calendar, Sun, X, TrendingUp, CalendarDays } from 'lucide-react-native';
 import { BlurView } from 'expo-blur';
-import { startOfDay, addDays, format, isSaturday, nextSaturday, getDay, nextDay } from 'date-fns';
+import { startOfDay, addDays, format, isSaturday, nextSaturday, getDay } from 'date-fns';
 import { Q } from '@nozbe/watermelondb';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { CustomCalendar } from '../CustomCalendar';
