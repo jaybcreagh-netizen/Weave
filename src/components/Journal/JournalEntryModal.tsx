@@ -16,11 +16,11 @@ import {
 } from 'react-native';
 import { X, Calendar, Users, Sparkles } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
-import { database } from '../../db';
-import JournalEntry from '../../db/models/JournalEntry';
-import FriendModel from '../../db/models/Friend';
+import { database } from '@/db';
+import JournalEntry from '@/db/models/JournalEntry';
+import FriendModel from '@/db/models/Friend';
 import { Q } from '@nozbe/watermelondb';
-import { STORY_CHIPS } from '../../lib/story-chips';
+import { STORY_CHIPS } from '@/lib/story-chips';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as Haptics from 'expo-haptics';
 import { YourPatternsSection } from '../YourPatternsSection';

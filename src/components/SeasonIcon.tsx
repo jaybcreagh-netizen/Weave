@@ -3,9 +3,9 @@ import Svg, { SvgProps } from 'react-native-svg';
 import { type SocialSeason } from '../lib/social-season/season-types';
 
 // Import season SVG icons
-const RestingIcon = require('../../assets/icons/resting.svg').default;
-const BalancedIcon = require('../../assets/icons/Balanced.svg').default;
-const BloomingIcon = require('../../assets/icons/blooming.svg').default;
+const RestingIcon = require('@/assets/icons/resting.svg').default;
+const BalancedIcon = require('@/assets/icons/Balanced.svg').default;
+const BloomingIcon = require('@/assets/icons/blooming.svg').default;
 
 interface SeasonIconProps {
   season: SocialSeason;

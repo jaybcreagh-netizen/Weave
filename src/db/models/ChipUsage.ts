@@ -5,7 +5,7 @@
 
 import { Model } from '@nozbe/watermelondb';
 import { field, readonly, date } from '@nozbe/watermelondb/decorators';
-import { ChipType } from '../../lib/story-chips';
+import { ChipType } from '@/lib/story-chips';
 
 export default class ChipUsage extends Model {
   static table = 'chip_usage';

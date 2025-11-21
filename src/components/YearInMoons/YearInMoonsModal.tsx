@@ -19,7 +19,7 @@ import Animated, { FadeIn } from 'react-native-reanimated';
 import { X, Calendar, BarChart3, Sparkles } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '@/shared/hooks/useTheme';
-import { useUserProfileStore } from '../../stores/userProfileStore';
+import { useUserProfileStore } from '@/stores/userProfileStore';
 import { MoonPhaseIllustration } from './MoonPhaseIllustration';
 import { PatternsTabContent } from './PatternsTabContent';
 import { ReflectionJourneyModal } from '../ReflectionJourney/ReflectionJourneyModal';
@@ -30,7 +30,7 @@ import {
   getMonthName,
   MonthMoonData,
   DayMoonData,
-} from '../../lib/year-in-moons-data';
+} from '@/lib/year-in-moons-data';
 import * as Haptics from 'expo-haptics';
 
 interface YearInMoonsModalProps {

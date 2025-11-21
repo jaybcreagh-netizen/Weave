@@ -6,23 +6,23 @@ import { TouchableWithoutFeedback, View } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
 import { StatusBar } from 'expo-status-bar';
 import * as Notifications from 'expo-notifications';
-import { QuickWeaveProvider } from '../src/components/QuickWeaveProvider';
-import { ToastProvider } from '../src/components/toast_provider';
-import { CardGestureProvider } from '../src/context/CardGestureContext'; // Import the provider
-import { MilestoneCelebration } from '../src/components/MilestoneCelebration';
-import TrophyCabinetModal from '../src/components/TrophyCabinetModal';
-import { NotificationPermissionModal } from '../src/components/NotificationPermissionModal';
-import { LoadingScreen } from '../src/components/LoadingScreen';
-import { ErrorBoundary } from '../src/components/ErrorBoundary';
-import { EventSuggestionModal } from '../src/components/EventSuggestionModal';
-import { useUIStore } from '../src/stores/uiStore';
-import { useTheme } from '../src/hooks/useTheme';
-import { useActivityKeepAwake } from '../src/hooks/useActivityKeepAwake';
-import { initializeDataMigrations, initializeUserProfile, initializeUserProgress } from '../src/db';
-import { appStateManager } from '../src/lib/app-state-manager';
-import { useAppStateChange } from '../src/hooks/useAppState';
-import { useRelationshipsStore } from '../src/modules/relationships';
-import { useTutorialStore } from '../src/stores/tutorialStore';
+import { QuickWeaveProvider } from '@/components/QuickWeaveProvider';
+import { ToastProvider } from '@/components/toast_provider';
+import { CardGestureProvider } from '@/context/CardGestureContext'; // Import the provider
+import { MilestoneCelebration } from '@/components/MilestoneCelebration';
+import TrophyCabinetModal from '@/components/TrophyCabinetModal';
+import { NotificationPermissionModal } from '@/components/NotificationPermissionModal';
+import { LoadingScreen } from '@/components/LoadingScreen';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { EventSuggestionModal } from '@/components/EventSuggestionModal';
+import { useUIStore } from '@/stores/uiStore';
+import { useTheme } from '@/hooks/useTheme';
+import { useActivityKeepAwake } from '@/hooks/useActivityKeepAwake';
+import { initializeDataMigrations, initializeUserProfile, initializeUserProgress } from '@/db';
+import { appStateManager } from '@/lib/app-state-manager';
+import { useAppStateChange } from '@/hooks/useAppState';
+import { useRelationshipsStore } from '@/modules/relationships';
+import { useTutorialStore } from '@/stores/tutorialStore';
 import {
   initializeNotifications,
   requestNotificationPermissions,
@@ -47,7 +47,7 @@ import {
   Inter_600SemiBold,
 } from '@expo-google-fonts/inter';
 import * as Sentry from '@sentry/react-native';
-import { initializeAnalytics, trackEvent, trackRetentionMetrics, AnalyticsEvents, setPostHogInstance } from '../src/lib/analytics';
+import { initializeAnalytics, trackEvent, trackRetentionMetrics, AnalyticsEvents, setPostHogInstance } from '@/lib/analytics';
 import { PostHogProvider, usePostHog } from 'posthog-react-native';
 
 Sentry.init({

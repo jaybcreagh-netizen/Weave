@@ -1,26 +1,26 @@
 import { Database } from '@nozbe/watermelondb';
 import SQLiteAdapter from '@nozbe/watermelondb/adapters/sqlite';
-import schema from './db/schema';
-import migrations from './db/migrations';
-import Friend from './db/models/Friend';
-import Interaction from './db/models/Interaction';
-import InteractionFriend from './db/models/InteractionFriend';
-import SuggestionEvent from './db/models/SuggestionEvent';
-import Intention from './db/models/Intention';
-import IntentionFriend from './db/models/IntentionFriend';
-import UserProfile from './db/models/UserProfile';
-import PracticeLog from './db/models/PracticeLog';
-import LifeEvent from './db/models/LifeEvent';
-import UserProgress from './db/models/UserProgress';
-import FriendBadge from './db/models/FriendBadge';
-import AchievementUnlock from './db/models/AchievementUnlock';
-import WeeklyReflection from './db/models/WeeklyReflection';
-import PortfolioSnapshot from './db/models/PortfolioSnapshot';
-import JournalEntry from './db/models/JournalEntry';
-import CustomChip from './db/models/CustomChip';
-import ChipUsage from './db/models/ChipUsage';
-import InteractionOutcome from './db/models/InteractionOutcome';
-import EventSuggestionFeedback from './db/models/EventSuggestionFeedback';
+import schema from './schema';
+import migrations from './migrations';
+import Friend from './models/Friend';
+import Interaction from './models/Interaction';
+import InteractionFriend from './models/InteractionFriend';
+import SuggestionEvent from './models/SuggestionEvent';
+import Intention from './models/Intention';
+import IntentionFriend from './models/IntentionFriend';
+import UserProfile from './models/UserProfile';
+import PracticeLog from './models/PracticeLog';
+import LifeEvent from './models/LifeEvent';
+import UserProgress from './models/UserProgress';
+import FriendBadge from './models/FriendBadge';
+import AchievementUnlock from './models/AchievementUnlock';
+import WeeklyReflection from './models/WeeklyReflection';
+import PortfolioSnapshot from './models/PortfolioSnapshot';
+import JournalEntry from './models/JournalEntry';
+import CustomChip from './models/CustomChip';
+import ChipUsage from './models/ChipUsage';
+import InteractionOutcome from './models/InteractionOutcome';
+import EventSuggestionFeedback from './models/EventSuggestionFeedback';
 
 const adapter = new SQLiteAdapter({
   schema,
@@ -147,6 +147,6 @@ export const clearDatabase = async () => {
  * Should be called once on app startup after database is ready
  */
 export const initializeDataMigrations = async () => {
-  const { runDataMigrationIfNeeded } = await import('./db/data-migration');
+  const { runDataMigrationIfNeeded } = await import('./data-migration');
   await runDataMigrationIfNeeded(database);
 };

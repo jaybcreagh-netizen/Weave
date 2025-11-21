@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { activateKeepAwake, deactivateKeepAwake } from 'expo-keep-awake';
-import { appStateManager } from '../lib/app-state-manager';
+import { appStateManager } from '@/lib/app-state-manager';
 
 /**
  * Custom hook that keeps the screen awake while the user is active,

@@ -1,4 +1,4 @@
-import { Archetype, Tier } from './core';
+import { Archetype, Tier } from '@/shared/types/common';
 
 export type Urgency = 'critical' | 'high' | 'medium' | 'low';
 export type SuggestionCategory = 'drift' | 'maintain' | 'deepen' | 'celebrate' | 'reflect' | 'insight' | 'portfolio' | 'life-event';

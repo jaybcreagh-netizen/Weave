@@ -18,14 +18,14 @@ import { X, Activity, BarChart3 } from 'lucide-react-native';
 import { startOfMonth, endOfMonth, eachDayOfInterval, format, isSameDay, startOfWeek, endOfWeek, differenceInDays } from 'date-fns';
 import { Q } from '@nozbe/watermelondb';
 import { useTheme } from '@/shared/hooks/useTheme';
-import { type SocialSeason, type SeasonExplanationData } from '../../lib/social-season/season-types';
-import { SEASON_STYLES, getSeasonDisplayName } from '../../lib/social-season/season-content';
+import { type SocialSeason, type SeasonExplanationData } from '@/lib/social-season/season-types';
+import { SEASON_STYLES, getSeasonDisplayName } from '@/lib/social-season/season-content';
 import { generateSeasonExplanation } from '@/modules/reflection';
 import { GraphsTabContent } from '../YearInMoons/GraphsTabContent';
-import { database } from '../../db';
-import Interaction from '../../db/models/Interaction';
-import WeeklyReflection from '../../db/models/WeeklyReflection';
-import { useUserProfileStore } from '../../stores/userProfileStore';
+import { database } from '@/db';
+import Interaction from '@/db/models/Interaction';
+import WeeklyReflection from '@/db/models/WeeklyReflection';
+import { useUserProfileStore } from '@/stores/userProfileStore';
 
 interface SocialSeasonModalProps {
   isOpen: boolean;

@@ -114,15 +114,15 @@ export const archetypeData: Record<Archetype, { name: string; essence: string; d
 };
 
 export const archetypeIcons: Record<Archetype, any> = {
-    Emperor: require('../../../assets/icon.png'),
-    Empress: require('../../../assets/icon.png'),
-    HighPriestess: require('../../../assets/icon.png'),
-    Fool: require('../../../assets/icon.png'),
-    Sun: require('../../../assets/icon.png'),
-    Hermit: require('../../../assets/icon.png'),
-    Magician: require('../../../assets/icon.png'),
-    Lovers: require('../../../assets/icon.png'),
-    Unknown: require('../../../assets/icon.png'),
+    Emperor: require('@/assets/icon.png'),
+    Empress: require('@/assets/icon.png'),
+    HighPriestess: require('@/assets/icon.png'),
+    Fool: require('@/assets/icon.png'),
+    Sun: require('@/assets/icon.png'),
+    Hermit: require('@/assets/icon.png'),
+    Magician: require('@/assets/icon.png'),
+    Lovers: require('@/assets/icon.png'),
+    Unknown: require('@/assets/icon.png'),
 };
 
 export const tierColors = {

@@ -1,7 +1,7 @@
 // src/modules/relationships/services/__tests__/friend.service.test.ts
 import { createFriend, updateFriend, deleteFriend, batchAddFriends } from '../friend.service';
 import { database } from '@/db';
-import { FriendFormData } from '../../types';
+import { FriendFormData } from '@/modules/relationships/types';
 
 const mockUserProgress = {
   id: 'progress-1',

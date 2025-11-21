@@ -3,21 +3,21 @@ import { View, Text, TouchableOpacity, TextInput, ScrollView, Keyboard, Touchabl
 import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInUp, useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
-import { CelebrationAnimation } from '../src/components/CelebrationAnimation';
-import { calculateDeepeningLevel } from '../src/lib/deepening-utils';
+import { CelebrationAnimation } from '@/components/CelebrationAnimation';
+import { calculateDeepeningLevel } from '@/lib/deepening-utils';
 import { BlurView } from 'expo-blur';
 
-import { useInteractions, type StructuredReflection } from '../src/modules/interactions';
+import { useInteractions, type StructuredReflection } from '@/modules/interactions';
 import { Calendar as CalendarIcon, X, Sparkles } from 'lucide-react-native';
-import { CustomCalendar } from '../src/components/CustomCalendar';
-import { MoonPhaseSelector } from '../src/components/MoonPhaseSelector';
-import { ContextualReflectionInput } from '../src/components/ContextualReflectionInput';
+import { CustomCalendar } from '@/components/CustomCalendar';
+import { MoonPhaseSelector } from '@/components/MoonPhaseSelector';
+import { ContextualReflectionInput } from '@/components/ContextualReflectionInput';
 import { format, subDays, isSameDay, startOfDay } from 'date-fns';
-import { type Vibe, type InteractionCategory, type Archetype } from '../src/components/types';
-import { useTheme } from '../src/hooks/useTheme';
-import { getAllCategories, type CategoryMetadata } from '../src/lib/interaction-categories';
-import { database } from '../src/db';
-import FriendModel from '../src/db/models/Friend';
+import { type Vibe, type InteractionCategory, type Archetype } from '@/components/types';
+import { useTheme } from '@/hooks/useTheme';
+import { getAllCategories, type CategoryMetadata } from '@/lib/interaction-categories';
+import { database } from '@/db';
+import FriendModel from '@/db/models/Friend';
 
 const categories: CategoryMetadata[] = getAllCategories();
 
@@ -98,7 +98,7 @@ export default function WeaveLoggerScreen() {
       // Build legacy notes field from chips + custom notes for backward compatibility
       const legacyNotes = [
         ...(reflection.chips || []).map(chip => {
-          const { STORY_CHIPS } = require('../src/lib/story-chips');
+          const { STORY_CHIPS } = require('@/lib/story-chips');
           const storyChip = STORY_CHIPS.find((s: any) => s.id === chip.chipId);
           if (!storyChip) return '';
 

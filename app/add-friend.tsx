@@ -1,6 +1,6 @@
 import React from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { FriendForm, useRelationshipsStore, FriendFormData } from '../src/modules/relationships';
+import { FriendForm, useRelationshipsStore, FriendFormData } from '@/modules/relationships';
 
 function AddFriend() {
   const router = useRouter();

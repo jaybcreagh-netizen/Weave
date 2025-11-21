@@ -2,9 +2,9 @@
 import { Q } from '@nozbe/watermelondb';
 import { startOfWeek, endOfWeek } from 'date-fns';
 import { Database } from '@nozbe/watermelondb';
-import JournalEntry from '../../db/models/JournalEntry';
-import Friend from '../../db/models/Friend';
-import Interaction from '../../db/models/Interaction';
+import JournalEntry from '@/db/models/JournalEntry';
+import Friend from '@/db/models/Friend';
+import Interaction from '@/db/models/Interaction';
 
 // Define the types used in the ContextBuilder
 interface JournalContext {

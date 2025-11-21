@@ -7,27 +7,27 @@ import { Q } from '@nozbe/watermelondb';
 import { useRouter } from 'expo-router';
 import { BookOpen, X, Sparkles, BarChart3, Telescope, Lightbulb, Flame, Battery, ChevronDown } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
-import { useUserProfileStore } from '../../../stores/userProfileStore';
-import { useFriends } from '../../../hooks/useFriends';
+import { useUserProfileStore } from '@/stores/userProfileStore';
+import { useFriends } from '@/hooks/useFriends';
 import { useInteractions } from '@/modules/interactions';
 import { HomeWidgetBase, HomeWidgetConfig } from '../HomeWidgetBase';
 import {
   calculateSocialSeason,
   calculateSeasonContext,
-} from '../../../lib/social-season/season-calculator';
+} from '@/lib/social-season/season-calculator';
 import {
   getSeasonGreeting,
   SEASON_STYLES,
   getSeasonDisplayName,
-} from '../../../lib/social-season/season-content';
-import { SeasonCalculationInput, SocialSeason } from '../../../lib/social-season/season-types';
+} from '@/lib/social-season/season-content';
+import { SeasonCalculationInput, SocialSeason } from '@/lib/social-season/season-types';
 import { calculateCurrentScore, calculateWeightedNetworkHealth } from '@/modules/intelligence/services/orchestrator.service';
-import { database } from '../../../db';
-import Interaction from '../../../db/models/Interaction';
-import WeeklyReflection from '../../../db/models/WeeklyReflection';
+import { database } from '@/db';
+import Interaction from '@/db/models/Interaction';
+import WeeklyReflection from '@/db/models/WeeklyReflection';
 import { generateSeasonExplanation, type SeasonExplanationData } from '@/modules/reflection';
-import { SocialSeasonModal } from '../../SocialSeason/SocialSeasonModal';
-import { SeasonIcon } from '../../SeasonIcon';
+import { SocialSeasonModal } from '@/components/SocialSeason/SocialSeasonModal';
+import { SeasonIcon } from '@/components/SeasonIcon';
 
 const WIDGET_CONFIG: HomeWidgetConfig = {
   id: 'social-season',

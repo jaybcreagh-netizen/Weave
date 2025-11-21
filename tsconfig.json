@@ -6,11 +6,17 @@
     "paths": {
       "@/modules/*": ["src/modules/*"],
       "@/shared/*": ["src/shared/*"],
+      "@/db": ["src/db/index"],
       "@/db/*": ["src/db/*"],
       "@/app/*": ["app/*"],
       "@/components/*": ["src/components/*"],
       "@/types/*": ["src/types/*"],
-      "@/lib/*": ["src/lib/*"]
+      "@/lib/*": ["src/lib/*"],
+      "@/hooks/*": ["src/hooks/*"],
+      "@/stores/*": ["src/stores/*"],
+      "@/context/*": ["src/context/*"],
+      "@/guidelines/*": ["src/guidelines/*"],
+      "@/assets/*": ["assets/*"]
     }
   }
 }

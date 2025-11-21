@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { AppStateStatus } from 'react-native';
-import { appStateManager } from '../lib/app-state-manager';
+import { appStateManager } from '@/lib/app-state-manager';
 
 /**
  * Hook to track app state (active, background, inactive)

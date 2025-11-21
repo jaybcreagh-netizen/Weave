@@ -1,4 +1,4 @@
-import { SocialSeason } from '../../db/models/UserProfile';
+import { SocialSeason } from '@/db/models/UserProfile';
 
 export type { SocialSeason };
 

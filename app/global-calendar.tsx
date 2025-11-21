@@ -6,14 +6,14 @@ import { useRouter } from 'expo-router';
 import { format, isToday, isFuture } from 'date-fns';
 import * as Haptics from 'expo-haptics';
 
-import { GlobalYearCalendar } from '../src/components/GlobalYearCalendar';
-import { useInteractions } from '../src/modules/interactions';
-import { useTheme } from '../src/hooks/useTheme';
-import { database } from '../src/db';
+import { GlobalYearCalendar } from '@/components/GlobalYearCalendar';
+import { useInteractions } from '@/modules/interactions';
+import { useTheme } from '@/hooks/useTheme';
+import { database } from '@/db';
 import { Q } from '@nozbe/watermelondb';
-import InteractionFriend from '../src/db/models/InteractionFriend';
-import FriendModel from '../src/db/models/Friend';
-import { getCategoryMetadata } from '../src/lib/interaction-categories';
+import InteractionFriend from '@/db/models/InteractionFriend';
+import FriendModel from '@/db/models/Friend';
+import { getCategoryMetadata } from '@/lib/interaction-categories';
 
 export default function GlobalCalendar() {
   const router = useRouter();

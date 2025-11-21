@@ -8,12 +8,12 @@ import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, TextInput 
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { Calendar, Sparkles, Search, Plus, BookOpen } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
-import { database } from '../../db';
-import WeeklyReflection from '../../db/models/WeeklyReflection';
-import JournalEntry from '../../db/models/JournalEntry';
+import { database } from '@/db';
+import WeeklyReflection from '@/db/models/WeeklyReflection';
+import JournalEntry from '@/db/models/JournalEntry';
 import { Q } from '@nozbe/watermelondb';
 import { format } from 'date-fns';
-import { STORY_CHIPS } from '../../lib/story-chips';
+import { STORY_CHIPS } from '@/lib/story-chips';
 import { ReflectionDetailModal } from './ReflectionDetailModal';
 import { JournalEntryModal } from '../Journal/JournalEntryModal';
 import * as Haptics from 'expo-haptics';

@@ -10,15 +10,15 @@ import Animated, { FadeIn, SlideInRight, SlideOutLeft } from 'react-native-reani
 import { X, ChevronLeft } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { WeeklySummary, calculateWeeklySummary, getTopStoryChipSuggestions, WeekStoryChipSuggestion } from '@/modules/reflection';
-import { markReflectionComplete } from '../../lib/notification-manager-enhanced';
+import { markReflectionComplete } from '@/lib/notification-manager-enhanced';
 import { WeekSummary } from './WeekSummary';
 import { MissedConnectionsList } from './MissedConnectionsList';
 import { GratitudePrompt } from './GratitudePrompt';
 import { CalendarEventsStep } from './CalendarEventsStep';
-import { database } from '../../db';
-import WeeklyReflection from '../../db/models/WeeklyReflection';
-import { batchLogCalendarEvents } from '../../lib/weekly-event-review';
-import { ScannedEvent } from '../../lib/event-scanner';
+import { database } from '@/db';
+import WeeklyReflection from '@/db/models/WeeklyReflection';
+import { batchLogCalendarEvents } from '@/lib/weekly-event-review';
+import { ScannedEvent } from '@/lib/event-scanner';
 import * as Haptics from 'expo-haptics';
 
 interface WeeklyReflectionModalProps {

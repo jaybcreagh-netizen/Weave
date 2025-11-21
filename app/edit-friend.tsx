@@ -2,9 +2,9 @@ import React from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Text } from 'react-native';
 import { withObservables } from '@nozbe/watermelondb/react';
-import { FriendForm, useRelationshipsStore, FriendFormData } from '../src/modules/relationships';
-import { database } from '../src/db';
-import FriendModel from '../src/db/models/Friend';
+import { FriendForm, useRelationshipsStore, FriendFormData } from '@/modules/relationships';
+import { database } from '@/db';
+import FriendModel from '@/db/models/Friend';
 
 interface EditFriendProps {
     friend: FriendModel;

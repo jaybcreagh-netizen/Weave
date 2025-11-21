@@ -7,9 +7,9 @@ import { startOfDay, addDays, format, isSaturday, nextSaturday, getDay, nextDay 
 import { Q } from '@nozbe/watermelondb';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { CustomCalendar } from '../CustomCalendar';
-import { database } from '../../db';
-import InteractionModel from '../../db/models/Interaction';
-import FriendModel from '../../db/models/Friend';
+import { database } from '@/modules/interactions/db';
+import InteractionModel from '@/modules/interactions/db/models/Interaction';
+import FriendModel from '@/modules/interactions/db/models/Friend';
 
 interface PlanWizardStep1Props {
   selectedDate?: Date;

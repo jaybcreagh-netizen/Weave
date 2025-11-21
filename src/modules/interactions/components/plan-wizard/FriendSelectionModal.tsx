@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Modal, SafeAreaView } from 'react-native';
 import { CheckCircle, Circle, X } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
-import FriendModel from '../../db/models/Friend';
-import { useFriends } from '../../hooks/useFriends';
+import FriendModel from '@/modules/interactions/db/models/Friend';
+import { useFriends } from '@/modules/interactions/hooks/useFriends';
 
 interface FriendSelectionModalProps {
   visible: boolean;

@@ -4,9 +4,9 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as Contacts from 'expo-contacts';
 import { ArrowLeft, Check, Search } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
-import { useRelationshipsStore } from '../src/modules/relationships';
-import { useTheme } from '../src/hooks/useTheme';
-import { normalizeContactImageUri } from '../src/lib/image-utils';
+import { useRelationshipsStore } from '@/modules/relationships';
+import { useTheme } from '@/hooks/useTheme';
+import { normalizeContactImageUri } from '@/lib/image-utils';
 
 export default function BatchAddFriends() {
   const router = useRouter();

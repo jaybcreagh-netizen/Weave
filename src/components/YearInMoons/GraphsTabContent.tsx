@@ -10,11 +10,11 @@ import Svg, { Circle, Line, Text as SvgText, G, Path, Rect, Defs, LinearGradient
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import Animated, { FadeIn, FadeInDown, SlideInRight } from 'react-native-reanimated';
-import { database } from '../../db';
+import { database } from '@/db';
 import { Q } from '@nozbe/watermelondb';
-import FriendModel from '../../db/models/Friend';
-import InteractionModel from '../../db/models/Interaction';
-import { getYearMoonData, getYearStats } from '../../lib/year-in-moons-data';
+import FriendModel from '@/db/models/Friend';
+import InteractionModel from '@/db/models/Interaction';
+import { getYearMoonData, getYearStats } from '@/lib/year-in-moons-data';
 import { usePortfolio } from '@/modules/insights';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { TrendingUp, TrendingDown, Minus, X } from 'lucide-react-native';

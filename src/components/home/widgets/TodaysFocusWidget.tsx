@@ -19,19 +19,19 @@ import { Cake, Heart, ChevronDown, ChevronUp, Calendar, CheckCircle2, Sparkles, 
 import { useTheme } from '@/shared/hooks/useTheme';
 import { HomeWidgetBase, HomeWidgetConfig } from '../HomeWidgetBase';
 import { useRelationshipsStore } from '@/modules/relationships';
-import { useSuggestions } from '../../../hooks/useSuggestions';
+import { useSuggestions } from '@/hooks/useSuggestions';
 import { usePlans } from '@/modules/interactions';
 import { getCategoryMetadata } from '@/shared/constants/interaction-categories';
 import { PlanWizard } from '@/modules/interactions';
-import { type InteractionCategory } from '../../types';
-import FriendModel from '../../../db/models/Friend';
-import { type Suggestion } from '../../../types/suggestions';
-import { useUserProfileStore } from '../../../stores/userProfileStore';
-import { database } from '../../../db';
-import LifeEvent from '../../../db/models/LifeEvent';
+import { type InteractionCategory } from '@/components/types';
+import FriendModel from '@/db/models/Friend';
+import { type Suggestion } from '@/types/suggestions';
+import { useUserProfileStore } from '@/stores/userProfileStore';
+import { database } from '@/db';
+import LifeEvent from '@/db/models/LifeEvent';
 import { Q } from '@nozbe/watermelondb';
 import { calculateCurrentScore } from '@/modules/intelligence/services/orchestrator.service';
-import Interaction from '../../../db/models/Interaction';
+import Interaction from '@/db/models/Interaction';
 
 const WIDGET_CONFIG: HomeWidgetConfig = {
   id: 'todays-focus',

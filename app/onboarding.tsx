@@ -7,9 +7,9 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 
 import { theme } from '../src/theme';
-import { AnimatedThoughtBubbles } from '../src/components/onboarding/AnimatedThoughtBubbles';
-import { ArchetypeImpactDemo } from '../src/components/onboarding/ArchetypeImpactDemo';
-import { useTutorialStore } from '../src/stores/tutorialStore';
+import { AnimatedThoughtBubbles } from '@/components/onboarding/AnimatedThoughtBubbles';
+import { ArchetypeImpactDemo } from '@/components/onboarding/ArchetypeImpactDemo';
+import { useTutorialStore } from '@/stores/tutorialStore';
 
 /**
  * Simplified Interactive Onboarding

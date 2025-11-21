@@ -1,6 +1,6 @@
 import { database } from '@/db';
 import { logWeave, planWeave, deleteWeave } from '../weave-logging.service';
-import { InteractionFormData } from '../../types';
+import { InteractionFormData } from '@/modules/interactions/types';
 import { processWeaveScoring } from '@/modules/intelligence';
 import { checkFriendBadges, checkGlobalAchievements, recordMilestone } from '@/modules/gamification';
 import { trackEvent, AnalyticsEvents, updateLastInteractionTimestamp } from '@/shared/services/analytics.service';

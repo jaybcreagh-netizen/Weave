@@ -10,17 +10,17 @@ import { X, Calendar, TrendingUp, Sparkles, ChevronRight, Search, List, Filter, 
 import { useTheme } from '@/shared/hooks/useTheme';
 import { formatWeaveDate, daysAgo } from '@/shared/utils/date-utils';
 import { getWeekRange, getAllReflectionFriends, getFriendsForReflection } from '@/modules/reflection';
-import { database } from '../../db';
-import WeeklyReflection from '../../db/models/WeeklyReflection';
-import JournalEntry from '../../db/models/JournalEntry';
+import { database } from '@/db';
+import WeeklyReflection from '@/db/models/WeeklyReflection';
+import JournalEntry from '@/db/models/JournalEntry';
 import { Q } from '@nozbe/watermelondb';
 import { format } from 'date-fns';
-import { STORY_CHIPS } from '../../lib/story-chips';
+import { STORY_CHIPS } from '@/lib/story-chips';
 import { ReflectionCalendarView } from './ReflectionCalendarView';
 import { ReflectionDetailModal } from './ReflectionDetailModal';
 import { JournalEntryModal } from '../Journal/JournalEntryModal';
-import { checkAndScheduleMemoryNudges } from '../../lib/notification-manager-enhanced';
-import FriendModel from '../../db/models/Friend';
+import { checkAndScheduleMemoryNudges } from '@/lib/notification-manager-enhanced';
+import FriendModel from '@/db/models/Friend';
 import * as Haptics from 'expo-haptics';
 
 // Unified type for displaying both weekly reflections and journal entries

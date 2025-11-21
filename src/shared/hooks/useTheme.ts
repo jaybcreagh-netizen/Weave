@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
-import { useUIStore } from '../stores/uiStore';
-import { getTheme, getThemeColors } from '../theme';
+import { useUIStore } from '@/stores/uiStore';
+import { getTheme, getThemeColors } from '@/shared/theme/theme';
 
 /**
  * Custom hook to access the current theme based on dark mode state

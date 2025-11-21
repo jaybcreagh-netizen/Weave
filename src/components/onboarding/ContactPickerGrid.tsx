@@ -4,7 +4,7 @@ import { View, Text, FlatList, TouchableOpacity, Image, ActivityIndicator } from
 import * as Contacts from 'expo-contacts';
 import { CheckCircle2, Users, Plus } from 'lucide-react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
-import { normalizeContactImageUri } from '../../lib/image-utils';
+import { normalizeContactImageUri } from '@/lib/image-utils';
 
 interface ContactPickerGridProps {
   maxSelection: number;

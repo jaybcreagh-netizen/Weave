@@ -54,13 +54,13 @@ const ARCHETYPES: Archetype[] = [
 
 // Map archetypes to their tarot card SVG file paths
 const TAROT_CARD_SOURCES: Record<Archetype, any> = {
-  Emperor: require('../../assets/TarotIcons/TheEmperor.svg'),
-  Empress: require('../../assets/TarotIcons/TheEmpress.svg'),
-  HighPriestess: require('../../assets/TarotIcons/HighPriestess.svg'),
-  Fool: require('../../assets/TarotIcons/TheFool.svg'),
-  Sun: require('../../assets/TarotIcons/TheSun.svg'),
-  Hermit: require('../../assets/TarotIcons/TheHermit.svg'),
-  Magician: require('../../assets/TarotIcons/TheMagician.svg'),
+  Emperor: require('@/assets/TarotIcons/TheEmperor.svg'),
+  Empress: require('@/assets/TarotIcons/TheEmpress.svg'),
+  HighPriestess: require('@/assets/TarotIcons/HighPriestess.svg'),
+  Fool: require('@/assets/TarotIcons/TheFool.svg'),
+  Sun: require('@/assets/TarotIcons/TheSun.svg'),
+  Hermit: require('@/assets/TarotIcons/TheHermit.svg'),
+  Magician: require('@/assets/TarotIcons/TheMagician.svg'),
 };
 
 export function ArchetypeCarouselPicker({

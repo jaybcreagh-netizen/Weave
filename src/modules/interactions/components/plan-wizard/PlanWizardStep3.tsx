@@ -5,8 +5,8 @@ import { format } from 'date-fns';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { PlanFormData } from '../PlanWizard';
-import FriendModel from '../../db/models/Friend';
-import { PlanSuggestion } from '../../hooks/usePlanSuggestion';
+import FriendModel from '@/modules/interactions/db/models/Friend';
+import { PlanSuggestion } from '@/modules/interactions/hooks/usePlanSuggestion';
 import { FriendSelectionModal } from './FriendSelectionModal';
 
 interface PlanWizardStep3Props {

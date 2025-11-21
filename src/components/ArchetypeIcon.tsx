@@ -3,14 +3,14 @@ import { type Archetype } from './types';
 import { SvgProps } from 'react-native-svg';
 
 // Import tarot SVG icons - using require for SVG imports
-const EmperorIcon = require('../../assets/TarotIcons/TheEmperor.svg').default;
-const EmpressIcon = require('../../assets/TarotIcons/TheEmpress.svg').default;
-const HighPriestessIcon = require('../../assets/TarotIcons/HighPriestess.svg').default;
-const FoolIcon = require('../../assets/TarotIcons/TheFool.svg').default;
-const SunIcon = require('../../assets/TarotIcons/TheSun.svg').default;
-const HermitIcon = require('../../assets/TarotIcons/TheHermit.svg').default;
-const MagicianIcon = require('../../assets/TarotIcons/TheMagician.svg').default;
-const LoversIcon = require('../../assets/TarotIcons/TheLovers.svg').default;
+const EmperorIcon = require('@/assets/TarotIcons/TheEmperor.svg').default;
+const EmpressIcon = require('@/assets/TarotIcons/TheEmpress.svg').default;
+const HighPriestessIcon = require('@/assets/TarotIcons/HighPriestess.svg').default;
+const FoolIcon = require('@/assets/TarotIcons/TheFool.svg').default;
+const SunIcon = require('@/assets/TarotIcons/TheSun.svg').default;
+const HermitIcon = require('@/assets/TarotIcons/TheHermit.svg').default;
+const MagicianIcon = require('@/assets/TarotIcons/TheMagician.svg').default;
+const LoversIcon = require('@/assets/TarotIcons/TheLovers.svg').default;
 
 interface ArchetypeIconProps {
   archetype: Archetype;
