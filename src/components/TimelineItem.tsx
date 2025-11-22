@@ -18,7 +18,7 @@ import Svg, { Line } from 'react-native-svg';
 const AnimatedLine = Animated.createAnimatedComponent(Line);
 
 import { useTheme } from '@/shared/hooks/useTheme';
-import { formatPoeticDate, calculateWeaveWarmth, getThreadColors } from '../lib/timeline-utils';
+import { formatPoeticDate, calculateWeaveWarmth, getThreadColors } from '@/shared/utils/timeline-utils';
 import { modeIcons } from '@/shared/constants/constants';
 import { getCategoryMetadata } from '@/shared/constants/interaction-categories';
 import { type Interaction, type InteractionCategory } from './types';

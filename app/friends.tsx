@@ -19,7 +19,7 @@ import { useFriends } from '@/hooks/useFriends';
 import { useInteractions, usePlans, PlanService, getSuggestionCooldownDays } from '@/modules/interactions';
 import { useSuggestions } from '@/hooks/useSuggestions';
 import { Suggestion } from '@/types/suggestions';
-import { checkAndApplyDormancy } from '@/shared/lib/lifecycle-manager';
+import { checkAndApplyDormancy } from '@/modules/relationships/services/lifecycle.service';
 import FriendModel from '@/db/models/Friend';
 import { useTheme } from '@/hooks/useTheme';
 import { useCardGesture } from '@/context/CardGestureContext';

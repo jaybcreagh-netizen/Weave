@@ -41,7 +41,7 @@ import { exportAndShareData, getExportStats } from '../lib/data-export';
 import { importData, getImportPreview } from '../lib/data-import';
 import * as DocumentPicker from 'expo-document-picker';
 import { File } from 'expo-file-system';
-import { generateStressTestData, clearStressTestData, getDataStats } from '../lib/stress-test-seed-data';
+import { generateStressTestData, clearStressTestData, getDataStats } from '@/db/seeds/stress-test-seed-data';
 import { useBackgroundSyncStore, getBackgroundFetchStatusLabel } from '../stores/backgroundSyncStore';
 import type { BackgroundSyncSettings } from '../lib/background-event-sync';
 

@@ -8,7 +8,7 @@ import { Suggestion } from '@/types/suggestions';
 import { calculateCurrentScore } from '@/modules/intelligence';
 import Interaction from '@/db/models/Interaction';
 import InteractionFriend from '@/db/models/InteractionFriend';
-import { filterSuggestionsByTime } from '@/shared/lib/time-aware-filter';
+import { filterSuggestionsByTime } from '@/shared/utils/time-aware-filter';
 import {
   generatePortfolioInsights,
   analyzeArchetypeBalance,

@@ -1,8 +1,8 @@
-import { database } from '../db';
-import FriendModel from '../db/models/Friend';
-import InteractionModel from '../db/models/Interaction';
-import InteractionFriend from '../db/models/InteractionFriend';
-import { Archetype, Tier } from '../components/types';
+import { database } from '@/db';
+import FriendModel from '@/db/models/Friend';
+import InteractionModel from '@/db/models/Interaction';
+import InteractionFriend from '@/db/models/InteractionFriend';
+import { Archetype, Tier } from '@/components/types';
 
 const ARCHETYPES: Archetype[] = [
   'Emperor',

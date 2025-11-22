@@ -13,7 +13,7 @@ import { database } from '@/db';
 import { Q } from '@nozbe/watermelondb';
 import InteractionFriend from '@/db/models/InteractionFriend';
 import FriendModel from '@/db/models/Friend';
-import { getCategoryMetadata } from '@/shared/lib/interaction-categories';
+import { getCategoryMetadata } from '@/shared/constants/interaction-categories';
 
 export default function GlobalCalendar() {
   const router = useRouter();
