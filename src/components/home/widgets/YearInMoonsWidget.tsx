@@ -16,7 +16,7 @@ import {
   getYearStats,
   getMonthName,
   MonthMoonData,
-} from '@/shared/lib/year-in-moons-data';
+} from '@/modules/reflection';
 
 const WIDGET_CONFIG: HomeWidgetConfig = {
   id: 'year-in-moons',

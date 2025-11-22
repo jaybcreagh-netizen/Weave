@@ -9,7 +9,7 @@ import { type StructuredReflection } from '../stores/interactionStore';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { analyzeText, generateContextualPrompt, calculateReflectionQuality } from '@/modules/reflection';
 import { STORY_CHIPS as ALL_STORY_CHIPS } from '@/modules/reflection';
-import { generatePatternInsights, type PatternInsight } from '../lib/adaptive-chips';
+import { generatePatternInsights, type PatternInsight } from '@/modules/reflection';
 
 interface ContextualReflectionInputProps {
   category: InteractionCategory;

@@ -14,7 +14,7 @@ import { database } from '@/db';
 import { Q } from '@nozbe/watermelondb';
 import FriendModel from '@/db/models/Friend';
 import InteractionModel from '@/db/models/Interaction';
-import { getYearMoonData, getYearStats } from '@/shared/lib/year-in-moons-data';
+import { getYearMoonData, getYearStats } from '@/modules/reflection';
 import { usePortfolio } from '@/modules/insights';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { TrendingUp, TrendingDown, Minus, X } from 'lucide-react-native';

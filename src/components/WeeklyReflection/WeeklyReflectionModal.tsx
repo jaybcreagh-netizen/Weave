@@ -17,7 +17,7 @@ import { GratitudePrompt } from './GratitudePrompt';
 import { CalendarEventsStep } from './CalendarEventsStep';
 import { database } from '@/db';
 import WeeklyReflection from '@/db/models/WeeklyReflection';
-import { batchLogCalendarEvents } from '@/shared/lib/weekly-event-review';
+import { batchLogCalendarEvents } from '@/modules/reflection';
 import { ScannedEvent } from '@/modules/interactions';
 import * as Haptics from 'expo-haptics';
 

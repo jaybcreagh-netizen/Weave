@@ -4,7 +4,7 @@ import Animated, { FadeIn } from 'react-native-reanimated';
 import { getChipsForType, getChipTypeLabel, type StoryChip, type ChipType } from '@/modules/reflection';
 import { type InteractionCategory, type Archetype, type Vibe, type Tier } from './types';
 import { useTheme } from '@/shared/hooks/useTheme';
-import { getChipFrequencyScores, getCustomChipsAsStoryChips } from '../lib/adaptive-chips';
+import { getChipFrequencyScores, getCustomChipsAsStoryChips } from '@/modules/reflection';
 
 interface ReflectionStoryChipsProps {
   chipType: ChipType;

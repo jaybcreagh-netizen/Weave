@@ -3,7 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, Modal, ScrollView 
 import { X } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { type ChipType, getChipTypeLabel } from '@/modules/reflection';
-import { createNewCustomChip } from '../lib/adaptive-chips';
+import { createNewCustomChip } from '@/modules/reflection';
 
 interface CustomChipModalProps {
   isOpen: boolean;
