@@ -1,8 +1,8 @@
-import { database } from '../db';
-import FriendModel from '../db/models/Friend';
-import InteractionModel from '../db/models/Interaction';
-import InteractionFriend from '../db/models/InteractionFriend';
-import UserProgress from '../db/models/UserProgress';
+import { database } from '@/db';
+import FriendModel from '@/db/models/Friend';
+import InteractionModel from '@/db/models/Interaction';
+import InteractionFriend from '@/db/models/InteractionFriend';
+import UserProgress from '@/db/models/UserProgress';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform, Alert, Share } from 'react-native';
 import { Paths, File } from 'expo-file-system';

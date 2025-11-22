@@ -11,7 +11,7 @@ import {
   getUpgradeMessage,
   TIER_LIMITS,
   type SubscriptionTier,
-} from '@/shared/lib/subscription-tiers';
+} from '@/modules/auth';
 import { Alert } from 'react-native';
 import { router } from 'expo-router';
 

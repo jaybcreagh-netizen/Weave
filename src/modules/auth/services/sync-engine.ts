@@ -4,7 +4,7 @@
  */
 
 import { database } from '@/db';
-import { supabase } from './supabase';
+import { supabase } from './supabase.service';
 import { Q } from '@nozbe/watermelondb';
 import type { Model } from '@nozbe/watermelondb';
 

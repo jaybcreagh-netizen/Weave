@@ -1,8 +1,8 @@
-import { database } from '../db';
-import FriendModel from '../db/models/Friend';
-import InteractionModel from '../db/models/Interaction';
-import InteractionFriend from '../db/models/InteractionFriend';
-import UserProgress from '../db/models/UserProgress';
+import { database } from '@/db';
+import FriendModel from '@/db/models/Friend';
+import InteractionModel from '@/db/models/Interaction';
+import InteractionFriend from '@/db/models/InteractionFriend';
+import UserProgress from '@/db/models/UserProgress';
 import { Q } from '@nozbe/watermelondb';
 
 interface ExportData {
