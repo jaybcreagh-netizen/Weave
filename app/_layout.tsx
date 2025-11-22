@@ -25,14 +25,14 @@ import { useTutorialStore } from '@/stores/tutorialStore';
 import {
   initializeNotifications,
   requestNotificationPermissions,
-} from '../src/lib/notification-manager-enhanced';
+} from '@/modules/notifications';
 import {
   setupNotificationResponseListener,
   handleNotificationOnLaunch,
-} from '../src/lib/notification-response-handler';
+} from '@/modules/notifications';
 import {
   configureNotificationHandler,
-} from '../src/lib/event-notifications';
+} from '@/modules/notifications';
 import { useBackgroundSyncStore } from '@/modules/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
@@ -215,7 +215,7 @@ export default Sentry.wrap(function RootLayout() {
 
       // Trigger smart notification evaluation when app comes to foreground
       // This runs async in the background without blocking the UI
-      import('../src/lib/smart-notification-scheduler').then(({ evaluateAndScheduleSmartNotifications }) => {
+      import('@/modules/notifications').then(({ evaluateAndScheduleSmartNotifications }) => {
         evaluateAndScheduleSmartNotifications().catch((error) => {
           console.error('[App] Error evaluating smart notifications on foreground:', error);
         });

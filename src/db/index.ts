@@ -21,6 +21,9 @@ import CustomChip from './models/CustomChip';
 import ChipUsage from './models/ChipUsage';
 import InteractionOutcome from './models/InteractionOutcome';
 import EventSuggestionFeedback from './models/EventSuggestionFeedback';
+import SocialSeasonLog from './models/SocialSeasonLog';
+import SocialBatteryLog from './models/SocialBatteryLog';
+import JournalEntryFriend from './models/JournalEntryFriend';
 
 const adapter = new SQLiteAdapter({
   schema,
@@ -55,6 +58,9 @@ export const database = new Database({
     ChipUsage,
     InteractionOutcome,
     EventSuggestionFeedback,
+    SocialSeasonLog,
+    SocialBatteryLog,
+    JournalEntryFriend,
   ],
 });
 

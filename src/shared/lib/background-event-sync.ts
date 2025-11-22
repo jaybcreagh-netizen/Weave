@@ -5,7 +5,7 @@ import { getCalendarSettings } from './calendar-service';
 import { database } from '../db';
 import SuggestionEvent from '../db/models/SuggestionEvent';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { scheduleEventSuggestionNotification } from './event-notifications';
+import { scheduleEventSuggestionNotification } from '@/modules/notifications';
 
 // Task identifier
 const BACKGROUND_EVENT_SYNC_TASK = 'BACKGROUND_EVENT_SYNC';

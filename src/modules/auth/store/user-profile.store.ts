@@ -1,12 +1,20 @@
 import { create } from 'zustand';
 import { database, initializeUserProfile } from '@/db';
-import UserProfile, { SocialSeason, BatteryHistoryEntry, SeasonHistoryEntry } from '@/db/models/UserProfile';
+import UserProfile, { SocialSeason } from '@/db/models/UserProfile';
+import SocialSeasonLog from '@/db/models/SocialSeasonLog';
+import SocialBatteryLog from '@/db/models/SocialBatteryLog';
 // Removed service imports as logic is now inline
+
+import { Q } from '@nozbe/watermelondb';
 
 interface UserProfileStore {
   // State
   profile: UserProfile | null;
   isLoading: boolean;
+  batteryStats: {
+    average: number | null;
+    trend: 'rising' | 'falling' | 'stable' | null;
+  };
 
   // Observables
   observeProfile: () => void;
@@ -17,6 +25,7 @@ interface UserProfileStore {
   // Social Battery Actions
   submitBatteryCheckin: (value: number, note?: string, customTimestamp?: number) => Promise<void>;
   updateBatteryPreferences: (enabled: boolean, time?: string) => Promise<void>;
+  refreshBatteryStats: () => Promise<void>;
 
   // Profile Update
   updateProfile: (updates: Partial<UserProfile>) => Promise<void>;
@@ -30,6 +39,10 @@ interface UserProfileStore {
 export const useUserProfileStore = create<UserProfileStore>((set, get) => ({
   profile: null,
   isLoading: true,
+  batteryStats: {
+    average: null,
+    trend: null,
+  },
 
   observeProfile: () => {
     // Initialize profile if it doesn't exist
@@ -45,6 +58,8 @@ export const useUserProfileStore = create<UserProfileStore>((set, get) => ({
           profile: profiles[0] || null,
           isLoading: false
         });
+        // Refresh stats when profile loads
+        get().refreshBatteryStats();
       });
 
     // Return cleanup function (though Zustand doesn't use it directly)
@@ -55,36 +70,42 @@ export const useUserProfileStore = create<UserProfileStore>((set, get) => ({
     const { profile } = get();
     if (!profile) return;
 
-    await database.write(async () => {
-      await profile.update(p => {
-        const now = Date.now();
+    const now = Date.now();
+    const oldSeason = profile.currentSocialSeason;
 
-        // Update current season
-        const oldSeason = p.currentSocialSeason;
+    await database.write(async () => {
+      // Update user profile
+      await profile.update(p => {
         p.currentSocialSeason = season;
         p.seasonLastCalculated = now;
+      });
 
-        // Update season history
-        const history: SeasonHistoryEntry[] = profile.seasonHistory || [];
+      // Update social season logs
+      const logsCollection = database.get<SocialSeasonLog>('social_season_logs');
 
-        // Close previous season if it exists and is different
-        if (oldSeason && oldSeason !== season && history.length > 0) {
-          const lastEntry = history[history.length - 1];
-          if (!lastEntry.endDate) {
-            lastEntry.endDate = now;
-          }
-        }
+      // Close previous season if needed
+      if (oldSeason && oldSeason !== season) {
+        const openLogs = await logsCollection.query(
+          Q.where('user_id', profile.id),
+          Q.where('season', oldSeason),
+          Q.where('end_date', null)
+        ).fetch();
 
-        // Add new season entry if it's different from the last one
-        if (!oldSeason || oldSeason !== season) {
-          history.push({
-            season,
-            startDate: now,
+        for (const log of openLogs) {
+          await log.update(l => {
+            l.endDate = now;
           });
         }
+      }
 
-        p.seasonHistoryRaw = JSON.stringify(history);
-      });
+      // Create new log entry
+      if (!oldSeason || oldSeason !== season) {
+         await logsCollection.create(log => {
+           log.userId = profile.id;
+           log.season = season;
+           log.startDate = now;
+         });
+      }
     });
   },
 
@@ -93,52 +114,30 @@ export const useUserProfileStore = create<UserProfileStore>((set, get) => ({
     if (!profile) return;
 
     await database.write(async () => {
-      await profile.update(p => {
-        const now = Date.now();
-        const timestamp = customTimestamp || now;
+      const now = Date.now();
+      const timestamp = customTimestamp || now;
 
+      await profile.update(p => {
         // Only update current battery level if adding a check-in for today
         if (!customTimestamp || timestamp >= now - 24 * 60 * 60 * 1000) {
           p.socialBatteryCurrent = value;
           p.socialBatteryLastCheckin = timestamp;
         }
+      });
 
-        // Add to battery history
-        const history: BatteryHistoryEntry[] = profile.socialBatteryHistory || [];
-
-        // Check if there's already a check-in for this date (same calendar day)
-        const targetDate = new Date(timestamp);
-        targetDate.setHours(0, 0, 0, 0);
-        const targetDayStart = targetDate.getTime();
-        const targetDayEnd = targetDayStart + 24 * 60 * 60 * 1000;
-
-        // Remove any existing check-in for this day
-        const filteredHistory = history.filter(entry => {
-          return entry.timestamp < targetDayStart || entry.timestamp >= targetDayEnd;
-        });
-
-        // Add new check-in
-        filteredHistory.push({
-          value,
-          timestamp,
-          note,
-        });
-
-        // Sort by timestamp
-        filteredHistory.sort((a, b) => a.timestamp - b.timestamp);
-
-        // Keep only last 90 days of history (for performance)
-        const cutoff = now - 90 * 24 * 60 * 60 * 1000;
-        const recentHistory = filteredHistory.filter(entry => entry.timestamp >= cutoff);
-
-        p.socialBatteryHistoryRaw = JSON.stringify(recentHistory);
+      // Add to battery logs
+      const logsCollection = database.get<SocialBatteryLog>('social_battery_logs');
+      await logsCollection.create(log => {
+        log.userId = profile.id;
+        log.value = value;
+        log.timestamp = timestamp;
       });
     });
 
     // Trigger smart notification evaluation after battery check-in
     // This is a good time since user is engaged and we have fresh battery data
     try {
-      const { evaluateAndScheduleSmartNotifications } = await import('@/shared/lib/smart-notification-scheduler');
+      const { evaluateAndScheduleSmartNotifications } = await import('@/modules/notifications');
       await evaluateAndScheduleSmartNotifications();
     } catch (error) {
       console.error('Error evaluating smart notifications after battery check-in:', error);
@@ -159,7 +158,7 @@ export const useUserProfileStore = create<UserProfileStore>((set, get) => ({
     });
 
     // Update notification schedule
-    const { updateBatteryNotificationFromProfile } = await import('@/shared/lib/notification-manager-enhanced');
+    const { updateBatteryNotificationFromProfile } = await import('@/modules/notifications');
     await updateBatteryNotificationFromProfile();
   },
 
@@ -179,38 +178,56 @@ export const useUserProfileStore = create<UserProfileStore>((set, get) => ({
     return profile?.currentSocialSeason || null;
   },
 
-  getRecentBatteryAverage: (days: number = 7) => {
+  refreshBatteryStats: async () => {
     const { profile } = get();
-    if (!profile) return null;
-    // Calculate locally since the service function was removed/refactored
-    const history = profile.socialBatteryHistory;
-    if (!history || history.length === 0) return null;
+    if (!profile) return;
 
-    const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
-    const recentEntries = history.filter(e => e.timestamp >= cutoff);
+    try {
+      const logsCollection = database.get<SocialBatteryLog>('social_battery_logs');
+      const cutoff = Date.now() - 90 * 24 * 60 * 60 * 1000; // 90 days history
 
-    if (recentEntries.length === 0) return null;
-    const sum = recentEntries.reduce((acc, e) => acc + e.value, 0);
-    return sum / recentEntries.length;
+      const logs = await logsCollection.query(
+        Q.where('user_id', profile.id),
+        Q.where('timestamp', Q.gte(cutoff)),
+        Q.sortBy('timestamp', Q.asc)
+      ).fetch();
+
+      // Calculate Average (last 7 days)
+      const sevenDayCutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+      const recentLogs = logs.filter(l => l.timestamp >= sevenDayCutoff);
+      let average = null;
+      if (recentLogs.length > 0) {
+        const sum = recentLogs.reduce((acc, log) => acc + log.value, 0);
+        average = sum / recentLogs.length;
+      }
+
+      // Calculate Trend
+      let trend: 'rising' | 'falling' | 'stable' | null = 'stable';
+      if (logs.length >= 6) {
+        const recent = logs.slice(-6);
+        const currentWindow = recent.slice(-3);
+        const previousWindow = recent.slice(0, 3);
+
+        const currentAvg = currentWindow.reduce((sum, e) => sum + e.value, 0) / 3;
+        const previousAvg = previousWindow.reduce((sum, e) => sum + e.value, 0) / 3;
+
+        if (currentAvg > previousAvg + 0.5) trend = 'rising';
+        else if (currentAvg < previousAvg - 0.5) trend = 'falling';
+      } else {
+        trend = null;
+      }
+
+      set({ batteryStats: { average, trend } });
+    } catch (error) {
+      console.error('Failed to refresh battery stats:', error);
+    }
+  },
+
+  getRecentBatteryAverage: (days: number = 7) => {
+    return get().batteryStats.average;
   },
 
   getBatteryTrend: () => {
-    const { profile } = get();
-    if (!profile) return null;
-    // Calculate locally - restore original moving average logic
-    const history = profile.socialBatteryHistory;
-    if (!history || history.length < 6) return 'stable'; // Need enough data for 3-day comparison
-
-    // Get last 3 entries and previous 3 entries
-    const recent = history.slice(-6);
-    const currentWindow = recent.slice(-3);
-    const previousWindow = recent.slice(0, 3);
-
-    const currentAvg = currentWindow.reduce((sum, e) => sum + e.value, 0) / 3;
-    const previousAvg = previousWindow.reduce((sum, e) => sum + e.value, 0) / 3;
-
-    if (currentAvg > previousAvg + 0.5) return 'rising';
-    if (currentAvg < previousAvg - 0.5) return 'falling';
-    return 'stable';
+    return get().batteryStats.trend;
   },
 }));

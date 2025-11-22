@@ -21,12 +21,10 @@ export default class UserProfile extends Model {
   // Social Season State
   @text('current_social_season') currentSocialSeason?: SocialSeason;
   @field('season_last_calculated') seasonLastCalculated?: number;
-  @text('season_history') seasonHistoryRaw?: string; // JSON string
 
   // Social Battery
   @field('social_battery_current') socialBatteryCurrent?: number; // 1-5
   @field('social_battery_last_checkin') socialBatteryLastCheckin?: number;
-  @text('social_battery_history') socialBatteryHistoryRaw?: string; // JSON string
 
   // Preferences
   @field('battery_checkin_enabled') batteryCheckinEnabled?: boolean;
@@ -40,24 +38,5 @@ export default class UserProfile extends Model {
   // Metadata
   @readonly @date('created_at') createdAt!: Date;
   @date('updated_at') updatedAt!: Date;
-
-  // Computed properties for JSON parsing
-  get seasonHistory(): SeasonHistoryEntry[] {
-    if (!this.seasonHistoryRaw) return [];
-    try {
-      return JSON.parse(this.seasonHistoryRaw);
-    } catch {
-      return [];
-    }
-  }
-
-  get socialBatteryHistory(): BatteryHistoryEntry[] {
-    if (!this.socialBatteryHistoryRaw) return [];
-    try {
-      return JSON.parse(this.socialBatteryHistoryRaw);
-    } catch {
-      return [];
-    }
-  }
 
 }

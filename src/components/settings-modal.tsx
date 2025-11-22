@@ -25,12 +25,12 @@ import {
   cancelWeeklyReflection,
   scheduleAllEventReminders,
   cancelAllNotifications,
-} from '../lib/notification-manager-enhanced';
+} from '@/modules/notifications';
 import {
   updateNotificationPreferences,
   getStoredNotificationPreferences,
   type NotificationPreferences,
-} from '../lib/smart-notification-scheduler';
+} from '@/modules/notifications';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { clearDatabase } from '../db';
 import TrophyCabinetModal from './TrophyCabinetModal';

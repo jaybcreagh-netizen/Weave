@@ -19,6 +19,7 @@ import { useTheme } from '@/shared/hooks/useTheme';
 import { database } from '@/db';
 import JournalEntry from '@/db/models/JournalEntry';
 import FriendModel from '@/db/models/Friend';
+import JournalEntryFriend from '@/db/models/JournalEntryFriend';
 import { Q } from '@nozbe/watermelondb';
 import { STORY_CHIPS } from '@/modules/reflection';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -53,8 +54,17 @@ export function JournalEntryModal({ isOpen, onClose, entry, onSave }: JournalEnt
         setTitle(entry.title || '');
         setContent(entry.content);
         setEntryDate(new Date(entry.entryDate));
-        setSelectedFriendIds(new Set(entry.friendIds));
         setSelectedChips(new Set(entry.storyChips.map(chip => chip.chipId)));
+
+        // Load linked friends
+        database.get<JournalEntryFriend>('journal_entry_friends')
+          .query(Q.where('journal_entry_id', entry.id))
+          .fetch()
+          .then(links => {
+             setSelectedFriendIds(new Set(links.map(link => link.friendId)));
+          })
+          .catch(console.error);
+
       } else {
         // Reset for new entry
         setTitle('');
@@ -85,25 +95,46 @@ export function JournalEntryModal({ isOpen, onClose, entry, onSave }: JournalEnt
 
     try {
       await database.write(async () => {
-        if (entry) {
+        let journalEntry = entry;
+
+        if (journalEntry) {
           // Update existing entry
-          await entry.update(journalEntry => {
-            journalEntry.title = title.trim() || undefined;
-            journalEntry.content = content.trim();
-            journalEntry.entryDate = entryDate.getTime();
-            journalEntry.friendIds = Array.from(selectedFriendIds);
-            journalEntry.storyChips = Array.from(selectedChips).map(chipId => ({ chipId }));
-            journalEntry.updatedAt = new Date();
+          await journalEntry.update(r => {
+            r.title = title.trim() || undefined;
+            r.content = content.trim();
+            r.entryDate = entryDate.getTime();
+            r.storyChips = Array.from(selectedChips).map(chipId => ({ chipId }));
+            r.updatedAt = new Date();
           });
+
+          // Update friends - remove old links
+          const links = await database.get<JournalEntryFriend>('journal_entry_friends')
+             .query(Q.where('journal_entry_id', journalEntry.id))
+             .fetch();
+
+          for (const link of links) {
+             await link.destroyPermanently();
+          }
+
         } else {
           // Create new entry
-          await database.get<JournalEntry>('journal_entries').create(journalEntry => {
-            journalEntry.title = title.trim() || undefined;
-            journalEntry.content = content.trim();
-            journalEntry.entryDate = entryDate.getTime();
-            journalEntry.friendIds = Array.from(selectedFriendIds);
-            journalEntry.storyChips = Array.from(selectedChips).map(chipId => ({ chipId }));
+          journalEntry = await database.get<JournalEntry>('journal_entries').create(r => {
+            r.title = title.trim() || undefined;
+            r.content = content.trim();
+            r.entryDate = entryDate.getTime();
+            r.storyChips = Array.from(selectedChips).map(chipId => ({ chipId }));
           });
+        }
+
+        // Create new friend links
+        if (journalEntry) {
+           const friendsCollection = database.get<JournalEntryFriend>('journal_entry_friends');
+           for (const friendId of Array.from(selectedFriendIds)) {
+             await friendsCollection.create(link => {
+               link.journalEntryId = journalEntry!.id;
+               link.friendId = friendId;
+             });
+           }
         }
       });
 

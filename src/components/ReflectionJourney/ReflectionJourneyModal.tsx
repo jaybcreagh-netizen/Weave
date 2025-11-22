@@ -19,7 +19,7 @@ import { STORY_CHIPS } from '@/modules/reflection';
 import { ReflectionCalendarView } from './ReflectionCalendarView';
 import { ReflectionDetailModal } from './ReflectionDetailModal';
 import { JournalEntryModal } from '../Journal/JournalEntryModal';
-import { checkAndScheduleMemoryNudges } from '@/shared/lib/notification-manager-enhanced';
+import { checkAndScheduleMemoryNudges } from '@/modules/notifications';
 import FriendModel from '@/db/models/Friend';
 import * as Haptics from 'expo-haptics';
 
