@@ -3,13 +3,11 @@ import { Q } from '@nozbe/watermelondb';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useFriends } from '@/hooks/useFriends';
 import { database } from '@/db';
-import { generateSuggestion } from '@/modules/interactions';
-import { getDismissedSuggestions, dismissSuggestion as dismissSuggestionStorage } from '@/shared/lib/suggestion-storage';
+import { generateSuggestion, SuggestionTrackerService, SuggestionStorageService } from '@/modules/interactions';
 import { Suggestion } from '@/types/suggestions';
 import { calculateCurrentScore } from '@/modules/intelligence';
 import Interaction from '@/db/models/Interaction';
 import InteractionFriend from '@/db/models/InteractionFriend';
-import { trackSuggestionShown, trackSuggestionDismissed } from '@/shared/lib/suggestion-tracker';
 import { filterSuggestionsByTime } from '@/shared/lib/time-aware-filter';
 import {
   generatePortfolioInsights,
@@ -80,7 +78,7 @@ function selectDiverseSuggestions(suggestions: Suggestion[], maxCount: number): 
 }
 
 async function fetchSuggestions(friends: any[]) {
-  const dismissedMap = await getDismissedSuggestions();
+  const dismissedMap = await SuggestionStorageService.getDismissedSuggestions();
   const allSuggestions: Suggestion[] = [];
   const friendStats: PortfolioAnalysisStats['friends'] = [];
 
@@ -278,7 +276,7 @@ export function useSuggestions() {
           }
 
           // Track this suggestion as shown
-          await trackSuggestionShown(suggestion, {
+          await SuggestionTrackerService.trackSuggestionShown(suggestion, {
             friendScore: currentScore,
             daysSinceLastInteraction: Math.round(daysSinceLastInteraction),
           });
@@ -295,10 +293,10 @@ export function useSuggestions() {
 
   const dismissSuggestion = async (id: string, cooldownDays: number) => {
     // Track the dismissal
-    await trackSuggestionDismissed(id);
+    await SuggestionTrackerService.trackSuggestionDismissed(id);
 
     // Store the dismissal
-    await dismissSuggestionStorage(id, cooldownDays);
+    await SuggestionStorageService.dismissSuggestion(id, cooldownDays);
 
     invalidateSuggestions();
   };

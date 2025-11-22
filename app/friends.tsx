@@ -23,7 +23,7 @@ import { checkAndApplyDormancy } from '@/shared/lib/lifecycle-manager';
 import FriendModel from '@/db/models/Friend';
 import { useTheme } from '@/hooks/useTheme';
 import { useCardGesture } from '@/context/CardGestureContext';
-import { trackSuggestionActed } from '@/shared/lib/suggestion-tracker';
+import { SuggestionTrackerService } from '@/modules/interactions';
 import { IntentionActionSheet } from '@/components/IntentionActionSheet';
 import Intention from '@/db/models/Intention';
 import { tierColors } from '@/shared/constants/constants';
@@ -228,7 +228,7 @@ function DashboardContent() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     // Track that the user acted on this suggestion
-    await trackSuggestionActed(suggestion.id);
+    await SuggestionTrackerService.trackSuggestionActed(suggestion.id);
 
     // Portfolio insights don't have a specific friend - just close the sheet
     if (suggestion.category === 'portfolio') {

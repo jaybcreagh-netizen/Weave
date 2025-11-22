@@ -16,6 +16,8 @@ export * from './services/suggestion-engine.service';
 export * as suggestionEngine from './services/suggestion-engine.service';
 export * from './services/event-suggestion-learning.service';
 export * from './services/event-scanner';
+export * as SuggestionTrackerService from './services/suggestion-tracker.service';
+export * as SuggestionStorageService from './services/suggestion-storage.service';
 
 // Stores
 export * from './store';

@@ -1,6 +1,6 @@
-import { database } from '../db';
-import SuggestionEvent from '../db/models/SuggestionEvent';
-import { Suggestion } from '../types/suggestions';
+import { database } from '@/db';
+import SuggestionEvent from '@/db/models/SuggestionEvent';
+import { Suggestion } from '@/types/suggestions';
 import { Q } from '@nozbe/watermelondb';
 
 /**

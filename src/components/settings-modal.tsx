@@ -9,7 +9,7 @@ import { BlurView } from 'expo-blur';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useUIStore } from '../stores/uiStore';
 import { useUserProfileStore } from '../stores/userProfileStore';
-import { getSuggestionAnalytics } from '../lib/suggestion-tracker';
+import { SuggestionTrackerService } from '@/modules/interactions';
 import {
   getCalendarSettings,
   toggleCalendarIntegration,
@@ -375,7 +375,7 @@ export function SettingsModal({
 
   const handleViewAnalytics = async () => {
     try {
-      const analytics = await getSuggestionAnalytics();
+      const analytics = await SuggestionTrackerService.getSuggestionAnalytics();
 
       const typeBreakdown = Object.entries(analytics.byType)
         .map(([type, stats]) => `${type}: ${stats.acted}/${stats.shown} (${stats.conversionRate}%)`)
