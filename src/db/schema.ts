@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb'
 
 export default appSchema({
-  version: 34, // UPDATED: Added oracle_insights and oracle_usage tables
+  version: 35, // UPDATED: Refactored user_profile history and journal_entries relationships
   tables: [
     tableSchema({
       name: 'oracle_insights',
@@ -65,7 +65,7 @@ export default appSchema({
     tableSchema({
       name: 'interactions',
       columns: [
-        { name: 'interaction_date', type: 'number' },
+        { name: 'interaction_date', type: 'number', isIndexed: true },
         { name: 'interaction_type', type: 'string' },
         { name: 'duration', type: 'string', isOptional: true },
         { name: 'vibe', type: 'string', isOptional: true },
@@ -73,7 +73,7 @@ export default appSchema({
         { name: 'created_at', type: 'number' },
         { name: 'updated_at', type: 'number' },
         { name: 'activity', type: 'string' },
-        { name: 'status', type: 'string' }, // planned, pending_confirm, completed, cancelled, missed
+        { name: 'status', type: 'string', isIndexed: true }, // planned, pending_confirm, completed, cancelled, missed
         { name: 'mode', type: 'string' },
         // NEW: Simplified interaction category system
         { name: 'interaction_category', type: 'string', isOptional: true },
@@ -163,12 +163,10 @@ export default appSchema({
         // Social Season State
         { name: 'current_social_season', type: 'string', isOptional: true }, // 'resting' | 'flowing' | 'blooming'
         { name: 'season_last_calculated', type: 'number', isOptional: true },
-        { name: 'season_history', type: 'string', isOptional: true }, // JSON: Array<{season, startDate, endDate}>
 
         // Social Battery
         { name: 'social_battery_current', type: 'number', isOptional: true }, // 1-5 scale
         { name: 'social_battery_last_checkin', type: 'number', isOptional: true },
-        { name: 'social_battery_history', type: 'string', isOptional: true }, // JSON: Array<{value, timestamp}>
 
         // Preferences
         { name: 'battery_checkin_enabled', type: 'boolean', isOptional: true },
@@ -338,7 +336,6 @@ export default appSchema({
         { name: 'title', type: 'string', isOptional: true },
         { name: 'content', type: 'string' }, // Main journal text
         { name: 'story_chips', type: 'string', isOptional: true }, // JSON: Array of story chip selections
-        { name: 'friend_ids', type: 'string', isOptional: true }, // JSON: Array of friend IDs tagged in this entry
         { name: 'created_at', type: 'number' },
         { name: 'updated_at', type: 'number' },
         // NEW v31: Accounts and sync infrastructure
@@ -346,6 +343,30 @@ export default appSchema({
         { name: 'synced_at', type: 'number', isOptional: true },
         { name: 'sync_status', type: 'string', isOptional: true },
         { name: 'server_updated_at', type: 'number', isOptional: true },
+      ]
+    }),
+    tableSchema({
+      name: 'journal_entry_friends',
+      columns: [
+        { name: 'journal_entry_id', type: 'string', isIndexed: true },
+        { name: 'friend_id', type: 'string', isIndexed: true },
+      ]
+    }),
+    tableSchema({
+      name: 'social_season_logs',
+      columns: [
+        { name: 'user_id', type: 'string' },
+        { name: 'season', type: 'string' },
+        { name: 'start_date', type: 'number' },
+        { name: 'end_date', type: 'number' },
+      ]
+    }),
+    tableSchema({
+      name: 'social_battery_logs',
+      columns: [
+        { name: 'user_id', type: 'string' },
+        { name: 'value', type: 'number' },
+        { name: 'timestamp', type: 'number' },
       ]
     }),
     tableSchema({

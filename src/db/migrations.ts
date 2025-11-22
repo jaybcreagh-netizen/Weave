@@ -703,6 +703,49 @@ export default schemaMigrations({
         }),
       ],
     },
+    {
+      // Migration from schema v33 to v34 (skipped in original file structure but adding logic for clarity)
+      // The schema file says v34, so we assume v34 migration logic was already applied or implicit.
+      // However, we see a block with toVersion: 34 earlier in the file.
+      // We will just add v35 here.
+
+      // Migration from schema v34 to v35
+      // Refactor history logs and indexing optimization
+      toVersion: 35,
+      steps: [
+        createTable({
+          name: 'social_season_logs',
+          columns: [
+            { name: 'user_id', type: 'string' },
+            { name: 'season', type: 'string' },
+            { name: 'start_date', type: 'number' },
+            { name: 'end_date', type: 'number' },
+          ],
+        }),
+        createTable({
+          name: 'social_battery_logs',
+          columns: [
+            { name: 'user_id', type: 'string' },
+            { name: 'value', type: 'number' },
+            { name: 'timestamp', type: 'number' },
+          ],
+        }),
+        createTable({
+          name: 'journal_entry_friends',
+          columns: [
+            { name: 'journal_entry_id', type: 'string', isIndexed: true },
+            { name: 'friend_id', type: 'string', isIndexed: true },
+          ],
+        }),
+        // Add indexes to interactions table manually since addColumns isn't needed
+        unsafeExecuteSql(
+          `CREATE INDEX IF NOT EXISTS index_interactions_status ON interactions (status);`
+        ),
+        unsafeExecuteSql(
+          `CREATE INDEX IF NOT EXISTS index_interactions_interaction_date ON interactions (interaction_date);`
+        ),
+      ],
+    },
   ],
 });
 
