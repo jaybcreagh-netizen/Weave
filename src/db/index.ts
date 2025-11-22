@@ -1,3 +1,4 @@
+import 'react-native-get-random-values';
 import { Database } from '@nozbe/watermelondb';
 import SQLiteAdapter from '@nozbe/watermelondb/adapters/sqlite';
 import schema from './schema';
@@ -24,6 +25,12 @@ import EventSuggestionFeedback from './models/EventSuggestionFeedback';
 import SocialSeasonLog from './models/SocialSeasonLog';
 import SocialBatteryLog from './models/SocialBatteryLog';
 import JournalEntryFriend from './models/JournalEntryFriend';
+
+import { setGenerator } from '@nozbe/watermelondb/utils/common/randomId';
+import { v4 as uuidv4 } from 'uuid';
+
+// Configure WatermelonDB to use UUIDs for new records
+setGenerator(() => uuidv4());
 
 const adapter = new SQLiteAdapter({
   schema,
@@ -73,26 +80,56 @@ export const seedDatabase = async () => {
   }
 
   await database.write(async () => {
-    await database.get('friends').create(friend => {
+    await database.get<Friend>('friends').create(friend => {
       friend.name = 'Alex Chen';
-      friend.status = 'Green';
-      friend.statusText = 'Coffee date last week';
+      friend.dunbarTier = 'InnerCircle';
       friend.archetype = 'Magician';
-      friend.tier = 'InnerCircle';
+      friend.weaveScore = 50;
+      friend.lastUpdated = new Date();
+      friend.resilience = 1.0;
+      friend.ratedWeavesCount = 0;
+      friend.momentumScore = 0;
+      friend.momentumLastUpdated = new Date();
+      friend.isDormant = false;
+      friend.outcomeCount = 0;
+      friend.initiationRatio = 0.5;
+      friend.consecutiveUserInitiations = 0;
+      friend.totalUserInitiations = 0;
+      friend.totalFriendInitiations = 0;
     });
-    await database.get('friends').create(friend => {
-        friend.name = 'Sarah Martinez';
-        friend.status = 'Yellow';
-        friend.statusText = 'Text exchange two weeks ago';
-        friend.archetype = 'Empress';
-        friend.tier = 'CloseFriends';
+    await database.get<Friend>('friends').create(friend => {
+      friend.name = 'Sarah Martinez';
+      friend.dunbarTier = 'CloseFriends';
+      friend.archetype = 'Empress';
+      friend.weaveScore = 50;
+      friend.lastUpdated = new Date();
+      friend.resilience = 1.0;
+      friend.ratedWeavesCount = 0;
+      friend.momentumScore = 0;
+      friend.momentumLastUpdated = new Date();
+      friend.isDormant = false;
+      friend.outcomeCount = 0;
+      friend.initiationRatio = 0.5;
+      friend.consecutiveUserInitiations = 0;
+      friend.totalUserInitiations = 0;
+      friend.totalFriendInitiations = 0;
     });
-    await database.get('friends').create(friend => {
-        friend.name = 'Jamie Thompson';
-        friend.status = 'Red';
-        friend.statusText = "Haven't connected in months";
-        friend.archetype = 'Hermit';
-        friend.tier = 'Community';
+    await database.get<Friend>('friends').create(friend => {
+      friend.name = 'Jamie Thompson';
+      friend.dunbarTier = 'Community';
+      friend.archetype = 'Hermit';
+      friend.weaveScore = 50;
+      friend.lastUpdated = new Date();
+      friend.resilience = 1.0;
+      friend.ratedWeavesCount = 0;
+      friend.momentumScore = 0;
+      friend.momentumLastUpdated = new Date();
+      friend.isDormant = false;
+      friend.outcomeCount = 0;
+      friend.initiationRatio = 0.5;
+      friend.consecutiveUserInitiations = 0;
+      friend.totalUserInitiations = 0;
+      friend.totalFriendInitiations = 0;
     });
   });
 };
@@ -145,7 +182,7 @@ export const initializeUserProgress = async () => {
 };
 
 export const clearDatabase = async () => {
-    console.log("clearDatabase is a no-op in this new architecture");
+  console.log("clearDatabase is a no-op in this new architecture");
 };
 
 /**
