@@ -11,6 +11,8 @@
 export { processWeaveScoring, calculateCurrentScore, calculateWeightedNetworkHealth } from './services/orchestrator.service';
 export * as orchestrator from './services/orchestrator.service';
 export { calculateInteractionQuality } from './services/quality.service';
+export * from './services/deepening-utils.service';
+export * from './services/season-aware-streak.service';
 
 // Types
 export * from './types';

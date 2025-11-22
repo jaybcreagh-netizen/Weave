@@ -13,6 +13,8 @@ export * from './services/trend.service';
 export * from './services/portfolio.service';
 export * from './services/prediction.service';
 export * from './services/effectiveness.service';
+export * from './services/pattern-detection.service';
+export * from './services/weaving-insights.service';
 
 // Hooks
 export * from './hooks/useEffectiveness';

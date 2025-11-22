@@ -12,14 +12,14 @@
  * - Clean slate when leaving resting season
  */
 
-import { database } from '../db';
+import { database } from '@/db';
 import { Q } from '@nozbe/watermelondb';
 import { differenceInDays, startOfDay } from 'date-fns';
-import Interaction from '../db/models/Interaction';
-import WeeklyReflection from '../db/models/WeeklyReflection';
-import UserProfile from '../db/models/UserProfile';
-import UserProgress from '../db/models/UserProgress';
-import { type SocialSeason } from '../db/models/UserProfile';
+import Interaction from '@/db/models/Interaction';
+import WeeklyReflection from '@/db/models/WeeklyReflection';
+import UserProfile from '@/db/models/UserProfile';
+import UserProgress from '@/db/models/UserProgress';
+import { type SocialSeason } from '@/db/models/UserProfile';
 
 export interface StreakData {
   currentStreak: number;

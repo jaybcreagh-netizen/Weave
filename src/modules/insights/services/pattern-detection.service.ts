@@ -3,15 +3,15 @@
  * Analyzes battery history and weaves to detect meaningful patterns
  */
 
-import { database } from '../db';
-import UserProfile, { BatteryHistoryEntry } from '../db/models/UserProfile';
-import Interaction from '../db/models/Interaction';
-import InteractionFriend from '../db/models/InteractionFriend';
-import FriendModel from '../db/models/Friend';
-import WeeklyReflection from '../db/models/WeeklyReflection';
+import { database } from '@/db';
+import UserProfile, { BatteryHistoryEntry } from '@/db/models/UserProfile';
+import Interaction from '@/db/models/Interaction';
+import InteractionFriend from '@/db/models/InteractionFriend';
+import FriendModel from '@/db/models/Friend';
+import WeeklyReflection from '@/db/models/WeeklyReflection';
 import { Q } from '@nozbe/watermelondb';
 import { calculateInteractionQuality } from '@/modules/intelligence';
-import { STORY_CHIPS, ChipType } from './story-chips';
+import { STORY_CHIPS, ChipType } from '@/modules/reflection';
 
 export interface Pattern {
   id: string;

@@ -1,9 +1,9 @@
 import { startOfWeek, startOfDay } from 'date-fns';
-import { database } from '../db';
+import { database } from '@/db';
 import { Q } from '@nozbe/watermelondb';
-import Interaction from '../db/models/Interaction';
-import InteractionFriend from '../db/models/InteractionFriend';
-import Friend from '../db/models/Friend';
+import Interaction from '@/db/models/Interaction';
+import InteractionFriend from '@/db/models/InteractionFriend';
+import Friend from '@/db/models/Friend';
 
 /**
  * Weaving Insights Generator

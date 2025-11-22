@@ -22,7 +22,7 @@ import { formatPoeticDate, calculateWeaveWarmth, getThreadColors } from '../lib/
 import { modeIcons } from '@/shared/constants/constants';
 import { getCategoryMetadata } from '@/shared/constants/interaction-categories';
 import { type Interaction, type InteractionCategory } from './types';
-import { calculateDeepeningLevel, getDeepeningVisuals } from '../lib/deepening-utils';
+import { calculateDeepeningLevel, getDeepeningVisuals } from '@/modules/intelligence';
 import { usePausableAnimation } from '@/shared/hooks/usePausableAnimation';
 import { useUIStore } from '../stores/uiStore';
 

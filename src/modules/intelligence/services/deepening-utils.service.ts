@@ -1,4 +1,4 @@
-import { type StructuredReflection } from '../components/types';
+import { type StructuredReflection } from '@/components/types';
 
 /**
  * Deepening levels based on how much reflection was added
