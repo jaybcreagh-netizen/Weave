@@ -62,8 +62,11 @@ The codebase is organized into feature modules. Each module contains its own com
 **Shared Code (`src/shared/`):**
 - `components`: Generic UI components (buttons, modals, etc.)
 - `services`: Global services (Analytics, AppState)
-- `lib`: Utilities, constants, helper functions
+- `utils`: Generic utilities, constants, helper functions (formerly `lib`)
 - `types`: Global type definitions
+
+**Deprecated:**
+- `src/lib` is **DELETED**. All generic code is now in `src/shared/`.
 
 ### Database Layer (WatermelonDB)
 
@@ -132,7 +135,9 @@ Each archetype has unique affinity multipliers for interaction types.
 ## Development Practices
 
 ### Working with Modules
-- **Encapsulation**: Modules should only export their public API via `index.ts`. Avoid deep imports into other modules (e.g., `import ... from '@/modules/other/internal/file'`).
+- **Encapsulation**: Modules should only export their public API via `index.ts`. **NEVER** import deeply from another module (e.g., `import ... from '@/modules/other/internal/file'`).
+- **Feature Logic**: All feature logic belongs in `src/modules/`.
+- **Shared Helpers**: Generic helpers belong in `src/shared/`.
 - **Services**: Put business logic in `services/`. Services should be pure functions or stateless classes where possible.
 - **Stores**: Use Zustand for state.
 - **Components**: Module-specific components stay within the module.
