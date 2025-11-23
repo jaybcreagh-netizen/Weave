@@ -1,6 +1,6 @@
 import { Database } from '@nozbe/watermelondb';
 import FriendModel from '@/db/models/Friend';
-import { type InteractionFormData } from '@/stores/interactionStore';
+import { type InteractionFormData } from '@/modules/interactions/types';
 import { type ScoreUpdate, type QualityMetrics } from '../types';
 import { calculateInteractionQuality } from './quality.service';
 import { calculatePointsForWeave } from './scoring.service';

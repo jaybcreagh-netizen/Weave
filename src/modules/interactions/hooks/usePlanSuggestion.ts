@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
-import { database } from '../db';
-import Interaction from '../db/models/Interaction';
-import FriendModel from '../db/models/Friend';
+import { database } from '@/db';
+import Interaction from '@/db/models/Interaction';
+import FriendModel from '@/db/models/Friend';
 import { Q } from '@nozbe/watermelondb';
-import { type InteractionCategory } from '../components/types';
-import { getArchetypePreferredCategory } from '../lib/archetype-content';
+import { type InteractionCategory } from '@/shared/types/common';
+import { getArchetypePreferredCategory } from '@/shared/constants/archetype-content';
 
 export interface PlanSuggestion {
   suggestedCategory?: InteractionCategory;

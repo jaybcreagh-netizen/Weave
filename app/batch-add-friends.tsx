@@ -5,7 +5,7 @@ import * as Contacts from 'expo-contacts';
 import { ArrowLeft, Check, Search } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useRelationshipsStore } from '@/modules/relationships';
-import { useTheme } from '@/hooks/useTheme';
+import { useTheme } from '@/shared/hooks/useTheme';
 import { normalizeContactImageUri } from '@/modules/relationships';
 
 export default function BatchAddFriends() {

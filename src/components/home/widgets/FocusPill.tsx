@@ -10,7 +10,7 @@ import { differenceInDays } from 'date-fns';
 import { Cake, Heart, AlertCircle } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { useRelationshipsStore } from '@/modules/relationships';
-import { useSuggestions } from '@/hooks/useSuggestions';
+import { useSuggestions } from '@/modules/interactions';
 import FriendModel from '@/db/models/Friend';
 import { database } from '@/db';
 import LifeEvent from '@/db/models/LifeEvent';

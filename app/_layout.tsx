@@ -16,10 +16,10 @@ import { LoadingScreen } from '@/components/LoadingScreen';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { EventSuggestionModal } from '@/components/EventSuggestionModal';
 import { useUIStore } from '@/stores/uiStore';
-import { useTheme } from '@/hooks/useTheme';
-import { useActivityKeepAwake } from '@/hooks/useActivityKeepAwake';
+import { useTheme } from '@/shared/hooks/useTheme';
+import { useActivityKeepAwake } from '@/shared/hooks/useActivityKeepAwake';
 import { initializeDataMigrations, initializeUserProfile, initializeUserProgress } from '@/db';
-import { useAppStateChange } from '@/hooks/useAppState';
+import { useAppStateChange } from '@/shared/hooks/useAppState';
 import { useRelationshipsStore } from '@/modules/relationships';
 import { useTutorialStore } from '@/stores/tutorialStore';
 import {

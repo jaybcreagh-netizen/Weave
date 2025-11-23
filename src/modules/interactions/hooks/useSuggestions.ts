@@ -1,10 +1,10 @@
 import { useEffect, useState, useRef } from 'react';
 import { Q } from '@nozbe/watermelondb';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useFriends } from '@/hooks/useFriends';
+import { useFriends } from '@/modules/relationships';
 import { database } from '@/db';
 import { generateSuggestion, SuggestionTrackerService, SuggestionStorageService } from '@/modules/interactions';
-import { Suggestion } from '@/types/suggestions';
+import { Suggestion } from '@/shared/types/common';
 import { calculateCurrentScore } from '@/modules/intelligence';
 import Interaction from '@/db/models/Interaction';
 import InteractionFriend from '@/db/models/InteractionFriend';

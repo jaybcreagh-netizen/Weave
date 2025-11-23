@@ -1,8 +1,14 @@
 // src/modules/auth/index.ts
 
+// Hooks
+export * from './hooks/useFeatureGate';
+
+// Stores
 export * from './store/auth.store';
 export * from './store/user-profile.store';
 export * from './store/sync.store';
+
+// Services
 export * from './services/supabase.service';
 
 export * from './services/sync-engine';

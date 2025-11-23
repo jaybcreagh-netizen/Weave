@@ -8,7 +8,7 @@ import * as Haptics from 'expo-haptics';
 
 import { GlobalYearCalendar } from '@/components/GlobalYearCalendar';
 import { useInteractions } from '@/modules/interactions';
-import { useTheme } from '@/hooks/useTheme';
+import { useTheme } from '@/shared/hooks/useTheme';
 import { database } from '@/db';
 import { Q } from '@nozbe/watermelondb';
 import InteractionFriend from '@/db/models/InteractionFriend';

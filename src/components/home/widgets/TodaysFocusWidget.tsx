@@ -19,7 +19,7 @@ import { Cake, Heart, ChevronDown, ChevronUp, Calendar, CheckCircle2, Sparkles, 
 import { useTheme } from '@/shared/hooks/useTheme';
 import { HomeWidgetBase, HomeWidgetConfig } from '../HomeWidgetBase';
 import { useRelationshipsStore } from '@/modules/relationships';
-import { useSuggestions } from '@/hooks/useSuggestions';
+import { useSuggestions } from '@/modules/interactions';
 import { usePlans } from '@/modules/interactions';
 import { getCategoryMetadata } from '@/shared/constants/interaction-categories';
 import { PlanWizard } from '@/modules/interactions';

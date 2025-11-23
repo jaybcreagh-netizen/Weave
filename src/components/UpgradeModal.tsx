@@ -9,7 +9,7 @@ import { View, Text, TouchableOpacity, ScrollView, Modal } from 'react-native';
 import { Check, X, Crown, Star, Sparkles } from 'lucide-react-native';
 import { useAuthStore } from '@/modules/auth';
 import { TIER_LIMITS, FEATURE_DESCRIPTIONS } from '@/modules/auth';
-import { useTierInfo } from '@/hooks/useFeatureGate';
+import { useTierInfo } from '@/modules/auth';
 
 interface UpgradeModalProps {
   visible: boolean;

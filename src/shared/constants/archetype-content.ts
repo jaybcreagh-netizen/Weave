@@ -1,5 +1,4 @@
-import { Archetype } from '../types/core';
-import { InteractionCategory } from '../types/suggestions';
+import { Archetype, InteractionCategory } from '../types/common';
 
 export const ARCHETYPE_PREFERRED_CATEGORIES: Record<Archetype, InteractionCategory> = {
   'The High Priestess': 'deep-talk',

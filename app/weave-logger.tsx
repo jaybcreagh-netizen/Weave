@@ -14,7 +14,7 @@ import { MoonPhaseSelector } from '@/components/MoonPhaseSelector';
 import { ContextualReflectionInput } from '@/components/ContextualReflectionInput';
 import { format, subDays, isSameDay, startOfDay } from 'date-fns';
 import { type Vibe, type InteractionCategory, type Archetype } from '@/components/types';
-import { useTheme } from '@/hooks/useTheme';
+import { useTheme } from '@/shared/hooks/useTheme';
 import { getAllCategories, type CategoryMetadata } from '@/shared/constants/interaction-categories';
 import { database } from '@/db';
 import FriendModel from '@/db/models/Friend';

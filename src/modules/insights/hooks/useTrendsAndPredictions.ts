@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { usePortfolio } from './usePortfolio';
-import { useFriends } from '@/hooks/useFriends';
+import { useFriends } from '@/modules/relationships';
 import { analyzeTrends, getHistoricalSnapshots, type TrendAnalysis } from '@/modules/insights';
 import { predictFriendDrift, generateProactiveSuggestions, forecastNetworkHealth, type FriendPrediction, type ProactiveSuggestion } from '@/modules/insights';
 import { analyzeInteractionPattern } from '@/modules/insights';

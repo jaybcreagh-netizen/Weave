@@ -6,6 +6,7 @@ export { PlanWizard } from './components/PlanWizard';
 export { useInteractions } from './hooks/useInteractions';
 export { usePlans } from './hooks/usePlans';
 export { usePlanSuggestion } from './hooks/usePlanSuggestion';
+export { useSuggestions } from './hooks/useSuggestions';
 
 // Services
 export * as WeaveLoggingService from './services/weave-logging.service';

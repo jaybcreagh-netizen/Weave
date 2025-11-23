@@ -2,12 +2,12 @@ import React, { useState, useRef } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Dimensions, ScrollView, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Sparkles, Users, Settings } from 'lucide-react-native';
-import { useTheme } from '@/hooks/useTheme';
+import { useTheme } from '@/shared/hooks/useTheme';
 import { SettingsModal } from '@/components/settings-modal';
 import { SocialBatterySheet } from '@/components/home/SocialBatterySheet';
 import BadgeUnlockModal from '@/components/BadgeUnlockModal';
 import { useUserProfileStore } from '@/modules/auth';
-import { useSuggestions } from '@/hooks/useSuggestions';
+import { useSuggestions } from '@/modules/interactions';
 import HomeScreen from '../home';
 import FriendsScreen from '../friends';
 

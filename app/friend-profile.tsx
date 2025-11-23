@@ -14,7 +14,7 @@ import { TimelineItem } from '@/components/TimelineItem';
 import { useRelationshipsStore } from '@/modules/relationships';
 import { useInteractions, usePlans, PlanService } from '@/modules/interactions';
 import { calculateNextConnectionDate } from '@/shared/utils/timeline-utils';
-import { useTheme } from '@/hooks/useTheme';
+import { useTheme } from '@/shared/hooks/useTheme';
 import { type Interaction, type Tier } from '@/components/types';
 import { InteractionDetailModal } from '@/components/interaction-detail-modal';
 import { EditReflectionModal } from '@/components/EditReflectionModal';

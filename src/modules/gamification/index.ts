@@ -6,6 +6,9 @@
  * @public API
  */
 
+// Hooks
+export { useAchievements } from './hooks/useAchievements';
+
 // Services
 export {
   checkAndAwardFriendBadges,

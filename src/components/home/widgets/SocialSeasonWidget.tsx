@@ -8,7 +8,7 @@ import { useRouter } from 'expo-router';
 import { BookOpen, X, Sparkles, BarChart3, Telescope, Lightbulb, Flame, Battery, ChevronDown } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { useUserProfileStore } from '@/stores/userProfileStore';
-import { useFriends } from '@/hooks/useFriends';
+import { useFriends } from '@/modules/relationships';
 import { useInteractions } from '@/modules/interactions';
 import { HomeWidgetBase, HomeWidgetConfig } from '../HomeWidgetBase';
 import {
