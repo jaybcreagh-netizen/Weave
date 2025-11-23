@@ -6,7 +6,7 @@
 
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
-import { useTheme } from '../../../hooks/useTheme';
+import { useTheme } from '@/shared/hooks/useTheme';
 import { Sparkles } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 

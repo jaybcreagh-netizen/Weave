@@ -8,18 +8,17 @@ import React, { useState, useEffect } from 'react';
 import { Modal, View, Text, TouchableOpacity, SafeAreaView, ActivityIndicator } from 'react-native';
 import Animated, { FadeIn, SlideInRight, SlideOutLeft } from 'react-native-reanimated';
 import { X, ChevronLeft } from 'lucide-react-native';
-import { useTheme } from '../../hooks/useTheme';
-import { WeeklySummary, calculateWeeklySummary } from '../../lib/weekly-reflection/weekly-stats';
-import { markReflectionComplete } from '../../lib/notification-manager-enhanced';
+import { useTheme } from '@/shared/hooks/useTheme';
+import { WeeklySummary, calculateWeeklySummary, getTopStoryChipSuggestions, WeekStoryChipSuggestion } from '@/modules/reflection';
+import { markReflectionComplete } from '@/modules/notifications';
 import { WeekSummary } from './WeekSummary';
 import { MissedConnectionsList } from './MissedConnectionsList';
 import { GratitudePrompt } from './GratitudePrompt';
 import { CalendarEventsStep } from './CalendarEventsStep';
-import { database } from '../../db';
-import WeeklyReflection from '../../db/models/WeeklyReflection';
-import { getTopStoryChipSuggestions, WeekStoryChipSuggestion } from '../../lib/weekly-reflection/story-chip-aggregator';
-import { batchLogCalendarEvents } from '../../lib/weekly-event-review';
-import { ScannedEvent } from '../../lib/event-scanner';
+import { database } from '@/db';
+import WeeklyReflection from '@/db/models/WeeklyReflection';
+import { batchLogCalendarEvents } from '@/modules/reflection';
+import { ScannedEvent } from '@/modules/interactions';
 import * as Haptics from 'expo-haptics';
 
 interface WeeklyReflectionModalProps {
@@ -30,17 +29,20 @@ interface WeeklyReflectionModalProps {
 type Step = 'summary' | 'events' | 'missed' | 'gratitude';
 
 export function WeeklyReflectionModal({ isOpen, onClose }: WeeklyReflectionModalProps) {
-  const { colors, isDarkMode } = useTheme();
+  const { colors } = useTheme();
+  const [currentStep, setCurrentStep] = useState<Step>('summary');
   const [summary, setSummary] = useState<WeeklySummary | null>(null);
   const [storyChipSuggestions, setStoryChipSuggestions] = useState<WeekStoryChipSuggestion[]>([]);
-  const [currentStep, setCurrentStep] = useState<Step>('summary');
   const [isLoading, setIsLoading] = useState(true);
   const [selectedEvents, setSelectedEvents] = useState<ScannedEvent[]>([]);
 
   useEffect(() => {
     if (isOpen) {
       loadSummary();
+    } else {
+      // Reset state when closed
       setCurrentStep('summary');
+      setSelectedEvents([]);
     }
   }, [isOpen]);
 

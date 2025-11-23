@@ -1,4 +1,4 @@
-import { Model, Q } from '@nozbe/watermelondb';
+import { Model } from '@nozbe/watermelondb';
 import { field, text, readonly, date, relation } from '@nozbe/watermelondb/decorators';
 import Friend from './Friend';
 
@@ -40,31 +40,4 @@ export default class LifeEvent extends Model {
   @readonly @date('created_at') createdAt!: Date;
   @date('updated_at') updatedAt!: Date;
 
-  // Helper: Check if event is upcoming (within next 30 days)
-  get isUpcoming(): boolean {
-    const now = Date.now();
-    const thirtyDaysFromNow = now + 30 * 24 * 60 * 60 * 1000;
-    const eventTime = this.eventDate.getTime();
-    return eventTime > now && eventTime <= thirtyDaysFromNow;
-  }
-
-  // Helper: Get days until event
-  get daysUntil(): number {
-    const now = Date.now();
-    const eventTime = this.eventDate.getTime();
-    const diffMs = eventTime - now;
-    return Math.ceil(diffMs / (24 * 60 * 60 * 1000));
-  }
-
-  // Helper: Check if event is in the past
-  get isPast(): boolean {
-    return this.eventDate.getTime() < Date.now();
-  }
-
-  // Helper: Check if event needs follow-up (past event within last 7 days)
-  get needsFollowUp(): boolean {
-    if (!this.isPast) return false;
-    const daysSince = Math.abs(this.daysUntil);
-    return daysSince <= 7;
-  }
 }

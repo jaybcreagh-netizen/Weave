@@ -2,22 +2,22 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, TextInput, ScrollView, Keyboard, TouchableWithoutFeedback, Vibration, Modal } from 'react-native';
 import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Animated, { FadeInUp, useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
-import { CelebrationAnimation } from '../src/components/CelebrationAnimation';
-import { calculateDeepeningLevel } from '../src/lib/deepening-utils';
+import Animated, { FadeInUp, useSharedValue, withSpring } from 'react-native-reanimated';
+import { CelebrationAnimation } from '@/components/CelebrationAnimation';
+import { calculateDeepeningLevel } from '@/modules/intelligence/services/deepening.service';
 import { BlurView } from 'expo-blur';
 
-import { useInteractionStore, type StructuredReflection } from '../src/stores/interactionStore';
+import { useInteractions, type StructuredReflection } from '@/modules/interactions';
 import { Calendar as CalendarIcon, X, Sparkles } from 'lucide-react-native';
-import { CustomCalendar } from '../src/components/CustomCalendar';
-import { MoonPhaseSelector } from '../src/components/MoonPhaseSelector';
-import { ContextualReflectionInput } from '../src/components/ContextualReflectionInput';
+import { CustomCalendar } from '@/components/CustomCalendar';
+import { MoonPhaseSelector } from '@/components/MoonPhaseSelector';
+import { ContextualReflectionInput } from '@/components/ContextualReflectionInput';
 import { format, subDays, isSameDay, startOfDay } from 'date-fns';
-import { type Vibe, type InteractionCategory, type Archetype } from '../src/components/types';
-import { useTheme } from '../src/hooks/useTheme';
-import { getAllCategories, type CategoryMetadata } from '../src/lib/interaction-categories';
-import { database } from '../src/db';
-import FriendModel from '../src/db/models/Friend';
+import { type Vibe, type InteractionCategory, type Archetype } from '@/components/types';
+import { useTheme } from '@/shared/hooks/useTheme';
+import { getAllCategories, type CategoryMetadata } from '@/shared/constants/interaction-categories';
+import { database } from '@/db';
+import FriendModel from '@/db/models/Friend';
 
 const categories: CategoryMetadata[] = getAllCategories();
 
@@ -29,7 +29,7 @@ const dateOptions = [
 export default function WeaveLoggerScreen() {
   const router = useRouter();
   const { friendId } = useLocalSearchParams<{ friendId: string }>();
-  const { addInteraction } = useInteractionStore();
+  const { logWeave } = useInteractions();
   const { colors, isDarkMode } = useTheme();
 
   const [friendName, setFriendName] = useState<string>('');
@@ -46,9 +46,6 @@ export default function WeaveLoggerScreen() {
   const scale = useSharedValue(1);
   const [detailsSectionY, setDetailsSectionY] = useState(0);
 
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
 
   // Fetch friend's name and archetype
   useEffect(() => {
@@ -98,7 +95,8 @@ export default function WeaveLoggerScreen() {
       // Build legacy notes field from chips + custom notes for backward compatibility
       const legacyNotes = [
         ...(reflection.chips || []).map(chip => {
-          const { STORY_CHIPS } = require('../src/lib/story-chips');
+          // eslint-disable-next-line @typescript-eslint/no-require-imports
+          const { STORY_CHIPS } = require('@/modules/reflection/services/story-chips.service');
           const storyChip = STORY_CHIPS.find((s: any) => s.id === chip.chipId);
           if (!storyChip) return '';
 
@@ -118,7 +116,7 @@ export default function WeaveLoggerScreen() {
         .filter(Boolean)
         .join(' ');
 
-      await addInteraction({
+      await logWeave({
         friendIds: [friendId],
         category: selectedCategory,
         activity: selectedCategory,

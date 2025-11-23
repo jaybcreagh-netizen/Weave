@@ -7,19 +7,20 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Modal, View, Text, TouchableOpacity, SafeAreaView, ScrollView, ActivityIndicator, TextInput } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { X, Calendar, TrendingUp, Sparkles, ChevronRight, Search, List, Filter, Plus, BookOpen, Users } from 'lucide-react-native';
-import { useTheme } from '../../hooks/useTheme';
-import { database } from '../../db';
-import WeeklyReflection from '../../db/models/WeeklyReflection';
-import JournalEntry from '../../db/models/JournalEntry';
+import { useTheme } from '@/shared/hooks/useTheme';
+import { formatWeaveDate, daysAgo } from '@/shared/utils/date-utils';
+import { getWeekRange, getAllReflectionFriends, getFriendsForReflection } from '@/modules/reflection';
+import { database } from '@/db';
+import WeeklyReflection from '@/db/models/WeeklyReflection';
+import JournalEntry from '@/db/models/JournalEntry';
 import { Q } from '@nozbe/watermelondb';
 import { format } from 'date-fns';
-import { STORY_CHIPS } from '../../lib/story-chips';
+import { STORY_CHIPS } from '@/modules/reflection';
 import { ReflectionCalendarView } from './ReflectionCalendarView';
 import { ReflectionDetailModal } from './ReflectionDetailModal';
 import { JournalEntryModal } from '../Journal/JournalEntryModal';
-import { getAllReflectionFriends, getFriendsForReflection } from '../../lib/weekly-reflection/reflection-friends';
-import { checkAndScheduleMemoryNudges } from '../../lib/notification-manager-enhanced';
-import FriendModel from '../../db/models/Friend';
+import { checkAndScheduleMemoryNudges } from '@/modules/notifications';
+import FriendModel from '@/db/models/Friend';
 import * as Haptics from 'expo-haptics';
 
 // Unified type for displaying both weekly reflections and journal entries
@@ -543,17 +544,17 @@ export function ReflectionJourneyModal({ isOpen, onClose }: ReflectionJourneyMod
                         className="text-sm font-semibold flex-1"
                         style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold' }}
                       >
-                        {item.data.getWeekRange()}
+                        {getWeekRange(item.data)}
                       </Text>
                       <Text
                         className="text-xs"
                         style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
                       >
-                        {item.data.getDaysAgo() === 0
+                        {daysAgo(new Date(item.data.entryDate)) === 0
                           ? 'Today'
-                          : item.data.getDaysAgo() < 7
-                          ? `${item.data.getDaysAgo()}d ago`
-                          : `${Math.floor(item.data.getDaysAgo() / 7)}w ago`}
+                          : daysAgo(new Date(item.data.entryDate)) < 7
+                          ? `${daysAgo(new Date(item.data.entryDate))}d ago`
+                          : `${Math.floor(daysAgo(new Date(item.data.entryDate)) / 7)}w ago`}
                       </Text>
                     </View>
 
@@ -724,7 +725,7 @@ export function ReflectionJourneyModal({ isOpen, onClose }: ReflectionJourneyMod
                         className="text-xs"
                         style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
                       >
-                        {item.data.getFormattedDate()}
+                        {formatWeaveDate(new Date(item.data.entryDate))}
                       </Text>
                     </View>
 

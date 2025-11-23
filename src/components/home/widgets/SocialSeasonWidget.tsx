@@ -6,28 +6,28 @@ import { startOfDay, subDays, differenceInDays } from 'date-fns';
 import { Q } from '@nozbe/watermelondb';
 import { useRouter } from 'expo-router';
 import { BookOpen, X, Sparkles, BarChart3, Telescope, Lightbulb, Flame, Battery, ChevronDown } from 'lucide-react-native';
-import { useTheme } from '../../../hooks/useTheme';
-import { useUserProfileStore } from '../../../stores/userProfileStore';
-import { useFriends } from '../../../hooks/useFriends';
-import { useInteractionStore } from '../../../stores/interactionStore';
+import { useTheme } from '@/shared/hooks/useTheme';
+import { useUserProfileStore } from '@/stores/userProfileStore';
+import { useFriends } from '@/modules/relationships';
+import { useInteractions } from '@/modules/interactions';
 import { HomeWidgetBase, HomeWidgetConfig } from '../HomeWidgetBase';
 import {
   calculateSocialSeason,
   calculateSeasonContext,
-} from '../../../lib/social-season/season-calculator';
+} from '@/modules/intelligence';
 import {
   getSeasonGreeting,
   SEASON_STYLES,
   getSeasonDisplayName,
-} from '../../../lib/social-season/season-content';
-import { SeasonCalculationInput, SocialSeason } from '../../../lib/social-season/season-types';
-import { calculateCurrentScore, calculateWeightedNetworkHealth } from '../../../lib/weave-engine';
-import { database } from '../../../db';
-import Interaction from '../../../db/models/Interaction';
-import WeeklyReflection from '../../../db/models/WeeklyReflection';
-import { generateSeasonExplanation, type SeasonExplanationData } from '../../../lib/narrative-generator';
-import { SocialSeasonModal } from '../../SocialSeason/SocialSeasonModal';
-import { SeasonIcon } from '../../SeasonIcon';
+} from '@/modules/intelligence';
+import { SeasonCalculationInput, SocialSeason } from '@/modules/intelligence';
+import { calculateCurrentScore, calculateWeightedNetworkHealth } from '@/modules/intelligence';
+import { database } from '@/db';
+import Interaction from '@/db/models/Interaction';
+import WeeklyReflection from '@/db/models/WeeklyReflection';
+import { generateSeasonExplanation, type SeasonExplanationData } from '@/modules/reflection';
+import { SocialSeasonModal } from '@/components/SocialSeason/SocialSeasonModal';
+import { SeasonIcon } from '@/components/SeasonIcon';
 
 const WIDGET_CONFIG: HomeWidgetConfig = {
   id: 'social-season',
@@ -72,7 +72,7 @@ export const SocialSeasonWidget: React.FC = () => {
   const router = useRouter();
   const { profile, updateSocialSeason, getRecentBatteryAverage, getBatteryTrend } = useUserProfileStore();
   const friends = useFriends();
-  const { allInteractions, observeAllInteractions, unobserveAllInteractions } = useInteractionStore();
+  const { allInteractions } = useInteractions();
   const [isCalculating, setIsCalculating] = useState(false);
   const [season, setSeason] = useState<SocialSeason>('balanced');
   const [seasonData, setSeasonData] = useState<SeasonExplanationData | null>(null);
@@ -82,12 +82,6 @@ export const SocialSeasonWidget: React.FC = () => {
   const [weeklyWeaves, setWeeklyWeaves] = useState(0);
   const [currentStreak, setCurrentStreak] = useState(0);
   const [networkHealth, setNetworkHealth] = useState(0);
-
-  // Observe interactions to update stats when new weaves are logged
-  useEffect(() => {
-    observeAllInteractions();
-    return () => unobserveAllInteractions();
-  }, []);
 
   // Recalculate stats when interactions change
   useEffect(() => {

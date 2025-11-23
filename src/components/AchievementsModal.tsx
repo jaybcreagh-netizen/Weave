@@ -3,7 +3,7 @@ import { View, Text, Modal, TouchableOpacity, FlatList } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming, runOnJS } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
 import { X } from 'lucide-react-native';
-import { useTheme } from '../hooks/useTheme';
+import { useTheme } from '@/shared/hooks/useTheme';
 import { useAchievements, Achievement } from '../hooks/useAchievements';
 
 /**

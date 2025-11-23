@@ -17,13 +17,13 @@ import Svg, { Line } from 'react-native-svg';
 
 const AnimatedLine = Animated.createAnimatedComponent(Line);
 
-import { useTheme } from '../hooks/useTheme';
-import { formatPoeticDate, calculateWeaveWarmth, getThreadColors } from '../lib/timeline-utils';
-import { modeIcons } from '../lib/constants';
-import { getCategoryMetadata } from '../lib/interaction-categories';
+import { useTheme } from '@/shared/hooks/useTheme';
+import { formatPoeticDate, calculateWeaveWarmth, getThreadColors } from '@/shared/utils/timeline-utils';
+import { modeIcons } from '@/shared/constants/constants';
+import { getCategoryMetadata } from '@/shared/constants/interaction-categories';
 import { type Interaction, type InteractionCategory } from './types';
-import { calculateDeepeningLevel, getDeepeningVisuals } from '../lib/deepening-utils';
-import { usePausableAnimation } from '../hooks/usePausableAnimation';
+import { calculateDeepeningLevel, getDeepeningVisuals } from '@/modules/intelligence';
+import { usePausableAnimation } from '@/shared/hooks/usePausableAnimation';
 import { useUIStore } from '../stores/uiStore';
 
 interface TimelineItemProps {

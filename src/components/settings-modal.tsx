@@ -9,7 +9,7 @@ import { BlurView } from 'expo-blur';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useUIStore } from '../stores/uiStore';
 import { useUserProfileStore } from '../stores/userProfileStore';
-import { getSuggestionAnalytics } from '../lib/suggestion-tracker';
+import { SuggestionTrackerService } from '@/modules/interactions';
 import {
   getCalendarSettings,
   toggleCalendarIntegration,
@@ -25,13 +25,13 @@ import {
   cancelWeeklyReflection,
   scheduleAllEventReminders,
   cancelAllNotifications,
-} from '../lib/notification-manager-enhanced';
+} from '@/modules/notifications';
 import {
   updateNotificationPreferences,
   getStoredNotificationPreferences,
   type NotificationPreferences,
-} from '../lib/smart-notification-scheduler';
-import { useTheme } from '../hooks/useTheme';
+} from '@/modules/notifications';
+import { useTheme } from '@/shared/hooks/useTheme';
 import { clearDatabase } from '../db';
 import TrophyCabinetModal from './TrophyCabinetModal';
 import { FeedbackModal } from './FeedbackModal';
@@ -41,7 +41,7 @@ import { exportAndShareData, getExportStats } from '../lib/data-export';
 import { importData, getImportPreview } from '../lib/data-import';
 import * as DocumentPicker from 'expo-document-picker';
 import { File } from 'expo-file-system';
-import { generateStressTestData, clearStressTestData, getDataStats } from '../lib/stress-test-seed-data';
+import { generateStressTestData, clearStressTestData, getDataStats } from '@/db/seeds/stress-test-seed-data';
 import { useBackgroundSyncStore, getBackgroundFetchStatusLabel } from '../stores/backgroundSyncStore';
 import type { BackgroundSyncSettings } from '../lib/background-event-sync';
 
@@ -375,7 +375,7 @@ export function SettingsModal({
 
   const handleViewAnalytics = async () => {
     try {
-      const analytics = await getSuggestionAnalytics();
+      const analytics = await SuggestionTrackerService.getSuggestionAnalytics();
 
       const typeBreakdown = Object.entries(analytics.byType)
         .map(([type, stats]) => `${type}: ${stats.acted}/${stats.shown} (${stats.conversionRate}%)`)

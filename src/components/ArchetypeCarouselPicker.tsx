@@ -14,24 +14,25 @@ import {
   TouchableOpacity,
   Dimensions,
   StyleSheet,
-  Vibration,
   Platform,
   Image,
 } from 'react-native';
-import Animated, {
-  useAnimatedStyle,
-  withSpring,
-  useSharedValue,
-  interpolate,
-  Extrapolation,
-} from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useTheme } from '../hooks/useTheme';
+import { useTheme } from '@/shared/hooks/useTheme';
 import { type Archetype } from './types';
-import { archetypeData } from '../lib/constants';
+import { archetypeData } from '@/shared/constants/constants';
 import { ChevronLeft, ChevronRight, Info } from 'lucide-react-native';
 import { useUIStore } from '../stores/uiStore';
+
+// Import assets
+import EmperorIcon from '@/assets/TarotIcons/TheEmperor.svg';
+import EmpressIcon from '@/assets/TarotIcons/TheEmpress.svg';
+import HighPriestessIcon from '@/assets/TarotIcons/HighPriestess.svg';
+import FoolIcon from '@/assets/TarotIcons/TheFool.svg';
+import SunIcon from '@/assets/TarotIcons/TheSun.svg';
+import HermitIcon from '@/assets/TarotIcons/TheHermit.svg';
+import MagicianIcon from '@/assets/TarotIcons/TheMagician.svg';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_WIDTH = SCREEN_WIDTH - 80;
@@ -54,13 +55,13 @@ const ARCHETYPES: Archetype[] = [
 
 // Map archetypes to their tarot card SVG file paths
 const TAROT_CARD_SOURCES: Record<Archetype, any> = {
-  Emperor: require('../../assets/TarotIcons/TheEmperor.svg'),
-  Empress: require('../../assets/TarotIcons/TheEmpress.svg'),
-  HighPriestess: require('../../assets/TarotIcons/HighPriestess.svg'),
-  Fool: require('../../assets/TarotIcons/TheFool.svg'),
-  Sun: require('../../assets/TarotIcons/TheSun.svg'),
-  Hermit: require('../../assets/TarotIcons/TheHermit.svg'),
-  Magician: require('../../assets/TarotIcons/TheMagician.svg'),
+  Emperor: EmperorIcon,
+  Empress: EmpressIcon,
+  HighPriestess: HighPriestessIcon,
+  Fool: FoolIcon,
+  Sun: SunIcon,
+  Hermit: HermitIcon,
+  Magician: MagicianIcon,
 };
 
 export function ArchetypeCarouselPicker({

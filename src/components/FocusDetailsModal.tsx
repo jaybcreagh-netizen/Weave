@@ -3,11 +3,10 @@ import { View, Text, TouchableOpacity, Modal, ScrollView, StyleSheet } from 'rea
 import { BlurView } from 'expo-blur';
 import { X, Calendar, CheckCircle2, Cake, Heart } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
-import { useTheme } from '../hooks/useTheme';
-import { usePendingPlans } from '../hooks/usePendingPlans';
+import { useTheme } from '@/shared/hooks/useTheme';
+import { usePlans } from '@/modules/interactions';
 import { useSuggestions } from '../hooks/useSuggestions';
-import { useInteractionStore } from '../stores/interactionStore';
-import { getCategoryMetadata } from '../lib/interaction-categories';
+import { getCategoryMetadata } from '@/shared/constants/interaction-categories';
 import { type InteractionCategory } from './types';
 import FriendModel from '../db/models/Friend';
 
@@ -37,7 +36,7 @@ export const FocusDetailsModal: React.FC<FocusDetailsModalProps> = ({
 }) => {
   const { colors, isDarkMode } = useTheme();
   const router = useRouter();
-  const { pendingPlans } = usePendingPlans();
+  const { pendingConfirmations } = usePlans();
   const { suggestions } = useSuggestions();
 
   const getDaysText = (days: number) => {
@@ -68,12 +67,12 @@ export const FocusDetailsModal: React.FC<FocusDetailsModalProps> = ({
 
             <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
               {/* Pending Plans Section */}
-              {pendingPlans.length > 0 && (
+              {pendingConfirmations.length > 0 && (
                 <View style={styles.section}>
                   <Text style={[styles.sectionTitle, { color: colors['muted-foreground'] }]}>
                     PENDING PLANS
                   </Text>
-                  {pendingPlans.map((plan) => {
+                  {pendingConfirmations.map((plan) => {
                     const friendName = plan.friends.map(f => f.name).join(', ');
                     const dateText = getDaysText(plan.daysUntil);
                     const categoryData = plan.interaction.interactionCategory

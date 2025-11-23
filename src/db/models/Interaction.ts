@@ -1,7 +1,6 @@
 import { Model } from '@nozbe/watermelondb'
-import { field, text, readonly, date, lazy, children } from '@nozbe/watermelondb/decorators'
-import { Q } from '@nozbe/watermelondb'
-import { type StructuredReflection } from '../../components/types'
+import { field, date, children, text, writer, readonly } from '@nozbe/watermelondb/decorators'
+import { type StructuredReflection } from '@/components/types'
 
 export default class Interaction extends Model {
   static table = 'interactions'

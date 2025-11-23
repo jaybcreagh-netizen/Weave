@@ -10,7 +10,7 @@ import * as Notifications from 'expo-notifications';
 import { Bell, Users, CalendarDays, CheckCircle2, XCircle } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { useTheme } from '../src/hooks/useTheme';
+import { useTheme } from '@/shared/hooks/useTheme';
 
 const PERMISSIONS_COMPLETED_KEY = '@weave:permissions_completed';
 const NOTIFICATION_PERMISSION_ASKED_KEY = '@weave:notification_permission_asked';

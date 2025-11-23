@@ -5,12 +5,13 @@ import { X, Send, Camera } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Sentry from '@sentry/react-native';
 import Constants from 'expo-constants';
-import { useTheme } from '../hooks/useTheme';
-import { trackEvent, AnalyticsEvents } from '../lib/analytics';
+import { useTheme } from '@/shared/hooks/useTheme';
+import { trackEvent, AnalyticsEvents } from '../shared/services/analytics.service';
 
 // Optional: Lazy-load react-native-view-shot to avoid crash if not installed
 let captureRef: any = null;
 try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const viewShot = require('react-native-view-shot');
   captureRef = viewShot.captureRef;
 } catch (e) {

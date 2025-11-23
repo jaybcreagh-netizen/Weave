@@ -1,8 +1,6 @@
 import React from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { FriendForm } from '../src/components/FriendForm';
-import { useFriendStore } from '../src/stores/friendStore';
-import { type FriendFormData } from '../src/components/types';
+import { FriendForm, useRelationshipsStore, FriendFormData } from '@/modules/relationships';
 
 function AddFriend() {
   const router = useRouter();
@@ -10,7 +8,7 @@ function AddFriend() {
     tier?: 'inner' | 'close' | 'community';
     fromOnboarding?: string;
   }>();
-  const addFriend = useFriendStore((state) => state.addFriend);
+  const addFriend = useRelationshipsStore((state) => state.addFriend);
 
   const handleSave = async (friendData: FriendFormData) => {
     await addFriend(friendData);

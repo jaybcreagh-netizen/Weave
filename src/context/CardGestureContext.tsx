@@ -6,11 +6,11 @@ import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 
 import { useUIStore } from '../stores/uiStore';
-import { useInteractionStore } from '../stores/interactionStore';
+import { useInteractions } from '@/modules/interactions';
 import { database } from '../db';
 import Friend from '../db/models/Friend';
 import { type InteractionCategory } from '../components/types';
-import { getTopActivities, isSmartDefaultsEnabled } from '../lib/smart-defaults';
+import { getTopActivities, isSmartDefaultsEnabled } from '@/modules/interactions';
 
 const MENU_RADIUS = 75; // Reduced for compact design
 const HIGHLIGHT_THRESHOLD = 25; // Reduced from 30
@@ -58,7 +58,7 @@ export function useCardGesture() {
 function useCardGestureCoordinator(): CardGestureContextType {
   const router = useRouter();
   const { openQuickWeave, closeQuickWeave, showToast, setJustNurturedFriendId, setSelectedFriendId, showMicroReflectionSheet, quickWeaveActivities } = useUIStore();
-  const { addInteraction } = useInteractionStore();
+  const { logWeave } = useInteractions();
 
   const cardRefs = useSharedValue<Record<string, React.RefObject<Animated.View>>>({});
   const scrollOffset = useSharedValue(0);
@@ -112,7 +112,7 @@ function useCardGestureCoordinator(): CardGestureContextType {
     if (!friend) return;
 
     // 1. Log the interaction and get the ID back
-    const interactionId = await addInteraction({
+    const newInteraction = await logWeave({
       friendIds: [friendId],
       category: activityId as InteractionCategory,
       activity: activityId,
@@ -141,7 +141,7 @@ function useCardGestureCoordinator(): CardGestureContextType {
         friendName: friend.name,
         activityId,
         activityLabel,
-        interactionId,
+        interactionId: newInteraction.id,
         friendArchetype: friend.archetype,
       });
     }, 200);

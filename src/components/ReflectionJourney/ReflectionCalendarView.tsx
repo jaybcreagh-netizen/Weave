@@ -6,8 +6,8 @@
 import React, { useMemo, useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { ChevronLeft, ChevronRight } from 'lucide-react-native';
-import { useTheme } from '../../hooks/useTheme';
-import WeeklyReflection from '../../db/models/WeeklyReflection';
+import { useTheme } from '@/shared/hooks/useTheme';
+import WeeklyReflection from '@/db/models/WeeklyReflection';
 import * as Haptics from 'expo-haptics';
 
 interface ReflectionCalendarViewProps {

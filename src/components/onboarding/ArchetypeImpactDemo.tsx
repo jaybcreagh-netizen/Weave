@@ -8,7 +8,7 @@ import Animated, {
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
-import { theme } from '../../theme';
+import { theme } from '@/shared/theme/theme';
 import { ArchetypeIcon } from '../ArchetypeIcon';
 
 interface ScoreBarProps {

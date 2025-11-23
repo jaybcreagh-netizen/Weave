@@ -1,6 +1,5 @@
 import { Model } from '@nozbe/watermelondb';
-import { field, text, readonly, date, relation } from '@nozbe/watermelondb/decorators';
-import FriendModel from './Friend';
+import { field, date, text, writer, readonly } from '@nozbe/watermelondb/decorators'
 
 export default class Intention extends Model {
   static table = 'intentions';

@@ -1,41 +1,39 @@
+import 'react-native-get-random-values';
 import '../global.css';
-import { Stack, SplashScreen, useRouter } from 'expo-router';
+import { Stack, SplashScreen } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { TouchableWithoutFeedback, View } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
 import { StatusBar } from 'expo-status-bar';
 import * as Notifications from 'expo-notifications';
-import { QuickWeaveProvider } from '../src/components/QuickWeaveProvider';
-import { ToastProvider } from '../src/components/toast_provider';
-import { CardGestureProvider } from '../src/context/CardGestureContext'; // Import the provider
-import { MilestoneCelebration } from '../src/components/MilestoneCelebration';
-import TrophyCabinetModal from '../src/components/TrophyCabinetModal';
-import { NotificationPermissionModal } from '../src/components/NotificationPermissionModal';
-import { LoadingScreen } from '../src/components/LoadingScreen';
-import { ErrorBoundary } from '../src/components/ErrorBoundary';
-import { EventSuggestionModal } from '../src/components/EventSuggestionModal';
-import { useUIStore } from '../src/stores/uiStore';
-import { useTheme } from '../src/hooks/useTheme';
-import { useActivityKeepAwake } from '../src/hooks/useActivityKeepAwake';
-import { initializeDataMigrations, initializeUserProfile, initializeUserProgress } from '../src/db';
-import { appStateManager } from '../src/lib/app-state-manager';
-import { useAppStateChange } from '../src/hooks/useAppState';
-import { useFriendStore } from '../src/stores/friendStore';
-import { useTutorialStore } from '../src/stores/tutorialStore';
+import { QuickWeaveProvider } from '@/components/QuickWeaveProvider';
+import { ToastProvider } from '@/components/toast_provider';
+import { CardGestureProvider } from '@/context/CardGestureContext'; // Import the provider
+import { MilestoneCelebration } from '@/components/MilestoneCelebration';
+import TrophyCabinetModal from '@/components/TrophyCabinetModal';
+import { NotificationPermissionModal } from '@/components/NotificationPermissionModal';
+import { LoadingScreen } from '@/components/LoadingScreen';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { EventSuggestionModal } from '@/components/EventSuggestionModal';
+import { useUIStore } from '@/stores/uiStore';
+import { useTheme } from '@/shared/hooks/useTheme';
+import { useActivityKeepAwake } from '@/shared/hooks/useActivityKeepAwake';
+import { initializeDataMigrations, initializeUserProfile, initializeUserProgress } from '@/db';
+import { useAppStateChange } from '@/shared/hooks/useAppState';
+import { useRelationshipsStore } from '@/modules/relationships';
+import { useTutorialStore } from '@/stores/tutorialStore';
 import {
   initializeNotifications,
   requestNotificationPermissions,
-} from '../src/lib/notification-manager-enhanced';
+} from '@/modules/notifications';
 import {
   setupNotificationResponseListener,
   handleNotificationOnLaunch,
-} from '../src/lib/notification-response-handler';
+} from '@/modules/notifications';
 import {
   configureNotificationHandler,
-  handleEventSuggestionTap,
-} from '../src/lib/event-notifications';
-import { useBackgroundSyncStore } from '../src/stores/backgroundSyncStore';
+} from '@/modules/notifications';
+import { useBackgroundSyncStore } from '@/modules/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   useFonts,
@@ -47,8 +45,11 @@ import {
   Inter_600SemiBold,
 } from '@expo-google-fonts/inter';
 import * as Sentry from '@sentry/react-native';
-import { initializeAnalytics, trackEvent, trackRetentionMetrics, AnalyticsEvents, setPostHogInstance } from '../src/lib/analytics';
+import { initializeAnalytics, trackEvent, trackRetentionMetrics, AnalyticsEvents, setPostHogInstance } from '@/shared/services/analytics.service';
 import { PostHogProvider, usePostHog } from 'posthog-react-native';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+const queryClient = new QueryClient();
 
 Sentry.init({
   dsn: 'https://1b94b04a0400cdc5a0378c0f485a2435@o4510357596471296.ingest.de.sentry.io/4510357600993360',
@@ -143,14 +144,14 @@ export default Sentry.wrap(function RootLayout() {
         await trackRetentionMetrics();
 
         // Sync calendar changes on app launch (non-blocking)
-        import('../src/stores/interactionStore').then(({ useInteractionStore }) => {
-          useInteractionStore.getState().syncWithCalendar().catch((error) => {
+        import('@/modules/interactions').then(({ useInteractionsStore }) => {
+          useInteractionsStore.getState().syncCalendar().catch((error) => {
             console.error('[App] Error syncing calendar on launch:', error);
           });
         });
 
         // Scan for event suggestions on app launch (non-blocking)
-        import('../src/stores/eventSuggestionStore').then(({ useEventSuggestionStore }) => {
+        import('@/modules/interactions').then(({ useEventSuggestionStore }) => {
           useEventSuggestionStore.getState().scanForSuggestions().catch((error) => {
             console.error('[App] Error scanning for event suggestions on launch:', error);
           });
@@ -172,7 +173,7 @@ export default Sentry.wrap(function RootLayout() {
     if (!dataLoaded) return;
 
     const checkFriendsLoaded = () => {
-      const friends = useFriendStore.getState().friends;
+      const friends = useRelationshipsStore.getState().friends;
       // Mark UI as mounted once we have friends data (even if empty)
       // Give a small delay to ensure lists are rendered
       if (friends !== null) {
@@ -183,7 +184,7 @@ export default Sentry.wrap(function RootLayout() {
     };
 
     // Subscribe to friend store
-    const unsubscribe = useFriendStore.subscribe(checkFriendsLoaded);
+    const unsubscribe = useRelationshipsStore.subscribe(checkFriendsLoaded);
     checkFriendsLoaded(); // Check immediately
 
     return () => unsubscribe();
@@ -214,7 +215,7 @@ export default Sentry.wrap(function RootLayout() {
 
       // Trigger smart notification evaluation when app comes to foreground
       // This runs async in the background without blocking the UI
-      import('../src/lib/smart-notification-scheduler').then(({ evaluateAndScheduleSmartNotifications }) => {
+      import('@/modules/notifications').then(({ evaluateAndScheduleSmartNotifications }) => {
         evaluateAndScheduleSmartNotifications().catch((error) => {
           console.error('[App] Error evaluating smart notifications on foreground:', error);
         });
@@ -222,15 +223,15 @@ export default Sentry.wrap(function RootLayout() {
 
       // Sync calendar changes when app becomes active
       // This runs async in the background without blocking the UI
-      import('../src/stores/interactionStore').then(({ useInteractionStore }) => {
-        useInteractionStore.getState().syncWithCalendar().catch((error) => {
+        import('@/modules/interactions').then(({ useInteractionsStore }) => {
+          useInteractionsStore.getState().syncCalendar().catch((error) => {
           console.error('[App] Error syncing calendar on foreground:', error);
         });
       });
 
       // Scan for event suggestions (birthdays, holidays, past events)
       // This runs async in the background without blocking the UI
-      import('../src/stores/eventSuggestionStore').then(({ useEventSuggestionStore }) => {
+      import('@/modules/interactions').then(({ useEventSuggestionStore }) => {
         useEventSuggestionStore.getState().scanForSuggestions().catch((error) => {
           console.error('[App] Error scanning for event suggestions:', error);
         });
@@ -244,12 +245,12 @@ export default Sentry.wrap(function RootLayout() {
   // Initialize app state listeners for stores (battery optimization)
   useEffect(() => {
     console.log('[App] Initializing store app state listeners');
-    const initializeAppStateListener = useFriendStore.getState().initializeAppStateListener;
+    const initializeAppStateListener = useRelationshipsStore.getState().initializeAppStateListener;
     initializeAppStateListener();
 
     // Cleanup on unmount (though app layout rarely unmounts)
     return () => {
-      const cleanupAppStateListener = useFriendStore.getState().cleanupAppStateListener;
+      const cleanupAppStateListener = useRelationshipsStore.getState().cleanupAppStateListener;
       cleanupAppStateListener();
     };
   }, []);
@@ -368,6 +369,7 @@ export default Sentry.wrap(function RootLayout() {
       autocapture
     >
       <PostHogConnector>
+        <QueryClientProvider client={queryClient}>
         <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.background }}>
         <StatusBar style={isDarkMode ? 'light' : 'dark'} />
         {/* Wrap with CardGestureProvider so both Dashboard and Overlay can access it */}
@@ -417,6 +419,7 @@ export default Sentry.wrap(function RootLayout() {
           </QuickWeaveProvider>
         </CardGestureProvider>
         </GestureHandlerRootView>
+        </QueryClientProvider>
       </PostHogConnector>
     </PostHogProvider>
   );

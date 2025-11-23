@@ -1,6 +1,6 @@
 import { Database } from '@nozbe/watermelondb';
 import { InteractionCategory, ActivityType } from '../components/types';
-import { migrateActivityToCategory } from '../lib/interaction-categories';
+import { migrateActivityToCategory } from '@/shared/constants/interaction-categories';
 
 /**
  * Migrate existing interactions to use the new category system

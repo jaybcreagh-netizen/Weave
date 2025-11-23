@@ -6,17 +6,17 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Dimensions } from 'react-native';
 import { Moon, TrendingUp, BookOpen } from 'lucide-react-native';
-import { useTheme } from '../../../hooks/useTheme';
+import { useTheme } from '@/shared/hooks/useTheme';
 import { HomeWidgetBase, HomeWidgetConfig } from '../HomeWidgetBase';
-import { MoonPhaseIllustration } from '../../YearInMoons/MoonPhaseIllustration';
-import { YearInMoonsModal } from '../../YearInMoons/YearInMoonsModal';
-import { ReflectionJourneyModal } from '../../ReflectionJourney/ReflectionJourneyModal';
+import { MoonPhaseIllustration } from '@/components/YearInMoons/MoonPhaseIllustration';
+import { YearInMoonsModal } from '@/components/YearInMoons/YearInMoonsModal';
+import { ReflectionJourneyModal } from '@/components/ReflectionJourney/ReflectionJourneyModal';
 import {
   getYearMoonData,
   getYearStats,
   getMonthName,
   MonthMoonData,
-} from '../../../lib/year-in-moons-data';
+} from '@/modules/reflection';
 
 const WIDGET_CONFIG: HomeWidgetConfig = {
   id: 'year-in-moons',

@@ -1,23 +1,22 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { View, ScrollView } from 'react-native';
+import React, { useEffect, useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
-import { HomeWidgetGrid, WidgetGridItem } from '../src/components/home/HomeWidgetGrid';
-import { SocialSeasonWidget } from '../src/components/home/widgets/SocialSeasonWidget';
-import { YearInMoonsWidget } from '../src/components/home/widgets/YearInMoonsWidget';
-import { TodaysFocusWidget } from '../src/components/home/widgets/TodaysFocusWidget';
-import { ReflectionReadyWidget } from '../src/components/home/widgets/ReflectionReadyWidget';
-import { FocusPill } from '../src/components/home/widgets/FocusPill';
-import { SocialBatterySheet } from '../src/components/home/SocialBatterySheet';
-import { WeeklyReflectionModal } from '../src/components/WeeklyReflection/WeeklyReflectionModal';
-import { ReflectionReadyPrompt } from '../src/components/WeeklyReflection/ReflectionReadyPrompt';
-import { YearInMoonsModal } from '../src/components/YearInMoons/YearInMoonsModal';
-import { SuggestedWeaves } from '../src/components/SuggestedWeaves';
-import { useUserProfileStore } from '../src/stores/userProfileStore';
-import { useFriendStore } from '../src/stores/friendStore';
-import { getLastReflectionDate, shouldShowReflection } from '../src/lib/notification-manager-enhanced';
-import { getUserAccountAge } from '../src/lib/notification-grace-periods';
-import { useTutorialStore } from '../src/stores/tutorialStore';
+import { HomeWidgetGrid, WidgetGridItem } from '@/components/home/HomeWidgetGrid';
+import { SocialSeasonWidget } from '@/components/home/widgets/SocialSeasonWidget';
+import { YearInMoonsWidget } from '@/components/home/widgets/YearInMoonsWidget';
+import { TodaysFocusWidget } from '@/components/home/widgets/TodaysFocusWidget';
+import { ReflectionReadyWidget } from '@/components/home/widgets/ReflectionReadyWidget';
+import { FocusPill } from '@/components/home/widgets/FocusPill';
+import { SocialBatterySheet } from '@/components/home/SocialBatterySheet';
+import { WeeklyReflectionModal } from '@/components/WeeklyReflection/WeeklyReflectionModal';
+import { ReflectionReadyPrompt } from '@/components/WeeklyReflection/ReflectionReadyPrompt';
+import { YearInMoonsModal } from '@/components/YearInMoons/YearInMoonsModal';
+import { SuggestedWeaves } from '@/components/SuggestedWeaves';
+import { useUserProfileStore } from '@/modules/auth';
+import { useRelationshipsStore } from '@/modules/relationships';
+import { getLastReflectionDate, shouldShowReflection } from '@/modules/notifications';
+import { getUserAccountAge } from '@/modules/notifications';
+import { useTutorialStore } from '@/stores/tutorialStore';
 
 /**
  * The home screen of the application.
@@ -26,7 +25,7 @@ import { useTutorialStore } from '../src/stores/tutorialStore';
  */
 export default function Home() {
   const { observeProfile, profile, submitBatteryCheckin, updateProfile } = useUserProfileStore();
-  const { observeFriends } = useFriendStore();
+  const { observeFriends } = useRelationshipsStore();
   const [showBatterySheet, setShowBatterySheet] = useState(false);
   const [showReflectionPrompt, setShowReflectionPrompt] = useState(false);
   const [showWeeklyReflection, setShowWeeklyReflection] = useState(false);

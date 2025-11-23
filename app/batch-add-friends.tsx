@@ -4,15 +4,15 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as Contacts from 'expo-contacts';
 import { ArrowLeft, Check, Search } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
-import { useFriendStore } from '../src/stores/friendStore';
-import { useTheme } from '../src/hooks/useTheme';
-import { normalizeContactImageUri } from '../src/lib/image-utils';
+import { useRelationshipsStore } from '@/modules/relationships';
+import { useTheme } from '@/shared/hooks/useTheme';
+import { normalizeContactImageUri } from '@/modules/relationships';
 
 export default function BatchAddFriends() {
   const router = useRouter();
   const { tier } = useLocalSearchParams<{ tier: 'inner' | 'close' | 'community' }>();
   const { colors } = useTheme();
-  const { batchAddFriends } = useFriendStore();
+  const { batchAddFriends } = useRelationshipsStore();
 
   const [selectedContacts, setSelectedContacts] = useState<Contacts.Contact[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -110,7 +110,6 @@ router.back();
 // since we have our own header in the parent component
 function BatchContactPicker({
   onSelectionChange,
-  selectedCount
 }: {
   onSelectionChange: (contacts: Contacts.Contact[]) => void;
   selectedCount: number;

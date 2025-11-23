@@ -112,7 +112,7 @@ import { type InteractionFormData } from '../stores/interactionStore';
 // Components import from multiple lib files
 import { useEventSuggestionStore } from '../stores/eventSuggestionStore';
 import { calculateCurrentScore } from '../lib/weave-engine';
-import { trackEvent } from '../lib/analytics';
+import { trackEvent } from '../shared/services/analytics.service';
 ```
 
 **Impact:**

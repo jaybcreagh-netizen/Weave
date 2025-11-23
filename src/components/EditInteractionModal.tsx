@@ -3,9 +3,9 @@ import { Modal, View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { X } from 'lucide-react-native';
 import Animated, { FadeInUp } from 'react-native-reanimated';
-import { useTheme } from '../hooks/useTheme';
+import { useTheme } from '@/shared/hooks/useTheme';
 import { type Interaction, type InteractionCategory, type Vibe, type StructuredReflection } from './types';
-import { getAllCategories, type CategoryMetadata } from '../lib/interaction-categories';
+import { getAllCategories, type CategoryMetadata } from '@/shared/constants/interaction-categories';
 import { MoonPhaseSelector } from './MoonPhaseSelector';
 
 interface EditInteractionModalProps {

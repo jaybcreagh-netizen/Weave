@@ -1,39 +1,38 @@
 import React, { useMemo, useEffect, useState, useRef, useCallback } from 'react';
-import { View, Text, ScrollView, Dimensions, StyleSheet, FlatList } from 'react-native';
+import { View, Text, ScrollView, Dimensions, StyleSheet } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withDelay, withTiming, useAnimatedRef, runOnUI } from 'react-native-reanimated';
+import { FlashList } from '@shopify/flash-list';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { GestureDetector } from 'react-native-gesture-handler';
 import * as Haptics from 'expo-haptics';
 
-import { FriendListRow } from '../src/components/FriendListRow';
-import { TierSegmentedControl } from '../src/components/TierSegmentedControl';
-import { TierInfo } from '../src/components/TierInfo';
-import { FAB } from '../src/components/fab';
-import { InsightsFAB } from '../src/components/InsightsFAB';
-import { MicroReflectionSheet } from '../src/components/MicroReflectionSheet';
-import { InsightsSheet } from '../src/components/InsightsSheet';
-import { AddFriendMenu } from '../src/components/AddFriendMenu';
-import { useUIStore } from '../src/stores/uiStore';
-import { useFriends } from '../src/hooks/useFriends';
-import { useInteractionStore } from '../src/stores/interactionStore';
-import { useSuggestions } from '../src/hooks/useSuggestions';
-import { getSuggestionCooldownDays } from '../src/lib/suggestion-engine';
-import { Suggestion } from '../src/types/suggestions';
-import { checkAndApplyDormancy } from '../src/lib/lifecycle-manager';
-import FriendModel from '../src/db/models/Friend';
-import { useTheme } from '../src/hooks/useTheme';
-import { CardGestureProvider, useCardGesture } from '../src/context/CardGestureContext';
-import { trackSuggestionActed } from '../src/lib/suggestion-tracker';
-import { useActiveIntentions } from '../src/hooks/useIntentions';
-import { useIntentionStore } from '../src/stores/intentionStore';
-import { IntentionActionSheet } from '../src/components/IntentionActionSheet';
-import Intention from '../src/db/models/Intention';
-import { tierColors } from '../src/lib/constants';
-import { SimpleTutorialTooltip } from '../src/components/SimpleTutorialTooltip';
-import { useTutorialStore } from '../src/stores/tutorialStore';
-import { WeaveIcon } from '../src/components/WeaveIcon';
+import { FriendListRow } from '@/components/FriendListRow';
+import { TierSegmentedControl } from '@/components/TierSegmentedControl';
+import { TierInfo } from '@/components/TierInfo';
+import { FAB } from '@/components/fab';
+import { InsightsFAB } from '@/components/InsightsFAB';
+import { MicroReflectionSheet } from '@/components/MicroReflectionSheet';
+import { InsightsSheet } from '@/components/InsightsSheet';
+import { AddFriendMenu } from '@/components/AddFriendMenu';
+import { useUIStore } from '@/stores/uiStore';
+import { useFriends } from '@/modules/relationships';
+import { useInteractions, usePlans, PlanService, getSuggestionCooldownDays } from '@/modules/interactions';
+import { useSuggestions } from '@/modules/interactions';
+import { Suggestion } from '@/types/suggestions';
+import { checkAndApplyDormancy } from '@/modules/relationships';
+import FriendModel from '@/db/models/Friend';
+import { useTheme } from '@/shared/hooks/useTheme';
+import { useCardGesture } from '@/context/CardGestureContext';
+import { SuggestionTrackerService } from '@/modules/interactions';
+import { IntentionActionSheet } from '@/components/IntentionActionSheet';
+import Intention from '@/db/models/Intention';
+import { tierColors } from '@/shared/constants/constants';
+import { SimpleTutorialTooltip } from '@/components/SimpleTutorialTooltip';
+import { useTutorialStore } from '@/stores/tutorialStore';
+import { WeaveIcon } from '@/components/WeaveIcon';
 
 const { width: screenWidth } = Dimensions.get('window');
+const AnimatedFlashList = Animated.createAnimatedComponent(FlashList);
 
 // Helper to create subtle tier background colors
 const getTierBackground = (tier: 'inner' | 'close' | 'community', isDarkMode: boolean) => {
@@ -51,7 +50,6 @@ const getTierBackground = (tier: 'inner' | 'close' | 'community', isDarkMode: bo
 const AnimatedFriendCardItem = React.memo(({
   item,
   index,
-  refreshKey,
 }: {
   item: FriendModel;
   index: number;
@@ -106,11 +104,10 @@ function DashboardContent() {
   const { colors, isDarkMode } = useTheme();
   const { isQuickWeaveOpen, microReflectionData, hideMicroReflectionSheet, showMicroReflectionSheet } = useUIStore();
   const allFriends = useFriends(); // Direct WatermelonDB subscription
-  const { updateInteractionVibeAndNotes } = useInteractionStore();
+  const { updateInteractionVibeAndNotes } = useInteractions();
   const { gesture, animatedScrollHandler, activeCardId } = useCardGesture();
   const { suggestions, suggestionCount, hasCritical, dismissSuggestion } = useSuggestions();
-  const { convertToPlannedWeave, dismissIntention } = useIntentionStore();
-  const intentions = useActiveIntentions();
+  const { dismissIntention, intentions } = usePlans();
   const [insightsSheetVisible, setInsightsSheetVisible] = useState(false);
   const [selectedIntention, setSelectedIntention] = useState<Intention | null>(null);
   const [addFriendMenuVisible, setAddFriendMenuVisible] = useState(false);
@@ -231,7 +228,7 @@ function DashboardContent() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     // Track that the user acted on this suggestion
-    await trackSuggestionActed(suggestion.id);
+    await SuggestionTrackerService.trackSuggestionActed(suggestion.id);
 
     // Portfolio insights don't have a specific friend - just close the sheet
     if (suggestion.category === 'portfolio') {
@@ -299,34 +296,25 @@ function DashboardContent() {
       );
     }
     return (
-      <Animated.FlatList
-        style={{ width: screenWidth, backgroundColor: tierBgColor }}
-        contentContainerStyle={styles.tierScrollView}
-        data={currentFriends}
-        keyExtractor={(item) => item.id}
-        scrollEnabled={!isQuickWeaveOpen}
-        onScroll={scrollHandler}
-        scrollEventThrottle={8} // 120fps (was 16 for 60fps)
-        renderItem={({ item, index }) => (
-          <AnimatedFriendCardItem
-            item={item}
-            index={index}
-            refreshKey={refreshKey}
-          />
-        )}
-        // Performance optimizations for 120fps scrolling
-        removeClippedSubviews={true}
-        maxToRenderPerBatch={5} // Smaller batches for smoother rendering
-        updateCellsBatchingPeriod={30} // Faster batching (was 50ms)
-        initialNumToRender={8} // Render fewer items initially
-        windowSize={3} // Smaller window for better memory usage
-        getItemLayout={(data, index) => ({
-          length: 72, // Approximate item height (card + margin)
-          offset: 72 * index,
-          index,
-        })}
-        disableIntervalMomentum={true} // Smoother scroll feel
-      />
+      <View style={{ width: screenWidth, height: '100%', backgroundColor: tierBgColor }}>
+        <AnimatedFlashList
+          contentContainerStyle={styles.tierScrollView}
+          data={currentFriends}
+          estimatedItemSize={72}
+          keyExtractor={(item) => item.id}
+          scrollEnabled={!isQuickWeaveOpen}
+          onScroll={scrollHandler}
+          scrollEventThrottle={8}
+          renderItem={({ item, index }) => (
+            <AnimatedFriendCardItem
+              item={item}
+              index={index}
+              refreshKey={refreshKey}
+            />
+          )}
+          disableIntervalMomentum={true}
+        />
+      </View>
     );
   };
 
@@ -405,7 +393,7 @@ function DashboardContent() {
         isOpen={selectedIntention !== null}
         onClose={() => setSelectedIntention(null)}
         onSchedule={async (intention, intentionFriend) => {
-          await convertToPlannedWeave(intention.id);
+          await PlanService.convertIntentionToPlan(intention.id);
           setSelectedIntention(null);
           // Navigate to friend profile where they can schedule with PlanWizard
           router.push({ pathname: '/friend-profile', params: { friendId: intentionFriend.id } });

@@ -1,37 +1,29 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, Modal, ScrollView, Pressable } from 'react-native';
+import { View, Text, TouchableOpacity, Modal, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft, X, Calendar as CalendarIcon, Users } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
-import { format, isToday, isFuture } from 'date-fns';
+import { format, isToday } from 'date-fns';
 import * as Haptics from 'expo-haptics';
 
-import { GlobalYearCalendar } from '../src/components/GlobalYearCalendar';
-import { useInteractionStore } from '../src/stores/interactionStore';
-import { useFriendStore } from '../src/stores/friendStore';
-import { useTheme } from '../src/hooks/useTheme';
-import { database } from '../src/db';
+import { GlobalYearCalendar } from '@/components/GlobalYearCalendar';
+import { useInteractions } from '@/modules/interactions';
+import { useTheme } from '@/shared/hooks/useTheme';
+import { database } from '@/db';
 import { Q } from '@nozbe/watermelondb';
-import InteractionFriend from '../src/db/models/InteractionFriend';
-import FriendModel from '../src/db/models/Friend';
-import { getCategoryMetadata } from '../src/lib/interaction-categories';
+import InteractionFriend from '@/db/models/InteractionFriend';
+import FriendModel from '@/db/models/Friend';
+import { getCategoryMetadata } from '@/shared/constants/interaction-categories';
 
 export default function GlobalCalendar() {
   const router = useRouter();
   const { colors } = useTheme();
-  const { allInteractions, observeAllInteractions, unobserveAllInteractions } = useInteractionStore();
+  const { allInteractions } = useInteractions();
 
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedDateInteractions, setSelectedDateInteractions] = useState<any[]>([]);
   const [dayDetailModalVisible, setDayDetailModalVisible] = useState(false);
   const [interactionFriends, setInteractionFriends] = useState<Map<string, FriendModel[]>>(new Map());
-
-  useEffect(() => {
-    observeAllInteractions();
-    return () => {
-      unobserveAllInteractions();
-    };
-  }, []);
 
   // Load friends for interactions when modal opens
   useEffect(() => {
@@ -184,7 +176,6 @@ export default function GlobalCalendar() {
                 {selectedDateInteractions.map((interaction) => {
                   const { friendNames, displayTitle } = getInteractionDisplay(interaction);
                   const isPlanned = interaction.status === 'planned' || interaction.status === 'pending_confirm';
-                  const future = isFuture(new Date(interaction.interactionDate));
 
                   return (
                     <TouchableOpacity

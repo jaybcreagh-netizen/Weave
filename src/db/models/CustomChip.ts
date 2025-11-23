@@ -5,7 +5,7 @@
 
 import { Model } from '@nozbe/watermelondb';
 import { field, text, readonly, date } from '@nozbe/watermelondb/decorators';
-import { ChipType } from '../../lib/story-chips';
+import { ChipType } from '@/modules/reflection';
 
 export default class CustomChip extends Model {
   static table = 'custom_chips';
@@ -53,11 +53,4 @@ export default class CustomChip extends Model {
     };
   }
 
-  // Increment usage count
-  async incrementUsage() {
-    await this.update(chip => {
-      chip.usageCount = chip.usageCount + 1;
-      chip.lastUsedAt = Date.now();
-    });
-  }
 }

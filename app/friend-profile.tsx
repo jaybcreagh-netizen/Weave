@@ -1,38 +1,36 @@
-import React, { useEffect, useMemo, useState, useRef, useCallback } from 'react';
-import { View, Text, TouchableOpacity, Alert, StyleSheet, SectionList, LayoutChangeEvent, ActivityIndicator } from 'react-native';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import { View, Text, TouchableOpacity, Alert, StyleSheet, SectionList, ActivityIndicator } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, withDelay, Easing, useAnimatedScrollHandler, runOnJS } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { ArrowLeft, Edit, Trash2, Calendar, Plus } from 'lucide-react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { isFuture, isToday, isPast, format, differenceInDays } from 'date-fns';
+import { isFuture, isToday, differenceInDays } from 'date-fns';
 import { Q } from '@nozbe/watermelondb';
 
-import { FriendListRow } from '../src/components/FriendListRow';
-import { TimelineItem } from '../src/components/TimelineItem';
-import { useFriendStore } from '../src/stores/friendStore';
-import { useInteractionStore } from '../src/stores/interactionStore';
-import { calculateNextConnectionDate, getPoeticSectionTitle } from '../src/lib/timeline-utils';
-import { useTheme } from '../src/hooks/useTheme';
-import { type Interaction, type Tier } from '../src/components/types';
-import { InteractionDetailModal } from '../src/components/interaction-detail-modal';
-import { EditReflectionModal } from '../src/components/EditReflectionModal';
-import { EditInteractionModal } from '../src/components/EditInteractionModal';
-import { PlanChoiceModal } from '../src/components/PlanChoiceModal';
-import { PlanWizard } from '../src/components/PlanWizard';
-import { IntentionFormModal } from '../src/components/IntentionFormModal';
-import { IntentionsDrawer } from '../src/components/IntentionsDrawer';
-import { IntentionsFAB } from '../src/components/IntentionsFAB';
-import { IntentionActionSheet } from '../src/components/IntentionActionSheet';
-import { useIntentionStore } from '../src/stores/intentionStore';
-import { useFriendIntentions } from '../src/hooks/useIntentions';
-import { LifeEventModal } from '../src/components/LifeEventModal';
-import { WeaveIcon } from '../src/components/WeaveIcon';
-import FriendBadgePopup from '../src/components/FriendBadgePopup';
-import { database } from '../src/db';
-import LifeEvent from '../src/db/models/LifeEvent';
-import Intention from '../src/db/models/Intention';
+import { FriendListRow } from '@/modules/relationships';
+import { TimelineItem } from '@/components/TimelineItem';
+import { useRelationshipsStore } from '@/modules/relationships';
+import { useInteractions, usePlans, PlanService } from '@/modules/interactions';
+import { calculateNextConnectionDate } from '@/shared/utils/timeline-utils';
+import { useTheme } from '@/shared/hooks/useTheme';
+import { type Interaction, type Tier } from '@/components/types';
+import { InteractionDetailModal } from '@/components/interaction-detail-modal';
+import { EditReflectionModal } from '@/components/EditReflectionModal';
+import { EditInteractionModal } from '@/components/EditInteractionModal';
+import { PlanChoiceModal } from '@/components/PlanChoiceModal';
+import { PlanWizard } from '@/modules/interactions';
+import { IntentionFormModal } from '@/components/IntentionFormModal';
+import { IntentionsDrawer } from '@/components/IntentionsDrawer';
+import { IntentionsFAB } from '@/components/IntentionsFAB';
+import { IntentionActionSheet } from '@/components/IntentionActionSheet';
+import { LifeEventModal } from '@/components/LifeEventModal';
+import { WeaveIcon } from '@/components/WeaveIcon';
+import FriendBadgePopup from '@/components/FriendBadgePopup';
+import { database } from '@/db';
+import LifeEvent from '@/db/models/LifeEvent';
+import Intention from '@/db/models/Intention';
 
 const AnimatedSectionList = Animated.createAnimatedComponent(SectionList);
 
@@ -47,11 +45,11 @@ export default function FriendProfile() {
     unobserveFriend,
     loadMoreInteractions,
     hasMoreInteractions,
-  } = useFriendStore();
-  const { deleteFriend } = useFriendStore();
-  const { deleteInteraction, updateReflection, updateInteraction } = useInteractionStore();
-  const { createIntention, convertToPlannedWeave, dismissIntention } = useIntentionStore();
-  const friendIntentions = useFriendIntentions(typeof friendId === 'string' ? friendId : undefined);
+  } = useRelationshipsStore();
+  const { deleteFriend } = useRelationshipsStore();
+  const { deleteWeave, updateReflection, updateInteraction } = useInteractions();
+  const { createIntention, dismissIntention, getFriendIntentions } = usePlans();
+  const friendIntentions = getFriendIntentions(typeof friendId === 'string' ? friendId : '');
   const [selectedInteraction, setSelectedInteraction] = useState<Interaction | null>(null);
 
   const [editingReflection, setEditingReflection] = useState<Interaction | null>(null);
@@ -266,13 +264,13 @@ export default function FriendProfile() {
 
   const handleDeleteInteraction = useCallback(async (interactionId: string) => {
     try {
-      await deleteInteraction(interactionId);
+      await deleteWeave(interactionId);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (error) {
       console.error('Error deleting interaction:', error);
       Alert.alert('Error', 'Failed to delete weave. Please try again.');
     }
-  }, [deleteInteraction]);
+  }, [deleteWeave]);
 
   const handleEditInteraction = useCallback((interactionId: string) => {
     const interaction = interactions.find(i => i.id === interactionId);
@@ -309,7 +307,7 @@ export default function FriendProfile() {
   const renderTimelineItem = useCallback(({ item: interaction, section, index }: { item: Interaction; section: { title: string; data: Interaction[] }; index: number }) => {
     const isFutureInteraction = section.title === 'Seeds';
     const isFirstInSection = index === 0;
-    const isLastInSection = index === section.data.length - 1;
+    // const isLastInSection = index === section.data.length - 1;
 
     // Check if this is the last item in the entire timeline
     const lastSection = timelineSections[timelineSections.length - 1];
@@ -639,13 +637,11 @@ router.back();
           intention={selectedIntentionForAction}
           isOpen={selectedIntentionForAction !== null}
           onClose={() => setSelectedIntentionForAction(null)}
-          onSchedule={async (intention, intentionFriend) => {
-            // Mark intention as converted
-            await convertToPlannedWeave(intention.id);
+          onSchedule={async (intention) => {
+            await PlanService.convertIntentionToPlan(intention.id);
             setSelectedIntentionForAction(null);
 
             // Open Plan Wizard with the friend and prefilled category
-            setSelectedFriends([intentionFriend]);
             if (intention.interactionCategory) {
               // TODO: Could prefill category in wizard if we add that feature
             }

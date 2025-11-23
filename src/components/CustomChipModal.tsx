@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Modal, ScrollView } from 'react-native';
 import { X } from 'lucide-react-native';
-import { useTheme } from '../hooks/useTheme';
-import { type ChipType, getChipTypeLabel } from '../lib/story-chips';
-import { createNewCustomChip } from '../lib/adaptive-chips';
+import { useTheme } from '@/shared/hooks/useTheme';
+import { type ChipType, getChipTypeLabel } from '@/modules/reflection';
+import { createNewCustomChip } from '@/modules/reflection';
 
 interface CustomChipModalProps {
   isOpen: boolean;

@@ -5,8 +5,8 @@ import { BlurView } from 'expo-blur';
 import { X } from 'lucide-react-native';
 import { formatDistanceToNow } from 'date-fns';
 import * as Haptics from 'expo-haptics';
-import { useTheme } from '../hooks/useTheme';
-import { getCategoryMetadata } from '../lib/interaction-categories';
+import { useTheme } from '@/shared/hooks/useTheme';
+import { getCategoryMetadata } from '@/shared/constants/interaction-categories';
 import Intention from '../db/models/Intention';
 import { InteractionCategory } from './types';
 
