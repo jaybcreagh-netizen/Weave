@@ -277,10 +277,10 @@ export default schemaMigrations({
         addColumns({
           table: 'user_progress',
           columns: [
-            { name: 'catalyst_progress', type: 'number', defaultValue: 0 },
-            { name: 'high_priestess_progress', type: 'number', defaultValue: 0 },
-            { name: 'scribe_progress', type: 'number', defaultValue: 0 },
-            { name: 'curator_progress', type: 'number', defaultValue: 0 },
+            { name: 'catalyst_progress', type: 'number', isOptional: true },
+            { name: 'high_priestess_progress', type: 'number', isOptional: true },
+            { name: 'scribe_progress', type: 'number', isOptional: true },
+            { name: 'curator_progress', type: 'number', isOptional: true },
           ],
         }),
       ],
@@ -294,7 +294,7 @@ export default schemaMigrations({
         addColumns({
           table: 'user_progress',
           columns: [
-            { name: 'total_weaves', type: 'number', defaultValue: 0 },
+            { name: 'total_weaves', type: 'number', isOptional: true },
             { name: 'global_achievements', type: 'string', isOptional: true }, // JSON array
             { name: 'hidden_achievements', type: 'string', isOptional: true }, // JSON array
           ],
@@ -459,12 +459,12 @@ export default schemaMigrations({
           table: 'friends',
           columns: [
             { name: 'category_effectiveness', type: 'string', isOptional: true },
-            { name: 'outcome_count', type: 'number', defaultValue: 0 },
-            { name: 'initiation_ratio', type: 'number', defaultValue: 0.5 },
+            { name: 'outcome_count', type: 'number', isOptional: true },
+            { name: 'initiation_ratio', type: 'number', isOptional: true },
             { name: 'last_initiated_by', type: 'string', isOptional: true },
-            { name: 'consecutive_user_initiations', type: 'number', defaultValue: 0 },
-            { name: 'total_user_initiations', type: 'number', defaultValue: 0 },
-            { name: 'total_friend_initiations', type: 'number', defaultValue: 0 },
+            { name: 'consecutive_user_initiations', type: 'number', isOptional: true },
+            { name: 'total_user_initiations', type: 'number', isOptional: true },
+            { name: 'total_friend_initiations', type: 'number', isOptional: true },
           ],
         }),
         // Add event importance and initiator to interactions
@@ -487,7 +487,7 @@ export default schemaMigrations({
             { name: 'category', type: 'string' },
             { name: 'duration', type: 'string', isOptional: true },
             { name: 'vibe', type: 'string', isOptional: true },
-            { name: 'had_reflection', type: 'boolean', defaultValue: false },
+            { name: 'had_reflection', type: 'boolean' },
             { name: 'expected_impact', type: 'number' },
             { name: 'actual_impact', type: 'number' },
             { name: 'effectiveness_ratio', type: 'number' },
@@ -538,9 +538,9 @@ export default schemaMigrations({
         addColumns({
           table: 'user_progress',
           columns: [
-            { name: 'last_streak_count', type: 'number', defaultValue: 0 },
+            { name: 'last_streak_count', type: 'number', isOptional: true },
             { name: 'streak_released_date', type: 'number', isOptional: true },
-            { name: 'longest_streak_ever', type: 'number', defaultValue: 0 },
+            { name: 'longest_streak_ever', type: 'number', isOptional: true },
           ],
         }),
       ],

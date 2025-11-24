@@ -39,17 +39,38 @@ export function usePortfolio() {
 
         // Get interaction-friend relationships to map interactions to friends
         const interactionIds = recentInteractions.map(i => i.id);
-        const interactionFriendLinks = await database
-          .get('interaction_friends')
-          .query(Q.where('interaction_id', Q.oneOf(interactionIds)))
-          .fetch();
+
+        // Batch queries to avoid SQLite 999 parameter limit
+        const BATCH_SIZE = 500;
+        const chunks = [];
+        for (let i = 0; i < interactionIds.length; i += BATCH_SIZE) {
+          chunks.push(interactionIds.slice(i, i + BATCH_SIZE));
+        }
+
+        const interactionFriendLinksResults = await Promise.all(
+          chunks.map(chunk =>
+            database
+              .get('interaction_friends')
+              .query(Q.where('interaction_id', Q.oneOf(chunk)))
+              .fetch()
+          )
+        );
+
+        const interactionFriendLinks = interactionFriendLinksResults.flat();
+
+        // Create a map for O(1) lookups of friends per interaction
+        const interactionFriendMap = new Map<string, string[]>();
+        interactionFriendLinks.forEach(link => {
+          const { interactionId, friendId } = link as any;
+          if (!interactionFriendMap.has(interactionId)) {
+            interactionFriendMap.set(interactionId, []);
+          }
+          interactionFriendMap.get(interactionId)?.push(friendId);
+        });
 
         // Build interaction data with friend IDs
         const interactionData = recentInteractions.map(interaction => {
-          const links = interactionFriendLinks.filter(
-            link => (link as any).interactionId === interaction.id
-          );
-          const friendIds = links.map(link => (link as any).friendId);
+          const friendIds = interactionFriendMap.get(interaction.id) || [];
 
           return {
             interactionDate: interaction.interactionDate,
