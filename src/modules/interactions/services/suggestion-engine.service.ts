@@ -1,9 +1,9 @@
-import { Suggestion, SuggestionInput } from '../types/suggestions';
+import { Suggestion, SuggestionInput } from '@/shared/types/common';
 import {
   getArchetypePreferredCategory,
   getArchetypeDriftSuggestion,
   getArchetypeMomentumSuggestion,
-} from './archetype-content';
+} from '@/shared/constants/archetype-content';
 import { differenceInDays } from 'date-fns';
 import { database } from '@/db';
 import LifeEvent, { LifeEventType } from '@/db/models/LifeEvent';
@@ -383,7 +383,7 @@ function getContextualSuggestion(
   });
 
   // Get most common interaction type
-  const mostCommon = Object.entries(categoryCounts).sort(([,a], [,b]) => b - a)[0];
+  const mostCommon = Object.entries(categoryCounts).sort(([, a], [, b]) => b - a)[0];
 
   // Contextual suggestions based on their history + archetype
   const suggestions: Record<string, string[]> = {
@@ -717,10 +717,10 @@ export async function generateSuggestion(input: SuggestionInput): Promise<Sugges
   const maintenanceThreshold = isPatternReliable(pattern)
     ? calculateToleranceWindow(pattern)
     : {
-        InnerCircle: 7,
-        CloseFriends: 14,
-        Community: 21,
-      }[friend.dunbarTier];
+      InnerCircle: 7,
+      CloseFriends: 14,
+      Community: 21,
+    }[friend.dunbarTier];
 
   if (currentScore >= 40 && currentScore <= 70 && daysSinceInteraction > maintenanceThreshold) {
     const contextualAction = getContextualSuggestion(recentInteractions, friend.archetype, friend.dunbarTier, pattern);

@@ -106,6 +106,10 @@ export const CATEGORY_METADATA: Record<InteractionCategory, CategoryMetadata> = 
   }
 };
 
+export function getCategoryMetadata(category: InteractionCategory): CategoryMetadata {
+  return CATEGORY_METADATA[category] || CATEGORY_METADATA['hangout'];
+}
+
 // Mapping old activity types to new categories for migration
 export const ACTIVITY_TO_CATEGORY_MAP: Record<ActivityType, InteractionCategory> = {
   'Text': 'text-call',

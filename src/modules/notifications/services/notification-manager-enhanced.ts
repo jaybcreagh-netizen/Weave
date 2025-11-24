@@ -21,6 +21,7 @@ import {
   shouldSendSocialBatteryNotification,
 } from './notification-grace-periods';
 import { getWeekRange } from '@/modules/reflection';
+import { STORY_CHIPS } from '@/modules/reflection/services/story-chips.service';
 
 // AsyncStorage keys
 const LAST_REFLECTION_KEY = '@weave:last_reflection_date';
@@ -527,8 +528,7 @@ export async function scheduleMemoryNudges(): Promise<void> {
 
         const chipLabels = reflection.storyChips
           .map(chip => {
-            // eslint-disable-next-line @typescript-eslint/no-require-imports
-            const chipData = require('./story-chips').STORY_CHIPS.find((c: any) => c.id === chip.chipId);
+            const chipData = STORY_CHIPS.find((c: any) => c.id === chip.chipId);
             return chipData?.plainText;
           })
           .filter(Boolean)

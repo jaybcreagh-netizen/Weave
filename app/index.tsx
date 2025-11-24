@@ -18,5 +18,5 @@ export default function StartPage() {
     return null; // Or a loading screen
   }
 
-  return <Redirect href={hasCompletedOnboarding ? "/(tabs)" : "/onboarding"} />;
+  return <Redirect href={hasCompletedOnboarding ? "/dashboard" : "/onboarding"} />;
 }

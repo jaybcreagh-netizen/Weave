@@ -4,8 +4,8 @@ import { field, date, children, text, writer, readonly } from '@nozbe/watermelon
 export default class Friend extends Model {
   static table = 'friends'
 
-  static associations = {
-    interaction_friends: { type: 'has_many', foreignKey: 'friend_id' }
+  static associations: any = {
+    interaction_friends: { type: 'has_many', foreignKey: 'interaction_id' }
   }
 
   @children('interaction_friends') interactionFriends

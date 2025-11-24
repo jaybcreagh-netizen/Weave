@@ -29,16 +29,16 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { format } from 'date-fns';
-import { database } from '../db';
-import FriendBadge from '../db/models/FriendBadge';
-import Friend from '../db/models/Friend';
+import { database } from '@/db';
+import FriendBadge from '@/db/models/FriendBadge';
+import Friend from '@/db/models/Friend';
 import { Q } from '@nozbe/watermelondb';
-import { getBadgeById } from '../lib/badge-definitions';
-import { analyzeInteractionPattern } from '../lib/pattern-analyzer';
+import { getBadgeById } from '@/modules/gamification/constants/badge-definitions';
+import { analyzeInteractionPattern } from '@/modules/insights/services/pattern.service';
 import { archetypeData } from '@/shared/constants/constants';
 import { CATEGORY_METADATA } from '@/shared/constants/interaction-categories';
 import { useTheme } from '@/shared/hooks/useTheme';
-import type { Archetype, InteractionCategory } from '../components/types';
+import type { Archetype, InteractionCategory } from '@/components/types';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 

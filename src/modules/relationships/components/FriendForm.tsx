@@ -7,16 +7,16 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { useFriends } from '../hooks/useFriends';
-import FriendModel from '../db/models/Friend';
-import { type Archetype, type FriendFormData, type Tier, type RelationshipType } from './types';
-import { ArchetypeCard } from './archetype-card';
-import { ArchetypeDetailModal } from './ArchetypeDetailModal';
-import { ContactPickerGrid } from './onboarding/ContactPickerGrid';
-import { MonthDayPicker } from './MonthDayPicker';
+import FriendModel from '@/db/models/Friend';
+import { type Archetype, type FriendFormData, type Tier, type RelationshipType } from '@/components/types';
+import { ArchetypeCard } from '@/components/archetype-card';
+import { ArchetypeDetailModal } from '@/components/ArchetypeDetailModal';
+import { ContactPickerGrid } from '@/components/onboarding/ContactPickerGrid';
+import { MonthDayPicker } from '@/components/MonthDayPicker';
 import { getTierCapacity, getTierDisplayName, isTierAtCapacity } from '@/shared/constants/constants';
 import { normalizeContactImageUri } from '../utils/image.utils';
-import { SimpleTutorialTooltip } from './SimpleTutorialTooltip';
-import { useTutorialStore } from '../stores/tutorialStore';
+import { SimpleTutorialTooltip } from '@/components/SimpleTutorialTooltip';
+import { useTutorialStore } from '@/stores/tutorialStore';
 import { validateMMDDFormat } from '@/shared/utils/validation-helpers';
 import { processAndStoreImage } from '../services/image.service';
 
@@ -369,14 +369,14 @@ export function FriendForm({ onSave, friend, initialTier, fromOnboarding }: Frie
                   key={tier.id}
                   onPress={() => setFormData({ ...formData, tier: tier.id })}
                   style={[
-                    styles.tierButton, 
-                    { backgroundColor: colors.card, borderColor: colors.border }, 
+                    styles.tierButton,
+                    { backgroundColor: colors.card, borderColor: colors.border },
                     formData.tier === tier.id && [styles.tierButtonSelected, { borderColor: colors.primary, backgroundColor: colors.primary + '20' }]
                   ]}
                 >
                   <Text style={[
-                    styles.tierButtonText, 
-                    { color: colors.foreground }, 
+                    styles.tierButtonText,
+                    { color: colors.foreground },
                     formData.tier === tier.id && [styles.tierButtonTextSelected, { color: colors.primary }]
                   ]}>{tier.label}</Text>
                 </TouchableOpacity>
@@ -532,8 +532,8 @@ export function FriendForm({ onSave, friend, initialTier, fromOnboarding }: Frie
               {formData.tier === 'inner'
                 ? 'Adding more than 5 friends to your Inner Circle may make it harder to maintain these closest bonds. Consider if this friend might fit better in Close Friends, or if another friend should be moved.'
                 : formData.tier === 'close'
-                ? 'Close Friends is for your most important ongoing relationships. Consider whether some existing friends might fit better in Community, or if this new friend should start there.'
-                : 'Community is for meaningful acquaintances and broader connections. You can add more friends here, but remember that quality matters more than quantity.'}
+                  ? 'Close Friends is for your most important ongoing relationships. Consider whether some existing friends might fit better in Community, or if this new friend should start there.'
+                  : 'Community is for meaningful acquaintances and broader connections. You can add more friends here, but remember that quality matters more than quantity.'}
             </Text>
 
             {/* Action Buttons */}
@@ -589,233 +589,233 @@ export function FriendForm({ onSave, friend, initialTier, fromOnboarding }: Frie
 }
 
 const styles = StyleSheet.create({
-    safeArea: {
-        flex: 1,
-    },
-    header: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        padding: 20,
-        borderBottomWidth: 1,
-    },
-    backButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
-    },
-    backButtonText: {},
-    headerTitle: {
-        fontSize: 20,
-        fontWeight: '600',
-        fontFamily: 'Lora_700Bold',
-    },
-    scrollViewContent: {
-        padding: 20,
-    },
-    label: {
-        fontSize: 16,
-        marginBottom: 12,
-        fontFamily: 'Lora_400Regular',
-    },
-    imagePickerContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 16,
-    },
-    avatarContainer: {
-        width: 80,
-        height: 80,
-        borderRadius: 40,
-        borderWidth: 2,
-        borderStyle: 'dashed',
-        alignItems: 'center',
-        justifyContent: 'center',
-        overflow: 'hidden',
-    },
-    avatarImage: {
-        width: '100%',
-        height: '100%',
-    },
-    removeImageButton: {
-        position: 'absolute',
-        top: -8,
-        left: 68, // Position at top-right corner of 80px avatar (80 - 12)
-        width: 24,
-        height: 24,
-        backgroundColor: '#ef4444',
-        borderRadius: 12,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    addPhotoButton: {
-        width: '100%',
-        height: 48,
-        borderRadius: 12,
-        borderWidth: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    input: {
-        borderWidth: 1,
-        borderRadius: 12,
-        height: 56,
-        fontSize: 18,
-        paddingHorizontal: 16,
-    },
-    tierSelectorContainer: {
-        flexDirection: 'row',
-        gap: 8,
-    },
-    tierButton: {
-        flex: 1,
-        padding: 16,
-        borderRadius: 12,
-        borderWidth: 1,
-        alignItems: 'center',
-    },
-    tierButtonSelected: {},
-    tierButtonText: {
-        fontWeight: '500',
-    },
-    tierButtonTextSelected: {},
-    archetypeGrid: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 12,
-        marginTop: 8,
-    },
-    archetypeCardWrapper: {
-        width: '48%',
-    },
-    helperText: {
-        fontSize: 13,
-        lineHeight: 18,
-        marginTop: 4,
-        marginBottom: 8,
-    },
-    relationshipTypeContainer: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 10,
-        rowGap: 10,
-    },
-    relationshipTypeButton: {
-        paddingVertical: 12,
-        paddingHorizontal: 18,
-        borderRadius: 24,
-        borderWidth: 1.5,
-        minWidth: 100,
-        alignItems: 'center',
-    },
-    relationshipTypeButtonSelected: {},
-    relationshipTypeButtonText: {
-        fontSize: 14,
-        fontWeight: '600',
-        textAlign: 'center',
-    },
-    dateButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 12,
-        borderWidth: 1,
-        borderRadius: 12,
-        padding: 16,
-    },
-    dateButtonText: {
-        flex: 1,
-        fontSize: 16,
-    },
-    saveButton: {
-        width: '100%',
-        paddingVertical: 16,
-        borderRadius: 16,
-        alignItems: 'center',
-    },
-    saveButtonText: {
-        fontSize: 18,
-        fontWeight: '500',
-    },
-    importContactsButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 8,
-        height: 40,
-        borderRadius: 12,
-        borderWidth: 1,
-    },
-    modalHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingHorizontal: 20,
-        paddingVertical: 16,
-        borderBottomWidth: 1,
-    },
-    modalTitle: {
-        fontSize: 18,
-        fontWeight: '600',
-        fontFamily: 'Lora_700Bold',
-    },
-    modalOverlay: {
-        flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        justifyContent: 'center',
-        alignItems: 'center',
-        paddingHorizontal: 24,
-    },
-    capacityWarningContainer: {
-        width: '100%',
-        maxWidth: 400,
-        borderRadius: 20,
-        padding: 24,
-        borderWidth: 1,
-        gap: 16,
-    },
-    warningIconContainer: {
-        width: 64,
-        height: 64,
-        borderRadius: 32,
-        alignItems: 'center',
-        justifyContent: 'center',
-        alignSelf: 'center',
-    },
-    warningTitle: {
-        fontSize: 22,
-        fontWeight: '600',
-        fontFamily: 'Lora_700Bold',
-        textAlign: 'center',
-    },
-    warningDescription: {
-        fontSize: 15,
-        lineHeight: 22,
-        textAlign: 'center',
-    },
-    warningButtonContainer: {
-        flexDirection: 'row',
-        gap: 12,
-        marginTop: 8,
-    },
-    warningButtonSecondary: {
-        flex: 1,
-        paddingVertical: 14,
-        borderRadius: 12,
-        alignItems: 'center',
-        borderWidth: 1,
-    },
-    warningButtonSecondaryText: {
-        fontSize: 15,
-        fontWeight: '500',
-    },
-    warningButtonPrimary: {
-        flex: 1,
-        paddingVertical: 14,
-        borderRadius: 12,
-        alignItems: 'center',
-    },
-    warningButtonPrimaryText: {
-        fontSize: 15,
-        fontWeight: '600',
-    },
+  safeArea: {
+    flex: 1,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+  },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  backButtonText: {},
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    fontFamily: 'Lora_700Bold',
+  },
+  scrollViewContent: {
+    padding: 20,
+  },
+  label: {
+    fontSize: 16,
+    marginBottom: 12,
+    fontFamily: 'Lora_400Regular',
+  },
+  imagePickerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  avatarContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+  },
+  removeImageButton: {
+    position: 'absolute',
+    top: -8,
+    left: 68, // Position at top-right corner of 80px avatar (80 - 12)
+    width: 24,
+    height: 24,
+    backgroundColor: '#ef4444',
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addPhotoButton: {
+    width: '100%',
+    height: 48,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  input: {
+    borderWidth: 1,
+    borderRadius: 12,
+    height: 56,
+    fontSize: 18,
+    paddingHorizontal: 16,
+  },
+  tierSelectorContainer: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  tierButton: {
+    flex: 1,
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+  },
+  tierButtonSelected: {},
+  tierButtonText: {
+    fontWeight: '500',
+  },
+  tierButtonTextSelected: {},
+  archetypeGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginTop: 8,
+  },
+  archetypeCardWrapper: {
+    width: '48%',
+  },
+  helperText: {
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 4,
+    marginBottom: 8,
+  },
+  relationshipTypeContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    rowGap: 10,
+  },
+  relationshipTypeButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    borderRadius: 24,
+    borderWidth: 1.5,
+    minWidth: 100,
+    alignItems: 'center',
+  },
+  relationshipTypeButtonSelected: {},
+  relationshipTypeButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  dateButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 16,
+  },
+  dateButtonText: {
+    flex: 1,
+    fontSize: 16,
+  },
+  saveButton: {
+    width: '100%',
+    paddingVertical: 16,
+    borderRadius: 16,
+    alignItems: 'center',
+  },
+  saveButtonText: {
+    fontSize: 18,
+    fontWeight: '500',
+  },
+  importContactsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    height: 40,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    fontFamily: 'Lora_700Bold',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  capacityWarningContainer: {
+    width: '100%',
+    maxWidth: 400,
+    borderRadius: 20,
+    padding: 24,
+    borderWidth: 1,
+    gap: 16,
+  },
+  warningIconContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
+  },
+  warningTitle: {
+    fontSize: 22,
+    fontWeight: '600',
+    fontFamily: 'Lora_700Bold',
+    textAlign: 'center',
+  },
+  warningDescription: {
+    fontSize: 15,
+    lineHeight: 22,
+    textAlign: 'center',
+  },
+  warningButtonContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 8,
+  },
+  warningButtonSecondary: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+  },
+  warningButtonSecondaryText: {
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  warningButtonPrimary: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  warningButtonPrimaryText: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
 });

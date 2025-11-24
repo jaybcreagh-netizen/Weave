@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Sentry from '@sentry/react-native';
 import Constants from 'expo-constants';
 import { useTheme } from '@/shared/hooks/useTheme';
-import { trackEvent, AnalyticsEvents } from '../shared/services/analytics.service';
+import { trackEvent, AnalyticsEvents } from '@/shared/services/analytics.service';
 
 // Optional: Lazy-load react-native-view-shot to avoid crash if not installed
 let captureRef: any = null;

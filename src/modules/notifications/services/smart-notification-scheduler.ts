@@ -6,14 +6,14 @@
 
 import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { database } from '../db';
-import UserProfile from '../db/models/UserProfile';
-import Friend from '../db/models/Friend';
-import { Suggestion } from '../types/suggestions';
-import { generateSuggestion } from './suggestion-engine';
+import { database } from '@/db';
+import UserProfile from '@/db/models/UserProfile';
+import Friend from '@/db/models/Friend';
+import { Suggestion } from '@/shared/types/common';
+import { generateSuggestion } from '@/modules/interactions/services/suggestion-engine.service';
 import { calculateCurrentScore } from '@/modules/intelligence';
-import Interaction from '../db/models/Interaction';
-import InteractionFriend from '../db/models/InteractionFriend';
+import Interaction from '@/db/models/Interaction';
+import InteractionFriend from '@/db/models/InteractionFriend';
 import { Q } from '@nozbe/watermelondb';
 
 // AsyncStorage keys

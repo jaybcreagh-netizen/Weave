@@ -12,10 +12,10 @@ import { Calendar, Heart, Sparkles, X } from 'lucide-react-native';
 import { format } from 'date-fns';
 
 import { useTheme } from '@/shared/hooks/useTheme';
-import { ArchetypeIcon } from './ArchetypeIcon';
+import { ArchetypeIcon } from '@/components/ArchetypeIcon';
 import { archetypeData, CategoryArchetypeMatrix } from '@/shared/constants/constants';
 import { CATEGORY_METADATA } from '@/shared/constants/interaction-categories';
-import { type InteractionCategory } from '../types';
+import { type InteractionCategory } from '@/components/types';
 import FriendModel from '@/db/models/Friend';
 import { useRelationshipsStore } from '../store';
 import { calculateCurrentScore } from '@/modules/intelligence';
@@ -163,7 +163,7 @@ export const FriendDetailSheet: React.FC<FriendDetailSheetProps> = ({
                     // Format MM-DD string to "Month Day"
                     const [month, day] = friend.birthday.split('-');
                     const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
-                                        'July', 'August', 'September', 'October', 'November', 'December'];
+                      'July', 'August', 'September', 'October', 'November', 'December'];
                     return `${monthNames[parseInt(month) - 1]} ${parseInt(day)}`;
                   })()}
                 </Text>

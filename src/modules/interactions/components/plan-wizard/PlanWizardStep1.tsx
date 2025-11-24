@@ -6,7 +6,7 @@ import { BlurView } from 'expo-blur';
 import { startOfDay, addDays, format, isSaturday, nextSaturday, getDay } from 'date-fns';
 import { Q } from '@nozbe/watermelondb';
 import { useTheme } from '@/shared/hooks/useTheme';
-import { CustomCalendar } from '../CustomCalendar';
+import { CustomCalendar } from '@/components/CustomCalendar';
 import { database } from '@/db';
 import InteractionModel from '@/db/models/Interaction';
 import FriendModel from '@/db/models/Friend';

@@ -5,7 +5,7 @@ import { ReflectionStoryChips } from './ReflectionStoryChips';
 import { ReflectionTextInput } from './ReflectionTextInput';
 import { getNextChipType, STORY_CHIPS, type StoryChip, type ChipType } from '@/modules/reflection';
 import { type InteractionCategory, type Archetype, type Vibe, type Tier } from './types';
-import { type StructuredReflection } from '../stores/interactionStore';
+import { type StructuredReflection } from '@/components/types';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { analyzeText, generateContextualPrompt, calculateReflectionQuality } from '@/modules/reflection';
 import { STORY_CHIPS as ALL_STORY_CHIPS } from '@/modules/reflection';

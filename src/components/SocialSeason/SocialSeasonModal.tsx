@@ -25,7 +25,7 @@ import { GraphsTabContent } from '../YearInMoons/GraphsTabContent';
 import { database } from '@/db';
 import Interaction from '@/db/models/Interaction';
 import WeeklyReflection from '@/db/models/WeeklyReflection';
-import { useUserProfileStore } from '@/stores/userProfileStore';
+import { useUserProfileStore } from '@/modules/auth';
 
 interface SocialSeasonModalProps {
   isOpen: boolean;

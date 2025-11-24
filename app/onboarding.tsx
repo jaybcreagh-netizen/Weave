@@ -6,7 +6,7 @@ import { useRouter } from 'expo-router';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 
-import { theme } from '../src/theme';
+import { theme } from '@/shared/theme/theme';
 import { AnimatedThoughtBubbles } from '@/components/onboarding/AnimatedThoughtBubbles';
 import { ArchetypeImpactDemo } from '@/components/onboarding/ArchetypeImpactDemo';
 import { useTutorialStore } from '@/stores/tutorialStore';

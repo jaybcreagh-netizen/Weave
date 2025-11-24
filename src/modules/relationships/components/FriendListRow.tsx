@@ -12,13 +12,13 @@ import Animated, {
   interpolate,
 } from 'react-native-reanimated';
 
-import { useUIStore } from '../stores/uiStore';
-import { type Archetype, type RelationshipType } from './types';
+import { useUIStore } from '@/stores/uiStore';
+import { type Archetype, type RelationshipType } from '@/components/types';
 import { useTheme } from '@/shared/hooks/useTheme';
-import { ArchetypeIcon } from './ArchetypeIcon';
+import { ArchetypeIcon } from '@/components/ArchetypeIcon';
 import { archetypeData } from '@/shared/constants/constants';
-import FriendModel from '../db/models/Friend';
-import { useCardGesture } from '../context/CardGestureContext';
+import FriendModel from '@/db/models/Friend';
+import { useCardGesture } from '@/context/CardGestureContext';
 import { calculateCurrentScore } from '@/modules/intelligence';
 import { generateIntelligentStatusLine } from '@/modules/intelligence';
 import { normalizeContactImageUri } from '../utils/image.utils';

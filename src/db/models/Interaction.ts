@@ -5,7 +5,7 @@ import { type StructuredReflection } from '@/components/types'
 export default class Interaction extends Model {
   static table = 'interactions'
 
-  static associations = {
+  static associations: any = {
     interaction_friends: { type: 'has_many', foreignKey: 'interaction_id' }
   }
 

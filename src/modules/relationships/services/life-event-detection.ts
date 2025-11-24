@@ -1,5 +1,5 @@
-import { database } from '../db';
-import LifeEvent, { LifeEventType, LifeEventImportance } from '../db/models/LifeEvent';
+import { database } from '@/db';
+import LifeEvent, { LifeEventType, LifeEventImportance } from '@/db/models/LifeEvent';
 
 /**
  * Life Event NLP Detection System

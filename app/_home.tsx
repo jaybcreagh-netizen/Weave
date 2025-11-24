@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import { HomeWidgetGrid, WidgetGridItem } from '@/components/home/HomeWidgetGrid';
 import { SocialSeasonWidget } from '@/components/home/widgets/SocialSeasonWidget';
@@ -35,10 +34,6 @@ export default function Home() {
   // Tutorial state - check if QuickWeave tutorial is done
   const hasPerformedQuickWeave = useTutorialStore((state) => state.hasPerformedQuickWeave);
 
-  // Listen for URL parameters from notification deep links
-  const params = useLocalSearchParams();
-  const router = useRouter();
-
   // Initialize user profile observable on mount
   useEffect(() => {
     try {
@@ -61,20 +56,7 @@ export default function Home() {
     }
   }, []);
 
-  // Handle notification deep links via URL parameters
-  useEffect(() => {
-    if (params.showBattery === 'true') {
-      setShowBatterySheet(true);
-      // Clear the parameter to prevent re-triggering
-      router.setParams({ showBattery: undefined });
-    }
 
-    if (params.showReflection === 'true') {
-      setShowWeeklyReflection(true);
-      // Clear the parameter to prevent re-triggering
-      router.setParams({ showReflection: undefined });
-    }
-  }, [params.showBattery, params.showReflection]);
 
   // Check if user should be prompted for battery check-in
   // Wait until QuickWeave tutorial is complete before showing (avoid conflicts)

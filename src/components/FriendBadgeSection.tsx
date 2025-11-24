@@ -7,8 +7,8 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
-import { database } from '../db';
-import FriendBadge from '../db/models/FriendBadge';
+import { database } from '@/db';
+import FriendBadge from '@/db/models/FriendBadge';
 import { Q } from '@nozbe/watermelondb';
 import {
   getBadgeById,

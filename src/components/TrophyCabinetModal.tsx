@@ -17,13 +17,13 @@ import {
   Dimensions,
 } from 'react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
-import { database } from '../db';
-import UserProgress from '../db/models/UserProgress';
+import { database } from '@/db';
+import UserProgress from '@/db/models/UserProgress';
 import {
   GLOBAL_ACHIEVEMENTS,
   HIDDEN_ACHIEVEMENTS,
   type GlobalAchievement,
-} from '../lib/achievement-definitions';
+} from '@/modules/gamification/constants/achievement-definitions';
 import AchievementCard from './AchievementCard';
 
 interface TrophyCabinetModalProps {

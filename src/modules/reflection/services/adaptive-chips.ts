@@ -14,7 +14,7 @@ import ChipUsage from '@/db/models/ChipUsage';
 import { incrementUsage } from '@/modules/reflection';
 import Interaction from '@/db/models/Interaction';
 import FriendModel from '@/db/models/Friend';
-import { calculateChipFrequency, suggestCustomChip, createCustomChip, type StoryChip, type ChipType } from './story-chips';
+import { calculateChipFrequency, suggestCustomChip, createCustomChip, type StoryChip, type ChipType } from './story-chips.service';
 import { type ReflectionChip } from '@/components/types';
 import { Q } from '@nozbe/watermelondb';
 
@@ -245,8 +245,8 @@ export async function generatePatternInsights(
 
     if (chipUsageCount >= 3) {
       // Get chip plain text from ALL_STORY_CHIPS
-      const { STORY_CHIPS: ALL_CHIPS } = await import('./story-chips');
-      const chip = ALL_CHIPS.find(c => c.id === chipId);
+      const { STORY_CHIPS: ALL_CHIPS } = await import('./story-chips.service');
+      const chip = ALL_CHIPS.find((c: any) => c.id === chipId);
       const chipText = chip?.plainText || chipId;
 
       insights.push({
@@ -255,8 +255,8 @@ export async function generatePatternInsights(
       });
     } else if (chipUsageCount === 0) {
       // First time using this chip with this friend
-      const { STORY_CHIPS: ALL_CHIPS } = await import('./story-chips');
-      const chip = ALL_CHIPS.find(c => c.id === chipId);
+      const { STORY_CHIPS: ALL_CHIPS } = await import('./story-chips.service');
+      const chip = ALL_CHIPS.find((c: any) => c.id === chipId);
 
       // Only show for significant/notable chips
       const notableChipIds = [

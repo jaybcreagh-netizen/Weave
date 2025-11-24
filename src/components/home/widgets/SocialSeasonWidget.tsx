@@ -7,7 +7,7 @@ import { Q } from '@nozbe/watermelondb';
 import { useRouter } from 'expo-router';
 import { BookOpen, X, Sparkles, BarChart3, Telescope, Lightbulb, Flame, Battery, ChevronDown } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
-import { useUserProfileStore } from '@/stores/userProfileStore';
+import { useUserProfileStore } from '@/modules/auth/store/user-profile.store';
 import { useFriends } from '@/modules/relationships';
 import { useInteractions } from '@/modules/interactions';
 import { HomeWidgetBase, HomeWidgetConfig } from '../HomeWidgetBase';
@@ -70,7 +70,8 @@ const SEASON_EXPLANATIONS: Record<SocialSeason, {
 export const SocialSeasonWidget: React.FC = () => {
   const { colors, isDarkMode } = useTheme();
   const router = useRouter();
-  const { profile, updateSocialSeason, getRecentBatteryAverage, getBatteryTrend } = useUserProfileStore();
+  const { profile, updateSocialSeason, getRecentBatteryAverage, batteryStats } = useUserProfileStore();
+  const batteryHistory = []; // Deprecated, use batteryStats instead
   const friends = useFriends();
   const { allInteractions } = useInteractions();
   const [isCalculating, setIsCalculating] = useState(false);
@@ -130,9 +131,7 @@ export const SocialSeasonWidget: React.FC = () => {
               Q.where('created_at', Q.lt(dayEnd))
             )
             .fetchCount(),
-          profile?.socialBatteryHistory?.filter(
-            entry => entry.timestamp >= dayStart && entry.timestamp < dayEnd
-          ).length || 0,
+          0, // Battery history deprecated
           database
             .get<WeeklyReflection>('weekly_reflections')
             .query(
@@ -211,11 +210,11 @@ export const SocialSeasonWidget: React.FC = () => {
       const avgScoreInnerCircle = innerCircleScores.reduce((sum, score) => sum + score, 0) / innerCircleScores.length || 0;
 
       const momentumCount = friends.filter(
-        f => f.momentumScore > 10 && f.momentumLastUpdated > Date.now() - 24 * 60 * 60 * 1000
+        f => f.momentumScore > 10 && f.momentumLastUpdated.getTime() > Date.now() - 24 * 60 * 60 * 1000
       ).length;
 
-      const batteryLast7DaysAvg = getRecentBatteryAverage(7);
-      const batteryTrend = getBatteryTrend();
+      const averageBattery = batteryStats.average || 50;
+      const batteryTrend = batteryStats.trend || 'stable';
 
       const input: SeasonCalculationInput = {
         weavesLast7Days,
@@ -223,8 +222,8 @@ export const SocialSeasonWidget: React.FC = () => {
         avgScoreAllFriends,
         avgScoreInnerCircle,
         momentumCount,
-        batteryLast7DaysAvg,
-        batteryTrend,
+        batteryLast7DaysAvg: averageBattery,
+        batteryTrend: batteryTrend,
       };
 
       const newSeason = calculateSocialSeason(input, profile.currentSocialSeason);
@@ -238,8 +237,8 @@ export const SocialSeasonWidget: React.FC = () => {
         avgScoreAllFriends,
         avgScoreInnerCircle,
         momentumCount,
-        batteryLast7DaysAvg,
-        batteryTrend,
+        batteryLast7DaysAvg: averageBattery,
+        batteryTrend: batteryTrend,
       });
 
       const oneHourAgo = Date.now() - 60 * 60 * 1000;
@@ -259,8 +258,8 @@ export const SocialSeasonWidget: React.FC = () => {
     avgScoreAllFriends: calculateWeightedNetworkHealth(friends) || 50,
     avgScoreInnerCircle: friends.filter(f => f.dunbarTier === 'InnerCircle').reduce((sum, f) => sum + calculateCurrentScore(f), 0) / friends.filter(f => f.dunbarTier === 'InnerCircle').length || 50,
     momentumCount: friends.filter(f => f.momentumScore > 10).length,
-    batteryLast7DaysAvg: getRecentBatteryAverage(7),
-    batteryTrend: getBatteryTrend(),
+    batteryLast7DaysAvg: batteryStats.average || 50,
+    batteryTrend: batteryStats.trend || 'stable',
   });
 
   const greeting = getSeasonGreeting(season, context);
@@ -300,7 +299,7 @@ export const SocialSeasonWidget: React.FC = () => {
     <>
       <HomeWidgetBase config={WIDGET_CONFIG} isLoading={isCalculating}>
         <Pressable onPress={() => setShowModal(true)} onLongPress={() => setShowOverride(true)} delayLongPress={800}>
-          <LinearGradient colors={gradientColors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.gradient}>
+          <LinearGradient colors={gradientColors as any} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.gradient}>
             {/* Header */}
             <View style={styles.header}>
               <SeasonIcon season={season} size={48} color="#FFFFFF" />
@@ -326,7 +325,7 @@ export const SocialSeasonWidget: React.FC = () => {
                     ]}>
                       {isFilled && (
                         <LinearGradient
-                          colors={['#FFD700', '#F59E0B']}
+                          colors={['transparent', 'rgba(0,0,0,0.8)'] as const}
                           start={{ x: 0, y: 0 }}
                           end={{ x: 1, y: 1 }}
                           style={[

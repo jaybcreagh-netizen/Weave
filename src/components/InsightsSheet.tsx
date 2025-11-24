@@ -2,11 +2,11 @@ import React, { useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Dimensions } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, withSpring, runOnJS } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
-import { Suggestion } from '../types/suggestions';
+import { Suggestion } from '@/shared/types/common';
 import { SuggestionCard } from './SuggestionCard';
 import { IntentionsList } from './IntentionsList';
 import { useTheme } from '@/shared/hooks/useTheme';
-import Intention from '../db/models/Intention';
+import Intention from '@/db/models/Intention';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const SHEET_HEIGHT = SCREEN_HEIGHT * 0.75;

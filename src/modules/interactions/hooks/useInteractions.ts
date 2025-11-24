@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from 'react';
-import { useInteractionsStore } from './store';
-import { Interaction } from '@/db/models';
+import { useInteractionsStore } from '../store';
+import Interaction from '@/db/models/Interaction';
 
 export function useInteractions() {
   const {

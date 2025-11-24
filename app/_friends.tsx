@@ -6,7 +6,7 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { GestureDetector } from 'react-native-gesture-handler';
 import * as Haptics from 'expo-haptics';
 
-import { FriendListRow } from '@/components/FriendListRow';
+import { FriendListRow } from '@/modules/relationships/components/FriendListRow';
 import { TierSegmentedControl } from '@/components/TierSegmentedControl';
 import { TierInfo } from '@/components/TierInfo';
 import { FAB } from '@/components/fab';
@@ -18,7 +18,7 @@ import { useUIStore } from '@/stores/uiStore';
 import { useFriends } from '@/modules/relationships';
 import { useInteractions, usePlans, PlanService, getSuggestionCooldownDays } from '@/modules/interactions';
 import { useSuggestions } from '@/modules/interactions';
-import { Suggestion } from '@/types/suggestions';
+import { Suggestion } from '@/shared/types/common';
 import { checkAndApplyDormancy } from '@/modules/relationships';
 import FriendModel from '@/db/models/Friend';
 import { useTheme } from '@/shared/hooks/useTheme';
@@ -106,7 +106,9 @@ function DashboardContent() {
   const allFriends = useFriends(); // Direct WatermelonDB subscription
   const { updateInteractionVibeAndNotes } = useInteractions();
   const { gesture, animatedScrollHandler, activeCardId } = useCardGesture();
-  const { suggestions, suggestionCount, hasCritical, dismissSuggestion } = useSuggestions();
+  const { suggestions, dismissSuggestion } = useSuggestions();
+  const suggestionCount = suggestions.length;
+  const hasCritical = suggestions.some(s => s.priority === 'high');
   const { dismissIntention, intentions } = usePlans();
   const [insightsSheetVisible, setInsightsSheetVisible] = useState(false);
   const [selectedIntention, setSelectedIntention] = useState<Intention | null>(null);
@@ -139,7 +141,7 @@ function DashboardContent() {
 
   useEffect(() => {
     if (allFriends.length > 0) {
-      checkAndApplyDormancy(allFriends);
+      checkAndApplyDormancy();
     }
   }, [allFriends]);
 
@@ -245,7 +247,7 @@ function DashboardContent() {
         const activityLabel = suggestion.subtitle.match(/your (.*?) with/)?.[1] || 'time together';
         showMicroReflectionSheet({
           friendId: suggestion.friendId,
-          friendName: suggestion.friendName,
+          friendName: suggestion.friendName || '',
           activityId: '', // Not needed for reflection
           activityLabel,
           interactionId: suggestion.action.interactionId,
@@ -295,23 +297,26 @@ function DashboardContent() {
         </View>
       );
     }
+
+    const renderFriendItem = ({ item, index }: { item: FriendModel; index: number }) => (
+      <AnimatedFriendCardItem
+        item={item}
+        index={index}
+        refreshKey={refreshKey}
+      />
+    );
+
     return (
       <View style={{ width: screenWidth, height: '100%', backgroundColor: tierBgColor }}>
         <AnimatedFlashList
           contentContainerStyle={styles.tierScrollView}
           data={currentFriends}
           estimatedItemSize={72}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item: any) => item.id}
           scrollEnabled={!isQuickWeaveOpen}
           onScroll={scrollHandler}
           scrollEventThrottle={8}
-          renderItem={({ item, index }) => (
-            <AnimatedFriendCardItem
-              item={item}
-              index={index}
-              refreshKey={refreshKey}
-            />
-          )}
+          renderItem={renderFriendItem as any}
           disableIntervalMomentum={true}
         />
       </View>
@@ -333,7 +338,7 @@ function DashboardContent() {
 
       <GestureDetector gesture={gesture}>
         <Animated.ScrollView
-          ref={scrollViewRef}
+          ref={scrollViewRef as any}
           horizontal
           pagingEnabled
           showsHorizontalScrollIndicator={false}
@@ -347,7 +352,7 @@ function DashboardContent() {
           {renderTier('community', animatedScrollHandler)}
         </Animated.ScrollView>
       </GestureDetector>
-      
+
       <FAB onClick={onAddFriend} />
 
       <InsightsFAB
@@ -443,9 +448,9 @@ export default function Friends() {
 }
 
 const styles = StyleSheet.create({
-    safeArea: { flex: 1 },
-    emptyTierContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
-    emptyTierEmoji: { fontSize: 50, marginBottom: 24, opacity: 0.6 },
-    emptyTierTitle: { fontSize: 18, marginBottom: 12 },
-    tierScrollView: { paddingHorizontal: 20, paddingVertical: 16 },
+  safeArea: { flex: 1 },
+  emptyTierContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
+  emptyTierEmoji: { fontSize: 50, marginBottom: 24, opacity: 0.6 },
+  emptyTierTitle: { fontSize: 18, marginBottom: 12 },
+  tierScrollView: { paddingHorizontal: 20, paddingVertical: 16 },
 });

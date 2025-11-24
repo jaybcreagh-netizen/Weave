@@ -8,7 +8,7 @@ import { usePlans } from '@/modules/interactions';
 import { useSuggestions } from '../hooks/useSuggestions';
 import { getCategoryMetadata } from '@/shared/constants/interaction-categories';
 import { type InteractionCategory } from './types';
-import FriendModel from '../db/models/Friend';
+import FriendModel from '@/db/models/Friend';
 
 interface UpcomingDate {
   friend: FriendModel;

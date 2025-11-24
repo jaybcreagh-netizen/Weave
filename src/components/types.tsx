@@ -37,6 +37,17 @@ export type Interaction = {
   source?: 'quick-weave' | 'full-form' | 'import'; // Track entry method for node sizing
   photos?: string[]; // Photo URIs for rich content detection
   reflection?: StructuredReflection; // NEW: Structured reflection data
+
+  // Missing properties added to fix build errors
+  activity: string;
+  status: string;
+  mode: string;
+  title?: string;
+  location?: string;
+  eventImportance?: string;
+  initiator?: string;
+  updatedAt: Date;
+  interactionCategory?: InteractionCategory;
 };
 
 export type FriendFormData = {

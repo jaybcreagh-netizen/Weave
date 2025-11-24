@@ -62,3 +62,21 @@ export interface StructuredReflection {
   chips?: ReflectionChip[];
   customNotes?: string;
 }
+
+export interface Suggestion {
+  id: string;
+  type: 'connect' | 'deepen' | 'reconnect' | 'celebrate';
+  friendId: string;
+  title: string;
+  subtitle: string;
+  icon: string;
+  score?: number;
+  reason?: string;
+  priority?: 'high' | 'medium' | 'low';
+  action: {
+    type: 'plan' | 'log' | 'reflect' | 'connect';
+    interactionId?: string;
+  };
+  category?: string;
+  friendName?: string;
+}

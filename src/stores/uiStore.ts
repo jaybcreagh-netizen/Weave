@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { type Archetype, type Interaction, type InteractionCategory } from '../components/types';
+import { type Archetype, type Interaction, type InteractionCategory } from '@/components/types';
 import { type Milestone } from '@/modules/gamification';
 import { type BadgeUnlock } from '@/modules/gamification';
 import { type AchievementUnlockData } from '@/modules/gamification';
@@ -105,28 +105,28 @@ export const useUIStore = create<UIStore>((set, get) => ({
   achievementUnlockQueue: [],
   isDarkMode: false,
   isTrophyCabinetOpen: false,
-  
+
   setSelectedFriendId: (id) => set({ selectedFriendId: id }),
   setArchetypeModal: (archetype) => set({ archetypeModal: archetype }),
   openTimelineView: () => set({ timelineViewOpen: true }),
   closeTimelineView: () => set({ timelineViewOpen: false }),
   setTimelineInteractions: (interactions) => set({ timelineInteractions: interactions }),
-  addTimelineInteractions: (interactions) => set((state) => ({ 
-    timelineInteractions: [...state.timelineInteractions, ...interactions] 
+  addTimelineInteractions: (interactions) => set((state) => ({
+    timelineInteractions: [...state.timelineInteractions, ...interactions]
   })),
   setTimelinePage: (page) => set({ timelinePage: page }),
   setTimelineHasMore: (hasMore) => set({ timelineHasMore: hasMore }),
-  resetTimeline: () => set((state) => ({ 
-    timelineInteractions: [], 
-    timelinePage: 0, 
+  resetTimeline: () => set((state) => ({
+    timelineInteractions: [],
+    timelinePage: 0,
     timelineHasMore: true,
-    timelineFriendId: state.selectedFriendId 
+    timelineFriendId: state.selectedFriendId
   })),
   openCalendarView: (friendId = null) => set({ calendarViewOpen: true, calendarSelectedFriendId: friendId }),
   closeCalendarView: () => set({ calendarViewOpen: false, calendarSelectedFriendId: null, calendarSelectedDate: null }),
   setCalendarSelectedDate: (date) => set({ calendarSelectedDate: date }),
   toggleShowDebugScore: () => set((state) => ({ showDebugScore: !state.showDebugScore })),
-  
+
   openQuickWeave: (friendId, centerPoint, activities) => set({
     isQuickWeaveOpen: true,
     isQuickWeaveClosing: false,
@@ -134,7 +134,7 @@ export const useUIStore = create<UIStore>((set, get) => ({
     quickWeaveCenterPoint: centerPoint,
     quickWeaveActivities: activities
   }),
-  
+
   // This just starts the closing animation
   closeQuickWeave: () => set({ isQuickWeaveClosing: true }),
 
@@ -146,7 +146,7 @@ export const useUIStore = create<UIStore>((set, get) => ({
     quickWeaveActivities: [],
     isQuickWeaveClosing: false,
   }),
-  
+
   setJustNurturedFriendId: (id) => set({ justNurturedFriendId: id }),
   setJustLoggedInteractionId: (id) => set({ justLoggedInteractionId: id }),
 

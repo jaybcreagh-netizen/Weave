@@ -7,9 +7,9 @@ import { useRouter } from 'expo-router';
 
 import { useUIStore } from '../stores/uiStore';
 import { useInteractions } from '@/modules/interactions';
-import { database } from '../db';
-import Friend from '../db/models/Friend';
-import { type InteractionCategory } from '../components/types';
+import { database } from '@/db';
+import Friend from '@/db/models/Friend';
+import { type InteractionCategory } from '@/components/types';
 import { getTopActivities, isSmartDefaultsEnabled } from '@/modules/interactions';
 
 const MENU_RADIUS = 75; // Reduced for compact design
@@ -241,12 +241,12 @@ function useCardGestureCoordinator(): CardGestureContextType {
         const touch = event.changedTouches[0];
         const currentDragX = touch.x - startCoordinates.value.x;
         const currentDragY = touch.y - startCoordinates.value.y;
-        
+
         dragX.value = currentDragX;
         dragY.value = currentDragY;
 
-        const distance = Math.sqrt(currentDragX**2 + currentDragY**2);
-        
+        const distance = Math.sqrt(currentDragX ** 2 + currentDragY ** 2);
+
         if (distance < HIGHLIGHT_THRESHOLD) {
           highlightedIndex.value = -1;
           return;
@@ -265,7 +265,7 @@ function useCardGestureCoordinator(): CardGestureContextType {
             closestIndex = i;
           }
         }
-        
+
         if (highlightedIndex.value !== closestIndex) {
           highlightedIndex.value = closestIndex;
           runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Light);
@@ -277,7 +277,7 @@ function useCardGestureCoordinator(): CardGestureContextType {
           // Close the overlay first
           runOnJS(closeQuickWeave)();
 
-          const distance = Math.sqrt(dragX.value**2 + dragY.value**2);
+          const distance = Math.sqrt(dragX.value ** 2 + dragY.value ** 2);
           if (distance >= SELECTION_THRESHOLD && highlightedIndex.value !== -1 && activeCardId.value) {
             // Process interaction selection after overlay closes
             const selectedIndex = highlightedIndex.value;

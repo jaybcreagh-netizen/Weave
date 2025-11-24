@@ -1,5 +1,5 @@
 // src/lib/oracle/oracle-service.ts
-import { supabase } from '../supabase';
+import { supabase } from '@/modules/auth/services/supabase.service';
 import { SuggestionContext, WeeklyOracleInsight } from './types';
 
 export interface OracleResponse {

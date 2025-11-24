@@ -1,13 +1,13 @@
 import React from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Text } from 'react-native';
-import { withObservables } from '@nozbe/watermelondb/react';
+import withObservables from '@nozbe/with-observables';
 import { FriendForm, useRelationshipsStore, FriendFormData } from '@/modules/relationships';
 import { database } from '@/db';
 import FriendModel from '@/db/models/Friend';
 
 interface EditFriendProps {
-    friend: FriendModel;
+  friend: FriendModel;
 }
 
 const EditFriendComponent = ({ friend }: EditFriendProps) => {
@@ -29,15 +29,15 @@ const EditFriendComponent = ({ friend }: EditFriendProps) => {
 }
 
 const enhance = withObservables<{ friendId: string }, EditFriendProps>(['friendId'], ({ friendId }) => ({
-    friend: database.get<FriendModel>('friends').findAndObserve(friendId),
+  friend: database.get<FriendModel>('friends').findAndObserve(friendId),
 }));
 
 const EnhancedEditFriend = enhance(EditFriendComponent);
 
 const EditFriendScreen = () => {
-    const { friendId } = useLocalSearchParams();
-    if (!friendId || typeof friendId !== 'string') return <Text>Friend not found.</Text>;
-    return <EnhancedEditFriend friendId={friendId} />;
+  const { friendId } = useLocalSearchParams();
+  if (!friendId || typeof friendId !== 'string') return <Text>Friend not found.</Text>;
+  return <EnhancedEditFriend friendId={friendId} />;
 }
 
 export default EditFriendScreen;

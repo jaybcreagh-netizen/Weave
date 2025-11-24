@@ -4,8 +4,8 @@ import { BlurView } from 'expo-blur';
 import { X, Calendar } from 'lucide-react-native';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { useTheme } from '@/shared/hooks/useTheme';
-import { database } from '../db';
-import LifeEvent, { LifeEventType, LifeEventImportance } from '../db/models/LifeEvent';
+import { database } from '@/db';
+import LifeEvent, { LifeEventType, LifeEventImportance } from '@/db/models/LifeEvent';
 import { CustomCalendar } from './CustomCalendar';
 import { startOfDay } from 'date-fns';
 

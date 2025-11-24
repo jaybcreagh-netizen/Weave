@@ -99,6 +99,16 @@ async function awardHiddenAchievement(
   // ... implementation from original file
 }
 
+export async function markAchievementAsCelebrated(achievementId: string): Promise<void> {
+  const userProgress = await getUserProgress();
+  if (!userProgress) return;
+
+  // This is a placeholder. In a real implementation, we would update a 'celebrated_achievements' field
+  // or similar. For now, we'll just log it or assume it's handled by the UI state if not persisted.
+  // If persistence is needed, we should add a field to UserProgress.
+  console.log(`Marked achievement ${achievementId} as celebrated`);
+}
+
 export type HiddenAchievementTrigger =
   | { type: 'interaction_logged'; interaction: Interaction }
   | { type: 'interaction_type_used' }

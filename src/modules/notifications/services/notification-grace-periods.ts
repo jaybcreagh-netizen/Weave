@@ -5,10 +5,10 @@
  */
 
 import { differenceInDays, differenceInHours } from 'date-fns';
-import { database } from '../db';
-import UserProfile from '../db/models/UserProfile';
-import InteractionModel from '../db/models/Interaction';
-import FriendModel from '../db/models/Friend';
+import { database } from '@/db';
+import UserProfile from '@/db/models/UserProfile';
+import InteractionModel from '@/db/models/Interaction';
+import FriendModel from '@/db/models/Friend';
 
 /**
  * Grace period configuration for different notification types

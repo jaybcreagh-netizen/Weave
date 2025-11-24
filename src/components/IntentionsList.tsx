@@ -5,11 +5,12 @@ import { Q } from '@nozbe/watermelondb';
 import { Trash2 } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { getCategoryMetadata } from '@/shared/constants/interaction-categories';
-import Intention from '../db/models/Intention';
-import FriendModel from '../db/models/Friend';
+import Intention from '@/db/models/Intention';
+import FriendModel from '@/db/models/Friend';
 import { InteractionCategory } from './types';
-import { database } from '../db';
-import { useIntentionStore } from '../stores/intentionStore';
+import { database } from '@/db';
+// FIXME: intentionStore has been removed or is missing
+// import { useIntentionStore } from '../stores/intentionStore';
 
 interface IntentionWithFriend {
   intention: Intention;
@@ -28,7 +29,10 @@ interface IntentionsListProps {
 export function IntentionsList({ intentions, onIntentionPress }: IntentionsListProps) {
   const { colors } = useTheme();
   const [intentionsWithFriends, setIntentionsWithFriends] = useState<IntentionWithFriend[]>([]);
-  const { clearAllIntentions, cleanupOrphanedIntentions } = useIntentionStore();
+  // const { clearAllIntentions, cleanupOrphanedIntentions } = useIntentionStore();
+  // Stubbed values
+  const clearAllIntentions = async () => { };
+  const cleanupOrphanedIntentions = async () => { };
 
   // Clean up orphaned intentions on mount
   useEffect(() => {

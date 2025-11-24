@@ -1,6 +1,6 @@
-import { database } from '../db';
-import UserProgress from '../db/models/UserProgress';
-import PracticeLog from '../db/models/PracticeLog';
+import { database } from '@/db';
+import UserProgress from '@/db/models/UserProgress';
+import PracticeLog from '@/db/models/PracticeLog';
 import { startOfDay, differenceInDays } from 'date-fns';
 
 /**

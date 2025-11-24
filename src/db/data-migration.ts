@@ -1,5 +1,5 @@
 import { Database } from '@nozbe/watermelondb';
-import { InteractionCategory, ActivityType } from '../components/types';
+import { InteractionCategory, ActivityType } from '@/components/types';
 import { migrateActivityToCategory } from '@/shared/constants/interaction-categories';
 
 /**

@@ -1,6 +1,6 @@
 import * as Calendar from 'expo-calendar';
-import { database } from '../db';
-import FriendModel from '../db/models/Friend';
+import { database } from '@/db';
+import FriendModel from '@/db/models/Friend';
 import { Q } from '@nozbe/watermelondb';
 import {
   classifyEvent,
@@ -9,8 +9,8 @@ import {
   type EventType,
   type EventImportance,
 } from '@/modules/reflection';
-import { checkCalendarPermissions, getCalendarSettings } from './calendar-service';
-import { type InteractionCategory } from '../components/types';
+import { checkCalendarPermissions, getCalendarSettings } from './calendar.service';
+import { type InteractionCategory } from '@/components/types';
 
 /**
  * Scanned calendar event with classification and friend matches

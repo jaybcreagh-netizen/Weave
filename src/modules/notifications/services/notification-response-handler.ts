@@ -7,19 +7,19 @@
 import * as Notifications from 'expo-notifications';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import { useUIStore } from '../stores/uiStore';
+import { useUIStore } from '@/stores/uiStore';
 
 export interface NotificationData {
   type:
-    | 'battery-checkin'
-    | 'weekly-reflection'
-    | 'event-reminder'
-    | 'deepening-nudge'
-    | 'friend-suggestion'
-    | 'portfolio-insight'
-    | 'life-event'
-    | 'memory-nudge'
-    | 'event-suggestion';
+  | 'battery-checkin'
+  | 'weekly-reflection'
+  | 'event-reminder'
+  | 'deepening-nudge'
+  | 'friend-suggestion'
+  | 'portfolio-insight'
+  | 'life-event'
+  | 'memory-nudge'
+  | 'event-suggestion';
 
   // Optional navigation data
   friendId?: string;

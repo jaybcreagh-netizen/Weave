@@ -8,8 +8,8 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
-import type { BadgeDefinition } from '../lib/badge-definitions';
-import type { GlobalAchievement } from '../lib/achievement-definitions';
+import type { BadgeDefinition } from '@/modules/gamification/constants/badge-definitions';
+import type { GlobalAchievement } from '@/modules/gamification/constants/achievement-definitions';
 
 /**
  * @interface AchievementCardProps

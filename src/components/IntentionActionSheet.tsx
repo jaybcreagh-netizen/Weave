@@ -7,10 +7,10 @@ import * as Haptics from 'expo-haptics';
 import { Q } from '@nozbe/watermelondb';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { getCategoryMetadata } from '@/shared/constants/interaction-categories';
-import Intention from '../db/models/Intention';
-import FriendModel from '../db/models/Friend';
+import Intention from '@/db/models/Intention';
+import FriendModel from '@/db/models/Friend';
 import { InteractionCategory } from './types';
-import { database } from '../db';
+import { database } from '@/db';
 
 interface IntentionActionSheetProps {
   intention: Intention | null;
