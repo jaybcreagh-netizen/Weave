@@ -613,7 +613,7 @@ export function SettingsModal({
                 />
               </View>
 
-              <View className="border-t border-border my-2" style={{ borderColor: colors.border }} />
+              <View className="border-t border-border" style={{ borderColor: colors.border }} />
 
               <View className="flex-row items-center justify-between">
                 <View className="flex-row items-center gap-3">
@@ -633,7 +633,7 @@ export function SettingsModal({
                 />
               </View>
 
-              <View className="border-t border-border my-2" style={{ borderColor: colors.border }} />
+              <View className="border-t border-border" style={{ borderColor: colors.border }} />
 
               <View className="flex-row items-center justify-between">
                 <View className="flex-row items-center gap-3">
@@ -655,7 +655,7 @@ export function SettingsModal({
                 />
               </View>
 
-              <View className="border-t border-border my-2" style={{ borderColor: colors.border }} />
+              <View className="border-t border-border" style={{ borderColor: colors.border }} />
 
               {onOpenBatteryCheckIn && (
                 <TouchableOpacity
@@ -677,7 +677,7 @@ export function SettingsModal({
                 </TouchableOpacity>
               )}
 
-              <View className="border-t border-border my-2" style={{ borderColor: colors.border }} />
+              <View className="border-t border-border" style={{ borderColor: colors.border }} />
 
               <View className="flex-row items-center justify-between">
                 <View className="flex-row items-center gap-3">
@@ -753,7 +753,7 @@ export function SettingsModal({
                 </View>
               )}
 
-              <View className="border-t border-border my-2" style={{ borderColor: colors.border }} />
+              <View className="border-t border-border" style={{ borderColor: colors.border }} />
 
               {/* Notifications Section */}
               <View className="flex-row items-center justify-between">
@@ -826,7 +826,7 @@ export function SettingsModal({
                 />
               )}
 
-              <View className="border-t border-border my-2" style={{ borderColor: colors.border }} />
+              <View className="border-t border-border" style={{ borderColor: colors.border }} />
 
               <View className="flex-row items-center justify-between">
                 <View className="flex-row items-center gap-3">
@@ -917,7 +917,7 @@ export function SettingsModal({
                 </Modal>
               )}
 
-              <View className="border-t border-border my-2" style={{ borderColor: colors.border }} />
+              <View className="border-t border-border" style={{ borderColor: colors.border }} />
 
               <View className="flex-row items-center justify-between">
                 <View className="flex-row items-center gap-3">
@@ -937,7 +937,7 @@ export function SettingsModal({
                 />
               </View>
 
-              <View className="border-t border-border my-2" style={{ borderColor: colors.border }} />
+              <View className="border-t border-border" style={{ borderColor: colors.border }} />
 
               <View className="flex-row items-center justify-between">
                 <View className="flex-row items-center gap-3">
@@ -957,7 +957,7 @@ export function SettingsModal({
                 />
               </View>
 
-              <View className="border-t border-border my-2" style={{ borderColor: colors.border }} />
+              <View className="border-t border-border" style={{ borderColor: colors.border }} />
 
               {/* Smart Suggestions Section */}
               <View className="flex-row items-center justify-between">
@@ -1035,7 +1035,7 @@ export function SettingsModal({
                 </>
               )}
 
-              <View className="border-t border-border my-2" style={{ borderColor: colors.border }} />
+              <View className="border-t border-border" style={{ borderColor: colors.border }} />
 
               <TouchableOpacity
                 className="flex-row items-center justify-between"
@@ -1052,7 +1052,7 @@ export function SettingsModal({
                 </View>
               </TouchableOpacity>
 
-              <View className="border-t border-border my-2" style={{ borderColor: colors.border }} />
+              <View className="border-t border-border" style={{ borderColor: colors.border }} />
 
               <TouchableOpacity
                 className="flex-row items-center justify-between"
@@ -1072,7 +1072,7 @@ export function SettingsModal({
                 </View>
               </TouchableOpacity>
 
-              <View className="border-t border-border my-2" style={{ borderColor: colors.border }} />
+              <View className="border-t border-border" style={{ borderColor: colors.border }} />
 
               <TouchableOpacity
                 className="flex-row items-center justify-between"
@@ -1092,7 +1092,7 @@ export function SettingsModal({
                 </View>
               </TouchableOpacity>
 
-              <View className="border-t border-border my-2" style={{ borderColor: colors.border }} />
+              <View className="border-t border-border" style={{ borderColor: colors.border }} />
 
               <TouchableOpacity
                 className="flex-row items-center justify-between"
@@ -1112,7 +1112,7 @@ export function SettingsModal({
                 </View>
               </TouchableOpacity>
 
-              <View className="border-t border-border my-2" style={{ borderColor: colors.border }} />
+              <View className="border-t border-border" style={{ borderColor: colors.border }} />
 
               <TouchableOpacity
                 className="flex-row items-center justify-between"
@@ -1129,7 +1129,7 @@ export function SettingsModal({
                 </View>
               </TouchableOpacity>
 
-              <View className="border-t border-border my-2" style={{ borderColor: colors.border }} />
+              <View className="border-t border-border" style={{ borderColor: colors.border }} />
 
               {/* Data Export */}
               <TouchableOpacity
@@ -1147,7 +1147,7 @@ export function SettingsModal({
                 </View>
               </TouchableOpacity>
 
-              <View className="border-t border-border my-2" style={{ borderColor: colors.border }} />
+              <View className="border-t border-border" style={{ borderColor: colors.border }} />
 
               {/* Data Import */}
               <TouchableOpacity
@@ -1165,7 +1165,7 @@ export function SettingsModal({
                 </View>
               </TouchableOpacity>
 
-              <View className="border-t border-border my-2" style={{ borderColor: colors.border }} />
+              <View className="border-t border-border" style={{ borderColor: colors.border }} />
 
               {/* Debug Section Title */}
               <Text className="text-xs font-inter-semibold uppercase tracking-wide mb-2" style={{ color: colors['muted-foreground'] }}>
@@ -1188,7 +1188,7 @@ export function SettingsModal({
                 </View>
               </TouchableOpacity>
 
-              <View className="border-t border-border my-2" style={{ borderColor: colors.border }} />
+              <View className="border-t border-border" style={{ borderColor: colors.border }} />
 
               {/* Stress Test - Clear */}
               <TouchableOpacity
@@ -1206,7 +1206,7 @@ export function SettingsModal({
                 </View>
               </TouchableOpacity>
 
-              <View className="border-t border-border my-2" style={{ borderColor: colors.border }} />
+              <View className="border-t border-border" style={{ borderColor: colors.border }} />
 
               <View className="flex-row items-center justify-between">
                 <View className="flex-row items-center gap-3">

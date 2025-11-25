@@ -1,5 +1,6 @@
-import { Model } from '@nozbe/watermelondb';
-import { field, date, text, writer, readonly } from '@nozbe/watermelondb/decorators'
+import { Model, Query } from '@nozbe/watermelondb';
+import { field, date, text, writer, readonly, children } from '@nozbe/watermelondb/decorators'
+import IntentionFriend from './IntentionFriend';
 
 export default class Intention extends Model {
   static table = 'intentions';
@@ -7,6 +8,8 @@ export default class Intention extends Model {
   static associations = {
     intention_friends: { type: 'has_many', foreignKey: 'intention_id' },
   };
+
+  @children('intention_friends') intentionFriends!: Query<IntentionFriend>;
 
 
   // Flexible description - can be vague or specific

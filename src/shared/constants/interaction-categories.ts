@@ -144,3 +144,7 @@ export const ACTIVITY_TO_CATEGORY_MAP: Record<ActivityType, InteractionCategory>
   'Milestone': 'celebration',
   'Achievement': 'celebration',
 };
+
+export function getAllCategories(): InteractionCategory[] {
+  return INTERACTION_CATEGORIES;
+}

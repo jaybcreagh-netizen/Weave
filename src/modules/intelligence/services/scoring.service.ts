@@ -10,8 +10,8 @@ import {
   ArchetypeMatrixV2,
 } from '../constants';
 import { daysSince } from '@/shared/utils/date-utils';
-import { getLearnedEffectiveness } from '@/modules/insights';
-import { calculateInteractionQuality } from '@/modules/intelligence';
+import { getLearnedEffectiveness } from '@/modules/insights/services/effectiveness.service';
+import { calculateInteractionQuality } from '../services/quality.service';
 
 /**
  * Calculates group dilution factor based on the number of people in the interaction.

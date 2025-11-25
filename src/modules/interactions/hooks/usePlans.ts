@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useEffect } from 'react';
 import { useInteractionsStore } from '../store';
 import Interaction from '@/db/models/Interaction';
 
@@ -21,11 +21,7 @@ export function usePlans() {
     return () => unobserveIntentions();
   }, [observeIntentions, unobserveIntentions]);
 
-  const getFriendIntentions = (friendId: string) => {
-    return intentions.filter(intention =>
-      intention.intentionFriends.some(ifriend => ifriend.friendId === friendId)
-    );
-  };
+
 
   const plannedInteractions = useMemo(() =>
     interactions.filter(i => i.status === 'planned' || i.status === 'pending_confirm'),
@@ -58,6 +54,6 @@ export function usePlans() {
     createIntention,
     dismissIntention,
     intentions,
-    getFriendIntentions,
+
   };
 }

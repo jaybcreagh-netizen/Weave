@@ -3,10 +3,9 @@ import FriendModel from '@/db/models/Friend';
 import InteractionModel from '@/db/models/Interaction';
 import InteractionOutcome from '@/db/models/InteractionOutcome';
 import { Q } from '@nozbe/watermelondb';
-import { calculateCurrentScore } from '@/modules/intelligence';
-import { InteractionCategory } from '@/shared/types/interactions';
-import { TierDecayRates } from '@/shared/constants/constants';
-import { Tier } from '@/shared/types/core';
+import { applyDecay } from '../../intelligence/services/decay.service';
+import { InteractionCategory, Tier } from '@/shared/types/common';
+import { TierDecayRates } from '@/modules/intelligence/constants';
 import { EffectivenessInsights } from '../types';
 
 /**
@@ -97,7 +96,7 @@ export async function measurePendingOutcomes(): Promise<void> {
         measuredAt = nextInteraction.interactionDate;
       } else if (daysSinceInteraction >= 7) {
         // No next interaction yet, measure now (7+ days later)
-        scoreAfter = await calculateCurrentScore(friend.id);
+        scoreAfter = applyDecay(friend);
         measuredAt = new Date();
       } else {
         // Not ready to measure yet
@@ -224,7 +223,6 @@ export function getAllLearnedEffectiveness(
     'activity-hobby': 1.0,
     'favor-support': 1.0,
     'celebration': 1.0,
-    'social-media': 1.0, // Added to match InteractionCategory
   };
 
   if (!friend.categoryEffectiveness) {
@@ -270,12 +268,12 @@ export function analyzeEffectiveness(friend: FriendModel): EffectivenessInsights
   const recommendations: string[] = [];
 
   if (confidenceLevel !== 'low') {
-    if (mostEffective.length > 0 && mostEffective[0][1] > 1.2) {
-      recommendations.push(`${mostEffective[0][0]} works exceptionally well with ${friend.name} (${Math.round(mostEffective[0][1] * 100)}% effective)`);
+    if (mostEffective.length > 0 && mostEffective[0].ratio > 1.2) {
+      recommendations.push(`${mostEffective[0].category} works exceptionally well with ${friend.name} (${Math.round(mostEffective[0].ratio * 100)}% effective)`);
     }
 
-    if (leastEffective.length > 0 && leastEffective[0][1] < 0.8) {
-      recommendations.push(`${leastEffective[0][0]} seems less effective (${Math.round(leastEffective[0][1] * 100)}% effective) - try other types`);
+    if (leastEffective.length > 0 && leastEffective[0].ratio < 0.8) {
+      recommendations.push(`${leastEffective[0].category} seems less effective (${Math.round(leastEffective[0].ratio * 100)}% effective) - try other types`);
     }
   } else {
     recommendations.push('Need more data to provide reliable recommendations');

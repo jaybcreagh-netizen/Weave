@@ -45,8 +45,7 @@ import {
   Inter_600SemiBold,
 } from '@expo-google-fonts/inter';
 import * as Sentry from '@sentry/react-native';
-import { initializeAnalytics, trackEvent, trackRetentionMetrics, AnalyticsEvents, setPostHogInstance } from '@/shared/services/analytics.service';
-import { PostHogProvider, usePostHog } from 'posthog-react-native';
+import { initializeAnalytics, trackEvent, trackRetentionMetrics, AnalyticsEvents } from '@/shared/services/analytics.service';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 const queryClient = new QueryClient();
@@ -59,7 +58,7 @@ Sentry.init({
   sendDefaultPii: true,
 
   // Enable Logs
-  enableLogs: true,
+
 
   // Configure Session Replay
   replaysSessionSampleRate: 0.1,
@@ -73,22 +72,7 @@ Sentry.init({
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
 
-/**
- * A component to connect the PostHog instance to the analytics module.
- * @param {{children: React.ReactNode}} props - The component props.
- * @returns {React.ReactElement} The rendered component.
- */
-function PostHogConnector({ children }: { children: React.ReactNode }) {
-  const posthog = usePostHog();
 
-  React.useEffect(() => {
-    if (posthog) {
-      setPostHogInstance(posthog);
-    }
-  }, [posthog]);
-
-  return <>{children}</>;
-}
 
 const NOTIFICATION_PERMISSION_ASKED_KEY = '@weave:notification_permission_asked';
 
@@ -363,64 +347,56 @@ export default Sentry.wrap(function RootLayout() {
   }
 
   return (
-    <PostHogProvider
-      apiKey="phc_7zVVcjN8nMJWbw2XgIANio1B7EqNUn4jxWiZZzGActJ"
-      options={{ host: 'https://eu.i.posthog.com', enableSessionReplay: true }}
-      autocapture
-    >
-      <PostHogConnector>
-        <QueryClientProvider client={queryClient}>
-          <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.background }}>
-            <StatusBar style={isDarkMode ? 'light' : 'dark'} />
-            {/* Wrap with CardGestureProvider so both Dashboard and Overlay can access it */}
-            <CardGestureProvider>
-              <QuickWeaveProvider>
-                <ToastProvider>
-                  <ErrorBoundary
-                    onError={(error, errorInfo) => {
-                      console.error('[App] Global error caught:', error);
-                      console.error('[App] Error info:', errorInfo);
-                      // TODO: Send to error tracking service (e.g., Sentry)
-                    }}
-                  >
-                    {/* Animated wrapper for smooth fade-in */}
-                    <Animated.View style={[{ flex: 1 }, contentStyle]}>
-                      <Stack screenOptions={{ headerShown: false }}>
-                        {/* The Stack navigator will automatically discover all files in the app directory */}
-                      </Stack>
+    <QueryClientProvider client={queryClient}>
+      <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.background }}>
+        <StatusBar style={isDarkMode ? 'light' : 'dark'} />
+        {/* Wrap with CardGestureProvider so both Dashboard and Overlay can access it */}
+        <CardGestureProvider>
+          <QuickWeaveProvider>
+            <ToastProvider>
+              <ErrorBoundary
+                onError={(error, errorInfo) => {
+                  console.error('[App] Global error caught:', error);
+                  console.error('[App] Error info:', errorInfo);
+                  // TODO: Send to error tracking service (e.g., Sentry)
+                }}
+              >
+                {/* Animated wrapper for smooth fade-in */}
+                <Animated.View style={[{ flex: 1 }, contentStyle]}>
+                  <Stack screenOptions={{ headerShown: false }}>
+                    {/* The Stack navigator will automatically discover all files in the app directory */}
+                  </Stack>
 
-                      {/* Global Milestone Celebration Modal */}
-                      <MilestoneCelebration
-                        visible={milestoneCelebrationData !== null}
-                        milestone={milestoneCelebrationData}
-                        onClose={hideMilestoneCelebration}
-                      />
+                  {/* Global Milestone Celebration Modal */}
+                  <MilestoneCelebration
+                    visible={milestoneCelebrationData !== null}
+                    milestone={milestoneCelebrationData}
+                    onClose={hideMilestoneCelebration}
+                  />
 
-                      <TrophyCabinetModal
-                        visible={isTrophyCabinetOpen}
-                        onClose={closeTrophyCabinet}
-                      />
+                  <TrophyCabinetModal
+                    visible={isTrophyCabinetOpen}
+                    onClose={closeTrophyCabinet}
+                  />
 
-                      {/* Notification Permission Modal */}
-                      <NotificationPermissionModal
-                        visible={showNotificationPermissionModal}
-                        onRequestPermission={handleRequestNotificationPermission}
-                        onSkip={handleSkipNotificationPermission}
-                      />
+                  {/* Notification Permission Modal */}
+                  <NotificationPermissionModal
+                    visible={showNotificationPermissionModal}
+                    onRequestPermission={handleRequestNotificationPermission}
+                    onSkip={handleSkipNotificationPermission}
+                  />
 
-                      {/* Global Event Suggestion Modal */}
-                      <EventSuggestionModal />
-                    </Animated.View>
+                  {/* Global Event Suggestion Modal */}
+                  <EventSuggestionModal />
+                </Animated.View>
 
-                    {/* Loading Screen - shows until data is loaded AND UI is mounted */}
-                    <LoadingScreen visible={fontsLoaded && (!dataLoaded || !uiMounted)} />
-                  </ErrorBoundary>
-                </ToastProvider>
-              </QuickWeaveProvider>
-            </CardGestureProvider>
-          </GestureHandlerRootView>
-        </QueryClientProvider>
-      </PostHogConnector>
-    </PostHogProvider>
+                {/* Loading Screen - shows until data is loaded AND UI is mounted */}
+                <LoadingScreen visible={fontsLoaded && (!dataLoaded || !uiMounted)} />
+              </ErrorBoundary>
+            </ToastProvider>
+          </QuickWeaveProvider>
+        </CardGestureProvider>
+      </GestureHandlerRootView>
+    </QueryClientProvider>
   );
 });

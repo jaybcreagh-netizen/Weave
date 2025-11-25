@@ -32,6 +32,9 @@ import LifeEvent from '@/db/models/LifeEvent';
 import { Q } from '@nozbe/watermelondb';
 import { calculateCurrentScore } from '@/modules/intelligence';
 import Interaction from '@/db/models/Interaction';
+import { PendingPlanItem } from './PendingPlanItem';
+
+import { PlanSummaryLine } from './PlanSummaryLine';
 
 const WIDGET_CONFIG: HomeWidgetConfig = {
   id: 'todays-focus',
@@ -394,7 +397,7 @@ export const TodaysFocusWidget: React.FC = () => {
 
     // 5. Upcoming plan (within next 3 days) - rotate if multiple
     const upcomingPlans = pendingPlans
-      .map((p: Interaction) => ({ ...p, daysUntil: differenceInDays(new Date(p.interactionDate), new Date()) }))
+      .map((p: Interaction) => ({ interaction: p, daysUntil: differenceInDays(new Date(p.interactionDate), new Date()) }))
       .filter((p: any) => p.daysUntil > 0 && p.daysUntil <= 3);
     if (upcomingPlans.length > 0) {
       const index = getDailyRotation(upcomingPlans.length);
@@ -564,55 +567,15 @@ export const TodaysFocusWidget: React.FC = () => {
           <Text style={styles.sectionTitle}>
             PENDING PLANS
           </Text>
-          {pendingConfirmations.slice(0, 2).map((plan: any) => {
-            const friendName = plan.friends.map((f: any) => f.name).join(', ');
-            const dateText = getDaysText(differenceInDays(new Date(), plan.interactionDate));
-            const categoryData = plan.interaction.interactionCategory
-              ? getCategoryMetadata(plan.interaction.interactionCategory as InteractionCategory)
-              : null;
-            const displayTitle = plan.interaction.title || categoryData?.label || plan.interaction.activity;
-
-            return (
-              <View
-                key={plan.interaction.id}
-                style={styles.planCard}
-              >
-                <View style={styles.planHeader}>
-                  <Calendar size={18} color="rgba(255, 255, 255, 0.9)" />
-                  <View style={styles.planContent}>
-                    <Text style={styles.planTitle}>
-                      {displayTitle}
-                    </Text>
-                    <Text style={styles.planSubtitle}>
-                      {friendName} · {dateText}
-                    </Text>
-                  </View>
-                </View>
-                <View style={styles.planActions}>
-                  <TouchableOpacity
-                    style={styles.confirmButton}
-                    onPress={() => handleConfirmPlan(plan.interaction.id)}
-                  >
-                    <CheckCircle2 size={14} color="#FFFFFF" />
-                    <Text style={styles.confirmButtonText}>Confirm</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.rescheduleButton}
-                    onPress={() => handleReschedulePlan(plan)}
-                  >
-                    <Text style={styles.rescheduleButtonText}>
-                      Reschedule
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            );
-          })}
+          {pendingConfirmations.slice(0, 2).map((plan: any) => (
+            <PendingPlanItem key={plan.id} plan={plan} onConfirm={handleConfirmPlan} onReschedule={handleReschedulePlan} />
+          ))}
         </View>
       )}
 
       {/* Upcoming Events            {pendingPlans.length > 2 && ( */}
       <View style={styles.section}>
+
         <Text style={styles.sectionTitle}>
           UPCOMING
         </Text>
@@ -890,7 +853,7 @@ const PressingEventCard: React.FC<CardProps & { event: UpcomingDate }> = ({ even
   );
 };
 
-const TodaysPlanCard: React.FC<CardProps & { data: { plans: any[], count: number } }> = ({ data, onPress, isDarkMode, expansionProgress, expandedContent }) => {
+const TodaysPlanCard: React.FC<CardProps & { data: { plans: Interaction[], count: number } }> = ({ data, onPress, isDarkMode, expansionProgress, expandedContent }) => {
   const { plans, count } = data;
 
   const expandedStyle = useAnimatedStyle(() => {
@@ -900,39 +863,6 @@ const TodaysPlanCard: React.FC<CardProps & { data: { plans: any[], count: number
       maxHeight: expansionProgress.value * 1000, // Large enough to fit content
     };
   });
-
-  const getCategoryMetadataLocal = (category: any) => {
-    try {
-      return getCategoryMetadata(category as InteractionCategory);
-    } catch {
-      return null;
-    }
-  };
-
-  // Generate summary list
-  const getSummaryText = () => {
-    if (count === 1) {
-      const plan = plans[0];
-      const friendNames = plan.friends.map((f: FriendModel) => f.name).join(', ');
-      const categoryData = plan.interaction.interactionCategory
-        ? getCategoryMetadataLocal(plan.interaction.interactionCategory)
-        : null;
-      const title = plan.interaction.title || categoryData?.label || plan.interaction.activity;
-      return `${title} - ${friendNames}`;
-    }
-
-    // Multiple plans: show list
-    return plans.slice(0, 3).map((plan: any) => {
-      const friendNames = plan.friends.map((f: FriendModel) => f.name).join(', ');
-      const categoryData = plan.interaction.interactionCategory
-        ? getCategoryMetadataLocal(plan.interaction.interactionCategory)
-        : null;
-      const title = plan.interaction.title || categoryData?.label || plan.interaction.activity;
-      return `${title} - ${friendNames}`;
-    });
-  };
-
-  const summaryText = getSummaryText();
 
   return (
     <TouchableOpacity onPress={onPress} activeOpacity={0.9}>
@@ -948,22 +878,17 @@ const TodaysPlanCard: React.FC<CardProps & { data: { plans: any[], count: number
           <Text style={styles.headlineCompact}>
             {count === 1 ? "Today's Plan" : `${count} Plans Today`}
           </Text>
-          {count === 1 ? (
-            <Text style={styles.subtextCompact}>{summaryText}</Text>
-          ) : (
-            <View style={styles.planSummaryList}>
-              {(summaryText as string[]).map((text, index) => (
-                <Text key={index} style={styles.planSummaryItem}>
-                  • {text}
-                </Text>
-              ))}
-              {count > 3 && (
-                <Text style={styles.planSummaryItem}>
-                  + {count - 3} more
-                </Text>
-              )}
-            </View>
-          )}
+
+          <View style={styles.planSummaryList}>
+            {plans.slice(0, 3).map((plan) => (
+              <PlanSummaryLine key={plan.id} plan={plan} style={styles.planSummaryItem} />
+            ))}
+            {count > 3 && (
+              <Text style={styles.planSummaryItem}>
+                + {count - 3} more
+              </Text>
+            )}
+          </View>
         </View>
 
         {/* Expanded Content - Animated */}
@@ -1058,8 +983,19 @@ const FriendFadingCard: React.FC<CardProps & { friend: FriendModel; score: numbe
   );
 };
 
-const UpcomingPlanCard = ({ plan, onPress, isDarkMode, expansionProgress, expandedContent }: CardProps & { plan: any }) => {
-  const friendNames = plan.friends?.map((f: FriendModel) => f.name).join(', ');
+const UpcomingPlanCard = ({ plan, onPress, isDarkMode, expansionProgress, expandedContent }: CardProps & { plan: { interaction: Interaction, daysUntil: number } }) => {
+  const [friendNames, setFriendNames] = useState<string>('');
+
+  useEffect(() => {
+    const loadFriends = async () => {
+      if (plan.interaction && plan.interaction.interactionFriends) {
+        const friends = await plan.interaction.interactionFriends.fetch();
+        setFriendNames(friends.map((f: FriendModel) => f.name).join(', '));
+      }
+    };
+    loadFriends();
+  }, [plan]);
+
   const title = plan.interaction.title || plan.interaction.activity || 'Plan';
   const dateText = plan.daysUntil === 1 ? 'Tomorrow' : `in ${plan.daysUntil} days`;
 

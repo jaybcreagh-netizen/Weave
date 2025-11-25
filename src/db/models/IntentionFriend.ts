@@ -1,4 +1,4 @@
-import { Model } from '@nozbe/watermelondb';
+import { Model, Relation } from '@nozbe/watermelondb';
 import { relation, field } from '@nozbe/watermelondb/decorators';
 import Intention from './Intention';
 import FriendModel from './Friend';
@@ -14,6 +14,6 @@ export default class IntentionFriend extends Model {
   @field('intention_id') intentionId!: string;
   @field('friend_id') friendId!: string;
 
-  @relation('intentions', 'intention_id') intention!: Intention;
-  @relation('friends', 'friend_id') friend!: FriendModel;
+  @relation('intentions', 'intention_id') intention!: Relation<Intention>;
+  @relation('friends', 'friend_id') friend!: Relation<FriendModel>;
 }

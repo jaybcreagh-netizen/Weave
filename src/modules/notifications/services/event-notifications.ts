@@ -1,6 +1,6 @@
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
-import { ScannedEvent } from './event-scanner';
+import { ScannedEvent } from '../../interactions/services/event-scanner';
 import { format } from 'date-fns';
 import { shouldSendAmbientLoggingNotification } from './notification-grace-periods';
 
@@ -21,7 +21,7 @@ export function configureNotificationHandler() {
 /**
  * Request notification permissions
  */
-export async function requestNotificationPermissions(): Promise<boolean> {
+export async function requestEventSuggestionPermissions(): Promise<boolean> {
   try {
     const { status: existingStatus } = await Notifications.getPermissionsAsync();
     let finalStatus = existingStatus;

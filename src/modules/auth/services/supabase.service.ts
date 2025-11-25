@@ -11,57 +11,57 @@ import * as WebBrowser from 'expo-web-browser';
 WebBrowser.maybeCompleteAuthSession();
 
 // Supabase configuration
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
-const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
-
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn(
-    'Missing Supabase environment variables. Cloud sync will be disabled.\n' +
-    'Add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY to .env'
-  );
-}
-
-/**
- * Custom storage adapter using Expo SecureStore
- * Persists auth tokens securely on device
- */
-const ExpoSecureStoreAdapter = {
-  getItem: async (key: string): Promise<string | null> => {
-    try {
-      return await SecureStore.getItemAsync(key);
-    } catch (error) {
-      console.error('SecureStore getItem error:', error);
-      return null;
-    }
-  },
-  setItem: async (key: string, value: string): Promise<void> => {
-    try {
-      await SecureStore.setItemAsync(key, value);
-    } catch (error) {
-      console.error('SecureStore setItem error:', error);
-    }
-  },
-  removeItem: async (key: string): Promise<void> => {
-    try {
-      await SecureStore.deleteItemAsync(key);
-    } catch (error) {
-      console.error('SecureStore removeItem error:', error);
-    }
-  },
-};
+const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
 /**
  * Main Supabase client instance
  * Used for all auth and database operations
  */
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    storage: ExpoSecureStoreAdapter as any,
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: false,
-  },
-});
+export const supabase = (() => {
+  if (!supabaseUrl || !supabaseAnonKey) {
+    console.warn(
+      'Missing Supabase environment variables. Cloud sync will be disabled.\n' +
+      'Add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY to .env'
+    );
+
+    // Return a dummy client that warns on usage but doesn't crash
+    // This allows the app to load even if Supabase isn't configured
+    return {
+      auth: {
+        getSession: async () => ({ data: { session: null }, error: null }),
+        onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => { } } } }),
+        signInWithOAuth: async () => ({ error: { message: 'Supabase not configured' } }),
+        signOut: async () => ({ error: null }),
+      },
+      from: () => ({
+        select: () => ({ data: [], error: { message: 'Supabase not configured' } }),
+        insert: () => ({ data: null, error: { message: 'Supabase not configured' } }),
+        update: () => ({ data: null, error: { message: 'Supabase not configured' } }),
+        delete: () => ({ data: null, error: { message: 'Supabase not configured' } }),
+        upload: () => ({ data: null, error: { message: 'Supabase not configured' } }),
+        getPublicUrl: () => ({ data: { publicUrl: '' } }),
+        remove: () => ({ error: { message: 'Supabase not configured' } }),
+      }),
+      storage: {
+        from: () => ({
+          upload: () => ({ data: null, error: { message: 'Supabase not configured' } }),
+          getPublicUrl: () => ({ data: { publicUrl: '' } }),
+          remove: () => ({ error: { message: 'Supabase not configured' } }),
+        }),
+      }
+    } as any;
+  }
+
+  return createClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      storage: ExpoSecureStoreAdapter as any,
+      autoRefreshToken: true,
+      persistSession: true,
+      detectSessionInUrl: false,
+    },
+  });
+})();
 
 /**
  * Database types for TypeScript

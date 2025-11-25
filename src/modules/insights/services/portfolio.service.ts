@@ -1,10 +1,10 @@
-import { Tier, Archetype } from '@/shared/types/core';
-import { InteractionCategory } from '@/shared/types/interactions';
-import { calculateCurrentScore } from '@/modules/intelligence';
+import { Tier, Archetype } from '@/shared/types/common';
+import { InteractionCategory } from '@/shared/types/common';
+import { calculateCurrentScore } from '../../intelligence/services/orchestrator.service';
 import FriendModel from '@/db/models/Friend';
 import { capturePortfolioSnapshot } from './trend.service';
 import { FriendshipPortfolio, PortfolioImbalance } from '../types';
-import { Suggestion } from '@/shared/types/suggestions'; // You might need to update this import
+import { Suggestion } from '@/shared/types/common';
 
 // Types for analysis
 export interface PortfolioAnalysisInput {
@@ -48,7 +48,7 @@ export async function analyzePortfolioAsync(input: PortfolioAnalysisInput): Prom
   // Calculate current scores for all friends
   const friendsWithScores = await Promise.all(friends.map(async friend => ({
     friend,
-    currentScore: await calculateCurrentScore(friend.id), // Using ID for the service call
+    currentScore: calculateCurrentScore(friend),
   })));
 
   // Overall health score (weighted by tier importance)
@@ -188,7 +188,6 @@ function groupByTier(
     InnerCircle: [],
     CloseFriends: [],
     Community: [],
-    Acquaintance: [], // Added Acquaintance to match Tier type
   };
 
   friendsWithScores.forEach(item => {
@@ -320,15 +319,15 @@ export function getWeeklyFocusRecommendation(portfolio: FriendshipPortfolio): {
 
   // Otherwise focus on the tier with lowest average score
   const sortedTiers = [...portfolio.tierDistribution]
-      .filter(t => t.count > 0) // Ignore empty tiers
-      .sort((a, b) => a.avgScore - b.avgScore);
+    .filter(t => t.count > 0) // Ignore empty tiers
+    .sort((a, b) => a.avgScore - b.avgScore);
 
   if (sortedTiers.length === 0) {
-      return {
-          tier: 'InnerCircle',
-          reason: 'Start connecting with friends',
-          suggestedActions: ['Reach out to someone new'],
-      };
+    return {
+      tier: 'InnerCircle',
+      reason: 'Start connecting with friends',
+      suggestedActions: ['Reach out to someone new'],
+    };
   }
 
   const lowestTier = sortedTiers[0];
@@ -340,8 +339,8 @@ export function getWeeklyFocusRecommendation(portfolio: FriendshipPortfolio): {
       lowestTier.tier === 'InnerCircle'
         ? ['Plan deep, quality time together', 'Have vulnerable conversations']
         : lowestTier.tier === 'CloseFriends'
-        ? ['Grab coffee or a meal', 'Send a thoughtful message', 'Plan a group hangout']
-        : ['Send quick check-in texts', 'React to their social media', 'Plan a casual group event'],
+          ? ['Grab coffee or a meal', 'Send a thoughtful message', 'Plan a group hangout']
+          : ['Send quick check-in texts', 'React to their social media', 'Plan a casual group event'],
   };
 }
 
@@ -386,15 +385,12 @@ export function generatePortfolioInsights(analysis: PortfolioAnalysisStats): Sug
       id: `portfolio-tier-imbalance-${Date.now()}`,
       friendId: '', // No specific friend
       friendName: '',
-      urgency: 'medium',
-      category: 'portfolio',
+      priority: 'medium', // Mapped from urgency: medium
+      type: 'reconnect', // Mapped from category: portfolio
       title: 'Close Friends need attention',
       subtitle: `Your Inner Circle is thriving (${Math.round(tierScores.inner.avg)}), but ${tierScores.close.drifting} Close Friends are cooling: ${driftingFriends.join(', ')}.`,
-      actionLabel: 'Review Close Friends',
       icon: '📊',
       action: { type: 'plan' },
-      dismissible: true,
-      createdAt: new Date(),
     };
   }
 
@@ -404,15 +400,12 @@ export function generatePortfolioInsights(analysis: PortfolioAnalysisStats): Sug
       id: `portfolio-inner-crisis-${Date.now()}`,
       friendId: '',
       friendName: '',
-      urgency: 'high',
-      category: 'portfolio',
+      priority: 'high', // Mapped from urgency: high
+      type: 'deepen', // Mapped from category: portfolio
       title: 'Inner Circle needs care',
       subtitle: `${tierScores.inner.drifting} of your closest connections are drifting (avg ${Math.round(tierScores.inner.avg)}). Time to prioritize your core relationships.`,
-      actionLabel: 'Focus on Inner Circle',
       icon: '⚠️',
       action: { type: 'plan' },
-      dismissible: true,
-      createdAt: new Date(),
     };
   }
 
@@ -427,15 +420,12 @@ export function generatePortfolioInsights(analysis: PortfolioAnalysisStats): Sug
       id: `portfolio-inner-mixed-${Date.now()}`,
       friendId: '',
       friendName: '',
-      urgency: 'medium',
-      category: 'portfolio',
+      priority: 'medium', // Mapped from urgency: medium
+      type: 'reconnect', // Mapped from category: portfolio
       title: 'Some Inner Circle members need attention',
       subtitle: `While most of your Inner Circle is strong, ${driftingFriends.join(' and ')} ${tierScores.inner.drifting === 1 ? 'is' : 'are'} cooling off.`,
-      actionLabel: 'Check Inner Circle',
       icon: '💛',
       action: { type: 'plan' },
-      dismissible: true,
-      createdAt: new Date(),
     };
   }
 
@@ -454,15 +444,12 @@ export function generatePortfolioInsights(analysis: PortfolioAnalysisStats): Sug
         id: `portfolio-archetype-neglect-${Date.now()}`,
         friendId: '',
         friendName: '',
-        urgency: 'low',
-        category: 'portfolio',
+        priority: 'low', // Mapped from urgency: low
+        type: 'connect', // Mapped from category: portfolio
         title: `Your ${neglectedType}s feel distant`,
         subtitle: `Friends like ${neglectedFriends.map(f => f.name).join(' and ')} (avg ${Math.round(avgScore)}) may need different connection styles.`,
-        actionLabel: 'Learn More',
         icon: '💡',
         action: { type: 'plan' },
-        dismissible: true,
-        createdAt: new Date(),
       };
     }
   }
@@ -479,15 +466,12 @@ export function generatePortfolioInsights(analysis: PortfolioAnalysisStats): Sug
       id: `portfolio-thriving-${Date.now()}`,
       friendId: '',
       friendName: '',
-      urgency: 'low',
-      category: 'portfolio',
+      priority: 'low', // Mapped from urgency: low
+      type: 'celebrate', // Mapped from category: portfolio
       title: 'Your weave is thriving!',
       subtitle: `Network health: ${Math.round(overallAvg)}. Your relationships are strong and balanced. Keep up the momentum!`,
-      actionLabel: 'See Details',
       icon: '🌟',
       action: { type: 'plan' },
-      dismissible: true,
-      createdAt: new Date(),
     };
   }
 
@@ -502,15 +486,12 @@ export function generatePortfolioInsights(analysis: PortfolioAnalysisStats): Sug
         id: `portfolio-diversity-${Date.now()}`,
         friendId: '',
         friendName: '',
-        urgency: 'low',
-        category: 'portfolio',
+        priority: 'low', // Mapped from urgency: low
+        type: 'connect', // Mapped from category: portfolio
         title: 'Broaden your connection circle',
         subtitle: `You've been focusing on the same friends. ${staleConnections.length} connections haven't heard from you in 2+ weeks.`,
-        actionLabel: 'Mix It Up',
         icon: '🔄',
         action: { type: 'plan' },
-        dismissible: true,
-        createdAt: new Date(),
       };
     }
   }
@@ -527,14 +508,15 @@ function getArchetypeAverage(friends: FriendStats[], archetype: Archetype): numb
 
 export function analyzeArchetypeBalance(friends: FriendStats[]): Record<Archetype, number> {
   const archetypes: Archetype[] = [
-    'Sage',
+    'Emperor',
+    'Empress',
+    'HighPriestess',
+    'Fool',
+    'Sun',
+    'Hermit',
     'Magician',
-    'Explorer',
-    'Loyalist',
-    'Champion',
-    'Caregiver',
-    'Jester',
-    'Rebel',
+    'Lovers',
+    'Unknown',
   ];
 
   return archetypes.reduce((acc, archetype) => {

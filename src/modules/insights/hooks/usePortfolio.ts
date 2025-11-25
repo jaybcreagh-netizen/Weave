@@ -5,13 +5,13 @@ import InteractionModel from '@/db/models/Interaction';
 import InteractionFriend from '@/db/models/InteractionFriend';
 import { Q } from '@nozbe/watermelondb';
 import {
-  analyzePortfolio,
+  analyzePortfolioAsync,
   getPortfolioHealthSummary,
   getWeeklyFocusRecommendation,
-  type FriendshipPortfolio,
-} from '@/modules/insights';
+} from '../services/portfolio.service';
+import { type FriendshipPortfolio } from '../types';
 import { generatePortfolioSuggestions } from '@/modules/interactions';
-import { type Suggestion } from '@/types/suggestions';
+import { type Suggestion } from '@/shared/types/common';
 
 /**
  * Hook to access portfolio-level friendship network analytics
@@ -80,7 +80,7 @@ export function usePortfolio() {
         });
 
         // Analyze portfolio
-        const portfolioData = analyzePortfolio({
+        const portfolioData = await analyzePortfolioAsync({
           friends,
           recentInteractions: interactionData,
         });
