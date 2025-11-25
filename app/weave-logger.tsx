@@ -8,7 +8,7 @@ import { calculateDeepeningLevel } from '@/modules/intelligence';
 import { BlurView } from 'expo-blur';
 
 import { useInteractions, type StructuredReflection } from '@/modules/interactions';
-import { Calendar as CalendarIcon, X, Sparkles } from 'lucide-react-native';
+import { Calendar as CalendarIcon, X, Sparkles, Users } from 'lucide-react-native';
 import { CustomCalendar } from '@/components/CustomCalendar';
 import { MoonPhaseSelector } from '@/components/MoonPhaseSelector';
 import { ContextualReflectionInput } from '@/components/ContextualReflectionInput';
@@ -18,6 +18,7 @@ import { useTheme } from '@/shared/hooks/useTheme';
 import { getAllCategories, getCategoryMetadata, type CategoryMetadata } from '@/shared/constants/interaction-categories';
 import { database } from '@/db';
 import FriendModel from '@/db/models/Friend';
+import { FriendSelector } from '@/components/FriendSelector';
 
 const categories: CategoryMetadata[] = getAllCategories().map(getCategoryMetadata);
 
@@ -32,8 +33,9 @@ export default function WeaveLoggerScreen() {
   const { logWeave } = useInteractions();
   const { colors, isDarkMode } = useTheme();
 
-  const [friendName, setFriendName] = useState<string>('');
+  const [selectedFriends, setSelectedFriends] = useState<FriendModel[]>([]);
   const [showCalendar, setShowCalendar] = useState(false);
+  const [showFriendSelector, setShowFriendSelector] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<InteractionCategory | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date>(startOfDay(new Date()));
   const [selectedVibe, setSelectedVibe] = useState<Vibe | null>(null);
@@ -47,13 +49,13 @@ export default function WeaveLoggerScreen() {
   const [detailsSectionY, setDetailsSectionY] = useState(0);
 
 
-  // Fetch friend's name and archetype
+  // Fetch friend's data and set as initial selected friend
   useEffect(() => {
     if (friendId) {
       database.get<FriendModel>(FriendModel.table)
         .find(friendId)
         .then(friend => {
-          setFriendName(friend.name);
+          setSelectedFriends([friend]);
           setFriendArchetype(friend.archetype as Archetype);
         })
         .catch(err => console.error('Error fetching friend:', err));
@@ -89,7 +91,7 @@ export default function WeaveLoggerScreen() {
   };
 
   const handleSave = async () => {
-    if (!selectedCategory || !friendId || !selectedDate) return;
+    if (!selectedCategory || selectedFriends.length === 0 || !selectedDate) return;
 
     try {
       // Build legacy notes field from chips + custom notes for backward compatibility
@@ -117,7 +119,7 @@ export default function WeaveLoggerScreen() {
         .join(' ');
 
       await logWeave({
-        friendIds: [friendId],
+        friendIds: selectedFriends.map(f => f.id),
         category: selectedCategory,
         activity: selectedCategory,
         notes: legacyNotes,
@@ -164,9 +166,17 @@ export default function WeaveLoggerScreen() {
 
   const deepeningMetrics = calculateDeepeningLevel(reflection);
 
+  const screenTitle = selectedFriends.length === 0
+    ? 'Log a Weave'
+    : selectedFriends.length === 1
+      ? `Weave with ${selectedFriends[0].name}`
+      : selectedFriends.length === 2
+        ? `Weave with ${selectedFriends[0].name} & ${selectedFriends[1].name}`
+        : `Weave with ${selectedFriends.length} friends`;
+
   return (
     <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
-      <Stack.Screen options={{ title: `Weave with ${friendName}` }} />
+      <Stack.Screen options={{ title: screenTitle }} />
 
       {/* Celebration animation */}
       <CelebrationAnimation
@@ -290,6 +300,56 @@ export default function WeaveLoggerScreen() {
             <Text className="font-inter-regular text-sm text-center" style={{ color: colors['muted-foreground'] }}>
               {format(selectedDate, 'EEEE, MMMM d, yyyy')}
             </Text>
+          </View>
+
+          {/* Friend Selection */}
+          <View className="mb-8">
+            <Text className="font-lora-bold text-xl mb-4" style={{ color: colors.foreground }}>
+              Who was there?
+            </Text>
+
+            {/* Selected friends display */}
+            <View className="flex-row flex-wrap gap-2 mb-3">
+              {selectedFriends.map((friend, index) => (
+                <View
+                  key={friend.id}
+                  className="flex-row items-center px-3 py-2 rounded-full"
+                  style={{
+                    backgroundColor: colors.primary + '20',
+                    borderWidth: 1,
+                    borderColor: colors.primary + '40',
+                  }}
+                >
+                  <Text className="font-inter-medium text-sm" style={{ color: colors.foreground }}>
+                    {friend.name}
+                  </Text>
+                  {index !== 0 && selectedFriends.length > 1 && (
+                    <TouchableOpacity
+                      className="ml-2"
+                      onPress={() => setSelectedFriends(selectedFriends.filter(f => f.id !== friend.id))}
+                    >
+                      <X size={14} color={colors.foreground} />
+                    </TouchableOpacity>
+                  )}
+                </View>
+              ))}
+
+              {/* Add Friend Button */}
+              <TouchableOpacity
+                className="flex-row items-center px-3 py-2 rounded-full"
+                style={{
+                  backgroundColor: colors.card,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                }}
+                onPress={() => setShowFriendSelector(true)}
+              >
+                <Users size={16} color={colors.primary} />
+                <Text className="font-inter-medium text-sm ml-2" style={{ color: colors.primary }}>
+                  Add Friend
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* Category Selection */}
@@ -420,6 +480,15 @@ export default function WeaveLoggerScreen() {
           </TouchableOpacity>
         </View>
       )}
+
+      {/* Friend Selector Modal */}
+      <FriendSelector
+        visible={showFriendSelector}
+        onClose={() => setShowFriendSelector(false)}
+        initialFriendId={friendId}
+        selectedFriends={selectedFriends}
+        onSelectionChange={setSelectedFriends}
+      />
     </SafeAreaView>
   );
 }

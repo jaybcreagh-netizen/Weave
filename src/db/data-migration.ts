@@ -124,68 +124,61 @@ export async function ensureUserProgressColumns(database: Database): Promise<voi
       return;
     }
 
-    const userProgress = progress[0];
+    // We'll try to add columns regardless of whether we think they exist, 
+    // catching errors for duplicates. This is more robust than checking _raw.
+    const adapter = database.adapter;
 
-    // Check if the record has the v30 fields
-    const hasV30Fields =
-      'last_streak_count' in userProgress._raw &&
-      'longest_streak_ever' in userProgress._raw;
-
-    if (!hasV30Fields) {
-      console.log('[Data Migration] Missing v30 streak fields, adding columns via SQL...');
-
-      // Add columns directly via SQL ALTER TABLE
-      // This is a workaround for cases where schema migrations didn't run
+    await database.write(async () => {
+      // 1. last_streak_count
       try {
-        const adapter = database.adapter;
-
-        await database.write(async () => {
-          // Add last_streak_count column if missing
-          if (!('last_streak_count' in userProgress._raw)) {
-            await adapter.unsafeExecute({
-              sqls: [
-                ['ALTER TABLE user_progress ADD COLUMN last_streak_count INTEGER DEFAULT 0', []],
-              ],
-            });
-            console.log('[Data Migration] Added last_streak_count column');
-          }
-
-          // Add longest_streak_ever column if missing
-          if (!('longest_streak_ever' in userProgress._raw)) {
-            await adapter.unsafeExecute({
-              sqls: [
-                ['ALTER TABLE user_progress ADD COLUMN longest_streak_ever INTEGER DEFAULT 0', []],
-              ],
-            });
-            console.log('[Data Migration] Added longest_streak_ever column');
-          }
-
-          // Add streak_released_date column if missing
-          if (!('streak_released_date' in userProgress._raw)) {
-            await adapter.unsafeExecute({
-              sqls: [
-                ['ALTER TABLE user_progress ADD COLUMN streak_released_date INTEGER', []],
-              ],
-            });
-            console.log('[Data Migration] Added streak_released_date column');
-          }
-
-          // Initialize longest_streak_ever to current best_streak if needed
-          await adapter.unsafeExecute({
-            sqls: [
-              ['UPDATE user_progress SET longest_streak_ever = best_streak WHERE longest_streak_ever = 0', []],
-            ],
-          });
+        await adapter.unsafeExecute({
+          sqls: [
+            ['ALTER TABLE user_progress ADD COLUMN last_streak_count INTEGER DEFAULT 0', []],
+          ],
         });
-
-        console.log('[Data Migration] ✅ Successfully added v30 streak columns');
-      } catch (error) {
-        console.error('[Data Migration] ⚠️ Could not add columns via SQL:', error);
-        console.log('[Data Migration] User may need to reinstall app for fresh database');
+        console.log('[Data Migration] Added last_streak_count column');
+      } catch (e) {
+        // Ignore "duplicate column name" error
+        console.log('[Data Migration] last_streak_count column likely exists or could not be added');
       }
-    } else {
-      console.log('[Data Migration] ✅ user_progress has v30 fields');
-    }
+
+      // 2. longest_streak_ever
+      try {
+        await adapter.unsafeExecute({
+          sqls: [
+            ['ALTER TABLE user_progress ADD COLUMN longest_streak_ever INTEGER DEFAULT 0', []],
+          ],
+        });
+        console.log('[Data Migration] Added longest_streak_ever column');
+      } catch (e) {
+        console.log('[Data Migration] longest_streak_ever column likely exists or could not be added');
+      }
+
+      // 3. streak_released_date
+      try {
+        await adapter.unsafeExecute({
+          sqls: [
+            ['ALTER TABLE user_progress ADD COLUMN streak_released_date INTEGER', []],
+          ],
+        });
+        console.log('[Data Migration] Added streak_released_date column');
+      } catch (e) {
+        console.log('[Data Migration] streak_released_date column likely exists or could not be added');
+      }
+
+      // Initialize longest_streak_ever to current best_streak if needed
+      try {
+        await adapter.unsafeExecute({
+          sqls: [
+            ['UPDATE user_progress SET longest_streak_ever = best_streak WHERE longest_streak_ever = 0', []],
+          ],
+        });
+      } catch (e) {
+        console.log('[Data Migration] Failed to update longest_streak_ever values');
+      }
+    });
+
+    console.log('[Data Migration] ✅ Column check complete');
   } catch (error) {
     console.error('[Data Migration] Error checking user_progress columns:', error);
   }

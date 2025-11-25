@@ -11,8 +11,15 @@ interface MoonPhaseSelectorProps {
 }
 
 export function MoonPhaseSelector({ onSelect, selectedVibe }: MoonPhaseSelectorProps) {
-  const activePhaseData = moonPhasesData.find(moon => moon.phase === selectedVibe);
-  const displayText = activePhaseData?.microcopy || "How did this weave feel?";
+  // Convert the object to an array for iteration
+  const phasesList = Object.entries(moonPhasesData).map(([key, data]) => ({
+    phase: key as Vibe,
+    ...data
+  }));
+
+  const activePhaseData = phasesList.find(moon => moon.phase === selectedVibe);
+  // Note: microcopy is not currently in the constants, defaulting to the fallback
+  const displayText = (activePhaseData as any)?.microcopy || "How did this weave feel?";
 
   return (
     <View style={styles.container}>
@@ -21,12 +28,12 @@ export function MoonPhaseSelector({ onSelect, selectedVibe }: MoonPhaseSelectorP
       </Animated.View>
 
       <View style={styles.phasesContainer}>
-        {moonPhasesData.map((moon) => {
+        {phasesList.map((moon) => {
           const isSelected = selectedVibe === moon.phase;
           return (
             <TouchableOpacity
               key={moon.phase}
-              onPress={() => onSelect(moon.phase as Vibe)}
+              onPress={() => onSelect(moon.phase)}
               style={[styles.phaseButton, isSelected && styles.phaseButtonSelected]}
             >
               <Animated.View style={[{ transform: [{ scale: isSelected ? 1.25 : 1 }] }]}>

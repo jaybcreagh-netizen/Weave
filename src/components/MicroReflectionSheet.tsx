@@ -16,7 +16,7 @@ interface MicroReflectionSheetProps {
   activityLabel: string;
   activityId: string;
   friendArchetype?: string;
-  onSave: (data: { vibe?: Vibe; notes?: string }) => void;
+  onSave: (data: { vibe?: Vibe; notes?: string; title?: string }) => void;
   onSkip: () => void;
 }
 
@@ -40,6 +40,7 @@ export function MicroReflectionSheet({
   const { colors, isDarkMode } = useTheme();
   const [selectedVibe, setSelectedVibe] = useState<Vibe | null>(null);
   const [notes, setNotes] = useState('');
+  const [title, setTitle] = useState(activityLabel);
 
   const sheetTranslateY = useSharedValue(SHEET_HEIGHT);
   const backdropOpacity = useSharedValue(0);
@@ -47,13 +48,14 @@ export function MicroReflectionSheet({
   // Auto-dismiss timer
   useEffect(() => {
     if (isVisible) {
+      setTitle(activityLabel); // Reset title when opening
       const timer = setTimeout(() => {
         handleSkip();
       }, 10000); // 10 seconds
 
       return () => clearTimeout(timer);
     }
-  }, [isVisible]);
+  }, [isVisible, activityLabel]);
 
   // Entrance animation
   useEffect(() => {
@@ -97,6 +99,7 @@ export function MicroReflectionSheet({
       onSave({
         vibe: selectedVibe || undefined,
         notes: notes.trim() || undefined,
+        title: title.trim() || activityLabel, // Pass the edited title
       });
     });
   };
@@ -110,6 +113,7 @@ export function MicroReflectionSheet({
   const resetState = () => {
     setSelectedVibe(null);
     setNotes('');
+    setTitle('');
   };
 
   const getPrompt = () => {
@@ -162,112 +166,120 @@ export function MicroReflectionSheet({
                 {/* Handle */}
                 <View style={[styles.handle, { backgroundColor: colors['muted-foreground'] }]} />
 
-              {/* Header */}
-              <View style={styles.header}>
-                <Text style={[styles.activityText, { color: colors['muted-foreground'] }]}>
-                  ✨ You just had {activityLabel.toLowerCase()}
-                </Text>
-                <Text style={[styles.friendNameText, { color: colors.foreground }]}>
-                  {friendName}
-                </Text>
-              </View>
-
-              {/* Prompt */}
-              <Text style={[styles.promptText, { color: colors.foreground }]}>
-                {getPrompt()}
-              </Text>
-
-              {/* Moon Phase Selector */}
-              <View style={styles.moonContainer}>
-                {MOON_PHASES.map(({ vibe, emoji, label }) => {
-                  const isSelected = selectedVibe === vibe;
-                  return (
-                    <TouchableOpacity
-                      key={vibe}
-                      style={[
-                        styles.moonButton,
-                        isSelected && {
-                          backgroundColor: isDarkMode ? colors.primary + '20' : colors.primary + '15',
-                          borderColor: colors.primary,
-                          borderWidth: 2,
-                        },
-                      ]}
-                      onPress={() => handleVibeSelect(vibe)}
-                      activeOpacity={0.7}
-                    >
-                      <Text
-                        style={[
-                          styles.moonEmoji,
-                          !isSelected && { opacity: 0.4 },
-                        ]}
-                      >
-                        {emoji}
-                      </Text>
-                      <Text
-                        style={[
-                          styles.moonLabel,
-                          { color: isSelected ? colors.primary : colors['muted-foreground'] },
-                          !isSelected && { opacity: 0.5 },
-                        ]}
-                      >
-                        {label}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-
-              {/* Optional Note */}
-              <View style={styles.noteSection}>
-                <Text style={[styles.noteLabel, { color: colors['muted-foreground'] }]}>
-                  Optional: Add a note
-                </Text>
-                <TextInput
-                  style={[
-                    styles.noteInput,
-                    {
-                      backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)',
-                      color: colors.foreground,
-                      borderColor: colors.border,
-                    },
-                  ]}
-                  placeholder="What happened? How are you feeling?"
-                  placeholderTextColor={colors['muted-foreground'] + '80'}
-                  value={notes}
-                  onChangeText={setNotes}
-                  multiline
-                  numberOfLines={3}
-                  textAlignVertical="top"
-                  returnKeyType="done"
-                  blurOnSubmit
-                />
-              </View>
-
-              {/* Actions */}
-              <View style={styles.actions}>
-                <TouchableOpacity
-                  style={[styles.skipButton, { borderColor: colors.border }]}
-                  onPress={handleSkip}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[styles.skipButtonText, { color: colors['muted-foreground'] }]}>
-                    Skip
+                {/* Header */}
+                <View style={styles.header}>
+                  <Text style={[styles.activityText, { color: colors['muted-foreground'] }]}>
+                    ✨ Logged
                   </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[
-                    styles.saveButton,
-                    { backgroundColor: colors.primary },
-                  ]}
-                  onPress={handleSave}
-                  activeOpacity={0.8}
-                >
-                  <Text style={[styles.saveButtonText, { color: colors['primary-foreground'] }]}>
-                    Save ✨
+                  <TextInput
+                    style={[styles.titleInput, { color: colors.foreground }]}
+                    value={title}
+                    onChangeText={setTitle}
+                    placeholder="Interaction Title"
+                    placeholderTextColor={colors['muted-foreground'] + '80'}
+                    returnKeyType="done"
+                  />
+                  <Text style={[styles.friendNameText, { color: colors.foreground }]}>
+                    with {friendName}
                   </Text>
-                </TouchableOpacity>
-              </View>
+                </View>
+
+                {/* Prompt */}
+                <Text style={[styles.promptText, { color: colors.foreground }]}>
+                  {getPrompt()}
+                </Text>
+
+                {/* Moon Phase Selector */}
+                <View style={styles.moonContainer}>
+                  {MOON_PHASES.map(({ vibe, emoji, label }) => {
+                    const isSelected = selectedVibe === vibe;
+                    return (
+                      <TouchableOpacity
+                        key={vibe}
+                        style={[
+                          styles.moonButton,
+                          isSelected && {
+                            backgroundColor: isDarkMode ? colors.primary + '20' : colors.primary + '15',
+                            borderColor: colors.primary,
+                            borderWidth: 2,
+                          },
+                        ]}
+                        onPress={() => handleVibeSelect(vibe)}
+                        activeOpacity={0.7}
+                      >
+                        <Text
+                          style={[
+                            styles.moonEmoji,
+                            !isSelected && { opacity: 0.4 },
+                          ]}
+                        >
+                          {emoji}
+                        </Text>
+                        <Text
+                          style={[
+                            styles.moonLabel,
+                            { color: isSelected ? colors.primary : colors['muted-foreground'] },
+                            !isSelected && { opacity: 0.5 },
+                          ]}
+                        >
+                          {label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+
+                {/* Optional Note */}
+                <View style={styles.noteSection}>
+                  <Text style={[styles.noteLabel, { color: colors['muted-foreground'] }]}>
+                    Optional: Add a note
+                  </Text>
+                  <TextInput
+                    style={[
+                      styles.noteInput,
+                      {
+                        backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)',
+                        color: colors.foreground,
+                        borderColor: colors.border,
+                      },
+                    ]}
+                    placeholder="What happened? How are you feeling?"
+                    placeholderTextColor={colors['muted-foreground'] + '80'}
+                    value={notes}
+                    onChangeText={setNotes}
+                    multiline
+                    numberOfLines={3}
+                    textAlignVertical="top"
+                    returnKeyType="done"
+                    blurOnSubmit
+                  />
+                </View>
+
+                {/* Actions */}
+                <View style={styles.actions}>
+                  <TouchableOpacity
+                    style={[styles.skipButton, { borderColor: colors.border }]}
+                    onPress={handleSkip}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.skipButtonText, { color: colors['muted-foreground'] }]}>
+                      Skip
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.saveButton,
+                      { backgroundColor: colors.primary },
+                    ]}
+                    onPress={handleSave}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={[styles.saveButtonText, { color: colors['primary-foreground'] }]}>
+                      Save ✨
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             </TouchableWithoutFeedback>
           </BlurView>
@@ -318,12 +330,21 @@ const styles = StyleSheet.create({
   activityText: {
     fontSize: 14,
     fontWeight: '500',
-    marginBottom: 4,
+    marginBottom: 8,
   },
-  friendNameText: {
+  titleInput: {
     fontSize: 24,
     fontWeight: '700',
     fontFamily: 'Lora_700Bold',
+    textAlign: 'center',
+    marginBottom: 4,
+    minWidth: 200,
+  },
+  friendNameText: {
+    fontSize: 16,
+    fontWeight: '500',
+    fontFamily: 'Inter_600SemiBold',
+    opacity: 0.8,
   },
   promptText: {
     fontSize: 18,

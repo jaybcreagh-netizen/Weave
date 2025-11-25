@@ -205,19 +205,22 @@ export default function FriendProfile() {
   }, [deleteWeave]);
 
   const handleEditInteraction = useCallback((interactionId: string) => {
-    const interaction = interactions?.find(i => i.id === interactionId);
-    if (interaction) {
-      // Check if this is a future planned weave
-      const interactionDate = new Date(interaction.interactionDate);
-      if (isFuture(interactionDate)) {
-        // Open PlanWizard for future interactions
-        setEditingInteraction(interaction as any); // Store the interaction being edited
-        setShowPlanWizard(true);
-      } else {
-        // Open EditInteractionModal for past/completed interactions
-        setEditingInteraction(interaction as any);
+    // Add a small delay to allow the detail modal to close first (iOS race condition)
+    setTimeout(() => {
+      const interaction = interactions?.find(i => i.id === interactionId);
+      if (interaction) {
+        // Check if this is a future planned weave
+        const interactionDate = new Date(interaction.interactionDate);
+        if (isFuture(interactionDate)) {
+          // Open PlanWizard for future interactions
+          setEditingInteraction(interaction as any); // Store the interaction being edited
+          setShowPlanWizard(true);
+        } else {
+          // Open EditInteractionModal for past/completed interactions
+          setEditingInteraction(interaction as any);
+        }
       }
-    }
+    }, 500);
   }, [interactions]);
 
   // renderTimelineItem with point-to-point line segments

@@ -643,6 +643,41 @@ export function SettingsModal({
 
               <View className="border-t border-border" style={{ borderColor: colors.border }} />
 
+              <TouchableOpacity
+                className="flex-row items-center justify-between"
+                onPress={() => {
+                  useUIStore.getState().queueBadgeUnlocks([{
+                    badge: {
+                      id: 'test_badge',
+                      name: 'Test Badge',
+                      icon: '🧪',
+                      description: 'This is a test badge to verify the popup animation.',
+                      threshold: 1,
+                      tier: 1,
+                      rarity: 'epic',
+                      flavorText: 'Science requires experimentation!',
+                    },
+                    friendId: 'test_friend',
+                    friendName: 'Test Friend',
+                    categoryType: 'special',
+                  }]);
+                  onClose();
+                }}
+              >
+                <View className="flex-row items-center gap-3">
+                  <View className="w-10 h-10 rounded-lg items-center justify-center" style={{ backgroundColor: colors.muted }}>
+                    <Trophy color={colors.foreground} size={20} />
+                  </View>
+                  <View>
+                    <Text className="text-base font-inter-medium" style={{ color: colors.foreground }}>Test Badge Popup</Text>
+                    <Text className="text-sm font-inter-regular" style={{ color: colors['muted-foreground'] }}>Trigger a fake badge unlock</Text>
+                  </View>
+                </View>
+                <ChevronRight color={colors['muted-foreground']} size={20} />
+              </TouchableOpacity>
+
+              <View className="border-t border-border" style={{ borderColor: colors.border }} />
+
               <View className="flex-row items-center justify-between">
                 <View className="flex-row items-center gap-3">
                   <View className="w-10 h-10 rounded-lg items-center justify-center" style={{ backgroundColor: colors.muted }}>

@@ -117,11 +117,13 @@ export async function checkSpecialBadges(
   // Anniversary Keeper
   if (friend.anniversary) {
     const interactionDate = new Date(interaction.interactionDate);
-    const anniversaryDate = new Date(friend.anniversary);
+
+    // Anniversary is stored in "MM-DD" format
+    const [month, day] = friend.anniversary.split('-').map(n => parseInt(n, 10));
 
     if (
-      interactionDate.getMonth() === anniversaryDate.getMonth() &&
-      interactionDate.getDate() === anniversaryDate.getDate() &&
+      interactionDate.getMonth() === month - 1 && // JavaScript months are 0-indexed
+      interactionDate.getDate() === day &&
       !(await isBadgeUnlocked(friendId, 'anniversary_keeper'))
     ) {
       await awardSpecialBadge(friendId, 'anniversary_keeper');

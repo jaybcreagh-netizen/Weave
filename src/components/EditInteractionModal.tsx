@@ -5,8 +5,12 @@ import { X } from 'lucide-react-native';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { type Interaction, type InteractionCategory, type Vibe, type StructuredReflection } from './types';
-import { getAllCategories, type CategoryMetadata } from '@/shared/constants/interaction-categories';
+import { getAllCategories, getCategoryMetadata, type CategoryMetadata } from '@/shared/constants/interaction-categories';
 import { MoonPhaseSelector } from './MoonPhaseSelector';
+import { CustomCalendar } from '@/components/CustomCalendar';
+import { CalendarDays } from 'lucide-react-native';
+import { format } from 'date-fns';
+import { BlurView } from 'expo-blur';
 
 interface EditInteractionModalProps {
   interaction: Interaction | null;
@@ -17,10 +21,11 @@ interface EditInteractionModalProps {
     category?: InteractionCategory;
     vibe?: Vibe | null;
     reflection?: StructuredReflection;
+    interactionDate?: Date;
   }) => Promise<void>;
 }
 
-const categories: CategoryMetadata[] = getAllCategories();
+const categories: CategoryMetadata[] = getAllCategories().map(cat => getCategoryMetadata(cat));
 
 export function EditInteractionModal({
   interaction,
@@ -34,6 +39,9 @@ export function EditInteractionModal({
   const [selectedVibe, setSelectedVibe] = useState<Vibe | null>(null);
   const [customNotes, setCustomNotes] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const { isDarkMode } = useTheme();
 
   // Update state when interaction changes
   React.useEffect(() => {
@@ -41,7 +49,8 @@ export function EditInteractionModal({
       setTitle(interaction.title || '');
       setSelectedCategory((interaction.interactionCategory || interaction.activity) as InteractionCategory);
       setSelectedVibe(interaction.vibe || null);
-      setCustomNotes(interaction.reflection?.customNotes || interaction.notes || '');
+      setCustomNotes(interaction.reflection?.customNotes || interaction.note || '');
+      setSelectedDate(interaction.interactionDate);
     }
   }, [interaction]);
 
@@ -65,11 +74,15 @@ export function EditInteractionModal({
       }
 
       // Update reflection if custom notes changed
-      if (customNotes !== (interaction.reflection?.customNotes || interaction.notes || '')) {
+      if (customNotes !== (interaction.reflection?.customNotes || interaction.note || '')) {
         updates.reflection = {
           ...interaction.reflection,
           customNotes,
         };
+      }
+
+      if (selectedDate && selectedDate.getTime() !== interaction.interactionDate.getTime()) {
+        updates.interactionDate = selectedDate;
       }
 
       await onSave(interaction.id, updates);
@@ -127,6 +140,27 @@ export function EditInteractionModal({
             />
           </View>
 
+          {/* Date Selection */}
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
+              Date
+            </Text>
+            <TouchableOpacity
+              onPress={() => setShowDatePicker(true)}
+              style={[
+                styles.dateInput,
+                { backgroundColor: colors.card, borderColor: colors.border }
+              ]}
+            >
+              <View style={styles.dateContent}>
+                <CalendarDays size={20} color={colors.primary} />
+                <Text style={[styles.dateText, { color: colors.foreground }]}>
+                  {selectedDate ? format(selectedDate, 'EEEE, MMMM d, yyyy') : 'Select date'}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+
           {/* Category Selection */}
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
@@ -135,7 +169,7 @@ export function EditInteractionModal({
             <View style={styles.gridContainer}>
               {categories.map((cat, index) => (
                 <Animated.View
-                  key={cat.category}
+                  key={cat.id}
                   style={{ width: '48%' }}
                   entering={FadeInUp.duration(500).delay(index * 50)}
                 >
@@ -143,12 +177,12 @@ export function EditInteractionModal({
                     style={[
                       styles.gridItem,
                       { backgroundColor: colors.card, borderColor: colors.border },
-                      selectedCategory === cat.category && [
+                      selectedCategory === cat.id && [
                         styles.gridItemSelected,
                         { borderColor: colors.primary }
                       ]
                     ]}
-                    onPress={() => setSelectedCategory(cat.category)}
+                    onPress={() => setSelectedCategory(cat.id)}
                   >
                     <Text style={styles.gridItemIcon}>{cat.icon}</Text>
                     <Text style={[styles.gridItemLabel, { color: colors.foreground }]}>
@@ -204,6 +238,53 @@ export function EditInteractionModal({
           </TouchableOpacity>
         </View>
       </SafeAreaView>
+
+      {/* Calendar Modal */}
+      {showDatePicker && (
+        <Modal
+          visible={true}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowDatePicker(false)}
+        >
+          <BlurView intensity={isDarkMode ? 20 : 40} tint={isDarkMode ? 'dark' : 'light'} style={StyleSheet.absoluteFill}>
+            <TouchableOpacity
+              style={styles.modalOverlay}
+              activeOpacity={1}
+              onPress={() => setShowDatePicker(false)}
+            >
+              <Animated.View
+                entering={FadeInUp.duration(200).springify()}
+                style={[
+                  styles.calendarContainer,
+                  {
+                    backgroundColor: isDarkMode ? colors.background + 'F5' : colors.background + 'F8',
+                  }
+                ]}
+                onStartShouldSetResponder={() => true}
+              >
+                <View style={styles.calendarHeader}>
+                  <Text style={[styles.calendarTitle, { color: colors.foreground }]}>
+                    Pick a Date
+                  </Text>
+                  <TouchableOpacity onPress={() => setShowDatePicker(false)} style={styles.closeCalendarButton}>
+                    <X color={colors['muted-foreground']} size={22} />
+                  </TouchableOpacity>
+                </View>
+
+                <CustomCalendar
+                  selectedDate={selectedDate || new Date()}
+                  onDateSelect={(date) => {
+                    setSelectedDate(date);
+                    setShowDatePicker(false);
+                  }}
+                // Let's allow any date for now as it's an edit.
+                />
+              </Animated.View>
+            </TouchableOpacity>
+          </BlurView>
+        </Modal>
+      )}
     </Modal>
   );
 }
@@ -312,5 +393,50 @@ const styles = StyleSheet.create({
   saveButtonText: {
     fontSize: 16,
     fontWeight: '600',
+  },
+  dateInput: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 16,
+  },
+  dateContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  dateText: {
+    fontSize: 16,
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  calendarContainer: {
+    width: '100%',
+    maxWidth: 400,
+    borderRadius: 24,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 20 },
+    shadowOpacity: 0.25,
+    shadowRadius: 30,
+    elevation: 20,
+  },
+  calendarHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  calendarTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    fontFamily: 'Lora-Bold',
+  },
+  closeCalendarButton: {
+    padding: 8,
+    marginRight: -8,
   },
 });

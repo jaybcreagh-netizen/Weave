@@ -4,7 +4,7 @@ import FriendModel from '@/db/models/Friend';
 import Interaction from '@/db/models/Interaction';
 import InteractionFriend from '@/db/models/InteractionFriend';
 import { processWeaveScoring } from '@/modules/intelligence';
-import { checkFriendBadges, checkGlobalAchievements, recordMilestone } from '@/modules/gamification';
+import { checkAndAwardFriendBadges, checkAndAwardGlobalAchievements, recordPractice } from '@/modules/gamification';
 import { InteractionFormData } from '../types';
 import { WeaveLogSchema } from '@/shared/types/validators';
 
@@ -21,12 +21,16 @@ export async function logWeave(data: InteractionFormData): Promise<Interaction> 
         throw new Error(`Invalid weave data: ${error instanceof Error ? error.message : String(error)}`);
     }
 
+    // Defer database access to avoid circular dependency
+    const { database } = require('@/db');
+
     const friends = await database.get<FriendModel>('friends').query(Q.where('id', Q.oneOf(data.friendIds))).fetch();
 
     if (friends.length === 0) {
         throw new Error('No friends found for this interaction.');
     }
 
+    // 1. Create the interaction record (Main Transaction)
     const { interaction } = await database.write(async () => {
         const newInteraction = await database.get<Interaction>('interactions').create(interaction => {
             interaction.interactionDate = data.date;
@@ -37,6 +41,9 @@ export async function logWeave(data: InteractionFormData): Promise<Interaction> 
             interaction.note = data.notes;
             interaction.vibe = data.vibe;
             interaction.duration = data.duration;
+            if (data.title) {
+                interaction.title = data.title;
+            }
             if (data.category) {
                 interaction.interactionCategory = data.category;
             }
@@ -52,14 +59,22 @@ export async function logWeave(data: InteractionFormData): Promise<Interaction> 
             });
         }
 
-        await processWeaveScoring(friends, data);
+        return { interaction: newInteraction };
+    });
 
+    // 2. Run Side Effects (Sequential, outside main transaction to avoid deadlocks)
+    try {
+        // Scoring
+        await processWeaveScoring(friends, data, database);
+
+        // Badges & Achievements
         for (const friend of friends) {
-            await checkFriendBadges(friend.id);
+            await checkAndAwardFriendBadges(friend.id, friend.name);
         }
 
-        await checkGlobalAchievements();
+        await checkAndAwardGlobalAchievements();
 
+        // Analytics
         trackEvent(AnalyticsEvents.INTERACTION_LOGGED, {
             activity: data.activity,
             category: data.category,
@@ -71,10 +86,10 @@ export async function logWeave(data: InteractionFormData): Promise<Interaction> 
         });
         updateLastInteractionTimestamp();
 
-        // TODO: Move this to the gamification module
-        await recordMilestone('log_weave');
+        // Gamification
+        await recordPractice('log_weave', interaction.id);
 
-        // TODO: Move this to the insights module
+        // Insights (Life Events)
         if (data.notes && data.notes.trim().length > 0) {
             for (const friend of friends) {
                 analyzeAndTagLifeEvents(friend.id, data.notes, data.date).catch(error => {
@@ -82,9 +97,11 @@ export async function logWeave(data: InteractionFormData): Promise<Interaction> 
                 });
             }
         }
-
-        return { interaction: newInteraction };
-    });
+    } catch (error) {
+        console.error('Error running side effects for logWeave:', error);
+        // We do NOT throw here, because the interaction was successfully created.
+        // Failing side effects shouldn't block the user flow.
+    }
 
     return interaction;
 }

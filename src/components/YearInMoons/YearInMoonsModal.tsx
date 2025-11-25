@@ -349,6 +349,7 @@ export function YearInMoonsModal({ isOpen, onClose }: YearInMoonsModalProps) {
                               key={day.date.toISOString()}
                               onPress={() => handleMoonPress(day)}
                               onLongPress={() => handleMoonLongPress(day)}
+                              delayLongPress={200}
                               className="items-center justify-center mb-2"
                               style={{ width: moonSize, height: moonSize }}
                             >

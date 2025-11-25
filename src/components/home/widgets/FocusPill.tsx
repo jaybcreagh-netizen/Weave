@@ -29,16 +29,9 @@ export const FocusPill: React.FC = () => {
   const router = useRouter();
   const { friends } = useRelationshipsStore();
   const { suggestions, hasCritical } = useSuggestions();
-  const [focusItem, setFocusItem] = useState<FocusItem | null>(null);
-
-  useEffect(() => {
-    loadFocusItem();
-  }, [friends, suggestions]);
-
-  const loadFocusItem = async () => {
+  const focusItem = React.useMemo(() => {
     if (!friends || friends.length === 0) {
-      setFocusItem(null);
-      return;
+      return null;
     }
 
     const today = new Date();
@@ -47,8 +40,12 @@ export const FocusPill: React.FC = () => {
     // Check for birthdays in next 7 days
     for (const friend of friends) {
       if (friend.birthday) {
-        const bday = new Date(friend.birthday);
-        const thisYearBirthday = new Date(today.getFullYear(), bday.getMonth(), bday.getDate());
+        // Birthday is stored in "MM-DD" format
+        const [month, day] = friend.birthday.split('-').map(n => parseInt(n, 10));
+
+        // Create birthday for this year
+        const thisYearBirthday = new Date(today.getFullYear(), month - 1, day);
+        thisYearBirthday.setHours(0, 0, 0, 0);
 
         if (thisYearBirthday < today) {
           thisYearBirthday.setFullYear(today.getFullYear() + 1);
@@ -57,59 +54,61 @@ export const FocusPill: React.FC = () => {
         const daysUntil = differenceInDays(thisYearBirthday, today);
 
         if (daysUntil === 0) {
-          setFocusItem({
-            type: 'birthday',
+          return {
+            type: 'birthday' as const,
             friend,
             message: `${friend.name}'s birthday is today! 🎂`,
             icon: Cake,
             color: '#F59E0B',
-          });
-          return;
+          };
         } else if (daysUntil > 0 && daysUntil <= 7) {
-          setFocusItem({
-            type: 'birthday',
+          return {
+            type: 'birthday' as const,
             friend,
             message: `${friend.name}'s birthday in ${daysUntil} day${daysUntil > 1 ? 's' : ''}`,
             icon: Cake,
             color: '#F59E0B',
-          });
-          return;
+          };
         }
       }
     }
 
     // Check for critical suggestions
     if (hasCritical && suggestions.length > 0) {
-      const critical = suggestions.find(s => s.priority === 'critical');
+      const critical = suggestions.find(s => s.urgency === 'critical');
       if (critical) {
-        setFocusItem({
-          type: 'critical',
-          friend: critical.friend,
-          message: `${critical.friend.name} needs attention`,
-          icon: AlertCircle,
-          color: '#EF4444',
-        });
-        return;
+        const friend = friends.find(f => f.id === critical.friendId);
+        if (friend) {
+          return {
+            type: 'critical' as const,
+            friend,
+            message: `${friend.name} needs attention`,
+            icon: AlertCircle,
+            color: '#EF4444',
+          };
+        }
       }
     }
 
     // Check for high-priority suggestions
     if (suggestions.length > 0) {
-      const highPriority = suggestions.find(s => s.priority === 'high');
+      const highPriority = suggestions.find(s => s.urgency === 'high' || s.priority === 'high');
       if (highPriority) {
-        setFocusItem({
-          type: 'suggestion',
-          friend: highPriority.friend,
-          message: `Reach out to ${highPriority.friend.name}`,
-          icon: Heart,
-          color: colors.primary,
-        });
-        return;
+        const friend = friends.find(f => f.id === highPriority.friendId);
+        if (friend) {
+          return {
+            type: 'suggestion' as const,
+            friend,
+            message: `Reach out to ${friend.name}`,
+            icon: Heart,
+            color: colors.primary,
+          };
+        }
       }
     }
 
-    setFocusItem(null);
-  };
+    return null;
+  }, [friends, suggestions, hasCritical, colors.primary]);
 
   const handlePress = () => {
     if (!focusItem) return;

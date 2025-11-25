@@ -3,6 +3,7 @@ import { database } from '@/db';
 import LifeEvent from '@/db/models/LifeEvent';
 import FriendModel from '@/db/models/Friend';
 import Interaction from '@/db/models/Interaction';
+import InteractionFriend from '@/db/models/InteractionFriend';
 import { Q } from '@nozbe/watermelondb';
 import { calculateCurrentScore } from '@/modules/intelligence';
 
@@ -82,7 +83,6 @@ async function checkLifeEventStatus(friend: FriendModel): Promise<StatusLine | n
     const activeLifeEvents = await database
       .get<LifeEvent>('life_events')
       .query(
-        // @ts-expect-error: WatermelonDB Q types are complex
         Q.where('friend_id', friend.id),
         Q.or(
           // Upcoming events (within next 30 days)
@@ -151,8 +151,11 @@ async function checkLifeEventStatus(friend: FriendModel): Promise<StatusLine | n
 
     // Check anniversary (legacy Friend model field)
     if (friend.anniversary) {
-      const anniversaryThisYear = new Date(friend.anniversary);
-      anniversaryThisYear.setFullYear(today.getFullYear());
+      // Anniversary is stored in "MM-DD" format
+      const [month, day] = friend.anniversary.split('-').map(n => parseInt(n, 10));
+
+      // Create anniversary for this year
+      const anniversaryThisYear = new Date(today.getFullYear(), month - 1, day);
       anniversaryThisYear.setHours(0, 0, 0, 0);
 
       if (anniversaryThisYear < today) {
@@ -195,7 +198,7 @@ async function checkConnectionHealth(friend: FriendModel): Promise<StatusLine | 
     const friendInteractions: Interaction[] = [];
     for (const interaction of recentInteractions) {
       const interactionFriends = await interaction.interactionFriends.fetch();
-      if (interactionFriends.some(jf => jf.friendId === friend.id)) {
+      if (interactionFriends.some((jf: InteractionFriend) => jf.friendId === friend.id)) {
         friendInteractions.push(interaction);
       }
     }
@@ -265,7 +268,7 @@ async function checkUpcomingPlans(friend: FriendModel): Promise<StatusLine | nul
     // Find the nearest upcoming interaction with this friend
     for (const interaction of futureInteractions) {
       const interactionFriends = await interaction.interactionFriends.fetch();
-      if (interactionFriends.some(jf => jf.friendId === friend.id)) {
+      if (interactionFriends.some((jf: InteractionFriend) => jf.friendId === friend.id)) {
         const daysUntil = differenceInDays(interaction.interactionDate, today);
         const categoryLabel = getCategoryLabel(interaction.interactionCategory);
 

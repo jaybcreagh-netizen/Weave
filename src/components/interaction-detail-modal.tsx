@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Modal, View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import { X, Calendar, MapPin, Heart, MessageCircle, Sparkles, Edit3, Trash2 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -10,6 +10,9 @@ import { type Interaction, type MoonPhase, type InteractionCategory } from './ty
 import { modeIcons } from '@/shared/constants/constants';
 import { getCategoryMetadata } from '@/shared/constants/interaction-categories';
 import { STORY_CHIPS } from '@/modules/reflection';
+import { database } from '@/db';
+import { Q } from '@nozbe/watermelondb';
+import FriendModel from '@/db/models/Friend';
 
 const moonPhaseIcons: Record<MoonPhase, string> = {
   'NewMoon': '🌑',
@@ -68,6 +71,47 @@ export function InteractionDetailModal({
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: translateY.value }],
   }));
+
+  const [participants, setParticipants] = useState<FriendModel[]>([]);
+
+  // Fetch all participants for this interaction
+  useEffect(() => {
+    if (!interaction) {
+      setParticipants([]);
+      return;
+    }
+
+    const fetchParticipants = async () => {
+      try {
+        // Get join records for this interaction
+        const joinRecords = await database
+          .get('interaction_friends')
+          .query(Q.where('interaction_id', interaction.id))
+          .fetch();
+
+        if (joinRecords.length === 0) {
+          setParticipants([]);
+          return;
+        }
+
+        // Get friend IDs from join records
+        const friendIds = joinRecords.map((jr: any) => jr.friendId);
+
+        // Fetch all friend models
+        const friends = await database
+          .get<FriendModel>('friends')
+          .query(Q.where('id', Q.oneOf(friendIds)))
+          .fetch();
+
+        setParticipants(friends);
+      } catch (error) {
+        console.error('Error fetching participants:', error);
+        setParticipants([]);
+      }
+    };
+
+    fetchParticipants();
+  }, [interaction]);
 
   if (!interaction) return null;
 
@@ -168,7 +212,14 @@ export function InteractionDetailModal({
               </View>
 
               <InfoRow icon={<Calendar color={colors['muted-foreground']} size={20} />} title={date} subtitle={time} colors={colors} />
-              {friendName && <InfoRow icon={<Heart color={colors['muted-foreground']} size={20} />} title={friendName} subtitle="With" colors={colors} />}
+              {participants.length > 0 && (
+                <InfoRow
+                  icon={<Heart color={colors['muted-foreground']} size={20} />}
+                  title={participants.map(f => f.name).join(', ')}
+                  subtitle={participants.length === 1 ? 'With' : `With ${participants.length} friends`}
+                  colors={colors}
+                />
+              )}
               {isPast && moonIcon && <InfoRow icon={<Text style={{ fontSize: 24 }}>{moonIcon}</Text>} title={interaction.vibe?.replace(/([A-Z])/g, ' $1').trim()} subtitle="Moon phase" colors={colors} />}
               {interaction.location && <InfoRow icon={<MapPin color={colors['muted-foreground']} size={20} />} title={interaction.location} subtitle="Location" colors={colors} />}
 
@@ -239,171 +290,171 @@ export function InteractionDetailModal({
 }
 
 const InfoRow = ({ icon, title, subtitle, colors }: { icon: React.ReactNode, title: string, subtitle: string, colors: any }) => (
-    <View style={[styles.infoRow, { backgroundColor: colors.muted + '80' }]}>
-        <View style={{ width: 24, alignItems: 'center' }}>{icon}</View>
-        <View style={{ flex: 1 }}>
-            <Text style={[styles.infoSubtitle, { color: colors['muted-foreground'] }]}>{subtitle}</Text>
-            <Text style={[styles.infoTitle, { color: colors.foreground }]}>{title}</Text>
-        </View>
+  <View style={[styles.infoRow, { backgroundColor: colors.muted + '80' }]}>
+    <View style={{ width: 24, alignItems: 'center' }}>{icon}</View>
+    <View style={{ flex: 1 }}>
+      <Text style={[styles.infoSubtitle, { color: colors['muted-foreground'] }]}>{subtitle}</Text>
+      <Text style={[styles.infoTitle, { color: colors.foreground }]}>{title}</Text>
     </View>
+  </View>
 );
 
 const styles = StyleSheet.create({
-    backdrop: {
-        flex: 1,
-        justifyContent: 'flex-end',
-    },
-    modalContainer: {
-        borderTopLeftRadius: 24,
-        borderTopRightRadius: 24,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: -10 },
-        shadowOpacity: 0.1,
-        shadowRadius: 10,
-        elevation: 20,
-        height: '75%',
-    },
-    handleBarContainer: {
-        padding: 16,
-        alignItems: 'center',
-    },
-    handleBar: {
-        width: 48,
-        height: 6,
-        borderRadius: 3,
-    },
-    header: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'flex-start',
-        paddingHorizontal: 24,
-        paddingTop: 8,
-    },
-    headerTitleContainer: {
-        flex: 1,
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 12,
-        marginBottom: 8,
-    },
-    headerActions: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 4,
-    },
-    actionButton: {
-        padding: 8,
-    },
-    headerIcon: {
-        fontSize: 32,
-    },
-    headerTitle: {
-        fontSize: 24,
-        fontWeight: '600',
-    },
-    headerSubtitle: {
-        fontSize: 14,
-        textTransform: 'capitalize',
-    },
-    scrollViewContent: {
-        padding: 24,
-        gap: 24,
-    },
-    statusBadge: {
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: 999,
-        alignSelf: 'flex-start',
-    },
-    statusCompleted: {
-        backgroundColor: '#dcfce7',
-    },
-    statusPlanned: {
-        backgroundColor: '#fef9c3',
-    },
-    statusBadgeText: {
-        fontSize: 12,
-        fontWeight: '500',
-    },
-    statusCompletedText: {
-        color: '#166534',
-    },
-    statusPlannedText: {
-        color: '#854d0e',
-    },
-    infoRow: {
-        flexDirection: 'row',
-        alignItems: 'flex-start',
-        gap: 12,
-        padding: 16,
-        borderRadius: 16,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 8,
-        elevation: 4,
-    },
-    infoSubtitle: {
-        fontSize: 14,
-    },
-    infoTitle: {
-        fontWeight: '500',
-    },
-    reflectionSection: {
-        padding: 16,
-        borderRadius: 16,
-        gap: 12,
-    },
-    reflectionHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
-        marginBottom: 4,
-    },
-    reflectionHeaderText: {
-        fontSize: 14,
-        fontWeight: '600',
-    },
-    reflectionChips: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 8,
-    },
-    reflectionChip: {
-        borderWidth: 1,
-        borderRadius: 16,
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-    },
-    reflectionChipText: {
-        fontSize: 13,
-        fontWeight: '500',
-    },
-    reflectionCustomNotes: {
-        fontSize: 14,
-        lineHeight: 20,
-        fontStyle: 'italic',
-    },
-    footer: {
-        paddingHorizontal: 24,
-        paddingTop: 16,
-        borderTopWidth: 1,
-    },
-    deepenButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 8,
-        padding: 16,
-        borderRadius: 12,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 12,
-        elevation: 8,
-    },
-    deepenButtonText: {
-        fontSize: 16,
-        fontWeight: '600',
-    },
+  backdrop: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  modalContainer: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -10 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 20,
+    height: '75%',
+  },
+  handleBarContainer: {
+    padding: 16,
+    alignItems: 'center',
+  },
+  handleBar: {
+    width: 48,
+    height: 6,
+    borderRadius: 3,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    paddingHorizontal: 24,
+    paddingTop: 8,
+  },
+  headerTitleContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 8,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  actionButton: {
+    padding: 8,
+  },
+  headerIcon: {
+    fontSize: 32,
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: '600',
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    textTransform: 'capitalize',
+  },
+  scrollViewContent: {
+    padding: 24,
+    gap: 24,
+  },
+  statusBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    alignSelf: 'flex-start',
+  },
+  statusCompleted: {
+    backgroundColor: '#dcfce7',
+  },
+  statusPlanned: {
+    backgroundColor: '#fef9c3',
+  },
+  statusBadgeText: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  statusCompletedText: {
+    color: '#166534',
+  },
+  statusPlannedText: {
+    color: '#854d0e',
+  },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    padding: 16,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  infoSubtitle: {
+    fontSize: 14,
+  },
+  infoTitle: {
+    fontWeight: '500',
+  },
+  reflectionSection: {
+    padding: 16,
+    borderRadius: 16,
+    gap: 12,
+  },
+  reflectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 4,
+  },
+  reflectionHeaderText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  reflectionChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  reflectionChip: {
+    borderWidth: 1,
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  reflectionChipText: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  reflectionCustomNotes: {
+    fontSize: 14,
+    lineHeight: 20,
+    fontStyle: 'italic',
+  },
+  footer: {
+    paddingHorizontal: 24,
+    paddingTop: 16,
+    borderTopWidth: 1,
+  },
+  deepenButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    padding: 16,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  deepenButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
 });

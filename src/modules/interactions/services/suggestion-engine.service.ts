@@ -780,6 +780,7 @@ function checkReflectSuggestion(
 
   const mostRecent = recentInteractions[0];
   const now = Date.now();
+  if (!mostRecent.interactionDate) return null;
   const hoursSince = (now - mostRecent.interactionDate.getTime()) / 3600000;
 
   // Only suggest reflection for PAST interactions (not future/planned)
@@ -824,7 +825,7 @@ function checkArchetypeMismatch(
   // Filter to only past interactions (recentInteractions should already be filtered to completed,
   // but adding this as extra safety)
   const now = Date.now();
-  const pastInteractions = recentInteractions.filter(i => i.interactionDate.getTime() <= now);
+  const pastInteractions = recentInteractions.filter(i => i.interactionDate && i.interactionDate.getTime() <= now);
 
   if (pastInteractions.length < 3) return null;
 

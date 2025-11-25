@@ -4,7 +4,9 @@
  */
 
 import { database } from '@/db';
-import UserProfile, { BatteryHistoryEntry } from '@/db/models/UserProfile';
+import { BatteryHistoryEntry } from '@/db/models/UserProfile';
+import SocialBatteryLog from '@/db/models/SocialBatteryLog';
+import { Q } from '@nozbe/watermelondb';
 
 export interface DayMoonData {
   date: Date;
@@ -37,18 +39,22 @@ export function batteryToMoonPhase(batteryLevel: number | null): number {
 }
 
 /**
- * Fetch battery history from UserProfile
+ * Fetch battery history from SocialBatteryLog table
  */
 async function fetchBatteryHistory(): Promise<BatteryHistoryEntry[]> {
   try {
-    const profiles = await database.get<UserProfile>('user_profile').query().fetch();
+    const logs = await database.get<SocialBatteryLog>('social_battery_logs')
+      .query(
+        Q.sortBy('timestamp', Q.asc)
+      )
+      .fetch();
 
-    if (profiles.length === 0) {
-      return [];
-    }
-
-    const profile = profiles[0];
-    return profile.socialBatteryHistory || [];
+    return logs.map(log => ({
+      value: log.value,
+      timestamp: log.timestamp,
+      // Note is not currently stored in SocialBatteryLog model based on my read, 
+      // but the interface expects it. We'll leave it undefined for now.
+    }));
   } catch (error) {
     console.error('Error fetching battery history:', error);
     return [];

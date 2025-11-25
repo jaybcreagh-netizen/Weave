@@ -17,7 +17,7 @@ import { ErrorBoundary } from '@/shared/components/ErrorBoundary';
 import { EventSuggestionModal } from '@/components/EventSuggestionModal';
 import { useUIStore } from '@/stores/uiStore';
 import { useTheme } from '@/shared/hooks/useTheme';
-import { useActivityKeepAwake } from '@/shared/hooks/useActivityKeepAwake';
+
 import { initializeDataMigrations, initializeUserProfile, initializeUserProgress } from '@/db';
 import { useAppStateChange } from '@/shared/hooks/useAppState';
 import { useRelationshipsStore } from '@/modules/relationships';
@@ -83,7 +83,7 @@ const NOTIFICATION_PERMISSION_ASKED_KEY = '@weave:notification_permission_asked'
  */
 export default Sentry.wrap(function RootLayout() {
   // Apply the activity-based keep-awake logic globally
-  useActivityKeepAwake();
+  // useActivityKeepAwake();
 
   const { colors } = useTheme();
   const isDarkMode = useUIStore((state) => state.isDarkMode);

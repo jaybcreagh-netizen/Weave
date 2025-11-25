@@ -269,63 +269,70 @@ async function generateSmartSuggestions(): Promise<Suggestion[]> {
     const friends = await database.get<Friend>('friends').query().fetch();
 
     for (const friend of friends) {
-      // Query friend's interactions through the junction table
-      const interactionFriends = await database
-        .get<InteractionFriend>('interaction_friends')
-        .query(Q.where('friend_id', friend.id))
-        .fetch();
-
-      const interactionIds = interactionFriends.map((ifriend) => ifriend.interactionId);
-
-      let sortedInteractions: Interaction[] = [];
-      if (interactionIds.length > 0) {
-        const friendInteractions = await database
-          .get<Interaction>('interactions')
-          .query(
-            Q.where('id', Q.oneOf(interactionIds)),
-            Q.where('status', 'completed')
-          )
+      try {
+        // Query friend's interactions through the junction table
+        const interactionFriends = await database
+          .get<InteractionFriend>('interaction_friends')
+          .query(Q.where('friend_id', friend.id))
           .fetch();
 
-        sortedInteractions = friendInteractions.sort(
-          (a, b) => b.interactionDate.getTime() - a.interactionDate.getTime()
-        );
-      }
+        const interactionIds = interactionFriends.map((ifriend) => ifriend.interactionId);
 
-      const lastInteraction = sortedInteractions[0];
-      const currentScore = calculateCurrentScore(friend);
+        let sortedInteractions: Interaction[] = [];
+        if (interactionIds.length > 0) {
+          const friendInteractions = await database
+            .get<Interaction>('interactions')
+            .query(
+              Q.where('id', Q.oneOf(interactionIds)),
+              Q.where('status', 'completed')
+            )
+            .fetch();
 
-      // Calculate current momentum score
-      const daysSinceMomentumUpdate =
-        (Date.now() - friend.momentumLastUpdated.getTime()) / 86400000;
-      const momentumScore = Math.max(0, friend.momentumScore - daysSinceMomentumUpdate);
+          sortedInteractions = friendInteractions
+            .filter(i => i.interactionDate) // Ensure date exists
+            .sort(
+              (a, b) => b.interactionDate.getTime() - a.interactionDate.getTime()
+            );
+        }
 
-      const suggestion = await generateSuggestion({
-        friend: {
-          id: friend.id,
-          name: friend.name,
-          archetype: friend.archetype,
-          dunbarTier: friend.dunbarTier,
-          createdAt: friend.createdAt,
-          birthday: friend.birthday,
-          anniversary: friend.anniversary,
-          relationshipType: friend.relationshipType,
-        },
-        currentScore,
-        lastInteractionDate: lastInteraction?.interactionDate,
-        interactionCount: sortedInteractions.length,
-        momentumScore,
-        recentInteractions: sortedInteractions.slice(0, 5).map((i) => ({
-          id: i.id,
-          category: i.interactionCategory as any,
-          interactionDate: i.interactionDate,
-          vibe: i.vibe,
-          notes: i.note,
-        })),
-      });
+        const lastInteraction = sortedInteractions[0];
+        const currentScore = calculateCurrentScore(friend);
 
-      if (suggestion) {
-        suggestions.push(suggestion);
+        // Calculate current momentum score
+        const lastUpdated = friend.momentumLastUpdated || friend.createdAt || new Date();
+        const daysSinceMomentumUpdate =
+          (Date.now() - lastUpdated.getTime()) / 86400000;
+        const momentumScore = Math.max(0, friend.momentumScore - daysSinceMomentumUpdate);
+
+        const suggestion = await generateSuggestion({
+          friend: {
+            id: friend.id,
+            name: friend.name,
+            archetype: friend.archetype,
+            dunbarTier: friend.dunbarTier,
+            createdAt: friend.createdAt,
+            birthday: friend.birthday,
+            anniversary: friend.anniversary,
+            relationshipType: friend.relationshipType,
+          },
+          currentScore,
+          lastInteractionDate: lastInteraction?.interactionDate,
+          interactionCount: sortedInteractions.length,
+          momentumScore,
+          recentInteractions: sortedInteractions.slice(0, 5).map((i) => ({
+            id: i.id,
+            category: i.interactionCategory as any,
+            interactionDate: i.interactionDate,
+            vibe: i.vibe,
+            notes: i.note,
+          })),
+        });
+
+        if (suggestion) {
+          suggestions.push(suggestion);
+        }
+      } catch (error) {
+        console.error(`Error generating suggestion for friend ${friend.id} (${friend.name}):`, error);
       }
     }
   } catch (error) {

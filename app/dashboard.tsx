@@ -37,80 +37,81 @@ export default function Dashboard() {
     };
 
     return (
-        <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
-            <View style={[styles.tabBar, { backgroundColor: 'transparent', borderBottomColor: colors.border }]}>
-                <View style={styles.tabsContainer}>
-                    <TouchableOpacity
-                        style={[styles.tab, activeTab === 'insights' && styles.activeTab]}
-                        onPress={() => handleTabPress('insights')}
-                    >
-                        <View style={styles.tabIconContainer}>
-                            <Sparkles
-                                size={24}
-                                color={activeTab === 'insights' ? colors.primary : colors['muted-foreground']}
-                            />
-                            {suggestionCount > 0 && (
-                                <View style={[styles.notificationBadge, { backgroundColor: colors.primary }]}>
-                                    <Text style={styles.notificationText}>{suggestionCount}</Text>
-                                </View>
-                            )}
-                        </View>
-                        <Text style={[styles.tabLabel, { color: activeTab === 'insights' ? colors.primary : colors['muted-foreground'] }]}>
-                            Insights
-                        </Text>
+        <View style={{ flex: 1, backgroundColor: colors.background }}>
+            <SafeAreaView style={styles.container} edges={['top']}>
+                <View style={[styles.tabBar, { backgroundColor: 'transparent', borderBottomColor: colors.border }]}>
+                    <View style={styles.tabsContainer}>
+                        <TouchableOpacity
+                            style={[styles.tab, activeTab === 'insights' && styles.activeTab]}
+                            onPress={() => handleTabPress('insights')}
+                        >
+                            <View style={styles.tabIconContainer}>
+                                <Sparkles
+                                    size={24}
+                                    color={activeTab === 'insights' ? colors.primary : colors['muted-foreground']}
+                                />
+                                {suggestionCount > 0 && (
+                                    <View style={[styles.notificationBadge, { backgroundColor: colors.primary }]}>
+                                        <Text style={styles.notificationText}>{suggestionCount}</Text>
+                                    </View>
+                                )}
+                            </View>
+                            <Text style={[styles.tabLabel, { color: activeTab === 'insights' ? colors.primary : colors['muted-foreground'] }]}>
+                                Insights
+                            </Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={[styles.tab, activeTab === 'circle' && styles.activeTab]}
+                            onPress={() => handleTabPress('circle')}
+                        >
+                            <Users size={24} color={activeTab === 'circle' ? colors.primary : colors['muted-foreground']} />
+                            <Text style={[styles.tabLabel, { color: activeTab === 'circle' ? colors.primary : colors['muted-foreground'] }]}>
+                                Circle
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
+
+                    <TouchableOpacity onPress={() => setShowSettings(true)} style={styles.settingsButton}>
+                        <Settings size={24} color={colors['muted-foreground']} />
                     </TouchableOpacity>
-
-                    <TouchableOpacity
-                        style={[styles.tab, activeTab === 'circle' && styles.activeTab]}
-                        onPress={() => handleTabPress('circle')}
-                    >
-                        <Users size={24} color={activeTab === 'circle' ? colors.primary : colors['muted-foreground']} />
-                        <Text style={[styles.tabLabel, { color: activeTab === 'circle' ? colors.primary : colors['muted-foreground'] }]}>
-                            Circle
-                        </Text>
-                    </TouchableOpacity>
                 </View>
 
-                <TouchableOpacity onPress={() => setShowSettings(true)} style={styles.settingsButton}>
-                    <Settings size={24} color={colors['muted-foreground']} />
-                </TouchableOpacity>
-            </View>
+                <ScrollView
+                    ref={scrollViewRef}
+                    horizontal
+                    pagingEnabled
+                    showsHorizontalScrollIndicator={false}
+                    onMomentumScrollEnd={onScroll}
+                    scrollEventThrottle={16}
+                    style={styles.scrollView}
+                    contentOffset={{ x: screenWidth, y: 0 }}
+                >
+                    <View style={{ width: screenWidth, flex: 1 }}>
+                        <HomeScreen />
+                    </View>
+                    <View style={{ width: screenWidth, flex: 1 }}>
+                        <FriendsScreen />
+                    </View>
+                </ScrollView>
 
-            <ScrollView
-                ref={scrollViewRef}
-                horizontal
-                pagingEnabled
-                showsHorizontalScrollIndicator={false}
-                onMomentumScrollEnd={onScroll}
-                scrollEventThrottle={16}
-                style={styles.scrollView}
-                contentOffset={{ x: screenWidth, y: 0 }}
-            >
-                <View style={{ width: screenWidth, flex: 1 }}>
-                    <HomeScreen />
-                </View>
-                <View style={{ width: screenWidth, flex: 1 }}>
-                    <FriendsScreen />
-                </View>
-            </ScrollView>
+                <SettingsModal
+                    isOpen={showSettings}
+                    onClose={() => setShowSettings(false)}
+                    onOpenBatteryCheckIn={() => setShowBatterySheet(true)}
+                />
 
-            <SettingsModal
-                isOpen={showSettings}
-                onClose={() => setShowSettings(false)}
-                onOpenBatteryCheckIn={() => setShowBatterySheet(true)}
-            />
-
-            <SocialBatterySheet
-                isVisible={showBatterySheet}
-                onSubmit={async (value, note) => {
-                    await submitBatteryCheckin(value, note);
-                    setShowBatterySheet(false);
-                }}
-                onDismiss={() => setShowBatterySheet(false)}
-            />
-
+                <SocialBatterySheet
+                    isVisible={showBatterySheet}
+                    onSubmit={async (value, note) => {
+                        await submitBatteryCheckin(value, note);
+                        setShowBatterySheet(false);
+                    }}
+                    onDismiss={() => setShowBatterySheet(false)}
+                />
+            </SafeAreaView>
             <BadgeUnlockModal />
-        </SafeAreaView>
+        </View>
     );
 }
 

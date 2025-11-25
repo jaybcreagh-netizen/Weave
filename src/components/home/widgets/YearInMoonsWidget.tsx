@@ -7,6 +7,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Dimensions } from 'react-native';
 import { Moon, TrendingUp, BookOpen } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
+import { database } from '@/db';
 import { HomeWidgetBase, HomeWidgetConfig } from '../HomeWidgetBase';
 import { MoonPhaseIllustration } from '@/components/YearInMoons/MoonPhaseIllustration';
 import { YearInMoonsModal } from '@/components/YearInMoons/YearInMoonsModal';
@@ -44,10 +45,21 @@ export const YearInMoonsWidget: React.FC = () => {
 
   useEffect(() => {
     loadMonthData();
+
+    // Subscribe to changes in the social_battery_logs table
+    const subscription = database.get('social_battery_logs')
+      .query()
+      .observe()
+      .subscribe(() => {
+        loadMonthData();
+      });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const loadMonthData = async () => {
-    setIsLoading(true);
+    // Don't set loading to true on updates to avoid flash
+    if (!currentMonthData) setIsLoading(true);
     try {
       const currentYear = new Date().getFullYear();
       const currentMonth = new Date().getMonth();
@@ -75,6 +87,38 @@ export const YearInMoonsWidget: React.FC = () => {
   }
 
   const currentMonthName = getMonthName(currentMonthData.month);
+
+  // Calculate which days to show (dynamic 2-week window)
+  const today = new Date();
+  const todayDate = today.getDate();
+  const firstDayOfMonth = currentMonthData.days[0].date;
+  const padding = firstDayOfMonth.getDay();
+
+  // Find the row index for today
+  // (todayDate + padding - 1) gives the 0-indexed cell position
+  const todayCellIndex = todayDate + padding - 1;
+  const todayRowIndex = Math.floor(todayCellIndex / 7);
+
+  // We want to show 2 rows (14 days). 
+  // If today is in the first row, show rows 0 and 1.
+  // Otherwise, show the row before today and today's row (context + current).
+  const startRowIndex = todayRowIndex === 0 ? 0 : todayRowIndex - 1;
+
+  // Calculate start and end indices for the days array
+  // Each row is 7 cells. 
+  const startCellIndex = startRowIndex * 7;
+  const endCellIndex = startCellIndex + 14;
+
+  // Convert cell indices back to day indices (subtract padding)
+  const startDayIndex = Math.max(0, startCellIndex - padding);
+  const endDayIndex = Math.min(currentMonthData.days.length, endCellIndex - padding);
+
+  const visibleDays = currentMonthData.days.slice(startDayIndex, endDayIndex);
+
+  // Calculate padding for the first visible row
+  // If we start at row 0, use original padding.
+  // If we start at any other row, it starts on a Sunday, so padding is 0.
+  const visiblePadding = startRowIndex === 0 ? padding : 0;
 
   return (
     <>
@@ -162,15 +206,14 @@ export const YearInMoonsWidget: React.FC = () => {
               ))}
             </View>
 
-            {/* Moon Grid - Current Week */}
+            {/* Moon Grid - Dynamic 2 Weeks */}
             <View className="flex-row flex-wrap">
-              {/* Padding for first day of month */}
-              {Array.from({ length: currentMonthData.days[0].date.getDay() }).map((_, i) => (
+              {/* Padding for first visible day */}
+              {Array.from({ length: visiblePadding }).map((_, i) => (
                 <View key={`pad-${i}`} style={{ width: moonSize, height: moonSize }} />
               ))}
 
-              {/* Show first 2 weeks (14 days max) */}
-              {currentMonthData.days.slice(0, 14).map((day, index) => (
+              {visibleDays.map((day, index) => (
                 <View
                   key={day.date.toISOString()}
                   className="items-center justify-center mb-1"

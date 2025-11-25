@@ -243,6 +243,7 @@ export function WeeklyReflectionModal({ isOpen, onClose }: WeeklyReflectionModal
                 <Animated.View entering={SlideInRight} exiting={SlideOutLeft} className="flex-1">
                   <MissedConnectionsList
                     missedFriends={summary.missedFriends}
+                    onClose={handleClose}
                     onNext={() => {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                       setCurrentStep('gratitude');
