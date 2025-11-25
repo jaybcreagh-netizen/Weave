@@ -3,9 +3,12 @@
  * Home screen widget showing current month moon calendar and stats
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, TouchableOpacity, Dimensions } from 'react-native';
-import { Moon, TrendingUp, BookOpen } from 'lucide-react-native';
+import { Moon, BookOpen } from 'lucide-react-native';
+import withObservables from '@nozbe/with-observables';
+import { Q } from '@nozbe/watermelondb';
+
 import { useTheme } from '@/shared/hooks/useTheme';
 import { database } from '@/db';
 import { HomeWidgetBase, HomeWidgetConfig } from '../HomeWidgetBase';
@@ -18,6 +21,7 @@ import {
   getMonthName,
   MonthMoonData,
 } from '@/modules/reflection';
+import SocialBatteryLog from '@/db/models/SocialBatteryLog';
 
 const WIDGET_CONFIG: HomeWidgetConfig = {
   id: 'year-in-moons',
@@ -27,58 +31,100 @@ const WIDGET_CONFIG: HomeWidgetConfig = {
   fullWidth: true,
 };
 
-export const YearInMoonsWidget: React.FC = () => {
+// --- Inner Component (Receives Data) ---
+
+interface YearInMoonsWidgetContentProps {
+  logs: SocialBatteryLog[];
+}
+
+const YearInMoonsWidgetContent: React.FC<YearInMoonsWidgetContentProps> = ({ logs }) => {
   const { colors } = useTheme();
-  const [currentMonthData, setCurrentMonthData] = useState<MonthMoonData | null>(null);
-  const [yearStats, setYearStats] = useState({
-    totalCheckins: 0,
-    avgBattery: 0,
-    mostCommonLevel: 0,
-    streakDays: 0,
-  });
-  const [isLoading, setIsLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [showJournal, setShowJournal] = useState(false);
 
   const screenWidth = Dimensions.get('window').width;
   const moonSize = Math.floor((screenWidth - 120) / 7); // 7 moons per row with padding
 
-  useEffect(() => {
-    loadMonthData();
+  // Process data synchronously when logs change
+  // This is fast enough for < 365 items
+  const { yearStats } = useMemo(() => {
+    const currentYear = new Date().getFullYear();
+    const currentMonth = new Date().getMonth();
 
-    // Subscribe to changes in the social_battery_logs table
-    const subscription = database.get('social_battery_logs')
-      .query()
-      .observe()
-      .subscribe(() => {
-        loadMonthData();
-      });
+    // We need to reconstruct the "year data" structure from the raw logs
+    // Ideally, we'd refactor getYearMoonData to accept logs, but for now we can rely on the fact
+    // that getYearMoonData fetches from DB.
+    // HOWEVER, since we want reactivity, we should process the passed `logs` prop.
 
-    return () => subscription.unsubscribe();
-  }, []);
+    // For this widget, we primarily need the stats and the current month's days.
+    // Let's use the existing helper but we might need to trigger a re-calc.
+    // Actually, since we have the logs, let's just calculate what we need for the UI.
 
-  const loadMonthData = async () => {
-    // Don't set loading to true on updates to avoid flash
-    if (!currentMonthData) setIsLoading(true);
-    try {
+    // 1. Calculate Stats
+    const totalCheckins = logs.length;
+    const avgBattery = logs.length > 0
+      ? (logs.reduce((acc, log) => acc + log.value, 0) / logs.length).toFixed(1)
+      : '0.0';
+
+    // 2. Build Current Month Data
+    // We can reuse the structure from getYearMoonData but populate it with our reactive logs
+    // This is a bit complex to duplicate logic, so for now, let's use a hybrid approach:
+    // We use the logs to trigger the effect, but we still might need the moon phase data.
+    // A better approach for the "Moon Phase" part is to use the helper which calculates phases.
+
+    // Let's use the helper synchronously if possible, or just re-run it.
+    // getYearMoonData is async because it fetches. We need a synchronous version or 
+    // we can just accept that we might need to fetch moon phases.
+
+    // WAIT: The moon phases are static math. The "checkin" status is what comes from DB.
+    // Let's use the existing async helper but trigger it when `logs` changes.
+    // This is a slight compromise but better than rewriting the whole moon phase logic here.
+
+    return {
+      // placeholders until effect runs
+      currentMonthData: null as MonthMoonData | null,
+      yearStats: {
+        totalCheckins,
+        avgBattery,
+        mostCommonLevel: 0,
+        streakDays: 0
+      }
+    };
+  }, [logs]);
+
+  // We still need the moon phase data which is complex to calculate.
+  // Let's use a local state that updates when `logs` changes.
+  const [asyncData, setAsyncData] = useState<{
+    monthData: MonthMoonData | null;
+    stats: any;
+  }>({ monthData: null, stats: null });
+
+  React.useEffect(() => {
+    let mounted = true;
+    const load = async () => {
       const currentYear = new Date().getFullYear();
       const currentMonth = new Date().getMonth();
 
+      // These helpers fetch from DB internally. 
+      // Since we are observing the DB in the parent, these fetches will return fresh data.
+      // It's not 100% pure "props down" but it ensures reactivity because this effect runs whenever `logs` changes.
       const [yearData, stats] = await Promise.all([
         getYearMoonData(currentYear),
         getYearStats(currentYear),
       ]);
 
-      setCurrentMonthData(yearData[currentMonth]);
-      setYearStats(stats);
-    } catch (error) {
-      console.error('Error loading month data:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+      if (mounted) {
+        setAsyncData({
+          monthData: yearData[currentMonth],
+          stats: stats
+        });
+      }
+    };
+    load();
+    return () => { mounted = false; };
+  }, [logs]); // Re-run when logs change!
 
-  if (isLoading || !currentMonthData) {
+  if (!asyncData.monthData) {
     return (
       <HomeWidgetBase config={WIDGET_CONFIG} isLoading={true}>
         <View />
@@ -86,6 +132,8 @@ export const YearInMoonsWidget: React.FC = () => {
     );
   }
 
+  const currentMonthData = asyncData.monthData;
+  const currentStats = yearStats;
   const currentMonthName = getMonthName(currentMonthData.month);
 
   // Calculate which days to show (dynamic 2-week window)
@@ -95,17 +143,13 @@ export const YearInMoonsWidget: React.FC = () => {
   const padding = firstDayOfMonth.getDay();
 
   // Find the row index for today
-  // (todayDate + padding - 1) gives the 0-indexed cell position
   const todayCellIndex = todayDate + padding - 1;
   const todayRowIndex = Math.floor(todayCellIndex / 7);
 
   // We want to show 2 rows (14 days). 
-  // If today is in the first row, show rows 0 and 1.
-  // Otherwise, show the row before today and today's row (context + current).
   const startRowIndex = todayRowIndex === 0 ? 0 : todayRowIndex - 1;
 
   // Calculate start and end indices for the days array
-  // Each row is 7 cells. 
   const startCellIndex = startRowIndex * 7;
   const endCellIndex = startCellIndex + 14;
 
@@ -116,8 +160,6 @@ export const YearInMoonsWidget: React.FC = () => {
   const visibleDays = currentMonthData.days.slice(startDayIndex, endDayIndex);
 
   // Calculate padding for the first visible row
-  // If we start at row 0, use original padding.
-  // If we start at any other row, it starts on a Sunday, so padding is 0.
   const visiblePadding = startRowIndex === 0 ? padding : 0;
 
   return (
@@ -162,7 +204,7 @@ export const YearInMoonsWidget: React.FC = () => {
                   className="text-lg font-bold"
                   style={{ color: colors.foreground, fontFamily: 'Lora_700Bold' }}
                 >
-                  {yearStats.totalCheckins}
+                  {currentStats.totalCheckins}
                 </Text>
                 <Text
                   className="text-[9px]"
@@ -177,7 +219,7 @@ export const YearInMoonsWidget: React.FC = () => {
                   className="text-lg font-bold"
                   style={{ color: colors.foreground, fontFamily: 'Lora_700Bold' }}
                 >
-                  {yearStats.avgBattery}/5
+                  {currentStats.avgBattery}/5
                 </Text>
                 <Text
                   className="text-[9px]"
@@ -292,3 +334,24 @@ export const YearInMoonsWidget: React.FC = () => {
     </>
   );
 };
+
+// --- Outer Component (Data Fetching) ---
+
+const enhance = withObservables([], () => {
+  // Observe all social battery logs for the current year
+  // This ensures that whenever a log is added/removed/updated, the component re-renders
+  const currentYear = new Date().getFullYear();
+  const startOfYear = new Date(currentYear, 0, 1).getTime();
+  const endOfYear = new Date(currentYear, 11, 31).getTime();
+
+  return {
+    logs: database.get<SocialBatteryLog>('social_battery_logs')
+      .query(
+        Q.where('timestamp', Q.gte(startOfYear)),
+        Q.where('timestamp', Q.lte(endOfYear))
+      )
+      .observe(),
+  };
+});
+
+export const YearInMoonsWidget = enhance(YearInMoonsWidgetContent);

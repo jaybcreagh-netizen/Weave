@@ -18,19 +18,25 @@ interface MissedConnectionsListProps {
   missedFriends: MissedFriend[];
   onNext: () => void;
   onSkip: () => void;
+  onClose: () => void;
 }
 
 export function MissedConnectionsList({
   missedFriends,
   onNext,
   onSkip,
+  onClose,
 }: MissedConnectionsListProps) {
   const { colors } = useTheme();
   const router = useRouter();
 
   const handleLogWeave = (friendId: string, friendName: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    router.push({ pathname: '/weave-logger', params: { friendId } });
+    onClose();
+    // Small delay to allow modal animation to complete
+    setTimeout(() => {
+      router.push({ pathname: '/weave-logger', params: { friendId } });
+    }, 300);
   };
 
   if (missedFriends.length === 0) {
@@ -99,8 +105,8 @@ export function MissedConnectionsList({
             missed.weaveScore < 30
               ? colors.destructive
               : missed.weaveScore < 50
-              ? colors.accent
-              : colors.primary;
+                ? colors.accent
+                : colors.primary;
 
           return (
             <Animated.View

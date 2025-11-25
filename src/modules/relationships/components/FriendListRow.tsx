@@ -45,7 +45,11 @@ interface FriendListRowProps {
   variant?: 'default' | 'full';
 }
 
-export const FriendListRow = React.memo(({ friend, animatedRef, variant = 'default' }: FriendListRowProps) => {
+import withObservables from '@nozbe/with-observables';
+
+export const FriendListRow = withObservables(['friend'], ({ friend }: { friend: FriendModel }) => ({
+  friend: friend.observe(),
+}))(({ friend, animatedRef, variant = 'default' }: FriendListRowProps) => {
   if (!friend) return null;
 
   const { id, name, archetype, isDormant = false, photoUrl, relationshipType } = friend;
@@ -122,7 +126,7 @@ export const FriendListRow = React.memo(({ friend, animatedRef, variant = 'defau
         })
         .catch(error => {
           console.error('Error generating status line:', error);
-          const fallback = { text: archetypeData[archetype]?.essence || '' };
+          const fallback = { text: archetypeData[archetype as Archetype]?.essence || '' };
           setStatusLine(fallback);
         });
     }, 300);
@@ -242,7 +246,6 @@ export const FriendListRow = React.memo(({ friend, animatedRef, variant = 'defau
                 className="w-full h-full"
                 resizeMode="cover"
                 onError={() => setImageError(true)}
-                cache="force-cache"
                 fadeDuration={0}
               />
             ) : (
@@ -303,7 +306,7 @@ export const FriendListRow = React.memo(({ friend, animatedRef, variant = 'defau
               }}
             >
               <ArchetypeIcon
-                archetype={archetype}
+                archetype={archetype as Archetype}
                 size={18}
                 color={isDarkMode ? '#FFFFFF' : colors['muted-foreground']}
               />
@@ -332,15 +335,5 @@ export const FriendListRow = React.memo(({ friend, animatedRef, variant = 'defau
         friend={friend}
       />
     </Animated.View>
-  );
-}, (prevProps, nextProps) => {
-  // Custom comparison: only re-render if relevant friend data changed
-  return (
-    prevProps.friend.id === nextProps.friend.id &&
-    prevProps.friend.weaveScore === nextProps.friend.weaveScore &&
-    prevProps.friend.lastUpdated.getTime() === nextProps.friend.lastUpdated.getTime() &&
-    prevProps.friend.archetype === nextProps.friend.archetype &&
-    prevProps.friend.photoUrl === nextProps.friend.photoUrl &&
-    prevProps.variant === nextProps.variant
   );
 });
