@@ -29,4 +29,4 @@ export * from './store/event-suggestion.store';
 export * from './types';
 
 // Constants
-export * from './constants';
+export { itemPositions, HIGHLIGHT_THRESHOLD, SELECTION_THRESHOLD } from './constants';
