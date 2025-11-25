@@ -1,5 +1,5 @@
 // src/lib/oracle/oracle-service.ts
-import { supabase } from '@/modules/auth/services/supabase.service';
+import { supabase } from '@/modules/auth';
 import { SuggestionContext, WeeklyOracleInsight } from './types';
 
 export interface OracleResponse {
@@ -65,6 +65,6 @@ export class OracleService {
     return this.callEdgeFunction('oracle-weekly', {
       userId,
       includeTarot
-    });
+    }) as unknown as Promise<WeeklyOracleInsight>;
   }
 }

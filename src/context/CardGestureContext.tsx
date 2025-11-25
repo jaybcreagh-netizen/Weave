@@ -4,8 +4,8 @@ import Animated, { useSharedValue, useAnimatedScrollHandler, runOnJS, measure } 
 import { Gesture } from 'react-native-gesture-handler';
 import * as Haptics from 'expo-haptics';
 
-import { useQuickWeave } from '@/modules/interactions/hooks/useQuickWeave';
-import { itemPositions, HIGHLIGHT_THRESHOLD, SELECTION_THRESHOLD } from '@/modules/interactions/constants';
+import { useQuickWeave } from '@/modules/interactions';
+import { itemPositions, HIGHLIGHT_THRESHOLD, SELECTION_THRESHOLD } from '@/modules/interactions';
 
 interface CardGestureContextType {
   gesture: any; // Using any to avoid complex Gesture type issues

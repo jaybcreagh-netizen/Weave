@@ -20,8 +20,7 @@ import {
   shouldSendWeeklyReflectionNotification,
   shouldSendSocialBatteryNotification,
 } from './notification-grace-periods';
-import { getWeekRange } from '@/modules/reflection';
-import { STORY_CHIPS } from '@/modules/reflection/services/story-chips.service';
+import { getWeekRange, STORY_CHIPS } from '@/modules/reflection';
 
 // AsyncStorage keys
 const LAST_REFLECTION_KEY = '@weave:last_reflection_date';
@@ -103,7 +102,7 @@ export async function scheduleDailyBatteryCheckin(time: string = '20:00'): Promi
         hour,
         minute,
         repeats: true,
-      },
+      } as any,
     });
 
     console.log(`[Notifications] Daily battery check-in scheduled for ${time}`);
@@ -194,7 +193,7 @@ export async function scheduleEventReminder(interaction: Interaction): Promise<v
           friendName: friendNames,
         },
       },
-      trigger: reminderTime,
+      trigger: reminderTime as any,
     });
 
     console.log(`[Notifications] Event reminder scheduled for ${interaction.id}`);
@@ -346,7 +345,7 @@ export async function schedulePostWeaveDeepening(interaction: Interaction): Prom
           friendName: primaryFriend,
         },
       },
-      trigger: nudgeTime,
+      trigger: nudgeTime as any,
     });
 
     // Store nudge metadata
@@ -430,7 +429,7 @@ export async function scheduleWeeklyReflection(): Promise<void> {
         hour: 19,
         minute: 0,
         repeats: true,
-      },
+      } as any,
     });
 
     console.log('[Notifications] Weekly reflection scheduled');
@@ -554,7 +553,7 @@ export async function scheduleMemoryNudges(): Promise<void> {
             weekRange: getWeekRange(reflection),
           },
         },
-        trigger: notificationDate,
+        trigger: notificationDate as any,
       });
     }
 

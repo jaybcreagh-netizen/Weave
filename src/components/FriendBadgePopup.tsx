@@ -34,7 +34,7 @@ import FriendBadge from '@/db/models/FriendBadge';
 import Friend from '@/db/models/Friend';
 import { Q } from '@nozbe/watermelondb';
 import { getBadgeById } from '@/modules/gamification/constants/badge-definitions';
-import { analyzeInteractionPattern } from '@/modules/insights/services/pattern.service';
+import { analyzeInteractionPattern } from '@/modules/insights';
 import { archetypeData } from '@/shared/constants/constants';
 import { CATEGORY_METADATA } from '@/shared/constants/interaction-categories';
 import { useTheme } from '@/shared/hooks/useTheme';

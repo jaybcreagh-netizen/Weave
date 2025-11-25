@@ -4,7 +4,7 @@ import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInUp, useSharedValue, withSpring } from 'react-native-reanimated';
 import { CelebrationAnimation } from '@/components/CelebrationAnimation';
-import { calculateDeepeningLevel } from '@/modules/intelligence/services/deepening.service';
+import { calculateDeepeningLevel } from '@/modules/intelligence';
 import { BlurView } from 'expo-blur';
 
 import { useInteractions, type StructuredReflection } from '@/modules/interactions';
@@ -96,7 +96,7 @@ export default function WeaveLoggerScreen() {
       const legacyNotes = [
         ...(reflection.chips || []).map(chip => {
           // eslint-disable-next-line @typescript-eslint/no-require-imports
-          const { STORY_CHIPS } = require('@/modules/reflection/services/story-chips.service');
+          const { STORY_CHIPS } = require('@/modules/reflection');
           const storyChip = STORY_CHIPS.find((s: any) => s.id === chip.chipId);
           if (!storyChip) return '';
 

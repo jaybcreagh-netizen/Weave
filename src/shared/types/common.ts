@@ -79,4 +79,5 @@ export interface Suggestion {
   };
   category?: string;
   friendName?: string;
+  urgency?: 'critical' | 'high' | 'medium' | 'low';
 }

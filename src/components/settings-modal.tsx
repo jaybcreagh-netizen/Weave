@@ -9,12 +9,17 @@ import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming, run
 import { BlurView } from 'expo-blur';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useUIStore } from '../stores/uiStore';
-import { useUserProfileStore } from '@/modules/auth/store/user-profile.store';
-import * as CalendarService from '@/modules/interactions/services/calendar.service';
-import * as DataExportService from '@/modules/auth/services/data-export';
-import * as DataImportService from '@/modules/auth/services/data-import';
-import { useBackgroundSyncStore } from '@/modules/auth/store/sync.store';
-import * as BackgroundEventSync from '@/modules/auth/services/background-event-sync';
+import { useUserProfileStore } from '@/modules/auth';
+import { CalendarService } from '@/modules/interactions';
+import {
+  exportAndShareData,
+  getExportStats,
+  getImportPreview,
+  importData,
+  useBackgroundSyncStore,
+  getBackgroundSyncSettings,
+  saveBackgroundSyncSettings
+} from '@/modules/auth';
 import { SuggestionTrackerService } from '@/modules/interactions';
 import {
   scheduleWeeklyReflection,
@@ -395,7 +400,7 @@ export function SettingsModal({
 
   const handleExportData = async () => {
     try {
-      const stats = await DataExportService.getExportStats();
+      const stats = await getExportStats();
       Alert.alert(
         'Export Data',
         `Export your data for backup or analysis.\n\nFriends: ${stats.totalFriends}\nInteractions: ${stats.totalInteractions}\nEstimated size: ${stats.estimatedSizeKB}KB`,
@@ -405,7 +410,7 @@ export function SettingsModal({
             text: 'Export',
             onPress: async () => {
               try {
-                await DataExportService.exportAndShareData();
+                await exportAndShareData();
               } catch (error) {
                 console.error('Export failed:', error);
               }
@@ -438,7 +443,7 @@ export function SettingsModal({
       const fileContent = await FileSystem.readAsStringAsync(fileUri);
 
       // Get preview
-      const preview = DataImportService.getImportPreview(fileContent);
+      const preview = getImportPreview(fileContent);
 
       if (!preview.valid) {
         Alert.alert('Invalid File', preview.error || 'The selected file is not a valid Weave export.');
@@ -463,7 +468,7 @@ export function SettingsModal({
                 // Show loading
                 Alert.alert('Importing...', 'Please wait while we restore your data.');
 
-                const result = await DataImportService.importData(fileContent, true);
+                const result = await importData(fileContent, true);
 
                 if (result.success) {
                   Alert.alert(

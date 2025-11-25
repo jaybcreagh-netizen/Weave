@@ -26,7 +26,7 @@ import { PlanWizard } from '@/modules/interactions';
 import { type InteractionCategory } from '@/components/types';
 import FriendModel from '@/db/models/Friend';
 import { Suggestion } from '@/shared/types/common';
-import { useUserProfileStore } from '@/modules/auth/store/user-profile.store';
+import { useUserProfileStore } from '@/modules/auth';
 import { database } from '@/db';
 import LifeEvent from '@/db/models/LifeEvent';
 import { Q } from '@nozbe/watermelondb';

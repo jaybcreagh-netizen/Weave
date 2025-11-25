@@ -7,6 +7,7 @@ export { useInteractions } from './hooks/useInteractions';
 export { usePlans } from './hooks/usePlans';
 export { usePlanSuggestion } from './hooks/usePlanSuggestion';
 export { useSuggestions } from './hooks/useSuggestions';
+export { useQuickWeave } from './hooks/useQuickWeave';
 
 // Services
 export * as WeaveLoggingService from './services/weave-logging.service';
@@ -26,3 +27,6 @@ export * from './store/event-suggestion.store';
 
 // Types
 export * from './types';
+
+// Constants
+export * from './constants';

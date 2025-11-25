@@ -6,7 +6,7 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { GestureDetector } from 'react-native-gesture-handler';
 import * as Haptics from 'expo-haptics';
 
-import { FriendListRow } from '@/modules/relationships/components/FriendListRow';
+import { FriendListRow } from '@/modules/relationships';
 import { TierSegmentedControl } from '@/components/TierSegmentedControl';
 import { TierInfo } from '@/components/TierInfo';
 import { FAB } from '@/components/fab';

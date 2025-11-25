@@ -1,7 +1,7 @@
 import * as BackgroundFetch from 'expo-background-fetch';
 import * as TaskManager from 'expo-task-manager';
-import { scanCalendarEvents } from '@/modules/interactions/services/event-scanner';
-import { getCalendarSettings } from '@/modules/interactions/services/calendar.service';
+import { scanCalendarEvents, CalendarService } from '@/modules/interactions';
+const { getCalendarSettings } = CalendarService;
 import { database } from '@/db';
 import SuggestionEvent from '@/db/models/SuggestionEvent';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -133,8 +133,8 @@ TaskManager.defineTask(BACKGROUND_EVENT_SYNC_TASK, async () => {
 
       // Only send immediate notifications for time-sensitive life events
       const isLifeEvent = event.eventType === 'birthday' ||
-                         event.eventType === 'anniversary' ||
-                         event.holidayName !== undefined;
+        event.eventType === 'anniversary' ||
+        event.holidayName !== undefined;
 
       if (isLifeEvent && settings.notificationsEnabled) {
         await scheduleEventSuggestionNotification(event);
@@ -263,7 +263,7 @@ export async function unregisterBackgroundSyncTask(): Promise<boolean> {
 export async function getBackgroundFetchStatus(): Promise<BackgroundFetch.BackgroundFetchStatus> {
   try {
     const status = await BackgroundFetch.getStatusAsync();
-    return status;
+    return status ?? BackgroundFetch.BackgroundFetchStatus.Restricted;
   } catch (error) {
     console.error('[BackgroundSync] Error getting background fetch status:', error);
     return BackgroundFetch.BackgroundFetchStatus.Restricted;

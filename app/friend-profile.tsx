@@ -28,8 +28,7 @@ import FriendBadgePopup from '@/components/FriendBadgePopup';
 import LifeEvent from '@/db/models/LifeEvent';
 import Intention from '@/db/models/Intention';
 
-import { useFriendProfileData } from '@/modules/relationships/hooks/useFriendProfileData';
-import { useFriendTimeline } from '@/modules/relationships/hooks/useFriendTimeline';
+import { useFriendProfileData, useFriendTimeline } from '@/modules/relationships';
 
 const AnimatedSectionList = Animated.createAnimatedComponent(SectionList);
 

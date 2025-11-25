@@ -10,7 +10,7 @@ import { database } from '@/db';
 import UserProfile from '@/db/models/UserProfile';
 import Friend from '@/db/models/Friend';
 import { Suggestion } from '@/shared/types/common';
-import { generateSuggestion } from '@/modules/interactions/services/suggestion-engine.service';
+import { generateSuggestion } from '@/modules/interactions';
 import { calculateCurrentScore } from '@/modules/intelligence';
 import Interaction from '@/db/models/Interaction';
 import InteractionFriend from '@/db/models/InteractionFriend';
@@ -78,7 +78,7 @@ async function getSocialBatteryLevel(): Promise<number | null> {
     if (profiles.length === 0) return null;
 
     const profile = profiles[0];
-    return profile.socialBatteryCurrent;
+    return profile.socialBatteryCurrent ?? null;
   } catch (error) {
     console.error('Error getting social battery:', error);
     return null;
@@ -360,7 +360,7 @@ async function scheduleSuggestionNotification(
         suggestionId: suggestion.id,
       },
     },
-    trigger,
+    trigger: trigger as any,
   });
 
   console.log(`[Smart Notifications] Scheduled: ${suggestion.title} (delay: ${delayMinutes}m)`);
@@ -479,9 +479,9 @@ export async function evaluateAndScheduleSmartNotifications(): Promise<void> {
   console.log(`[Smart Notifications] Generated ${suggestions.length} suggestions`);
 
   // Sort by urgency
-  const urgencyOrder = { critical: 0, high: 1, medium: 2, low: 3 };
+  const urgencyOrder: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
   const sorted = suggestions.sort(
-    (a, b) => urgencyOrder[a.urgency] - urgencyOrder[b.urgency]
+    (a, b) => urgencyOrder[a.urgency || 'medium'] - urgencyOrder[b.urgency || 'medium']
   );
 
   // Filter suggestions that pass battery check
