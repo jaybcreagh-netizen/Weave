@@ -51,6 +51,7 @@ export function ReflectionJourneyModal({ isOpen, onClose }: ReflectionJourneyMod
   const [isJournalEntryModalOpen, setIsJournalEntryModalOpen] = useState(false);
   const [allFriends, setAllFriends] = useState<FriendModel[]>([]);
   const [reflectionFriendMap, setReflectionFriendMap] = useState<Map<string, string[]>>(new Map());
+  const [journalEntryFriendMap, setJournalEntryFriendMap] = useState<Map<string, string[]>>(new Map());
 
   useEffect(() => {
     if (isOpen) {
@@ -89,6 +90,22 @@ export function ReflectionJourneyModal({ isOpen, onClose }: ReflectionJourneyMod
         })
       );
       setReflectionFriendMap(friendMap);
+
+      // Build journal-to-friends mapping
+      const journalFriendMap = new Map<string, string[]>();
+      await Promise.all(
+        allJournalEntries.map(async (entry) => {
+          try {
+            if (entry.journalEntryFriends) {
+              const linkedFriends = await entry.journalEntryFriends.fetch();
+              journalFriendMap.set(entry.id, linkedFriends.map((f: any) => f.friendId));
+            }
+          } catch (e) {
+            console.error('Error fetching friends for journal entry:', e);
+          }
+        })
+      );
+      setJournalEntryFriendMap(journalFriendMap);
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
@@ -205,7 +222,8 @@ export function ReflectionJourneyModal({ isOpen, onClose }: ReflectionJourneyMod
             return false;
           }
         } else {
-          if (!item.data.friendIds.includes(selectedFriendFilter)) {
+          const friendIds = journalEntryFriendMap.get(item.data.id);
+          if (!friendIds || !friendIds.includes(selectedFriendFilter)) {
             return false;
           }
         }
@@ -213,7 +231,7 @@ export function ReflectionJourneyModal({ isOpen, onClose }: ReflectionJourneyMod
 
       return true;
     }).sort((a, b) => b.date - a.date); // Sort by date descending
-  }, [reflections, journalEntries, searchQuery, selectedChipFilter, selectedFriendFilter, reflectionFriendMap]);
+  }, [reflections, journalEntries, searchQuery, selectedChipFilter, selectedFriendFilter, reflectionFriendMap, journalEntryFriendMap]);
 
   return (
     <Modal
@@ -496,308 +514,308 @@ export function ReflectionJourneyModal({ isOpen, onClose }: ReflectionJourneyMod
               />
             ) : (
               <>
-            {/* Journal List */}
-            {filteredJournalItems.length > 0 ? (
-              <View className="mb-4">
-                <Text
-                  className="text-base font-semibold mb-3"
-                  style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold' }}
-                >
-                  {searchQuery || selectedChipFilter || selectedFriendFilter ? `${filteredJournalItems.length} Entr${filteredJournalItems.length === 1 ? 'y' : 'ies'} Found` : 'Journal Entries'}
-                </Text>
-
-                {filteredJournalItems.map((item, index) => (
-                  <TouchableOpacity
-                    key={`${item.type}-${item.data.id}`}
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      if (item.type === 'weekly_reflection') {
-                        setSelectedReflection(item.data);
-                      } else {
-                        setSelectedJournalEntry(item.data);
-                        setIsJournalEntryModalOpen(true);
-                      }
-                    }}
-                    activeOpacity={0.7}
-                  >
-                    <Animated.View
-                      entering={FadeIn.delay(200 + index * 50)}
-                      className="mb-3 p-4 rounded-2xl"
-                      style={{ backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 }}
-                    >
-                    {item.type === 'weekly_reflection' ? (
-                      <>
-                    {/* Weekly Reflection Card */}
-                    <View className="flex-row items-center gap-2 mb-2">
-                      <View
-                        className="px-2 py-0.5 rounded"
-                        style={{ backgroundColor: colors.secondary + '20' }}
-                      >
-                        <Text
-                          className="text-[10px] font-semibold"
-                          style={{ color: colors.secondary, fontFamily: 'Inter_600SemiBold' }}
-                        >
-                          WEEKLY
-                        </Text>
-                      </View>
-                      <Text
-                        className="text-sm font-semibold flex-1"
-                        style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold' }}
-                      >
-                        {getWeekRange(item.data)}
-                      </Text>
-                      <Text
-                        className="text-xs"
-                        style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
-                      >
-                        {daysAgo(new Date(item.data.entryDate)) === 0
-                          ? 'Today'
-                          : daysAgo(new Date(item.data.entryDate)) < 7
-                          ? `${daysAgo(new Date(item.data.entryDate))}d ago`
-                          : `${Math.floor(daysAgo(new Date(item.data.entryDate)) / 7)}w ago`}
-                      </Text>
-                    </View>
-
-                    {/* Stats Grid */}
-                    <View className="flex-row gap-2 mb-3">
-                      <View
-                        className="flex-1 px-3 py-2 rounded-lg"
-                        style={{ backgroundColor: colors.muted }}
-                      >
-                        <Text
-                          className="text-xl font-bold mb-0.5"
-                          style={{ color: colors.foreground, fontFamily: 'Lora_700Bold' }}
-                        >
-                          {item.data.totalWeaves}
-                        </Text>
-                        <Text
-                          className="text-[10px]"
-                          style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
-                        >
-                          Weaves
-                        </Text>
-                      </View>
-
-                      <View
-                        className="flex-1 px-3 py-2 rounded-lg"
-                        style={{ backgroundColor: colors.muted }}
-                      >
-                        <Text
-                          className="text-xl font-bold mb-0.5"
-                          style={{ color: colors.foreground, fontFamily: 'Lora_700Bold' }}
-                        >
-                          {item.data.friendsContacted}
-                        </Text>
-                        <Text
-                          className="text-[10px]"
-                          style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
-                        >
-                          Friends
-                        </Text>
-                      </View>
-
-                      <View
-                        className="flex-1 px-3 py-2 rounded-lg"
-                        style={{ backgroundColor: colors.muted }}
-                      >
-                        <Text
-                          className="text-xl font-bold mb-0.5"
-                          style={{ color: colors.foreground, fontFamily: 'Lora_700Bold' }}
-                        >
-                          {item.data.missedFriendsCount}
-                        </Text>
-                        <Text
-                          className="text-[10px]"
-                          style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
-                        >
-                          Missed
-                        </Text>
-                      </View>
-                    </View>
-
-                    {/* Top Activity */}
-                    {item.data.topActivity && (
-                      <View className="mb-3">
-                        <Text
-                          className="text-xs mb-1"
-                          style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
-                        >
-                          Top Activity
-                        </Text>
-                        <Text
-                          className="text-sm font-medium"
-                          style={{ color: colors.foreground, fontFamily: 'Inter_500Medium' }}
-                        >
-                          {item.data.topActivity} ({item.data.topActivityCount}×)
-                        </Text>
-                      </View>
-                    )}
-
-                    {/* Story Chips */}
-                    {item.data.storyChips.length > 0 && (
-                      <View className="mb-3">
-                        <Text
-                          className="text-xs mb-2"
-                          style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
-                        >
-                          Week Themes
-                        </Text>
-                        <View className="flex-row flex-wrap gap-2">
-                          {item.data.storyChips.map((chip, chipIndex) => {
-                            const chipData = STORY_CHIPS.find(c => c.id === chip.chipId);
-                            if (!chipData) return null;
-
-                            return (
-                              <View
-                                key={`${chip.chipId}-${chipIndex}`}
-                                className="px-3 py-1.5 rounded-full"
-                                style={{ backgroundColor: colors.primary + '15' }}
-                              >
-                                <Text
-                                  className="text-xs"
-                                  style={{ color: colors.primary, fontFamily: 'Inter_400Regular' }}
-                                >
-                                  {chipData.plainText}
-                                </Text>
-                              </View>
-                            );
-                          })}
-                        </View>
-                      </View>
-                    )}
-
-                    {/* Gratitude */}
-                    {item.data.gratitudeText && (
-                      <View
-                        className="p-3 rounded-xl"
-                        style={{ backgroundColor: colors.secondary + '10' }}
-                      >
-                        <View className="flex-row items-center mb-2">
-                          <Sparkles size={14} color={colors.secondary} />
-                          <Text
-                            className="text-xs font-medium ml-1.5"
-                            style={{ color: colors.secondary, fontFamily: 'Inter_500Medium' }}
-                          >
-                            Gratitude Entry
-                          </Text>
-                        </View>
-                        <Text
-                          className="text-sm italic leading-5"
-                          style={{ color: colors.foreground, fontFamily: 'Lora_400Regular' }}
-                        >
-                          "{item.data.gratitudeText}"
-                        </Text>
-                        {item.data.gratitudePrompt && (
-                          <Text
-                            className="text-xs mt-2"
-                            style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
-                          >
-                            Prompt: {item.data.gratitudePrompt}
-                          </Text>
-                        )}
-                      </View>
-                    )}
-                    </>
-                    ) : (
-                      <>
-                    {/* Journal Entry Card */}
-                    <View className="flex-row items-center gap-2 mb-3">
-                      <View
-                        className="px-2 py-0.5 rounded"
-                        style={{ backgroundColor: colors.primary + '20' }}
-                      >
-                        <Text
-                          className="text-[10px] font-semibold"
-                          style={{ color: colors.primary, fontFamily: 'Inter_600SemiBold' }}
-                        >
-                          ENTRY
-                        </Text>
-                      </View>
-                      {item.data.title && (
-                        <Text
-                          className="text-sm font-semibold flex-1"
-                          style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold' }}
-                        >
-                          {item.data.title}
-                        </Text>
-                      )}
-                      <Text
-                        className="text-xs"
-                        style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
-                      >
-                        {formatWeaveDate(new Date(item.data.entryDate))}
-                      </Text>
-                    </View>
-
-                    {/* Content Preview */}
+                {/* Journal List */}
+                {filteredJournalItems.length > 0 ? (
+                  <View className="mb-4">
                     <Text
-                      className="text-sm leading-5 mb-3"
-                      style={{ color: colors.foreground, fontFamily: 'Inter_400Regular' }}
-                      numberOfLines={3}
+                      className="text-base font-semibold mb-3"
+                      style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold' }}
                     >
-                      {item.data.content}
+                      {searchQuery || selectedChipFilter || selectedFriendFilter ? `${filteredJournalItems.length} Entr${filteredJournalItems.length === 1 ? 'y' : 'ies'} Found` : 'Journal Entries'}
                     </Text>
 
-                    {/* Tagged Friends */}
-                    {item.data.friendIds.length > 0 && (
-                      <View className="flex-row items-center gap-2 mb-3">
-                        <Users size={12} color={colors['muted-foreground']} />
-                        <Text
-                          className="text-xs"
-                          style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
+                    {filteredJournalItems.map((item, index) => (
+                      <TouchableOpacity
+                        key={`${item.type}-${item.data.id}`}
+                        onPress={() => {
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                          if (item.type === 'weekly_reflection') {
+                            setSelectedReflection(item.data);
+                          } else {
+                            setSelectedJournalEntry(item.data);
+                            setIsJournalEntryModalOpen(true);
+                          }
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <Animated.View
+                          entering={FadeIn.delay(200 + index * 50)}
+                          className="mb-3 p-4 rounded-2xl"
+                          style={{ backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 }}
                         >
-                          {item.data.friendIds.length} friend{item.data.friendIds.length > 1 ? 's' : ''} tagged
-                        </Text>
-                      </View>
-                    )}
+                          {item.type === 'weekly_reflection' ? (
+                            <>
+                              {/* Weekly Reflection Card */}
+                              <View className="flex-row items-center gap-2 mb-2">
+                                <View
+                                  className="px-2 py-0.5 rounded"
+                                  style={{ backgroundColor: colors.secondary + '20' }}
+                                >
+                                  <Text
+                                    className="text-[10px] font-semibold"
+                                    style={{ color: colors.secondary, fontFamily: 'Inter_600SemiBold' }}
+                                  >
+                                    WEEKLY
+                                  </Text>
+                                </View>
+                                <Text
+                                  className="text-sm font-semibold flex-1"
+                                  style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold' }}
+                                >
+                                  {getWeekRange(item.data)}
+                                </Text>
+                                <Text
+                                  className="text-xs"
+                                  style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
+                                >
+                                  {daysAgo(new Date(item.date)) === 0
+                                    ? 'Today'
+                                    : daysAgo(new Date(item.date)) < 7
+                                      ? `${daysAgo(new Date(item.date))}d ago`
+                                      : `${Math.floor(daysAgo(new Date(item.date)) / 7)}w ago`}
+                                </Text>
+                              </View>
 
-                    {/* Story Chips */}
-                    {item.data.storyChips.length > 0 && (
-                      <View className="flex-row flex-wrap gap-2">
-                        {item.data.storyChips.map((chip, chipIndex) => {
-                          const chipData = STORY_CHIPS.find(c => c.id === chip.chipId);
-                          if (!chipData) return null;
-                          return (
-                            <View
-                              key={`${chip.chipId}-${chipIndex}`}
-                              className="px-3 py-1 rounded-full"
-                              style={{ backgroundColor: colors.primary + '15' }}
-                            >
+                              {/* Stats Grid */}
+                              <View className="flex-row gap-2 mb-3">
+                                <View
+                                  className="flex-1 px-3 py-2 rounded-lg"
+                                  style={{ backgroundColor: colors.muted }}
+                                >
+                                  <Text
+                                    className="text-xl font-bold mb-0.5"
+                                    style={{ color: colors.foreground, fontFamily: 'Lora_700Bold' }}
+                                  >
+                                    {item.data.totalWeaves}
+                                  </Text>
+                                  <Text
+                                    className="text-[10px]"
+                                    style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
+                                  >
+                                    Weaves
+                                  </Text>
+                                </View>
+
+                                <View
+                                  className="flex-1 px-3 py-2 rounded-lg"
+                                  style={{ backgroundColor: colors.muted }}
+                                >
+                                  <Text
+                                    className="text-xl font-bold mb-0.5"
+                                    style={{ color: colors.foreground, fontFamily: 'Lora_700Bold' }}
+                                  >
+                                    {item.data.friendsContacted}
+                                  </Text>
+                                  <Text
+                                    className="text-[10px]"
+                                    style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
+                                  >
+                                    Friends
+                                  </Text>
+                                </View>
+
+                                <View
+                                  className="flex-1 px-3 py-2 rounded-lg"
+                                  style={{ backgroundColor: colors.muted }}
+                                >
+                                  <Text
+                                    className="text-xl font-bold mb-0.5"
+                                    style={{ color: colors.foreground, fontFamily: 'Lora_700Bold' }}
+                                  >
+                                    {item.data.missedFriendsCount}
+                                  </Text>
+                                  <Text
+                                    className="text-[10px]"
+                                    style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
+                                  >
+                                    Missed
+                                  </Text>
+                                </View>
+                              </View>
+
+                              {/* Top Activity */}
+                              {item.data.topActivity && (
+                                <View className="mb-3">
+                                  <Text
+                                    className="text-xs mb-1"
+                                    style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
+                                  >
+                                    Top Activity
+                                  </Text>
+                                  <Text
+                                    className="text-sm font-medium"
+                                    style={{ color: colors.foreground, fontFamily: 'Inter_500Medium' }}
+                                  >
+                                    {item.data.topActivity} ({item.data.topActivityCount}×)
+                                  </Text>
+                                </View>
+                              )}
+
+                              {/* Story Chips */}
+                              {item.data.storyChips.length > 0 && (
+                                <View className="mb-3">
+                                  <Text
+                                    className="text-xs mb-2"
+                                    style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
+                                  >
+                                    Week Themes
+                                  </Text>
+                                  <View className="flex-row flex-wrap gap-2">
+                                    {item.data.storyChips.map((chip, chipIndex) => {
+                                      const chipData = STORY_CHIPS.find(c => c.id === chip.chipId);
+                                      if (!chipData) return null;
+
+                                      return (
+                                        <View
+                                          key={`${chip.chipId}-${chipIndex}`}
+                                          className="px-3 py-1.5 rounded-full"
+                                          style={{ backgroundColor: colors.primary + '15' }}
+                                        >
+                                          <Text
+                                            className="text-xs"
+                                            style={{ color: colors.primary, fontFamily: 'Inter_400Regular' }}
+                                          >
+                                            {chipData.plainText}
+                                          </Text>
+                                        </View>
+                                      );
+                                    })}
+                                  </View>
+                                </View>
+                              )}
+
+                              {/* Gratitude */}
+                              {item.data.gratitudeText && (
+                                <View
+                                  className="p-3 rounded-xl"
+                                  style={{ backgroundColor: colors.secondary + '10' }}
+                                >
+                                  <View className="flex-row items-center mb-2">
+                                    <Sparkles size={14} color={colors.secondary} />
+                                    <Text
+                                      className="text-xs font-medium ml-1.5"
+                                      style={{ color: colors.secondary, fontFamily: 'Inter_500Medium' }}
+                                    >
+                                      Gratitude Entry
+                                    </Text>
+                                  </View>
+                                  <Text
+                                    className="text-sm italic leading-5"
+                                    style={{ color: colors.foreground, fontFamily: 'Lora_400Regular' }}
+                                  >
+                                    "{item.data.gratitudeText}"
+                                  </Text>
+                                  {item.data.gratitudePrompt && (
+                                    <Text
+                                      className="text-xs mt-2"
+                                      style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
+                                    >
+                                      Prompt: {item.data.gratitudePrompt}
+                                    </Text>
+                                  )}
+                                </View>
+                              )}
+                            </>
+                          ) : (
+                            <>
+                              {/* Journal Entry Card */}
+                              <View className="flex-row items-center gap-2 mb-3">
+                                <View
+                                  className="px-2 py-0.5 rounded"
+                                  style={{ backgroundColor: colors.primary + '20' }}
+                                >
+                                  <Text
+                                    className="text-[10px] font-semibold"
+                                    style={{ color: colors.primary, fontFamily: 'Inter_600SemiBold' }}
+                                  >
+                                    ENTRY
+                                  </Text>
+                                </View>
+                                {item.data.title && (
+                                  <Text
+                                    className="text-sm font-semibold flex-1"
+                                    style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold' }}
+                                  >
+                                    {item.data.title}
+                                  </Text>
+                                )}
+                                <Text
+                                  className="text-xs"
+                                  style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
+                                >
+                                  {formatWeaveDate(new Date(item.data.entryDate))}
+                                </Text>
+                              </View>
+
+                              {/* Content Preview */}
                               <Text
-                                className="text-xs"
-                                style={{ color: colors.primary, fontFamily: 'Inter_400Regular' }}
+                                className="text-sm leading-5 mb-3"
+                                style={{ color: colors.foreground, fontFamily: 'Inter_400Regular' }}
+                                numberOfLines={3}
                               >
-                                {chipData.plainText}
+                                {item.data.content}
                               </Text>
-                            </View>
-                          );
-                        })}
-                      </View>
-                    )}
-                    </>
-                    )}
-                  </Animated.View>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            ) : (
-              <View className="flex-1 items-center justify-center py-16">
-                <Text className="text-5xl mb-4">📖</Text>
-                <Text
-                  className="text-lg font-semibold text-center mb-2"
-                  style={{ color: colors.foreground, fontFamily: 'Lora_600SemiBold' }}
-                >
-                  Your Journey Begins
-                </Text>
-                <Text
-                  className="text-sm text-center px-8 leading-5"
-                  style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
-                >
-                  Complete your first weekly reflection to start building your practice.
-                </Text>
-              </View>
-            )}
-            </>
+
+                              {/* Tagged Friends */}
+                              {(journalEntryFriendMap.get(item.data.id)?.length || 0) > 0 && (
+                                <View className="flex-row items-center gap-2 mb-3">
+                                  <Users size={12} color={colors['muted-foreground']} />
+                                  <Text
+                                    className="text-xs"
+                                    style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
+                                  >
+                                    {journalEntryFriendMap.get(item.data.id)?.length} friend{(journalEntryFriendMap.get(item.data.id)?.length || 0) > 1 ? 's' : ''} tagged
+                                  </Text>
+                                </View>
+                              )}
+
+                              {/* Story Chips */}
+                              {item.data.storyChips.length > 0 && (
+                                <View className="flex-row flex-wrap gap-2">
+                                  {item.data.storyChips.map((chip, chipIndex) => {
+                                    const chipData = STORY_CHIPS.find(c => c.id === chip.chipId);
+                                    if (!chipData) return null;
+                                    return (
+                                      <View
+                                        key={`${chip.chipId}-${chipIndex}`}
+                                        className="px-3 py-1 rounded-full"
+                                        style={{ backgroundColor: colors.primary + '15' }}
+                                      >
+                                        <Text
+                                          className="text-xs"
+                                          style={{ color: colors.primary, fontFamily: 'Inter_400Regular' }}
+                                        >
+                                          {chipData.plainText}
+                                        </Text>
+                                      </View>
+                                    );
+                                  })}
+                                </View>
+                              )}
+                            </>
+                          )}
+                        </Animated.View>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                ) : (
+                  <View className="flex-1 items-center justify-center py-16">
+                    <Text className="text-5xl mb-4">📖</Text>
+                    <Text
+                      className="text-lg font-semibold text-center mb-2"
+                      style={{ color: colors.foreground, fontFamily: 'Lora_600SemiBold' }}
+                    >
+                      Your Journey Begins
+                    </Text>
+                    <Text
+                      className="text-sm text-center px-8 leading-5"
+                      style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
+                    >
+                      Complete your first weekly reflection to start building your practice.
+                    </Text>
+                  </View>
+                )}
+              </>
             )}
           </ScrollView>
         )}

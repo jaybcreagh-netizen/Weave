@@ -90,6 +90,9 @@ export const useRelationshipsStore = create<RelationshipsStore>((set, get) => ({
     const friendSub = database.get<Friend>('friends').findAndObserve(friendId).subscribe(friend => {
       set({ activeFriend: friend });
 
+      // Cleanup previous interaction subscription if it exists
+      get().interactionSubscription?.unsubscribe();
+
       if (friend) {
         const interactionFriendsSub = database.get<InteractionFriend>('interaction_friends')
           .query(Q.where('friend_id', friend.id))

@@ -35,6 +35,7 @@ import Interaction from '@/db/models/Interaction';
 import { PendingPlanItem } from './PendingPlanItem';
 
 import { PlanSummaryLine } from './PlanSummaryLine';
+import { FocusDetailsModal } from '@/components/FocusDetailsModal';
 
 const WIDGET_CONFIG: HomeWidgetConfig = {
   id: 'todays-focus',
@@ -60,7 +61,21 @@ export const TodaysFocusWidget: React.FC = () => {
   const { friends } = useRelationshipsStore();
   const { suggestions, dismissSuggestion } = useSuggestions();
   const { allInteractions: interactions } = useInteractions();
-  const pendingConfirmations = interactions.filter((i: Interaction) => i.status !== 'completed' && i.status !== 'cancelled');
+  const pendingConfirmations = React.useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const sevenDaysAgo = new Date(today);
+    sevenDaysAgo.setDate(today.getDate() - 7);
+
+    return interactions
+      .filter((i: Interaction) => {
+        if (i.status === 'completed' || i.status === 'cancelled') return false;
+        const iDate = new Date(i.interactionDate);
+        iDate.setHours(0, 0, 0, 0);
+        return iDate >= sevenDaysAgo;
+      })
+      .sort((a, b) => new Date(a.interactionDate).getTime() - new Date(b.interactionDate).getTime());
+  }, [interactions]);
   const pendingPlans = pendingConfirmations;
   const { completePlan } = usePlans();
   const { profile } = useUserProfileStore();
@@ -75,6 +90,7 @@ export const TodaysFocusWidget: React.FC = () => {
   const [streakCount, setStreakCount] = useState(0);
   const [fadingFriend, setFadingFriend] = useState<{ friend: FriendModel; score: number } | null>(null);
   const [batteryMatchedFriend, setBatteryMatchedFriend] = useState<FriendModel | null>(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
 
   const expansionProgress = useSharedValue(0);
 
@@ -567,7 +583,7 @@ export const TodaysFocusWidget: React.FC = () => {
           <Text style={styles.sectionTitle}>
             PENDING PLANS
           </Text>
-          {pendingConfirmations.slice(0, 2).map((plan: any) => (
+          {pendingConfirmations.slice(0, 3).map((plan: any) => (
             <PendingPlanItem key={plan.id} plan={plan} onConfirm={handleConfirmPlan} onReschedule={handleReschedulePlan} />
           ))}
         </View>
@@ -617,7 +633,7 @@ export const TodaysFocusWidget: React.FC = () => {
             <Text style={styles.sectionTitle}>
               SUGGESTIONS
             </Text>
-            {suggestions.slice(0, 2).map((suggestion) => (
+            {suggestions.slice(0, 3).map((suggestion) => (
               <View key={suggestion.id} style={styles.suggestionCard}>
                 <TouchableOpacity
                   onPress={() => handleSuggestionPress(suggestion)}
@@ -645,6 +661,16 @@ export const TodaysFocusWidget: React.FC = () => {
           </View>
         )
       }
+
+      {/* Show More Button */}
+      {(pendingConfirmations.length > 3 || upcomingDates.length > 3 || suggestions.length > 3) && (
+        <TouchableOpacity
+          style={styles.showMoreButton}
+          onPress={() => setShowDetailsModal(true)}
+        >
+          <Text style={styles.showMoreText}>Show More</Text>
+        </TouchableOpacity>
+      )}
     </>
   );
 
@@ -729,6 +755,17 @@ export const TodaysFocusWidget: React.FC = () => {
           initialFriend={selectedFriend}
         />
       )}
+
+      <FocusDetailsModal
+        visible={showDetailsModal}
+        onClose={() => setShowDetailsModal(false)}
+        upcomingDates={upcomingDates}
+        pendingPlans={pendingConfirmations}
+        suggestions={suggestions}
+        onConfirmPlan={handleConfirmPlan}
+        onReschedulePlan={handleReschedulePlan}
+        onSuggestionPress={handleSuggestionPress}
+      />
     </>
   );
 };

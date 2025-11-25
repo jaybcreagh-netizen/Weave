@@ -83,77 +83,81 @@ async function fetchSuggestions(friends: any[]) {
   const friendStats: PortfolioAnalysisStats['friends'] = [];
 
   for (const friend of friends) {
-    // Query friend's interactions through the junction table
-    const interactionFriends = await database
-      .get<InteractionFriend>('interaction_friends')
-      .query(Q.where('friend_id', friend.id))
-      .fetch();
-
-    const interactionIds = interactionFriends.map(ifriend => ifriend.interactionId);
-
-    let sortedInteractions: Interaction[] = [];
-    if (interactionIds.length > 0) {
-      const friendInteractions = await database
-        .get<Interaction>('interactions')
-        .query(
-          Q.where('id', Q.oneOf(interactionIds)),
-          Q.where('status', 'completed') // Only include completed interactions
-        )
+    try {
+      // Query friend's interactions through the junction table
+      const interactionFriends = await database
+        .get<InteractionFriend>('interaction_friends')
+        .query(Q.where('friend_id', friend.id))
         .fetch();
 
-      sortedInteractions = friendInteractions.sort(
-        (a, b) => b.interactionDate.getTime() - a.interactionDate.getTime()
-      );
-    }
+      const interactionIds = interactionFriends.map(ifriend => ifriend.interactionId);
 
-    const lastInteraction = sortedInteractions[0];
-    const currentScore = calculateCurrentScore(friend);
+      let sortedInteractions: Interaction[] = [];
+      if (interactionIds.length > 0) {
+        const friendInteractions = await database
+          .get<Interaction>('interactions')
+          .query(
+            Q.where('id', Q.oneOf(interactionIds)),
+            Q.where('status', 'completed') // Only include completed interactions
+          )
+          .fetch();
 
-    // Calculate current momentum score (decays over time)
-    const daysSinceMomentumUpdate = (Date.now() - friend.momentumLastUpdated.getTime()) / 86400000;
-    const momentumScore = Math.max(0, friend.momentumScore - daysSinceMomentumUpdate);
+        sortedInteractions = friendInteractions.sort(
+          (a, b) => b.interactionDate.getTime() - a.interactionDate.getTime()
+        );
+      }
 
-    // Calculate days since last interaction
-    const daysSinceInteraction = lastInteraction
-      ? (Date.now() - lastInteraction.interactionDate.getTime()) / 86400000
-      : 999;
+      const lastInteraction = sortedInteractions[0];
+      const currentScore = calculateCurrentScore(friend);
 
-    // Collect stats for portfolio analysis
-    friendStats.push({
-      id: friend.id,
-      name: friend.name,
-      tier: friend.dunbarTier,
-      archetype: friend.archetype,
-      score: currentScore,
-      daysSinceInteraction: Math.round(daysSinceInteraction),
-    });
+      // Calculate current momentum score (decays over time)
+      const daysSinceMomentumUpdate = (Date.now() - friend.momentumLastUpdated.getTime()) / 86400000;
+      const momentumScore = Math.max(0, friend.momentumScore - daysSinceMomentumUpdate);
 
-    const suggestion = await generateSuggestion({
-      friend: {
+      // Calculate days since last interaction
+      const daysSinceInteraction = lastInteraction
+        ? (Date.now() - lastInteraction.interactionDate.getTime()) / 86400000
+        : 999;
+
+      // Collect stats for portfolio analysis
+      friendStats.push({
         id: friend.id,
         name: friend.name,
+        tier: friend.dunbarTier,
         archetype: friend.archetype,
-        dunbarTier: friend.dunbarTier,
-        createdAt: friend.createdAt,
-        birthday: friend.birthday,
-        anniversary: friend.anniversary,
-        relationshipType: friend.relationshipType,
-      },
-      currentScore,
-      lastInteractionDate: lastInteraction?.interactionDate,
-      interactionCount: sortedInteractions.length,
-      momentumScore,
-      recentInteractions: sortedInteractions.slice(0, 5).map(i => ({
-        id: i.id,
-        category: i.interactionCategory as any,
-        interactionDate: i.interactionDate,
-        vibe: i.vibe,
-        notes: i.note,
-      })),
-    });
+        score: currentScore,
+        daysSinceInteraction: Math.round(daysSinceInteraction),
+      });
 
-    if (suggestion) {
-      allSuggestions.push(suggestion);
+      const suggestion = await generateSuggestion({
+        friend: {
+          id: friend.id,
+          name: friend.name,
+          archetype: friend.archetype,
+          dunbarTier: friend.dunbarTier,
+          createdAt: friend.createdAt,
+          birthday: friend.birthday,
+          anniversary: friend.anniversary,
+          relationshipType: friend.relationshipType,
+        },
+        currentScore,
+        lastInteractionDate: lastInteraction?.interactionDate,
+        interactionCount: sortedInteractions.length,
+        momentumScore,
+        recentInteractions: sortedInteractions.slice(0, 5).map(i => ({
+          id: i.id,
+          category: i.interactionCategory as any,
+          interactionDate: i.interactionDate,
+          vibe: i.vibe,
+          notes: i.note,
+        })),
+      });
+
+      if (suggestion) {
+        allSuggestions.push(suggestion);
+      }
+    } catch (error) {
+      console.error(`Error generating suggestion for friend ${friend.id}:`, error);
     }
   }
 
@@ -241,50 +245,74 @@ export function useSuggestions() {
 
   // Track when suggestions are shown (only track each suggestion once)
   useEffect(() => {
-    suggestions.forEach(async (suggestion) => {
-      if (!trackedSuggestions.current.has(suggestion.id)) {
-        // Find the friend to get context
-        const friend = friends.find(f => f.id === suggestion.friendId);
-        if (friend) {
-          const currentScore = calculateCurrentScore(friend);
+    let isMounted = true;
 
-          // Calculate days since last interaction
-          const interactionFriends = await database
-            .get<InteractionFriend>('interaction_friends')
-            .query(Q.where('friend_id', friend.id))
-            .fetch();
+    const trackSuggestions = async () => {
+      const suggestionsToTrack = suggestions.filter(s => !trackedSuggestions.current.has(s.id));
 
-          const interactionIds = interactionFriends.map(ifriend => ifriend.interactionId);
-          let daysSinceLastInteraction = 999;
+      if (suggestionsToTrack.length === 0) return;
 
-          if (interactionIds.length > 0) {
-            const friendInteractions = await database
-              .get<Interaction>('interactions')
-              .query(
-                Q.where('id', Q.oneOf(interactionIds)),
-                Q.where('status', 'completed') // Only include completed interactions
-              )
+      try {
+        await Promise.all(suggestionsToTrack.map(async (suggestion) => {
+          if (!isMounted) return;
+
+          // Find the friend to get context
+          const friend = friends.find(f => f.id === suggestion.friendId);
+          if (friend) {
+            const currentScore = calculateCurrentScore(friend);
+
+            // Calculate days since last interaction
+            const interactionFriends = await database
+              .get<InteractionFriend>('interaction_friends')
+              .query(Q.where('friend_id', friend.id))
               .fetch();
 
-            const sortedInteractions = friendInteractions.sort(
-              (a, b) => b.interactionDate.getTime() - a.interactionDate.getTime()
-            );
+            if (!isMounted) return;
 
-            if (sortedInteractions.length > 0) {
-              daysSinceLastInteraction = (Date.now() - sortedInteractions[0].interactionDate.getTime()) / 86400000;
+            const interactionIds = interactionFriends.map(ifriend => ifriend.interactionId);
+            let daysSinceLastInteraction = 999;
+
+            if (interactionIds.length > 0) {
+              const friendInteractions = await database
+                .get<Interaction>('interactions')
+                .query(
+                  Q.where('id', Q.oneOf(interactionIds)),
+                  Q.where('status', 'completed') // Only include completed interactions
+                )
+                .fetch();
+
+              if (!isMounted) return;
+
+              const sortedInteractions = friendInteractions.sort(
+                (a, b) => b.interactionDate.getTime() - a.interactionDate.getTime()
+              );
+
+              if (sortedInteractions.length > 0) {
+                daysSinceLastInteraction = (Date.now() - sortedInteractions[0].interactionDate.getTime()) / 86400000;
+              }
+            }
+
+            // Track this suggestion as shown
+            if (isMounted) {
+              await SuggestionTrackerService.trackSuggestionShown(suggestion, {
+                friendScore: currentScore,
+                daysSinceLastInteraction: Math.round(daysSinceLastInteraction),
+              });
+
+              trackedSuggestions.current.add(suggestion.id);
             }
           }
-
-          // Track this suggestion as shown
-          await SuggestionTrackerService.trackSuggestionShown(suggestion, {
-            friendScore: currentScore,
-            daysSinceLastInteraction: Math.round(daysSinceLastInteraction),
-          });
-
-          trackedSuggestions.current.add(suggestion.id);
-        }
+        }));
+      } catch (error) {
+        console.error('Error tracking suggestions:', error);
       }
-    });
+    };
+
+    trackSuggestions();
+
+    return () => {
+      isMounted = false;
+    };
   }, [suggestions, friends]);
 
   const invalidateSuggestions = () => {

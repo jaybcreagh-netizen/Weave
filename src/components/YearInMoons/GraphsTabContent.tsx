@@ -23,69 +23,71 @@ import * as Haptics from 'expo-haptics';
 const { width: screenWidth } = Dimensions.get('window');
 
 // Theme-aware color palette for graphs
+// Theme-aware color palette for graphs
 const getGraphTheme = (isDarkMode: boolean) => ({
   // Card backgrounds
-  cardBackground: isDarkMode ? '#2A2E3F' : '#FFFFFF',
-  cardBackgroundAlt: isDarkMode ? '#1F2332' : '#F8F9FA',
-  cardBackgroundDeep: isDarkMode ? '#1a1d2e' : '#E8EAF0',
-  cardBorder: isDarkMode ? '#3A3E5F' : '#E0E3E9',
+  cardBackground: isDarkMode ? '#1E2030' : '#FFFFFF',
+  cardBackgroundAlt: isDarkMode ? '#151725' : '#F8F9FA',
+  cardBackgroundDeep: isDarkMode ? '#131522' : '#E8EAF0',
+  cardBorder: isDarkMode ? '#2D314D' : '#E0E3E9',
 
   // Text colors
-  textPrimary: isDarkMode ? '#F5F1E8' : '#2D3142',
-  textSecondary: isDarkMode ? '#8A8F9E' : '#6C7589',
-  textTertiary: isDarkMode ? '#C5CAD3' : '#8B92A6',
+  textPrimary: isDarkMode ? '#F0F2F5' : '#1A1D2D',
+  textSecondary: isDarkMode ? '#9CA3AF' : '#6B7280',
+  textTertiary: isDarkMode ? '#6B7280' : '#9CA3AF',
 
-  // Chart colors - primary palette
-  chartPrimary: isDarkMode ? '#7A7EAF' : '#6366F1', // Purple
-  chartSecondary: isDarkMode ? '#A78BFA' : '#8B5CF6', // Lighter purple
-  chartTertiary: isDarkMode ? '#5A5E8F' : '#4F46E5', // Deeper purple
-  chartAccent: isDarkMode ? '#8B95C9' : '#A5B4FC', // Soft purple
+  // Chart colors - primary palette (Cosmic/Gem)
+  chartPrimary: isDarkMode ? '#8B5CF6' : '#7C3AED', // Vivid Purple
+  chartSecondary: isDarkMode ? '#A78BFA' : '#8B5CF6', // Soft Purple
+  chartTertiary: isDarkMode ? '#6366F1' : '#4F46E5', // Indigo
+  chartAccent: isDarkMode ? '#F472B6' : '#EC4899', // Pink accent
 
   // Energy/Battery colors
-  energyColor: isDarkMode ? '#A78BFA' : '#8B5CF6',
-  energyGlow: isDarkMode ? 'rgba(167, 139, 250, 0.3)' : 'rgba(139, 92, 246, 0.2)',
+  energyColor: isDarkMode ? '#FCD34D' : '#F59E0B', // Amber/Gold
+  energyGlow: isDarkMode ? 'rgba(252, 211, 77, 0.3)' : 'rgba(245, 158, 11, 0.2)',
 
   // Weave/Connection colors
-  weaveColor: isDarkMode ? '#F5C563' : '#F59E0B',
-  weaveGlow: isDarkMode ? 'rgba(245, 197, 99, 0.3)' : 'rgba(245, 158, 11, 0.2)',
+  weaveColor: isDarkMode ? '#34D399' : '#10B981', // Emerald
+  weaveGlow: isDarkMode ? 'rgba(52, 211, 153, 0.3)' : 'rgba(16, 185, 129, 0.2)',
 
-  // Heatmap colors
-  heatmapEmpty: isDarkMode ? '#1F2332' : '#F0F2F5',
-  heatmapLevel1: isDarkMode ? '#3A3E5F' : '#DDD6FE',
-  heatmapLevel2: isDarkMode ? '#4A4E6F' : '#C4B5FD',
-  heatmapLevel3: isDarkMode ? '#5A5E8F' : '#A78BFA',
-  heatmapLevel4: isDarkMode ? '#7A7EAF' : '#7C3AED',
+  // Heatmap colors (Gemstones)
+  heatmapEmpty: isDarkMode ? '#2A2E3F' : '#F3F4F6',
+  heatmapLevel1: isDarkMode ? '#4C1D95' : '#E9D5FF', // Deep Purple / Light Lavender
+  heatmapLevel2: isDarkMode ? '#6D28D9' : '#C084FC',
+  heatmapLevel3: isDarkMode ? '#8B5CF6' : '#A855F7',
+  heatmapLevel4: isDarkMode ? '#A78BFA' : '#9333EA', // Brightest
 
   // Grid and structure
-  gridLine: isDarkMode ? '#3A3E5F' : '#E5E7EB',
-  axisLine: isDarkMode ? '#3A3E5F' : '#D1D5DB',
+  gridLine: isDarkMode ? '#2D314D' : '#E5E7EB',
+  axisLine: isDarkMode ? '#4B5563' : '#D1D5DB',
 
   // Interactive states
-  hoverBackground: isDarkMode ? '#3A3E5F' : '#F3F4F6',
-  activeBackground: isDarkMode ? '#5A5F9E' : '#E0E7FF',
+  hoverBackground: isDarkMode ? '#2D314D' : '#F3F4F6',
+  activeBackground: isDarkMode ? '#4C1D95' : '#E0E7FF',
 
   // Gradients
-  gradientStart: isDarkMode ? '#2A2E3F' : '#FFFFFF',
-  gradientEnd: isDarkMode ? '#1F2332' : '#F8F9FA',
+  gradientStart: isDarkMode ? '#1E2030' : '#FFFFFF',
+  gradientEnd: isDarkMode ? '#131522' : '#F8F9FA',
 
   // Health score colors (keep consistent)
-  healthHigh: '#4CAF50',
-  healthGood: '#8BC34A',
-  healthMedium: '#FFC107',
-  healthLow: '#FF5722',
+  healthHigh: '#10B981', // Emerald
+  healthGood: '#34D399',
+  healthMedium: '#FBBF24', // Amber
+  healthLow: '#EF4444', // Red
 
-  // Tier colors (from constants, adjusted for theme)
-  tierInner: isDarkMode ? '#A56A43' : '#8B5A3C',
-  tierClose: isDarkMode ? '#E58A57' : '#D97640',
-  tierCommunity: isDarkMode ? '#6C8EAD' : '#5A7A9D',
+  // Tier colors (Cosmic Tiers)
+  tierInner: isDarkMode ? '#F59E0B' : '#D97706', // Gold
+  tierClose: isDarkMode ? '#EC4899' : '#DB2777', // Pink
+  tierCommunity: isDarkMode ? '#6366F1' : '#4F46E5', // Indigo
 
   // Special accent colors
-  accentGold: isDarkMode ? '#fbbf24' : '#F59E0B',
-  accentPurple: isDarkMode ? '#7A7EAF' : '#7C3AED',
+  accentGold: '#FFD700',
+  accentSilver: '#C0C0C0',
+  accentBronze: '#CD7F32',
 
   // Shadow and depth
   shadowColor: isDarkMode ? '#000' : '#6B7280',
-  shadowOpacity: isDarkMode ? 0.4 : 0.15,
+  shadowOpacity: isDarkMode ? 0.5 : 0.2,
 });
 
 interface GraphsTabContentProps {
@@ -130,7 +132,7 @@ export function GraphsTabContent({ year = new Date().getFullYear() }: GraphsTabC
 
         allDays.forEach((day) => {
           const dayOfWeek = day.date.getDay(); // 0 = Sunday, 6 = Saturday
-          dayData[dayOfWeek].avgBattery += day.batteryLevel;
+          dayData[dayOfWeek].avgBattery += day.batteryLevel || 0;
           dayData[dayOfWeek].count += 1;
         });
 
@@ -165,7 +167,7 @@ export function GraphsTabContent({ year = new Date().getFullYear() }: GraphsTabC
 
       const correlationData = recentDays.map(d => ({
         date: d.date,
-        battery: d.batteryLevel,
+        battery: d.batteryLevel || 0,
         weaves: weavesByDate.get(d.date.toDateString()) || 0,
       }));
       setBatteryWeaveData(correlationData);
@@ -319,48 +321,59 @@ export function GraphsTabContent({ year = new Date().getFullYear() }: GraphsTabC
             <Text style={{ fontSize: 18, fontWeight: '600', color: graphTheme.textPrimary, fontFamily: 'Lora_600SemiBold', marginBottom: 12 }}>
               Most Connected
             </Text>
-            {topFriends.map((friend, index) => (
-              <TouchableOpacity
-                key={friend.name}
-                onPress={() => showTooltip('friend', friend)}
-                style={{
-                  flexDirection: 'row',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  backgroundColor: index === 0 ? graphTheme.hoverBackground : graphTheme.cardBackground,
-                  padding: 14,
-                  borderRadius: 16,
-                  marginBottom: 8,
-                  borderWidth: index === 0 ? 1 : 0,
-                  borderColor: index === 0 ? graphTheme.activeBackground : 'transparent',
-                }}
-                activeOpacity={0.7}
-              >
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                  <View
-                    style={{
-                      width: 32,
-                      height: 32,
-                      borderRadius: 16,
-                      backgroundColor: index === 0 ? graphTheme.chartPrimary : graphTheme.hoverBackground,
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <Text style={{ fontSize: 14, color: '#FFFFFF', fontFamily: 'Inter_700Bold' }}>
-                      {index + 1}
+            {topFriends.map((friend, index) => {
+              const isTop3 = index < 3;
+              const rankColors = [graphTheme.accentGold, graphTheme.accentSilver, graphTheme.accentBronze];
+              const rankColor = isTop3 ? rankColors[index] : graphTheme.textSecondary;
+
+              return (
+                <TouchableOpacity
+                  key={friend.name}
+                  onPress={() => showTooltip('friend', friend)}
+                  style={{
+                    flexDirection: 'row',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    backgroundColor: isTop3 ? `${rankColor}10` : graphTheme.cardBackground,
+                    padding: 14,
+                    borderRadius: 16,
+                    marginBottom: 8,
+                    borderWidth: 1,
+                    borderColor: isTop3 ? `${rankColor}40` : 'transparent',
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                    <View
+                      style={{
+                        width: 32,
+                        height: 32,
+                        borderRadius: 16,
+                        backgroundColor: isTop3 ? rankColor : graphTheme.hoverBackground,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        shadowColor: isTop3 ? rankColor : 'transparent',
+                        shadowOffset: { width: 0, height: 2 },
+                        shadowOpacity: 0.3,
+                        shadowRadius: 4,
+                        elevation: isTop3 ? 4 : 0,
+                      }}
+                    >
+                      <Text style={{ fontSize: 14, color: isTop3 ? '#FFFFFF' : graphTheme.textSecondary, fontFamily: 'Inter_700Bold' }}>
+                        {index + 1}
+                      </Text>
+                    </View>
+                    <Text style={{ fontSize: 16, color: graphTheme.textPrimary, fontFamily: 'Inter_600SemiBold' }}>
+                      {friend.name}
                     </Text>
+                    {index === 0 && <Text style={{ fontSize: 16 }}>👑</Text>}
                   </View>
-                  <Text style={{ fontSize: 16, color: graphTheme.textPrimary, fontFamily: 'Inter_600SemiBold' }}>
-                    {friend.name}
+                  <Text style={{ fontSize: 14, color: graphTheme.textSecondary, fontFamily: 'Inter_400Regular' }}>
+                    {friend.count} weaves
                   </Text>
-                  {index === 0 && <Text style={{ fontSize: 16 }}>✨</Text>}
-                </View>
-                <Text style={{ fontSize: 14, color: graphTheme.textSecondary, fontFamily: 'Inter_400Regular' }}>
-                  {friend.count} weaves
-                </Text>
-              </TouchableOpacity>
-            ))}
+                </TouchableOpacity>
+              );
+            })}
           </Animated.View>
         )}
 
@@ -511,8 +524,15 @@ function ActivityHeatmap({
                     width: cellSize,
                     height: cellSize,
                     backgroundColor: getHeatColor(dayData.count),
-                    borderRadius: 2,
+                    borderRadius: 6, // Rounded gems
                     marginBottom: cellGap,
+                    shadowColor: dayData.count > 0 ? getHeatColor(dayData.count) : 'transparent',
+                    shadowOffset: { width: 0, height: 0 },
+                    shadowOpacity: dayData.count > 0 ? 0.4 : 0,
+                    shadowRadius: 4,
+                    elevation: dayData.count > 0 ? 2 : 0,
+                    borderWidth: dayData.count > 0 ? 1 : 0,
+                    borderColor: 'rgba(255,255,255,0.1)',
                   }}
                 />
               );
@@ -594,8 +614,8 @@ function TierHealthRings({
             ))}
           </Defs>
 
-          {/* Background circles */}
-          {[1, 0.66, 0.33].map((scale, i) => (
+          {/* Background circles (Dashed Orbit Style) */}
+          {[1, 0.75, 0.5, 0.25].map((scale, i) => (
             <Circle
               key={i}
               cx={center}
@@ -603,8 +623,9 @@ function TierHealthRings({
               r={maxRadius * scale}
               stroke={theme.gridLine}
               strokeWidth="1"
+              strokeDasharray={i % 2 === 0 ? "4, 4" : "0"} // Alternate dashed/solid
               fill="none"
-              opacity={0.3}
+              opacity={0.2}
             />
           ))}
 
@@ -721,7 +742,7 @@ function WeeklyRhythmRadial({
           </SvgLinearGradient>
         </Defs>
 
-        {/* Background circles */}
+        {/* Background circles (Star Map Grid) */}
         {[0.2, 0.4, 0.6, 0.8, 1.0].map((scale, i) => (
           <Circle
             key={i}
@@ -730,8 +751,9 @@ function WeeklyRhythmRadial({
             r={radius * scale}
             stroke={theme.gridLine}
             strokeWidth="1"
+            strokeDasharray="2, 4"
             fill="none"
-            opacity={0.3}
+            opacity={0.2}
           />
         ))}
 
@@ -779,8 +801,8 @@ function WeeklyRhythmRadial({
               const y = center + Math.sin(angle) * distance;
               return (
                 <G key={`point-${index}`} onPress={() => onDayPress(day)}>
-                  <Circle cx={x} cy={y} r={6} fill={theme.energyColor} opacity={0.3} />
-                  <Circle cx={x} cy={y} r={4} fill={theme.textPrimary} />
+                  <Circle cx={x} cy={y} r={8} fill={theme.energyColor} opacity={0.2} />
+                  <Circle cx={x} cy={y} r={4} fill="#FFFFFF" stroke={theme.energyColor} strokeWidth={1.5} />
                 </G>
               );
             })}

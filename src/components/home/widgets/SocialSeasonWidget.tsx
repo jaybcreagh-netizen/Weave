@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, TouchableOpacity, Modal, Pressable, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
@@ -89,15 +89,31 @@ export const SocialSeasonWidget: React.FC = () => {
     calculateActivityStats();
   }, [allInteractions]);
 
+  // Ref to hold the latest version of our update logic
+  // initialized with no-op to avoid TDZ issues during first render
+  const tickRef = useRef(() => { });
+
+  // Update the ref after every render so it closes over the latest scope
+  useEffect(() => {
+    tickRef.current = () => {
+      calculateAndUpdateSeason();
+      calculateActivityStats();
+    };
+  });
+
+  // Immediate update when dependencies change
   useEffect(() => {
     calculateAndUpdateSeason();
     calculateActivityStats();
+  }, [friends, profile]);
+
+  // Permanent interval that calls the latest logic via ref
+  useEffect(() => {
     const interval = setInterval(() => {
-      calculateAndUpdateSeason();
-      calculateActivityStats();
+      tickRef.current();
     }, 60 * 60 * 1000);
     return () => clearInterval(interval);
-  }, [friends, profile]);
+  }, []);
 
   const calculateActivityStats = async () => {
     try {
@@ -307,8 +323,11 @@ export const SocialSeasonWidget: React.FC = () => {
               <Text style={styles.subtext}>{greeting.subtext}</Text>
             </View>
 
-            {/* Activity Knots */}
+            {/* Activity Knots (Thread & Gems) */}
             <View style={styles.knotsContainer}>
+              {/* The Thread */}
+              <View style={styles.threadLine} />
+
               {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, index) => {
                 const today = new Date();
                 const currentDayOfWeek = today.getDay();
@@ -319,24 +338,26 @@ export const SocialSeasonWidget: React.FC = () => {
                 return (
                   <View key={index} style={styles.knotColumn}>
                     <View style={[
-                      styles.knot,
-                      isToday && styles.knotToday,
-                      isFilled && styles.knotFilledBorder
+                      styles.knotBase,
+                      isFilled ? styles.knotActive : styles.knotEmpty,
+                      isToday && styles.knotTodayWrapper
                     ]}>
-                      {isFilled && (
+                      {isFilled ? (
                         <LinearGradient
-                          colors={['transparent', 'rgba(0,0,0,0.8)'] as const}
+                          colors={['#FFD700', '#F59E0B'] as const}
                           start={{ x: 0, y: 0 }}
                           end={{ x: 1, y: 1 }}
-                          style={[
-                            StyleSheet.absoluteFill,
-                            styles.knotGradient,
-                            isToday && styles.knotTodayGradient
-                          ]}
+                          style={styles.knotGradient}
                         />
+                      ) : (
+                        <View style={styles.knotDot} />
                       )}
                     </View>
-                    <Text style={[styles.knotLabel, isToday && styles.knotLabelToday]}>{day}</Text>
+                    <Text style={[
+                      styles.knotLabel,
+                      isToday && styles.knotLabelToday,
+                      isFilled && styles.knotLabelActive
+                    ]}>{day}</Text>
                   </View>
                 );
               })}
@@ -453,57 +474,72 @@ const styles = StyleSheet.create({
   },
   knotsContainer: {
     flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 8,
+    justifyContent: 'space-between',
+    alignItems: 'flex-start', // Align tops so labels line up, but we'll align knots manually or via padding
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    position: 'relative',
+    height: 60, // Fixed height to contain the thread and knots
+  },
+  threadLine: {
+    position: 'absolute',
+    left: 24, // Start after the first half-knot roughly
+    right: 24,
+    top: 24, // Vertically centered with the knots (approx 12 padding + 12 half-height)
+    height: 2,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 1,
+    zIndex: 0,
   },
   knotColumn: {
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
+    width: 32, // Fixed width for alignment
+    zIndex: 1,
   },
-  knot: {
+  knotBase: {
     width: 24,
     height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
     borderRadius: 12,
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.4)',
-    backgroundColor: 'transparent',
-    overflow: 'hidden',
   },
-  knotToday: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+  knotEmpty: {
+    backgroundColor: 'transparent',
+  },
+  knotDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  knotActive: {
     shadowColor: '#FFD700',
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.6,
+    shadowOpacity: 0.5,
     shadowRadius: 8,
     elevation: 6,
   },
-  knotFilledBorder: {
-    borderColor: '#FFD700',
+  knotTodayWrapper: {
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
   },
   knotGradient: {
+    width: '100%',
+    height: '100%',
     borderRadius: 12,
-    shadowColor: '#FFD700',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 6,
-    elevation: 8,
-  },
-  knotTodayGradient: {
-    borderRadius: 14,
-    shadowRadius: 10,
-    shadowOpacity: 1,
-    elevation: 10,
   },
   knotLabel: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 11,
+    color: 'rgba(255, 255, 255, 0.5)',
+  },
+  knotLabelActive: {
+    color: 'rgba(255, 255, 255, 0.9)',
     fontFamily: 'Inter_600SemiBold',
-    fontSize: 10,
-    color: 'rgba(255, 255, 255, 0.8)',
   },
   knotLabelToday: {
-    color: 'rgba(255, 255, 255, 1)',
+    color: '#FFFFFF',
     fontFamily: 'Inter_700Bold',
   },
   statsRow: {

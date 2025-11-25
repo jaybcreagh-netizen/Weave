@@ -9,7 +9,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
 import { Calendar, Heart, Sparkles, X } from 'lucide-react-native';
-import { format } from 'date-fns';
+
 
 import { useTheme } from '@/shared/hooks/useTheme';
 import { ArchetypeIcon } from '@/components/ArchetypeIcon';
@@ -190,7 +190,12 @@ export const FriendDetailSheet: React.FC<FriendDetailSheetProps> = ({
                   style={{ color: colors.foreground }}
                   className="font-inter text-base font-semibold"
                 >
-                  {format(friend.anniversary, 'MMMM do, yyyy')}
+                  {(() => {
+                    const [month, day] = friend.anniversary.split('-');
+                    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                      'July', 'August', 'September', 'October', 'November', 'December'];
+                    return `${monthNames[parseInt(month) - 1]} ${parseInt(day)}`;
+                  })()}
                 </Text>
               </View>
             </View>

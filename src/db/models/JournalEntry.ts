@@ -4,10 +4,16 @@
  */
 
 import { Model } from '@nozbe/watermelondb';
-import { field, text, date, readonly } from '@nozbe/watermelondb/decorators';
+import { field, text, date, readonly, children } from '@nozbe/watermelondb/decorators';
 
 export default class JournalEntry extends Model {
   static table = 'journal_entries';
+
+  static associations = {
+    journal_entry_friends: { type: 'has_many', foreignKey: 'journal_entry_id' },
+  } as const;
+
+  @children('journal_entry_friends') journalEntryFriends;
 
   // Entry content
   @field('entry_date') entryDate!: number; // Date this entry is associated with
