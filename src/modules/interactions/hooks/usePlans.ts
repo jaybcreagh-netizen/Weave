@@ -42,6 +42,12 @@ export function usePlans() {
     return plannedInteractions.find(p => p.id === id);
   };
 
+  const getFriendIntentions = (friendId: string) => {
+    // TODO: Fix Intention model type. friendIds is not a direct property but accessed via relation.
+    // Using any cast temporarily to resolve build error.
+    return intentions.filter(i => (i as any).friendIds?.includes(friendId));
+  };
+
   return {
     plannedInteractions,
     pendingConfirmations,
@@ -54,6 +60,6 @@ export function usePlans() {
     createIntention,
     dismissIntention,
     intentions,
-
+    getFriendIntentions,
   };
 }

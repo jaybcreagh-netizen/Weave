@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, View, Text, TouchableOpacity, Switch, Alert, ScrollView, Platform } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, Switch, Alert, ScrollView, Platform, LayoutAnimation } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { X, Moon, Sun, Palette, RefreshCw, Bug, BarChart3, Battery, Calendar as CalendarIcon, ChevronRight, Bell, Clock, Trophy, Sparkles, MessageSquare, Download, Upload, Database, Trash2, BookOpen, Users } from 'lucide-react-native';
 import * as FileSystem from 'expo-file-system';
@@ -221,10 +221,12 @@ export function SettingsModal({
 
     const settings = await CalendarService.getCalendarSettings();
     await CalendarService.saveCalendarSettings({ ...settings, enabled });
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setCalendarSettings((prev: any) => ({ ...prev, enabled }));
   };
 
   const handleToggleTwoWaySync = async (enabled: boolean) => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     const settings = await CalendarService.getCalendarSettings();
     await CalendarService.saveCalendarSettings({ ...settings, twoWaySync: enabled });
     setCalendarSettings((prev: any) => ({ ...prev, twoWaySync: enabled }));
@@ -324,6 +326,7 @@ export function SettingsModal({
   };
 
   const handleToggleSmartNotifications = async (enabled: boolean) => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setSmartNotificationsEnabled(enabled);
     await AsyncStorage.setItem('@weave:smart_notifications_enabled', JSON.stringify(enabled));
   };
@@ -580,9 +583,9 @@ export function SettingsModal({
               maxHeight: '90%',
             },
           ]}
-          className="absolute bottom-0 left-0 right-0 rounded-t-3xl border-t p-6 shadow-2xl"
+          className="absolute bottom-0 left-0 right-0 rounded-t-3xl border-t shadow-2xl"
         >
-          <View className="mb-6 flex-row items-center justify-between">
+          <View className="mb-6 px-6 pt-6 flex-row items-center justify-between">
             <Text style={{ color: colors.foreground }} className="font-lora text-[22px] font-bold">Settings</Text>
             <TouchableOpacity onPress={onClose} className="p-2">
               <X size={24} color={colors['muted-foreground']} />
@@ -591,7 +594,7 @@ export function SettingsModal({
 
           <ScrollView
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingBottom: 20 }}
+            contentContainerStyle={{ paddingBottom: 20, paddingHorizontal: 24 }}
             bounces={true}
           >
             <View className="gap-4">
@@ -961,7 +964,7 @@ export function SettingsModal({
 
               {/* Smart Suggestions Section */}
               <View className="flex-row items-center justify-between">
-                <View className="flex-row items-center gap-3">
+                <View className="flex-row items-center gap-3 flex-1">
                   <View className="w-10 h-10 rounded-lg items-center justify-center" style={{ backgroundColor: colors.muted }}>
                     <Bell color={colors.foreground} size={20} />
                   </View>

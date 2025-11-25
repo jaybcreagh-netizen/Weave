@@ -6,13 +6,10 @@ import * as Haptics from 'expo-haptics';
 import { ArrowLeft, Edit, Trash2, Calendar, Plus } from 'lucide-react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { isFuture, isToday, differenceInDays } from 'date-fns';
-import { Q } from '@nozbe/watermelondb';
+import { isFuture, isToday, differenceInDays, isPast } from 'date-fns';
 
 import { FriendListRow } from '@/modules/relationships';
 import { TimelineItem } from '@/components/TimelineItem';
-import { useRelationshipsStore } from '@/modules/relationships';
-import { useInteractions, usePlans, PlanService } from '@/modules/interactions';
 import { calculateNextConnectionDate } from '@/shared/utils/timeline-utils';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { type Interaction, type Tier } from '@/components/types';
@@ -20,7 +17,7 @@ import { InteractionDetailModal } from '@/components/interaction-detail-modal';
 import { EditReflectionModal } from '@/components/EditReflectionModal';
 import { EditInteractionModal } from '@/components/EditInteractionModal';
 import { PlanChoiceModal } from '@/components/PlanChoiceModal';
-import { PlanWizard } from '@/modules/interactions';
+import { PlanWizard, PlanService } from '@/modules/interactions';
 import { IntentionFormModal } from '@/components/IntentionFormModal';
 import { IntentionsDrawer } from '@/components/IntentionsDrawer';
 import { IntentionsFAB } from '@/components/IntentionsFAB';
@@ -28,9 +25,11 @@ import { IntentionActionSheet } from '@/components/IntentionActionSheet';
 import { LifeEventModal } from '@/components/LifeEventModal';
 import { WeaveIcon } from '@/components/WeaveIcon';
 import FriendBadgePopup from '@/components/FriendBadgePopup';
-import { database } from '@/db';
 import LifeEvent from '@/db/models/LifeEvent';
 import Intention from '@/db/models/Intention';
+
+import { useFriendProfileData } from '@/modules/relationships/hooks/useFriendProfileData';
+import { useFriendTimeline } from '@/modules/relationships/hooks/useFriendTimeline';
 
 const AnimatedSectionList = Animated.createAnimatedComponent(SectionList);
 
@@ -38,23 +37,30 @@ export default function FriendProfile() {
   const router = useRouter();
   const { colors } = useTheme();
   const { friendId } = useLocalSearchParams();
-  const {
-    activeFriend: friend,
-    activeFriendInteractions: interactions,
-    observeFriend,
-    unobserveFriend,
-    loadMoreInteractions,
-    hasMoreInteractions,
-  } = useRelationshipsStore();
-  const { deleteFriend } = useRelationshipsStore();
-  const { deleteWeave, updateReflection, updateInteraction } = useInteractions();
-  const { createIntention, dismissIntention, getFriendIntentions } = usePlans();
-  const friendIntentions = getFriendIntentions(typeof friendId === 'string' ? friendId : '');
-  const [selectedInteraction, setSelectedInteraction] = useState<Interaction | null>(null);
 
+  const {
+    friend,
+    interactions,
+    friendIntentions,
+    activeLifeEvents,
+    isDataLoaded,
+    hasMoreInteractions,
+    isLoadingMore,
+    handleLoadMore,
+    deleteFriend,
+    deleteWeave,
+    updateReflection,
+    updateInteraction,
+    createIntention,
+    dismissIntention,
+    refreshLifeEvents
+  } = useFriendProfileData(typeof friendId === 'string' ? friendId : undefined);
+
+  const { timelineSections } = useFriendTimeline(interactions as any[]);
+
+  const [selectedInteraction, setSelectedInteraction] = useState<Interaction | null>(null);
   const [editingReflection, setEditingReflection] = useState<Interaction | null>(null);
   const [editingInteraction, setEditingInteraction] = useState<Interaction | null>(null);
-  const [isDataLoaded, setIsDataLoaded] = useState(false);
   const [showPlanChoice, setShowPlanChoice] = useState(false);
   const [showPlanWizard, setShowPlanWizard] = useState(false);
   const [showIntentionForm, setShowIntentionForm] = useState(false);
@@ -62,9 +68,7 @@ export default function FriendProfile() {
   const [selectedIntentionForAction, setSelectedIntentionForAction] = useState<Intention | null>(null);
   const [showLifeEventModal, setShowLifeEventModal] = useState(false);
   const [editingLifeEvent, setEditingLifeEvent] = useState<LifeEvent | null>(null);
-  const [activeLifeEvents, setActiveLifeEvents] = useState<LifeEvent[]>([]);
   const [showBadgePopup, setShowBadgePopup] = useState(false);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   const scrollY = useSharedValue(0);
 
@@ -143,9 +147,6 @@ export default function FriendProfile() {
 
   useEffect(() => {
     if (friendId && typeof friendId === 'string') {
-      // Reset loading state when friendId changes
-      setIsDataLoaded(false);
-
       // Clear any open modals
       setSelectedInteraction(null);
       setEditingReflection(null);
@@ -157,85 +158,15 @@ export default function FriendProfile() {
       setSelectedIntentionForAction(null);
       setShowLifeEventModal(false);
       setEditingLifeEvent(null);
-
-      observeFriend(friendId);
-
-      // Load active life events for this friend
-      loadLifeEvents();
     }
-    return () => {
-      unobserveFriend();
-    };
-  }, [friendId, observeFriend, unobserveFriend]);
-
-  const loadLifeEvents = async () => {
-    if (!friendId || typeof friendId !== 'string') return;
-
-    try {
-      const sixtyDaysAgo = Date.now() - 60 * 24 * 60 * 60 * 1000;
-      const events = await database
-        .get<LifeEvent>('life_events')
-        .query(
-          Q.where('friend_id', friendId),
-          Q.or(
-            Q.where('event_date', Q.gte(sixtyDaysAgo)),
-            Q.where('event_date', Q.gt(Date.now()))
-          ),
-          Q.sortBy('event_date', 'asc')
-        )
-        .fetch();
-
-      setActiveLifeEvents(events);
-    } catch (error) {
-      console.error('Error loading life events:', error);
-    }
-  };
-
-  // Track when data is actually loaded - must match the friendId
-  // Add small delay to ensure data is fully settled
-  useEffect(() => {
-    if (friend && friend.id === friendId && interactions !== undefined) {
-      const timer = setTimeout(() => {
-        setIsDataLoaded(true);
-      }, 150); // Small delay to ensure all data is ready
-
-      return () => clearTimeout(timer);
-    }
-  }, [friend, interactions, friendId]);
-
-  const sortedInteractions = useMemo(() => 
-    [...(interactions || [])].sort((a, b) => {
-        const dateA = typeof a.interactionDate === 'string' ? new Date(a.interactionDate) : a.interactionDate;
-        const dateB = typeof b.interactionDate === 'string' ? new Date(b.interactionDate) : b.interactionDate;
-        return dateB.getTime() - dateA.getTime();
-    }), [interactions]);
-
-  const timelineSections = useMemo(() => {
-    const sections: { [key: string]: Interaction[] } = {
-        Seeds: [], // Future
-        Today: [],
-        'Woven Memories': [], // Past
-    };
-
-    sortedInteractions.forEach(interaction => {
-        const date = new Date(interaction.interactionDate);
-        if (isFuture(date)) sections.Seeds.push(interaction);
-        else if (isToday(date)) sections.Today.push(interaction);
-        else sections['Woven Memories'].push(interaction);
-    });
-
-    return Object.entries(sections)
-        .map(([title, data]) => ({ title, data }))
-        .filter(section => section.data.length > 0);
-
-  }, [sortedInteractions]);
+  }, [friendId]);
 
   const nextConnectionDate = useMemo(() => {
     const pastInteractions = (interactions || []).filter(i => isPast(new Date(i.interactionDate)));
     if (pastInteractions.length === 0 || !friend) return null;
 
     const mostRecentPastInteraction = pastInteractions.reduce((latest, current) => {
-        return new Date(current.interactionDate) > new Date(latest.interactionDate) ? current : latest;
+      return new Date(current.interactionDate) > new Date(latest.interactionDate) ? current : latest;
     });
 
     return calculateNextConnectionDate(new Date(mostRecentPastInteraction.interactionDate), friend.dunbarTier as Tier);
@@ -252,12 +183,14 @@ export default function FriendProfile() {
     if (friend) {
       Alert.alert("Delete Friend", "Are you sure you want to remove this friend from your weave?", [
         { text: "Cancel", style: "cancel" },
-        { text: "Delete", style: "destructive", onPress: async () => {
+        {
+          text: "Delete", style: "destructive", onPress: async () => {
             await deleteFriend(friend.id);
             if (router.canGoBack()) {
               router.back();
             }
-        }},
+          }
+        },
       ]);
     }
   }, [friend, deleteFriend, router]);
@@ -273,38 +206,23 @@ export default function FriendProfile() {
   }, [deleteWeave]);
 
   const handleEditInteraction = useCallback((interactionId: string) => {
-    const interaction = interactions.find(i => i.id === interactionId);
+    const interaction = interactions?.find(i => i.id === interactionId);
     if (interaction) {
       // Check if this is a future planned weave
       const interactionDate = new Date(interaction.interactionDate);
       if (isFuture(interactionDate)) {
         // Open PlanWizard for future interactions
-        setEditingInteraction(interaction); // Store the interaction being edited
+        setEditingInteraction(interaction as any); // Store the interaction being edited
         setShowPlanWizard(true);
       } else {
         // Open EditInteractionModal for past/completed interactions
-        setEditingInteraction(interaction);
+        setEditingInteraction(interaction as any);
       }
     }
   }, [interactions]);
 
-  const handleLoadMore = useCallback(async () => {
-    if (isLoadingMore || !hasMoreInteractions) {
-      return;
-    }
-
-    setIsLoadingMore(true);
-    try {
-      await loadMoreInteractions();
-    } catch (error) {
-      console.error('Error loading more interactions:', error);
-    } finally {
-      setIsLoadingMore(false);
-    }
-  }, [isLoadingMore, hasMoreInteractions, loadMoreInteractions]);
-
   // renderTimelineItem with point-to-point line segments
-  const renderTimelineItem = useCallback(({ item: interaction, section, index }: { item: Interaction; section: { title: string; data: Interaction[] }; index: number }) => {
+  const renderTimelineItem = useCallback(({ item: interaction, section, index }: { item: Interaction | any; section: any; index: number }) => {
     const isFutureInteraction = section.title === 'Seeds';
     const isFirstInSection = index === 0;
     // const isLastInSection = index === section.data.length - 1;
@@ -335,153 +253,153 @@ export default function FriendProfile() {
     if (!friend) return null;
 
     return (
-    <View>
+      <View>
         <View style={[styles.header, { borderColor: colors.border }]}>
-            <TouchableOpacity onPress={() => {
-if (router.canGoBack()) {
-router.back();
-}
-}} style={styles.backButton}>
-              <ArrowLeft size={20} color={colors['muted-foreground']} />
-              <Text style={{ color: colors.foreground }}>Back</Text>
+          <TouchableOpacity onPress={() => {
+            if (router.canGoBack()) {
+              router.back();
+            }
+          }} style={styles.backButton}>
+            <ArrowLeft size={20} color={colors['muted-foreground']} />
+            <Text style={{ color: colors.foreground }}>Back</Text>
+          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            <TouchableOpacity onPress={() => router.push('/global-calendar')} style={{ padding: 8 }}>
+              <Calendar size={20} color={colors['muted-foreground']} />
             </TouchableOpacity>
-            <View style={styles.headerActions}>
-                <TouchableOpacity onPress={() => router.push('/global-calendar')} style={{ padding: 8 }}>
-                    <Calendar size={20} color={colors['muted-foreground']} />
-                </TouchableOpacity>
-                <TouchableOpacity onPress={handleEdit} style={{ padding: 8 }}>
-                    <Edit size={20} color={colors['muted-foreground']} />
-                </TouchableOpacity>
-                <TouchableOpacity onPress={handleDeleteFriend} style={{ padding: 8 }}>
-                    <Trash2 size={20} color={colors.destructive} />
-                </TouchableOpacity>
-            </View>
+            <TouchableOpacity onPress={handleEdit} style={{ padding: 8 }}>
+              <Edit size={20} color={colors['muted-foreground']} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={handleDeleteFriend} style={{ padding: 8 }}>
+              <Trash2 size={20} color={colors.destructive} />
+            </TouchableOpacity>
+          </View>
         </View>
         <View style={styles.contentContainer}>
-            <Animated.View style={headerAnimatedStyle}>
+          <Animated.View style={headerAnimatedStyle}>
+            <TouchableOpacity
+              activeOpacity={0.95}
+              onLongPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                setShowBadgePopup(true);
+              }}
+            >
+              <FriendListRow friend={friend} variant="full" />
+            </TouchableOpacity>
+          </Animated.View>
+
+          <Animated.View style={[styles.actionButtonsContainer, buttonsAnimatedStyle]}>
+            <TouchableOpacity
+              onPress={() => router.push({ pathname: '/weave-logger', params: { friendId: friend.id } })}
+              style={[styles.actionButton, styles.actionButtonPrimary]}
+            >
+              <LinearGradient
+                colors={[colors.primary, `${colors.primary}DD`]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.buttonGradient}
+              >
+                <View style={styles.glassOverlay} />
+                <Text style={[styles.actionButtonTextPrimary, { color: colors['primary-foreground'] }]}>Log a Weave</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setShowPlanChoice(true)}
+              style={[styles.actionButton, styles.actionButtonSecondary]}
+            >
+              <LinearGradient
+                colors={[colors.secondary, `${colors.secondary}CC`]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.buttonGradient}
+              >
+                <View style={styles.glassOverlay} />
+                <Text style={[styles.actionButtonTextSecondary, { color: colors.foreground }]}>Plan a Weave</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </Animated.View>
+
+          {/* Life Events Section - Compact */}
+          {activeLifeEvents.length > 0 || true /* always show to allow adding */ ? (
+            <Animated.View style={[styles.lifeEventsSection, buttonsAnimatedStyle]}>
+              <View style={styles.lifeEventsSectionHeader}>
+                <Text style={[styles.lifeEventsSectionTitle, { color: colors.foreground }]}>
+                  Life Events
+                </Text>
                 <TouchableOpacity
-                  activeOpacity={0.95}
-                  onLongPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                    setShowBadgePopup(true);
+                  onPress={() => {
+                    setEditingLifeEvent(null);
+                    setShowLifeEventModal(true);
                   }}
+                  style={[styles.addLifeEventButton, { backgroundColor: colors.muted }]}
                 >
-                  <FriendListRow friend={friend} variant="full" />
+                  <Plus size={14} color={colors.primary} />
+                  <Text style={[styles.addLifeEventText, { color: colors.primary }]}>Add</Text>
                 </TouchableOpacity>
-            </Animated.View>
+              </View>
 
-            <Animated.View style={[styles.actionButtonsContainer, buttonsAnimatedStyle]}>
-                <TouchableOpacity
-                  onPress={() => router.push({ pathname: '/weave-logger', params: { friendId: friend.id } })}
-                  style={[styles.actionButton, styles.actionButtonPrimary]}
-                >
-                  <LinearGradient
-                    colors={[colors.primary, `${colors.primary}DD`]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.buttonGradient}
-                  >
-                    <View style={styles.glassOverlay} />
-                    <Text style={[styles.actionButtonTextPrimary, { color: colors['primary-foreground'] }]}>Log a Weave</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => setShowPlanChoice(true)}
-                  style={[styles.actionButton, styles.actionButtonSecondary]}
-                >
-                  <LinearGradient
-                    colors={[colors.secondary, `${colors.secondary}CC`]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.buttonGradient}
-                  >
-                    <View style={styles.glassOverlay} />
-                    <Text style={[styles.actionButtonTextSecondary, { color: colors.foreground }]}>Plan a Weave</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
-            </Animated.View>
+              {activeLifeEvents.length > 0 ? (
+                <View style={styles.lifeEventsList}>
+                  {activeLifeEvents.map((event) => {
+                    const daysUntil = differenceInDays(event.eventDate, new Date());
+                    const isPastEvent = daysUntil < 0;
+                    const isUpcoming = daysUntil >= 0 && daysUntil <= 30;
 
-            {/* Life Events Section - Compact */}
-            {activeLifeEvents.length > 0 || true /* always show to allow adding */ ? (
-              <Animated.View style={[styles.lifeEventsSection, buttonsAnimatedStyle]}>
-                <View style={styles.lifeEventsSectionHeader}>
-                  <Text style={[styles.lifeEventsSectionTitle, { color: colors.foreground }]}>
-                    Life Events
-                  </Text>
-                  <TouchableOpacity
-                    onPress={() => {
-                      setEditingLifeEvent(null);
-                      setShowLifeEventModal(true);
-                    }}
-                    style={[styles.addLifeEventButton, { backgroundColor: colors.muted }]}
-                  >
-                    <Plus size={14} color={colors.primary} />
-                    <Text style={[styles.addLifeEventText, { color: colors.primary }]}>Add</Text>
-                  </TouchableOpacity>
-                </View>
+                    const eventIcons: Record<string, string> = {
+                      new_job: '💼', moving: '📦', wedding: '💒', baby: '👶',
+                      loss: '🕊️', health_event: '🏥', graduation: '🎓',
+                      celebration: '🎉', birthday: '🎂', anniversary: '💝', other: '✨'
+                    };
 
-                {activeLifeEvents.length > 0 ? (
-                  <View style={styles.lifeEventsList}>
-                    {activeLifeEvents.map((event) => {
-                      const daysUntil = differenceInDays(event.eventDate, new Date());
-                      const isPastEvent = daysUntil < 0;
-                      const isUpcoming = daysUntil >= 0 && daysUntil <= 30;
-
-                      const eventIcons: Record<string, string> = {
-                        new_job: '💼', moving: '📦', wedding: '💒', baby: '👶',
-                        loss: '🕊️', health_event: '🏥', graduation: '🎓',
-                        celebration: '🎉', birthday: '🎂', anniversary: '💝', other: '✨'
-                      };
-
-                      return (
-                        <TouchableOpacity
-                          key={event.id}
-                          onPress={() => {
-                            setEditingLifeEvent(event);
-                            setShowLifeEventModal(true);
-                          }}
-                          style={[
-                            styles.lifeEventCard,
-                            {
-                              backgroundColor: colors.muted,
-                              borderColor: isUpcoming ? colors.primary : colors.border,
-                              borderWidth: isUpcoming ? 1.5 : 1,
-                            }
-                          ]}
-                        >
-                          <Text style={styles.lifeEventIcon}>{eventIcons[event.eventType]}</Text>
-                          <View style={styles.lifeEventContent}>
-                            <Text style={[styles.lifeEventTitle, { color: colors.foreground }]} numberOfLines={1}>
-                              {event.title}
-                            </Text>
-                            <Text style={[styles.lifeEventDate, { color: colors['muted-foreground'] }]}>
-                              {isPastEvent
-                                ? `${Math.abs(daysUntil)}d ago`
-                                : daysUntil === 0
+                    return (
+                      <TouchableOpacity
+                        key={event.id}
+                        onPress={() => {
+                          setEditingLifeEvent(event);
+                          setShowLifeEventModal(true);
+                        }}
+                        style={[
+                          styles.lifeEventCard,
+                          {
+                            backgroundColor: colors.muted,
+                            borderColor: isUpcoming ? colors.primary : colors.border,
+                            borderWidth: isUpcoming ? 1.5 : 1,
+                          }
+                        ]}
+                      >
+                        <Text style={styles.lifeEventIcon}>{eventIcons[event.eventType]}</Text>
+                        <View style={styles.lifeEventContent}>
+                          <Text style={[styles.lifeEventTitle, { color: colors.foreground }]} numberOfLines={1}>
+                            {event.title}
+                          </Text>
+                          <Text style={[styles.lifeEventDate, { color: colors['muted-foreground'] }]}>
+                            {isPastEvent
+                              ? `${Math.abs(daysUntil)}d ago`
+                              : daysUntil === 0
                                 ? 'Today'
                                 : daysUntil === 1
-                                ? 'Tomorrow'
-                                : `${daysUntil}d`}
-                            </Text>
-                          </View>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-                ) : (
-                  <Text style={[styles.noLifeEvents, { color: colors['muted-foreground'] }]}>
-                    No active life events. Tap "Add" to create one.
-                  </Text>
-                )}
-              </Animated.View>
-            ) : null}
+                                  ? 'Tomorrow'
+                                  : `${daysUntil}d`}
+                          </Text>
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              ) : (
+                <Text style={[styles.noLifeEvents, { color: colors['muted-foreground'] }]}>
+                  No active life events. Tap "Add" to create one.
+                </Text>
+              )}
+            </Animated.View>
+          ) : null}
         </View>
         <View style={{ paddingHorizontal: 20 }}>
-            <Text style={[styles.timelineTitle, { color: colors.foreground }]}>
-                Weave Timeline
-            </Text>
+          <Text style={[styles.timelineTitle, { color: colors.foreground }]}>
+            Weave Timeline
+          </Text>
         </View>
-    </View>
+      </View>
     );
   }, [friend, colors, headerAnimatedStyle, buttonsAnimatedStyle, activeLifeEvents, router, handleEdit, handleDeleteFriend, setShowPlanChoice, setShowLifeEventModal, setEditingLifeEvent]);
 
@@ -500,79 +418,79 @@ router.back();
       key={`friend-profile-${friendId}`}
       style={[styles.safeArea, { backgroundColor: colors.background }]}
     >
-        <Animated.View style={[{ flex: 1 }, pageAnimatedStyle]}>
+      <Animated.View style={[{ flex: 1 }, pageAnimatedStyle]}>
         {/* Sticky Header */}
         {ListHeader}
 
         {/* Timeline ScrollView */}
         <View className="flex-1 relative">
-            <AnimatedSectionList
-                key={friendId} // Force remount when friend changes
-                sections={timelineSections}
-                renderItem={renderTimelineItem}
-                keyExtractor={(item) => item.id.toString()}
-                ListEmptyComponent={
-                    <View className="items-center py-12">
-                        <View className="mb-4 opacity-50">
-                            <WeaveIcon size={40} color={colors['muted-foreground']} />
-                        </View>
-                        <Text style={{ color: colors['muted-foreground'] }}>No weaves yet</Text>
-                        <Text className="text-xs mt-1 opacity-70" style={{ color: colors['muted-foreground'] }}>Your timeline will grow as you connect</Text>
-                    </View>
-                }
-                ListFooterComponent={
-                    hasMoreInteractions ? (
-                        <View className="py-4 items-center">
-                            <ActivityIndicator size="small" color={colors.primary} />
-                            <Text className="text-xs mt-2 opacity-70" style={{ color: colors['muted-foreground'] }}>
-                                Loading more weaves...
-                            </Text>
-                        </View>
-                    ) : null
-                }
-                stickySectionHeadersEnabled={false}
-                contentContainerStyle={{ paddingTop: 20, paddingBottom: 100 }}
-                onScroll={animatedScrollHandler}
-                scrollEventThrottle={8}
-                decelerationRate="fast"
-                showsVerticalScrollIndicator={false}
-                // Performance optimizations
-                initialNumToRender={20}
-                maxToRenderPerBatch={10}
-                windowSize={5}
-                removeClippedSubviews={true}
-                // Infinite scroll
-                onEndReached={handleLoadMore}
-                onEndReachedThreshold={0.5}
-            />
+          <AnimatedSectionList
+            key={friendId as string} // Force remount when friend changes
+            sections={timelineSections}
+            renderItem={renderTimelineItem}
+            keyExtractor={(item: any) => item.id.toString()}
+            ListEmptyComponent={
+              <View className="items-center py-12">
+                <View className="mb-4 opacity-50">
+                  <WeaveIcon size={40} color={colors['muted-foreground']} />
+                </View>
+                <Text style={{ color: colors['muted-foreground'] }}>No weaves yet</Text>
+                <Text className="text-xs mt-1 opacity-70" style={{ color: colors['muted-foreground'] }}>Your timeline will grow as you connect</Text>
+              </View>
+            }
+            ListFooterComponent={
+              hasMoreInteractions ? (
+                <View className="py-4 items-center">
+                  <ActivityIndicator size="small" color={colors.primary} />
+                  <Text className="text-xs mt-2 opacity-70" style={{ color: colors['muted-foreground'] }}>
+                    Loading more weaves...
+                  </Text>
+                </View>
+              ) : null
+            }
+            stickySectionHeadersEnabled={false}
+            contentContainerStyle={{ paddingTop: 20, paddingBottom: 100 }}
+            onScroll={animatedScrollHandler}
+            scrollEventThrottle={8}
+            decelerationRate="fast"
+            showsVerticalScrollIndicator={false}
+            // Performance optimizations
+            initialNumToRender={20}
+            maxToRenderPerBatch={10}
+            windowSize={5}
+            removeClippedSubviews={true}
+            // Infinite scroll
+            onEndReached={handleLoadMore}
+            onEndReachedThreshold={0.5}
+          />
         </View>
 
         <InteractionDetailModal
-            interaction={selectedInteraction}
-            isOpen={selectedInteraction !== null}
-            onClose={() => setSelectedInteraction(null)}
-            friendName={friend.name}
-            onEditReflection={(interaction) => {
-              setEditingReflection(interaction);
-              setSelectedInteraction(null); // Close detail modal
-            }}
-            onEdit={handleEditInteraction}
-            onDelete={handleDeleteInteraction}
+          interaction={selectedInteraction}
+          isOpen={selectedInteraction !== null}
+          onClose={() => setSelectedInteraction(null)}
+          friendName={friend.name}
+          onEditReflection={(interaction) => {
+            setEditingReflection(interaction);
+            setSelectedInteraction(null); // Close detail modal
+          }}
+          onEdit={handleEditInteraction}
+          onDelete={handleDeleteInteraction}
         />
 
         <EditReflectionModal
-            interaction={editingReflection}
-            isOpen={editingReflection !== null}
-            onClose={() => setEditingReflection(null)}
-            onSave={updateReflection}
-            friendArchetype={friend?.archetype}
+          interaction={editingReflection}
+          isOpen={editingReflection !== null}
+          onClose={() => setEditingReflection(null)}
+          onSave={updateReflection}
+          friendArchetype={friend?.archetype as any}
         />
 
         <EditInteractionModal
-            interaction={editingInteraction}
-            isOpen={editingInteraction !== null && !isFuture(new Date(editingInteraction?.interactionDate || Date.now()))}
-            onClose={() => setEditingInteraction(null)}
-            onSave={updateInteraction}
+          interaction={editingInteraction}
+          isOpen={editingInteraction !== null && !isFuture(new Date(editingInteraction?.interactionDate || Date.now()))}
+          onClose={() => setEditingInteraction(null)}
+          onSave={updateInteraction as any}
         />
 
         <PlanChoiceModal
@@ -616,11 +534,11 @@ router.back();
           friendName={friend.name}
           onClose={() => setShowIntentionForm(false)}
           onSave={async (description, category) => {
-            await createIntention({
-              friendIds: [friend.id],
+            await createIntention(
+              [friend.id],
               description,
               category,
-            });
+            );
           }}
         />
 
@@ -658,7 +576,7 @@ router.back();
           onClose={() => {
             setShowLifeEventModal(false);
             setEditingLifeEvent(null);
-            loadLifeEvents(); // Refresh events after modal closes
+            refreshLifeEvents(); // Refresh events after modal closes
           }}
           friendId={typeof friendId === 'string' ? friendId : ''}
           existingEvent={editingLifeEvent}
@@ -672,128 +590,128 @@ router.back();
             friendName={friend.name}
           />
         )}
-        </Animated.View>
+      </Animated.View>
 
-        <IntentionsFAB
-          count={friendIntentions.length}
-          onClick={() => setShowIntentionsDrawer(true)}
-        />
+      <IntentionsFAB
+        count={friendIntentions.length}
+        onClick={() => setShowIntentionsDrawer(true)}
+      />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-    safeArea: { flex: 1 },
-    loadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 12, borderBottomWidth: 1 },
-    backButton: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-    headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-    contentContainer: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8, gap: 12 },
-    actionButtonsContainer: { flexDirection: 'row', gap: 12 },
-    actionButton: {
-      flex: 1,
-      borderRadius: 12,
-      overflow: 'hidden',
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 8,
-      elevation: 4,
-    },
-    actionButtonPrimary: {},
-    actionButtonSecondary: {},
-    buttonGradient: {
-      paddingVertical: 12,
-      paddingHorizontal: 16,
-      alignItems: 'center',
-      justifyContent: 'center',
-      position: 'relative',
-    },
-    glassOverlay: {
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      right: 0,
-      height: '50%',
-      backgroundColor: 'rgba(255, 255, 255, 0.15)',
-      borderBottomLeftRadius: 100,
-      borderBottomRightRadius: 100,
-    },
-    actionButtonTextPrimary: {
-      fontSize: 14,
-      fontWeight: '600',
-      letterSpacing: 0.2,
-    },
-    actionButtonTextSecondary: {
-      fontSize: 14,
-      fontWeight: '600',
-      letterSpacing: 0.2,
-    },
-    timelineTitle: { fontSize: 16, fontWeight: '600', marginBottom: 12, marginTop: 8, fontFamily: 'Lora_700Bold' },
-    // Timeline item wrapper: px-5 (NativeWind)
-    // Timeline container: flex-1 relative (NativeWind)
-    // Thread container: absolute top-0 left-0 right-0 bottom-0 -z-10 pointer-events-none (NativeWind)
-    // Empty state: items-center py-12 (NativeWind)
-    // Empty emoji: text-[40px] mb-4 opacity-50 (NativeWind)
-    // Empty text: muted-foreground color (dynamic)
-    // Empty subtext: text-xs mt-1 opacity-70 (NativeWind)
-    lifeEventsSection: {
-        paddingHorizontal: 20,
-        marginTop: 8,
-        marginBottom: 8,
-    },
-    lifeEventsSectionHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 8,
-    },
-    lifeEventsSectionTitle: {
-        fontFamily: 'Lora_700Bold',
-        fontSize: 15,
-    },
-    addLifeEventButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 4,
-        paddingHorizontal: 10,
-        paddingVertical: 4,
-        borderRadius: 999,
-    },
-    addLifeEventText: {
-        fontFamily: 'Inter_600SemiBold',
-        fontSize: 12,
-    },
-    lifeEventsList: {
-        gap: 6,
-    },
-    lifeEventCard: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        padding: 10,
-        borderRadius: 10,
-        gap: 10,
-        marginBottom: 0,
-    },
-    lifeEventIcon: {
-        fontSize: 20,
-    },
-    lifeEventContent: {
-        flex: 1,
-    },
-    lifeEventTitle: {
-        fontFamily: 'Inter_600SemiBold',
-        fontSize: 13,
-        marginBottom: 1,
-    },
-    lifeEventDate: {
-        fontFamily: 'Inter_400Regular',
-        fontSize: 11,
-    },
-    noLifeEvents: {
-        fontFamily: 'Inter_400Regular',
-        fontSize: 12,
-        textAlign: 'center',
-        paddingVertical: 8,
-    },
+  safeArea: { flex: 1 },
+  loadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 12, borderBottomWidth: 1 },
+  backButton: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  contentContainer: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8, gap: 12 },
+  actionButtonsContainer: { flexDirection: 'row', gap: 12 },
+  actionButton: {
+    flex: 1,
+    borderRadius: 12,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  actionButtonPrimary: {},
+  actionButtonSecondary: {},
+  buttonGradient: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  glassOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '50%',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderBottomLeftRadius: 100,
+    borderBottomRightRadius: 100,
+  },
+  actionButtonTextPrimary: {
+    fontSize: 14,
+    fontWeight: '600',
+    letterSpacing: 0.2,
+  },
+  actionButtonTextSecondary: {
+    fontSize: 14,
+    fontWeight: '600',
+    letterSpacing: 0.2,
+  },
+  timelineTitle: { fontSize: 16, fontWeight: '600', marginBottom: 12, marginTop: 8, fontFamily: 'Lora_700Bold' },
+  // Timeline item wrapper: px-5 (NativeWind)
+  // Timeline container: flex-1 relative (NativeWind)
+  // Thread container: absolute top-0 left-0 right-0 bottom-0 -z-10 pointer-events-none (NativeWind)
+  // Empty state: items-center py-12 (NativeWind)
+  // Empty emoji: text-[40px] mb-4 opacity-50 (NativeWind)
+  // Empty text: muted-foreground color (dynamic)
+  // Empty subtext: text-xs mt-1 opacity-70 (NativeWind)
+  lifeEventsSection: {
+    paddingHorizontal: 20,
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  lifeEventsSectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  lifeEventsSectionTitle: {
+    fontFamily: 'Lora_700Bold',
+    fontSize: 15,
+  },
+  addLifeEventButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+  addLifeEventText: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 12,
+  },
+  lifeEventsList: {
+    gap: 6,
+  },
+  lifeEventCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 10,
+    borderRadius: 10,
+    gap: 10,
+    marginBottom: 0,
+  },
+  lifeEventIcon: {
+    fontSize: 20,
+  },
+  lifeEventContent: {
+    flex: 1,
+  },
+  lifeEventTitle: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 13,
+    marginBottom: 1,
+  },
+  lifeEventDate: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 11,
+  },
+  noLifeEvents: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 12,
+    textAlign: 'center',
+    paddingVertical: 8,
+  },
 });

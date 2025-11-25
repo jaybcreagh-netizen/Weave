@@ -8,6 +8,7 @@ import Animated, {
   withTiming,
   withSpring,
   withDelay,
+  withSequence,
   interpolate,
   Easing,
   runOnJS,
@@ -37,6 +38,8 @@ interface TimelineItemProps {
   sectionLabel?: string;
   isFirstInSection?: boolean;
   isLastItem?: boolean; // Is this the last item in the entire timeline?
+  onDelete?: (id: string) => void;
+  onEdit?: (id: string) => void;
 }
 
 export const TimelineItem = React.memo(({ interaction, isFuture, onPress, index, scrollY, itemY = 0, showKnot = true, sectionLabel, isFirstInSection = false, isLastItem = false }: TimelineItemProps) => {
@@ -72,7 +75,7 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, index,
       return {
         line: isDarkMode ? 'rgba(139, 92, 246, 0.4)' : 'rgba(181, 138, 108, 0.35)',
         knot: 'transparent', // Hollow for future
-        glow: isDarkMode ? colors.accent : colors.glow,
+        glow: isDarkMode ? colors.accent : colors.primary,
       };
     }
 
@@ -208,7 +211,7 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, index,
 
     return {
       displayLabel: interaction.activity || 'Interaction', // Fallback label
-      displayIcon: modeIcons[interaction.mode as keyof typeof modeIcons] || modeIcons.default
+      displayIcon: modeIcons[interaction.mode as keyof typeof modeIcons] || '✨'
     };
   }, [interaction.activity, interaction.mode, interaction.interactionCategory, interaction.reflection]);
 
@@ -503,9 +506,9 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, index,
   // Scroll-based fade for items near viewport edges (optional subtle effect)
   const scrollFadeStyle = useAnimatedStyle(() => {
     if (!scrollY || itemY === 0) return { opacity: 1 };
-    
+
     const itemPosition = itemY - scrollY.value;
-    
+
     // Very subtle fade at edges (only affects extreme positions)
     const topFade = interpolate(
       itemPosition,
@@ -513,14 +516,14 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, index,
       [0.6, 1],
       'clamp'
     );
-    
+
     const bottomFade = interpolate(
       itemPosition,
       [600, 750],
       [1, 0.6],
       'clamp'
     );
-    
+
     return {
       opacity: Math.min(topFade, bottomFade),
     };
@@ -558,179 +561,179 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, index,
 
       <Animated.View className="flex-row items-center gap-4 pb-6" style={[containerAnimatedStyle, scrollFadeStyle]}>
         {/* Knot positioned absolutely on the thread with connector line */}
-      <View className="absolute w-full h-10 top-2 left-5 z-10" pointerEvents="none">
-        {/* Connector line from thread to card */}
-        {/* Future: dotted, Past: solid */}
-        <View
-          className="absolute h-[1.5px] top-5"
-          style={{
-            left: THREAD_CENTER,
-            width: CARD_START - THREAD_CENTER,
-            backgroundColor: isDarkMode ? colors.border : 'rgba(181, 138, 108, 0.5)',
-            opacity: isFuture ? 0.5 : 1,
-            borderStyle: isFuture ? 'dotted' : 'solid',
-          }}
-        />
-
-        {/* Knot on thread - centered on thread */}
-        {/* Knots fade from golden (recent) to white (distant) - hollow "O" appearance */}
-        <Animated.View
-          className="absolute w-[10px] h-[10px] top-4 rounded-full border-2 shadow-sm"
-          style={[
-            knotAnimatedStyle,
-            {
-              left: THREAD_CENTER - (KNOT_SIZE / 2),
-              backgroundColor: isFuture ? 'transparent' : (temporalColors.knot === colors.card ? 'transparent' : temporalColors.knot),
-              borderColor: isFuture ? 'rgba(247, 245, 242, 0.6)' : temporalColors.line,
-              shadowColor: temporalColors.glow,
-              shadowOffset: { width: 0, height: 1 },
-              shadowOpacity: warmth > 0.5 ? 0.3 : 0.15,
-              shadowRadius: 3 + (warmth * 6),
-            }
-          ]}
-        >
-          {/* Glow effect for warm/recent knots */}
-          {warmth > 0.5 && !isFuture && (
-            <View
-              className="absolute w-4 h-4 -top-[3px] -left-[3px] rounded-full -z-10 opacity-20"
-              style={{
-                backgroundColor: temporalColors.glow,
-              }}
-            />
-          )}
-        </Animated.View>
-
-        {/* Vertical line segment connecting to next item (point-to-point) */}
-        {/* Line has airgaps at both ends - doesn't touch knots */}
-        {/* SVG line with pen stroke animation - draws on smoothly from top to bottom */}
-        {!isLastItem && (
-          <Svg
+        <View className="absolute w-full h-10 top-2 left-5 z-10" pointerEvents="none">
+          {/* Connector line from thread to card */}
+          {/* Future: dotted, Past: solid */}
+          <View
+            className="absolute h-[1.5px] top-5"
             style={{
-              position: 'absolute',
-              left: THREAD_CENTER - 0.5,
-              top: 16 + KNOT_SIZE + LINE_GAP,
-              width: 2,
-              height: 72,
+              left: THREAD_CENTER,
+              width: CARD_START - THREAD_CENTER,
+              backgroundColor: isDarkMode ? colors.border : 'rgba(181, 138, 108, 0.5)',
+              opacity: isFuture ? 0.5 : 1,
+              borderStyle: isFuture ? 'dotted' : 'solid',
             }}
-            pointerEvents="none"
+          />
+
+          {/* Knot on thread - centered on thread */}
+          {/* Knots fade from golden (recent) to white (distant) - hollow "O" appearance */}
+          <Animated.View
+            className="absolute w-[10px] h-[10px] top-4 rounded-full border-2 shadow-sm"
+            style={[
+              knotAnimatedStyle,
+              {
+                left: THREAD_CENTER - (KNOT_SIZE / 2),
+                backgroundColor: isFuture ? 'transparent' : (temporalColors.knot === colors.card ? 'transparent' : temporalColors.knot),
+                borderColor: isFuture ? 'rgba(247, 245, 242, 0.6)' : temporalColors.line,
+                shadowColor: temporalColors.glow,
+                shadowOffset: { width: 0, height: 1 },
+                shadowOpacity: warmth > 0.5 ? 0.3 : 0.15,
+                shadowRadius: 3 + (warmth * 6),
+              }
+            ]}
           >
-            <AnimatedLine
-              x1="1"
-              y1="0"
-              x2="1"
-              y2="72"
-              stroke={temporalColors.line}
-              strokeWidth="1"
-              strokeDasharray="4 4"
-              strokeOpacity={lineOpacity}
-              strokeLinecap="round"
-              animatedProps={animatedLineProps}
-            />
-          </Svg>
-        )}
-      </View>
+            {/* Glow effect for warm/recent knots */}
+            {warmth > 0.5 && !isFuture && (
+              <View
+                className="absolute w-4 h-4 -top-[3px] -left-[3px] rounded-full -z-10 opacity-20"
+                style={{
+                  backgroundColor: temporalColors.glow,
+                }}
+              />
+            )}
+          </Animated.View>
 
-      {/* Date Column */}
-      <View className="w-[72px] items-end pt-2 pr-2 shrink-0">
-        <Text className="text-xs font-semibold mb-0.5" style={dynamicStyles.dateText} numberOfLines={1}>{primary}</Text>
-        <Text className="text-[11px] font-normal" style={dynamicStyles.timeText} numberOfLines={1}>{secondary}</Text>
-      </View>
+          {/* Vertical line segment connecting to next item (point-to-point) */}
+          {/* Line has airgaps at both ends - doesn't touch knots */}
+          {/* SVG line with pen stroke animation - draws on smoothly from top to bottom */}
+          {!isLastItem && (
+            <Svg
+              style={{
+                position: 'absolute',
+                left: THREAD_CENTER - 0.5,
+                top: 16 + KNOT_SIZE + LINE_GAP,
+                width: 2,
+                height: 72,
+              }}
+              pointerEvents="none"
+            >
+              <AnimatedLine
+                x1="1"
+                y1="0"
+                x2="1"
+                y2="72"
+                stroke={temporalColors.line}
+                strokeWidth="1"
+                strokeDasharray="4 4"
+                strokeOpacity={lineOpacity}
+                strokeLinecap="round"
+                animatedProps={animatedLineProps}
+              />
+            </Svg>
+          )}
+        </View>
 
-      {/* Empty spacer where knot used to be */}
-      <View className="w-5" />
+        {/* Date Column */}
+        <View className="w-[72px] items-end pt-2 pr-2 shrink-0">
+          <Text className="text-xs font-semibold mb-0.5" style={dynamicStyles.dateText} numberOfLines={1}>{primary}</Text>
+          <Text className="text-[11px] font-normal" style={dynamicStyles.timeText} numberOfLines={1}>{secondary}</Text>
+        </View>
 
-      {/* Card */}
-      <TouchableOpacity
-        className="flex-1"
-        onPress={onPress}
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
-        activeOpacity={1}
-      >
-        <Animated.View
-          className="rounded-2xl overflow-hidden shadow-sm elevation-4 border"
-          style={[
-            dynamicStyles.card,
-            isFuture ? dynamicStyles.cardPlanned : dynamicStyles.cardCompleted,
-            cardAnimatedStyle,
-            {
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 2 },
-            },
-            // Scale-based border and shadow for deepened weaves
-            deepeningMetrics.level !== 'none' && {
-              borderColor: colors.primary + deepeningVisuals.borderOpacity.toString(16).padStart(2, '0'),
-              borderWidth: deepeningVisuals.borderWidth,
-              shadowColor: colors.primary,
-              shadowOpacity: deepeningVisuals.shadowOpacity,
-              shadowRadius: deepeningVisuals.shadowRadius,
-              shadowOffset: { width: 0, height: 2 },
-            },
-          ]}
+        {/* Empty spacer where knot used to be */}
+        <View className="w-5" />
+
+        {/* Card */}
+        <TouchableOpacity
+          className="flex-1"
+          onPress={onPress}
+          onPressIn={handlePressIn}
+          onPressOut={handlePressOut}
+          activeOpacity={1}
         >
-          {/* Simple solid background with color tint overlay */}
-          <View className="absolute inset-0" style={{ backgroundColor: isDarkMode ? colors.card : colors.card }} />
-          <View className="absolute inset-0" style={{ backgroundColor: cardTintColor }} />
+          <Animated.View
+            className="rounded-2xl overflow-hidden shadow-sm elevation-4 border"
+            style={[
+              dynamicStyles.card,
+              isFuture ? dynamicStyles.cardPlanned : dynamicStyles.cardCompleted,
+              cardAnimatedStyle,
+              {
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+              },
+              // Scale-based border and shadow for deepened weaves
+              deepeningMetrics.level !== 'none' && {
+                borderColor: colors.primary + deepeningVisuals.borderOpacity.toString(16).padStart(2, '0'),
+                borderWidth: deepeningVisuals.borderWidth,
+                shadowColor: colors.primary,
+                shadowOpacity: deepeningVisuals.shadowOpacity,
+                shadowRadius: deepeningVisuals.shadowRadius,
+                shadowOffset: { width: 0, height: 2 },
+              },
+            ]}
+          >
+            {/* Simple solid background with color tint overlay */}
+            <View className="absolute inset-0" style={{ backgroundColor: isDarkMode ? colors.card : colors.card }} />
+            <View className="absolute inset-0" style={{ backgroundColor: cardTintColor }} />
 
-          {/* Reflection glow overlay for deepened weaves */}
-          {deepeningMetrics.level !== 'none' && !isFuture && (
+            {/* Reflection glow overlay for deepened weaves */}
+            {deepeningMetrics.level !== 'none' && !isFuture && (
+              <Animated.View
+                className="absolute inset-0"
+                style={[
+                  reflectionGlowStyle,
+                  { backgroundColor: colors.primary }
+                ]}
+                pointerEvents="none"
+              />
+            )}
+
+            {/* Just-logged celebration glow */}
             <Animated.View
-              className="absolute inset-0"
+              className="absolute inset-0 z-20"
               style={[
-                reflectionGlowStyle,
-                { backgroundColor: colors.primary }
+                justLoggedGlowStyle,
+                { backgroundColor: 'white' }
               ]}
               pointerEvents="none"
             />
-          )}
 
-          {/* Just-logged celebration glow */}
-          <Animated.View
-            className="absolute inset-0 z-20"
-            style={[
-              justLoggedGlowStyle,
-              { backgroundColor: 'white' }
-            ]}
-            pointerEvents="none"
-          />
-
-          <View className="p-4 flex-row items-start gap-3 z-[1]">
-            {/* Icon with deepened indicator */}
-            <View>
-              <Text
-                className="text-[26px] opacity-90"
-                style={{ transform: [{ rotate: `${iconRotation}deg` }] }}
-              >
-                {displayIcon}
-              </Text>
-              {/* Deepened weave indicator - scale-based sparkles */}
-              {deepeningMetrics.level !== 'none' && (
-                <View className="absolute -top-1 -right-1">
-                  <Text className="text-sm">{deepeningVisuals.badgeEmoji}</Text>
-                </View>
-              )}
+            <View className="p-4 flex-row items-start gap-3 z-[1]">
+              {/* Icon with deepened indicator */}
+              <View>
+                <Text
+                  className="text-[26px] opacity-90"
+                  style={{ transform: [{ rotate: `${iconRotation}deg` }] }}
+                >
+                  {displayIcon}
+                </Text>
+                {/* Deepened weave indicator - scale-based sparkles */}
+                {deepeningMetrics.level !== 'none' && (
+                  <View className="absolute -top-1 -right-1">
+                    <Text className="text-sm">{deepeningVisuals.badgeEmoji}</Text>
+                  </View>
+                )}
+              </View>
+              <View className="flex-1">
+                {/* Show custom title if it exists, otherwise show category label */}
+                <Text className="font-semibold mb-1 text-base font-[Lora_700Bold]" style={dynamicStyles.cardTitle}>
+                  {interaction.title || displayLabel}
+                </Text>
+                {/* Show category as subtitle if custom title exists, otherwise show mode */}
+                <Text className="text-[13px] capitalize" style={dynamicStyles.cardSubtitle}>
+                  {interaction.title ? displayLabel : interaction.mode?.replace('-', ' ')}
+                </Text>
+                {/* Reflection chip preview - scale-based label */}
+                {deepeningMetrics.level !== 'none' && (
+                  <View className="mt-1.5">
+                    <Text className="text-[11px] font-medium opacity-70" style={{ color: colors.primary }} numberOfLines={1}>
+                      {deepeningVisuals.badgeText}
+                    </Text>
+                  </View>
+                )}
+              </View>
             </View>
-            <View className="flex-1">
-              {/* Show custom title if it exists, otherwise show category label */}
-              <Text className="font-semibold mb-1 text-base font-[Lora_700Bold]" style={dynamicStyles.cardTitle}>
-                {interaction.title || displayLabel}
-              </Text>
-              {/* Show category as subtitle if custom title exists, otherwise show mode */}
-              <Text className="text-[13px] capitalize" style={dynamicStyles.cardSubtitle}>
-                {interaction.title ? displayLabel : interaction.mode?.replace('-', ' ')}
-              </Text>
-              {/* Reflection chip preview - scale-based label */}
-              {deepeningMetrics.level !== 'none' && (
-                <View className="mt-1.5">
-                  <Text className="text-[11px] font-medium opacity-70" style={{ color: colors.primary }} numberOfLines={1}>
-                    {deepeningVisuals.badgeText}
-                  </Text>
-                </View>
-              )}
-            </View>
-          </View>
-        </Animated.View>
-      </TouchableOpacity>
+          </Animated.View>
+        </TouchableOpacity>
       </Animated.View>
     </View>
   );

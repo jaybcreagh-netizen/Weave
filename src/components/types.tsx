@@ -26,7 +26,7 @@ export type Friend = {
 
 export type Interaction = {
   id: string;
-  friendIds: string[];
+  friendIds?: string[];
   createdAt: Date;
   interactionDate: Date;
   category?: InteractionCategory; // NEW: Simplified interaction category

@@ -15,11 +15,11 @@ import { ContextualReflectionInput } from '@/components/ContextualReflectionInpu
 import { format, subDays, isSameDay, startOfDay } from 'date-fns';
 import { type Vibe, type InteractionCategory, type Archetype } from '@/components/types';
 import { useTheme } from '@/shared/hooks/useTheme';
-import { getAllCategories, type CategoryMetadata } from '@/shared/constants/interaction-categories';
+import { getAllCategories, getCategoryMetadata, type CategoryMetadata } from '@/shared/constants/interaction-categories';
 import { database } from '@/db';
 import FriendModel from '@/db/models/Friend';
 
-const categories: CategoryMetadata[] = getAllCategories();
+const categories: CategoryMetadata[] = getAllCategories().map(getCategoryMetadata);
 
 const dateOptions = [
   { id: 'today', icon: '☀️', label: 'Today', getDate: () => startOfDay(new Date()) },
@@ -300,7 +300,7 @@ export default function WeaveLoggerScreen() {
             <View className="flex-row flex-wrap gap-3">
               {categories.map((cat, index) => (
                 <Animated.View
-                  key={cat.category}
+                  key={cat.id}
                   style={{ width: '48%' }}
                   entering={FadeInUp.duration(500).delay(index * 50)}
                 >
@@ -308,8 +308,8 @@ export default function WeaveLoggerScreen() {
                     className="p-3 rounded-2xl items-center justify-center"
                     style={{
                       backgroundColor: colors.card,
-                      borderWidth: selectedCategory === cat.category ? 2 : 1,
-                      borderColor: selectedCategory === cat.category ? colors.primary : colors.border,
+                      borderWidth: selectedCategory === cat.id ? 2 : 1,
+                      borderColor: selectedCategory === cat.id ? colors.primary : colors.border,
                       shadowColor: '#000',
                       shadowOffset: { width: 0, height: 2 },
                       shadowOpacity: 0.05,
@@ -317,7 +317,7 @@ export default function WeaveLoggerScreen() {
                       elevation: 2,
                       minHeight: 120,
                     }}
-                    onPress={() => handleCategorySelect(cat.category)}
+                    onPress={() => handleCategorySelect(cat.id)}
                   >
                     <Text className="text-2xl mb-1">{cat.icon}</Text>
                     <Text className="font-inter-semibold text-sm text-center mb-1" style={{ color: colors.foreground }}>

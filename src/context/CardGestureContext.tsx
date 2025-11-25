@@ -1,38 +1,14 @@
-import React, { createContext, useContext, useMemo } from 'react'; // Import useMemo
+import React, { createContext, useContext, useMemo } from 'react';
 import { View } from 'react-native';
 import Animated, { useSharedValue, useAnimatedScrollHandler, runOnJS, measure } from 'react-native-reanimated';
 import { Gesture } from 'react-native-gesture-handler';
 import * as Haptics from 'expo-haptics';
-import { useRouter } from 'expo-router';
 
-import { useUIStore } from '../stores/uiStore';
-import { useInteractions } from '@/modules/interactions';
-import { database } from '@/db';
-import Friend from '@/db/models/Friend';
-import { type InteractionCategory } from '@/components/types';
-import { getTopActivities, isSmartDefaultsEnabled } from '@/modules/interactions';
-
-const MENU_RADIUS = 75; // Reduced for compact design
-const HIGHLIGHT_THRESHOLD = 25; // Reduced from 30
-const SELECTION_THRESHOLD = 40; // Reduced from 45
-
-// NEW: 6 most common categories for quick-touch radial menu
-const ACTIVITIES = [
-  { id: 'text-call', icon: '📞', label: 'Call' },
-  { id: 'meal-drink', icon: '🍽️', label: 'Meal' },
-  { id: 'hangout', icon: '👥', label: 'Hang' },
-  { id: 'deep-talk', icon: '💭', label: 'Talk' },
-  { id: 'activity-hobby', icon: '🎨', label: 'Do' },
-  { id: 'voice-note', icon: '🎤', label: 'Voice' },
-];
-
-const itemPositions = ACTIVITIES.map((_, i) => {
-  const angle = (i / ACTIVITIES.length) * 2 * Math.PI - Math.PI / 2;
-  return { x: MENU_RADIUS * Math.cos(angle), y: MENU_RADIUS * Math.sin(angle), angle };
-});
+import { useQuickWeave } from '@/modules/interactions/hooks/useQuickWeave';
+import { itemPositions, HIGHLIGHT_THRESHOLD, SELECTION_THRESHOLD } from '@/modules/interactions/constants';
 
 interface CardGestureContextType {
-  gesture: Gesture;
+  gesture: any; // Using any to avoid complex Gesture type issues
   animatedScrollHandler: any;
   activeCardId: Animated.SharedValue<string | null>;
   registerRef: (id: string, ref: React.RefObject<Animated.View>) => void;
@@ -56,9 +32,7 @@ export function useCardGesture() {
 }
 
 function useCardGestureCoordinator(): CardGestureContextType {
-  const router = useRouter();
-  const { openQuickWeave, closeQuickWeave, showToast, setJustNurturedFriendId, setSelectedFriendId, showMicroReflectionSheet, quickWeaveActivities } = useUIStore();
-  const { logWeave } = useInteractions();
+  const { handleInteractionSelection, handleOpenQuickWeave, handleTap, closeQuickWeave } = useQuickWeave();
 
   const cardRefs = useSharedValue<Record<string, React.RefObject<Animated.View>>>({});
   const scrollOffset = useSharedValue(0);
@@ -83,107 +57,13 @@ function useCardGestureCoordinator(): CardGestureContextType {
     onScroll: (event) => { 'worklet'; scrollOffset.value = event.contentOffset.y; },
   });
 
-  const handleInteractionSelection = async (selectedIndex: number, friendId: string) => {
-    try {
-      // Get the selected category from quickWeaveActivities
-      const currentActivities = quickWeaveActivities.length > 0
-        ? quickWeaveActivities
-        : ACTIVITIES.map(a => a.id as InteractionCategory);
-
-      if (selectedIndex >= currentActivities.length) {
-        console.error('Invalid activity index:', selectedIndex);
-        return;
-      }
-
-      const activityId = currentActivities[selectedIndex];
-
-      // Get label from metadata
-      const activityMetadata = ACTIVITIES.find(a => a.id === activityId);
-      const activityLabel = activityMetadata?.label || activityId;
-
-      await handleInteraction(activityId, activityLabel, friendId);
-    } catch (error) {
-      console.error('Error handling interaction selection:', error);
-    }
-  };
-
-  const handleInteraction = async (activityId: string, activityLabel: string, friendId: string) => {
-    const friend = await database.get<Friend>(Friend.table).find(friendId);
-    if (!friend) return;
-
-    // 1. Log the interaction and get the ID back
-    const newInteraction = await logWeave({
-      friendIds: [friendId],
-      category: activityId as InteractionCategory,
-      activity: activityId,
-      notes: '',
-      date: new Date(),
-      type: 'log',
-      status: 'completed',
-      mode: 'quick-touch',
-      vibe: null,
-      duration: null,
-    });
-
-    // 2. Success haptic
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-
-    // 3. Show "just nurtured" glow
-    setJustNurturedFriendId(friendId);
-
-    // 4. Show toast
-    showToast(activityLabel, friend.name);
-
-    // 5. Trigger micro-reflection after short delay
-    setTimeout(() => {
-      showMicroReflectionSheet({
-        friendId,
-        friendName: friend.name,
-        activityId,
-        activityLabel,
-        interactionId: newInteraction.id,
-        friendArchetype: friend.archetype,
-      });
-    }, 200);
-  };
-
-  const handleTap = (friendId: string) => {
-    setSelectedFriendId(friendId);
-    router.push(`/friend-profile?friendId=${friendId}`);
-  };
-
-  const handleOpenQuickWeave = async (friendId: string, centerPoint: { x: number; y: number }) => {
-    try {
-      // Check if smart defaults are enabled
-      const smartDefaultsEnabled = await isSmartDefaultsEnabled();
-
-      let orderedActivities: InteractionCategory[];
-
-      if (smartDefaultsEnabled) {
-        // Fetch friend and calculate smart-ordered activities
-        const friend = await database.get<Friend>(Friend.table).find(friendId);
-        orderedActivities = await getTopActivities(friend, 6);
-      } else {
-        // Use fixed default ordering for muscle memory
-        orderedActivities = ACTIVITIES.map(a => a.id as InteractionCategory);
-      }
-
-      // Open Quick Weave with ordered activities
-      openQuickWeave(friendId, centerPoint, orderedActivities);
-    } catch (error) {
-      console.error('Error opening Quick Weave:', error);
-      // Fallback to default ordering
-      const defaultOrder = ACTIVITIES.map(a => a.id as InteractionCategory);
-      openQuickWeave(friendId, centerPoint, defaultOrder);
-    }
-  };
-
   const findTargetCardId = (absoluteX: number, absoluteY: number) => {
     'worklet';
     const cardIds = Object.keys(cardRefs.value);
     for (const id of cardIds) {
       const ref = cardRefs.value[id];
-      const measurement = measure(ref);
+      // Cast to any to satisfy Reanimated's measure type requirement, assuming ref is valid
+      const measurement = measure(ref as any);
       if (measurement === null) continue;
       const { pageX: x, pageY: y, width, height } = measurement;
       if (absoluteX >= x && absoluteX <= x + width && absoluteY >= y && absoluteY <= y + height) {
