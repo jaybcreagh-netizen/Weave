@@ -47,7 +47,7 @@ export async function completePlan(interactionId: string): Promise<void> {
     reflection: interaction.reflectionJSON ? JSON.parse(interaction.reflectionJSON) : undefined,
   };
 
-  await processWeaveScoring(friends, interactionData);
+  await processWeaveScoring(friends, interactionData, database);
   await recordMilestone('log_weave');
   // TODO: Trigger UI celebration from the hook/store that calls this service.
 }

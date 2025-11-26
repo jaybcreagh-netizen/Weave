@@ -15,7 +15,7 @@ interface PlanWizardStep0Props {
 
 export function PlanWizardStep0({ initialFriend, selectedFriends, onFriendsSelect, onContinue, canContinue }: PlanWizardStep0Props) {
   const { colors } = useTheme();
-  const { friends: allFriends } = useFriends();
+  const allFriends = useFriends();
 
   // Initialize selected friends with the initial friend if not already present
   useEffect(() => {

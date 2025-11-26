@@ -6,10 +6,11 @@
  */
 
 import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, TouchableOpacity } from 'react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
 import type { BadgeDefinition } from '@/modules/gamification/constants/badge-definitions';
 import type { GlobalAchievement } from '@/modules/gamification/constants/achievement-definitions';
+import { Text, Card } from '@/shared/ui';
 
 /**
  * @interface AchievementCardProps
@@ -141,12 +142,12 @@ export default function AchievementCard({
   // Render minimal locked card
   if (!unlocked && !showProgress) {
     const content = (
-      <View
+      <Card
         className={`
-          border rounded-xl overflow-hidden
+          border
           ${colors.border} ${colors.bg}
-          p-3
         `}
+        padding="sm"
         style={{ opacity: 0.5 }}
       >
         <View className="flex-row items-center">
@@ -155,28 +156,30 @@ export default function AchievementCard({
           </Text>
           <View className="flex-1">
             <Text
-              className="font-['Lora'] font-semibold text-sm"
-              style={{ color: themeColors['muted-foreground'] }}
+              variant="h4"
+              className="text-sm"
+              color="muted"
               numberOfLines={1}
             >
               {achievement.name}
             </Text>
             <View className="flex-row items-center justify-between mt-1">
               <Text
-                className={`font-['Inter'] text-xs uppercase tracking-wide ${colors.text}`}
+                variant="label"
+                className={`text-xs ${colors.text}`}
               >
                 {achievement.rarity}
               </Text>
               <Text
-                className="font-['Inter'] text-xs"
-                style={{ color: themeColors['muted-foreground'] }}
+                variant="caption"
+                color="muted"
               >
                 🔒 {achievement.threshold}
               </Text>
             </View>
           </View>
         </View>
-      </View>
+      </Card>
     );
 
     if (onPress) {
@@ -192,12 +195,12 @@ export default function AchievementCard({
 
   // Render full unlocked card or progress card
   const content = (
-    <View
+    <Card
       className={`
-        border-2 rounded-2xl overflow-hidden
+        border-2
         ${colors.border} ${colors.bg} ${colors.glow}
-        ${compact ? 'p-3' : 'p-4'}
       `}
+      padding={compact ? 'sm' : 'md'}
     >
       {/* Icon and Title Row */}
       <View className="flex-row items-center mb-2">
@@ -206,28 +209,30 @@ export default function AchievementCard({
         </Text>
         <View className="flex-1">
           <Text
-            className={`font-['Lora'] font-bold ${compact ? 'text-base' : 'text-lg'}`}
-            style={{ color: themeColors.foreground }}
+            variant="h3"
+            className={compact ? 'text-base' : 'text-lg'}
           >
             {achievement.name}
           </Text>
           <Text
-            className={`font-['Inter'] text-xs uppercase tracking-wide ${colors.text}`}
+            variant="label"
+            className={`text-xs ${colors.text}`}
           >
             {achievement.rarity}
           </Text>
         </View>
         {unlocked && (
           <View className="bg-emerald-500 rounded-full px-2 py-1">
-            <Text className="text-white text-xs font-['Inter'] font-bold">✓</Text>
+            <Text className="text-white text-xs font-bold">✓</Text>
           </View>
         )}
       </View>
 
       {/* Description */}
       <Text
-        className={`font-['Inter'] ${compact ? 'text-xs' : 'text-sm'} mb-2`}
-        style={{ color: themeColors['muted-foreground'] }}
+        variant="body"
+        className={`${compact ? 'text-xs' : 'text-sm'} mb-2`}
+        color="muted"
       >
         {achievement.description}
       </Text>
@@ -235,8 +240,9 @@ export default function AchievementCard({
       {/* Flavor Text (if unlocked and available) */}
       {unlocked && achievement.flavorText && (
         <Text
-          className="font-['Inter'] text-xs italic mb-2"
-          style={{ color: themeColors['muted-foreground'], opacity: 0.8 }}
+          variant="caption"
+          className="italic mb-2 opacity-80"
+          color="muted"
         >
           "{achievement.flavorText}"
         </Text>
@@ -247,14 +253,14 @@ export default function AchievementCard({
         <View className="mt-2">
           <View className="flex-row justify-between items-center mb-1">
             <Text
-              className="font-['Inter'] text-xs"
-              style={{ color: themeColors['muted-foreground'] }}
+              variant="caption"
+              color="muted"
             >
               {progress} / {achievement.threshold}
             </Text>
             <Text
-              className="font-['Inter'] text-xs"
-              style={{ color: themeColors['muted-foreground'] }}
+              variant="caption"
+              color="muted"
             >
               {Math.round(progressPercent)}%
             </Text>
@@ -270,7 +276,7 @@ export default function AchievementCard({
           </View>
         </View>
       )}
-    </View>
+    </Card>
   );
 
   if (onPress) {

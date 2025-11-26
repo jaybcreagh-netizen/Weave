@@ -6,6 +6,7 @@ import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { useTheme } from '@/shared/hooks/useTheme';
 import FriendModel from '@/db/models/Friend';
 import { useFriends } from '@/modules/relationships';
+import { CustomBottomSheet } from '@/shared/ui/Sheet/BottomSheet';
 
 interface FriendSelectorProps {
     visible: boolean;
@@ -23,7 +24,7 @@ export function FriendSelector({
     onSelectionChange
 }: FriendSelectorProps) {
     const { colors, isDarkMode } = useTheme();
-    const { friends: allFriends } = useFriends();
+    const allFriends = useFriends();
     const [searchQuery, setSearchQuery] = useState('');
 
     // Filter friends based on search query
@@ -80,98 +81,79 @@ export function FriendSelector({
     };
 
     return (
-        <Modal
+        <CustomBottomSheet
             visible={visible}
-            transparent
-            animationType="none"
-            onRequestClose={onClose}
+            onClose={onClose}
+            snapPoints={['90%']}
         >
-            <BlurView intensity={isDarkMode ? 20 : 40} tint={isDarkMode ? 'dark' : 'light'} className="flex-1">
-                <Animated.View
-                    entering={FadeIn.duration(200)}
-                    exiting={FadeOut.duration(200)}
-                    className="flex-1 pt-12"
-                >
+            <View className="flex-1">
+                {/* Header */}
+                <View className="flex-row justify-between items-center p-5 border-b" style={{ borderColor: colors.border }}>
+                    <Text className="font-lora-bold text-xl" style={{ color: colors.foreground }}>
+                        Add Friends
+                    </Text>
+                    <TouchableOpacity onPress={onClose} className="p-2 -mr-2">
+                        <X color={colors['muted-foreground']} size={24} />
+                    </TouchableOpacity>
+                </View>
+
+                {/* Search Bar */}
+                <View className="px-5 py-3">
                     <View
-                        className="flex-1 rounded-t-3xl overflow-hidden"
-                        style={{
-                            backgroundColor: isDarkMode ? colors.background : colors.background,
-                            shadowColor: '#000',
-                            shadowOffset: { width: 0, height: -2 },
-                            shadowOpacity: 0.1,
-                            shadowRadius: 10,
-                            elevation: 5,
-                        }}
+                        className="flex-row items-center px-4 py-3 rounded-xl"
+                        style={{ backgroundColor: colors.muted }}
                     >
-                        {/* Header */}
-                        <View className="flex-row justify-between items-center p-5 border-b" style={{ borderColor: colors.border }}>
-                            <Text className="font-lora-bold text-xl" style={{ color: colors.foreground }}>
-                                Add Friends
-                            </Text>
-                            <TouchableOpacity onPress={onClose} className="p-2 -mr-2">
-                                <X color={colors['muted-foreground']} size={24} />
-                            </TouchableOpacity>
-                        </View>
-
-                        {/* Search Bar */}
-                        <View className="px-5 py-3">
-                            <View
-                                className="flex-row items-center px-4 py-3 rounded-xl"
-                                style={{ backgroundColor: colors.muted }}
-                            >
-                                <Search size={18} color={colors['muted-foreground']} />
-                                <TextInput
-                                    className="flex-1 ml-3 font-inter-regular text-base"
-                                    style={{ color: colors.foreground }}
-                                    placeholder="Search friends..."
-                                    placeholderTextColor={colors['muted-foreground']}
-                                    value={searchQuery}
-                                    onChangeText={setSearchQuery}
-                                />
-                                {searchQuery.length > 0 && (
-                                    <TouchableOpacity onPress={() => setSearchQuery('')}>
-                                        <X size={16} color={colors['muted-foreground']} />
-                                    </TouchableOpacity>
-                                )}
-                            </View>
-                        </View>
-
-                        {/* Friends List */}
-                        <FlatList
-                            data={filteredFriends}
-                            renderItem={renderFriendItem}
-                            keyExtractor={item => item.id}
-                            contentContainerStyle={{ paddingBottom: 100 }}
-                            showsVerticalScrollIndicator={false}
-                            ListEmptyComponent={
-                                <View className="items-center py-12">
-                                    <Text style={{ color: colors['muted-foreground'] }}>No friends found</Text>
-                                </View>
-                            }
+                        <Search size={18} color={colors['muted-foreground']} />
+                        <TextInput
+                            className="flex-1 ml-3 font-inter-regular text-base"
+                            style={{ color: colors.foreground }}
+                            placeholder="Search friends..."
+                            placeholderTextColor={colors['muted-foreground']}
+                            value={searchQuery}
+                            onChangeText={setSearchQuery}
                         />
-
-                        {/* Done Button */}
-                        <View
-                            className="absolute bottom-0 left-0 right-0 p-5 border-t"
-                            style={{
-                                backgroundColor: colors.background,
-                                borderColor: colors.border,
-                                paddingBottom: 30 // Safe area padding
-                            }}
-                        >
-                            <TouchableOpacity
-                                onPress={onClose}
-                                className="py-4 rounded-xl items-center"
-                                style={{ backgroundColor: colors.primary }}
-                            >
-                                <Text className="font-inter-semibold text-base" style={{ color: colors.background }}>
-                                    Done ({selectedFriends.length})
-                                </Text>
+                        {searchQuery.length > 0 && (
+                            <TouchableOpacity onPress={() => setSearchQuery('')}>
+                                <X size={16} color={colors['muted-foreground']} />
                             </TouchableOpacity>
-                        </View>
+                        )}
                     </View>
-                </Animated.View>
-            </BlurView>
-        </Modal>
+                </View>
+
+                {/* Friends List */}
+                <FlatList
+                    data={filteredFriends}
+                    renderItem={renderFriendItem}
+                    keyExtractor={item => item.id}
+                    contentContainerStyle={{ paddingBottom: 100 }}
+                    showsVerticalScrollIndicator={false}
+                    ListEmptyComponent={
+                        <View className="items-center py-12">
+                            <Text style={{ color: colors['muted-foreground'] }}>No friends found</Text>
+                        </View>
+                    }
+                />
+
+                {/* Done Button */}
+                <View
+                    className="absolute bottom-0 left-0 right-0 p-5 border-t"
+                    style={{
+                        backgroundColor: colors.background,
+                        borderColor: colors.border,
+                        paddingBottom: 30 // Safe area padding
+                    }}
+                >
+                    <TouchableOpacity
+                        onPress={onClose}
+                        className="py-4 rounded-xl items-center"
+                        style={{ backgroundColor: colors.primary }}
+                    >
+                        <Text className="font-inter-semibold text-base" style={{ color: colors.background }}>
+                            Done ({selectedFriends.length})
+                        </Text>
+                    </TouchableOpacity>
+                </View>
+            </View>
+        </CustomBottomSheet>
     );
 }

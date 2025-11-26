@@ -19,6 +19,7 @@ import { getAllCategories, getCategoryMetadata, type CategoryMetadata } from '@/
 import { database } from '@/db';
 import FriendModel from '@/db/models/Friend';
 import { FriendSelector } from '@/components/FriendSelector';
+import { CustomBottomSheet } from '@/shared/ui/Sheet/BottomSheet';
 
 const categories: CategoryMetadata[] = getAllCategories().map(getCategoryMetadata);
 
@@ -185,50 +186,29 @@ export default function WeaveLoggerScreen() {
         onComplete={() => setShowCelebration(false)}
       />
 
-      {/* Calendar Modal */}
-      <Modal
+      {/* Calendar Sheet */}
+      <CustomBottomSheet
         visible={showCalendar}
-        transparent
-        animationType="none"
-        onRequestClose={() => setShowCalendar(false)}
+        onClose={() => setShowCalendar(false)}
+        snapPoints={['50%']}
       >
-        <BlurView intensity={isDarkMode ? 20 : 40} tint={isDarkMode ? 'dark' : 'light'} className="flex-1">
-          <TouchableOpacity
-            className="flex-1 justify-center items-center px-5"
-            activeOpacity={1}
-            onPress={() => setShowCalendar(false)}
-          >
-            <Animated.View
-              entering={FadeInUp.duration(200).springify()}
-              className="w-full max-w-md rounded-3xl p-6"
-              style={{
-                backgroundColor: isDarkMode ? colors.background + 'F5' : colors.background + 'F8',
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 20 },
-                shadowOpacity: 0.25,
-                shadowRadius: 30,
-                elevation: 20,
-              }}
-              onStartShouldSetResponder={() => true}
-            >
-              <View className="flex-row justify-between items-center mb-4">
-                <Text className="font-lora-bold text-xl" style={{ color: colors.foreground }}>
-                  Pick a Date
-                </Text>
-                <TouchableOpacity onPress={() => setShowCalendar(false)} className="p-2 -mr-2">
-                  <X color={colors['muted-foreground']} size={22} />
-                </TouchableOpacity>
-              </View>
+        <View className="flex-1 p-6">
+          <View className="flex-row justify-between items-center mb-4">
+            <Text className="font-lora-bold text-xl" style={{ color: colors.foreground }}>
+              Pick a Date
+            </Text>
+            <TouchableOpacity onPress={() => setShowCalendar(false)} className="p-2 -mr-2">
+              <X color={colors['muted-foreground']} size={22} />
+            </TouchableOpacity>
+          </View>
 
-              <CustomCalendar
-                selectedDate={selectedDate}
-                onDateSelect={handleDateSelect}
-                minDate={undefined}
-              />
-            </Animated.View>
-          </TouchableOpacity>
-        </BlurView>
-      </Modal>
+          <CustomCalendar
+            selectedDate={selectedDate}
+            onDateSelect={handleDateSelect}
+            minDate={undefined}
+          />
+        </View>
+      </CustomBottomSheet>
 
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <ScrollView

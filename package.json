@@ -12,6 +12,8 @@
   "dependencies": {
     "@expo-google-fonts/inter": "^0.4.2",
     "@expo-google-fonts/lora": "^0.4.2",
+    "@gorhom/bottom-sheet": "^5.2.6",
+    "@gorhom/portal": "^1.0.14",
     "@nozbe/watermelondb": "^0.25.5",
     "@nozbe/with-observables": "^1.4.1",
     "@react-native-async-storage/async-storage": "1.23.1",

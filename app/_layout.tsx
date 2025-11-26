@@ -8,6 +8,7 @@ import { StatusBar } from 'expo-status-bar';
 import * as Notifications from 'expo-notifications';
 import { QuickWeaveProvider } from '@/components/QuickWeaveProvider';
 import { ToastProvider } from '@/components/toast_provider';
+import { PortalProvider } from '@gorhom/portal';
 import { CardGestureProvider } from '@/context/CardGestureContext'; // Import the provider
 import { MilestoneCelebration } from '@/components/MilestoneCelebration';
 import TrophyCabinetModal from '@/components/TrophyCabinetModal';
@@ -351,51 +352,53 @@ export default Sentry.wrap(function RootLayout() {
       <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.background }}>
         <StatusBar style={isDarkMode ? 'light' : 'dark'} />
         {/* Wrap with CardGestureProvider so both Dashboard and Overlay can access it */}
-        <CardGestureProvider>
-          <QuickWeaveProvider>
-            <ToastProvider>
-              <ErrorBoundary
-                onError={(error, errorInfo) => {
-                  console.error('[App] Global error caught:', error);
-                  console.error('[App] Error info:', errorInfo);
-                  // TODO: Send to error tracking service (e.g., Sentry)
-                }}
-              >
-                {/* Animated wrapper for smooth fade-in */}
-                <Animated.View style={[{ flex: 1 }, contentStyle]}>
-                  <Stack screenOptions={{ headerShown: false }}>
-                    {/* The Stack navigator will automatically discover all files in the app directory */}
-                  </Stack>
+        <PortalProvider>
+          <CardGestureProvider>
+            <QuickWeaveProvider>
+              <ToastProvider>
+                <ErrorBoundary
+                  onError={(error, errorInfo) => {
+                    console.error('[App] Global error caught:', error);
+                    console.error('[App] Error info:', errorInfo);
+                    // TODO: Send to error tracking service (e.g., Sentry)
+                  }}
+                >
+                  {/* Animated wrapper for smooth fade-in */}
+                  <Animated.View style={[{ flex: 1 }, contentStyle]}>
+                    <Stack screenOptions={{ headerShown: false }}>
+                      {/* The Stack navigator will automatically discover all files in the app directory */}
+                    </Stack>
 
-                  {/* Global Milestone Celebration Modal */}
-                  <MilestoneCelebration
-                    visible={milestoneCelebrationData !== null}
-                    milestone={milestoneCelebrationData}
-                    onClose={hideMilestoneCelebration}
-                  />
+                    {/* Global Milestone Celebration Modal */}
+                    <MilestoneCelebration
+                      visible={milestoneCelebrationData !== null}
+                      milestone={milestoneCelebrationData}
+                      onClose={hideMilestoneCelebration}
+                    />
 
-                  <TrophyCabinetModal
-                    visible={isTrophyCabinetOpen}
-                    onClose={closeTrophyCabinet}
-                  />
+                    <TrophyCabinetModal
+                      visible={isTrophyCabinetOpen}
+                      onClose={closeTrophyCabinet}
+                    />
 
-                  {/* Notification Permission Modal */}
-                  <NotificationPermissionModal
-                    visible={showNotificationPermissionModal}
-                    onRequestPermission={handleRequestNotificationPermission}
-                    onSkip={handleSkipNotificationPermission}
-                  />
+                    {/* Notification Permission Modal */}
+                    <NotificationPermissionModal
+                      visible={showNotificationPermissionModal}
+                      onRequestPermission={handleRequestNotificationPermission}
+                      onSkip={handleSkipNotificationPermission}
+                    />
 
-                  {/* Global Event Suggestion Modal */}
-                  <EventSuggestionModal />
-                </Animated.View>
+                    {/* Global Event Suggestion Modal */}
+                    <EventSuggestionModal />
+                  </Animated.View>
 
-                {/* Loading Screen - shows until data is loaded AND UI is mounted */}
-                <LoadingScreen visible={fontsLoaded && (!dataLoaded || !uiMounted)} />
-              </ErrorBoundary>
-            </ToastProvider>
-          </QuickWeaveProvider>
-        </CardGestureProvider>
+                  {/* Loading Screen - shows until data is loaded AND UI is mounted */}
+                  <LoadingScreen visible={fontsLoaded && (!dataLoaded || !uiMounted)} />
+                </ErrorBoundary>
+              </ToastProvider>
+            </QuickWeaveProvider>
+          </CardGestureProvider>
+        </PortalProvider>
       </GestureHandlerRootView>
     </QueryClientProvider>
   );

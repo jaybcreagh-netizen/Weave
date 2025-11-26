@@ -7,10 +7,9 @@ import { useTheme } from '@/shared/hooks/useTheme';
 import { getCategoryMetadata } from '@/shared/constants/interaction-categories';
 import Intention from '@/db/models/Intention';
 import FriendModel from '@/db/models/Friend';
+import IntentionFriend from '@/db/models/IntentionFriend';
 import { InteractionCategory } from './types';
 import { database } from '@/db';
-// FIXME: intentionStore has been removed or is missing
-// import { useIntentionStore } from '../stores/intentionStore';
 
 interface IntentionWithFriend {
   intention: Intention;
@@ -29,10 +28,59 @@ interface IntentionsListProps {
 export function IntentionsList({ intentions, onIntentionPress }: IntentionsListProps) {
   const { colors } = useTheme();
   const [intentionsWithFriends, setIntentionsWithFriends] = useState<IntentionWithFriend[]>([]);
-  // const { clearAllIntentions, cleanupOrphanedIntentions } = useIntentionStore();
-  // Stubbed values
-  const clearAllIntentions = async () => { };
-  const cleanupOrphanedIntentions = async () => { };
+
+  const clearAllIntentions = async () => {
+    try {
+      await database.write(async () => {
+        const activeIntentions = await database.get<Intention>('intentions')
+          .query(Q.where('status', 'active'))
+          .fetch();
+
+        if (activeIntentions.length > 0) {
+          await database.batch(
+            activeIntentions.map(intention =>
+              intention.prepareUpdate(record => {
+                record.status = 'dismissed';
+              })
+            )
+          );
+        }
+      });
+    } catch (error) {
+      console.error('Error clearing intentions:', error);
+      Alert.alert('Error', 'Failed to clear intentions');
+    }
+  };
+
+  const cleanupOrphanedIntentions = async () => {
+    try {
+      await database.write(async () => {
+        // Find active intentions
+        const activeIntentions = await database.get<Intention>('intentions')
+          .query(Q.where('status', 'active'))
+          .fetch();
+
+        const intentionsToDelete: Intention[] = [];
+
+        // Check each for friends
+        for (const intention of activeIntentions) {
+          const count = await intention.intentionFriends.fetchCount();
+          if (count === 0) {
+            intentionsToDelete.push(intention);
+          }
+        }
+
+        if (intentionsToDelete.length > 0) {
+          await database.batch(
+            intentionsToDelete.map(intention => intention.prepareDestroyPermanently())
+          );
+          console.log(`Cleaned up ${intentionsToDelete.length} orphaned intentions`);
+        }
+      });
+    } catch (error) {
+      console.error('Error cleaning orphaned intentions:', error);
+    }
+  };
 
   // Clean up orphaned intentions on mount
   useEffect(() => {
@@ -48,7 +96,7 @@ export function IntentionsList({ intentions, onIntentionPress }: IntentionsListP
         intentions.map(async (intention) => {
           // Get the IntentionFriend join records for this intention
           const intentionFriends = await database
-            .get('intention_friends')
+            .get<IntentionFriend>('intention_friends')
             .query(Q.where('intention_id', intention.id))
             .fetch();
 
