@@ -68,7 +68,9 @@ const SEASON_EXPLANATIONS: Record<SocialSeason, {
 };
 
 export const SocialSeasonWidget: React.FC = () => {
-  const { colors, isDarkMode } = useTheme();
+  const theme = useTheme();
+  const colors = theme?.colors || {};
+  const isDarkMode = theme?.isDarkMode || false;
   const router = useRouter();
   const { profile, updateSocialSeason, getRecentBatteryAverage, batteryStats } = useUserProfileStore();
   const batteryHistory = []; // Deprecated, use batteryStats instead

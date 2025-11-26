@@ -64,11 +64,11 @@ export const DurationModifiers: Record<Duration, number> = {
 };
 
 export const VibeMultipliers: Record<Vibe, number> = {
-  NewMoon: 0.9,
-  WaxingCrescent: 1.0,
-  FirstQuarter: 1.1,
-  WaxingGibbous: 1.2,
-  FullMoon: 1.3,
+  NewMoon: 0.8,        // Was 0.9 - slightly more penalizing for bad vibes
+  WaxingCrescent: 1.0, // Unchanged
+  FirstQuarter: 1.1,   // Unchanged
+  WaxingGibbous: 1.3,  // Was 1.2 - rewarding good vibes
+  FullMoon: 1.5,       // Was 1.3 - significantly rewarding great vibes
 };
 
 export const RecencyFactors: { min: number; max: number; factor: number }[] = [
@@ -142,6 +142,14 @@ export const ArchetypeMatrixV2: Record<Archetype, Record<InteractionType, number
     'Voice Note': 1.0, 'Movie Night': 1.0, Cooking: 1.0, 'Tea Time': 1.0, 'Reading Together': 1.0,
     Hike: 1.0, Concert: 1.0, Museum: 1.0, Shopping: 1.0, Adventure: 1.0,
   },
+  Lovers: {
+    Event: 1.1, Meal: 1.2, Home: 1.1, Coffee: 1.2, Call: 1.1, Text: 1.1,
+    Walk: 1.2, Chat: 1.1, 'Video Call': 1.1, 'Something else': 1.1, Party: 1.1,
+    'Dinner Party': 1.1, Hangout: 1.1, 'Game Night': 1.1, Birthday: 1.2, Anniversary: 1.3,
+    Milestone: 1.2, Holiday: 1.2, Achievement: 1.1, DM: 1.1, 'Quick Visit': 1.1,
+    'Voice Note': 1.1, 'Movie Night': 1.2, Cooking: 1.2, 'Tea Time': 1.1, 'Reading Together': 1.1,
+    Hike: 1.1, Concert: 1.1, Museum: 1.1, Shopping: 1.1, Adventure: 1.2,
+  },
 };
 
 export const CategoryArchetypeMatrix: Record<Archetype, Record<InteractionCategory, number>> = {
@@ -183,5 +191,9 @@ export const CategoryArchetypeMatrix: Record<Archetype, Record<InteractionCatego
     'activity-hobby': 1.0,
     'favor-support': 1.0,
     'celebration': 1.0,
+  },
+  Lovers: {
+    'text-call': 1.1, 'voice-note': 1.1, 'meal-drink': 1.2, 'hangout': 1.1,
+    'deep-talk': 1.2, 'event-party': 1.1, 'activity-hobby': 1.1, 'favor-support': 1.2, 'celebration': 1.3,
   },
 };

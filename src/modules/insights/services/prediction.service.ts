@@ -1,8 +1,8 @@
 import FriendModel from '@/db/models/Friend';
 import { calculateCurrentScore } from '@/modules/intelligence';
 import { FriendshipPattern } from './pattern.service';
-import { TierDecayRates } from '@/shared/constants/constants';
-import { Tier } from '@/shared/types/core';
+import { TierDecayRates } from '@/modules/intelligence/constants';
+import { Tier } from '@/shared/types/common';
 import { differenceInDays } from 'date-fns';
 import { FriendPrediction, ProactiveSuggestion } from '../types';
 
@@ -25,12 +25,12 @@ export function predictFriendDrift(
   // I will assume for this migration we want synchronous execution if possible, but calculateCurrentScore is likely async now.
   // Let's assume the caller has updated the score.
 
-  const currentScore = friend.weave_score; // Use model value directly
+  const currentScore = friend.weaveScore; // Use model value directly
   const tierDecayRate = TierDecayRates[friend.dunbarTier as Tier];
 
   // Determine attention threshold based on tier
   const attentionThreshold = friend.dunbarTier === 'InnerCircle' ? 50 :
-                            friend.dunbarTier === 'CloseFriends' ? 40 : 30;
+    friend.dunbarTier === 'CloseFriends' ? 40 : 30;
 
   // If already below threshold, immediate attention needed
   if (currentScore <= attentionThreshold) {
@@ -51,7 +51,6 @@ export function predictFriendDrift(
     InnerCircle: 7,
     CloseFriends: 14,
     Community: 21,
-    Acquaintance: 30,
   }[friend.dunbarTier as Tier];
 
   const daysSinceLastUpdate = (Date.now() - friend.lastUpdated.getTime()) / 86400000;
@@ -168,7 +167,7 @@ export function generateProactiveSuggestions(
   }
 
   // 4. Momentum opportunity (when score is high and recent)
-  const currentScore = friend.weave_score;
+  const currentScore = friend.weaveScore;
   const daysSinceLastUpdate = (Date.now() - friend.lastUpdated.getTime()) / 86400000;
 
   if (currentScore > 70 && friend.momentumScore > 10 && daysSinceLastUpdate <= 5) {
@@ -220,7 +219,6 @@ export function forecastNetworkHealth(
     InnerCircle: 3.0,
     CloseFriends: 2.0,
     Community: 1.0,
-    Acquaintance: 0.5
   };
 
   let currentWeightedSum = 0;
@@ -229,7 +227,7 @@ export function forecastNetworkHealth(
   const friendsNeedingAttention: FriendModel[] = [];
 
   friends.forEach(friend => {
-    const currentScore = friend.weave_score;
+    const currentScore = friend.weaveScore;
     const tierDecayRate = TierDecayRates[friend.dunbarTier as Tier];
     const dailyDecay = (tierDecayRate * 1.0) / friend.resilience; // average decay
     const forecastedScore = Math.max(0, currentScore - (dailyDecay * daysAhead));
@@ -241,7 +239,7 @@ export function forecastNetworkHealth(
 
     // Check if friend will need attention
     const attentionThreshold = friend.dunbarTier === 'InnerCircle' ? 50 :
-                              friend.dunbarTier === 'CloseFriends' ? 40 : 30;
+      friend.dunbarTier === 'CloseFriends' ? 40 : 30;
 
     if (forecastedScore <= attentionThreshold) {
       friendsNeedingAttention.push(friend);

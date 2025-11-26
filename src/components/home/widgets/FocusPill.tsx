@@ -25,7 +25,8 @@ interface FocusItem {
 }
 
 export const FocusPill: React.FC = () => {
-  const { colors } = useTheme();
+  const theme = useTheme();
+  const colors = theme?.colors || {};
   const router = useRouter();
   const { friends } = useRelationshipsStore();
   const { suggestions, hasCritical } = useSuggestions();
@@ -123,24 +124,25 @@ export const FocusPill: React.FC = () => {
   if (!focusItem) return null;
 
   const Icon = focusItem.icon;
+  const itemColor = focusItem.color || colors?.primary || '#3C2415';
 
   return (
     <TouchableOpacity
       onPress={handlePress}
       className="mx-5 mb-4 px-4 py-3 rounded-full flex-row items-center gap-3"
-      style={{ backgroundColor: `${focusItem.color}15`, borderWidth: 1, borderColor: `${focusItem.color}40` }}
+      style={{ backgroundColor: `${itemColor}15`, borderWidth: 1, borderColor: `${itemColor}40` }}
       activeOpacity={0.7}
     >
-      <Icon size={18} color={focusItem.color} />
+      <Icon size={18} color={itemColor} />
       <Text
         className="flex-1 text-sm font-medium"
-        style={{ color: focusItem.color, fontFamily: 'Inter_500Medium' }}
+        style={{ color: itemColor, fontFamily: 'Inter_500Medium' }}
       >
         {focusItem.message}
       </Text>
       <View
         className="w-2 h-2 rounded-full"
-        style={{ backgroundColor: focusItem.color }}
+        style={{ backgroundColor: itemColor }}
       />
     </TouchableOpacity>
   );

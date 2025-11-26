@@ -7,15 +7,16 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, ActivityIndicator } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { AlertCircle } from 'lucide-react-native';
-import { detectPatterns, Pattern } from '@/modules/insights';
+import { detectPatterns, getPatternDataStats, Pattern } from '@/modules/insights';
 import { useTheme } from '@/shared/hooks/useTheme';
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-interface PatternsTabContentProps {}
+interface PatternsTabContentProps { }
 
-export function PatternsTabContent({}: PatternsTabContentProps) {
+export function PatternsTabContent({ }: PatternsTabContentProps) {
   const { isDarkMode } = useTheme();
   const [patterns, setPatterns] = useState<Pattern[]>([]);
+  const [dataStats, setDataStats] = useState<{ batteryDays: number; weaveCount: number } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -25,8 +26,12 @@ export function PatternsTabContent({}: PatternsTabContentProps) {
   const loadPatterns = async () => {
     setIsLoading(true);
     try {
-      const detected = await detectPatterns();
+      const [detected, stats] = await Promise.all([
+        detectPatterns(),
+        getPatternDataStats()
+      ]);
       setPatterns(detected);
+      setDataStats(stats);
     } catch (error) {
       console.error('Error detecting patterns:', error);
     } finally {
@@ -75,20 +80,25 @@ export function PatternsTabContent({}: PatternsTabContentProps) {
   }
 
   if (patterns.length === 0) {
+    const hasEnoughData = dataStats && dataStats.batteryDays >= 14;
+
     return (
       <View className="flex-1 items-center justify-center px-8">
-        <Text className="text-6xl mb-4">📊</Text>
+        <Text className="text-6xl mb-4">{hasEnoughData ? '✨' : '📊'}</Text>
         <Text
           className="text-lg font-semibold text-center mb-2"
           style={{ color: isDarkMode ? '#F5F1E8' : '#2D3142', fontFamily: 'Lora_600SemiBold' }}
         >
-          Not Enough Data Yet
+          {hasEnoughData ? 'No Strong Patterns Yet' : 'Not Enough Data Yet'}
         </Text>
         <Text
           className="text-sm text-center leading-5"
           style={{ color: isDarkMode ? '#8A8F9E' : '#6C7589', fontFamily: 'Inter_400Regular' }}
         >
-          Keep checking in your battery levels! We need at least 2 weeks of data to detect meaningful patterns.
+          {hasEnoughData
+            ? "Your rhythm is unique! We haven't detected any strong statistical patterns yet, but keep logging to help us find deeper insights."
+            : "Keep checking in your battery levels! We need at least 2 weeks of data to detect meaningful patterns."
+          }
         </Text>
       </View>
     );

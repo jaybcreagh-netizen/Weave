@@ -1,4 +1,4 @@
-import { Database } from '@nozbe/watermelondb';
+import { Database, Q } from '@nozbe/watermelondb';
 import FriendModel from '@/db/models/Friend';
 import { type InteractionFormData } from '@/modules/interactions/types';
 import { type ScoreUpdate, type QualityMetrics } from '../types';
@@ -8,7 +8,7 @@ import { applyDecay } from './decay.service';
 import { calculateMomentumBonus, updateMomentum } from './momentum.service';
 import { updateResilience } from './resilience.service';
 import { Vibe } from '@/shared/types/common';
-import { InteractionType, Category, Duration } from '@/components/types';
+import { InteractionType, InteractionCategory, Duration } from '@/components/types';
 
 /**
  * This is a temporary function that adapts the existing scoring service
@@ -18,13 +18,15 @@ import { InteractionType, Category, Duration } from '@/components/types';
 function calculateInteractionPoints(
   friend: FriendModel,
   interaction: InteractionFormData,
-  quality: QualityMetrics
+  quality: QualityMetrics,
+  historyCount: number = 0
 ): number {
   const baseScore = calculatePointsForWeave(friend, {
     interactionType: interaction.activity as InteractionType,
-    category: interaction.category as Category,
+    category: interaction.category as InteractionCategory,
     duration: interaction.duration as Duration | null,
     vibe: interaction.vibe as Vibe | null,
+    interactionHistoryCount: historyCount,
   });
 
   // Example of using quality score: add a bonus based on quality.
@@ -59,11 +61,21 @@ export async function processWeaveScoring(
     for (const friend of friends) {
       const scoreBefore = calculateCurrentScore(friend);
 
+      // NEW: Query interaction history count for affinity bonus
+      // We want to know how many times we've done this specific category with this friend
+      const historyCount = await database.get('interactions')
+        .query(
+          Q.on('interaction_friends', 'friend_id', friend.id),
+          Q.where('interaction_category', interactionData.category || ''),
+          Q.where('status', 'completed')
+        ).fetchCount();
+
       // 2. Calculate points earned from this specific interaction.
       let pointsEarned = calculateInteractionPoints(
         friend,
         interactionData,
-        quality
+        quality,
+        historyCount
       );
 
       // 3. Apply momentum bonus for recent interactions.

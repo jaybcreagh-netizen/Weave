@@ -88,6 +88,7 @@ export function calculatePointsForWeave(
     reflectionJSON?: string | null;
     groupSize?: number;
     eventImportance?: 'low' | 'medium' | 'high' | 'critical';
+    interactionHistoryCount?: number; // NEW: Count of prior interactions of this type/category
   }
 ): number {
   // Calculate current momentum
@@ -122,8 +123,16 @@ export function calculatePointsForWeave(
   // NEW: Calculate event multiplier for special occasions
   const eventMultiplier = calculateEventMultiplier(weaveData.category, weaveData.eventImportance);
 
+  // NEW: Affinity Bonus (Frequency Multiplier)
+  // If you've done this specific activity 5+ times with this friend, it's a "favorite"
+  // and gets a 1.15x bonus.
+  let affinityMultiplier = 1.0;
+  if ((weaveData.interactionHistoryCount || 0) >= 5) {
+    affinityMultiplier = 1.15;
+  }
+
   const initialPoints = baseScore * archetypeMultiplier * durationModifier;
-  const finalPoints = initialPoints * vibeMultiplier * eventMultiplier * groupDilutionFactor;
+  const finalPoints = initialPoints * vibeMultiplier * eventMultiplier * groupDilutionFactor * affinityMultiplier;
 
   // NEW: Apply quality multiplier based on interaction depth and energy
   const quality = calculateInteractionQuality({

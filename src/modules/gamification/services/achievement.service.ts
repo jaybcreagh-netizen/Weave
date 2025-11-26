@@ -89,14 +89,46 @@ async function awardGlobalAchievement(
   userProgress: UserProgress,
   achievementId: string
 ): Promise<void> {
-  // ... implementation from original file
+  await database.write(async () => {
+    // 1. Update UserProgress
+    await userProgress.update(p => {
+      const current = p.globalAchievements || [];
+      if (!current.includes(achievementId)) {
+        p.globalAchievements = [...current, achievementId];
+      }
+    });
+
+    // 2. Create Unlock Record
+    await database.get<AchievementUnlock>('achievement_unlocks').create(unlock => {
+      unlock.achievementId = achievementId;
+      unlock.achievementType = 'global';
+      unlock.unlockedAt = new Date();
+      unlock.hasBeenCelebrated = false;
+    });
+  });
 }
 
 async function awardHiddenAchievement(
   userProgress: UserProgress,
   achievementId: string
 ): Promise<void> {
-  // ... implementation from original file
+  await database.write(async () => {
+    // 1. Update UserProgress
+    await userProgress.update(p => {
+      const current = p.hiddenAchievements || [];
+      if (!current.includes(achievementId)) {
+        p.hiddenAchievements = [...current, achievementId];
+      }
+    });
+
+    // 2. Create Unlock Record
+    await database.get<AchievementUnlock>('achievement_unlocks').create(unlock => {
+      unlock.achievementId = achievementId;
+      unlock.achievementType = 'hidden';
+      unlock.unlockedAt = new Date();
+      unlock.hasBeenCelebrated = false;
+    });
+  });
 }
 
 export async function markAchievementAsCelebrated(achievementId: string): Promise<void> {

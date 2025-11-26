@@ -614,3 +614,12 @@ export async function detectPatterns(): Promise<Pattern[]> {
 
   return patterns;
 }
+
+/**
+ * Get statistics about the data available for pattern detection
+ */
+export async function getPatternDataStats(): Promise<{ batteryDays: number; weaveCount: number }> {
+  const history = await fetchBatteryHistory();
+  const weaves = await fetchWeaves(90);
+  return { batteryDays: history.length, weaveCount: weaves.length };
+}

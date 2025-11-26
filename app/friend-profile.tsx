@@ -27,6 +27,7 @@ import { WeaveIcon } from '@/components/WeaveIcon';
 import FriendBadgePopup from '@/components/FriendBadgePopup';
 import LifeEvent from '@/db/models/LifeEvent';
 import Intention from '@/db/models/Intention';
+import { PatternBadge } from '@/components/PatternBadge';
 
 import { useFriendProfileData, useFriendTimeline } from '@/modules/relationships';
 
@@ -288,6 +289,7 @@ export default function FriendProfile() {
             >
               <FriendListRow friend={friend} variant="full" />
             </TouchableOpacity>
+            <PatternBadge friend={friend} style={{ marginTop: 4, marginLeft: 4 }} />
           </Animated.View>
 
           <Animated.View style={[styles.actionButtonsContainer, buttonsAnimatedStyle]}>

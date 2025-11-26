@@ -33,6 +33,12 @@ import { Q } from '@nozbe/watermelondb';
 import { calculateCurrentScore } from '@/modules/intelligence';
 import Interaction from '@/db/models/Interaction';
 import { PendingPlanItem } from './PendingPlanItem';
+import {
+  analyzeInteractionPattern,
+  isPatternReliable,
+  type FriendshipPattern
+} from '@/modules/insights';
+import InteractionFriend from '@/db/models/InteractionFriend';
 
 import { PlanSummaryLine } from './PlanSummaryLine';
 import { FocusDetailsModal } from '@/components/FocusDetailsModal';
@@ -56,7 +62,9 @@ interface UpcomingDate {
 type PriorityState = 'pressing-event' | 'todays-plan' | 'streak-risk' | 'friend-fading' | 'upcoming-plan' | 'quick-weave' | 'all-clear';
 
 export const TodaysFocusWidget: React.FC = () => {
-  const { colors, isDarkMode } = useTheme();
+  const theme = useTheme();
+  const colors = theme?.colors || {};
+  const isDarkMode = theme?.isDarkMode || false;
   const router = useRouter();
   const { friends } = useRelationshipsStore();
   const { suggestions, dismissSuggestion } = useSuggestions();
@@ -88,7 +96,7 @@ export const TodaysFocusWidget: React.FC = () => {
   const [selectedFriend, setSelectedFriend] = useState<FriendModel | null>(null);
   const [expanded, setExpanded] = useState(false);
   const [streakCount, setStreakCount] = useState(0);
-  const [fadingFriend, setFadingFriend] = useState<{ friend: FriendModel; score: number } | null>(null);
+  const [fadingFriend, setFadingFriend] = useState<{ friend: FriendModel; score: number; pattern?: FriendshipPattern } | null>(null);
   const [batteryMatchedFriend, setBatteryMatchedFriend] = useState<FriendModel | null>(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
 
@@ -150,19 +158,39 @@ export const TodaysFocusWidget: React.FC = () => {
   };
 
   // Helper: Get intelligent message for friend-fading state
-  const getFadingMessage = (friend: FriendModel, score: number): string => {
+  const getFadingMessage = (friend: FriendModel, score: number, pattern?: FriendshipPattern): string => {
     const messages = [];
     const archetype = friend.archetype;
 
-    if (score < 20) {
-      messages.push(`${friend.name}'s connection is fading—reach out soon`);
-      messages.push(`Don't let ${friend.name} slip away`);
-    } else if (score < 30) {
-      messages.push(`${friend.name} could use some attention`);
-      messages.push(`Time to reconnect with ${friend.name}`);
+    // Add pattern-aware context if available
+    if (pattern && isPatternReliable(pattern)) {
+      const daysSince = differenceInDays(new Date(), friend.lastUpdated);
+      const expectedInterval = pattern.averageIntervalDays;
+
+      if (daysSince > expectedInterval * 1.5) {
+        messages.push(
+          `You usually connect every ${expectedInterval} days—it's been ${daysSince}`
+        );
+        messages.push(
+          `Your ${expectedInterval}-day rhythm with ${friend.name} is breaking`
+        );
+      } else {
+        messages.push(
+          `${friend.name}'s connection is fading—you usually connect every ${expectedInterval} days`
+        );
+      }
     } else {
-      messages.push(`${friend.name}'s connection is weakening`);
-      messages.push(`${friend.name} would appreciate hearing from you`);
+      // Fallback to score-based messages
+      if (score < 20) {
+        messages.push(`${friend.name}'s connection is fading—reach out soon`);
+        messages.push(`Don't let ${friend.name} slip away`);
+      } else if (score < 30) {
+        messages.push(`${friend.name} could use some attention`);
+        messages.push(`Time to reconnect with ${friend.name}`);
+      } else {
+        messages.push(`${friend.name}'s connection is weakening`);
+        messages.push(`${friend.name} would appreciate hearing from you`);
+      }
     }
 
     return messages[getDailyRotation(messages.length)];
@@ -263,23 +291,69 @@ export const TodaysFocusWidget: React.FC = () => {
   useEffect(() => {
     if (!friends || friends.length === 0) return;
 
-    const friendsWithScores = friends.map(f => ({
-      friend: f,
-      score: calculateCurrentScore(f),
-    }));
+    const analyzeFadingFriends = async () => {
+      const friendsWithData = await Promise.all(
+        friends.map(async (f) => {
+          // Calculate score
+          const score = calculateCurrentScore(f);
 
-    // Get all friends below threshold for variety
-    const fadingFriends = friendsWithScores
-      .filter(f => f.score < 40)
-      .sort((a, b) => a.score - b.score); // Sort by score, lowest first
+          // Load interactions for pattern analysis
+          try {
+            const interactionFriends = await database
+              .get<InteractionFriend>('interaction_friends')
+              .query(Q.where('friend_id', f.id))
+              .fetch();
 
-    if (fadingFriends.length > 0) {
-      // Rotate through fading friends daily
-      const index = getDailyRotation(fadingFriends.length);
-      setFadingFriend(fadingFriends[index]);
-    } else {
-      setFadingFriend(null);
-    }
+            const interactionIds = interactionFriends.map(
+              (ifriend) => ifriend.interactionId
+            );
+
+            if (interactionIds.length > 0) {
+              const ninetyDaysAgo = Date.now() - 90 * 24 * 60 * 60 * 1000;
+              const interactions = await database
+                .get<Interaction>('interactions')
+                .query(
+                  Q.where('id', Q.oneOf(interactionIds)),
+                  Q.where('status', 'completed'),
+                  Q.where('interaction_date', Q.gte(ninetyDaysAgo)),
+                  Q.sortBy('interaction_date', Q.desc)
+                )
+                .fetch();
+
+              const pattern = analyzeInteractionPattern(
+                interactions.map((i) => ({
+                  id: i.id,
+                  interactionDate: i.interactionDate,
+                  status: 'completed' as const,
+                  category: i.interactionCategory,
+                }))
+              );
+
+              return { friend: f, score, pattern };
+            }
+          } catch (error) {
+            console.error('Error analyzing pattern for', f.name, error);
+          }
+
+          return { friend: f, score, pattern: undefined };
+        })
+      );
+
+      // Get all friends below threshold for variety
+      const fadingFriends = friendsWithData
+        .filter(f => f.score < 40)
+        .sort((a, b) => a.score - b.score); // Sort by score, lowest first
+
+      if (fadingFriends.length > 0) {
+        // Rotate through fading friends daily
+        const index = getDailyRotation(fadingFriends.length);
+        setFadingFriend(fadingFriends[index]);
+      } else {
+        setFadingFriend(null);
+      }
+    };
+
+    analyzeFadingFriends();
   }, [friends]);
 
   // Calculate upcoming special dates (30 days)
@@ -555,7 +629,7 @@ export const TodaysFocusWidget: React.FC = () => {
         return <FriendFadingCard
           friend={priority.data.friend}
           score={priority.data.score}
-          message={getFadingMessage(priority.data.friend, priority.data.score)}
+          message={getFadingMessage(priority.data.friend, priority.data.score, priority.data.pattern)}
           {...cardProps}
         />;
       case 'upcoming-plan':
@@ -1403,5 +1477,20 @@ const styles = StyleSheet.create({
     lineHeight: 14,
     color: 'rgba(255, 255, 255, 0.95)',
     textAlign: 'center',
+  },
+  showMoreButton: {
+    alignSelf: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    marginTop: 8,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  showMoreText: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.8)',
   },
 });

@@ -11,15 +11,17 @@ import { Sparkles } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 
 interface ReflectionReadyWidgetProps {
-  onPress: () => void;
+  onPress?: () => void;
 }
 
 export function ReflectionReadyWidget({ onPress }: ReflectionReadyWidgetProps) {
   const { colors } = useTheme();
 
   const handlePress = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    onPress();
+    if (onPress) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      onPress();
+    }
   };
 
   return (

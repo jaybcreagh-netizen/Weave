@@ -18,7 +18,7 @@ export default class ChipUsage extends Model {
   // Metadata
   @field('chip_type') chipType!: ChipType; // For faster filtering
   @field('is_custom') isCustom!: boolean; // Whether this is a custom chip
-  @field('used_at') usedAt!: number; // Timestamp of usage
+  @date('used_at') usedAt!: Date; // Timestamp of usage
 
   // System
   @readonly @date('created_at') createdAt!: Date;

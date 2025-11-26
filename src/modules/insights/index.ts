@@ -21,6 +21,7 @@ export * from './hooks/useEffectiveness';
 export * from './hooks/usePortfolio';
 export * from './hooks/useReciprocity';
 export * from './hooks/useTrendsAndPredictions';
+export * from './hooks/useFriendPattern';
 
 // Types
 export * from './types';

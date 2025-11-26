@@ -14,7 +14,8 @@ import FriendsScreen from './_friends';
 const { width: screenWidth } = Dimensions.get('window');
 
 export default function Dashboard() {
-    const { colors } = useTheme();
+    const theme = useTheme();
+    const colors = theme?.colors || {};
     const [activeTab, setActiveTab] = useState<'insights' | 'circle'>('circle');
     const [showSettings, setShowSettings] = useState(false);
     const [showBatterySheet, setShowBatterySheet] = useState(false);

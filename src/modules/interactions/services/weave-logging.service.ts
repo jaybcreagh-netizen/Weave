@@ -92,9 +92,11 @@ export async function logWeave(data: InteractionFormData): Promise<Interaction> 
         // Insights (Life Events)
         if (data.notes && data.notes.trim().length > 0) {
             for (const friend of friends) {
-                analyzeAndTagLifeEvents(friend.id, data.notes, data.date).catch(error => {
+                try {
+                    await analyzeAndTagLifeEvents(friend.id, data.notes, data.date);
+                } catch (error) {
                     console.error('Error analyzing life events:', error);
-                });
+                }
             }
         }
     } catch (error) {
