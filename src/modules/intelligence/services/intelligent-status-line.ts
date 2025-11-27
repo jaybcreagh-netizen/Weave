@@ -177,6 +177,183 @@ async function checkLifeEventStatus(friend: FriendModel): Promise<StatusLine | n
 }
 
 /**
+ * Generate varied, insightful status messages for healthy relationships
+ * Analyzes recent interaction patterns to provide specific, meaningful insights
+ */
+function generateHealthyRelationshipInsight(
+  friend: FriendModel,
+  recentInteractions: Interaction[],
+  recentCount: number
+): StatusLine {
+  // Analyze interaction patterns
+  const categoryCount: Record<string, number> = {};
+  let totalWithVibe = 0;
+  let positiveVibeCount = 0;
+
+  recentInteractions.forEach(interaction => {
+    const cat = interaction.interactionCategory || 'other';
+    categoryCount[cat] = (categoryCount[cat] || 0) + 1;
+
+    // Track vibe quality if available
+    if (interaction.vibe) {
+      totalWithVibe++;
+      if (interaction.vibe === 'great' || interaction.vibe === 'good') {
+        positiveVibeCount++;
+      }
+    }
+  });
+
+  // Find dominant interaction type
+  const dominantCategory = Object.entries(categoryCount)
+    .sort(([, a], [, b]) => b - a)[0];
+  const dominantType = dominantCategory ? dominantCategory[0] : null;
+  const dominantCount = dominantCategory ? dominantCategory[1] : 0;
+  const hasVariety = Object.keys(categoryCount).length >= 3;
+
+  // Calculate consistency (interactions spread over time vs bunched)
+  const daysSinceFirst = differenceInDays(new Date(), recentInteractions[recentInteractions.length - 1].interactionDate);
+  const isConsistent = daysSinceFirst >= 21 && recentCount >= 4; // 4+ weaves over 3+ weeks
+
+  // Quality indicator (if vibe data exists)
+  const hasHighQuality = totalWithVibe >= 2 && (positiveVibeCount / totalWithVibe) >= 0.75;
+
+  // Archetype-aligned insights
+  const archetypeInsights: Record<string, { types: string[], messages: string[] }> = {
+    Emperor: {
+      types: ['meal-drink', 'activity-hobby'],
+      messages: [
+        'Your structured time together is thriving',
+        'Consistent, purposeful connection',
+        'Building a strong routine together',
+      ]
+    },
+    Empress: {
+      types: ['meal-drink', 'favor-support'],
+      messages: [
+        'Nurturing this bond beautifully',
+        'Creating real comfort together',
+        'This warmth is mutual and strong',
+      ]
+    },
+    HighPriestess: {
+      types: ['deep-talk', 'text-call'],
+      messages: [
+        'Your deep conversations are flowing',
+        'Real vulnerability and trust here',
+        'Meaningful exchanges are frequent',
+      ]
+    },
+    Fool: {
+      types: ['activity-hobby', 'event-party'],
+      messages: [
+        'Adventures together are on fire',
+        'Keeping the spontaneity alive',
+        'Your playful energy is strong',
+      ]
+    },
+    Sun: {
+      types: ['event-party', 'celebration'],
+      messages: [
+        'Celebrating life together often',
+        'Your bright energy is consistent',
+        'Joyful moments are abundant',
+      ]
+    },
+    Hermit: {
+      types: ['deep-talk', 'hangout'],
+      messages: [
+        'Quality one-on-one time is rich',
+        'Thoughtful connection is consistent',
+        'Your quiet moments together matter',
+      ]
+    },
+    Magician: {
+      types: ['activity-hobby', 'hangout'],
+      messages: [
+        'Creating and building together',
+        'Collaborative energy is strong',
+        'Making magic through shared projects',
+      ]
+    },
+  };
+
+  // Priority 1: Archetype-aligned insights (if dominant type matches archetype affinity)
+  const archetypeData = archetypeInsights[friend.archetype];
+  if (archetypeData && dominantType && archetypeData.types.includes(dominantType) && dominantCount >= 2) {
+    const message = archetypeData.messages[Math.floor(Math.random() * archetypeData.messages.length)];
+    return { text: message, icon: '✨' };
+  }
+
+  // Priority 2: High-quality interactions
+  if (hasHighQuality) {
+    const qualityMessages = [
+      'Quality time together is exceptional',
+      'Really meaningful moments lately',
+      'Deep connection is thriving',
+    ];
+    return { text: qualityMessages[Math.floor(Math.random() * qualityMessages.length)], icon: '💫' };
+  }
+
+  // Priority 3: Consistency/streak insights
+  if (isConsistent) {
+    const consistencyMessages = [
+      `${recentCount} weaves in ${Math.floor(daysSinceFirst / 7)} weeks—solid rhythm`,
+      'Consistent connection over time',
+      'Building a reliable pattern together',
+    ];
+    return { text: consistencyMessages[Math.floor(Math.random() * consistencyMessages.length)], icon: '🔄' };
+  }
+
+  // Priority 4: Interaction type patterns
+  if (dominantType && dominantCount >= 2) {
+    const typeInsights: Record<string, string[]> = {
+      'deep-talk': [
+        `${dominantCount} deep talks lately—real connection`,
+        'Vulnerability and openness are strong',
+      ],
+      'meal-drink': [
+        `${dominantCount} meals together this month`,
+        'Your dining tradition is strong',
+      ],
+      'activity-hobby': [
+        `${dominantCount} activities together lately`,
+        'Shared interests are thriving',
+      ],
+      'text-call': [
+        `${dominantCount} calls/texts—staying close`,
+        'Regular check-ins are working',
+      ],
+      'hangout': [
+        `${dominantCount} hangouts this month`,
+        'Just being together is enough',
+      ],
+      'event-party': [
+        `${dominantCount} events together lately`,
+        'Social moments are abundant',
+      ],
+    };
+
+    const messages = typeInsights[dominantType];
+    if (messages) {
+      return { text: messages[Math.floor(Math.random() * messages.length)], icon: '🌟' };
+    }
+  }
+
+  // Priority 5: Variety insight
+  if (hasVariety) {
+    return { text: `${recentCount} weaves across ${Object.keys(categoryCount).length} different types`, icon: '🎨' };
+  }
+
+  // Fallback: Simple momentum message (but more varied)
+  const momentumMessages = [
+    `${recentCount} weaves this month—strong bond`,
+    `Maintaining momentum with ${recentCount} weaves`,
+    `${recentCount} quality moments together`,
+  ];
+  return { text: momentumMessages[Math.floor(Math.random() * momentumMessages.length)], icon: '🌟' };
+}
+
+/**
  * PRIORITY 2: Connection health & history
  */
 async function checkConnectionHealth(friend: FriendModel): Promise<StatusLine | null> {
@@ -210,7 +387,10 @@ async function checkConnectionHealth(friend: FriendModel): Promise<StatusLine | 
     ).length;
 
     if (recentCount >= 3 && weaveScore > 65) {
-      return { text: `You're on a roll! ${recentCount} weaves this month`, icon: '🌟' };
+      // Generate varied, insightful status messages for healthy relationships
+      return generateHealthyRelationshipInsight(friend, friendInteractions.filter(
+        i => i.interactionDate.getTime() >= thirtyDaysAgo
+      ), recentCount);
     }
 
     // Check for cooling connection
