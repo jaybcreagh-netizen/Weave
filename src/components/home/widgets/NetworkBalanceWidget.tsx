@@ -5,6 +5,7 @@ import { Scale, ChevronRight } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { useNetworkTierHealth } from '@/modules/insights';
+import { trackEvent, AnalyticsEvents } from '@/shared/services/analytics.service';
 
 /**
  * Dashboard widget showing network-wide tier balance health
@@ -39,10 +40,19 @@ export function NetworkBalanceWidget() {
 
   const healthColor = getHealthColor(networkHealth.healthScore);
 
+  const handlePress = () => {
+    trackEvent(AnalyticsEvents.NETWORK_BALANCE_VIEWED, {
+      health_score: networkHealth.healthScore,
+      total_mismatches: totalMismatches,
+      total_friends: networkHealth.totalFriends,
+    });
+    router.push('/tier-balance' as any);
+  };
+
   return (
     <TouchableOpacity
       style={[styles.container, { backgroundColor: colors.card, borderColor: colors.border }]}
-      onPress={() => router.push('/tier-balance' as any)}
+      onPress={handlePress}
       activeOpacity={0.7}
     >
       {/* Header */}

@@ -16,6 +16,8 @@ export * from './services/effectiveness.service';
 export * from './services/pattern-detection.service';
 export * from './services/weaving-insights.service';
 export * from './services/tier-fit.service';
+export * from './services/tier-suggestion-engine.service';
+export * from './services/tier-management.service';
 
 // Hooks
 export * from './hooks/useEffectiveness';
@@ -28,6 +30,7 @@ export * from './hooks/useTierFit';
 // Components
 export { TierFitCard } from './components/TierFitCard';
 export { TierFitBottomSheet } from './components/TierFitBottomSheet';
+export { TierSuggestionAlert } from './components/TierSuggestionAlert';
 
 // Types
 export * from './types';

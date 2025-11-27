@@ -12,6 +12,8 @@ import { WeaveLogSchema } from '@/shared/types/validators';
 import { trackEvent, AnalyticsEvents, updateLastInteractionTimestamp } from '@/shared/services/analytics.service';
 import { analyzeAndTagLifeEvents } from '@/modules/relationships';
 import { deleteWeaveCalendarEvent } from './calendar.service';
+import { checkTierSuggestionAfterInteraction } from '@/modules/insights/services/tier-suggestion-engine.service';
+import { updateTierFit } from '@/modules/insights/services/tier-management.service';
 
 export async function logWeave(data: InteractionFormData): Promise<Interaction> {
     // Validate input data
@@ -97,6 +99,32 @@ export async function logWeave(data: InteractionFormData): Promise<Interaction> 
                 } catch (error) {
                     console.error('Error analyzing life events:', error);
                 }
+            }
+        }
+
+        // Tier Intelligence (Check for tier suggestions after interaction)
+        for (const friend of friends) {
+            try {
+                // Refetch friend to get updated ratedWeavesCount after scoring
+                const updatedFriend = await database.get<FriendModel>('friends').find(friend.id);
+                const wasFirstInteraction = updatedFriend.ratedWeavesCount === 1;
+
+                const suggestion = await checkTierSuggestionAfterInteraction(
+                    updatedFriend.id,
+                    wasFirstInteraction
+                );
+
+                // If a suggestion was returned, update the tier fit in the database
+                if (suggestion) {
+                    await updateTierFit(
+                        updatedFriend.id,
+                        suggestion.analysis.fitScore,
+                        suggestion.analysis.suggestedTier
+                    );
+                    console.log(`[WeaveLogging] Tier suggestion for ${updatedFriend.name}: ${suggestion.analysis.currentTier} → ${suggestion.analysis.suggestedTier}`);
+                }
+            } catch (error) {
+                console.error('Error checking tier suggestion:', error);
             }
         }
     } catch (error) {

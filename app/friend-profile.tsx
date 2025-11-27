@@ -30,7 +30,13 @@ import Intention from '@/db/models/Intention';
 import { PatternBadge } from '@/components/PatternBadge';
 
 import { useFriendProfileData, useFriendTimeline } from '@/modules/relationships';
-import { TierFitCard, TierFitBottomSheet, useTierFit } from '@/modules/insights';
+import {
+  TierFitCard,
+  TierFitBottomSheet,
+  useTierFit,
+  changeFriendTier,
+  dismissTierSuggestion
+} from '@/modules/insights';
 import type { TierFitAnalysis } from '@/modules/insights/types';
 
 const AnimatedSectionList = Animated.createAnimatedComponent(SectionList);
@@ -643,21 +649,31 @@ function TierFitBottomSheetWrapper({
   }
 
   const handleChangeTier = async (newTier: Tier) => {
-    // TODO: Implement tier change logic via relationships store/service
-    console.log(`[TierFit] Changing ${friendId} to ${newTier}`);
-    onDismiss();
+    try {
+      await changeFriendTier(friendId, newTier, true); // true = wasFromSuggestion
+      console.log(`[TierFit] Successfully changed ${friendId} to ${newTier}`);
+      onDismiss();
+    } catch (error) {
+      console.error('[TierFit] Error changing tier:', error);
+      Alert.alert('Error', 'Failed to change tier. Please try again.');
+    }
   };
 
   const handleStayInTier = () => {
-    // User chose to keep current tier
-    console.log(`[TierFit] Staying in tier for ${friendId}`);
+    // User chose to keep current tier - just close
+    console.log(`[TierFit] User chose to stay in tier for ${friendId}`);
     onDismiss();
   };
 
   const handleDismissSuggestion = async () => {
-    // TODO: Mark suggestion as dismissed in database
-    console.log(`[TierFit] Dismissing suggestion for ${friendId}`);
-    onDismiss();
+    try {
+      await dismissTierSuggestion(friendId);
+      console.log(`[TierFit] Dismissed suggestion for ${friendId}`);
+      onDismiss();
+    } catch (error) {
+      console.error('[TierFit] Error dismissing suggestion:', error);
+      Alert.alert('Error', 'Failed to dismiss suggestion. Please try again.');
+    }
   };
 
   return (
