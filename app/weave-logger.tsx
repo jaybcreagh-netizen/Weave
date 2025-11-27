@@ -20,6 +20,7 @@ import { database } from '@/db';
 import FriendModel from '@/db/models/Friend';
 import { FriendSelector } from '@/components/FriendSelector';
 import { CustomBottomSheet } from '@/shared/ui/Sheet/BottomSheet';
+import { ReciprocitySelector, InitiatorType } from '@/components/ReciprocitySelector';
 
 const categories: CategoryMetadata[] = getAllCategories().map(getCategoryMetadata);
 
@@ -44,6 +45,7 @@ export default function WeaveLoggerScreen() {
   const [friendArchetype, setFriendArchetype] = useState<Archetype | undefined>(undefined);
   const [showCelebration, setShowCelebration] = useState(false);
   const [title, setTitle] = useState<string>('');
+  const [initiator, setInitiator] = useState<InitiatorType | undefined>(undefined);
 
   const scrollViewRef = useRef<ScrollView>(null);
   const scale = useSharedValue(1);
@@ -131,6 +133,7 @@ export default function WeaveLoggerScreen() {
         vibe: selectedVibe,
         reflection,
         title: title.trim() || undefined,
+        initiator,
       });
 
       // Show celebration animation
@@ -412,6 +415,19 @@ export default function WeaveLoggerScreen() {
                 <MoonPhaseSelector onSelect={setSelectedVibe} selectedVibe={selectedVibe} />
               </View>
 
+              {/* Reciprocity Section */}
+              <View className="mb-8">
+                <Text className="font-lora-bold text-xl mb-4" style={{ color: colors.foreground }}>
+                  Who initiated?
+                </Text>
+                <ReciprocitySelector
+                  value={initiator}
+                  onChange={setInitiator}
+                  friendName={selectedFriends.length === 1 ? selectedFriends[0].name : 'Them'}
+                  hideLabel
+                />
+              </View>
+
               {/* Reflection Section */}
               <View className="mb-8">
                 <View className="flex-row items-center gap-2 mb-2">
@@ -431,6 +447,8 @@ export default function WeaveLoggerScreen() {
                   onChange={setReflection}
                 />
               </View>
+
+
             </Animated.View>
           )}
         </ScrollView>

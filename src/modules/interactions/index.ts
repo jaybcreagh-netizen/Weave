@@ -5,7 +5,7 @@ export { PlanWizard } from './components/PlanWizard';
 // Hooks
 export { useInteractions } from './hooks/useInteractions';
 export { usePlans } from './hooks/usePlans';
-export { usePlanSuggestion } from './hooks/usePlanSuggestion';
+export { usePlanSuggestion, type PlanSuggestion } from './hooks/usePlanSuggestion';
 export { useSuggestions } from './hooks/useSuggestions';
 export { useQuickWeave } from './hooks/useQuickWeave';
 

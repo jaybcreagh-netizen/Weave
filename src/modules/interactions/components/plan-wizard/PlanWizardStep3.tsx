@@ -8,6 +8,7 @@ import { PlanFormData } from '../PlanWizard';
 import FriendModel from '@/db/models/Friend';
 import { PlanSuggestion } from '@/modules/interactions';
 import { FriendSelectionModal } from './FriendSelectionModal';
+import { ReciprocitySelector } from '@/components/ReciprocitySelector';
 
 interface PlanWizardStep3Props {
   formData: Partial<PlanFormData>;
@@ -177,7 +178,7 @@ export function PlanWizardStep3({
                 You've been here before:
               </Text>
               <View className="flex-row flex-wrap gap-2">
-                {suggestion.recentLocations.map((location, idx) => (
+                {suggestion.recentLocations.map((location: string, idx: number) => (
                   <TouchableOpacity
                     key={idx}
                     onPress={() => onUpdate({ location })}
@@ -209,6 +210,17 @@ export function PlanWizardStep3({
             style={{ backgroundColor: colors.muted, color: colors.foreground }}
           />
 
+          {/* Reciprocity Section */}
+          <Text className="font-inter-semibold text-sm mb-2" style={{ color: colors.foreground }}>
+            Who initiated?
+          </Text>
+          <ReciprocitySelector
+            value={formData.initiator}
+            onChange={(initiator) => onUpdate({ initiator })}
+            friendName={selectedFriends.length === 1 ? selectedFriends[0].name : 'Them'}
+            hideLabel
+          />
+
           {/* Notes */}
           <Text className="font-inter-semibold text-sm mb-2" style={{ color: colors.foreground }}>
             Notes
@@ -227,6 +239,8 @@ export function PlanWizardStep3({
               textAlignVertical: 'top',
             }}
           />
+
+
         </View>
       )}
 

@@ -5,7 +5,7 @@ import { BlurView } from 'expo-blur';
 import { X, ArrowLeft } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
 import FriendModel from '@/db/models/Friend';
-import { InteractionCategory } from '@/shared/constants/interaction-categories';
+import { InteractionCategory } from '@/shared/types/common';
 import { usePlanSuggestion } from '../hooks/usePlanSuggestion';
 import { PlanWizardStep1 } from './plan-wizard/PlanWizardStep1';
 import { PlanWizardStep2 } from './plan-wizard/PlanWizardStep2';
@@ -16,6 +16,26 @@ import { getCategoryMetadata } from '@/shared/constants/interaction-categories';
 import { getDefaultTimeForCategory } from '@/modules/interactions';
 import { database } from '@/db';
 import Interaction from '@/db/models/Interaction';
+import { startOfDay, addDays, isSaturday, nextSaturday, getDay } from 'date-fns';
+import { Q } from '@nozbe/watermelondb';
+import { calculateActivityPriorities, isSmartDefaultsEnabled } from '@/modules/interactions';
+import { InitiatorType } from '@/components/ReciprocitySelector';
+
+const CATEGORIES: Array<{
+  value: InteractionCategory;
+  label: string;
+  icon: string;
+  description: string;
+}> = [
+    { value: 'text-call', label: 'Chat', icon: '💬', description: 'Call or video chat' },
+    { value: 'meal-drink', label: 'Meal', icon: '🍽️', description: 'Coffee, lunch, or dinner' },
+    { value: 'hangout', label: 'Hangout', icon: '👥', description: 'Casual time together' },
+    { value: 'deep-talk', label: 'Deep Talk', icon: '💭', description: 'Meaningful conversation' },
+    { value: 'activity-hobby', label: 'Activity', icon: '🚶', description: 'Sport, hobby, or adventure' },
+    { value: 'event-party', label: 'Event', icon: '🎉', description: 'Party or social gathering' },
+    { value: 'favor-support', label: 'Support', icon: '🤝', description: 'Help or emotional support' },
+    { value: 'celebration', label: 'Celebration', icon: '🎊', description: 'Special occasion' },
+  ];
 
 interface PlanWizardProps {
   visible: boolean;
@@ -41,6 +61,7 @@ export interface PlanFormData {
   location?: string;
   time?: Date; // Optional time of day
   notes?: string;
+  initiator?: InitiatorType;
 }
 
 export function PlanWizard({ visible, onClose, initialFriend, prefillData, replaceInteractionId, initialStep = 1 }: PlanWizardProps) {
@@ -58,6 +79,102 @@ export function PlanWizard({ visible, onClose, initialFriend, prefillData, repla
     location: prefillData?.location,
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Lifted state for performance
+  const [plannedDates, setPlannedDates] = useState<Date[]>([]);
+  const [mostCommonDay, setMostCommonDay] = useState<{ day: number; name: string; date: Date } | null>(null);
+  const [orderedCategories, setOrderedCategories] = useState(CATEGORIES);
+
+  // Fetch all data once on mount
+  useEffect(() => {
+    const loadData = async () => {
+      const today = startOfDay(new Date());
+      const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+      try {
+        // 1. Fetch Planned Dates
+        const joinRecords = await database
+          .get('interaction_friends')
+          .query(Q.where('friend_id', initialFriend.id))
+          .fetch();
+
+        if (joinRecords.length > 0) {
+          const interactionIds = joinRecords.map((jr: any) => jr.interactionId);
+          const interactions = await database
+            .get<Interaction>('interactions')
+            .query(
+              Q.where('id', Q.oneOf(interactionIds)),
+              Q.where('status', 'planned'),
+              Q.where('interaction_date', Q.gte(today.getTime()))
+            )
+            .fetch();
+          setPlannedDates(interactions.map(i => startOfDay(i.interactionDate)));
+        }
+
+        // 2. Calculate Most Common Day
+        if (joinRecords.length > 0) {
+          const interactionIds = joinRecords.map((jr: any) => jr.interactionId);
+          const interactions = await database
+            .get<Interaction>('interactions')
+            .query(
+              Q.where('id', Q.oneOf(interactionIds)),
+              Q.where('status', 'completed')
+            )
+            .fetch();
+
+          if (interactions.length > 0) {
+            const dayCounts: Record<number, number> = {};
+            interactions.forEach(interaction => {
+              const dayOfWeek = getDay(interaction.interactionDate);
+              dayCounts[dayOfWeek] = (dayCounts[dayOfWeek] || 0) + 1;
+            });
+
+            let maxCount = 0;
+            let commonDay = 0;
+            Object.entries(dayCounts).forEach(([day, count]) => {
+              if (count > maxCount) {
+                maxCount = count;
+                commonDay = parseInt(day);
+              }
+            });
+
+            const currentDay = getDay(today);
+            let nextOccurrence: Date;
+            if (commonDay === currentDay) {
+              nextOccurrence = today;
+            } else if (commonDay > currentDay) {
+              nextOccurrence = addDays(today, commonDay - currentDay);
+            } else {
+              nextOccurrence = addDays(today, 7 - currentDay + commonDay);
+            }
+
+            setMostCommonDay({
+              day: commonDay,
+              name: dayNames[commonDay],
+              date: nextOccurrence,
+            });
+          }
+        }
+
+        // 3. Calculate Category Priorities
+        const smartDefaultsEnabled = await isSmartDefaultsEnabled();
+        if (smartDefaultsEnabled) {
+          const priorities = await calculateActivityPriorities(initialFriend);
+          const scoreMap = new Map(priorities.map(p => [p.category, p.score]));
+          const sorted = [...CATEGORIES].sort((a, b) => {
+            const scoreA = scoreMap.get(a.value) || 0;
+            const scoreB = scoreMap.get(b.value) || 0;
+            return scoreB - scoreA;
+          });
+          setOrderedCategories(sorted);
+        }
+      } catch (error) {
+        console.error('Error loading plan wizard data:', error);
+      }
+    };
+
+    loadData();
+  }, [initialFriend.id]);
 
   // Track whether we've transitioned between steps (vs initial render)
   const hasTransitioned = useRef(false);
@@ -148,6 +265,7 @@ export function PlanWizard({ visible, onClose, initialFriend, prefillData, repla
         // Include title and location
         title: formData.title?.trim() || undefined,
         location: formData.location?.trim() || undefined,
+        initiator: formData.initiator,
       });
 
       // Try to create calendar event if settings enabled
@@ -250,6 +368,8 @@ export function PlanWizard({ visible, onClose, initialFriend, prefillData, repla
                 onContinue={goToNextStep}
                 canContinue={canProceedFromStep1}
                 friend={initialFriend}
+                plannedDates={plannedDates}
+                mostCommonDay={mostCommonDay}
               />
             </Animated.View>
           )}
@@ -267,6 +387,7 @@ export function PlanWizard({ visible, onClose, initialFriend, prefillData, repla
                 canContinue={canProceedFromStep2}
                 friend={initialFriend}
                 suggestion={suggestion}
+                orderedCategories={orderedCategories}
               />
             </Animated.View>
           )}

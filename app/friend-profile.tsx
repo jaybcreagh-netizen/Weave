@@ -307,6 +307,7 @@ export default function FriendProfile() {
                 onPress={() => setShowTierFitSheet(true)}
               />
             )}
+            <PatternBadge friend={friend} style={{ marginTop: 4 }} />
           </Animated.View>
 
           <Animated.View style={[styles.actionButtonsContainer, buttonsAnimatedStyle]}>
@@ -527,7 +528,7 @@ export default function FriendProfile() {
               if (friend) {
                 setShowPlanWizard(true);
               }
-            }, 100);
+            }, 500);
           }}
         />
 
@@ -744,7 +745,6 @@ const styles = StyleSheet.create({
   // Empty text: muted-foreground color (dynamic)
   // Empty subtext: text-xs mt-1 opacity-70 (NativeWind)
   lifeEventsSection: {
-    paddingHorizontal: 20,
     marginTop: 8,
     marginBottom: 8,
   },

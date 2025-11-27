@@ -72,9 +72,9 @@ export function predictFriendDrift(
   const predictedScore = Math.max(0, currentScore - (dailyDecayRate * daysUntilAttentionNeeded));
 
   // Confidence based on pattern reliability
-  let confidence = 0.7; // base confidence
-  if (pattern && pattern.sampleSize >= 5) {
-    confidence = Math.min(0.95, 0.7 + (pattern.consistency * 0.25));
+  let confidence = 0.65; // base confidence (lowered from 0.7)
+  if (pattern && pattern.sampleSize >= 3) { // Lowered from 5 to 3
+    confidence = Math.min(0.95, 0.65 + (pattern.consistency * 0.3));
   }
 
   // Determine urgency
@@ -127,7 +127,7 @@ export function generateProactiveSuggestions(
   }
 
   // 2. Optimal timing suggestion based on pattern
-  if (pattern && pattern.sampleSize >= 3) {
+  if (pattern && pattern.sampleSize >= 2) { // Lowered from 3 to 2
     const lastInteractionDate = friend.lastUpdated;
     const daysSinceLastInteraction = differenceInDays(new Date(), lastInteractionDate);
     const expectedNextDay = pattern.averageIntervalDays;
@@ -147,7 +147,7 @@ export function generateProactiveSuggestions(
   }
 
   // 3. Pattern break alert (when they're significantly overdue)
-  if (pattern && pattern.sampleSize >= 3) {
+  if (pattern && pattern.sampleSize >= 2) { // Lowered from 3 to 2
     const lastInteractionDate = friend.lastUpdated;
     const daysSinceLastInteraction = differenceInDays(new Date(), lastInteractionDate);
     const expectedNextDay = pattern.averageIntervalDays;
@@ -189,7 +189,7 @@ export function generateProactiveSuggestions(
  * Predicts best day of week to connect based on historical patterns
  */
 export function predictOptimalDay(pattern: FriendshipPattern): { day: number; dayName: string; confidence: number } | null {
-  if (!pattern.preferredDayOfWeek || pattern.sampleSize < 3) {
+  if (!pattern.preferredDayOfWeek || pattern.sampleSize < 2) { // Lowered from 3 to 2
     return null;
   }
 
@@ -258,4 +258,48 @@ export function forecastNetworkHealth(
     friendsNeedingAttention,
     confidence,
   };
+}
+
+export interface CompositeHealthSignal {
+  decayScore: number; // From decay service (0-100)
+  patternScore: number; // From interaction patterns (0-100)
+  reciprocityScore: number; // From initiation balance (0-100)
+  batteryAlignmentScore: number; // Battery level when last interacted (0-100)
+  momentumScore: number; // Current momentum (0-100)
+  qualityScore: number; // Recent interaction quality (0-100)
+}
+
+/**
+ * Calculate a composite relationship health prediction combining multiple signals
+ */
+export function calculateCompositeHealthPrediction(
+  friend: FriendModel,
+  signals: CompositeHealthSignal
+): { score: number; confidence: number; topFactors: string[] } {
+  // Weighted composite score
+  const weights = {
+    decay: 0.30,
+    pattern: 0.25,
+    reciprocity: 0.15,
+    batteryAlignment: 0.10,
+    momentum: 0.10,
+    quality: 0.10,
+  };
+
+  const score =
+    signals.decayScore * weights.decay +
+    signals.patternScore * weights.pattern +
+    signals.reciprocityScore * weights.reciprocity +
+    signals.batteryAlignmentScore * weights.batteryAlignment +
+    signals.momentumScore * weights.momentum +
+    signals.qualityScore * weights.quality;
+
+  // Identify top contributing factors
+  const factors = Object.entries(signals)
+    .map(([key, val]) => ({ key, contribution: val * (weights[key as keyof typeof weights] || 0) }))
+    .sort((a, b) => b.contribution - a.contribution)
+    .slice(0, 3)
+    .map((f) => f.key);
+
+  return { score, confidence: 0.85, topFactors: factors };
 }

@@ -268,24 +268,9 @@ function DashboardContent() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
-  // Determine which tiers should be rendered (current + adjacent for smooth swiping)
-  const shouldRenderTier = useCallback((tier: 'inner' | 'close' | 'community') => {
-    const currentIndex = tiers.indexOf(activeTier);
-    const tierIndex = tiers.indexOf(tier);
-    // Render current tier and adjacent tiers (one before, one after)
-    return Math.abs(currentIndex - tierIndex) <= 1;
-  }, [activeTier, tiers]);
-
   const renderTier = (tier: 'inner' | 'close' | 'community', scrollHandler: any) => {
     const currentFriends = friends[tier] || [];
     const tierBgColor = getTierBackground(tier, isDarkMode);
-
-    // Lazy rendering: only render visible and adjacent tiers
-    if (!shouldRenderTier(tier)) {
-      return (
-        <View style={{ width: screenWidth, backgroundColor: tierBgColor }} />
-      );
-    }
 
     if (currentFriends.length === 0) {
       return (
