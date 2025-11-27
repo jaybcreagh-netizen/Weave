@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb'
 
 export default appSchema({
-  version: 35, // UPDATED: Refactored user_profile history and journal_entries relationships
+  version: 36, // UPDATED: Added tier intelligence fields for dynamic tier management
   tables: [
     tableSchema({
       name: 'oracle_insights',
@@ -60,6 +60,11 @@ export default appSchema({
         { name: 'synced_at', type: 'number', isOptional: true }, // Last successful sync timestamp
         { name: 'sync_status', type: 'string', isOptional: true }, // 'pending' | 'synced' | 'conflict'
         { name: 'server_updated_at', type: 'number', isOptional: true }, // Server's last update time
+        // NEW v36: Tier intelligence for dynamic tier management
+        { name: 'tier_fit_score', type: 'number', isOptional: true }, // 0-1 score of how well actual patterns match tier expectations
+        { name: 'tier_fit_last_calculated', type: 'number', isOptional: true }, // When tier fit was last calculated
+        { name: 'suggested_tier', type: 'string', isOptional: true }, // AI-suggested tier based on patterns
+        { name: 'tier_suggestion_dismissed_at', type: 'number', isOptional: true }, // When user dismissed tier suggestion
       ]
     }),
     tableSchema({
@@ -176,6 +181,10 @@ export default appSchema({
         { name: 'reflection_day', type: 'number', isOptional: true }, // 0-6 (0=Sunday, 1=Monday, etc.), default 0
         { name: 'reflection_auto_show', type: 'boolean', isOptional: true }, // Auto-show prompt on reflection day, default true
         { name: 'reflection_last_snoozed', type: 'number', isOptional: true }, // Timestamp when user last snoozed
+
+        // NEW v36: Tier Intelligence Settings
+        { name: 'tier_flexibility_mode', type: 'string', isOptional: true }, // 'strict' | 'balanced' | 'flexible' - how much decay adapts to patterns
+        { name: 'tier_intelligence_enabled', type: 'boolean', isOptional: true }, // Whether to show tier fit indicators and suggestions
 
         // Metadata
         { name: 'created_at', type: 'number' },

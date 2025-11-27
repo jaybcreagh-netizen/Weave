@@ -15,6 +15,7 @@ export * from './services/prediction.service';
 export * from './services/effectiveness.service';
 export * from './services/pattern-detection.service';
 export * from './services/weaving-insights.service';
+export * from './services/tier-fit.service';
 
 // Hooks
 export * from './hooks/useEffectiveness';
@@ -22,6 +23,10 @@ export * from './hooks/usePortfolio';
 export * from './hooks/useReciprocity';
 export * from './hooks/useTrendsAndPredictions';
 export * from './hooks/useFriendPattern';
+export * from './hooks/useTierFit';
+
+// Components
+export { TierFitCard } from './components/TierFitCard';
 
 // Types
 export * from './types';

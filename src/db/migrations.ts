@@ -746,6 +746,29 @@ export default schemaMigrations({
         ),
       ],
     },
+    {
+      // Migration from schema v35 to v36
+      // Add tier intelligence fields for dynamic tier management
+      toVersion: 36,
+      steps: [
+        addColumns({
+          table: 'friends',
+          columns: [
+            { name: 'tier_fit_score', type: 'number', isOptional: true },
+            { name: 'tier_fit_last_calculated', type: 'number', isOptional: true },
+            { name: 'suggested_tier', type: 'string', isOptional: true },
+            { name: 'tier_suggestion_dismissed_at', type: 'number', isOptional: true },
+          ],
+        }),
+        addColumns({
+          table: 'user_profile',
+          columns: [
+            { name: 'tier_flexibility_mode', type: 'string', isOptional: true },
+            { name: 'tier_intelligence_enabled', type: 'boolean', isOptional: true },
+          ],
+        }),
+      ],
+    },
   ],
 });
 
