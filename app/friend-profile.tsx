@@ -510,7 +510,7 @@ export default function FriendProfile() {
               if (friend) {
                 setShowPlanWizard(true);
               }
-            }, 100);
+            }, 500);
           }}
         />
 

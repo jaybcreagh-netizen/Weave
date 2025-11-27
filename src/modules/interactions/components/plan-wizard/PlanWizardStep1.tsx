@@ -8,7 +8,6 @@ import { Q } from '@nozbe/watermelondb';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { CustomCalendar } from '@/components/CustomCalendar';
 import { database } from '@/db';
-import InteractionModel from '@/db/models/Interaction';
 import FriendModel from '@/db/models/Friend';
 
 interface PlanWizardStep1Props {
@@ -17,14 +16,14 @@ interface PlanWizardStep1Props {
   onContinue: () => void;
   canContinue: boolean;
   friend: FriendModel;
+  plannedDates: Date[];
+  mostCommonDay: { day: number; name: string; date: Date } | null;
 }
 
-export function PlanWizardStep1({ selectedDate, onDateSelect, onContinue, canContinue, friend }: PlanWizardStep1Props) {
+export function PlanWizardStep1({ selectedDate, onDateSelect, onContinue, canContinue, friend, plannedDates, mostCommonDay }: PlanWizardStep1Props) {
   const { colors, isDarkMode } = useTheme();
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
-  const [plannedDates, setPlannedDates] = useState<Date[]>([]);
-  const [mostCommonDay, setMostCommonDay] = useState<{ day: number; name: string; date: Date } | null>(null);
   const scale = useSharedValue(1);
 
   // Create animated style once at the top level
@@ -35,121 +34,6 @@ export function PlanWizardStep1({ selectedDate, onDateSelect, onContinue, canCon
   const today = startOfDay(new Date());
 
   const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-
-  // Fetch planned dates for this friend
-  useEffect(() => {
-    const fetchPlannedDates = async () => {
-      try {
-        // Query the join table for this friend's interactions
-        const joinRecords = await database
-          .get('interaction_friends')
-          .query(Q.where('friend_id', friend.id))
-          .fetch();
-
-        if (joinRecords.length === 0) {
-          setPlannedDates([]);
-          return;
-        }
-
-        const interactionIds = joinRecords.map((jr: any) => jr.interactionId);
-
-        // Get the planned interactions
-        const interactions = await database
-          .get<InteractionModel>('interactions')
-          .query(
-            Q.where('id', Q.oneOf(interactionIds)),
-            Q.where('status', 'planned'),
-            Q.where('interaction_date', Q.gte(today.getTime()))
-          )
-          .fetch();
-
-        const dates = interactions.map(i => startOfDay(i.interactionDate));
-        setPlannedDates(dates);
-      } catch (error) {
-        console.error('Error fetching planned dates:', error);
-        setPlannedDates([]);
-      }
-    };
-
-    fetchPlannedDates();
-  }, [friend.id, today]);
-
-  // Calculate most common day to meet this friend
-  useEffect(() => {
-    const calculateMostCommonDay = async () => {
-      try {
-        // Query the join table for this friend's completed interactions
-        const joinRecords = await database
-          .get('interaction_friends')
-          .query(Q.where('friend_id', friend.id))
-          .fetch();
-
-        if (joinRecords.length === 0) {
-          setMostCommonDay(null);
-          return;
-        }
-
-        const interactionIds = joinRecords.map((jr: any) => jr.interactionId);
-
-        // Get completed interactions only
-        const interactions = await database
-          .get<InteractionModel>('interactions')
-          .query(
-            Q.where('id', Q.oneOf(interactionIds)),
-            Q.where('status', 'completed')
-          )
-          .fetch();
-
-        if (interactions.length === 0) {
-          setMostCommonDay(null);
-          return;
-        }
-
-        // Count occurrences of each day of the week (0=Sunday, 6=Saturday)
-        const dayCounts: Record<number, number> = {};
-        interactions.forEach(interaction => {
-          const dayOfWeek = getDay(interaction.interactionDate);
-          dayCounts[dayOfWeek] = (dayCounts[dayOfWeek] || 0) + 1;
-        });
-
-        // Find the most common day
-        let maxCount = 0;
-        let commonDay = 0;
-        Object.entries(dayCounts).forEach(([day, count]) => {
-          if (count > maxCount) {
-            maxCount = count;
-            commonDay = parseInt(day);
-          }
-        });
-
-        // Calculate next occurrence of that day
-        const currentDay = getDay(today);
-        let nextOccurrence: Date;
-
-        if (commonDay === currentDay) {
-          // If today is the common day, suggest today
-          nextOccurrence = today;
-        } else if (commonDay > currentDay) {
-          // Common day is later this week
-          nextOccurrence = addDays(today, commonDay - currentDay);
-        } else {
-          // Common day is next week
-          nextOccurrence = addDays(today, 7 - currentDay + commonDay);
-        }
-
-        setMostCommonDay({
-          day: commonDay,
-          name: dayNames[commonDay],
-          date: nextOccurrence,
-        });
-      } catch (error) {
-        console.error('Error calculating most common day:', error);
-        setMostCommonDay(null);
-      }
-    };
-
-    calculateMostCommonDay();
-  }, [friend.id, today]);
 
   const handleQuickSelect = (option: 'today' | 'weekend' | 'usual' | 'next-week') => {
     setSelectedKey(option);

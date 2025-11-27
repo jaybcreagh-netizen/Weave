@@ -4,10 +4,9 @@ import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-na
 import { Sparkles } from 'lucide-react-native';
 import { format } from 'date-fns';
 import { useTheme } from '@/shared/hooks/useTheme';
-import { type InteractionCategory } from '../types';
+import { type InteractionCategory } from '@/shared/types/common';
 import FriendModel from '@/db/models/Friend';
-import { PlanSuggestion } from '@/modules/interactions';
-import { calculateActivityPriorities, isSmartDefaultsEnabled } from '@/modules/interactions';
+import { PlanSuggestion } from '../../hooks/usePlanSuggestion';
 
 interface PlanWizardStep2Props {
   selectedCategory?: InteractionCategory;
@@ -16,23 +15,15 @@ interface PlanWizardStep2Props {
   canContinue: boolean;
   friend: FriendModel;
   suggestion: PlanSuggestion | null;
+  orderedCategories: Array<{
+    value: InteractionCategory;
+    label: string;
+    icon: string;
+    description: string;
+  }>;
 }
 
-const CATEGORIES: Array<{
-  value: InteractionCategory;
-  label: string;
-  icon: string;
-  description: string;
-}> = [
-  { value: 'text-call', label: 'Chat', icon: '💬', description: 'Call or video chat' },
-  { value: 'meal-drink', label: 'Meal', icon: '🍽️', description: 'Coffee, lunch, or dinner' },
-  { value: 'hangout', label: 'Hangout', icon: '👥', description: 'Casual time together' },
-  { value: 'deep-talk', label: 'Deep Talk', icon: '💭', description: 'Meaningful conversation' },
-  { value: 'activity-hobby', label: 'Activity', icon: '🚶', description: 'Sport, hobby, or adventure' },
-  { value: 'event-party', label: 'Event', icon: '🎉', description: 'Party or social gathering' },
-  { value: 'favor-support', label: 'Support', icon: '🤝', description: 'Help or emotional support' },
-  { value: 'celebration', label: 'Celebration', icon: '🎊', description: 'Special occasion' },
-];
+
 
 export function PlanWizardStep2({
   selectedCategory,
@@ -41,47 +32,13 @@ export function PlanWizardStep2({
   canContinue,
   friend,
   suggestion,
+  orderedCategories,
 }: PlanWizardStep2Props) {
   const { colors } = useTheme();
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
-  const [orderedCategories, setOrderedCategories] = useState(CATEGORIES);
   const scale = useSharedValue(1);
 
-  // Calculate smart ordering on mount
-  useEffect(() => {
-    const reorderCategories = async () => {
-      try {
-        // Check if smart defaults are enabled
-        const smartDefaultsEnabled = await isSmartDefaultsEnabled();
 
-        if (!smartDefaultsEnabled) {
-          // Use fixed default order for muscle memory
-          setOrderedCategories(CATEGORIES);
-          return;
-        }
-
-        // Calculate smart priorities
-        const priorities = await calculateActivityPriorities(friend);
-
-        // Create a map of category to priority score
-        const scoreMap = new Map(priorities.map(p => [p.category, p.score]));
-
-        // Sort CATEGORIES by priority score (highest first)
-        const sorted = [...CATEGORIES].sort((a, b) => {
-          const scoreA = scoreMap.get(a.value) || 0;
-          const scoreB = scoreMap.get(b.value) || 0;
-          return scoreB - scoreA;
-        });
-
-        setOrderedCategories(sorted);
-      } catch (error) {
-        console.error('Error calculating activity priorities:', error);
-        // Keep default order on error
-      }
-    };
-
-    reorderCategories();
-  }, [friend.id]);
 
   // Create animated style once at the top level
   const animatedStyle = useAnimatedStyle(() => ({
@@ -115,7 +72,7 @@ export function PlanWizardStep2({
   };
 
   const getCategoryData = (value: InteractionCategory) => {
-    return CATEGORIES.find(c => c.value === value);
+    return orderedCategories.find(c => c.value === value);
   };
 
   return (
