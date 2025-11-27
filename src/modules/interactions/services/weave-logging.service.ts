@@ -50,6 +50,9 @@ export async function logWeave(data: InteractionFormData): Promise<Interaction> 
             if (data.reflection) {
                 interaction.reflectionJSON = JSON.stringify(data.reflection);
             }
+            if (data.initiator) {
+                interaction.initiator = data.initiator;
+            }
         });
 
         for (const friend of friends) {
@@ -83,6 +86,7 @@ export async function logWeave(data: InteractionFormData): Promise<Interaction> 
             friends_count: friends.length,
             has_notes: !!data.notes,
             has_reflection: !!data.reflection,
+            initiator: data.initiator,
         });
         updateLastInteractionTimestamp();
 
@@ -127,6 +131,9 @@ export async function planWeave(data: InteractionFormData): Promise<Interaction>
             interaction.location = data.location;
             if (data.category) {
                 interaction.interactionCategory = data.category;
+            }
+            if (data.initiator) {
+                interaction.initiator = data.initiator;
             }
         });
 

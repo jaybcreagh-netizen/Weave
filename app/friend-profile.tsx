@@ -289,7 +289,7 @@ export default function FriendProfile() {
             >
               <FriendListRow friend={friend} variant="full" />
             </TouchableOpacity>
-            <PatternBadge friend={friend} style={{ marginTop: 4, marginLeft: 4 }} />
+            <PatternBadge friend={friend} style={{ marginTop: 4 }} />
           </Animated.View>
 
           <Animated.View style={[styles.actionButtonsContainer, buttonsAnimatedStyle]}>
@@ -660,7 +660,6 @@ const styles = StyleSheet.create({
   // Empty text: muted-foreground color (dynamic)
   // Empty subtext: text-xs mt-1 opacity-70 (NativeWind)
   lifeEventsSection: {
-    paddingHorizontal: 20,
     marginTop: 8,
     marginBottom: 8,
   },

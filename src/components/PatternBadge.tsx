@@ -1,9 +1,10 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { Clock } from 'lucide-react-native';
 import { differenceInDays } from 'date-fns';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { useFriendPattern } from '@/modules/insights';
+import { getIntervalDescription } from '@/modules/insights/services/pattern.service';
 import FriendModel from '@/db/models/Friend';
 
 interface PatternBadgeProps {
@@ -36,13 +37,31 @@ export const PatternBadge: React.FC<PatternBadgeProps> = ({ friend, style }) => 
         textColor = '#22C55E';
     }
 
+    // Format text
+    const intervalText = getIntervalDescription(pattern.averageIntervalDays);
+
+    let timeAgoText = `${daysSince} days ago`;
+    if (daysSince === 0) timeAgoText = 'Today';
+    else if (daysSince === 1) timeAgoText = 'Yesterday';
+
+    const handlePress = () => {
+        Alert.alert(
+            "Interaction Pattern",
+            `Weave analyzes your history to find your natural rhythm.\n\n• Usual: You tend to connect with ${friend.name} ${intervalText.toLowerCase()}.\n• Last: Your last interaction was ${timeAgoText.toLowerCase()}.`
+        );
+    };
+
     return (
-        <View style={[styles.badge, { backgroundColor: badgeColor }, style]}>
+        <TouchableOpacity
+            onPress={handlePress}
+            activeOpacity={0.7}
+            style={[styles.badge, { backgroundColor: badgeColor }, style]}
+        >
             <Clock size={11} color={textColor} />
             <Text style={[styles.badgeText, { color: textColor }]}>
-                Usually {pattern.averageIntervalDays}d · {daysSince}d ago
+                You usually connect {intervalText.toLowerCase()}. Last weave: {timeAgoText}
             </Text>
-        </View>
+        </TouchableOpacity>
     );
 };
 

@@ -188,18 +188,37 @@ export function getPatternDescription(pattern: FriendshipPattern): string {
   const intervalText = pattern.averageIntervalDays === 1
     ? 'daily'
     : pattern.averageIntervalDays === 7
-    ? 'weekly'
-    : pattern.averageIntervalDays === 14
-    ? 'bi-weekly'
-    : pattern.averageIntervalDays === 30
-    ? 'monthly'
-    : `every ${pattern.averageIntervalDays} days`;
+      ? 'weekly'
+      : pattern.averageIntervalDays === 14
+        ? 'bi-weekly'
+        : pattern.averageIntervalDays === 30
+          ? 'monthly'
+          : `every ${pattern.averageIntervalDays} days`;
 
   const consistencyText = pattern.consistency > 0.7
     ? 'very regular'
     : pattern.consistency > 0.5
-    ? 'fairly regular'
-    : 'varies';
+      ? 'fairly regular'
+      : 'varies';
 
   return `${intervalText}, ${consistencyText}`;
+}
+
+/**
+ * Converts a day interval into a human-readable frequency description
+ * 
+ * @param days - Average interval in days
+ * @returns Short description like "Weekly", "Monthly", "Every 3d"
+ */
+export function getIntervalDescription(days: number): string {
+  const rounded = Math.round(days);
+
+  if (rounded <= 1) return 'Daily';
+  if (rounded === 7) return 'Weekly';
+  if (rounded === 14) return 'Bi-weekly';
+  if (rounded === 30 || rounded === 31) return 'Monthly';
+  if (rounded === 90) return 'Quarterly';
+  if (rounded === 365) return 'Yearly';
+
+  return `Every ${rounded} days`;
 }

@@ -138,13 +138,66 @@ function detectDayOfWeekPatterns(history: BatteryHistoryEntry[]): Pattern | null
 }
 
 /**
- * Detect battery-weave correlation
+ * Calculate Pearson correlation coefficient
+ * Returns value between -1 and 1
+ */
+function calculatePearsonCorrelation(x: number[], y: number[]): number {
+  if (x.length !== y.length || x.length === 0) return 0;
+
+  const n = x.length;
+  const meanX = x.reduce((sum, val) => sum + val, 0) / n;
+  const meanY = y.reduce((sum, val) => sum + val, 0) / n;
+
+  let numerator = 0;
+  let denomX = 0;
+  let denomY = 0;
+
+  for (let i = 0; i < n; i++) {
+    const diffX = x[i] - meanX;
+    const diffY = y[i] - meanY;
+    numerator += diffX * diffY;
+    denomX += diffX * diffX;
+    denomY += diffY * diffY;
+  }
+
+  if (denomX === 0 || denomY === 0) return 0;
+
+  return numerator / (Math.sqrt(denomX) * Math.sqrt(denomY));
+}
+
+/**
+ * Calculate time-weighted average
+ * Recent values have higher weight based on exponential decay
+ */
+function calculateTimeWeightedAverage(
+  values: { value: number; timestamp: number }[],
+  decayDays: number = 30
+): number {
+  if (values.length === 0) return 0;
+
+  const now = Date.now();
+  let weightedSum = 0;
+  let totalWeight = 0;
+  const msPerDay = 1000 * 60 * 60 * 24;
+
+  values.forEach(({ value, timestamp }) => {
+    const daysSince = Math.max(0, (now - timestamp) / msPerDay);
+    const weight = Math.exp(-daysSince / decayDays); // Exponential decay
+    weightedSum += value * weight;
+    totalWeight += weight;
+  });
+
+  return totalWeight > 0 ? weightedSum / totalWeight : 0;
+}
+
+/**
+ * Detect battery-weave correlation using Pearson coefficient
  */
 async function detectBatteryWeaveCorrelation(
   history: BatteryHistoryEntry[],
   weaves: Interaction[]
 ): Promise<Pattern | null> {
-  if (history.length < 8 || weaves.length < 3) return null; // Lowered from 14/5 to 8/3
+  if (history.length < 8 || weaves.length < 3) return null;
 
   // Create map of date -> weave count
   const weavesByDate = new Map<string, number>();
@@ -168,46 +221,61 @@ async function detectBatteryWeaveCorrelation(
     });
   });
 
-  if (pairedData.length < 6) return null; // Lowered from 10 to 6
+  if (pairedData.length < 6) return null;
 
-  // Calculate correlation: high battery days vs weave count
-  const highBatteryDays = pairedData.filter((d) => d.batteryLevel && d.batteryLevel >= 4);
-  const lowBatteryDays = pairedData.filter((d) => d.batteryLevel && d.batteryLevel <= 2);
+  // Calculate Pearson correlation
+  const batteryLevels = pairedData.map((d) => d.batteryLevel || 0);
+  const weaveCounts = pairedData.map((d) => d.weaveCount);
 
-  if (highBatteryDays.length < 2 || lowBatteryDays.length < 2) return null; // Lowered from 3 to 2
+  const correlation = calculatePearsonCorrelation(batteryLevels, weaveCounts);
 
-  const avgWeavesHighBattery =
-    highBatteryDays.reduce((sum, d) => sum + d.weaveCount, 0) / highBatteryDays.length;
-  const avgWeavesLowBattery =
-    lowBatteryDays.reduce((sum, d) => sum + d.weaveCount, 0) / lowBatteryDays.length;
+  // Strong positive correlation (> 0.5)
+  if (correlation > 0.5) {
+    // Calculate averages for description context
+    const highBatteryDays = pairedData.filter((d) => d.batteryLevel && d.batteryLevel >= 4);
+    const lowBatteryDays = pairedData.filter((d) => d.batteryLevel && d.batteryLevel <= 2);
 
-  const difference = avgWeavesHighBattery - avgWeavesLowBattery;
+    const avgWeavesHigh = highBatteryDays.length > 0
+      ? highBatteryDays.reduce((sum, d) => sum + d.weaveCount, 0) / highBatteryDays.length
+      : 0;
+    const avgWeavesLow = lowBatteryDays.length > 0
+      ? lowBatteryDays.reduce((sum, d) => sum + d.weaveCount, 0) / lowBatteryDays.length
+      : 0;
 
-  // Positive correlation: more weaves when battery is high (lowered from 0.5 to 0.3)
-  if (difference >= 0.3) {
     return {
       id: 'battery-weave-positive',
       type: 'correlation',
       title: 'Energy Fuels Connection',
-      description: `You weave ${avgWeavesHighBattery.toFixed(1)}x more on high-battery days (${avgWeavesHighBattery.toFixed(1)} weaves) vs low-battery days (${avgWeavesLowBattery.toFixed(1)} weaves).`,
+      description: `Strong correlation (${correlation.toFixed(2)}) between your energy and social activity. You weave significantly more when your battery is full.`,
       insight: 'Your social energy directly supports connection. Prioritize recharge when depleted.',
-      confidence: difference >= 1.5 ? 'high' : difference >= 1.0 ? 'medium' : 'low',
+      confidence: correlation > 0.7 ? 'high' : 'medium',
       icon: '⚡',
-      data: { avgWeavesHighBattery, avgWeavesLowBattery },
+      data: { correlation, avgWeavesHigh, avgWeavesLow },
     };
   }
 
-  // Inverse correlation: more weaves when battery is low (counterintuitive!) - lowered from -0.5 to -0.3
-  if (difference <= -0.3) {
+  // Strong negative correlation (< -0.5)
+  if (correlation < -0.5) {
+    // Calculate averages for description context
+    const highBatteryDays = pairedData.filter((d) => d.batteryLevel && d.batteryLevel >= 4);
+    const lowBatteryDays = pairedData.filter((d) => d.batteryLevel && d.batteryLevel <= 2);
+
+    const avgWeavesHigh = highBatteryDays.length > 0
+      ? highBatteryDays.reduce((sum, d) => sum + d.weaveCount, 0) / highBatteryDays.length
+      : 0;
+    const avgWeavesLow = lowBatteryDays.length > 0
+      ? lowBatteryDays.reduce((sum, d) => sum + d.weaveCount, 0) / lowBatteryDays.length
+      : 0;
+
     return {
       id: 'battery-weave-inverse',
       type: 'correlation',
       title: 'Connection Energizes You',
-      description: `Interestingly, you weave more on low-battery days (${avgWeavesLowBattery.toFixed(1)} weaves) than high-battery days (${avgWeavesHighBattery.toFixed(1)} weaves).`,
+      description: `Inverse correlation (${correlation.toFixed(2)}) detected. You tend to weave more when your reported battery is lower.`,
       insight: 'Connection might be recharging you. Your friendships could be your battery source.',
-      confidence: Math.abs(difference) >= 1.5 ? 'high' : Math.abs(difference) >= 1.0 ? 'medium' : 'low',
+      confidence: Math.abs(correlation) > 0.7 ? 'high' : 'medium',
       icon: '💫',
-      data: { avgWeavesHighBattery, avgWeavesLowBattery },
+      data: { correlation, avgWeavesHigh, avgWeavesLow },
     };
   }
 

@@ -11,6 +11,7 @@ import { CustomCalendar } from '@/components/CustomCalendar';
 import { CalendarDays } from 'lucide-react-native';
 import { format } from 'date-fns';
 import { BlurView } from 'expo-blur';
+import { ReciprocitySelector, InitiatorType } from '@/components/ReciprocitySelector';
 
 interface EditInteractionModalProps {
   interaction: Interaction | null;
@@ -22,6 +23,7 @@ interface EditInteractionModalProps {
     vibe?: Vibe | null;
     reflection?: StructuredReflection;
     interactionDate?: Date;
+    initiator?: InitiatorType;
   }) => Promise<void>;
 }
 
@@ -41,6 +43,7 @@ export function EditInteractionModal({
   const [isSaving, setIsSaving] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [initiator, setInitiator] = useState<InitiatorType | undefined>(undefined);
   const { isDarkMode } = useTheme();
 
   // Update state when interaction changes
@@ -51,6 +54,7 @@ export function EditInteractionModal({
       setSelectedVibe(interaction.vibe || null);
       setCustomNotes(interaction.reflection?.customNotes || interaction.note || '');
       setSelectedDate(interaction.interactionDate);
+      setInitiator(interaction.initiator as InitiatorType | undefined);
     }
   }, [interaction]);
 
@@ -83,6 +87,10 @@ export function EditInteractionModal({
 
       if (selectedDate && selectedDate.getTime() !== interaction.interactionDate.getTime()) {
         updates.interactionDate = selectedDate;
+      }
+
+      if (initiator !== interaction.initiator) {
+        updates.initiator = initiator;
       }
 
       await onSave(interaction.id, updates);
@@ -222,6 +230,14 @@ export function EditInteractionModal({
               multiline
               numberOfLines={4}
               textAlignVertical="top"
+            />
+          </View>
+
+          {/* Reciprocity Section */}
+          <View style={styles.section}>
+            <ReciprocitySelector
+              value={initiator}
+              onChange={setInitiator}
             />
           </View>
         </ScrollView>

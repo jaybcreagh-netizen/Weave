@@ -259,3 +259,47 @@ export function forecastNetworkHealth(
     confidence,
   };
 }
+
+export interface CompositeHealthSignal {
+  decayScore: number; // From decay service (0-100)
+  patternScore: number; // From interaction patterns (0-100)
+  reciprocityScore: number; // From initiation balance (0-100)
+  batteryAlignmentScore: number; // Battery level when last interacted (0-100)
+  momentumScore: number; // Current momentum (0-100)
+  qualityScore: number; // Recent interaction quality (0-100)
+}
+
+/**
+ * Calculate a composite relationship health prediction combining multiple signals
+ */
+export function calculateCompositeHealthPrediction(
+  friend: FriendModel,
+  signals: CompositeHealthSignal
+): { score: number; confidence: number; topFactors: string[] } {
+  // Weighted composite score
+  const weights = {
+    decay: 0.30,
+    pattern: 0.25,
+    reciprocity: 0.15,
+    batteryAlignment: 0.10,
+    momentum: 0.10,
+    quality: 0.10,
+  };
+
+  const score =
+    signals.decayScore * weights.decay +
+    signals.patternScore * weights.pattern +
+    signals.reciprocityScore * weights.reciprocity +
+    signals.batteryAlignmentScore * weights.batteryAlignment +
+    signals.momentumScore * weights.momentum +
+    signals.qualityScore * weights.quality;
+
+  // Identify top contributing factors
+  const factors = Object.entries(signals)
+    .map(([key, val]) => ({ key, contribution: val * (weights[key as keyof typeof weights] || 0) }))
+    .sort((a, b) => b.contribution - a.contribution)
+    .slice(0, 3)
+    .map((f) => f.key);
+
+  return { score, confidence: 0.85, topFactors: factors };
+}

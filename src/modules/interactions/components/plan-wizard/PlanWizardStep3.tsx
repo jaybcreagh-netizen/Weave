@@ -8,6 +8,7 @@ import { PlanFormData } from '../PlanWizard';
 import FriendModel from '@/db/models/Friend';
 import { PlanSuggestion } from '@/modules/interactions';
 import { FriendSelectionModal } from './FriendSelectionModal';
+import { ReciprocitySelector } from '@/components/ReciprocitySelector';
 
 interface PlanWizardStep3Props {
   formData: Partial<PlanFormData>;
@@ -226,6 +227,13 @@ export function PlanWizardStep3({
               color: colors.foreground,
               textAlignVertical: 'top',
             }}
+          />
+
+          {/* Reciprocity Section */}
+          <ReciprocitySelector
+            value={formData.initiator}
+            onChange={(initiator) => onUpdate({ initiator })}
+            friendName={selectedFriends.length === 1 ? selectedFriends[0].name : 'Them'}
           />
         </View>
       )}

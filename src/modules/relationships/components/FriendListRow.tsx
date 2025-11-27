@@ -189,7 +189,7 @@ export const FriendListRow = withObservables(['friend'], ({ friend }: { friend: 
   return (
     <Animated.View ref={animatedRef} style={rowStyle}>
       <View
-        className="mx-4 mb-3 rounded-weave-card overflow-hidden"
+        className={`mb-3 rounded-weave-card overflow-hidden ${variant === 'full' ? '' : 'mx-4'}`}
         style={{
           borderWidth: 0.5,
           borderColor,
