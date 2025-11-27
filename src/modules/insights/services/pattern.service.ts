@@ -132,8 +132,9 @@ function getDefaultPattern(): FriendshipPattern {
  * @returns true if pattern has enough data to be actionable
  */
 export function isPatternReliable(pattern: FriendshipPattern): boolean {
-  // Need at least 3 interactions and some level of consistency
-  return pattern.sampleSize >= 3 && pattern.consistency > 0.3;
+  // Lowered thresholds: Need at least 2 interactions and some level of consistency (0.2)
+  // This allows patterns to emerge earlier and encourages continued use
+  return pattern.sampleSize >= 2 && pattern.consistency > 0.2;
 }
 
 /**
