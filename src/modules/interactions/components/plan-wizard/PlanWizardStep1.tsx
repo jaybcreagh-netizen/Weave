@@ -237,7 +237,7 @@ export function PlanWizardStep1({ selectedDate, onDateSelect, onContinue, canCon
                 entering={FadeIn.duration(200).springify()}
                 className="w-full max-w-md rounded-3xl p-6"
                 style={{
-                  backgroundColor: isDarkMode ? colors.background + 'F5' : colors.background + 'F8',
+                  backgroundColor: colors.background,
                   shadowColor: '#000',
                   shadowOffset: { width: 0, height: 20 },
                   shadowOpacity: 0.25,

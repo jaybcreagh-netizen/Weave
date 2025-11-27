@@ -84,7 +84,16 @@ export const TodaysFocusWidget: React.FC = () => {
       })
       .sort((a, b) => new Date(a.interactionDate).getTime() - new Date(b.interactionDate).getTime());
   }, [interactions]);
-  const pendingPlans = pendingConfirmations;
+  const [confirmingIds, setConfirmingIds] = useState<Set<string>>(new Set());
+
+  // Filter out plans that are currently being confirmed (optimistic UI)
+  const visiblePendingPlans = React.useMemo(() => {
+    return pendingConfirmations.filter(p => !confirmingIds.has(p.id));
+  }, [pendingConfirmations, confirmingIds]);
+
+  // Use visiblePendingPlans for all logic instead of pendingConfirmations
+  const pendingPlans = visiblePendingPlans;
+
   const { completePlan } = usePlans();
   const { profile } = useUserProfileStore();
   const [upcomingDates, setUpcomingDates] = useState<UpcomingDate[]>([]);
@@ -469,7 +478,7 @@ export const TodaysFocusWidget: React.FC = () => {
     }
 
     // 2. Today's plans - show all at a glance
-    const todaysPlans = pendingConfirmations.filter((p: Interaction) => differenceInDays(p.interactionDate, new Date()) === 0);
+    const todaysPlans = visiblePendingPlans.filter((p: Interaction) => differenceInDays(p.interactionDate, new Date()) === 0);
     if (todaysPlans.length > 0) {
       return { state: 'todays-plan', data: { plans: todaysPlans, count: todaysPlans.length } };
     }
@@ -520,10 +529,19 @@ export const TodaysFocusWidget: React.FC = () => {
   const priority = getPriority();
 
   const handleConfirmPlan = async (interactionId: string) => {
+    // Optimistic update: Add to confirming list immediately
+    setConfirmingIds(prev => new Set(prev).add(interactionId));
+
     try {
       await completePlan(interactionId);
     } catch (error) {
       console.error('Error confirming plan:', error);
+      // Revert on error
+      setConfirmingIds(prev => {
+        const next = new Set(prev);
+        next.delete(interactionId);
+        return next;
+      });
     }
   };
 
@@ -564,14 +582,11 @@ export const TodaysFocusWidget: React.FC = () => {
     }
   };
 
-  const handleCardPress = () => {
+  const handlePrimaryAction = () => {
     if (priority.state === 'pressing-event') {
       // Navigate to friend profile
       const event = priority.data as UpcomingDate;
       router.push(`/friend-profile?friendId=${event.friend.id}`);
-    } else if (priority.state === 'todays-plan' || priority.state === 'upcoming-plan' || priority.state === 'all-clear') {
-      // Expand to show more details
-      setExpanded(!expanded);
     } else if (priority.state === 'streak-risk') {
       // Route to specific battery-matched friend's weave logger
       const friend = priority.data?.friend;
@@ -595,8 +610,18 @@ export const TodaysFocusWidget: React.FC = () => {
     }
   };
 
+  const handleCardPress = () => {
+    // Default behavior is to expand/collapse if there are additional items
+    if (additionalItemsCount > 0) {
+      setExpanded(!expanded);
+    } else {
+      // If no additional items, fallback to primary action behavior for better UX
+      handlePrimaryAction();
+    }
+  };
+
   // Count additional items
-  const additionalItemsCount = pendingConfirmations.length + suggestions.length + upcomingDates.length - 1;
+  const additionalItemsCount = visiblePendingPlans.length + suggestions.length + upcomingDates.length - 1;
 
   // Render hero card based on priority
   const renderCard = () => {
@@ -614,35 +639,67 @@ export const TodaysFocusWidget: React.FC = () => {
 
     switch (priority.state) {
       case 'pressing-event':
-        return <PressingEventCard event={priority.data} {...cardProps} />;
+        return (
+          <PressingEventCard
+            event={priority.data}
+            onAction={handlePrimaryAction}
+            actionLabel="View Profile"
+            {...cardProps}
+          />
+        );
       case 'todays-plan':
-        return <TodaysPlanCard data={priority.data} {...cardProps} />;
+        return (
+          <TodaysPlanCard
+            data={priority.data}
+            // No specific primary action for today's plan other than expanding to see details
+            // But we could add "View Plans" if we wanted to force navigation
+            {...cardProps}
+          />
+        );
       case 'streak-risk':
-        return <StreakRiskCard
-          streakCount={priority.data.streakCount}
-          friend={priority.data.friend}
-          batteryLevel={priority.data.batteryLevel}
-          message={getStreakMessage(priority.data.streakCount, priority.data.friend, priority.data.batteryLevel)}
-          {...cardProps}
-        />;
+        return (
+          <StreakRiskCard
+            streakCount={priority.data.streakCount}
+            friend={priority.data.friend}
+            batteryLevel={priority.data.batteryLevel}
+            message={getStreakMessage(priority.data.streakCount, priority.data.friend, priority.data.batteryLevel)}
+            onAction={handlePrimaryAction}
+            actionLabel="Keep Streak"
+            {...cardProps}
+          />
+        );
       case 'friend-fading':
-        return <FriendFadingCard
-          friend={priority.data.friend}
-          score={priority.data.score}
-          message={getFadingMessage(priority.data.friend, priority.data.score, priority.data.pattern)}
-          {...cardProps}
-        />;
+        return (
+          <FriendFadingCard
+            friend={priority.data.friend}
+            score={priority.data.score}
+            message={getFadingMessage(priority.data.friend, priority.data.score, priority.data.pattern)}
+            onAction={handlePrimaryAction}
+            actionLabel="Plan Catch-up"
+            {...cardProps}
+          />
+        );
       case 'upcoming-plan':
-        return <UpcomingPlanCard plan={priority.data} {...cardProps} />;
+        return (
+          <UpcomingPlanCard
+            plan={priority.data}
+            // Upcoming plans are informational, expansion shows more details
+            {...cardProps}
+          />
+        );
       case 'quick-weave':
         const friend = priority.data?.friend;
         const daysSince = priority.data?.daysSince || 0;
-        return <QuickWeaveCard
-          friend={friend}
-          daysSince={daysSince}
-          message={friend ? getQuickWeaveMessage(friend, daysSince) : 'Reach out to a friend today'}
-          {...cardProps}
-        />;
+        return (
+          <QuickWeaveCard
+            friend={friend}
+            daysSince={daysSince}
+            message={friend ? getQuickWeaveMessage(friend, daysSince) : 'Reach out to a friend today'}
+            onAction={handlePrimaryAction}
+            actionLabel="Reach Out"
+            {...cardProps}
+          />
+        );
       case 'all-clear':
         return <AllClearCard message={getAllClearMessage()} {...cardProps} />;
     }
@@ -652,12 +709,12 @@ export const TodaysFocusWidget: React.FC = () => {
   const renderExpandedContent = () => (
     <>
       {/* Pending Plans */}
-      {pendingConfirmations.length > 0 && (
+      {visiblePendingPlans.length > 0 && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>
             PENDING PLANS
           </Text>
-          {pendingConfirmations.slice(0, 3).map((plan: any) => (
+          {visiblePendingPlans.slice(0, 3).map((plan: any) => (
             <PendingPlanItem key={plan.id} plan={plan} onConfirm={handleConfirmPlan} onReschedule={handleReschedulePlan} />
           ))}
         </View>
@@ -849,7 +906,9 @@ export const TodaysFocusWidget: React.FC = () => {
  */
 
 interface CardProps {
-  onPress: () => void;
+  onPress: () => void; // Now used for expansion/navigation if no specific action
+  onAction?: () => void; // Specific primary action
+  actionLabel?: string; // Label for primary action
   colors: any;
   isDarkMode: boolean;
   expanded: boolean;
@@ -859,6 +918,20 @@ interface CardProps {
   urgentItems: UpcomingDate[];
   router: any;
 }
+
+// Primary Action Button Component
+const PrimaryActionButton: React.FC<{ label: string; onPress: () => void }> = ({ label, onPress }) => (
+  <TouchableOpacity
+    style={styles.primaryActionBtn}
+    onPress={(e) => {
+      e.stopPropagation();
+      onPress();
+    }}
+    activeOpacity={0.8}
+  >
+    <Text style={styles.primaryActionBtnText}>{label}</Text>
+  </TouchableOpacity>
+);
 
 // Reusable urgent item message component for inside cards (birthdays + important life events)
 const UrgentItemMessage: React.FC<{ item: UpcomingDate; router: any }> = ({ item, router }) => {
@@ -896,7 +969,17 @@ const UrgentItemMessage: React.FC<{ item: UpcomingDate; router: any }> = ({ item
   );
 };
 
-const PressingEventCard: React.FC<CardProps & { event: UpcomingDate }> = ({ event, onPress, isDarkMode, expansionProgress, expandedContent, urgentItems, router }) => {
+const PressingEventCard: React.FC<CardProps & { event: UpcomingDate }> = ({
+  event,
+  onPress,
+  onAction,
+  actionLabel,
+  isDarkMode,
+  expansionProgress,
+  expandedContent,
+  urgentItems,
+  router
+}) => {
   const expandedStyle = useAnimatedStyle(() => {
     'worklet';
     return {
@@ -953,6 +1036,9 @@ const PressingEventCard: React.FC<CardProps & { event: UpcomingDate }> = ({ even
           <Text style={styles.subtextCompact}>
             {getSubtext()}
           </Text>
+          {onAction && actionLabel && (
+            <PrimaryActionButton label={actionLabel} onPress={onAction} />
+          )}
           {urgentItems.length > 0 && <UrgentItemMessage item={urgentItems[0]} router={router} />}
         </View>
 
@@ -964,7 +1050,15 @@ const PressingEventCard: React.FC<CardProps & { event: UpcomingDate }> = ({ even
   );
 };
 
-const TodaysPlanCard: React.FC<CardProps & { data: { plans: Interaction[], count: number } }> = ({ data, onPress, isDarkMode, expansionProgress, expandedContent }) => {
+const TodaysPlanCard: React.FC<CardProps & { data: { plans: Interaction[], count: number } }> = ({
+  data,
+  onPress,
+  onAction,
+  actionLabel,
+  isDarkMode,
+  expansionProgress,
+  expandedContent
+}) => {
   const { plans, count } = data;
 
   const expandedStyle = useAnimatedStyle(() => {
@@ -1000,6 +1094,9 @@ const TodaysPlanCard: React.FC<CardProps & { data: { plans: Interaction[], count
               </Text>
             )}
           </View>
+          {onAction && actionLabel && (
+            <PrimaryActionButton label={actionLabel} onPress={onAction} />
+          )}
         </View>
 
         {/* Expanded Content - Animated */}
@@ -1017,6 +1114,8 @@ const StreakRiskCard: React.FC<CardProps & { streakCount: number; friend: Friend
   batteryLevel,
   message,
   onPress,
+  onAction,
+  actionLabel,
   isDarkMode,
   expansionProgress,
   expandedContent
@@ -1043,6 +1142,9 @@ const StreakRiskCard: React.FC<CardProps & { streakCount: number; friend: Friend
           <Text style={styles.subtextCompact}>
             {message}
           </Text>
+          {onAction && actionLabel && (
+            <PrimaryActionButton label={actionLabel} onPress={onAction} />
+          )}
         </View>
 
         <Animated.View style={[styles.expandedSection, expandedStyle]}>
@@ -1058,6 +1160,8 @@ const FriendFadingCard: React.FC<CardProps & { friend: FriendModel; score: numbe
   score,
   message,
   onPress,
+  onAction,
+  actionLabel,
   isDarkMode,
   expansionProgress,
   expandedContent
@@ -1084,6 +1188,9 @@ const FriendFadingCard: React.FC<CardProps & { friend: FriendModel; score: numbe
           <Text style={styles.subtextCompact}>
             {message}
           </Text>
+          {onAction && actionLabel && (
+            <PrimaryActionButton label={actionLabel} onPress={onAction} />
+          )}
         </View>
 
         <Animated.View style={[styles.expandedSection, expandedStyle]}>
@@ -1094,7 +1201,15 @@ const FriendFadingCard: React.FC<CardProps & { friend: FriendModel; score: numbe
   );
 };
 
-const UpcomingPlanCard = ({ plan, onPress, isDarkMode, expansionProgress, expandedContent }: CardProps & { plan: { interaction: Interaction, daysUntil: number } }) => {
+const UpcomingPlanCard = ({
+  plan,
+  onPress,
+  onAction,
+  actionLabel,
+  isDarkMode,
+  expansionProgress,
+  expandedContent
+}: CardProps & { plan: { interaction: Interaction, daysUntil: number } }) => {
   const [friendNames, setFriendNames] = useState<string>('');
 
   useEffect(() => {
@@ -1132,6 +1247,9 @@ const UpcomingPlanCard = ({ plan, onPress, isDarkMode, expansionProgress, expand
           <Text style={styles.subtextCompact}>
             {title} with {friendNames} · {dateText}
           </Text>
+          {onAction && actionLabel && (
+            <PrimaryActionButton label={actionLabel} onPress={onAction} />
+          )}
         </View>
 
         <Animated.View style={[styles.expandedSection, expandedStyle]}>
@@ -1147,6 +1265,8 @@ const QuickWeaveCard: React.FC<CardProps & { friend: FriendModel | null; daysSin
   daysSince,
   message,
   onPress,
+  onAction,
+  actionLabel,
   isDarkMode,
   expansionProgress,
   expandedContent,
@@ -1175,6 +1295,9 @@ const QuickWeaveCard: React.FC<CardProps & { friend: FriendModel | null; daysSin
           <Text style={styles.subtextCompact}>
             {message}
           </Text>
+          {onAction && actionLabel && (
+            <PrimaryActionButton label={actionLabel} onPress={onAction} />
+          )}
 
           {/* Urgent item message inside the card (birthdays + important life events) */}
           {urgentItems.length > 0 && <UrgentItemMessage item={urgentItems[0]} router={router} />}
@@ -1191,6 +1314,8 @@ const QuickWeaveCard: React.FC<CardProps & { friend: FriendModel | null; daysSin
 const AllClearCard: React.FC<CardProps & { message: { headline: string; subtext: string } }> = ({
   message,
   onPress,
+  onAction,
+  actionLabel,
   isDarkMode,
   expansionProgress,
   expandedContent
@@ -1217,6 +1342,9 @@ const AllClearCard: React.FC<CardProps & { message: { headline: string; subtext:
           <Text style={styles.subtextCompact}>
             {message.subtext}
           </Text>
+          {onAction && actionLabel && (
+            <PrimaryActionButton label={actionLabel} onPress={onAction} />
+          )}
         </View>
 
         <Animated.View style={[styles.expandedSection, expandedStyle]}>
@@ -1492,5 +1620,19 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_500Medium',
     fontSize: 12,
     color: 'rgba(255, 255, 255, 0.8)',
+  },
+  primaryActionBtn: {
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.4)',
+  },
+  primaryActionBtnText: {
+    color: '#FFFFFF',
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 13,
   },
 });

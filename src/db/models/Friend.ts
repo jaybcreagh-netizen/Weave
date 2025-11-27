@@ -5,7 +5,7 @@ export default class Friend extends Model {
   static table = 'friends'
 
   static associations: any = {
-    interaction_friends: { type: 'has_many', foreignKey: 'interaction_id' }
+    interaction_friends: { type: 'has_many', foreignKey: 'friend_id' }
   }
 
   @children('interaction_friends') interactionFriends

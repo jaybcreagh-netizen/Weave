@@ -69,15 +69,17 @@ export async function createFriend(data: FriendFormData): Promise<Friend> {
 export async function updateFriend(id: string, data: FriendFormData): Promise<Friend> {
   let updatedFriend: Friend | undefined;
   const friend = await database.get<Friend>('friends').find(id);
-  updatedFriend = await friend.update(record => {
-    record.name = data.name;
-    record.dunbarTier = tierMap[data.tier] || 'Community';
-    record.archetype = data.archetype;
-    record.photoUrl = data.photoUrl;
-    record.notes = data.notes;
-    record.birthday = data.birthday || undefined;
-    record.anniversary = data.anniversary || undefined;
-    record.relationshipType = data.relationshipType || undefined;
+  await database.write(async () => {
+    updatedFriend = await friend.update(record => {
+      record.name = data.name;
+      record.dunbarTier = tierMap[data.tier] || 'Community';
+      record.archetype = data.archetype;
+      record.photoUrl = data.photoUrl;
+      record.notes = data.notes;
+      record.birthday = data.birthday || undefined;
+      record.anniversary = data.anniversary || undefined;
+      record.relationshipType = data.relationshipType || undefined;
+    });
   });
 
   trackEvent(AnalyticsEvents.FRIEND_UPDATED, {

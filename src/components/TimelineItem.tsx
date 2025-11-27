@@ -234,10 +234,10 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, index,
       borderColor: colors.border,
     },
     cardCompleted: {
-      backgroundColor: isDarkMode ? 'transparent' : 'rgba(255, 255, 255, 0.95)',
+      backgroundColor: isDarkMode ? colors.card : 'rgba(255, 255, 255, 0.95)',
     },
     cardPlanned: {
-      backgroundColor: isDarkMode ? 'transparent' : 'rgba(255, 255, 255, 0.65)',
+      backgroundColor: isDarkMode ? colors.card : 'rgba(255, 255, 255, 0.65)',
       borderColor: isDarkMode ? colors.accent + '80' : 'rgba(181, 138, 108, 0.4)',
     },
     cardTitle: {
@@ -585,7 +585,7 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, index,
                 left: THREAD_CENTER - (KNOT_SIZE / 2),
                 backgroundColor: isFuture ? 'transparent' : (temporalColors.knot === colors.card ? 'transparent' : temporalColors.knot),
                 borderColor: isFuture ? 'rgba(247, 245, 242, 0.6)' : temporalColors.line,
-                shadowColor: temporalColors.glow,
+                shadowColor: isFuture ? undefined : temporalColors.glow,
                 shadowOffset: { width: 0, height: 1 },
                 shadowOpacity: warmth > 0.5 ? 0.3 : 0.15,
                 shadowRadius: 3 + (warmth * 6),
@@ -671,8 +671,7 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, index,
               },
             ]}
           >
-            {/* Simple solid background with color tint overlay */}
-            <View className="absolute inset-0" style={{ backgroundColor: isDarkMode ? colors.card : colors.card }} />
+
             <View className="absolute inset-0" style={{ backgroundColor: cardTintColor }} />
 
             {/* Reflection glow overlay for deepened weaves */}

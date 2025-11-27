@@ -54,7 +54,7 @@ export const FriendListRow = withObservables(['friend'], ({ friend }: { friend: 
 
   const { id, name, archetype, isDormant = false, photoUrl, relationshipType } = friend;
   const [statusLine, setStatusLine] = useState<{ text: string; icon?: string }>({
-    text: archetypeData[archetype]?.essence || ''
+    text: archetypeData[archetype as Archetype]?.essence || ''
   });
   const [imageError, setImageError] = useState(false);
   const [showDetailSheet, setShowDetailSheet] = useState(false);
@@ -193,6 +193,7 @@ export const FriendListRow = withObservables(['friend'], ({ friend }: { friend: 
         style={{
           borderWidth: 0.5,
           borderColor,
+          backgroundColor: colors.background,
           shadowColor: '#000',
           shadowOffset: { width: 0, height: 2 },
           shadowOpacity: isDarkMode ? 0.15 : 0.08,

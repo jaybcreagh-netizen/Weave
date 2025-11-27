@@ -22,6 +22,8 @@ export function usePortfolio() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    let isMounted = true;
+
     const loadPortfolio = async () => {
       try {
         // Get all friends
@@ -85,11 +87,15 @@ export function usePortfolio() {
           recentInteractions: interactionData,
         });
 
-        setPortfolio(portfolioData);
-        setIsLoading(false);
+        if (isMounted) {
+          setPortfolio(portfolioData);
+          setIsLoading(false);
+        }
       } catch (error) {
         console.error('Error loading portfolio:', error);
-        setIsLoading(false);
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     };
 
@@ -115,6 +121,7 @@ export function usePortfolio() {
       });
 
     return () => {
+      isMounted = false;
       friendsSubscription?.unsubscribe();
       interactionsSubscription?.unsubscribe();
     };

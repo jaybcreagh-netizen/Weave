@@ -49,6 +49,7 @@ interface InteractionsStore {
 
 let interactionSubscription: Subscription | null = null;
 let intentionSubscription: Subscription | null = null;
+let isInitializing = false;
 
 export const useInteractionsStore = create<InteractionsStore>((set, get) => ({
     interactions: [],
@@ -61,15 +62,20 @@ export const useInteractionsStore = create<InteractionsStore>((set, get) => ({
         const currentCount = get().subscriberCount;
         set({ subscriberCount: currentCount + 1 });
 
-        if (interactionSubscription) return;
+        if (interactionSubscription || isInitializing) return;
 
+        isInitializing = true;
         set({ isLoading: true });
-        interactionSubscription = database.get<Interaction>('interactions')
-            .query(Q.sortBy('interaction_date', Q.desc))
-            .observe()
-            .subscribe(interactions => {
-                set({ interactions, isLoading: false });
-            });
+        try {
+            interactionSubscription = database.get<Interaction>('interactions')
+                .query(Q.sortBy('interaction_date', Q.desc))
+                .observe()
+                .subscribe(interactions => {
+                    set({ interactions, isLoading: false });
+                });
+        } finally {
+            isInitializing = false;
+        }
     },
 
     unobserveInteractions: () => {
