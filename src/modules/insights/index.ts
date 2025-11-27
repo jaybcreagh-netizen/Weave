@@ -27,6 +27,7 @@ export * from './hooks/useTierFit';
 
 // Components
 export { TierFitCard } from './components/TierFitCard';
+export { TierFitBottomSheet } from './components/TierFitBottomSheet';
 
 // Types
 export * from './types';
