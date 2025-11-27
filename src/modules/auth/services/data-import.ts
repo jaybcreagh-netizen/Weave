@@ -14,8 +14,8 @@ interface ExportData {
     name: string;
     dunbarTier: string;
     archetype: string;
-    photoUrl: string;
-    notes: string;
+    photoUrl: string | null;
+    notes: string | null;
     weaveScore: number;
     lastUpdated: string;
     resilience: number;
@@ -35,9 +35,9 @@ interface ExportData {
     activity: string;
     status: string;
     mode: string;
-    note: string;
-    vibe: string;
-    duration: string;
+    note: string | null;
+    vibe: string | null;
+    duration: string | null;
     title: string | null;
     location: string | null;
     eventImportance: string | null;
@@ -246,8 +246,8 @@ export async function importData(
             friend.momentumLastUpdated = new Date(friendData.momentumLastUpdated);
             friend.isDormant = friendData.isDormant;
             friend.dormantSince = friendData.dormantSince ? new Date(friendData.dormantSince) : null;
-            friend.birthday = friendData.birthday ? new Date(friendData.birthday) : null;
-            friend.anniversary = friendData.anniversary ? new Date(friendData.anniversary) : null;
+            friend.birthday = friendData.birthday || null;
+            friend.anniversary = friendData.anniversary || null;
             friend.relationshipType = friendData.relationshipType || null;
           });
 

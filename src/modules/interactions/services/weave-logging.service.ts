@@ -26,7 +26,7 @@ export async function logWeave(data: InteractionFormData): Promise<Interaction> 
     // Defer database access to avoid circular dependency
     const { database } = require('@/db');
 
-    const friends = await database.get<FriendModel>('friends').query(Q.where('id', Q.oneOf(data.friendIds))).fetch();
+    const friends = await database.get('friends').query(Q.where('id', Q.oneOf(data.friendIds))).fetch();
 
     if (friends.length === 0) {
         throw new Error('No friends found for this interaction.');
@@ -34,15 +34,18 @@ export async function logWeave(data: InteractionFormData): Promise<Interaction> 
 
     // 1. Create the interaction record (Main Transaction)
     const { interaction } = await database.write(async () => {
-        const newInteraction = await database.get<Interaction>('interactions').create(interaction => {
+        const batchOps: any[] = [];
+
+        // @ts-ignore - WatermelonDB types might be mismatching here, but this is correct
+        const newInteraction = database.get<Interaction>('interactions').prepareCreate((interaction: Interaction) => {
             interaction.interactionDate = data.date;
             interaction.interactionType = 'log';
             interaction.status = 'completed';
             interaction.activity = data.activity;
             interaction.mode = data.mode;
             interaction.note = data.notes;
-            interaction.vibe = data.vibe;
-            interaction.duration = data.duration;
+            interaction.vibe = data.vibe || undefined;
+            interaction.duration = data.duration || undefined;
             if (data.title) {
                 interaction.title = data.title;
             }
@@ -56,13 +59,17 @@ export async function logWeave(data: InteractionFormData): Promise<Interaction> 
                 interaction.initiator = data.initiator;
             }
         });
+        batchOps.push(newInteraction);
 
         for (const friend of friends) {
-            await database.get<InteractionFriend>('interaction_friends').create(ifriend => {
+            batchOps.push(database.get('interaction_friends').prepareCreate((_ifriend: any) => {
+                const ifriend = _ifriend as InteractionFriend;
                 ifriend.interaction.set(newInteraction);
                 ifriend.friend.set(friend);
-            });
+            }));
         }
+
+        await database.batch(batchOps);
 
         return { interaction: newInteraction };
     });
@@ -110,7 +117,7 @@ export async function logWeave(data: InteractionFormData): Promise<Interaction> 
         for (const friend of friends) {
             try {
                 // Refetch friend to get updated ratedWeavesCount after scoring
-                const updatedFriend = await database.get<FriendModel>('friends').find(friend.id);
+                const updatedFriend = await database.get('friends').find(friend.id);
                 const wasFirstInteraction = updatedFriend.ratedWeavesCount === 1;
 
                 const suggestion = await checkTierSuggestionAfterInteraction(
@@ -141,14 +148,17 @@ export async function logWeave(data: InteractionFormData): Promise<Interaction> 
 }
 
 export async function planWeave(data: InteractionFormData): Promise<Interaction> {
-    const friends = await database.get<FriendModel>('friends').query(Q.where('id', Q.oneOf(data.friendIds))).fetch();
+    const friends = await database.get('friends').query(Q.where('id', Q.oneOf(data.friendIds))).fetch();
 
     if (friends.length === 0) {
         throw new Error('No friends found for this plan.');
     }
 
     const interaction = await database.write(async () => {
-        const newInteraction = await database.get<Interaction>('interactions').create(interaction => {
+        const batchOps: any[] = [];
+
+        // @ts-ignore
+        const newInteraction = database.get<Interaction>('interactions').prepareCreate((interaction: Interaction) => {
             interaction.interactionDate = data.date;
             interaction.interactionType = 'plan';
             interaction.status = 'planned';
@@ -164,13 +174,17 @@ export async function planWeave(data: InteractionFormData): Promise<Interaction>
                 interaction.initiator = data.initiator;
             }
         });
+        batchOps.push(newInteraction);
 
         for (const friend of friends) {
-            await database.get<InteractionFriend>('interaction_friends').create(ifriend => {
+            batchOps.push(database.get('interaction_friends').prepareCreate((_ifriend: any) => {
+                const ifriend = _ifriend as InteractionFriend;
                 ifriend.interaction.set(newInteraction);
                 ifriend.friend.set(friend);
-            });
+            }));
         }
+
+        await database.batch(batchOps);
 
         trackEvent(AnalyticsEvents.INTERACTION_PLANNED, {
             activity: data.activity,
@@ -185,11 +199,11 @@ export async function planWeave(data: InteractionFormData): Promise<Interaction>
 }
 
 export async function deleteWeave(id: string): Promise<void> {
-    const interaction = await database.get<Interaction>('interactions').find(id);
+    const interaction = await database.get('interactions').find(id) as Interaction;
     const calendarEventId = interaction.calendarEventId;
 
     await database.write(async () => {
-        const joinRecords = await database.get<InteractionFriend>('interaction_friends').query(Q.where('interaction_id', id)).fetch();
+        const joinRecords = await database.get('interaction_friends').query(Q.where('interaction_id', id)).fetch();
         const recordsToDelete = joinRecords.map(r => r.prepareDestroyPermanently());
         await database.batch(...recordsToDelete, interaction.prepareDestroyPermanently());
     });

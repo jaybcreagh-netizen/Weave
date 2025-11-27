@@ -157,4 +157,5 @@ export interface NetworkTierHealth {
   };
   mismatches: TierFitAnalysis[];
   suggestions: TierFitAnalysis[]; // Top suggestions with suggestedTier
+  allAnalyses: TierFitAnalysis[]; // All analyses including insufficient_data
 }

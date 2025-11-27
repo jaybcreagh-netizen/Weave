@@ -6,7 +6,7 @@ import InteractionFriend from '@/db/models/InteractionFriend';
 import FriendModel from '@/db/models/Friend';
 import { Q } from '@nozbe/watermelondb';
 import { processWeaveScoring } from '@/modules/intelligence';
-import { recordMilestone } from '@/modules/gamification';
+import { recordPractice } from '@/modules/gamification';
 import { deleteWeaveCalendarEvent } from './calendar.service';
 import { InteractionFormData } from '../types';
 
@@ -48,7 +48,7 @@ export async function completePlan(interactionId: string): Promise<void> {
   };
 
   await processWeaveScoring(friends, interactionData, database);
-  await recordMilestone('log_weave');
+  await recordPractice('log_weave');
   // TODO: Trigger UI celebration from the hook/store that calls this service.
 }
 

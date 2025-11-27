@@ -22,7 +22,7 @@ const TIER_EXPECTED_INTERVALS: Record<Tier, number> = {
 /**
  * Minimum sample size to provide tier fit analysis
  */
-const MINIMUM_SAMPLE_SIZE = 5;
+const MINIMUM_SAMPLE_SIZE = 3;
 
 /**
  * Analyze how well a friend's actual interaction pattern matches their tier
@@ -67,8 +67,16 @@ export function analyzeTierFit(friend: Friend): TierFitAnalysis {
     fitCategory = 'good';
   } else {
     // Beyond 2x - mismatch
-    fitScore = Math.max(0, 1 - Math.abs(Math.log2(deviationRatio)) / 2);
-    fitCategory = 'mismatch';
+
+    // EXCEPTION: For Inner Circle, being "too frequent" is actually good!
+    // If you see your best friend every day (ratio ~0.14), that's a GREAT fit, not a mismatch.
+    if (friend.dunbarTier === 'InnerCircle' && deviationRatio < 0.5) {
+      fitScore = 1.0;
+      fitCategory = 'great';
+    } else {
+      fitScore = Math.max(0, 1 - Math.abs(Math.log2(deviationRatio)) / 2);
+      fitCategory = 'mismatch';
+    }
   }
 
   // Generate suggestion if mismatch
@@ -98,7 +106,11 @@ export function analyzeTierFit(friend: Friend): TierFitAnalysis {
       // Inner Circle has nowhere to move up
     }
   } else if (fitCategory === 'great') {
-    reason = `Perfect fit! Your rhythm (every ${Math.round(actualInterval)} days) matches ${friend.dunbarTier} expectations well.`;
+    if (friend.dunbarTier === 'InnerCircle' && deviationRatio < 0.5) {
+      reason = `Strong bond! You're connecting every ${Math.round(actualInterval)} days, which is even more frequent than the weekly expectation.`;
+    } else {
+      reason = `Perfect fit! Your rhythm (every ${Math.round(actualInterval)} days) matches ${friend.dunbarTier} expectations well.`;
+    }
   } else {
     reason = `Good fit. Your rhythm (every ${Math.round(actualInterval)} days) is close to ${friend.dunbarTier} expectations (~${expectedInterval} days).`;
   }
@@ -149,10 +161,12 @@ export async function analyzeNetworkTierHealth(): Promise<NetworkTierHealth> {
 
   // Categorize each friend
   analyses.forEach(analysis => {
-    if (analysis.fitCategory === 'insufficient_data') return;
-
     const tier = analysis.currentTier;
+
+    // Always count towards total in tier
     tierHealth[tier].total++;
+
+    if (analysis.fitCategory === 'insufficient_data') return;
 
     if (analysis.fitCategory === 'great') {
       tierHealth[tier].great++;
@@ -164,15 +178,15 @@ export async function analyzeNetworkTierHealth(): Promise<NetworkTierHealth> {
   });
 
   // Calculate overall health score (0-10)
-  const totalFriends = analyses.filter(
-    a => a.fitCategory !== 'insufficient_data'
-  ).length;
+  // We include insufficient_data friends in the denominator to represent "potential"
+  const totalFriends = analyses.length;
 
   const totalMismatches =
     tierHealth.InnerCircle.mismatch +
     tierHealth.CloseFriends.mismatch +
     tierHealth.Community.mismatch;
 
+  // Health score penalizes mismatches against the TOTAL network size
   const healthScore = totalFriends > 0
     ? Math.round(((totalFriends - totalMismatches) / totalFriends) * 10)
     : 10;
@@ -187,7 +201,7 @@ export async function analyzeNetworkTierHealth(): Promise<NetworkTierHealth> {
         return b.confidence - a.confidence;
       }
       return Math.abs(b.actualIntervalDays / b.expectedIntervalDays) -
-             Math.abs(a.actualIntervalDays / a.expectedIntervalDays);
+        Math.abs(a.actualIntervalDays / a.expectedIntervalDays);
     })
     .slice(0, 5); // Top 5 suggestions
 
@@ -195,7 +209,8 @@ export async function analyzeNetworkTierHealth(): Promise<NetworkTierHealth> {
     healthScore,
     tierHealth,
     mismatches,
-    suggestions
+    suggestions,
+    allAnalyses: analyses
   };
 }
 

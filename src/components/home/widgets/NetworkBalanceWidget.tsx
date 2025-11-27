@@ -1,8 +1,9 @@
 // src/components/home/widgets/NetworkBalanceWidget.tsx
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
-import { Scale, ChevronRight } from 'lucide-react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { Scale, ChevronRight, CheckCircle2, AlertCircle, ArrowRight } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { useNetworkTierHealth } from '@/modules/insights';
 import { trackEvent, AnalyticsEvents } from '@/shared/services/analytics.service';
@@ -12,7 +13,7 @@ import { trackEvent, AnalyticsEvents } from '@/shared/services/analytics.service
  * Shows when there are tier mismatches that need attention
  */
 export function NetworkBalanceWidget() {
-  const { colors } = useTheme();
+  const { colors, isDarkMode } = useTheme();
   const router = useRouter();
   const { networkHealth, isLoading } = useNetworkTierHealth();
 
@@ -22,97 +23,190 @@ export function NetworkBalanceWidget() {
   }
 
   // Only show if there are mismatches (health score < 8)
-  const hasMismatches = networkHealth.healthScore < 8 && networkHealth.mismatches.length > 0;
+  // const hasMismatches = networkHealth.healthScore < 8 && networkHealth.mismatches.length > 0;
 
-  if (!hasMismatches) {
-    return null;
-  }
+  // if (!hasMismatches) {
+  //   return null;
+  // }
 
   const totalMismatches = networkHealth.mismatches.length;
   const topSuggestions = networkHealth.suggestions.slice(0, 3);
 
-  // Health score color
-  const getHealthColor = (score: number) => {
-    if (score >= 8) return '#10B981'; // green
-    if (score >= 5) return '#F59E0B'; // amber
-    return '#EF4444'; // red
+  const totalMatches =
+    networkHealth.tierHealth.InnerCircle.great +
+    networkHealth.tierHealth.CloseFriends.great +
+    networkHealth.tierHealth.Community.great;
+
+  const totalFriends =
+    networkHealth.tierHealth.InnerCircle.total +
+    networkHealth.tierHealth.CloseFriends.total +
+    networkHealth.tierHealth.Community.total;
+
+  // Health score color & gradient
+  const getHealthConfig = (score: number) => {
+    if (score >= 8) return {
+      color: '#10B981',
+      label: 'Thriving',
+      gradient: isDarkMode
+        ? ['rgba(16, 185, 129, 0.15)', 'rgba(16, 185, 129, 0.05)']
+        : ['#ECFDF5', '#F0FDF4']
+    };
+    if (score >= 5) return {
+      color: '#F59E0B',
+      label: 'Needs Attention',
+      gradient: isDarkMode
+        ? ['rgba(245, 158, 11, 0.15)', 'rgba(245, 158, 11, 0.05)']
+        : ['#FFFBEB', '#FFF7ED']
+    };
+    return {
+      color: '#EF4444',
+      label: 'Critical',
+      gradient: isDarkMode
+        ? ['rgba(239, 68, 68, 0.15)', 'rgba(239, 68, 68, 0.05)']
+        : ['#FEF2F2', '#FFF1F2']
+    };
   };
 
-  const healthColor = getHealthColor(networkHealth.healthScore);
+  const healthConfig = getHealthConfig(networkHealth.healthScore);
 
   const handlePress = () => {
     trackEvent(AnalyticsEvents.NETWORK_BALANCE_VIEWED, {
       health_score: networkHealth.healthScore,
       total_mismatches: totalMismatches,
-      total_friends: networkHealth.totalFriends,
+      total_friends: totalFriends,
     });
     router.push('/tier-balance' as any);
   };
 
   return (
     <TouchableOpacity
-      style={[styles.container, { backgroundColor: colors.card, borderColor: colors.border }]}
       onPress={handlePress}
-      activeOpacity={0.7}
+      activeOpacity={0.9}
+      style={[styles.containerShadow]}
     >
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <Scale size={20} color={colors.primary} />
-          <Text style={[styles.title, { color: colors.foreground }]}>
-            Network Balance
-          </Text>
+      <LinearGradient
+        colors={healthConfig.gradient as any}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[styles.container, { borderColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }]}
+      >
+        {/* Header */}
+        <View style={styles.header}>
+          <View style={styles.headerLeft}>
+            <View style={[styles.iconContainer, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'white' }]}>
+              <Scale size={18} color={colors.primary} />
+            </View>
+            <Text style={[styles.title, { color: colors.foreground }]}>
+              Network Balance
+            </Text>
+          </View>
+          <ChevronRight size={20} color={colors['muted-foreground']} />
         </View>
-        <ChevronRight size={20} color={colors['muted-foreground']} />
-      </View>
 
-      {/* Health Score */}
-      <View style={styles.healthRow}>
-        <View style={styles.healthBarContainer}>
-          <View style={[styles.healthBarFill, { width: `${networkHealth.healthScore * 10}%`, backgroundColor: healthColor }]} />
-        </View>
-        <Text style={[styles.healthScore, { color: healthColor }]}>
-          {networkHealth.healthScore}/10
-        </Text>
-      </View>
-
-      {/* Summary */}
-      <View style={styles.summaryRow}>
-        <View style={[styles.badge, { backgroundColor: '#10B98120' }]}>
-          <Text style={[styles.badgeText, { color: '#10B981' }]}>
-            ✓ {networkHealth.tierHealth.InnerCircle.great + networkHealth.tierHealth.CloseFriends.great + networkHealth.tierHealth.Community.great} match their tier
-          </Text>
-        </View>
-        <View style={[styles.badge, { backgroundColor: '#F59E0B20' }]}>
-          <Text style={[styles.badgeText, { color: '#F59E0B' }]}>
-            ⚠️ {totalMismatches} need adjustment
-          </Text>
-        </View>
-      </View>
-
-      {/* Top Suggestions */}
-      {topSuggestions.length > 0 && (
-        <View style={styles.suggestionsSection}>
-          <Text style={[styles.suggestionsLabel, { color: colors['muted-foreground'] }]}>
-            Top suggestions:
-          </Text>
-          {topSuggestions.map((suggestion, index) => (
-            <View key={suggestion.friendId} style={styles.suggestionItem}>
-              <Text style={[styles.suggestionText, { color: colors.foreground }]} numberOfLines={1}>
-                • {suggestion.friendName}: {getTierShortName(suggestion.currentTier)} → {getTierShortName(suggestion.suggestedTier!)}
+        {/* Score Section */}
+        <View style={styles.scoreSection}>
+          <View style={styles.scoreRow}>
+            <Text style={[styles.scoreValue, { color: healthConfig.color }]}>
+              {networkHealth.healthScore}
+            </Text>
+            <View style={styles.scoreContext}>
+              <Text style={[styles.scoreLabel, { color: healthConfig.color }]}>
+                {healthConfig.label}
+              </Text>
+              <Text style={[styles.scoreSubtext, { color: colors['muted-foreground'] }]}>
+                / 10 Health Score
               </Text>
             </View>
-          ))}
-        </View>
-      )}
+          </View>
 
-      {/* CTA */}
-      <View style={[styles.ctaRow, { borderTopColor: colors.border }]}>
-        <Text style={[styles.ctaText, { color: colors.primary }]}>
-          Review Balance
-        </Text>
-        <ChevronRight size={16} color={colors.primary} />
-      </View>
+          {/* Progress Bar */}
+          <View style={styles.progressBarContainer}>
+            <View
+              style={[
+                styles.progressBarTrack,
+                { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }
+              ]}
+            >
+              <View
+                style={[
+                  styles.progressBarFill,
+                  {
+                    width: `${networkHealth.healthScore * 10}%`,
+                    backgroundColor: healthConfig.color
+                  }
+                ]}
+              />
+            </View>
+          </View>
+        </View>
+
+        {/* Stats Grid */}
+        <View style={styles.statsGrid}>
+          <View style={[styles.statItem, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.6)' }]}>
+            <View style={styles.statHeader}>
+              <CheckCircle2 size={14} color="#10B981" />
+              <Text style={[styles.statLabel, { color: colors['muted-foreground'] }]}>Aligned</Text>
+            </View>
+            <Text style={[styles.statValue, { color: colors.foreground }]}>{totalMatches}</Text>
+          </View>
+
+          <View style={[styles.statItem, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.6)' }]}>
+            <View style={styles.statHeader}>
+              <AlertCircle size={14} color="#F59E0B" />
+              <Text style={[styles.statLabel, { color: colors['muted-foreground'] }]}>Drifting</Text>
+            </View>
+            <Text style={[styles.statValue, { color: colors.foreground }]}>{totalMismatches}</Text>
+          </View>
+        </View>
+
+        {/* Top Suggestions */}
+        {topSuggestions.length > 0 && (
+          <View style={styles.suggestionsSection}>
+            <Text style={[styles.suggestionsHeader, { color: colors['muted-foreground'] }]}>
+              Suggested Adjustments
+            </Text>
+            <View style={styles.suggestionsList}>
+              {topSuggestions.map((suggestion, index) => (
+                <View
+                  key={suggestion.friendId}
+                  style={[
+                    styles.suggestionRow,
+                    index !== topSuggestions.length - 1 && { borderBottomWidth: 1, borderBottomColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }
+                  ]}
+                >
+                  <Text style={[styles.friendName, { color: colors.foreground }]} numberOfLines={1}>
+                    {suggestion.friendName}
+                  </Text>
+
+                  <View style={styles.tierChangeContainer}>
+                    <View style={[styles.tierBadge, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }]}>
+                      <Text style={[styles.tierBadgeText, { color: colors['muted-foreground'] }]}>
+                        {getTierShortName(suggestion.currentTier)}
+                      </Text>
+                    </View>
+
+                    <ArrowRight size={12} color={colors['muted-foreground']} style={{ marginHorizontal: 4 }} />
+
+                    <View style={[styles.tierBadge, { backgroundColor: healthConfig.color + '20' }]}>
+                      <Text style={[styles.tierBadgeText, { color: healthConfig.color }]}>
+                        {getTierShortName(suggestion.suggestedTier!)}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+
+        {/* Footer CTA */}
+        <View style={[styles.footer, { borderTopColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }]}>
+          <Text style={[styles.footerText, { color: colors.primary }]}>
+            Review Network Health
+          </Text>
+          <ChevronRight size={16} color={colors.primary} />
+        </View>
+      </LinearGradient>
     </TouchableOpacity>
   );
 }
@@ -124,89 +218,160 @@ function getTierShortName(tier: string): string {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    borderRadius: 16,
-    borderWidth: 1,
-    padding: 16,
-    gap: 16,
-    marginHorizontal: 20,
+  containerShadow: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    elevation: 3,
     marginBottom: 16,
+  },
+  container: {
+    borderRadius: 20,
+    borderWidth: 1,
+    overflow: 'hidden',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 12,
   },
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
+  },
+  iconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   title: {
     fontSize: 17,
     fontWeight: '600',
     fontFamily: 'Lora_700Bold',
   },
-  healthRow: {
+  scoreSection: {
+    paddingHorizontal: 16,
+    marginBottom: 20,
+  },
+  scoreRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-end',
+    marginBottom: 12,
     gap: 12,
   },
-  healthBarContainer: {
-    flex: 1,
-    height: 8,
-    backgroundColor: '#F3F4F6',
-    borderRadius: 4,
+  scoreValue: {
+    fontSize: 32,
+    fontWeight: '700',
+    fontFamily: 'Lora_700Bold',
+    lineHeight: 36,
+  },
+  scoreContext: {
+    marginBottom: 4,
+  },
+  scoreLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  scoreSubtext: {
+    fontSize: 12,
+  },
+  progressBarContainer: {
+    height: 6,
+    borderRadius: 3,
     overflow: 'hidden',
   },
-  healthBarFill: {
+  progressBarTrack: {
+    flex: 1,
+    borderRadius: 3,
+  },
+  progressBarFill: {
     height: '100%',
-    borderRadius: 4,
+    borderRadius: 3,
   },
-  healthScore: {
-    fontSize: 16,
-    fontWeight: '700',
-    minWidth: 44,
-  },
-  summaryRow: {
+  statsGrid: {
     flexDirection: 'row',
-    gap: 8,
-    flexWrap: 'wrap',
+    paddingHorizontal: 16,
+    gap: 12,
+    marginBottom: 20,
   },
-  badge: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
-  badgeText: {
-    fontSize: 13,
-    fontWeight: '500',
-  },
-  suggestionsSection: {
+  statItem: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 12,
     gap: 6,
   },
-  suggestionsLabel: {
-    fontSize: 13,
+  statHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  statLabel: {
+    fontSize: 12,
     fontWeight: '500',
   },
-  suggestionItem: {
+  statValue: {
+    fontSize: 18,
+    fontWeight: '700',
+    fontFamily: 'Lora_700Bold',
+  },
+  suggestionsSection: {
+    paddingHorizontal: 16,
+    marginBottom: 16,
+  },
+  suggestionsHeader: {
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 8,
+  },
+  suggestionsList: {
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  suggestionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+  },
+  friendName: {
+    fontSize: 14,
+    fontWeight: '500',
+    flex: 1,
+  },
+  tierChangeContainer: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  suggestionText: {
-    fontSize: 14,
-    flex: 1,
+  tierBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
   },
-  ctaRow: {
+  tierBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  footer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
-    paddingTop: 12,
+    paddingVertical: 14,
     borderTopWidth: 1,
+    gap: 4,
+    backgroundColor: 'rgba(255,255,255,0.2)',
   },
-  ctaText: {
-    fontSize: 15,
+  footerText: {
+    fontSize: 14,
     fontWeight: '600',
   },
 });

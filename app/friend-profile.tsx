@@ -12,7 +12,7 @@ import { FriendListRow } from '@/modules/relationships';
 import { TimelineItem } from '@/components/TimelineItem';
 import { calculateNextConnectionDate } from '@/shared/utils/timeline-utils';
 import { useTheme } from '@/shared/hooks/useTheme';
-import { type Interaction, type Tier } from '@/components/types';
+import { type Interaction, type Tier, type InteractionCategory } from '@/components/types';
 import { InteractionDetailModal } from '@/components/interaction-detail-modal';
 import { EditReflectionModal } from '@/components/EditReflectionModal';
 import { EditInteractionModal } from '@/components/EditInteractionModal';
@@ -307,7 +307,7 @@ export default function FriendProfile() {
                 onPress={() => setShowTierFitSheet(true)}
               />
             )}
-            <PatternBadge friend={friend} style={{ marginTop: 4 }} />
+
           </Animated.View>
 
           <Animated.View style={[styles.actionButtonsContainer, buttonsAnimatedStyle]}>
@@ -542,7 +542,7 @@ export default function FriendProfile() {
             initialFriend={friend}
             prefillData={editingInteraction && isFuture(new Date(editingInteraction.interactionDate)) ? {
               date: new Date(editingInteraction.interactionDate),
-              category: editingInteraction.interactionCategory || editingInteraction.activity,
+              category: (editingInteraction.interactionCategory || editingInteraction.activity) as InteractionCategory,
               title: editingInteraction.title,
               location: editingInteraction.location,
             } : undefined}

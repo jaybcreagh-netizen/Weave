@@ -2,7 +2,7 @@ import { database } from '@/db';
 import { logWeave, planWeave, deleteWeave } from '../weave-logging.service';
 import { InteractionFormData } from '@/modules/interactions';
 import { processWeaveScoring } from '@/modules/intelligence';
-import { checkFriendBadges, checkGlobalAchievements, recordMilestone } from '@/modules/gamification';
+import { checkFriendBadges, checkGlobalAchievements, recordPractice } from '@/modules/gamification';
 import { trackEvent, AnalyticsEvents, updateLastInteractionTimestamp } from '@/shared/services/analytics.service';
 import { analyzeAndTagLifeEvents } from '@/modules/relationships';
 import { deleteWeaveCalendarEvent } from '../calendar.service';
@@ -27,7 +27,7 @@ jest.mock('@/modules/intelligence', () => ({
 jest.mock('@/modules/gamification', () => ({
   checkFriendBadges: jest.fn(),
   checkGlobalAchievements: jest.fn(),
-  recordMilestone: jest.fn(),
+  recordPractice: jest.fn(),
 }));
 
 jest.mock('@/shared/services/analytics.service', () => ({
@@ -82,7 +82,7 @@ describe('WeaveLoggingService', () => {
     expect(checkGlobalAchievements).toHaveBeenCalled();
     expect(trackEvent).toHaveBeenCalledWith('INTERACTION_LOGGED', expect.any(Object));
     expect(updateLastInteractionTimestamp).toHaveBeenCalled();
-    expect(recordMilestone).toHaveBeenCalledWith('log_weave');
+    expect(recordPractice).toHaveBeenCalledWith('log_weave');
   });
 
   it('should throw validation error if data is invalid', async () => {

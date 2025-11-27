@@ -131,8 +131,8 @@ export default function TierBalanceScreen() {
             {networkHealth.healthScore >= 8
               ? 'Your tiers mostly match your actual patterns. Great job!'
               : networkHealth.healthScore >= 5
-              ? `Your tiers mostly match, but ${networkHealth.mismatches.length} ${networkHealth.mismatches.length === 1 ? 'friend' : 'friends'} could use adjustment.`
-              : `${networkHealth.mismatches.length} friends have tier mismatches that may cause stress.`}
+                ? `Your tiers mostly match, but ${networkHealth.mismatches.length} ${networkHealth.mismatches.length === 1 ? 'friend' : 'friends'} could use adjustment.`
+                : `${networkHealth.mismatches.length} friends have tier mismatches that may cause stress.`}
           </Text>
         </View>
 
@@ -140,11 +140,11 @@ export default function TierBalanceScreen() {
         {(['InnerCircle', 'CloseFriends', 'Community'] as Tier[]).map((tier) => {
           const tierHealth = networkHealth.tierHealth[tier];
           const isExpanded = expandedTiers.has(tier);
-          const tierMismatches = networkHealth.mismatches.filter((m) => m.currentTier === tier);
-          const tierSuggestions = networkHealth.suggestions.filter(
-            (s) => s.currentTier === tier && s.suggestedTier
-          );
 
+          // Get ALL friends in this tier
+          const tierFriends = networkHealth.allAnalyses.filter((a) => a.currentTier === tier);
+
+          const tierMismatches = tierFriends.filter((a) => a.fitCategory === 'mismatch');
           const hasIssues = tierMismatches.length > 0;
 
           return (
@@ -196,40 +196,75 @@ export default function TierBalanceScreen() {
                     </View>
                   )}
 
-                  {/* Mismatches */}
-                  {tierSuggestions.map((suggestion) => (
-                    <TouchableOpacity
-                      key={suggestion.friendId}
-                      style={[styles.friendCard, { borderColor: '#F59E0B40' }]}
-                      onPress={() => setSelectedAnalysis(suggestion)}
-                      activeOpacity={0.7}
-                    >
-                      <View style={styles.friendCardHeader}>
-                        <View style={styles.friendCardLeft}>
-                          <AlertCircle size={20} color="#F59E0B" />
-                          <Text style={[styles.friendName, { color: colors.foreground }]}>
-                            {suggestion.friendName}
-                          </Text>
-                        </View>
-                        {suggestion.suggestedTier && (
-                          <View style={[styles.suggestionBadge, { backgroundColor: colors.primary + '20' }]}>
-                            <Text style={[styles.suggestionBadgeText, { color: colors.primary }]}>
-                              Suggest: {TIER_DISPLAY_NAMES[suggestion.suggestedTier]}
+                  {/* Friend List */}
+                  {tierFriends.map((analysis) => {
+                    const isMismatch = analysis.fitCategory === 'mismatch';
+                    const isLearning = analysis.fitCategory === 'insufficient_data';
+                    const isGood = analysis.fitCategory === 'great' || analysis.fitCategory === 'good';
+
+                    return (
+                      <TouchableOpacity
+                        key={analysis.friendId}
+                        style={[
+                          styles.friendCard,
+                          {
+                            borderColor: isMismatch ? '#F59E0B40' : isLearning ? colors.border : '#10B98140',
+                            backgroundColor: isMismatch ? '#F59E0B05' : isLearning ? 'transparent' : '#10B98105'
+                          }
+                        ]}
+                        onPress={() => setSelectedAnalysis(analysis)}
+                        activeOpacity={0.7}
+                      >
+                        <View style={styles.friendCardHeader}>
+                          <View style={styles.friendCardLeft}>
+                            {isMismatch ? (
+                              <AlertCircle size={20} color="#F59E0B" />
+                            ) : isLearning ? (
+                              <TrendingUp size={20} color={colors['muted-foreground']} />
+                            ) : (
+                              <CheckCircle size={20} color="#10B981" />
+                            )}
+                            <Text style={[styles.friendName, { color: colors.foreground }]}>
+                              {analysis.friendName}
                             </Text>
                           </View>
-                        )}
-                      </View>
 
-                      <View style={styles.friendCardStats}>
-                        <Text style={[styles.friendCardStat, { color: colors['muted-foreground'] }]}>
-                          Your rhythm: Every {Math.round(suggestion.actualIntervalDays)} days
-                        </Text>
-                        <Text style={[styles.friendCardStat, { color: colors['muted-foreground'] }]}>
-                          Tier expects: Every {suggestion.expectedIntervalDays} days
-                        </Text>
-                      </View>
-                    </TouchableOpacity>
-                  ))}
+                          {analysis.suggestedTier && (
+                            <View style={[styles.suggestionBadge, { backgroundColor: colors.primary + '20' }]}>
+                              <Text style={[styles.suggestionBadgeText, { color: colors.primary }]}>
+                                Suggest: {TIER_DISPLAY_NAMES[analysis.suggestedTier]}
+                              </Text>
+                            </View>
+                          )}
+
+                          {isLearning && (
+                            <View style={[styles.suggestionBadge, { backgroundColor: colors.muted }]}>
+                              <Text style={[styles.suggestionBadgeText, { color: colors['muted-foreground'] }]}>
+                                Learning...
+                              </Text>
+                            </View>
+                          )}
+                        </View>
+
+                        <View style={styles.friendCardStats}>
+                          {isLearning ? (
+                            <Text style={[styles.friendCardStat, { color: colors['muted-foreground'] }]}>
+                              Need {3 - analysis.interactionCount} more interactions to analyze rhythm
+                            </Text>
+                          ) : (
+                            <>
+                              <Text style={[styles.friendCardStat, { color: colors['muted-foreground'] }]}>
+                                Your rhythm: Every {Math.round(analysis.actualIntervalDays)} days
+                              </Text>
+                              <Text style={[styles.friendCardStat, { color: colors['muted-foreground'] }]}>
+                                Tier expects: Every {analysis.expectedIntervalDays} days
+                              </Text>
+                            </>
+                          )}
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
 
                   {tierHealth.total === 0 && (
                     <Text style={[styles.emptyTierText, { color: colors['muted-foreground'] }]}>

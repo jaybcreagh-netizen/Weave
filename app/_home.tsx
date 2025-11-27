@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 
 import { HomeWidgetGrid, WidgetGridItem } from '@/components/home/HomeWidgetGrid';
 import { SocialSeasonWidget } from '@/components/home/widgets/SocialSeasonWidget';
+import { NetworkBalanceWidget } from '@/components/home/widgets/NetworkBalanceWidget';
 import { YearInMoonsWidget } from '@/components/home/widgets/YearInMoonsWidget';
 import { TodaysFocusWidget } from '@/components/home/widgets/TodaysFocusWidget';
 import { forecastNetworkHealth } from '@/modules/insights';
@@ -214,6 +215,17 @@ export default function Home() {
         fullWidth: true,
       },
       position: 0,
+      visible: true,
+    },
+    {
+      id: 'network-balance',
+      component: NetworkBalanceWidget,
+      config: {
+        id: 'network-balance',
+        type: 'network-balance',
+        fullWidth: true,
+      },
+      position: 2.5,
       visible: true,
     },
     {

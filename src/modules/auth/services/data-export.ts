@@ -5,7 +5,7 @@ import InteractionFriend from '@/db/models/InteractionFriend';
 import UserProgress from '@/db/models/UserProgress';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform, Alert, Share } from 'react-native';
-import { Paths, File } from 'expo-file-system';
+import * as FileSystem from 'expo-file-system';
 
 interface ExportData {
   exportDate: string;
@@ -16,8 +16,8 @@ interface ExportData {
     name: string;
     dunbarTier: string;
     archetype: string;
-    photoUrl: string;
-    notes: string;
+    photoUrl: string | null;
+    notes: string | null;
     weaveScore: number;
     lastUpdated: string;
     resilience: number;
@@ -37,9 +37,9 @@ interface ExportData {
     activity: string;
     status: string;
     mode: string;
-    note: string;
-    vibe: string;
-    duration: string;
+    note: string | null;
+    vibe: string | null;
+    duration: string | null;
     title: string | null;
     location: string | null;
     eventImportance: string | null;
@@ -81,8 +81,8 @@ export async function exportAllData(): Promise<string> {
       name: f.name,
       dunbarTier: f.dunbarTier,
       archetype: f.archetype,
-      photoUrl: f.photoUrl,
-      notes: f.notes,
+      photoUrl: f.photoUrl || null,
+      notes: f.notes || null,
       weaveScore: f.weaveScore,
       lastUpdated: f.lastUpdated.toISOString(),
       resilience: f.resilience,
@@ -91,9 +91,9 @@ export async function exportAllData(): Promise<string> {
       momentumLastUpdated: f.momentumLastUpdated.toISOString(),
       isDormant: f.isDormant,
       dormantSince: f.dormantSince?.toISOString() || null,
-      birthday: f.birthday?.toISOString() || null,
-      anniversary: f.anniversary?.toISOString() || null,
-      relationshipType: f.relationshipType,
+      birthday: f.birthday || null,
+      anniversary: f.anniversary || null,
+      relationshipType: f.relationshipType || null,
     }));
 
     // Format interactions data with linked friends
@@ -109,13 +109,13 @@ export async function exportAllData(): Promise<string> {
         activity: i.activity,
         status: i.status,
         mode: i.mode,
-        note: i.note,
-        vibe: i.vibe,
-        duration: i.duration,
-        title: i.title,
-        location: i.location,
-        eventImportance: i.eventImportance,
-        initiator: i.initiator,
+        note: i.note || null,
+        vibe: i.vibe || null,
+        duration: i.duration || null,
+        title: i.title || null,
+        location: i.location || null,
+        eventImportance: i.eventImportance || null,
+        initiator: i.initiator || null,
         friendIds: linkedFriends,
       };
     });
@@ -136,9 +136,9 @@ export async function exportAllData(): Promise<string> {
       interactions: interactionsData,
       userProgress: userProgressRecords[0]
         ? {
-            totalWeaves: userProgressRecords[0].totalWeaves,
-            curatorProgress: userProgressRecords[0].curatorProgress,
-          }
+          totalWeaves: userProgressRecords[0].totalWeaves,
+          curatorProgress: userProgressRecords[0].curatorProgress,
+        }
         : null,
       stats: {
         totalFriends: friends.length,
@@ -174,10 +174,9 @@ export async function exportAndShareData(): Promise<void> {
     // Save to file system
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
     const fileName = `weave-export-${timestamp}.json`;
-    const exportFile = new File(Paths.document, fileName);
+    const fileUri = FileSystem.documentDirectory + fileName;
 
-    exportFile.write(jsonString);
-    const fileUri = exportFile.uri; // Get URI for sharing
+    await FileSystem.writeAsStringAsync(fileUri, jsonString);
 
     console.log('[DataExport] Data saved to file:', fileUri);
 

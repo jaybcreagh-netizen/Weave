@@ -1,7 +1,7 @@
 import { database } from '@/db';
 import { completePlan, cancelPlan, checkPendingPlans, checkMissedPlans } from '../plan.service';
 import { processWeaveScoring } from '@/modules/intelligence';
-import { recordMilestone } from '@/modules/gamification';
+import { recordPractice } from '@/modules/gamification';
 import { deleteWeaveCalendarEvent } from '../calendar.service';
 
 jest.mock('@/db', () => ({
@@ -20,7 +20,7 @@ jest.mock('@/modules/intelligence', () => ({
 }));
 
 jest.mock('@/modules/gamification', () => ({
-  recordMilestone: jest.fn(),
+  recordPractice: jest.fn(),
 }));
 
 jest.mock('../calendar.service', () => ({
@@ -52,7 +52,7 @@ describe('PlanService', () => {
     expect(database.write).toHaveBeenCalled();
     expect(mockInteraction.update).toHaveBeenCalledWith(expect.any(Function));
     expect(processWeaveScoring).toHaveBeenCalled();
-    expect(recordMilestone).toHaveBeenCalledWith('log_weave');
+    expect(recordPractice).toHaveBeenCalledWith('log_weave');
   });
 
   it('should cancel a plan', async () => {

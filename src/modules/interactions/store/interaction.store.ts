@@ -21,6 +21,7 @@ interface InteractionsStore {
     unobserveInteractions: () => void;
     observeIntentions: () => void;
     unobserveIntentions: () => void;
+    subscriberCount: number;
 
     // Interaction Actions (calling services)
     logWeave: (data: InteractionFormData) => Promise<Interaction>;
@@ -54,8 +55,14 @@ export const useInteractionsStore = create<InteractionsStore>((set, get) => ({
     intentions: [],
     isLoading: true,
 
+    subscriberCount: 0,
+
     observeInteractions: () => {
+        const currentCount = get().subscriberCount;
+        set({ subscriberCount: currentCount + 1 });
+
         if (interactionSubscription) return;
+
         set({ isLoading: true });
         interactionSubscription = database.get<Interaction>('interactions')
             .query(Q.sortBy('interaction_date', Q.desc))
@@ -66,8 +73,14 @@ export const useInteractionsStore = create<InteractionsStore>((set, get) => ({
     },
 
     unobserveInteractions: () => {
-        interactionSubscription?.unsubscribe();
-        interactionSubscription = null;
+        const currentCount = get().subscriberCount;
+        const newCount = Math.max(0, currentCount - 1);
+        set({ subscriberCount: newCount });
+
+        if (newCount === 0) {
+            interactionSubscription?.unsubscribe();
+            interactionSubscription = null;
+        }
     },
 
     observeIntentions: () => {
@@ -110,7 +123,7 @@ export const useInteractionsStore = create<InteractionsStore>((set, get) => ({
     },
 
     updateInteractionVibeAndNotes: async (interactionId, vibe, notes) => {
-        get().updateInteraction(interactionId, { vibe, note: notes });
+        get().updateInteraction(interactionId, { vibe: vibe || undefined, note: notes });
     },
 
     createIntention: async (friendIds, description, category) => {

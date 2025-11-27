@@ -58,14 +58,28 @@ export async function processWeaveScoring(
 
   // Use a single database transaction to ensure all updates are atomic.
   await database.write(async () => {
+    const batchOps: any[] = [];
+
     for (const friend of friends) {
       const scoreBefore = calculateCurrentScore(friend);
 
       // NEW: Query interaction history count for affinity bonus
       // We want to know how many times we've done this specific category with this friend
+      // NOTE: Q.on is failing, so we use a manual two-step query
+      // We need to do this query OUTSIDE the write transaction if possible, or inside.
+      // Since it's a read, it's fine inside, but we must ensure we don't start another writer.
+      // database.get().query().fetch() is a reader, so it might be okay, but strictly speaking
+      // mixing reads and writes in a write block is fine as long as we don't start a NEW writer.
+
+      const interactionFriends = await database.get('interaction_friends')
+        .query(Q.where('friend_id', friend.id))
+        .fetch();
+
+      const interactionIds = interactionFriends.map((r: any) => r.interactionId);
+
       const historyCount = await database.get('interactions')
         .query(
-          Q.on('interaction_friends', 'friend_id', friend.id),
+          Q.where('id', Q.oneOf(interactionIds)),
           Q.where('interaction_category', interactionData.category || ''),
           Q.where('status', 'completed')
         ).fetchCount();
@@ -88,8 +102,8 @@ export async function processWeaveScoring(
       const { momentumScore, momentumLastUpdated } = updateMomentum(friend);
       const newResilience = updateResilience(friend, interactionData.vibe as Vibe | null);
 
-      // 5. Apply all calculated updates to the friend record.
-      await friend.update(record => {
+      // 5. Prepare update for the friend record.
+      batchOps.push(friend.prepareUpdate(record => {
         record.weaveScore = scoreAfter;
         record.lastUpdated = new Date();
         record.momentumScore = momentumScore;
@@ -100,7 +114,7 @@ export async function processWeaveScoring(
         if (interactionData.vibe) {
           record.ratedWeavesCount += 1;
         }
-      });
+      }));
 
       scoreUpdates.push({
         friendId: friend.id,
@@ -108,6 +122,10 @@ export async function processWeaveScoring(
         scoreAfter,
         pointsEarned,
       });
+    }
+
+    if (batchOps.length > 0) {
+      await database.batch(batchOps);
     }
   });
 
