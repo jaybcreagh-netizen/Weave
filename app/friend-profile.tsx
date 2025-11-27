@@ -30,6 +30,14 @@ import Intention from '@/db/models/Intention';
 import { PatternBadge } from '@/components/PatternBadge';
 
 import { useFriendProfileData, useFriendTimeline } from '@/modules/relationships';
+import {
+  TierFitCard,
+  TierFitBottomSheet,
+  useTierFit,
+  changeFriendTier,
+  dismissTierSuggestion
+} from '@/modules/insights';
+import type { TierFitAnalysis } from '@/modules/insights/types';
 
 const AnimatedSectionList = Animated.createAnimatedComponent(SectionList);
 
@@ -69,6 +77,7 @@ export default function FriendProfile() {
   const [showLifeEventModal, setShowLifeEventModal] = useState(false);
   const [editingLifeEvent, setEditingLifeEvent] = useState<LifeEvent | null>(null);
   const [showBadgePopup, setShowBadgePopup] = useState(false);
+  const [showTierFitSheet, setShowTierFitSheet] = useState(false);
 
   const scrollY = useSharedValue(0);
 
@@ -289,6 +298,15 @@ export default function FriendProfile() {
             >
               <FriendListRow friend={friend} variant="full" />
             </TouchableOpacity>
+            <PatternBadge friend={friend} style={{ marginTop: 4, marginLeft: 4 }} />
+
+            {/* Tier Fit Card */}
+            {friend && (
+              <TierFitCard
+                friendId={friend.id}
+                onPress={() => setShowTierFitSheet(true)}
+              />
+            )}
             <PatternBadge friend={friend} style={{ marginTop: 4 }} />
           </Animated.View>
 
@@ -594,6 +612,15 @@ export default function FriendProfile() {
             friendName={friend.name}
           />
         )}
+
+        {/* Tier Fit Bottom Sheet */}
+        {friend && showTierFitSheet && (
+          <TierFitBottomSheetWrapper
+            friendId={friend.id}
+            visible={showTierFitSheet}
+            onDismiss={() => setShowTierFitSheet(false)}
+          />
+        )}
       </Animated.View>
 
       <IntentionsFAB
@@ -601,6 +628,64 @@ export default function FriendProfile() {
         onClick={() => setShowIntentionsDrawer(true)}
       />
     </SafeAreaView>
+  );
+}
+
+/**
+ * Wrapper component to handle tier fit analysis and tier changes
+ */
+function TierFitBottomSheetWrapper({
+  friendId,
+  visible,
+  onDismiss
+}: {
+  friendId: string;
+  visible: boolean;
+  onDismiss: () => void;
+}) {
+  const { analysis } = useTierFit(friendId);
+
+  if (!analysis || analysis.fitCategory === 'insufficient_data') {
+    return null;
+  }
+
+  const handleChangeTier = async (newTier: Tier) => {
+    try {
+      await changeFriendTier(friendId, newTier, true); // true = wasFromSuggestion
+      console.log(`[TierFit] Successfully changed ${friendId} to ${newTier}`);
+      onDismiss();
+    } catch (error) {
+      console.error('[TierFit] Error changing tier:', error);
+      Alert.alert('Error', 'Failed to change tier. Please try again.');
+    }
+  };
+
+  const handleStayInTier = () => {
+    // User chose to keep current tier - just close
+    console.log(`[TierFit] User chose to stay in tier for ${friendId}`);
+    onDismiss();
+  };
+
+  const handleDismissSuggestion = async () => {
+    try {
+      await dismissTierSuggestion(friendId);
+      console.log(`[TierFit] Dismissed suggestion for ${friendId}`);
+      onDismiss();
+    } catch (error) {
+      console.error('[TierFit] Error dismissing suggestion:', error);
+      Alert.alert('Error', 'Failed to dismiss suggestion. Please try again.');
+    }
+  };
+
+  return (
+    <TierFitBottomSheet
+      visible={visible}
+      analysis={analysis}
+      onDismiss={onDismiss}
+      onChangeTier={handleChangeTier}
+      onStayInTier={handleStayInTier}
+      onDismissSuggestion={handleDismissSuggestion}
+    />
   );
 }
 

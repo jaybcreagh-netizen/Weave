@@ -115,3 +115,46 @@ export interface EffectivenessInsights {
   sampleSize: number;
   recommendations: string[];
 }
+
+// Tier Intelligence Types (v36)
+export type FlexibilityMode = 'strict' | 'balanced' | 'flexible';
+
+export type TierFitCategory = 'great' | 'good' | 'mismatch' | 'insufficient_data';
+
+export interface TierFitAnalysis {
+  friendId: string;
+  friendName: string;
+  currentTier: Tier;
+
+  // Pattern data
+  actualIntervalDays: number;
+  expectedIntervalDays: number;
+  interactionCount: number; // Sample size
+
+  // Fit scoring
+  fitScore: number; // 0-1, where 1 = perfect fit
+  fitCategory: TierFitCategory;
+
+  // Recommendations
+  suggestedTier?: Tier;
+  confidence: number; // 0-1
+  reason: string;
+}
+
+export interface TierHealth {
+  total: number;
+  great: number;
+  good: number;
+  mismatch: number;
+}
+
+export interface NetworkTierHealth {
+  healthScore: number; // 0-10
+  tierHealth: {
+    InnerCircle: TierHealth;
+    CloseFriends: TierHealth;
+    Community: TierHealth;
+  };
+  mismatches: TierFitAnalysis[];
+  suggestions: TierFitAnalysis[]; // Top suggestions with suggestedTier
+}

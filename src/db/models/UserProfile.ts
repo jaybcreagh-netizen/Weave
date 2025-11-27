@@ -35,6 +35,10 @@ export default class UserProfile extends Model {
   @field('reflection_auto_show') reflectionAutoShow?: boolean; // Auto-show prompt on reflection day
   @field('reflection_last_snoozed') reflectionLastSnoozed?: number; // Timestamp when user last snoozed
 
+  // Tier Intelligence Settings (v36)
+  @text('tier_flexibility_mode') tierFlexibilityMode?: 'strict' | 'balanced' | 'flexible'; // How much decay adapts
+  @field('tier_intelligence_enabled') tierIntelligenceEnabled?: boolean; // Show tier fit indicators
+
   // Metadata
   @readonly @date('created_at') createdAt!: Date;
   @date('updated_at') updatedAt!: Date;

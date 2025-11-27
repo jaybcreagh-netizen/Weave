@@ -47,4 +47,10 @@ export default class Friend extends Model {
   @field('total_user_initiations') totalUserInitiations!: number
   @field('total_friend_initiations') totalFriendInitiations!: number
 
+  // Tier intelligence (v36)
+  @field('tier_fit_score') tierFitScore?: number // 0-1 score of how well patterns match tier
+  @field('tier_fit_last_calculated') tierFitLastCalculated?: number // When tier fit was last calculated
+  @text('suggested_tier') suggestedTier?: string // AI-suggested tier based on patterns
+  @field('tier_suggestion_dismissed_at') tierSuggestionDismissedAt?: number // When user dismissed suggestion
+
 }

@@ -59,6 +59,15 @@ export const AnalyticsEvents = {
   TROPHY_CABINET_VIEWED: 'trophy_cabinet_viewed',
   ACHIEVEMENT_UNLOCKED: 'achievement_unlocked',
 
+  // Tier Intelligence
+  TIER_SUGGESTION_SHOWN: 'tier_suggestion_shown',
+  TIER_SUGGESTION_ACCEPTED: 'tier_suggestion_accepted',
+  TIER_SUGGESTION_DISMISSED: 'tier_suggestion_dismissed',
+  TIER_CHANGED_MANUALLY: 'tier_changed_manually',
+  TIER_BATCH_CHANGED: 'tier_batch_changed',
+  NETWORK_BALANCE_VIEWED: 'network_balance_viewed',
+  TIER_FIT_ANALYZED: 'tier_fit_analyzed',
+
   // Settings
   SETTINGS_OPENED: 'settings_opened',
   THEME_CHANGED: 'theme_changed',
