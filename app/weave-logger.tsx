@@ -415,6 +415,19 @@ export default function WeaveLoggerScreen() {
                 <MoonPhaseSelector onSelect={setSelectedVibe} selectedVibe={selectedVibe} />
               </View>
 
+              {/* Reciprocity Section */}
+              <View className="mb-8">
+                <Text className="font-lora-bold text-xl mb-4" style={{ color: colors.foreground }}>
+                  Who initiated?
+                </Text>
+                <ReciprocitySelector
+                  value={initiator}
+                  onChange={setInitiator}
+                  friendName={selectedFriends.length === 1 ? selectedFriends[0].name : 'Them'}
+                  hideLabel
+                />
+              </View>
+
               {/* Reflection Section */}
               <View className="mb-8">
                 <View className="flex-row items-center gap-2 mb-2">
@@ -435,12 +448,7 @@ export default function WeaveLoggerScreen() {
                 />
               </View>
 
-              {/* Reciprocity Section */}
-              <ReciprocitySelector
-                value={initiator}
-                onChange={setInitiator}
-                friendName={selectedFriends.length === 1 ? selectedFriends[0].name : 'Them'}
-              />
+
             </Animated.View>
           )}
         </ScrollView>

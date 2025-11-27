@@ -213,6 +213,18 @@ export function EditInteractionModal({
             <MoonPhaseSelector onSelect={setSelectedVibe} selectedVibe={selectedVibe} />
           </View>
 
+          {/* Reciprocity Section */}
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
+              Who initiated?
+            </Text>
+            <ReciprocitySelector
+              value={initiator}
+              onChange={setInitiator}
+              hideLabel
+            />
+          </View>
+
           {/* Notes */}
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
@@ -233,13 +245,7 @@ export function EditInteractionModal({
             />
           </View>
 
-          {/* Reciprocity Section */}
-          <View style={styles.section}>
-            <ReciprocitySelector
-              value={initiator}
-              onChange={setInitiator}
-            />
-          </View>
+
         </ScrollView>
 
         <View style={[styles.footer, { backgroundColor: colors.background, borderTopColor: colors.border }]}>

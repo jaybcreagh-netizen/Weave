@@ -19,6 +19,7 @@ import Interaction from '@/db/models/Interaction';
 import { startOfDay, addDays, isSaturday, nextSaturday, getDay } from 'date-fns';
 import { Q } from '@nozbe/watermelondb';
 import { calculateActivityPriorities, isSmartDefaultsEnabled } from '@/modules/interactions';
+import { InitiatorType } from '@/components/ReciprocitySelector';
 
 const CATEGORIES: Array<{
   value: InteractionCategory;
@@ -60,6 +61,7 @@ export interface PlanFormData {
   location?: string;
   time?: Date; // Optional time of day
   notes?: string;
+  initiator?: InitiatorType;
 }
 
 export function PlanWizard({ visible, onClose, initialFriend, prefillData, replaceInteractionId, initialStep = 1 }: PlanWizardProps) {
@@ -263,6 +265,7 @@ export function PlanWizard({ visible, onClose, initialFriend, prefillData, repla
         // Include title and location
         title: formData.title?.trim() || undefined,
         location: formData.location?.trim() || undefined,
+        initiator: formData.initiator,
       });
 
       // Try to create calendar event if settings enabled

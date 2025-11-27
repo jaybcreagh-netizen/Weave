@@ -5,13 +5,14 @@ import { User, Users, ArrowRightLeft } from 'lucide-react-native';
 
 export type InitiatorType = 'user' | 'friend' | 'mutual';
 
-interface ReciprocitySelectorProps {
+export interface ReciprocitySelectorProps {
     value?: InitiatorType;
     onChange: (value: InitiatorType) => void;
     friendName?: string;
+    hideLabel?: boolean;
 }
 
-export function ReciprocitySelector({ value, onChange, friendName = 'Them' }: ReciprocitySelectorProps) {
+export function ReciprocitySelector({ value, onChange, friendName = 'Them', hideLabel = false }: ReciprocitySelectorProps) {
     const { colors } = useTheme();
 
     const options: { id: InitiatorType; label: string; icon: React.ReactNode }[] = [
@@ -34,9 +35,11 @@ export function ReciprocitySelector({ value, onChange, friendName = 'Them' }: Re
 
     return (
         <View style={styles.container}>
-            <Text style={[styles.label, { color: colors.foreground }]}>
-                Who initiated? <Text style={{ color: colors['muted-foreground'] }}>(optional)</Text>
-            </Text>
+            {!hideLabel && (
+                <Text style={[styles.label, { color: colors.foreground }]}>
+                    Who initiated? <Text style={{ color: colors['muted-foreground'] }}>(optional)</Text>
+                </Text>
+            )}
             <View style={[styles.selectorContainer, { backgroundColor: colors.muted }]}>
                 {options.map((option) => {
                     const isSelected = value === option.id;
