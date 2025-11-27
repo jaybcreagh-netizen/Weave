@@ -5,6 +5,7 @@
 
 import { database } from '@/db';
 import UserProfile, { BatteryHistoryEntry } from '@/db/models/UserProfile';
+import SocialBatteryLog from '@/db/models/SocialBatteryLog';
 import Interaction from '@/db/models/Interaction';
 import InteractionFriend from '@/db/models/InteractionFriend';
 import FriendModel from '@/db/models/Friend';
@@ -37,13 +38,27 @@ interface WeaveDay {
 }
 
 /**
- * Fetch battery history from UserProfile
+ * Fetch battery history from social_battery_logs table
  */
 async function fetchBatteryHistory(): Promise<BatteryHistoryEntry[]> {
   try {
     const profiles = await database.get<UserProfile>('user_profile').query().fetch();
     if (profiles.length === 0) return [];
-    return profiles[0].socialBatteryHistory || [];
+
+    const userId = profiles[0].id;
+    const logs = await database
+      .get<SocialBatteryLog>('social_battery_logs')
+      .query(
+        Q.where('user_id', userId),
+        Q.sortBy('timestamp', Q.asc)
+      )
+      .fetch();
+
+    // Convert to BatteryHistoryEntry format
+    return logs.map(log => ({
+      value: log.value,
+      timestamp: log.timestamp,
+    }));
   } catch (error) {
     console.error('Error fetching battery history:', error);
     return [];
@@ -73,7 +88,7 @@ async function fetchWeaves(daysBack: number = 90): Promise<Interaction[]> {
  * Detect day-of-week cyclical patterns
  */
 function detectDayOfWeekPatterns(history: BatteryHistoryEntry[]): Pattern | null {
-  if (history.length < 21) return null; // Need at least 3 weeks of data
+  if (history.length < 10) return null; // Lowered from 21 to 10 - need at least ~1.5 weeks of data
 
   // Group by day of week
   const dayData: DayOfWeekData[] = Array.from({ length: 7 }, (_, i) => ({
@@ -97,16 +112,16 @@ function detectDayOfWeekPatterns(history: BatteryHistoryEntry[]): Pattern | null
   });
 
   // Find highest and lowest energy days
-  const validDays = dayData.filter((d) => d.count >= 3); // Need at least 3 data points
-  if (validDays.length < 4) return null;
+  const validDays = dayData.filter((d) => d.count >= 2); // Lowered from 3 to 2 data points per day
+  if (validDays.length < 3) return null; // Lowered from 4 to 3 valid days
 
   const highestDay = validDays.reduce((max, day) => (day.avgBattery > max.avgBattery ? day : max));
   const lowestDay = validDays.reduce((min, day) => (day.avgBattery < min.avgBattery ? day : min));
 
   const difference = highestDay.avgBattery - lowestDay.avgBattery;
 
-  // Only report if difference is significant (>= 0.8)
-  if (difference < 0.8) return null;
+  // Only report if difference is significant (>= 0.6, lowered from 0.8)
+  if (difference < 0.6) return null;
 
   const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -129,7 +144,7 @@ async function detectBatteryWeaveCorrelation(
   history: BatteryHistoryEntry[],
   weaves: Interaction[]
 ): Promise<Pattern | null> {
-  if (history.length < 14 || weaves.length < 5) return null;
+  if (history.length < 8 || weaves.length < 3) return null; // Lowered from 14/5 to 8/3
 
   // Create map of date -> weave count
   const weavesByDate = new Map<string, number>();
@@ -153,13 +168,13 @@ async function detectBatteryWeaveCorrelation(
     });
   });
 
-  if (pairedData.length < 10) return null;
+  if (pairedData.length < 6) return null; // Lowered from 10 to 6
 
   // Calculate correlation: high battery days vs weave count
   const highBatteryDays = pairedData.filter((d) => d.batteryLevel && d.batteryLevel >= 4);
   const lowBatteryDays = pairedData.filter((d) => d.batteryLevel && d.batteryLevel <= 2);
 
-  if (highBatteryDays.length < 3 || lowBatteryDays.length < 3) return null;
+  if (highBatteryDays.length < 2 || lowBatteryDays.length < 2) return null; // Lowered from 3 to 2
 
   const avgWeavesHighBattery =
     highBatteryDays.reduce((sum, d) => sum + d.weaveCount, 0) / highBatteryDays.length;
@@ -168,8 +183,8 @@ async function detectBatteryWeaveCorrelation(
 
   const difference = avgWeavesHighBattery - avgWeavesLowBattery;
 
-  // Positive correlation: more weaves when battery is high
-  if (difference >= 0.5) {
+  // Positive correlation: more weaves when battery is high (lowered from 0.5 to 0.3)
+  if (difference >= 0.3) {
     return {
       id: 'battery-weave-positive',
       type: 'correlation',
@@ -182,8 +197,8 @@ async function detectBatteryWeaveCorrelation(
     };
   }
 
-  // Inverse correlation: more weaves when battery is low (counterintuitive!)
-  if (difference <= -0.5) {
+  // Inverse correlation: more weaves when battery is low (counterintuitive!) - lowered from -0.5 to -0.3
+  if (difference <= -0.3) {
     return {
       id: 'battery-weave-inverse',
       type: 'correlation',
@@ -206,7 +221,7 @@ async function detectBestConnectionDays(
   history: BatteryHistoryEntry[],
   weaves: Interaction[]
 ): Promise<Pattern | null> {
-  if (history.length < 21) return null;
+  if (history.length < 12) return null; // Lowered from 21 to 12
 
   // Analyze by day of week
   const dayScores = Array.from({ length: 7 }, (_, i) => ({
@@ -233,7 +248,7 @@ async function detectBestConnectionDays(
 
   // Calculate composite score: (avgBattery * 0.5) + (avgWeaves * 0.5)
   const scored = dayScores
-    .filter((d) => d.count >= 3)
+    .filter((d) => d.count >= 2) // Lowered from 3 to 2
     .map((d) => ({
       day: d.day,
       avgBattery: d.totalBattery / d.count,
@@ -242,7 +257,7 @@ async function detectBestConnectionDays(
     }))
     .sort((a, b) => b.compositeScore - a.compositeScore);
 
-  if (scored.length < 4) return null;
+  if (scored.length < 3) return null; // Lowered from 4 to 3
 
   const bestDay = scored[0];
   const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -263,7 +278,7 @@ async function detectBestConnectionDays(
  * Detect consistency patterns
  */
 function detectConsistencyPattern(history: BatteryHistoryEntry[]): Pattern | null {
-  if (history.length < 30) return null;
+  if (history.length < 14) return null; // Lowered from 30 to 14 (2 weeks)
 
   // Calculate variance in battery levels
   const avg = history.reduce((sum, e) => sum + e.value, 0) / history.length;
@@ -305,7 +320,7 @@ function detectConsistencyPattern(history: BatteryHistoryEntry[]): Pattern | nul
  * Detect battery trend (improving, declining, stable)
  */
 function detectTrendPattern(history: BatteryHistoryEntry[]): Pattern | null {
-  if (history.length < 14) return null;
+  if (history.length < 8) return null; // Lowered from 14 to 8
 
   // Split into first half and second half
   const midpoint = Math.floor(history.length / 2);
@@ -362,7 +377,7 @@ function detectTrendPattern(history: BatteryHistoryEntry[]): Pattern | null {
  * Detect quality depth patterns - analyzes interaction quality metrics
  */
 async function detectQualityDepthPattern(weaves: Interaction[]): Promise<Pattern | null> {
-  if (weaves.length < 10) return null;
+  if (weaves.length < 6) return null; // Lowered from 10 to 6
 
   // Calculate quality metrics for all weaves
   const qualityData = await Promise.all(
@@ -412,9 +427,9 @@ async function detectQualityDepthPattern(weaves: Interaction[]): Promise<Pattern
     });
   });
 
-  // Find friends with highest quality scores (need at least 3 interactions)
+  // Find friends with highest quality scores (need at least 2 interactions) - lowered from 3
   const qualityFriends = Array.from(friendQualityMap.entries())
-    .filter(([_, data]) => data.count >= 3)
+    .filter(([_, data]) => data.count >= 2)
     .map(([name, data]) => ({ name, avgQuality: data.totalQuality / data.count, count: data.count }))
     .sort((a, b) => b.avgQuality - a.avgQuality);
 
@@ -424,8 +439,8 @@ async function detectQualityDepthPattern(weaves: Interaction[]): Promise<Pattern
   const avgAllQuality =
     qualityData.reduce((sum, d) => sum + d.quality.overallQuality, 0) / qualityData.length;
 
-  // Only show pattern if there's a meaningful difference
-  if (topFriend.avgQuality - avgAllQuality < 0.5) return null;
+  // Only show pattern if there's a meaningful difference (lowered from 0.5 to 0.3)
+  if (topFriend.avgQuality - avgAllQuality < 0.3) return null;
 
   const topFriendsList = qualityFriends.slice(0, 3).map((f) => f.name);
 
@@ -447,12 +462,13 @@ async function detectQualityDepthPattern(weaves: Interaction[]): Promise<Pattern
 async function detectAdaptiveDecayPattern(): Promise<Pattern | null> {
   const allFriends = await database.get<FriendModel>('friends').query().fetch();
 
-  // Filter friends with learned tolerance windows (5+ rated interactions)
+  // Filter friends with learned tolerance windows (3+ rated weaves) - lowered from 5
+  // Note: Using ratedWeavesCount as proxy for interaction history
   const adaptedFriends = allFriends.filter(
-    (f) => f.toleranceWindowDays && f.totalInteractionsLogged >= 5
+    (f) => f.toleranceWindowDays && f.ratedWeavesCount >= 3
   );
 
-  if (adaptedFriends.length < 3) return null;
+  if (adaptedFriends.length < 2) return null; // Lowered from 3 to 2
 
   // Find the most interesting adaptive pattern
   const defaultWindows: Record<string, number> = {
@@ -473,8 +489,8 @@ async function detectAdaptiveDecayPattern(): Promise<Pattern | null> {
 
   const mostAdapted = adaptations[0];
 
-  // Only show if there's meaningful learning (at least 3 days difference)
-  if (Math.abs(mostAdapted.difference) < 3) return null;
+  // Only show if there's meaningful learning (at least 2 days difference) - lowered from 3
+  if (Math.abs(mostAdapted.difference) < 2) return null;
 
   const direction = mostAdapted.difference > 0 ? 'comfortable' : 'closer';
   const rhythm = mostAdapted.difference > 0 ? 'relaxed' : 'frequent';
@@ -495,7 +511,7 @@ async function detectAdaptiveDecayPattern(): Promise<Pattern | null> {
  * Detect archetype affinity patterns - which archetypes you connect best with
  */
 async function detectArchetypeAffinityPattern(weaves: Interaction[]): Promise<Pattern | null> {
-  if (weaves.length < 15) return null;
+  if (weaves.length < 10) return null; // Lowered from 15 to 10
 
   // Get all friends to map archetypes
   const allFriends = await database.get<FriendModel>('friends').query().fetch();
@@ -539,7 +555,7 @@ async function detectArchetypeAffinityPattern(weaves: Interaction[]): Promise<Pa
 
   // Calculate average scores per archetype
   const archetypeScores = Array.from(archetypeData.entries())
-    .filter(([_, data]) => data.count >= 3) // Need at least 3 interactions
+    .filter(([_, data]) => data.count >= 2) // Lowered from 3 to 2 interactions
     .map(([archetype, data]) => ({
       archetype,
       avgScore: data.totalScore / data.count,
@@ -554,8 +570,8 @@ async function detectArchetypeAffinityPattern(weaves: Interaction[]): Promise<Pa
   const worst = archetypeScores[archetypeScores.length - 1];
   const scoreDifference = best.avgScore - worst.avgScore;
 
-  // Only show if there's a meaningful difference
-  if (scoreDifference < 15) return null;
+  // Only show if there's a meaningful difference (lowered from 15 to 10)
+  if (scoreDifference < 10) return null;
 
   return {
     id: 'archetype-affinity',
@@ -563,7 +579,7 @@ async function detectArchetypeAffinityPattern(weaves: Interaction[]): Promise<Pa
     title: 'Archetype Affinity',
     description: `You thrive with ${best.archetype} friends (avg ${Math.round(best.avgScore)} health), but ${worst.archetype} connections need more attention (avg ${Math.round(worst.avgScore)}).`,
     insight: `Your ${best.archetype} relationships come naturally. Consider being more intentional with ${worst.archetype} friends to maintain balance.`,
-    confidence: scoreDifference >= 25 ? 'high' : 'medium',
+    confidence: scoreDifference >= 20 ? 'high' : scoreDifference >= 10 ? 'medium' : 'low', // Adjusted thresholds
     icon: '🎭',
     data: { best, worst, allArchetypes: archetypeScores },
   };
@@ -576,8 +592,8 @@ export async function detectPatterns(): Promise<Pattern[]> {
   const history = await fetchBatteryHistory();
   const weaves = await fetchWeaves(90); // Last 90 days
 
-  if (history.length < 7) {
-    return []; // Not enough data
+  if (history.length < 5) {
+    return []; // Not enough data (lowered from 7 to 5)
   }
 
   const patterns: Pattern[] = [];
