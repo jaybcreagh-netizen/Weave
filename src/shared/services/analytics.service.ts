@@ -8,6 +8,7 @@ let posthogInstance: any = null;
 // Helper to set the PostHog instance from the provider
 export function setPostHogInstance(instance: any) {
   posthogInstance = instance;
+  console.log('[Analytics] PostHog instance set');
 }
 
 // Analytics events
@@ -90,9 +91,9 @@ export async function initializeAnalytics(): Promise<void> {
   try {
     // PostHog is initialized via PostHogProvider in app/_layout.tsx
     // This function just logs that analytics are ready
-    console.log('[Analytics] PostHog initialized');
+    console.log('[Analytics] Analytics service ready');
   } catch (error) {
-    console.error('[Analytics] Failed to initialize PostHog:', error);
+    console.error('[Analytics] Failed to initialize analytics:', error);
   }
 }
 

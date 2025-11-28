@@ -2,7 +2,7 @@ import React from 'react';
 import { Modal, View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { X, Calendar, MapPin, Users } from 'lucide-react-native';
 import { BlurView } from 'expo-blur';
-import { useRouter } from 'expo-router';
+import { router } from 'expo-router';
 import { useEventSuggestionStore } from '@/modules/interactions';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { format } from 'date-fns';
@@ -15,7 +15,6 @@ import Animated, { FadeIn, FadeOut, SlideInDown, SlideOutDown } from 'react-nati
 export function EventSuggestionModal() {
   const { showingPastEvent, dismissPastEvent, hidePastEventModal } = useEventSuggestionStore();
   const { colors } = useTheme();
-  const router = useRouter();
 
   if (!showingPastEvent) {
     return null;

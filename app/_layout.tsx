@@ -46,7 +46,8 @@ import {
   Inter_600SemiBold,
 } from '@expo-google-fonts/inter';
 import * as Sentry from '@sentry/react-native';
-import { initializeAnalytics, trackEvent, trackRetentionMetrics, AnalyticsEvents } from '@/shared/services/analytics.service';
+import { initializeAnalytics, trackEvent, trackRetentionMetrics, AnalyticsEvents, setPostHogInstance } from '@/shared/services/analytics.service';
+import { PostHogProvider, usePostHog, POSTHOG_API_KEY, posthogOptions } from '@/shared/services/posthog.service';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 const queryClient = new QueryClient();
@@ -82,9 +83,17 @@ const NOTIFICATION_PERMISSION_ASKED_KEY = '@weave:notification_permission_asked'
  * This component sets up the global providers, navigators, and modals.
  * @returns {React.ReactElement | null} The rendered root layout.
  */
-export default Sentry.wrap(function RootLayout() {
+function RootLayoutContent() {
   // Apply the activity-based keep-awake logic globally
   // useActivityKeepAwake();
+
+  const posthog = usePostHog();
+
+  useEffect(() => {
+    if (posthog) {
+      setPostHogInstance(posthog);
+    }
+  }, [posthog]);
 
   const { colors } = useTheme();
   const isDarkMode = useUIStore((state) => state.isDarkMode);
@@ -402,4 +411,15 @@ export default Sentry.wrap(function RootLayout() {
       </GestureHandlerRootView>
     </QueryClientProvider>
   );
-});
+
+}
+
+function RootLayout() {
+  return (
+    <PostHogProvider apiKey={POSTHOG_API_KEY} options={posthogOptions}>
+      <RootLayoutContent />
+    </PostHogProvider>
+  );
+}
+
+export default Sentry.wrap(RootLayout);
