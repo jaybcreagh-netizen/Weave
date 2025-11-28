@@ -245,10 +245,10 @@ export async function importData(
             friend.momentumScore = friendData.momentumScore;
             friend.momentumLastUpdated = new Date(friendData.momentumLastUpdated);
             friend.isDormant = friendData.isDormant;
-            friend.dormantSince = friendData.dormantSince ? new Date(friendData.dormantSince) : null;
-            friend.birthday = friendData.birthday || null;
-            friend.anniversary = friendData.anniversary || null;
-            friend.relationshipType = friendData.relationshipType || null;
+            friend.dormantSince = friendData.dormantSince ? new Date(friendData.dormantSince) : undefined;
+            friend.birthday = friendData.birthday || undefined;
+            friend.anniversary = friendData.anniversary || undefined;
+            friend.relationshipType = friendData.relationshipType || undefined;
           });
 
           result.friendsImported++;
@@ -282,10 +282,10 @@ export async function importData(
             interaction.note = interactionData.note || '';
             interaction.vibe = interactionData.vibe || '';
             interaction.duration = interactionData.duration || '';
-            interaction.title = interactionData.title || null;
-            interaction.location = interactionData.location || null;
-            interaction.eventImportance = interactionData.eventImportance || null;
-            interaction.initiator = interactionData.initiator || null;
+            interaction.title = interactionData.title || undefined;
+            interaction.location = interactionData.location || undefined;
+            interaction.eventImportance = interactionData.eventImportance || undefined;
+            interaction.initiator = interactionData.initiator || undefined;
           });
 
           // Create interaction-friend links

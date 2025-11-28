@@ -69,6 +69,9 @@ export const VibeMultipliers: Record<Vibe, number> = {
   FirstQuarter: 1.1,   // Unchanged
   WaxingGibbous: 1.3,  // Was 1.2 - rewarding good vibes
   FullMoon: 1.5,       // Was 1.3 - significantly rewarding great vibes
+  WaningGibbous: 1.3,  // Mirroring WaxingGibbous
+  LastQuarter: 1.1,    // Mirroring FirstQuarter
+  WaningCrescent: 1.0, // Mirroring WaxingCrescent
 };
 
 export const RecencyFactors: { min: number; max: number; factor: number }[] = [

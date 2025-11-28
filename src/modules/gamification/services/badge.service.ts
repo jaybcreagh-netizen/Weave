@@ -162,7 +162,7 @@ export async function checkSpecialBadges(
     await database.write(async () => {
       await friend.update(f => {
         f.isDormant = false;
-        f.dormantSince = null;
+        f.dormantSince = undefined;
       });
     });
 

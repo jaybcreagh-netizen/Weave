@@ -621,7 +621,11 @@ export const TodaysFocusWidget: React.FC = () => {
   };
 
   // Count additional items
-  const additionalItemsCount = visiblePendingPlans.length + suggestions.length + upcomingDates.length - 1;
+  // We only subtract 1 if the hero card "consumes" an item from the list AND provides full functionality
+  // For plans (today or upcoming), we want to allow expansion to show the actions (Confirm/Reschedule)
+  const totalItems = visiblePendingPlans.length + suggestions.length + upcomingDates.length;
+  const isHeroConsumingItem = priority.state === 'pressing-event';
+  const additionalItemsCount = totalItems - (isHeroConsumingItem ? 1 : 0);
 
   // Render hero card based on priority
   const renderCard = () => {
@@ -850,7 +854,7 @@ export const TodaysFocusWidget: React.FC = () => {
                 ) : (
                   <>
                     <Text style={styles.expandText}>
-                      See all {additionalItemsCount + 1}
+                      See all {isHeroConsumingItem ? additionalItemsCount + 1 : additionalItemsCount}
                     </Text>
                     <ChevronDown size={18} color="rgba(255, 255, 255, 0.9)" />
                   </>

@@ -134,12 +134,12 @@ export function InteractionDetailModal({
     } else {
       // Fallback if category not found
       displayLabel = interaction.activity || 'Interaction';
-      displayIcon = modeIcons[interaction.mode as keyof typeof modeIcons] || modeIcons.default;
+      displayIcon = modeIcons[interaction.mode as keyof typeof modeIcons] || '📅';
     }
   } else {
     // Old format - use mode icon and activity name
     displayLabel = interaction.activity || 'Interaction';
-    displayIcon = modeIcons[interaction.mode as keyof typeof modeIcons] || modeIcons.default;
+    displayIcon = modeIcons[interaction.mode as keyof typeof modeIcons] || '📅';
   }
 
   return (
@@ -169,7 +169,7 @@ export function InteractionDetailModal({
                 <View>
                   <Text style={[styles.headerTitle, { color: colors.foreground }]}>{displayLabel}</Text>
                   <Text style={[styles.headerSubtitle, { color: colors['muted-foreground'] }]}>
-                    {interaction.mode?.replace('-', ' ')} • {interaction.type}
+                    {interaction.mode?.replace('-', ' ')} • {interaction.interactionType}
                   </Text>
                 </View>
               </View>
@@ -220,7 +220,7 @@ export function InteractionDetailModal({
                   colors={colors}
                 />
               )}
-              {isPast && moonIcon && <InfoRow icon={<Text style={{ fontSize: 24 }}>{moonIcon}</Text>} title={interaction.vibe?.replace(/([A-Z])/g, ' $1').trim()} subtitle="Moon phase" colors={colors} />}
+              {isPast && moonIcon && <InfoRow icon={<Text style={{ fontSize: 24 }}>{moonIcon}</Text>} title={(interaction.vibe || '').replace(/([A-Z])/g, ' $1').trim()} subtitle="Moon phase" colors={colors} />}
               {interaction.location && <InfoRow icon={<MapPin color={colors['muted-foreground']} size={20} />} title={interaction.location} subtitle="Location" colors={colors} />}
 
               {/* Reflection chips display */}
@@ -265,7 +265,7 @@ export function InteractionDetailModal({
                 </View>
               )}
 
-              {interaction.notes && <InfoRow icon={<MessageCircle color={colors['muted-foreground']} size={20} />} title={interaction.notes} subtitle="Notes" colors={colors} />}
+              {interaction.note && <InfoRow icon={<MessageCircle color={colors['muted-foreground']} size={20} />} title={interaction.note} subtitle="Notes" colors={colors} />}
             </ScrollView>
 
             {/* Deepen Weave / Edit Reflection Button - Only for past interactions */}

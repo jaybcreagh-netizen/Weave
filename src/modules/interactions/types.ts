@@ -1,5 +1,6 @@
 import { type Vibe, type Duration } from '@/shared/types/common';
-import { type InteractionCategory } from '@/shared/constants/interaction-categories';
+import { type InteractionCategory } from '@/shared/types/common';
+export { type InteractionCategory };
 
 /**
  * Single reflection chip/sentence

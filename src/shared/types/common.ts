@@ -50,7 +50,7 @@ export type ActivityType =
 export type InteractionType = ActivityType;
 
 export type Duration = 'Quick' | 'Standard' | 'Extended';
-export type Vibe = 'NewMoon' | 'WaxingCrescent' | 'FirstQuarter' | 'WaxingGibbous' | 'FullMoon';
+export type Vibe = 'NewMoon' | 'WaxingCrescent' | 'FirstQuarter' | 'WaxingGibbous' | 'FullMoon' | 'WaningGibbous' | 'LastQuarter' | 'WaningCrescent';
 
 // Reflection chip structure
 export interface ReflectionChip {

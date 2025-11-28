@@ -5,8 +5,8 @@
  * Tone: Mix of therapist (supportive, validating) and coach (actionable, clear)
  */
 
-import { SocialSeason } from '@/modules/intelligence';
-import { Suggestion } from '@/types/suggestions';
+
+import { Suggestion } from '@/shared/types/common';
 import FriendModel from '@/db/models/Friend';
 import { calculateCurrentScore } from '@/modules/intelligence';
 import { differenceInDays } from 'date-fns';
@@ -68,16 +68,7 @@ export function generateTodaysFocusIntro(context: TodaysFocusContext): string {
 // SOCIAL SEASON - Data-Driven Explanations
 // ============================================================================
 
-export interface SeasonExplanationData {
-  season: SocialSeason;
-  weavesLast7Days: number;
-  weavesLast30Days: number;
-  avgScoreAllFriends: number;
-  avgScoreInnerCircle: number;
-  momentumCount: number;
-  batteryLast7DaysAvg: number;
-  batteryTrend: 'rising' | 'falling' | 'stable';
-}
+import { SocialSeason, SeasonExplanationData } from '@/modules/intelligence';
 
 /**
  * Generates "why am I in this season" explanation with supporting data
@@ -208,9 +199,9 @@ export function generateRhythmExplanation(rhythm: {
 
   if (rhythm.isDeviation && rhythm.deviationDays) {
     const avgDisplay = rhythm.averageDays === 7 ? 'weekly' :
-                       rhythm.averageDays < 7 ? `every ${rhythm.averageDays} days` :
-                       rhythm.averageDays === 14 ? 'biweekly' :
-                       `every ${Math.round(rhythm.averageDays / 7)} weeks`;
+      rhythm.averageDays < 7 ? `every ${rhythm.averageDays} days` :
+        rhythm.averageDays === 14 ? 'biweekly' :
+          `every ${Math.round(rhythm.averageDays / 7)} weeks`;
 
     return `You usually connect ${avgDisplay}. It's been ${rhythm.deviationDays} days longer than usual.`;
   }

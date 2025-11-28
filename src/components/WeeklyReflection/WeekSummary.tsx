@@ -78,10 +78,10 @@ export function WeekSummary({ summary, onNext }: WeekSummaryProps) {
             {summary.totalWeaves >= 10
               ? 'Outstanding work!'
               : summary.totalWeaves >= 5
-              ? 'Great job connecting!'
-              : summary.totalWeaves > 0
-              ? 'Every weave matters!'
-              : 'Ready to start weaving?'}
+                ? 'Great job connecting!'
+                : summary.totalWeaves > 0
+                  ? 'Every weave matters!'
+                  : 'Ready to start weaving?'}
           </Text>
           <Text
             className="text-sm text-center leading-5"
@@ -90,10 +90,10 @@ export function WeekSummary({ summary, onNext }: WeekSummaryProps) {
             {summary.totalWeaves >= 10
               ? 'You maintained 10+ connections this week. Your weave is thriving.'
               : summary.totalWeaves >= 5
-              ? 'You stayed connected with multiple friends. Keep building momentum.'
-              : summary.totalWeaves > 0
-              ? 'You took time to nurture your relationships. That takes intention.'
-              : 'This week is a fresh start. Who will you connect with?'}
+                ? 'You stayed connected with multiple friends. Keep building momentum.'
+                : summary.totalWeaves > 0
+                  ? 'You took time to nurture your relationships. That takes intention.'
+                  : 'This week is a fresh start. Who will you connect with?'}
           </Text>
         </Animated.View>
       ) : (
@@ -188,8 +188,8 @@ export function WeekSummary({ summary, onNext }: WeekSummaryProps) {
                 className="text-xs ml-2"
                 style={{
                   color: summary.comparison.weavesChange > 0 ? '#10b981' :
-                         summary.comparison.weavesChange < 0 ? '#ef4444' :
-                         colors['muted-foreground'],
+                    summary.comparison.weavesChange < 0 ? '#ef4444' :
+                      colors['muted-foreground'],
                   fontFamily: 'Inter_400Regular'
                 }}
               >
@@ -210,8 +210,8 @@ export function WeekSummary({ summary, onNext }: WeekSummaryProps) {
                 className="text-xs ml-2"
                 style={{
                   color: summary.comparison.friendsChange > 0 ? '#10b981' :
-                         summary.comparison.friendsChange < 0 ? '#ef4444' :
-                         colors['muted-foreground'],
+                    summary.comparison.friendsChange < 0 ? '#ef4444' :
+                      colors['muted-foreground'],
                   fontFamily: 'Inter_400Regular'
                 }}
               >
@@ -229,7 +229,7 @@ export function WeekSummary({ summary, onNext }: WeekSummaryProps) {
           className="mb-6 gap-3"
         >
           {/* Most Consistent Friend */}
-          {summary.patterns.mostConsistentFriend && summary.patterns.mostConsistentFriend.count > 1 && (
+          {summary.patterns.mostConsistentFriend && summary.patterns.mostConsistentFriend.weaveCount > 1 && (
             <View
               className="flex-row items-center p-4 rounded-xl"
               style={{ backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 }}
@@ -246,7 +246,7 @@ export function WeekSummary({ summary, onNext }: WeekSummaryProps) {
                   className="text-sm font-semibold"
                   style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold' }}
                 >
-                  {summary.patterns.mostConsistentFriend.name} ({summary.patterns.mostConsistentFriend.count} weaves)
+                  {summary.patterns.mostConsistentFriend.name} ({summary.patterns.mostConsistentFriend.weaveCount} weaves)
                 </Text>
               </View>
             </View>
@@ -277,7 +277,7 @@ export function WeekSummary({ summary, onNext }: WeekSummaryProps) {
           )}
 
           {/* Needs Attention */}
-          {summary.patterns.needsAttention > 0 && (
+          {summary.patterns.needsAttention && summary.patterns.needsAttention > 0 && (
             <View
               className="flex-row items-center p-4 rounded-xl"
               style={{ backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 }}
@@ -309,8 +309,8 @@ export function WeekSummary({ summary, onNext }: WeekSummaryProps) {
           className="mb-8 p-5 rounded-xl"
           style={{
             backgroundColor: summary.socialHealth.score >= 70 ? '#10b98120' :
-                            summary.socialHealth.score >= 50 ? '#f59e0b20' :
-                            '#ef444420'
+              summary.socialHealth.score >= 50 ? '#f59e0b20' :
+                '#ef444420'
           }}
         >
           <Text
@@ -324,8 +324,8 @@ export function WeekSummary({ summary, onNext }: WeekSummaryProps) {
               className="text-4xl font-bold mr-3"
               style={{
                 color: summary.socialHealth.score >= 70 ? '#10b981' :
-                       summary.socialHealth.score >= 50 ? '#f59e0b' :
-                       '#ef4444',
+                  summary.socialHealth.score >= 50 ? '#f59e0b' :
+                    '#ef4444',
                 fontFamily: 'Lora_700Bold'
               }}
             >

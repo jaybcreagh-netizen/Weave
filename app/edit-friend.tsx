@@ -28,7 +28,7 @@ const EditFriendComponent = ({ friend }: EditFriendProps) => {
   return <FriendForm onSave={handleSave} friend={friend} />;
 }
 
-const enhance = withObservables<{ friendId: string }, EditFriendProps>(['friendId'], ({ friendId }) => ({
+const enhance = withObservables(['friendId'], ({ friendId }: { friendId: string }) => ({
   friend: database.get<FriendModel>('friends').findAndObserve(friendId),
 }));
 

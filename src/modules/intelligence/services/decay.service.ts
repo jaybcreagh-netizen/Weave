@@ -4,6 +4,7 @@ import { TierDecayRates } from '../constants';
 import { daysSince } from '@/shared/utils/date-utils';
 import { calculateFlexibleDecay } from './flexible-decay.service';
 import type { FlexibilityMode } from '@/modules/insights/types';
+import type { Tier } from '@/shared/types/common';
 
 /**
  * Apply decay to a friend's score
@@ -24,14 +25,14 @@ export function applyDecay(
   // Use flexible decay rate if enabled, otherwise use base tier rate
   const tierDecayRate = useFlexibleDecay
     ? calculateFlexibleDecay(friend, flexibilityMode)
-    : TierDecayRates[friend.dunbarTier];
+    : TierDecayRates[friend.dunbarTier as Tier];
 
   // Use learned tolerance window if available, otherwise fall back to tier defaults
   const toleranceWindow = friend.toleranceWindowDays || {
     InnerCircle: 7,
     CloseFriends: 14,
     Community: 21,
-  }[friend.dunbarTier];
+  }[friend.dunbarTier as Tier];
 
   let decayAmount: number;
 

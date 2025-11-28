@@ -1,5 +1,5 @@
 import { differenceInDays } from 'date-fns';
-import { InteractionCategory } from '@/shared/types/interactions';
+import { InteractionCategory } from '@/shared/types/common';
 
 /**
  * Represents the learned interaction pattern for a friendship

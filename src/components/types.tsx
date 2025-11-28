@@ -5,6 +5,7 @@ export * from '@/shared/types/common';
 // Re-exporting types that were defined here but not yet moved to common if any unique ones exist
 // In this case, we moved everything to common.ts, so we just re-export.
 import { InteractionCategory, InteractionType, Duration, Vibe, StructuredReflection, ActivityType, Archetype, Tier, RelationshipType, LifeEventType, LifeEventImportance, LifeEventSource } from '@/shared/types/common';
+export type MoonPhase = Vibe;
 
 // Re-declaring types that might be used as values or need specific augmentation if any (none for now)
 export type MockContact = {

@@ -65,7 +65,7 @@ export function FriendForm({ onSave, friend, initialTier, fromOnboarding }: Frie
   const [formData, setFormData] = useState<FriendFormData>({
     name: friend?.name || "",
     tier: friend ? getFormTier(friend.dunbarTier) : initialTier || 'inner',
-    archetype: friend?.archetype || "Emperor",
+    archetype: (friend?.archetype as Archetype) || "Emperor",
     notes: friend?.notes || "",
     photoUrl: friend?.photoUrl || "",
     birthday: friend?.birthday,
@@ -257,18 +257,20 @@ export function FriendForm({ onSave, friend, initialTier, fromOnboarding }: Frie
         setImageProcessing(true);
 
         try {
-          const normalizedUri = normalizeContactImageUri(contact.image.uri);
+          const normalizedUri = normalizeContactImageUri(contact.image.uri || '');
           const imageId = friend?.id || `temp_${Date.now()}`;
 
-          const imageResult = await processAndStoreImage({
-            uri: normalizedUri,
-            type: 'profilePicture',
-            imageId,
-          });
+          if (normalizedUri) {
+            const imageResult = await processAndStoreImage({
+              uri: normalizedUri,
+              type: 'profilePicture',
+              imageId,
+            });
 
-          if (imageResult.success) {
-            contactPhotoUrl = imageResult.localUri;
-            console.log('[FriendForm] Contact photo processed:', contactPhotoUrl);
+            if (imageResult.success) {
+              contactPhotoUrl = imageResult.localUri;
+              console.log('[FriendForm] Contact photo processed:', contactPhotoUrl);
+            }
           }
         } catch (error) {
           console.error('[FriendForm] Error processing contact photo:', error);

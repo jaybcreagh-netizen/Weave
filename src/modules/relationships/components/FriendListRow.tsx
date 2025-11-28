@@ -53,8 +53,9 @@ export const FriendListRow = withObservables(['friend'], ({ friend }: { friend: 
   if (!friend) return null;
 
   const { id, name, archetype, isDormant = false, photoUrl, relationshipType } = friend;
-  const [statusLine, setStatusLine] = useState<{ text: string; icon?: string }>({
-    text: archetypeData[archetype as Archetype]?.essence || ''
+  const [statusLine, setStatusLine] = useState<{ text: string; icon?: string; variant?: 'default' | 'accent' | 'warning' | 'success' }>({
+    text: archetypeData[archetype as Archetype]?.essence || '',
+    variant: 'default'
   });
   const [imageError, setImageError] = useState(false);
   const [showDetailSheet, setShowDetailSheet] = useState(false);
@@ -99,7 +100,7 @@ export const FriendListRow = withObservables(['friend'], ({ friend }: { friend: 
   useEffect(() => {
     // Special handling for Unknown archetype
     if (archetype === 'Unknown') {
-      setStatusLine({ text: 'Tap to assign an archetype', icon: '✨' });
+      setStatusLine({ text: 'Tap to assign an archetype', icon: '✨', variant: 'accent' });
       return;
     }
 
@@ -126,7 +127,7 @@ export const FriendListRow = withObservables(['friend'], ({ friend }: { friend: 
         })
         .catch(error => {
           console.error('Error generating status line:', error);
-          const fallback = { text: archetypeData[archetype as Archetype]?.essence || '' };
+          const fallback = { text: archetypeData[archetype as Archetype]?.essence || '', variant: 'default' as const };
           setStatusLine(fallback);
         });
     }, 300);
@@ -185,6 +186,22 @@ export const FriendListRow = withObservables(['friend'], ({ friend }: { friend: 
 
   // Border color based on theme
   const borderColor = isDarkMode ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)';
+
+  // Determine status text color based on variant
+  const getStatusColor = () => {
+    switch (statusLine.variant) {
+      case 'accent':
+        return isDarkMode ? '#A78BFA' : '#7C3AED'; // Violet/Purple
+      case 'warning':
+        return isDarkMode ? '#F87171' : '#DC2626'; // Red
+      case 'success':
+        return isDarkMode ? '#34D399' : '#059669'; // Emerald/Green
+      default:
+        return colors.foreground;
+    }
+  };
+
+  const statusColor = getStatusColor();
 
   return (
     <Animated.View ref={animatedRef} style={rowStyle}>
@@ -287,7 +304,11 @@ export const FriendListRow = withObservables(['friend'], ({ friend }: { friend: 
               )}
               <Text
                 className="text-status"
-                style={{ color: colors.foreground, opacity: 0.7 }}
+                style={{
+                  color: statusColor,
+                  opacity: statusLine.variant === 'default' ? 0.7 : 0.9,
+                  fontWeight: statusLine.variant !== 'default' ? '500' : '400'
+                }}
                 numberOfLines={1}
                 ellipsizeMode="tail"
               >

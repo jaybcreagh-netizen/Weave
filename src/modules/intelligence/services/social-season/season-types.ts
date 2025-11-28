@@ -39,3 +39,14 @@ export interface SeasonContext {
   batteryLow: boolean; // Battery avg < 2.5
   batteryHigh: boolean; // Battery avg > 4.0
 }
+
+export interface SeasonExplanationData {
+  season: SocialSeason;
+  weavesLast7Days: number;
+  weavesLast30Days: number;
+  avgScoreAllFriends: number;
+  avgScoreInnerCircle: number;
+  momentumCount: number;
+  batteryLast7DaysAvg: number;
+  batteryTrend: 'rising' | 'falling' | 'stable';
+}

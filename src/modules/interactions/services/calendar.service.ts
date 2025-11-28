@@ -96,29 +96,29 @@ export async function saveCalendarSettings(settings: CalendarSettings): Promise<
 }
 
 export async function getAvailableCalendars(): Promise<Calendar.Calendar[]> {
-    try {
-      const hasPermission = await requestCalendarPermissions();
-      if (!hasPermission) return [];
+  try {
+    const hasPermission = await requestCalendarPermissions();
+    if (!hasPermission) return [];
 
-      const calendars = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
-      return calendars.filter(cal => cal.allowsModifications);
-    } catch (error) {
-      console.error('Error fetching calendars:', error);
-      return [];
-    }
+    const calendars = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
+    return calendars.filter(cal => cal.allowsModifications);
+  } catch (error) {
+    console.error('Error fetching calendars:', error);
+    return [];
+  }
 }
 
 // --- Event Management ---
 
 async function getDefaultCalendarId(): Promise<string | null> {
-    const settings = await getCalendarSettings();
-    if (settings.calendarId) return settings.calendarId;
+  const settings = await getCalendarSettings();
+  if (settings.calendarId) return settings.calendarId;
 
-    const calendars = await getAvailableCalendars();
-    if (calendars.length === 0) return null;
+  const calendars = await getAvailableCalendars();
+  if (calendars.length === 0) return null;
 
-    const defaultCal = calendars.find(cal => cal.isPrimary) || calendars[0];
-    return defaultCal.id;
+  const defaultCal = calendars.find(cal => cal.isPrimary) || calendars[0];
+  return defaultCal.id;
 }
 
 export async function createWeaveCalendarEvent(params: {
@@ -189,76 +189,101 @@ export async function deleteWeaveCalendarEvent(eventId: string): Promise<boolean
 // --- Two-Way Sync ---
 
 function detectChanges(calendarEvent: Calendar.Event, interaction: Interaction): { hasChanges: boolean; fields: string[] } {
-    const fields: string[] = [];
-    const calEventDate = new Date(calendarEvent.startDate);
-    const interactionDate = new Date(interaction.interactionDate);
+  const fields: string[] = [];
+  const calEventDate = new Date(calendarEvent.startDate);
+  const interactionDate = new Date(interaction.interactionDate);
 
-    if (Math.abs(calEventDate.getTime() - interactionDate.getTime()) > 60000) {
-        fields.push('date');
-    }
-    if ((calendarEvent.location || '').trim() !== (interaction.location || '').trim()) {
-        fields.push('location');
-    }
+  if (Math.abs(calEventDate.getTime() - interactionDate.getTime()) > 60000) {
+    fields.push('date');
+  }
+  if ((calendarEvent.location || '').trim() !== (interaction.location || '').trim()) {
+    fields.push('location');
+  }
 
-    return { hasChanges: fields.length > 0, fields };
+  return { hasChanges: fields.length > 0, fields };
 }
 
 async function getFriendNamesForInteraction(interactionId: string): Promise<string> {
-    const interactionFriends = await database.get<InteractionFriend>('interaction_friends').query(Q.where('interaction_id', interactionId)).fetch();
-    const friendIds = interactionFriends.map((f) => f.friendId);
-    const friends = await database.get<FriendModel>('friends').query(Q.where('id', Q.oneOf(friendIds))).fetch();
-    return friends.map((f) => f.name).join(', ');
+  const interactionFriends = await database.get<InteractionFriend>('interaction_friends').query(Q.where('interaction_id', interactionId)).fetch();
+  const friendIds = interactionFriends.map((f) => f.friendId);
+  const friends = await database.get<FriendModel>('friends').query(Q.where('id', Q.oneOf(friendIds))).fetch();
+  return friends.map((f) => f.name).join(', ');
 }
 
+let isSyncing = false;
+
 export async function syncCalendarChanges(): Promise<CalendarSyncResult> {
+  if (isSyncing) {
+    console.log('[CalendarService] Sync already in progress, skipping.');
+    return { synced: 0, deleted: 0, errors: 0, changes: [] };
+  }
+
+  isSyncing = true;
   const result: CalendarSyncResult = { synced: 0, deleted: 0, errors: 0, changes: [] };
-  const settings = await getCalendarSettings();
-  if (!settings.enabled || !settings.twoWaySync) return result;
 
-  const hasPermission = await checkCalendarPermissions();
-  if (!hasPermission.granted) return result;
+  try {
+    const settings = await getCalendarSettings();
+    if (!settings.enabled || !settings.twoWaySync) return result;
 
-  const plannedInteractions = await database.get<Interaction>('interactions').query(
-    Q.where('status', Q.oneOf(['planned', 'pending_confirm'])),
-    Q.where('calendar_event_id', Q.notEq(null))
-  ).fetch();
+    const hasPermission = await checkCalendarPermissions();
+    if (!hasPermission.granted) return result;
 
-  for (const interaction of plannedInteractions) {
-    const calendarEventId = interaction.calendarEventId;
-    if (!calendarEventId) continue;
+    const plannedInteractions = await database.get<Interaction>('interactions').query(
+      Q.where('status', Q.oneOf(['planned', 'pending_confirm'])),
+      Q.where('calendar_event_id', Q.notEq(null))
+    ).fetch();
 
-    try {
-      const calendarEvent = await Calendar.getEventAsync(calendarEventId);
-      const { hasChanges, fields } = detectChanges(calendarEvent, interaction);
+    const batchOps: any[] = [];
 
-      if (hasChanges) {
-        await database.write(async () => {
-            await interaction.update((i) => {
-              if (fields.includes('date')) i.interactionDate = new Date(calendarEvent.startDate);
-              if (fields.includes('location')) i.location = calendarEvent.location || '';
-            });
-        });
-        result.synced++;
+    // Prepare all updates first (outside of write transaction)
+    for (const interaction of plannedInteractions) {
+      const calendarEventId = interaction.calendarEventId;
+      if (!calendarEventId) continue;
+
+      try {
+        const calendarEvent = await Calendar.getEventAsync(calendarEventId);
+        const { hasChanges, fields } = detectChanges(calendarEvent, interaction);
+
+        if (hasChanges) {
+          batchOps.push(interaction.prepareUpdate((i) => {
+            if (fields.includes('date')) i.interactionDate = new Date(calendarEvent.startDate);
+            if (fields.includes('location')) i.location = calendarEvent.location || '';
+          }));
+
+          result.synced++;
+          result.changes.push({
+            interactionId: interaction.id,
+            friendNames: await getFriendNamesForInteraction(interaction.id),
+            changeType: 'updated',
+            fields,
+          });
+        }
+      } catch (error) {
+        // Assuming error means event was deleted
+        batchOps.push(interaction.prepareUpdate((i) => { i.status = 'cancelled'; }));
+
+        result.deleted++;
         result.changes.push({
           interactionId: interaction.id,
           friendNames: await getFriendNamesForInteraction(interaction.id),
-          changeType: 'updated',
-          fields,
+          changeType: 'deleted',
+          fields: [],
         });
       }
-    } catch (error) {
-      // Assuming error means event was deleted
+    }
+
+    // Execute all updates in a single batch
+    if (batchOps.length > 0) {
       await database.write(async () => {
-          await interaction.update((i) => { i.status = 'cancelled'; });
-      });
-      result.deleted++;
-      result.changes.push({
-        interactionId: interaction.id,
-        friendNames: await getFriendNamesForInteraction(interaction.id),
-        changeType: 'deleted',
-        fields: [],
+        await database.batch(batchOps);
       });
     }
+
+  } catch (error) {
+    console.error('[CalendarService] Error during sync:', error);
+    result.errors++;
+  } finally {
+    isSyncing = false;
   }
 
   return result;

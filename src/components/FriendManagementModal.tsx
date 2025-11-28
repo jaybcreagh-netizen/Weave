@@ -199,7 +199,7 @@ export function FriendManagementModal({ visible, onClose }: FriendManagementModa
                         {friend.name}
                       </Text>
                       <Text style={{ fontSize: 14, color: colors['muted-foreground'], marginTop: 2 }}>
-                        {friend.tier} • Score: {Math.round(currentScore)}
+                        {friend.dunbarTier} • Score: {Math.round(currentScore)}
                       </Text>
                     </View>
                   </TouchableOpacity>

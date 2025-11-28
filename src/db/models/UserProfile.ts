@@ -39,8 +39,18 @@ export default class UserProfile extends Model {
   @text('tier_flexibility_mode') tierFlexibilityMode?: 'strict' | 'balanced' | 'flexible'; // How much decay adapts
   @field('tier_intelligence_enabled') tierIntelligenceEnabled?: boolean; // Show tier fit indicators
 
+  @text('social_battery_history') socialBatteryHistoryJSON?: string;
+
+  get socialBatteryHistory(): BatteryHistoryEntry[] {
+    if (!this.socialBatteryHistoryJSON) return [];
+    try {
+      return JSON.parse(this.socialBatteryHistoryJSON);
+    } catch {
+      return [];
+    }
+  }
+
   // Metadata
   @readonly @date('created_at') createdAt!: Date;
   @date('updated_at') updatedAt!: Date;
-
 }
