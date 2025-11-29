@@ -43,6 +43,7 @@ import {
 } from '@expo-google-fonts/lora';
 import {
   Inter_400Regular,
+  Inter_500Medium,
   Inter_600SemiBold,
 } from '@expo-google-fonts/inter';
 import * as Sentry from '@sentry/react-native';
@@ -116,6 +117,7 @@ function RootLayoutContent() {
     Lora_400Regular,
     Lora_700Bold,
     Inter_400Regular,
+    Inter_500Medium,
     Inter_600SemiBold,
   });
 
