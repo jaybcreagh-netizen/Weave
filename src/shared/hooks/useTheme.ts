@@ -1,15 +1,14 @@
 import { useMemo } from 'react';
 import { useUIStore } from '@/stores/uiStore';
 import {
-  getTheme,
-  getThemeColors,
   getTokens,
+  createLegacyTheme,
   typography,
   spacing,
   layout,
   radius,
   shadows
-} from '@/shared/theme/theme';
+} from '@/shared/theme/tokens';
 
 /**
  * Custom hook to access the current theme based on dark mode state
@@ -19,11 +18,10 @@ export function useTheme() {
   const isDarkMode = useUIStore((state) => state.isDarkMode);
 
   return useMemo(() => ({
-    // Legacy support
-    theme: getTheme(isDarkMode),
-    colors: getThemeColors(isDarkMode),
+    // Legacy API (backward compatible)
+    ...createLegacyTheme(isDarkMode),
 
-    // New Design System
+    // New API
     tokens: getTokens(isDarkMode),
     typography,
     spacing,
