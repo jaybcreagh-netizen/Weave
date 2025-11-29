@@ -31,23 +31,28 @@ export function IntentionsList({ intentions, onIntentionPress }: IntentionsListP
 
   const clearAllIntentions = async () => {
     try {
+      console.log('[IntentionsList] Clearing all intentions...');
       await database.write(async () => {
         const activeIntentions = await database.get<Intention>('intentions')
           .query(Q.where('status', 'active'))
           .fetch();
 
+        console.log(`[IntentionsList] Found ${activeIntentions.length} active intentions to clear`);
+
         if (activeIntentions.length > 0) {
-          await database.batch(
-            activeIntentions.map(intention =>
-              intention.prepareUpdate(record => {
-                record.status = 'dismissed';
-              })
-            )
+          const updates = activeIntentions.map(intention =>
+            intention.prepareUpdate(record => {
+              record.status = 'dismissed';
+            })
           );
+
+          // Use spread operator to ensure compatibility with all WatermelonDB versions
+          await database.batch(...updates);
         }
       });
+      console.log('[IntentionsList] Intentions cleared successfully');
     } catch (error) {
-      console.error('Error clearing intentions:', error);
+      console.error('[IntentionsList] Error clearing intentions:', error);
       Alert.alert('Error', 'Failed to clear intentions');
     }
   };

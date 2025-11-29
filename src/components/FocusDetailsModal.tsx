@@ -9,7 +9,7 @@ import { useSuggestions } from '@/modules/interactions';
 import { getCategoryMetadata } from '@/shared/constants/interaction-categories';
 import { type InteractionCategory } from './types';
 import FriendModel from '@/db/models/Friend';
-import { differenceInDays } from 'date-fns';
+import { differenceInDays, format } from 'date-fns';
 import { database } from '@/db';
 import { Q } from '@nozbe/watermelondb';
 
@@ -91,6 +91,7 @@ export const FocusDetailsModal: React.FC<FocusDetailsModalProps> = ({
       : differenceInDays(new Date(interaction.interactionDate), new Date());
 
     const dateText = getDaysText(daysUntil);
+    const timeText = format(interaction.interactionDate, 'h:mm a');
 
     const categoryData = interaction.interactionCategory
       ? getCategoryMetadata(interaction.interactionCategory as InteractionCategory)
@@ -108,7 +109,7 @@ export const FocusDetailsModal: React.FC<FocusDetailsModalProps> = ({
               {displayTitle}
             </Text>
             <Text style={[styles.planSubtitle, { color: colors['muted-foreground'] }]}>
-              {friendName} · {dateText}
+              {friendName} · {timeText} · {dateText}
             </Text>
           </View>
         </View>

@@ -658,6 +658,11 @@ export async function generateSuggestion(input: SuggestionInput): Promise<Sugges
       : 0;
 
     if (daysSinceAdded >= 1) {
+      // Reduce noise: Only suggest first weave for Community friends if their health is low (< 35)
+      if (friend.dunbarTier === 'Community' && currentScore >= 35) {
+        return null;
+      }
+
       return {
         id: `first-weave-${friend.id}`,
         friendId: friend.id,

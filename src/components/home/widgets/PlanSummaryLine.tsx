@@ -1,7 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { Text, StyleSheet } from 'react-native';
+import { format } from 'date-fns';
+import { Q } from '@nozbe/watermelondb';
+import { database } from '@/db';
 import Interaction from '@/db/models/Interaction';
 import FriendModel from '@/db/models/Friend';
+import InteractionFriend from '@/db/models/InteractionFriend';
 import { getCategoryMetadata } from '@/shared/constants/interaction-categories';
 import { InteractionCategory } from '@/components/types';
 
@@ -16,8 +20,15 @@ export const PlanSummaryLine: React.FC<PlanSummaryLineProps> = ({ plan, style })
     useEffect(() => {
         const loadFriends = async () => {
             try {
-                const friends = await plan.interactionFriends.fetch();
-                setFriendNames(friends.map((f: FriendModel) => f.name).join(', '));
+                const linkedFriends = await plan.interactionFriends.fetch();
+                const friendIds = linkedFriends.map((link: InteractionFriend) => link.friendId);
+
+                if (friendIds.length > 0) {
+                    const friends = await database.get<FriendModel>('friends')
+                        .query(Q.where('id', Q.oneOf(friendIds)))
+                        .fetch();
+                    setFriendNames(friends.map(f => f.name).join(', '));
+                }
             } catch (e) {
                 console.error('Error loading friends for summary:', e);
             }
@@ -29,10 +40,11 @@ export const PlanSummaryLine: React.FC<PlanSummaryLineProps> = ({ plan, style })
         ? getCategoryMetadata(plan.interactionCategory as InteractionCategory)
         : null;
     const title = plan.title || categoryData?.label || plan.activity;
+    const timeText = format(plan.interactionDate, 'h:mm a');
 
     return (
         <Text style={style}>
-            • {title} - {friendNames}
+            • {friendNames} - {timeText} - {title}
         </Text>
     );
 };

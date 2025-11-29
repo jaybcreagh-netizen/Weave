@@ -86,9 +86,16 @@ export const TodaysFocusWidget: React.FC = () => {
 
     return interactions
       .filter((i: Interaction) => {
-        if (i.status === 'completed' || i.status === 'cancelled') return false;
         const iDate = new Date(i.interactionDate);
         iDate.setHours(0, 0, 0, 0);
+
+        // Always include today's events, even if completed (unless cancelled)
+        const isToday = iDate.getTime() === today.getTime();
+        if (isToday && i.status !== 'cancelled') return true;
+
+        // For past/future events, exclude completed/cancelled
+        if (i.status === 'completed' || i.status === 'cancelled') return false;
+
         return iDate >= sevenDaysAgo;
       })
       .sort((a, b) => new Date(a.interactionDate).getTime() - new Date(b.interactionDate).getTime());
@@ -577,6 +584,12 @@ export const TodaysFocusWidget: React.FC = () => {
 
     try {
       await completePlan(interactionId);
+      // Remove from confirmingIds so it reappears (as completed)
+      setConfirmingIds(prev => {
+        const next = new Set(prev);
+        next.delete(interactionId);
+        return next;
+      });
     } catch (error) {
       console.error('Error confirming plan:', error);
       // Revert on error

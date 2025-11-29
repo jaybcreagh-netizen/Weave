@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Calendar, CheckCircle2 } from 'lucide-react-native';
-import { differenceInDays } from 'date-fns';
+import { differenceInDays, format } from 'date-fns';
 import { getCategoryMetadata } from '@/shared/constants/interaction-categories';
 import { InteractionCategory } from '@/components/types';
 import Interaction from '@/db/models/Interaction';
 import FriendModel from '@/db/models/Friend';
+import InteractionFriend from '@/db/models/InteractionFriend';
 import { database } from '@/db';
 import { Q } from '@nozbe/watermelondb';
 
@@ -24,7 +25,7 @@ export const PendingPlanItem: React.FC<PendingPlanItemProps> = ({ plan, onConfir
             try {
                 // Fetch friends through the join table
                 const linkedFriends = await plan.interactionFriends.fetch();
-                const friendIds = linkedFriends.map(link => link.friendId);
+                const friendIds = linkedFriends.map((link: InteractionFriend) => link.friendId);
 
                 if (friendIds.length > 0) {
                     const friendsList = await database.get<FriendModel>('friends')
@@ -51,6 +52,7 @@ export const PendingPlanItem: React.FC<PendingPlanItemProps> = ({ plan, onConfir
 
     const friendName = friends.map(f => f.name).join(', ');
     const dateText = getDaysText(differenceInDays(new Date(), plan.interactionDate));
+    const timeText = format(plan.interactionDate, 'h:mm a');
     const categoryData = plan.interactionCategory
         ? getCategoryMetadata(plan.interactionCategory as InteractionCategory)
         : null;
@@ -65,26 +67,35 @@ export const PendingPlanItem: React.FC<PendingPlanItemProps> = ({ plan, onConfir
                         {displayTitle}
                     </Text>
                     <Text style={styles.planSubtitle}>
-                        {loading ? 'Loading...' : `${friendName} · ${dateText}`}
+                        {loading ? 'Loading...' : `${friendName} · ${timeText} · ${dateText}`}
                     </Text>
                 </View>
             </View>
             <View style={styles.planActions}>
-                <TouchableOpacity
-                    style={styles.confirmButton}
-                    onPress={() => onConfirm(plan.id)}
-                >
-                    <CheckCircle2 size={14} color="#FFFFFF" />
-                    <Text style={styles.confirmButtonText}>Confirm</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                    style={styles.rescheduleButton}
-                    onPress={() => onReschedule({ interaction: plan, friends: { fetch: async () => friends } })} // Mocking the structure expected by handleReschedulePlan
-                >
-                    <Text style={styles.rescheduleButtonText}>
-                        Reschedule
-                    </Text>
-                </TouchableOpacity>
+                {plan.status === 'completed' ? (
+                    <View style={[styles.confirmButton, { backgroundColor: 'rgba(16, 185, 129, 0.2)', opacity: 1 }]}>
+                        <CheckCircle2 size={14} color="#34D399" />
+                        <Text style={[styles.confirmButtonText, { color: '#34D399' }]}>Confirmed</Text>
+                    </View>
+                ) : (
+                    <>
+                        <TouchableOpacity
+                            style={styles.confirmButton}
+                            onPress={() => onConfirm(plan.id)}
+                        >
+                            <CheckCircle2 size={14} color="#FFFFFF" />
+                            <Text style={styles.confirmButtonText}>Confirm</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={styles.rescheduleButton}
+                            onPress={() => onReschedule({ interaction: plan, friends: { fetch: async () => friends } })}
+                        >
+                            <Text style={styles.rescheduleButtonText}>
+                                Reschedule
+                            </Text>
+                        </TouchableOpacity>
+                    </>
+                )}
             </View>
         </View>
     );

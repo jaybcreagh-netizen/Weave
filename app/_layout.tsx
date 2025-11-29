@@ -430,8 +430,7 @@ function RootLayout() {
       options={posthogOptions}
       autocapture={{
         captureScreens: false,
-        captureLifecycleEvents: true,
-        captureTouch: true
+        captureTouches: true
       }}
     >
       <RootLayoutContent />
