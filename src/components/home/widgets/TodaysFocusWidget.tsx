@@ -15,7 +15,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 }
 import { useRouter } from 'expo-router';
 import { differenceInDays, format } from 'date-fns';
-import { Cake, Heart, ChevronDown, ChevronUp, Calendar, CheckCircle2, Sparkles, Flame, X } from 'lucide-react-native';
+import { Cake, Heart, ChevronDown, ChevronUp, Calendar, CheckCircle2, Sparkles, Flame, X, Target, MessageCircle } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { HomeWidgetBase, HomeWidgetConfig } from '../HomeWidgetBase';
 import { useRelationshipsStore } from '@/modules/relationships';
@@ -39,6 +39,15 @@ import {
   type FriendshipPattern
 } from '@/modules/insights';
 import InteractionFriend from '@/db/models/InteractionFriend';
+import Intention from '@/db/models/Intention';
+import IntentionFriend from '@/db/models/IntentionFriend';
+import {
+  generateContextualPrompts,
+  selectBestPrompt,
+  type ContextualPrompt,
+  calculateWeeklySummary,
+  type WeeklySummary
+} from '@/modules/reflection';
 
 import { PlanSummaryLine } from './PlanSummaryLine';
 import { FocusDetailsModal } from '@/components/FocusDetailsModal';
@@ -108,6 +117,8 @@ export const TodaysFocusWidget: React.FC = () => {
   const [fadingFriend, setFadingFriend] = useState<{ friend: FriendModel; score: number; pattern?: FriendshipPattern } | null>(null);
   const [batteryMatchedFriend, setBatteryMatchedFriend] = useState<FriendModel | null>(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [activeIntentions, setActiveIntentions] = useState<Intention[]>([]);
+  const [reflectionPrompt, setReflectionPrompt] = useState<ContextualPrompt | null>(null);
 
   const expansionProgress = useSharedValue(0);
 
@@ -463,6 +474,38 @@ export const TodaysFocusWidget: React.FC = () => {
     loadLifeEvents();
   }, [friends]);
 
+  // Load active intentions
+  useEffect(() => {
+    const subscription = database
+      .get<Intention>('intentions')
+      .query(Q.where('status', 'active'))
+      .observe()
+      .subscribe(intentions => {
+        setActiveIntentions(intentions);
+      });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // Generate reflection prompt based on weekly activity
+  useEffect(() => {
+    const generatePrompt = async () => {
+      try {
+        // Generate weekly summary
+        const summary = await calculateWeeklySummary();
+
+        // Generate and select prompt
+        const prompts = generateContextualPrompts(summary);
+        const selected = selectBestPrompt(prompts);
+        setReflectionPrompt(selected);
+      } catch (error) {
+        console.error('Error generating reflection prompt:', error);
+      }
+    };
+
+    generatePrompt();
+  }, [friends, interactions]);
+
   // Priority logic with daily rotation for variance
   const getPriority = (): { state: PriorityState; data?: any } => {
     // 1. Pressing events (ONLY critical life events within 7 days - birthdays handled separately)
@@ -710,60 +753,142 @@ export const TodaysFocusWidget: React.FC = () => {
   };
 
   // Render expanded content
-  const renderExpandedContent = () => (
-    <>
-      {/* Pending Plans */}
-      {visiblePendingPlans.length > 0 && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            PENDING PLANS
-          </Text>
-          {visiblePendingPlans.slice(0, 3).map((plan: any) => (
-            <PendingPlanItem key={plan.id} plan={plan} onConfirm={handleConfirmPlan} onReschedule={handleReschedulePlan} />
-          ))}
-        </View>
-      )}
+  const renderExpandedContent = () => {
+    // Split pending plans into today's and upcoming
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
-      {/* Upcoming Events            {pendingPlans.length > 2 && ( */}
-      <View style={styles.section}>
+    const todaysPlans = visiblePendingPlans.filter((p: Interaction) => {
+      const planDate = new Date(p.interactionDate);
+      planDate.setHours(0, 0, 0, 0);
+      return planDate.getTime() === today.getTime();
+    });
 
-        <Text style={styles.sectionTitle}>
-          UPCOMING
-        </Text>
-        {upcomingDates.slice(0, 3).map((event, index) => (
-          <TouchableOpacity
-            key={`${event.friend.id}-${event.type}-${event.title || event.daysUntil}-${index}`}
-            onPress={() => router.push(`/friend-profile?friendId=${event.friend.id}`)}
-            style={styles.upcomingItem}
-          >
-            <View style={styles.upcomingIcon}>
-              {event.type === 'birthday' ? (
-                <Cake size={14} color="rgba(255, 255, 255, 0.8)" />
-              ) : event.type === 'anniversary' ? (
-                <Heart size={14} color="rgba(255, 255, 255, 0.8)" />
-              ) : (
-                <Calendar size={14} color="rgba(255, 255, 255, 0.8)" />
-              )}
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.upcomingName}>
-                {event.title || (event.type === 'birthday' ? 'Birthday' : 'Anniversary')}
+    const upcomingPendingPlans = visiblePendingPlans.filter((p: Interaction) => {
+      const planDate = new Date(p.interactionDate);
+      planDate.setHours(0, 0, 0, 0);
+      return planDate.getTime() > today.getTime();
+    });
+
+    const pastPendingPlans = visiblePendingPlans.filter((p: Interaction) => {
+      const planDate = new Date(p.interactionDate);
+      planDate.setHours(0, 0, 0, 0);
+      return planDate.getTime() < today.getTime();
+    });
+
+    return (
+      <>
+        {/* Today's Plans - Show ALL with action buttons */}
+        {todaysPlans.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>
+              TODAY'S PLANS ({todaysPlans.length})
+            </Text>
+            {todaysPlans.map((plan: any) => (
+              <PendingPlanItem key={plan.id} plan={plan} onConfirm={handleConfirmPlan} onReschedule={handleReschedulePlan} />
+            ))}
+          </View>
+        )}
+
+        {/* Past Pending Plans (need confirmation) */}
+        {pastPendingPlans.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>
+              PAST PLANS ({pastPendingPlans.length})
+            </Text>
+            {pastPendingPlans.map((plan: any) => (
+              <PendingPlanItem key={plan.id} plan={plan} onConfirm={handleConfirmPlan} onReschedule={handleReschedulePlan} />
+            ))}
+          </View>
+        )}
+
+        {/* Upcoming Plans */}
+        {upcomingPendingPlans.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>
+              UPCOMING PLANS ({upcomingPendingPlans.length})
+            </Text>
+            {upcomingPendingPlans.slice(0, 3).map((plan: any) => (
+              <PendingPlanItem key={plan.id} plan={plan} onConfirm={handleConfirmPlan} onReschedule={handleReschedulePlan} />
+            ))}
+          </View>
+        )}
+
+        {/* Upcoming Events */}
+        {upcomingDates.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>
+              UPCOMING EVENTS
+            </Text>
+            {upcomingDates.slice(0, 3).map((event, index) => (
+              <TouchableOpacity
+                key={`${event.friend.id}-${event.type}-${event.title || event.daysUntil}-${index}`}
+                onPress={() => router.push(`/friend-profile?friendId=${event.friend.id}`)}
+                style={styles.upcomingItem}
+              >
+                <View style={styles.upcomingIcon}>
+                  {event.type === 'birthday' ? (
+                    <Cake size={14} color="rgba(255, 255, 255, 0.8)" />
+                  ) : event.type === 'anniversary' ? (
+                    <Heart size={14} color="rgba(255, 255, 255, 0.8)" />
+                  ) : (
+                    <Calendar size={14} color="rgba(255, 255, 255, 0.8)" />
+                  )}
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.upcomingName}>
+                    {event.title || (event.type === 'birthday' ? 'Birthday' : 'Anniversary')}
+                  </Text>
+                  <Text style={styles.upcomingSubheading}>
+                    {event.friend.name}
+                  </Text>
+                </View>
+                <View style={styles.upcomingBadge}>
+                  <Text style={styles.upcomingDays}>
+                    {getDaysText(event.daysUntil)}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+
+        {/* Active Intentions */}
+        {activeIntentions.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>
+              ACTIVE INTENTIONS ({activeIntentions.length})
+            </Text>
+            {activeIntentions.slice(0, 3).map((intention) => (
+              <IntentionItem key={intention.id} intention={intention} />
+            ))}
+          </View>
+        )}
+
+        {/* Reflection Prompt */}
+        {reflectionPrompt && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>
+              REFLECT
+            </Text>
+            <TouchableOpacity
+              style={styles.reflectionCard}
+              onPress={() => {
+                // Navigate to reflection or show prompt modal
+                // For now, just log - you can enhance this later
+                console.log('Reflection prompt tapped');
+              }}
+            >
+              <MessageCircle size={20} color="rgba(255, 255, 255, 0.9)" />
+              <Text style={styles.reflectionPrompt}>
+                {reflectionPrompt.prompt}
               </Text>
-              <Text style={styles.upcomingSubheading}>
-                {/* Interaction properties fixed via types.tsx update */}
-              </Text>
-            </View>
-            <View style={styles.upcomingBadge}>
-              <Text style={styles.upcomingDays}>
-                {getDaysText(event.daysUntil)}
-              </Text>
-            </View>
-          </TouchableOpacity>
-        ))}
-      </View>
-      {/* Suggestions */}
-      {
-        suggestions.length > 0 && (
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Suggestions */}
+        {suggestions.length > 0 && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>
               SUGGESTIONS
@@ -794,20 +919,20 @@ export const TodaysFocusWidget: React.FC = () => {
               </View>
             ))}
           </View>
-        )
-      }
+        )}
 
-      {/* Show More Button */}
-      {(pendingConfirmations.length > 3 || upcomingDates.length > 3 || suggestions.length > 3) && (
-        <TouchableOpacity
-          style={styles.showMoreButton}
-          onPress={() => setShowDetailsModal(true)}
-        >
-          <Text style={styles.showMoreText}>Show More</Text>
-        </TouchableOpacity>
-      )}
-    </>
-  );
+        {/* Show More Button */}
+        {(pendingConfirmations.length > 3 || upcomingDates.length > 3 || suggestions.length > 3) && (
+          <TouchableOpacity
+            style={styles.showMoreButton}
+            onPress={() => setShowDetailsModal(true)}
+          >
+            <Text style={styles.showMoreText}>Show More</Text>
+          </TouchableOpacity>
+        )}
+      </>
+    );
+  };
 
   // Get urgent items to show in collapsed card (birthdays today + medium+ life events within 3 days)
   const urgentItems = upcomingDates.filter(event => {
@@ -1359,6 +1484,75 @@ const AllClearCard: React.FC<CardProps & { message: { headline: string; subtext:
   );
 };
 
+/**
+ * IntentionItem Component
+ * Displays an active intention with friend info
+ */
+const IntentionItem: React.FC<{ intention: Intention }> = ({ intention }) => {
+  const [friendNames, setFriendNames] = useState<string>('');
+  const router = useRouter();
+
+  useEffect(() => {
+    const loadFriends = async () => {
+      try {
+        const intentionFriends = await database
+          .get<IntentionFriend>('intention_friends')
+          .query(Q.where('intention_id', intention.id))
+          .fetch();
+
+        if (intentionFriends.length > 0) {
+          const friends = await Promise.all(
+            intentionFriends.map(async (ifriend) => {
+              const friend = await database
+                .get<FriendModel>('friends')
+                .find(ifriend.friendId);
+              return friend.name;
+            })
+          );
+          setFriendNames(friends.join(', '));
+        }
+      } catch (error) {
+        console.error('Error loading intention friends:', error);
+      }
+    };
+
+    loadFriends();
+  }, [intention.id]);
+
+  const getCategoryLabel = () => {
+    if (intention.interactionCategory) {
+      const metadata = getCategoryMetadata(intention.interactionCategory as InteractionCategory);
+      return metadata?.label || 'Connect';
+    }
+    return 'Connect';
+  };
+
+  return (
+    <TouchableOpacity
+      style={styles.intentionCard}
+      onPress={() => {
+        // Navigate to plan wizard with this intention's friend
+        // For now, just log - you can enhance this later
+        console.log('Intention tapped:', intention.id);
+      }}
+    >
+      <View style={styles.intentionIcon}>
+        <Target size={16} color="rgba(255, 255, 255, 0.9)" />
+      </View>
+      <View style={styles.intentionContent}>
+        <Text style={styles.intentionTitle}>
+          {intention.description || `${getCategoryLabel()} with ${friendNames}`}
+        </Text>
+        {friendNames && (
+          <Text style={styles.intentionSubtitle}>
+            {friendNames}
+          </Text>
+        )}
+      </View>
+    </TouchableOpacity>
+  );
+};
+
 const styles = StyleSheet.create({
   container: {
     gap: 0,
@@ -1395,7 +1589,7 @@ const styles = StyleSheet.create({
   subtextCompact: {
     fontFamily: 'Inter_400Regular',
     fontSize: 13,
-    lineHeight: 17,
+    lineHeight: 20,
     color: 'rgba(255, 255, 255, 0.95)',
     textAlign: 'center',
     maxWidth: '85%',
@@ -1638,5 +1832,56 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontFamily: 'Inter_600SemiBold',
     fontSize: 13,
+  },
+  intentionCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  intentionIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  intentionContent: {
+    flex: 1,
+  },
+  intentionTitle: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 13,
+    color: '#FFFFFF',
+    lineHeight: 18,
+  },
+  intentionSubtitle: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 11,
+    color: 'rgba(255, 255, 255, 0.7)',
+    marginTop: 2,
+  },
+  reflectionCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    padding: 14,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  reflectionPrompt: {
+    flex: 1,
+    fontFamily: 'Inter_400Regular',
+    fontSize: 13,
+    lineHeight: 19,
+    color: 'rgba(255, 255, 255, 0.95)',
   },
 });

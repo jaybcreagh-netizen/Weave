@@ -97,7 +97,7 @@ export function NetworkBalanceWidget() {
               <Scale size={18} color={colors.primary} />
             </View>
             <Text style={[styles.title, { color: colors.foreground }]}>
-              Network Balance
+              Weave Alignment
             </Text>
           </View>
           <ChevronRight size={20} color={colors['muted-foreground']} />

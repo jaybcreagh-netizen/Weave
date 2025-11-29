@@ -12,6 +12,7 @@ export const posthogOptions: PostHogOptions | any = {
     // Use file system for caching to ensure persistence
     persistence: 'file',
     fileSystem: FileSystem,
+    captureScreenViews: false,
 };
 
 // Export the provider for wrapping the app

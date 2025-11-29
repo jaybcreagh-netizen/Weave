@@ -201,11 +201,16 @@ export async function calculateWeeklySummary(): Promise<WeeklySummary> {
   // Most consistent friend (friend with most weaves this week)
   const friendWeaveCount: Record<string, { name: string; weaveCount: number }> = {};
   for (const link of friendLinks) {
-    const friend = await database.get<FriendModel>('friends').find(link.friendId);
-    if (!friendWeaveCount[friend.id]) {
-      friendWeaveCount[friend.id] = { name: friend.name, weaveCount: 0 };
+    try {
+      const friend = await database.get<FriendModel>('friends').find(link.friendId);
+      if (!friendWeaveCount[friend.id]) {
+        friendWeaveCount[friend.id] = { name: friend.name, weaveCount: 0 };
+      }
+      friendWeaveCount[friend.id].weaveCount++;
+    } catch (error) {
+      console.warn(`[WeeklyStats] Could not find friend ${link.friendId} for interaction pattern analysis`);
+      continue;
     }
-    friendWeaveCount[friend.id].weaveCount++;
   }
 
   const mostConsistentFriend = Object.values(friendWeaveCount)

@@ -1,6 +1,6 @@
 import 'react-native-get-random-values';
 import '../global.css';
-import { Stack, SplashScreen } from 'expo-router';
+import { Stack, SplashScreen, usePathname } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
@@ -89,11 +89,20 @@ function RootLayoutContent() {
 
   const posthog = usePostHog();
 
+  const pathname = usePathname();
+
   useEffect(() => {
     if (posthog) {
       setPostHogInstance(posthog);
     }
   }, [posthog]);
+
+  // Manually track screen views
+  useEffect(() => {
+    if (posthog && pathname) {
+      posthog.screen(pathname);
+    }
+  }, [posthog, pathname]);
 
   const { colors } = useTheme();
   const isDarkMode = useUIStore((state) => state.isDarkMode);
@@ -416,7 +425,15 @@ function RootLayoutContent() {
 
 function RootLayout() {
   return (
-    <PostHogProvider apiKey={POSTHOG_API_KEY} options={posthogOptions}>
+    <PostHogProvider
+      apiKey={POSTHOG_API_KEY}
+      options={posthogOptions}
+      autocapture={{
+        captureScreens: false,
+        captureLifecycleEvents: true,
+        captureTouch: true
+      }}
+    >
       <RootLayoutContent />
     </PostHogProvider>
   );
