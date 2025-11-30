@@ -32,7 +32,7 @@ const palette = {
     800: '#292524',
     900: '#1C1917',
   },
-  
+
   // Mystical Darks (for dark mode — warm plum-charcoal, not cold gray)
   night: {
     950: '#0F0D0E',      // Deepest black with warmth
@@ -46,7 +46,7 @@ const palette = {
     400: '#9A9298',      // Muted text (dusty lavender)
     300: '#B5AFB2',      // Secondary text
   },
-  
+
   // Amber/Gold spectrum
   amber: {
     50: '#FFFBEB',
@@ -61,7 +61,7 @@ const palette = {
     900: '#78350F',
     950: '#451A03',
   },
-  
+
   // Aged Gold (for dark mode accents — dusty, not bright)
   gold: {
     light: '#D4A855',    // Primary accent in dark
@@ -69,7 +69,7 @@ const palette = {
     subtle: '#8B7355',   // Tertiary
     dim: '#5C4D3D',      // Very subtle backgrounds
   },
-  
+
   // Mystical accent (for special moments only)
   mystic: {
     400: '#A78BFA',      // Bright violet (sparingly)
@@ -77,7 +77,7 @@ const palette = {
     600: '#7C3AED',      // Deep violet
     900: '#2E1F47',      // Very dark violet
   },
-  
+
   // Semantic colors
   red: {
     400: '#F87171',
@@ -100,14 +100,14 @@ const palette = {
     900: '#0C4A6E',
     950: '#071D2E',
   },
-  
+
   // Tier colors (consistent across modes)
   tier: {
     gold: '#EAB308',
     silver: '#9CA3AF',
     bronze: '#CD7F32',
   },
-  
+
   // Pure
   white: '#FFFFFF',
   black: '#000000',
@@ -120,62 +120,62 @@ const palette = {
 const lightTokens = {
   // Backgrounds
   background: palette.cream[50],
-  backgroundElevated: palette.white,
+  backgroundElevated: palette.cream[100],
   backgroundSubtle: palette.cream[100],
   backgroundMuted: palette.amber[50],
-  
+
   // Foregrounds
   foreground: palette.stone[900],
   foregroundMuted: palette.stone[500],
   foregroundSubtle: palette.stone[400],
-  
+
   // Borders
   border: palette.stone[200],
   borderSubtle: palette.stone[100],
   borderFocus: palette.amber[600],
-  
+
   // Primary (warm amber-brown)
   primary: palette.amber[800],
   primaryHover: palette.amber[900],
   primaryForeground: palette.white,
   primaryMuted: palette.amber[600],
   primarySubtle: palette.amber[100],
-  
+
   // Secondary
   secondary: palette.stone[200],
   secondaryHover: palette.stone[300],
   secondaryForeground: palette.stone[800],
-  
+
   // Semantic status colors
   success: palette.emerald[600],
   successForeground: palette.white,
   successSubtle: '#D1FAE5',
-  
+
   warning: palette.amber[600],
   warningForeground: palette.white,
   warningSubtle: palette.amber[100],
-  
+
   destructive: palette.red[600],
   destructiveForeground: palette.white,
   destructiveSubtle: '#FEE2E2',
-  
+
   info: palette.sky[600],
   infoForeground: palette.white,
   infoSubtle: '#E0F2FE',
-  
+
   // Component tokens
   card: {
-    background: palette.white,
+    background: palette.cream[50],
     foreground: palette.stone[900],
     border: palette.stone[200],
   },
   input: {
-    background: palette.white,
+    background: palette.cream[50],
     border: palette.stone[200],
     borderFocus: palette.amber[600],
     placeholder: palette.stone[400],
   },
-  
+
   // Domain-specific tokens
   tier: {
     inner: palette.tier.gold,
@@ -187,14 +187,14 @@ const lightTokens = {
     stable: palette.amber[500],
     fading: palette.stone[400],
   },
-  
+
   // Season gradients (for SocialSeasonWidget)
   season: {
     resting: ['#78716C', '#57534E'] as const,
     balanced: ['#D97706', '#B45309'] as const,
     blooming: ['#059669', '#047857'] as const,
   },
-  
+
   // Shadow configuration
   shadow: {
     color: palette.stone[900],
@@ -216,46 +216,46 @@ const darkTokens = {
   backgroundElevated: palette.night[800],
   backgroundSubtle: palette.night[750],
   backgroundMuted: palette.night[800],
-  
+
   // Foregrounds (warm cream, not stark white)
   foreground: '#F5F2ED',
   foregroundMuted: palette.night[400],      // Dusty lavender
   foregroundSubtle: palette.night[500],
-  
+
   // Borders (warm plum-gray)
   border: palette.night[700],
   borderSubtle: palette.night[750],
   borderFocus: palette.gold.light,
-  
+
   // Primary (aged gold, not bright yellow)
   primary: palette.gold.light,
   primaryHover: palette.gold.muted,
   primaryForeground: palette.night[900],
   primaryMuted: palette.gold.muted,
   primarySubtle: palette.gold.dim,
-  
+
   // Secondary
   secondary: palette.night[700],
   secondaryHover: palette.night[600],
   secondaryForeground: '#F5F2ED',
-  
+
   // Semantic status colors (slightly muted for dark mode)
   success: palette.emerald[400],
   successForeground: palette.night[900],
   successSubtle: palette.emerald[950],
-  
+
   warning: palette.amber[400],
   warningForeground: palette.night[900],
   warningSubtle: palette.amber[950],
-  
+
   destructive: palette.red[400],
   destructiveForeground: palette.night[900],
   destructiveSubtle: palette.red[950],
-  
+
   info: palette.sky[400],
   infoForeground: palette.night[900],
   infoSubtle: palette.sky[950],
-  
+
   // Component tokens
   card: {
     background: palette.night[800],
@@ -268,7 +268,7 @@ const darkTokens = {
     borderFocus: palette.gold.light,
     placeholder: palette.night[500],
   },
-  
+
   // Domain-specific tokens
   tier: {
     inner: palette.tier.gold,
@@ -280,21 +280,21 @@ const darkTokens = {
     stable: palette.gold.light,
     fading: palette.night[500],
   },
-  
+
   // Season gradients (mystical versions)
   season: {
     resting: [palette.night[600], palette.night[700]] as const,
     balanced: [palette.gold.light, palette.gold.muted] as const,
     blooming: [palette.emerald[400], palette.emerald[500]] as const,
   },
-  
+
   // Mystic accent (for special moments only — use sparingly!)
   mystic: {
     glow: palette.mystic[400],
     accent: palette.mystic[500],
     subtle: palette.mystic[900],
   },
-  
+
   // Shadow configuration
   shadow: {
     color: palette.black,
@@ -330,27 +330,27 @@ export const typography = {
   scale: {
     // Display — hero moments only
     displayLarge: { fontSize: 32, lineHeight: 40 },
-    
+
     // Headings
     h1: { fontSize: 24, lineHeight: 32 },
     h2: { fontSize: 20, lineHeight: 28 },
     h3: { fontSize: 17, lineHeight: 24 },
-    
+
     // Body text
     bodyLarge: { fontSize: 17, lineHeight: 26 },
     body: { fontSize: 15, lineHeight: 22 },
     bodySmall: { fontSize: 13, lineHeight: 18 },
-    
+
     // UI elements
     label: { fontSize: 13, lineHeight: 16 },
     labelSmall: { fontSize: 11, lineHeight: 14, letterSpacing: 0.5 },
     caption: { fontSize: 12, lineHeight: 16 },
-    
+
     // Statistics
     stat: { fontSize: 28, lineHeight: 34 },
     statSmall: { fontSize: 20, lineHeight: 26 },
   },
-  
+
   // Usage guidelines:
   // - Lora (serif): Widget titles, stats, display text ONLY
   // - Inter (sans): Everything else — body, labels, buttons, UI
@@ -432,7 +432,7 @@ export const shadows = {
  */
 export const createLegacyTheme = (isDarkMode: boolean) => {
   const t = isDarkMode ? tokens.dark : tokens.light;
-  
+
   return {
     colors: {
       // Core
@@ -443,28 +443,28 @@ export const createLegacyTheme = (isDarkMode: boolean) => {
       muted: t.backgroundMuted,
       'muted-foreground': t.foregroundMuted,
       destructive: t.destructive,
-      
+
       // Card
       card: t.card.background,
       'card-foreground': t.card.foreground,
       border: t.border,
-      
+
       // Input
       input: 'transparent',
       'input-background': t.input.background,
-      
+
       // Accent
       accent: t.primaryMuted,
       'accent-foreground': t.primaryForeground,
-      
+
       // Foregrounds
       'primary-foreground': t.primaryForeground,
       'secondary-foreground': t.secondaryForeground,
       'destructive-foreground': t.destructiveForeground,
-      
+
       // Focus ring
       ring: t.borderFocus,
-      
+
       // Domain-specific
       tier: t.tier,
       living: {
@@ -472,12 +472,12 @@ export const createLegacyTheme = (isDarkMode: boolean) => {
         stable: [t.warning, t.warning],
         attention: [t.foregroundSubtle, t.foregroundMuted],
       },
-      
+
       // Weave status
       'weave-vibrant': t.weave.vibrant,
       'weave-neutral': t.weave.stable,
       'weave-fading': t.weave.fading,
-      
+
       // Ring colors (for visualizations)
       'ring-warm': t.tier.inner,
       'ring-neutral': t.foregroundMuted,

@@ -1,6 +1,7 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
+import { Card } from '@/components/ui/Card';
 
 export interface HomeWidgetConfig {
   id: string;
@@ -22,6 +23,7 @@ interface HomeWidgetBaseProps {
   isLoading?: boolean;
   error?: string | null;
   onPress?: () => void;
+  padding?: 'default' | 'large' | 'none';
 }
 
 export const HomeWidgetBase: React.FC<HomeWidgetBaseProps> = ({
@@ -30,32 +32,31 @@ export const HomeWidgetBase: React.FC<HomeWidgetBaseProps> = ({
   isLoading = false,
   error = null,
   onPress,
+  padding,
 }) => {
-  const { colors } = useTheme();
+  const { colors, tokens } = useTheme();
 
-  const containerStyle = [
-    styles.container,
-    {
-      backgroundColor: colors.muted,
-      borderColor: colors.border,
-      minHeight: config.minHeight || 160,
-    },
-    config.fullWidth && styles.fullWidth,
-  ];
-
-  const content = (
-    <View style={containerStyle}>
+  return (
+    <Card
+      onPress={onPress}
+      variant={config.fullWidth ? 'elevated' : 'default'}
+      padding={padding}
+      style={[
+        styles.card,
+        { minHeight: config.minHeight || 160 },
+      ]}
+    >
       {/* Loading State */}
       {isLoading && (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
+        <View style={styles.centerContainer}>
+          <ActivityIndicator size="large" color={tokens?.primary || colors.primary} />
         </View>
       )}
 
       {/* Error State */}
       {!isLoading && error && (
-        <View style={styles.errorContainer}>
-          <Text style={[styles.errorText, { color: colors['destructive'] }]}>
+        <View style={styles.centerContainer}>
+          <Text style={[styles.errorText, { color: tokens?.destructive || '#DC2626' }]}>
             {error}
           </Text>
         </View>
@@ -63,49 +64,16 @@ export const HomeWidgetBase: React.FC<HomeWidgetBaseProps> = ({
 
       {/* Content */}
       {!isLoading && !error && children}
-    </View>
+    </Card>
   );
-
-  if (onPress) {
-    return (
-      <TouchableOpacity
-        onPress={onPress}
-        activeOpacity={0.7}
-        style={styles.touchable}
-      >
-        {content}
-      </TouchableOpacity>
-    );
-  }
-
-  return content;
 };
 
 const styles = StyleSheet.create({
-  touchable: {
-    flex: 1,
-  },
-  container: {
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 5,
-    borderWidth: 1,
-  },
-  fullWidth: {
-    // Used for hero cards
-  },
-  loadingContainer: {
-    flex: 1,
+  card: {
+    // marginBottom handled by grid gap
     justifyContent: 'center',
-    alignItems: 'center',
-    minHeight: 120,
   },
-  errorContainer: {
+  centerContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',

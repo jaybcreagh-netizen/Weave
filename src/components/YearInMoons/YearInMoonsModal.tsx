@@ -41,7 +41,7 @@ interface YearInMoonsModalProps {
 type Tab = 'moons' | 'journal' | 'patterns';
 
 export function YearInMoonsModal({ isOpen, onClose }: YearInMoonsModalProps) {
-  const { colors, isDarkMode } = useTheme();
+  const { colors, isDarkMode, tokens } = useTheme();
   const { submitBatteryCheckin } = useUserProfileStore();
   const [currentTab, setCurrentTab] = useState<Tab>('moons');
   const [yearData, setYearData] = useState<MonthMoonData[]>([]);
@@ -358,6 +358,7 @@ export function YearInMoonsModal({ isOpen, onClose }: YearInMoonsModalProps) {
                                 size={moonSize - 8}
                                 hasCheckin={day.hasCheckin}
                                 batteryLevel={day.batteryLevel}
+                                color={tokens.primary}
                               />
                               {/* Day number */}
                               <Text
@@ -429,6 +430,7 @@ export function YearInMoonsModal({ isOpen, onClose }: YearInMoonsModalProps) {
                   size={80}
                   hasCheckin={selectedDay.hasCheckin}
                   batteryLevel={selectedDay.batteryLevel}
+                  color={tokens.primary}
                 />
               </View>
 

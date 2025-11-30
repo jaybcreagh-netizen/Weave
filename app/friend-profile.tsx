@@ -520,7 +520,9 @@ export default function FriendProfile() {
           onClose={() => setShowPlanChoice(false)}
           onSetIntention={() => {
             setShowPlanChoice(false);
-            setShowIntentionForm(true);
+            setTimeout(() => {
+              setShowIntentionForm(true);
+            }, 500);
           }}
           onSchedulePlan={() => {
             setShowPlanChoice(false);

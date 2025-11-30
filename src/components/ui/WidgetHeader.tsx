@@ -31,7 +31,7 @@ export const WidgetHeader: React.FC<WidgetHeaderProps> = ({
                             color: tokens.foreground,
                             fontSize: typography.scale.h3.fontSize,
                             lineHeight: typography.scale.h3.lineHeight,
-                            fontFamily: typography.fonts.sansSemiBold,
+                            fontFamily: typography.fonts.serifBold,
                         }
                     ]}>
                         {title}

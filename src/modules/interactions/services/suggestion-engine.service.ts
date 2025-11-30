@@ -786,11 +786,12 @@ function checkReflectSuggestion(
   const mostRecent = recentInteractions[0];
   const now = Date.now();
   if (!mostRecent.interactionDate) return null;
-  const hoursSince = (now - mostRecent.interactionDate.getTime()) / 3600000;
+  const interactionTime = mostRecent.interactionDate.getTime();
+  const hoursSince = (now - interactionTime) / 3600000;
 
   // Only suggest reflection for PAST interactions (not future/planned)
   // Interaction must be in the past and within 24 hours
-  if (mostRecent.interactionDate.getTime() > now) {
+  if (interactionTime > now) {
     return null; // Future interaction, can't reflect yet
   }
 

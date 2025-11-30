@@ -121,7 +121,7 @@ export function getDeepeningVisuals(metrics: DeepeningMetrics, colors: any, isDa
     light: '',
     moderate: '',
     deep: '✨',
-    profound: '✨✨✨',
+    profound: '🔮',
   }[level];
 
   return {

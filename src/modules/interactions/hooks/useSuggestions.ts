@@ -103,7 +103,11 @@ async function fetchSuggestions(friends: any[]) {
           .fetch();
 
         sortedInteractions = friendInteractions.sort(
-          (a, b) => b.interactionDate.getTime() - a.interactionDate.getTime()
+          (a, b) => {
+            const timeA = a.interactionDate ? a.interactionDate.getTime() : 0;
+            const timeB = b.interactionDate ? b.interactionDate.getTime() : 0;
+            return timeB - timeA;
+          }
         );
       }
 
@@ -111,12 +115,17 @@ async function fetchSuggestions(friends: any[]) {
       const currentScore = calculateCurrentScore(friend);
 
       // Calculate current momentum score (decays over time)
-      const daysSinceMomentumUpdate = (Date.now() - friend.momentumLastUpdated.getTime()) / 86400000;
+      const momentumLastUpdatedTime = friend.momentumLastUpdated ? friend.momentumLastUpdated.getTime() : Date.now();
+      const daysSinceMomentumUpdate = (Date.now() - momentumLastUpdatedTime) / 86400000;
       const momentumScore = Math.max(0, friend.momentumScore - daysSinceMomentumUpdate);
 
       // Calculate days since last interaction
+      const lastInteractionTime = lastInteraction && lastInteraction.interactionDate
+        ? lastInteraction.interactionDate.getTime()
+        : 0;
+
       const daysSinceInteraction = lastInteraction
-        ? (Date.now() - lastInteraction.interactionDate.getTime()) / 86400000
+        ? (Date.now() - lastInteractionTime) / 86400000
         : 999;
 
       // Collect stats for portfolio analysis
@@ -284,10 +293,14 @@ export function useSuggestions() {
               if (!isMounted) return;
 
               const sortedInteractions = friendInteractions.sort(
-                (a, b) => b.interactionDate.getTime() - a.interactionDate.getTime()
+                (a, b) => {
+                  const timeA = a.interactionDate ? a.interactionDate.getTime() : 0;
+                  const timeB = b.interactionDate ? b.interactionDate.getTime() : 0;
+                  return timeB - timeA;
+                }
               );
 
-              if (sortedInteractions.length > 0) {
+              if (sortedInteractions.length > 0 && sortedInteractions[0].interactionDate) {
                 daysSinceLastInteraction = (Date.now() - sortedInteractions[0].interactionDate.getTime()) / 86400000;
               }
             }

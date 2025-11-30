@@ -15,7 +15,7 @@ import { InteractionType, InteractionCategory, Duration } from '@/components/typ
  * to use the QualityMetrics, as intended by the architecture specification.
  * Ideally, this logic would be inside scoring.service.ts.
  */
-function calculateInteractionPoints(
+export function calculateInteractionPoints(
   friend: FriendModel,
   interaction: InteractionFormData,
   quality: QualityMetrics,
@@ -34,6 +34,56 @@ function calculateInteractionPoints(
   const qualityModifier = 1 + (quality.overallQuality - 3) * 0.1;
 
   return baseScore * qualityModifier;
+}
+
+/**
+ * Recalculates score when an interaction is edited.
+ * Calculates the delta between old and new points and applies it to the friend.
+ */
+export async function recalculateScoreOnEdit(
+  friendId: string,
+  oldData: InteractionFormData,
+  newData: InteractionFormData,
+  database: Database
+): Promise<void> {
+  const friend = await database.get<FriendModel>('friends').find(friendId);
+  if (!friend) return;
+
+  // Calculate old points
+  const oldQuality = calculateInteractionQuality({
+    note: oldData.notes,
+    reflectionJSON: oldData.reflection ? JSON.stringify(oldData.reflection) : undefined,
+    duration: oldData.duration,
+    vibe: oldData.vibe,
+  });
+
+  // For simplicity in edit, we assume history count hasn't drastically changed 
+  // enough to affect the tier multiplier for this single calculation, 
+  // or we accept the slight inaccuracy. Fetching exact history for both states is expensive.
+  const oldPoints = calculateInteractionPoints(friend, oldData, oldQuality, 0);
+
+  // Calculate new points
+  const newQuality = calculateInteractionQuality({
+    note: newData.notes,
+    reflectionJSON: newData.reflection ? JSON.stringify(newData.reflection) : undefined,
+    duration: newData.duration,
+    vibe: newData.vibe,
+  });
+  const newPoints = calculateInteractionPoints(friend, newData, newQuality, 0);
+
+  const delta = newPoints - oldPoints;
+
+  if (delta !== 0) {
+    await database.write(async () => {
+      await friend.update(f => {
+        f.weaveScore = Math.min(100, Math.max(0, f.weaveScore + delta));
+        // We don't update lastUpdated here as the interaction date itself might not have changed,
+        // or if it did, the decay service handles date-based updates. 
+        // This is purely a value adjustment.
+      });
+    });
+    console.log(`[Score Recalc] Friend ${friend.name}: ${oldPoints.toFixed(1)} -> ${newPoints.toFixed(1)} (Delta: ${delta.toFixed(1)})`);
+  }
 }
 
 /**

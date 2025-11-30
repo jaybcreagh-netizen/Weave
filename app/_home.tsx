@@ -1,22 +1,16 @@
 import React, { useEffect, useState } from 'react';
 
 import { HomeWidgetGrid, WidgetGridItem } from '@/components/home/HomeWidgetGrid';
-import { SocialSeasonWidget } from '@/components/home/widgets/SocialSeasonWidget';
-import { NetworkBalanceWidget } from '@/components/home/widgets/NetworkBalanceWidget';
-import { YearInMoonsWidget } from '@/components/home/widgets/YearInMoonsWidget';
-import { TodaysFocusWidget } from '@/components/home/widgets/TodaysFocusWidget';
-import { forecastNetworkHealth } from '@/modules/insights';
-import { TrendingDown, TrendingUp, CheckCircle2 } from 'lucide-react-native';
-import { View, Text, StyleSheet } from 'react-native';
+import { SocialSeasonWidgetV2 } from '@/components/home/widgets/SocialSeasonWidgetV2';
+import { NetworkAlignmentWidgetV2 } from '@/components/home/widgets/NetworkAlignmentWidgetV2';
+import { YourEnergyWidget } from '@/components/home/widgets/YourEnergyWidget';
+import { TodaysFocusWidgetV2 } from '@/components/home/widgets/TodaysFocusWidgetV2';
 import { useTheme } from '@/shared/hooks/useTheme';
-import FriendModel from '@/db/models/Friend';
 import { ReflectionReadyWidget } from '@/components/home/widgets/ReflectionReadyWidget';
-import { FocusPill } from '@/components/home/widgets/FocusPill';
 import { SocialBatterySheet } from '@/components/home/SocialBatterySheet';
 import { WeeklyReflectionModal } from '@/components/WeeklyReflection/WeeklyReflectionModal';
 import { ReflectionReadyPrompt } from '@/components/WeeklyReflection/ReflectionReadyPrompt';
 import { YearInMoonsModal } from '@/components/YearInMoons/YearInMoonsModal';
-import { SuggestedWeaves } from '@/components/SuggestedWeaves';
 import { useUserProfileStore } from '@/modules/auth';
 import { useRelationshipsStore } from '@/modules/relationships';
 import { getLastReflectionDate, shouldShowReflection } from '@/modules/notifications';
@@ -38,29 +32,6 @@ export default function Home() {
   const [showWeeklyReflection, setShowWeeklyReflection] = useState(false);
   const [showYearInMoons, setShowYearInMoons] = useState(false);
   const [isReflectionDue, setIsReflectionDue] = useState(false);
-
-  const [networkForecast, setNetworkForecast] = useState<{
-    forecastedHealth: number;
-    friendsNeedingAttention: FriendModel[];
-    trend: 'up' | 'down' | 'stable';
-  } | null>(null);
-
-  useEffect(() => {
-    if (!friends || friends.length === 0) return;
-
-    const forecast = forecastNetworkHealth(friends, 7); // 7 days ahead
-    const currentHealth = friends.reduce((sum, f) => sum + f.weaveScore, 0) / friends.length;
-
-    const trend =
-      forecast.forecastedHealth > currentHealth + 5 ? 'up' :
-        forecast.forecastedHealth < currentHealth - 5 ? 'down' : 'stable';
-
-    setNetworkForecast({
-      forecastedHealth: forecast.forecastedHealth,
-      friendsNeedingAttention: forecast.friendsNeedingAttention,
-      trend,
-    });
-  }, [friends]);
 
   // Tutorial state - check if QuickWeave tutorial is done
   const hasPerformedQuickWeave = useTutorialStore((state) => state.hasPerformedQuickWeave);
@@ -190,7 +161,10 @@ export default function Home() {
 
   const handleReflectionStart = () => {
     setShowReflectionPrompt(false);
-    setShowWeeklyReflection(true);
+    // Add delay to allow prompt to close before opening modal
+    setTimeout(() => {
+      setShowWeeklyReflection(true);
+    }, 500);
   };
 
   const handleReflectionRemindLater = async () => {
@@ -208,7 +182,7 @@ export default function Home() {
   const widgets: WidgetGridItem[] = [
     {
       id: 'todays-focus',
-      component: TodaysFocusWidget,
+      component: TodaysFocusWidgetV2,
       config: {
         id: 'todays-focus',
         type: 'todays-focus',
@@ -218,11 +192,11 @@ export default function Home() {
       visible: true,
     },
     {
-      id: 'network-balance',
-      component: NetworkBalanceWidget,
+      id: 'network-alignment',
+      component: NetworkAlignmentWidgetV2,
       config: {
-        id: 'network-balance',
-        type: 'network-balance',
+        id: 'network-alignment',
+        type: 'network-alignment',
         fullWidth: true,
       },
       position: 2.5,
@@ -230,7 +204,7 @@ export default function Home() {
     },
     {
       id: 'social-season',
-      component: SocialSeasonWidget,
+      component: SocialSeasonWidgetV2,
       config: {
         id: 'social-season',
         type: 'social-season',
@@ -240,11 +214,11 @@ export default function Home() {
       visible: true,
     },
     {
-      id: 'year-in-moons',
-      component: YearInMoonsWidget,
+      id: 'your-energy',
+      component: YourEnergyWidget,
       config: {
-        id: 'year-in-moons',
-        type: 'year-in-moons',
+        id: 'your-energy',
+        type: 'your-energy',
         fullWidth: true,
       },
       position: 2,
@@ -268,24 +242,6 @@ export default function Home() {
 
   return (
     <>
-      {networkForecast && networkForecast.friendsNeedingAttention && networkForecast.friendsNeedingAttention.length > 0 && (
-        <View style={[styles.forecastBanner, { backgroundColor: colors?.muted || '#FFF8ED' }]}>
-          <View style={styles.forecastIcon}>
-            {networkForecast.trend === 'down' && <TrendingDown size={16} color={colors?.['muted-foreground'] || '#8A8A8A'} />}
-            {networkForecast.trend === 'up' && <TrendingUp size={16} color={colors?.primary || '#3C2415'} />}
-            {networkForecast.trend === 'stable' && <CheckCircle2 size={16} color={colors?.primary || '#3C2415'} />}
-          </View>
-          <Text style={[styles.forecastText, { color: colors?.foreground || '#3C3C3C' }]}>
-            {networkForecast.trend === 'down'
-              ? `${networkForecast.friendsNeedingAttention.length} ${networkForecast.friendsNeedingAttention.length === 1 ? 'friend' : 'friends'} will need attention this week`
-              : `Your network is ${networkForecast.trend === 'stable' ? 'stable' : 'thriving'} this week`
-            }
-          </Text>
-        </View>
-      )}
-      <FocusPill />
-      {/* Event suggestions from calendar */}
-      <SuggestedWeaves />
       <HomeWidgetGrid widgets={widgets} />
 
       <SocialBatterySheet
@@ -294,7 +250,10 @@ export default function Home() {
         onDismiss={() => setShowBatterySheet(false)}
         onViewYearInMoons={() => {
           setShowBatterySheet(false);
-          setShowYearInMoons(true);
+          // Add delay to allow sheet to close before opening modal
+          setTimeout(() => {
+            setShowYearInMoons(true);
+          }, 500);
         }}
       />
 
@@ -317,29 +276,3 @@ export default function Home() {
     </>
   );
 }
-
-const styles = StyleSheet.create({
-  forecastBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    marginBottom: 12,
-    borderRadius: 8,
-    marginHorizontal: 20,
-    marginTop: 10,
-  },
-  forecastIcon: {
-    width: 24,
-    height: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  forecastText: {
-    flex: 1,
-    fontFamily: 'Inter_500Medium',
-    fontSize: 13,
-    lineHeight: 18,
-  },
-});

@@ -9,7 +9,8 @@ import { InteractionFormData, StructuredReflection } from '../types';
 import * as WeaveLoggingService from '../services/weave-logging.service';
 import * as PlanService from '../services/plan.service';
 import * as CalendarService from '../services/calendar.service';
-import { InteractionCategory, Vibe } from '@/shared/types/common';
+import { InteractionCategory, Vibe, Duration } from '@/shared/types/common';
+import { recalculateScoreOnEdit } from '@/modules/intelligence';
 
 // --- State and Store Definition ---
 
@@ -112,8 +113,57 @@ export const useInteractionsStore = create<InteractionsStore>((set, get) => ({
     syncCalendar: async () => CalendarService.syncCalendarChanges(),
 
     updateInteraction: async (interactionId, updates) => {
+        // 1. Fetch current interaction state (before update)
+        const interaction = await database.get<Interaction>('interactions').find(interactionId);
+
+        // 2. Check if score-affecting fields are changing
+        const isScoreUpdateNeeded =
+            interaction.status === 'completed' && (
+                (updates.interactionCategory && updates.interactionCategory !== interaction.interactionCategory) ||
+                (updates.activity && updates.activity !== interaction.activity) ||
+                (updates.vibe && updates.vibe !== interaction.vibe) ||
+                (updates.duration && updates.duration !== interaction.duration) ||
+                (updates.note && updates.note !== interaction.note) || // Notes affect quality
+                (updates.reflectionJSON && updates.reflectionJSON !== interaction.reflectionJSON)
+            );
+
+        if (isScoreUpdateNeeded) {
+            // Prepare data objects for recalculation
+            const oldData: InteractionFormData = {
+                friendIds: [], // Not needed for point calc
+                category: interaction.interactionCategory as InteractionCategory,
+                activity: interaction.activity,
+                date: interaction.interactionDate,
+                type: 'log',
+                status: 'completed',
+                mode: interaction.mode,
+                vibe: interaction.vibe as Vibe | null,
+                duration: interaction.duration as Duration | null,
+                notes: interaction.note,
+                reflection: interaction.reflectionJSON ? JSON.parse(interaction.reflectionJSON) : undefined,
+            };
+
+            const newData: InteractionFormData = {
+                ...oldData,
+                category: (updates.interactionCategory || updates.activity || oldData.category) as InteractionCategory,
+                activity: updates.activity || oldData.activity,
+                vibe: (updates.vibe !== undefined ? updates.vibe : oldData.vibe) as Vibe | null,
+                duration: (updates.duration !== undefined ? updates.duration : oldData.duration) as Duration | null,
+                notes: updates.note !== undefined ? updates.note : oldData.notes,
+                reflection: updates.reflectionJSON ? JSON.parse(updates.reflectionJSON) : oldData.reflection,
+            };
+
+            // Fetch associated friends
+            const interactionFriends = await interaction.interactionFriends.fetch();
+
+            // Recalculate for each friend
+            for (const iFriend of interactionFriends) {
+                await recalculateScoreOnEdit(iFriend.friendId, oldData, newData, database);
+            }
+        }
+
+        // 3. Perform the actual update
         await database.write(async () => {
-            const interaction = await database.get<Interaction>('interactions').find(interactionId);
             await interaction.update(i => {
                 Object.assign(i, updates);
             });

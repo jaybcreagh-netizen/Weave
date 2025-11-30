@@ -1,21 +1,24 @@
-/**
- * ReflectionReadyWidget
- * Widget shown in Insights tab when weekly reflection is due
- * Gentle reminder with tap-to-start action
- */
-
 import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
-import { Sparkles } from 'lucide-react-native';
+import { Sparkles, ArrowRight } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
+import { HomeWidgetBase, HomeWidgetConfig } from '../HomeWidgetBase';
+import { Card } from '@/components/ui/Card';
+
+const WIDGET_CONFIG: HomeWidgetConfig = {
+  id: 'reflection-ready',
+  type: 'reflection-ready',
+  title: 'Reflection Ready',
+  fullWidth: true,
+};
 
 interface ReflectionReadyWidgetProps {
   onPress?: () => void;
 }
 
 export function ReflectionReadyWidget({ onPress }: ReflectionReadyWidgetProps) {
-  const { colors } = useTheme();
+  const { tokens, typography, spacing } = useTheme();
 
   const handlePress = () => {
     if (onPress) {
@@ -25,51 +28,70 @@ export function ReflectionReadyWidget({ onPress }: ReflectionReadyWidgetProps) {
   };
 
   return (
-    <TouchableOpacity
-      onPress={handlePress}
-      activeOpacity={0.7}
-      className="mx-5 mb-4 rounded-3xl overflow-hidden"
-      style={{ backgroundColor: colors.card }}
-    >
-      {/* Gradient background effect */}
-      <View
-        className="absolute inset-0 opacity-10"
-        style={{ backgroundColor: colors.primary }}
-      />
+    <HomeWidgetBase config={WIDGET_CONFIG} padding="none">
+      <TouchableOpacity
+        onPress={handlePress}
+        activeOpacity={0.7}
+        style={{ padding: 16 }}
+      >
+        <View style={styles.container}>
+          <View style={[styles.iconContainer, { backgroundColor: tokens.primary + '20' }]}>
+            <Sparkles size={24} color={tokens.primary} />
+          </View>
 
-      <View className="p-6 flex-row items-center">
-        {/* Icon */}
-        <View
-          className="w-14 h-14 rounded-full items-center justify-center mr-4"
-          style={{ backgroundColor: colors.primary + '20' }}
-        >
-          <Sparkles size={24} color={colors.primary} />
-        </View>
+          <View style={styles.content}>
+            <Text style={[styles.title, {
+              color: tokens.foreground,
+              fontFamily: typography.fonts.serifBold,
+              fontSize: typography.scale.h3.fontSize,
+              lineHeight: typography.scale.h3.lineHeight
+            }]}>
+              Your weekly reflection is ready
+            </Text>
+            <Text style={[styles.subtitle, {
+              color: tokens.foregroundMuted,
+              fontFamily: typography.fonts.sans,
+              fontSize: typography.scale.body.fontSize,
+              lineHeight: typography.scale.body.lineHeight
+            }]}>
+              Tap to reflect on this week's connections
+            </Text>
+          </View>
 
-        {/* Text Content */}
-        <View className="flex-1">
-          <Text
-            className="text-lg font-semibold mb-1"
-            style={{ color: colors.foreground, fontFamily: 'Lora_600SemiBold' }}
-          >
-            Your weekly reflection is ready
-          </Text>
-          <Text
-            className="text-sm"
-            style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
-          >
-            Tap to reflect on this week's connections
-          </Text>
+          <View style={[styles.arrowContainer, { backgroundColor: tokens.primary }]}>
+            <ArrowRight size={16} color={tokens.primaryForeground} />
+          </View>
         </View>
-
-        {/* Arrow indicator */}
-        <View
-          className="w-8 h-8 rounded-full items-center justify-center"
-          style={{ backgroundColor: colors.primary }}
-        >
-          <Text style={{ color: '#FFFFFF', fontSize: 18 }}>→</Text>
-        </View>
-      </View>
-    </TouchableOpacity>
+      </TouchableOpacity>
+    </HomeWidgetBase>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  iconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  content: {
+    flex: 1,
+  },
+  title: {
+    marginBottom: 4,
+  },
+  subtitle: {},
+  arrowContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});

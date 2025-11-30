@@ -7,6 +7,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { HomeWidgetConfig, HomeWidgetProps } from './HomeWidgetBase';
+import { useTheme } from '@/shared/hooks/useTheme';
 
 export interface WidgetGridItem {
   id: string;
@@ -68,6 +69,8 @@ export const HomeWidgetGrid: React.FC<HomeWidgetGridProps> = ({
   widgets,
   refreshing = false,
 }) => {
+  const { layout } = useTheme();
+
   // Filter visible widgets and sort by position
   const visibleWidgets = widgets
     .filter(w => w.visible)
@@ -80,7 +83,7 @@ export const HomeWidgetGrid: React.FC<HomeWidgetGridProps> = ({
       showsVerticalScrollIndicator={false}
     >
       {/* Render widgets in a flexible row layout */}
-      <View style={styles.grid}>
+      <View style={[styles.grid, { rowGap: layout.cardGap }]}>
         {visibleWidgets.map((item, index) => (
           <AnimatedWidget key={item.id} item={item} index={index} />
         ))}
@@ -105,10 +108,8 @@ const styles = StyleSheet.create({
   },
   fullWidthWidget: {
     width: '100%',
-    marginBottom: 0, // HomeWidgetBase adds marginBottom
   },
   halfWidthWidget: {
     width: '48%', // Allows 2 columns with 4% gap
-    marginBottom: 0, // HomeWidgetBase adds marginBottom
   },
 });
