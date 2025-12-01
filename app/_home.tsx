@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 
 import { HomeWidgetGrid, WidgetGridItem } from '@/components/home/HomeWidgetGrid';
 import { SocialSeasonWidgetV2 } from '@/components/home/widgets/SocialSeasonWidgetV2';
@@ -33,8 +33,26 @@ export default function Home() {
   const [showYearInMoons, setShowYearInMoons] = useState(false);
   const [isReflectionDue, setIsReflectionDue] = useState(false);
 
+  // Mounted state and timeout refs to prevent race conditions
+  const isMountedRef = useRef(true);
+  const batteryTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const reflectionPromptTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const reflectionModalTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const moonsTimerRef = useRef<NodeJS.Timeout | null>(null);
+
   // Tutorial state - check if QuickWeave tutorial is done
   const hasPerformedQuickWeave = useTutorialStore((state) => state.hasPerformedQuickWeave);
+
+  // Cleanup timeouts on unmount to prevent setState on unmounted component
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+      if (batteryTimerRef.current) clearTimeout(batteryTimerRef.current);
+      if (reflectionPromptTimerRef.current) clearTimeout(reflectionPromptTimerRef.current);
+      if (reflectionModalTimerRef.current) clearTimeout(reflectionModalTimerRef.current);
+      if (moonsTimerRef.current) clearTimeout(moonsTimerRef.current);
+    };
+  }, []);
 
   // Initialize user profile observable on mount
   useEffect(() => {
@@ -84,8 +102,16 @@ export default function Home() {
       const lastCheckin = profile.socialBatteryLastCheckin;
       if (!lastCheckin) {
         // Never checked in - show after brief delay
-        const timer = setTimeout(() => setShowBatterySheet(true), 600);
-        return () => clearTimeout(timer);
+        batteryTimerRef.current = setTimeout(() => {
+          if (isMountedRef.current) {
+            setShowBatterySheet(true);
+          }
+        }, 600);
+        return () => {
+          if (batteryTimerRef.current) {
+            clearTimeout(batteryTimerRef.current);
+          }
+        };
       }
 
       // Check if last check-in was today
@@ -96,8 +122,16 @@ export default function Home() {
 
       if (lastCheckinDate < today) {
         // Last check-in was before today - show after brief delay
-        const timer = setTimeout(() => setShowBatterySheet(true), 600);
-        return () => clearTimeout(timer);
+        batteryTimerRef.current = setTimeout(() => {
+          if (isMountedRef.current) {
+            setShowBatterySheet(true);
+          }
+        }, 600);
+        return () => {
+          if (batteryTimerRef.current) {
+            clearTimeout(batteryTimerRef.current);
+          }
+        };
       }
     });
   }, [profile, hasPerformedQuickWeave]);
@@ -142,12 +176,16 @@ export default function Home() {
       if (currentDay === reflectionDay && autoShow && !isSnoozed) {
         // Wait longer than battery check-in so it doesn't conflict
         // Show after 2 seconds if battery sheet is dismissed or not shown
-        const timer = setTimeout(() => {
-          if (!showBatterySheet) {
+        reflectionPromptTimerRef.current = setTimeout(() => {
+          if (isMountedRef.current && !showBatterySheet) {
             setShowReflectionPrompt(true);
           }
         }, 2000);
-        return () => clearTimeout(timer);
+        return () => {
+          if (reflectionPromptTimerRef.current) {
+            clearTimeout(reflectionPromptTimerRef.current);
+          }
+        };
       }
     };
 
@@ -162,8 +200,10 @@ export default function Home() {
   const handleReflectionStart = () => {
     setShowReflectionPrompt(false);
     // Add delay to allow prompt to close before opening modal
-    setTimeout(() => {
-      setShowWeeklyReflection(true);
+    reflectionModalTimerRef.current = setTimeout(() => {
+      if (isMountedRef.current) {
+        setShowWeeklyReflection(true);
+      }
     }, 500);
   };
 
@@ -251,8 +291,10 @@ export default function Home() {
         onViewYearInMoons={() => {
           setShowBatterySheet(false);
           // Add delay to allow sheet to close before opening modal
-          setTimeout(() => {
-            setShowYearInMoons(true);
+          moonsTimerRef.current = setTimeout(() => {
+            if (isMountedRef.current) {
+              setShowYearInMoons(true);
+            }
           }, 500);
         }}
       />
