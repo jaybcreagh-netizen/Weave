@@ -18,19 +18,15 @@ import { useTheme } from '@/shared/hooks/useTheme';
 import {
   scanWeekForUnloggedEvents,
   batchLogCalendarEvents,
-} from '@/modules/reflection';
-import {
   ExtendedWeeklySummary,
   calculateExtendedWeeklySummary,
   extendWeeklySummary,
-} from '@/modules/reflection/services/weekly-summary-extended.service';
-import {
   generateReflectionPrompt,
   generateInsightLine,
   ReflectionPrompt,
   InsightLine,
   PromptEngineInput,
-} from '@/modules/reflection/services/prompt-engine';
+} from '@/modules/reflection';
 import { markReflectionComplete } from '@/modules/notifications';
 import { ReflectionPromptStep } from './ReflectionPromptStepComponent';
 import { WeekSnapshotStep } from './WeekSnapshotStepComponent';

@@ -37,7 +37,7 @@ import {
   getFriendshipArc,
   FriendshipArc,
   FriendshipArcEntry,
-} from '@/modules/journal/services/journal-context-engine';
+} from '@/modules/journal';
 import * as Haptics from 'expo-haptics';
 
 // ============================================================================

@@ -55,7 +55,7 @@ import {
   getFriendsForBrowsing,
   searchEntries,
   type Memory,
-} from '@/modules/journal/services/journal-context-engine';
+} from '@/modules/journal';
 import { Q } from '@nozbe/watermelondb';
 import * as Haptics from 'expo-haptics';
 import { JournalCalendarDay } from './JournalCalendarDay';

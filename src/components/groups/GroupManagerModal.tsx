@@ -5,7 +5,7 @@ import { useTheme } from '@/shared/hooks/useTheme';
 import { CustomBottomSheet } from '@/shared/ui/Sheet/BottomSheet';
 import FriendModel from '@/db/models/Friend';
 import { useFriends } from '@/modules/relationships';
-import { groupService } from '@/modules/groups/services/group.service';
+import { groupService } from '@/modules/groups';
 import Group from '@/db/models/Group';
 
 interface GroupManagerModalProps {

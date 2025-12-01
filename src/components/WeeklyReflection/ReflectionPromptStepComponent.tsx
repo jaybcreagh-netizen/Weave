@@ -16,8 +16,8 @@ import {
   detectChipsFromText,
   DetectedChip,
   getDefaultChipsForPromptType,
-} from '@/modules/reflection/services/prompt-engine';
-import { STORY_CHIPS } from '@/modules/reflection';
+  STORY_CHIPS,
+} from '@/modules/reflection';
 import * as Haptics from 'expo-haptics';
 
 interface ReflectionPromptStepProps {

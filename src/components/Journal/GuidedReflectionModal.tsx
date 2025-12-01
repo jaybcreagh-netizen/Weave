@@ -59,12 +59,10 @@ import {
   getFriendContext,
   MeaningfulWeave,
   FriendJournalContext,
-} from '@/modules/journal/services/journal-context-engine';
-import {
   generateJournalPrompts,
   JournalPrompt,
   PromptContext,
-} from '@/modules/journal/services/journal-prompts';
+} from '@/modules/journal';
 
 // ============================================================================
 // TYPES

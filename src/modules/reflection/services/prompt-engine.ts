@@ -9,7 +9,7 @@
 import { database } from '@/db';
 import { Q } from '@nozbe/watermelondb';
 import PortfolioSnapshot from '@/db/models/PortfolioSnapshot';
-import { STORY_CHIPS, StoryChip } from '@/modules/reflection/services/story-chips.service';
+import { STORY_CHIPS, StoryChip } from './story-chips.service';
 
 // ============================================================================
 // TYPES

@@ -7,7 +7,7 @@ import FriendModel from '@/db/models/Friend';
 import Group from '@/db/models/Group';
 import { useFriends } from '@/modules/relationships';
 import { CustomBottomSheet } from '@/shared/ui/Sheet/BottomSheet';
-import { groupService } from '@/modules/groups/services/group.service';
+import { groupService } from '@/modules/groups';
 import { GroupManagerModal } from './groups/GroupManagerModal';
 
 interface FriendSelectorProps {

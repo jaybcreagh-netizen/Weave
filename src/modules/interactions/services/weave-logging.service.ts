@@ -12,8 +12,7 @@ import { WeaveLogSchema } from '@/shared/types/validators';
 import { trackEvent, AnalyticsEvents, updateLastInteractionTimestamp } from '@/shared/services/analytics.service';
 import { analyzeAndTagLifeEvents } from '@/modules/relationships';
 import { deleteWeaveCalendarEvent } from './calendar.service';
-import { checkTierSuggestionAfterInteraction } from '@/modules/insights/services/tier-suggestion-engine.service';
-import { updateTierFit } from '@/modules/insights/services/tier-management.service';
+import { checkTierSuggestionAfterInteraction, updateTierFit } from '@/modules/insights';
 import Logger from '@/shared/utils/Logger';
 
 export async function logWeave(data: InteractionFormData): Promise<Interaction> {

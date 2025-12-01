@@ -11,8 +11,7 @@ import Interaction from '@/db/models/Interaction';
 import { Suggestion } from '@/shared/types/common';
 import FriendModel from '@/db/models/Friend';
 import { format } from 'date-fns';
-import { calculateWeeklySummary } from '@/modules/reflection/services/weekly-stats.service';
-import { generateContextualPrompts, selectBestPrompt, ContextualPrompt } from '@/modules/reflection/services/contextual-prompts.service';
+import { calculateWeeklySummary, generateContextualPrompts, selectBestPrompt, ContextualPrompt } from '@/modules/reflection';
 
 interface UpcomingDate {
     friend: FriendModel;

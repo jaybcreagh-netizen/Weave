@@ -4,7 +4,7 @@ import { X, Plus, Users, ChevronRight, Trash2 } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { CustomBottomSheet } from '@/shared/ui/Sheet/BottomSheet';
 import Group from '@/db/models/Group';
-import { groupService } from '@/modules/groups/services/group.service';
+import { groupService } from '@/modules/groups';
 import { GroupManagerModal } from './GroupManagerModal';
 
 interface GroupListModalProps {

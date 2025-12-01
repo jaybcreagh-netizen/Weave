@@ -3,8 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { Clock } from 'lucide-react-native';
 import { differenceInDays } from 'date-fns';
 import { useTheme } from '@/shared/hooks/useTheme';
-import { useFriendPattern } from '@/modules/insights';
-import { getIntervalDescription } from '@/modules/insights/services/pattern.service';
+import { useFriendPattern, getIntervalDescription } from '@/modules/insights';
 import FriendModel from '@/db/models/Friend';
 import { type Friend } from '@/components/types';
 
