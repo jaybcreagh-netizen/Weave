@@ -55,10 +55,17 @@ export const TodaysFocusWidgetV2: React.FC = () => {
         const sevenDaysAgo = new Date(today);
         sevenDaysAgo.setDate(today.getDate() - 7);
 
+        const tomorrow = new Date(today);
+        tomorrow.setDate(today.getDate() + 1);
+
         return interactions
             .filter((i: Interaction) => {
                 const iDate = new Date(i.interactionDate);
                 iDate.setHours(0, 0, 0, 0);
+
+                // Filter out plans further than tomorrow
+                if (iDate > tomorrow) return false;
+
                 const isToday = iDate.getTime() === today.getTime();
                 if (isToday && i.status !== 'cancelled') return true;
                 if (i.status === 'completed' || i.status === 'cancelled') return false;

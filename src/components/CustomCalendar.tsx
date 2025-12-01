@@ -14,6 +14,21 @@ interface CustomCalendarProps {
 export function CustomCalendar({ selectedDate, onDateSelect, minDate, plannedDates = [] }: CustomCalendarProps) {
   const { colors, isDarkMode } = useTheme();
 
+  // Track the currently visible month
+  // Initialize with selectedDate if available, otherwise minDate or today
+  const [currentMonth, setCurrentMonth] = React.useState(() => {
+    if (selectedDate) return format(selectedDate, 'yyyy-MM-dd');
+    if (minDate) return format(minDate, 'yyyy-MM-dd');
+    return format(new Date(), 'yyyy-MM-dd');
+  });
+
+  // Update current month when selectedDate changes externally
+  React.useEffect(() => {
+    if (selectedDate) {
+      setCurrentMonth(format(selectedDate, 'yyyy-MM-dd'));
+    }
+  }, [selectedDate]);
+
   // Convert planned dates to marked dates object
   const markedDates = useMemo(() => {
     const marked: Record<string, any> = {};
@@ -49,10 +64,17 @@ export function CustomCalendar({ selectedDate, onDateSelect, minDate, plannedDat
   return (
     <View>
       <Calendar
-        current={selectedDate ? format(selectedDate, 'yyyy-MM-dd') : undefined}
+        // Use local state for the visible month
+        current={currentMonth}
+        // Update local state when user navigates
+        onMonthChange={(month: DateData) => {
+          setCurrentMonth(month.dateString);
+        }}
         minDate={minDate ? format(minDate, 'yyyy-MM-dd') : undefined}
         onDayPress={handleDayPress}
         markedDates={markedDates}
+        enableSwipeMonths={true}
+        hideArrows={false}
         theme={{
           calendarBackground: 'transparent',
           textSectionTitleColor: colors['muted-foreground'],

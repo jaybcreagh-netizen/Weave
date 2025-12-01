@@ -9,6 +9,8 @@ export * from './services/weekly-stats.service';
 export * from './services/narrative-generator.service';
 export * from './services/story-chips.service';
 export * from './utils/text-analysis';
+export * from './services/prompt-engine';
+export * from './services/weekly-summary-extended.service';
 
 // Moved services
 export * from './services/adaptive-chips';

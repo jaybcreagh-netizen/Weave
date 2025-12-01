@@ -26,7 +26,7 @@ export default function Onboarding() {
   const completeOnboarding = useTutorialStore(state => state.completeOnboarding);
 
   const [currentStep, setCurrentStep] = useState(0);
-  const steps = ['hook', 'pathways', 'archetypes', 'ready'];
+  const steps = ['hook', 'pathways', 'ready'];
   const currentStepName = steps[currentStep];
   const isLastStep = currentStep === steps.length - 1;
 

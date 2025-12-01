@@ -45,6 +45,10 @@ interface UIStore {
   isDarkMode: boolean;
   isTrophyCabinetOpen: boolean;
 
+  isWeeklyReflectionOpen: boolean;
+  openWeeklyReflection: () => void;
+  closeWeeklyReflection: () => void;
+
   setSelectedFriendId: (id: string | null) => void;
   setArchetypeModal: (archetype: Archetype | null) => void;
   openTimelineView: () => void;
@@ -105,6 +109,10 @@ export const useUIStore = create<UIStore>((set, get) => ({
   achievementUnlockQueue: [],
   isDarkMode: false,
   isTrophyCabinetOpen: false,
+  isWeeklyReflectionOpen: false,
+
+  openWeeklyReflection: () => set({ isWeeklyReflectionOpen: true }),
+  closeWeeklyReflection: () => set({ isWeeklyReflectionOpen: false }),
 
   setSelectedFriendId: (id) => set({ selectedFriendId: id }),
   setArchetypeModal: (archetype) => set({ archetypeModal: archetype }),
@@ -126,7 +134,6 @@ export const useUIStore = create<UIStore>((set, get) => ({
   closeCalendarView: () => set({ calendarViewOpen: false, calendarSelectedFriendId: null, calendarSelectedDate: null }),
   setCalendarSelectedDate: (date) => set({ calendarSelectedDate: date }),
   toggleShowDebugScore: () => set((state) => ({ showDebugScore: !state.showDebugScore })),
-
   openQuickWeave: (friendId, centerPoint, activities) => set({
     isQuickWeaveOpen: true,
     isQuickWeaveClosing: false,

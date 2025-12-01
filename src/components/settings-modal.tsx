@@ -40,6 +40,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import { generateStressTestData, clearStressTestData, getDataStats } from '@/db/seeds/stress-test-seed-data';
 import { CustomBottomSheet } from '@/shared/ui/Sheet/BottomSheet';
 
+
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -52,7 +53,7 @@ export function SettingsModal({
   onOpenBatteryCheckIn,
 }: SettingsModalProps) {
   const insets = useSafeAreaInsets();
-  const { isDarkMode, toggleDarkMode, showDebugScore, toggleShowDebugScore, openTrophyCabinet } = useUIStore();
+  const { isDarkMode, toggleDarkMode, showDebugScore, toggleShowDebugScore, openTrophyCabinet, openWeeklyReflection } = useUIStore();
   const { profile, updateBatteryPreferences, updateProfile } = useUserProfileStore();
   const { colors } = useTheme();
   const [shouldRender, setShouldRender] = useState(false);
@@ -138,6 +139,8 @@ export function SettingsModal({
 
   // Friend Management state
   const [showFriendManagement, setShowFriendManagement] = useState(false);
+
+
 
   // Background sync store
   const {
@@ -624,6 +627,27 @@ export function SettingsModal({
               thumbColor={colors.card}
             />
           </View>
+
+          <View className="border-t border-border" style={{ borderColor: colors.border }} />
+
+          <TouchableOpacity
+            className="flex-row items-center justify-between"
+            onPress={() => {
+              onClose();
+              setTimeout(() => openWeeklyReflection(), 300);
+            }}
+          >
+            <View className="flex-row items-center gap-3">
+              <View className="w-10 h-10 rounded-lg items-center justify-center" style={{ backgroundColor: colors.muted }}>
+                <Sparkles color={colors.foreground} size={20} />
+              </View>
+              <View>
+                <Text className="text-base font-inter-medium" style={{ color: colors.foreground }}>Test Weekly Reflection</Text>
+                <Text className="text-sm font-inter-regular" style={{ color: colors['muted-foreground'] }}>Trigger the weekly check-in flow</Text>
+              </View>
+            </View>
+            <ChevronRight color={colors['muted-foreground']} size={20} />
+          </TouchableOpacity>
 
           <View className="border-t border-border" style={{ borderColor: colors.border }} />
 
@@ -1277,6 +1301,7 @@ export function SettingsModal({
         visible={showFriendManagement}
         onClose={() => setShowFriendManagement(false)}
       />
+
     </CustomBottomSheet>
   );
 }

@@ -1,85 +1,206 @@
 /**
- * WeeklyReflectionModal
- * Main modal for weekly reflection ritual
- * Beautiful, native-feeling 4-step flow: Summary → Calendar Events → Reconnect → Gratitude
+ * WeeklyReflectionModal (Redesigned)
+ * 
+ * Sunday check-in flow: 60 seconds, writing-first, compact celebration.
+ * 
+ * Flow:
+ * 1. ReflectionPromptStep - One contextual question, optional writing, chip detection
+ * 2. WeekSnapshotStep - Compact stats, insight, up to 3 friends needing attention
+ * 3. CalendarEventsStep - Only if unlogged events exist (optional catch-up)
  */
 
 import React, { useState, useEffect } from 'react';
 import { Modal, View, Text, TouchableOpacity, SafeAreaView, ActivityIndicator } from 'react-native';
-import Animated, { FadeIn, SlideInRight, SlideOutLeft } from 'react-native-reanimated';
+import Animated, { SlideInRight, SlideOutLeft } from 'react-native-reanimated';
 import { X, ChevronLeft } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
-import { WeeklySummary, calculateWeeklySummary, getTopStoryChipSuggestions, WeekStoryChipSuggestion } from '@/modules/reflection';
+import {
+  scanWeekForUnloggedEvents,
+  batchLogCalendarEvents,
+} from '@/modules/reflection';
+import {
+  ExtendedWeeklySummary,
+  calculateExtendedWeeklySummary,
+  extendWeeklySummary,
+} from '@/modules/reflection/services/weekly-summary-extended.service';
+import {
+  generateReflectionPrompt,
+  generateInsightLine,
+  ReflectionPrompt,
+  InsightLine,
+  PromptEngineInput,
+} from '@/modules/reflection/services/prompt-engine';
 import { markReflectionComplete } from '@/modules/notifications';
-import { WeekSummary } from './WeekSummary';
-import { MissedConnectionsList } from './MissedConnectionsList';
-import { GratitudePrompt } from './GratitudePrompt';
-import { CalendarEventsStep } from './CalendarEventsStep';
+import { ReflectionPromptStep } from './ReflectionPromptStepComponent';
+import { WeekSnapshotStep } from './WeekSnapshotStepComponent';
+import { CalendarEventsStep } from './CalendarEventsStepComponent';
 import { database } from '@/db';
 import WeeklyReflection from '@/db/models/WeeklyReflection';
-import { batchLogCalendarEvents } from '@/modules/reflection';
 import { ScannedEvent } from '@/modules/interactions';
 import * as Haptics from 'expo-haptics';
+
+// ============================================================================
+// TYPES
+// ============================================================================
 
 interface WeeklyReflectionModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-type Step = 'summary' | 'events' | 'missed' | 'gratitude';
+type Step = 'prompt' | 'snapshot' | 'events';
+
+interface ReflectionData {
+  text: string;
+  chipIds: string[];
+}
+
+// ============================================================================
+// HELPER FUNCTIONS
+// ============================================================================
+
+/**
+ * Build prompt engine input from extended weekly summary
+ * The ExtendedWeeklySummary already has all the data we need
+ */
+function buildPromptEngineInput(summary: ExtendedWeeklySummary): PromptEngineInput {
+  // Find top friend (most weaves this week)
+  const topFriend = summary.friendActivity.length > 0
+    ? summary.friendActivity[0]
+    : undefined;
+
+  // Find reconnected friend (first from reconnections list)
+  const reconnectedFriend = summary.reconnections.length > 0
+    ? summary.reconnections[0]
+    : undefined;
+
+  // Get comparison data for previous week
+  const previousWeekWeaves = summary.comparison
+    ? summary.totalWeaves - summary.comparison.weavesChange
+    : undefined;
+
+  return {
+    totalWeaves: summary.totalWeaves,
+    friendsContacted: summary.friendsContacted,
+    topFriend: topFriend ? {
+      id: topFriend.friendId,
+      name: topFriend.friendName,
+      weaveCount: topFriend.weaveCount,
+    } : undefined,
+    reconnectedFriend: reconnectedFriend ? {
+      id: reconnectedFriend.friendId,
+      name: reconnectedFriend.friendName,
+      daysSinceLastContact: reconnectedFriend.daysSince,
+    } : undefined,
+    topActivity: summary.topActivity,
+    topActivityCount: summary.topActivityCount,
+    isQuietWeek: summary.totalWeaves < 2,
+    previousWeekWeaves,
+    weekStreak: summary.weekStreak,
+    averageWeeklyWeaves: summary.averageWeeklyWeaves,
+  };
+}
+
+// ============================================================================
+// COMPONENT
+// ============================================================================
 
 export function WeeklyReflectionModal({ isOpen, onClose }: WeeklyReflectionModalProps) {
   const { colors } = useTheme();
-  const [currentStep, setCurrentStep] = useState<Step>('summary');
-  const [summary, setSummary] = useState<WeeklySummary | null>(null);
-  const [storyChipSuggestions, setStoryChipSuggestions] = useState<WeekStoryChipSuggestion[]>([]);
+
+  // State
+  const [currentStep, setCurrentStep] = useState<Step>('prompt');
   const [isLoading, setIsLoading] = useState(true);
+  const [summary, setSummary] = useState<ExtendedWeeklySummary | null>(null);
+  const [prompt, setPrompt] = useState<ReflectionPrompt | null>(null);
+  const [insight, setInsight] = useState<InsightLine | null>(null);
+  const [reflectionData, setReflectionData] = useState<ReflectionData>({ text: '', chipIds: [] });
+  const [hasUnloggedEvents, setHasUnloggedEvents] = useState(false);
   const [selectedEvents, setSelectedEvents] = useState<ScannedEvent[]>([]);
 
+  // Load data when modal opens
   useEffect(() => {
     if (isOpen) {
-      loadSummary();
+      loadData();
     } else {
       // Reset state when closed
-      setCurrentStep('summary');
+      setCurrentStep('prompt');
+      setReflectionData({ text: '', chipIds: [] });
       setSelectedEvents([]);
     }
   }, [isOpen]);
 
-  const loadSummary = async () => {
+  const loadData = async () => {
     setIsLoading(true);
     try {
-      const [data, chipSuggestions] = await Promise.all([
-        calculateWeeklySummary(),
-        getTopStoryChipSuggestions(6), // Get top 6 suggestions
-      ]);
-      setSummary(data);
-      setStoryChipSuggestions(chipSuggestions);
+      // Load extended weekly summary (includes friendActivity, reconnections, weekStreak)
+      const summaryData = await calculateExtendedWeeklySummary();
+      setSummary(summaryData);
+
+      // Build prompt engine input and generate prompt/insight
+      const promptInput = buildPromptEngineInput(summaryData);
+      const generatedPrompt = generateReflectionPrompt(promptInput);
+      const generatedInsight = generateInsightLine(promptInput);
+
+      setPrompt(generatedPrompt);
+      setInsight(generatedInsight);
+
+      // Check for unlogged calendar events
+      const eventReview = await scanWeekForUnloggedEvents();
+      setHasUnloggedEvents(eventReview.events.length > 0);
+
     } catch (error) {
-      console.error('Error loading weekly summary:', error);
+      console.error('[WeeklyReflectionModal] Error loading data:', error);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleComplete = async (
-    gratitudeText: string,
-    prompt: string,
-    promptContext: string,
-    storyChips: Array<{ chipId: string; customText?: string }>
-  ) => {
-    if (!summary) return;
+  // ============================================================================
+  // STEP HANDLERS
+  // ============================================================================
+
+  const handlePromptNext = (text: string, chipIds: string[]) => {
+    setReflectionData({ text, chipIds });
+    setCurrentStep('snapshot');
+  };
+
+  const handleSnapshotComplete = async () => {
+    if (hasUnloggedEvents) {
+      setCurrentStep('events');
+    } else {
+      await saveAndClose();
+    }
+  };
+
+  const handleEventsNext = async (events: ScannedEvent[]) => {
+    setSelectedEvents(events);
+    await saveAndClose(events);
+  };
+
+  const handleEventsSkip = async () => {
+    await saveAndClose();
+  };
+
+  // ============================================================================
+  // SAVE & CLOSE
+  // ============================================================================
+
+  const saveAndClose = async (events?: ScannedEvent[]) => {
+    if (!summary || !prompt) return;
 
     try {
+      const eventsToLog = events || selectedEvents;
+
       // Batch log selected calendar events if any
-      if (selectedEvents.length > 0) {
-        const emotionalRating = gratitudeText.trim().length > 0 ? 8 : undefined; // High rating if they wrote gratitude
+      if (eventsToLog.length > 0) {
+        const emotionalRating = reflectionData.text.trim().length > 0 ? 8 : undefined;
         await batchLogCalendarEvents({
-          events: selectedEvents,
+          events: eventsToLog,
           emotionalRating,
-          reflectionNotes: gratitudeText.trim().length > 0 ? gratitudeText : undefined,
+          reflectionNotes: reflectionData.text.trim().length > 0 ? reflectionData.text : undefined,
         });
-        console.log(`[WeeklyReflection] Batch logged ${selectedEvents.length} calendar events`);
+        console.log(`[WeeklyReflection] Batch logged ${eventsToLog.length} calendar events`);
       }
 
       // Save weekly reflection to database
@@ -92,37 +213,38 @@ export function WeeklyReflectionModal({ isOpen, onClose }: WeeklyReflectionModal
           reflection.topActivity = summary.topActivity;
           reflection.topActivityCount = summary.topActivityCount;
           reflection.missedFriendsCount = summary.missedFriends.length;
-          reflection.gratitudeText = gratitudeText.trim().length > 0 ? gratitudeText : undefined;
-          reflection.gratitudePrompt = prompt;
-          reflection.promptContext = promptContext;
-          reflection.storyChips = storyChips; // Save story chips
+          reflection.gratitudeText = reflectionData.text.trim().length > 0 ? reflectionData.text : undefined;
+          reflection.gratitudePrompt = prompt.question;
+          reflection.promptContext = prompt.context;
+          reflection.storyChips = reflectionData.chipIds.map(chipId => ({ chipId }));
           reflection.completedAt = new Date();
         });
       });
 
-      // Mark reflection as complete (for timing)
+      // Mark reflection as complete (for timing/notifications)
       await markReflectionComplete();
 
-      // Success haptic
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-
-      // Close modal
       onClose();
+
     } catch (error) {
-      console.error('Error saving weekly reflection:', error);
-      // Still close modal even if save fails
+      console.error('[WeeklyReflectionModal] Error saving reflection:', error);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      // Still close even if save fails
       onClose();
     }
   };
 
+  // ============================================================================
+  // NAVIGATION
+  // ============================================================================
+
   const handleBack = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    if (currentStep === 'events') {
-      setCurrentStep('summary');
-    } else if (currentStep === 'missed') {
-      setCurrentStep('events');
-    } else if (currentStep === 'gratitude') {
-      setCurrentStep('missed');
+    if (currentStep === 'snapshot') {
+      setCurrentStep('prompt');
+    } else if (currentStep === 'events') {
+      setCurrentStep('snapshot');
     }
   };
 
@@ -131,12 +253,19 @@ export function WeeklyReflectionModal({ isOpen, onClose }: WeeklyReflectionModal
     onClose();
   };
 
+  // ============================================================================
+  // RENDER
+  // ============================================================================
+
   const stepTitles: Record<Step, string> = {
-    summary: 'Your Week',
-    events: 'Calendar Events',
-    missed: 'Reconnect',
-    gratitude: 'Gratitude',
+    prompt: 'Check-in',
+    snapshot: 'Your Week',
+    events: 'Calendar',
   };
+
+  // Progress indicator
+  const steps: Step[] = hasUnloggedEvents ? ['prompt', 'snapshot', 'events'] : ['prompt', 'snapshot'];
+  const currentStepIndex = steps.indexOf(currentStep);
 
   return (
     <Modal
@@ -152,7 +281,7 @@ export function WeeklyReflectionModal({ isOpen, onClose }: WeeklyReflectionModal
           style={{ borderBottomWidth: 1, borderBottomColor: colors.border }}
         >
           {/* Back Button */}
-          {currentStep !== 'summary' ? (
+          {currentStep !== 'prompt' ? (
             <TouchableOpacity onPress={handleBack} className="p-2 -ml-2">
               <ChevronLeft size={24} color={colors.foreground} />
             </TouchableOpacity>
@@ -176,12 +305,11 @@ export function WeeklyReflectionModal({ isOpen, onClose }: WeeklyReflectionModal
           </TouchableOpacity>
         </View>
 
-        {/* Step Indicator */}
-        <View className="flex-row px-5 py-4 gap-2">
-          {(['summary', 'events', 'missed', 'gratitude'] as Step[]).map((step, index) => {
-            const stepIndex = ['summary', 'events', 'missed', 'gratitude'].indexOf(currentStep);
+        {/* Progress Indicator */}
+        <View className="flex-row px-5 py-3 gap-2">
+          {steps.map((step, index) => {
             const isActive = step === currentStep;
-            const isCompleted = index < stepIndex;
+            const isCompleted = index < currentStepIndex;
 
             return (
               <View
@@ -197,7 +325,7 @@ export function WeeklyReflectionModal({ isOpen, onClose }: WeeklyReflectionModal
         </View>
 
         {/* Content */}
-        <View className="flex-1 px-5 py-4">
+        <View className="flex-1 px-5 py-2">
           {isLoading ? (
             <View className="flex-1 items-center justify-center">
               <ActivityIndicator size="large" color={colors.primary} />
@@ -205,19 +333,26 @@ export function WeeklyReflectionModal({ isOpen, onClose }: WeeklyReflectionModal
                 className="text-sm mt-4"
                 style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
               >
-                Calculating your week...
+                Preparing your check-in...
               </Text>
             </View>
-          ) : summary ? (
+          ) : summary && prompt && insight ? (
             <>
-              {currentStep === 'summary' && (
+              {currentStep === 'prompt' && (
                 <Animated.View entering={SlideInRight} exiting={SlideOutLeft} className="flex-1">
-                  <WeekSummary
+                  <ReflectionPromptStep
+                    prompt={prompt}
+                    onNext={handlePromptNext}
+                  />
+                </Animated.View>
+              )}
+
+              {currentStep === 'snapshot' && (
+                <Animated.View entering={SlideInRight} exiting={SlideOutLeft} className="flex-1">
+                  <WeekSnapshotStep
                     summary={summary}
-                    onNext={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      setCurrentStep('events');
-                    }}
+                    insight={insight}
+                    onComplete={handleSnapshotComplete}
                   />
                 </Animated.View>
               )}
@@ -225,43 +360,8 @@ export function WeeklyReflectionModal({ isOpen, onClose }: WeeklyReflectionModal
               {currentStep === 'events' && (
                 <Animated.View entering={SlideInRight} exiting={SlideOutLeft} className="flex-1">
                   <CalendarEventsStep
-                    onNext={(events) => {
-                      setSelectedEvents(events);
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      setCurrentStep('missed');
-                    }}
-                    onSkip={() => {
-                      setSelectedEvents([]);
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      setCurrentStep('missed');
-                    }}
-                  />
-                </Animated.View>
-              )}
-
-              {currentStep === 'missed' && (
-                <Animated.View entering={SlideInRight} exiting={SlideOutLeft} className="flex-1">
-                  <MissedConnectionsList
-                    missedFriends={summary.missedFriends}
-                    onClose={handleClose}
-                    onNext={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      setCurrentStep('gratitude');
-                    }}
-                    onSkip={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      setCurrentStep('gratitude');
-                    }}
-                  />
-                </Animated.View>
-              )}
-
-              {currentStep === 'gratitude' && (
-                <Animated.View entering={SlideInRight} exiting={SlideOutLeft} className="flex-1">
-                  <GratitudePrompt
-                    summary={summary}
-                    storyChipSuggestions={storyChipSuggestions}
-                    onComplete={handleComplete}
+                    onNext={handleEventsNext}
+                    onSkip={handleEventsSkip}
                   />
                 </Animated.View>
               )}
@@ -272,8 +372,20 @@ export function WeeklyReflectionModal({ isOpen, onClose }: WeeklyReflectionModal
                 className="text-base text-center"
                 style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
               >
-                Unable to load weekly summary. Please try again.
+                Unable to load check-in. Please try again.
               </Text>
+              <TouchableOpacity
+                onPress={loadData}
+                className="mt-4 px-6 py-3 rounded-xl"
+                style={{ backgroundColor: colors.primary }}
+              >
+                <Text
+                  className="text-sm font-semibold"
+                  style={{ color: colors['primary-foreground'], fontFamily: 'Inter_600SemiBold' }}
+                >
+                  Retry
+                </Text>
+              </TouchableOpacity>
             </View>
           )}
         </View>

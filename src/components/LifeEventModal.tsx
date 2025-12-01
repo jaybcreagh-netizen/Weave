@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Modal, TextInput, ScrollView, Alert } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { X, Calendar } from 'lucide-react-native';
@@ -6,6 +6,7 @@ import Animated, { FadeInUp } from 'react-native-reanimated';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { database } from '@/db';
 import LifeEvent, { LifeEventType, LifeEventImportance } from '@/db/models/LifeEvent';
+import UserProgress from '@/db/models/UserProgress';
 import { CustomCalendar } from './CustomCalendar';
 import { startOfDay } from 'date-fns';
 import { CustomBottomSheet } from '@/shared/ui/Sheet/BottomSheet';
@@ -51,6 +52,25 @@ export const LifeEventModal: React.FC<LifeEventModalProps> = ({
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
+  useEffect(() => {
+    if (visible) {
+      if (existingEvent) {
+        setEventType(existingEvent.eventType);
+        setEventDate(existingEvent.eventDate);
+        setTitle(existingEvent.title);
+        setNotes(existingEvent.notes || '');
+        setImportance(existingEvent.importance);
+      } else {
+        // Reset to defaults for new event
+        setEventType('other');
+        setEventDate(startOfDay(new Date()));
+        setTitle('');
+        setNotes('');
+        setImportance('medium');
+      }
+    }
+  }, [visible, existingEvent]);
+
   const handleDateSelect = (date: Date) => {
     setEventDate(startOfDay(date));
     setShowDatePicker(false);
@@ -83,7 +103,7 @@ export const LifeEventModal: React.FC<LifeEventModalProps> = ({
             event.reminded = false;
           });
 
-          const userProgress = await database.get('user_progress').query().fetch();
+          const userProgress = await database.get<UserProgress>('user_progress').query().fetch();
           const progress = userProgress[0];
           await progress.update(p => {
             p.scribeProgress += 1;
@@ -132,6 +152,7 @@ export const LifeEventModal: React.FC<LifeEventModalProps> = ({
       visible={visible}
       onClose={onClose}
       snapPoints={['90%']}
+      index={0}
     >
       <View className="flex-1 px-6">
         <View className="flex-row justify-between items-center mb-6">
@@ -205,30 +226,7 @@ export const LifeEventModal: React.FC<LifeEventModalProps> = ({
             </Text>
           </TouchableOpacity>
 
-          {/* Calendar Sheet */}
-          <CustomBottomSheet
-            visible={showDatePicker}
-            onClose={() => setShowDatePicker(false)}
-            snapPoints={['50%']}
-            index={2}
-          >
-            <View className="flex-1 p-6">
-              <View className="flex-row justify-between items-center mb-4">
-                <Text className="font-lora-bold text-xl" style={{ color: colors.foreground }}>
-                  Pick a Date
-                </Text>
-                <TouchableOpacity onPress={() => setShowDatePicker(false)} className="p-2 -mr-2">
-                  <X size={22} color={colors['muted-foreground']} />
-                </TouchableOpacity>
-              </View>
 
-              <CustomCalendar
-                selectedDate={eventDate}
-                onDateSelect={handleDateSelect}
-                minDate={undefined}
-              />
-            </View>
-          </CustomBottomSheet>
 
           {/* Importance */}
           <Text className="font-inter-semibold text-sm mb-2" style={{ color: colors.foreground }}>
@@ -299,6 +297,31 @@ export const LifeEventModal: React.FC<LifeEventModalProps> = ({
             </TouchableOpacity>
           </View>
         </ScrollView>
+
+        {/* Calendar Sheet */}
+        <CustomBottomSheet
+          visible={showDatePicker}
+          onClose={() => setShowDatePicker(false)}
+          snapPoints={['50%']}
+          index={0}
+        >
+          <View className="flex-1 p-6">
+            <View className="flex-row justify-between items-center mb-4">
+              <Text className="font-lora-bold text-xl" style={{ color: colors.foreground }}>
+                Pick a Date
+              </Text>
+              <TouchableOpacity onPress={() => setShowDatePicker(false)} className="p-2 -mr-2">
+                <X size={22} color={colors['muted-foreground']} />
+              </TouchableOpacity>
+            </View>
+
+            <CustomCalendar
+              selectedDate={eventDate}
+              onDateSelect={handleDateSelect}
+              minDate={undefined}
+            />
+          </View>
+        </CustomBottomSheet>
       </View>
     </CustomBottomSheet>
   );

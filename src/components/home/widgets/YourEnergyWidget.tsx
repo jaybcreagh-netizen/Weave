@@ -61,9 +61,9 @@ const YourEnergyWidgetContent: React.FC<YourEnergyWidgetContentProps> = ({ logs 
     }, [logs]);
 
     const [asyncData, setAsyncData] = useState<{
-        monthData: MonthMoonData | null;
+        yearData: MonthMoonData[] | null;
         stats: any;
-    }>({ monthData: null, stats: null });
+    }>({ yearData: null, stats: null });
 
     React.useEffect(() => {
         let mounted = true;
@@ -78,7 +78,7 @@ const YourEnergyWidgetContent: React.FC<YourEnergyWidgetContentProps> = ({ logs 
 
             if (mounted) {
                 setAsyncData({
-                    monthData: yearData[currentMonth],
+                    yearData: yearData,
                     stats: stats
                 });
             }
@@ -87,7 +87,7 @@ const YourEnergyWidgetContent: React.FC<YourEnergyWidgetContentProps> = ({ logs 
         return () => { mounted = false; };
     }, [logs]);
 
-    if (!asyncData.monthData) {
+    if (!asyncData.yearData) {
         return (
             <HomeWidgetBase config={WIDGET_CONFIG} isLoading={true}>
                 <View />
@@ -95,15 +95,10 @@ const YourEnergyWidgetContent: React.FC<YourEnergyWidgetContentProps> = ({ logs 
         );
     }
 
-    const currentMonthData = asyncData.monthData;
+    const currentMonthIndex = new Date().getMonth();
+    const currentMonthData = asyncData.yearData[currentMonthIndex];
     const currentStats = yearStats;
     const currentMonthName = getMonthName(currentMonthData.month);
-
-    // Flatten year data to get continuous days for correct cross-month week calculation
-    // We need this because a "2 week view" might span across two months
-    // Since we only have current month data in asyncData.monthData, we need to be careful.
-    // Ideally we should have the full year data, but for now let's work with what we have
-    // and assume the user is mostly interested in the current context.
 
     // BETTER APPROACH: Use the current date to determine the 2-week window
     const today = new Date();
@@ -120,23 +115,25 @@ const YourEnergyWidgetContent: React.FC<YourEnergyWidgetContentProps> = ({ logs 
         date.setDate(startDate.getDate() + i);
 
         // Find matching log/data if available
-        // We can search in the current month data if it matches
-        const existingDay = currentMonthData.days.find(d =>
+        // We search in the correct month within yearData
+        const monthIndex = date.getMonth();
+        const targetMonthData = asyncData.yearData![monthIndex];
+
+        const existingDay = targetMonthData?.days.find(d =>
             d.date.getDate() === date.getDate() &&
-            d.date.getMonth() === date.getMonth()
+            d.date.getFullYear() === date.getFullYear()
         );
 
         if (existingDay) return existingDay;
 
-        // Fallback for days not in current loaded month (e.g. previous month tail)
-        // We create a dummy day object. In a real scenario we'd fetch prev month data too.
+        // Fallback for days not found (e.g. previous year or future)
         return {
             date: date,
-            moonPhase: 0, // Default or calculate if needed
+            moonPhase: 0,
             hasCheckin: false,
             batteryLevel: null,
             journalEntry: null
-        } as any; // Cast to avoid strict type issues with missing props if any
+        } as any;
     });
 
     return (

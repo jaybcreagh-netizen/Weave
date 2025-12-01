@@ -16,6 +16,7 @@ import { NotificationPermissionModal } from '@/components/NotificationPermission
 import { LoadingScreen } from '@/shared/components/LoadingScreen';
 import { ErrorBoundary } from '@/shared/components/ErrorBoundary';
 import { EventSuggestionModal } from '@/components/EventSuggestionModal';
+import { WeeklyReflectionModal } from '@/components/WeeklyReflection/WeeklyReflectionModal';
 import { useUIStore } from '@/stores/uiStore';
 import { useTheme } from '@/shared/hooks/useTheme';
 
@@ -111,6 +112,8 @@ function RootLayoutContent() {
   const hideMilestoneCelebration = useUIStore((state) => state.hideMilestoneCelebration);
   const isTrophyCabinetOpen = useUIStore((state) => state.isTrophyCabinetOpen);
   const closeTrophyCabinet = useUIStore((state) => state.closeTrophyCabinet);
+  const isWeeklyReflectionOpen = useUIStore((state) => state.isWeeklyReflectionOpen);
+  const closeWeeklyReflection = useUIStore((state) => state.closeWeeklyReflection);
   const hasCompletedOnboarding = useTutorialStore((state) => state.hasCompletedOnboarding);
 
   const [fontsLoaded, fontError] = useFonts({
@@ -410,6 +413,12 @@ function RootLayoutContent() {
 
                     {/* Global Event Suggestion Modal */}
                     <EventSuggestionModal />
+
+                    {/* Weekly Reflection Modal */}
+                    <WeeklyReflectionModal
+                      isOpen={isWeeklyReflectionOpen}
+                      onClose={closeWeeklyReflection}
+                    />
                   </Animated.View>
 
                   {/* Loading Screen - shows until data is loaded AND UI is mounted */}
