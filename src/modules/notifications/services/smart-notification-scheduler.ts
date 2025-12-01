@@ -469,7 +469,7 @@ export async function evaluateAndScheduleSmartNotifications(): Promise<void> {
 
   // Generate suggestions
   const suggestions = await generateSmartSuggestions();
-  console.log(`[Smart Notifications] Generated ${suggestions.length} suggestions`);
+  Logger.info(`[Smart Notifications] Generated ${suggestions.length} suggestions`);
 
   // Sort by urgency
   const urgencyOrder: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };

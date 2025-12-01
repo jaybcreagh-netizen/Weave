@@ -54,10 +54,10 @@ function selectDiverseSuggestions(suggestions: Suggestion[], maxCount: number): 
     if (selected.length >= maxCount) break;
 
     const bucket = buckets[bucketName];
-    if (bucket.length === 0) continue;
+    if (!bucket || bucket.length === 0) continue;
 
     // Sort bucket by urgency, then pick the top one
-    const sorted = bucket.sort((a, b) => urgencyOrder[a.urgency] - urgencyOrder[b.urgency]);
+    const sorted = bucket.sort((a, b) => (urgencyOrder[a.urgency || 'medium'] ?? 3) - (urgencyOrder[b.urgency || 'medium'] ?? 3));
     selected.push(sorted[0]);
   }
 
@@ -66,7 +66,7 @@ function selectDiverseSuggestions(suggestions: Suggestion[], maxCount: number): 
     const selectedIds = new Set(selected.map(s => s.id));
     const remaining = suggestions
       .filter(s => !selectedIds.has(s.id))
-      .sort((a, b) => urgencyOrder[a.urgency] - urgencyOrder[b.urgency]);
+      .sort((a, b) => (urgencyOrder[a.urgency || 'medium'] ?? 3) - (urgencyOrder[b.urgency || 'medium'] ?? 3));
 
     while (selected.length < maxCount && remaining.length > 0) {
       selected.push(remaining.shift()!);
@@ -74,7 +74,7 @@ function selectDiverseSuggestions(suggestions: Suggestion[], maxCount: number): 
   }
 
   // Final sort: critical first, then by original urgency
-  return selected.sort((a, b) => urgencyOrder[a.urgency] - urgencyOrder[b.urgency]);
+  return selected.sort((a, b) => (urgencyOrder[a.urgency || 'medium'] ?? 3) - (urgencyOrder[b.urgency || 'medium'] ?? 3));
 }
 
 async function fetchSuggestions(friends: any[]) {
@@ -148,7 +148,7 @@ async function fetchSuggestions(friends: any[]) {
           birthday: friend.birthday,
           anniversary: friend.anniversary,
           relationshipType: friend.relationshipType,
-        },
+        } as any,
         currentScore,
         lastInteractionDate: lastInteraction?.interactionDate,
         interactionCount: sortedInteractions.length,
@@ -157,9 +157,9 @@ async function fetchSuggestions(friends: any[]) {
           id: i.id,
           category: i.interactionCategory as any,
           interactionDate: i.interactionDate,
-          vibe: i.vibe,
-          notes: i.note,
-        })),
+          vibe: i.vibe as any,
+          notes: i.note || undefined,
+        })) as any[],
       });
 
       if (suggestion) {

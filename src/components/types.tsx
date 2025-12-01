@@ -19,7 +19,7 @@ export type Friend = {
   id: string;
   name: string;
   createdAt: Date;
-  dunbarTier: Tier;
+  dunbarTier: Tier | string;
   archetype: Archetype;
   weaveScore: number;
   lastUpdated: Date;

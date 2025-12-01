@@ -39,11 +39,17 @@ describe('Scoring Service', () => {
   describe('calculatePointsForWeave', () => {
     it('calculates a baseline score correctly with neutral modifiers', () => {
       const interactionData = {
+        friendIds: ['1'],
+        activity: 'Hangout',
+        date: new Date(),
+        type: 'log',
+        status: 'completed',
+        mode: 'one-on-one',
         category: 'meal-drink',
         duration: 'Standard',
         vibe: 'WaxingCrescent',
         groupSize: 1,
-      } as InteractionFormData;
+      } as any;
 
       const points = calculatePointsForWeave(mockFriend, interactionData);
       expect(points).toBeCloseTo(25.652);
@@ -51,11 +57,17 @@ describe('Scoring Service', () => {
 
     it('applies a positive vibe multiplier correctly', () => {
       const interactionData = {
+        friendIds: ['1'],
+        activity: 'Hangout',
+        date: new Date(),
+        type: 'log',
+        status: 'completed',
+        mode: 'one-on-one',
         category: 'meal-drink',
         duration: 'Standard',
         vibe: 'FullMoon', // 1.5x multiplier
         groupSize: 1,
-      } as InteractionFormData;
+      } as any;
 
       const points = calculatePointsForWeave(mockFriend, interactionData);
       expect(points).toBeCloseTo(38.478);
@@ -63,11 +75,17 @@ describe('Scoring Service', () => {
 
     it('applies a duration modifier correctly', () => {
       const interactionData = {
+        friendIds: ['1'],
+        activity: 'Hangout',
+        date: new Date(),
+        type: 'log',
+        status: 'completed',
+        mode: 'one-on-one',
         category: 'meal-drink',
         duration: 'Extended', // 1.2x modifier
         vibe: 'WaxingCrescent',
         groupSize: 1,
-      } as InteractionFormData;
+      } as any;
 
       const points = calculatePointsForWeave(mockFriend, interactionData);
       expect(points).toBeCloseTo(30.7824);
@@ -76,11 +94,17 @@ describe('Scoring Service', () => {
     it('applies a different archetype multiplier correctly', () => {
       mockFriend.archetype = 'Fool';
       const interactionData = {
+        friendIds: ['1'],
+        activity: 'Hangout',
+        date: new Date(),
+        type: 'log',
+        status: 'completed',
+        mode: 'one-on-one',
         category: 'meal-drink',
         duration: 'Standard',
         vibe: 'WaxingCrescent',
         groupSize: 1,
-      } as InteractionFormData;
+      } as any;
 
       const points = calculatePointsForWeave(mockFriend, interactionData);
       expect(points).toBeCloseTo(23.32);
@@ -88,11 +112,17 @@ describe('Scoring Service', () => {
 
     it('applies group dilution correctly', () => {
       const interactionData = {
+        friendIds: ['1'],
+        activity: 'Hangout',
+        date: new Date(),
+        type: 'log',
+        status: 'completed',
+        mode: 'group',
         category: 'meal-drink',
         duration: 'Standard',
         vibe: 'WaxingCrescent',
         groupSize: 4, // 0.7x dilution
-      } as InteractionFormData;
+      } as any;
 
       const points = calculatePointsForWeave(mockFriend, interactionData);
       expect(points).toBeCloseTo(17.9564);
@@ -100,12 +130,18 @@ describe('Scoring Service', () => {
 
     it('applies an event multiplier for celebrations', () => {
       const interactionData = {
+        friendIds: ['1'],
+        activity: 'Celebration',
+        date: new Date(),
+        type: 'log',
+        status: 'completed',
+        mode: 'one-on-one',
         category: 'celebration',
         duration: 'Standard',
         vibe: 'WaxingCrescent',
         groupSize: 1,
         eventImportance: 'high', // 1.3x multiplier
-      } as InteractionFormData;
+      } as any;
       mockFriend.archetype = 'Sun';
 
       const points = calculatePointsForWeave(mockFriend, interactionData);
@@ -116,11 +152,17 @@ describe('Scoring Service', () => {
       (qualityService.calculateInteractionQuality as jest.Mock).mockReturnValue({ overallQuality: 5 }); // High quality -> 1.3x multiplier
 
       const interactionData = {
+        friendIds: ['1'],
+        activity: 'Hangout',
+        date: new Date(),
+        type: 'log',
+        status: 'completed',
+        mode: 'one-on-one',
         category: 'meal-drink',
         duration: 'Standard',
         vibe: 'WaxingCrescent',
         groupSize: 1,
-      } as InteractionFormData;
+      } as any;
 
       const points = calculatePointsForWeave(mockFriend, interactionData);
       expect(points).toBeCloseTo(31.46);
@@ -130,11 +172,17 @@ describe('Scoring Service', () => {
       (qualityService.calculateInteractionQuality as jest.Mock).mockReturnValue({ overallQuality: 4 }); // High quality
 
       const interactionData = {
+        friendIds: ['1'],
+        activity: 'Hangout',
+        date: new Date(),
+        type: 'log',
+        status: 'completed',
+        mode: 'group',
         category: 'meal-drink',
         duration: 'Standard',
         vibe: 'WaxingCrescent',
         groupSize: 4, // 0.7x dilution
-      } as InteractionFormData;
+      } as any;
 
       const points = calculatePointsForWeave(mockFriend, interactionData);
       expect(points).toBeCloseTo(21.70256);

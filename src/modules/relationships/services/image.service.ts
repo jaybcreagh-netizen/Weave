@@ -16,6 +16,7 @@
 import * as FileSystem from 'expo-file-system';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { Image } from 'react-native';
+import Logger from '@/shared/utils/Logger';
 
 // Lazy-load supabase only when cloud storage is enabled
 let supabase: any = null;
@@ -99,7 +100,7 @@ async function ensureDirectoryExists(): Promise<void> {
   const dirInfo = await FileSystem.getInfoAsync(LOCAL_STORAGE_DIR);
   if (!dirInfo.exists) {
     await FileSystem.makeDirectoryAsync(LOCAL_STORAGE_DIR, { intermediates: true });
-    console.log('[ImageService] Created local storage directory:', LOCAL_STORAGE_DIR);
+    Logger.debug('[ImageService] Created local storage directory:', LOCAL_STORAGE_DIR);
   }
 }
 
@@ -131,7 +132,7 @@ export async function processAndStoreImage(
     // Get image settings based on type
     const settings = IMAGE_SETTINGS[type];
 
-    console.log(`[ImageService] Processing ${type}:`, imageId);
+    Logger.debug(`[ImageService] Processing ${type}:`, imageId);
 
     // Step 1: Get original dimensions to determine if cropping is needed
     const getImageSize = (uri: string): Promise<{ width: number; height: number }> => {
@@ -154,7 +155,7 @@ export async function processAndStoreImage(
       const originX = (width - size) / 2;
       const originY = (height - size) / 2;
 
-      console.log(`[ImageService] Cropping to square: ${size}x${size} at (${originX}, ${originY})`);
+      Logger.debug(`[ImageService] Cropping to square: ${size}x${size} at (${originX}, ${originY})`);
 
       actions.push({
         crop: {
@@ -184,7 +185,7 @@ export async function processAndStoreImage(
       }
     );
 
-    console.log('[ImageService] Processed:', {
+    Logger.debug('[ImageService] Processed:', {
       originalSize: `${width}x${height}`,
       processedUri: manipulatedImage.uri,
     });
@@ -198,7 +199,7 @@ export async function processAndStoreImage(
       to: localUri
     });
 
-    console.log('[ImageService] Saved locally:', localUri);
+    Logger.debug('[ImageService] Saved locally:', localUri);
 
     // Step 5: Upload to cloud storage (if enabled)
     let cloudUrl: string | undefined;
@@ -211,9 +212,9 @@ export async function processAndStoreImage(
           imageId,
           type,
         });
-        console.log('[ImageService] Uploaded to cloud:', cloudUrl);
+        Logger.info('[ImageService] Uploaded to cloud:', cloudUrl);
       } catch (cloudError) {
-        console.warn('[ImageService] Cloud upload failed (continuing with local):', cloudError);
+        Logger.warn('[ImageService] Cloud upload failed (continuing with local):', cloudError);
         // Don't fail the whole operation - image is still saved locally
       }
     }
@@ -224,7 +225,7 @@ export async function processAndStoreImage(
       success: true,
     };
   } catch (error) {
-    console.error('[ImageService] Error processing image:', error);
+    Logger.error('[ImageService] Error processing image:', error);
     return {
       localUri: '',
       success: false,
@@ -302,20 +303,20 @@ export async function deleteImage(params: {
 
     if (fileInfo.exists) {
       await FileSystem.deleteAsync(localUri, { idempotent: true });
-      console.log('[ImageService] Deleted local file:', localUri);
+      Logger.debug('[ImageService] Deleted local file:', localUri);
     }
 
     // Delete from cloud (if enabled)
     if (ENABLE_CLOUD_STORAGE && userId) {
       try {
         await deleteFromSupabase({ userId, imageId, type });
-        console.log('[ImageService] Deleted from cloud');
+        Logger.info('[ImageService] Deleted from cloud');
       } catch (cloudError) {
-        console.warn('[ImageService] Cloud deletion failed:', cloudError);
+        Logger.warn('[ImageService] Cloud deletion failed:', cloudError);
       }
     }
   } catch (error) {
-    console.error('[ImageService] Error deleting image:', error);
+    Logger.error('[ImageService] Error deleting image:', error);
   }
 }
 
@@ -374,10 +375,10 @@ export async function getImageUri(params: {
     try {
       await ensureDirectoryExists();
       await FileSystem.downloadAsync(cloudUrl, localUri);
-      console.log('[ImageService] Downloaded from cloud to cache:', localUri);
+      Logger.debug('[ImageService] Downloaded from cloud to cache:', localUri);
       return localUri;
     } catch (error) {
-      console.warn('[ImageService] Failed to download from cloud:', error);
+      Logger.warn('[ImageService] Failed to download from cloud:', error);
     }
   }
 
@@ -408,12 +409,12 @@ export async function cleanupOrphanedImages(
 
         if (!activeImageIds.includes(imageId)) {
           await FileSystem.deleteAsync(`${LOCAL_STORAGE_DIR}${item}`, { idempotent: true });
-          console.log('[ImageService] Cleaned up orphaned image:', item);
+          Logger.debug('[ImageService] Cleaned up orphaned image:', item);
         }
       }
     }
   } catch (error) {
-    console.error('[ImageService] Error cleaning up orphaned images:', error);
+    Logger.error('[ImageService] Error cleaning up orphaned images:', error);
   }
 }
 
@@ -491,7 +492,7 @@ export async function getStorageStats(): Promise<{
       estimatedSizeMB: totalSize / (1024 * 1024),
     };
   } catch (error) {
-    console.error('[ImageService] Error getting storage stats:', error);
+    Logger.error('[ImageService] Error getting storage stats:', error);
     return {
       totalImages: 0,
       profilePictures: 0,
