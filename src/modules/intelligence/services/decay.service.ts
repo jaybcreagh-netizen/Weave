@@ -35,17 +35,23 @@ export function applyDecay(
     Community: 21,
   }[friend.dunbarTier as Tier];
 
+  // Guard against invalid resilience values (must be between 0.8 and 1.5)
+  const safeResilience = Math.max(0.8, Math.min(1.5, friend.resilience || 1.0));
+  if (friend.resilience !== safeResilience) {
+    console.warn(`[Decay] Invalid resilience ${friend.resilience} for friend, using ${safeResilience}`);
+  }
+
   let decayAmount: number;
 
   if (toleranceWindow && daysSinceLastUpdate <= toleranceWindow) {
     // Within normal pattern - minimal decay (50% of base rate)
-    decayAmount = (daysSinceLastUpdate * tierDecayRate * 0.5) / friend.resilience;
+    decayAmount = (daysSinceLastUpdate * tierDecayRate * 0.5) / safeResilience;
   } else {
     // Outside tolerance - accelerating decay
     const safeToleranceWindow = toleranceWindow || 14; // Default to 14 days if undefined
     const excessDays = daysSinceLastUpdate - safeToleranceWindow;
-    const baseDecay = (safeToleranceWindow * tierDecayRate * 0.5) / friend.resilience;
-    const acceleratedDecay = (excessDays * tierDecayRate * 1.5) / friend.resilience;
+    const baseDecay = (safeToleranceWindow * tierDecayRate * 0.5) / safeResilience;
+    const acceleratedDecay = (excessDays * tierDecayRate * 1.5) / safeResilience;
     decayAmount = baseDecay + acceleratedDecay;
   }
 

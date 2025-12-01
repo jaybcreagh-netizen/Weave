@@ -132,43 +132,63 @@ async function checkLifeEventStatus(friend: FriendModel | Friend): Promise<Statu
 
     // Check birthday (legacy Friend model field)
     if (friend.birthday) {
-      // Birthday is now in "MM-DD" format
-      const [month, day] = friend.birthday.split('-').map(n => parseInt(n, 10));
+      // Validate format: "MM-DD"
+      if (!/^\d{2}-\d{2}$/.test(friend.birthday)) {
+        console.warn(`[StatusLine] Invalid birthday format: ${friend.birthday}`);
+      } else {
+        // Birthday is now in "MM-DD" format
+        const [month, day] = friend.birthday.split('-').map(n => parseInt(n, 10));
 
-      // Create birthday for this year
-      const birthdayThisYear = new Date(today.getFullYear(), month - 1, day);
-      birthdayThisYear.setHours(0, 0, 0, 0);
+        // Validate date components
+        if (month < 1 || month > 12 || day < 1 || day > 31) {
+          console.warn(`[StatusLine] Invalid birthday date: ${friend.birthday}`);
+        } else {
+          // Create birthday for this year
+          const birthdayThisYear = new Date(today.getFullYear(), month - 1, day);
+          birthdayThisYear.setHours(0, 0, 0, 0);
 
-      if (birthdayThisYear < today) {
-        birthdayThisYear.setFullYear(today.getFullYear() + 1);
-      }
+          if (birthdayThisYear < today) {
+            birthdayThisYear.setFullYear(today.getFullYear() + 1);
+          }
 
-      const daysUntil = differenceInDays(birthdayThisYear, today);
-      if (daysUntil >= 0 && daysUntil <= 7) {
-        if (daysUntil === 0) return { text: 'Birthday is today!', icon: '🎂', variant: 'accent' };
-        if (daysUntil === 1) return { text: 'Birthday is tomorrow', icon: '🎂', variant: 'accent' };
-        return { text: `Birthday in ${daysUntil} days`, icon: '🎂', variant: 'default' };
+          const daysUntil = differenceInDays(birthdayThisYear, today);
+          if (daysUntil >= 0 && daysUntil <= 7) {
+            if (daysUntil === 0) return { text: 'Birthday is today!', icon: '🎂', variant: 'accent' };
+            if (daysUntil === 1) return { text: 'Birthday is tomorrow', icon: '🎂', variant: 'accent' };
+            return { text: `Birthday in ${daysUntil} days`, icon: '🎂', variant: 'default' };
+          }
+        }
       }
     }
 
     // Check anniversary (legacy Friend model field)
     if (friend.anniversary) {
-      // Anniversary is stored in "MM-DD" format
-      const [month, day] = friend.anniversary.split('-').map(n => parseInt(n, 10));
+      // Validate format: "MM-DD"
+      if (!/^\d{2}-\d{2}$/.test(friend.anniversary)) {
+        console.warn(`[StatusLine] Invalid anniversary format: ${friend.anniversary}`);
+      } else {
+        // Anniversary is stored in "MM-DD" format
+        const [month, day] = friend.anniversary.split('-').map(n => parseInt(n, 10));
 
-      // Create anniversary for this year
-      const anniversaryThisYear = new Date(today.getFullYear(), month - 1, day);
-      anniversaryThisYear.setHours(0, 0, 0, 0);
+        // Validate date components
+        if (month < 1 || month > 12 || day < 1 || day > 31) {
+          console.warn(`[StatusLine] Invalid anniversary date: ${friend.anniversary}`);
+        } else {
+          // Create anniversary for this year
+          const anniversaryThisYear = new Date(today.getFullYear(), month - 1, day);
+          anniversaryThisYear.setHours(0, 0, 0, 0);
 
-      if (anniversaryThisYear < today) {
-        anniversaryThisYear.setFullYear(today.getFullYear() + 1);
-      }
+          if (anniversaryThisYear < today) {
+            anniversaryThisYear.setFullYear(today.getFullYear() + 1);
+          }
 
-      const daysUntil = differenceInDays(anniversaryThisYear, today);
-      if (daysUntil >= 0 && daysUntil <= 7) {
-        if (daysUntil === 0) return { text: 'Friendship anniversary today!', icon: '💝', variant: 'accent' };
-        if (daysUntil === 1) return { text: 'Friendship anniversary tomorrow', icon: '💝', variant: 'accent' };
-        return { text: `Anniversary in ${daysUntil} days`, icon: '💝', variant: 'default' };
+          const daysUntil = differenceInDays(anniversaryThisYear, today);
+          if (daysUntil >= 0 && daysUntil <= 7) {
+            if (daysUntil === 0) return { text: 'Friendship anniversary today!', icon: '💝', variant: 'accent' };
+            if (daysUntil === 1) return { text: 'Friendship anniversary tomorrow', icon: '💝', variant: 'accent' };
+            return { text: `Anniversary in ${daysUntil} days`, icon: '💝', variant: 'default' };
+          }
+        }
       }
     }
   } catch (error) {

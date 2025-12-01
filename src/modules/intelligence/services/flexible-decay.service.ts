@@ -48,6 +48,12 @@ export function calculateFlexibleDecay(
   const baseTierDecay = TierDecayRates[friend.dunbarTier as Tier];
   const tierExpectedInterval = TIER_EXPECTED_INTERVALS[friend.dunbarTier as Tier];
 
+  // Guard against invalid tier or corrupted data
+  if (!tierExpectedInterval || tierExpectedInterval <= 0 || !baseTierDecay) {
+    console.warn(`[FlexibleDecay] Invalid tier data for ${friend.dunbarTier}, using base decay`);
+    return baseTierDecay || TierDecayRates.Community; // Fallback to Community tier
+  }
+
   // Use learned pattern if available, otherwise fall back to tier default
   const actualInterval = friend.typicalIntervalDays || tierExpectedInterval;
 
