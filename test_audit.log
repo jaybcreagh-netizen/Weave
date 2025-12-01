@@ -1,0 +1,10 @@
+
+> weavenative@1.0.0 test
+> jest
+
+● Validation Error:
+
+  Preset jest-expo not found relative to rootDir /app.
+
+  Configuration Documentation:
+  https://jestjs.io/docs/configuration

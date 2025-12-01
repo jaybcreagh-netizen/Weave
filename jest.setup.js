@@ -41,6 +41,20 @@ jest.mock('react-native/Libraries/BatchedBridge/NativeModules', () => ({
   },
 }));
 
+// Mock Sentry to prevent native module errors
+jest.mock('@sentry/react-native', () => ({
+  init: jest.fn(),
+  captureException: jest.fn(),
+  captureMessage: jest.fn(),
+  wrap: (fn) => fn,
+  addBreadcrumb: jest.fn(),
+  setUser: jest.fn(),
+  setTag: jest.fn(),
+  setContext: jest.fn(),
+  ReactNativeTracing: jest.fn(),
+  ReactNavigationInstrumentation: jest.fn(),
+}));
+
 // Mock the migrations module
 jest.mock('@/db/migrations', () => {
   const { schemaMigrations } = require('@nozbe/watermelondb/Schema/migrations');

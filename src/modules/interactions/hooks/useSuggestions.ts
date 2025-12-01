@@ -24,6 +24,9 @@ function selectDiverseSuggestions(suggestions: Suggestion[], maxCount: number): 
 
   const urgencyOrder = { critical: 0, high: 1, medium: 2, low: 3 };
 
+  // Safe urgency access
+  const getUrgencyScore = (u?: string) => urgencyOrder[u as keyof typeof urgencyOrder] ?? 3;
+
   // Group suggestions by their action category
   const buckets = {
     critical: suggestions.filter(s => s.urgency === 'critical'),
@@ -57,7 +60,7 @@ function selectDiverseSuggestions(suggestions: Suggestion[], maxCount: number): 
     if (bucket.length === 0) continue;
 
     // Sort bucket by urgency, then pick the top one
-    const sorted = bucket.sort((a, b) => urgencyOrder[a.urgency || 'low'] - urgencyOrder[b.urgency || 'low']);
+    const sorted = bucket.sort((a, b) => getUrgencyScore(a.urgency) - getUrgencyScore(b.urgency));
     selected.push(sorted[0]);
   }
 
@@ -66,7 +69,7 @@ function selectDiverseSuggestions(suggestions: Suggestion[], maxCount: number): 
     const selectedIds = new Set(selected.map(s => s.id));
     const remaining = suggestions
       .filter(s => !selectedIds.has(s.id))
-      .sort((a, b) => urgencyOrder[a.urgency || 'low'] - urgencyOrder[b.urgency || 'low']);
+      .sort((a, b) => getUrgencyScore(a.urgency) - getUrgencyScore(b.urgency));
 
     while (selected.length < maxCount && remaining.length > 0) {
       selected.push(remaining.shift()!);
@@ -74,7 +77,7 @@ function selectDiverseSuggestions(suggestions: Suggestion[], maxCount: number): 
   }
 
   // Final sort: critical first, then by original urgency
-  return selected.sort((a, b) => urgencyOrder[a.urgency || 'low'] - urgencyOrder[b.urgency || 'low']);
+  return selected.sort((a, b) => getUrgencyScore(a.urgency) - getUrgencyScore(b.urgency));
 }
 
 async function fetchSuggestions(friends: any[]) {
