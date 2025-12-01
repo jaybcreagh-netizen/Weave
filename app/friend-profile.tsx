@@ -35,6 +35,10 @@ export default function FriendProfile() {
   const { colors } = useTheme();
   const { friendId } = useLocalSearchParams();
 
+  // Validate friendId early
+  const validFriendId = typeof friendId === 'string' ? friendId : undefined;
+  const hasInvalidId = !validFriendId || Array.isArray(friendId);
+
   const {
     friend,
     interactions,
@@ -51,7 +55,7 @@ export default function FriendProfile() {
     createIntention,
     dismissIntention,
     refreshLifeEvents
-  } = useFriendProfileData(typeof friendId === 'string' ? friendId : undefined);
+  } = useFriendProfileData(validFriendId);
 
   const { timelineSections } = useFriendTimeline(interactions);
 
@@ -202,6 +206,43 @@ export default function FriendProfile() {
       }
     }, 500);
   }, [interactions]);
+
+  // Show error if friendId is invalid
+  if (hasInvalidId) {
+    return (
+      <SafeAreaView style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
+        <View style={{ alignItems: 'center', justifyContent: 'center', flex: 1, padding: 20 }}>
+          <Text style={{ color: colors.foreground, fontSize: 18, fontWeight: '600', marginBottom: 12 }}>
+            Friend Not Found
+          </Text>
+          <Text style={{ color: colors['muted-foreground'], fontSize: 14, textAlign: 'center', marginBottom: 24 }}>
+            This friend profile couldn't be loaded. The link may be invalid.
+          </Text>
+          <View
+            style={{
+              backgroundColor: colors.primary,
+              paddingHorizontal: 24,
+              paddingVertical: 12,
+              borderRadius: 8,
+            }}
+          >
+            <Text
+              style={{ color: colors['primary-foreground'], fontSize: 16, fontWeight: '600' }}
+              onPress={() => {
+                if (router.canGoBack()) {
+                  router.back();
+                } else {
+                  router.replace('/');
+                }
+              }}
+            >
+              Go Back
+            </Text>
+          </View>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   // Show loading state until data is actually loaded (AFTER all hooks)
   if (!isDataLoaded || !friend) {

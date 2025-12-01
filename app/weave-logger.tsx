@@ -59,7 +59,18 @@ export default function WeaveLoggerScreen() {
   const scrollViewRef = useRef<ScrollView>(null);
   const scale = useSharedValue(1);
   const [detailsSectionY, setDetailsSectionY] = useState(0);
+  const isMountedRef = useRef(true);
+  const navigationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+      if (navigationTimeoutRef.current) {
+        clearTimeout(navigationTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Fetch friend's data and set as initial selected friend
   useEffect(() => {
@@ -176,7 +187,9 @@ export default function WeaveLoggerScreen() {
 
       if (!shouldShow) {
         // Navigate back after animation
-        setTimeout(() => {
+        navigationTimeoutRef.current = setTimeout(() => {
+          if (!isMountedRef.current) return;
+
           try {
             if (router.canGoBack()) {
               router.back();
@@ -187,7 +200,9 @@ export default function WeaveLoggerScreen() {
           } catch (navError) {
             console.error('[WeaveLogger] Navigation error:', navError);
             // Force navigate to home as last resort
-            router.replace('/');
+            if (isMountedRef.current) {
+              router.replace('/');
+            }
           }
         }, 900);
       }
@@ -196,7 +211,9 @@ export default function WeaveLoggerScreen() {
     } catch (error) {
       console.error('[WeaveLogger] Error saving weave:', error);
       // Show error to user but still try to navigate back
-      setTimeout(() => {
+      navigationTimeoutRef.current = setTimeout(() => {
+        if (!isMountedRef.current) return;
+
         if (router.canGoBack()) {
           router.back();
         } else {
