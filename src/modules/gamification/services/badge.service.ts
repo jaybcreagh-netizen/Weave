@@ -224,11 +224,21 @@ async function awardSpecialBadge(friendId: string, badgeId: string): Promise<voi
  * Check if this is the first weave with a friend
  */
 async function isFirstWeave(friendId: string): Promise<boolean> {
+  // 1. Get interaction IDs from join table
+  const links = await database
+    .get('interaction_friends')
+    .query(Q.where('friend_id', friendId))
+    .fetch();
+  const interactionIds = links.map((link: any) => link.interactionId);
+
+  if (interactionIds.length === 0) return false;
+
+  // 2. Count interactions with those IDs
   const count = await database
     .get<Interaction>('interactions')
     .query(
       Q.where('status', 'completed'),
-      Q.on('interaction_friends', 'friend_id', friendId)
+      Q.where('id', Q.oneOf(interactionIds))
     )
     .fetchCount();
 

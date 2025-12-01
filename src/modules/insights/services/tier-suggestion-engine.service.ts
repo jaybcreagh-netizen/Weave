@@ -103,10 +103,20 @@ export async function checkRepeatedRedFriend(
     // Count how many times they've been in red zone recently
     // We approximate this by checking if they've had multiple interactions
     // but score is still low
+    // 1. Get interaction IDs from join table
+    const links = await database
+      .get('interaction_friends')
+      .query(Q.where('friend_id', friend.id))
+      .fetch();
+    const interactionIds = links.map((link: any) => link.interactionId);
+
+    if (interactionIds.length === 0) return null;
+
+    // 2. Fetch interactions
     const recentInteractions = await database
       .get<Interaction>('interactions')
       .query(
-        Q.on('interaction_friends', 'friend_id', friend.id),
+        Q.where('id', Q.oneOf(interactionIds)),
         Q.where('status', 'completed'),
         Q.where('interaction_date', Q.gte(Date.now() - 30 * 24 * 60 * 60 * 1000)), // Last 30 days
         Q.sortBy('interaction_date', Q.desc)

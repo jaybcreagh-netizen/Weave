@@ -85,11 +85,21 @@ export async function calculateFriendBadgeProgress(friendId: string): Promise<Ba
  * Get weave count for a friend
  */
 async function getWeaveCount(friendId: string): Promise<number> {
+  // 1. Get interaction IDs from join table
+  const links = await database
+    .get('interaction_friends')
+    .query(Q.where('friend_id', friendId))
+    .fetch();
+  const interactionIds = links.map((link: any) => link.interactionId);
+
+  if (interactionIds.length === 0) return 0;
+
+  // 2. Count interactions with those IDs
   const count = await database
     .get<Interaction>('interactions')
     .query(
       Q.where('status', 'completed'),
-      Q.on('interaction_friends', 'friend_id', friendId)
+      Q.where('id', Q.oneOf(interactionIds))
     )
     .fetchCount();
 
@@ -100,11 +110,21 @@ async function getWeaveCount(friendId: string): Promise<number> {
  * Get reflection count for a friend
  */
 async function getReflectionCount(friendId: string): Promise<number> {
+  // 1. Get interaction IDs from join table
+  const links = await database
+    .get('interaction_friends')
+    .query(Q.where('friend_id', friendId))
+    .fetch();
+  const interactionIds = links.map((link: any) => link.interactionId);
+
+  if (interactionIds.length === 0) return 0;
+
+  // 2. Fetch interactions
   const interactions = await database
     .get<Interaction>('interactions')
     .query(
       Q.where('status', 'completed'),
-      Q.on('interaction_friends', 'friend_id', friendId)
+      Q.where('id', Q.oneOf(interactionIds))
     )
     .fetch();
 
@@ -128,11 +148,21 @@ async function getReflectionCount(friendId: string): Promise<number> {
  * Counts how many consecutive months (from current month backward) the friend was contacted
  */
 async function getConsecutiveContactMonths(friendId: string): Promise<number> {
+  // 1. Get interaction IDs from join table
+  const links = await database
+    .get('interaction_friends')
+    .query(Q.where('friend_id', friendId))
+    .fetch();
+  const interactionIds = links.map((link: any) => link.interactionId);
+
+  if (interactionIds.length === 0) return 0;
+
+  // 2. Fetch interactions
   const interactions = await database
     .get<Interaction>('interactions')
     .query(
       Q.where('status', 'completed'),
-      Q.on('interaction_friends', 'friend_id', friendId),
+      Q.where('id', Q.oneOf(interactionIds)),
       Q.sortBy('interaction_date', 'desc')
     )
     .fetch();
