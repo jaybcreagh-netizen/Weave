@@ -15,6 +15,7 @@
 
 import * as FileSystem from 'expo-file-system';
 import * as ImageManipulator from 'expo-image-manipulator';
+import { Image } from 'react-native';
 
 // Lazy-load supabase only when cloud storage is enabled
 let supabase: any = null;
@@ -132,29 +133,63 @@ export async function processAndStoreImage(
 
     console.log(`[ImageService] Processing ${type}:`, imageId);
 
-    // Step 1: Compress and resize image
+    // Step 1: Get original dimensions to determine if cropping is needed
+    const getImageSize = (uri: string): Promise<{ width: number; height: number }> => {
+      return new Promise((resolve, reject) => {
+        Image.getSize(
+          uri,
+          (width, height) => resolve({ width, height }),
+          (error) => reject(error)
+        );
+      });
+    };
+
+    const { width, height } = await getImageSize(uri);
+    const actions: ImageManipulator.Action[] = [];
+
+    // Step 2: Smart Center Crop (if needed)
+    // Only apply for profile pictures or if we want square images
+    if (type === 'profilePicture' && Math.abs(width - height) > 5) {
+      const size = Math.min(width, height);
+      const originX = (width - size) / 2;
+      const originY = (height - size) / 2;
+
+      console.log(`[ImageService] Cropping to square: ${size}x${size} at (${originX}, ${originY})`);
+
+      actions.push({
+        crop: {
+          originX,
+          originY,
+          width: size,
+          height: size,
+        },
+      });
+    }
+
+    // Step 3: Resize
+    actions.push({
+      resize: {
+        width: settings.width,
+        height: settings.height,
+      },
+    });
+
+    // Execute manipulation
     const manipulatedImage = await ImageManipulator.manipulateAsync(
       uri,
-      [
-        {
-          resize: {
-            width: settings.width,
-            height: settings.height,
-          },
-        },
-      ],
+      actions,
       {
         compress: settings.quality,
         format: settings.format,
       }
     );
 
-    console.log('[ImageService] Compressed:', {
-      originalSize: 'unknown',
-      compressedUri: manipulatedImage.uri,
+    console.log('[ImageService] Processed:', {
+      originalSize: `${width}x${height}`,
+      processedUri: manipulatedImage.uri,
     });
 
-    // Step 2: Save to local storage (persistent)
+    // Step 4: Save to local storage (persistent)
     const fileName = `${type}_${imageId}.jpg`;
     const localUri = `${LOCAL_STORAGE_DIR}${fileName}`;
 
@@ -165,7 +200,7 @@ export async function processAndStoreImage(
 
     console.log('[ImageService] Saved locally:', localUri);
 
-    // Step 3: Upload to cloud storage (if enabled)
+    // Step 5: Upload to cloud storage (if enabled)
     let cloudUrl: string | undefined;
 
     if (ENABLE_CLOUD_STORAGE && userId) {
