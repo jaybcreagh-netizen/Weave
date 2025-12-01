@@ -40,4 +40,10 @@ export default class LifeEvent extends Model {
   @readonly @date('created_at') createdAt!: Date;
   @date('updated_at') updatedAt!: Date;
 
+  // Cloud sync fields (v31)
+  @field('user_id') userId?: string;
+  @field('synced_at') syncedAt?: number;
+  @text('sync_status') syncStatus?: string;
+  @field('server_updated_at') serverUpdatedAt?: number;
+
 }

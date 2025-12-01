@@ -62,30 +62,6 @@ export default schemaMigrations({
       ],
     },
     {
-      toVersion: 34,
-      steps: [
-        createTable({
-          name: 'oracle_insights',
-          columns: [
-            { name: 'insight_type', type: 'string' },
-            { name: 'content', type: 'string' },
-            { name: 'metadata', type: 'string' },
-            { name: 'valid_until', type: 'number' },
-            { name: 'created_at', type: 'number' },
-          ],
-        }),
-        createTable({
-          name: 'oracle_usage',
-          columns: [
-            { name: 'endpoint', type: 'string' },
-            { name: 'tokens_used', type: 'number' },
-            { name: 'cost_cents', type: 'number' },
-            { name: 'created_at', type: 'number' },
-          ],
-        }),
-      ],
-    },
-    {
       // Migration from schema v9 to v10
       toVersion: 10,
       steps: [
@@ -704,11 +680,32 @@ export default schemaMigrations({
       ],
     },
     {
-      // Migration from schema v33 to v34 (skipped in original file structure but adding logic for clarity)
-      // The schema file says v34, so we assume v34 migration logic was already applied or implicit.
-      // However, we see a block with toVersion: 34 earlier in the file.
-      // We will just add v35 here.
-
+      // Migration from schema v33 to v34
+      // Oracle AI features - Insights and usage tracking
+      toVersion: 34,
+      steps: [
+        createTable({
+          name: 'oracle_insights',
+          columns: [
+            { name: 'insight_type', type: 'string' },
+            { name: 'content', type: 'string' },
+            { name: 'metadata', type: 'string' },
+            { name: 'valid_until', type: 'number' },
+            { name: 'created_at', type: 'number' },
+          ],
+        }),
+        createTable({
+          name: 'oracle_usage',
+          columns: [
+            { name: 'endpoint', type: 'string' },
+            { name: 'tokens_used', type: 'number' },
+            { name: 'cost_cents', type: 'number' },
+            { name: 'created_at', type: 'number' },
+          ],
+        }),
+      ],
+    },
+    {
       // Migration from schema v34 to v35
       // Refactor history logs and indexing optimization
       toVersion: 35,

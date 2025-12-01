@@ -25,7 +25,8 @@
       "package": "com.jaycreagh.WeaveNative",
       "permissions": [
         "READ_CALENDAR",
-        "WRITE_CALENDAR"
+        "WRITE_CALENDAR",
+        "READ_CONTACTS"
       ]
     },
     "web": {

@@ -1,5 +1,5 @@
 import { Model } from '@nozbe/watermelondb';
-import { field, date, json } from '@nozbe/watermelondb/decorators';
+import { field, date, json, text } from '@nozbe/watermelondb/decorators';
 
 /**
  * UserProgress Model
@@ -53,4 +53,10 @@ export default class UserProgress extends Model {
 
   @date('created_at') createdAt!: Date;
   @date('updated_at') updatedAt!: Date;
+
+  // Cloud sync fields (v31)
+  @field('user_id') userId?: string;
+  @field('synced_at') syncedAt?: number;
+  @text('sync_status') syncStatus?: string;
+  @field('server_updated_at') serverUpdatedAt?: number;
 }

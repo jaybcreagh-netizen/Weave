@@ -23,6 +23,12 @@ export default class Friend extends Model {
   @date('last_updated') lastUpdated!: Date
   @readonly @date('created_at') createdAt!: Date
 
+  // Cloud sync fields (v31)
+  @field('user_id') userId?: string
+  @field('synced_at') syncedAt?: number
+  @text('sync_status') syncStatus?: string
+  @field('server_updated_at') serverUpdatedAt?: number
+
   @text('photo_url') photoUrl?: string
   @text('notes') notes?: string
 
