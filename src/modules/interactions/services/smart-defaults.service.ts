@@ -141,7 +141,7 @@ async function getHistoricalScore(
     const friendInteractions: Interaction[] = [];
     for (const interaction of allInteractions) {
       const interactionFriends = await interaction.interactionFriends.fetch();
-      if (interactionFriends.some(jf => jf.friendId === friend.id)) {
+      if (interactionFriends.some((jf: any) => jf.friendId === friend.id)) {
         friendInteractions.push(interaction);
       }
     }

@@ -19,7 +19,7 @@ export default class Group extends Model {
 
     async prepareDestroyWithChildren() {
         const members = await this.members.fetch();
-        const membersToDelete = members.map(member => member.prepareDestroyPermanently());
+        const membersToDelete = members.map((member: any) => member.prepareDestroyPermanently());
         await this.batch(...membersToDelete);
         return this.prepareDestroyPermanently();
     }

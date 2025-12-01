@@ -51,7 +51,7 @@ export function PlanWizardStep0({ initialFriend, selectedFriends, onFriendsSelec
         {isSelected ? (
           <CheckCircle size={20} color={colors.primary} />
         ) : (
-          <Circle size={20} color={colors.mutedForeground} />
+          <Circle size={20} color={colors['muted-foreground']} />
         )}
       </TouchableOpacity>
     );
@@ -62,7 +62,7 @@ export function PlanWizardStep0({ initialFriend, selectedFriends, onFriendsSelec
       <Text className="font-lora-bold text-2xl mb-4" style={{ color: colors.foreground }}>
         Who are you planning with?
       </Text>
-      <Text className="font-inter-regular text-base mb-6" style={{ color: colors.mutedForeground }}>
+      <Text className="font-inter-regular text-base mb-6" style={{ color: colors['muted-foreground'] }}>
         Select all friends involved in this plan. You must select at least one.
       </Text>
 

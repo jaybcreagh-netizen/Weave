@@ -1,0 +1,3 @@
+src/components/FriendBadgePopup.tsx(168,6): error TS1472: 'catch' or 'finally' expected.
+src/components/FriendBadgePopup.tsx(172,5): error TS1005: 'try' expected.
+src/components/FriendBadgePopup.tsx(437,1): error TS1128: Declaration or statement expected.

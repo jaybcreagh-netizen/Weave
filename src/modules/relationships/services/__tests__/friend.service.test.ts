@@ -3,10 +3,15 @@ import { createFriend, updateFriend, deleteFriend, batchAddFriends } from '../fr
 import { database } from '@/db';
 import { FriendFormData } from '@/modules/relationships';
 
-const mockUserProgress = {
+const mockUserProgress: any = {
   id: 'progress-1',
   update: jest.fn(),
 };
+
+mockUserProgress.prepareUpdate = jest.fn((fn: any) => {
+  fn(mockUserProgress);
+  return mockUserProgress;
+});
 
 const mockFriend = {
   id: '1',
@@ -17,6 +22,11 @@ const mockFriend = {
 
 const mockFriendsCollection = {
   create: jest.fn(),
+  prepareCreate: jest.fn((fn) => {
+    const friend = { ...mockFriend };
+    fn(friend);
+    return friend;
+  }),
   find: jest.fn().mockResolvedValue(mockFriend),
   query: jest.fn().mockReturnValue({
     fetch: jest.fn().mockResolvedValue([]),
@@ -42,9 +52,17 @@ jest.mock('@/db', () => ({
       }
       return {
         create: jest.fn(),
+        prepareCreate: jest.fn(),
         find: jest.fn(),
         query: jest.fn().mockReturnValue({ fetch: jest.fn().mockResolvedValue([]) }),
       };
+    }),
+    batch: jest.fn(async (...ops) => {
+      // Execute each operation if it's a promise or function
+      for (const op of ops) {
+        if (typeof op === 'function') await op();
+        else await op;
+      }
     }),
   },
 }));
@@ -80,9 +98,9 @@ describe('friend.service', () => {
     };
     await createFriend(friendData);
     expect(database.get).toHaveBeenCalledWith('friends');
-    expect(mockFriendsCollection.create).toHaveBeenCalled();
+    expect(mockFriendsCollection.prepareCreate).toHaveBeenCalled();
     expect(database.get).toHaveBeenCalledWith('user_progress');
-    expect(mockUserProgress.update).toHaveBeenCalled();
+    expect(mockUserProgress.prepareUpdate).toHaveBeenCalled();
   });
 
   it('should update a friend', async () => {
@@ -115,6 +133,6 @@ describe('friend.service', () => {
     const contacts = [{ name: 'John Doe' }, { name: 'Jane Doe' }];
     await batchAddFriends(contacts, 'CloseFriends');
     expect(database.get).toHaveBeenCalledWith('friends');
-    expect(mockFriendsCollection.create).toHaveBeenCalledTimes(2);
+    expect(mockFriendsCollection.prepareCreate).toHaveBeenCalledTimes(2);
   });
 });

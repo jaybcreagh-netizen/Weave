@@ -28,7 +28,7 @@ export const useAchievements = () => {
         const userProgress = await database.get<UserProgress>('user_progress').query().fetch();
         const progress = userProgress[0];
 
-        const unlockedMilestones = progress.consistencyMilestones.map(m => m.id);
+        const unlockedMilestones = progress.consistencyMilestones || [];
         const nextMilestone = CONSISTENCY_MILESTONES.find(m => !unlockedMilestones.includes(m.id));
 
         const consistencyAchievement: Achievement = {
@@ -38,6 +38,7 @@ export const useAchievements = () => {
           threshold: nextMilestone ? nextMilestone.threshold : 0,
           isUnlocked: !nextMilestone,
           progress: nextMilestone ? (progress.currentStreak / nextMilestone.threshold) * 100 : 100,
+          icon: 'Flame',
         };
 
         const newAchievements: Achievement[] = [
@@ -48,6 +49,7 @@ export const useAchievements = () => {
             threshold: 10,
             isUnlocked: progress.catalystProgress >= 10,
             progress: (progress.catalystProgress / 10) * 100,
+            icon: 'Zap',
           },
           {
             id: 'high_priestess',
@@ -56,6 +58,7 @@ export const useAchievements = () => {
             threshold: 5,
             isUnlocked: progress.highPriestessProgress >= 5,
             progress: (progress.highPriestessProgress / 5) * 100,
+            icon: 'Scroll',
           },
           {
             id: 'scribe',
@@ -64,6 +67,7 @@ export const useAchievements = () => {
             threshold: 1,
             isUnlocked: progress.scribeProgress >= 1,
             progress: (progress.scribeProgress / 1) * 100,
+            icon: 'PenTool',
           },
           {
             id: 'curator',
@@ -72,6 +76,7 @@ export const useAchievements = () => {
             threshold: 7,
             isUnlocked: progress.curatorProgress >= 7,
             progress: (progress.curatorProgress / 7) * 100,
+            icon: 'Library',
           },
         ];
 

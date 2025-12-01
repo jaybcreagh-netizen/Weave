@@ -4,7 +4,7 @@ import { BlurView } from 'expo-blur';
 import { X } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { useUserProfileStore } from '@/modules/auth';
-import { generateSeasonExplanation, type SeasonExplanationData } from '@/modules/reflection';
+import { generateSeasonExplanation } from '@/modules/reflection';
 import { SeasonCalculationInput } from '@/modules/intelligence';
 
 interface SeasonExplanationModalProps {
@@ -27,6 +27,8 @@ export const SeasonExplanationModal: React.FC<SeasonExplanationModalProps> = ({
   // Generate data-driven explanation if we have seasonData
   const explanation = seasonData ? generateSeasonExplanation({
     ...seasonData,
+    batteryLast7DaysAvg: seasonData.batteryLast7DaysAvg || 0,
+    batteryTrend: seasonData.batteryTrend || 'stable',
     season,
   }) : null;
 

@@ -106,15 +106,15 @@ export async function generateStressTestData(
           f.momentumScore = Math.random() > 0.6 ? Math.floor(Math.random() * 30) : 0;
           f.momentumLastUpdated = new Date();
           f.isDormant = Math.random() > 0.9;
-          f.dormantSince = f.isDormant ? new Date(Date.now() - 60 * 24 * 60 * 60 * 1000) : null;
+          f.dormantSince = f.isDormant ? new Date(Date.now() - 60 * 24 * 60 * 60 * 1000) : undefined;
 
           // Random birthday
           const month = Math.floor(Math.random() * 12);
           const day = Math.floor(Math.random() * 28) + 1;
-          f.birthday = new Date(1990 + Math.floor(Math.random() * 10), month, day);
+          f.birthday = new Date(1990 + Math.floor(Math.random() * 10), month, day).toISOString();
 
-          f.anniversary = Math.random() > 0.8 ? new Date(2020, month, day) : null;
-          f.relationshipType = null;
+          f.anniversary = Math.random() > 0.8 ? new Date(2020, month, day).toISOString() : undefined;
+          f.relationshipType = undefined;
         });
 
         friends.push(friend);
@@ -170,7 +170,7 @@ export async function generateStressTestData(
             i.duration = duration;
             i.title = `${activity} with ${friend.name}`;
             i.location = Math.random() > 0.5 ? 'Local Cafe' : 'Park';
-            i.eventImportance = null;
+            i.eventImportance = undefined;
             i.initiator = Math.random() > 0.5 ? 'me' : 'them';
           });
 

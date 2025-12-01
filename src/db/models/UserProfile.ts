@@ -1,4 +1,5 @@
 import { Model } from '@nozbe/watermelondb';
+import { Associations } from '@nozbe/watermelondb/Model';
 import { field, text, date, readonly } from '@nozbe/watermelondb/decorators';
 
 export type SocialSeason = 'resting' | 'balanced' | 'blooming';
@@ -17,6 +18,7 @@ export interface BatteryHistoryEntry {
 
 export default class UserProfile extends Model {
   static table = 'user_profile';
+  static associations: Associations = {};
 
   // Social Season State
   @text('current_social_season') currentSocialSeason?: SocialSeason;
@@ -57,6 +59,6 @@ export default class UserProfile extends Model {
   // Cloud sync fields (v31)
   @field('user_id') userId?: string;
   @field('synced_at') syncedAt?: number;
-  @text('sync_status') syncStatus?: string;
+  @text('sync_status') customSyncStatus?: string;
   @field('server_updated_at') serverUpdatedAt?: number;
 }

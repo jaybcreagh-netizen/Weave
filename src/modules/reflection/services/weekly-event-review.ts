@@ -11,6 +11,7 @@ import { Q } from '@nozbe/watermelondb';
 import { scanCalendarEvents, type ScannedEvent } from '@/modules/interactions';
 import { shouldFilterEvent, isAmbiguousEvent, recordFeedback } from '@/modules/interactions';
 import { CalendarService } from '@/modules/interactions';
+import Logger from '@/shared/utils/Logger';
 
 export interface WeeklyEventReview {
   events: ScannedEvent[];
@@ -28,7 +29,7 @@ export async function scanWeekForUnloggedEvents(): Promise<WeeklyEventReview> {
     // Check if calendar integration is enabled
     const calendarSettings = await CalendarService.getCalendarSettings();
     if (!calendarSettings.enabled || !calendarSettings.twoWaySync) {
-      console.log('[WeeklyReview] Calendar sync disabled');
+      Logger.info('[WeeklyReview] Calendar sync disabled');
       return {
         events: [],
         totalScanned: 0,
@@ -42,7 +43,7 @@ export async function scanWeekForUnloggedEvents(): Promise<WeeklyEventReview> {
     const weekAgo = new Date();
     weekAgo.setDate(weekAgo.getDate() - 7);
 
-    console.log('[WeeklyReview] Scanning events from', weekAgo, 'to', now);
+    Logger.info('[WeeklyReview] Scanning events from', weekAgo, 'to', now);
 
     // Scan calendar
     const scanResult = await scanCalendarEvents({
@@ -52,7 +53,7 @@ export async function scanWeekForUnloggedEvents(): Promise<WeeklyEventReview> {
       minImportance: 'medium',
     });
 
-    console.log(`[WeeklyReview] Found ${scanResult.totalScanned} events, ${scanResult.matchedEvents} with friend matches`);
+    Logger.info(`[WeeklyReview] Found ${scanResult.totalScanned} events, ${scanResult.matchedEvents} with friend matches`);
 
     // Filter to only events with friend matches
     const candidateEvents = scanResult.events.filter(e => e.matchedFriends.length > 0);
@@ -66,7 +67,7 @@ export async function scanWeekForUnloggedEvents(): Promise<WeeklyEventReview> {
       }
     }
 
-    console.log(`[WeeklyReview] ${unloggedEvents.length} unlogged events`);
+    Logger.debug(`[WeeklyReview] ${unloggedEvents.length} unlogged events`);
 
     // Apply learning filters
     const filteredEvents: ScannedEvent[] = [];
@@ -77,7 +78,7 @@ export async function scanWeekForUnloggedEvents(): Promise<WeeklyEventReview> {
       // Check learning filters
       const filterResult = await shouldFilterEvent(event);
       if (filterResult.shouldFilter) {
-        console.log(`[WeeklyReview] Filtered event "${event.title}": ${filterResult.reason}`);
+        Logger.debug(`[WeeklyReview] Filtered event "${event.title}": ${filterResult.reason}`);
         filteredCount++;
         continue;
       }
@@ -92,7 +93,7 @@ export async function scanWeekForUnloggedEvents(): Promise<WeeklyEventReview> {
       filteredEvents.push(event);
     }
 
-    console.log(`[WeeklyReview] Final: ${filteredEvents.length} events, ${filteredCount} filtered, ${ambiguousCount} ambiguous`);
+    Logger.info(`[WeeklyReview] Final: ${filteredEvents.length} events, ${filteredCount} filtered, ${ambiguousCount} ambiguous`);
 
     return {
       events: filteredEvents,
@@ -101,7 +102,7 @@ export async function scanWeekForUnloggedEvents(): Promise<WeeklyEventReview> {
       ambiguousCount,
     };
   } catch (error) {
-    console.error('[WeeklyReview] Error scanning week:', error);
+    Logger.error('[WeeklyReview] Error scanning week:', error);
     return {
       events: [],
       totalScanned: 0,
@@ -143,14 +144,14 @@ async function isEventAlreadyLogged(event: ScannedEvent): Promise<boolean> {
       // If any of the event's friends are in this interaction, consider it logged
       const hasOverlap = friendIds.some(id => friendIdSet.has(id));
       if (hasOverlap) {
-        console.log(`[WeeklyReview] Event "${event.title}" already logged as interaction ${interaction.id}`);
+        Logger.debug(`[WeeklyReview] Event "${event.title}" already logged as interaction ${interaction.id}`);
         return true;
       }
     }
 
     return false;
   } catch (error) {
-    console.error('[WeeklyReview] Error checking if event logged:', error);
+    Logger.error('[WeeklyReview] Error checking if event logged:', error);
     return false; // Err on side of showing suggestion
   }
 }
@@ -217,7 +218,7 @@ export async function batchLogCalendarEvents(params: {
           result.interactionIds.push(interaction.id);
           result.loggedCount++;
 
-          console.log(`[WeeklyReview] Logged event "${event.title}" as interaction ${interaction.id}`);
+          Logger.info(`[WeeklyReview] Logged event "${event.title}" as interaction ${interaction.id}`);
         });
 
         // Record feedback as accepted
@@ -230,17 +231,17 @@ export async function batchLogCalendarEvents(params: {
         });
 
       } catch (error) {
-        console.error(`[WeeklyReview] Error logging event "${event.title}":`, error);
+        Logger.error(`[WeeklyReview] Error logging event "${event.title}":`, error);
         result.errors++;
         result.success = false;
       }
     }
 
-    console.log(`[WeeklyReview] Batch log complete: ${result.loggedCount} logged, ${result.errors} errors`);
+    Logger.info(`[WeeklyReview] Batch log complete: ${result.loggedCount} logged, ${result.errors} errors`);
     return result;
 
   } catch (error) {
-    console.error('[WeeklyReview] Error in batch log:', error);
+    Logger.error('[WeeklyReview] Error in batch log:', error);
     return {
       success: false,
       loggedCount: 0,
@@ -266,9 +267,9 @@ export async function dismissCalendarEvent(params: {
       dismissalReason: reason,
     });
 
-    console.log(`[WeeklyReview] Dismissed event "${event.title}" (reason: ${reason})`);
+    Logger.info(`[WeeklyReview] Dismissed event "${event.title}" (reason: ${reason})`);
   } catch (error) {
-    console.error('[WeeklyReview] Error dismissing event:', error);
+    Logger.error('[WeeklyReview] Error dismissing event:', error);
   }
 }
 
@@ -312,8 +313,8 @@ export async function snoozeFromWeeklyReview(params: {
       },
     });
 
-    console.log(`[WeeklyReview] Snoozed ${type} for ${days} days`);
+    Logger.info(`[WeeklyReview] Snoozed ${type} for ${days} days`);
   } catch (error) {
-    console.error('[WeeklyReview] Error creating snooze:', error);
+    Logger.error('[WeeklyReview] Error creating snooze:', error);
   }
 }

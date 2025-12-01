@@ -64,7 +64,11 @@ export const PeriodToggle: React.FC<PeriodToggleProps> = ({
             backgroundColor: tokens.card.background, // White/Dark card bg
             borderRadius: radius.sm,
             width: containerWidth / 2 - 4,
-            ...tokens.shadow.sm, // Add shadow
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 1 },
+            shadowOpacity: 0.1,
+            shadowRadius: 2,
+            elevation: 2,
           },
           indicatorStyle,
         ]}

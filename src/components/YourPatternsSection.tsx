@@ -36,7 +36,7 @@ export function YourPatternsSection({ onCustomChipCreated }: YourPatternsSection
         analyzeCustomNotesForPatterns('feeling', 3),
       ]);
       setTopChips(chips);
-      setSuggestion(feelingSuggestion);
+      setSuggestion(feelingSuggestion ? { text: feelingSuggestion.suggestedText, occurrences: feelingSuggestion.occurrences } : null);
     } catch (error) {
       console.error('Error loading patterns:', error);
     } finally {

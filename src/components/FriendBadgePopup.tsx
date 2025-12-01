@@ -37,8 +37,10 @@ import { getBadgeById } from '@/modules/gamification/constants/badge-definitions
 import { analyzeInteractionPattern } from '@/modules/insights';
 import { archetypeData } from '@/shared/constants/constants';
 import { CATEGORY_METADATA } from '@/shared/constants/interaction-categories';
+
 import { useTheme } from '@/shared/hooks/useTheme';
 import type { Archetype, InteractionCategory } from '@/components/types';
+import Logger from '@/shared/utils/Logger';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -98,11 +100,11 @@ export default function FriendBadgePopup({
     setLoading(true);
 
     try {
-      console.log('[FriendBadgePopup] Loading stats for friend:', friendId);
+      Logger.debug('[FriendBadgePopup] Loading stats for friend:', friendId);
 
       // Load friend data
       const friend = await database.get<Friend>('friends').find(friendId);
-      console.log('[FriendBadgePopup] Friend loaded:', friend.name, friend.archetype);
+      Logger.debug('[FriendBadgePopup] Friend loaded:', friend.name, friend.archetype);
 
       // Load interactions for pattern analysis
       const interactionFriends = await database
@@ -110,7 +112,7 @@ export default function FriendBadgePopup({
         .query(Q.where('friend_id', friendId))
         .fetch();
 
-      console.log('[FriendBadgePopup] InteractionFriends count:', interactionFriends.length);
+      Logger.debug('[FriendBadgePopup] InteractionFriends count:', interactionFriends.length);
 
       const interactionIds = interactionFriends.map(
         (if_: any) => if_.interactionId
@@ -121,7 +123,7 @@ export default function FriendBadgePopup({
         .query(Q.where('id', Q.oneOf(interactionIds)))
         .fetch();
 
-      console.log('[FriendBadgePopup] Interactions loaded:', interactions.length);
+      Logger.debug('[FriendBadgePopup] Interactions loaded:', interactions.length);
 
       // Analyze pattern to get favorite weave types
       const pattern = analyzeInteractionPattern(
@@ -133,7 +135,7 @@ export default function FriendBadgePopup({
         }))
       );
 
-      console.log('[FriendBadgePopup] Pattern analyzed:', pattern.preferredCategories);
+      Logger.debug('[FriendBadgePopup] Pattern analyzed:', pattern.preferredCategories);
 
       // Load badges with details
       const badgeRecords = await database
@@ -141,7 +143,7 @@ export default function FriendBadgePopup({
         .query(Q.where('friend_id', friendId), Q.sortBy('unlocked_at', Q.desc))
         .fetch();
 
-      console.log('[FriendBadgePopup] Badges count:', badgeRecords.length);
+      Logger.debug('[FriendBadgePopup] Badges count:', badgeRecords.length);
 
       const badgesWithDetails = badgeRecords
         .map(b => getBadgeById(b.badgeId))
@@ -163,10 +165,10 @@ export default function FriendBadgePopup({
         badges: badgesWithDetails,
       };
 
-      console.log('[FriendBadgePopup] Setting stats:', newStats);
+      Logger.debug('[FriendBadgePopup] Setting stats:', newStats);
       setStats(newStats);
     } catch (error) {
-      console.error('[FriendBadgePopup] Error loading friend stats:', error);
+      Logger.error('[FriendBadgePopup] Error loading friend stats:', error);
     } finally {
       setLoading(false);
     }
@@ -245,7 +247,6 @@ export default function FriendBadgePopup({
               bounces={true}
             >
               {(() => {
-                console.log('[FriendBadgePopup] Rendering - loading:', loading, 'stats:', !!stats, 'archetypeInfo:', !!archetypeInfo);
                 return null;
               })()}
               {loading ? (
@@ -256,7 +257,6 @@ export default function FriendBadgePopup({
                 </View>
               ) : stats ? (
                 <>
-                  {console.log('[FriendBadgePopup] Rendering stats section')}
                   {/* Archetype Section */}
                   {archetypeInfo && (
                     <View style={styles.section}>

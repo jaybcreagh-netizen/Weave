@@ -4,7 +4,7 @@ import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming, run
 import { BlurView } from 'expo-blur';
 import { X } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
-import { useAchievements, Achievement } from '../hooks/useAchievements';
+import { useAchievements, Achievement } from '@/modules/gamification/hooks/useAchievements';
 
 /**
  * @interface AchievementsModalProps
@@ -57,9 +57,9 @@ export const AchievementsModal: React.FC<AchievementsModalProps> = ({ visible, o
     <View className="mb-4 w-full">
       <View className="flex-row justify-between items-center mb-1">
         <Text className="font-inter-semibold text-base" style={{ color: colors.foreground }}>{item.name}</Text>
-        <Text className="font-inter-regular text-xs" style={{ color: colors.mutedForeground }}>{item.isUnlocked ? 'Unlocked' : `${Math.floor(item.progress)}%`}</Text>
+        <Text className="font-inter-regular text-xs" style={{ color: colors['muted-foreground'] }}>{item.isUnlocked ? 'Unlocked' : `${Math.floor(item.progress)}%`}</Text>
       </View>
-      <Text className="font-inter-regular text-xs mb-2" style={{ color: colors.mutedForeground }}>{item.description}</Text>
+      <Text className="font-inter-regular text-xs mb-2" style={{ color: colors['muted-foreground'] }}>{item.description}</Text>
       <View className="h-2 w-full bg-gray-200 rounded-full">
         <View style={{ height: 8, width: `${item.progress}%`, backgroundColor: colors.primary, borderRadius: 4 }} />
       </View>

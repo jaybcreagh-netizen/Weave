@@ -29,6 +29,7 @@ const TAROT_CARD_COMPONENTS: Record<Archetype, React.FC<any>> = {
   Hermit: HermitSvg,
   Magician: MagicianSvg,
   Lovers: LoversSvg,
+  Unknown: React.Fragment,
 };
 
 const ARCHETYPE_GRADIENTS: Record<Archetype, string[]> = {
@@ -40,6 +41,7 @@ const ARCHETYPE_GRADIENTS: Record<Archetype, string[]> = {
   Hermit: ['#6366f1', '#4f46e5'],
   Magician: ['#ec4899', '#db2777'],
   Lovers: ['#fb7185', '#f43f5e'],
+  Unknown: ['#9ca3af', '#6b7280'],
 };
 
 const ALL_ARCHETYPES: Archetype[] = [
@@ -163,7 +165,7 @@ export function ArchetypeLibrary({ isVisible, onClose }: ArchetypeLibraryProps) 
                   activeOpacity={0.8}
                 >
                   <LinearGradient
-                    colors={[...gradient.map(c => c + '20'), 'transparent']}
+                    colors={[...gradient.map(c => c + '15'), 'transparent'] as any}
                     className="absolute inset-0"
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}

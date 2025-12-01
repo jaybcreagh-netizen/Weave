@@ -7,6 +7,10 @@ import { trackEvent, AnalyticsEvents, updateLastInteractionTimestamp } from '@/s
 import { analyzeAndTagLifeEvents } from '@/modules/relationships';
 import { deleteWeaveCalendarEvent } from '../calendar.service';
 
+jest.mock('@react-native-async-storage/async-storage', () =>
+  require('../../../../../__mocks__/async-storage-mock.js')
+);
+
 jest.mock('@/db', () => ({
   database: {
     get: jest.fn().mockReturnValue({

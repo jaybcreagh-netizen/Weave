@@ -56,13 +56,12 @@ const ContactItem = React.memo(({
           {shouldShowImage ? (
             <>
               <Image
-                source={{ uri: normalizeContactImageUri(item.image.uri) }}
+                source={{ uri: normalizeContactImageUri(item.image?.uri || '') }}
                 className="w-full h-full rounded-full"
                 resizeMode="cover"
                 onError={() => setImageError(true)}
                 onLoad={() => setImageLoaded(true)}
                 // Add cache control to prevent duplicate loads
-                cache="force-cache"
                 fadeDuration={0}
               />
               {/* Show initials while loading */}
@@ -143,7 +142,7 @@ export function ContactPickerGrid({ maxSelection, onSelectionChange, onAddManual
   }, []);
 
   useEffect(() => {
-    const selected = contacts.filter(c => selectedContactIds.includes(c.id));
+    const selected = contacts.filter(c => c.id && selectedContactIds.includes(c.id));
     onSelectionChange(selected);
   }, [selectedContactIds, contacts, onSelectionChange]);
 
@@ -218,12 +217,12 @@ export function ContactPickerGrid({ maxSelection, onSelectionChange, onAddManual
         <FlatList
           data={contacts}
           numColumns={3}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item) => item.id || Math.random().toString()}
           renderItem={({ item }) => (
             <ContactItem
               item={item}
-              isSelected={selectedContactIds.includes(item.id)}
-              onSelect={() => handleSelectContact(item.id)}
+              isSelected={!!item.id && selectedContactIds.includes(item.id)}
+              onSelect={() => item.id && handleSelectContact(item.id)}
             />
           )}
           contentContainerStyle={{ paddingBottom: 90, paddingTop: 10 }}

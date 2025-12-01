@@ -68,13 +68,13 @@ export function checkMeaningfulness(interaction: InteractionModel): Meaningfulne
   const reasons: string[] = [];
 
   // Check notes length
-  const noteLength = interaction.notes?.length || 0;
+  const noteLength = interaction.note?.length || 0;
   if (noteLength >= 20) {
     reasons.push('detailed notes');
   }
 
   // Check vibe
-  if (['FullMoon', 'WaxingGibbous'].includes(interaction.vibe)) {
+  if (['FullMoon', 'WaxingGibbous'].includes(interaction.vibe || '')) {
     reasons.push('meaningful moment');
   }
 
@@ -196,10 +196,10 @@ export function WeaveReflectPrompt({
   const friendNames = friends.map(f => f.name).join(' & ');
 
   // Get note preview (truncated)
-  const notePreview = interaction.notes
-    ? interaction.notes.length > 50
-      ? `"${interaction.notes.slice(0, 50)}..."`
-      : `"${interaction.notes}"`
+  const notePreview = interaction.note
+    ? interaction.note.length > 50
+      ? `"${interaction.note.slice(0, 50)}..."`
+      : `"${interaction.note}"`
     : null;
 
   return (
@@ -267,7 +267,7 @@ export function WeaveReflectPrompt({
             className="text-sm mb-4"
             style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
           >
-            {friendNames 
+            {friendNames
               ? `Want to capture more about your time with ${friendNames}?`
               : 'Want to capture more about this moment while it\'s fresh?'}
           </Text>

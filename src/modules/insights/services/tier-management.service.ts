@@ -22,7 +22,7 @@ export async function changeFriendTier(
 
     await database.write(async () => {
       const friend = await database.get<Friend>('friends').find(friendId);
-      oldTier = friend.dunbarTier;
+      oldTier = friend.dunbarTier as Tier;
 
       await friend.update((record) => {
         record.dunbarTier = newTier;
@@ -73,7 +73,7 @@ export async function dismissTierSuggestion(
 
     await database.write(async () => {
       const friend = await database.get<Friend>('friends').find(friendId);
-      currentTier = friend.dunbarTier;
+      currentTier = friend.dunbarTier as Tier;
       suggestedTier = friend.suggestedTier as Tier | undefined;
 
       await friend.update((record) => {
@@ -115,7 +115,7 @@ export async function updateTierFit(
 
     await database.write(async () => {
       const friend = await database.get<Friend>('friends').find(friendId);
-      currentTier = friend.dunbarTier;
+      currentTier = friend.dunbarTier as Tier;
 
       await friend.update((record) => {
         record.tierFitScore = fitScore;
@@ -156,7 +156,7 @@ export async function batchChangeTiers(
     await database.write(async () => {
       for (const { friendId, newTier } of updates) {
         const friend = await database.get<Friend>('friends').find(friendId);
-        const oldTier = friend.dunbarTier;
+        const oldTier = friend.dunbarTier as Tier;
 
         await friend.update((record) => {
           record.dunbarTier = newTier;

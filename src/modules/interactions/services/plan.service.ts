@@ -41,9 +41,9 @@ export async function completePlan(interactionId: string): Promise<void> {
     type: 'log',
     status: 'completed',
     mode: interaction.mode,
-    vibe: interaction.vibe,
-    duration: interaction.duration,
-    category: interaction.interactionCategory,
+    vibe: interaction.vibe as any,
+    duration: interaction.duration as any,
+    category: interaction.interactionCategory as any,
     reflection: interaction.reflectionJSON ? JSON.parse(interaction.reflectionJSON) : undefined,
   };
 

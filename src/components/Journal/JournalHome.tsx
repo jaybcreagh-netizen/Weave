@@ -229,9 +229,13 @@ export function JournalHome({
         if (m && d) {
           // Mark for current year and maybe next/prev
           const bdayStr = `${currentYear}-${m}-${d}`;
+          const existing = marks[bdayStr] || {};
+          const milestones = existing.milestones || [];
+
           marks[bdayStr] = {
-            ...(marks[bdayStr] || {}),
+            ...existing,
             isMilestone: true,
+            milestones: [...milestones, { type: 'birthday', friend }]
           };
         }
       }
@@ -239,9 +243,13 @@ export function JournalHome({
         const [m, d] = friend.anniversary.split('-');
         if (m && d) {
           const annStr = `${currentYear}-${m}-${d}`;
+          const existing = marks[annStr] || {};
+          const milestones = existing.milestones || [];
+
           marks[annStr] = {
-            ...(marks[annStr] || {}),
+            ...existing,
             isMilestone: true,
+            milestones: [...milestones, { type: 'anniversary', friend }]
           };
         }
       }
@@ -700,86 +708,117 @@ export function JournalHome({
     </ScrollView>
   );
 
-  const renderCalendarTab = () => (
-    <View className="flex-1">
-      <View className="px-5 mb-4">
-        <View
-          className="rounded-2xl overflow-hidden"
-          style={{
-            borderWidth: 1,
-            borderColor: colors.border,
-            backgroundColor: colors.card
-          }}
-        >
-          <RNCalendar
-            current={selectedDate}
-            onDayPress={(day: DateData) => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              setSelectedDate(day.dateString);
-            }}
-            markedDates={markedDates}
-            theme={{
-              backgroundColor: colors.card,
-              calendarBackground: colors.card,
-              textSectionTitleColor: colors['muted-foreground'],
-              selectedDayBackgroundColor: colors.primary,
-              selectedDayTextColor: colors['primary-foreground'],
-              todayTextColor: colors.primary,
-              dayTextColor: colors.foreground,
-              textDisabledColor: colors.muted,
-              dotColor: colors.primary,
-              selectedDotColor: colors['primary-foreground'],
-              arrowColor: colors.primary,
-              monthTextColor: colors.foreground,
-              indicatorColor: colors.primary,
-              textDayFontFamily: 'Inter_400Regular',
-              textMonthFontFamily: 'Lora_500Medium',
-              textDayHeaderFontFamily: 'Inter_500Medium',
-            }}
-            dayComponent={(props) => {
-              if (!props.date) return <View />;
-              return (
-                <JournalCalendarDay
-                  state={props.state}
-                  marking={props.marking}
-                  date={props.date as DateData}
-                  onPress={(date) => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    setSelectedDate(date.dateString);
-                  }}
-                />
-              );
-            }}
-          />
-        </View>
-      </View>
+  const renderCalendarTab = () => {
+    const selectedMarking = markedDates[selectedDate];
+    const milestones = selectedMarking?.milestones || [];
 
-      <View className="px-5 mb-2">
-        <Text
-          className="text-sm font-medium"
-          style={{ color: colors['muted-foreground'], fontFamily: 'Inter_500Medium' }}
-        >
-          {format(new Date(selectedDate), 'MMMM d, yyyy')}
-        </Text>
-      </View>
-
-      <ScrollView showsVerticalScrollIndicator={false} className="flex-1">
-        {selectedDateEntries.length === 0 ? (
-          <View className="items-center justify-center py-12">
-            <Text
-              className="text-base text-center"
-              style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
-            >
-              No entries for this day
-            </Text>
+    return (
+      <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+        <View className="px-5 mb-4">
+          <View
+            className="rounded-2xl overflow-hidden"
+            style={{
+              borderWidth: 1,
+              borderColor: colors.border,
+              backgroundColor: colors.card
+            }}
+          >
+            <RNCalendar
+              current={selectedDate}
+              onDayPress={(day: DateData) => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setSelectedDate(day.dateString);
+              }}
+              markedDates={markedDates}
+              theme={{
+                backgroundColor: colors.card,
+                calendarBackground: colors.card,
+                textSectionTitleColor: colors['muted-foreground'],
+                selectedDayBackgroundColor: colors.primary,
+                selectedDayTextColor: colors['primary-foreground'],
+                todayTextColor: colors.primary,
+                dayTextColor: colors.foreground,
+                textDisabledColor: colors.muted,
+                dotColor: colors.primary,
+                selectedDotColor: colors['primary-foreground'],
+                arrowColor: colors.primary,
+                monthTextColor: colors.foreground,
+                indicatorColor: colors.primary,
+                textDayFontFamily: 'Inter_400Regular',
+                textMonthFontFamily: 'Lora_500Medium',
+                textDayHeaderFontFamily: 'Inter_500Medium',
+              }}
+              dayComponent={(props: any) => {
+                if (!props.date) return <View />;
+                return (
+                  <JournalCalendarDay
+                    state={props.state}
+                    marking={props.marking}
+                    date={props.date as DateData}
+                    onPress={(date) => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      setSelectedDate(date.dateString);
+                    }}
+                  />
+                );
+              }}
+            />
           </View>
-        ) : (
-          selectedDateEntries.map((entry, index) => renderEntryCard(entry, index))
+        </View>
+
+        <View className="px-5 mb-2">
+          <Text
+            className="text-sm font-medium"
+            style={{ color: colors['muted-foreground'], fontFamily: 'Inter_500Medium' }}
+          >
+            {format(new Date(selectedDate), 'MMMM d, yyyy')}
+          </Text>
+        </View>
+
+        {/* Milestones Display */}
+        {milestones.length > 0 && (
+          <View className="px-5 mb-4">
+            {milestones.map((m: any, i: number) => (
+              <Animated.View
+                key={i}
+                entering={FadeInDown.delay(100 + i * 50)}
+                className="flex-row items-center p-3 rounded-xl mb-2"
+                style={{
+                  backgroundColor: colors.primary + '10',
+                  borderWidth: 1,
+                  borderColor: colors.primary + '20'
+                }}
+              >
+                <Gift size={16} color={colors.primary} />
+                <Text
+                  className="ml-2 text-sm font-medium"
+                  style={{ color: colors.foreground, fontFamily: 'Inter_500Medium' }}
+                >
+                  {m.type === 'birthday' ? `${m.friend.name}'s Birthday` : `${m.friend.name}'s Anniversary`}
+                </Text>
+              </Animated.View>
+            ))}
+          </View>
         )}
-        <View className="h-24" />
+
+        <View>
+          {selectedDateEntries.length === 0 && milestones.length === 0 ? (
+            <View className="items-center justify-center py-12">
+              <Text
+                className="text-base text-center"
+                style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
+              >
+                No entries for this day
+              </Text>
+            </View>
+          ) : (
+            selectedDateEntries.map((entry, index) => renderEntryCard(entry, index))
+          )}
+          <View className="h-24" />
+        </View>
       </ScrollView>
-    </View>
-  );
+    );
+  };
 
   // ============================================================================
   // MAIN RENDER

@@ -64,8 +64,7 @@ function ChoiceCard({
       >
         <BlurView intensity={isDarkMode ? 40 : 80} tint={isDarkMode ? 'dark' : 'light'}>
           <LinearGradient
-            colors={gradient}
-            start={{ x: 0, y: 0 }}
+            colors={['transparent', isDarkMode ? '#1a1d2e' : '#FAF1E0'] as any}
             end={{ x: 1, y: 1 }}
             style={{ padding: 20 }}
           >

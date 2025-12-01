@@ -11,7 +11,7 @@ interface IntentionFormModalProps {
   isOpen: boolean;
   friendName: string;
   onClose: () => void;
-  onSave: (description: string, category?: InteractionCategory) => Promise<void>;
+  onSave: (description: string | undefined, category?: InteractionCategory) => Promise<void>;
 }
 
 /**

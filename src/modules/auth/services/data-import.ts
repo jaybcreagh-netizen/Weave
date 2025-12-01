@@ -235,7 +235,7 @@ export async function importData(
             friend._raw.id = friendData.id;
             friend.name = friendData.name;
             friend.dunbarTier = friendData.dunbarTier;
-            friend.archetype = friendData.archetype;
+            friend.archetype = friendData.archetype as any;
             friend.photoUrl = friendData.photoUrl || '';
             friend.notes = friendData.notes || '';
             friend.weaveScore = friendData.weaveScore;

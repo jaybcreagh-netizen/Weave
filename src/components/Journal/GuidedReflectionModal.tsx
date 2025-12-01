@@ -201,8 +201,8 @@ export function GuidedReflectionModal({
     setSelectedFriendIds(new Set(weave.friends.map(f => f.id)));
 
     // Pre-fill text with weave notes if we don't have prefilled text
-    if (!prefilledText && weave.interaction.notes) {
-      setText(weave.interaction.notes + '\n\n');
+    if (!prefilledText && weave.interaction.note) {
+      setText(weave.interaction.note + '\n\n');
     }
 
     // Go to prompt step
@@ -296,13 +296,11 @@ export function GuidedReflectionModal({
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     try {
-      let savedEntry: JournalEntry | null = null;
-
-      await database.write(async () => {
-        savedEntry = await database.get<JournalEntry>('journal_entries').create((entry) => {
+      const savedEntry = await database.write(async () => {
+        return await database.get<JournalEntry>('journal_entries').create((entry) => {
           entry.content = text.trim();
           entry.entryDate = Date.now();
-          entry.friendTags = JSON.stringify(Array.from(selectedFriendIds));
+          // entry.friendTags = JSON.stringify(Array.from(selectedFriendIds)); // Removed as property does not exist
           entry.title = generateTitle(text, selectedPrompt);
           entry.isDraft = false;
 
@@ -371,9 +369,9 @@ export function GuidedReflectionModal({
     }
 
     // Default
-    const date = new Date().toLocaleDateString('en-GB', { 
-      day: 'numeric', 
-      month: 'short' 
+    const date = new Date().toLocaleDateString('en-GB', {
+      day: 'numeric',
+      month: 'short'
     });
     return `Reflection · ${date}`;
   };
@@ -452,13 +450,13 @@ export function GuidedReflectionModal({
                   </Text>
                 )}
 
-                {weave.interaction.notes && (
+                {weave.interaction.note && (
                   <Text
                     className="text-sm italic"
                     style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
                     numberOfLines={2}
                   >
-                    "{weave.interaction.notes}"
+                    "{weave.interaction.note}"
                   </Text>
                 )}
 
@@ -603,12 +601,12 @@ export function GuidedReflectionModal({
                   {selectedContext.weave.interaction.activity || 'Connection'} with{' '}
                   {selectedContext.weave.friends.map(f => f.name).join(' & ')}
                 </Text>
-                {selectedContext.weave.interaction.notes && (
+                {selectedContext.weave.interaction.note && (
                   <Text
                     className="text-sm italic mt-1"
                     style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
                   >
-                    "{selectedContext.weave.interaction.notes}"
+                    "{selectedContext.weave.interaction.note}"
                   </Text>
                 )}
               </View>
@@ -1072,8 +1070,8 @@ export function GuidedReflectionModal({
                   s === step
                     ? colors.primary
                     : ['context', 'prompt', 'write'].indexOf(step) > i
-                    ? colors.primary + '50'
-                    : colors.border,
+                      ? colors.primary + '50'
+                      : colors.border,
               }}
             />
           ))}

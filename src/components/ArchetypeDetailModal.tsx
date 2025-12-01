@@ -28,6 +28,7 @@ const TAROT_CARD_COMPONENTS: Record<Archetype, React.FC<any>> = {
   Hermit: HermitSvg,
   Magician: MagicianSvg,
   Lovers: LoversSvg,
+  Unknown: React.Fragment,
 };
 
 // Helper: Get top interaction suggestions for an archetype

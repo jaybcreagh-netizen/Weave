@@ -1,11 +1,12 @@
 import { Model, Query } from '@nozbe/watermelondb';
+import { Associations } from '@nozbe/watermelondb/Model';
 import { field, date, text, writer, readonly, children } from '@nozbe/watermelondb/decorators'
 import IntentionFriend from './IntentionFriend';
 
 export default class Intention extends Model {
   static table = 'intentions';
 
-  static associations = {
+  static associations: Associations = {
     intention_friends: { type: 'has_many', foreignKey: 'intention_id' },
   };
 
@@ -27,7 +28,7 @@ export default class Intention extends Model {
   // Cloud sync fields (v31)
   @field('user_id') userId?: string;
   @field('synced_at') syncedAt?: number;
-  @text('sync_status') syncStatus?: string;
+  @text('sync_status') customSyncStatus?: string;
   @field('server_updated_at') serverUpdatedAt?: number;
 
   async prepareDestroyWithChildren() {

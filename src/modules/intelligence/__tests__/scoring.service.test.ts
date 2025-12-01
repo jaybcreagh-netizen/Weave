@@ -43,7 +43,7 @@ describe('Scoring Service', () => {
         duration: 'Standard',
         vibe: 'WaxingCrescent',
         groupSize: 1,
-      } as InteractionFormData;
+      } as any;
 
       const points = calculatePointsForWeave(mockFriend, interactionData);
       expect(points).toBeCloseTo(25.652);
@@ -55,7 +55,7 @@ describe('Scoring Service', () => {
         duration: 'Standard',
         vibe: 'FullMoon', // 1.5x multiplier
         groupSize: 1,
-      } as InteractionFormData;
+      } as any;
 
       const points = calculatePointsForWeave(mockFriend, interactionData);
       expect(points).toBeCloseTo(38.478);
@@ -67,7 +67,7 @@ describe('Scoring Service', () => {
         duration: 'Extended', // 1.2x modifier
         vibe: 'WaxingCrescent',
         groupSize: 1,
-      } as InteractionFormData;
+      } as any;
 
       const points = calculatePointsForWeave(mockFriend, interactionData);
       expect(points).toBeCloseTo(30.7824);
@@ -80,7 +80,7 @@ describe('Scoring Service', () => {
         duration: 'Standard',
         vibe: 'WaxingCrescent',
         groupSize: 1,
-      } as InteractionFormData;
+      } as any;
 
       const points = calculatePointsForWeave(mockFriend, interactionData);
       expect(points).toBeCloseTo(23.32);
@@ -92,7 +92,7 @@ describe('Scoring Service', () => {
         duration: 'Standard',
         vibe: 'WaxingCrescent',
         groupSize: 4, // 0.7x dilution
-      } as InteractionFormData;
+      } as any;
 
       const points = calculatePointsForWeave(mockFriend, interactionData);
       expect(points).toBeCloseTo(17.9564);
@@ -105,7 +105,7 @@ describe('Scoring Service', () => {
         vibe: 'WaxingCrescent',
         groupSize: 1,
         eventImportance: 'high', // 1.3x multiplier
-      } as InteractionFormData;
+      } as any;
       mockFriend.archetype = 'Sun';
 
       const points = calculatePointsForWeave(mockFriend, interactionData);
@@ -120,7 +120,7 @@ describe('Scoring Service', () => {
         duration: 'Standard',
         vibe: 'WaxingCrescent',
         groupSize: 1,
-      } as InteractionFormData;
+      } as any;
 
       const points = calculatePointsForWeave(mockFriend, interactionData);
       expect(points).toBeCloseTo(31.46);
@@ -134,7 +134,7 @@ describe('Scoring Service', () => {
         duration: 'Standard',
         vibe: 'WaxingCrescent',
         groupSize: 4, // 0.7x dilution
-      } as InteractionFormData;
+      } as any;
 
       const points = calculatePointsForWeave(mockFriend, interactionData);
       expect(points).toBeCloseTo(21.70256);

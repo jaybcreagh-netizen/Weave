@@ -145,12 +145,12 @@ export async function createWeaveCalendarEvent(params: {
     const eventTitle = `🧵 Weave with ${params.friendNames} - ${params.title || params.category}`;
     const eventNotes = `📅 Planned weave with ${params.friendNames}\n\nActivity: ${params.category}\nLocation: ${params.location || 'N/A'}\n\nNotes:\n${params.notes || ''}\n\n---\nCreated by Weave`;
 
-    const eventDetails: Calendar.Event = {
+    const eventDetails: Partial<Calendar.Event> = {
       title: eventTitle,
       startDate,
       endDate: hasTime ? new Date(startDate.getTime() + 2 * 60 * 60 * 1000) : startDate,
       notes: eventNotes,
-      location: params.location,
+      location: params.location || '',
       allDay: !hasTime,
       alarms: settings.reminderMinutes > 0 && hasTime ? [{ relativeOffset: -settings.reminderMinutes }] : [],
     };

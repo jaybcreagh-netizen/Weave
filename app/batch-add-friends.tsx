@@ -161,7 +161,7 @@ function BatchContactPicker({
   }, []);
 
   React.useEffect(() => {
-    const selected = contacts.filter(c => selectedContactIds.includes(c.id));
+    const selected = contacts.filter(c => c.id && selectedContactIds.includes(c.id));
     onSelectionChange(selected);
   }, [selectedContactIds, contacts, onSelectionChange]);
 
@@ -290,14 +290,14 @@ function BatchContactPicker({
       <FlatList
         data={filteredContacts}
         numColumns={3}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => item.id || Math.random().toString()}
         renderItem={({ item }) => {
-          const isSelected = selectedContactIds.includes(item.id);
+          const isSelected = item.id ? selectedContactIds.includes(item.id) : false;
           const avatarColor = getAvatarColor(item.name || '');
 
           return (
             <TouchableOpacity
-              onPress={() => handleSelectContact(item.id)}
+              onPress={() => item.id && handleSelectContact(item.id)}
               style={{ alignItems: 'center', padding: 12, width: '33.33%' }}
             >
               <View style={{ position: 'relative' }}>
@@ -313,16 +313,16 @@ function BatchContactPicker({
                     borderColor: '#10b981',
                   }}
                 >
-                  {item.imageAvailable && item.image && !imageError[item.id] ? (
+                  {item.imageAvailable && item.image && item.id && !imageError[item.id] ? (
                     <Image
                       source={{ uri: normalizeContactImageUri(item.image.uri) }}
                       style={{ width: '100%', height: '100%', borderRadius: 40 }}
                       resizeMode="cover"
-                      onError={() => setImageError(prev => ({ ...prev, [item.id]: true }))}
+                      onError={() => item.id && setImageError(prev => ({ ...prev, [item.id as string]: true }))}
                     />
                   ) : (
                     <Text style={{ fontSize: 24, fontWeight: '600', color: 'white' }}>
-                      {getInitials(item.name)}
+                      {getInitials(item.name || '')}
                     </Text>
                   )}
                 </View>

@@ -48,7 +48,7 @@ export function IntentionActionSheet({
           .fetch();
 
         if (intentionFriends.length > 0) {
-          const friendRecord = await intentionFriends[0].friend.fetch();
+          const friendRecord = await (intentionFriends[0] as any).friend.fetch();
           setFriend(friendRecord);
         }
       };

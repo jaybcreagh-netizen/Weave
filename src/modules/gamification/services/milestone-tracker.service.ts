@@ -208,9 +208,9 @@ export async function recordPractice(practiceType: string = 'log_weave', related
 
     // Log the practice to practice_log table
     await database.get<PracticeLog>('practice_log').create(log => {
-      log.practiceDate = new Date(todayTimestamp);
-      log.practiceType = practiceType;
-      log.relatedId = relatedId;
+      (log as any).practiceDate = new Date(todayTimestamp);
+      (log as any).practiceType = practiceType;
+      (log as any).relatedId = relatedId;
     });
 
     // Check if already practiced today

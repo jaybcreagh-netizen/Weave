@@ -6,6 +6,7 @@ import { database } from '@/db';
 import SuggestionEvent from '@/db/models/SuggestionEvent';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { scheduleEventSuggestionNotification } from '@/modules/notifications';
+import Logger from '@/shared/utils/Logger';
 
 // Task identifier
 const BACKGROUND_EVENT_SYNC_TASK = 'BACKGROUND_EVENT_SYNC';
@@ -42,7 +43,7 @@ export async function getBackgroundSyncSettings(): Promise<BackgroundSyncSetting
     const settings = await AsyncStorage.getItem(BACKGROUND_SYNC_SETTINGS_KEY);
     return settings ? { ...DEFAULT_SETTINGS, ...JSON.parse(settings) } : DEFAULT_SETTINGS;
   } catch (error) {
-    console.error('[BackgroundSync] Error loading settings:', error);
+    Logger.error('[BackgroundSync] Error loading settings:', error);
     return DEFAULT_SETTINGS;
   }
 }
@@ -65,7 +66,7 @@ export async function saveBackgroundSyncSettings(settings: Partial<BackgroundSyn
       }
     }
   } catch (error) {
-    console.error('[BackgroundSync] Error saving settings:', error);
+    Logger.error('[BackgroundSync] Error saving settings:', error);
   }
 }
 
@@ -83,19 +84,19 @@ export async function isBackgroundSyncEnabled(): Promise<boolean> {
  */
 TaskManager.defineTask(BACKGROUND_EVENT_SYNC_TASK, async () => {
   try {
-    console.log('[BackgroundSync] Starting background event scan...');
+    Logger.info('[BackgroundSync] Starting background event scan...');
 
     // Check if feature is enabled
     const settings = await getBackgroundSyncSettings();
     if (!settings.enabled) {
-      console.log('[BackgroundSync] Feature disabled, skipping scan');
+      Logger.info('[BackgroundSync] Feature disabled, skipping scan');
       return BackgroundFetch.BackgroundFetchResult.NoData;
     }
 
     // Check if calendar integration is enabled
     const calendarSettings = await getCalendarSettings();
     if (!calendarSettings.enabled || !calendarSettings.twoWaySync) {
-      console.log('[BackgroundSync] Calendar sync disabled, skipping scan');
+      Logger.info('[BackgroundSync] Calendar sync disabled, skipping scan');
       return BackgroundFetch.BackgroundFetchResult.NoData;
     }
 
@@ -112,7 +113,7 @@ TaskManager.defineTask(BACKGROUND_EVENT_SYNC_TASK, async () => {
       minImportance: settings.minImportance,
     });
 
-    console.log(`[BackgroundSync] Scanned ${scanResult.totalScanned} events, found ${scanResult.matchedEvents} with friend matches`);
+    Logger.info(`[BackgroundSync] Scanned ${scanResult.totalScanned} events, found ${scanResult.matchedEvents} with friend matches`);
 
     // Process matched events
     // NOTE: Regular events are handled in weekly reflection (no notifications)
@@ -124,7 +125,7 @@ TaskManager.defineTask(BACKGROUND_EVENT_SYNC_TASK, async () => {
       // Check if we've already suggested this event
       const alreadySuggested = await checkIfEventAlreadySuggested(event.id);
       if (alreadySuggested) {
-        console.log(`[BackgroundSync] Skipping already-suggested event: ${event.title}`);
+        Logger.debug(`[BackgroundSync] Skipping already-suggested event: ${event.title}`);
         continue;
       }
 
@@ -139,24 +140,24 @@ TaskManager.defineTask(BACKGROUND_EVENT_SYNC_TASK, async () => {
       if (isLifeEvent && settings.notificationsEnabled) {
         await scheduleEventSuggestionNotification(event);
         suggestionsCreated++;
-        console.log(`[BackgroundSync] Scheduled notification for life event: ${event.title}`);
+        Logger.info(`[BackgroundSync] Scheduled notification for life event: ${event.title}`);
       } else {
         // Regular events will be shown in weekly reflection
-        console.log(`[BackgroundSync] Event "${event.title}" will appear in weekly reflection`);
+        Logger.debug(`[BackgroundSync] Event "${event.title}" will appear in weekly reflection`);
       }
     }
 
     // Update last sync timestamp
     await saveBackgroundSyncSettings({ lastSyncTimestamp: Date.now() });
 
-    console.log(`[BackgroundSync] Completed. Created ${suggestionsCreated} suggestions.`);
+    Logger.info(`[BackgroundSync] Completed. Created ${suggestionsCreated} suggestions.`);
 
     return suggestionsCreated > 0
       ? BackgroundFetch.BackgroundFetchResult.NewData
       : BackgroundFetch.BackgroundFetchResult.NoData;
 
   } catch (error) {
-    console.error('[BackgroundSync] Error during background sync:', error);
+    Logger.error('[BackgroundSync] Error during background sync:', error);
     return BackgroundFetch.BackgroundFetchResult.Failed;
   }
 });
@@ -170,7 +171,7 @@ async function checkIfEventAlreadySuggested(eventId: string): Promise<boolean> {
     const value = await AsyncStorage.getItem(key);
     return value !== null;
   } catch (error) {
-    console.error('[BackgroundSync] Error checking suggested events:', error);
+    Logger.error('[BackgroundSync] Error checking suggested events:', error);
     return false;
   }
 }
@@ -202,7 +203,7 @@ async function trackSuggestedEvent(eventId: string, friendIds: string[]): Promis
       }
     });
   } catch (error) {
-    console.error('[BackgroundSync] Error tracking suggested event:', error);
+    Logger.error('[BackgroundSync] Error tracking suggested event:', error);
   }
 }
 
@@ -217,7 +218,7 @@ export async function registerBackgroundSyncTask(): Promise<boolean> {
     const isRegistered = await TaskManager.isTaskRegisteredAsync(BACKGROUND_EVENT_SYNC_TASK);
 
     if (isRegistered) {
-      console.log('[BackgroundSync] Task already registered');
+      Logger.info('[BackgroundSync] Task already registered');
       return true;
     }
 
@@ -228,10 +229,10 @@ export async function registerBackgroundSyncTask(): Promise<boolean> {
       startOnBoot: true, // Start when device boots
     });
 
-    console.log('[BackgroundSync] Task registered successfully');
+    Logger.info('[BackgroundSync] Task registered successfully');
     return true;
   } catch (error) {
-    console.error('[BackgroundSync] Error registering background task:', error);
+    Logger.error('[BackgroundSync] Error registering background task:', error);
     return false;
   }
 }
@@ -244,15 +245,15 @@ export async function unregisterBackgroundSyncTask(): Promise<boolean> {
     const isRegistered = await TaskManager.isTaskRegisteredAsync(BACKGROUND_EVENT_SYNC_TASK);
 
     if (!isRegistered) {
-      console.log('[BackgroundSync] Task not registered, nothing to unregister');
+      Logger.info('[BackgroundSync] Task not registered, nothing to unregister');
       return true;
     }
 
     await BackgroundFetch.unregisterTaskAsync(BACKGROUND_EVENT_SYNC_TASK);
-    console.log('[BackgroundSync] Task unregistered successfully');
+    Logger.info('[BackgroundSync] Task unregistered successfully');
     return true;
   } catch (error) {
-    console.error('[BackgroundSync] Error unregistering background task:', error);
+    Logger.error('[BackgroundSync] Error unregistering background task:', error);
     return false;
   }
 }
@@ -265,7 +266,7 @@ export async function getBackgroundFetchStatus(): Promise<BackgroundFetch.Backgr
     const status = await BackgroundFetch.getStatusAsync();
     return status ?? BackgroundFetch.BackgroundFetchStatus.Restricted;
   } catch (error) {
-    console.error('[BackgroundSync] Error getting background fetch status:', error);
+    Logger.error('[BackgroundSync] Error getting background fetch status:', error);
     return BackgroundFetch.BackgroundFetchStatus.Restricted;
   }
 }
@@ -275,19 +276,19 @@ export async function getBackgroundFetchStatus(): Promise<BackgroundFetch.Backgr
  */
 export async function triggerManualSync(): Promise<void> {
   try {
-    console.log('[BackgroundSync] Triggering manual sync...');
+    Logger.info('[BackgroundSync] Triggering manual sync...');
     const isRegistered = await TaskManager.isTaskRegisteredAsync(BACKGROUND_EVENT_SYNC_TASK);
 
     if (!isRegistered) {
-      console.log('[BackgroundSync] Task not registered, registering first...');
+      Logger.info('[BackgroundSync] Task not registered, registering first...');
       await registerBackgroundSyncTask();
     }
 
     // Manually execute the task
     await TaskManager.getTaskOptionsAsync(BACKGROUND_EVENT_SYNC_TASK);
-    console.log('[BackgroundSync] Manual sync triggered');
+    Logger.info('[BackgroundSync] Manual sync triggered');
   } catch (error) {
-    console.error('[BackgroundSync] Error triggering manual sync:', error);
+    Logger.error('[BackgroundSync] Error triggering manual sync:', error);
   }
 }
 
@@ -310,8 +311,8 @@ export async function cleanupOldSuggestedEvents(): Promise<void> {
       }
     }
 
-    console.log('[BackgroundSync] Cleaned up old suggested events');
+    Logger.info('[BackgroundSync] Cleaned up old suggested events');
   } catch (error) {
-    console.error('[BackgroundSync] Error cleaning up suggested events:', error);
+    Logger.error('[BackgroundSync] Error cleaning up suggested events:', error);
   }
 }

@@ -1,28 +1,37 @@
 import { Model } from '@nozbe/watermelondb'
 import { field, date, children, text, writer, readonly } from '@nozbe/watermelondb/decorators'
+import { Associations } from '@nozbe/watermelondb/Model'
 import { type StructuredReflection } from '@/components/types'
 
 export default class Interaction extends Model {
   static table = 'interactions'
 
-  static associations: any = {
+  static associations: Associations = {
     interaction_friends: { type: 'has_many', foreignKey: 'interaction_id' }
   }
 
-  @children('interaction_friends') interactionFriends
+  @children('interaction_friends') interactionFriends!: any
 
   @date('interaction_date') interactionDate!: Date
   @field('interaction_type') interactionType!: string
   @field('duration') duration?: string
   @field('vibe') vibe?: string
   @text('note') note?: string
+
+  get notes(): string | undefined {
+    return this.note
+  }
+
+  set notes(value: string | undefined) {
+    this.note = value
+  }
   @readonly @date('created_at') createdAt!: Date
   @date('updated_at') updatedAt!: Date
 
   // Cloud sync fields (v31)
   @field('user_id') userId?: string
   @field('synced_at') syncedAt?: number
-  @text('sync_status') syncStatus?: string
+  @text('sync_status') customSyncStatus?: string
   @field('server_updated_at') serverUpdatedAt?: number
 
   @text('activity') activity!: string
@@ -65,7 +74,7 @@ export default class Interaction extends Model {
 
   async prepareDestroyWithChildren() {
     const friends = await this.interactionFriends.fetch();
-    const friendsToDelete = friends.map(friend => friend.prepareDestroyPermanently());
+    const friendsToDelete = friends.map((friend: any) => friend.prepareDestroyPermanently());
     await this.batch(...friendsToDelete);
     return this.prepareDestroyPermanently()
   }

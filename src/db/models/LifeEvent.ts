@@ -1,5 +1,6 @@
 import { Model } from '@nozbe/watermelondb';
 import { field, text, readonly, date, relation } from '@nozbe/watermelondb/decorators';
+import { Associations } from '@nozbe/watermelondb/Model';
 import Friend from './Friend';
 
 export type LifeEventType =
@@ -21,7 +22,7 @@ export type LifeEventSource = 'manual' | 'keyword_detected' | 'recurring';
 export default class LifeEvent extends Model {
   static table = 'life_events';
 
-  static associations = {
+  static associations: Associations = {
     friends: { type: 'belongs_to', key: 'friend_id' },
   };
 
@@ -43,7 +44,7 @@ export default class LifeEvent extends Model {
   // Cloud sync fields (v31)
   @field('user_id') userId?: string;
   @field('synced_at') syncedAt?: number;
-  @text('sync_status') syncStatus?: string;
+  @text('sync_status') customSyncStatus?: string;
   @field('server_updated_at') serverUpdatedAt?: number;
 
 }

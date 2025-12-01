@@ -451,10 +451,10 @@ async function detectQualityDepthPattern(weaves: Interaction[]): Promise<Pattern
   const qualityData = await Promise.all(
     weaves.map(async (weave) => {
       const quality = calculateInteractionQuality({
-        vibe: weave.vibe,
-        duration: weave.duration,
-        note: weave.note,
-        reflectionJSON: weave.reflectionJSON,
+        vibe: weave.vibe as any,
+        duration: weave.duration as any,
+        note: weave.note || null,
+        reflectionJSON: weave.reflectionJSON || null,
       });
 
       // Get friend names
@@ -466,7 +466,7 @@ async function detectQualityDepthPattern(weaves: Interaction[]): Promise<Pattern
       const friendNames = await Promise.all(
         interactionFriends.map(async (ifriend: InteractionFriend) => {
           try {
-            const friendId = ifriend._raw.friend_id as string;
+            const friendId = ifriend.friendId;
             const friend = await database.get<FriendModel>('friends').find(friendId);
             return friend.name;
           } catch {
@@ -599,7 +599,7 @@ async function detectArchetypeAffinityPattern(weaves: Interaction[]): Promise<Pa
       .fetch();
 
     for (const ifriend of interactionFriends) {
-      const friendId = ifriend._raw.friend_id as string;
+      const friendId = ifriend.friendId;
       const archetype = friendArchetypeMap.get(friendId);
       if (!archetype) continue;
 

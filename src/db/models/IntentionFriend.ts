@@ -1,4 +1,5 @@
 import { Model, Relation } from '@nozbe/watermelondb';
+import { Associations } from '@nozbe/watermelondb/Model';
 import { relation, field, text } from '@nozbe/watermelondb/decorators';
 import Intention from './Intention';
 import FriendModel from './Friend';
@@ -6,7 +7,7 @@ import FriendModel from './Friend';
 export default class IntentionFriend extends Model {
   static table = 'intention_friends';
 
-  static associations = {
+  static associations: Associations = {
     intentions: { type: 'belongs_to', key: 'intention_id' },
     friends: { type: 'belongs_to', key: 'friend_id' },
   };
@@ -20,5 +21,5 @@ export default class IntentionFriend extends Model {
   // Cloud sync fields (v31)
   @field('user_id') userId?: string;
   @field('synced_at') syncedAt?: number;
-  @text('sync_status') syncStatus?: string;
+  @text('sync_status') customSyncStatus?: string;
 }

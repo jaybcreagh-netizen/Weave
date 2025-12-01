@@ -33,6 +33,7 @@ import FoolIcon from '@/assets/TarotIcons/TheFool.svg';
 import SunIcon from '@/assets/TarotIcons/TheSun.svg';
 import HermitIcon from '@/assets/TarotIcons/TheHermit.svg';
 import MagicianIcon from '@/assets/TarotIcons/TheMagician.svg';
+import LoversIcon from '@/assets/TarotIcons/TheLovers.svg';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_WIDTH = SCREEN_WIDTH - 80;
@@ -62,6 +63,8 @@ const TAROT_CARD_SOURCES: Record<Archetype, any> = {
   Sun: SunIcon,
   Hermit: HermitIcon,
   Magician: MagicianIcon,
+  Lovers: LoversIcon,
+  Unknown: null,
 };
 
 export function ArchetypeCarouselPicker({
@@ -115,6 +118,8 @@ export function ArchetypeCarouselPicker({
       Sun: ['#eab308', '#ca8a04'],
       Hermit: ['#6366f1', '#4f46e5'],
       Magician: ['#ec4899', '#db2777'],
+      Lovers: ['#fb7185', '#f43f5e'],
+      Unknown: ['#9ca3af', '#6b7280'],
     };
     return gradients[archetype] || ['#6b7280', '#4b5563'];
   };
@@ -140,7 +145,7 @@ export function ArchetypeCarouselPicker({
         >
           {/* Gradient Background */}
           <LinearGradient
-            colors={[...gradient.map(c => c + '15'), 'transparent']}
+            colors={[...gradient.map(c => c + (isSelected ? 'E6' : '10')), 'transparent'] as any}
             style={styles.gradientBackground}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}

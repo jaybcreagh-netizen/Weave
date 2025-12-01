@@ -32,6 +32,7 @@ const ARCHETYPE_GRADIENTS: Record<Archetype, string[]> = {
   Hermit: ['#6366f1', '#4f46e5'],
   Magician: ['#ec4899', '#db2777'],
   Lovers: ['#fb7185', '#f43f5e'],
+  Unknown: ['#9ca3af', '#6b7280'],
 };
 
 // Map archetypes to their tarot card SVG components
@@ -44,12 +45,13 @@ const TAROT_CARD_COMPONENTS: Record<Archetype, React.FC<any>> = {
   Hermit: HermitSvg,
   Magician: MagicianSvg,
   Lovers: LoversSvg,
+  Unknown: React.Fragment,
 };
 
 export function ArchetypeCard({
-    archetype,
-    isSelected = false,
-    onSelect,
+  archetype,
+  isSelected = false,
+  onSelect,
 }: ArchetypeCardProps) {
   const { setArchetypeModal } = useUIStore();
   const { colors } = useTheme();
@@ -92,7 +94,7 @@ export function ArchetypeCard({
     >
       {/* Gradient Background - more prominent when selected */}
       <LinearGradient
-        colors={[...gradient.map(c => c + (isSelected ? 'E6' : '10')), 'transparent']}
+        colors={[...gradient.map(c => c + (isSelected ? 'E6' : '10')), 'transparent'] as any}
         className="absolute inset-0"
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}

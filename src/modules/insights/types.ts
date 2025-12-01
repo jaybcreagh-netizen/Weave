@@ -1,5 +1,5 @@
 import { Tier, Archetype } from '@/shared/types/core';
-import { InteractionCategory } from '@/shared/types/interactions';
+// import { InteractionCategory } from '@/shared/types/interactions';
 
 // Trend Types
 export type TrendDirection = 'improving' | 'stable' | 'declining';
@@ -58,7 +58,7 @@ export interface FriendshipPortfolio {
 
   // Category Distribution (what types of interactions)
   categoryDistribution: {
-    category: InteractionCategory;
+    category: string;
     count: number;
     percentage: number;
   }[];
@@ -109,8 +109,8 @@ export interface ProactiveSuggestion {
 
 // Effectiveness Types
 export interface EffectivenessInsights {
-  mostEffective: Array<{ category: InteractionCategory; ratio: number }>;
-  leastEffective: Array<{ category: InteractionCategory; ratio: number }>;
+  mostEffective: Array<{ category: string; ratio: number }>;
+  leastEffective: Array<{ category: string; ratio: number }>;
   confidenceLevel: 'low' | 'medium' | 'high';
   sampleSize: number;
   recommendations: string[];

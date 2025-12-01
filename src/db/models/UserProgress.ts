@@ -1,4 +1,5 @@
 import { Model } from '@nozbe/watermelondb';
+import { Associations } from '@nozbe/watermelondb/Model';
 import { field, date, json, text } from '@nozbe/watermelondb/decorators';
 
 /**
@@ -11,6 +12,7 @@ import { field, date, json, text } from '@nozbe/watermelondb/decorators';
  */
 export default class UserProgress extends Model {
   static table = 'user_progress';
+  static associations: Associations = {};
 
   // Path of Consistency - tracks "practice" streak (any intentional action)
   @field('current_streak') currentStreak!: number;
@@ -57,6 +59,6 @@ export default class UserProgress extends Model {
   // Cloud sync fields (v31)
   @field('user_id') userId?: string;
   @field('synced_at') syncedAt?: number;
-  @text('sync_status') syncStatus?: string;
+  @text('sync_status') customSyncStatus?: string;
   @field('server_updated_at') serverUpdatedAt?: number;
 }

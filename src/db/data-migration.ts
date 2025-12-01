@@ -1,6 +1,22 @@
 import { Database } from '@nozbe/watermelondb';
 import { InteractionCategory, ActivityType } from '@/components/types';
-import { migrateActivityToCategory } from '@/shared/constants/interaction-categories';
+// import { migrateActivityToCategory } from '@/shared/constants/interaction-categories';
+
+
+// Helper to migrate old activity types to new categories
+function migrateActivityToCategory(activity: string): InteractionCategory {
+  const map: Record<string, InteractionCategory> = {
+    'catch_up': 'text-call',
+    'deep_talk': 'deep-talk',
+    'hangout': 'hangout',
+    'party': 'event-party',
+    'activity': 'activity-hobby',
+    'travel': 'activity-hobby',
+    'work': 'activity-hobby',
+    'other': 'text-call',
+  };
+  return map[activity] || 'text-call';
+}
 
 /**
  * Migrate existing interactions to use the new category system
@@ -31,12 +47,12 @@ export async function migrateInteractionsToCategories(database: Database): Promi
       for (const interaction of allInteractions) {
         try {
           // Skip if already has a category
-          if (interaction._raw.interaction_category) {
+          if ((interaction._raw as any).interaction_category) {
             continue;
           }
 
           // Get the old activity field
-          const oldActivity = interaction._raw.activity as ActivityType;
+          const oldActivity = (interaction._raw as any).activity as ActivityType;
 
           if (!oldActivity) {
             console.warn(`[Data Migration] Interaction ${interaction.id} has no activity field, skipping`);
@@ -48,7 +64,7 @@ export async function migrateInteractionsToCategories(database: Database): Promi
 
           // Update the interaction
           await interaction.update((record: any) => {
-            record._raw.interaction_category = newCategory;
+            (record._raw as any).interaction_category = newCategory;
           });
 
           migratedCount++;
@@ -90,7 +106,7 @@ export async function isDataMigrationComplete(database: Database): Promise<boole
 
     // Check if all interactions have a category
     const unmigrated = allInteractions.filter(
-      (interaction) => !interaction._raw.interaction_category
+      (interaction) => !(interaction._raw as any).interaction_category
     );
 
     const isComplete = unmigrated.length === 0;

@@ -23,7 +23,7 @@ import { useTheme } from '@/shared/hooks/useTheme';
 import { useUserProfileStore } from '@/modules/auth';
 import { MoonPhaseIllustration } from './MoonPhaseIllustration';
 import { PatternsTabContent } from './PatternsTabContent';
-import { ReflectionJourneyModal } from '../ReflectionJourney/ReflectionJourneyModal';
+// import { ReflectionJourneyModal } from '../ReflectionJourney/ReflectionJourneyModal';
 import { SocialBatterySheet } from '../home/SocialBatterySheet';
 import {
   getYearMoonData,

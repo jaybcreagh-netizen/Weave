@@ -150,10 +150,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       set({
         subscription: {
-          tier: data.tier as SubscriptionTier,
-          status: data.status as any,
-          trialEndsAt: data.trial_ends_at ? new Date(data.trial_ends_at) : null,
-          currentPeriodEnd: data.current_period_end ? new Date(data.current_period_end) : null,
+          tier: (data as any).tier as SubscriptionTier,
+          status: (data as any).status as any,
+          trialEndsAt: (data as any).trial_ends_at ? new Date((data as any).trial_ends_at) : null,
+          currentPeriodEnd: (data as any).current_period_end ? new Date((data as any).current_period_end) : null,
         },
       });
     } catch (error) {
@@ -188,10 +188,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (data) {
         set({
           usage: {
-            friendsCount: data.friends_count,
-            weavesThisMonth: data.weaves_this_month,
-            periodStart: new Date(data.period_start),
-            periodEnd: new Date(data.period_end),
+            friendsCount: (data as any).friends_count,
+            weavesThisMonth: (data as any).weaves_this_month,
+            periodStart: new Date((data as any).period_start),
+            periodEnd: new Date((data as any).period_end),
           },
         });
       } else {

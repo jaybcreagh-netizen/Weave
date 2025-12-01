@@ -21,7 +21,7 @@ interface BackgroundSyncStore {
   loadSettings: () => Promise<void>;
   updateSettings: (updates: Partial<BackgroundSyncSettings>) => Promise<void>;
   toggleEnabled: () => Promise<boolean>;
-  checkBackgroundFetchStatus: () => Promise<void>;
+  checkBackgroundFetchStatus: () => Promise<BackgroundFetch.BackgroundFetchStatus | null>;
   testManualSync: () => Promise<void>;
 }
 

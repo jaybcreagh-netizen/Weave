@@ -147,7 +147,7 @@ export class SyncEngine {
           for (const serverRecord of data) {
             try {
               // Try to find existing local record
-              const localRecord = await collection.find(serverRecord.id);
+              const localRecord = await collection.find((serverRecord as any).id);
 
               // Check for conflicts
               const hasConflict = await this.detectConflict(localRecord, serverRecord);
@@ -214,9 +214,9 @@ export class SyncEngine {
           const serverRecords = batch.map(record => this.serializeForServer(record, tableName));
 
           // Upsert to server
-          const { error } = await supabase
-            .from(tableName)
-            .upsert(serverRecords, { onConflict: 'id' });
+          const { error } = await (supabase
+            .from(tableName) as any)
+            .upsert(serverRecords as any[], { onConflict: 'id' } as any);
 
           if (error) {
             Logger.error(`Error pushing ${tableName}:`, error);

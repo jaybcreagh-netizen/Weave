@@ -19,7 +19,7 @@ export function SuggestionCard({ suggestion, onAct, onLater }: SuggestionCardPro
     low: colors['muted-foreground'],
   };
 
-  const urgencyColor = urgencyColors[suggestion.urgency];
+  const urgencyColor = urgencyColors[suggestion.urgency || 'low'];
 
   return (
     <View style={[styles.container, { backgroundColor: colors.muted, borderColor: colors.border }]}>

@@ -108,7 +108,7 @@ export function WeekSnapshotStep({ summary, insight, onComplete }: WeekSnapshotS
     setIntentionModalOpen(true);
   };
 
-  const handleSaveIntention = async (description: string, category?: InteractionCategory) => {
+  const handleSaveIntention = async (description: string | undefined, category?: InteractionCategory) => {
     if (!selectedFriend) return;
 
     try {
