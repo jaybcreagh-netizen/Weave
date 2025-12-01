@@ -1,7 +1,8 @@
 // src/modules/relationships/services/__tests__/image.service.test.ts
-import { uploadFriendPhoto, deleteFriendPhoto, processAndStoreImage, deleteImage } from '../image.service';
+import { uploadFriendPhoto, deleteFriendPhoto } from '../image.service';
 import * as ImageManipulator from 'expo-image-manipulator';
-import { File } from 'expo-file-system';
+import * as FileSystem from 'expo-file-system';
+import { Image } from 'react-native';
 
 // Mock external dependencies
 jest.mock('expo-image-manipulator', () => ({
@@ -10,50 +11,80 @@ jest.mock('expo-image-manipulator', () => ({
 }));
 
 jest.mock('expo-file-system', () => ({
-  Paths: { document: '/test/doc' },
-  Directory: jest.fn().mockImplementation(() => ({
-    exists: true,
-    create: jest.fn(),
-    uri: '/test/doc/weave_images',
-  })),
-  File: jest.fn().mockImplementation(() => ({
-    exists: true,
-    copy: jest.fn(),
-    delete: jest.fn(),
-    uri: 'file:///test/doc/weave_images/test.jpg',
-  })),
+  documentDirectory: 'file:///test/doc/',
+  getInfoAsync: jest.fn(),
+  makeDirectoryAsync: jest.fn(),
+  copyAsync: jest.fn(),
+  deleteAsync: jest.fn(),
+  readDirectoryAsync: jest.fn(),
+}));
+
+jest.mock('react-native', () => ({
+  Image: {
+    getSize: jest.fn(),
+  },
 }));
 
 describe('image.service', () => {
-  afterEach(() => {
+  beforeEach(() => {
     jest.clearAllMocks();
-  });
 
-  // Since we merged the implementation, we are now testing the full logic.
-  // However, for this specific test file which seemed to focus on the wrappers,
-  // we can verify the wrappers call the internal logic correctly.
-  // But since it's all in one file now, "spying" on internal functions is hard without exporting them from a separate module.
-  // So we will test that the underlying dependencies (ImageManipulator, File) are called.
-
-  it('should upload a friend photo', async () => {
+    // Default mocks
+    (FileSystem.getInfoAsync as jest.Mock).mockResolvedValue({ exists: true });
     (ImageManipulator.manipulateAsync as jest.Mock).mockResolvedValue({
       uri: 'manipulated.jpg',
+    });
+    (Image.getSize as jest.Mock).mockImplementation((uri, success) => {
+      success(1000, 1000); // Default square image
+    });
+  });
+
+  it('should upload a friend photo (square)', async () => {
+    await uploadFriendPhoto('original.jpg', '1');
+
+    // Should get size
+    expect(Image.getSize).toHaveBeenCalled();
+
+    // Should manipulate (resize only since it's square)
+    expect(ImageManipulator.manipulateAsync).toHaveBeenCalledWith(
+      'original.jpg',
+      [
+        { resize: { width: 400, height: 400 } }
+      ],
+      expect.any(Object)
+    );
+  });
+
+  it('should upload a friend photo (landscape) and crop it', async () => {
+    // Mock landscape image
+    (Image.getSize as jest.Mock).mockImplementation((uri, success) => {
+      success(1000, 500); // Width 1000, Height 500
     });
 
     await uploadFriendPhoto('original.jpg', '1');
 
+    expect(Image.getSize).toHaveBeenCalled();
+
+    // Should manipulate with crop then resize
     expect(ImageManipulator.manipulateAsync).toHaveBeenCalledWith(
       'original.jpg',
-      expect.any(Array),
+      [
+        {
+          crop: {
+            originX: 250, // (1000 - 500) / 2
+            originY: 0,
+            width: 500,
+            height: 500
+          }
+        },
+        { resize: { width: 400, height: 400 } }
+      ],
       expect.any(Object)
     );
-    // We can assume if manipulateAsync is called, the flow is working as expected for this unit test level
-    // ensuring the wrapper passes the right args.
   });
 
   it('should delete a friend photo', async () => {
     await deleteFriendPhoto('1');
-    // We can't easily spy on the File object created inside the function without more complex mocking.
-    // But we can verify no errors are thrown.
+    expect(FileSystem.deleteAsync).toHaveBeenCalled();
   });
 });
