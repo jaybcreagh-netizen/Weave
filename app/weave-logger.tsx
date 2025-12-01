@@ -22,6 +22,7 @@ import FriendModel from '@/db/models/Friend';
 import { FriendSelector } from '@/components/FriendSelector';
 import { CustomBottomSheet } from '@/shared/ui/Sheet/BottomSheet';
 import { ReciprocitySelector, InitiatorType } from '@/components/ReciprocitySelector';
+import { STORY_CHIPS } from '@/modules/reflection';
 
 const categories: CategoryMetadata[] = getAllCategories().map(getCategoryMetadata);
 
@@ -120,8 +121,6 @@ export default function WeaveLoggerScreen() {
       // Build legacy notes field from chips + custom notes for backward compatibility
       const legacyNotes = [
         ...(reflection.chips || []).map(chip => {
-          // eslint-disable-next-line @typescript-eslint/no-require-imports
-          const { STORY_CHIPS } = require('@/modules/reflection');
           const storyChip = STORY_CHIPS.find((s: any) => s.id === chip.chipId);
           if (!storyChip) return '';
 
@@ -192,7 +191,11 @@ export default function WeaveLoggerScreen() {
 
           try {
             if (router.canGoBack()) {
-              router.back();
+              if (router.canGoBack()) {
+                router.back();
+              } else {
+                router.replace('/');
+              }
             } else {
               // Fallback: navigate to home/dashboard
               router.replace('/');
@@ -215,7 +218,11 @@ export default function WeaveLoggerScreen() {
         if (!isMountedRef.current) return;
 
         if (router.canGoBack()) {
-          router.back();
+          if (router.canGoBack()) {
+            router.back();
+          } else {
+            router.replace('/');
+          }
         } else {
           router.replace('/');
         }
@@ -560,7 +567,11 @@ export default function WeaveLoggerScreen() {
         onDismiss={() => {
           hidePrompt();
           if (router.canGoBack()) {
-            router.back();
+            if (router.canGoBack()) {
+              router.back();
+            } else {
+              router.replace('/');
+            }
           } else {
             router.replace('/');
           }

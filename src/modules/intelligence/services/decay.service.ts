@@ -26,14 +26,14 @@ export function applyDecay(
   // Use flexible decay rate if enabled, otherwise use base tier rate
   const tierDecayRate = useFlexibleDecay
     ? calculateFlexibleDecay(friend, flexibilityMode)
-    : TierDecayRates[friend.dunbarTier as Tier];
+    : (TierDecayRates[friend.dunbarTier as Tier] || TierDecayRates['CloseFriends']);
 
   // Use learned tolerance window if available, otherwise fall back to tier defaults
   const toleranceWindow = friend.toleranceWindowDays || {
     InnerCircle: 7,
     CloseFriends: 14,
     Community: 21,
-  }[friend.dunbarTier as Tier];
+  }[friend.dunbarTier as Tier] || 14;
 
   // Guard against invalid resilience values (must be between 0.8 and 1.5)
   const safeResilience = Math.max(0.8, Math.min(1.5, friend.resilience || 1.0));

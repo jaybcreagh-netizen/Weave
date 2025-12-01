@@ -20,6 +20,7 @@ import { calculateInteractionQuality } from '../services/quality.service';
  * @returns {number} The dilution factor.
  */
 export function calculateGroupDilution(groupSize: number): number {
+  if (groupSize <= 0) return 1.0;       // Handle invalid/negative group size
   if (groupSize === 1) return 1.0;      // Full points for 1-on-1
   if (groupSize === 2) return 0.9;      // 10% dilution for trio
   if (groupSize <= 4) return 0.7;       // 30% dilution for small group
@@ -101,12 +102,14 @@ export function calculatePointsForWeave(
   // NEW: Use category-based scoring if available
   if (weaveData.category) {
     baseScore = CategoryBaseScores[weaveData.category];
-    archetypeMultiplier = CategoryArchetypeMatrix[friend.archetype as Archetype][weaveData.category];
+    const matrix = CategoryArchetypeMatrix[friend.archetype as Archetype];
+    archetypeMultiplier = matrix ? matrix[weaveData.category] : 1.0;
   }
   // DEPRECATED: Fall back to old activity-based scoring
   else if (weaveData.interactionType) {
     baseScore = InteractionBaseScores[weaveData.interactionType];
-    archetypeMultiplier = ArchetypeMatrixV2[friend.archetype as Archetype][weaveData.interactionType];
+    const matrix = ArchetypeMatrixV2[friend.archetype as Archetype];
+    archetypeMultiplier = matrix ? matrix[weaveData.interactionType] : 1.0;
   }
   // Default fallback
   else {
@@ -146,14 +149,15 @@ export function calculatePointsForWeave(
   // - Low quality (1/5): 0.7x
   // - Medium quality (3/5): 1.0x
   // - High quality (5/5): 1.3x
-  const qualityMultiplier = 0.7 + (quality.overallQuality / 5) * 0.6;
+  const safeQuality = Math.max(1, Math.min(5, quality.overallQuality));
+  const qualityMultiplier = 0.7 + (safeQuality / 5) * 0.6;
 
   // SMART: Quality can partially offset group dilution
   // If you had a big group interaction but reflected deeply on individual moments,
   // that deserves recognition. High quality can restore up to 20% of diluted points.
   const groupSize = weaveData.groupSize || 1;
   let finalDilutionFactor = groupDilutionFactor;
-  if (groupSize > 1 && quality.overallQuality >= 4) {
+  if (groupSize > 1 && safeQuality >= 4) {
     // High quality (4-5) in group settings: restore 20% of lost points
     const dilutionLoss = 1.0 - groupDilutionFactor; // How much we lost
     const restoration = dilutionLoss * 0.2; // Restore 20%
@@ -165,10 +169,11 @@ export function calculatePointsForWeave(
   // NEW v23: Apply learned effectiveness multiplier
   // Blends observed effectiveness with static scoring
   let effectivenessMultiplier = 1.0;
-  if (weaveData.category && friend.outcomeCount >= 3) {
+  const safeOutcomeCount = Math.max(0, friend.outcomeCount);
+  if (weaveData.category && safeOutcomeCount >= 3) {
     // Only use learned effectiveness after 3+ measured outcomes
     const learnedEffectiveness = getLearnedEffectiveness(friend, weaveData.category);
-    const confidence = Math.min(1.0, friend.outcomeCount / 10); // Gain confidence over 10 outcomes
+    const confidence = Math.min(1.0, safeOutcomeCount / 10); // Gain confidence over 10 outcomes
 
     // Blend static (1.0) with learned effectiveness based on confidence
     effectivenessMultiplier = (1.0 * (1 - confidence)) + (learnedEffectiveness * confidence);

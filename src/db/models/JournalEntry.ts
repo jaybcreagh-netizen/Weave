@@ -34,6 +34,13 @@ export default class JournalEntry extends Model {
   @text('sync_status') syncStatus?: string;
   @field('server_updated_at') serverUpdatedAt?: number;
 
+  async prepareDestroyWithChildren() {
+    const friends = await this.journalEntryFriends.fetch();
+    const friendsToDelete = friends.map(friend => friend.prepareDestroyPermanently());
+    await this.batch(...friendsToDelete);
+    return this.prepareDestroyPermanently()
+  }
+
   // Story chips getter/setter
   get storyChips(): Array<{ chipId: string; customText?: string }> {
     if (!this.storyChipsRaw) return [];

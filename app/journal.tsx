@@ -23,7 +23,11 @@ export default function JournalScreen() {
                 friendId={selectedFriendId}
                 onBack={() => {
                     if (params.friendId) {
-                        router.back();
+                        if (router.canGoBack()) {
+                            router.back();
+                        } else {
+                            router.replace('/');
+                        }
                     } else {
                         setSelectedFriendId(null);
                     }

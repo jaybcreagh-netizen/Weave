@@ -42,7 +42,7 @@ const FLEXIBILITY_MULTIPLIERS: Record<FlexibilityMode, { min: number; max: numbe
  * @returns The adjusted decay rate per day
  */
 export function calculateFlexibleDecay(
-  friend: Friend,
+  friend: Friend | FriendModel,
   flexibilityMode: FlexibilityMode = 'balanced'
 ): number {
   const baseTierDecay = TierDecayRates[friend.dunbarTier as Tier];

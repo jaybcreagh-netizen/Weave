@@ -3,6 +3,13 @@ import { schemaMigrations, addColumns, createTable, unsafeExecuteSql } from '@no
 /**
  * Database migrations for WatermelonDB
  *
+ * SCHEMA VERSIONING STRATEGY:
+ * - We use a linear integer versioning system (v1, v2, v3...).
+ * - Each migration step MUST be additive or non-destructive whenever possible.
+ * - Destructive changes (like dropping tables or columns) should be avoided or handled with extreme caution.
+ * - When changing column types (which SQLite/WatermelonDB doesn't natively support), we may need to clear data
+ *   or create new columns and migrate data. Always document these destructive actions clearly.
+ *
  * Migration from v8 to v9:
  * - Add interaction_category field to interactions table
  * - This enables the new simplified 8-category interaction system
@@ -479,10 +486,11 @@ export default schemaMigrations({
       // Changed birthday from timestamp (number) to MM-DD string format (no year)
       toVersion: 28,
       steps: [
+        // WARNING: DESTRUCTIVE CHANGE
         // Since WatermelonDB doesn't support direct column type changes,
-        // and birthday is optional, we'll clear existing values
-        // Users will need to re-enter birthdays in the new format
-        // Future enhancement: Could convert timestamps to MM-DD format with custom SQL
+        // and birthday is optional, we'll clear existing values to prevent type mismatches.
+        // Users will need to re-enter birthdays in the new format.
+        // Future enhancement: Could convert timestamps to MM-DD format with custom SQL if needed.
         unsafeExecuteSql(`UPDATE friends SET birthday = NULL WHERE birthday IS NOT NULL;`),
       ],
     },
@@ -506,9 +514,10 @@ export default schemaMigrations({
       // Changed anniversary from timestamp (number) to MM-DD string format (no year)
       toVersion: 30,
       steps: [
+        // WARNING: DESTRUCTIVE CHANGE
         // Since WatermelonDB doesn't support direct column type changes,
-        // and anniversary is optional, we'll clear existing values
-        // Users will need to re-enter anniversaries in the new format
+        // and anniversary is optional, we'll clear existing values to prevent type mismatches.
+        // Users will need to re-enter anniversaries in the new format.
         unsafeExecuteSql(`UPDATE friends SET anniversary = NULL WHERE anniversary IS NOT NULL;`),
         // Add streak forgiveness mechanics
         addColumns({

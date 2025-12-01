@@ -107,6 +107,32 @@ export async function processWeaveScoring(
     vibe: interactionData.vibe,
   });
 
+  // 2. Pre-fetch interaction history counts for all friends
+  // We do this OUTSIDE the write transaction to avoid holding the lock during reads
+  const historyCounts = new Map<string, number>();
+
+  // We need to fetch history for each friend. To do this efficiently, we can loop
+  // or do a complex query. Since we're iterating friends anyway, let's pre-fetch.
+  for (const friend of friends) {
+    const interactionFriends = await database.get('interaction_friends')
+      .query(Q.where('friend_id', friend.id))
+      .fetch();
+
+    const interactionIds = interactionFriends.map((r: any) => r.interactionId);
+
+    if (interactionIds.length > 0) {
+      const count = await database.get('interactions')
+        .query(
+          Q.where('id', Q.oneOf(interactionIds)),
+          Q.where('interaction_category', interactionData.category || ''),
+          Q.where('status', 'completed')
+        ).fetchCount();
+      historyCounts.set(friend.id, count);
+    } else {
+      historyCounts.set(friend.id, 0);
+    }
+  }
+
   // Use a single database transaction to ensure all updates are atomic.
   await database.write(async () => {
     const batchOps: any[] = [];
@@ -114,26 +140,8 @@ export async function processWeaveScoring(
     for (const friend of friends) {
       const scoreBefore = calculateCurrentScore(friend);
 
-      // NEW: Query interaction history count for affinity bonus
-      // We want to know how many times we've done this specific category with this friend
-      // NOTE: Q.on is failing, so we use a manual two-step query
-      // We need to do this query OUTSIDE the write transaction if possible, or inside.
-      // Since it's a read, it's fine inside, but we must ensure we don't start another writer.
-      // database.get().query().fetch() is a reader, so it might be okay, but strictly speaking
-      // mixing reads and writes in a write block is fine as long as we don't start a NEW writer.
-
-      const interactionFriends = await database.get('interaction_friends')
-        .query(Q.where('friend_id', friend.id))
-        .fetch();
-
-      const interactionIds = interactionFriends.map((r: any) => r.interactionId);
-
-      const historyCount = await database.get('interactions')
-        .query(
-          Q.where('id', Q.oneOf(interactionIds)),
-          Q.where('interaction_category', interactionData.category || ''),
-          Q.where('status', 'completed')
-        ).fetchCount();
+      // Get pre-fetched history count
+      const historyCount = historyCounts.get(friend.id) || 0;
 
       // 2. Calculate points earned from this specific interaction.
       let pointsEarned = calculateInteractionPoints(

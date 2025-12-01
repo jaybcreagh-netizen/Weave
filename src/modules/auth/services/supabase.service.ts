@@ -18,6 +18,45 @@ const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
  * Main Supabase client instance
  * Used for all auth and database operations
  */
+
+// Define a partial interface for the dummy client to avoid 'any'
+interface DummySupabaseClient {
+  auth: {
+    getSession: () => Promise<{ data: { session: null }, error: null }>;
+    onAuthStateChange: () => { data: { subscription: { unsubscribe: () => void } } };
+    signInWithOAuth: () => Promise<{ error: { message: string } }>;
+    signOut: () => Promise<{ error: null }>;
+  };
+  from: () => {
+    select: () => { data: any[], error: { message: string } };
+    insert: () => { data: null, error: { message: string } };
+    update: () => { data: null, error: { message: string } };
+    delete: () => { data: null, error: { message: string } };
+    upload: () => { data: null, error: { message: string } };
+    getPublicUrl: () => { data: { publicUrl: string } };
+    remove: () => { error: { message: string } };
+  };
+  storage: {
+    from: (bucket: string) => {
+      upload: () => { data: null, error: { message: string } };
+      getPublicUrl: () => { data: { publicUrl: string } };
+      remove: () => { error: { message: string } };
+    };
+  };
+}
+
+const ExpoSecureStoreAdapter = {
+  getItem: (key: string) => {
+    return SecureStore.getItemAsync(key);
+  },
+  setItem: (key: string, value: string) => {
+    SecureStore.setItemAsync(key, value);
+  },
+  removeItem: (key: string) => {
+    SecureStore.deleteItemAsync(key);
+  },
+};
+
 export const supabase = (() => {
   if (!supabaseUrl || !supabaseAnonKey) {
     console.warn(
@@ -50,7 +89,7 @@ export const supabase = (() => {
           remove: () => ({ error: { message: 'Supabase not configured' } }),
         }),
       }
-    } as any;
+    } as unknown as TypedSupabaseClient;
   }
 
   return createClient(supabaseUrl, supabaseAnonKey, {

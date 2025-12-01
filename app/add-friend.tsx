@@ -13,7 +13,11 @@ function AddFriend() {
   const handleSave = async (friendData: FriendFormData) => {
     await addFriend(friendData);
     if (router.canGoBack()) {
-      router.back();
+      if (router.canGoBack()) {
+        router.back();
+      } else {
+        router.replace('/');
+      }
     }
   };
 

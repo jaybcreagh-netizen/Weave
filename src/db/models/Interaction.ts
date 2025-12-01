@@ -62,4 +62,11 @@ export default class Interaction extends Model {
       return undefined
     }
   }
+
+  async prepareDestroyWithChildren() {
+    const friends = await this.interactionFriends.fetch();
+    const friendsToDelete = friends.map(friend => friend.prepareDestroyPermanently());
+    await this.batch(...friendsToDelete);
+    return this.prepareDestroyPermanently()
+  }
 }

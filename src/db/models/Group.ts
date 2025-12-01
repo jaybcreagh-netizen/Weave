@@ -16,4 +16,11 @@ export default class Group extends Model {
 
     @readonly @date('created_at') createdAt!: Date;
     @readonly @date('updated_at') updatedAt!: Date;
+
+    async prepareDestroyWithChildren() {
+        const members = await this.members.fetch();
+        const membersToDelete = members.map(member => member.prepareDestroyPermanently());
+        await this.batch(...membersToDelete);
+        return this.prepareDestroyPermanently();
+    }
 }

@@ -30,6 +30,15 @@ export default class Intention extends Model {
   @text('sync_status') syncStatus?: string;
   @field('server_updated_at') serverUpdatedAt?: number;
 
+  async prepareDestroyWithChildren() {
+    // Delete all associated intention friends
+    const friends = await this.intentionFriends.fetch();
+    const friendsToDelete = friends.map(friend => friend.prepareDestroyPermanently());
+    await this.batch(...friendsToDelete);
+
+    return this.prepareDestroyPermanently();
+  }
+
   // Track when last reminded (for suggestion engine)
   @date('last_reminded_at') lastRemindedAt?: Date;
 

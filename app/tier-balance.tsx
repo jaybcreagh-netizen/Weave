@@ -8,7 +8,7 @@ import {
   ScrollView,
   ActivityIndicator,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, AlertCircle, CheckCircle, TrendingUp, ChevronDown, ChevronUp } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
@@ -35,6 +35,7 @@ const TIER_EXPECTED_INTERVALS: Record<Tier, number> = {
 export default function TierBalanceScreen() {
   const { colors } = useTheme();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { networkHealth, isLoading } = useNetworkTierHealth();
 
   const [selectedAnalysis, setSelectedAnalysis] = useState<TierFitAnalysis | null>(null);
@@ -69,23 +70,23 @@ export default function TierBalanceScreen() {
 
   if (isLoading) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top, paddingBottom: insets.bottom }]}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   if (!networkHealth) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top, paddingBottom: insets.bottom }]}>
         <View style={styles.emptyContainer}>
           <Text style={[styles.emptyText, { color: colors['muted-foreground'] }]}>
             No tier data available yet
           </Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
@@ -98,10 +99,19 @@ export default function TierBalanceScreen() {
   const healthColor = getHealthColor(networkHealth.healthScore);
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+    <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top, paddingBottom: insets.bottom }]}>
       {/* Header */}
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+        <TouchableOpacity
+          onPress={() => {
+            if (router.canGoBack()) {
+              router.back();
+            } else {
+              router.replace('/');
+            }
+          }}
+          style={styles.backButton}
+        >
           <ArrowLeft size={20} color={colors['muted-foreground']} />
           <Text style={[styles.backText, { color: colors['muted-foreground'] }]}>Back</Text>
         </TouchableOpacity>
@@ -289,7 +299,7 @@ export default function TierBalanceScreen() {
           onDismissSuggestion={() => handleDismissSuggestion(selectedAnalysis.friendId)}
         />
       )}
-    </SafeAreaView>
+    </View>
   );
 }
 

@@ -7,6 +7,17 @@ import {
 } from './season-types';
 
 /**
+ * SEASON_THRESHOLDS Explanation:
+ * - Resting: 0-40 (Low activity/battery, needs recovery)
+ * - Balanced: 41-80 (Sustainable pace, healthy maintenance)
+ * - Blooming: 81-100 (High activity/battery, growth phase)
+ * 
+ * HYSTERESIS_BUFFER (5 points):
+ * Prevents rapid switching between seasons when score hovers near a threshold.
+ * A user must cross the threshold by at least 5 points to change season.
+ */
+
+/**
  * Calculate the social season score (0-100)
  *
  * Scoring breakdown:
@@ -113,6 +124,7 @@ export function calculateSocialSeason(
 
   // Apply hysteresis to prevent rapid oscillation
   // Must cross buffer zone to switch states
+  // Logic: Current season resists change until score pushes significantly past threshold
 
   if (currentSeason === 'resting') {
     // Must rise to 50 (46 + buffer) to become Balanced

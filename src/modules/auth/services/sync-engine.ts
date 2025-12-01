@@ -262,7 +262,11 @@ export class SyncEngine {
    * Can be customized to show conflict resolution UI
    */
   private async resolveConflict(localRecord: Model, serverRecord: any): Promise<void> {
-    Logger.warn(`⚠️ Conflict detected for record ${localRecord.id}, server wins`);
+    Logger.warn(`⚠️ Conflict detected for ${localRecord.table} record ${localRecord.id}`);
+    Logger.warn(`   Local updated: ${new Date((localRecord as any).serverUpdatedAt || 0).toISOString()}`);
+    Logger.warn(`   Server updated: ${serverRecord.server_updated_at}`);
+    Logger.warn(`   Strategy: Server wins (last-write-wins)`);
+    // TODO: Implement UI for manual conflict resolution
 
     await localRecord.update((record: any) => {
       this.applyServerData(record, serverRecord);

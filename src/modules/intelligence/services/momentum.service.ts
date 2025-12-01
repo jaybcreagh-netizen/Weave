@@ -1,6 +1,10 @@
 import type Friend from '@/db/models/Friend';
 import { daysSince } from '@/shared/utils/date-utils';
 
+const MOMENTUM_BASELINE_SCORE = 15;
+const MOMENTUM_BONUS_MULTIPLIER = 1.15;
+const MOMENTUM_DECAY_RATE_PER_DAY = 1;
+
 /**
  * Calculates a points bonus based on the friend's current momentum.
  * A decaying momentum score provides a bonus if the last interaction was recent.
@@ -20,12 +24,12 @@ export function calculateMomentumBonus(friend: Friend): number {
 
   // The momentum score (e.g., 15) decays over time.
   // Let's assume a simple decay rate for now, like 1 point per day.
-  const decayedMomentum = Math.max(0, momentumScore - days);
+  const decayedMomentum = Math.max(0, momentumScore - (days * MOMENTUM_DECAY_RATE_PER_DAY));
 
   // If momentum is still active, provide a bonus.
   // Let's define a simple bonus: 15% if there's any momentum left.
   if (decayedMomentum > 0) {
-    return 1.15;
+    return MOMENTUM_BONUS_MULTIPLIER;
   }
 
   return 1.0;
@@ -40,7 +44,7 @@ export function calculateMomentumBonus(friend: Friend): number {
  */
 export function updateMomentum(_friend: Friend): { momentumScore: number; momentumLastUpdated: Date } {
   // The logic from weave-engine.ts simply resets the momentum.
-  const newMomentumScore = 15;
+  const newMomentumScore = MOMENTUM_BASELINE_SCORE;
 
   return {
     momentumScore: newMomentumScore,

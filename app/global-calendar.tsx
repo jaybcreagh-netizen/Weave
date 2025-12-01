@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, Modal, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft, X, Calendar as CalendarIcon, Users } from 'lucide-react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { format, isToday } from 'date-fns';
 import * as Haptics from 'expo-haptics';
 
@@ -17,6 +17,7 @@ import { getCategoryMetadata } from '@/shared/constants/interaction-categories';
 
 export default function GlobalCalendar() {
   const router = useRouter();
+  const { fromFriendId } = useLocalSearchParams<{ fromFriendId: string }>();
   const { colors } = useTheme();
   const { allInteractions } = useInteractions();
 
@@ -65,7 +66,13 @@ export default function GlobalCalendar() {
     if (friends.length === 1) {
       // Navigate to friend profile
       setDayDetailModalVisible(false);
-      router.push(`/friend-profile?friendId=${friends[0].id}`);
+
+      // Prevent circular navigation if we came from this friend's profile
+      if (friends[0].id === fromFriendId) {
+        router.back();
+      } else {
+        router.push(`/friend-profile?friendId=${friends[0].id}`);
+      }
     } else if (friends.length > 1) {
       // For group weaves, could navigate to interaction detail or show options
       setDayDetailModalVisible(false);

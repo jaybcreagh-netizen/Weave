@@ -43,6 +43,8 @@ export default function BatchAddFriends() {
 
       if (router.canGoBack()) {
         router.back();
+      } else {
+        router.replace('/');
       }
     } catch (error) {
       console.error('Error batch adding friends:', error);
@@ -55,10 +57,10 @@ export default function BatchAddFriends() {
       {/* Header */}
       <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         <TouchableOpacity onPress={() => {
-if (router.canGoBack()) {
-router.back();
-}
-}} style={styles.backButton}>
+          if (router.canGoBack()) {
+            router.back();
+          }
+        }} style={styles.backButton}>
           <ArrowLeft color={colors.foreground} size={24} />
         </TouchableOpacity>
         <View style={styles.headerTitle}>

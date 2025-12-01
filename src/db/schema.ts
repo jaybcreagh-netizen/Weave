@@ -10,7 +10,7 @@ export default appSchema({
         { name: 'content', type: 'string' },
         { name: 'metadata', type: 'string' }, // JSON
         { name: 'valid_until', type: 'number' },
-        { name: 'created_at', type: 'number' }
+        { name: 'created_at', type: 'number', isIndexed: true }
       ]
     }),
     tableSchema({
@@ -75,7 +75,7 @@ export default appSchema({
         { name: 'duration', type: 'string', isOptional: true },
         { name: 'vibe', type: 'string', isOptional: true },
         { name: 'note', type: 'string', isOptional: true },
-        { name: 'created_at', type: 'number' },
+        { name: 'created_at', type: 'number', isIndexed: true },
         { name: 'updated_at', type: 'number' },
         { name: 'activity', type: 'string' },
         { name: 'status', type: 'string', isIndexed: true }, // planned, pending_confirm, completed, cancelled, missed
@@ -276,7 +276,7 @@ export default appSchema({
         { name: 'badge_type', type: 'string', isIndexed: true }, // 'weave_count' | 'depth' | 'consistency' | 'special'
         { name: 'badge_id', type: 'string' }, // e.g., 'growing_bond', 'deep_roots'
         { name: 'tier', type: 'number' }, // 1-7 for progression tiers
-        { name: 'unlocked_at', type: 'number' },
+        { name: 'unlocked_at', type: 'number', isIndexed: true },
         { name: 'created_at', type: 'number' },
         { name: 'updated_at', type: 'number' },
       ]

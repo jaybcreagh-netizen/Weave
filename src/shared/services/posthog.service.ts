@@ -2,7 +2,7 @@ import { PostHogProvider, usePostHog, PostHog, PostHogOptions } from 'posthog-re
 import * as FileSystem from 'expo-file-system';
 import Constants from 'expo-constants';
 
-// TODO: Replace with actual API Key and Host
+// Beta API Key and Host
 export const POSTHOG_API_KEY = 'phc_7zVVcjN8nMJWbw2XgIANio1B7EqNUn4jxWiZZzGActJ';
 export const POSTHOG_HOST = 'https://eu.i.posthog.com';
 

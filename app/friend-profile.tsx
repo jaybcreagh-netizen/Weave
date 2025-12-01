@@ -280,7 +280,7 @@ export default function FriendProfile() {
                 }}
                 onEdit={handleEdit}
                 onDelete={handleDeleteFriend}
-                onGlobalCalendar={() => router.push('/global-calendar')}
+                onGlobalCalendar={() => router.push(`/global-calendar?fromFriendId=${friend.id}`)}
                 onShowBadgePopup={() => setShowBadgePopup(true)}
                 onShowTierFit={() => setShowTierFitSheet(true)}
               />
