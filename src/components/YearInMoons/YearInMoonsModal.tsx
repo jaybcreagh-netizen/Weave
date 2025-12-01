@@ -15,6 +15,7 @@ import {
   ActivityIndicator,
   Dimensions,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { X, Calendar, BarChart3, Sparkles } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -49,7 +50,6 @@ export function YearInMoonsModal({ isOpen, onClose }: YearInMoonsModalProps) {
   const [selectedDay, setSelectedDay] = useState<DayMoonData | null>(null);
   const [batterySheetVisible, setBatterySheetVisible] = useState(false);
   const [dayForBatteryCheckin, setDayForBatteryCheckin] = useState<Date | null>(null);
-  const [showJournalModal, setShowJournalModal] = useState(false);
   const [yearStats, setYearStats] = useState({
     totalCheckins: 0,
     avgBattery: 0,
@@ -113,10 +113,13 @@ export function YearInMoonsModal({ isOpen, onClose }: YearInMoonsModalProps) {
     onClose();
   };
 
+  const router = useRouter(); // Add router
+
   const handleTabChange = (tab: Tab) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (tab === 'journal') {
-      setShowJournalModal(true);
+      onClose(); // Close the modal first
+      router.push('/journal'); // Navigate to the new Journal screen
     } else {
       setCurrentTab(tab);
     }
@@ -452,12 +455,6 @@ export function YearInMoonsModal({ isOpen, onClose }: YearInMoonsModalProps) {
         isVisible={batterySheetVisible}
         onSubmit={handleBatteryCheckinSubmit}
         onDismiss={handleBatterySheetDismiss}
-      />
-
-      {/* Journal Modal */}
-      <ReflectionJourneyModal
-        isOpen={showJournalModal}
-        onClose={() => setShowJournalModal(false)}
       />
     </Modal>
   );

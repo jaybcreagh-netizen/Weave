@@ -1,5 +1,5 @@
 
-export const MENU_RADIUS = 75; // Reduced for compact design
+export const MENU_RADIUS = 88; // Reduced for compact design
 export const HIGHLIGHT_THRESHOLD = 25; // Reduced from 30
 export const SELECTION_THRESHOLD = 40; // Reduced from 45
 

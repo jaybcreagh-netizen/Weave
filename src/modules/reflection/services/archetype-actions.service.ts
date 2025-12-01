@@ -51,6 +51,18 @@ export const ARCHETYPE_ACTIONS: Record<Archetype, string[]> = {
     'Create or build something together',
     'Explore a transformative activity',
   ],
+  Lovers: [
+    'Plan a romantic date night',
+    'Share a heartfelt appreciation',
+    'Create a special memory together',
+    'Spend quality time connecting',
+  ],
+  Unknown: [
+    'Reach out to reconnect',
+    'Plan a casual catch-up',
+    'Send a friendly message',
+    'Suggest a low-pressure hangout',
+  ],
 };
 
 /**
@@ -64,6 +76,8 @@ export const ARCHETYPE_VALUES: Record<Archetype, string> = {
   Sun: 'celebration and energy',
   Hermit: 'solitude and reflection',
   Magician: 'creativity and transformation',
+  Lovers: 'intimacy and connection',
+  Unknown: 'potential and discovery',
 };
 
 /**

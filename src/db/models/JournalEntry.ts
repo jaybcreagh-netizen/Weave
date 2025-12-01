@@ -13,13 +13,16 @@ export default class JournalEntry extends Model {
     journal_entry_friends: { type: 'has_many', foreignKey: 'journal_entry_id' },
   } as const;
 
-  @children('journal_entry_friends') journalEntryFriends;
+  @children('journal_entry_friends') journalEntryFriends: any;
 
   // Entry content
   @field('entry_date') entryDate!: number; // Date this entry is associated with
   @text('title') title?: string; // Optional title
   @text('content') content!: string; // Main journal text
   @text('story_chips') storyChipsRaw?: string; // JSON: Array of story chip selections
+  @field('is_draft') isDraft?: boolean;
+  @field('prompt_used') promptUsed?: string;
+  @field('linked_weave_id') linkedWeaveId?: string;
 
   // Metadata
   @readonly @date('created_at') createdAt!: Date;

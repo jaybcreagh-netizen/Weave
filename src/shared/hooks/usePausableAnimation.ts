@@ -54,7 +54,7 @@ export function usePausableSharedValue<T>(
     if (isSleeping) {
       // Cancel animation when sleeping
       if (typeof sharedValue.value === 'number') {
-        cancelAnimation(sharedValue as SharedValue<number>);
+        cancelAnimation(sharedValue as any);
       }
     } else if (animationCallback) {
       // Restart animation when awake

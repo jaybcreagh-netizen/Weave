@@ -61,7 +61,7 @@ export function ProfileHeader({
                         activeOpacity={0.95}
                         onLongPress={onShowBadgePopup}
                     >
-                        <View style={{ flex: 1, marginRight: 12 }}>
+                        <View style={{ flex: 1 }}>
                             <FriendListRowContent friend={friend} variant="full" />
                         </View>
                     </TouchableOpacity>

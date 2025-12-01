@@ -1,6 +1,6 @@
 import { database } from '@/db';
 import SuggestionEvent from '@/db/models/SuggestionEvent';
-import { Suggestion } from '@/types/suggestions';
+import { Suggestion } from '@/shared/types/common';
 import { Q } from '@nozbe/watermelondb';
 
 /**
@@ -23,8 +23,8 @@ export async function trackSuggestionShown(
     await database.get<SuggestionEvent>('suggestion_events').create(event => {
       event.suggestionId = suggestion.id;
       event.friendId = suggestion.friendId;
-      event.suggestionType = suggestion.category;
-      event.urgency = suggestion.urgency;
+      event.suggestionType = suggestion.category || 'Connection'; // Modified line
+      event.urgency = suggestion.urgency || 'medium';
       event.actionType = suggestion.action.type;
       event.eventType = 'shown';
       event.eventTimestamp = new Date();

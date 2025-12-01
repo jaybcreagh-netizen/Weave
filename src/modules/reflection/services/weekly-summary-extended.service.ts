@@ -66,13 +66,7 @@ export interface ExtendedWeeklySummary {
   averageWeeklyWeaves?: number;
 }
 
-export interface MissedFriend {
-  friend: FriendModel;
-  weaveScore: number;
-  daysSinceLastContact: number;
-  archetypeValue: string;
-  suggestedAction: string;
-}
+import { MissedFriend } from './weekly-stats.service';
 
 // ============================================================================
 // HELPER FUNCTIONS

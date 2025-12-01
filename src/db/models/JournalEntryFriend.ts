@@ -1,4 +1,4 @@
-import { Model } from '@nozbe/watermelondb';
+import { Model, Relation } from '@nozbe/watermelondb';
 import { field, text, relation } from '@nozbe/watermelondb/decorators';
 import JournalEntry from './JournalEntry';
 import Friend from './Friend';
@@ -9,6 +9,6 @@ export default class JournalEntryFriend extends Model {
   @field('journal_entry_id') journalEntryId!: string;
   @field('friend_id') friendId!: string;
 
-  @relation('journal_entries', 'journal_entry_id') journalEntry!: JournalEntry;
-  @relation('friends', 'friend_id') friend!: Friend;
+  @relation('journal_entries', 'journal_entry_id') journalEntry!: Relation<JournalEntry>;
+  @relation('friends', 'friend_id') friend!: Relation<Friend>;
 }

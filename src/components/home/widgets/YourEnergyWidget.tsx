@@ -9,7 +9,6 @@ import { database } from '@/db';
 import { HomeWidgetBase, HomeWidgetConfig } from '../HomeWidgetBase';
 import { MoonPhaseIllustration } from '@/components/YearInMoons/MoonPhaseIllustration';
 import { YearInMoonsModal } from '@/components/YearInMoons/YearInMoonsModal';
-import { ReflectionJourneyModal } from '@/components/ReflectionJourney/ReflectionJourneyModal';
 import { WidgetHeader } from '@/components/ui/WidgetHeader';
 import { Card } from '@/components/ui/Card';
 import {
@@ -31,10 +30,14 @@ interface YourEnergyWidgetContentProps {
     logs: SocialBatteryLog[];
 }
 
+import { useRouter } from 'expo-router';
+
+// ... imports
+
 const YourEnergyWidgetContent: React.FC<YourEnergyWidgetContentProps> = ({ logs }) => {
     const { tokens, typography, colors } = useTheme();
+    const router = useRouter();
     const [showModal, setShowModal] = useState(false);
-    const [showJournal, setShowJournal] = useState(false);
 
     const screenWidth = Dimensions.get('window').width;
     // Calculate column width to ensure 7 items fit perfectly in the row
@@ -215,7 +218,7 @@ const YourEnergyWidgetContent: React.FC<YourEnergyWidgetContentProps> = ({ logs 
 
                         <View style={{ flexDirection: 'row', gap: 6 }}>
                             <TouchableOpacity
-                                onPress={() => setShowJournal(true)}
+                                onPress={() => router.push('/journal')}
                                 style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: tokens.primary, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 6 }}
                             >
                                 <BookOpen size={12} color={tokens.background} />
@@ -251,11 +254,6 @@ const YourEnergyWidgetContent: React.FC<YourEnergyWidgetContentProps> = ({ logs 
             <YearInMoonsModal
                 isOpen={showModal}
                 onClose={() => setShowModal(false)}
-            />
-
-            <ReflectionJourneyModal
-                isOpen={showJournal}
-                onClose={() => setShowJournal(false)}
             />
         </>
     );

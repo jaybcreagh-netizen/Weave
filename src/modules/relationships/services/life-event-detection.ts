@@ -1,5 +1,6 @@
 import { database } from '@/db';
 import LifeEvent, { LifeEventType, LifeEventImportance } from '@/db/models/LifeEvent';
+import { Q } from '@nozbe/watermelondb';
 
 /**
  * Life Event NLP Detection System
@@ -252,7 +253,7 @@ export async function tagFriendWithLifeEvent(
     const existingEvents = await database
       .get<LifeEvent>('life_events')
       .query(
-        // @ts-expect-error - WatermelonDB Q types are complex
+
         Q.where('friend_id', friendId),
         Q.where('event_type', eventType),
         Q.where('created_at', Q.gte(thirtyDaysAgo))
@@ -347,7 +348,7 @@ export async function getActiveFriendLifeEvents(friendId: string): Promise<LifeE
   return await database
     .get<LifeEvent>('life_events')
     .query(
-      // @ts-expect-error - WatermelonDB Q types are complex
+
       Q.where('friend_id', friendId),
       Q.or(
         Q.where('event_date', Q.gte(sixtyDaysAgo)),
@@ -369,7 +370,7 @@ export async function getAllFriendsWithActiveLifeEvents(): Promise<
   const allEvents = await database
     .get<LifeEvent>('life_events')
     .query(
-      // @ts-expect-error - WatermelonDB Q types are complex
+
       Q.or(
         Q.where('event_date', Q.gte(sixtyDaysAgo)),
         Q.where('event_date', Q.gt(Date.now()))

@@ -11,6 +11,7 @@ import {
 } from '@/modules/reflection';
 import { checkCalendarPermissions, getCalendarSettings } from './calendar.service';
 import { type InteractionCategory } from '@/components/types';
+import Logger from '@/shared/utils/Logger';
 
 /**
  * Scanned calendar event with classification and friend matches
@@ -226,7 +227,7 @@ async function matchAttendeesWithFriends(eventId: string): Promise<FriendMatch[]
     return matches;
   } catch (error) {
     // Attendee API not available (iOS) or error occurred
-    console.log('[EventScanner] Could not fetch attendees:', error);
+    Logger.debug('[EventScanner] Could not fetch attendees:', error);
     return [];
   }
 }
@@ -247,14 +248,14 @@ export async function scanCalendarEvents(options: ScanOptions): Promise<ScanResu
     // Check if calendar integration is enabled
     const settings = await getCalendarSettings();
     if (!settings.enabled) {
-      console.log('[EventScanner] Calendar integration disabled');
+      Logger.debug('[EventScanner] Calendar integration disabled');
       return result;
     }
 
     // Check permissions
     const hasPermission = await checkCalendarPermissions();
     if (!hasPermission.granted) {
-      console.log('[EventScanner] No calendar permissions');
+      Logger.debug('[EventScanner] No calendar permissions');
       return result;
     }
 
@@ -269,7 +270,7 @@ export async function scanCalendarEvents(options: ScanOptions): Promise<ScanResu
     // Fetch events from all calendars in date range
     const events = await Calendar.getEventsAsync(calendarIds, options.startDate, options.endDate);
 
-    console.log(`[EventScanner] Found ${events.length} events in date range`);
+    Logger.debug(`[EventScanner] Found ${events.length} events in date range`);
     result.totalScanned = events.length;
 
     // Process each event
@@ -347,17 +348,17 @@ export async function scanCalendarEvents(options: ScanOptions): Promise<ScanResu
           result.matchedEvents++;
         }
       } catch (error) {
-        console.error('[EventScanner] Error processing event:', error);
+        Logger.error('[EventScanner] Error processing event:', error);
         result.errors++;
       }
     }
 
-    console.log(
+    Logger.info(
       `[EventScanner] Scan complete: ${result.events.length} classified, ${result.matchedEvents} with friend matches`
     );
     return result;
   } catch (error) {
-    console.error('[EventScanner] Fatal error during scan:', error);
+    Logger.error('[EventScanner] Fatal error during scan:', error);
     return result;
   }
 }

@@ -793,6 +793,21 @@ export default schemaMigrations({
         }),
       ],
     },
+    {
+      // Migration from schema v37 to v38
+      // Journal Redesign - Drafts, prompts, and weave linking
+      toVersion: 38,
+      steps: [
+        addColumns({
+          table: 'journal_entries',
+          columns: [
+            { name: 'is_draft', type: 'boolean', isOptional: true },
+            { name: 'prompt_used', type: 'string', isOptional: true },
+            { name: 'linked_weave_id', type: 'string', isOptional: true },
+          ],
+        }),
+      ],
+    },
   ],
 });
 

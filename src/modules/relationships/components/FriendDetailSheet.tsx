@@ -15,14 +15,14 @@ import { useTheme } from '@/shared/hooks/useTheme';
 import { ArchetypeIcon } from '@/components/ArchetypeIcon';
 import { archetypeData, CategoryArchetypeMatrix } from '@/shared/constants/constants';
 import { CATEGORY_METADATA } from '@/shared/constants/interaction-categories';
-import { type InteractionCategory } from '@/components/types';
+import { type InteractionCategory, Archetype } from '@/components/types';
 import FriendModel from '@/db/models/Friend';
 import { useRelationshipsStore } from '../store';
 import { calculateCurrentScore } from '@/modules/intelligence';
 import { getFriendMilestones, Milestone } from '@/modules/gamification';
 
 // Helper: Get top interaction suggestions for an archetype
-function getTopInteractions(archetype: string): Array<{ category: InteractionCategory; multiplier: number; level: 'peak' | 'high' | 'good' }> {
+function getTopInteractions(archetype: Archetype): Array<{ category: InteractionCategory; multiplier: number; level: 'peak' | 'high' | 'good' }> {
   if (archetype === 'Unknown') return [];
 
   const affinities = CategoryArchetypeMatrix[archetype];

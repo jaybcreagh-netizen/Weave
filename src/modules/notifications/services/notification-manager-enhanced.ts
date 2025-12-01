@@ -21,6 +21,7 @@ import {
   shouldSendSocialBatteryNotification,
 } from './notification-grace-periods';
 import { getWeekRange, STORY_CHIPS } from '@/modules/reflection';
+import Logger from '@/shared/utils/Logger';
 
 // AsyncStorage keys
 const LAST_REFLECTION_KEY = '@weave:last_reflection_date';
@@ -76,7 +77,7 @@ export async function scheduleDailyBatteryCheckin(time: string = '20:00'): Promi
     // Check grace period before scheduling
     const gracePeriodCheck = await shouldSendSocialBatteryNotification();
     if (!gracePeriodCheck.shouldSend) {
-      console.log('[Notifications] Battery check-in NOT scheduled:', gracePeriodCheck.reason);
+      Logger.debug('[Notifications] Battery check-in NOT scheduled:', gracePeriodCheck.reason);
       return;
     }
 
@@ -86,7 +87,7 @@ export async function scheduleDailyBatteryCheckin(time: string = '20:00'): Promi
     const minute = parseInt(minuteStr, 10);
 
     if (isNaN(hour) || isNaN(minute) || hour < 0 || hour > 23 || minute < 0 || minute > 59) {
-      console.error('Invalid time format:', time);
+      Logger.error('Invalid time format:', undefined, time);
       return;
     }
 
@@ -105,9 +106,9 @@ export async function scheduleDailyBatteryCheckin(time: string = '20:00'): Promi
       } as any,
     });
 
-    console.log(`[Notifications] Daily battery check-in scheduled for ${time}`);
+    Logger.info(`[Notifications] Daily battery check-in scheduled for ${time}`);
   } catch (error) {
-    console.error('Error scheduling daily battery check-in:', error);
+    Logger.error('Error scheduling daily battery check-in:', error);
   }
 }
 
@@ -116,7 +117,7 @@ export async function scheduleDailyBatteryCheckin(time: string = '20:00'): Promi
  */
 export async function cancelDailyBatteryCheckin(): Promise<void> {
   await Notifications.cancelScheduledNotificationAsync(DAILY_BATTERY_ID);
-  console.log('[Notifications] Daily battery check-in cancelled');
+  Logger.info('[Notifications] Daily battery check-in cancelled');
 }
 
 /**
@@ -136,7 +137,7 @@ export async function updateBatteryNotificationFromProfile(): Promise<void> {
       await cancelDailyBatteryCheckin();
     }
   } catch (error) {
-    console.error('Error updating battery notification from profile:', error);
+    Logger.error('Error updating battery notification from profile:', error);
   }
 }
 
@@ -196,9 +197,9 @@ export async function scheduleEventReminder(interaction: Interaction): Promise<v
       trigger: reminderTime as any,
     });
 
-    console.log(`[Notifications] Event reminder scheduled for ${interaction.id}`);
+    Logger.info(`[Notifications] Event reminder scheduled for ${interaction.id}`);
   } catch (error) {
-    console.error('Error scheduling event reminder:', error);
+    Logger.error('Error scheduling event reminder:', error);
   }
 }
 
@@ -208,7 +209,7 @@ export async function scheduleEventReminder(interaction: Interaction): Promise<v
 export async function cancelEventReminder(interactionId: string): Promise<void> {
   const notificationId = `${EVENT_REMINDER_PREFIX}${interactionId}`;
   await Notifications.cancelScheduledNotificationAsync(notificationId);
-  console.log(`[Notifications] Event reminder cancelled for ${interactionId}`);
+  Logger.info(`[Notifications] Event reminder cancelled for ${interactionId}`);
 }
 
 /**
@@ -229,13 +230,13 @@ export async function scheduleAllEventReminders(): Promise<void> {
       )
       .fetch();
 
-    console.log(`[Notifications] Scheduling reminders for ${upcomingInteractions.length} events`);
+    Logger.info(`[Notifications] Scheduling reminders for ${upcomingInteractions.length} events`);
 
     for (const interaction of upcomingInteractions) {
       await scheduleEventReminder(interaction);
     }
   } catch (error) {
-    console.error('Error scheduling all event reminders:', error);
+    Logger.error('Error scheduling all event reminders:', error);
   }
 }
 
@@ -257,7 +258,7 @@ async function getDeepeningNudges(): Promise<DeepeningNudge[]> {
     const json = await AsyncStorage.getItem(DEEPENING_NUDGES_KEY);
     return json ? JSON.parse(json) : [];
   } catch (error) {
-    console.error('Error getting deepening nudges:', error);
+    Logger.error('Error getting deepening nudges:', error);
     return [];
   }
 }
@@ -269,7 +270,7 @@ async function saveDeepeningNudges(nudges: DeepeningNudge[]): Promise<void> {
   try {
     await AsyncStorage.setItem(DEEPENING_NUDGES_KEY, JSON.stringify(nudges));
   } catch (error) {
-    console.error('Error saving deepening nudges:', error);
+    Logger.error('Error saving deepening nudges:', error);
   }
 }
 
@@ -297,7 +298,7 @@ export async function schedulePostWeaveDeepening(interaction: Interaction): Prom
     const todayNudges = existingNudges.filter(n => n.scheduledAt >= startOfDay.getTime());
 
     if (todayNudges.length >= 2) {
-      console.log('[Notifications] Daily deepening nudge limit reached (2/day)');
+      Logger.debug('[Notifications] Daily deepening nudge limit reached (2/day)');
       return;
     }
 
@@ -357,9 +358,9 @@ export async function schedulePostWeaveDeepening(interaction: Interaction): Prom
     });
     await saveDeepeningNudges(nudges);
 
-    console.log(`[Notifications] Deepening nudge scheduled for ${interaction.id} at ${nudgeTime.toLocaleString()}`);
+    Logger.info(`[Notifications] Deepening nudge scheduled for ${interaction.id} at ${nudgeTime.toLocaleString()}`);
   } catch (error) {
-    console.error('Error scheduling deepening nudge:', error);
+    Logger.error('Error scheduling deepening nudge:', error);
   }
 }
 
@@ -378,9 +379,9 @@ export async function cancelDeepeningNudge(interactionId: string): Promise<void>
     }
 
     await saveDeepeningNudges(filtered);
-    console.log(`[Notifications] Deepening nudge cancelled for ${interactionId}`);
+    Logger.info(`[Notifications] Deepening nudge cancelled for ${interactionId}`);
   } catch (error) {
-    console.error('Error cancelling deepening nudge:', error);
+    Logger.error('Error cancelling deepening nudge:', error);
   }
 }
 
@@ -394,7 +395,7 @@ export async function cleanupOldDeepeningNudges(): Promise<void> {
     const active = nudges.filter(n => n.scheduledAt > now);
     await saveDeepeningNudges(active);
   } catch (error) {
-    console.error('Error cleaning up old deepening nudges:', error);
+    Logger.error('Error cleaning up old deepening nudges:', error);
   }
 }
 
@@ -413,7 +414,7 @@ export async function scheduleWeeklyReflection(): Promise<void> {
     // Check grace period before scheduling
     const gracePeriodCheck = await shouldSendWeeklyReflectionNotification();
     if (!gracePeriodCheck.shouldSend) {
-      console.log('[Notifications] Weekly reflection NOT scheduled:', gracePeriodCheck.reason);
+      Logger.debug('[Notifications] Weekly reflection NOT scheduled:', gracePeriodCheck.reason);
       return;
     }
 
@@ -432,9 +433,9 @@ export async function scheduleWeeklyReflection(): Promise<void> {
       } as any,
     });
 
-    console.log('[Notifications] Weekly reflection scheduled');
+    Logger.info('[Notifications] Weekly reflection scheduled');
   } catch (error) {
-    console.error('Error scheduling weekly reflection:', error);
+    Logger.error('Error scheduling weekly reflection:', error);
   }
 }
 
@@ -446,7 +447,7 @@ export async function getLastReflectionDate(): Promise<Date | null> {
     const dateString = await AsyncStorage.getItem(LAST_REFLECTION_KEY);
     return dateString ? new Date(dateString) : null;
   } catch (error) {
-    console.error('Error getting last reflection date:', error);
+    Logger.error('Error getting last reflection date:', error);
     return null;
   }
 }
@@ -458,7 +459,7 @@ export async function markReflectionComplete(): Promise<void> {
   try {
     await AsyncStorage.setItem(LAST_REFLECTION_KEY, new Date().toISOString());
   } catch (error) {
-    console.error('Error marking reflection complete:', error);
+    Logger.error('Error marking reflection complete:', error);
   }
 }
 
@@ -557,9 +558,9 @@ export async function scheduleMemoryNudges(): Promise<void> {
       });
     }
 
-    console.log(`[Notifications] Scheduled ${reflections.length} memory nudges`);
+    Logger.info(`[Notifications] Scheduled ${reflections.length} memory nudges`);
   } catch (error) {
-    console.error('Error scheduling memory nudges:', error);
+    Logger.error('Error scheduling memory nudges:', error);
   }
 }
 
@@ -583,7 +584,7 @@ export async function checkAndScheduleMemoryNudges(): Promise<void> {
     // Mark as checked
     await AsyncStorage.setItem(LAST_MEMORY_CHECK_KEY, today);
   } catch (error) {
-    console.error('Error checking memory nudges:', error);
+    Logger.error('Error checking memory nudges:', error);
   }
 }
 
@@ -606,7 +607,7 @@ async function wasInitializedToday(): Promise<boolean> {
 
     return lastInitDate.getTime() === today.getTime();
   } catch (error) {
-    console.error('Error checking notification initialization:', error);
+    Logger.error('Error checking notification initialization:', error);
     return false;
   }
 }
@@ -618,7 +619,7 @@ async function markAsInitialized(): Promise<void> {
   try {
     await AsyncStorage.setItem(NOTIFICATIONS_INITIALIZED_KEY, Date.now().toString());
   } catch (error) {
-    console.error('Error marking notifications as initialized:', error);
+    Logger.error('Error marking notifications as initialized:', error);
   }
 }
 
@@ -628,25 +629,25 @@ async function markAsInitialized(): Promise<void> {
  * Only reschedules if not already done today (prevents duplicate notifications)
  */
 export async function initializeNotifications(): Promise<void> {
-  console.log('[Notifications] Initializing notification system...');
+  Logger.info('[Notifications] Initializing notification system...');
 
   // Check existing permissions WITHOUT requesting them
   const { status: existingStatus } = await Notifications.getPermissionsAsync();
   if (existingStatus !== 'granted') {
-    console.log('[Notifications] Permissions not granted yet, skipping setup');
+    Logger.info('[Notifications] Permissions not granted yet, skipping setup');
     return;
   }
 
   // Check if we already initialized today
   const alreadyInitialized = await wasInitializedToday();
   if (alreadyInitialized) {
-    console.log('[Notifications] Already initialized today, skipping reschedule');
+    Logger.info('[Notifications] Already initialized today, skipping reschedule');
     // Only clean up old nudges, don't reschedule everything
     await cleanupOldDeepeningNudges();
     return;
   }
 
-  console.log('[Notifications] First initialization today, setting up all notifications');
+  Logger.info('[Notifications] First initialization today, setting up all notifications');
 
   // Setup all notification types
   await Promise.all([
@@ -660,7 +661,7 @@ export async function initializeNotifications(): Promise<void> {
   // Mark as initialized
   await markAsInitialized();
 
-  console.log('[Notifications] All notifications initialized');
+  Logger.info('[Notifications] All notifications initialized');
 }
 
 /**
@@ -668,7 +669,7 @@ export async function initializeNotifications(): Promise<void> {
  */
 export async function cancelAllNotifications(): Promise<void> {
   await Notifications.cancelAllScheduledNotificationsAsync();
-  console.log('[Notifications] All notifications cancelled');
+  Logger.info('[Notifications] All notifications cancelled');
 }
 
 /**

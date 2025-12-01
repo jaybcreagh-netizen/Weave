@@ -9,6 +9,7 @@ import { database } from '@/db';
 import { supabase } from './supabase.service';
 import { Q } from '@nozbe/watermelondb';
 import type { Model } from '@nozbe/watermelondb';
+import Logger from '@/shared/utils/Logger';
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 interface SyncConfig {
@@ -61,7 +62,7 @@ export class SyncEngine {
    */
   async sync(): Promise<SyncResult> {
     if (this.isSyncing) {
-      console.log('Sync already in progress, skipping...');
+      Logger.debug('Sync already in progress, skipping...');
       return {
         success: false,
         pulledRecords: 0,
@@ -85,13 +86,13 @@ export class SyncEngine {
       await this.loadLastSyncTimestamp();
 
       // Phase 1: Pull changes from server
-      console.log('📥 Pulling changes from server...');
+      Logger.debug('📥 Pulling changes from server...');
       const pullResult = await this.pullFromServer();
       result.pulledRecords = pullResult.count;
       result.conflicts += pullResult.conflicts;
 
       // Phase 2: Push local changes to server
-      console.log('📤 Pushing local changes to server...');
+      Logger.debug('📤 Pushing local changes to server...');
       const pushResult = await this.pushToServer();
       result.pushedRecords = pushResult.count;
 
@@ -99,9 +100,9 @@ export class SyncEngine {
       this.lastSyncTimestamp = Date.now();
       await this.saveLastSyncTimestamp();
 
-      console.log('✅ Sync completed successfully', result);
+      Logger.info('✅ Sync completed successfully', result);
     } catch (error) {
-      console.error('❌ Sync failed:', error);
+      Logger.error('❌ Sync failed:', error);
       result.success = false;
       result.errors.push(error instanceof Error ? error.message : 'Unknown error');
     } finally {
@@ -129,7 +130,7 @@ export class SyncEngine {
           .order('server_updated_at', { ascending: true });
 
         if (error) {
-          console.error(`Error pulling ${tableName}:`, error);
+          Logger.error(`Error pulling ${tableName}:`, error);
           continue;
         }
 
@@ -137,7 +138,7 @@ export class SyncEngine {
           continue;
         }
 
-        console.log(`📥 Pulled ${data.length} records from ${tableName}`);
+        Logger.debug(`📥 Pulled ${data.length} records from ${tableName}`);
 
         // Apply changes to local database
         await database.write(async () => {
@@ -173,7 +174,7 @@ export class SyncEngine {
           }
         });
       } catch (error) {
-        console.error(`Error processing ${tableName}:`, error);
+        Logger.error(`Error processing ${tableName}:`, error);
       }
     }
 
@@ -204,7 +205,7 @@ export class SyncEngine {
           continue;
         }
 
-        console.log(`📤 Pushing ${pendingRecords.length} records to ${tableName}`);
+        Logger.debug(`📤 Pushing ${pendingRecords.length} records to ${tableName}`);
 
         // Upload in batches
         const batchSize = 50;
@@ -218,7 +219,7 @@ export class SyncEngine {
             .upsert(serverRecords, { onConflict: 'id' });
 
           if (error) {
-            console.error(`Error pushing ${tableName}:`, error);
+            Logger.error(`Error pushing ${tableName}:`, error);
             continue;
           }
 
@@ -235,7 +236,7 @@ export class SyncEngine {
           totalPushed += batch.length;
         }
       } catch (error) {
-        console.error(`Error pushing ${tableName}:`, error);
+        Logger.error(`Error pushing ${tableName}:`, error);
       }
     }
 
@@ -261,7 +262,7 @@ export class SyncEngine {
    * Can be customized to show conflict resolution UI
    */
   private async resolveConflict(localRecord: Model, serverRecord: any): Promise<void> {
-    console.log(`⚠️ Conflict detected for record ${localRecord.id}, server wins`);
+    Logger.warn(`⚠️ Conflict detected for record ${localRecord.id}, server wins`);
 
     await localRecord.update((record: any) => {
       this.applyServerData(record, serverRecord);
@@ -294,7 +295,7 @@ export class SyncEngine {
    */
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   private serializeForServer(record: Model, tableName: string): any {
-    const raw = record._raw;
+    const raw = record._raw as any;
     const serverRecord: any = {
       id: record.id,
       user_id: this.userId,
@@ -336,7 +337,7 @@ export class SyncEngine {
       const value = await AsyncStorage.getItem(key);
       this.lastSyncTimestamp = value ? parseInt(value, 10) : 0;
     } catch (error) {
-      console.error('Failed to load last sync timestamp:', error);
+      Logger.error('Failed to load last sync timestamp:', error);
       this.lastSyncTimestamp = 0;
     }
   }
@@ -349,7 +350,7 @@ export class SyncEngine {
       const key = `weave:sync:lastTimestamp:${this.userId}`;
       await AsyncStorage.setItem(key, this.lastSyncTimestamp.toString());
     } catch (error) {
-      console.error('Failed to save last sync timestamp:', error);
+      Logger.error('Failed to save last sync timestamp:', error);
     }
   }
 }

@@ -33,9 +33,9 @@ export interface PatternInteractionData {
 export function analyzeInteractionPattern(
   interactions: PatternInteractionData[]
 ): FriendshipPattern {
-  // Filter to only completed interactions
+  // Filter to only completed interactions with valid dates
   const completed = interactions
-    .filter(i => i.status === 'completed')
+    .filter(i => i.status === 'completed' && i.interactionDate && !isNaN(i.interactionDate.getTime()))
     .sort((a, b) => b.interactionDate.getTime() - a.interactionDate.getTime());
 
   // Need at least 2 interactions to establish a pattern

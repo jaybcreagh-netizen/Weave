@@ -9,7 +9,14 @@ import { deleteWeaveCalendarEvent } from '../calendar.service';
 
 jest.mock('@/db', () => ({
   database: {
-    get: jest.fn().mockReturnThis(),
+    get: jest.fn().mockReturnValue({
+      query: jest.fn().mockReturnThis(),
+      fetch: jest.fn(),
+      create: jest.fn(),
+      prepareCreate: jest.fn(),
+      find: jest.fn(),
+      prepareDestroyPermanently: jest.fn(),
+    }),
     query: jest.fn().mockReturnThis(),
     fetch: jest.fn(),
     find: jest.fn(),
@@ -60,6 +67,15 @@ describe('WeaveLoggingService', () => {
       query: jest.fn().mockReturnThis(),
       fetch: jest.fn().mockResolvedValue([mockFriend]),
       create: jest.fn().mockResolvedValue(mockInteraction),
+      prepareCreate: jest.fn().mockImplementation((fn) => {
+        const mockObj = {
+          ...mockInteraction,
+          interaction: { set: jest.fn() },
+          friend: { set: jest.fn() },
+        };
+        fn(mockObj);
+        return mockObj;
+      }),
     });
 
     const formData: InteractionFormData = {
@@ -106,6 +122,15 @@ describe('WeaveLoggingService', () => {
       query: jest.fn().mockReturnThis(),
       fetch: jest.fn().mockResolvedValue([mockFriend]),
       create: jest.fn().mockResolvedValue(mockInteraction),
+      prepareCreate: jest.fn().mockImplementation((fn) => {
+        const mockObj = {
+          ...mockInteraction,
+          interaction: { set: jest.fn() },
+          friend: { set: jest.fn() },
+        };
+        fn(mockObj);
+        return mockObj;
+      }),
     });
 
     const formData: InteractionFormData = {

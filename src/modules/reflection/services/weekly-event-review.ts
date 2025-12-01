@@ -137,8 +137,8 @@ async function isEventAlreadyLogged(event: ScannedEvent): Promise<boolean> {
 
     // Check if any interaction involves these friends
     for (const interaction of interactions) {
-      const interactionFriendIds = await interaction.friends.fetch();
-      const friendIdSet = new Set(interactionFriendIds.map(f => f.id));
+      const interactionFriendIds = await interaction.interactionFriends.fetch();
+      const friendIdSet = new Set(interactionFriendIds.map((f: any) => f.id));
 
       // If any of the event's friends are in this interaction, consider it logged
       const hasOverlap = friendIds.some(id => friendIdSet.has(id));
@@ -185,7 +185,7 @@ export async function batchLogCalendarEvents(params: {
           const interaction = await database.get<InteractionModel>('interactions').create((record) => {
             record.interactionDate = event.startDate;
             record.interactionType = event.suggestedCategory || 'hangout';
-            record.category = event.suggestedCategory || 'hangout';
+            record.interactionCategory = event.suggestedCategory || 'hangout';
             record.status = 'completed';
             record.title = event.title;
             record.location = event.location;
@@ -193,7 +193,7 @@ export async function batchLogCalendarEvents(params: {
 
             // Add emotional context if provided
             if (reflectionNotes) {
-              record.notes = reflectionNotes;
+              record.note = reflectionNotes;
             }
 
             // Could add vibe based on emotional rating

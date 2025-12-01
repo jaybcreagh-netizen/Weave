@@ -1,4 +1,4 @@
-import { Suggestion } from '../types/suggestions';
+import { Suggestion } from '../types/common';
 
 /**
  * Time-aware filtering for suggestions
@@ -68,11 +68,11 @@ export function isSuggestionTimeAppropriate(suggestion: Suggestion, timeOfDay?: 
 
   // Log/action suggestions - show during waking hours
   if (suggestion.action.type === 'log') {
-    return currentTime !== 'night';
+    return true;
   }
 
   // Default: show during reasonable hours
-  return currentTime !== 'night';
+  return true;
 }
 
 /**

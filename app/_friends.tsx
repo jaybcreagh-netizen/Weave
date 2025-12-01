@@ -107,6 +107,8 @@ function DashboardContent() {
   const { updateInteractionVibeAndNotes } = useInteractions();
   const { gesture, animatedScrollHandler, activeCardId } = useCardGesture();
   const { suggestions, dismissSuggestion } = useSuggestions();
+  // const suggestions = [];
+  // const dismissSuggestion = () => {};
   const suggestionCount = suggestions.length;
   const hasCritical = suggestions.some(s => s.priority === 'high');
   const { dismissIntention, intentions } = usePlans();
@@ -428,8 +430,9 @@ function DashboardContent() {
   );
 }
 
-export default function Friends() {
-  return <DashboardContent />;
+export default function RootLayout() {
+  console.log('[RootLayout] Rendering RootLayout');
+  return (<DashboardContent />);
 }
 
 const styles = StyleSheet.create({

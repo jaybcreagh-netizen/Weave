@@ -27,7 +27,7 @@ module.exports = tseslint.config(
       ],
       // Disable some annoying rules for now to focus on module boundaries
       "@typescript-eslint/no-explicit-any": "off",
-      "@typescript-eslint/no-unused-vars": "warn",
+      "@typescript-eslint/no-unused-vars": ["warn", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_" }],
     },
   },
 );

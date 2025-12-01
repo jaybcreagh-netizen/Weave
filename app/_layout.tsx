@@ -371,82 +371,84 @@ function RootLayoutContent() {
   }
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.background }}>
-        <StatusBar style={isDarkMode ? 'light' : 'dark'} />
-        {/* Wrap with CardGestureProvider so both Dashboard and Overlay can access it */}
-        <PortalProvider>
-          <CardGestureProvider>
-            <QuickWeaveProvider>
-              <ToastProvider>
-                <ErrorBoundary
-                  onError={(error, errorInfo) => {
-                    console.error('[App] Global error caught:', error);
-                    console.error('[App] Error info:', errorInfo);
-                    // TODO: Send to error tracking service (e.g., Sentry)
-                  }}
-                >
-                  {/* Animated wrapper for smooth fade-in */}
-                  <Animated.View style={[{ flex: 1 }, contentStyle]}>
-                    <Stack screenOptions={{ headerShown: false }}>
-                      {/* The Stack navigator will automatically discover all files in the app directory */}
-                    </Stack>
 
-                    {/* Global Milestone Celebration Modal */}
-                    <MilestoneCelebration
-                      visible={milestoneCelebrationData !== null}
-                      milestone={milestoneCelebrationData}
-                      onClose={hideMilestoneCelebration}
-                    />
+    <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.background }}>
+      <StatusBar style={isDarkMode ? 'light' : 'dark'} />
+      {/* Wrap with CardGestureProvider so both Dashboard and Overlay can access it */}
+      <PortalProvider>
+        <CardGestureProvider>
+          <QuickWeaveProvider>
+            <ToastProvider>
+              <ErrorBoundary
+                onError={(error, errorInfo) => {
+                  console.error('[App] Global error caught:', error);
+                  console.error('[App] Error info:', errorInfo);
+                  // TODO: Send to error tracking service (e.g., Sentry)
+                }}
+              >
+                {/* Animated wrapper for smooth fade-in */}
+                <Animated.View style={[{ flex: 1 }, contentStyle]}>
+                  <Stack screenOptions={{ headerShown: false }}>
+                    {/* The Stack navigator will automatically discover all files in the app directory */}
+                  </Stack>
 
-                    <TrophyCabinetModal
-                      visible={isTrophyCabinetOpen}
-                      onClose={closeTrophyCabinet}
-                    />
+                  {/* Global Milestone Celebration Modal */}
+                  <MilestoneCelebration
+                    visible={milestoneCelebrationData !== null}
+                    milestone={milestoneCelebrationData}
+                    onClose={hideMilestoneCelebration}
+                  />
 
-                    {/* Notification Permission Modal */}
-                    <NotificationPermissionModal
-                      visible={showNotificationPermissionModal}
-                      onRequestPermission={handleRequestNotificationPermission}
-                      onSkip={handleSkipNotificationPermission}
-                    />
+                  <TrophyCabinetModal
+                    visible={isTrophyCabinetOpen}
+                    onClose={closeTrophyCabinet}
+                  />
 
-                    {/* Global Event Suggestion Modal */}
-                    <EventSuggestionModal />
+                  {/* Notification Permission Modal */}
+                  <NotificationPermissionModal
+                    visible={showNotificationPermissionModal}
+                    onRequestPermission={handleRequestNotificationPermission}
+                    onSkip={handleSkipNotificationPermission}
+                  />
 
-                    {/* Weekly Reflection Modal */}
-                    <WeeklyReflectionModal
-                      isOpen={isWeeklyReflectionOpen}
-                      onClose={closeWeeklyReflection}
-                    />
-                  </Animated.View>
+                  {/* Global Event Suggestion Modal */}
+                  <EventSuggestionModal />
 
-                  {/* Loading Screen - shows until data is loaded AND UI is mounted */}
-                  <LoadingScreen visible={fontsLoaded && (!dataLoaded || !uiMounted)} />
-                </ErrorBoundary>
-              </ToastProvider>
-            </QuickWeaveProvider>
-          </CardGestureProvider>
-        </PortalProvider>
-      </GestureHandlerRootView>
-    </QueryClientProvider>
+                  {/* Weekly Reflection Modal */}
+                  <WeeklyReflectionModal
+                    isOpen={isWeeklyReflectionOpen}
+                    onClose={closeWeeklyReflection}
+                  />
+                </Animated.View>
+
+                {/* Loading Screen - shows until data is loaded AND UI is mounted */}
+                <LoadingScreen visible={fontsLoaded && (!dataLoaded || !uiMounted)} />
+              </ErrorBoundary>
+            </ToastProvider>
+          </QuickWeaveProvider>
+        </CardGestureProvider>
+      </PortalProvider>
+    </GestureHandlerRootView>
+
   );
 
 }
 
 function RootLayout() {
   return (
-    <PostHogProvider
-      apiKey={POSTHOG_API_KEY}
-      options={posthogOptions}
-      autocapture={{
-        captureScreens: false,
-        captureTouches: true
-      }}
-    >
-      <RootLayoutContent />
-    </PostHogProvider>
+    <QueryClientProvider client={queryClient}>
+      <PostHogProvider
+        apiKey={POSTHOG_API_KEY}
+        options={posthogOptions}
+        autocapture={{
+          captureScreens: false,
+          captureTouches: true
+        }}
+      >
+        <RootLayoutContent />
+      </PostHogProvider>
+    </QueryClientProvider>
   );
 }
 
-export default Sentry.wrap(RootLayout);
+export default RootLayout;

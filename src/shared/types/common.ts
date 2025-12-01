@@ -65,7 +65,7 @@ export interface StructuredReflection {
 
 export interface Suggestion {
   id: string;
-  type: 'connect' | 'deepen' | 'reconnect' | 'celebrate';
+  type: 'connect' | 'deepen' | 'reconnect' | 'celebrate' | 'reflect';
   friendId: string;
   title: string;
   subtitle: string;
@@ -76,8 +76,14 @@ export interface Suggestion {
   action: {
     type: 'plan' | 'log' | 'reflect' | 'connect';
     interactionId?: string;
+    prefilledCategory?: string;
+    prefilledMode?: 'plan' | 'log' | 'reflect' | 'connect' | 'detailed';
   };
   category?: string;
   friendName?: string;
   urgency?: 'critical' | 'high' | 'medium' | 'low';
+  expiresAt?: Date;
+  actionLabel?: string;
+  dismissible?: boolean;
+  createdAt?: Date;
 }

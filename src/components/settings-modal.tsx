@@ -514,18 +514,22 @@ export function SettingsModal({
   const handleGenerateStressTest = () => {
     Alert.alert(
       'Generate Stress Test Data',
-      'This will create 100 test friends with 5 interactions each for performance testing. Continue?',
+      'This will create realistic test data including friends, interactions, journal entries, and groups. Continue?',
       [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Generate',
           onPress: async () => {
             try {
-              await generateStressTestData(100, 5);
+              await generateStressTestData(100, 10);
               const stats = await getDataStats();
               Alert.alert(
                 'Stress Test Data Generated',
-                `Created ${stats.stressTestFriends} test friends!\n\nTotal friends: ${stats.totalFriends}\nTotal interactions: ${stats.totalInteractions}`,
+                `Created ${stats.stressTestFriends} test friends!\n\n` +
+                `Total friends: ${stats.totalFriends}\n` +
+                `Total interactions: ${stats.totalInteractions}\n` +
+                `Total journal entries: ${stats.totalJournalEntries}\n` +
+                `Total groups: ${stats.totalGroups}`,
                 [{ text: 'OK' }]
               );
             } catch (error) {

@@ -20,7 +20,8 @@ export default function Dashboard() {
     const [showSettings, setShowSettings] = useState(false);
     const [showBatterySheet, setShowBatterySheet] = useState(false);
     const { submitBatteryCheckin } = useUserProfileStore();
-    const { suggestionCount } = useSuggestions();
+    const { suggestions } = useSuggestions();
+    const suggestionCount = suggestions.length;
     const scrollViewRef = useRef<ScrollView>(null);
 
     const handleTabPress = (tab: 'insights' | 'circle') => {

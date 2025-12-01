@@ -5,7 +5,9 @@ import { X, Calendar } from 'lucide-react-native';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { database } from '@/db';
-import LifeEvent, { LifeEventType, LifeEventImportance } from '@/db/models/LifeEvent';
+import LifeEventModel, { LifeEventType, LifeEventImportance } from '@/db/models/LifeEvent';
+import { LifeEvent } from '@/components/types';
+
 import UserProgress from '@/db/models/UserProgress';
 import { CustomCalendar } from './CustomCalendar';
 import { startOfDay } from 'date-fns';
@@ -45,9 +47,9 @@ export const LifeEventModal: React.FC<LifeEventModalProps> = ({
 }) => {
   const { colors, isDarkMode } = useTheme();
   const [eventType, setEventType] = useState<LifeEventType>(existingEvent?.eventType || 'other');
-  const [eventDate, setEventDate] = useState<Date>(existingEvent?.eventDate || startOfDay(new Date()));
+  const [eventDate, setEventDate] = useState<Date>(existingEvent?.date || startOfDay(new Date()));
   const [title, setTitle] = useState(existingEvent?.title || '');
-  const [notes, setNotes] = useState(existingEvent?.notes || '');
+  const [notes, setNotes] = useState(existingEvent?.description || '');
   const [importance, setImportance] = useState<LifeEventImportance>(existingEvent?.importance || 'medium');
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -56,9 +58,9 @@ export const LifeEventModal: React.FC<LifeEventModalProps> = ({
     if (visible) {
       if (existingEvent) {
         setEventType(existingEvent.eventType);
-        setEventDate(existingEvent.eventDate);
+        setEventDate(existingEvent.date || startOfDay(new Date()));
         setTitle(existingEvent.title);
-        setNotes(existingEvent.notes || '');
+        setNotes(existingEvent.description || '');
         setImportance(existingEvent.importance);
       } else {
         // Reset to defaults for new event
@@ -82,7 +84,8 @@ export const LifeEventModal: React.FC<LifeEventModalProps> = ({
       await database.write(async () => {
         if (existingEvent) {
           // Update existing event
-          await existingEvent.update(event => {
+          const eventModel = await database.get<LifeEventModel>('life_events').find(existingEvent.id);
+          await eventModel.update(event => {
             event.eventType = eventType;
             event.eventDate = startOfDay(eventDate);
             event.title = title.trim() || EVENT_TYPES.find(t => t.value === eventType)?.label || 'Life Event';
@@ -91,7 +94,7 @@ export const LifeEventModal: React.FC<LifeEventModalProps> = ({
           });
         } else {
           // Create new event
-          await database.get<LifeEvent>('life_events').create(event => {
+          await database.get<LifeEventModel>('life_events').create(event => {
             event.friendId = friendId;
             event.eventType = eventType;
             event.eventDate = startOfDay(eventDate);
@@ -134,7 +137,8 @@ export const LifeEventModal: React.FC<LifeEventModalProps> = ({
           onPress: async () => {
             try {
               await database.write(async () => {
-                await existingEvent.destroyPermanently();
+                const eventModel = await database.get<LifeEventModel>('life_events').find(existingEvent.id);
+                await eventModel.destroyPermanently();
               });
               onClose();
             } catch (error) {

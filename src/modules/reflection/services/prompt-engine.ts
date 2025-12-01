@@ -9,7 +9,7 @@
 import { database } from '@/db';
 import { Q } from '@nozbe/watermelondb';
 import PortfolioSnapshot from '@/db/models/PortfolioSnapshot';
-import { STORY_CHIPS, StoryChip } from './story-chips.service';
+import { STORY_CHIPS, StoryChip } from '@/modules/reflection/services/story-chips.service';
 
 // ============================================================================
 // TYPES
@@ -19,7 +19,7 @@ export interface ReflectionPrompt {
   id: string;
   question: string;
   context: string;  // Internal reasoning (for debugging / future LLM handoff)
-  promptType: 'highlight' | 'gratitude' | 'intention' | 'reconnect' | 'quiet' | 'celebration';
+  promptType: 'highlight' | 'gratitude' | 'intention' | 'reconnect' | 'quiet' | 'celebration' | 'gentle';
   suggestedChipIds?: string[];  // Max 2, contextually relevant
   mentionedFriendId?: string;
   mentionedFriendName?: string;
@@ -545,6 +545,7 @@ export function getDefaultChipsForPromptType(promptType: ReflectionPrompt['promp
     reconnect: ['dynamic_picked-up', 'feeling_closer'],
     quiet: ['feeling_grateful'],
     celebration: ['feeling_energized', 'feeling_joyful'],
+    gentle: ['feeling_grateful', 'feeling_comfortable'],
   };
 
   return defaults[promptType] || [];

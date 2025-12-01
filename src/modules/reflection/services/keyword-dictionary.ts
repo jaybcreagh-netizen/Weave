@@ -38,7 +38,7 @@ export const EVENT_PATTERNS: EventPattern[] = [
   {
     type: 'birthday',
     importance: 'critical',
-    suggestedCategory: 'birthday',
+    suggestedCategory: 'celebration',
     patterns: [
       /\bbirthday\b/i,
       /\bbday\b/i,
@@ -56,7 +56,7 @@ export const EVENT_PATTERNS: EventPattern[] = [
   {
     type: 'anniversary',
     importance: 'high',
-    suggestedCategory: 'milestone',
+    suggestedCategory: 'celebration',
     patterns: [
       /\banniversary\b/i,
       /\byear.*together\b/i,
@@ -71,7 +71,7 @@ export const EVENT_PATTERNS: EventPattern[] = [
   {
     type: 'holiday',
     importance: 'high',
-    suggestedCategory: 'holiday',
+    suggestedCategory: 'celebration',
     patterns: [
       /\bchristmas\b/i,
       /\bxmas\b/i,
@@ -109,7 +109,7 @@ export const EVENT_PATTERNS: EventPattern[] = [
       /☕|🍺|🍷|🍽️/,
     ],
     keywords: ['dinner', 'lunch', 'brunch', 'breakfast', 'coffee', 'drinks'],
-    suggestedCategory: 'meal',
+    suggestedCategory: 'meal-drink',
   },
 
   // SOCIAL GATHERINGS - Medium to High importance
@@ -128,7 +128,7 @@ export const EVENT_PATTERNS: EventPattern[] = [
       /🎉|🎊/,
     ],
     keywords: ['party', 'gathering', 'celebration', 'hangout', 'reunion'],
-    suggestedCategory: 'party',
+    suggestedCategory: 'event-party',
   },
 
   // ACTIVITIES - Medium importance
@@ -162,7 +162,7 @@ export const EVENT_PATTERNS: EventPattern[] = [
       /🎮|🎬|🎵|🏃|⛰️|🎨/,
     ],
     keywords: ['game', 'movie', 'concert', 'hike', 'sports', 'museum', 'art'],
-    suggestedCategory: 'event',
+    suggestedCategory: 'event-party',
   },
 
   // MEETINGS/CALLS - Low importance (more professional)
@@ -180,7 +180,7 @@ export const EVENT_PATTERNS: EventPattern[] = [
       /📞|💬|📹/,
     ],
     keywords: ['meeting', 'call', 'zoom', 'chat', 'catch up'],
-    suggestedCategory: 'call',
+    suggestedCategory: 'text-call',
   },
 ];
 

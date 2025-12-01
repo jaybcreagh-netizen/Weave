@@ -1,6 +1,11 @@
 import { calculatePointsForWeave } from '../services/scoring.service';
 import FriendModel from '@/db/models/Friend';
 import { VibeMultipliers } from '../constants';
+import { getLearnedEffectiveness } from '@/modules/insights';
+
+jest.mock('@/modules/insights', () => ({
+    getLearnedEffectiveness: jest.fn().mockReturnValue(1.0),
+}));
 
 // Mock FriendModel
 const mockFriend = {

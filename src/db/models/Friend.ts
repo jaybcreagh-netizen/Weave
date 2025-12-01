@@ -1,5 +1,6 @@
 import { Model } from '@nozbe/watermelondb'
 import { field, date, children, text, writer, readonly } from '@nozbe/watermelondb/decorators'
+import { Archetype } from '@/shared/types/common'
 
 export default class Friend extends Model {
   static table = 'friends'
@@ -12,7 +13,7 @@ export default class Friend extends Model {
 
   @text('name') name!: string
   @field('dunbar_tier') dunbarTier!: string
-  @text('archetype') archetype!: string
+  @text('archetype') archetype!: Archetype
   @field('weave_score') weaveScore!: number
   @date('last_updated') lastUpdated!: Date
   @readonly @date('created_at') createdAt!: Date

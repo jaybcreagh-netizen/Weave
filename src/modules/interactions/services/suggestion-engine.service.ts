@@ -1,4 +1,15 @@
-import { Suggestion, SuggestionInput } from '@/shared/types/common';
+import { Suggestion } from '@/shared/types/common';
+import FriendModel from '@/db/models/Friend';
+import InteractionModel from '@/db/models/Interaction';
+
+export interface SuggestionInput {
+  friend: FriendModel;
+  currentScore: number;
+  lastInteractionDate: Date | null;
+  interactionCount: number;
+  momentumScore: number;
+  recentInteractions: InteractionModel[];
+}
 import {
   getArchetypePreferredCategory,
   getArchetypeDriftSuggestion,
@@ -86,7 +97,7 @@ async function checkUpcomingLifeEvent(friend: SuggestionInput['friend']): Promis
     const activeLifeEvents = await database
       .get<LifeEvent>('life_events')
       .query(
-        // @ts-expect-error friend_id is dynamic
+        // friend_id is dynamic
         Q.where('friend_id', friend.id),
         Q.or(
           // Upcoming events (within next 30 days)
@@ -275,8 +286,8 @@ function getLifeEventDisplay(eventType: LifeEventType | 'birthday' | 'anniversar
 }
 
 // Get appropriate suggestion text for event type
-function getLifeEventSuggestion(eventType: LifeEventType | 'birthday' | 'anniversary', archetype: string, lifeEvent: LifeEvent): string {
-  if (isPastService(lifeEvent)) {
+function getLifeEventSuggestion(eventType: LifeEventType | 'birthday' | 'anniversary', archetype: string, lifeEvent: LifeEventInfo): string {
+  if (lifeEvent.daysUntil < 0) {
     // Follow-up suggestions for past events
     const followUps: Record<string, string> = {
       wedding: 'Check in on how married life is going',
@@ -377,8 +388,8 @@ function getContextualSuggestion(
   // Count interaction types to find patterns (fallback)
   const categoryCounts: Record<string, number> = {};
   recentInteractions.forEach(i => {
-    if (i.category) {
-      categoryCounts[i.category] = (categoryCounts[i.category] || 0) + 1;
+    if (i.interactionCategory) {
+      categoryCounts[i.interactionCategory] = (categoryCounts[i.interactionCategory] || 0) + 1;
     }
   });
 
@@ -473,7 +484,7 @@ export async function generateSuggestion(input: SuggestionInput): Promise<Sugges
       id: i.id,
       interactionDate: i.interactionDate,
       status: 'completed',
-      category: i.category,
+      category: i.interactionCategory,
     }))
   );
 
@@ -522,28 +533,29 @@ export async function generateSuggestion(input: SuggestionInput): Promise<Sugges
       : getLifeEventSuggestion(lifeEvent.type, friend.archetype, lifeEvent);
 
     // Different title and action for past vs upcoming events
-    const title = isPastService(lifeEvent)
+    const title = lifeEvent.daysUntil < 0
       ? `Check in on ${friend.name}'s ${eventLabel}`
-      : `${friend.name}'s ${eventLabel} ${getDaysText(daysUntil(lifeEvent))}`;
+      : `${friend.name}'s ${eventLabel} ${getDaysText(lifeEvent.daysUntil)}`;
 
-    const actionLabel = isPastService(lifeEvent) ? 'Reach Out' : 'Plan Celebration';
+    const actionLabel = lifeEvent.daysUntil < 0 ? 'Reach Out' : 'Plan Celebration';
 
     return {
       id: `life-event-${friend.id}-${lifeEvent.type}`,
       friendId: friend.id,
       friendName: friend.name,
-      urgency: daysUntil(lifeEvent) <= 1 ? 'high' : 'medium',
+      urgency: lifeEvent.daysUntil <= 1 ? 'high' : 'medium',
       category: 'life-event',
       title,
       subtitle,
       actionLabel,
       icon: eventIcon,
       action: {
-        type: isPastService(lifeEvent) ? 'log' : 'plan',
+        type: lifeEvent.daysUntil < 0 ? 'log' : 'plan',
         prefilledCategory: 'celebration' as any,
       },
       dismissible: true,
       createdAt: new Date(),
+      type: 'connect',
     };
   }
 
@@ -581,15 +593,14 @@ export async function generateSuggestion(input: SuggestionInput): Promise<Sugges
       },
       dismissible: true,
       createdAt: new Date(),
+      type: 'connect',
     };
   }
 
   // PRIORITY 3: Critical drift (Inner Circle emergency)
   if (friend.dunbarTier === 'InnerCircle' && currentScore < 30) {
     const contextualAction = getContextualSuggestion(recentInteractions, friend.archetype, friend.dunbarTier, pattern);
-    const eventContext = lifeEvent
-      ? ` ${lifeEvent.type === 'birthday' ? '🎂' : '💝'} Their ${lifeEvent.type} ${getDaysText(lifeEvent.daysUntil)}.`
-      : '';
+
 
     // Add pattern-aware context if available
     const patternContext = isPatternReliable(pattern)
@@ -603,7 +614,7 @@ export async function generateSuggestion(input: SuggestionInput): Promise<Sugges
       urgency: 'critical',
       category: 'drift',
       title: `${friend.name} is drifting away`,
-      subtitle: `${contextualAction}.${patternContext}${eventContext}`,
+      subtitle: `${contextualAction}.${patternContext}`,
       actionLabel: 'Reach Out Now',
       icon: '🚨',
       action: {
@@ -613,6 +624,7 @@ export async function generateSuggestion(input: SuggestionInput): Promise<Sugges
       },
       dismissible: false, // Too important to dismiss
       createdAt: new Date(),
+      type: 'reconnect',
     };
   }
 
@@ -623,9 +635,7 @@ export async function generateSuggestion(input: SuggestionInput): Promise<Sugges
 
   if (isHighDrift) {
     const contextualAction = getContextualSuggestion(recentInteractions, friend.archetype, friend.dunbarTier, pattern);
-    const eventContext = lifeEvent
-      ? ` ${lifeEvent.type === 'birthday' ? '🎂' : '💝'} Their ${lifeEvent.type} ${getDaysText(daysUntil(lifeEvent))}.`
-      : '';
+
 
     // Add pattern-aware context
     const patternContext = isPatternReliable(pattern)
@@ -639,7 +649,7 @@ export async function generateSuggestion(input: SuggestionInput): Promise<Sugges
       urgency: 'high',
       category: 'drift',
       title: `Time to reconnect with ${friend.name}`,
-      subtitle: `${contextualAction}.${patternContext}${eventContext}`,
+      subtitle: `${contextualAction}.${patternContext}`,
       actionLabel: 'Plan a Weave',
       icon: '🧵',
       action: {
@@ -648,6 +658,7 @@ export async function generateSuggestion(input: SuggestionInput): Promise<Sugges
       },
       dismissible: true,
       createdAt: new Date(),
+      type: 'reconnect',
     };
   }
 
@@ -676,6 +687,7 @@ export async function generateSuggestion(input: SuggestionInput): Promise<Sugges
         action: { type: 'log' },
         dismissible: true,
         createdAt: new Date(),
+        type: 'connect',
       };
     }
   }
@@ -709,6 +721,7 @@ export async function generateSuggestion(input: SuggestionInput): Promise<Sugges
         },
         dismissible: true,
         createdAt: new Date(),
+        type: 'deepen',
       };
     }
   }
@@ -727,7 +740,7 @@ export async function generateSuggestion(input: SuggestionInput): Promise<Sugges
       Community: 21,
     }[friend.dunbarTier];
 
-  if (currentScore >= 40 && currentScore <= 70 && daysSinceInteraction > maintenanceThreshold) {
+  if (currentScore >= 40 && currentScore <= 70 && maintenanceThreshold && daysSinceInteraction > maintenanceThreshold) {
     const contextualAction = getContextualSuggestion(recentInteractions, friend.archetype, friend.dunbarTier, pattern);
 
     // Create pattern-aware title
@@ -751,6 +764,7 @@ export async function generateSuggestion(input: SuggestionInput): Promise<Sugges
       },
       dismissible: true,
       createdAt: new Date(),
+      type: 'connect',
     };
   }
 
@@ -771,6 +785,7 @@ export async function generateSuggestion(input: SuggestionInput): Promise<Sugges
       action: { type: 'plan' },
       dismissible: true,
       createdAt: new Date(),
+      type: 'celebrate',
     };
   }
 
@@ -796,8 +811,8 @@ function checkReflectSuggestion(
   }
 
   // Must be recent (within 24 hours) and missing reflection data
-  if (hoursSince < 24 && hoursSince >= 0 && (!mostRecent.notes || !mostRecent.vibe)) {
-    const activityLabel = mostRecent.category ? getCategoryLabel(mostRecent.category) : 'time together';
+  if (hoursSince < 24 && hoursSince >= 0 && (!mostRecent.note || !mostRecent.vibe)) {
+    const activityLabel = mostRecent.interactionCategory ? getCategoryLabel(mostRecent.interactionCategory) : 'time together';
 
     return {
       id: `reflect-${mostRecent.id}`,
@@ -815,7 +830,8 @@ function checkReflectSuggestion(
       },
       dismissible: true,
       createdAt: new Date(),
-      expiresAt: new Date(mostRecent.interactionDate.getTime() + 48 * 3600000), // 48 hours
+      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // Expires in 24h
+      type: 'reflect',
     };
   }
 
@@ -838,7 +854,7 @@ function checkArchetypeMismatch(
   const last3 = pastInteractions.slice(0, 3);
   const preferredCategory = getArchetypePreferredCategory(friend.archetype);
 
-  const hasPreferred = last3.some(i => i.category === preferredCategory);
+  const hasPreferred = last3.some(i => i.interactionCategory === preferredCategory);
 
   if (!hasPreferred) {
     const categoryLabel = preferredCategory.replace('-', ' ');
@@ -846,6 +862,7 @@ function checkArchetypeMismatch(
       id: `archetype-mismatch-${friend.id}`,
       friendId: friend.id,
       friendName: friend.name,
+      type: 'reflect',
       urgency: 'medium',
       category: 'insight',
       title: `Missing ${friend.name}'s depth`,
@@ -909,19 +926,21 @@ function convertImbalanceToSuggestion(
 
   switch (imbalance.type) {
     case 'inner-circle-drift':
+      const urgency = imbalance.severity === 'critical' ? 'critical' : 'high';
       return {
         id: `${baseId}-inner-circle`,
         friendId: '', // Portfolio suggestions aren't tied to a specific friend
         friendName: '',
-        urgency: imbalance.severity === 'critical' ? 'critical' : 'high',
+        urgency: urgency,
         category: 'portfolio',
         title: imbalance.title,
         subtitle: imbalance.description,
         actionLabel: 'View Inner Circle',
         icon: '⚠️',
         action: { type: 'plan' }, // Could navigate to Inner Circle view
-        dismissible: imbalance.severity !== 'critical',
+        dismissible: urgency !== 'critical',
         createdAt: new Date(),
+        type: 'reconnect',
       };
 
     case 'tier-neglect':
@@ -938,6 +957,7 @@ function convertImbalanceToSuggestion(
         action: { type: 'plan' },
         dismissible: true,
         createdAt: new Date(),
+        type: 'connect',
       };
 
     case 'overcommitment':
@@ -954,6 +974,7 @@ function convertImbalanceToSuggestion(
         action: { type: 'plan' },
         dismissible: true,
         createdAt: new Date(),
+        type: 'connect',
       };
 
     case 'monotony':
@@ -970,6 +991,7 @@ function convertImbalanceToSuggestion(
         action: { type: 'plan' },
         dismissible: true,
         createdAt: new Date(),
+        type: 'deepen',
       };
 
     case 'lack-diversity':
@@ -986,6 +1008,7 @@ function convertImbalanceToSuggestion(
         action: { type: 'plan' },
         dismissible: true,
         createdAt: new Date(),
+        type: 'deepen',
       };
 
     default:
@@ -1015,7 +1038,7 @@ export function convertProactiveSuggestionsToSuggestions(
     const categoryMap: Record<ProactiveSuggestion['type'], Suggestion['category']> = {
       'upcoming-drift': 'drift',
       'optimal-timing': 'maintain',
-      'pattern-break': 'drift',
+      'pattern-break': 'reconnect',
       'momentum-opportunity': 'deepen',
     };
 
@@ -1027,11 +1050,14 @@ export function convertProactiveSuggestionsToSuggestions(
       category: categoryMap[proactive.type],
       title: proactive.title,
       subtitle: proactive.message,
-      actionLabel: proactive.type === 'upcoming-drift' ? 'Reach Out Now' : 'Plan Weave',
+      actionLabel: 'View Insight',
       icon: iconMap[proactive.type],
-      action: { type: 'plan' },
-      dismissible: proactive.urgency !== 'critical',
+      action: {
+        type: 'connect', // Default action type
+      },
+      dismissible: true,
       createdAt: new Date(),
+      type: 'connect',
     };
   });
 }

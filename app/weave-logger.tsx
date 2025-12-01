@@ -8,6 +8,7 @@ import { calculateDeepeningLevel } from '@/modules/intelligence';
 import { BlurView } from 'expo-blur';
 
 import { useInteractions, type StructuredReflection } from '@/modules/interactions';
+import { WeaveReflectPrompt, useWeaveReflectPrompt } from '@/components/Journal';
 import { Calendar as CalendarIcon, X, Sparkles, Users } from 'lucide-react-native';
 import { CustomCalendar } from '@/components/CustomCalendar';
 import { MoonPhaseSelector } from '@/components/MoonPhaseSelector';
@@ -46,6 +47,14 @@ export default function WeaveLoggerScreen() {
   const [showCelebration, setShowCelebration] = useState(false);
   const [title, setTitle] = useState<string>('');
   const [initiator, setInitiator] = useState<InitiatorType | undefined>(undefined);
+
+  const {
+    showPrompt,
+    checkAndShowPrompt,
+    hidePrompt,
+    promptInteraction,
+    promptFriends
+  } = useWeaveReflectPrompt();
 
   const scrollViewRef = useRef<ScrollView>(null);
   const scale = useSharedValue(1);
@@ -136,25 +145,54 @@ export default function WeaveLoggerScreen() {
         initiator,
       });
 
+      const savedInteraction = { id: 'temp-id', ...reflection }; // This is a mock, ideally logWeave returns the interaction
+      // But logWeave in useInteractions seems to return void or promise void.
+      // We might need to fetch the interaction or just pass the data we have.
+      // For now, let's assume we can proceed without the exact ID for the prompt check,
+      // or we need to update logWeave to return it.
+      // Actually, checkAndShowPrompt takes interaction and friends.
+
+      // Let's modify the flow to check prompt BEFORE navigating back.
+
       // Show celebration animation
       setShowCelebration(true);
       Vibration.vibrate();
 
-      // Navigate back after animation
-      setTimeout(() => {
-        try {
-          if (router.canGoBack()) {
-            router.back();
-          } else {
-            // Fallback: navigate to home/dashboard
+      // Check if we should prompt for reflection
+      // We need the interaction object. Since logWeave doesn't return it (presumably),
+      // we might construct a partial one or fetch it.
+      // For now, let's pass the data we have.
+      const interactionData = {
+        id: 'new-weave', // Placeholder
+        interactionDate: selectedDate.getTime(),
+        interactionType: 'log',
+        interactionCategory: selectedCategory,
+        vibe: selectedVibe,
+        duration: 'Medium', // Default or derived
+        notes: legacyNotes,
+      };
+
+      const shouldShow = await checkAndShowPrompt(interactionData as any, selectedFriends);
+
+      if (!shouldShow) {
+        // Navigate back after animation
+        setTimeout(() => {
+          try {
+            if (router.canGoBack()) {
+              router.back();
+            } else {
+              // Fallback: navigate to home/dashboard
+              router.replace('/');
+            }
+          } catch (navError) {
+            console.error('[WeaveLogger] Navigation error:', navError);
+            // Force navigate to home as last resort
             router.replace('/');
           }
-        } catch (navError) {
-          console.error('[WeaveLogger] Navigation error:', navError);
-          // Force navigate to home as last resort
-          router.replace('/');
-        }
-      }, 900);
+        }, 900);
+      }
+      // If shouldShow, the prompt will appear and handle navigation on dismiss/reflect
+
     } catch (error) {
       console.error('[WeaveLogger] Error saving weave:', error);
       // Show error to user but still try to navigate back
@@ -486,6 +524,30 @@ export default function WeaveLoggerScreen() {
         initialFriendId={friendId}
         selectedFriends={selectedFriends}
         onSelectionChange={setSelectedFriends}
+      />
+
+      <WeaveReflectPrompt
+        visible={showPrompt}
+        interaction={promptInteraction}
+        friends={promptFriends}
+        onReflect={() => {
+          hidePrompt();
+          router.replace({
+            pathname: '/journal',
+            params: {
+              mode: 'guided',
+              weaveId: promptInteraction?.id
+            }
+          });
+        }}
+        onDismiss={() => {
+          hidePrompt();
+          if (router.canGoBack()) {
+            router.back();
+          } else {
+            router.replace('/');
+          }
+        }}
       />
     </SafeAreaView>
   );

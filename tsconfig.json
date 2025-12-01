@@ -54,5 +54,8 @@
         "assets/*"
       ]
     }
-  }
+  },
+  "exclude": [
+    "supabase/functions"
+  ]
 }

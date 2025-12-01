@@ -15,6 +15,7 @@ import { calculateCurrentScore } from '@/modules/intelligence';
 import Interaction from '@/db/models/Interaction';
 import InteractionFriend from '@/db/models/InteractionFriend';
 import { Q } from '@nozbe/watermelondb';
+import Logger from '@/shared/utils/Logger';
 
 // AsyncStorage keys
 const LAST_SMART_NOTIFICATION_KEY = '@weave:last_smart_notification';
@@ -49,7 +50,7 @@ async function getNotificationPreferences(): Promise<NotificationPreferences> {
       return { ...DEFAULT_PREFERENCES, ...JSON.parse(stored) };
     }
   } catch (error) {
-    console.error('Error loading notification preferences:', error);
+    Logger.error('Error loading notification preferences:', error);
   }
   return DEFAULT_PREFERENCES;
 }
@@ -80,7 +81,7 @@ async function getSocialBatteryLevel(): Promise<number | null> {
     const profile = profiles[0];
     return profile.socialBatteryCurrent ?? null;
   } catch (error) {
-    console.error('Error getting social battery:', error);
+    Logger.error('Error getting social battery:', error);
     return null;
   }
 }
@@ -103,7 +104,7 @@ async function getTodayNotificationCount(): Promise<number> {
     // Reset count for new day
     return 0;
   } catch (error) {
-    console.error('Error getting notification count:', error);
+    Logger.error('Error getting notification count:', error);
     return 0;
   }
 }
@@ -121,7 +122,7 @@ async function incrementNotificationCount(): Promise<void> {
       JSON.stringify({ date: today, count: currentCount + 1 })
     );
   } catch (error) {
-    console.error('Error incrementing notification count:', error);
+    Logger.error('Error incrementing notification count:', error);
   }
 }
 
@@ -133,7 +134,7 @@ async function getLastNotificationTime(): Promise<number | null> {
     const stored = await AsyncStorage.getItem(LAST_SMART_NOTIFICATION_KEY);
     return stored ? parseInt(stored, 10) : null;
   } catch (error) {
-    console.error('Error getting last notification time:', error);
+    Logger.error('Error getting last notification time:', error);
     return null;
   }
 }
@@ -145,7 +146,7 @@ async function updateLastNotificationTime(): Promise<void> {
   try {
     await AsyncStorage.setItem(LAST_SMART_NOTIFICATION_KEY, Date.now().toString());
   } catch (error) {
-    console.error('Error updating last notification time:', error);
+    Logger.error('Error updating last notification time:', error);
   }
 }
 
@@ -178,7 +179,7 @@ async function getScheduledNotifications(): Promise<string[]> {
     // Reset for new day
     return [];
   } catch (error) {
-    console.error('Error getting scheduled notifications:', error);
+    Logger.error('Error getting scheduled notifications:', error);
     return [];
   }
 }
@@ -197,7 +198,7 @@ async function addScheduledNotification(notificationId: string): Promise<void> {
       JSON.stringify({ date: today, ids: current })
     );
   } catch (error) {
-    console.error('Error adding scheduled notification:', error);
+    Logger.error('Error adding scheduled notification:', error);
   }
 }
 
@@ -305,38 +306,23 @@ async function generateSmartSuggestions(): Promise<Suggestion[]> {
         const momentumScore = Math.max(0, friend.momentumScore - daysSinceMomentumUpdate);
 
         const suggestion = await generateSuggestion({
-          friend: {
-            id: friend.id,
-            name: friend.name,
-            archetype: friend.archetype,
-            dunbarTier: friend.dunbarTier,
-            createdAt: friend.createdAt,
-            birthday: friend.birthday,
-            anniversary: friend.anniversary,
-            relationshipType: friend.relationshipType,
-          },
+          friend,
           currentScore,
           lastInteractionDate: lastInteraction?.interactionDate,
           interactionCount: sortedInteractions.length,
           momentumScore,
-          recentInteractions: sortedInteractions.slice(0, 5).map((i) => ({
-            id: i.id,
-            category: i.interactionCategory as any,
-            interactionDate: i.interactionDate,
-            vibe: i.vibe,
-            notes: i.note,
-          })),
+          recentInteractions: sortedInteractions.slice(0, 5),
         });
 
         if (suggestion) {
           suggestions.push(suggestion);
         }
       } catch (error) {
-        console.error(`Error generating suggestion for friend ${friend.id} (${friend.name}):`, error);
+        Logger.error(`Error generating suggestion for friend ${friend.id} (${friend.name}):`, error);
       }
     }
   } catch (error) {
-    console.error('Error generating smart suggestions:', error);
+    Logger.error('Error generating smart suggestions:', error);
   }
 
   return suggestions;
@@ -370,7 +356,7 @@ async function scheduleSuggestionNotification(
     trigger: trigger as any,
   });
 
-  console.log(`[Smart Notifications] Scheduled: ${suggestion.title} (delay: ${delayMinutes}m)`);
+  Logger.info(`[Smart Notifications] Scheduled: ${suggestion.title} (delay: ${delayMinutes}m)`);
 }
 
 /**
@@ -440,12 +426,12 @@ function calculateSpreadDelays(count: number, prefs: NotificationPreferences): n
  * Schedules notifications spread throughout the day to avoid spam
  */
 export async function evaluateAndScheduleSmartNotifications(): Promise<void> {
-  console.log('[Smart Notifications] Evaluating what to send...');
+  Logger.info('[Smart Notifications] Evaluating what to send...');
 
   // Check if minimum cooldown has passed
   const cooldownPassed = await hasMinimumCooldownPassed();
   if (!cooldownPassed) {
-    console.log('[Smart Notifications] Cooldown period active, skipping');
+    Logger.debug('[Smart Notifications] Cooldown period active, skipping');
     return;
   }
 
@@ -454,7 +440,7 @@ export async function evaluateAndScheduleSmartNotifications(): Promise<void> {
 
   // Check quiet hours
   if (isQuietHours(prefs)) {
-    console.log('[Smart Notifications] Currently in quiet hours, skipping');
+    Logger.debug('[Smart Notifications] Currently in quiet hours, skipping');
     return;
   }
 
@@ -473,13 +459,13 @@ export async function evaluateAndScheduleSmartNotifications(): Promise<void> {
   const remainingSlots = maxAllowed - alreadyScheduled.length;
 
   if (remainingSlots <= 0) {
-    console.log('[Smart Notifications] All notification slots filled for today');
+    Logger.debug('[Smart Notifications] All notification slots filled for today');
     return;
   }
 
   // Get social battery level
   const batteryLevel = await getSocialBatteryLevel();
-  console.log(`[Smart Notifications] Battery level: ${batteryLevel ?? 'unknown'}`);
+  Logger.debug(`[Smart Notifications] Battery level: ${batteryLevel ?? 'unknown'}`);
 
   // Generate suggestions
   const suggestions = await generateSmartSuggestions();
@@ -501,7 +487,7 @@ export async function evaluateAndScheduleSmartNotifications(): Promise<void> {
   }
 
   if (eligible.length === 0) {
-    console.log('[Smart Notifications] No eligible suggestions to send');
+    Logger.debug('[Smart Notifications] No eligible suggestions to send');
     return;
   }
 
@@ -520,13 +506,13 @@ export async function evaluateAndScheduleSmartNotifications(): Promise<void> {
     await incrementNotificationCount();
     await addScheduledNotification(`smart-suggestion-${suggestion.id}`);
 
-    console.log(`[Smart Notifications] Scheduled: ${suggestion.title} (in ${delayMinutes}m)`);
+    Logger.info(`[Smart Notifications] Scheduled: ${suggestion.title} (in ${delayMinutes}m)`);
   }
 
   // Update last notification time
   await updateLastNotificationTime();
 
-  console.log(`[Smart Notifications] Scheduled ${toSchedule.length} notifications spread throughout the day`);
+  Logger.info(`[Smart Notifications] Scheduled ${toSchedule.length} notifications spread throughout the day`);
 }
 
 /**
@@ -542,9 +528,9 @@ export async function updateNotificationPreferences(
       '@weave:notification_preferences',
       JSON.stringify(updated)
     );
-    console.log('[Smart Notifications] Preferences updated:', updated);
+    Logger.info('[Smart Notifications] Preferences updated:', updated);
   } catch (error) {
-    console.error('Error updating notification preferences:', error);
+    Logger.error('Error updating notification preferences:', error);
   }
 }
 

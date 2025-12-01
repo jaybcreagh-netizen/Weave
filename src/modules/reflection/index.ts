@@ -17,6 +17,7 @@ export * from './services/adaptive-chips';
 export * from './services/weekly-event-review';
 export * from './services/year-in-moons-data';
 export * from './services/keyword-dictionary';
+export * from './services/custom-chip.service';
 
 // Oracle
 export * from './services/oracle/oracle-service';

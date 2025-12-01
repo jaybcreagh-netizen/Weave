@@ -248,6 +248,7 @@ export default function FriendProfile() {
                 buttonsOpacity={buttonsOpacity}
                 onLogWeave={() => router.push({ pathname: '/weave-logger', params: { friendId: friend.id } })}
                 onPlanWeave={() => setShowPlanChoice(true)}
+                onJournal={() => router.push({ pathname: '/journal', params: { mode: 'friend-arc', friendId: friend.id } })}
               />
 
               <LifeEventsSection

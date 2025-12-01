@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, Text } from 'react-native';
+import { View, Text, Platform } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -11,37 +11,49 @@ import Animated, {
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { BlurView } from 'expo-blur';
+import {
+  Phone,
+  Utensils,
+  Users,
+  MessageCircle,
+  Palette,
+  Mic,
+  PartyPopper,
+  HeartHandshake,
+  Star,
+  HelpCircle
+} from 'lucide-react-native';
 
 import { useUIStore } from '@/stores/uiStore';
 import { useFriends } from '@/modules/relationships';
 import { useCardGesture } from '@/context/CardGestureContext';
 import { useTheme } from '@/shared/hooks/useTheme';
-import { InteractionCategory } from '@/shared/constants/interaction-categories';
+import { InteractionCategory } from '@/components/types';
 
 // Compact sizing for sleeker feel
-const MENU_RADIUS = 75; // Reduced from 100px
-const ITEM_SIZE = 50; // Reduced from 64px
-const CENTER_SIZE = 44; // New - iOS standard touch target
-const HIGHLIGHT_THRESHOLD = 25; // Reduced from 30px
-const SELECTION_THRESHOLD = 40; // Reduced from 45px
+const MENU_RADIUS = 88; // Increased from 75px (was 100px originally)
+const ITEM_SIZE = 50;
+const CENTER_SIZE = 44;
+const HIGHLIGHT_THRESHOLD = 25;
+const SELECTION_THRESHOLD = 40;
 
 interface RadialMenuItem {
   id: InteractionCategory;
-  icon: string;
+  icon: React.ElementType;
   label: string;
 }
 
 // Category metadata mapping
-const CATEGORY_METADATA: Record<InteractionCategory, { icon: string; label: string }> = {
-  'text-call': { icon: '📞', label: 'Call' },
-  'meal-drink': { icon: '🍽️', label: 'Meal' },
-  'hangout': { icon: '👥', label: 'Hang' },
-  'deep-talk': { icon: '💭', label: 'Talk' },
-  'activity-hobby': { icon: '🎨', label: 'Do' },
-  'voice-note': { icon: '🎤', label: 'Voice' },
-  'event-party': { icon: '🎉', label: 'Event' },
-  'favor-support': { icon: '🤝', label: 'Help' },
-  'celebration': { icon: '🎊', label: 'Celebrate' },
+const CATEGORY_METADATA: Record<InteractionCategory, { icon: React.ElementType; label: string }> = {
+  'text-call': { icon: Phone, label: 'Call' },
+  'meal-drink': { icon: Utensils, label: 'Meal' },
+  'hangout': { icon: Users, label: 'Hang' },
+  'deep-talk': { icon: MessageCircle, label: 'Talk' },
+  'activity-hobby': { icon: Palette, label: 'Do' },
+  'voice-note': { icon: Mic, label: 'Voice' },
+  'event-party': { icon: PartyPopper, label: 'Event' },
+  'favor-support': { icon: HeartHandshake, label: 'Help' },
+  'celebration': { icon: Star, label: 'Celebrate' },
 };
 
 // Default fallback activities
@@ -120,7 +132,7 @@ export function QuickWeaveOverlay() {
   // Map to RadialMenuItem format
   const ACTIVITIES: RadialMenuItem[] = orderedCategories.map(category => ({
     id: category,
-    icon: CATEGORY_METADATA[category]?.icon || '❓',
+    icon: CATEGORY_METADATA[category]?.icon || HelpCircle,
     label: CATEGORY_METADATA[category]?.label || category,
   }));
 
@@ -167,26 +179,36 @@ export function QuickWeaveOverlay() {
               width: CENTER_SIZE,
               height: CENTER_SIZE,
               borderRadius: CENTER_SIZE / 2,
-              backgroundColor: isDarkMode ? 'rgba(124, 58, 237, 0.9)' : 'rgba(124, 58, 237, 0.85)',
+              // Softened center circle
+              backgroundColor: isDarkMode ? 'rgba(40, 40, 40, 0.6)' : 'rgba(255, 255, 255, 0.6)',
               alignItems: 'center',
               justifyContent: 'center',
               position: 'absolute',
               shadowColor: '#000',
               shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.2,
-              shadowRadius: 6,
-              elevation: 4,
-              borderWidth: 2,
-              borderColor: 'rgba(255, 255, 255, 0.3)',
+              shadowOpacity: 0.1,
+              shadowRadius: 4,
+              elevation: 2,
+              borderWidth: 1,
+              borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
+              overflow: 'hidden', // For BlurView if we wanted it inside, but background color is enough for "soft"
             },
             centerStyle,
           ]}
         >
+          {/* Optional: Add BlurView inside for extra softness if supported */}
+          {Platform.OS === 'ios' && (
+            <BlurView
+              intensity={20}
+              tint={isDarkMode ? 'dark' : 'light'}
+              style={{ position: 'absolute', width: '100%', height: '100%' }}
+            />
+          )}
           <Text
             style={{
               fontSize: 18,
               fontWeight: '700',
-              color: 'white',
+              color: isDarkMode ? 'white' : colors.foreground, // Adapted to theme
               fontFamily: 'Lora_700Bold',
             }}
           >
@@ -233,6 +255,7 @@ function MenuItem({
   primaryColor: string;
 }) {
   const { x: finalX, y: finalY } = position;
+  const IconComponent = item.icon;
 
   const animatedStyle = useAnimatedStyle(() => {
     const isHighlighted = highlightedIndex.value === index;
@@ -268,8 +291,8 @@ function MenuItem({
         ? 'rgba(255, 255, 255, 0.25)' // Slightly brighter frosted
         : 'rgba(255, 255, 255, 1)' // Pure white
       : isDarkMode
-      ? 'rgba(255, 255, 255, 0.15)' // Frosted glass
-      : 'rgba(255, 255, 255, 0.95)'; // Near white
+        ? 'rgba(255, 255, 255, 0.15)' // Frosted glass
+        : 'rgba(255, 255, 255, 0.95)'; // Near white
 
     return {
       backgroundColor: withTiming(backgroundColor, { duration: 80 }),
@@ -324,33 +347,46 @@ function MenuItem({
           itemBgStyle,
         ]}
       >
-        <Text style={{ fontSize: 26, textAlign: 'center' }}>
-          {item.icon}
-        </Text>
+        <IconComponent
+          size={24}
+          color={primaryColor}
+          strokeWidth={2}
+        />
       </Animated.View>
 
-      {/* Always-visible compact label */}
+      {/* Label with Backdrop Blur */}
       <Animated.View
         style={[
           {
             position: 'absolute',
-            top: ITEM_SIZE + 4,
+            top: ITEM_SIZE + 6,
             alignItems: 'center',
             justifyContent: 'center',
+            overflow: 'hidden',
+            borderRadius: 8,
           },
           labelStyle,
         ]}
       >
+        <BlurView
+          intensity={isDarkMode ? 30 : 20}
+          tint={isDarkMode ? 'dark' : 'light'}
+          style={{
+            position: 'absolute',
+            width: '100%',
+            height: '100%',
+            backgroundColor: isDarkMode ? 'rgba(0,0,0,0.3)' : 'rgba(255,255,255,0.3)',
+          }}
+        />
         <Text
           style={{
             fontSize: 11,
             fontWeight: '600',
-            color: isDarkMode ? 'rgba(255, 255, 255, 0.9)' : 'white',
+            color: isDarkMode ? 'rgba(255, 255, 255, 0.95)' : 'rgba(0, 0, 0, 0.8)',
             letterSpacing: 0.2,
             textAlign: 'center',
-            textShadowColor: 'rgba(0, 0, 0, 0.5)',
-            textShadowOffset: { width: 0, height: 1 },
-            textShadowRadius: 3,
+            paddingHorizontal: 8,
+            paddingVertical: 2,
           }}
           numberOfLines={1}
         >

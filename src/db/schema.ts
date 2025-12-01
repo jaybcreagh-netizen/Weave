@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb'
 
 export default appSchema({
-  version: 37, // UPDATED: Added groups and group_members tables
+  version: 38, // UPDATED: Added journal redesign fields
   tables: [
     tableSchema({
       name: 'oracle_insights',
@@ -33,11 +33,11 @@ export default appSchema({
         { name: 'created_at', type: 'number' },
         { name: 'photo_url', type: 'string', isOptional: true },
         { name: 'notes', type: 'string', isOptional: true },
-        { name: 'resilience', type: 'number', defaultValue: 1.0 },
-        { name: 'rated_weaves_count', type: 'number', defaultValue: 0 },
-        { name: 'momentum_score', type: 'number', defaultValue: 0 },
+        { name: 'resilience', type: 'number' },
+        { name: 'rated_weaves_count', type: 'number' },
+        { name: 'momentum_score', type: 'number' },
         { name: 'momentum_last_updated', type: 'number' },
-        { name: 'is_dormant', type: 'boolean', defaultValue: false },
+        { name: 'is_dormant', type: 'boolean' },
         { name: 'dormant_since', type: 'number', isOptional: true },
         // NEW: Life events and relationship context
         { name: 'birthday', type: 'string', isOptional: true }, // Format: "MM-DD" (month and day only)
@@ -48,13 +48,13 @@ export default appSchema({
         { name: 'tolerance_window_days', type: 'number', isOptional: true }, // Learned tolerance before decay accelerates
         // NEW v23: Learned effectiveness from feedback
         { name: 'category_effectiveness', type: 'string', isOptional: true }, // JSON: Record<category, effectiveness ratio>
-        { name: 'outcome_count', type: 'number', defaultValue: 0 }, // How many outcomes measured
+        { name: 'outcome_count', type: 'number' }, // How many outcomes measured
         // NEW v25: Reciprocity tracking
-        { name: 'initiation_ratio', type: 'number', defaultValue: 0.5 }, // 0 = always friend, 1.0 = always user, 0.5 = balanced
+        { name: 'initiation_ratio', type: 'number' }, // 0 = always friend, 1.0 = always user, 0.5 = balanced
         { name: 'last_initiated_by', type: 'string', isOptional: true }, // 'user' | 'friend' | 'mutual'
-        { name: 'consecutive_user_initiations', type: 'number', defaultValue: 0 }, // Streak of user-initiated interactions
-        { name: 'total_user_initiations', type: 'number', defaultValue: 0 }, // Total times user initiated
-        { name: 'total_friend_initiations', type: 'number', defaultValue: 0 }, // Total times friend initiated
+        { name: 'consecutive_user_initiations', type: 'number' }, // Streak of user-initiated interactions
+        { name: 'total_user_initiations', type: 'number' }, // Total times user initiated
+        { name: 'total_friend_initiations', type: 'number' }, // Total times friend initiated
         // NEW v31: Accounts and sync infrastructure
         { name: 'user_id', type: 'string', isOptional: true, isIndexed: true }, // Links record to user account
         { name: 'synced_at', type: 'number', isOptional: true }, // Last successful sync timestamp
@@ -216,8 +216,8 @@ export default appSchema({
         { name: 'notes', type: 'string', isOptional: true },
         { name: 'importance', type: 'string' }, // low, medium, high, critical
         { name: 'source', type: 'string' }, // manual, keyword_detected, recurring
-        { name: 'is_recurring', type: 'boolean', defaultValue: false }, // For birthdays/anniversaries
-        { name: 'reminded', type: 'boolean', defaultValue: false }, // Has user been notified
+        { name: 'is_recurring', type: 'boolean' }, // For birthdays/anniversaries
+        { name: 'reminded', type: 'boolean' }, // Has user been notified
         { name: 'created_at', type: 'number' },
         { name: 'updated_at', type: 'number' },
         // NEW v31: Accounts and sync infrastructure
@@ -231,31 +231,31 @@ export default appSchema({
       name: 'user_progress',
       columns: [
         // Path of Consistency
-        { name: 'current_streak', type: 'number', defaultValue: 0 },
-        { name: 'best_streak', type: 'number', defaultValue: 0 },
+        { name: 'current_streak', type: 'number' },
+        { name: 'best_streak', type: 'number' },
         { name: 'last_practice_date', type: 'number', isOptional: true },
         { name: 'consistency_milestones', type: 'string', isOptional: true }, // JSON array
 
         // v30: Streak forgiveness mechanics
-        { name: 'last_streak_count', type: 'number', defaultValue: 0 }, // Streak count before it was broken
+        { name: 'last_streak_count', type: 'number' }, // Streak count before it was broken
         { name: 'streak_released_date', type: 'number', isOptional: true }, // When the streak was released
-        { name: 'longest_streak_ever', type: 'number', defaultValue: 0 }, // Never decreases
+        { name: 'longest_streak_ever', type: 'number' }, // Never decreases
 
         // Path of Depth
-        { name: 'total_reflections', type: 'number', defaultValue: 0 },
+        { name: 'total_reflections', type: 'number' },
         { name: 'reflection_milestones', type: 'string', isOptional: true }, // JSON array
 
         // Path of Nurturing
         { name: 'friendship_milestones', type: 'string', isOptional: true }, // JSON array
 
         // New Achievements
-        { name: 'catalyst_progress', type: 'number', defaultValue: 0 },
-        { name: 'high_priestess_progress', type: 'number', defaultValue: 0 },
-        { name: 'scribe_progress', type: 'number', defaultValue: 0 },
-        { name: 'curator_progress', type: 'number', defaultValue: 0 },
+        { name: 'catalyst_progress', type: 'number' },
+        { name: 'high_priestess_progress', type: 'number' },
+        { name: 'scribe_progress', type: 'number' },
+        { name: 'curator_progress', type: 'number' },
 
         // Global Achievement System (v21)
-        { name: 'total_weaves', type: 'number', defaultValue: 0 },
+        { name: 'total_weaves', type: 'number' },
         { name: 'global_achievements', type: 'string', isOptional: true }, // JSON array
         { name: 'hidden_achievements', type: 'string', isOptional: true }, // JSON array
 
@@ -288,7 +288,7 @@ export default appSchema({
         { name: 'achievement_type', type: 'string' }, // 'global' | 'friend_badge' | 'hidden'
         { name: 'related_friend_id', type: 'string', isOptional: true },
         { name: 'unlocked_at', type: 'number' },
-        { name: 'has_been_celebrated', type: 'boolean', defaultValue: false },
+        { name: 'has_been_celebrated', type: 'boolean' },
         { name: 'created_at', type: 'number' },
         { name: 'updated_at', type: 'number' },
       ]
@@ -347,6 +347,9 @@ export default appSchema({
         { name: 'story_chips', type: 'string', isOptional: true }, // JSON: Array of story chip selections
         { name: 'created_at', type: 'number' },
         { name: 'updated_at', type: 'number' },
+        { name: 'is_draft', type: 'boolean', isOptional: true },
+        { name: 'prompt_used', type: 'string', isOptional: true },
+        { name: 'linked_weave_id', type: 'string', isOptional: true },
         // NEW v31: Accounts and sync infrastructure
         { name: 'user_id', type: 'string', isOptional: true, isIndexed: true },
         { name: 'synced_at', type: 'number', isOptional: true },
@@ -386,7 +389,7 @@ export default appSchema({
         { name: 'plain_text', type: 'string' }, // The chip text
         { name: 'template', type: 'string' }, // Template (same as plain_text for custom chips)
         { name: 'components', type: 'string', isOptional: true }, // JSON: Optional components for customization
-        { name: 'usage_count', type: 'number', defaultValue: 0 }, // How many times used
+        { name: 'usage_count', type: 'number' }, // How many times used
         { name: 'last_used_at', type: 'number', isOptional: true }, // Last time this chip was used
         { name: 'created_at', type: 'number' },
         { name: 'updated_at', type: 'number' },
@@ -399,7 +402,7 @@ export default appSchema({
         { name: 'interaction_id', type: 'string', isIndexed: true }, // Reference to interaction where used
         { name: 'friend_id', type: 'string', isIndexed: true, isOptional: true }, // Optional: which friend it was used for
         { name: 'chip_type', type: 'string' }, // For faster filtering
-        { name: 'is_custom', type: 'boolean', defaultValue: false }, // Whether this is a custom chip
+        { name: 'is_custom', type: 'boolean' }, // Whether this is a custom chip
         { name: 'used_at', type: 'number' }, // Timestamp of usage
         { name: 'created_at', type: 'number' },
       ]
@@ -419,7 +422,7 @@ export default appSchema({
         { name: 'category', type: 'string' },
         { name: 'duration', type: 'string', isOptional: true },
         { name: 'vibe', type: 'string', isOptional: true },
-        { name: 'had_reflection', type: 'boolean', defaultValue: false },
+        { name: 'had_reflection', type: 'boolean' },
 
         // Effectiveness metrics
         { name: 'expected_impact', type: 'number' }, // What we predicted
