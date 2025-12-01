@@ -8,7 +8,6 @@ import { TodaysFocusWidgetV2 } from '@/components/home/widgets/TodaysFocusWidget
 import { useTheme } from '@/shared/hooks/useTheme';
 import { ReflectionReadyWidget } from '@/components/home/widgets/ReflectionReadyWidget';
 import { SocialBatterySheet } from '@/components/home/SocialBatterySheet';
-import { WeeklyReflectionModal } from '@/components/WeeklyReflection/WeeklyReflectionModal';
 import { ReflectionReadyPrompt } from '@/components/WeeklyReflection/ReflectionReadyPrompt';
 import { YearInMoonsModal } from '@/components/YearInMoons/YearInMoonsModal';
 import { useUserProfileStore } from '@/modules/auth';
@@ -16,6 +15,7 @@ import { useRelationshipsStore } from '@/modules/relationships';
 import { getLastReflectionDate, shouldShowReflection } from '@/modules/notifications';
 import { getUserAccountAge } from '@/modules/notifications';
 import { useTutorialStore } from '@/stores/tutorialStore';
+import { useUIStore } from '@/stores/uiStore';
 
 /**
  * The home screen of the application.
@@ -25,11 +25,11 @@ import { useTutorialStore } from '@/stores/tutorialStore';
 export default function Home() {
   const { observeProfile, profile, submitBatteryCheckin, updateProfile } = useUserProfileStore();
   const { observeFriends, friends } = useRelationshipsStore();
+  const { openWeeklyReflection } = useUIStore();
   const theme = useTheme();
   const colors = theme?.colors || {};
   const [showBatterySheet, setShowBatterySheet] = useState(false);
   const [showReflectionPrompt, setShowReflectionPrompt] = useState(false);
-  const [showWeeklyReflection, setShowWeeklyReflection] = useState(false);
   const [showYearInMoons, setShowYearInMoons] = useState(false);
   const [isReflectionDue, setIsReflectionDue] = useState(false);
 
@@ -37,7 +37,6 @@ export default function Home() {
   const isMountedRef = useRef(true);
   const batteryTimerRef = useRef<NodeJS.Timeout | null>(null);
   const reflectionPromptTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const reflectionModalTimerRef = useRef<NodeJS.Timeout | null>(null);
   const moonsTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Tutorial state - check if QuickWeave tutorial is done
@@ -49,7 +48,6 @@ export default function Home() {
       isMountedRef.current = false;
       if (batteryTimerRef.current) clearTimeout(batteryTimerRef.current);
       if (reflectionPromptTimerRef.current) clearTimeout(reflectionPromptTimerRef.current);
-      if (reflectionModalTimerRef.current) clearTimeout(reflectionModalTimerRef.current);
       if (moonsTimerRef.current) clearTimeout(moonsTimerRef.current);
     };
   }, []);
@@ -199,12 +197,8 @@ export default function Home() {
 
   const handleReflectionStart = () => {
     setShowReflectionPrompt(false);
-    // Add delay to allow prompt to close before opening modal
-    reflectionModalTimerRef.current = setTimeout(() => {
-      if (isMountedRef.current) {
-        setShowWeeklyReflection(true);
-      }
-    }, 500);
+    // Use global modal from useUIStore instead of local state
+    openWeeklyReflection();
   };
 
   const handleReflectionRemindLater = async () => {
@@ -304,11 +298,6 @@ export default function Home() {
         onStart={handleReflectionStart}
         onRemindLater={handleReflectionRemindLater}
         onDismiss={() => setShowReflectionPrompt(false)}
-      />
-
-      <WeeklyReflectionModal
-        isOpen={showWeeklyReflection}
-        onClose={() => setShowWeeklyReflection(false)}
       />
 
       <YearInMoonsModal
