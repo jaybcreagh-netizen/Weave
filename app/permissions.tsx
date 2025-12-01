@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -30,6 +30,17 @@ export default function PermissionsScreen() {
   const router = useRouter();
   const { colors } = useTheme();
   const [isRequesting, setIsRequesting] = useState(false);
+  const navigationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const hasNavigatedRef = useRef(false);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (navigationTimeoutRef.current) {
+        clearTimeout(navigationTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const [permissions, setPermissions] = useState<Permission[]>([
     {
@@ -95,8 +106,10 @@ export default function PermissionsScreen() {
       await AsyncStorage.setItem(NOTIFICATION_PERMISSION_ASKED_KEY, 'true');
 
       // Short delay to show status updates
-      setTimeout(() => {
-        handleContinue();
+      navigationTimeoutRef.current = setTimeout(() => {
+        if (!hasNavigatedRef.current) {
+          handleContinue();
+        }
       }, 800);
     } catch (error) {
       console.error('[Permissions] Error requesting permissions:', error);
@@ -111,11 +124,20 @@ export default function PermissionsScreen() {
   };
 
   const handleContinue = () => {
+    if (hasNavigatedRef.current) return; // Prevent double navigation
+    hasNavigatedRef.current = true;
+
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.replace('/add-friend?fromOnboarding=true');
   };
 
   const handleSkip = async () => {
+    // Cancel any pending navigation
+    if (navigationTimeoutRef.current) {
+      clearTimeout(navigationTimeoutRef.current);
+      navigationTimeoutRef.current = null;
+    }
+
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
     // Mark as completed so we don't show this screen again

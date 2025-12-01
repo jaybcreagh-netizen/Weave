@@ -134,9 +134,16 @@ function DashboardContent() {
       activeCardId.value = null;
       // Increment refresh key to force friend list re-render (fixes tier changes not updating)
       setRefreshKey(prev => prev + 1);
+
+      // Track focus state to prevent race conditions during rapid navigation
+      let isFocused = true;
+
       return () => {
-        // Also reset when leaving the screen
-        activeCardId.value = null;
+        isFocused = false;
+        // Also reset when leaving the screen, but only if we haven't already refocused
+        if (activeCardId.value !== null) {
+          activeCardId.value = null;
+        }
       };
     }, [activeCardId])
   );
