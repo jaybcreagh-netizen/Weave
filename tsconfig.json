@@ -17,9 +17,6 @@
       "@/*": [
         "./src/*"
       ],
-      "@/screens/*": [
-        "./src/screens/*"
-      ],
       "@/db": [
         "src/db/index"
       ],
@@ -35,12 +32,6 @@
       "@/types/*": [
         "src/types/*"
       ],
-      "@/lib/*": [
-        "src/lib/*"
-      ],
-      "@/hooks/*": [
-        "src/hooks/*"
-      ],
       "@/stores/*": [
         "src/stores/*"
       ],
@@ -49,6 +40,9 @@
       ],
       "@/guidelines/*": [
         "src/guidelines/*"
+      ],
+      "@/repositories/*": [
+        "src/repositories/*"
       ],
       "@/assets/*": [
         "assets/*"
