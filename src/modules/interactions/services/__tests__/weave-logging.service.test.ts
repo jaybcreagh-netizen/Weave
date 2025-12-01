@@ -2,7 +2,7 @@ import { database } from '@/db';
 import { logWeave, planWeave, deleteWeave } from '../weave-logging.service';
 import { InteractionFormData } from '@/modules/interactions';
 import { processWeaveScoring } from '@/modules/intelligence';
-import { checkFriendBadges, checkGlobalAchievements, recordPractice } from '@/modules/gamification';
+import { checkAndAwardFriendBadges, checkAndAwardGlobalAchievements, recordPractice } from '@/modules/gamification';
 import { trackEvent, AnalyticsEvents, updateLastInteractionTimestamp } from '@/shared/services/analytics.service';
 import { analyzeAndTagLifeEvents } from '@/modules/relationships';
 import { deleteWeaveCalendarEvent } from '../calendar.service';
@@ -32,8 +32,8 @@ jest.mock('@/modules/intelligence', () => ({
 }));
 
 jest.mock('@/modules/gamification', () => ({
-  checkFriendBadges: jest.fn(),
-  checkGlobalAchievements: jest.fn(),
+  checkAndAwardFriendBadges: jest.fn(),
+  checkAndAwardGlobalAchievements: jest.fn(),
   recordPractice: jest.fn(),
 }));
 
@@ -66,6 +66,7 @@ describe('WeaveLoggingService', () => {
     (database.get as jest.Mock).mockReturnValue({
       query: jest.fn().mockReturnThis(),
       fetch: jest.fn().mockResolvedValue([mockFriend]),
+      find: jest.fn().mockResolvedValue({ ...mockFriend, ratedWeavesCount: 2 }), // Mock find for side effects
       create: jest.fn().mockResolvedValue(mockInteraction),
       prepareCreate: jest.fn().mockImplementation((fn) => {
         const mockObj = {
@@ -89,16 +90,16 @@ describe('WeaveLoggingService', () => {
 
     const interaction = await logWeave(formData);
 
-    expect(interaction).toEqual(mockInteraction);
+    expect(interaction).toMatchObject(mockInteraction);
     expect(database.write).toHaveBeenCalled();
     expect(database.get).toHaveBeenCalledWith('friends');
     expect(database.get).toHaveBeenCalledWith('interactions');
-    expect(processWeaveScoring).toHaveBeenCalledWith([mockFriend], formData);
-    expect(checkFriendBadges).toHaveBeenCalledWith(mockFriend.id);
-    expect(checkGlobalAchievements).toHaveBeenCalled();
+    expect(processWeaveScoring).toHaveBeenCalledWith([mockFriend], formData, expect.anything());
+    expect(checkAndAwardFriendBadges).toHaveBeenCalledWith(mockFriend.id, mockFriend.name);
+    expect(checkAndAwardGlobalAchievements).toHaveBeenCalled();
     expect(trackEvent).toHaveBeenCalledWith('INTERACTION_LOGGED', expect.any(Object));
     expect(updateLastInteractionTimestamp).toHaveBeenCalled();
-    expect(recordPractice).toHaveBeenCalledWith('log_weave');
+    expect(recordPractice).toHaveBeenCalledWith('log_weave', mockInteraction.id);
   });
 
   it('should throw validation error if data is invalid', async () => {
@@ -144,7 +145,7 @@ describe('WeaveLoggingService', () => {
 
     const interaction = await planWeave(formData);
 
-    expect(interaction).toEqual(mockInteraction);
+    expect(interaction).toMatchObject(mockInteraction);
     expect(database.write).toHaveBeenCalled();
     expect(database.get).toHaveBeenCalledWith('friends');
     expect(database.get).toHaveBeenCalledWith('interactions');

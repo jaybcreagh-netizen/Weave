@@ -53,12 +53,12 @@ describe('Scoring Service', () => {
       const interactionData = {
         category: 'meal-drink',
         duration: 'Standard',
-        vibe: 'FullMoon', // 1.3x multiplier
+        vibe: 'FullMoon', // 1.5x multiplier
         groupSize: 1,
       } as InteractionFormData;
 
       const points = calculatePointsForWeave(mockFriend, interactionData);
-      expect(points).toBeCloseTo(33.3476);
+      expect(points).toBeCloseTo(38.478);
     });
 
     it('applies a duration modifier correctly', () => {
