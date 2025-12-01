@@ -1,7 +1,8 @@
 // src/modules/intelligence/services/flexible-decay.service.ts
-import type Friend from '@/db/models/Friend';
+import type FriendModel from '@/db/models/Friend';
+import { type Friend } from '@/components/types';
 import { TierDecayRates } from '../constants';
-import { Tier } from '@/shared/types/core';
+import { Tier } from '@/shared/types/common';
 import type { FlexibilityMode } from '@/modules/insights/types';
 
 /**
@@ -120,7 +121,7 @@ export function getBaseDecay(tier: Tier): number {
  * Returns positive number if decay is slower, negative if faster
  */
 export function getDecayAdjustmentPercent(
-  friend: Friend,
+  friend: FriendModel | Friend,
   flexibilityMode: FlexibilityMode = 'balanced'
 ): number {
   const baseDecay = getBaseDecay(friend.dunbarTier as Tier);

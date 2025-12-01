@@ -6,6 +6,7 @@ import UserProgress from '@/db/models/UserProgress';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform, Alert, Share } from 'react-native';
 import * as FileSystem from 'expo-file-system';
+import * as Application from 'expo-application';
 
 interface ExportData {
   exportDate: string;
@@ -130,7 +131,7 @@ export async function exportAllData(): Promise<string> {
 
     const exportData: ExportData = {
       exportDate: new Date().toISOString(),
-      appVersion: '1.0.0', // TODO: Get from Constants
+      appVersion: Application.nativeApplicationVersion || '1.0.0',
       platform: Platform.OS,
       friends: friendsData,
       interactions: interactionsData,

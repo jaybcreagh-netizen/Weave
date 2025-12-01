@@ -6,6 +6,7 @@ import Interaction from '@/db/models/Interaction';
 import InteractionFriend from '@/db/models/InteractionFriend';
 import { Q } from '@nozbe/watermelondb';
 import { calculateCurrentScore } from '@/modules/intelligence';
+import { type Friend } from '@/components/types';
 
 export interface StatusLine {
   text: string;
@@ -75,7 +76,7 @@ function getRandomNudge(archetype: string): string {
 /**
  * PRIORITY 1: Check for urgent life events
  */
-async function checkLifeEventStatus(friend: FriendModel): Promise<StatusLine | null> {
+async function checkLifeEventStatus(friend: FriendModel | Friend): Promise<StatusLine | null> {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
@@ -182,7 +183,7 @@ async function checkLifeEventStatus(friend: FriendModel): Promise<StatusLine | n
  * Analyzes recent interaction patterns to provide specific, meaningful insights
  */
 function generateHealthyRelationshipInsight(
-  friend: FriendModel,
+  friend: FriendModel | Friend,
   recentInteractions: Interaction[],
   recentCount: number
 ): StatusLine {
@@ -340,6 +341,7 @@ function generateHealthyRelationshipInsight(
         messages: [
           `${dominantCount} hangouts this month`,
           'Just being together is enough',
+          'Just being together is enough',
         ],
         icon: '🛋️'
       },
@@ -375,7 +377,7 @@ function generateHealthyRelationshipInsight(
 /**
  * PRIORITY 2: Connection health & history
  */
-async function checkConnectionHealth(friend: FriendModel): Promise<StatusLine | null> {
+async function checkConnectionHealth(friend: FriendModel | Friend): Promise<StatusLine | null> {
   const weaveScore = calculateCurrentScore(friend);
 
   try {
@@ -450,7 +452,7 @@ async function checkConnectionHealth(friend: FriendModel): Promise<StatusLine | 
 /**
  * PRIORITY 3: Upcoming plans
  */
-async function checkUpcomingPlans(friend: FriendModel): Promise<StatusLine | null> {
+async function checkUpcomingPlans(friend: FriendModel | Friend): Promise<StatusLine | null> {
   try {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -523,7 +525,7 @@ function capitalize(str: string): string {
  * 3. Upcoming plans
  * 4. Archetype nudge (fallback)
  */
-export async function generateIntelligentStatusLine(friend: FriendModel): Promise<StatusLine> {
+export async function generateIntelligentStatusLine(friend: FriendModel | Friend): Promise<StatusLine> {
   // Priority 1: Life events
   const lifeEventStatus = await checkLifeEventStatus(friend);
   if (lifeEventStatus) return lifeEventStatus;

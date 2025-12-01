@@ -7,7 +7,7 @@ import { useTheme } from '@/shared/hooks/useTheme';
 import { PlanFormData } from '../PlanWizard';
 import FriendModel from '@/db/models/Friend';
 import { PlanSuggestion } from '@/modules/interactions';
-import { FriendSelectionModal } from './FriendSelectionModal';
+import { FriendSelector } from '@/components/FriendSelector';
 import { ReciprocitySelector } from '@/components/ReciprocitySelector';
 
 interface PlanWizardStep3Props {
@@ -259,12 +259,13 @@ export function PlanWizardStep3({
         </Text>
       </TouchableOpacity>
 
-      <FriendSelectionModal
+      <FriendSelector
         visible={showFriendSelection}
         onClose={() => setShowFriendSelection(false)}
-        initialFriend={friend}
+        initialFriendId={friend.id}
         selectedFriends={selectedFriends}
-        onSelect={onFriendsSelect}
+        onSelectionChange={onFriendsSelect}
+        asModal={true}
       />
     </View>
   );

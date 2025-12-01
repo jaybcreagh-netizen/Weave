@@ -686,6 +686,27 @@ export function SettingsModal({
 
           <View className="border-t border-border" style={{ borderColor: colors.border }} />
 
+          <TouchableOpacity
+            className="flex-row items-center justify-between"
+            onPress={() => {
+              onClose();
+              setTimeout(() => setShowFriendManagement(true), 300);
+            }}
+          >
+            <View className="flex-row items-center gap-3">
+              <View className="w-10 h-10 rounded-lg items-center justify-center" style={{ backgroundColor: colors.muted }}>
+                <Users color={colors.foreground} size={20} />
+              </View>
+              <View>
+                <Text className="text-base font-inter-medium" style={{ color: colors.foreground }}>Manage Groups</Text>
+                <Text className="text-sm font-inter-regular" style={{ color: colors['muted-foreground'] }}>Create and edit friend groups</Text>
+              </View>
+            </View>
+            <ChevronRight color={colors['muted-foreground']} size={20} />
+          </TouchableOpacity>
+
+          <View className="border-t border-border" style={{ borderColor: colors.border }} />
+
           <View className="flex-row items-center justify-between">
             <View className="flex-row items-center gap-3">
               <View className="w-10 h-10 rounded-lg items-center justify-center" style={{ backgroundColor: colors.muted }}>

@@ -4,7 +4,8 @@
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Modal, View, Text, TouchableOpacity, SafeAreaView, ScrollView, ActivityIndicator, TextInput } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, SafeAreaView, ScrollView, TextInput } from 'react-native';
+import { WeaveLoading } from '@/shared/components/WeaveLoading';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { X, Calendar, TrendingUp, Sparkles, ChevronRight, Search, List, Filter, Plus, BookOpen, Users } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
@@ -439,7 +440,7 @@ export function ReflectionJourneyModal({ isOpen, onClose }: ReflectionJourneyMod
         {/* Content */}
         {isLoading ? (
           <View className="flex-1 items-center justify-center">
-            <ActivityIndicator size="large" color={colors.primary} />
+            <WeaveLoading size={48} />
             <Text
               className="text-sm mt-4"
               style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}

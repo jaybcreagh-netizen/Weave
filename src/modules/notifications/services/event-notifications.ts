@@ -3,6 +3,7 @@ import { Platform } from 'react-native';
 import { ScannedEvent } from '../../interactions/services/event-scanner';
 import { format } from 'date-fns';
 import { shouldSendAmbientLoggingNotification } from './notification-grace-periods';
+import Logger from '@/shared/utils/Logger';
 
 /**
  * Configure notification handler
@@ -32,7 +33,7 @@ export async function requestEventSuggestionPermissions(): Promise<boolean> {
     }
 
     if (finalStatus !== 'granted') {
-      console.log('[Notifications] Permission not granted');
+      Logger.warn('[Notifications] Permission not granted');
       return false;
     }
 
@@ -49,7 +50,7 @@ export async function requestEventSuggestionPermissions(): Promise<boolean> {
 
     return true;
   } catch (error) {
-    console.error('[Notifications] Error requesting permissions:', error);
+    Logger.error('[Notifications] Error requesting permissions:', error);
     return false;
   }
 }
@@ -65,14 +66,14 @@ export async function scheduleEventSuggestionNotification(
     // Check grace period before sending notification
     const gracePeriodCheck = await shouldSendAmbientLoggingNotification();
     if (!gracePeriodCheck.shouldSend) {
-      console.log('[Notifications] Event suggestion NOT scheduled:', gracePeriodCheck.reason);
+      Logger.info('[Notifications] Event suggestion NOT scheduled:', gracePeriodCheck.reason);
       return null;
     }
 
     // Check if we have permission
     const { status } = await Notifications.getPermissionsAsync();
     if (status !== 'granted') {
-      console.log('[Notifications] No permission to send notifications');
+      Logger.warn('[Notifications] No permission to send notifications');
       return null;
     }
 
@@ -103,17 +104,21 @@ export async function scheduleEventSuggestionNotification(
         },
         sound: true,
         priority: Notifications.AndroidNotificationPriority.DEFAULT,
+        ...(Platform.OS === 'android' ? { channelId: 'event-suggestions' } : {}),
       },
       trigger: {
-        seconds: 10, // Show notification in 10 seconds (immediate but not instant)
-        channelId: Platform.OS === 'android' ? 'event-suggestions' : undefined,
+        type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+        seconds: 10,
+        repeats: false,
       },
     });
 
-    console.log(`[Notifications] Scheduled notification ${notificationId} for event: ${event.title}`);
+
+
+    Logger.info(`[Notifications] Scheduled notification ${notificationId} for event: ${event.title}`);
     return notificationId;
   } catch (error) {
-    console.error('[Notifications] Error scheduling notification:', error);
+    Logger.error('[Notifications] Error scheduling notification:', error);
     return null;
   }
 }
@@ -144,9 +149,9 @@ function getEventEmoji(eventType: string): string {
 export async function cancelNotification(notificationId: string): Promise<void> {
   try {
     await Notifications.cancelScheduledNotificationAsync(notificationId);
-    console.log(`[Notifications] Cancelled notification ${notificationId}`);
+    Logger.info(`[Notifications] Cancelled notification ${notificationId}`);
   } catch (error) {
-    console.error('[Notifications] Error cancelling notification:', error);
+    Logger.error('[Notifications] Error cancelling notification:', error);
   }
 }
 
@@ -164,9 +169,11 @@ export async function cancelAllEventSuggestions(): Promise<void> {
       await Notifications.cancelScheduledNotificationAsync(notification.identifier);
     }
 
-    console.log(`[Notifications] Cancelled ${eventSuggestions.length} event suggestions`);
+
+
+    Logger.info(`[Notifications] Cancelled ${eventSuggestions.length} event suggestions`);
   } catch (error) {
-    console.error('[Notifications] Error cancelling event suggestions:', error);
+    Logger.error('[Notifications] Error cancelling event suggestions:', error);
   }
 }
 
@@ -178,7 +185,7 @@ export async function getPendingEventSuggestions(): Promise<Notifications.Notifi
     const scheduled = await Notifications.getAllScheduledNotificationsAsync();
     return scheduled.filter(n => n.content.data?.type === 'event-suggestion');
   } catch (error) {
-    console.error('[Notifications] Error getting pending suggestions:', error);
+    Logger.error('[Notifications] Error getting pending suggestions:', error);
     return [];
   }
 }
@@ -238,10 +245,10 @@ export function handleEventSuggestionTap(
     // Navigate to interaction form
     router.push(`/interaction-form?${params.toString()}`);
 
-    console.log('[Notifications] Navigated to interaction form from notification');
+    Logger.info('[Notifications] Navigated to interaction form from notification');
     return true;
   } catch (error) {
-    console.error('[Notifications] Error handling notification tap:', error);
+    Logger.error('[Notifications] Error handling notification tap:', error);
     return false;
   }
 }

@@ -3,6 +3,8 @@
  * Handles conflict resolution, delta sync, and offline support
  */
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 import { database } from '@/db';
 import { supabase } from './supabase.service';
 import { Q } from '@nozbe/watermelondb';
@@ -329,15 +331,26 @@ export class SyncEngine {
    * Load last sync timestamp from local storage
    */
   private async loadLastSyncTimestamp(): Promise<void> {
-    // TODO: Load from AsyncStorage or local database
-    this.lastSyncTimestamp = 0;
+    try {
+      const key = `weave:sync:lastTimestamp:${this.userId}`;
+      const value = await AsyncStorage.getItem(key);
+      this.lastSyncTimestamp = value ? parseInt(value, 10) : 0;
+    } catch (error) {
+      console.error('Failed to load last sync timestamp:', error);
+      this.lastSyncTimestamp = 0;
+    }
   }
 
   /**
    * Save last sync timestamp to local storage
    */
   private async saveLastSyncTimestamp(): Promise<void> {
-    // TODO: Save to AsyncStorage or local database
+    try {
+      const key = `weave:sync:lastTimestamp:${this.userId}`;
+      await AsyncStorage.setItem(key, this.lastSyncTimestamp.toString());
+    } catch (error) {
+      console.error('Failed to save last sync timestamp:', error);
+    }
   }
 }
 

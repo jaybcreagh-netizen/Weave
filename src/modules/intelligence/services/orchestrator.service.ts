@@ -8,7 +8,8 @@ import { applyDecay } from './decay.service';
 import { calculateMomentumBonus, updateMomentum } from './momentum.service';
 import { updateResilience } from './resilience.service';
 import { Vibe } from '@/shared/types/common';
-import { InteractionType, InteractionCategory, Duration } from '@/components/types';
+import { InteractionType, InteractionCategory, Duration, Friend } from '@/components/types';
+import Logger from '@/shared/utils/Logger';
 
 /**
  * This is a temporary function that adapts the existing scoring service
@@ -82,7 +83,7 @@ export async function recalculateScoreOnEdit(
         // This is purely a value adjustment.
       });
     });
-    console.log(`[Score Recalc] Friend ${friend.name}: ${oldPoints.toFixed(1)} -> ${newPoints.toFixed(1)} (Delta: ${delta.toFixed(1)})`);
+    Logger.info(`[Score Recalc] Friend ${friend.name}: ${oldPoints.toFixed(1)} -> ${newPoints.toFixed(1)} (Delta: ${delta.toFixed(1)})`);
   }
 }
 
@@ -187,7 +188,7 @@ export async function processWeaveScoring(
  * This is the public-facing function to get a score, replacing the old
  * function from weave-engine.ts.
  */
-export function calculateCurrentScore(friend: FriendModel): number {
+export function calculateCurrentScore(friend: FriendModel | Friend): number {
   return applyDecay(friend);
 }
 

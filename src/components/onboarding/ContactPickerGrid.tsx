@@ -1,6 +1,7 @@
 /// <reference types="nativewind/types" />
 import React, { useState, useEffect } from 'react';
-import { View, Text, FlatList, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, Image } from 'react-native';
+import { WeaveLoading } from '@/shared/components/WeaveLoading';
 import * as Contacts from 'expo-contacts';
 import { CheckCircle2, Users, Plus } from 'lucide-react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
@@ -80,7 +81,7 @@ const ContactItem = React.memo(({
           )}
         </View>
         {isSelected && (
-          <Animated.View 
+          <Animated.View
             entering={FadeIn.springify()}
             className="absolute -top-1 -right-1 bg-emerald-500 rounded-full p-1"
           >
@@ -88,7 +89,7 @@ const ContactItem = React.memo(({
           </Animated.View>
         )}
       </View>
-      
+
       <Text
         className="mt-2 text-center text-sm text-gray-700 font-medium"
         numberOfLines={2}
@@ -124,19 +125,19 @@ export function ContactPickerGrid({ maxSelection, onSelectionChange, onAddManual
 
       const { data } = await Contacts.getContactsAsync({
         fields: [
-          Contacts.Fields.FirstName, 
-          Contacts.Fields.LastName, 
+          Contacts.Fields.FirstName,
+          Contacts.Fields.LastName,
           Contacts.Fields.Image
         ],
       });
 
       if (data.length > 0) {
-        const sorted = data.sort((a, b) => 
+        const sorted = data.sort((a, b) =>
           (a.name || '').localeCompare(b.name || '')
         );
         setContacts(sorted);
       }
-      
+
       setLoading(false);
     })();
   }, []);
@@ -165,7 +166,7 @@ export function ContactPickerGrid({ maxSelection, onSelectionChange, onAddManual
   if (loading) {
     return (
       <View className="flex-1 justify-center items-center py-20">
-        <ActivityIndicator size="large" color="#10b981" />
+        <WeaveLoading size={48} color="#10b981" />
         <Text className="text-gray-500 mt-4">Loading your contacts...</Text>
       </View>
     );
@@ -179,7 +180,7 @@ export function ContactPickerGrid({ maxSelection, onSelectionChange, onAddManual
           Contacts Access Needed
         </Text>
         <Text className="text-base text-gray-600 mt-2 text-center">
-          Weave needs access to your contacts to help you select your Inner Circle. 
+          Weave needs access to your contacts to help you select your Inner Circle.
           Please enable it in Settings.
         </Text>
       </View>
@@ -202,7 +203,7 @@ export function ContactPickerGrid({ maxSelection, onSelectionChange, onAddManual
           {selectedContactIds.length} / {maxSelection} selected
         </Text>
       </View>
-      
+
       {contacts.length === 0 ? (
         <View className="flex-1 justify-center items-center py-20 px-6">
           <Users size={48} color="#9ca3af" />

@@ -23,6 +23,15 @@ export type Friend = {
   archetype: Archetype;
   weaveScore: number;
   lastUpdated: Date;
+  photoUrl?: string;
+  notes?: string;
+  isDormant?: boolean;
+  birthday?: string;
+  anniversary?: string;
+  relationshipType?: RelationshipType;
+  toleranceWindowDays?: number;
+  resilience: number;
+  typicalIntervalDays?: number;
 };
 
 export type Interaction = {
@@ -62,3 +71,31 @@ export type FriendFormData = {
   anniversary?: string; // Format: "MM-DD"
   relationshipType?: RelationshipType;
 };
+
+export interface LifeEvent {
+  id: string;
+  friendId: string;
+  title: string;
+  date: Date; // mapped from eventDate
+  eventType: LifeEventType;
+  description?: string;
+  importance: LifeEventImportance;
+  isRecurring: boolean;
+  source: LifeEventSource;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface Intention {
+  id: string;
+  description?: string;
+  interactionCategory?: string;
+  status: 'active' | 'converted' | 'dismissed' | 'fulfilled';
+  createdAt: Date;
+  updatedAt: Date;
+  lastRemindedAt?: Date;
+  linkedInteractionId?: string;
+  fulfilledAt?: Date;
+  daysToFulfillment?: number;
+  friendIds: string[];
+}

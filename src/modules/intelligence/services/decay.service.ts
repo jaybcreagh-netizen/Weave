@@ -1,5 +1,6 @@
 // src/modules/intelligence/services/decay.service.ts
-import type Friend from '@/db/models/Friend';
+import type FriendModel from '@/db/models/Friend';
+import { type Friend } from '@/components/types';
 import { TierDecayRates } from '../constants';
 import { daysSince } from '@/shared/utils/date-utils';
 import { calculateFlexibleDecay } from './flexible-decay.service';
@@ -16,7 +17,7 @@ import type { Tier } from '@/shared/types/common';
  * @returns Current score after decay
  */
 export function applyDecay(
-  friend: Friend,
+  friend: FriendModel | Friend,
   flexibilityMode: FlexibilityMode = 'balanced',
   useFlexibleDecay: boolean = true
 ): number {

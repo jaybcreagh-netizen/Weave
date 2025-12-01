@@ -13,7 +13,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { useUIStore } from '@/stores/uiStore';
-import { type Archetype, type RelationshipType } from '@/components/types';
+import { type Archetype, type RelationshipType, type Friend } from '@/components/types';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { ArchetypeIcon } from '@/components/ArchetypeIcon';
 import { archetypeData } from '@/shared/constants/constants';
@@ -40,16 +40,14 @@ const RELATIONSHIP_ICONS: Record<RelationshipType, string> = {
 };
 
 interface FriendListRowProps {
-  friend: FriendModel;
+  friend: FriendModel | Friend;
   animatedRef?: React.RefObject<Animated.View>;
   variant?: 'default' | 'full';
 }
 
 import withObservables from '@nozbe/with-observables';
 
-export const FriendListRow = withObservables(['friend'], ({ friend }: { friend: FriendModel }) => ({
-  friend: friend.observe(),
-}))(({ friend, animatedRef, variant = 'default' }: FriendListRowProps) => {
+export const FriendListRowContent = ({ friend, animatedRef, variant = 'default' }: FriendListRowProps) => {
   if (!friend) return null;
 
   const { id, name, archetype, isDormant = false, photoUrl, relationshipType } = friend;
@@ -354,8 +352,12 @@ export const FriendListRow = withObservables(['friend'], ({ friend }: { friend: 
       <FriendDetailSheet
         isVisible={showDetailSheet}
         onClose={() => setShowDetailSheet(false)}
-        friend={friend}
+        friend={friend as any} // Cast to any for now to avoid type errors with FriendDetailSheet
       />
     </Animated.View>
   );
-});
+};
+
+export const FriendListRow = withObservables(['friend'], ({ friend }: { friend: FriendModel }) => ({
+  friend: friend.observe(),
+}))(FriendListRowContent);

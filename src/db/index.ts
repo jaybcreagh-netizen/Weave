@@ -25,6 +25,8 @@ import EventSuggestionFeedback from './models/EventSuggestionFeedback';
 import SocialSeasonLog from './models/SocialSeasonLog';
 import SocialBatteryLog from './models/SocialBatteryLog';
 import JournalEntryFriend from './models/JournalEntryFriend';
+import Group from './models/Group';
+import GroupMember from './models/GroupMember';
 
 import { setGenerator } from '@nozbe/watermelondb/utils/common/randomId';
 import { v4 as uuidv4 } from 'uuid';
@@ -68,6 +70,8 @@ export const database = new Database({
     SocialSeasonLog,
     SocialBatteryLog,
     JournalEntryFriend,
+    Group,
+    GroupMember,
   ],
 });
 

@@ -769,6 +769,30 @@ export default schemaMigrations({
         }),
       ],
     },
+    {
+      // Migration from schema v36 to v37
+      // Friend Groups System
+      toVersion: 37,
+      steps: [
+        createTable({
+          name: 'groups',
+          columns: [
+            { name: 'name', type: 'string' },
+            { name: 'type', type: 'string' }, // 'manual' | 'smart'
+            { name: 'smart_confidence', type: 'number', isOptional: true },
+            { name: 'created_at', type: 'number' },
+            { name: 'updated_at', type: 'number' },
+          ],
+        }),
+        createTable({
+          name: 'group_members',
+          columns: [
+            { name: 'group_id', type: 'string', isIndexed: true },
+            { name: 'friend_id', type: 'string', isIndexed: true },
+          ],
+        }),
+      ],
+    },
   ],
 });
 

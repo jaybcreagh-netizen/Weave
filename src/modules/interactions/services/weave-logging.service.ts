@@ -14,6 +14,7 @@ import { analyzeAndTagLifeEvents } from '@/modules/relationships';
 import { deleteWeaveCalendarEvent } from './calendar.service';
 import { checkTierSuggestionAfterInteraction } from '@/modules/insights/services/tier-suggestion-engine.service';
 import { updateTierFit } from '@/modules/insights/services/tier-management.service';
+import Logger from '@/shared/utils/Logger';
 
 export async function logWeave(data: InteractionFormData): Promise<Interaction> {
     // Validate input data
@@ -108,7 +109,7 @@ export async function logWeave(data: InteractionFormData): Promise<Interaction> 
                 try {
                     await analyzeAndTagLifeEvents(friend.id, data.notes, data.date);
                 } catch (error) {
-                    console.error('Error analyzing life events:', error);
+                    Logger.error('Error analyzing life events:', error);
                 }
             }
         }
@@ -132,14 +133,14 @@ export async function logWeave(data: InteractionFormData): Promise<Interaction> 
                         suggestion.analysis.fitScore,
                         suggestion.analysis.suggestedTier
                     );
-                    console.log(`[WeaveLogging] Tier suggestion for ${updatedFriend.name}: ${suggestion.analysis.currentTier} → ${suggestion.analysis.suggestedTier}`);
+                    Logger.info(`[WeaveLogging] Tier suggestion for ${updatedFriend.name}: ${suggestion.analysis.currentTier} → ${suggestion.analysis.suggestedTier}`);
                 }
             } catch (error) {
-                console.error('Error checking tier suggestion:', error);
+                Logger.error('Error checking tier suggestion:', error);
             }
         }
     } catch (error) {
-        console.error('Error running side effects for logWeave:', error);
+        Logger.error('Error running side effects for logWeave:', error);
         // We do NOT throw here, because the interaction was successfully created.
         // Failing side effects shouldn't block the user flow.
     }
@@ -211,7 +212,7 @@ export async function deleteWeave(id: string): Promise<void> {
     if (calendarEventId) {
         // We're not awaiting this, as it can happen in the background
         deleteWeaveCalendarEvent(calendarEventId).catch(err => {
-            console.warn('Failed to delete calendar event:', err);
+            Logger.warn('Failed to delete calendar event:', err);
         });
     }
 }

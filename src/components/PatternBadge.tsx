@@ -6,9 +6,10 @@ import { useTheme } from '@/shared/hooks/useTheme';
 import { useFriendPattern } from '@/modules/insights';
 import { getIntervalDescription } from '@/modules/insights/services/pattern.service';
 import FriendModel from '@/db/models/Friend';
+import { type Friend } from '@/components/types';
 
 interface PatternBadgeProps {
-    friend: FriendModel;
+    friend: FriendModel | Friend;
     style?: any;
 }
 
@@ -23,8 +24,8 @@ export const PatternBadge: React.FC<PatternBadgeProps> = ({ friend, style }) => 
     const isApproaching = daysSince > pattern.averageIntervalDays * 0.8 && !isOverdue;
 
     // Determine badge color
-    let badgeColor = colors.muted;
-    let textColor = colors['muted-foreground'];
+    let badgeColor: string = colors.muted;
+    let textColor: string = colors['muted-foreground'];
 
     if (isOverdue) {
         badgeColor = 'rgba(239, 68, 68, 0.15)'; // red
