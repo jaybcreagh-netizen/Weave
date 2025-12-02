@@ -1,35 +1,23 @@
 import React, { useState } from 'react';
 import { Modal, View, Text, TextInput, TouchableOpacity, ScrollView, Platform, Alert } from 'react-native';
 import { BlurView } from 'expo-blur';
-import { X, Send, Camera } from 'lucide-react-native';
+import { X, Send } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Sentry from '@sentry/react-native';
 import Constants from 'expo-constants';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { trackEvent, AnalyticsEvents } from '@/shared/services/analytics.service';
 
-// Optional: Lazy-load react-native-view-shot to avoid crash if not installed
-let captureRef: any = null;
-try {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const viewShot = require('react-native-view-shot');
-  captureRef = viewShot.captureRef;
-} catch (e) {
-  console.log('[FeedbackModal] react-native-view-shot not available, screenshot feature disabled');
-}
-
 interface FeedbackModalProps {
   visible: boolean;
   onClose: () => void;
-  screenshotRef?: React.RefObject<View>;
 }
 
-export function FeedbackModal({ visible, onClose, screenshotRef }: FeedbackModalProps) {
+export function FeedbackModal({ visible, onClose }: FeedbackModalProps) {
   const insets = useSafeAreaInsets();
   const { colors, isDarkMode } = useTheme();
   const [feedback, setFeedback] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [includeScreenshot, setIncludeScreenshot] = useState(false);
 
   const handleSubmit = async () => {
     if (!feedback.trim()) {
@@ -49,19 +37,6 @@ export function FeedbackModal({ visible, onClose, screenshotRef }: FeedbackModal
         timestamp: new Date().toISOString(),
       };
 
-      // Capture screenshot if requested
-      let screenshotUri: string | undefined;
-      if (includeScreenshot && screenshotRef?.current) {
-        try {
-          screenshotUri = await captureRef(screenshotRef.current, {
-            format: 'jpg',
-            quality: 0.8,
-          });
-        } catch (error) {
-          console.warn('Failed to capture screenshot:', error);
-        }
-      }
-
       // Send to Sentry User Feedback
       const eventId = Sentry.captureMessage('User Feedback Submitted', {
         level: 'info',
@@ -74,7 +49,6 @@ export function FeedbackModal({ visible, onClose, screenshotRef }: FeedbackModal
         },
         extra: {
           feedback: feedback.trim(),
-          screenshotIncluded: !!screenshotUri,
         },
       });
 
@@ -89,7 +63,6 @@ export function FeedbackModal({ visible, onClose, screenshotRef }: FeedbackModal
       // Track analytics
       trackEvent(AnalyticsEvents.FEEDBACK_SUBMITTED, {
         feedback_length: feedback.length,
-        has_screenshot: !!screenshotUri,
         platform: Platform.OS,
       });
 
@@ -100,7 +73,6 @@ export function FeedbackModal({ visible, onClose, screenshotRef }: FeedbackModal
       );
 
       setFeedback('');
-      setIncludeScreenshot(false);
     } catch (error) {
       console.error('Failed to submit feedback:', error);
       Sentry.captureException(error);
@@ -176,53 +148,6 @@ export function FeedbackModal({ visible, onClose, screenshotRef }: FeedbackModal
                 minHeight: 120,
               }}
             />
-
-            {/* Screenshot Toggle */}
-            <TouchableOpacity
-              className="mb-4 flex-row items-center justify-between rounded-xl p-4"
-              style={{ backgroundColor: colors.muted }}
-              onPress={() => setIncludeScreenshot(!includeScreenshot)}
-            >
-              <View className="flex-row items-center gap-3">
-                <View
-                  className="h-10 w-10 items-center justify-center rounded-lg"
-                  style={{
-                    backgroundColor: includeScreenshot
-                      ? colors.primary + '20'
-                      : colors.background,
-                  }}
-                >
-                  <Camera
-                    size={20}
-                    color={includeScreenshot ? colors.primary : colors['muted-foreground']}
-                  />
-                </View>
-                <View>
-                  <Text
-                    className="font-inter-medium text-base"
-                    style={{ color: colors.foreground }}
-                  >
-                    Include Screenshot
-                  </Text>
-                  <Text
-                    className="font-inter-regular text-xs"
-                    style={{ color: colors['muted-foreground'] }}
-                  >
-                    Help us see what you're seeing
-                  </Text>
-                </View>
-              </View>
-              <View
-                className="h-6 w-6 items-center justify-center rounded"
-                style={{
-                  backgroundColor: includeScreenshot ? colors.primary : 'transparent',
-                  borderWidth: includeScreenshot ? 0 : 2,
-                  borderColor: colors.border,
-                }}
-              >
-                {includeScreenshot && <Text style={{ color: colors.card }}>✓</Text>}
-              </View>
-            </TouchableOpacity>
 
             {/* Device Info Notice */}
             <Text
