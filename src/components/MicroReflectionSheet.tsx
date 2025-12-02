@@ -285,7 +285,7 @@ export function MicroReflectionSheet({
           </BlurView>
         </Animated.View>
       </View>
-    </Modal>
+    </Modal >
   );
 }
 

@@ -19,40 +19,14 @@ export function configureNotificationHandler() {
   });
 }
 
+import { permissionService } from './permission.service';
+
 /**
  * Request notification permissions
+ * @deprecated Use permissionService.requestPermissions() instead
  */
 export async function requestEventSuggestionPermissions(): Promise<boolean> {
-  try {
-    const { status: existingStatus } = await Notifications.getPermissionsAsync();
-    let finalStatus = existingStatus;
-
-    if (existingStatus !== 'granted') {
-      const { status } = await Notifications.requestPermissionsAsync();
-      finalStatus = status;
-    }
-
-    if (finalStatus !== 'granted') {
-      Logger.warn('[Notifications] Permission not granted');
-      return false;
-    }
-
-    // For Android, create notification channel
-    if (Platform.OS === 'android') {
-      await Notifications.setNotificationChannelAsync('event-suggestions', {
-        name: 'Event Suggestions',
-        description: 'Suggestions to log calendar events as weaves',
-        importance: Notifications.AndroidImportance.DEFAULT,
-        vibrationPattern: [0, 250, 250, 250],
-        lightColor: '#8B7FD6',
-      });
-    }
-
-    return true;
-  } catch (error) {
-    Logger.error('[Notifications] Error requesting permissions:', error);
-    return false;
-  }
+  return await permissionService.requestPermissions();
 }
 
 /**

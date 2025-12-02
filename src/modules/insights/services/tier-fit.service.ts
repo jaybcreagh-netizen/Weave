@@ -22,7 +22,7 @@ const TIER_EXPECTED_INTERVALS: Record<Tier, number> = {
 /**
  * Minimum sample size to provide tier fit analysis
  */
-const MINIMUM_SAMPLE_SIZE = 3;
+const MINIMUM_SAMPLE_SIZE = 5;
 
 /**
  * Analyze how well a friend's actual interaction pattern matches their tier

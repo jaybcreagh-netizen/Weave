@@ -15,6 +15,8 @@ import { ActionButtons } from '@/components/friend-profile/ActionButtons';
 import { LifeEventsSection } from '@/components/friend-profile/LifeEventsSection';
 import { TimelineList } from '@/components/friend-profile/TimelineList';
 import { FriendProfileModals } from '@/components/friend-profile/FriendProfileModals';
+import { IntentionsFAB } from '@/components/IntentionsFAB';
+import { ErrorBoundary } from '@/shared/components/ErrorBoundary';
 
 export default function FriendProfile() {
   const router = useRouter();
@@ -207,74 +209,81 @@ export default function FriendProfile() {
   }
 
   return (
-    <SafeAreaView
-      key={`friend-profile-${friendId}`}
-      style={[styles.safeArea, { backgroundColor: colors.background }]}
-    >
-      <Animated.View style={[{ flex: 1 }, pageAnimatedStyle]}>
+    <ErrorBoundary>
+      <SafeAreaView
+        key={`friend-profile-${friendId}`}
+        style={[styles.safeArea, { backgroundColor: colors.background }]}
+      >
+        <Animated.View style={[{ flex: 1 }, pageAnimatedStyle]}>
 
-        <TimelineList
-          sections={timelineSections}
-          onScroll={animatedScrollHandler}
-          onLoadMore={handleLoadMore}
-          hasMore={hasMoreInteractions}
-          onInteractionPress={modals.setSelectedInteraction}
-          onDeleteInteraction={handleDeleteInteraction}
-          onEditInteraction={handleEditInteractionWrapper}
-          ListHeaderComponent={
-            <View>
-              <ProfileHeader
-                friend={friend}
-                headerOpacity={headerOpacity}
-                onBack={() => {
-                  if (router.canGoBack()) {
-                    router.back();
-                  }
-                }}
-                onEdit={handleEdit}
-                onDelete={handleDeleteFriend}
-                onGlobalCalendar={() => router.push(`/global-calendar?fromFriendId=${friend.id}`)}
-                onShowBadgePopup={() => modals.setShowBadgePopup(true)}
-                onShowTierFit={() => modals.setShowTierFitSheet(true)}
-              />
+          <TimelineList
+            sections={timelineSections}
+            onScroll={animatedScrollHandler}
+            onLoadMore={handleLoadMore}
+            hasMore={hasMoreInteractions}
+            onInteractionPress={modals.setSelectedInteraction}
+            onDeleteInteraction={handleDeleteInteraction}
+            onEditInteraction={handleEditInteractionWrapper}
+            ListHeaderComponent={
+              <View>
+                <ProfileHeader
+                  friend={friend}
+                  headerOpacity={headerOpacity}
+                  onBack={() => {
+                    if (router.canGoBack()) {
+                      router.back();
+                    }
+                  }}
+                  onEdit={handleEdit}
+                  onDelete={handleDeleteFriend}
+                  onGlobalCalendar={() => router.push(`/global-calendar?fromFriendId=${friend.id}`)}
+                  onShowBadgePopup={() => modals.setShowBadgePopup(true)}
+                  onShowTierFit={() => modals.setShowTierFitSheet(true)}
+                />
 
-              <ActionButtons
-                buttonsOpacity={buttonsOpacity}
-                onLogWeave={() => router.push({ pathname: '/weave-logger', params: { friendId: friend.id } })}
-                onPlanWeave={() => modals.setShowPlanChoice(true)}
-                onJournal={() => router.push({ pathname: '/journal', params: { mode: 'friend-arc', friendId: friend.id } })}
-              />
+                <ActionButtons
+                  buttonsOpacity={buttonsOpacity}
+                  onLogWeave={() => router.push({ pathname: '/weave-logger', params: { friendId: friend.id } })}
+                  onPlanWeave={() => modals.setShowPlanChoice(true)}
+                  onJournal={() => router.push({ pathname: '/journal', params: { mode: 'friend-arc', friendId: friend.id } })}
+                />
 
-              <LifeEventsSection
-                lifeEvents={activeLifeEvents}
-                buttonsOpacity={buttonsOpacity}
-                onAdd={() => {
-                  modals.setEditingLifeEvent(null);
-                  modals.setShowLifeEventModal(true);
-                }}
-                onEdit={(event) => {
-                  modals.setEditingLifeEvent(event);
-                  modals.setShowLifeEventModal(true);
-                }}
-              />
-            </View>
-          }
-        />
+                <LifeEventsSection
+                  lifeEvents={activeLifeEvents}
+                  buttonsOpacity={buttonsOpacity}
+                  onAdd={() => {
+                    modals.setEditingLifeEvent(null);
+                    modals.setShowLifeEventModal(true);
+                  }}
+                  onEdit={(event) => {
+                    modals.setEditingLifeEvent(event);
+                    modals.setShowLifeEventModal(true);
+                  }}
+                />
+              </View>
+            }
+          />
 
-        <FriendProfileModals
-          friend={friend}
-          modals={modals}
-          friendIntentions={friendIntentions}
-          updateReflection={updateReflection}
-          updateInteraction={updateInteraction}
-          createIntention={createIntention}
-          dismissIntention={dismissIntention}
-          deleteWeave={deleteWeave}
-          refreshLifeEvents={refreshLifeEvents}
-        />
+          <FriendProfileModals
+            friend={friend}
+            modals={modals}
+            friendIntentions={friendIntentions}
+            updateReflection={updateReflection}
+            updateInteraction={updateInteraction}
+            createIntention={createIntention}
+            dismissIntention={dismissIntention}
+            deleteWeave={deleteWeave}
+            refreshLifeEvents={refreshLifeEvents}
+          />
 
-      </Animated.View>
-    </SafeAreaView>
+          <IntentionsFAB
+            count={friendIntentions?.length || 0}
+            onClick={() => modals.setShowIntentionsDrawer(true)}
+          />
+
+        </Animated.View>
+      </SafeAreaView>
+    </ErrorBoundary>
   );
 }
 

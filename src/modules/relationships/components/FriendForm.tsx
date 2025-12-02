@@ -220,7 +220,7 @@ export function FriendForm({ onSave, friend, initialTier, fromOnboarding }: Frie
           // Store the persistent local URI (not the temporary picker URI)
           setFormData({ ...formData, photoUrl: imageResult.localUri });
           setImageError(false);
-          console.log('[FriendForm] Image processed and stored:', imageResult.localUri);
+
         } else {
           console.error('[FriendForm] Image processing failed:', imageResult.error);
           Alert.alert(
@@ -269,7 +269,7 @@ export function FriendForm({ onSave, friend, initialTier, fromOnboarding }: Frie
 
             if (imageResult.success) {
               contactPhotoUrl = imageResult.localUri;
-              console.log('[FriendForm] Contact photo processed:', contactPhotoUrl);
+
             }
           }
         } catch (error) {

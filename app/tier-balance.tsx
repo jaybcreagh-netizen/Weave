@@ -15,6 +15,7 @@ import { useTheme } from '@/shared/hooks/useTheme';
 import { useNetworkTierHealth, TierFitBottomSheet } from '@/modules/insights';
 import type { Tier } from '@/shared/types/core';
 import type { TierFitAnalysis } from '@/modules/insights/types';
+import { changeFriendTier, dismissTierSuggestion } from '@/modules/insights/services/tier-management.service';
 
 const TIER_DISPLAY_NAMES: Record<Tier, string> = {
   InnerCircle: 'Inner Circle',
@@ -53,19 +54,31 @@ export default function TierBalanceScreen() {
     });
   };
 
-  const handleChangeTier = (friendId: string, newTier: Tier) => {
-    // TODO: Implement tier change logic
-    console.log(`Changing ${friendId} to ${newTier}`);
+  const handleChangeTier = async (friendId: string, newTier: Tier) => {
+    try {
+      await changeFriendTier(friendId, newTier, true);
+      setSelectedAnalysis(null);
+    } catch (error) {
+      console.error('Failed to change tier:', error);
+    }
   };
 
-  const handleStayInTier = (friendId: string) => {
-    // TODO: Mark as user confirmed
-    console.log(`Staying in tier for ${friendId}`);
+  const handleStayInTier = async (friendId: string) => {
+    try {
+      await dismissTierSuggestion(friendId);
+      setSelectedAnalysis(null);
+    } catch (error) {
+      console.error('Failed to dismiss suggestion:', error);
+    }
   };
 
-  const handleDismissSuggestion = (friendId: string) => {
-    // TODO: Dismiss suggestion for this friend
-    console.log(`Dismissing suggestion for ${friendId}`);
+  const handleDismissSuggestion = async (friendId: string) => {
+    try {
+      await dismissTierSuggestion(friendId);
+      setSelectedAnalysis(null);
+    } catch (error) {
+      console.error('Failed to dismiss suggestion:', error);
+    }
   };
 
   if (isLoading) {
@@ -259,7 +272,9 @@ export default function TierBalanceScreen() {
                         <View style={styles.friendCardStats}>
                           {isLearning ? (
                             <Text style={[styles.friendCardStat, { color: colors['muted-foreground'] }]}>
-                              Need {3 - analysis.interactionCount} more interactions to analyze rhythm
+                              {5 - analysis.interactionCount > 0
+                                ? `Need ${5 - analysis.interactionCount} more interactions to analyze rhythm`
+                                : `Keep weaving to analyze rhythm`}
                             </Text>
                           ) : (
                             <>

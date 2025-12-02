@@ -11,6 +11,7 @@ import { Bell, Users, CalendarDays, CheckCircle2, XCircle } from 'lucide-react-n
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { useTheme } from '@/shared/hooks/useTheme';
+import { useNotificationPermissions } from '@/modules/notifications/hooks/useNotificationPermissions';
 
 const PERMISSIONS_COMPLETED_KEY = '@weave:permissions_completed';
 const NOTIFICATION_PERMISSION_ASKED_KEY = '@weave:notification_permission_asked';
@@ -29,6 +30,7 @@ interface Permission {
 export default function PermissionsScreen() {
   const router = useRouter();
   const { colors } = useTheme();
+  const { requestPermission: requestNotificationPermission } = useNotificationPermissions();
   const [isRequesting, setIsRequesting] = useState(false);
   const navigationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const hasNavigatedRef = useRef(false);
@@ -88,10 +90,10 @@ export default function PermissionsScreen() {
       );
 
       // Request Notifications
-      const notificationsResult = await Notifications.requestPermissionsAsync();
+      const notificationGranted = await requestNotificationPermission();
       updatePermissionStatus(
         'notifications',
-        notificationsResult.status === 'granted' ? 'granted' : 'denied'
+        notificationGranted ? 'granted' : 'denied'
       );
 
       // Request Calendar

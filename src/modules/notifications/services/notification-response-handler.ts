@@ -47,7 +47,7 @@ export function handleNotificationResponse(
 ): void {
   const data = response.notification.request.content.data as NotificationData;
 
-  console.log('[Notifications] User tapped notification:', data);
+
 
   // Provide haptic feedback for notification tap
   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -276,12 +276,12 @@ export function setupNotificationResponseListener(): () => void {
     handleNotificationResponse
   );
 
-  console.log('[Notifications] Response listener registered');
+
 
   // Return cleanup function
   return () => {
     subscription.remove();
-    console.log('[Notifications] Response listener removed');
+
   };
 }
 
@@ -293,7 +293,7 @@ export async function handleNotificationOnLaunch(): Promise<void> {
   const response = await Notifications.getLastNotificationResponseAsync();
 
   if (response) {
-    console.log('[Notifications] App launched via notification');
+
     handleNotificationResponse(response);
   }
 }

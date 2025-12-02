@@ -4,8 +4,8 @@ import { database } from '@/db';
 import Friend from '@/db/models/Friend';
 import Interaction from '@/db/models/Interaction';
 import InteractionFriend from '@/db/models/InteractionFriend';
-import { Subscription, of } from 'rxjs';
-import { switchMap } from 'rxjs/operators';
+import { Subscription, of, asyncScheduler } from 'rxjs';
+import { switchMap, observeOn } from 'rxjs/operators';
 import { Q } from '@nozbe/watermelondb';
 import { appStateManager } from '@/shared/services/app-state-manager.service';
 import {
@@ -78,6 +78,7 @@ export const useRelationshipsStore = create<RelationshipsStore>((set, get) => ({
   },
 
   observeFriend: (friendId: string, initialPageSize: number = 50) => {
+    // Always cleanup existing subscriptions first
     get().unobserveFriend();
 
     set({
@@ -87,63 +88,72 @@ export const useRelationshipsStore = create<RelationshipsStore>((set, get) => ({
       hasMoreInteractions: false,
     });
 
-    const friendSub = database.get<Friend>('friends').findAndObserve(friendId).subscribe(friend => {
-      set({ activeFriend: friend });
+    let friendSub: Subscription | null = null;
+    let interactionSub: Subscription | null = null;
 
-      // Cleanup previous interaction subscription if it exists
-      get().interactionSubscription?.unsubscribe();
+    try {
+      // 1. Observe Friend Details
+      friendSub = database.get<Friend>('friends').findAndObserve(friendId)
+        .pipe(observeOn(asyncScheduler))
+        .subscribe(friend => {
+          set({ activeFriend: friend });
+        });
 
-      if (friend) {
-        const interactionFriendsSub = database.get<InteractionFriend>('interaction_friends')
-          .query(Q.where('friend_id', friend.id))
-          .observe();
+      // 2. Observe Interactions (Independent of friend object updates, depends only on ID)
+      const interactionFriendsSub = database.get<InteractionFriend>('interaction_friends')
+        .query(Q.where('friend_id', friendId))
+        .observe();
 
-        const interactionSub = interactionFriendsSub.pipe(
-          switchMap(async (interactionFriends) => {
-            const interactionIds = interactionFriends.map(ifriend => ifriend.interactionId);
-            const totalCount = interactionIds.length;
+      interactionSub = interactionFriendsSub.pipe(
+        observeOn(asyncScheduler),
+        switchMap(async (interactionFriends) => {
+          const interactionIds = interactionFriends.map(ifriend => ifriend.interactionId);
+          const totalCount = interactionIds.length;
 
-            if (totalCount === 0) {
-              set({
-                totalInteractionsCount: 0,
-                loadedInteractionsCount: 0,
-                hasMoreInteractions: false,
-              });
-              return of([]);
-            }
-
-            const interactions = await database.get<Interaction>('interactions').query(
-              Q.where('id', Q.oneOf(interactionIds)),
-              Q.sortBy('interaction_date', Q.desc),
-              Q.take(initialPageSize)
-            ).fetch();
-
+          if (totalCount === 0) {
             set({
-              totalInteractionsCount: totalCount,
-              loadedInteractionsCount: interactions.length,
-              hasMoreInteractions: interactions.length < totalCount,
+              totalInteractionsCount: 0,
+              loadedInteractionsCount: 0,
+              hasMoreInteractions: false,
             });
+            return of([]);
+          }
 
-            return of(interactions);
-          }),
-          switchMap(obs => obs)
-        ).subscribe(interactions => {
+          const interactions = await database.get<Interaction>('interactions').query(
+            Q.where('id', Q.oneOf(interactionIds)),
+            Q.sortBy('interaction_date', Q.desc),
+            Q.take(initialPageSize)
+          ).fetch();
+
+          set({
+            totalInteractionsCount: totalCount,
+            loadedInteractionsCount: interactions.length,
+            hasMoreInteractions: interactions.length < totalCount,
+          });
+
+          return of(interactions);
+        }),
+        switchMap(obs => obs)
+      ).subscribe({
+        next: (interactions) => {
           set({ activeFriendInteractions: interactions });
-        });
+        },
+        error: (error) => {
+          console.error('[RelationshipsStore] Error in interaction subscription:', error);
+        }
+      });
 
-        set({ interactionSubscription: interactionSub });
-      } else {
-        set({
-          activeFriendInteractions: [],
-          interactionSubscription: null,
-          totalInteractionsCount: 0,
-          loadedInteractionsCount: 0,
-          hasMoreInteractions: false,
-        });
-      }
-    });
-
-    set({ friendSubscription: friendSub });
+      set({
+        friendSubscription: friendSub,
+        interactionSubscription: interactionSub
+      });
+    } catch (error) {
+      console.error('[RelationshipsStore] Error setting up observers:', error);
+      // Ensure we don't leave any partial subscriptions hanging
+      if (friendSub) friendSub.unsubscribe();
+      if (interactionSub) interactionSub.unsubscribe();
+      get().unobserveFriend();
+    }
   },
 
   unobserveFriend: () => {

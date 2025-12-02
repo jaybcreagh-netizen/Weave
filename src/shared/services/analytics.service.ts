@@ -8,7 +8,7 @@ let posthogInstance: any = null;
 // Helper to set the PostHog instance from the provider
 export function setPostHogInstance(instance: any) {
   posthogInstance = instance;
-  console.log('[Analytics] PostHog instance set');
+
 }
 
 // Analytics events
@@ -91,7 +91,7 @@ export async function initializeAnalytics(): Promise<void> {
   try {
     // PostHog is initialized via PostHogProvider in app/_layout.tsx
     // This function just logs that analytics are ready
-    console.log('[Analytics] Analytics service ready');
+
   } catch (error) {
     console.error('[Analytics] Failed to initialize analytics:', error);
   }
@@ -137,7 +137,7 @@ export function trackEvent(
     posthogInstance.capture(event, enrichedProperties);
 
     if (__DEV__) {
-      console.log('[Analytics] Event tracked:', event, enrichedProperties);
+
     }
   } catch (error) {
     console.error('[Analytics] Failed to track event:', error);
@@ -255,7 +255,7 @@ export async function resetAnalytics(): Promise<void> {
     await AsyncStorage.removeItem('@weave:last_app_open');
     await AsyncStorage.removeItem('@weave:last_interaction');
     await AsyncStorage.removeItem('@weave:last_weekly_track');
-    console.log('[Analytics] Analytics reset');
+
   } catch (error) {
     console.error('[Analytics] Failed to reset analytics:', error);
   }

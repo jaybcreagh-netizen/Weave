@@ -34,17 +34,18 @@ const palette = {
   },
 
   // Mystical Darks (for dark mode — warm plum-charcoal, not cold gray)
+  // Mystical Darks (for dark mode — deep mystical purple)
   night: {
-    950: '#0F0D0E',      // Deepest black with warmth
-    900: '#1A1618',      // Primary background
-    850: '#1F1B1D',      // Slightly lifted
-    800: '#252022',      // Elevated surfaces (cards)
-    750: '#2D2628',      // Subtle backgrounds
-    700: '#3D3539',      // Borders
-    600: '#4D454A',      // Strong borders
-    500: '#6B6168',      // Disabled states
-    400: '#9A9298',      // Muted text (dusty lavender)
-    300: '#B5AFB2',      // Secondary text
+    950: '#0D0B14',      // Deepest void purple
+    900: '#14101F',      // Primary background - deep mystical purple
+    850: '#1C1629',      // Slightly lifted
+    800: '#241C33',      // Elevated surfaces (cards)
+    750: '#2D233D',      // Subtle backgrounds
+    700: '#392E4D',      // Borders
+    600: '#4D3E66',      // Strong borders
+    500: '#6B5A8A',      // Disabled states
+    400: '#9D8CB0',      // Muted text (dusty lavender)
+    300: '#C4B5D6',      // Secondary text
   },
 
   // Amber/Gold spectrum

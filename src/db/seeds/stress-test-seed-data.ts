@@ -218,11 +218,7 @@ export async function clearStressTestData(): Promise<void> {
 
   try {
     await database.write(async () => {
-      // 1. Find all friends created by stress test (checking if name is in REAL_NAMES is risky if user added real friends with same names, 
-      // but for stress test we can assume we want to clear everything or we can tag them in notes. 
-      // The previous implementation checked for "Test Friend". 
-      // Let's check for the specific note signature we added: "Generated friend from stress test."
-
+      // 1. Find all friends created by stress test
       const allFriends = await database.get<FriendModel>('friends').query().fetch();
       const stressTestFriends = allFriends.filter(f => f.notes && f.notes.includes('Generated friend from stress test'));
 
@@ -264,21 +260,81 @@ export async function clearStressTestData(): Promise<void> {
           await le.destroyPermanently();
         }
 
+        // Delete Suggestion Events
+        const suggestionEvents = await database.get('suggestion_events').query(
+          Q.where('friend_id', friend.id)
+        ).fetch();
+        for (const se of suggestionEvents) {
+          await se.destroyPermanently();
+        }
+
+        // Delete Intention Friends
+        const intentionFriends = await database.get('intention_friends').query(
+          Q.where('friend_id', friend.id)
+        ).fetch();
+        for (const if_ of intentionFriends) {
+          await if_.destroyPermanently();
+        }
+
+        // Delete Friend Badges
+        const friendBadges = await database.get('friend_badges').query(
+          Q.where('friend_id', friend.id)
+        ).fetch();
+        for (const fb of friendBadges) {
+          await fb.destroyPermanently();
+        }
+
+        // Delete Achievement Unlocks (related to friend)
+        const achievementUnlocks = await database.get('achievement_unlocks').query(
+          Q.where('related_friend_id', friend.id)
+        ).fetch();
+        for (const au of achievementUnlocks) {
+          await au.destroyPermanently();
+        }
+
+        // Delete Chip Usage (related to friend)
+        const chipUsage = await database.get('chip_usage').query(
+          Q.where('friend_id', friend.id)
+        ).fetch();
+        for (const cu of chipUsage) {
+          await cu.destroyPermanently();
+        }
+
+        // Delete Interaction Outcomes
+        const interactionOutcomes = await database.get('interaction_outcomes').query(
+          Q.where('friend_id', friend.id)
+        ).fetch();
+        for (const io of interactionOutcomes) {
+          await io.destroyPermanently();
+        }
+
         await friend.destroyPermanently();
       }
 
       // Cleanup orphaned interactions
-      // This is expensive but necessary if we want a clean slate. 
-      // Alternatively, we could have tracked interaction IDs created, but we didn't.
-      // Strategy: Find interactions with NO interaction_friends
       const allInteractions = await database.get<InteractionModel>('interactions').query().fetch();
-      // Fetch all interaction_friends to check against
       const allInteractionFriends = await database.get<InteractionFriend>('interaction_friends').query().fetch();
       const linkedInteractionIds = new Set(allInteractionFriends.map(if_ => if_.interactionId));
 
       let deletedInteractions = 0;
       for (const interaction of allInteractions) {
         if (!linkedInteractionIds.has(interaction.id)) {
+          // Also delete chip usage for this interaction
+          const interactionChipUsage = await database.get('chip_usage').query(
+            Q.where('interaction_id', interaction.id)
+          ).fetch();
+          for (const cu of interactionChipUsage) {
+            await cu.destroyPermanently();
+          }
+
+          // Also delete interaction outcomes for this interaction
+          const interactionOutcomes = await database.get('interaction_outcomes').query(
+            Q.where('interaction_id', interaction.id)
+          ).fetch();
+          for (const io of interactionOutcomes) {
+            await io.destroyPermanently();
+          }
+
           await interaction.destroyPermanently();
           deletedInteractions++;
         }
@@ -292,10 +348,6 @@ export async function clearStressTestData(): Promise<void> {
 
       let deletedJournalEntries = 0;
       for (const entry of allJournalEntries) {
-        // We only delete if it was linked to a stress test friend (now deleted) AND has no other links.
-        // But since we just deleted the links, we can check if it has ANY links left.
-        // However, we might have deleted the ONLY link it had.
-        // Simple heuristic: If it has no links, delete it.
         if (!linkedJournalEntryIds.has(entry.id)) {
           await entry.destroyPermanently();
           deletedJournalEntries++;
@@ -304,8 +356,6 @@ export async function clearStressTestData(): Promise<void> {
       console.log(`[StressTest] Deleted ${deletedJournalEntries} orphaned journal entries.`);
 
       // Cleanup Groups created by stress test
-      // We can identify them by name if they are unique, or just leave them.
-      // Let's try to find them by name.
       const groups = await database.get<Group>('groups').query(
         Q.where('name', Q.oneOf(GROUP_NAMES))
       ).fetch();

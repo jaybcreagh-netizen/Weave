@@ -32,12 +32,12 @@ export async function migrateInteractionsToCategories(database: Database): Promi
   const interactionsCollection = database.get('interactions');
 
   try {
-    console.log('[Data Migration] Starting interaction category migration...');
+
 
     // Get all interactions
     const allInteractions = await interactionsCollection.query().fetch();
 
-    console.log(`[Data Migration] Found ${allInteractions.length} interactions to migrate`);
+
 
     let migratedCount = 0;
     let errorCount = 0;
@@ -71,7 +71,7 @@ export async function migrateInteractionsToCategories(database: Database): Promi
 
           // Log progress every 10 interactions
           if (migratedCount % 10 === 0) {
-            console.log(`[Data Migration] Migrated ${migratedCount} interactions...`);
+
           }
         } catch (error) {
           console.error(`[Data Migration] Error migrating interaction ${interaction.id}:`, error);
@@ -80,10 +80,7 @@ export async function migrateInteractionsToCategories(database: Database): Promi
       }
     });
 
-    console.log(`[Data Migration] ✅ Migration complete!`);
-    console.log(`[Data Migration] Migrated: ${migratedCount} interactions`);
-    console.log(`[Data Migration] Errors: ${errorCount}`);
-    console.log(`[Data Migration] Already migrated: ${allInteractions.length - migratedCount - errorCount}`);
+
   } catch (error) {
     console.error('[Data Migration] ❌ Fatal error during migration:', error);
     throw error;
@@ -130,13 +127,13 @@ export async function isDataMigrationComplete(database: Database): Promise<boole
  */
 export async function ensureUserProgressColumns(database: Database): Promise<void> {
   try {
-    console.log('[Data Migration] Checking user_progress columns...');
+
 
     const progressCollection = database.get('user_progress');
     const progress = await progressCollection.query().fetch();
 
     if (progress.length === 0) {
-      console.log('[Data Migration] No user_progress record found, skipping column check');
+
       return;
     }
 
@@ -152,10 +149,8 @@ export async function ensureUserProgressColumns(database: Database): Promise<voi
             ['ALTER TABLE user_progress ADD COLUMN last_streak_count INTEGER DEFAULT 0', []],
           ],
         });
-        console.log('[Data Migration] Added last_streak_count column');
       } catch (e) {
         // Ignore "duplicate column name" error
-        console.log('[Data Migration] last_streak_count column likely exists or could not be added');
       }
 
       // 2. longest_streak_ever
@@ -165,9 +160,7 @@ export async function ensureUserProgressColumns(database: Database): Promise<voi
             ['ALTER TABLE user_progress ADD COLUMN longest_streak_ever INTEGER DEFAULT 0', []],
           ],
         });
-        console.log('[Data Migration] Added longest_streak_ever column');
       } catch (e) {
-        console.log('[Data Migration] longest_streak_ever column likely exists or could not be added');
       }
 
       // 3. streak_released_date
@@ -177,9 +170,7 @@ export async function ensureUserProgressColumns(database: Database): Promise<voi
             ['ALTER TABLE user_progress ADD COLUMN streak_released_date INTEGER', []],
           ],
         });
-        console.log('[Data Migration] Added streak_released_date column');
       } catch (e) {
-        console.log('[Data Migration] streak_released_date column likely exists or could not be added');
       }
 
       // Initialize longest_streak_ever to current best_streak if needed
@@ -190,11 +181,11 @@ export async function ensureUserProgressColumns(database: Database): Promise<voi
           ],
         });
       } catch (e) {
-        console.log('[Data Migration] Failed to update longest_streak_ever values');
+
       }
     });
 
-    console.log('[Data Migration] ✅ Column check complete');
+
   } catch (error) {
     console.error('[Data Migration] Error checking user_progress columns:', error);
   }
@@ -209,10 +200,10 @@ export async function runDataMigrationIfNeeded(database: Database): Promise<void
   const isComplete = await isDataMigrationComplete(database);
 
   if (!isComplete) {
-    console.log('[Data Migration] Migration needed, starting...');
+
     await migrateInteractionsToCategories(database);
   } else {
-    console.log('[Data Migration] ✅ Data already migrated, skipping');
+
   }
 
   // Ensure user_progress has v30 columns

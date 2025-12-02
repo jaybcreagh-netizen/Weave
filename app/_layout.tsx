@@ -27,15 +27,13 @@ import { useRelationshipsStore } from '@/modules/relationships';
 import { useTutorialStore } from '@/stores/tutorialStore';
 import {
   initializeNotifications,
-  requestNotificationPermissions,
-} from '@/modules/notifications';
-import {
   setupNotificationResponseListener,
   handleNotificationOnLaunch,
-} from '@/modules/notifications';
-import {
   configureNotificationHandler,
 } from '@/modules/notifications';
+import { useNotificationPermissions } from '@/modules/notifications/hooks/useNotificationPermissions';
+import { AppState } from 'react-native';
+import { AutoBackupService } from '@/modules/backup/AutoBackupService';
 import { useBackgroundSyncStore } from '@/modules/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
@@ -56,7 +54,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 const queryClient = new QueryClient();
 
 Sentry.init({
-  dsn: 'https://1b94b04a0400cdc5a0378c0f485a2435@o4510357596471296.ingest.de.sentry.io/4510357600993360',
+  dsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
 
   // Adds more context data to events (IP address, cookies, user, etc.)
   // For more information, visit: https://docs.sentry.io/platforms/react-native/data-management/data-collected/
@@ -131,7 +129,17 @@ function RootLayoutContent() {
 
   // Animated opacity for smooth fade-in of content
   const contentOpacity = useSharedValue(0);
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      if (nextAppState === 'background' || nextAppState === 'inactive') {
+        AutoBackupService.checkAndBackup();
+      }
+    });
 
+    return () => {
+      subscription.remove();
+    };
+  }, []);
   useEffect(() => {
     if (fontsLoaded || fontError) {
       // Hide the splash screen after the fonts have loaded or an error occurred
@@ -216,9 +224,9 @@ function RootLayoutContent() {
 
   // Monitor app state changes for logging
   useAppStateChange((state) => {
-    console.log('[App] State changed to:', state);
+
     if (state === 'active') {
-      console.log('[App] App is active - resuming operations');
+
       trackEvent(AnalyticsEvents.APP_OPENED);
       trackRetentionMetrics();
 
@@ -246,14 +254,14 @@ function RootLayoutContent() {
         });
       });
     } else if (state === 'background') {
-      console.log('[App] App went to background - pausing heavy operations');
+
       trackEvent(AnalyticsEvents.APP_BACKGROUNDED);
     }
   });
 
   // Initialize app state listeners for stores (battery optimization)
   useEffect(() => {
-    console.log('[App] Initializing store app state listeners');
+
     const initializeAppStateListener = useRelationshipsStore.getState().initializeAppStateListener;
     initializeAppStateListener();
 
@@ -272,7 +280,7 @@ function RootLayoutContent() {
         configureNotificationHandler();
 
         await initializeNotifications();
-        console.log('[App] All notification systems initialized');
+
 
         // Check if app was launched via notification
         await handleNotificationOnLaunch();
@@ -297,7 +305,7 @@ function RootLayoutContent() {
       try {
         // Load settings (will register task if enabled)
         await useBackgroundSyncStore.getState().loadSettings();
-        console.log('[App] Background sync settings loaded');
+
       } catch (error) {
         console.error('[App] Failed to initialize background sync:', error);
       }
@@ -337,17 +345,19 @@ function RootLayoutContent() {
   }, [hasCompletedOnboarding, dataLoaded]);
 
   // Handle notification permission request
+  const { requestPermission: requestNotificationPermission } = useNotificationPermissions();
+
   const handleRequestNotificationPermission = async () => {
     try {
-      const granted = await requestNotificationPermissions();
+      const granted = await requestNotificationPermission();
       await AsyncStorage.setItem(NOTIFICATION_PERMISSION_ASKED_KEY, 'true');
       setShowNotificationPermissionModal(false);
 
       if (granted) {
-        console.log('[App] Notification permissions granted, initializing notifications');
+
         await initializeNotifications();
       } else {
-        console.log('[App] Notification permissions denied');
+
       }
     } catch (error) {
       console.error('[App] Error requesting notification permissions:', error);
@@ -360,7 +370,7 @@ function RootLayoutContent() {
     try {
       await AsyncStorage.setItem(NOTIFICATION_PERMISSION_ASKED_KEY, 'true');
       setShowNotificationPermissionModal(false);
-      console.log('[App] User skipped notification permissions');
+
     } catch (error) {
       console.error('[App] Error skipping notification permissions:', error);
     }

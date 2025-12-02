@@ -17,3 +17,4 @@ export { FriendshipArcView } from './FriendshipArcView';
 
 // Integration
 export { WeaveReflectPrompt, useWeaveReflectPrompt } from './WeaveReflectPrompt';
+export { JournalEntryModal } from './JournalEntryModal';

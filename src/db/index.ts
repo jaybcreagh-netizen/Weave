@@ -186,7 +186,26 @@ export const initializeUserProgress = async () => {
 };
 
 export const clearDatabase = async () => {
-  console.log("clearDatabase is a no-op in this new architecture");
+  await database.write(async () => {
+    // Iterate over all table names in the schema
+    const tableNames = Object.keys(schema.tables);
+
+    for (const tableName of tableNames) {
+      const collection = database.get(tableName);
+      const allRecords = await collection.query().fetch();
+
+      // Batch delete all records in this table
+      for (const record of allRecords) {
+        await record.destroyPermanently();
+      }
+    }
+  });
+
+  console.log('[Database] All data cleared successfully');
+
+  // Re-initialize essential singletons
+  await initializeUserProfile();
+  await initializeUserProgress();
 };
 
 /**

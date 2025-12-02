@@ -198,11 +198,7 @@ async function fetchSuggestions(friends: any[]) {
       },
     };
 
-    console.log('📊 Portfolio Analysis:', {
-      friendCount: uniqueFriendStats.length,
-      tierScores,
-      friends: uniqueFriendStats.map(f => ({ name: f.name, tier: f.tier, score: f.score }))
-    });
+
 
     const portfolioAnalysis: PortfolioAnalysisStats = {
       friends: uniqueFriendStats,
@@ -211,7 +207,7 @@ async function fetchSuggestions(friends: any[]) {
     };
 
     const portfolioInsight = generatePortfolioInsights(portfolioAnalysis);
-    console.log('📊 Portfolio Insight Generated:', portfolioInsight?.title || 'None');
+
 
     if (portfolioInsight) {
       allSuggestions.push(portfolioInsight);

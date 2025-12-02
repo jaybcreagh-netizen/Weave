@@ -66,7 +66,7 @@ export const useBackgroundSyncStore = create<BackgroundSyncStore>((set, get) => 
     if (updates.notificationsEnabled && !currentSettings.notificationsEnabled) {
       const granted = await requestNotificationPermissions();
       if (!granted) {
-        console.log('[BackgroundSyncStore] Notification permission denied');
+
         return;
       }
     }
@@ -94,21 +94,21 @@ export const useBackgroundSyncStore = create<BackgroundSyncStore>((set, get) => 
       // Check notification permissions
       const notificationGranted = await requestNotificationPermissions();
       if (!notificationGranted) {
-        console.log('[BackgroundSyncStore] Cannot enable - notification permission required');
+
         return false;
       }
 
       // Check background fetch status
       const status = await getBackgroundFetchStatus();
       if (status === BackgroundFetch.BackgroundFetchStatus.Restricted) {
-        console.log('[BackgroundSyncStore] Cannot enable - background fetch restricted');
+
         return false;
       }
 
       // Register task
       const registered = await registerBackgroundSyncTask();
       if (!registered) {
-        console.log('[BackgroundSyncStore] Failed to register background task');
+
         return false;
       }
     } else {
@@ -119,7 +119,7 @@ export const useBackgroundSyncStore = create<BackgroundSyncStore>((set, get) => 
     // Update settings
     await get().updateSettings({ enabled: newEnabled });
 
-    console.log(`[BackgroundSyncStore] Background sync ${newEnabled ? 'enabled' : 'disabled'}`);
+
     return true;
   },
 
@@ -142,13 +142,13 @@ export const useBackgroundSyncStore = create<BackgroundSyncStore>((set, get) => 
    */
   testManualSync: async () => {
     try {
-      console.log('[BackgroundSyncStore] Triggering manual sync...');
+
       await triggerManualSync();
 
       // Update last sync timestamp
       await get().updateSettings({ lastSyncTimestamp: Date.now() });
 
-      console.log('[BackgroundSyncStore] Manual sync completed');
+
     } catch (error) {
       console.error('[BackgroundSyncStore] Error during manual sync:', error);
     }

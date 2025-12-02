@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, View, Text, TouchableOpacity, Switch, Alert, ScrollView, Platform, LayoutAnimation } from 'react-native';
+import { router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { X, Moon, Sun, Palette, RefreshCw, Bug, BarChart3, Battery, Calendar as CalendarIcon, ChevronRight, Bell, Clock, Trophy, Sparkles, MessageSquare, Download, Upload, Database, Trash2, BookOpen, Users } from 'lucide-react-native';
+import { X, Moon, Sun, Palette, RefreshCw, Bug, BarChart3, Battery, Calendar as CalendarIcon, ChevronRight, Bell, Clock, Trophy, Sparkles, MessageSquare, Download, Upload, Database, Trash2, BookOpen, Users, Shield, FileText } from 'lucide-react-native';
 import * as FileSystem from 'expo-file-system';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
@@ -39,6 +40,7 @@ import { FriendManagementModal } from './FriendManagementModal';
 import * as DocumentPicker from 'expo-document-picker';
 import { generateStressTestData, clearStressTestData, getDataStats } from '@/db/seeds/stress-test-seed-data';
 import { CustomBottomSheet } from '@/shared/ui/Sheet/BottomSheet';
+import { AutoBackupService } from '@/modules/backup/AutoBackupService';
 
 
 interface SettingsModalProps {
@@ -140,6 +142,10 @@ export function SettingsModal({
   // Friend Management state
   const [showFriendManagement, setShowFriendManagement] = useState(false);
 
+  // Auto Backup state
+  const [autoBackupEnabled, setAutoBackupEnabled] = useState(false);
+  const [lastBackupTime, setLastBackupTime] = useState<string | null>(null);
+
 
 
   // Background sync store
@@ -156,9 +162,18 @@ export function SettingsModal({
     if (isOpen) {
       loadCalendarSettings();
       loadNotificationSettings();
+      loadNotificationSettings();
       loadBackgroundSyncSettings();
+      loadAutoBackupSettings();
     }
   }, [isOpen, profile]);
+
+  const loadAutoBackupSettings = async () => {
+    const enabled = await AutoBackupService.isEnabled();
+    const lastTime = await AutoBackupService.getLastBackupTime();
+    setAutoBackupEnabled(enabled);
+    setLastBackupTime(lastTime);
+  };
 
   const loadCalendarSettings = async () => {
     const settings = await CalendarService.getCalendarSettings();
@@ -355,6 +370,31 @@ export function SettingsModal({
     await updateNotificationPreferences({ respectBattery: enabled });
   };
 
+  const handleToggleAutoBackup = async (enabled: boolean) => {
+    if (enabled) {
+      // Verify iCloud access before enabling
+      const initialized = await AutoBackupService.init();
+      if (!initialized) {
+        Alert.alert(
+          'iCloud Access Failed',
+          'Could not access iCloud Drive. Please ensure you are signed in to iCloud and have iCloud Drive enabled.',
+          [{ text: 'OK' }]
+        );
+        // Don't enable the switch
+        return;
+      }
+    }
+
+    setAutoBackupEnabled(enabled);
+    await AutoBackupService.setEnabled(enabled);
+    if (enabled) {
+      // Try to backup immediately if enabling
+      AutoBackupService.checkAndBackup().then(() => {
+        loadAutoBackupSettings();
+      });
+    }
+  };
+
   const handleResetDatabase = () => {
     Alert.alert(
       "Reset Database",
@@ -406,12 +446,12 @@ export function SettingsModal({
     try {
       const stats = await getExportStats();
       Alert.alert(
-        'Export Data',
-        `Export your data for backup or analysis.\n\nFriends: ${stats.totalFriends}\nInteractions: ${stats.totalInteractions}\nEstimated size: ${stats.estimatedSizeKB}KB`,
+        'Backup Data',
+        `Create a backup of your data to save to iCloud Drive or another safe location.\n\nFriends: ${stats.totalFriends}\nInteractions: ${stats.totalInteractions}\nEstimated size: ${stats.estimatedSizeKB}KB`,
         [
           { text: 'Cancel', style: 'cancel' },
           {
-            text: 'Export',
+            text: 'Create Backup',
             onPress: async () => {
               try {
                 await exportAndShareData();
@@ -456,16 +496,16 @@ export function SettingsModal({
 
       // Show confirmation with preview
       Alert.alert(
-        'Import Data',
-        `This will restore your data from the backup:\n\n` +
-        `Export Date: ${new Date(preview.preview!.exportDate).toLocaleDateString()}\n` +
+        'Restore Data',
+        `This will restore your data from a backup file (e.g. from iCloud Drive):\n\n` +
+        `Backup Date: ${new Date(preview.preview!.exportDate).toLocaleDateString()}\n` +
         `Friends: ${preview.preview!.totalFriends}\n` +
         `Interactions: ${preview.preview!.totalInteractions}\n\n` +
         `⚠️ WARNING: This will DELETE all your current data and replace it with the backup.`,
         [
           { text: 'Cancel', style: 'cancel' },
           {
-            text: 'Import',
+            text: 'Restore',
             style: 'destructive',
             onPress: async () => {
               try {
@@ -832,6 +872,52 @@ export function SettingsModal({
           <View className="border-t border-border" style={{ borderColor: colors.border }} />
 
           {/* Notifications Section */}
+          <View className="flex-row items-center justify-between">
+            <View className="flex-row items-center gap-3">
+              <View className="w-10 h-10 rounded-lg items-center justify-center" style={{ backgroundColor: colors.muted }}>
+                <Database color={colors.foreground} size={20} />
+              </View>
+              <View>
+                <Text className="text-base font-inter-medium" style={{ color: colors.foreground }}>Backup & Restore</Text>
+                <Text className="text-sm font-inter-regular" style={{ color: colors['muted-foreground'] }}>Save data to iCloud Drive</Text>
+              </View>
+            </View>
+            <View className="flex-row gap-2">
+              <TouchableOpacity
+                onPress={handleExportData}
+                className="px-3 py-2 rounded-md"
+                style={{ backgroundColor: colors.muted }}
+              >
+                <Upload size={18} color={colors.foreground} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={handleImportData}
+                className="px-3 py-2 rounded-md"
+                style={{ backgroundColor: colors.muted }}
+              >
+                <Download size={18} color={colors.foreground} />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <View className="flex-row items-center justify-between pl-13 mt-3">
+            <View className="flex-1">
+              <Text className="text-sm font-inter-medium" style={{ color: colors.foreground }}>Auto-Backup to iCloud</Text>
+              <Text className="text-xs font-inter-regular" style={{ color: colors['muted-foreground'] }}>
+                Automatically backup to "Weave/Backups" daily
+                {lastBackupTime && `\nLast: ${new Date(lastBackupTime).toLocaleDateString()} ${new Date(lastBackupTime).toLocaleTimeString()}`}
+              </Text>
+            </View>
+            <Switch
+              value={autoBackupEnabled}
+              onValueChange={handleToggleAutoBackup}
+              trackColor={{ false: colors.muted, true: colors.primary }}
+              thumbColor={colors.card}
+            />
+          </View>
+
+          <View className="border-t border-border" style={{ borderColor: colors.border }} />
+
           <View className="flex-row items-center justify-between">
             <View className="flex-row items-center gap-3">
               <View className="w-10 h-10 rounded-lg items-center justify-center" style={{ backgroundColor: colors.muted }}>
@@ -1298,6 +1384,53 @@ export function SettingsModal({
               <Text className="font-inter-medium" style={{ color: colors.destructive }}>Reset</Text>
             </TouchableOpacity>
           </View>
+
+          <View className="border-t border-border" style={{ borderColor: colors.border }} />
+
+          {/* Legal Section */}
+          <Text className="text-xs font-inter-semibold uppercase tracking-wide mb-2" style={{ color: colors['muted-foreground'] }}>
+            Legal
+          </Text>
+
+          <TouchableOpacity
+            className="flex-row items-center justify-between"
+            onPress={() => {
+              onClose();
+              router.push('/privacy-policy');
+            }}
+          >
+            <View className="flex-row items-center gap-3">
+              <View className="w-10 h-10 rounded-lg items-center justify-center" style={{ backgroundColor: colors.muted }}>
+                <Shield color={colors.foreground} size={20} />
+              </View>
+              <View>
+                <Text className="text-base font-inter-medium" style={{ color: colors.foreground }}>Privacy Policy</Text>
+                <Text className="text-sm font-inter-regular" style={{ color: colors['muted-foreground'] }}>How we handle your data</Text>
+              </View>
+            </View>
+            <ChevronRight color={colors['muted-foreground']} size={20} />
+          </TouchableOpacity>
+
+          <View className="border-t border-border" style={{ borderColor: colors.border }} />
+
+          <TouchableOpacity
+            className="flex-row items-center justify-between"
+            onPress={() => {
+              onClose();
+              router.push('/terms-of-service');
+            }}
+          >
+            <View className="flex-row items-center gap-3">
+              <View className="w-10 h-10 rounded-lg items-center justify-center" style={{ backgroundColor: colors.muted }}>
+                <FileText color={colors.foreground} size={20} />
+              </View>
+              <View>
+                <Text className="text-base font-inter-medium" style={{ color: colors.foreground }}>Terms of Service</Text>
+                <Text className="text-sm font-inter-regular" style={{ color: colors['muted-foreground'] }}>Usage agreement</Text>
+              </View>
+            </View>
+            <ChevronRight color={colors['muted-foreground']} size={20} />
+          </TouchableOpacity>
         </View>
       </View>
 

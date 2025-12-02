@@ -138,7 +138,7 @@ export function validateImportData(jsonString: string): {
  * Clear all existing data from the database
  */
 export async function clearAllData(): Promise<void> {
-  console.log('[DataImport] Clearing all existing data...');
+
 
   await database.write(async () => {
     // Delete all interaction_friends first (foreign key constraint)
@@ -169,7 +169,7 @@ export async function clearAllData(): Promise<void> {
     }
   });
 
-  console.log('[DataImport] All data cleared');
+
 }
 
 /**
@@ -190,7 +190,7 @@ export async function importData(
   };
 
   try {
-    console.log('[DataImport] Starting data import...');
+
 
     // Validate data
     const validation = validateImportData(jsonString);
@@ -219,14 +219,14 @@ export async function importData(
       const userProgressCollection = database.get<UserProgress>('user_progress');
 
       // Import friends
-      console.log(`[DataImport] Importing ${data.friends.length} friends...`);
+
       for (const friendData of data.friends) {
         try {
           // Check if friend already exists (in merge mode)
           if (!clearExisting) {
             const existing = await friendsCollection.find(friendData.id).catch(() => null);
             if (existing) {
-              console.log(`[DataImport] Friend ${friendData.id} already exists, skipping`);
+
               continue;
             }
           }
@@ -260,14 +260,14 @@ export async function importData(
       }
 
       // Import interactions
-      console.log(`[DataImport] Importing ${data.interactions.length} interactions...`);
+
       for (const interactionData of data.interactions) {
         try {
           // Check if interaction already exists (in merge mode)
           if (!clearExisting) {
             const existing = await interactionsCollection.find(interactionData.id).catch(() => null);
             if (existing) {
-              console.log(`[DataImport] Interaction ${interactionData.id} already exists, skipping`);
+
               continue;
             }
           }
@@ -306,7 +306,7 @@ export async function importData(
 
       // Import user progress
       if (data.userProgress) {
-        console.log('[DataImport] Importing user progress...');
+
         try {
           // Check if user progress exists
           const existingProgress = await userProgressCollection.query().fetch();
@@ -335,9 +335,7 @@ export async function importData(
     });
 
     result.success = true;
-    console.log(
-      `[DataImport] Import complete: ${result.friendsImported} friends, ${result.interactionsImported} interactions`
-    );
+
   } catch (error) {
     result.errors.push(
       `Import failed: ${error instanceof Error ? error.message : 'Unknown error'}`

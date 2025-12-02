@@ -1,6 +1,9 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRelationshipsStore } from '@/modules/relationships';
 import { useInteractions, usePlans } from '@/modules/interactions';
+import { database } from '@/db';
+import { Q } from '@nozbe/watermelondb';
+import IntentionModel from '@/db/models/Intention';
 import { LifeEventRepository } from '@/repositories/LifeEventRepository';
 import LifeEventModel from '@/db/models/LifeEvent';
 import { Friend, Interaction, LifeEvent, Intention } from '@/components/types';
@@ -17,17 +20,36 @@ export function useFriendProfileData(friendId: string | undefined) {
     } = useRelationshipsStore();
 
     const { deleteWeave, updateReflection, updateInteraction } = useInteractions();
-    const { createIntention, dismissIntention, getFriendIntentions } = usePlans();
+    const { createIntention, dismissIntention } = usePlans();
 
     const [isDataLoaded, setIsDataLoaded] = useState(false);
     const [activeLifeEvents, setActiveLifeEvents] = useState<LifeEvent[]>([]);
     const [isLoadingMore, setIsLoadingMore] = useState(false);
 
-    const friendIntentionsModels = getFriendIntentions(typeof friendId === 'string' ? friendId : '');
+    const [friendIntentionsModels, setFriendIntentionsModels] = useState<IntentionModel[]>([]);
+
+    useEffect(() => {
+        if (!friendId || typeof friendId !== 'string') {
+            setFriendIntentionsModels([]);
+            return;
+        }
+
+        const subscription = database.get<IntentionModel>('intentions')
+            .query(
+                Q.on('intention_friends', 'friend_id', friendId),
+                Q.where('status', 'active')
+            )
+            .observe()
+            .subscribe(intentions => {
+                setFriendIntentionsModels(intentions);
+            });
+
+        return () => subscription.unsubscribe();
+    }, [friendId]);
 
     // Map Intention Models to DTOs
     const friendIntentions: Intention[] = useMemo(() => {
-        return (friendIntentionsModels || []).map(model => ({
+        return friendIntentionsModels.map(model => ({
             id: model.id,
             description: model.description,
             interactionCategory: model.interactionCategory,

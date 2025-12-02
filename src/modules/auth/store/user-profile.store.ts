@@ -6,6 +6,7 @@ import SocialBatteryLog from '@/db/models/SocialBatteryLog';
 // Removed service imports as logic is now inline
 
 import { Q } from '@nozbe/watermelondb';
+import { Subscription } from 'rxjs';
 
 interface UserProfileStore {
   // State
@@ -17,7 +18,9 @@ interface UserProfileStore {
   };
 
   // Observables
+  subscription: Subscription | null;
   observeProfile: () => void;
+  unobserveProfile: () => void;
 
   // Social Season Actions
   updateSocialSeason: (season: SocialSeason) => Promise<void>;
@@ -39,12 +42,19 @@ interface UserProfileStore {
 export const useUserProfileStore = create<UserProfileStore>((set, get) => ({
   profile: null,
   isLoading: true,
+  subscription: null,
   batteryStats: {
     average: null,
     trend: null,
   },
 
   observeProfile: () => {
+    // Clean up existing subscription if any
+    const existingSub = get().subscription;
+    if (existingSub) {
+      existingSub.unsubscribe();
+    }
+
     // Initialize profile if it doesn't exist
     initializeUserProfile();
 
@@ -62,8 +72,15 @@ export const useUserProfileStore = create<UserProfileStore>((set, get) => ({
         get().refreshBatteryStats();
       });
 
-    // Return cleanup function (though Zustand doesn't use it directly)
-    return () => subscription.unsubscribe();
+    set({ subscription });
+  },
+
+  unobserveProfile: () => {
+    const { subscription } = get();
+    if (subscription) {
+      subscription.unsubscribe();
+      set({ subscription: null });
+    }
   },
 
   updateSocialSeason: async (season: SocialSeason) => {
@@ -100,11 +117,11 @@ export const useUserProfileStore = create<UserProfileStore>((set, get) => ({
 
       // Create new log entry
       if (!oldSeason || oldSeason !== season) {
-         await logsCollection.create(log => {
-           log.userId = profile.id;
-           log.season = season;
-           log.startDate = now;
-         });
+        await logsCollection.create(log => {
+          log.userId = profile.id;
+          log.season = season;
+          log.startDate = now;
+        });
       }
     });
   },

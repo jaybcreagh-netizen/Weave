@@ -85,14 +85,14 @@ export function QuickWeaveOverlay() {
 
   // Entrance Animation - Fast and snappy
   useEffect(() => {
-    overlayOpacity.value = withTiming(1, { duration: 80 });
-    menuScale.value = withTiming(1, { duration: 120 });
-    // Very subtle pulse on center
-    centerPulse.value = withSequence(
-      withTiming(1.05, { duration: 100 }),
-      withTiming(1, { duration: 120 })
-    );
-  }, []);
+    if (quickWeaveFriendId) {
+      overlayOpacity.value = withTiming(1, { duration: 200 });
+      menuScale.value = withSpring(1, { damping: 12, stiffness: 100 });
+    } else if (!isQuickWeaveClosing) {
+      overlayOpacity.value = 0;
+      menuScale.value = 0.8;
+    }
+  }, [quickWeaveFriendId, isQuickWeaveClosing]);
 
   // Exit Animation - Fast dismiss
   useEffect(() => {

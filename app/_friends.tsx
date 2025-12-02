@@ -438,7 +438,7 @@ function DashboardContent() {
 }
 
 export default function RootLayout() {
-  console.log('[RootLayout] Rendering RootLayout');
+
   return (<DashboardContent />);
 }
 

@@ -129,32 +129,32 @@ export const useEventSuggestionStore = create<EventSuggestionStore>((set, get) =
   scanForSuggestions: async () => {
     const state = get();
     if (state.isScanning) {
-      console.log('[EventSuggestionStore] Scan already in progress');
+
       return;
     }
 
     // Check if we should scan (throttle)
     const should = await shouldScan();
     if (!should) {
-      console.log('[EventSuggestionStore] Scan throttled (scanned recently)');
+
       return;
     }
 
     set({ isScanning: true });
 
     try {
-      console.log('[EventSuggestionStore] Scanning for event suggestions...');
+
 
       // Load dismissed suggestions
       const dismissed = await loadDismissedSuggestions();
 
       // Scan upcoming events (next 30 days)
       const upcomingResult = await scanUpcomingEvents();
-      console.log(`[EventSuggestionStore] Found ${upcomingResult.events.length} upcoming events`);
+
 
       // Scan recent past events (last 7 days)
       const pastResult = await scanRecentPastEvents();
-      console.log(`[EventSuggestionStore] Found ${pastResult.events.length} past events`);
+
 
       // Filter out dismissed events and events without friend matches
       const now = new Date();
@@ -187,9 +187,7 @@ export const useEventSuggestionStore = create<EventSuggestionStore>((set, get) =
       // Update last scan time
       await updateLastScanTime();
 
-      console.log(
-        `[EventSuggestionStore] Scan complete: ${upcomingSuggestions.length} upcoming, ${pastSuggestions.length} past`
-      );
+
     } catch (error) {
       console.error('[EventSuggestionStore] Error scanning for suggestions:', error);
       set({ isScanning: false });

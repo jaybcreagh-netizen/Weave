@@ -65,7 +65,7 @@ interface ExportData {
  */
 export async function exportAllData(): Promise<string> {
   try {
-    console.log('[DataExport] Starting data export...');
+
 
     // Fetch all data
     const friends = await database.get<FriendModel>('friends').query().fetch();
@@ -151,7 +151,7 @@ export async function exportAllData(): Promise<string> {
     };
 
     const jsonString = JSON.stringify(exportData, null, 2);
-    console.log('[DataExport] Export data prepared, size:', jsonString.length, 'bytes');
+
 
     return jsonString;
   } catch (error) {
@@ -170,7 +170,7 @@ export async function exportAndShareData(): Promise<void> {
     // Save to AsyncStorage as backup
     const exportKey = `@weave:export_${Date.now()}`;
     await AsyncStorage.setItem(exportKey, jsonString);
-    console.log('[DataExport] Data saved to AsyncStorage:', exportKey);
+
 
     // Save to file system
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
@@ -179,7 +179,7 @@ export async function exportAndShareData(): Promise<void> {
 
     await FileSystem.writeAsStringAsync(fileUri, jsonString);
 
-    console.log('[DataExport] Data saved to file:', fileUri);
+
 
     // Share the file
     const stats = await getExportStats();
@@ -214,7 +214,7 @@ export async function exportAndShareData(): Promise<void> {
       );
     }
 
-    console.log('[DataExport] Export complete');
+
   } catch (error) {
     console.error('[DataExport] Failed to export and share data:', error);
     Alert.alert('Export Failed', 'Failed to export data. Please try again.');
