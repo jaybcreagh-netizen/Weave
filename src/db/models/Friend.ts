@@ -1,7 +1,8 @@
-import { Model } from '@nozbe/watermelondb'
+import { Model, Query } from '@nozbe/watermelondb'
 import { field, date, children, text, writer, readonly } from '@nozbe/watermelondb/decorators'
 import { Associations } from '@nozbe/watermelondb/Model'
 import { Archetype, Tier } from '@/shared/types/common'
+import InteractionFriend from './InteractionFriend'
 
 export default class Friend extends Model {
   static table = 'friends'
@@ -10,7 +11,7 @@ export default class Friend extends Model {
     interaction_friends: { type: 'has_many', foreignKey: 'friend_id' }
   }
 
-  @children('interaction_friends') interactionFriends!: any
+  @children('interaction_friends') interactionFriends!: Query<InteractionFriend>
 
   @text('name') name!: string
   @field('dunbar_tier') dunbarTier!: string
@@ -27,7 +28,7 @@ export default class Friend extends Model {
   // Cloud sync fields (v31)
   @field('user_id') userId?: string
   @field('synced_at') syncedAt?: number
-  @text('sync_status') customSyncStatus?: string
+  @text('sync_status') customSyncStatus?: 'synced' | 'pending'
   @field('server_updated_at') serverUpdatedAt?: number
 
   @text('photo_url') photoUrl?: string
