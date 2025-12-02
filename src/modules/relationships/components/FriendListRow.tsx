@@ -24,6 +24,7 @@ import { generateIntelligentStatusLine } from '@/modules/intelligence';
 import { normalizeContactImageUri } from '../utils/image.utils';
 import { statusLineCache } from '@/modules/intelligence';
 import { FriendDetailSheet } from './FriendDetailSheet';
+import { HydratedFriend } from '@/types/hydrated';
 
 const ATTENTION_THRESHOLD = 35;
 const STABLE_THRESHOLD = 65;
@@ -118,7 +119,7 @@ export const FriendListRowContent = ({ friend, animatedRef, variant = 'default' 
 
     // Generate and cache if not found
     const timeoutId = setTimeout(() => {
-      generateIntelligentStatusLine(friend)
+      generateIntelligentStatusLine(friend as unknown as HydratedFriend)
         .then(status => {
           statusLineCache.set(cacheKey, status);
           setStatusLine(status);

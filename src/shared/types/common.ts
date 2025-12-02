@@ -1,6 +1,7 @@
 // src/shared/types/common.ts
 
 export type Tier = 'InnerCircle' | 'CloseFriends' | 'Community';
+export type SyncStatus = 'synced' | 'pending' | 'failed';
 export type Archetype = 'Emperor' | 'Empress' | 'HighPriestess' | 'Fool' | 'Sun' | 'Hermit' | 'Magician' | 'Lovers' | 'Unknown';
 
 // Relationship types for understanding friend context

@@ -7,6 +7,7 @@ import InteractionFriend from '@/db/models/InteractionFriend';
 import { Q } from '@nozbe/watermelondb';
 import { calculateCurrentScore } from '@/modules/intelligence';
 import { type Friend } from '@/components/types';
+import { HydratedFriend, HydratedLifeEvent } from '@/types/hydrated';
 
 export interface StatusLine {
   text: string;
@@ -76,7 +77,7 @@ function getRandomNudge(archetype: string): string {
 /**
  * PRIORITY 1: Check for urgent life events
  */
-async function checkLifeEventStatus(friend: FriendModel | Friend): Promise<StatusLine | null> {
+async function checkLifeEventStatus(friend: HydratedFriend | Friend): Promise<StatusLine | null> {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
@@ -203,7 +204,7 @@ async function checkLifeEventStatus(friend: FriendModel | Friend): Promise<Statu
  * Analyzes recent interaction patterns to provide specific, meaningful insights
  */
 function generateHealthyRelationshipInsight(
-  friend: FriendModel | Friend,
+  friend: HydratedFriend | Friend,
   recentInteractions: Interaction[],
   recentCount: number
 ): StatusLine {
@@ -397,7 +398,7 @@ function generateHealthyRelationshipInsight(
 /**
  * PRIORITY 2: Connection health & history
  */
-async function checkConnectionHealth(friend: FriendModel | Friend): Promise<StatusLine | null> {
+async function checkConnectionHealth(friend: HydratedFriend | Friend): Promise<StatusLine | null> {
   const weaveScore = calculateCurrentScore(friend);
 
   try {
@@ -472,7 +473,7 @@ async function checkConnectionHealth(friend: FriendModel | Friend): Promise<Stat
 /**
  * PRIORITY 3: Upcoming plans
  */
-async function checkUpcomingPlans(friend: FriendModel | Friend): Promise<StatusLine | null> {
+async function checkUpcomingPlans(friend: HydratedFriend | Friend): Promise<StatusLine | null> {
   try {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -545,7 +546,7 @@ function capitalize(str: string): string {
  * 3. Upcoming plans
  * 4. Archetype nudge (fallback)
  */
-export async function generateIntelligentStatusLine(friend: FriendModel | Friend): Promise<StatusLine> {
+export async function generateIntelligentStatusLine(friend: HydratedFriend | Friend): Promise<StatusLine> {
   // Priority 1: Life events
   const lifeEventStatus = await checkLifeEventStatus(friend);
   if (lifeEventStatus) return lifeEventStatus;

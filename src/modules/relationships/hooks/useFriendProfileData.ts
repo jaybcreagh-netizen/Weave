@@ -162,6 +162,10 @@ export function useFriendProfileData(friendId: string | undefined) {
         updateInteraction,
         createIntention,
         dismissIntention,
-        refreshLifeEvents: () => friendId && typeof friendId === 'string' && loadLifeEvents(friendId)
+        refreshLifeEvents: async () => {
+            if (friendId && typeof friendId === 'string') {
+                await loadLifeEvents(friendId);
+            }
+        }
     };
 }

@@ -10,6 +10,7 @@ import { supabase } from './supabase.service';
 import { Q } from '@nozbe/watermelondb';
 import type { Model } from '@nozbe/watermelondb';
 import Logger from '@/shared/utils/Logger';
+import { useSyncConflictStore } from '../store/sync-conflict.store';
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 interface SyncConfig {
@@ -265,12 +266,29 @@ export class SyncEngine {
     Logger.warn(`⚠️ Conflict detected for ${localRecord.table} record ${localRecord.id}`);
     Logger.warn(`   Local updated: ${new Date((localRecord as any).serverUpdatedAt || 0).toISOString()}`);
     Logger.warn(`   Server updated: ${serverRecord.server_updated_at}`);
-    Logger.warn(`   Strategy: Server wins (last-write-wins)`);
-    // TODO: Implement UI for manual conflict resolution
 
-    await localRecord.update((record: any) => {
-      this.applyServerData(record, serverRecord);
-      record.syncStatus = 'synced';
+    // Add to conflict store for user resolution
+    useSyncConflictStore.getState().addConflict({
+      id: localRecord.id,
+      tableName: localRecord.table,
+      localRecord,
+      serverRecord,
+      resolve: async (strategy) => {
+        await database.write(async () => {
+          if (strategy === 'keep_server') {
+            await localRecord.update((record: any) => {
+              this.applyServerData(record, serverRecord);
+              record.syncStatus = 'synced';
+            });
+          } else {
+            // Keep local
+            await localRecord.update((record: any) => {
+              record.serverUpdatedAt = new Date(serverRecord.server_updated_at).getTime();
+              record.syncStatus = 'pending';
+            });
+          }
+        });
+      }
     });
   }
 

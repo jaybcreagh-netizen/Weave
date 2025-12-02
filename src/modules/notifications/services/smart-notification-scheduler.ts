@@ -16,6 +16,7 @@ import Interaction from '@/db/models/Interaction';
 import InteractionFriend from '@/db/models/InteractionFriend';
 import { Q } from '@nozbe/watermelondb';
 import Logger from '@/shared/utils/Logger';
+import { HydratedFriend } from '@/types/hydrated';
 
 // AsyncStorage keys
 const LAST_SMART_NOTIFICATION_KEY = '@weave:last_smart_notification';
@@ -306,7 +307,7 @@ async function generateSmartSuggestions(): Promise<Suggestion[]> {
         const momentumScore = Math.max(0, friend.momentumScore - daysSinceMomentumUpdate);
 
         const suggestion = await generateSuggestion({
-          friend,
+          friend: friend as unknown as HydratedFriend,
           currentScore,
           lastInteractionDate: lastInteraction?.interactionDate,
           interactionCount: sortedInteractions.length,

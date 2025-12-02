@@ -1,9 +1,10 @@
 import { Suggestion } from '@/shared/types/common';
 import FriendModel from '@/db/models/Friend';
 import InteractionModel from '@/db/models/Interaction';
+import { HydratedFriend } from '@/types/hydrated';
 
 export interface SuggestionInput {
-  friend: FriendModel;
+  friend: HydratedFriend;
   currentScore: number;
   lastInteractionDate: Date | null;
   interactionCount: number;

@@ -19,6 +19,7 @@ import { EventSuggestionModal } from '@/components/EventSuggestionModal';
 import { WeeklyReflectionModal } from '@/components/WeeklyReflection/WeeklyReflectionModal';
 import { useUIStore } from '@/stores/uiStore';
 import { useTheme } from '@/shared/hooks/useTheme';
+import { SyncConflictModal } from '@/modules/auth/components/SyncConflictModal';
 
 import { initializeDataMigrations, initializeUserProfile, initializeUserProgress } from '@/db';
 import { useAppStateChange } from '@/shared/hooks/useAppState';
@@ -419,6 +420,9 @@ function RootLayoutContent() {
                     isOpen={isWeeklyReflectionOpen}
                     onClose={closeWeeklyReflection}
                   />
+
+                  {/* Sync Conflict Modal */}
+                  <SyncConflictModal />
                 </Animated.View>
 
                 {/* Loading Screen - shows until data is loaded AND UI is mounted */}
