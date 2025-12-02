@@ -46,12 +46,15 @@ interface FriendListRowProps {
   variant?: 'default' | 'full';
 }
 
-import withObservables from '@nozbe/with-observables';
+import { useObservable } from '@/shared/hooks/useObservable';
 
-export const FriendListRowContent = ({ friend, animatedRef, variant = 'default' }: FriendListRowProps) => {
-  if (!friend) return null;
+export const FriendListRow = ({ friend, animatedRef, variant = 'default' }: FriendListRowProps) => {
+  // Observe friend changes reactively
+  const observedFriend = useObservable(friend.observe(), friend);
 
-  const { id, name, archetype, isDormant = false, photoUrl, relationshipType } = friend;
+  if (!observedFriend) return null;
+
+  const { id, name, archetype, isDormant = false, photoUrl, relationshipType } = observedFriend;
   const [statusLine, setStatusLine] = useState<{ text: string; icon?: string; variant?: 'default' | 'accent' | 'warning' | 'success' }>({
     text: archetypeData[archetype as Archetype]?.essence || '',
     variant: 'default'
@@ -64,8 +67,8 @@ export const FriendListRowContent = ({ friend, animatedRef, variant = 'default' 
 
   // Calculate current score with decay - memoized by ID to avoid recalculation
   const weaveScore = useMemo(
-    () => calculateCurrentScore(friend),
-    [friend.id, friend.weaveScore, friend.lastUpdated]
+    () => calculateCurrentScore(observedFriend),
+    [observedFriend.id, observedFriend.weaveScore, observedFriend.lastUpdated]
   );
 
   // Determine gradient colors based on score
@@ -105,10 +108,10 @@ export const FriendListRowContent = ({ friend, animatedRef, variant = 'default' 
 
     // Try cache first
     const cacheKey = {
-      friendId: friend.id,
-      lastUpdated: friend.lastUpdated.getTime(),
-      weaveScore: friend.weaveScore,
-      archetype: friend.archetype,
+      friendId: observedFriend.id,
+      lastUpdated: observedFriend.lastUpdated.getTime(),
+      weaveScore: observedFriend.weaveScore,
+      archetype: observedFriend.archetype,
     };
 
     const cached = statusLineCache.get(cacheKey);
@@ -119,7 +122,7 @@ export const FriendListRowContent = ({ friend, animatedRef, variant = 'default' 
 
     // Generate and cache if not found
     const timeoutId = setTimeout(() => {
-      generateIntelligentStatusLine(friend as unknown as HydratedFriend)
+      generateIntelligentStatusLine(observedFriend as unknown as HydratedFriend)
         .then(status => {
           statusLineCache.set(cacheKey, status);
           setStatusLine(status);
@@ -132,7 +135,7 @@ export const FriendListRowContent = ({ friend, animatedRef, variant = 'default' 
     }, 300);
 
     return () => clearTimeout(timeoutId);
-  }, [friend.id, friend.lastUpdated.getTime(), friend.weaveScore, archetype]);
+  }, [observedFriend.id, observedFriend.lastUpdated.getTime(), observedFriend.weaveScore, archetype]);
 
   // "Just Nurtured" glow effect
   useEffect(() => {
@@ -353,12 +356,8 @@ export const FriendListRowContent = ({ friend, animatedRef, variant = 'default' 
       <FriendDetailSheet
         isVisible={showDetailSheet}
         onClose={() => setShowDetailSheet(false)}
-        friend={friend as any} // Cast to any for now to avoid type errors with FriendDetailSheet
+        friend={observedFriend as any} // Cast to any for now to avoid type errors with FriendDetailSheet
       />
     </Animated.View>
   );
 };
-
-export const FriendListRow = withObservables(['friend'], ({ friend }: { friend: FriendModel }) => ({
-  friend: friend.observe(),
-}))(FriendListRowContent);

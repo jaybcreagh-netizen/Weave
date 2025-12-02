@@ -1,10 +1,10 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, TouchableOpacity, Dimensions } from 'react-native';
 import { Moon, BookOpen, Zap } from 'lucide-react-native';
-import withObservables from '@nozbe/with-observables';
 import { Q } from '@nozbe/watermelondb';
 
 import { useTheme } from '@/shared/hooks/useTheme';
+import { useObservable } from '@/shared/hooks/useObservable';
 import { database } from '@/db';
 import { HomeWidgetBase, HomeWidgetConfig } from '../HomeWidgetBase';
 import { MoonPhaseIllustration } from '@/components/YearInMoons/MoonPhaseIllustration';
@@ -26,15 +26,24 @@ const WIDGET_CONFIG: HomeWidgetConfig = {
     fullWidth: true,
 };
 
-interface YourEnergyWidgetContentProps {
-    logs: SocialBatteryLog[];
-}
-
 import { useRouter } from 'expo-router';
 
-// ... imports
+export const YourEnergyWidget: React.FC = () => {
+    // Subscribe to social battery logs for the current year
+    const currentYear = new Date().getFullYear();
+    const startOfYear = new Date(currentYear, 0, 1).getTime();
+    const endOfYear = new Date(currentYear, 11, 31).getTime();
 
-const YourEnergyWidgetContent: React.FC<YourEnergyWidgetContentProps> = ({ logs }) => {
+    const logsQuery = useMemo(
+        () =>
+            database.get<SocialBatteryLog>('social_battery_logs').query(
+                Q.where('timestamp', Q.gte(startOfYear)),
+                Q.where('timestamp', Q.lte(endOfYear))
+            ),
+        [startOfYear, endOfYear]
+    );
+
+    const logs = useObservable(logsQuery.observe(), []);
     const { tokens, typography, colors } = useTheme();
     const router = useRouter();
     const [showModal, setShowModal] = useState(false);
@@ -258,20 +267,3 @@ const YourEnergyWidgetContent: React.FC<YourEnergyWidgetContentProps> = ({ logs 
         </>
     );
 };
-
-const enhance = withObservables([], () => {
-    const currentYear = new Date().getFullYear();
-    const startOfYear = new Date(currentYear, 0, 1).getTime();
-    const endOfYear = new Date(currentYear, 11, 31).getTime();
-
-    return {
-        logs: database.get<SocialBatteryLog>('social_battery_logs')
-            .query(
-                Q.where('timestamp', Q.gte(startOfYear)),
-                Q.where('timestamp', Q.lte(endOfYear))
-            )
-            .observe(),
-    };
-});
-
-export const YourEnergyWidget = enhance(YourEnergyWidgetContent);
