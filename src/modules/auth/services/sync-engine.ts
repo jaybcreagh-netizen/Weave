@@ -388,6 +388,10 @@ export function createSyncEngine(userId: string): SyncEngine {
  * Auto-sync hook - triggers sync on app state changes
  */
 export async function triggerAutoSync(userId: string): Promise<void> {
+  // ADD THIS GUARD CLAUSE
+  const IS_LOCAL_ONLY = true; // Or read from env/constants
+  if (IS_LOCAL_ONLY) return;
+
   if (!userId) return;
 
   const engine = createSyncEngine(userId);

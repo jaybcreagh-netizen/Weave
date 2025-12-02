@@ -1,6 +1,7 @@
 import { CloudStorage } from 'react-native-cloud-storage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { exportAllData } from '../auth/services/data-export';
+import Logger from '../../shared/utils/Logger';
 
 const BACKUP_FOLDER = 'Backups';
 const MAX_BACKUPS = 5;
@@ -19,7 +20,7 @@ export const AutoBackupService = {
             }
             return true;
         } catch (error) {
-            console.error('[AutoBackup] Failed to initialize:', error);
+            Logger.error('AutoBackup', 'Failed to initialize:', error);
             return false;
         }
     },
@@ -71,7 +72,7 @@ export const AutoBackupService = {
             // Prune old backups
             await AutoBackupService.pruneBackups();
         } catch (error) {
-            console.error('[AutoBackup] Backup failed:', error);
+            Logger.error('AutoBackup', 'Backup failed:', error);
             throw error;
         }
     },
@@ -92,7 +93,39 @@ export const AutoBackupService = {
                 }
             }
         } catch (error) {
-            console.error('[AutoBackup] Pruning failed:', error);
+            Logger.error('AutoBackup', 'Pruning failed:', error);
+        }
+    },
+
+    /**
+     * Get list of available backups
+     */
+    getAvailableBackups: async (): Promise<string[]> => {
+        try {
+            const exists = await CloudStorage.exists(`/${BACKUP_FOLDER}`);
+            if (!exists) return [];
+
+            const files = await CloudStorage.readdir(`/${BACKUP_FOLDER}`);
+            return files
+                .filter(f => f.startsWith('weave-backup-') && f.endsWith('.json'))
+                .sort((a, b) => b.localeCompare(a)); // Newest first
+        } catch (error) {
+            Logger.error('AutoBackup', 'Failed to list backups:', error);
+            return [];
+        }
+    },
+
+    /**
+     * Read a backup file
+     */
+    restoreBackup: async (filename: string): Promise<string> => {
+        try {
+            const path = `/${BACKUP_FOLDER}/${filename}`;
+            const content = await CloudStorage.readFile(path);
+            return content;
+        } catch (error) {
+            Logger.error('AutoBackup', 'Failed to read backup:', error);
+            throw error;
         }
     },
 
@@ -120,7 +153,7 @@ export const AutoBackupService = {
 
             await AutoBackupService.performBackup();
         } catch (error) {
-            console.error('[AutoBackup] Check and backup failed:', error);
+            Logger.error('AutoBackup', 'Check and backup failed:', error);
         }
     }
 };

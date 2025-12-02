@@ -551,6 +551,82 @@ export function SettingsModal({
     }
   };
 
+  const handleRestoreFromCloud = async () => {
+    try {
+      const backups = await AutoBackupService.getAvailableBackups();
+
+      if (backups.length === 0) {
+        Alert.alert('No Backups Found', 'No automatic backups were found in iCloud.');
+        return;
+      }
+
+      // Take top 3 backups
+      const recentBackups = backups.slice(0, 3);
+
+      const buttons = recentBackups.map(filename => {
+        // Extract date from filename: weave-backup-2023-10-27T10-00-00-000Z.json
+        const datePart = filename.replace('weave-backup-', '').replace('.json', '').replace(/-/g, ':').replace('T', ' ');
+        // Fix the date format slightly to be parseable or just display it raw but nicer
+        // Actually the filename has - instead of : for time, so let's just format it simply
+        // weave-backup-2025-12-02T11-48-57-000Z.json
+        // We can just show the raw string with some cleanup
+        const displayDate = filename.replace('weave-backup-', '').replace('.json', '').replace('T', ' ').substring(0, 16);
+
+        return {
+          text: displayDate,
+          onPress: async () => {
+            try {
+              const content = await AutoBackupService.restoreBackup(filename);
+
+              // Validate and preview
+              const preview = getImportPreview(content);
+              if (!preview.valid) {
+                Alert.alert('Invalid Backup', 'The backup file appears to be corrupted.');
+                return;
+              }
+
+              Alert.alert(
+                'Confirm Restore',
+                `Restore backup from ${displayDate}?\n\n` +
+                `Friends: ${preview.preview!.totalFriends}\n` +
+                `Interactions: ${preview.preview!.totalInteractions}\n\n` +
+                `⚠️ This will overwrite all current data.`,
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  {
+                    text: 'Restore',
+                    style: 'destructive',
+                    onPress: async () => {
+                      Alert.alert('Restoring...', 'Please wait...');
+                      const result = await importData(content, true);
+                      if (result.success) {
+                        Alert.alert('Success', 'Data restored successfully. Please restart the app.', [{ text: 'OK', onPress: onClose }]);
+                      } else {
+                        Alert.alert('Error', 'Failed to restore data.');
+                      }
+                    }
+                  }
+                ]
+              );
+
+            } catch (err) {
+              console.error('Failed to restore backup:', err);
+              Alert.alert('Error', 'Failed to download backup.');
+            }
+          }
+        };
+      });
+
+      buttons.push({ text: 'Cancel', style: 'cancel', onPress: () => { } } as any);
+
+      Alert.alert('Select Backup', 'Choose a backup to restore from iCloud:', buttons);
+
+    } catch (error) {
+      console.error('Failed to list backups:', error);
+      Alert.alert('Error', 'Failed to list backups.');
+    }
+  };
+
   const handleGenerateStressTest = () => {
     Alert.alert(
       'Generate Stress Test Data',
