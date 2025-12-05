@@ -40,7 +40,7 @@ setGenerator(() => uuidv4());
 const adapter = new SQLiteAdapter({
   schema,
   migrations, // ENABLED: Schema migrations for interaction category system
-  dbName: 'weave',
+  // dbName: 'weave',
   jsi: true, // Enable JSI for 3x performance boost
   onSetUpError: error => {
     // Database failed to load

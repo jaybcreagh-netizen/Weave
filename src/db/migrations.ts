@@ -843,10 +843,10 @@ export default schemaMigrations({
           ON friends (dunbar_tier, is_dormant);
         `),
 
-        // Composite index for friends queries by sync status and update time
+        // Composite index for friends queries by sync status
         unsafeExecuteSql(`
           CREATE INDEX IF NOT EXISTS idx_friends_sync_status
-          ON friends (sync_status, updated_at);
+          ON friends (sync_status);
         `),
 
         // Composite index for interactions queries by date and status
@@ -868,6 +868,9 @@ export default schemaMigrations({
         `),
 
         // Index for user_id on local-only tables (future-proofing for multi-user sync)
+        /* 
+        // NOTE: user_id column does not exist on suggestion_events or practice_log yet.
+        // Skipping these indices to prevent migration crash.
         unsafeExecuteSql(`
           CREATE INDEX IF NOT EXISTS idx_suggestion_events_user
           ON suggestion_events (user_id, created_at);
@@ -877,6 +880,7 @@ export default schemaMigrations({
           CREATE INDEX IF NOT EXISTS idx_practice_log_user
           ON practice_log (user_id, created_at);
         `),
+        */
 
         unsafeExecuteSql(`
           CREATE INDEX IF NOT EXISTS idx_journal_entries_user

@@ -1,4 +1,4 @@
-import { Database } from '@nozbe/watermelondb';
+import { Database, Q } from '@nozbe/watermelondb';
 import { InteractionCategory, ActivityType } from '@/components/types';
 // import { migrateActivityToCategory } from '@/shared/constants/interaction-categories';
 
@@ -43,8 +43,10 @@ export async function migrateInteractionsToCategories(database: Database): Promi
     while (hasMore) {
       // Fetch chunk of interactions
       const chunk = await interactionsCollection
-        .query()
-        .extend('LIMIT', CHUNK_SIZE, 'OFFSET', offset)
+        .query(
+          Q.take(CHUNK_SIZE),
+          Q.skip(offset)
+        )
         .fetch();
 
       if (chunk.length === 0) {
@@ -119,8 +121,10 @@ export async function isDataMigrationComplete(database: Database): Promise<boole
 
     while (hasMore) {
       const chunk = await interactionsCollection
-        .query()
-        .extend('LIMIT', CHUNK_SIZE, 'OFFSET', offset)
+        .query(
+          Q.take(CHUNK_SIZE),
+          Q.skip(offset)
+        )
         .fetch();
 
       if (chunk.length === 0) {
