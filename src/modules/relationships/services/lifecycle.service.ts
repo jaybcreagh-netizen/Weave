@@ -13,11 +13,12 @@ export async function checkAndApplyDormancy(): Promise<void> {
   ).fetch();
 
   await database.write(async () => {
-    for (const friend of friends) {
-      await friend.update(f => {
+    const batchOps = friends.map(friend =>
+      friend.prepareUpdate(f => {
         f.isDormant = true;
-      });
-    }
+      })
+    );
+    await database.batch(...batchOps);
   });
 }
 

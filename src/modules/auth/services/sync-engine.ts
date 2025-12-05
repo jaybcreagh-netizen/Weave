@@ -226,12 +226,13 @@ export class SyncEngine {
 
           // Mark as synced locally
           await database.write(async () => {
-            for (const record of batch) {
-              await record.update((r: any) => {
+            const batchOps = batch.map(record =>
+              record.prepareUpdate((r: any) => {
                 r.syncStatus = 'synced';
                 r.syncedAt = Date.now();
-              });
-            }
+              })
+            );
+            await database.batch(...batchOps);
           });
 
           totalPushed += batch.length;

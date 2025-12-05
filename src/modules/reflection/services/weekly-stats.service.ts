@@ -92,29 +92,46 @@ export async function calculateWeeklySummary(): Promise<WeeklySummary> {
   // Calculate days since last contact for each missed friend
   const missedFriendsData: MissedFriend[] = [];
 
+  // Batch fetch interaction data for all important friends
+  const importantFriendIds = allImportantFriends.map(f => f.id);
+  const allInteractionLinks = await database
+    .get<InteractionFriend>('interaction_friends')
+    .query(Q.where('friend_id', Q.oneOf(importantFriendIds)))
+    .fetch();
+
+  // Batch fetch all interactions
+  const allInteractionIds = Array.from(new Set(allInteractionLinks.map(link => link.interactionId)));
+  const allInteractionsMap = new Map<string, InteractionModel>();
+
+  if (allInteractionIds.length > 0) {
+    const allInteractionsModels = await database
+      .get<InteractionModel>('interactions')
+      .query(Q.where('id', Q.oneOf(allInteractionIds)))
+      .fetch();
+
+    allInteractionsModels.forEach(interaction => allInteractionsMap.set(interaction.id, interaction));
+  }
+
+  // Organize interaction links by friend ID
+  const interactionsByFriend = new Map<string, InteractionFriend[]>();
+  allInteractionLinks.forEach(link => {
+    if (!interactionsByFriend.has(link.friendId)) {
+      interactionsByFriend.set(link.friendId, []);
+    }
+    interactionsByFriend.get(link.friendId)!.push(link);
+  });
+
   for (const friend of allImportantFriends) {
     if (!contactedFriendIds.has(friend.id) && friend.weaveScore < 60) {
-      // Get their last interaction date
-      const lastInteractions = await database
-        .get<InteractionFriend>('interaction_friends')
-        .query(Q.where('friend_id', friend.id))
-        .fetch();
-
       let daysSinceLastContact = 999; // Default to very high
 
-      if (lastInteractions.length > 0) {
-        // Get the most recent interaction
-        const interactionModels = await Promise.all(
-          lastInteractions.map(async (link) => {
-            try {
-              return await database.get<InteractionModel>('interactions').find(link.interactionId);
-            } catch {
-              return null;
-            }
-          })
-        );
+      const friendLinks = interactionsByFriend.get(friend.id) || [];
 
-        const validInteractions = interactionModels.filter(i => i !== null) as InteractionModel[];
+      if (friendLinks.length > 0) {
+        // Get the most recent interaction
+        const validInteractions = friendLinks
+          .map(link => allInteractionsMap.get(link.interactionId))
+          .filter(i => i !== undefined) as InteractionModel[];
 
         if (validInteractions.length > 0) {
           const mostRecent = validInteractions.reduce((latest, current) => {
@@ -200,17 +217,31 @@ export async function calculateWeeklySummary(): Promise<WeeklySummary> {
   // Calculate pattern recognition data
   // Most consistent friend (friend with most weaves this week)
   const friendWeaveCount: Record<string, { name: string; weaveCount: number }> = {};
+
+  // Batch fetch all friends referenced in friendLinks
+  const uniqueFriendIds = Array.from(new Set(friendLinks.map(link => link.friendId)));
+  const friendsMap = new Map<string, FriendModel>();
+
+  if (uniqueFriendIds.length > 0) {
+    const friends = await database
+      .get<FriendModel>('friends')
+      .query(Q.where('id', Q.oneOf(uniqueFriendIds)))
+      .fetch();
+
+    friends.forEach(friend => friendsMap.set(friend.id, friend));
+  }
+
   for (const link of friendLinks) {
-    try {
-      const friend = await database.get<FriendModel>('friends').find(link.friendId);
-      if (!friendWeaveCount[friend.id]) {
-        friendWeaveCount[friend.id] = { name: friend.name, weaveCount: 0 };
-      }
-      friendWeaveCount[friend.id].weaveCount++;
-    } catch (error) {
+    const friend = friendsMap.get(link.friendId);
+    if (!friend) {
       console.warn(`[WeeklyStats] Could not find friend ${link.friendId} for interaction pattern analysis`);
       continue;
     }
+
+    if (!friendWeaveCount[friend.id]) {
+      friendWeaveCount[friend.id] = { name: friend.name, weaveCount: 0 };
+    }
+    friendWeaveCount[friend.id].weaveCount++;
   }
 
   const mostConsistentFriend = Object.values(friendWeaveCount)
