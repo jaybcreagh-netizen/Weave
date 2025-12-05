@@ -5,7 +5,8 @@ import { CheckCircle, Circle, Search, X, Users, Plus } from 'lucide-react-native
 import { useTheme } from '@/shared/hooks/useTheme';
 import FriendModel from '@/db/models/Friend';
 import Group from '@/db/models/Group';
-import { useFriends } from '@/modules/relationships/hooks/useFriends';
+import { database } from '@/db';
+import { Q } from '@nozbe/watermelondb';
 import { CustomBottomSheet } from '@/shared/ui/Sheet/BottomSheet';
 import { groupService } from '@/modules/groups';
 import { GroupManagerModal } from './groups/GroupManagerModal';
@@ -30,13 +31,23 @@ export function FriendSelector({
     asModal = false
 }: FriendSelectorProps) {
     const { colors } = useTheme();
-    const allFriends = useFriends();
+    const [allFriends, setAllFriends] = useState<FriendModel[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [activeTab, setActiveTab] = useState<Tab>('friends');
     const [groups, setGroups] = useState<Group[]>([]);
     const [relevantGroups, setRelevantGroups] = useState<Group[]>([]);
     const [isGroupModalVisible, setIsGroupModalVisible] = useState(false);
     const [editingGroup, setEditingGroup] = useState<Group | undefined>(undefined);
+
+    useEffect(() => {
+        const subscription = database
+            .get<FriendModel>('friends')
+            .query(Q.sortBy('created_at', Q.desc))
+            .observe()
+            .subscribe(setAllFriends);
+
+        return () => subscription.unsubscribe();
+    }, []);
 
     // Load groups
     const loadGroups = async () => {
