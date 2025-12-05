@@ -83,13 +83,13 @@ export function GraphsTabContent({ year = new Date().getFullYear() }: GraphsTabC
   }, [period, portfolio]);
 
   const loadPeriodData = async () => {
-    console.log('loadPeriodData: Starting...');
+
     setIsLoading(true);
     setError(null);
 
     try {
       const now = new Date();
-      console.log('loadPeriodData: Fetching weaves...');
+
       const periodDays = period === 'week' ? 7 : 30;
       const periodStart = new Date(now.getTime() - periodDays * 24 * 60 * 60 * 1000);
       const previousPeriodStart = new Date(periodStart.getTime() - periodDays * 24 * 60 * 60 * 1000);
@@ -104,7 +104,7 @@ export function GraphsTabContent({ year = new Date().getFullYear() }: GraphsTabC
           Q.where('status', 'completed')
         )
         .fetch();
-      console.log('loadPeriodData: Fetched currentWeaves:', currentWeaves.length);
+
 
       // Previous period weaves (for trend)
       const previousWeaves = await database
@@ -132,7 +132,7 @@ export function GraphsTabContent({ year = new Date().getFullYear() }: GraphsTabC
       }
 
       // === ENERGY DATA ===
-      console.log('loadPeriodData: Fetching battery logs...');
+
       const batteryLogs = await database
         .get<SocialBatteryLog>('social_battery_logs')
         .query(
@@ -216,7 +216,7 @@ export function GraphsTabContent({ year = new Date().getFullYear() }: GraphsTabC
       });
 
       // === TIER HEALTH ===
-      console.log('loadPeriodData: Fetching friends...');
+
       const friends = await database.get<FriendModel>('friends').query().fetch();
 
       const tierData: Record<string, { total: number; count: number }> = {
@@ -337,14 +337,14 @@ export function GraphsTabContent({ year = new Date().getFullYear() }: GraphsTabC
         tierInsight,
       };
 
-      console.log('loadPeriodData: Setting data...', JSON.stringify(newData, null, 2));
+
       setData(newData);
 
     } catch (error) {
       console.error('Error loading period data:', error);
       setError(error instanceof Error ? error.message : 'Failed to load data');
     } finally {
-      console.log('loadPeriodData: Finished');
+
       setIsLoading(false);
     }
   };
@@ -352,7 +352,7 @@ export function GraphsTabContent({ year = new Date().getFullYear() }: GraphsTabC
   const periodLabel = period === 'week' ? 'this week' : 'this month';
   const previousLabel = period === 'week' ? 'from last week' : 'from last month';
 
-  console.log('GraphsTabContentV2 Data:', data ? 'Loaded' : 'Null', isLoading ? 'Loading' : 'Done', error);
+
 
   if (isLoading) {
     return (

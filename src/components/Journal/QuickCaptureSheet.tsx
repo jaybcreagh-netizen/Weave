@@ -36,6 +36,7 @@ import FriendModel from '@/db/models/Friend';
 import JournalEntry from '@/db/models/JournalEntry';
 import { Q } from '@nozbe/watermelondb';
 import * as Haptics from 'expo-haptics';
+import JournalEntryFriend from '@/db/models/JournalEntryFriend';
 
 // ============================================================================
 // TYPES
@@ -145,15 +146,22 @@ export function QuickCaptureSheet({
 
     try {
       await database.write(async () => {
-        await database.get<JournalEntry>('journal_entries').create((entry) => {
+        const newEntry = await database.get<JournalEntry>('journal_entries').create((entry) => {
           entry.content = text.trim();
           entry.entryDate = Date.now();
-          // entry.friendTags = JSON.stringify(selectedFriends.map(f => f.id));
-          // TODO: Use journalEntryFriends relation
-          // Quick capture = no title, marked as draft
           entry.title = '';
           entry.isDraft = true;
         });
+
+        // Link friends manually for M:N relation
+        if (selectedFriends.length > 0) {
+          for (const friendChip of selectedFriends) {
+            await database.get<JournalEntryFriend>('journal_entry_friends').create(link => {
+              link.journalEntry.set(newEntry);
+              link.friendId = friendChip.id;
+            });
+          }
+        }
       });
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);

@@ -1,6 +1,7 @@
 import React from 'react';
 import { isFuture } from 'date-fns';
 import { Interaction, InteractionCategory, Friend } from '@/components/types';
+import IntentionModel from '@/db/models/Intention';
 import { StructuredReflection } from '@/modules/interactions/types';
 import { InteractionDetailModal } from '@/components/interaction-detail-modal';
 import { EditReflectionModal } from '@/components/EditReflectionModal';
@@ -18,7 +19,7 @@ import { useFriendProfileModals } from '@/modules/relationships/hooks/useFriendP
 interface FriendProfileModalsProps {
     friend: Friend;
     modals: ReturnType<typeof useFriendProfileModals>;
-    friendIntentions: any[]; // TODO: Type properly
+    friendIntentions: IntentionModel[];
     updateReflection: (id: string, reflection: StructuredReflection) => Promise<void>;
     updateInteraction: (id: string, updates: any) => Promise<void>; // Using any to avoid Model vs DTO conflicts
     createIntention: (friendIds: string[], description: string, category?: InteractionCategory) => Promise<void>;

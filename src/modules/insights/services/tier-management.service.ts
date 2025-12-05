@@ -50,7 +50,7 @@ export async function changeFriendTier(
       }
     );
 
-    console.log(`[TierManagement] Changed ${friendId} from ${oldTier} to ${newTier}`);
+
   } catch (error) {
     console.error('[TierManagement] Error changing tier:', error);
     throw error;
@@ -89,7 +89,7 @@ export async function dismissTierSuggestion(
       suggested_tier: suggestedTier,
     });
 
-    console.log(`[TierManagement] Dismissed tier suggestion for ${friendId}`);
+
   } catch (error) {
     console.error('[TierManagement] Error dismissing suggestion:', error);
     throw error;
@@ -133,7 +133,7 @@ export async function updateTierFit(
       has_mismatch: suggestedTier !== undefined && suggestedTier !== currentTier,
     });
 
-    console.log(`[TierManagement] Updated tier fit for ${friendId}: ${fitScore.toFixed(2)}`);
+
   } catch (error) {
     console.error('[TierManagement] Error updating tier fit:', error);
     throw error;
@@ -179,7 +179,7 @@ export async function batchChangeTiers(
       })),
     });
 
-    console.log(`[TierManagement] Batch changed ${updates.length} friend tiers`);
+
   } catch (error) {
     console.error('[TierManagement] Error batch changing tiers:', error);
     throw error;

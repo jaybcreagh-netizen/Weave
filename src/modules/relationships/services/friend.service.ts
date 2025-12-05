@@ -132,7 +132,7 @@ export async function batchAddFriends(contacts: Array<{ name: string; photoUrl?:
             friend.notes = '';
             friend.weaveScore = 50;
             friend.lastUpdated = new Date();
-            console.log('[batchAddFriends] Creating friend:', friend.name, 'Score:', friend.weaveScore, 'LastUpdated:', friend.lastUpdated);
+
             friend.birthday = undefined;
             friend.anniversary = undefined;
             friend.relationshipType = undefined;
