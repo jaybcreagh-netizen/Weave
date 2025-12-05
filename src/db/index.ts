@@ -41,7 +41,7 @@ const adapter = new SQLiteAdapter({
   schema,
   migrations, // ENABLED: Schema migrations for interaction category system
   dbName: 'weave',
-  jsi: true, // Enable JSI for 3x performance boost
+  jsi: false, // Temporarily disabled - may have caused data issue
   onSetUpError: error => {
     // Database failed to load
     console.error('Database setup error:', error);
