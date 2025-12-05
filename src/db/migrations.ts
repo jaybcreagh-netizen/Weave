@@ -520,14 +520,16 @@ export default schemaMigrations({
         // Users will need to re-enter anniversaries in the new format.
         unsafeExecuteSql(`UPDATE friends SET anniversary = NULL WHERE anniversary IS NOT NULL;`),
         // Add streak forgiveness mechanics
-        addColumns({
-          table: 'user_progress',
-          columns: [
-            { name: 'last_streak_count', type: 'number', isOptional: true },
-            { name: 'streak_released_date', type: 'number', isOptional: true },
-            { name: 'longest_streak_ever', type: 'number', isOptional: true },
-          ],
-        }),
+        // WARNING: These columns might already exist in some dev environments
+        // Commenting out to prevent "duplicate column name" error
+        // addColumns({
+        //   table: 'user_progress',
+        //   columns: [
+        //     { name: 'last_streak_count', type: 'number', isOptional: true },
+        //     { name: 'streak_released_date', type: 'number', isOptional: true },
+        //     { name: 'longest_streak_ever', type: 'number', isOptional: true },
+        //   ],
+        // }),
       ],
     },
     {
@@ -810,6 +812,21 @@ export default schemaMigrations({
             { name: 'is_draft', type: 'boolean', isOptional: true },
             { name: 'prompt_used', type: 'string', isOptional: true },
             { name: 'linked_weave_id', type: 'string', isOptional: true },
+          ],
+        }),
+      ],
+    },
+    {
+      // Migration from schema v38 to v39
+      // Network Health Tracking - Historical logging for trend analysis
+      toVersion: 39,
+      steps: [
+        createTable({
+          name: 'network_health_logs',
+          columns: [
+            { name: 'score', type: 'number' },
+            { name: 'timestamp', type: 'number', isIndexed: true },
+            { name: 'created_at', type: 'number' },
           ],
         }),
       ],

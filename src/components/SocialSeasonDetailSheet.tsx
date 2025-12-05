@@ -9,7 +9,7 @@ import {
     StyleSheet,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
-import { X, Activity, BarChart3 } from 'lucide-react-native';
+import { X, Activity, BarChart3, Scale } from 'lucide-react-native';
 import { startOfMonth, endOfMonth, eachDayOfInterval, format, isSameDay, startOfWeek, endOfWeek, differenceInDays } from 'date-fns';
 import { Q } from '@nozbe/watermelondb';
 import { useTheme } from '@/shared/hooks/useTheme';
@@ -17,6 +17,7 @@ import { type SocialSeason, type SeasonExplanationData } from '@/modules/intelli
 import { SEASON_STYLES, getSeasonDisplayName } from '@/modules/intelligence';
 import { generateSeasonExplanation } from '@/modules/reflection';
 import { GraphsTabContent } from './YearInMoons/GraphsTabContentV2';
+import { TierBalanceContent } from './TierBalanceContent';
 import { database } from '@/db';
 import Interaction from '@/db/models/Interaction';
 import WeeklyReflection from '@/db/models/WeeklyReflection';
@@ -35,7 +36,7 @@ interface SocialSeasonDetailSheetProps {
     networkHealth: number;
 }
 
-type Tab = 'pulse' | 'insights';
+type Tab = 'pulse' | 'alignment' | 'insights';
 
 export function SocialSeasonDetailSheet({
     isVisible,
@@ -101,6 +102,26 @@ export function SocialSeasonDetailSheet({
                         </TouchableOpacity>
 
                         <TouchableOpacity
+                            onPress={() => setCurrentTab('alignment')}
+                            style={[
+                                styles.tab,
+                                currentTab === 'alignment' && { backgroundColor: tokens.background },
+                                currentTab === 'alignment' && { borderColor: tokens.border, borderWidth: 1 },
+                            ]}
+                        >
+                            <Scale size={16} color={currentTab === 'alignment' ? tokens.primary : tokens.foregroundMuted} />
+                            <Text style={[
+                                styles.tabText,
+                                {
+                                    color: currentTab === 'alignment' ? tokens.primary : tokens.foregroundMuted,
+                                    fontFamily: typography.fonts.sansMedium
+                                }
+                            ]}>
+                                Alignment
+                            </Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
                             onPress={() => setCurrentTab('insights')}
                             style={[
                                 styles.tab,
@@ -129,6 +150,10 @@ export function SocialSeasonDetailSheet({
                                 weeklyWeaves={weeklyWeaves}
                                 currentStreak={currentStreak}
                             />
+                        )}
+
+                        {currentTab === 'alignment' && (
+                            <TierBalanceContent />
                         )}
 
                         {currentTab === 'insights' && (

@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb'
 
 export default appSchema({
-  version: 38, // UPDATED: Added journal redesign fields
+  version: 39, // UPDATED: Added network_health_logs
   tables: [
     tableSchema({
       name: 'oracle_insights',
@@ -493,6 +493,14 @@ export default appSchema({
       columns: [
         { name: 'group_id', type: 'string', isIndexed: true },
         { name: 'friend_id', type: 'string', isIndexed: true },
+      ]
+    }),
+    tableSchema({
+      name: 'network_health_logs',
+      columns: [
+        { name: 'score', type: 'number' },
+        { name: 'timestamp', type: 'number', isIndexed: true },
+        { name: 'created_at', type: 'number' },
       ]
     })
   ]

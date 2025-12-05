@@ -26,7 +26,7 @@ interface UserProfileStore {
   updateSocialSeason: (season: SocialSeason) => Promise<void>;
 
   // Social Battery Actions
-  submitBatteryCheckin: (value: number, note?: string, customTimestamp?: number) => Promise<void>;
+  submitBatteryCheckin: (value: number, note?: string, customTimestamp?: number, overwriteDay?: boolean) => Promise<void>;
   updateBatteryPreferences: (enabled: boolean, time?: string) => Promise<void>;
   refreshBatteryStats: () => Promise<void>;
 
@@ -126,7 +126,7 @@ export const useUserProfileStore = create<UserProfileStore>((set, get) => ({
     });
   },
 
-  submitBatteryCheckin: async (value: number, note?: string, customTimestamp?: number) => {
+  submitBatteryCheckin: async (value: number, note?: string, customTimestamp?: number, overwriteDay?: boolean) => {
     const { profile } = get();
     if (!profile) return;
 
@@ -134,8 +134,30 @@ export const useUserProfileStore = create<UserProfileStore>((set, get) => ({
       const now = Date.now();
       const timestamp = customTimestamp || now;
 
+      // If overwriting, delete existing logs for this day
+      if (overwriteDay) {
+        const startOfDay = new Date(timestamp);
+        startOfDay.setHours(0, 0, 0, 0);
+        const endOfDay = new Date(timestamp);
+        endOfDay.setHours(23, 59, 59, 999);
+
+        const logsCollection = database.get<SocialBatteryLog>('social_battery_logs');
+        const existingLogs = await logsCollection.query(
+          Q.where('user_id', profile.id),
+          Q.where('timestamp', Q.gte(startOfDay.getTime())),
+          Q.where('timestamp', Q.lte(endOfDay.getTime()))
+        ).fetch();
+
+        for (const log of existingLogs) {
+          await log.markAsDeleted(); // or log.destroyPermanently() if you prefer hard delete
+        }
+      }
+
       await profile.update(p => {
         // Only update current battery level if adding a check-in for today
+        // OR if we are overwriting a past day, we might NOT want to update "current" unless it IS today.
+        // The original logic was: if (!customTimestamp || timestamp >= now - 24h)
+        // Let's keep that logic to avoid setting "current battery" to a value from 3 months ago.
         if (!customTimestamp || timestamp >= now - 24 * 60 * 60 * 1000) {
           p.socialBatteryCurrent = value;
           p.socialBatteryLastCheckin = timestamp;

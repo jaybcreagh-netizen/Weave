@@ -21,6 +21,7 @@ interface RelationshipsStore {
   activeFriend: Friend | null;
   activeFriendInteractions: Interaction[];
   friendsSubscription: Subscription | null;
+  friendsSubscriberCount: number;
   friendSubscription: Subscription | null;
   interactionSubscription: Subscription | null;
   appStateSubscription: (() => void) | null;
@@ -51,6 +52,7 @@ export const useRelationshipsStore = create<RelationshipsStore>((set, get) => ({
   activeFriend: null,
   activeFriendInteractions: [],
   friendsSubscription: null,
+  friendsSubscriberCount: 0,
   friendSubscription: null,
   interactionSubscription: null,
   appStateSubscription: null,
@@ -62,10 +64,14 @@ export const useRelationshipsStore = create<RelationshipsStore>((set, get) => ({
   hasMoreInteractions: false,
 
   observeFriends: () => {
-    const currentSubscription = get().friendsSubscription;
-    if (currentSubscription) return;
+    const { friendsSubscriberCount, friendsSubscription } = get();
+    set({ friendsSubscriberCount: friendsSubscriberCount + 1 });
 
-    const newSubscription = database.get<Friend>('friends').query().observe().subscribe(friends => {
+    if (friendsSubscription) return;
+
+    const newSubscription = database.get<Friend>('friends').query(
+      Q.sortBy('created_at', Q.desc)
+    ).observe().subscribe(friends => {
       set({ friends });
     });
 
@@ -73,8 +79,15 @@ export const useRelationshipsStore = create<RelationshipsStore>((set, get) => ({
   },
 
   unobserveFriends: () => {
-    get().friendsSubscription?.unsubscribe();
-    set({ friendsSubscription: null });
+    const { friendsSubscriberCount, friendsSubscription } = get();
+    const newCount = Math.max(0, friendsSubscriberCount - 1);
+
+    set({ friendsSubscriberCount: newCount });
+
+    if (newCount === 0 && friendsSubscription) {
+      friendsSubscription.unsubscribe();
+      set({ friendsSubscription: null });
+    }
   },
 
   observeFriend: (friendId: string, initialPageSize: number = 50) => {

@@ -26,11 +26,11 @@ export const ActivityDots: React.FC<ActivityDotsProps> = ({
   period,
 }) => {
   const { tokens, spacing } = useTheme();
-  
+
   if (period === 'week') {
     return <WeekView data={data} tokens={tokens} spacing={spacing} />;
   }
-  
+
   return <MonthView data={data} tokens={tokens} spacing={spacing} />;
 };
 
@@ -43,17 +43,17 @@ const WeekView: React.FC<{
   // Ensure we have 7 days, filling with zeros if needed
   const weekData = React.useMemo(() => {
     const result: number[] = new Array(7).fill(0);
-    
+
     data.forEach((day) => {
       // Get day of week (0 = Sunday in JS, but we want Monday = 0)
       const jsDay = day.date.getDay();
       const dayIndex = jsDay === 0 ? 6 : jsDay - 1; // Convert to Monday = 0
       result[dayIndex] = day.count;
     });
-    
+
     return result;
   }, [data]);
-  
+
   return (
     <View style={styles.weekContainer}>
       {weekData.map((count, index) => (
@@ -83,25 +83,25 @@ const MonthView: React.FC<{
   // Group data by weeks
   const weeks = React.useMemo(() => {
     if (data.length === 0) return [];
-    
+
     // Sort by date
     const sorted = [...data].sort((a, b) => a.date.getTime() - b.date.getTime());
-    
+
     // Group into weeks (Monday-Sunday)
     const result: number[][] = [];
     let currentWeek: number[] = [];
     let currentWeekStart: number | null = null;
-    
+
     sorted.forEach((day) => {
       const jsDay = day.date.getDay();
       const dayIndex = jsDay === 0 ? 6 : jsDay - 1; // Monday = 0
-      
+
       // Get week start (Monday) for this date
       const weekStart = new Date(day.date);
       weekStart.setDate(weekStart.getDate() - dayIndex);
       weekStart.setHours(0, 0, 0, 0);
       const weekStartTime = weekStart.getTime();
-      
+
       if (currentWeekStart !== weekStartTime) {
         // New week
         if (currentWeek.length > 0) {
@@ -114,10 +114,10 @@ const MonthView: React.FC<{
         currentWeek = new Array(dayIndex).fill(0); // Pad start of week
         currentWeekStart = weekStartTime;
       }
-      
+
       currentWeek.push(day.count);
     });
-    
+
     // Add final week
     if (currentWeek.length > 0) {
       while (currentWeek.length < 7) {
@@ -125,10 +125,10 @@ const MonthView: React.FC<{
       }
       result.push(currentWeek);
     }
-    
+
     return result;
   }, [data]);
-  
+
   return (
     <View style={styles.monthContainer}>
       {/* Day labels header */}
@@ -148,7 +148,7 @@ const MonthView: React.FC<{
           </Text>
         ))}
       </View>
-      
+
       {/* Week rows */}
       {weeks.map((week, weekIndex) => (
         <View key={weekIndex} style={styles.monthWeekRow}>
@@ -170,7 +170,7 @@ const ActivityDot: React.FC<{
   size?: 'default' | 'small';
 }> = ({ count, tokens, size = 'default' }) => {
   const dotSize = size === 'default' ? 16 : 12;
-  
+
   // No activity — empty dot
   if (count === 0) {
     return (
@@ -185,11 +185,12 @@ const ActivityDot: React.FC<{
       ]} />
     );
   }
-  
+
   // Has activity — filled dot with intensity based on count
   // 1 weave = 50% opacity, 2 = 70%, 3+ = 100%
-  const opacity = Math.min(0.4 + (count * 0.2), 1);
-  
+  const safeCount = Number.isFinite(count) ? count : 0;
+  const opacity = Math.min(0.4 + (safeCount * 0.2), 1);
+
   return (
     <View style={[
       styles.dot,
@@ -218,7 +219,7 @@ const styles = StyleSheet.create({
   dayLabel: {
     fontSize: 11,
   },
-  
+
   // Month view
   monthContainer: {
     gap: 4,
@@ -242,7 +243,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 3,
   },
-  
+
   // Dot
   dot: {},
 });

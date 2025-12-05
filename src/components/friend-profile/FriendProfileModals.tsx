@@ -74,8 +74,11 @@ export function FriendProfileModals({
                 onClose={() => setSelectedInteraction(null)}
                 friendName={friend.name}
                 onEditReflection={(interaction) => {
-                    setEditingReflection(interaction as any);
                     setSelectedInteraction(null);
+                    // Add delay to allow modal to close (iOS race condition)
+                    setTimeout(() => {
+                        setEditingReflection(interaction as any);
+                    }, 500);
                 }}
                 onEdit={(id) => {
                     if (selectedInteraction && selectedInteraction.id === id) {

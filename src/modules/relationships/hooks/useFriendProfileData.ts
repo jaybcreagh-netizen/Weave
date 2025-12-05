@@ -7,6 +7,9 @@ import IntentionModel from '@/db/models/Intention';
 import { LifeEventRepository } from '@/repositories/LifeEventRepository';
 import LifeEventModel from '@/db/models/LifeEvent';
 import { Friend, Interaction, LifeEvent, Intention } from '@/components/types';
+import { switchMap } from 'rxjs/operators';
+import { of } from 'rxjs';
+import IntentionFriend from '@/db/models/IntentionFriend';
 
 export function useFriendProfileData(friendId: string | undefined) {
     const {
@@ -28,18 +31,35 @@ export function useFriendProfileData(friendId: string | undefined) {
 
     const [friendIntentionsModels, setFriendIntentionsModels] = useState<IntentionModel[]>([]);
 
+    // ... inside the component ...
+
     useEffect(() => {
         if (!friendId || typeof friendId !== 'string') {
             setFriendIntentionsModels([]);
             return;
         }
 
-        const subscription = database.get<IntentionModel>('intentions')
-            .query(
-                Q.on('intention_friends', 'friend_id', friendId),
-                Q.where('status', 'active')
-            )
+        // Manual many-to-many query to ensure reactivity
+        // Q.on is known to be flaky with complex joins in some WatermelonDB versions
+        const subscription = database.get<IntentionFriend>('intention_friends')
+            .query(Q.where('friend_id', friendId))
             .observe()
+            .pipe(
+                switchMap(intentionFriends => {
+                    const intentionIds = intentionFriends.map(ifriend => ifriend.intentionId);
+
+                    if (intentionIds.length === 0) {
+                        return of([]);
+                    }
+
+                    return database.get<IntentionModel>('intentions')
+                        .query(
+                            Q.where('id', Q.oneOf(intentionIds)),
+                            Q.where('status', 'active')
+                        )
+                        .observe();
+                })
+            )
             .subscribe(intentions => {
                 setFriendIntentionsModels(intentions);
             });

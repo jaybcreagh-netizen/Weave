@@ -38,7 +38,8 @@ export const SimpleBarChart: React.FC<SimpleBarChartProps> = ({
     <View style={[styles.container, { height: height + 24 }]}>
       <View style={styles.barsContainer}>
         {data.map((item, index) => {
-          const barHeight = (item.value / maxValue) * height;
+          const val = Number.isFinite(item.value) ? item.value : 0;
+          const barHeight = Number.isFinite((val / maxValue) * height) ? (val / maxValue) * height : 0;
 
           return (
             <View key={index} style={styles.barColumn}>

@@ -21,11 +21,9 @@ const EditFriendComponent = ({ friend }: EditFriendProps) => {
   const handleSave = async (friendData: FriendFormData) => {
     await updateFriend(friend.id, friendData);
     if (router.canGoBack()) {
-      if (router.canGoBack()) {
-        router.back();
-      } else {
-        router.replace('/');
-      }
+      router.back();
+    } else {
+      router.replace('/(tabs)');
     }
   };
 

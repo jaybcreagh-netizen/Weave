@@ -98,6 +98,23 @@ export const AutoBackupService = {
     },
 
     /**
+     * Delete all backups
+     */
+    deleteAllBackups: async () => {
+        try {
+            const exists = await CloudStorage.exists(`/${BACKUP_FOLDER}`);
+            if (!exists) return;
+
+            const files = await CloudStorage.readdir(`/${BACKUP_FOLDER}`);
+            for (const file of files) {
+                await CloudStorage.unlink(`/${BACKUP_FOLDER}/${file}`);
+            }
+        } catch (error) {
+            Logger.error('AutoBackup', 'Failed to delete all backups:', error);
+        }
+    },
+
+    /**
      * Get list of available backups
      */
     getAvailableBackups: async (): Promise<string[]> => {

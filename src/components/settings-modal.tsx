@@ -41,6 +41,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import { generateStressTestData, clearStressTestData, getDataStats } from '@/db/seeds/stress-test-seed-data';
 import { CustomBottomSheet } from '@/shared/ui/Sheet/BottomSheet';
 import { AutoBackupService } from '@/modules/backup/AutoBackupService';
+import { DataWipeService } from '@/modules/data-management/DataWipeService';
 
 
 interface SettingsModalProps {
@@ -397,20 +398,24 @@ export function SettingsModal({
 
   const handleResetDatabase = () => {
     Alert.alert(
-      "Reset Database",
-      "Are you sure? This will delete all your friends and interactions. This action cannot be undone.",
+      "Erase All Data",
+      "Are you sure? This will delete EVERYTHING:\n\n• All friends and interactions\n• All settings and preferences\n• All cloud backups\n• Your account session\n\nThis action cannot be undone.",
       [
         { text: "Cancel", style: "cancel" },
         {
-          text: "Reset",
+          text: "Erase Everything",
           style: "destructive",
           onPress: async () => {
             try {
-              await clearDatabase();
+              // Close modal first to avoid UI glitches during reload
               onClose();
+              // Small delay to allow modal to close
+              setTimeout(async () => {
+                await DataWipeService.wipeAllData();
+              }, 500);
             } catch (error) {
-              console.error('Failed to clear database:', error);
-              Alert.alert('Error', 'Failed to clear database.');
+              console.error('Failed to erase data:', error);
+              Alert.alert('Error', 'Failed to erase data.');
             }
           },
         },

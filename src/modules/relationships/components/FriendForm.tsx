@@ -25,9 +25,11 @@ interface FriendFormProps {
   friend?: FriendModel;
   initialTier?: 'inner' | 'close' | 'community';
   fromOnboarding?: boolean;
+  onSkip?: () => void;
 }
 
-export function FriendForm({ onSave, friend, initialTier, fromOnboarding }: FriendFormProps) {
+
+export function FriendForm({ onSave, friend, initialTier, fromOnboarding, onSkip }: FriendFormProps) {
   const router = useRouter();
   const { colors } = useTheme(); // Use the hook
   const allFriends = useFriends(); // Get all friends to check tier counts
@@ -127,11 +129,12 @@ export function FriendForm({ onSave, friend, initialTier, fromOnboarding }: Frie
       await markFirstFriendAdded();
     }
 
-    if (router.canGoBack()) {
-      router.back();
-    } else {
-      router.replace('/(tabs)');
-    }
+    // Navigation is now handled by the parent component via onSave
+    // if (router.canGoBack()) {
+    //   router.back();
+    // } else {
+    //   router.replace('/(tabs)');
+    // }
   };
 
   const handleSave = () => {
@@ -246,8 +249,11 @@ export function FriendForm({ onSave, friend, initialTier, fromOnboarding }: Frie
     setFormData({ ...formData, photoUrl: "" });
   };
 
-  const handleContactSelection = async (selectedContacts: Contacts.Contact[]) => {
+  const handleContactSelection = useCallback(async (selectedContacts: Contacts.Contact[]) => {
     if (selectedContacts.length > 0) {
+      // 1. Close modal immediately to prevent stuck state
+      setShowContactPicker(false);
+
       const contact = selectedContacts[0];
       const contactName = contact.name || '';
       let contactPhotoUrl = '';
@@ -279,22 +285,28 @@ export function FriendForm({ onSave, friend, initialTier, fromOnboarding }: Frie
         }
       }
 
-      setFormData({
-        ...formData,
+      setFormData(prev => ({
+        ...prev,
         name: contactName,
         photoUrl: contactPhotoUrl
-      });
-      setShowContactPicker(false);
+      }));
+      // setShowContactPicker(false); // Moved to top
     }
-  };
+  }, [friend?.id]);
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { borderColor: colors.border }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <ArrowLeft size={20} color={colors['muted-foreground']} />
-          <Text style={[styles.backButtonText, { color: colors['muted-foreground'] }]}>Back</Text>
-        </TouchableOpacity>
+        {fromOnboarding ? (
+          <TouchableOpacity onPress={onSkip} style={styles.backButton}>
+            <Text style={[styles.backButtonText, { color: colors['muted-foreground'] }]}>Skip</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+            <ArrowLeft size={20} color={colors['muted-foreground']} />
+            <Text style={[styles.backButtonText, { color: colors['muted-foreground'] }]}>Back</Text>
+          </TouchableOpacity>
+        )}
         <Text style={[styles.headerTitle, { color: colors.foreground }]}>
           {friend ? "Edit Friend" : "Add Friend"}
         </Text>
@@ -495,12 +507,14 @@ export function FriendForm({ onSave, friend, initialTier, fromOnboarding }: Frie
           <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
             <Text style={[styles.modalTitle, { color: colors.foreground }]}>Import from Contacts</Text>
             <TouchableOpacity onPress={() => setShowContactPicker(false)}>
-              <X size={24} color={colors['muted-foreground']} />
+              <Text style={{ color: colors.primary, fontSize: 16, fontWeight: '600' }}>Done</Text>
             </TouchableOpacity>
           </View>
           <ContactPickerGrid
             maxSelection={1}
             onSelectionChange={handleContactSelection}
+            title="Select a Contact"
+            subtitle="Choose a friend to import their details."
           />
         </SafeAreaView>
       </Modal>

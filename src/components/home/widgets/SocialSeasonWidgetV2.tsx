@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { HomeWidgetBase, HomeWidgetConfig } from '../HomeWidgetBase';
@@ -14,7 +14,8 @@ import {
     calculateCurrentScore,
     type SocialSeason,
     type SeasonCalculationInput,
-    type SeasonExplanationData
+    type SeasonExplanationData,
+    logNetworkHealth
 } from '@/modules/intelligence';
 import { database } from '@/db';
 import Interaction from '@/db/models/Interaction';
@@ -32,7 +33,7 @@ const WIDGET_CONFIG: HomeWidgetConfig = {
 };
 
 export const SocialSeasonWidgetV2: React.FC = () => {
-    const { tokens, typography, spacing, isDarkMode } = useTheme();
+    const { tokens, typography, spacing } = useTheme();
     const { profile, updateSocialSeason, batteryStats } = useUserProfileStore();
     const friends = useFriends();
     const { allInteractions } = useInteractions();
@@ -137,6 +138,9 @@ export const SocialSeasonWidgetV2: React.FC = () => {
             if (newSeason !== profile.currentSocialSeason || !profile.seasonLastCalculated || profile.seasonLastCalculated < oneHourAgo) {
                 await updateSocialSeason(newSeason);
             }
+
+            // Log network health for historical tracking (throttled internally to once per 24h)
+            await logNetworkHealth(avgScoreAllFriends, database);
         } catch (error) {
             console.error('Error calculating season:', error);
         } finally {
@@ -166,7 +170,6 @@ export const SocialSeasonWidgetV2: React.FC = () => {
             <HomeWidgetBase config={WIDGET_CONFIG} isLoading={isCalculating}>
                 <TouchableOpacity
                     onPress={() => setShowDetailSheet(true)}
-                    style={{ padding: 16 }}
                     activeOpacity={0.7}
                 >
                     <View style={styles.container}>
@@ -232,3 +235,4 @@ const styles = StyleSheet.create({
         // Font size handled by typography.scale.body in component
     },
 });
+

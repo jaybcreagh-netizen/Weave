@@ -15,7 +15,7 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
 }) => {
     const { tokens, radius } = useTheme();
 
-    const clampedProgress = Math.min(100, Math.max(0, progress));
+    const clampedProgress = Math.min(100, Math.max(0, Number.isFinite(progress) ? progress : 0));
     const fillColor = color || tokens.primary;
 
     return (

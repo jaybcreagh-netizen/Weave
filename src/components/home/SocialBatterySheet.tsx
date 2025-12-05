@@ -27,11 +27,13 @@ interface SocialBatterySheetProps {
   onViewYearInMoons?: () => void;
 }
 
+import { MoonPhaseIllustration } from '@/components/YearInMoons/MoonPhaseIllustration';
+
 // Battery level moon phase states with descriptions
 const BATTERY_STATES = [
   {
     value: 1,
-    emoji: '🌑',
+    // emoji: '🌑',
     label: 'New Moon',
     color: '#F87171',
     description: 'Need complete solitude',
@@ -39,7 +41,7 @@ const BATTERY_STATES = [
   },
   {
     value: 2,
-    emoji: '🌘',
+    // emoji: '🌘',
     label: 'Waning',
     color: '#FBBF24',
     description: 'Prefer quiet, minimal interaction',
@@ -47,7 +49,7 @@ const BATTERY_STATES = [
   },
   {
     value: 3,
-    emoji: '🌗',
+    // emoji: '🌗',
     label: 'Half Moon',
     color: '#FCD34D',
     description: 'Open to connection',
@@ -55,7 +57,7 @@ const BATTERY_STATES = [
   },
   {
     value: 4,
-    emoji: '🌖',
+    // emoji: '🌖',
     label: 'Waxing',
     color: '#6EE7B7',
     description: 'Seeking meaningful connection',
@@ -63,7 +65,7 @@ const BATTERY_STATES = [
   },
   {
     value: 5,
-    emoji: '🌕',
+    // emoji: '🌕',
     label: 'Full Moon',
     color: '#34D399',
     description: 'Craving social interaction',
@@ -175,9 +177,15 @@ export const SocialBatterySheet: React.FC<SocialBatterySheetProps> = ({
 
           {/* Current State Display */}
           <View className="mb-6 items-center">
-            <Text style={{ color: currentState.color }} className="mb-3 text-[64px]">
-              {currentState.emoji}
-            </Text>
+            <View className="mb-3">
+              <MoonPhaseIllustration
+                phase={0} // Not used when batteryLevel is provided
+                batteryLevel={currentState.value}
+                size={80}
+                color={currentState.color}
+                hasCheckin={true}
+              />
+            </View>
             <Text
               style={{ color: colors.foreground }}
               className="mb-1 font-inter text-xl font-semibold"

@@ -27,6 +27,9 @@ import SocialBatteryLog from './models/SocialBatteryLog';
 import JournalEntryFriend from './models/JournalEntryFriend';
 import Group from './models/Group';
 import GroupMember from './models/GroupMember';
+import OracleInsight from './models/OracleInsight';
+import OracleUsage from './models/OracleUsage';
+import NetworkHealthLog from './models/NetworkHealthLog';
 
 import { setGenerator } from '@nozbe/watermelondb/utils/common/randomId';
 import { v4 as uuidv4 } from 'uuid';
@@ -72,6 +75,9 @@ export const database = new Database({
     JournalEntryFriend,
     Group,
     GroupMember,
+    OracleInsight,
+    OracleUsage,
+    NetworkHealthLog,
   ],
 });
 
@@ -192,11 +198,21 @@ export const clearDatabase = async () => {
 
     for (const tableName of tableNames) {
       const collection = database.get(tableName);
-      const allRecords = await collection.query().fetch();
 
-      // Batch delete all records in this table
-      for (const record of allRecords) {
-        await record.destroyPermanently();
+      // Safety check: if model is not registered, collection might be null or throw error
+      if (!collection) {
+        console.warn(`[Database] Skipping clear for table '${tableName}' - collection not found (check model registration)`);
+        continue;
+      }
+
+      try {
+        const allRecords = await collection.query().fetch();
+        // Batch delete all records in this table
+        for (const record of allRecords) {
+          await record.destroyPermanently();
+        }
+      } catch (error) {
+        console.error(`[Database] Failed to clear table '${tableName}':`, error);
       }
     }
   });

@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Weave",
-    "slug": "WeaveNative",
+    "slug": "weave",
     "version": "1.0.0",
     "icon": "./assets/icon.png",
     "notification": {
@@ -49,7 +49,7 @@
           "autoVerify": true,
           "data": [
             {
-              "scheme": "weavenative"
+              "scheme": "weave"
             }
           ],
           "category": [
@@ -62,7 +62,7 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "scheme": "weavenative",
+    "scheme": "weave",
     "newArchEnabled": false,
     "extra": {},
     "plugins": [

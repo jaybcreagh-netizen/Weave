@@ -12,13 +12,17 @@ function AddFriend() {
 
   const handleSave = async (friendData: FriendFormData) => {
     await addFriend(friendData);
-    if (router.canGoBack()) {
-      if (router.canGoBack()) {
-        router.back();
-      } else {
-        router.replace('/');
-      }
+    if (fromOnboarding === 'true') {
+      router.replace('/dashboard');
+    } else if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/(tabs)');
     }
+  };
+
+  const handleSkip = () => {
+    router.replace('/dashboard');
   };
 
   return (
@@ -26,6 +30,7 @@ function AddFriend() {
       onSave={handleSave}
       initialTier={tier}
       fromOnboarding={fromOnboarding === 'true'}
+      onSkip={handleSkip}
     />
   );
 }

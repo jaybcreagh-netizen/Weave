@@ -253,3 +253,40 @@ export function calculateWeightedNetworkHealth(friends: FriendModel[]): number {
 
   return Math.round(networkHealth);
 }
+
+/**
+ * Logs the current network health score to the database.
+ * To prevent spam, it only logs if the last log was more than 24 hours ago,
+ * or if force is true.
+ */
+export async function logNetworkHealth(score: number, database: Database, force: boolean = false): Promise<void> {
+  try {
+    const now = Date.now();
+    const twentyFourHoursAgo = now - 24 * 60 * 60 * 1000;
+
+    if (!force) {
+      // Check for recent logs
+      const recentLogs = await database.get('network_health_logs')
+        .query(
+          Q.where('timestamp', Q.gte(twentyFourHoursAgo)),
+          Q.sortBy('timestamp', Q.desc),
+          Q.take(1)
+        )
+        .fetch();
+
+      if (recentLogs.length > 0) {
+        // Already logged recently
+        return;
+      }
+    }
+
+    await database.write(async () => {
+      await database.get('network_health_logs').create((log: any) => {
+        log.score = score;
+        log.timestamp = new Date(now);
+      });
+    });
+  } catch (error) {
+    Logger.error('Error logging network health:', error);
+  }
+}

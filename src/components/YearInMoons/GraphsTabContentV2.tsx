@@ -280,9 +280,41 @@ export function GraphsTabContent({ year = new Date().getFullYear() }: GraphsTabC
 
       // === NETWORK HEALTH ===
 
-      const healthScore = portfolio?.overallHealthScore ?? 0;
-      // For previous health, we'd need historical data — for now, simulate small change
-      const previousHealthScore = healthScore - (Math.random() * 10 - 5);
+      const rawHealthScore = portfolio?.overallHealthScore;
+      const healthScore = typeof rawHealthScore === 'number' && Number.isFinite(rawHealthScore) ? rawHealthScore : 0;
+
+      // Get historical health score
+      const historyDate = period === 'week' ? 7 : 30;
+      const historyTimestamp = now.getTime() - historyDate * 24 * 60 * 60 * 1000;
+      // Find the log closest to the target date (within a 2-day window)
+      const windowSize = 2 * 24 * 60 * 60 * 1000;
+
+      const historyLogs = await database.get('network_health_logs')
+        .query(
+          Q.where('timestamp', Q.gte(historyTimestamp - windowSize)),
+          Q.where('timestamp', Q.lte(historyTimestamp + windowSize)),
+          Q.sortBy('timestamp', Q.desc), // Get the latest one in that window
+          Q.take(1)
+        )
+        .fetch();
+
+      let previousHealthScore = healthScore;
+      if (historyLogs.length > 0) {
+        previousHealthScore = (historyLogs[0] as any).score;
+      } else {
+        // If no exact match, try to find ANY log before the period start to establish a baseline
+        const olderLogs = await database.get('network_health_logs')
+          .query(
+            Q.where('timestamp', Q.lt(historyTimestamp)),
+            Q.sortBy('timestamp', Q.desc),
+            Q.take(1)
+          )
+          .fetch();
+
+        if (olderLogs.length > 0) {
+          previousHealthScore = (olderLogs[0] as any).score;
+        }
+      }
 
       const thrivingCount = friends.filter(f => (f.weaveScore || 0) >= 70).length;
       const driftingCount = friends.filter(f => (f.weaveScore || 0) < 40).length;

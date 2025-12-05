@@ -51,6 +51,7 @@ import { useTheme } from '@/shared/hooks/useTheme';
 import { database } from '@/db';
 import FriendModel from '@/db/models/Friend';
 import JournalEntry from '@/db/models/JournalEntry';
+import JournalEntryFriend from '@/db/models/JournalEntryFriend';
 import { Q } from '@nozbe/watermelondb';
 import * as Haptics from 'expo-haptics';
 
@@ -156,10 +157,25 @@ export function GuidedReflectionModal({
   useEffect(() => {
     if (prefilledText) {
       setText(prefilledText);
-      // If we have prefilled text, might want to skip to writing
-      // But let's keep context selection for now
     }
   }, [prefilledText]);
+
+  // Handle prefilled friends (from Friend Profile)
+  useEffect(() => {
+    if (prefilledFriendIds && prefilledFriendIds.length > 0 && friends.length > 0) {
+      // If we have a single friend, try to set up the friend context
+      if (prefilledFriendIds.length === 1) {
+        const friendId = prefilledFriendIds[0];
+        const friend = friends.find(f => f.id === friendId);
+        if (friend) {
+          handleSelectFriend(friend);
+        }
+      } else {
+        // Multiple friends - just pre-select them for tagging
+        setSelectedFriendIds(new Set(prefilledFriendIds));
+      }
+    }
+  }, [prefilledFriendIds, friends]);
 
   const loadData = async () => {
     setLoading(true);
@@ -297,7 +313,7 @@ export function GuidedReflectionModal({
 
     try {
       const savedEntry = await database.write(async () => {
-        return await database.get<JournalEntry>('journal_entries').create((entry) => {
+        const newEntry = await database.get<JournalEntry>('journal_entries').create((entry) => {
           entry.content = text.trim();
           entry.entryDate = Date.now();
           // entry.friendTags = JSON.stringify(Array.from(selectedFriendIds)); // Removed as property does not exist
@@ -314,6 +330,19 @@ export function GuidedReflectionModal({
             entry.linkedWeaveId = selectedContext.weave.interaction.id;
           }
         });
+
+        // Create friend links
+        if (newEntry && selectedFriendIds.size > 0) {
+          const friendsCollection = database.get<JournalEntryFriend>('journal_entry_friends');
+          for (const friendId of Array.from(selectedFriendIds)) {
+            await friendsCollection.create(link => {
+              link.journalEntryId = newEntry.id;
+              link.friendId = friendId;
+            });
+          }
+        }
+
+        return newEntry;
       });
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -1054,7 +1083,11 @@ export function GuidedReflectionModal({
           </Text>
 
           {/* Close Button */}
-          <TouchableOpacity onPress={handleClose}>
+          <TouchableOpacity
+            onPress={handleClose}
+            className="p-2 -mr-2"
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
             <X size={24} color={colors.foreground} />
           </TouchableOpacity>
         </View>

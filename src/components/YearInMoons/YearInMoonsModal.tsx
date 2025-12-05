@@ -142,7 +142,7 @@ export function YearInMoonsModal({ isOpen, onClose }: YearInMoonsModalProps) {
       const timestamp = new Date(dayForBatteryCheckin);
       timestamp.setHours(12, 0, 0, 0);
 
-      await submitBatteryCheckin(value, note, timestamp.getTime());
+      await submitBatteryCheckin(value, note, timestamp.getTime(), true);
 
       // Reload the year data to reflect the new check-in
       loadYearData();

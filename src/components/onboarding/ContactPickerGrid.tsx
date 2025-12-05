@@ -11,6 +11,8 @@ interface ContactPickerGridProps {
   maxSelection: number;
   onSelectionChange: (selectedContacts: Contacts.Contact[]) => void;
   onAddManually?: () => void;
+  title?: string;
+  subtitle?: string;
 }
 
 const ContactItem = React.memo(({
@@ -99,7 +101,13 @@ const ContactItem = React.memo(({
   );
 });
 
-export function ContactPickerGrid({ maxSelection, onSelectionChange, onAddManually }: ContactPickerGridProps) {
+export function ContactPickerGrid({
+  maxSelection,
+  onSelectionChange,
+  onAddManually,
+  title = "Who's in your Inner Circle?",
+  subtitle = "Select up to 3 people you trust the most."
+}: ContactPickerGridProps) {
   const [contacts, setContacts] = useState<Contacts.Contact[]>([]);
   const [selectedContactIds, setSelectedContactIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -148,14 +156,21 @@ export function ContactPickerGrid({ maxSelection, onSelectionChange, onAddManual
 
   const handleSelectContact = (contactId: string) => {
     setSelectedContactIds(prevSelectedIds => {
+      // Toggle off if already selected
       if (prevSelectedIds.includes(contactId)) {
         return prevSelectedIds.filter(id => id !== contactId);
-      } else {
-        if (prevSelectedIds.length < maxSelection) {
-          return [...prevSelectedIds, contactId];
-        }
-        return prevSelectedIds;
       }
+
+      // If Single Select Mode (maxSelection === 1), replace selection
+      if (maxSelection === 1) {
+        return [contactId];
+      }
+
+      // Multi Select Mode
+      if (prevSelectedIds.length < maxSelection) {
+        return [...prevSelectedIds, contactId];
+      }
+      return prevSelectedIds;
     });
   };
 
@@ -189,8 +204,8 @@ export function ContactPickerGrid({ maxSelection, onSelectionChange, onAddManual
   return (
     <Animated.View className="flex-1" entering={FadeIn.duration(300)}>
       <View className="pt-8 pb-4 px-6">
-        <Text className="text-2xl font-bold text-center text-gray-800 mb-2">Who's in your Inner Circle?</Text>
-        <Text className="text-base text-gray-600 text-center mb-4">Select up to 3 people you trust the most.</Text>
+        <Text className="text-2xl font-bold text-center text-gray-800 mb-2">{title}</Text>
+        <Text className="text-base text-gray-600 text-center mb-4">{subtitle}</Text>
         <TouchableOpacity onPress={handleAddManually} className="flex-row items-center justify-center bg-gray-100 p-3 rounded-lg">
           <Plus size={16} color="#374151" />
           <Text className="text-gray-700 font-medium ml-2">Add Manually</Text>

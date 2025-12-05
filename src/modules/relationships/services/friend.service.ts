@@ -113,48 +113,52 @@ export async function deleteFriend(id: string): Promise<void> {
 
 export async function batchAddFriends(contacts: Array<{ name: string; photoUrl?: string }>, tier: any): Promise<Friend[]> {
   const newFriends: Friend[] = [];
+  const BATCH_SIZE = 500;
+
   try {
-    await database.write(async () => {
-      const batchOps: any[] = [];
+    for (let i = 0; i < contacts.length; i += BATCH_SIZE) {
+      const chunk = contacts.slice(i, i + BATCH_SIZE);
 
-      for (const contact of contacts) {
-        const newFriend = database.get<Friend>('friends').prepareCreate(friend => {
-          friend.name = contact.name;
-          friend.dunbarTier = tier;
-          friend.archetype = 'Unknown';
-          friend.photoUrl = contact.photoUrl || '';
-          friend.notes = '';
-          friend.weaveScore = 50;
-          friend.lastUpdated = new Date();
-          friend.birthday = undefined;
-          friend.anniversary = undefined;
-          friend.relationshipType = undefined;
-          friend.resilience = 1.0;
-          friend.ratedWeavesCount = 0;
-          friend.momentumScore = 0;
-          friend.momentumLastUpdated = new Date();
-          friend.isDormant = false;
-          friend.dormantSince = undefined;
-        });
-        newFriends.push(newFriend);
-        batchOps.push(newFriend);
-      }
+      await database.write(async () => {
+        const batchOps: any[] = [];
 
-      const allFriends = await database.get<Friend>('friends').query().fetch();
-      const archetypes = new Set(allFriends.filter(f => f.archetype !== 'Unknown').map(f => f.archetype));
-      // New friends are all 'Unknown' so they don't affect archetype count unless we had 0 before? 
-      // Actually 'Unknown' is excluded in the filter above.
+        for (const contact of chunk) {
+          const newFriend = database.get<Friend>('friends').prepareCreate(friend => {
+            friend.name = contact.name;
+            friend.dunbarTier = tier;
+            friend.archetype = 'Unknown';
+            friend.photoUrl = contact.photoUrl || '';
+            friend.notes = '';
+            friend.weaveScore = 50;
+            friend.lastUpdated = new Date();
+            friend.birthday = undefined;
+            friend.anniversary = undefined;
+            friend.relationshipType = undefined;
+            friend.resilience = 1.0;
+            friend.ratedWeavesCount = 0;
+            friend.momentumScore = 0;
+            friend.momentumLastUpdated = new Date();
+            friend.isDormant = false;
+            friend.dormantSince = undefined;
+          });
+          newFriends.push(newFriend);
+          batchOps.push(newFriend);
+        }
 
-      const userProgress = await database.get<UserProgress>('user_progress').query().fetch();
-      if (userProgress.length > 0) {
-        const progress = userProgress[0];
-        batchOps.push(progress.prepareUpdate(p => {
-          p.curatorProgress = archetypes.size;
-        }));
-      }
+        const allFriends = await database.get<Friend>('friends').query().fetch();
+        const archetypes = new Set(allFriends.filter(f => f.archetype !== 'Unknown').map(f => f.archetype));
 
-      await database.batch(batchOps);
-    });
+        const userProgress = await database.get<UserProgress>('user_progress').query().fetch();
+        if (userProgress.length > 0) {
+          const progress = userProgress[0];
+          batchOps.push(progress.prepareUpdate(p => {
+            p.curatorProgress = archetypes.size;
+          }));
+        }
+
+        await database.batch(batchOps);
+      });
+    }
 
     trackEvent(AnalyticsEvents.FRIEND_BATCH_ADDED, {
       count: contacts.length,

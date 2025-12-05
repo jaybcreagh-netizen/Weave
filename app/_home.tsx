@@ -2,7 +2,6 @@ import React, { useEffect, useState, useRef } from 'react';
 
 import { HomeWidgetGrid, WidgetGridItem } from '@/components/home/HomeWidgetGrid';
 import { SocialSeasonWidgetV2 } from '@/components/home/widgets/SocialSeasonWidgetV2';
-import { NetworkAlignmentWidgetV2 } from '@/components/home/widgets/NetworkAlignmentWidgetV2';
 import { YourEnergyWidget } from '@/components/home/widgets/YourEnergyWidget';
 import { TodaysFocusWidgetV2 } from '@/components/home/widgets/TodaysFocusWidgetV2';
 import { useTheme } from '@/shared/hooks/useTheme';
@@ -223,17 +222,6 @@ export default function Home() {
         fullWidth: true,
       },
       position: 0,
-      visible: true,
-    },
-    {
-      id: 'network-alignment',
-      component: NetworkAlignmentWidgetV2,
-      config: {
-        id: 'network-alignment',
-        type: 'network-alignment',
-        fullWidth: true,
-      },
-      position: 2.5,
       visible: true,
     },
     {

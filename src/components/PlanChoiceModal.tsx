@@ -110,76 +110,95 @@ export function PlanChoiceModal({
       animationType="fade"
       onRequestClose={onClose}
     >
-      <BlurView intensity={isDarkMode ? 20 : 40} tint={isDarkMode ? 'dark' : 'light'} className="flex-1">
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: isDarkMode ? 'rgba(0,0,0,0.7)' : 'rgba(0,0,0,0.4)',
+          justifyContent: 'center',
+          alignItems: 'center',
+          paddingHorizontal: 20
+        }}
+      >
         <TouchableOpacity
-          className="flex-1 justify-center items-center px-5"
+          style={StyleSheet.absoluteFill}
           activeOpacity={1}
           onPress={onClose}
+        />
+
+        <View
+          className="w-full max-w-md rounded-3xl p-6"
+          style={{
+            backgroundColor: isDarkMode ? colors.background : colors.background,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 10 },
+            shadowOpacity: 0.25,
+            shadowRadius: 20,
+            elevation: 10,
+            borderWidth: 1,
+            borderColor: isDarkMode ? colors.border : 'transparent',
+          }}
+          onStartShouldSetResponder={() => true}
         >
-          <Animated.View
-            entering={FadeIn.duration(200).springify()}
-            className="w-full max-w-md rounded-3xl p-6"
-            style={{
-              backgroundColor: isDarkMode ? colors.background + 'F5' : colors.background + 'F8',
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 20 },
-              shadowOpacity: 0.25,
-              shadowRadius: 30,
-              elevation: 20,
-            }}
-            onStartShouldSetResponder={() => true}
-          >
-            {/* Header */}
-            <View className="flex-row justify-between items-center mb-3">
-              <View>
-                <Text className="font-lora-bold text-2xl" style={{ color: colors.foreground }}>
-                  How would you like to connect?
-                </Text>
-                <Text className="font-inter-regular text-sm mt-1" style={{ color: colors['muted-foreground'] }}>
-                  Choose what feels right for this moment
-                </Text>
-              </View>
-              <TouchableOpacity onPress={onClose} className="p-2 -mr-2">
-                <X color={colors['muted-foreground']} size={22} />
-              </TouchableOpacity>
+          {/* Header */}
+          <View className="flex-row justify-between items-center mb-3">
+            <View>
+              <Text className="font-lora-bold text-2xl" style={{ color: colors.foreground }}>
+                How would you like to connect?
+              </Text>
+              <Text className="font-inter-regular text-sm mt-1" style={{ color: colors['muted-foreground'] }}>
+                Choose what feels right for this moment
+              </Text>
             </View>
+            <TouchableOpacity onPress={onClose} className="p-2 -mr-2">
+              <X color={colors['muted-foreground']} size={22} />
+            </TouchableOpacity>
+          </View>
 
-            {/* Choices */}
-            <View className="gap-3 mt-6">
-              <ChoiceCard
-                onPress={onSetIntention}
-                icon={<Lightbulb color={colors.primary} size={26} />}
-                title="Set an Intention"
-                description="Hold the thought without committing to a date"
-                accentColor={colors.primary}
-                gradient={
-                  isDarkMode
-                    ? [colors.card, colors.card]
-                    : [colors.primary + '08', colors.primary + '15']
-                }
-                isDarkMode={isDarkMode}
-                colors={colors}
-              />
+          {/* Choices */}
+          <View className="gap-3 mt-6">
+            <ChoiceCard
+              onPress={onSetIntention}
+              icon={<Lightbulb color={colors.primary} size={26} />}
+              title="Set an Intention"
+              description="Hold the thought without committing to a date"
+              accentColor={colors.primary}
+              gradient={
+                isDarkMode
+                  ? [colors.card, colors.card]
+                  : [colors.primary + '08', colors.primary + '15']
+              }
+              isDarkMode={isDarkMode}
+              colors={colors}
+            />
 
-              <ChoiceCard
-                onPress={onSchedulePlan}
-                icon={<Calendar color={colors.primary} size={26} />}
-                title="Schedule a Plan"
-                description="Pick a date and add it to your timeline"
-                accentColor={colors.primary}
-                gradient={
-                  isDarkMode
-                    ? [colors.card, colors.card]
-                    : [colors.primary + '08', colors.primary + '15']
-                }
-                isDarkMode={isDarkMode}
-                colors={colors}
-              />
-            </View>
-          </Animated.View>
-        </TouchableOpacity>
-      </BlurView>
+            <ChoiceCard
+              onPress={onSchedulePlan}
+              icon={<Calendar color={colors.primary} size={26} />}
+              title="Schedule a Plan"
+              description="Pick a date and add it to your timeline"
+              accentColor={colors.primary}
+              gradient={
+                isDarkMode
+                  ? [colors.card, colors.card]
+                  : [colors.primary + '08', colors.primary + '15']
+              }
+              isDarkMode={isDarkMode}
+              colors={colors}
+            />
+          </View>
+        </View>
+      </View>
     </Modal>
   );
 }
+
+const StyleSheet = {
+  absoluteFill: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+  } as const,
+};
 

@@ -21,6 +21,8 @@ export default function JournalScreen() {
     const [showQuickCapture, setShowQuickCapture] = useState(false);
     const [showGuided, setShowGuided] = useState(params.mode === 'guided');
     const [selectedFriendId, setSelectedFriendId] = useState<string | null>(params.friendId || null);
+    const [prefilledText, setPrefilledText] = useState<string>('');
+    const [prefilledFriendIds, setPrefilledFriendIds] = useState<string[]>([]);
 
     // Selection state
     const [selectedEntry, setSelectedEntry] = useState<JournalEntry | null>(null);
@@ -58,10 +60,9 @@ export default function JournalScreen() {
                     }}
                     onEntryPress={handleArcEntryPress}
                     onWriteAbout={(friendId, friendName) => {
+                        setPrefilledFriendIds([friendId]);
                         setSelectedFriendId(null);
                         setShowGuided(true);
-                        // Pass friend context to guided modal
-                        // Note: GuidedReflectionModal might need props for pre-selecting friend
                     }}
                 />
             ) : (
@@ -91,20 +92,26 @@ export default function JournalScreen() {
                 visible={showQuickCapture}
                 onClose={() => setShowQuickCapture(false)}
                 onExpandToFull={(text, friendIds) => {
+                    setPrefilledText(text);
+                    setPrefilledFriendIds(friendIds);
                     setShowQuickCapture(false);
                     setShowGuided(true);
-                    // Pass text/friends to guided modal
-                    // Note: GuidedReflectionModal might need props for pre-filling
                 }}
             />
 
             <GuidedReflectionModal
                 visible={showGuided}
-                onClose={() => setShowGuided(false)}
+                onClose={() => {
+                    setShowGuided(false);
+                    setPrefilledText('');
+                    setPrefilledFriendIds([]);
+                }}
                 onSave={(entry) => {
                     console.log('Saved:', entry);
                 }}
                 prefilledWeaveId={params.weaveId}
+                prefilledText={prefilledText}
+                prefilledFriendIds={prefilledFriendIds}
             />
 
             {/* Entry Viewers */}
