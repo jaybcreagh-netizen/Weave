@@ -132,21 +132,36 @@ export const useRelationshipsStore = create<RelationshipsStore>((set, get) => ({
             return of([]);
           }
 
-          const interactions = await database.get<Interaction>('interactions').query(
+          // Switch from fetch() to observe() for reactivity
+          // We still respect pagination (initialPageSize)
+          const interactionsQuery = database.get<Interaction>('interactions').query(
             Q.where('id', Q.oneOf(interactionIds)),
             Q.sortBy('interaction_date', Q.desc),
             Q.take(initialPageSize)
-          ).fetch();
+          );
 
-          set({
-            totalInteractionsCount: totalCount,
-            loadedInteractionsCount: interactions.length,
-            hasMoreInteractions: interactions.length < totalCount,
-          });
+          return interactionsQuery.observe().pipe(
+            observeOn(asyncScheduler),
+            switchMap(async (interactions) => {
+              // We need to update the counts based on the *observed* result
+              // Note: totalCount is still based on the join table count from above
 
-          return of(interactions);
+              set({
+                totalInteractionsCount: totalCount,
+                loadedInteractionsCount: interactions.length,
+                hasMoreInteractions: interactions.length < totalCount,
+              });
+
+              return interactions;
+            })
+          );
         }),
-        switchMap(obs => obs)
+        // The switchMap above returns a Promise<Interaction[]>, but we need Observable<Interaction[]>
+        // However, we are wrapping the observation inside the promise. 
+        // Let's simplify: the inner observable emits Interaction[].
+
+        switchMap(obs => obs) // Flatten the Observable<Interaction[]>
+
       ).subscribe({
         next: (interactions) => {
           set({ activeFriendInteractions: interactions });

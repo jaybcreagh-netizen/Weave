@@ -11,6 +11,7 @@ interface ListItemProps {
     onPress?: () => void;
     showChevron?: boolean;
     showDivider?: boolean;
+    compact?: boolean;
 }
 
 export const ListItem: React.FC<ListItemProps> = ({
@@ -21,13 +22,14 @@ export const ListItem: React.FC<ListItemProps> = ({
     onPress,
     showChevron = false,
     showDivider = true,
+    compact = false,
 }) => {
     const { tokens, typography, spacing } = useTheme();
 
     const content = (
         <View style={[
             styles.container,
-            { paddingVertical: spacing[3] },
+            { paddingVertical: compact ? spacing[2] : spacing[3] },
             showDivider && { borderBottomWidth: 1, borderBottomColor: tokens.borderSubtle },
         ]}>
             {leading && (
@@ -40,8 +42,8 @@ export const ListItem: React.FC<ListItemProps> = ({
                 <Text style={[
                     {
                         color: tokens.foreground,
-                        fontSize: typography.scale.body.fontSize,
-                        lineHeight: typography.scale.body.lineHeight,
+                        fontSize: compact ? typography.scale.bodySmall.fontSize : typography.scale.body.fontSize,
+                        lineHeight: compact ? typography.scale.bodySmall.lineHeight : typography.scale.body.lineHeight,
                         fontFamily: typography.fonts.sans,
                     }
                 ]}>
@@ -51,8 +53,8 @@ export const ListItem: React.FC<ListItemProps> = ({
                     <Text style={[
                         {
                             color: tokens.foregroundMuted,
-                            fontSize: typography.scale.bodySmall.fontSize,
-                            lineHeight: typography.scale.bodySmall.lineHeight,
+                            fontSize: compact ? typography.scale.caption.fontSize : typography.scale.bodySmall.fontSize,
+                            lineHeight: compact ? typography.scale.caption.lineHeight : typography.scale.bodySmall.lineHeight,
                             fontFamily: typography.fonts.sans,
                             marginTop: spacing[0.5],
                         }

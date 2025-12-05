@@ -133,7 +133,17 @@ export async function ensureUserProgressColumns(database: Database): Promise<voi
     const progress = await progressCollection.query().fetch();
 
     if (progress.length === 0) {
+      // No progress record yet, so we can't check columns easily.
+      // But typically user_progress is created immediately.
+      // If it's effectively empty, we might not need to migrate yet or it's a fresh install where schema is correct.
+      return;
+    }
 
+    // Check if columns already exist by inspecting the first record
+    const firstRecord = progress[0];
+    // @ts-ignore - _raw is internal but accessible
+    if ('last_streak_count' in firstRecord._raw) {
+      // Columns already exist, skip migration to avoid "duplicate column" errors
       return;
     }
 

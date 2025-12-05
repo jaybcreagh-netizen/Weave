@@ -32,6 +32,7 @@ import {
   type PortfolioImbalance,
   type ProactiveSuggestion,
 } from '@/modules/insights';
+import { parseFlexibleDate } from '@/shared/utils/date-utils';
 
 // Friendly category labels for suggestions
 const CATEGORY_LABELS: Record<string, string> = {
@@ -152,12 +153,19 @@ async function checkUpcomingLifeEvent(friend: SuggestionInput['friend']): Promis
   // Fallback to legacy birthday/anniversary checks from Friend model
   // Check birthday (within 7 days)
   if (friend.birthday) {
-    // Birthday is now in "MM-DD" format
-    const [month, day] = friend.birthday.split('-').map(n => parseInt(n, 10));
+    // Use flexible parser
+    const dateParts = parseFlexibleDate(friend.birthday);
+
+    if (!dateParts) {
+      console.warn('Invalid birthday format for friend:', friend.id, friend.birthday);
+      return null;
+    }
+
+    const { month, day } = dateParts;
 
     // Validate parsed values
-    if (isNaN(month) || isNaN(day) || month < 1 || month > 12 || day < 1 || day > 31) {
-      console.warn('Invalid birthday format for friend:', friend.id, friend.birthday);
+    if (month < 1 || month > 12 || day < 1 || day > 31) {
+      console.warn('Invalid birthday date for friend:', friend.id, friend.birthday);
       return null;
     }
 
@@ -189,11 +197,18 @@ async function checkUpcomingLifeEvent(friend: SuggestionInput['friend']): Promis
       return null;
     }
 
-    const [month, day] = friend.anniversary.split('-').map(n => parseInt(n, 10));
+    const dateParts = parseFlexibleDate(friend.anniversary);
+
+    if (!dateParts) {
+      console.warn('[Anniversary Check] Invalid anniversary format for friend:', friend.id, friend.anniversary);
+      return null;
+    }
+
+    const { month, day } = dateParts;
 
     // Validate parsed values
-    if (isNaN(month) || isNaN(day) || month < 1 || month > 12 || day < 1 || day > 31) {
-      console.warn('[Anniversary Check] Invalid anniversary format for friend:', friend.id, friend.anniversary);
+    if (month < 1 || month > 12 || day < 1 || day > 31) {
+      console.warn('[Anniversary Check] Invalid anniversary date for friend:', friend.id, friend.anniversary);
       return null;
     }
 
@@ -271,35 +286,36 @@ async function checkAgingIntention(friend: SuggestionInput['friend']): Promise<I
 // Get appropriate emoji and label for life event type
 function getLifeEventDisplay(eventType: LifeEventType | 'birthday' | 'anniversary'): { icon: string; label: string } {
   const displays: Record<string, { icon: string; label: string }> = {
-    birthday: { icon: '🎂', label: 'birthday' },
-    anniversary: { icon: '💝', label: 'anniversary' },
-    new_job: { icon: '💼', label: 'new job' },
-    moving: { icon: '📦', label: 'move' },
-    wedding: { icon: '💒', label: 'wedding' },
-    baby: { icon: '👶', label: 'new baby' },
-    loss: { icon: '🕊️', label: 'difficult time' },
-    health_event: { icon: '🏥', label: 'health event' },
-    graduation: { icon: '🎓', label: 'graduation' },
-    celebration: { icon: '🎉', label: 'milestone' },
-    other: { icon: '✨', label: 'life event' },
+    birthday: { icon: 'Gift', label: 'birthday' },
+    anniversary: { icon: 'Heart', label: 'anniversary' },
+    new_job: { icon: 'Briefcase', label: 'new job' },
+    moving: { icon: 'Home', label: 'move' },
+    wedding: { icon: 'Heart', label: 'wedding' },
+    baby: { icon: 'Egg', label: 'baby' }, // Using Egg as close proxy for new life or Smile
+    loss: { icon: 'HeartCrack', label: 'difficult time' }, // HeartCrack or Sunrise
+    health_event: { icon: 'Activity', label: 'health event' },
+    graduation: { icon: 'GraduationCap', label: 'graduation' },
+    celebration: { icon: 'PartyPopper', label: 'milestone' },
+    other: { icon: 'Star', label: 'life event' },
   };
-  return displays[eventType] || { icon: '✨', label: 'life event' };
+  return displays[eventType] || { icon: 'Star', label: 'life event' };
 }
 
+// Get appropriate suggestion text for event type
 // Get appropriate suggestion text for event type
 function getLifeEventSuggestion(eventType: LifeEventType | 'birthday' | 'anniversary', archetype: string, lifeEvent: LifeEventInfo): string {
   if (lifeEvent.daysUntil < 0) {
     // Follow-up suggestions for past events
     const followUps: Record<string, string> = {
-      wedding: 'Check in on how married life is going',
-      baby: 'See how they\'re adjusting to parenthood',
-      new_job: 'Ask how the new role is going',
-      moving: 'See how they\'re settling into the new place',
-      loss: 'Offer support and check how they\'re doing',
-      health_event: 'Check in on their recovery',
+      wedding: 'Check how married life is going',
+      baby: 'See how they\'re adjusting',
+      new_job: 'Ask how the new role is',
+      moving: 'See how they\'re settling in',
+      loss: 'Check how they\'re doing',
+      health_event: 'Check on their recovery',
       graduation: 'Celebrate their achievement',
     };
-    return followUps[eventType] || 'Check in and see how they\'re doing';
+    return followUps[eventType] || 'Check in with them';
   }
 
   // Use archetype-specific celebration for birthdays
@@ -309,23 +325,23 @@ function getLifeEventSuggestion(eventType: LifeEventType | 'birthday' | 'anniver
 
   // Proactive suggestions for upcoming events
   const suggestions: Record<string, string> = {
-    wedding: 'Offer help with wedding planning or send congratulations',
-    baby: 'Offer support or send a thoughtful gift',
-    new_job: 'Send congratulations and encouragement',
-    moving: 'Offer to help with the move or settling in',
-    loss: 'Reach out with compassion and support',
-    health_event: 'Offer support and check if they need anything',
-    graduation: 'Plan a celebration or send congratulations',
-    celebration: 'Celebrate this milestone together',
+    wedding: 'Offer help or congratulations',
+    baby: 'Offer support or a gift',
+    new_job: 'Send congrats',
+    moving: 'Offer help with the move',
+    loss: 'Reach out with support',
+    health_event: 'Offer support',
+    graduation: 'Congratulate them',
+    celebration: 'Celebrate this milestone',
   };
-  return suggestions[eventType] || 'Reach out to acknowledge this moment';
+  return suggestions[eventType] || 'Reach out';
 }
 
 function getDaysText(days: number | undefined): string {
-  if (days === undefined || isNaN(days)) return 'is coming up';
-  if (days === 0) return 'is today';
-  if (days === 1) return 'is tomorrow';
-  return `is in ${days} days`;
+  if (days === undefined || isNaN(days)) return 'soon';
+  if (days === 0) return 'today';
+  if (days === 1) return 'tomorrow';
+  return `in ${days} days`;
 }
 
 /**
@@ -449,22 +465,22 @@ function getContextualSuggestion(
   // Fallback to archetype + tier appropriate suggestions
   if (tier === 'InnerCircle') {
     const innerCircleSuggestions = [
-      "Set aside real quality time",
-      "Plan something meaningful together",
+      "Set aside quality time",
+      "Plan something meaningful",
       "Have a proper catch-up",
-      "Make time for a deep connection",
+      "Make time for connection",
     ];
     return innerCircleSuggestions[Math.floor(Math.random() * innerCircleSuggestions.length)];
   } else if (tier === 'CloseFriends') {
     const closeFriendSuggestions = [
-      "Reach out with a thoughtful message",
+      "Send a thoughtful text",
       "Plan a casual meet-up",
-      "Grab coffee or a quick bite",
-      "Send a text to check in",
+      "Grab coffee or a bite",
+      "Check in with them",
     ];
     return closeFriendSuggestions[Math.floor(Math.random() * closeFriendSuggestions.length)];
   } else {
-    return "Send them a friendly message";
+    return "Send a friendly message";
   }
 }
 
@@ -500,16 +516,16 @@ export async function generateSuggestion(input: SuggestionInput): Promise<Sugges
   if (lifeEvent) {
     // Map life event types to appropriate icons and labels
     const eventIconMap: Record<string, string> = {
-      birthday: '🎂',
-      anniversary: '💝',
-      new_job: '💼',
-      moving: '🏠',
-      graduation: '🎓',
-      health_event: '🏥',
-      celebration: '🎉',
-      loss: '🕊️',
-      wedding: '💒',
-      baby: '👶',
+      birthday: 'Gift',
+      anniversary: 'Heart',
+      new_job: 'Briefcase',
+      moving: 'Home',
+      graduation: 'GraduationCap',
+      health_event: 'Activity',
+      celebration: 'PartyPopper',
+      loss: 'HeartCrack',
+      wedding: 'Heart',
+      baby: 'Egg', // Egg or Smile
     };
 
     const eventLabelMap: Record<string, string> = {
@@ -525,7 +541,7 @@ export async function generateSuggestion(input: SuggestionInput): Promise<Sugges
       baby: 'baby',
     };
 
-    const eventIcon = eventIconMap[lifeEvent.type] || '📅';
+    const eventIcon = eventIconMap[lifeEvent.type] || 'Calendar';
     const eventLabel = lifeEvent.title || eventLabelMap[lifeEvent.type] || lifeEvent.type;
 
     // Use archetype-specific suggestions for birthdays/anniversaries, otherwise use life event specific
@@ -538,7 +554,7 @@ export async function generateSuggestion(input: SuggestionInput): Promise<Sugges
       ? `Check in on ${friend.name}'s ${eventLabel}`
       : `${friend.name}'s ${eventLabel} ${getDaysText(lifeEvent.daysUntil)}`;
 
-    const actionLabel = lifeEvent.daysUntil < 0 ? 'Reach Out' : 'Plan Celebration';
+    const actionLabel = lifeEvent.daysUntil < 0 ? 'Reach Out' : 'Plan';
 
     return {
       id: `life-event-${friend.id}-${lifeEvent.type}`,
@@ -576,7 +592,7 @@ export async function generateSuggestion(input: SuggestionInput): Promise<Sugges
 
     const subtitle = agingIntention.description
       ? `"${agingIntention.description}"${categoryHint}`
-      : `Time to make it happen${categoryHint}`;
+      : `Complete your intention${categoryHint}`;
 
     return {
       id: `intention-reminder-${agingIntention.id}`,
@@ -584,10 +600,10 @@ export async function generateSuggestion(input: SuggestionInput): Promise<Sugges
       friendName: friend.name,
       urgency,
       category: 'maintain',
-      title: `You wanted to connect with ${friend.name}`,
+      title: `Intention for ${friend.name}`,
       subtitle,
-      actionLabel: 'Schedule It',
-      icon: '💫',
+      actionLabel: 'Schedule',
+      icon: 'Target',
       action: {
         type: 'plan',
         prefilledCategory: agingIntention.interactionCategory as any,
@@ -602,10 +618,9 @@ export async function generateSuggestion(input: SuggestionInput): Promise<Sugges
   if (friend.dunbarTier === 'InnerCircle' && currentScore < 30) {
     const contextualAction = getContextualSuggestion(recentInteractions, friend.archetype, friend.dunbarTier, pattern);
 
-
     // Add pattern-aware context if available
     const patternContext = isPatternReliable(pattern)
-      ? ` You usually connect ${getPatternDescription(pattern)}.`
+      ? ` Connect ${getPatternDescription(pattern)}.`
       : '';
 
     return {
@@ -614,10 +629,10 @@ export async function generateSuggestion(input: SuggestionInput): Promise<Sugges
       friendName: friend.name,
       urgency: 'critical',
       category: 'drift',
-      title: `${friend.name} is drifting away`,
+      title: `${friend.name} is drifting`,
       subtitle: `${contextualAction}.${patternContext}`,
-      actionLabel: 'Reach Out Now',
-      icon: '🚨',
+      actionLabel: 'Reach Out',
+      icon: 'AlertTriangle',
       action: {
         type: 'log',
         prefilledCategory: getArchetypePreferredCategory(friend.archetype),
@@ -637,10 +652,9 @@ export async function generateSuggestion(input: SuggestionInput): Promise<Sugges
   if (isHighDrift) {
     const contextualAction = getContextualSuggestion(recentInteractions, friend.archetype, friend.dunbarTier, pattern);
 
-
     // Add pattern-aware context
     const patternContext = isPatternReliable(pattern)
-      ? ` You usually connect ${getPatternDescription(pattern)}.`
+      ? ` Connect ${getPatternDescription(pattern)}.`
       : '';
 
     return {
@@ -649,10 +663,10 @@ export async function generateSuggestion(input: SuggestionInput): Promise<Sugges
       friendName: friend.name,
       urgency: 'high',
       category: 'drift',
-      title: `Time to reconnect with ${friend.name}`,
+      title: `Reconnect with ${friend.name}`,
       subtitle: `${contextualAction}.${patternContext}`,
-      actionLabel: 'Plan a Weave',
-      icon: '🧵',
+      actionLabel: 'Plan',
+      icon: 'History', // Using History instead of RefreshCw? or Link. RefreshCw seems best for reconnect
       action: {
         type: 'plan',
         prefilledCategory: getArchetypePreferredCategory(friend.archetype),
@@ -681,10 +695,10 @@ export async function generateSuggestion(input: SuggestionInput): Promise<Sugges
         friendName: friend.name,
         urgency: 'medium',
         category: 'maintain',
-        title: `A new thread with ${friend.name}`,
-        subtitle: 'Log your first weave to begin strengthening this connection.',
-        actionLabel: 'Log First Weave',
-        icon: '🧵',
+        title: `Start thread with ${friend.name}`,
+        subtitle: 'Log your first interaction.',
+        actionLabel: 'Log',
+        icon: 'Sparkles',
         action: { type: 'log' },
         dismissible: true,
         createdAt: new Date(),
@@ -712,10 +726,10 @@ export async function generateSuggestion(input: SuggestionInput): Promise<Sugges
         friendName: friend.name,
         urgency: 'medium',
         category: 'deepen',
-        title: `You're connecting well with ${friend.name}`,
-        subtitle: `Ride this momentum! ${contextualAction}`,
-        actionLabel: 'Deepen the Bond',
-        icon: '🌟',
+        title: `Momentum with ${friend.name}`,
+        subtitle: `Ride the wave! ${contextualAction}`,
+        actionLabel: 'Deepen',
+        icon: 'Zap',
         action: {
           type: 'plan',
           prefilledCategory: getArchetypePreferredCategory(friend.archetype),
@@ -746,8 +760,8 @@ export async function generateSuggestion(input: SuggestionInput): Promise<Sugges
 
     // Create pattern-aware title
     const title = isPatternReliable(pattern)
-      ? `Time for your ${pattern.averageIntervalDays}-day check-in with ${friend.name}`
-      : `Keep the thread warm with ${friend.name}`;
+      ? `${pattern.averageIntervalDays}-day check-in: ${friend.name}`
+      : `Keep warm with ${friend.name}`;
 
     return {
       id: `maintenance-${friend.id}`,
@@ -757,8 +771,8 @@ export async function generateSuggestion(input: SuggestionInput): Promise<Sugges
       category: 'maintain',
       title,
       subtitle: contextualAction,
-      actionLabel: 'Plan a Weave',
-      icon: '💛',
+      actionLabel: 'Plan',
+      icon: 'Clock',
       action: {
         type: 'plan',
         prefilledCategory: pattern.preferredCategories[0] || 'text-call',
@@ -779,10 +793,10 @@ export async function generateSuggestion(input: SuggestionInput): Promise<Sugges
       friendName: friend.name,
       urgency: 'low',
       category: 'celebrate',
-      title: `Your bond with ${friend.name} is thriving`,
-      subtitle: `Celebrate this connection! ${contextualAction}`,
-      actionLabel: 'Plan Something Meaningful',
-      icon: '✨',
+      title: `Thriving bond with ${friend.name}`,
+      subtitle: `Celebrate! ${contextualAction}`,
+      actionLabel: 'Plan',
+      icon: 'Sparkles',
       action: { type: 'plan' },
       dismissible: true,
       createdAt: new Date(),

@@ -1,4 +1,5 @@
 import { differenceInDays, format } from 'date-fns';
+import { parseFlexibleDate } from '@/shared/utils/date-utils';
 import { database } from '@/db';
 import LifeEvent from '@/db/models/LifeEvent';
 import FriendModel from '@/db/models/Friend';
@@ -133,14 +134,15 @@ async function checkLifeEventStatus(friend: HydratedFriend | Friend): Promise<St
 
     // Check birthday (legacy Friend model field)
     if (friend.birthday) {
-      // Validate format: "MM-DD"
-      if (!/^\d{2}-\d{2}$/.test(friend.birthday)) {
+      // Use flexible parser
+      const dateParts = parseFlexibleDate(friend.birthday);
+
+      if (!dateParts) {
         console.warn(`[StatusLine] Invalid birthday format: ${friend.birthday}`);
       } else {
-        // Birthday is now in "MM-DD" format
-        const [month, day] = friend.birthday.split('-').map(n => parseInt(n, 10));
+        const { month, day } = dateParts;
 
-        // Validate date components
+        // Validate date components (just in case)
         if (month < 1 || month > 12 || day < 1 || day > 31) {
           console.warn(`[StatusLine] Invalid birthday date: ${friend.birthday}`);
         } else {
@@ -164,14 +166,15 @@ async function checkLifeEventStatus(friend: HydratedFriend | Friend): Promise<St
 
     // Check anniversary (legacy Friend model field)
     if (friend.anniversary) {
-      // Validate format: "MM-DD"
-      if (!/^\d{2}-\d{2}$/.test(friend.anniversary)) {
+      // Use flexible parser
+      const dateParts = parseFlexibleDate(friend.anniversary);
+
+      if (!dateParts) {
         console.warn(`[StatusLine] Invalid anniversary format: ${friend.anniversary}`);
       } else {
-        // Anniversary is stored in "MM-DD" format
-        const [month, day] = friend.anniversary.split('-').map(n => parseInt(n, 10));
+        const { month, day } = dateParts;
 
-        // Validate date components
+        // Validate date components (just in case)
         if (month < 1 || month > 12 || day < 1 || day > 31) {
           console.warn(`[StatusLine] Invalid anniversary date: ${friend.anniversary}`);
         } else {

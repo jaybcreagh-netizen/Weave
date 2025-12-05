@@ -1,7 +1,12 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Modal, TouchableOpacity } from 'react-native';
+import { StyleSheet, View, Text, Modal, TouchableOpacity, ScrollView } from 'react-native';
 import { BlurView } from 'expo-blur';
-import { X, Calendar, Sparkles, CheckCircle2, Lightbulb } from 'lucide-react-native';
+import {
+    X, Calendar, Sparkles, CheckCircle2, Lightbulb,
+    AlertTriangle, RefreshCw, Zap, Heart, Clock, Star,
+    Gift, Briefcase, Home, GraduationCap, PartyPopper,
+    HeartCrack, Activity, Target, History, Egg
+} from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { ListItem } from '@/components/ui/ListItem';
 import { Button } from '@/components/ui/Button';
@@ -86,8 +91,30 @@ export const FocusDetailSheet: React.FC<FocusDetailSheetProps> = ({
 
     if (!isVisible) return null;
 
-    const getFriendName = (plan: Interaction) => {
-        return plan.title;
+    const renderSuggestionIcon = (iconName: string, category?: string) => {
+        const size = 20;
+        const color = tokens.primary;
+
+        switch (iconName) {
+            case 'AlertTriangle': return <AlertTriangle size={size} color={tokens.destructive} />;
+            case 'RefreshCw': return <RefreshCw size={size} color={tokens.primary} />;
+            case 'History': return <History size={size} color={tokens.warning} />; // High drift
+            case 'Zap': return <Zap size={size} color="#F59E0B" />; // Amber for momentum
+            case 'Sparkles': return <Sparkles size={size} color="#8B5CF6" />; // Purple for deepen
+            case 'Clock': return <Clock size={size} color={tokens.foregroundMuted} />;
+            case 'Heart': return <Heart size={size} color="#EC4899" />; // Pink/Red
+            case 'Gift': return <Gift size={size} color="#EC4899" />;
+            case 'Briefcase': return <Briefcase size={size} color={tokens.primary} />;
+            case 'Home': return <Home size={size} color={tokens.primary} />;
+            case 'GraduationCap': return <GraduationCap size={size} color={tokens.primary} />;
+            case 'PartyPopper': return <PartyPopper size={size} color="#F59E0B" />;
+            case 'HeartCrack': return <HeartCrack size={size} color={tokens.foregroundMuted} />;
+            case 'Activity': return <Activity size={size} color={tokens.destructive} />;
+            case 'Target': return <Target size={size} color={tokens.primary} />;
+            case 'Egg': return <Egg size={size} color={tokens.primary} />;
+            case 'Star': return <Star size={size} color="#F59E0B" />;
+            default: return <Sparkles size={size} color={tokens.primary} />;
+        }
     };
 
     return (
@@ -144,13 +171,14 @@ export const FocusDetailSheet: React.FC<FocusDetailSheetProps> = ({
                                                     title={plan.title || 'Untitled Plan'}
                                                     subtitle={subtitle}
                                                     showDivider={index < plans.length - 1}
+                                                    compact
                                                     trailing={
                                                         <View style={styles.actions}>
                                                             <Button
                                                                 label="Confirm"
                                                                 size="small"
                                                                 onPress={() => onConfirmPlan(plan.id)}
-                                                                style={{ marginRight: 8 }}
+                                                                style={compactButtonStyle}
                                                             />
                                                         </View>
                                                     }
@@ -172,14 +200,17 @@ export const FocusDetailSheet: React.FC<FocusDetailSheetProps> = ({
                                         return (
                                             <View key={suggestion.id} style={{ paddingHorizontal: 16 }}>
                                                 <ListItem
-                                                    title={friend?.name || 'Friend'}
-                                                    subtitle={suggestion.reason}
+                                                    leading={renderSuggestionIcon(suggestion.icon, suggestion.category)}
+                                                    title={suggestion.title}
+                                                    subtitle={suggestion.subtitle}
                                                     showDivider={index < suggestions.length - 1}
+                                                    compact
                                                     trailing={
                                                         <Button
-                                                            label="View"
+                                                            label={suggestion.actionLabel || "View"}
                                                             variant="secondary"
                                                             size="small"
+                                                            style={compactButtonStyle}
                                                             onPress={() => onSuggestionAction(suggestion)}
                                                         />
                                                     }
@@ -202,6 +233,7 @@ export const FocusDetailSheet: React.FC<FocusDetailSheetProps> = ({
                                                 title={event.friend.name}
                                                 subtitle={`${event.type === 'birthday' ? 'Birthday' : event.title} • ${event.daysUntil === 0 ? 'Today' : event.daysUntil === 1 ? 'Tomorrow' : `In ${event.daysUntil} days`}`}
                                                 showDivider={index < upcomingDates.length - 1}
+                                                compact
                                             />
                                         </View>
                                     ))}
@@ -296,3 +328,10 @@ const styles = StyleSheet.create({
         lineHeight: 24,
     },
 });
+
+const compactButtonStyle = {
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    height: 32,
+    minWidth: 80, // Standardized width
+};

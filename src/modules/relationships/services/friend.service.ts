@@ -79,6 +79,7 @@ export async function updateFriend(id: string, data: FriendFormData): Promise<Fr
       record.birthday = data.birthday || undefined;
       record.anniversary = data.anniversary || undefined;
       record.relationshipType = data.relationshipType || undefined;
+      record.lastUpdated = new Date();
     });
   });
 
