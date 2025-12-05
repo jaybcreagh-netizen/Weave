@@ -176,7 +176,14 @@ export const useUserProfileStore = create<UserProfileStore>((set, get) => ({
     // Trigger smart notification evaluation after battery check-in
     // This is a good time since user is engaged and we have fresh battery data
     try {
-      const { evaluateAndScheduleSmartNotifications } = await import('@/modules/notifications');
+      const { evaluateAndScheduleSmartNotifications, rescheduleDailyBatteryCheckinForTomorrow } = await import('@/modules/notifications');
+
+      // 1. Reschedule "Social Battery" notification (Safety Net)
+      // Since user just checked in, we silence today's reminder and schedule for tomorrow.
+      const batteryTime = profile.batteryCheckinTime || '20:00';
+      await rescheduleDailyBatteryCheckinForTomorrow(batteryTime);
+
+      // 2. Evaluate other smart notifications
       await evaluateAndScheduleSmartNotifications();
     } catch (error) {
       console.error('Error evaluating smart notifications after battery check-in:', error);

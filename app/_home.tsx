@@ -83,6 +83,7 @@ export default function Home() {
 
       const lastCheckin = profile.socialBatteryLastCheckin;
       if (!lastCheckin) {
+        console.log('[Home] No last check-in found, showing battery sheet');
         // Never checked in - show after brief delay
         batteryTimerRef.current = setTimeout(() => {
           if (isMountedRef.current) {
@@ -102,7 +103,10 @@ export default function Home() {
       const lastCheckinDate = new Date(lastCheckin);
       lastCheckinDate.setHours(0, 0, 0, 0);
 
-      if (lastCheckinDate < today) {
+      const needsCheckin = lastCheckinDate < today;
+      console.log(`[Home] Battery Check-in Status: Last=${lastCheckinDate.toDateString()}, Today=${today.toDateString()}, Needs=${needsCheckin}`);
+
+      if (needsCheckin) {
         // Last check-in was before today - show after brief delay
         batteryTimerRef.current = setTimeout(() => {
           if (isMountedRef.current) {

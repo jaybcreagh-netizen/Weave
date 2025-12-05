@@ -64,15 +64,21 @@ export async function requestNotificationPermissions(): Promise<boolean> {
  * Note: Only schedules if user meets grace period requirements (48+ hours old, 3+ interactions)
  * @param time - Time in "HH:mm" format (24-hour), e.g., "20:00" for 8 PM
  */
-export async function scheduleDailyBatteryCheckin(time: string = '20:00'): Promise<void> {
+/**
+ * Schedule daily battery check-in notification
+ * Note: Only schedules if user meets grace period requirements (48+ hours old, 3+ interactions)
+ * @param time - Time in "HH:mm" format (24-hour), e.g., "20:00" for 8 PM
+ * @param startDate - Optional date object for when the notification schedule should start (defaults to today/now)
+ */
+export async function scheduleDailyBatteryCheckin(time: string = '20:00', startDate?: Date): Promise<void> {
   try {
-    // Cancel existing notification
+    // Cancel existing notification to ensure clean slate
     await Notifications.cancelScheduledNotificationAsync(DAILY_BATTERY_ID);
 
     // Check grace period before scheduling
     const gracePeriodCheck = await shouldSendSocialBatteryNotification();
     if (!gracePeriodCheck.shouldSend) {
-
+      Logger.info('[Notifications] Skipping daily battery check-in due to grace period:', gracePeriodCheck.reason);
       return;
     }
 
@@ -86,25 +92,63 @@ export async function scheduleDailyBatteryCheckin(time: string = '20:00'): Promi
       return;
     }
 
-    // Schedule new notification
-    await Notifications.scheduleNotificationAsync({
-      identifier: DAILY_BATTERY_ID,
-      content: {
-        title: "How's your energy today? 🌙",
-        body: "Take 10 seconds to check in with your social battery.",
-        data: { type: 'battery-checkin' },
-      },
-      trigger: {
-        hour,
-        minute,
-        repeats: true,
-      } as any,
-    });
+    // "Safety Net" Strategy: Batch Schedule for 14 Days
+    // This allows us to easily "skip today" by just not scheduling today's slot, 
+    // while maintaining reliability for the next 2 weeks even if app is not opened.
+    const BATCH_DAYS = 14;
+    const scheduleStart = startDate || new Date();
 
+    // Logic: Schedule for next 14 days, skipping days before startDate
+    for (let i = 0; i < BATCH_DAYS; i++) {
+      const targetDate = new Date();
+      targetDate.setDate(targetDate.getDate() + i);
+      targetDate.setHours(hour, minute, 0, 0);
+
+      // If target is in the past, skip
+      if (targetDate <= new Date()) continue;
+
+      // If target is before requested start date, skip (e.g. skip today)
+      if (startDate && targetDate < startDate) continue;
+
+      const id = `${DAILY_BATTERY_ID}-${targetDate.toDateString()}`; // Unique ID per day
+
+      // Schedule notification (overwrites if exists)
+      await Notifications.scheduleNotificationAsync({
+        identifier: id,
+        content: {
+          title: "How's your energy today? 🌙",
+          body: "Take 10 seconds to check in with your social battery.",
+          data: { type: 'battery-checkin' },
+        },
+        trigger: targetDate as any, // One-off accurate date
+      });
+    }
+
+    Logger.info(`[Notifications] Scheduled managed batch of battery check-ins starting ${scheduleStart.toDateString()}`);
 
   } catch (error) {
     Logger.error('Error scheduling daily battery check-in:', error);
   }
+}
+
+/**
+ * Reschedule battery check-in to start from tomorrow
+ * (Used when user checks in today to silence today's reminder but keep habit safe)
+ */
+export async function rescheduleDailyBatteryCheckinForTomorrow(time: string = '20:00'): Promise<void> {
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  tomorrow.setHours(0, 0, 0, 0); // Start of tomorrow
+
+  // Cancel the "Main" recurring ID if it exists (legacy cleanup)
+  await Notifications.cancelScheduledNotificationAsync(DAILY_BATTERY_ID);
+
+  // Also cancel TODAY's specific batch ID if it exists
+  const todayStr = new Date().toDateString();
+  await Notifications.cancelScheduledNotificationAsync(`${DAILY_BATTERY_ID}-${todayStr}`);
+
+  // Schedule batch starting tomorrow
+  await scheduleDailyBatteryCheckin(time, tomorrow);
 }
 
 /**
@@ -113,6 +157,16 @@ export async function scheduleDailyBatteryCheckin(time: string = '20:00'): Promi
 export async function cancelDailyBatteryCheckin(): Promise<void> {
   await Notifications.cancelScheduledNotificationAsync(DAILY_BATTERY_ID);
 
+  // Also clean up batch notifications? 
+  // If we want to fully disable, we should cancel all future ones.
+  // Since we use date-based IDs, we can't efficiently "cancel all starting with prefix" without fetching list.
+
+  const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+  for (const n of scheduled) {
+    if (n.identifier.startsWith(DAILY_BATTERY_ID)) {
+      await Notifications.cancelScheduledNotificationAsync(n.identifier);
+    }
+  }
 }
 
 /**
@@ -127,7 +181,22 @@ export async function updateBatteryNotificationFromProfile(): Promise<void> {
 
     if (profile.batteryCheckinEnabled) {
       const time = profile.batteryCheckinTime || '20:00';
-      await scheduleDailyBatteryCheckin(time);
+
+      // Determine start date based on last check-in
+      // If checked in TODAY, start TOMORROW.
+      // If NOT checked in today, start TODAY (if time hasn't passed) or TOMORROW (if time passed, handled by schedule logic)
+
+      let startDate = new Date();
+      if (profile.socialBatteryLastCheckin) {
+        const lastCheckin = new Date(profile.socialBatteryLastCheckin);
+        const today = new Date();
+        if (lastCheckin.toDateString() === today.toDateString()) {
+          // Already done today, start tomorrow
+          startDate.setDate(startDate.getDate() + 1);
+        }
+      }
+
+      await scheduleDailyBatteryCheckin(time, startDate);
     } else {
       await cancelDailyBatteryCheckin();
     }

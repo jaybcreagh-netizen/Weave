@@ -298,6 +298,17 @@ async function generateSmartSuggestions(): Promise<Suggestion[]> {
         }
 
         const lastInteraction = sortedInteractions[0];
+
+        // [Smart Deduplication] Skip friends you've interacted with in the last 24 hours
+        // This prevents the "I just spoke to them!" frustration
+        if (lastInteraction && lastInteraction.interactionDate) {
+          const hoursSince = (Date.now() - lastInteraction.interactionDate.getTime()) / (1000 * 60 * 60);
+          if (hoursSince < 24) {
+            // Logger.debug(`[Smart Notifications] Skipping ${friend.name} (interacted ${hoursSince.toFixed(1)}h ago)`);
+            continue;
+          }
+        }
+
         const currentScore = calculateCurrentScore(friend);
 
         // Calculate current momentum score
