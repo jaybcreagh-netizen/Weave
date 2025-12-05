@@ -101,7 +101,7 @@ export async function generateStressTestData(
           f.notes = `Generated friend from stress test. Tier: ${tier}, Archetype: ${archetype}.`;
           f.weaveScore = weaveScore;
           f.lastUpdated = new Date();
-          f.resilience = 0.5 + Math.random(); // 0.5 to 1.5
+          f.resilience = 0.8 + (Math.random() * 0.7); // 0.8 to 1.5
           f.ratedWeavesCount = Math.floor(Math.random() * 50);
           f.momentumScore = Math.random() > 0.6 ? Math.floor(Math.random() * 30) : 0;
           f.momentumLastUpdated = new Date();

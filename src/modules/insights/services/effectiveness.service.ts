@@ -7,6 +7,7 @@ import { applyDecay } from '../../intelligence/services/decay.service';
 import { InteractionCategory, Tier } from '@/shared/types/common';
 import { TierDecayRates } from '@/modules/intelligence/constants';
 import { EffectivenessInsights } from '../types';
+export type { EffectivenessInsights };
 
 /**
  * Captures the effectiveness outcome of a logged interaction

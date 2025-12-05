@@ -1,17 +1,21 @@
 // src/modules/relationships/hooks/useFriendActions.ts
-import { useRelationshipsStore } from '../store';
+import {
+  createFriend,
+  updateFriend,
+  deleteFriend,
+  batchAddFriends,
+} from '../services/friend.service';
+import { Tier } from '../types';
 
 export const useFriendActions = () => {
-  const {
-    addFriend,
-    updateFriend,
-    deleteFriend,
-    batchAddFriends,
-    batchDeleteFriends,
-  } = useRelationshipsStore();
+  const batchDeleteFriends = async (ids: string[]) => {
+    for (const id of ids) {
+      await deleteFriend(id);
+    }
+  };
 
   return {
-    addFriend,
+    addFriend: createFriend,
     updateFriend,
     deleteFriend,
     batchAddFriends,

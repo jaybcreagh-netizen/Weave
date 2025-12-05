@@ -10,7 +10,6 @@ import { SocialBatterySheet } from '@/components/home/SocialBatterySheet';
 import { ReflectionReadyPrompt } from '@/components/WeeklyReflection/ReflectionReadyPrompt';
 import { YearInMoonsModal } from '@/components/YearInMoons/YearInMoonsModal';
 import { useUserProfileStore } from '@/modules/auth';
-import { useRelationshipsStore } from '@/modules/relationships';
 import { getLastReflectionDate, shouldShowReflection } from '@/modules/notifications';
 import { getUserAccountAge } from '@/modules/notifications';
 import { useTutorialStore } from '@/stores/tutorialStore';
@@ -23,7 +22,6 @@ import { useUIStore } from '@/stores/uiStore';
  */
 export default function Home() {
   const { observeProfile, profile, submitBatteryCheckin, updateProfile } = useUserProfileStore();
-  const { observeFriends, friends } = useRelationshipsStore();
   const { openWeeklyReflection } = useUIStore();
   const theme = useTheme();
   const colors = theme?.colors || {};
@@ -61,19 +59,6 @@ export default function Home() {
       // Optionally show error toast to user
     }
   }, []);
-
-  // Initialize friends observable on mount (needed for Life Events widget)
-  useEffect(() => {
-    try {
-      observeFriends();
-      // Note: observeFriends doesn't return cleanup, it manages its own subscription
-    } catch (error) {
-      console.error('[Home] Failed to observe friends:', error);
-      // Optionally show error toast to user
-    }
-  }, []);
-
-
 
   // Check if user should be prompted for battery check-in
   // Wait until QuickWeave tutorial is complete before showing (avoid conflicts)

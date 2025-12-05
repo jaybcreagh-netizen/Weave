@@ -4,7 +4,7 @@ import { X, Check, Trash2 } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { CustomBottomSheet } from '@/shared/ui/Sheet/BottomSheet';
 import FriendModel from '@/db/models/Friend';
-import { useFriends } from '@/modules/relationships';
+import { useFriends } from '@/modules/relationships/hooks/useFriends';
 import { groupService } from '@/modules/groups';
 import Group from '@/db/models/Group';
 

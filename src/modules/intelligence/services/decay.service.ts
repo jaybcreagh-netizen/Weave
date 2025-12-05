@@ -37,7 +37,7 @@ export function applyDecay(
 
   // Guard against invalid resilience values (must be between 0.8 and 1.5)
   const safeResilience = Math.max(0.8, Math.min(1.5, friend.resilience || 1.0));
-  if (friend.resilience !== safeResilience) {
+  if (friend.resilience !== safeResilience && friend.resilience !== 0) {
     console.warn(`[Decay] Invalid resilience ${friend.resilience} for friend, using ${safeResilience}`);
   }
 

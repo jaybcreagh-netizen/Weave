@@ -59,14 +59,31 @@ class Logger {
             console.error(`[ERROR] ${message}`, error, ...args);
         } else {
             // In production, send to Sentry
-            if (error instanceof Error) {
-                Sentry.captureException(error, {
-                    extra: { message, args },
+            let actualError = error;
+            let finalMessage = message;
+            let extraArgs = args;
+
+            // Handle case where 'error' param is actually a context string (e.g. Logger.error('Tag', 'Message', realError))
+            if (!(actualError instanceof Error) && typeof actualError === 'string') {
+                finalMessage = `${message}: ${actualError}`;
+                // Try to find the real error in args
+                const errorIndex = args.findIndex(arg => arg instanceof Error);
+                if (errorIndex !== -1) {
+                    actualError = args[errorIndex];
+                    // Remove the error from args to avoid duplication in extra
+                    extraArgs = [...args];
+                    extraArgs.splice(errorIndex, 1);
+                }
+            }
+
+            if (actualError instanceof Error) {
+                Sentry.captureException(actualError, {
+                    extra: { message: finalMessage, args: extraArgs },
                 });
             } else {
-                Sentry.captureMessage(message, {
+                Sentry.captureMessage(finalMessage, {
                     level: 'error',
-                    extra: { error, args },
+                    extra: { error: actualError, args: extraArgs },
                 });
             }
         }

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { scanUpcomingEvents, scanRecentPastEvents, type ScannedEvent } from '@/modules/interactions';
+import { scanUpcomingEvents, scanRecentPastEvents, type ScannedEvent } from '../services/event-scanner';
 
 const DISMISSED_SUGGESTIONS_KEY = '@weave:dismissed_event_suggestions';
 const LAST_SCAN_KEY = '@weave:last_event_scan';

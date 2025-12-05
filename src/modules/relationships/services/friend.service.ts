@@ -20,7 +20,7 @@ export async function createFriend(data: FriendFormData): Promise<Friend> {
         friend.archetype = data.archetype;
         friend.photoUrl = data.photoUrl;
         friend.notes = data.notes;
-        friend.weaveScore = 50; // Start with a neutral score
+        friend.weaveScore = 50; // Start with a neutral score (Green)
         friend.lastUpdated = new Date();
         friend.birthday = data.birthday || undefined;
         friend.anniversary = data.anniversary || undefined;
@@ -132,6 +132,7 @@ export async function batchAddFriends(contacts: Array<{ name: string; photoUrl?:
             friend.notes = '';
             friend.weaveScore = 50;
             friend.lastUpdated = new Date();
+            console.log('[batchAddFriends] Creating friend:', friend.name, 'Score:', friend.weaveScore, 'LastUpdated:', friend.lastUpdated);
             friend.birthday = undefined;
             friend.anniversary = undefined;
             friend.relationshipType = undefined;

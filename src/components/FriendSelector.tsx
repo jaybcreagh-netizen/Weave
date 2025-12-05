@@ -5,7 +5,7 @@ import { CheckCircle, Circle, Search, X, Users, Plus } from 'lucide-react-native
 import { useTheme } from '@/shared/hooks/useTheme';
 import FriendModel from '@/db/models/Friend';
 import Group from '@/db/models/Group';
-import { useFriends } from '@/modules/relationships';
+import { useFriends } from '@/modules/relationships/hooks/useFriends';
 import { CustomBottomSheet } from '@/shared/ui/Sheet/BottomSheet';
 import { groupService } from '@/modules/groups';
 import { GroupManagerModal } from './groups/GroupManagerModal';

@@ -29,6 +29,7 @@ export default function FriendProfile() {
 
   const {
     friend,
+    friendModel,
     interactions,
     friendIntentions,
     activeLifeEvents,
@@ -200,7 +201,7 @@ export default function FriendProfile() {
   }
 
   // Show loading state until data is actually loaded (AFTER all hooks)
-  if (!isDataLoaded || !friend) {
+  if (!isDataLoaded || !friend || !friendModel) {
     return (
       <SafeAreaView style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
         <ActivityIndicator size="large" color={colors.primary} />
@@ -227,7 +228,7 @@ export default function FriendProfile() {
             ListHeaderComponent={
               <View>
                 <ProfileHeader
-                  friend={friend}
+                  friend={friendModel}
                   headerOpacity={headerOpacity}
                   onBack={() => {
                     if (router.canGoBack()) {

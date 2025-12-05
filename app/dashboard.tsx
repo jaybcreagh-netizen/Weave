@@ -38,6 +38,49 @@ export default function Dashboard() {
         }
     };
 
+    // Auto-repair specific logic for broken tiers (one-time check on mount)
+    // This fixes friends that were saved with "inner"/"close" instead of "InnerCircle"/"CloseFriends"
+    React.useEffect(() => {
+        const repairTiers = async () => {
+            const { database } = require('@/db');
+            const FriendModel = require('@/db/models/Friend').default;
+
+            const friendsToFix = await database.get('friends').query().fetch();
+            const updates: any[] = [];
+
+            for (const friend of friendsToFix) {
+                let needsFix = false;
+                let newTier = '';
+
+                if (friend.dunbarTier === 'inner') {
+                    needsFix = true;
+                    newTier = 'InnerCircle';
+                } else if (friend.dunbarTier === 'close') {
+                    needsFix = true;
+                    newTier = 'CloseFriends';
+                } else if (friend.dunbarTier === 'community') {
+                    needsFix = true;
+                    newTier = 'Community'; // Ensure capitalization if needed, though Community is usually correct
+                }
+
+                if (needsFix) {
+                    updates.push(friend.prepareUpdate((f: any) => {
+                        f.dunbarTier = newTier;
+                    }));
+                }
+            }
+
+            if (updates.length > 0) {
+                console.log(`Repaired ${updates.length} friends with incorrect tier values.`);
+                await database.write(async () => {
+                    await database.batch(...updates);
+                });
+            }
+        };
+
+        repairTiers();
+    }, []);
+
     return (
         <View style={{ flex: 1, backgroundColor: colors.background }}>
             <SafeAreaView style={styles.container} edges={['top']}>

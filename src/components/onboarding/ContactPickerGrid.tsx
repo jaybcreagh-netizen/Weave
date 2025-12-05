@@ -1,11 +1,14 @@
-/// <reference types="nativewind/types" />
-import React, { useState, useEffect } from 'react';
-import { View, Text, FlatList, TouchableOpacity, Image } from 'react-native';
+import React, { useState, useEffect, useMemo } from 'react';
+import { View, Text, FlatList, TouchableOpacity, Image, TextInput } from 'react-native';
 import { WeaveLoading } from '@/shared/components/WeaveLoading';
 import * as Contacts from 'expo-contacts';
-import { CheckCircle2, Users, Plus } from 'lucide-react-native';
+import { CheckCircle2, Users, Plus, Search, X } from 'lucide-react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
-import { normalizeContactImageUri } from '@/modules/relationships';
+import { normalizeContactImageUri } from '@/modules/relationships/utils/image.utils';
+
+// Consts for layout to prevent jumping
+const NUM_COLUMNS = 3;
+const ITEM_HEIGHT = 130; // Fixed height including padding
 
 interface ContactPickerGridProps {
   maxSelection: number;
@@ -51,7 +54,11 @@ const ContactItem = React.memo(({
   const shouldShowImage = item.imageAvailable && item.image && !imageError;
 
   return (
-    <TouchableOpacity onPress={onSelect} className="items-center p-3 w-1/3">
+    <TouchableOpacity
+      onPress={onSelect}
+      className="items-center p-2 w-1/3"
+      style={{ height: ITEM_HEIGHT }}
+    >
       <View className="relative">
         <View
           className={`w-20 h-20 rounded-full justify-center items-center ${isSelected ? 'bg-emerald-500 border-4 border-emerald-500' : colorClasses}`}>
@@ -63,10 +70,8 @@ const ContactItem = React.memo(({
                 resizeMode="cover"
                 onError={() => setImageError(true)}
                 onLoad={() => setImageLoaded(true)}
-                // Add cache control to prevent duplicate loads
                 fadeDuration={0}
               />
-              {/* Show initials while loading */}
               {!imageLoaded && (
                 <View className="absolute inset-0 justify-center items-center">
                   <Text className={`text-2xl font-semibold ${isSelected ? 'text-white' : ''}`}>
@@ -108,17 +113,16 @@ export function ContactPickerGrid({
   title = "Who's in your Inner Circle?",
   subtitle = "Select up to 3 people you trust the most."
 }: ContactPickerGridProps) {
-  const [contacts, setContacts] = useState<Contacts.Contact[]>([]);
+  const [allContacts, setAllContacts] = useState<Contacts.Contact[]>([]);
   const [selectedContactIds, setSelectedContactIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [permissionDenied, setPermissionDenied] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     (async () => {
-      // Check if already granted first
       let { status } = await Contacts.getPermissionsAsync();
 
-      // Only request if not already granted
       if (status !== 'granted') {
         const result = await Contacts.requestPermissionsAsync();
         status = result.status;
@@ -142,7 +146,7 @@ export function ContactPickerGrid({
         const sorted = data.sort((a, b) =>
           (a.name || '').localeCompare(b.name || '')
         );
-        setContacts(sorted);
+        setAllContacts(sorted);
       }
 
       setLoading(false);
@@ -150,23 +154,25 @@ export function ContactPickerGrid({
   }, []);
 
   useEffect(() => {
-    const selected = contacts.filter(c => c.id && selectedContactIds.includes(c.id));
+    const selected = allContacts.filter(c => c.id && selectedContactIds.includes(c.id));
     onSelectionChange(selected);
-  }, [selectedContactIds, contacts, onSelectionChange]);
+  }, [selectedContactIds, allContacts, onSelectionChange]);
+
+  const filteredContacts = useMemo(() => {
+    if (!searchQuery.trim()) return allContacts;
+    return allContacts.filter(c =>
+      (c.name || '').toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [allContacts, searchQuery]);
 
   const handleSelectContact = (contactId: string) => {
     setSelectedContactIds(prevSelectedIds => {
-      // Toggle off if already selected
       if (prevSelectedIds.includes(contactId)) {
         return prevSelectedIds.filter(id => id !== contactId);
       }
-
-      // If Single Select Mode (maxSelection === 1), replace selection
       if (maxSelection === 1) {
         return [contactId];
       }
-
-      // Multi Select Mode
       if (prevSelectedIds.length < maxSelection) {
         return [...prevSelectedIds, contactId];
       }
@@ -177,6 +183,7 @@ export function ContactPickerGrid({
   const handleAddManually = () => {
     onAddManually?.();
   };
+
   if (loading) {
     return (
       <View className="flex-1 justify-center items-center py-20">
@@ -203,36 +210,54 @@ export function ContactPickerGrid({
 
   return (
     <Animated.View className="flex-1" entering={FadeIn.duration(300)}>
-      <View className="pt-8 pb-4 px-6">
-        <Text className="text-2xl font-bold text-center text-gray-800 mb-2">{title}</Text>
+      <View className="pt-4 pb-4 px-6 bg-white z-10">
+        <Text className="text-2xl font-bold text-center text-gray-800 mb-1">{title}</Text>
         <Text className="text-base text-gray-600 text-center mb-4">{subtitle}</Text>
-        <TouchableOpacity onPress={handleAddManually} className="flex-row items-center justify-center bg-gray-100 p-3 rounded-lg">
+
+        {/* Search Bar */}
+        <View className="flex-row items-center bg-gray-100 rounded-xl px-4 py-2 mb-3">
+          <Search size={20} color="#6b7280" />
+          <TextInput
+            className="flex-1 ml-3 text-base text-gray-800 py-2"
+            placeholder="Search contacts..."
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            autoCorrect={false}
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchQuery('')}>
+              <X size={18} color="#9ca3af" />
+            </TouchableOpacity>
+          )}
+        </View>
+
+        <TouchableOpacity onPress={handleAddManually} className="flex-row items-center justify-center bg-gray-50 p-3 rounded-lg border border-gray-200">
           <Plus size={16} color="#374151" />
           <Text className="text-gray-700 font-medium ml-2">Add Manually</Text>
         </TouchableOpacity>
       </View>
 
-      <View className="px-4 py-3 bg-emerald-50 border-y border-emerald-100">
+      <View className="px-4 py-2 bg-emerald-50 border-y border-emerald-100">
         <Text className="text-sm text-emerald-700 text-center font-medium">
           {selectedContactIds.length} / {maxSelection} selected
         </Text>
       </View>
 
-      {contacts.length === 0 ? (
+      {filteredContacts.length === 0 ? (
         <View className="flex-1 justify-center items-center py-20 px-6">
           <Users size={48} color="#9ca3af" />
           <Text className="text-xl font-semibold text-gray-700 mt-4 text-center">
-            No Contacts Found
+            {searchQuery ? 'No matching contacts' : 'No Contacts Found'}
           </Text>
           <Text className="text-base text-gray-600 mt-2 text-center">
-            Add some contacts to your device first, or add one manually.
+            {searchQuery ? 'Try a different search term.' : 'Add some contacts to your device first.'}
           </Text>
         </View>
       ) : (
         <FlatList
-          data={contacts}
-          numColumns={3}
-          keyExtractor={(item) => item.id || Math.random().toString()}
+          data={filteredContacts}
+          numColumns={NUM_COLUMNS}
+          keyExtractor={(item) => item.id || `contact-${Math.random()}`}
           renderItem={({ item }) => (
             <ContactItem
               item={item}
@@ -241,14 +266,13 @@ export function ContactPickerGrid({
             />
           )}
           contentContainerStyle={{ paddingBottom: 90, paddingTop: 10 }}
-          // Performance optimizations
           removeClippedSubviews={true}
-          maxToRenderPerBatch={15}
+          maxToRenderPerBatch={10}
           initialNumToRender={15}
-          windowSize={7}
+          windowSize={5}
           getItemLayout={(data, index) => ({
-            length: 120, // Approximate height of each item (avatar + name)
-            offset: 120 * Math.floor(index / 3), // 3 columns
+            length: ITEM_HEIGHT,
+            offset: ITEM_HEIGHT * Math.floor(index / NUM_COLUMNS),
             index,
           })}
         />

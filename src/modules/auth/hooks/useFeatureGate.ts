@@ -3,7 +3,7 @@
  * Easy-to-use React hook for checking feature access and limits
  */
 
-import { useAuthStore } from '@/modules/auth';
+import { useAuthStore } from '../store/auth.store';
 import {
   hasFeatureAccess,
   isAtLimit,
@@ -11,7 +11,7 @@ import {
   getUpgradeMessage,
   TIER_LIMITS,
   type SubscriptionTier,
-} from '@/modules/auth';
+} from '../services/subscription-tiers';
 import { Alert } from 'react-native';
 import { router } from 'expo-router';
 
@@ -193,7 +193,7 @@ export function useCanPerformAction(
     default:
       return {
         canPerform: true,
-        showBlocker: () => {},
+        showBlocker: () => { },
       };
   }
 }

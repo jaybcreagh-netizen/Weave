@@ -6,7 +6,7 @@ import FriendModel from '@/db/models/Friend';
 import Interaction from '@/db/models/Interaction';
 import InteractionFriend from '@/db/models/InteractionFriend';
 import { Q } from '@nozbe/watermelondb';
-import { calculateCurrentScore } from '@/modules/intelligence';
+import { calculateCurrentScore } from './orchestrator.service';
 import { type Friend } from '@/components/types';
 import { HydratedFriend, HydratedLifeEvent } from '@/types/hydrated';
 

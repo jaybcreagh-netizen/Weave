@@ -3,7 +3,6 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { HomeWidgetBase, HomeWidgetConfig } from '../HomeWidgetBase';
 import { useUserProfileStore } from '@/modules/auth';
-import { useFriends } from '@/modules/relationships';
 import { useInteractions } from '@/modules/interactions';
 import {
     calculateSocialSeason,
@@ -19,7 +18,9 @@ import {
 } from '@/modules/intelligence';
 import { database } from '@/db';
 import Interaction from '@/db/models/Interaction';
+import FriendModel from '@/db/models/Friend';
 import { Q } from '@nozbe/watermelondb';
+import withObservables from '@nozbe/with-observables';
 import { startOfDay, subDays } from 'date-fns';
 import { SeasonIcon } from '@/components/SeasonIcon';
 import { SocialSeasonDetailSheet } from '@/components/SocialSeasonDetailSheet';
@@ -32,10 +33,13 @@ const WIDGET_CONFIG: HomeWidgetConfig = {
     fullWidth: true,
 };
 
-export const SocialSeasonWidgetV2: React.FC = () => {
+interface SocialSeasonWidgetProps {
+    friends: FriendModel[];
+}
+
+const SocialSeasonWidgetContent: React.FC<SocialSeasonWidgetProps> = ({ friends }) => {
     const { tokens, typography, spacing } = useTheme();
     const { profile, updateSocialSeason, batteryStats } = useUserProfileStore();
-    const friends = useFriends();
     const { allInteractions } = useInteractions();
 
     const [isCalculating, setIsCalculating] = useState(false);
@@ -210,6 +214,12 @@ export const SocialSeasonWidgetV2: React.FC = () => {
         </>
     );
 };
+
+const enhance = withObservables([], () => ({
+    friends: database.get<FriendModel>('friends').query().observe(),
+}));
+
+export const SocialSeasonWidgetV2 = enhance(SocialSeasonWidgetContent);
 
 const styles = StyleSheet.create({
     container: {

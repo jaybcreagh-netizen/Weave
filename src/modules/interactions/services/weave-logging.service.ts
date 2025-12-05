@@ -3,16 +3,19 @@ import { Q } from '@nozbe/watermelondb';
 import FriendModel from '@/db/models/Friend';
 import Interaction from '@/db/models/Interaction';
 import InteractionFriend from '@/db/models/InteractionFriend';
-import { processWeaveScoring } from '@/modules/intelligence';
-import { checkAndAwardFriendBadges, checkAndAwardGlobalAchievements, recordPractice } from '@/modules/gamification';
+import { processWeaveScoring } from '@/modules/intelligence/services/orchestrator.service';
+import { checkAndAwardFriendBadges } from '@/modules/gamification/services/badge.service';
+import { checkAndAwardGlobalAchievements } from '@/modules/gamification/services/achievement.service';
+import { recordPractice } from '@/modules/gamification/services/milestone-tracker.service';
 import { InteractionFormData } from '../types';
 import { WeaveLogSchema } from '@/shared/types/validators';
 
 // TODO: These should be moved to the insights module
 import { trackEvent, AnalyticsEvents, updateLastInteractionTimestamp } from '@/shared/services/analytics.service';
-import { analyzeAndTagLifeEvents } from '@/modules/relationships';
+import { analyzeAndTagLifeEvents } from '@/modules/relationships/services/life-event-detection';
 import { deleteWeaveCalendarEvent } from './calendar.service';
-import { checkTierSuggestionAfterInteraction, updateTierFit } from '@/modules/insights';
+import { checkTierSuggestionAfterInteraction } from '@/modules/insights/services/tier-suggestion-engine.service';
+import { updateTierFit } from '@/modules/insights/services/tier-management.service';
 import Logger from '@/shared/utils/Logger';
 
 export async function logWeave(data: InteractionFormData): Promise<Interaction> {

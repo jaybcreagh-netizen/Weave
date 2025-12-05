@@ -8,7 +8,7 @@ import {
   matchHolidayDate,
   type EventType,
   type EventImportance,
-} from '@/modules/reflection';
+} from '@/modules/reflection/services/keyword-dictionary';
 import { checkCalendarPermissions, getCalendarSettings } from './calendar.service';
 import { type InteractionCategory } from '@/components/types';
 import Logger from '@/shared/utils/Logger';

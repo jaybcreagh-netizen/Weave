@@ -5,13 +5,12 @@ import { differenceInDays, format } from 'date-fns';
 import { Check, Clock, ChevronRight, Sparkles, Calendar, CheckCircle2 } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { HomeWidgetBase, HomeWidgetConfig } from '../HomeWidgetBase';
-import { useRelationshipsStore } from '@/modules/relationships';
 import { useSuggestions, useInteractions, usePlans } from '@/modules/interactions';
-import { useUserProfileStore } from '@/modules/auth';
 import { useUIStore } from '@/stores/uiStore';
 import { database } from '@/db';
 import LifeEvent from '@/db/models/LifeEvent';
 import { Q } from '@nozbe/watermelondb';
+import withObservables from '@nozbe/with-observables';
 import Interaction from '@/db/models/Interaction';
 import { Card } from '@/components/ui/Card';
 import { WidgetHeader } from '@/components/ui/WidgetHeader';
@@ -36,10 +35,13 @@ interface UpcomingDate {
     importance?: 'low' | 'medium' | 'high' | 'critical';
 }
 
-export const TodaysFocusWidgetV2: React.FC = () => {
+interface TodaysFocusWidgetProps {
+    friends: FriendModel[];
+}
+
+const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = ({ friends }) => {
     const { tokens, typography, spacing } = useTheme();
     const router = useRouter();
-    const { friends } = useRelationshipsStore();
     const { suggestions } = useSuggestions();
     const { allInteractions: interactions } = useInteractions();
     const { completePlan } = usePlans();
@@ -360,6 +362,12 @@ export const TodaysFocusWidgetV2: React.FC = () => {
         </>
     );
 };
+
+const enhance = withObservables([], () => ({
+    friends: database.get<FriendModel>('friends').query().observe(),
+}));
+
+export const TodaysFocusWidgetV2 = enhance(TodaysFocusWidgetContent);
 
 const styles = StyleSheet.create({
     actions: {

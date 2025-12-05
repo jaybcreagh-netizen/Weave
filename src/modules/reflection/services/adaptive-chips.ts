@@ -11,7 +11,7 @@
 import { database } from '@/db';
 import CustomChip from '@/db/models/CustomChip';
 import ChipUsage from '@/db/models/ChipUsage';
-import { incrementUsage } from '@/modules/reflection';
+import { incrementUsage } from './custom-chip.service';
 import Interaction from '@/db/models/Interaction';
 import FriendModel from '@/db/models/Friend';
 import { calculateChipFrequency, suggestCustomChip, createCustomChip, type StoryChip, type ChipType } from './story-chips.service';

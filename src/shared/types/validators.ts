@@ -37,7 +37,7 @@ export const FriendSchema = z.object({
   createdAt: z.date(),
   photoUrl: z.string().optional(),
   notes: z.string().optional(),
-  resilience: z.number().default(0),
+  resilience: z.number().default(1.0),
   ratedWeavesCount: z.number().default(0),
   momentumScore: z.number().default(0),
   momentumLastUpdated: z.date(),

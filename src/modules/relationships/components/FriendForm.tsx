@@ -6,7 +6,8 @@ import * as Contacts from 'expo-contacts';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/shared/hooks/useTheme';
-import { useFriends } from '../hooks/useFriends';
+import { database } from '@/db';
+import { Q } from '@nozbe/watermelondb';
 import FriendModel from '@/db/models/Friend';
 import { type Archetype, type FriendFormData, type Tier, type RelationshipType } from '@/components/types';
 import { ArchetypeCard } from '@/components/archetype-card';
@@ -32,7 +33,6 @@ interface FriendFormProps {
 export function FriendForm({ onSave, friend, initialTier, fromOnboarding, onSkip }: FriendFormProps) {
   const router = useRouter();
   const { colors } = useTheme(); // Use the hook
-  const allFriends = useFriends(); // Get all friends to check tier counts
 
   // Tutorial state - simple approach
   const hasAddedFirstFriend = useTutorialStore((state) => state.hasAddedFirstFriend);
@@ -80,19 +80,44 @@ export function FriendForm({ onSave, friend, initialTier, fromOnboarding, onSkip
   const [showContactPicker, setShowContactPicker] = useState(false);
   const [showCapacityWarning, setShowCapacityWarning] = useState(false);
 
-  // Calculate current tier counts
-  const tierCounts = useMemo(() => {
-    const counts = { inner: 0, close: 0, community: 0 };
-    allFriends.forEach(f => {
-      if (f.isDormant) return; // Don't count dormant friends
-      // Skip the current friend being edited
-      if (friend && f.id === friend.id) return;
+  // State for tier counts
+  const [tierCounts, setTierCounts] = useState({ inner: 0, close: 0, community: 0 });
+  const [allFriendNames, setAllFriendNames] = useState<string[]>([]);
 
-      const tier = getFormTier(f.dunbarTier);
-      counts[tier as keyof typeof counts]++;
-    });
-    return counts;
-  }, [allFriends, friend]);
+  // Fetch friend data for validation/capacity
+  useEffect(() => {
+    const fetchFriendData = async () => {
+      try {
+        const friends = await database.get<FriendModel>('friends').query().fetch();
+
+        const counts = { inner: 0, close: 0, community: 0 };
+        const names: string[] = [];
+
+        friends.forEach(f => {
+          if (f.isDormant) return;
+
+          // Add to names list for duplicate check (excluding current friend)
+          if (!friend || f.id !== friend.id) {
+            names.push(f.name);
+          }
+
+          // Skip counting the current friend for capacity if we are editing them
+          // But we DO want to know the *other* friends in the tier to see if there's room
+          if (friend && f.id === friend.id) return;
+
+          const tier = getFormTier(f.dunbarTier);
+          counts[tier as keyof typeof counts]++;
+        });
+
+        setTierCounts(counts);
+        setAllFriendNames(names);
+      } catch (e) {
+        console.error("Error fetching friend data for form:", e);
+      }
+    };
+
+    fetchFriendData();
+  }, [friend]);
 
   // Reset image error when friend changes or photoUrl updates
   useEffect(() => {
@@ -112,10 +137,9 @@ export function FriendForm({ onSave, friend, initialTier, fromOnboarding, onSkip
 
   const checkDuplicateName = (name: string): boolean => {
     if (!name.trim()) return false;
-    // Check if name already exists (case-insensitive), excluding current friend
-    const isDuplicate = allFriends.some(f =>
-      f.name.toLowerCase() === name.trim().toLowerCase() &&
-      f.id !== friend?.id
+    // Check if name already exists (case-insensitive) using the fetched names list
+    const isDuplicate = allFriendNames.some(existingName =>
+      existingName.toLowerCase() === name.trim().toLowerCase()
     );
     return isDuplicate;
   };

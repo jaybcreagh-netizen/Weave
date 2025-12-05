@@ -7,7 +7,7 @@ import {
   getAllLearnedEffectiveness,
   analyzeEffectiveness,
   type EffectivenessInsights,
-} from '@/modules/insights';
+} from '../services/effectiveness.service';
 import { InteractionCategory } from '@/types/suggestions';
 
 /**

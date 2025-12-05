@@ -42,6 +42,7 @@ import { generateStressTestData, clearStressTestData, getDataStats } from '@/db/
 import { CustomBottomSheet } from '@/shared/ui/Sheet/BottomSheet';
 import { AutoBackupService } from '@/modules/backup/AutoBackupService';
 import { DataWipeService } from '@/modules/data-management/DataWipeService';
+import { DiagnosticService } from '@/services/diagnostic.service';
 
 
 interface SettingsModalProps {
@@ -142,6 +143,7 @@ export function SettingsModal({
 
   // Friend Management state
   const [showFriendManagement, setShowFriendManagement] = useState(false);
+  const [isScanning, setIsScanning] = useState(false);
 
   // Auto Backup state
   const [autoBackupEnabled, setAutoBackupEnabled] = useState(false);
@@ -694,6 +696,51 @@ export function SettingsModal({
     } catch (error) {
       console.error('Failed to check stress test data:', error);
       Alert.alert('Error', 'Failed to check stress test data.');
+    }
+  };
+
+  const handleRunDiagnostics = async () => {
+    setIsScanning(true);
+    // Alert.alert('Running Diagnostics', 'Scanning database for anomalies...');
+
+    // Tiny delay to allow UI to update and user to perceive action
+    await new Promise(resolve => setTimeout(resolve, 800));
+
+    try {
+      const report = await DiagnosticService.runScan();
+      setIsScanning(false);
+
+      const issueSummary = report.issues.length > 0
+        ? report.issues.map(i => `• [${i.severity.toUpperCase()}] ${i.description}`).join('\n')
+        : 'No issues found.';
+
+      Alert.alert(
+        'Diagnostic Report',
+        `Scan complete in ${report.scanDurationMs}ms.\n\nIssues Found: ${report.totalIssues}\n\n${issueSummary}`,
+        [
+          { text: 'OK' },
+          report.totalIssues > 0 ? {
+            text: 'Attempt Fix',
+            onPress: () => {
+              Alert.alert('Fix Orphans', 'Attempting to remove orphaned links...', [
+                {
+                  text: 'Proceed',
+                  style: 'destructive',
+                  onPress: async () => {
+                    const fixed = await DiagnosticService.fixOrphans(report.issues);
+                    Alert.alert('Fix Complete', `Removed ${fixed} orphaned records.`);
+                  }
+                },
+                { text: 'Cancel', style: 'cancel' }
+              ]);
+            }
+          } : { text: '' } // no-op if no issues
+        ].filter(b => b.text)
+      );
+    } catch (error) {
+      setIsScanning(false);
+      console.error('Diagnostic run failed:', error);
+      Alert.alert('Error', 'Diagnostic scan failed.');
     }
   };
 
@@ -1445,6 +1492,31 @@ export function SettingsModal({
               <View>
                 <Text className="text-base font-inter-medium" style={{ color: colors.foreground }}>Clear Test Data</Text>
                 <Text className="text-sm font-inter-regular" style={{ color: colors['muted-foreground'] }}>Remove stress test friends</Text>
+              </View>
+            </View>
+          </TouchableOpacity>
+
+          <View className="border-t border-border" style={{ borderColor: colors.border }} />
+
+          {/* Diagnostic Scan */}
+          <TouchableOpacity
+            className="flex-row items-center justify-between"
+            onPress={handleRunDiagnostics}
+            disabled={isScanning}
+          >
+            <View className="flex-row items-center gap-3">
+              <View className="w-10 h-10 rounded-lg items-center justify-center" style={{ backgroundColor: isScanning ? colors.muted : colors.muted }}>
+                {isScanning ? (
+                  <RefreshCw color={colors.foreground} size={20} className="animate-spin" />
+                ) : (
+                  <Shield color={colors.foreground} size={20} />
+                )}
+              </View>
+              <View>
+                <Text className="text-base font-inter-medium" style={{ color: isScanning ? colors['muted-foreground'] : colors.foreground }}>
+                  {isScanning ? 'Scanning Database...' : 'Scan Database'}
+                </Text>
+                <Text className="text-sm font-inter-regular" style={{ color: colors['muted-foreground'] }}>Check for data anomalies</Text>
               </View>
             </View>
           </TouchableOpacity>

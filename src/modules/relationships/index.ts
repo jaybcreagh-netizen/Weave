@@ -3,7 +3,7 @@ export { useFriends } from './hooks/useFriends';
 export { useFriendActions } from './hooks/useFriendActions';
 export { useFriendProfileData } from './hooks/useFriendProfileData';
 export { useFriendTimeline } from './hooks/useFriendTimeline';
-export { useRelationshipsStore } from './store';
+
 export * from './types';
 export {
   createFriend,

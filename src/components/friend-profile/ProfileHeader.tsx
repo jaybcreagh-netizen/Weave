@@ -6,10 +6,10 @@ import { FriendListRow, FriendListRowContent } from '@/modules/relationships';
 import { PatternBadge } from '@/components/PatternBadge';
 import { TierFitCard } from '@/modules/insights';
 import { useTheme } from '@/shared/hooks/useTheme';
-import { Friend } from '@/components/types';
+import FriendModel from '@/db/models/Friend';
 
 interface ProfileHeaderProps {
-    friend: Friend;
+    friend: FriendModel;
     headerOpacity: SharedValue<number>;
     onBack: () => void;
     onEdit: () => void;

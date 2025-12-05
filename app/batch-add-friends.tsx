@@ -4,22 +4,23 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as Contacts from 'expo-contacts';
 import { ArrowLeft, Check, Search } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
-import { useRelationshipsStore } from '@/modules/relationships';
 import { useTheme } from '@/shared/hooks/useTheme';
-import { normalizeContactImageUri } from '@/modules/relationships';
+import { normalizeContactImageUri, batchAddFriends } from '@/modules/relationships';
+import { database } from '@/db';
+import FriendModel from '@/db/models/Friend';
+import { DuplicateResolverModal } from '@/components/DuplicateResolverModal';
 
 export default function BatchAddFriends() {
   const router = useRouter();
   const { tier } = useLocalSearchParams<{ tier: 'inner' | 'close' | 'community' }>();
   const { colors } = useTheme();
-  const { batchAddFriends } = useRelationshipsStore();
 
   const [selectedContacts, setSelectedContacts] = useState<Contacts.Contact[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showResolver, setShowResolver] = useState(false);
+  const [conflicts, setConflicts] = useState<any[]>([]);
 
-  const handleSubmit = async () => {
-    if (selectedContacts.length === 0) return;
-
+  const processBatchAdd = async (contactsToAdd: Array<{ name: string; photoUrl: string; contactId?: string }>) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setIsSubmitting(true);
 
@@ -30,15 +31,12 @@ export default function BatchAddFriends() {
         close: 'CloseFriends',
         community: 'Community',
       };
+      const dbTier = tierMap[tier as 'inner' | 'close' | 'community'] || 'CloseFriends';
 
+      // Use the service function to add friends (handles all defaults correctly)
       await batchAddFriends(
-        selectedContacts.map(contact => ({
-          name: contact.name || 'Unknown',
-          photoUrl: contact.imageAvailable && contact.image
-            ? normalizeContactImageUri(contact.image.uri)
-            : undefined,
-        })),
-        tierMap[tier as 'inner' | 'close' | 'community'] as 'InnerCircle' | 'CloseFriends' | 'Community'
+        contactsToAdd.map(c => ({ name: c.name, photoUrl: c.photoUrl })),
+        dbTier
       );
 
       if (router.canGoBack()) {
@@ -49,6 +47,103 @@ export default function BatchAddFriends() {
     } catch (error) {
       console.error('Error batch adding friends:', error);
       setIsSubmitting(false);
+    }
+  };
+
+  const handleResolveConflicts = (resolutions: Array<{ contactId: string; newName: string; skipped: boolean }>) => {
+    setShowResolver(false);
+
+    const finalContacts: Array<{ name: string; photoUrl: string; contactId?: string }> = [];
+
+    // Process all selected contacts
+    selectedContacts.forEach(contact => {
+      const resolution = resolutions.find(r => r.contactId === contact.id);
+
+      // If this contact had a resolution
+      if (resolution) {
+        if (!resolution.skipped) {
+          finalContacts.push({
+            name: resolution.newName || 'Unknown', // Use the new resolved name
+            photoUrl: (contact.imageAvailable && contact.image ? normalizeContactImageUri(contact.image.uri) : '') || '',
+            contactId: contact.id,
+          });
+        }
+      } else {
+        // No resolution needed (wasn't a conflict), add as is
+        // BUT wait, we need to make sure we don't add duplicates that WEREN'T resolved because they were the "first" occurrence
+        // Actually, my checkConflicts logic below flags subsequent duplicates.
+        // If I have "Alex" (existing) and I select "Alex" (new), that's a conflict.
+
+        // However, if I select "Alex" (id: 1) and "Alex" (id: 2).
+        // My check logic will flag one of them.
+
+        // Let's refine the logic: checkConflicts returns a list of contacts that HAVE issues.
+        // Contacts NOT in that list are safe to add AS IS.
+
+        const isConflict = conflicts.some(c => c.contact.id === contact.id);
+        if (!isConflict) {
+          finalContacts.push({
+            name: contact.name || 'Unknown',
+            photoUrl: (contact.imageAvailable && contact.image ? normalizeContactImageUri(contact.image.uri) : '') || '',
+            contactId: contact.id,
+          });
+        }
+      }
+    });
+
+    if (finalContacts.length > 0) {
+      processBatchAdd(finalContacts);
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (selectedContacts.length === 0) return;
+
+    // 1. Check for conflicts
+    const existingFriends = await database.get<FriendModel>('friends').query().fetch();
+    const existingNames = new Set(existingFriends.map(f => (f.name || '').toLowerCase().trim()));
+
+    const newConflicts: any[] = [];
+    const seenNamesInBatch = new Set<string>(); // Track names in this batch to detect internal duplicates
+
+    for (const contact of selectedContacts) {
+      const name = (contact.name || 'Unknown').trim();
+      const lowerName = name.toLowerCase();
+
+      let type: 'existing_friend' | 'batch_duplicate' | null = null;
+      let suggestedName = name;
+
+      if (existingNames.has(lowerName)) {
+        type = 'existing_friend';
+        suggestedName = `${name} 2`; // Simple suggestion
+      } else if (seenNamesInBatch.has(lowerName)) {
+        type = 'batch_duplicate';
+        suggestedName = `${name} ${seenNamesInBatch.size + 1}`; // e.g. Alex 2
+      } else {
+        seenNamesInBatch.add(lowerName);
+      }
+
+      if (type) {
+        newConflicts.push({
+          contact,
+          type,
+          originalName: name,
+          suggestedName,
+        });
+      }
+    }
+
+    if (newConflicts.length > 0) {
+      setConflicts(newConflicts);
+      setShowResolver(true);
+    } else {
+      // No conflicts, proceed immediately
+      const contactsToAdd = selectedContacts.map(c => ({
+        name: c.name || 'Unknown',
+        photoUrl: (c.imageAvailable && c.image ? normalizeContactImageUri(c.image.uri) : '') || '',
+        contactId: c.id,
+      }));
+      processBatchAdd(contactsToAdd);
     }
   };
 
@@ -103,6 +198,12 @@ export default function BatchAddFriends() {
           </Text>
         </View>
       )}
+      <DuplicateResolverModal
+        isVisible={showResolver}
+        conflicts={conflicts}
+        onResolve={handleResolveConflicts}
+        onCancel={() => setShowResolver(false)}
+      />
     </SafeAreaView>
   );
 }

@@ -25,7 +25,7 @@ import {
 } from 'lucide-react-native';
 
 import { useUIStore } from '@/stores/uiStore';
-import { useFriends } from '@/modules/relationships';
+import { useFriends } from '@/modules/relationships/hooks/useFriends';
 import { useCardGesture } from '@/context/CardGestureContext';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { InteractionCategory } from '@/components/types';

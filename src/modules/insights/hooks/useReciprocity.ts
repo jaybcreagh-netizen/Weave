@@ -9,7 +9,7 @@ import {
   calculateReciprocityScore,
   type ReciprocityAnalysis,
   type ImbalanceLevel,
-} from '@/modules/insights';
+} from '../services/reciprocity.service';
 
 /**
  * Hook to get reciprocity analysis for a specific friend

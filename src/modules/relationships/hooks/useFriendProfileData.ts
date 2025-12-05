@@ -1,5 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useRelationshipsStore } from '@/modules/relationships';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useInteractions, usePlans } from '@/modules/interactions';
 import { database } from '@/db';
 import { Q } from '@nozbe/watermelondb';
@@ -10,29 +9,72 @@ import { Friend, Interaction, LifeEvent, Intention } from '@/components/types';
 import { switchMap } from 'rxjs/operators';
 import { of } from 'rxjs';
 import IntentionFriend from '@/db/models/IntentionFriend';
+import FriendModel from '@/db/models/Friend';
+import InteractionModel from '@/db/models/Interaction';
+import { useRouter } from 'expo-router';
 
 export function useFriendProfileData(friendId: string | undefined) {
-    const {
-        activeFriend: friendModel,
-        activeFriendInteractions: interactionsModels,
-        observeFriend,
-        unobserveFriend,
-        loadMoreInteractions,
-        hasMoreInteractions,
-        deleteFriend
-    } = useRelationshipsStore();
-
+    const router = useRouter();
     const { deleteWeave, updateReflection, updateInteraction } = useInteractions();
     const { createIntention, dismissIntention } = usePlans();
 
     const [isDataLoaded, setIsDataLoaded] = useState(false);
     const [activeLifeEvents, setActiveLifeEvents] = useState<LifeEvent[]>([]);
     const [isLoadingMore, setIsLoadingMore] = useState(false);
+    const [interactionsLimit, setInteractionsLimit] = useState(20);
 
+    const [friendModel, setFriendModel] = useState<FriendModel | null>(null);
+    const [interactionsModels, setInteractionsModels] = useState<InteractionModel[]>([]);
     const [friendIntentionsModels, setFriendIntentionsModels] = useState<IntentionModel[]>([]);
+    const [hasMoreInteractions, setHasMoreInteractions] = useState(false);
 
-    // ... inside the component ...
+    // Observe Friend
+    useEffect(() => {
+        if (!friendId || typeof friendId !== 'string') {
+            setFriendModel(null);
+            return;
+        }
 
+        const subscription = database.get<FriendModel>('friends')
+            .findAndObserve(friendId)
+            .subscribe({
+                next: (friend) => {
+                    setFriendModel(friend);
+                    setIsDataLoaded(true);
+                },
+                error: (error) => {
+                    // If friend is deleted or not found
+                    console.log('Error observing friend or friend deleted:', error);
+                    setFriendModel(null);
+                }
+            });
+
+        return () => subscription.unsubscribe();
+    }, [friendId]);
+
+    // Observe Interactions
+    useEffect(() => {
+        if (!friendId || typeof friendId !== 'string') return;
+
+        // Create the query
+        const query = database.get<InteractionModel>('interactions')
+            .query(
+                Q.on('interaction_friends', 'friend_id', friendId),
+                Q.sortBy('interaction_date', Q.desc),
+                Q.take(interactionsLimit)
+            );
+
+        const subscription = query.observe().subscribe(interactions => {
+            setInteractionsModels(interactions);
+            // Simple check for "has more": if we got as many as the limit, assume there might be more.
+            // A perfect check would require a count query, but this is a reasonable heuristic for now.
+            setHasMoreInteractions(interactions.length >= interactionsLimit);
+        });
+
+        return () => subscription.unsubscribe();
+    }, [friendId, interactionsLimit]);
+
+    // Observe Intentions
     useEffect(() => {
         if (!friendId || typeof friendId !== 'string') {
             setFriendIntentionsModels([]);
@@ -40,7 +82,6 @@ export function useFriendProfileData(friendId: string | undefined) {
         }
 
         // Manual many-to-many query to ensure reactivity
-        // Q.on is known to be flaky with complex joins in some WatermelonDB versions
         const subscription = database.get<IntentionFriend>('intention_friends')
             .query(Q.where('friend_id', friendId))
             .observe()
@@ -159,38 +200,37 @@ export function useFriendProfileData(friendId: string | undefined) {
 
     useEffect(() => {
         if (friendId && typeof friendId === 'string') {
-            setIsDataLoaded(false);
-            observeFriend(friendId);
             loadLifeEvents(friendId);
         }
-        return () => {
-            unobserveFriend();
-        };
-    }, [friendId, observeFriend, unobserveFriend, loadLifeEvents]);
+    }, [friendId, loadLifeEvents]);
 
-    useEffect(() => {
-        if (friendModel && friendModel.id === friendId && interactionsModels !== undefined) {
-            const timer = setTimeout(() => {
-                setIsDataLoaded(true);
-            }, 150);
-            return () => clearTimeout(timer);
-        }
-    }, [friendModel, interactionsModels, friendId]);
 
     const handleLoadMore = useCallback(async () => {
         if (isLoadingMore || !hasMoreInteractions) return;
         setIsLoadingMore(true);
+        // Just increase the limit to fetch more
+        setInteractionsLimit(prev => prev + 20);
+        setIsLoadingMore(false);
+    }, [isLoadingMore, hasMoreInteractions]);
+
+    const deleteFriend = useCallback(async (id: string) => {
         try {
-            await loadMoreInteractions();
-        } catch (error) {
-            console.error('Error loading more interactions:', error);
-        } finally {
-            setIsLoadingMore(false);
+            if (friendModel && friendModel.id === id) {
+                await database.write(async () => {
+                    await friendModel.destroyPermanently();
+                });
+                // Navigation back is handled by the caller or simple reactivity will show "Friend deleted"
+            }
+        } catch (e) {
+            console.error("Error deleting friend", e);
+            throw e;
         }
-    }, [isLoadingMore, hasMoreInteractions, loadMoreInteractions]);
+    }, [friendModel]);
+
 
     return {
         friend,
+        friendModel, // Expose the raw model for reactive components
         interactions,
         friendIntentions,
         activeLifeEvents,

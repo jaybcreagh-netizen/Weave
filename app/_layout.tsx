@@ -21,9 +21,8 @@ import { useUIStore } from '@/stores/uiStore';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { SyncConflictModal } from '@/modules/auth/components/SyncConflictModal';
 
-import { initializeDataMigrations, initializeUserProfile, initializeUserProgress } from '@/db';
+import { initializeDataMigrations, initializeUserProfile, initializeUserProgress, database } from '@/db';
 import { useAppStateChange } from '@/shared/hooks/useAppState';
-import { useRelationshipsStore } from '@/modules/relationships';
 import { useTutorialStore } from '@/stores/tutorialStore';
 import {
   initializeNotifications,
@@ -189,22 +188,21 @@ function RootLayoutContent() {
   useEffect(() => {
     if (!dataLoaded) return;
 
-    const checkFriendsLoaded = () => {
-      const friends = useRelationshipsStore.getState().friends;
-      // Mark UI as mounted once we have friends data (even if empty)
-      // Give a small delay to ensure lists are rendered
-      if (friends !== null) {
+    const checkFriendsLoaded = async () => {
+      // Just check if we can query the database, effectively
+      try {
+        await database.get('friends').query().fetchCount();
         setTimeout(() => {
           setUiMounted(true);
-        }, 300); // Small delay to ensure UI is painted
+        }, 300);
+      } catch (e) {
+        console.error('Failed to check friends', e);
+        // Fallback
+        setUiMounted(true);
       }
     };
 
-    // Subscribe to friend store
-    const unsubscribe = useRelationshipsStore.subscribe(checkFriendsLoaded);
-    checkFriendsLoaded(); // Check immediately
-
-    return () => unsubscribe();
+    checkFriendsLoaded();
   }, [dataLoaded]);
 
   // Fade in content when UI is mounted
@@ -258,19 +256,6 @@ function RootLayoutContent() {
       trackEvent(AnalyticsEvents.APP_BACKGROUNDED);
     }
   });
-
-  // Initialize app state listeners for stores (battery optimization)
-  useEffect(() => {
-
-    const initializeAppStateListener = useRelationshipsStore.getState().initializeAppStateListener;
-    initializeAppStateListener();
-
-    // Cleanup on unmount (though app layout rarely unmounts)
-    return () => {
-      const cleanupAppStateListener = useRelationshipsStore.getState().cleanupAppStateListener;
-      cleanupAppStateListener();
-    };
-  }, []);
 
   // Initialize all notification systems (battery, events, deepening, reflection)
   useEffect(() => {

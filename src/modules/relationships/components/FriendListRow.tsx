@@ -41,7 +41,7 @@ const RELATIONSHIP_ICONS: Record<RelationshipType, string> = {
 };
 
 interface FriendListRowProps {
-  friend: FriendModel | Friend;
+  friend: FriendModel;
   animatedRef?: React.RefObject<Animated.View>;
   variant?: 'default' | 'full';
 }
@@ -353,7 +353,7 @@ export const FriendListRowContent = ({ friend, animatedRef, variant = 'default' 
       <FriendDetailSheet
         isVisible={showDetailSheet}
         onClose={() => setShowDetailSheet(false)}
-        friend={friend as any} // Cast to any for now to avoid type errors with FriendDetailSheet
+        friendId={friend.id}
       />
     </Animated.View>
   );

@@ -6,7 +6,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { PlanFormData } from '../PlanWizard';
 import FriendModel from '@/db/models/Friend';
-import { PlanSuggestion } from '@/modules/interactions';
+import { PlanSuggestion } from '@/modules/interactions/hooks/usePlanSuggestion';
 import { FriendSelector } from '@/components/FriendSelector';
 import { ReciprocitySelector } from '@/components/ReciprocitySelector';
 

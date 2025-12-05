@@ -13,12 +13,11 @@ import { PlanWizardStep3 } from './plan-wizard/PlanWizardStep3';
 import { usePlans } from '../hooks/usePlans';
 import * as CalendarService from '../services/calendar.service';
 import { getCategoryMetadata } from '@/shared/constants/interaction-categories';
-import { getDefaultTimeForCategory } from '@/modules/interactions';
+import { getDefaultTimeForCategory, calculateActivityPriorities, isSmartDefaultsEnabled } from '../services/smart-defaults.service';
 import { database } from '@/db';
 import Interaction from '@/db/models/Interaction';
 import { startOfDay, addDays, isSaturday, nextSaturday, getDay } from 'date-fns';
 import { Q } from '@nozbe/watermelondb';
-import { calculateActivityPriorities, isSmartDefaultsEnabled } from '@/modules/interactions';
 import { InitiatorType } from '@/components/ReciprocitySelector';
 
 const CATEGORIES: Array<{

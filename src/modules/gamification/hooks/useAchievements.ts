@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { database } from '@/db';
 import UserProgress from '@/db/models/UserProgress';
-import { CONSISTENCY_MILESTONES, Milestone } from '@/modules/gamification';
+import { CONSISTENCY_MILESTONES, Milestone } from '../services/milestone-tracker.service';
 
 /**
  * @interface Achievement

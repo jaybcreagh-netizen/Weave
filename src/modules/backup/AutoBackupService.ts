@@ -16,11 +16,19 @@ export const AutoBackupService = {
         try {
             const exists = await CloudStorage.exists(`/${BACKUP_FOLDER}`);
             if (!exists) {
-                await CloudStorage.mkdir(`/${BACKUP_FOLDER}`);
+                try {
+                    await CloudStorage.mkdir(`/${BACKUP_FOLDER}`);
+                } catch (mkdirError: any) {
+                    // Ignore error if folder was created by a parallel process
+                    const checkAgain = await CloudStorage.exists(`/${BACKUP_FOLDER}`);
+                    if (!checkAgain) {
+                        throw mkdirError;
+                    }
+                }
             }
             return true;
         } catch (error) {
-            Logger.error('AutoBackup', 'Failed to initialize:', error);
+            Logger.error('AutoBackup: Failed to initialize (Code: INIT_FAIL):', error);
             return false;
         }
     },
@@ -62,7 +70,10 @@ export const AutoBackupService = {
             const path = `/${BACKUP_FOLDER}/${filename}`;
 
             // Ensure directory exists
-            await AutoBackupService.init();
+            const initSuccess = await AutoBackupService.init();
+            if (!initSuccess) {
+                throw new Error('Failed to initialize backup directory');
+            }
 
             await CloudStorage.writeFile(path, jsonString);
             await AsyncStorage.setItem(LAST_BACKUP_KEY, new Date().toISOString());
@@ -72,7 +83,7 @@ export const AutoBackupService = {
             // Prune old backups
             await AutoBackupService.pruneBackups();
         } catch (error) {
-            Logger.error('AutoBackup', 'Backup failed:', error);
+            Logger.error('AutoBackup: Backup failed:', error);
             throw error;
         }
     },
@@ -83,7 +94,9 @@ export const AutoBackupService = {
     pruneBackups: async () => {
         try {
             const files = await CloudStorage.readdir(`/${BACKUP_FOLDER}`);
-            const backupFiles = files.filter(f => f.startsWith('weave-backup-')).sort();
+            const backupFiles = files
+                .filter(f => f.startsWith('weave-backup-'))
+                .sort((a, b) => a.localeCompare(b)); // Oldest first
 
             if (backupFiles.length > MAX_BACKUPS) {
                 const toDelete = backupFiles.slice(0, backupFiles.length - MAX_BACKUPS);
@@ -93,7 +106,7 @@ export const AutoBackupService = {
                 }
             }
         } catch (error) {
-            Logger.error('AutoBackup', 'Pruning failed:', error);
+            Logger.error('AutoBackup: Pruning failed:', error);
         }
     },
 
@@ -110,7 +123,7 @@ export const AutoBackupService = {
                 await CloudStorage.unlink(`/${BACKUP_FOLDER}/${file}`);
             }
         } catch (error) {
-            Logger.error('AutoBackup', 'Failed to delete all backups:', error);
+            Logger.error('AutoBackup: Failed to delete all backups:', error);
         }
     },
 
@@ -127,7 +140,7 @@ export const AutoBackupService = {
                 .filter(f => f.startsWith('weave-backup-') && f.endsWith('.json'))
                 .sort((a, b) => b.localeCompare(a)); // Newest first
         } catch (error) {
-            Logger.error('AutoBackup', 'Failed to list backups:', error);
+            Logger.error('AutoBackup: Failed to list backups:', error);
             return [];
         }
     },
@@ -141,7 +154,7 @@ export const AutoBackupService = {
             const content = await CloudStorage.readFile(path);
             return content;
         } catch (error) {
-            Logger.error('AutoBackup', 'Failed to read backup:', error);
+            Logger.error('AutoBackup: Failed to read backup:', error);
             throw error;
         }
     },
@@ -170,7 +183,7 @@ export const AutoBackupService = {
 
             await AutoBackupService.performBackup();
         } catch (error) {
-            Logger.error('AutoBackup', 'Check and backup failed:', error);
+            Logger.error('AutoBackup: Check and backup failed:', error);
         }
     }
 };

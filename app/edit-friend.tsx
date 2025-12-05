@@ -2,7 +2,7 @@ import React from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Text } from 'react-native';
 import withObservables from '@nozbe/with-observables';
-import { FriendForm, useRelationshipsStore, FriendFormData } from '@/modules/relationships';
+import { FriendForm, FriendFormData } from '@/modules/relationships';
 import { database } from '@/db';
 import FriendModel from '@/db/models/Friend';
 
@@ -12,18 +12,40 @@ interface EditFriendProps {
 
 const EditFriendComponent = ({ friend }: EditFriendProps) => {
   const router = useRouter();
-  const updateFriend = useRelationshipsStore((state) => state.updateFriend);
 
   if (!friend) {
     return <Text>Friend not found.</Text>;
   }
 
   const handleSave = async (friendData: FriendFormData) => {
-    await updateFriend(friend.id, friendData);
-    if (router.canGoBack()) {
-      router.back();
-    } else {
-      router.replace('/(tabs)');
+    try {
+      await database.write(async () => {
+        await friend.update(f => {
+          f.name = friendData.name;
+          // Map form tier to DB tier
+          const tierMap: Record<string, string> = {
+            inner: 'InnerCircle',
+            close: 'CloseFriends',
+            community: 'Community'
+          };
+          f.dunbarTier = tierMap[friendData.tier] || 'Community';
+          f.archetype = friendData.archetype;
+          f.notes = friendData.notes;
+          f.photoUrl = friendData.photoUrl;
+          f.birthday = friendData.birthday;
+          f.anniversary = friendData.anniversary;
+          f.relationshipType = friendData.relationshipType;
+        });
+      });
+
+      if (router.canGoBack()) {
+        router.back();
+      } else {
+        router.replace('/(tabs)');
+      }
+    } catch (error) {
+      console.error('Error updating friend:', error);
+      // Optionally show alert
     }
   };
 

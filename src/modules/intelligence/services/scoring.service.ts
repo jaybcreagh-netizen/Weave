@@ -10,7 +10,7 @@ import {
   ArchetypeMatrixV2,
 } from '../constants';
 import { daysSince } from '@/shared/utils/date-utils';
-import { getLearnedEffectiveness } from '@/modules/insights';
+import { getLearnedEffectiveness } from '@/modules/insights/services/effectiveness.service';
 import { calculateInteractionQuality } from '../services/quality.service';
 
 /**

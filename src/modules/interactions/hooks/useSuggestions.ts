@@ -1,11 +1,13 @@
 import { useEffect, useState, useRef } from 'react';
 import { Q } from '@nozbe/watermelondb';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useFriends } from '@/modules/relationships';
 import { database } from '@/db';
-import { generateSuggestion, SuggestionTrackerService, SuggestionStorageService } from '@/modules/interactions';
+import FriendModel from '@/db/models/Friend';
+import { generateSuggestion } from '../services/suggestion-engine.service';
+import * as SuggestionTrackerService from '../services/suggestion-tracker.service';
+import * as SuggestionStorageService from '../services/suggestion-storage.service';
 import { Suggestion } from '@/shared/types/common';
-import { calculateCurrentScore } from '@/modules/intelligence';
+import { calculateCurrentScore } from '@/modules/intelligence/services/orchestrator.service';
 import Interaction from '@/db/models/Interaction';
 import InteractionFriend from '@/db/models/InteractionFriend';
 import { filterSuggestionsByTime } from '@/shared/utils/time-aware-filter';
@@ -13,7 +15,7 @@ import {
   generatePortfolioInsights,
   analyzeArchetypeBalance,
   type PortfolioAnalysisStats
-} from '@/modules/insights';
+} from '@/modules/insights/services/portfolio.service';
 
 /**
  * Selects diverse suggestions to provide a balanced "options menu" experience.
@@ -80,7 +82,10 @@ function selectDiverseSuggestions(suggestions: Suggestion[], maxCount: number): 
   return selected.sort((a, b) => getUrgencyScore(a.urgency) - getUrgencyScore(b.urgency));
 }
 
-async function fetchSuggestions(friends: any[]) {
+async function fetchSuggestions() {
+  // Fetch all friends directly from DB
+  const friends = await database.get<FriendModel>('friends').query().fetch();
+
   const dismissedMap = await SuggestionStorageService.getDismissedSuggestions();
   const allSuggestions: Suggestion[] = [];
   const friendStats: PortfolioAnalysisStats['friends'] = [];
@@ -135,7 +140,7 @@ async function fetchSuggestions(friends: any[]) {
       friendStats.push({
         id: friend.id,
         name: friend.name,
-        tier: friend.dunbarTier,
+        tier: friend.dunbarTier as any,
         archetype: friend.archetype,
         score: currentScore,
         daysSinceInteraction: Math.round(daysSinceInteraction),
@@ -198,8 +203,6 @@ async function fetchSuggestions(friends: any[]) {
       },
     };
 
-
-
     const portfolioAnalysis: PortfolioAnalysisStats = {
       friends: uniqueFriendStats,
       tierScores,
@@ -207,7 +210,6 @@ async function fetchSuggestions(friends: any[]) {
     };
 
     const portfolioInsight = generatePortfolioInsights(portfolioAnalysis);
-
 
     if (portfolioInsight) {
       allSuggestions.push(portfolioInsight);
@@ -228,15 +230,27 @@ async function fetchSuggestions(friends: any[]) {
 }
 
 export function useSuggestions() {
-  const friends = useFriends();
   const queryClient = useQueryClient();
   const trackedSuggestions = useRef<Set<string>>(new Set()); // Track which suggestions we've already logged as "shown"
 
   const { data: suggestions = [] } = useQuery({
-    queryKey: ['suggestions', 'all', friends.map(f => f.id).join(',')],
-    queryFn: () => fetchSuggestions(friends),
-    enabled: friends.length > 0,
+    queryKey: ['suggestions', 'all'],
+    queryFn: () => fetchSuggestions(),
+    // Re-fetch when the query is invalidated
   });
+
+  // Observe friends table for changes
+  useEffect(() => {
+    const subscription = database
+      .get<FriendModel>('friends')
+      .query()
+      .observe()
+      .subscribe(() => {
+        queryClient.invalidateQueries({ queryKey: ['suggestions', 'all'] });
+      });
+
+    return () => subscription.unsubscribe();
+  }, [queryClient]);
 
   // Observe interactions table for changes to trigger suggestion regeneration
   useEffect(() => {
@@ -264,8 +278,11 @@ export function useSuggestions() {
         await Promise.all(suggestionsToTrack.map(async (suggestion) => {
           if (!isMounted) return;
 
+          if (!suggestion.friendId) return; // Portfolio insights might not have friendId
+
           // Find the friend to get context
-          const friend = friends.find(f => f.id === suggestion.friendId);
+          const friend = await database.get<FriendModel>('friends').find(suggestion.friendId).catch(() => null);
+
           if (friend) {
             const currentScore = calculateCurrentScore(friend);
 
@@ -327,7 +344,7 @@ export function useSuggestions() {
     return () => {
       isMounted = false;
     };
-  }, [suggestions, friends]);
+  }, [suggestions]);
 
   const invalidateSuggestions = () => {
     queryClient.invalidateQueries({ queryKey: ['suggestions', 'all'] });

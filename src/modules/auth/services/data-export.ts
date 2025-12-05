@@ -97,11 +97,18 @@ export async function exportAllData(): Promise<string> {
       relationshipType: f.relationshipType || null,
     }));
 
+    // Create a map of interactionId -> friendIds for O(1) lookup
+    const interactionFriendMap = new Map<string, string[]>();
+    for (const if_ of interactionFriends) {
+      if (!interactionFriendMap.has(if_.interactionId)) {
+        interactionFriendMap.set(if_.interactionId, []);
+      }
+      interactionFriendMap.get(if_.interactionId)?.push(if_.friendId);
+    }
+
     // Format interactions data with linked friends
     const interactionsData = interactions.map((i) => {
-      const linkedFriends = interactionFriends
-        .filter((if_) => if_.interactionId === i.id)
-        .map((if_) => if_.friendId);
+      const linkedFriends = interactionFriendMap.get(i.id) || [];
 
       return {
         id: i.id,
