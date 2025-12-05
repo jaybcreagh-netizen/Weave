@@ -831,6 +831,64 @@ export default schemaMigrations({
         }),
       ],
     },
+    {
+      // Migration from schema v39 to v40
+      // Performance Optimization - Composite indexes for common query patterns
+      // These indexes significantly improve query performance for frequently used filters
+      toVersion: 40,
+      steps: [
+        // Composite index for friends queries filtered by tier and dormancy status
+        unsafeExecuteSql(`
+          CREATE INDEX IF NOT EXISTS idx_friends_tier_dormant
+          ON friends (dunbar_tier, is_dormant);
+        `),
+
+        // Composite index for friends queries by sync status and update time
+        unsafeExecuteSql(`
+          CREATE INDEX IF NOT EXISTS idx_friends_sync_status
+          ON friends (sync_status, updated_at);
+        `),
+
+        // Composite index for interactions queries by date and status
+        unsafeExecuteSql(`
+          CREATE INDEX IF NOT EXISTS idx_interactions_date_status
+          ON interactions (interaction_date, status);
+        `),
+
+        // Composite index for interaction_friends lookups (both directions)
+        unsafeExecuteSql(`
+          CREATE INDEX IF NOT EXISTS idx_interaction_friends_friend_lookup
+          ON interaction_friends (friend_id, interaction_id);
+        `),
+
+        // Composite index for intentions queries by status and update time
+        unsafeExecuteSql(`
+          CREATE INDEX IF NOT EXISTS idx_intentions_status_updated
+          ON intentions (status, updated_at);
+        `),
+
+        // Index for user_id on local-only tables (future-proofing for multi-user sync)
+        unsafeExecuteSql(`
+          CREATE INDEX IF NOT EXISTS idx_suggestion_events_user
+          ON suggestion_events (user_id, created_at);
+        `),
+
+        unsafeExecuteSql(`
+          CREATE INDEX IF NOT EXISTS idx_practice_log_user
+          ON practice_log (user_id, created_at);
+        `),
+
+        unsafeExecuteSql(`
+          CREATE INDEX IF NOT EXISTS idx_journal_entries_user
+          ON journal_entries (user_id, created_at);
+        `),
+
+        unsafeExecuteSql(`
+          CREATE INDEX IF NOT EXISTS idx_weekly_reflections_user
+          ON weekly_reflections (user_id, created_at);
+        `),
+      ],
+    },
   ],
 });
 

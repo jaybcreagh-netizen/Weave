@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb'
 
 export default appSchema({
-  version: 39, // UPDATED: Added network_health_logs
+  version: 40, // UPDATED: Added composite indexes for performance optimization
   tables: [
     tableSchema({
       name: 'oracle_insights',

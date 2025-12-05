@@ -208,8 +208,9 @@ export const clearDatabase = async () => {
       try {
         const allRecords = await collection.query().fetch();
         // Batch delete all records in this table
-        for (const record of allRecords) {
-          await record.destroyPermanently();
+        const batchOps = allRecords.map(record => record.prepareDestroyPermanently());
+        if (batchOps.length > 0) {
+          await database.batch(...batchOps);
         }
       } catch (error) {
         console.error(`[Database] Failed to clear table '${tableName}':`, error);
