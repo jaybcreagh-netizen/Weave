@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { usePortfolio } from './usePortfolio';
-import { useFriends } from '@/modules/relationships';
 import { analyzeTrends, getHistoricalSnapshots, type TrendAnalysis } from '@/modules/insights';
 import { predictFriendDrift, generateProactiveSuggestions, forecastNetworkHealth, type FriendPrediction, type ProactiveSuggestion } from '@/modules/insights';
 import { analyzeInteractionPattern } from '@/modules/insights';
 import { database } from '@/db';
+import FriendModel from '@/db/models/Friend';
 import InteractionModel from '@/db/models/Interaction';
 import { Q } from '@nozbe/watermelondb';
 
@@ -73,9 +73,19 @@ export function useHistoricalData(days: number = 90) {
  * Hook to get predictions for all friends
  */
 export function usePredictions() {
-  const friends = useFriends();
+  const [friends, setFriends] = useState<FriendModel[]>([]);
   const [predictions, setPredictions] = useState<FriendPrediction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const subscription = database
+      .get<FriendModel>('friends')
+      .query(Q.sortBy('created_at', Q.desc))
+      .observe()
+      .subscribe(setFriends);
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   useEffect(() => {
     const loadPredictions = async () => {
@@ -155,9 +165,19 @@ export function usePredictions() {
  * Hook to get proactive suggestions based on predictions
  */
 export function useProactiveSuggestions() {
-  const friends = useFriends();
+  const [friends, setFriends] = useState<FriendModel[]>([]);
   const [suggestions, setSuggestions] = useState<ProactiveSuggestion[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const subscription = database
+      .get<FriendModel>('friends')
+      .query(Q.sortBy('created_at', Q.desc))
+      .observe()
+      .subscribe(setFriends);
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   useEffect(() => {
     const loadSuggestions = async () => {
@@ -234,9 +254,19 @@ export function useProactiveSuggestions() {
  * Hook to forecast network health into the future
  */
 export function useNetworkForecast(daysAhead: number = 7) {
-  const friends = useFriends();
+  const [friends, setFriends] = useState<FriendModel[]>([]);
   const [forecast, setForecast] = useState<ReturnType<typeof forecastNetworkHealth> | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const subscription = database
+      .get<FriendModel>('friends')
+      .query(Q.sortBy('created_at', Q.desc))
+      .observe()
+      .subscribe(setFriends);
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   useEffect(() => {
     if (friends.length === 0) {

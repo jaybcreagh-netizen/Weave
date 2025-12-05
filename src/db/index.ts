@@ -40,8 +40,8 @@ setGenerator(() => uuidv4());
 const adapter = new SQLiteAdapter({
   schema,
   migrations, // ENABLED: Schema migrations for interaction category system
-  // dbName: 'weave',
-  // jsi: true,
+  dbName: 'weave',
+  jsi: true, // Enable JSI for 3x performance boost
   onSetUpError: error => {
     // Database failed to load
     console.error('Database setup error:', error);
@@ -208,8 +208,9 @@ export const clearDatabase = async () => {
       try {
         const allRecords = await collection.query().fetch();
         // Batch delete all records in this table
-        for (const record of allRecords) {
-          await record.destroyPermanently();
+        const batchOps = allRecords.map(record => record.prepareDestroyPermanently());
+        if (batchOps.length > 0) {
+          await database.batch(...batchOps);
         }
       } catch (error) {
         console.error(`[Database] Failed to clear table '${tableName}':`, error);

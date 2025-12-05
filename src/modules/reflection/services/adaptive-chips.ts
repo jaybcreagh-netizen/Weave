@@ -54,13 +54,19 @@ export async function recordChipUsage(
 
 /**
  * Get frequency scores for adaptive chip suggestions
- * Returns normalized scores (0-1) based on recent usage
+ * Returns normalized scores (0-1) based on recent usage (last 90 days)
  */
 export async function getChipFrequencyScores(): Promise<Record<string, number>> {
   const chipUsageCollection = database.get<ChipUsage>('chip_usage');
-  const allUsage = await chipUsageCollection.query().fetch();
+  const ninetyDaysAgo = new Date(Date.now() - (90 * 24 * 60 * 60 * 1000));
 
-  const usageHistory = allUsage.map(usage => ({
+  const recentUsage = await chipUsageCollection
+    .query(
+      Q.where('used_at', Q.gte(ninetyDaysAgo.getTime()))
+    )
+    .fetch();
+
+  const usageHistory = recentUsage.map(usage => ({
     chipId: usage.chipId,
     timestamp: usage.usedAt.getTime(),
   }));
@@ -106,18 +112,24 @@ export async function createNewCustomChip(
 
 /**
  * Analyze custom notes for pattern detection and suggest custom chips
+ * Limited to recent interactions to avoid loading entire database
  */
 export async function analyzeCustomNotesForPatterns(
   chipType: ChipType,
   minOccurrences: number = 3
 ): Promise<{ suggestedText: string; occurrences: number } | null> {
-  // Get all interactions with custom notes
+  // Get recent interactions with custom notes (last 100 interactions)
   const interactionsCollection = database.get<Interaction>('interactions');
-  const interactions = await interactionsCollection.query().fetch();
+  const recentInteractions = await interactionsCollection
+    .query(
+      Q.sortBy('interaction_date', Q.desc),
+      Q.take(100)
+    )
+    .fetch();
 
   const customNotes: string[] = [];
 
-  interactions.forEach((interaction: Interaction) => {
+  recentInteractions.forEach((interaction: Interaction) => {
     if (interaction.reflection?.customNotes) {
       customNotes.push(interaction.reflection.customNotes);
     }

@@ -4,7 +4,8 @@ import { X, Check, Trash2 } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { CustomBottomSheet } from '@/shared/ui/Sheet/BottomSheet';
 import FriendModel from '@/db/models/Friend';
-import { useFriends } from '@/modules/relationships/hooks/useFriends';
+import { database } from '@/db';
+import { Q } from '@nozbe/watermelondb';
 import { groupService } from '@/modules/groups';
 import Group from '@/db/models/Group';
 
@@ -24,10 +25,20 @@ export function GroupManagerModal({
     asModal = false
 }: GroupManagerModalProps) {
     const { colors } = useTheme();
-    const allFriends = useFriends();
+    const [allFriends, setAllFriends] = useState<FriendModel[]>([]);
     const [name, setName] = useState('');
     const [selectedFriendIds, setSelectedFriendIds] = useState<string[]>([]);
     const [isSaving, setIsSaving] = useState(false);
+
+    useEffect(() => {
+        const subscription = database
+            .get<FriendModel>('friends')
+            .query(Q.sortBy('created_at', Q.desc))
+            .observe()
+            .subscribe(setAllFriends);
+
+        return () => subscription.unsubscribe();
+    }, []);
 
     // Initialize form when groupToEdit changes
     useEffect(() => {

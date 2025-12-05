@@ -3,7 +3,8 @@ import { View, Text, TouchableOpacity, FlatList } from 'react-native';
 import { CheckCircle, Circle } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
 import FriendModel from '@/db/models/Friend';
-import { useFriends } from '@/modules/relationships';
+import { database } from '@/db';
+import { Q } from '@nozbe/watermelondb';
 
 interface PlanWizardStep0Props {
   initialFriend: FriendModel;
@@ -15,7 +16,17 @@ interface PlanWizardStep0Props {
 
 export function PlanWizardStep0({ initialFriend, selectedFriends, onFriendsSelect, onContinue, canContinue }: PlanWizardStep0Props) {
   const { colors } = useTheme();
-  const allFriends = useFriends();
+  const [allFriends, setAllFriends] = useState<FriendModel[]>([]);
+
+  useEffect(() => {
+    const subscription = database
+      .get<FriendModel>('friends')
+      .query(Q.sortBy('created_at', Q.desc))
+      .observe()
+      .subscribe(setAllFriends);
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   // Initialize selected friends with the initial friend if not already present
   useEffect(() => {

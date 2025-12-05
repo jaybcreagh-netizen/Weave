@@ -30,57 +30,74 @@ function migrateActivityToCategory(activity: string): InteractionCategory {
  */
 export async function migrateInteractionsToCategories(database: Database): Promise<void> {
   const interactionsCollection = database.get('interactions');
+  const CHUNK_SIZE = 100;
 
   try {
-
-
-    // Get all interactions
-    const allInteractions = await interactionsCollection.query().fetch();
-
-
-
     let migratedCount = 0;
     let errorCount = 0;
+    let offset = 0;
+    let hasMore = true;
 
-    // Batch update all interactions
-    await database.write(async () => {
-      for (const interaction of allInteractions) {
-        try {
-          // Skip if already has a category
-          if ((interaction._raw as any).interaction_category) {
-            continue;
-          }
+    console.log('[Data Migration] Starting chunked interaction category migration...');
 
-          // Get the old activity field
-          const oldActivity = (interaction._raw as any).activity as ActivityType;
+    while (hasMore) {
+      // Fetch chunk of interactions
+      const chunk = await interactionsCollection
+        .query()
+        .extend('LIMIT', CHUNK_SIZE, 'OFFSET', offset)
+        .fetch();
 
-          if (!oldActivity) {
-            console.warn(`[Data Migration] Interaction ${interaction.id} has no activity field, skipping`);
-            continue;
-          }
-
-          // Migrate to new category
-          const newCategory = migrateActivityToCategory(oldActivity);
-
-          // Update the interaction
-          await interaction.update((record: any) => {
-            (record._raw as any).interaction_category = newCategory;
-          });
-
-          migratedCount++;
-
-          // Log progress every 10 interactions
-          if (migratedCount % 10 === 0) {
-
-          }
-        } catch (error) {
-          console.error(`[Data Migration] Error migrating interaction ${interaction.id}:`, error);
-          errorCount++;
-        }
+      if (chunk.length === 0) {
+        hasMore = false;
+        break;
       }
-    });
 
+      // Process chunk in single batch operation
+      await database.write(async () => {
+        const batchOps: any[] = [];
 
+        for (const interaction of chunk) {
+          try {
+            // Skip if already has a category
+            if ((interaction._raw as any).interaction_category) {
+              continue;
+            }
+
+            // Get the old activity field
+            const oldActivity = (interaction._raw as any).activity as ActivityType;
+
+            if (!oldActivity) {
+              console.warn(`[Data Migration] Interaction ${interaction.id} has no activity field, skipping`);
+              continue;
+            }
+
+            // Migrate to new category
+            const newCategory = migrateActivityToCategory(oldActivity);
+
+            // Prepare update operation
+            const preparedUpdate = interaction.prepareUpdate((record: any) => {
+              (record._raw as any).interaction_category = newCategory;
+            });
+
+            batchOps.push(preparedUpdate);
+          } catch (error) {
+            console.error(`[Data Migration] Error preparing migration for interaction ${interaction.id}:`, error);
+            errorCount++;
+          }
+        }
+
+        // Execute all updates in a single batch
+        if (batchOps.length > 0) {
+          await database.batch(...batchOps);
+          migratedCount += batchOps.length;
+        }
+      });
+
+      console.log(`[Data Migration] Processed ${offset + chunk.length} interactions (migrated: ${migratedCount}, errors: ${errorCount})...`);
+      offset += chunk.length;
+    }
+
+    console.log(`[Data Migration] ✅ Migration complete. Migrated ${migratedCount} interactions with ${errorCount} errors.`);
   } catch (error) {
     console.error('[Data Migration] ❌ Fatal error during migration:', error);
     throw error;
@@ -90,31 +107,52 @@ export async function migrateInteractionsToCategories(database: Database): Promi
 /**
  * Check if data migration has been completed
  * Returns true if all interactions have a category field
+ * Uses chunking to avoid loading all interactions into memory
  */
 export async function isDataMigrationComplete(database: Database): Promise<boolean> {
   try {
     const interactionsCollection = database.get('interactions');
-    const allInteractions = await interactionsCollection.query().fetch();
+    const CHUNK_SIZE = 100;
+    let offset = 0;
+    let hasMore = true;
+    let totalUnmigrated = 0;
 
-    if (allInteractions.length === 0) {
+    while (hasMore) {
+      const chunk = await interactionsCollection
+        .query()
+        .extend('LIMIT', CHUNK_SIZE, 'OFFSET', offset)
+        .fetch();
+
+      if (chunk.length === 0) {
+        // No more interactions
+        hasMore = false;
+        break;
+      }
+
+      // Check chunk for unmigrated interactions
+      const unmigratedInChunk = chunk.filter(
+        (interaction) => !(interaction._raw as any).interaction_category
+      );
+
+      totalUnmigrated += unmigratedInChunk.length;
+
+      // Early return if we find any unmigrated interactions
+      if (totalUnmigrated > 0) {
+        console.log(
+          `[Data Migration] Found ${totalUnmigrated} unmigrated interactions (checked ${offset + chunk.length} so far)`
+        );
+        return false;
+      }
+
+      offset += chunk.length;
+    }
+
+    if (offset === 0) {
       // No interactions yet, migration not needed
       return true;
     }
 
-    // Check if all interactions have a category
-    const unmigrated = allInteractions.filter(
-      (interaction) => !(interaction._raw as any).interaction_category
-    );
-
-    const isComplete = unmigrated.length === 0;
-
-    if (!isComplete) {
-      console.log(
-        `[Data Migration] ${unmigrated.length} interactions still need migration`
-      );
-    }
-
-    return isComplete;
+    return totalUnmigrated === 0;
   } catch (error) {
     console.error('[Data Migration] Error checking migration status:', error);
     return false;

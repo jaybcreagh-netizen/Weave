@@ -25,9 +25,11 @@ import {
 } from 'lucide-react-native';
 
 import { useUIStore } from '@/stores/uiStore';
-import { useFriends } from '@/modules/relationships/hooks/useFriends';
 import { useCardGesture } from '@/context/CardGestureContext';
 import { useTheme } from '@/shared/hooks/useTheme';
+import { database } from '@/db';
+import FriendModel from '@/db/models/Friend';
+import { Q } from '@nozbe/watermelondb';
 import { InteractionCategory } from '@/components/types';
 
 // Compact sizing for sleeker feel
@@ -74,10 +76,20 @@ export function QuickWeaveOverlay() {
     isQuickWeaveClosing,
     _finishClosingQuickWeave,
   } = useUIStore();
-  const allFriends = useFriends();
+  const [allFriends, setAllFriends] = React.useState<FriendModel[]>([]);
   const friend = allFriends.find(f => f.id === quickWeaveFriendId);
   const { dragX, dragY, highlightedIndex } = useCardGesture();
   const { colors, isDarkMode } = useTheme();
+
+  useEffect(() => {
+    const subscription = database
+      .get<FriendModel>('friends')
+      .query(Q.sortBy('created_at', Q.desc))
+      .observe()
+      .subscribe(setAllFriends);
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   const overlayOpacity = useSharedValue(0);
   const menuScale = useSharedValue(0.3);
