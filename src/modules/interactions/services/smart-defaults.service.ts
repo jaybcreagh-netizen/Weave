@@ -126,25 +126,18 @@ async function getHistoricalScore(
   friend: FriendModel
 ): Promise<number> {
   try {
-    // Get last 60 days of interactions
+    // Get last 60 days of interactions for this friend
+    // Using Q.on() to join at database level instead of N+1 fetches
     const sixtyDaysAgo = Date.now() - 60 * 24 * 60 * 60 * 1000;
-    const allInteractions = await database
+    const friendInteractions = await database
       .get<Interaction>('interactions')
       .query(
+        Q.on('interaction_friends', 'friend_id', friend.id),
         Q.where('status', 'completed'),
         Q.where('interaction_date', Q.gte(sixtyDaysAgo)),
         Q.sortBy('interaction_date', Q.desc)
       )
       .fetch();
-
-    // Filter to this friend's interactions
-    const friendInteractions: Interaction[] = [];
-    for (const interaction of allInteractions) {
-      const interactionFriends = await interaction.interactionFriends.fetch();
-      if (interactionFriends.some((jf: any) => jf.friendId === friend.id)) {
-        friendInteractions.push(interaction);
-      }
-    }
 
     if (friendInteractions.length === 0) return 1.0;
 

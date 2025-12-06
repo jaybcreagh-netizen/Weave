@@ -34,28 +34,24 @@ export function usePlanSuggestion(friend: FriendModel | null): PlanSuggestion | 
 
 async function generateSuggestion(friend: FriendModel): Promise<PlanSuggestion | null> {
   try {
-    // Get past 90 days of completed interactions
+    // Get past 90 days of completed interactions for this friend
+    // Using Q.on() to join at database level instead of N+1 fetches
     const ninetyDaysAgo = Date.now() - 90 * 24 * 60 * 60 * 1000;
-    const allInteractions = await database
+    const friendInteractions = await database
       .get<Interaction>('interactions')
       .query(
+        Q.on('interaction_friends', 'friend_id', friend.id),
         Q.where('status', 'completed'),
         Q.where('interaction_date', Q.gte(ninetyDaysAgo)),
         Q.sortBy('interaction_date', Q.desc)
       )
       .fetch();
 
-    // Filter to this friend's interactions
-    const friendInteractions: Interaction[] = [];
+    // Collect recent locations
     const recentLocations: string[] = [];
-
-    for (const interaction of allInteractions) {
-      const interactionFriends = await interaction.interactionFriends.fetch();
-      if (interactionFriends.some((jf: any) => jf.friendId === friend.id)) {
-        friendInteractions.push(interaction);
-        if (interaction.location) {
-          recentLocations.push(interaction.location);
-        }
+    for (const interaction of friendInteractions) {
+      if (interaction.location) {
+        recentLocations.push(interaction.location);
       }
     }
 

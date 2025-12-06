@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, TouchableOpacity, Modal, ScrollView, SafeAreaView } from 'react-native';
 import Animated, { SlideInLeft, SlideInRight, SlideOutLeft, SlideOutRight } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
@@ -84,96 +84,96 @@ export function PlanWizard({ visible, onClose, initialFriend, prefillData, repla
   const [mostCommonDay, setMostCommonDay] = useState<{ day: number; name: string; date: Date } | null>(null);
   const [orderedCategories, setOrderedCategories] = useState(CATEGORIES);
 
-  // Fetch all data once on mount
-  useEffect(() => {
-    const loadData = async () => {
-      const today = startOfDay(new Date());
-      const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  // Fetch all data once on mount - memoized to prevent unnecessary reruns
+  const loadData = useCallback(async () => {
+    const today = startOfDay(new Date());
+    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
-      try {
-        // 1. Fetch Planned Dates
-        const joinRecords = await database
-          .get('interaction_friends')
-          .query(Q.where('friend_id', initialFriend.id))
+    try {
+      // 1. Fetch Planned Dates
+      const joinRecords = await database
+        .get('interaction_friends')
+        .query(Q.where('friend_id', initialFriend.id))
+        .fetch();
+
+      if (joinRecords.length > 0) {
+        const interactionIds = joinRecords.map((jr: any) => jr.interactionId);
+        const interactions = await database
+          .get<Interaction>('interactions')
+          .query(
+            Q.where('id', Q.oneOf(interactionIds)),
+            Q.where('status', 'planned'),
+            Q.where('interaction_date', Q.gte(today.getTime()))
+          )
+          .fetch();
+        setPlannedDates(interactions.map(i => startOfDay(i.interactionDate)));
+      }
+
+      // 2. Calculate Most Common Day
+      if (joinRecords.length > 0) {
+        const interactionIds = joinRecords.map((jr: any) => jr.interactionId);
+        const interactions = await database
+          .get<Interaction>('interactions')
+          .query(
+            Q.where('id', Q.oneOf(interactionIds)),
+            Q.where('status', 'completed')
+          )
           .fetch();
 
-        if (joinRecords.length > 0) {
-          const interactionIds = joinRecords.map((jr: any) => jr.interactionId);
-          const interactions = await database
-            .get<Interaction>('interactions')
-            .query(
-              Q.where('id', Q.oneOf(interactionIds)),
-              Q.where('status', 'planned'),
-              Q.where('interaction_date', Q.gte(today.getTime()))
-            )
-            .fetch();
-          setPlannedDates(interactions.map(i => startOfDay(i.interactionDate)));
-        }
-
-        // 2. Calculate Most Common Day
-        if (joinRecords.length > 0) {
-          const interactionIds = joinRecords.map((jr: any) => jr.interactionId);
-          const interactions = await database
-            .get<Interaction>('interactions')
-            .query(
-              Q.where('id', Q.oneOf(interactionIds)),
-              Q.where('status', 'completed')
-            )
-            .fetch();
-
-          if (interactions.length > 0) {
-            const dayCounts: Record<number, number> = {};
-            interactions.forEach(interaction => {
-              const dayOfWeek = getDay(interaction.interactionDate);
-              dayCounts[dayOfWeek] = (dayCounts[dayOfWeek] || 0) + 1;
-            });
-
-            let maxCount = 0;
-            let commonDay = 0;
-            Object.entries(dayCounts).forEach(([day, count]) => {
-              if (count > maxCount) {
-                maxCount = count;
-                commonDay = parseInt(day);
-              }
-            });
-
-            const currentDay = getDay(today);
-            let nextOccurrence: Date;
-            if (commonDay === currentDay) {
-              nextOccurrence = today;
-            } else if (commonDay > currentDay) {
-              nextOccurrence = addDays(today, commonDay - currentDay);
-            } else {
-              nextOccurrence = addDays(today, 7 - currentDay + commonDay);
-            }
-
-            setMostCommonDay({
-              day: commonDay,
-              name: dayNames[commonDay],
-              date: nextOccurrence,
-            });
-          }
-        }
-
-        // 3. Calculate Category Priorities
-        const smartDefaultsEnabled = await isSmartDefaultsEnabled();
-        if (smartDefaultsEnabled) {
-          const priorities = await calculateActivityPriorities(initialFriend);
-          const scoreMap = new Map(priorities.map(p => [p.category, p.score]));
-          const sorted = [...CATEGORIES].sort((a, b) => {
-            const scoreA = scoreMap.get(a.value) || 0;
-            const scoreB = scoreMap.get(b.value) || 0;
-            return scoreB - scoreA;
+        if (interactions.length > 0) {
+          const dayCounts: Record<number, number> = {};
+          interactions.forEach(interaction => {
+            const dayOfWeek = getDay(interaction.interactionDate);
+            dayCounts[dayOfWeek] = (dayCounts[dayOfWeek] || 0) + 1;
           });
-          setOrderedCategories(sorted);
-        }
-      } catch (error) {
-        console.error('Error loading plan wizard data:', error);
-      }
-    };
 
-    loadData();
+          let maxCount = 0;
+          let commonDay = 0;
+          Object.entries(dayCounts).forEach(([day, count]) => {
+            if (count > maxCount) {
+              maxCount = count;
+              commonDay = parseInt(day);
+            }
+          });
+
+          const currentDay = getDay(today);
+          let nextOccurrence: Date;
+          if (commonDay === currentDay) {
+            nextOccurrence = today;
+          } else if (commonDay > currentDay) {
+            nextOccurrence = addDays(today, commonDay - currentDay);
+          } else {
+            nextOccurrence = addDays(today, 7 - currentDay + commonDay);
+          }
+
+          setMostCommonDay({
+            day: commonDay,
+            name: dayNames[commonDay],
+            date: nextOccurrence,
+          });
+        }
+      }
+
+      // 3. Calculate Category Priorities
+      const smartDefaultsEnabled = await isSmartDefaultsEnabled();
+      if (smartDefaultsEnabled) {
+        const priorities = await calculateActivityPriorities(initialFriend);
+        const scoreMap = new Map(priorities.map(p => [p.category, p.score]));
+        const sorted = [...CATEGORIES].sort((a, b) => {
+          const scoreA = scoreMap.get(a.value) || 0;
+          const scoreB = scoreMap.get(b.value) || 0;
+          return scoreB - scoreA;
+        });
+        setOrderedCategories(sorted);
+      }
+    } catch (error) {
+      console.error('Error loading plan wizard data:', error);
+    }
   }, [initialFriend.id]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   // Track whether we've transitioned between steps (vs initial render)
   const hasTransitioned = useRef(false);
