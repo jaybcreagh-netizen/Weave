@@ -761,26 +761,26 @@ async function getCommonActivitiesForFriend(friendId: string): Promise<string[]>
 // HELPER FUNCTIONS - MEMORIES
 // ============================================================================
 
-async function getAnniversaryMemories(): Promise<Memory[]> {
+export async function getAnniversaryMemories(): Promise<Memory[]> {
   const memories: Memory[] = [];
   const now = new Date();
 
-  // Look for entries from ~1 year ago (within 3 day window)
+  // Look for entries from ~1 year ago (widened window)
   const oneYearAgo = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
-  const windowStart = new Date(oneYearAgo);
-  windowStart.setDate(windowStart.getDate() - 3);
-  const windowEnd = new Date(oneYearAgo);
-  windowEnd.setDate(windowEnd.getDate() + 3);
+  const startRange = new Date(oneYearAgo);
+  startRange.setDate(startRange.getDate() - 7);
+  const endRange = new Date(oneYearAgo);
+  endRange.setDate(endRange.getDate() + 7);
 
+  // 1. Journal Entries
   const entries = await database
     .get<JournalEntry>('journal_entries')
     .query(
-      Q.where('entry_date', Q.between(windowStart.getTime(), windowEnd.getTime()))
+      Q.where('entry_date', Q.between(startRange.getTime(), endRange.getTime()))
     )
     .fetch();
 
   for (const entry of entries) {
-    // Try to get friend name if tagged via join table
     let friendName: string | undefined;
     let friendId: string | undefined;
 
@@ -801,30 +801,43 @@ async function getAnniversaryMemories(): Promise<Memory[]> {
       console.warn('Error fetching friends for anniversary memory', e);
     }
 
-    if (friendName) {
-      memories.push({
-        id: `anniversary-${entry.id}`,
-        type: 'anniversary',
-        title: 'One Year Ago',
-        description: `You wrote about ${friendName} on this day last year.`,
-        relatedEntryId: entry.id,
-        relatedFriendId: friendId,
-        relatedFriendName: friendName,
-        actionLabel: 'Read Entry',
-        priority: 10,
-      });
-    } else {
-      // Generic entry memory
-      memories.push({
-        id: `anniversary-${entry.id}`,
-        type: 'throwback',
-        title: 'On This Day',
-        description: 'A memory from one year ago.',
-        relatedEntryId: entry.id,
-        actionLabel: 'Read Entry',
-        priority: 5,
-      });
-    }
+    const priority = friendName ? 20 : 10;
+    const contentLength = entry.content?.length || 0;
+    const bonus = contentLength > 100 ? 5 : 0;
+
+    memories.push({
+      id: `anniversary-${entry.id}`,
+      type: 'anniversary',
+      title: friendName ? `Remembering ${friendName}` : 'One Year Ago',
+      description: friendName
+        ? `You wrote about your time with ${friendName} on this day last year`
+        : 'You wrote a journal entry on this day last year.',
+      relatedEntryId: entry.id,
+      relatedFriendId: friendId,
+      relatedFriendName: friendName,
+      actionLabel: 'Read Entry',
+      priority: priority + bonus,
+    });
+  }
+
+  // 2. Weekly Reflections
+  const reflections = await database
+    .get<WeeklyReflection>('weekly_reflections')
+    .query(
+      Q.where('week_start_date', Q.between(startRange.getTime(), endRange.getTime()))
+    )
+    .fetch();
+
+  for (const reflection of reflections) {
+    memories.push({
+      id: `reflection-anniversary-${reflection.id}`,
+      type: 'throwback',
+      title: 'One Year Ago Today',
+      description: 'You completed a weekly reflection one year ago.',
+      relatedEntryId: reflection.id,
+      actionLabel: 'Read Reflection',
+      priority: 15, // Higher than generic entry, lower than friend entry
+    });
   }
 
   return memories;
@@ -957,3 +970,63 @@ export interface JournalContextEngineConfig {
 export const DEFAULT_CONFIG: JournalContextEngineConfig = {
   useLLM: false,
 };
+
+export async function getMemoryForNotification(
+  entryId: string,
+  entryType: 'journal' | 'reflection'
+): Promise<{
+  memory: Memory;
+  entry: JournalEntry | WeeklyReflection;
+  friendName?: string;
+  friendId?: string;
+} | null> {
+  try {
+    if (entryType === 'journal') {
+      const entry = await database.get<JournalEntry>('journal_entries').find(entryId);
+      // Get friends
+      let friendName: string | undefined;
+      let friendId: string | undefined;
+      const links = await database
+        .get<JournalEntryFriend>('journal_entry_friends')
+        .query(Q.where('journal_entry_id', entry.id))
+        .fetch();
+
+      if (links.length > 0) {
+        const friend = await links[0].friend.fetch();
+        friendName = friend?.name;
+        friendId = friend?.id;
+      }
+
+      const memory: Memory = {
+        id: `notif-${entry.id}`,
+        type: 'anniversary',
+        title: friendName ? `Remembering ${friendName}` : 'One Year Ago',
+        description: 'From your journal',
+        relatedEntryId: entry.id,
+        relatedFriendName: friendName,
+        relatedFriendId: friendId,
+        actionLabel: 'Read Entry',
+        priority: 10
+      };
+
+      return { memory, entry, friendName, friendId };
+
+    } else {
+      const reflection = await database.get<WeeklyReflection>('weekly_reflections').find(entryId);
+      const memory: Memory = {
+        id: `notif-${reflection.id}`,
+        type: 'throwback',
+        title: 'Weekly Reflection',
+        description: 'From one year ago',
+        relatedEntryId: reflection.id,
+        actionLabel: 'Read Reflection',
+        priority: 10
+      };
+      return { memory, entry: reflection, friendName: undefined }; // Reflections don't strictly have one friend
+    }
+  } catch (error) {
+    console.error('Error fetching memory for notification:', error);
+    return null;
+  }
+}
+

@@ -1,68 +1,55 @@
+
 import { useState, useEffect, useCallback } from 'react';
-import { AppState, Linking } from 'react-native';
+import { AppState, AppStateStatus } from 'react-native';
 import * as Notifications from 'expo-notifications';
-import { permissionService, NotificationPermissionStatus } from '../services/permission.service';
-import Logger from '@/shared/utils/Logger';
+import { checkNotificationPermissions, requestNotificationPermissions, openSystemSettings } from '../services/permission.service';
+import { notificationStore } from '../services/notification-store';
 
 export function useNotificationPermissions() {
-    const [status, setStatus] = useState<NotificationPermissionStatus | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
+    const [hasPermission, setHasPermission] = useState<boolean>(false);
+    const [hasRequested, setHasRequested] = useState<boolean>(false);
+    const [isLoading, setIsLoading] = useState<boolean>(true);
 
-    const checkStatus = useCallback(async () => {
-        try {
-            const currentStatus = await permissionService.getStatus();
-            setStatus(currentStatus);
-        } catch (error) {
-            Logger.error('[useNotificationPermissions] Error checking status:', error);
-        } finally {
-            setIsLoading(false);
-        }
+    const check = useCallback(async () => {
+        setIsLoading(true);
+        const granted = await checkNotificationPermissions();
+        const requested = await notificationStore.getPermissionRequested();
+
+        setHasPermission(granted);
+        setHasRequested(requested);
+        setIsLoading(false);
     }, []);
 
-    // Check on mount and when app comes to foreground
+    const request = useCallback(async () => {
+        setIsLoading(true);
+        const granted = await requestNotificationPermissions();
+        setHasPermission(granted);
+        setHasRequested(true);
+        setIsLoading(false);
+        return granted;
+    }, []);
+
+    // Check on mount and app resume
     useEffect(() => {
-        checkStatus();
+        check();
 
         const subscription = AppState.addEventListener('change', (nextAppState) => {
             if (nextAppState === 'active') {
-                checkStatus();
+                check();
             }
         });
 
         return () => {
             subscription.remove();
         };
-    }, [checkStatus]);
-
-    const requestPermission = useCallback(async () => {
-        setIsLoading(true);
-        try {
-            const granted = await permissionService.requestPermissions();
-            await checkStatus(); // Refresh status
-            return granted;
-        } catch (error) {
-            Logger.error('[useNotificationPermissions] Error requesting permission:', error);
-            return false;
-        } finally {
-            setIsLoading(false);
-        }
-    }, [checkStatus]);
-
-    const openSettings = useCallback(async () => {
-        try {
-            await Linking.openSettings();
-        } catch (error) {
-            Logger.error('[useNotificationPermissions] Error opening settings:', error);
-        }
-    }, []);
+    }, [check]);
 
     return {
-        status,
+        hasPermission,
+        hasRequested,
         isLoading,
-        isGranted: status?.granted ?? false,
-        canAskAgain: status?.canAskAgain ?? true,
-        requestPermission,
-        openSettings,
-        checkStatus,
+        requestPermission: request,
+        openSettings: openSystemSettings,
+        checkPermission: check,
     };
 }

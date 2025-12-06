@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, View, Text, TouchableOpacity, Switch, Alert, ScrollView, Platform, LayoutAnimation } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, Alert, ScrollView, Platform, LayoutAnimation } from 'react-native';
 import { router } from 'expo-router';
+import { format } from 'date-fns';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Notifications from 'expo-notifications';
 import { X, Moon, Sun, Palette, RefreshCw, Bug, BarChart3, Battery, Calendar as CalendarIcon, ChevronRight, Bell, Clock, Trophy, Sparkles, MessageSquare, Download, Upload, Database, Trash2, BookOpen, Users, Shield, FileText } from 'lucide-react-native';
 import * as FileSystem from 'expo-file-system';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -23,12 +25,10 @@ import {
 } from '@/modules/auth';
 import { SuggestionTrackerService } from '@/modules/interactions';
 import {
-  scheduleWeeklyReflection,
-  cancelWeeklyReflection,
-  scheduleAllEventReminders,
-  cancelAllNotifications,
-  updateNotificationPreferences,
-  getStoredNotificationPreferences,
+  WeeklyReflectionChannel,
+  EventReminderChannel,
+  EveningDigestChannel,
+  notificationStore,
   type NotificationPreferences,
 } from '@/modules/notifications';
 import { useTheme } from '@/shared/hooks/useTheme';
@@ -43,7 +43,12 @@ import { CustomBottomSheet } from '@/shared/ui/Sheet/BottomSheet';
 import { AutoBackupService } from '@/modules/backup/AutoBackupService';
 import { DataWipeService } from '@/modules/data-management/DataWipeService';
 import { DiagnosticService } from '@/services/diagnostic.service';
-
+import { MemoryNudgeChannel } from '@/modules/notifications/services/channels/memory-nudge';
+import { database } from '@/db';
+import JournalEntry from '@/db/models/JournalEntry';
+import JournalEntryFriend from '@/db/models/JournalEntryFriend';
+import FriendModel from '@/db/models/Friend';
+import { ModernSwitch } from '@/components/ui/ModernSwitch';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -57,7 +62,7 @@ export function SettingsModal({
   onOpenBatteryCheckIn,
 }: SettingsModalProps) {
   const insets = useSafeAreaInsets();
-  const { isDarkMode, toggleDarkMode, showDebugScore, toggleShowDebugScore, openTrophyCabinet, openWeeklyReflection } = useUIStore();
+  const { isDarkMode, toggleDarkMode, openTrophyCabinet, openWeeklyReflection } = useUIStore();
   const { profile, updateBatteryPreferences, updateProfile } = useUserProfileStore();
   const { colors } = useTheme();
   const [shouldRender, setShouldRender] = useState(false);
@@ -128,6 +133,11 @@ export function SettingsModal({
   const [smartNotificationsEnabled, setSmartNotificationsEnabled] = useState(true);
   const [notificationFrequency, setNotificationFrequency] = useState<'light' | 'moderate' | 'proactive'>('moderate');
   const [respectBattery, setRespectBattery] = useState(true);
+
+  // Evening Digest preferences
+  const [digestEnabled, setDigestEnabled] = useState(true);
+  const [digestTime, setDigestTime] = useState(new Date());
+  const [showDigestTimePicker, setShowDigestTimePicker] = useState(false);
 
   // Smart defaults preference
   const [smartDefaultsEnabled, setSmartDefaultsEnabled] = useState(true);
@@ -217,9 +227,16 @@ export function SettingsModal({
     setDeepeningNudgesEnabled(deepeningNudgesStr ? JSON.parse(deepeningNudgesStr) : true);
 
     // Load smart notification preferences
-    const smartPrefs = await getStoredNotificationPreferences();
+    const smartPrefs = await notificationStore.getPreferences();
     setNotificationFrequency(smartPrefs.frequency);
     setRespectBattery(smartPrefs.respectBattery);
+    setDigestEnabled(smartPrefs.digestEnabled ?? true);
+
+    const dTime = smartPrefs.digestTime || '19:00';
+    const [dHours, dMinutes] = dTime.split(':').map(Number);
+    const dDate = new Date();
+    dDate.setHours(dHours, dMinutes, 0, 0);
+    setDigestTime(dDate);
 
     // Load smart notifications enabled state
     const smartEnabledStr = await AsyncStorage.getItem('@weave:smart_notifications_enabled');
@@ -319,9 +336,9 @@ export function SettingsModal({
     setWeeklyReflectionEnabled(enabled);
 
     if (enabled) {
-      await scheduleWeeklyReflection();
+      await WeeklyReflectionChannel.schedule();
     } else {
-      await cancelWeeklyReflection();
+      await WeeklyReflectionChannel.cancel('weekly-reflection');
     }
   };
 
@@ -342,7 +359,7 @@ export function SettingsModal({
     await AsyncStorage.setItem('@weave:event_reminders_enabled', JSON.stringify(enabled));
 
     if (enabled) {
-      await scheduleAllEventReminders();
+      await EventReminderChannel.schedule();
     }
   };
 
@@ -365,12 +382,47 @@ export function SettingsModal({
 
   const handleChangeFrequency = async (frequency: 'light' | 'moderate' | 'proactive') => {
     setNotificationFrequency(frequency);
-    await updateNotificationPreferences({ frequency });
+    await notificationStore.setPreferences({ frequency });
   };
 
   const handleToggleRespectBattery = async (enabled: boolean) => {
     setRespectBattery(enabled);
-    await updateNotificationPreferences({ respectBattery: enabled });
+    await notificationStore.setPreferences({ respectBattery: enabled });
+  };
+
+  const handleToggleDigest = async (enabled: boolean) => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setDigestEnabled(enabled);
+    await notificationStore.setPreferences({ digestEnabled: enabled });
+
+    if (enabled) {
+      const hours = digestTime.getHours();
+      const minutes = digestTime.getMinutes();
+      const timeStr = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+      await EveningDigestChannel.schedule(timeStr);
+    } else {
+      await EveningDigestChannel.cancel();
+    }
+  };
+
+  const handleDigestTimeChange = async (event: any, selectedDate?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowDigestTimePicker(false);
+    }
+
+    if (selectedDate) {
+      setDigestTime(selectedDate);
+
+      const hours = selectedDate.getHours();
+      const minutes = selectedDate.getMinutes();
+      const timeStr = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+
+      await notificationStore.setPreferences({ digestTime: timeStr });
+
+      if (digestEnabled) {
+        await EveningDigestChannel.schedule(timeStr);
+      }
+    }
   };
 
   const handleToggleAutoBackup = async (enabled: boolean) => {
@@ -744,6 +796,17 @@ export function SettingsModal({
     }
   };
 
+  const handleTestEveningDigest = async () => {
+    try {
+      await EveningDigestChannel.handleTap({ isTest: true }, router);
+      onClose();
+    } catch (error) {
+      console.error('Failed to open digest:', error);
+      Alert.alert('Error', 'Failed to open digest sheet');
+    }
+  };
+
+
   if (!shouldRender) return null;
 
   return (
@@ -772,35 +835,15 @@ export function SettingsModal({
                 <Text className="text-sm font-inter-regular" style={{ color: colors['muted-foreground'] }}>{isDarkMode ? "Mystic arcane theme" : "Warm cream theme"}</Text>
               </View>
             </View>
-            <Switch
+            <ModernSwitch
               value={isDarkMode}
               onValueChange={toggleDarkMode}
-              trackColor={{ false: colors.muted, true: colors.primary }}
-              thumbColor={colors.card}
             />
           </View>
 
           <View className="border-t border-border" style={{ borderColor: colors.border }} />
 
-          <View className="flex-row items-center justify-between">
-            <View className="flex-row items-center gap-3">
-              <View className="w-10 h-10 rounded-lg items-center justify-center" style={{ backgroundColor: colors.muted }}>
-                <Bug color={colors.foreground} size={20} />
-              </View>
-              <View>
-                <Text className="text-base font-inter-medium" style={{ color: colors.foreground }}>Show Weave Score</Text>
-                <Text className="text-sm font-inter-regular" style={{ color: colors['muted-foreground'] }}>Display score for debugging</Text>
-              </View>
-            </View>
-            <Switch
-              value={showDebugScore}
-              onValueChange={toggleShowDebugScore}
-              trackColor={{ false: colors.muted, true: colors.primary }}
-              thumbColor={colors.card}
-            />
-          </View>
 
-          <View className="border-t border-border" style={{ borderColor: colors.border }} />
 
           <TouchableOpacity
             className="flex-row items-center justify-between"
@@ -891,11 +934,9 @@ export function SettingsModal({
                 </Text>
               </View>
             </View>
-            <Switch
+            <ModernSwitch
               value={smartDefaultsEnabled}
               onValueChange={handleToggleSmartDefaults}
-              trackColor={{ false: colors.muted, true: colors.primary }}
-              thumbColor={colors.card}
             />
           </View>
 
@@ -933,11 +974,9 @@ export function SettingsModal({
                 <Text className="text-sm font-inter-regular" style={{ color: colors['muted-foreground'] }}>Add planned weaves to calendar</Text>
               </View>
             </View>
-            <Switch
+            <ModernSwitch
               value={calendarSettings.enabled}
               onValueChange={handleToggleCalendar}
-              trackColor={{ false: colors.muted, true: colors.primary }}
-              thumbColor={colors.card}
             />
           </View>
 
@@ -964,11 +1003,9 @@ export function SettingsModal({
                   Detect and sync changes made in calendar app
                 </Text>
               </View>
-              <Switch
+              <ModernSwitch
                 value={calendarSettings.twoWaySync}
                 onValueChange={handleToggleTwoWaySync}
-                trackColor={{ false: colors.muted, true: colors.primary }}
-                thumbColor={colors.card}
               />
             </View>
           )}
@@ -988,11 +1025,9 @@ export function SettingsModal({
                   </Text>
                 )}
               </View>
-              <Switch
+              <ModernSwitch
                 value={backgroundSyncSettings.enabled}
                 onValueChange={handleToggleBackgroundSync}
-                trackColor={{ false: colors.muted, true: colors.primary }}
-                thumbColor={colors.card}
               />
             </View>
           )}
@@ -1036,11 +1071,9 @@ export function SettingsModal({
                 {lastBackupTime && `\nLast: ${new Date(lastBackupTime).toLocaleDateString()} ${new Date(lastBackupTime).toLocaleTimeString()}`}
               </Text>
             </View>
-            <Switch
+            <ModernSwitch
               value={autoBackupEnabled}
               onValueChange={handleToggleAutoBackup}
-              trackColor={{ false: colors.muted, true: colors.primary }}
-              thumbColor={colors.card}
             />
           </View>
 
@@ -1056,11 +1089,9 @@ export function SettingsModal({
                 <Text className="text-sm font-inter-regular" style={{ color: colors['muted-foreground'] }}>Check in with your energy</Text>
               </View>
             </View>
-            <Switch
+            <ModernSwitch
               value={batteryNotificationsEnabled}
               onValueChange={handleToggleBatteryNotifications}
-              trackColor={{ false: colors.muted, true: colors.primary }}
-              thumbColor={colors.card}
             />
           </View>
 
@@ -1128,11 +1159,9 @@ export function SettingsModal({
                 <Text className="text-sm font-inter-regular" style={{ color: colors['muted-foreground'] }}>Notifications enabled</Text>
               </View>
             </View>
-            <Switch
+            <ModernSwitch
               value={weeklyReflectionEnabled}
               onValueChange={handleToggleWeeklyReflection}
-              trackColor={{ false: colors.muted, true: colors.primary }}
-              thumbColor={colors.card}
             />
           </View>
 
@@ -1158,11 +1187,9 @@ export function SettingsModal({
                     Automatically show on reflection day
                   </Text>
                 </View>
-                <Switch
+                <ModernSwitch
                   value={reflectionAutoShow}
                   onValueChange={handleToggleReflectionAutoShow}
-                  trackColor={{ false: colors.muted, true: colors.primary }}
-                  thumbColor={colors.card}
                 />
               </View>
             </>
@@ -1212,6 +1239,76 @@ export function SettingsModal({
           <View className="flex-row items-center justify-between">
             <View className="flex-row items-center gap-3">
               <View className="w-10 h-10 rounded-lg items-center justify-center" style={{ backgroundColor: colors.muted }}>
+                <Moon color={colors.foreground} size={20} />
+              </View>
+              <View>
+                <Text className="text-base font-inter-medium" style={{ color: colors.foreground }}>Evening Digest</Text>
+                <Text className="text-sm font-inter-regular" style={{ color: colors['muted-foreground'] }}>Daily summary at 7 PM</Text>
+              </View>
+            </View>
+            <ModernSwitch
+              value={digestEnabled}
+              onValueChange={handleToggleDigest}
+            />
+          </View>
+
+          {digestEnabled && (
+            <TouchableOpacity
+              className="flex-row items-center justify-between pl-13 mt-3"
+              onPress={() => setShowDigestTimePicker(true)}
+            >
+              <View>
+                <Text className="text-sm font-inter-medium" style={{ color: colors.foreground }}>Digest Time</Text>
+                <Text className="text-xs font-inter-regular" style={{ color: colors['muted-foreground'] }}>
+                  {digestTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
+                </Text>
+              </View>
+              <Clock color={colors['muted-foreground']} size={20} />
+            </TouchableOpacity>
+          )}
+
+          {showDigestTimePicker && Platform.OS === 'ios' && (
+            <Modal transparent animationType="slide">
+              <View className="flex-1 justify-end" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+                <View style={{ backgroundColor: colors.card }} className="rounded-t-3xl p-4">
+                  <View className="flex-row justify-between items-center mb-4">
+                    <Text className="text-lg font-inter-semibold" style={{ color: colors.foreground }}>
+                      Select Digest Time
+                    </Text>
+                    <TouchableOpacity onPress={() => setShowDigestTimePicker(false)}>
+                      <Text className="text-base font-inter-medium" style={{ color: colors.primary }}>
+                        Done
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                  <DateTimePicker
+                    value={digestTime}
+                    mode="time"
+                    is24Hour={false}
+                    display="spinner"
+                    onChange={handleDigestTimeChange}
+                    textColor={colors.foreground}
+                  />
+                </View>
+              </View>
+            </Modal>
+          )}
+
+          {showDigestTimePicker && Platform.OS === 'android' && (
+            <DateTimePicker
+              value={digestTime}
+              mode="time"
+              is24Hour={false}
+              display="default"
+              onChange={handleDigestTimeChange}
+            />
+          )}
+
+          <View className="border-t border-border" style={{ borderColor: colors.border }} />
+
+          <View className="flex-row items-center justify-between">
+            <View className="flex-row items-center gap-3">
+              <View className="w-10 h-10 rounded-lg items-center justify-center" style={{ backgroundColor: colors.muted }}>
                 <Bell color={colors.foreground} size={20} />
               </View>
               <View>
@@ -1219,11 +1316,9 @@ export function SettingsModal({
                 <Text className="text-sm font-inter-regular" style={{ color: colors['muted-foreground'] }}>1-hour before planned weaves</Text>
               </View>
             </View>
-            <Switch
+            <ModernSwitch
               value={eventRemindersEnabled}
               onValueChange={handleToggleEventReminders}
-              trackColor={{ false: colors.muted, true: colors.primary }}
-              thumbColor={colors.card}
             />
           </View>
 
@@ -1239,11 +1334,9 @@ export function SettingsModal({
                 <Text className="text-sm font-inter-regular" style={{ color: colors['muted-foreground'] }}>Post-weave reflection prompts</Text>
               </View>
             </View>
-            <Switch
+            <ModernSwitch
               value={deepeningNudgesEnabled}
               onValueChange={handleToggleDeepeningNudges}
-              trackColor={{ false: colors.muted, true: colors.primary }}
-              thumbColor={colors.card}
             />
           </View>
 
@@ -1262,11 +1355,9 @@ export function SettingsModal({
                 </Text>
               </View>
             </View>
-            <Switch
+            <ModernSwitch
               value={smartNotificationsEnabled}
               onValueChange={handleToggleSmartNotifications}
-              trackColor={{ false: colors.muted, true: colors.primary }}
-              thumbColor={colors.card}
             />
           </View>
 
@@ -1315,11 +1406,9 @@ export function SettingsModal({
                     Reduce notifications when energy is low
                   </Text>
                 </View>
-                <Switch
+                <ModernSwitch
                   value={respectBattery}
                   onValueChange={handleToggleRespectBattery}
-                  trackColor={{ false: colors.muted, true: colors.primary }}
-                  thumbColor={colors.card}
                 />
               </View>
             </>
@@ -1523,6 +1612,24 @@ export function SettingsModal({
 
           <View className="border-t border-border" style={{ borderColor: colors.border }} />
 
+          {/* Test Evening Digest */}
+          <TouchableOpacity
+            className="flex-row items-center justify-between"
+            onPress={handleTestEveningDigest}
+          >
+            <View className="flex-row items-center gap-3">
+              <View className="w-10 h-10 rounded-lg items-center justify-center" style={{ backgroundColor: colors.muted }}>
+                <Moon color={colors.foreground} size={20} />
+              </View>
+              <View>
+                <Text className="text-base font-inter-medium" style={{ color: colors.foreground }}>Test Evening Digest</Text>
+                <Text className="text-sm font-inter-regular" style={{ color: colors['muted-foreground'] }}>Trigger digest sheet immediately</Text>
+              </View>
+            </View>
+          </TouchableOpacity>
+
+          <View className="border-t border-border" style={{ borderColor: colors.border }} />
+
           <View className="flex-row items-center justify-between">
             <View className="flex-row items-center gap-3">
               <View className="w-10 h-10 rounded-lg items-center justify-center" style={{ backgroundColor: colors.destructive + '1A' }}>
@@ -1612,6 +1719,7 @@ export function SettingsModal({
         visible={showFriendManagement}
         onClose={() => setShowFriendManagement(false)}
       />
+
 
     </CustomBottomSheet>
   );

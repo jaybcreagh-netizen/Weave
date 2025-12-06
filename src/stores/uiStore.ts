@@ -3,6 +3,17 @@ import { type Archetype, type Interaction, type InteractionCategory } from '@/co
 import { type Milestone } from '@/modules/gamification';
 import { type BadgeUnlock } from '@/modules/gamification';
 import { type AchievementUnlockData } from '@/modules/gamification';
+import JournalEntry from '@/db/models/JournalEntry';
+import WeeklyReflection from '@/db/models/WeeklyReflection';
+import { type Memory } from '@/modules/journal/services/journal-context-engine';
+import { type DigestItem } from '@/modules/notifications/services/channels/evening-digest';
+
+interface MemoryMomentData {
+  memory: Memory;
+  entry: JournalEntry | WeeklyReflection;
+  friendName?: string;
+  friendId?: string;
+}
 
 interface ToastData {
   message: string;
@@ -44,6 +55,7 @@ interface UIStore {
   achievementUnlockQueue: AchievementUnlockData[];
   isDarkMode: boolean;
   isTrophyCabinetOpen: boolean;
+  memoryMomentData: MemoryMomentData | null;
 
   isWeeklyReflectionOpen: boolean;
   isSocialBatterySheetOpen: boolean;
@@ -85,6 +97,13 @@ interface UIStore {
   setDarkMode: (isDark: boolean) => void;
   openTrophyCabinet: () => void;
   closeTrophyCabinet: () => void;
+  openMemoryMoment: (data: MemoryMomentData) => void;
+  closeMemoryMoment: () => void;
+
+  digestSheetVisible: boolean;
+  digestItems: DigestItem[];
+  openDigestSheet: (items: DigestItem[]) => void;
+  closeDigestSheet: () => void;
 }
 
 export const useUIStore = create<UIStore>((set, get) => ({
@@ -199,4 +218,13 @@ export const useUIStore = create<UIStore>((set, get) => ({
   setDarkMode: (isDark) => set({ isDarkMode: isDark }),
   openTrophyCabinet: () => set({ isTrophyCabinetOpen: true }),
   closeTrophyCabinet: () => set({ isTrophyCabinetOpen: false }),
+
+  memoryMomentData: null,
+  openMemoryMoment: (data) => set({ memoryMomentData: data }),
+  closeMemoryMoment: () => set({ memoryMomentData: null }),
+
+  digestSheetVisible: false,
+  digestItems: [],
+  openDigestSheet: (items) => set({ digestSheetVisible: true, digestItems: items }),
+  closeDigestSheet: () => set({ digestSheetVisible: false, digestItems: [] }),
 }));

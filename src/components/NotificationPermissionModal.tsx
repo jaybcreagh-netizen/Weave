@@ -10,6 +10,8 @@ import { Bell, Calendar, Heart, Sparkles, X } from 'lucide-react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { theme } from '@/shared/theme/theme';
+import { trackEvent } from '@/shared/services/analytics.service';
+import { notificationAnalytics } from '@/modules/notifications/services/notification-analytics';
 
 interface NotificationPermissionModalProps {
   visible: boolean;
@@ -24,13 +26,21 @@ export function NotificationPermissionModal({
 }: NotificationPermissionModalProps) {
   const handleRequestPermission = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    trackEvent('notification_permission_modal_enable_clicked');
     onRequestPermission();
   };
 
   const handleSkip = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    notificationAnalytics.trackPermissionSkipped('modal');
     onSkip();
   };
+
+  React.useEffect(() => {
+    if (visible) {
+      trackEvent('notification_permission_modal_viewed');
+    }
+  }, [visible]);
 
   return (
     <Modal visible={visible} animationType="fade" transparent>

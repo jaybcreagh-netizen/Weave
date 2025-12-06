@@ -16,7 +16,15 @@ import { Q } from '@nozbe/watermelondb';
 
 export default function JournalScreen() {
     const router = useRouter();
-    const params = useLocalSearchParams<{ mode?: string; friendId?: string; weaveId?: string }>();
+    const params = useLocalSearchParams<{
+        mode?: string;
+        friendId?: string;
+        weaveId?: string;
+        openEntryId?: string;
+        openEntryType?: string;
+        prefilledText?: string;
+        prefilledFriendIds?: string;
+    }>();
 
     const [showQuickCapture, setShowQuickCapture] = useState(false);
     const [showGuided, setShowGuided] = useState(params.mode === 'guided');
@@ -27,6 +35,40 @@ export default function JournalScreen() {
     // Selection state
     const [selectedEntry, setSelectedEntry] = useState<JournalEntry | null>(null);
     const [selectedReflection, setSelectedReflection] = useState<WeeklyReflection | null>(null);
+
+    // Deep link handling
+    React.useEffect(() => {
+        const handleDeepLink = async () => {
+            // Handle opening specific entry
+            if (params.openEntryId) {
+                try {
+                    if (params.openEntryType === 'reflection') {
+                        const reflection = await database.get<WeeklyReflection>('weekly_reflections').find(params.openEntryId);
+                        setSelectedReflection(reflection);
+                    } else {
+                        // Default to journal
+                        const entry = await database.get<JournalEntry>('journal_entries').find(params.openEntryId);
+                        setSelectedEntry(entry);
+                    }
+                } catch (error) {
+                    console.error('Error opening linked entry:', error);
+                }
+            }
+
+            // Handle prefilled guided reflection
+            if (params.mode === 'guided') {
+                if (params.prefilledText) {
+                    setPrefilledText(params.prefilledText);
+                }
+                if (params.prefilledFriendIds) {
+                    setPrefilledFriendIds(params.prefilledFriendIds.split(',').filter(Boolean));
+                }
+                setShowGuided(true);
+            }
+        };
+
+        handleDeepLink();
+    }, [params.openEntryId, params.mode]); // Don't depend on params object directly to avoid loops
 
     const handleArcEntryPress = async (id: string, type: 'journal' | 'reflection') => {
         try {
@@ -67,6 +109,13 @@ export default function JournalScreen() {
                 />
             ) : (
                 <JournalHome
+                    onClose={() => {
+                        if (router.canGoBack()) {
+                            router.back();
+                        } else {
+                            router.replace('/');
+                        }
+                    }}
                     onNewEntry={(mode) => {
                         if (mode === 'quick') setShowQuickCapture(true);
                         else setShowGuided(true);
@@ -81,9 +130,17 @@ export default function JournalScreen() {
                     onFriendArcPress={(friendId) => {
                         setSelectedFriendId(friendId);
                     }}
-                    onMemoryAction={(memory) => {
-                        // Handle memory action (read entry, write about friend, etc.)
-                        console.log('Memory action:', memory);
+                    onMemoryAction={async (memory) => {
+                        // Fetch full data needed for the modal
+                        const { getMemoryForNotification } = require('@/modules/journal/services/journal-context-engine');
+                        const { useUIStore } = require('@/stores/uiStore');
+
+                        const type = memory.id.includes('reflection') ? 'reflection' : 'journal';
+                        const data = await getMemoryForNotification(memory.relatedEntryId!, type);
+
+                        if (data) {
+                            useUIStore.getState().openMemoryMoment(data);
+                        }
                     }}
                 />
             )}

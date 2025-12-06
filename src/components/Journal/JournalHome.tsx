@@ -73,6 +73,7 @@ interface JournalHomeProps {
   onEntryPress: (entry: JournalEntry | WeeklyReflection) => void;
   onFriendArcPress: (friendId: string) => void;
   onMemoryAction: (memory: Memory) => void;
+  onClose?: () => void;
 }
 
 interface FriendWithEntries {
@@ -91,18 +92,21 @@ export function JournalHome({
   onEntryPress,
   onFriendArcPress,
   onMemoryAction,
+  onClose,
 }: JournalHomeProps) {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
 
   // State
   const [activeTab, setActiveTab] = useState<Tab>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearch, setShowSearch] = useState(false);
+
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
 
-  const insets = useSafeAreaInsets();
+
 
   // Data
   const [entries, setEntries] = useState<(JournalEntry | WeeklyReflection)[]>([]);
@@ -837,12 +841,19 @@ export function JournalHome({
       {/* Header */}
       <View className="px-5 pb-3" style={{ paddingTop: insets.top + 16 }}>
         <View className="flex-row items-center justify-between mb-4">
-          <Text
-            className="text-2xl"
-            style={{ color: colors.foreground, fontFamily: 'Lora_700Bold' }}
-          >
-            Journal
-          </Text>
+          <View className="flex-row items-center gap-2">
+            {onClose && (
+              <TouchableOpacity onPress={onClose} className="mr-1">
+                <ChevronRight size={28} color={colors.foreground} style={{ transform: [{ rotate: '180deg' }] }} />
+              </TouchableOpacity>
+            )}
+            <Text
+              className="text-2xl"
+              style={{ color: colors.foreground, fontFamily: 'Lora_700Bold' }}
+            >
+              Journal
+            </Text>
+          </View>
 
           <View className="flex-row items-center gap-2">
             <TouchableOpacity

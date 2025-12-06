@@ -10,10 +10,11 @@ import { SocialBatterySheet } from '@/components/home/SocialBatterySheet';
 import { ReflectionReadyPrompt } from '@/components/WeeklyReflection/ReflectionReadyPrompt';
 import { YearInMoonsModal } from '@/components/YearInMoons/YearInMoonsModal';
 import { useUserProfileStore } from '@/modules/auth';
-import { getLastReflectionDate, shouldShowReflection } from '@/modules/notifications';
+import { notificationStore } from '@/modules/notifications';
 import { getUserAccountAge } from '@/modules/notifications';
 import { useTutorialStore } from '@/stores/tutorialStore';
 import { useUIStore } from '@/stores/uiStore';
+import { isSameWeek } from 'date-fns';
 
 /**
  * The home screen of the application.
@@ -127,8 +128,9 @@ export default function Home() {
     const checkWeeklyReflection = async () => {
       if (!profile) return;
 
-      const lastDate = await getLastReflectionDate();
-      const isDue = shouldShowReflection(lastDate);
+      const lastDate = await notificationStore.getLastReflectionDate();
+      // Due if no last date, or if last date is NOT in the same week (Sunday start)
+      const isDue = !lastDate || !isSameWeek(lastDate, new Date(), { weekStartsOn: 0 });
 
       // Check grace period: only show widget after 3+ days of app usage
       const accountAge = await getUserAccountAge();

@@ -1,6 +1,6 @@
 import 'react-native-get-random-values';
 import '../global.css';
-import { Stack, SplashScreen, usePathname } from 'expo-router';
+import { Stack, SplashScreen, usePathname, router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
@@ -17,6 +17,8 @@ import { LoadingScreen } from '@/shared/components/LoadingScreen';
 import { ErrorBoundary } from '@/shared/components/ErrorBoundary';
 import { EventSuggestionModal } from '@/components/EventSuggestionModal';
 import { WeeklyReflectionModal } from '@/components/WeeklyReflection/WeeklyReflectionModal';
+import { MemoryMomentModal } from '@/components/Journal/MemoryMomentModal';
+import { DigestSheet } from '@/components/DigestSheet';
 import { useUIStore } from '@/stores/uiStore';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { SyncConflictModal } from '@/modules/auth/components/SyncConflictModal';
@@ -25,10 +27,8 @@ import { initializeDataMigrations, initializeUserProfile, initializeUserProgress
 import { useAppStateChange } from '@/shared/hooks/useAppState';
 import { useTutorialStore } from '@/stores/tutorialStore';
 import {
-  initializeNotifications,
-  setupNotificationResponseListener,
-  handleNotificationOnLaunch,
-  configureNotificationHandler,
+  NotificationOrchestrator,
+  useNotificationResponseHandler,
 } from '@/modules/notifications';
 import { useNotificationPermissions } from '@/modules/notifications/hooks/useNotificationPermissions';
 import { AppState } from 'react-native';
@@ -112,6 +112,9 @@ function RootLayoutContent() {
   const closeTrophyCabinet = useUIStore((state) => state.closeTrophyCabinet);
   const isWeeklyReflectionOpen = useUIStore((state) => state.isWeeklyReflectionOpen);
   const closeWeeklyReflection = useUIStore((state) => state.closeWeeklyReflection);
+  const memoryMomentData = useUIStore((state) => state.memoryMomentData);
+  const digestSheetVisible = useUIStore((state) => state.digestSheetVisible);
+  const digestItems = useUIStore((state) => state.digestItems);
   const hasCompletedOnboarding = useTutorialStore((state) => state.hasCompletedOnboarding);
 
   const [fontsLoaded, fontError] = useFonts({
@@ -229,11 +232,8 @@ function RootLayoutContent() {
       trackRetentionMetrics();
 
       // Trigger smart notification evaluation when app comes to foreground
-      // This runs async in the background without blocking the UI
-      import('@/modules/notifications').then(({ evaluateAndScheduleSmartNotifications }) => {
-        evaluateAndScheduleSmartNotifications().catch((error) => {
-          console.error('[App] Error evaluating smart notifications on foreground:', error);
-        });
+      NotificationOrchestrator.evaluateSmartNotifications().catch((error) => {
+        console.error('[App] Error evaluating smart notifications on foreground:', error);
       });
 
       // Sync calendar changes when app becomes active
@@ -257,18 +257,22 @@ function RootLayoutContent() {
     }
   });
 
+  // Handle notification permission request
+  const { requestPermission: requestNotificationPermission } = useNotificationPermissions();
+  const { handleResponse } = useNotificationResponseHandler();
+
   // Initialize all notification systems (battery, events, deepening, reflection)
   useEffect(() => {
     const setupNotifications = async () => {
       try {
-        // Configure notification handler for event suggestions
-        configureNotificationHandler();
-
-        await initializeNotifications();
-
+        // Initialize orchestrator (sets up handler and runs startup checks)
+        await NotificationOrchestrator.init();
 
         // Check if app was launched via notification
-        await handleNotificationOnLaunch();
+        const response = await Notifications.getLastNotificationResponseAsync();
+        if (response) {
+          handleResponse(response);
+        }
       } catch (error) {
         console.error('[App] Failed to initialize notifications:', error);
       }
@@ -277,10 +281,12 @@ function RootLayoutContent() {
     setupNotifications();
 
     // Setup listener for notification taps while app is running
-    const cleanupListener = setupNotificationResponseListener();
+    const subscription = Notifications.addNotificationResponseReceivedListener(response => {
+      handleResponse(response);
+    });
 
     return () => {
-      cleanupListener();
+      subscription.remove();
     };
   }, []);
 
@@ -329,8 +335,7 @@ function RootLayoutContent() {
     checkNotificationPermissions();
   }, [hasCompletedOnboarding, dataLoaded]);
 
-  // Handle notification permission request
-  const { requestPermission: requestNotificationPermission } = useNotificationPermissions();
+
 
   const handleRequestNotificationPermission = async () => {
     try {
@@ -340,7 +345,7 @@ function RootLayoutContent() {
 
       if (granted) {
 
-        await initializeNotifications();
+        await NotificationOrchestrator.requestPermissions();
       } else {
 
       }
@@ -418,6 +423,55 @@ function RootLayoutContent() {
 
                   {/* Sync Conflict Modal */}
                   <SyncConflictModal />
+
+                  {/* Memory Moment Modal */}
+                  <MemoryMomentModal
+                    visible={!!memoryMomentData}
+                    onClose={() => useUIStore.getState().closeMemoryMoment()}
+                    memory={memoryMomentData?.memory || null}
+                    entry={memoryMomentData?.entry || null}
+                    friendName={memoryMomentData?.friendName}
+                    onReadEntry={() => {
+                      const data = useUIStore.getState().memoryMomentData;
+                      useUIStore.getState().closeMemoryMoment();
+
+                      if (data?.memory?.relatedEntryId) {
+                        router.push({
+                          pathname: '/journal',
+                          params: {
+                            openEntryId: data.memory.relatedEntryId,
+                            openEntryType: data.memory.type.includes('reflection') || data.memory.id.includes('reflection') ? 'reflection' : 'journal'
+                          }
+                        });
+                      } else {
+                        router.push('/journal');
+                      }
+                    }}
+                    onWriteAbout={() => {
+                      const data = useUIStore.getState().memoryMomentData;
+                      useUIStore.getState().closeMemoryMoment();
+
+                      if (data) {
+                        router.push({
+                          pathname: '/journal',
+                          params: {
+                            prefilledText: `Thinking about this memory: "${data.memory.title}"...\n\n`,
+                            prefilledFriendIds: data.friendId ? [data.friendId] : undefined
+                          }
+                        });
+                      } else {
+                        router.push('/journal');
+                      }
+                    }}
+                  />
+
+                  {/* Evening Digest Sheet */}
+                  <DigestSheet
+                    isVisible={digestSheetVisible}
+                    onClose={() => useUIStore.getState().closeDigestSheet()}
+                    items={digestItems}
+                  />
+
                 </Animated.View>
 
                 {/* Loading Screen - shows until data is loaded AND UI is mounted */}

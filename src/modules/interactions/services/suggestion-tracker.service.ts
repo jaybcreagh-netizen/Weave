@@ -170,3 +170,10 @@ export async function getSuggestionAnalytics() {
     byType,
   };
 }
+export const SuggestionTrackerService = {
+  trackSuggestionShown,
+  trackSuggestionActed,
+  trackSuggestionDismissed,
+  trackSuggestionExpired,
+  getSuggestionAnalytics
+};

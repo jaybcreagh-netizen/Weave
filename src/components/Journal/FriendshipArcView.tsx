@@ -487,6 +487,28 @@ export function FriendshipArcView({
                                   {entry.type === 'reflection' && 'Weekly Reflection'}
                                   {entry.type === 'milestone' && 'Milestone'}
                                 </Text>
+
+                                {/* One Year Ago Badge - simplistic check for now */}
+                                {(() => {
+                                  const entryDate = new Date(entry.date);
+                                  const now = new Date();
+                                  const oneYearAgo = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
+                                  // Check if within 7 days of 1 year ago
+                                  const diffTime = Math.abs(entryDate.getTime() - oneYearAgo.getTime());
+                                  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                                  if (diffDays <= 7) {
+                                    return (
+                                      <View className="ml-2 px-2 py-0.5 rounded-full bg-yellow-100 dark:bg-yellow-900/30">
+                                        <Text className="text-[10px] font-bold text-yellow-700 dark:text-yellow-400">
+                                          ✨ 1 year ago
+                                        </Text>
+                                      </View>
+                                    );
+                                  }
+                                  return null;
+                                })()}
+
                                 <View className="flex-1" />
                                 <Text
                                   className="text-xs"

@@ -14,13 +14,28 @@ export const AutoBackupService = {
      */
     init: async (): Promise<boolean> => {
         try {
-            const exists = await CloudStorage.exists(`/${BACKUP_FOLDER}`);
+            let exists = false;
+            try {
+                exists = await CloudStorage.exists(`/${BACKUP_FOLDER}`);
+            } catch (e) {
+                // If exists() throws, it likely means the directory doesn't exist
+                // We'll treat this as false and attempt to create it
+                exists = false;
+            }
+
             if (!exists) {
                 try {
                     await CloudStorage.mkdir(`/${BACKUP_FOLDER}`);
                 } catch (mkdirError: any) {
                     // Ignore error if folder was created by a parallel process
-                    const checkAgain = await CloudStorage.exists(`/${BACKUP_FOLDER}`);
+                    let checkAgain = false;
+                    try {
+                        checkAgain = await CloudStorage.exists(`/${BACKUP_FOLDER}`);
+                    } catch (e) {
+                        // specific error handling if checkAgain fails
+                        checkAgain = false;
+                    }
+
                     if (!checkAgain) {
                         throw mkdirError;
                     }

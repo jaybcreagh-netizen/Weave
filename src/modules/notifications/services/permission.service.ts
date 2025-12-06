@@ -1,6 +1,8 @@
+
 import * as Notifications from 'expo-notifications';
-import { Platform } from 'react-native';
+import { Platform, Linking } from 'react-native';
 import Logger from '@/shared/utils/Logger';
+import { notificationAnalytics } from './notification-analytics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const PERMISSION_REQUESTED_KEY = '@weave:notification_permission_requested';
@@ -40,6 +42,7 @@ class NotificationPermissionService {
     async requestPermissions(): Promise<boolean> {
         try {
             Logger.info('[Permissions] Requesting notification permissions...');
+            notificationAnalytics.trackPermissionRequested('permission_service');
 
             const { status: existingStatus } = await Notifications.getPermissionsAsync();
             let finalStatus = existingStatus;
@@ -61,6 +64,7 @@ class NotificationPermissionService {
 
             if (finalStatus !== Notifications.PermissionStatus.GRANTED) {
                 Logger.info('[Permissions] Permission denied or not granted');
+                notificationAnalytics.trackPermissionResult(false, existingStatus !== 'granted'); // Simplified logic
                 return false;
             }
 
@@ -70,6 +74,7 @@ class NotificationPermissionService {
             }
 
             Logger.info('[Permissions] Permission granted');
+            notificationAnalytics.trackPermissionResult(true, true);
             return true;
         } catch (error) {
             Logger.error('[Permissions] Error requesting permissions:', error);
@@ -128,3 +133,17 @@ class NotificationPermissionService {
 }
 
 export const permissionService = new NotificationPermissionService();
+
+// Standalone Helper Exports
+export const checkNotificationPermissions = async (): Promise<boolean> => {
+    const status = await permissionService.getStatus();
+    return status.granted;
+};
+
+export const requestNotificationPermissions = async (): Promise<boolean> => {
+    return await permissionService.requestPermissions();
+};
+
+export const openSystemSettings = async (): Promise<void> => {
+    await Linking.openSettings();
+};
