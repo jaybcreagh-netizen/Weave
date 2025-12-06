@@ -211,6 +211,8 @@ export default function BatchAddFriends() {
 // Batch-specific contact picker (no max limit)
 // We create a custom wrapper to hide the ContactPickerGrid's header
 // since we have our own header in the parent component
+const ITEM_HEIGHT = 160;
+
 function BatchContactPicker({
   onSelectionChange,
 }: {
@@ -305,6 +307,83 @@ function BatchContactPicker({
     );
   }, [contacts, searchQuery]);
 
+  // Memoize renderItem to prevent unnecessary re-renders
+  const renderItem = React.useCallback(({ item, index }: { item: Contacts.Contact, index: number }) => {
+    const isSelected = item.id ? selectedContactIds.includes(item.id) : false;
+    const avatarColor = getAvatarColor(item.name || '');
+
+    return (
+      <TouchableOpacity
+        onPress={() => item.id && handleSelectContact(item.id)}
+        style={{
+          alignItems: 'center',
+          padding: 12,
+          width: '33.33%',
+          height: ITEM_HEIGHT
+        }}
+        activeOpacity={0.7}
+      >
+        <View style={{ position: 'relative' }}>
+          <View
+            style={{
+              width: 80,
+              height: 80,
+              borderRadius: 40,
+              justifyContent: 'center',
+              alignItems: 'center',
+              backgroundColor: isSelected ? '#10b981' : avatarColor,
+              borderWidth: isSelected ? 4 : 0,
+              borderColor: '#10b981',
+            }}
+          >
+            {item.imageAvailable && item.image && item.id && !imageError[item.id] ? (
+              <Image
+                source={{ uri: normalizeContactImageUri(item.image.uri) }}
+                style={{ width: '100%', height: '100%', borderRadius: 40 }}
+                resizeMode="cover"
+                onError={() => item.id && setImageError(prev => ({ ...prev, [item.id as string]: true }))}
+              />
+            ) : (
+              <Text style={{ fontSize: 24, fontWeight: '600', color: 'white' }}>
+                {getInitials(item.name || '')}
+              </Text>
+            )}
+          </View>
+          {isSelected && (
+            <View
+              style={{
+                position: 'absolute',
+                top: -4,
+                right: -4,
+                backgroundColor: '#10b981',
+                borderRadius: 10,
+                padding: 4,
+              }}
+            >
+              <Check color="white" size={16} strokeWidth={3} />
+            </View>
+          )}
+        </View>
+
+        <Text
+          style={{
+            marginTop: 8,
+            textAlign: 'center',
+            fontSize: 14,
+            color: '#374151',
+            fontWeight: '500',
+            height: 48, // Fixed height for 2 lines of text
+            lineHeight: 20 // Ensure consistent line height
+          }}
+          numberOfLines={2}
+          ellipsizeMode="tail"
+        >
+          {item.name || 'Unknown'}
+        </Text>
+      </TouchableOpacity>
+    );
+  }, [selectedContactIds, imageError, selectedContactIds.length]); // Added dependencies
+
   if (loading) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 80 }}>
@@ -392,67 +471,17 @@ function BatchContactPicker({
         data={filteredContacts}
         numColumns={3}
         keyExtractor={(item) => item.id || Math.random().toString()}
-        renderItem={({ item }) => {
-          const isSelected = item.id ? selectedContactIds.includes(item.id) : false;
-          const avatarColor = getAvatarColor(item.name || '');
-
-          return (
-            <TouchableOpacity
-              onPress={() => item.id && handleSelectContact(item.id)}
-              style={{ alignItems: 'center', padding: 12, width: '33.33%' }}
-            >
-              <View style={{ position: 'relative' }}>
-                <View
-                  style={{
-                    width: 80,
-                    height: 80,
-                    borderRadius: 40,
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    backgroundColor: isSelected ? '#10b981' : avatarColor,
-                    borderWidth: isSelected ? 4 : 0,
-                    borderColor: '#10b981',
-                  }}
-                >
-                  {item.imageAvailable && item.image && item.id && !imageError[item.id] ? (
-                    <Image
-                      source={{ uri: normalizeContactImageUri(item.image.uri) }}
-                      style={{ width: '100%', height: '100%', borderRadius: 40 }}
-                      resizeMode="cover"
-                      onError={() => item.id && setImageError(prev => ({ ...prev, [item.id as string]: true }))}
-                    />
-                  ) : (
-                    <Text style={{ fontSize: 24, fontWeight: '600', color: 'white' }}>
-                      {getInitials(item.name || '')}
-                    </Text>
-                  )}
-                </View>
-                {isSelected && (
-                  <View
-                    style={{
-                      position: 'absolute',
-                      top: -4,
-                      right: -4,
-                      backgroundColor: '#10b981',
-                      borderRadius: 10,
-                      padding: 4,
-                    }}
-                  >
-                    <Check color="white" size={16} strokeWidth={3} />
-                  </View>
-                )}
-              </View>
-
-              <Text
-                style={{ marginTop: 8, textAlign: 'center', fontSize: 14, color: '#374151', fontWeight: '500' }}
-                numberOfLines={2}
-              >
-                {item.name || 'Unknown'}
-              </Text>
-            </TouchableOpacity>
-          );
-        }}
+        renderItem={renderItem}
+        getItemLayout={(data, index) => ({
+          length: ITEM_HEIGHT,
+          offset: ITEM_HEIGHT * Math.floor(index / 3),
+          index,
+        })}
         contentContainerStyle={{ paddingBottom: 90, paddingTop: 10 }}
+        removeClippedSubviews={true}
+        initialNumToRender={15}
+        maxToRenderPerBatch={10}
+        windowSize={5}
         ListEmptyComponent={
           <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 60 }}>
             <Search size={48} color={colors['muted-foreground']} />

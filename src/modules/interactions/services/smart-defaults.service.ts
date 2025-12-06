@@ -121,31 +121,15 @@ function getArchetypeScore(category: InteractionCategory, archetype: string): nu
  * Calculate historical pattern score
  * What you usually do with this friend
  */
-async function getHistoricalScore(
+/**
+ * Calculate historical pattern score
+ * What you usually do with this friend
+ */
+function getHistoricalScore(
   category: InteractionCategory,
-  friend: FriendModel
-): Promise<number> {
+  friendInteractions: Interaction[]
+): number {
   try {
-    // Get last 60 days of interactions
-    const sixtyDaysAgo = Date.now() - 60 * 24 * 60 * 60 * 1000;
-    const allInteractions = await database
-      .get<Interaction>('interactions')
-      .query(
-        Q.where('status', 'completed'),
-        Q.where('interaction_date', Q.gte(sixtyDaysAgo)),
-        Q.sortBy('interaction_date', Q.desc)
-      )
-      .fetch();
-
-    // Filter to this friend's interactions
-    const friendInteractions: Interaction[] = [];
-    for (const interaction of allInteractions) {
-      const interactionFriends = await interaction.interactionFriends.fetch();
-      if (interactionFriends.some((jf: any) => jf.friendId === friend.id)) {
-        friendInteractions.push(interaction);
-      }
-    }
-
     if (friendInteractions.length === 0) return 1.0;
 
     // Count occurrences of this category
@@ -202,6 +186,19 @@ export async function calculateActivityPriorities(
     'celebration',
   ];
 
+  // Fetch history ONCE
+  const sixtyDaysAgo = Date.now() - 60 * 24 * 60 * 60 * 1000;
+  // Optimized query using Q.on to filter by friend_id at the DB level
+  const friendInteractions = await database
+    .get<Interaction>('interactions')
+    .query(
+      Q.on('interaction_friends', Q.where('friend_id', friend.id)),
+      Q.where('status', 'completed'),
+      Q.where('interaction_date', Q.gte(sixtyDaysAgo)),
+      Q.sortBy('interaction_date', Q.desc)
+    )
+    .fetch();
+
   // Calculate scores for each category
   const priorities: ActivityPriority[] = await Promise.all(
     categories.map(async category => {
@@ -229,8 +226,8 @@ export async function calculateActivityPriorities(
         reasons.push(`archetype:${archetypeScore.toFixed(1)}`);
       }
 
-      // Historical pattern
-      const historyScore = await getHistoricalScore(category, friend);
+      // Historical pattern (now synchronous)
+      const historyScore = getHistoricalScore(category, friendInteractions);
       if (historyScore > 1.0) {
         score *= historyScore;
         reasons.push(`history:${historyScore.toFixed(1)}`);

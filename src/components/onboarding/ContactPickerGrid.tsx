@@ -28,7 +28,6 @@ const ContactItem = React.memo(({
   onSelect: () => void;
 }) => {
   const [imageError, setImageError] = useState(false);
-  const [imageLoaded, setImageLoaded] = useState(false);
 
   const getInitials = (name: string) => {
     if (!name) return '?';
@@ -58,37 +57,35 @@ const ContactItem = React.memo(({
       onPress={onSelect}
       className="items-center p-2 w-1/3"
       style={{ height: ITEM_HEIGHT }}
+      activeOpacity={0.7}
     >
       <View className="relative">
         <View
-          className={`w-20 h-20 rounded-full justify-center items-center ${isSelected ? 'bg-emerald-500 border-4 border-emerald-500' : colorClasses}`}>
-          {shouldShowImage ? (
-            <>
-              <Image
-                source={{ uri: normalizeContactImageUri(item.image?.uri || '') }}
-                className="w-full h-full rounded-full"
-                resizeMode="cover"
-                onError={() => setImageError(true)}
-                onLoad={() => setImageLoaded(true)}
-                fadeDuration={0}
-              />
-              {!imageLoaded && (
-                <View className="absolute inset-0 justify-center items-center">
-                  <Text className={`text-2xl font-semibold ${isSelected ? 'text-white' : ''}`}>
-                    {getInitials(item.name)}
-                  </Text>
-                </View>
-              )}
-            </>
-          ) : (
+          className={`w-20 h-20 rounded-full justify-center items-center overflow-hidden ${isSelected ? 'bg-emerald-500 border-4 border-emerald-500' : colorClasses}`}>
+
+          {/* Always render initials as the base layer */}
+          <View className="absolute inset-0 justify-center items-center w-full h-full">
             <Text className={`text-2xl font-semibold ${isSelected ? 'text-white' : ''}`}>
               {getInitials(item.name)}
             </Text>
+          </View>
+
+          {/* Render image on top if available. It will cover initials when loaded. */}
+          {shouldShowImage && (
+            <Image
+              source={{ uri: normalizeContactImageUri(item.image?.uri || '') }}
+              className="w-full h-full"
+              resizeMode="cover"
+              onError={() => setImageError(true)}
+              // No onLoad needed as we just overlay it
+              fadeDuration={200} // Smooth fade in over the initials
+            />
           )}
         </View>
+
         {isSelected && (
           <Animated.View
-            entering={FadeIn.springify()}
+            entering={FadeIn.duration(200)}
             className="absolute -top-1 -right-1 bg-emerald-500 rounded-full p-1"
           >
             <CheckCircle2 color="white" size={20} strokeWidth={3} />

@@ -217,4 +217,6 @@ export async function deleteWeave(id: string): Promise<void> {
             Logger.warn('Failed to delete calendar event:', err);
         });
     }
+
+    trackEvent(AnalyticsEvents.INTERACTION_DELETED);
 }

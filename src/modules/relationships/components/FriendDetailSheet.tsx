@@ -18,6 +18,7 @@ import { CATEGORY_METADATA } from '@/shared/constants/interaction-categories';
 import { type InteractionCategory, Archetype } from '@/components/types';
 import FriendModel from '@/db/models/Friend';
 import { database } from '@/db';
+import { Q } from '@nozbe/watermelondb';
 import { calculateCurrentScore } from '@/modules/intelligence';
 import { getFriendMilestones, Milestone } from '@/modules/gamification';
 
@@ -46,14 +47,14 @@ interface FriendDetailSheetProps {
   onClose: () => void;
   friendId: string;
   friend: FriendModel; // Injected
-  interactions: any[]; // Injected
+  interactionFriends: any[]; // Injected
 }
 
 const FriendDetailSheetContent: React.FC<FriendDetailSheetProps> = ({
   isVisible,
   onClose,
   friend,
-  interactions,
+  interactionFriends,
 }) => {
   const { colors, isDarkMode } = useTheme();
   // const { activeFriendInteractions } = useRelationshipsStore(); // Removed
@@ -99,7 +100,7 @@ const FriendDetailSheetContent: React.FC<FriendDetailSheetProps> = ({
   const weaveScore = calculateCurrentScore(friend);
 
   // Use observed interactions directly
-  const totalWeaves = interactions?.length || 0;
+  const totalWeaves = interactionFriends?.length || 0;
   // TODO: If we need precise status, we need to inspect the interaction objects.
   // Ideally interactions are observed as Interaction[] if using query correctly.
   // For now assuming all are valid.
@@ -366,34 +367,11 @@ const FriendDetailSheetContent: React.FC<FriendDetailSheetProps> = ({
 };
 
 // Enhance with observables
+// Enhance with observables
 export const FriendDetailSheet = withObservables(['friendId'], ({ friendId }: { friendId: string }) => ({
   friend: database.get<FriendModel>('friends').findAndObserve(friendId),
-  // Observe interactions directly related to this friend
-  // We need the friend model to observe interactions, but findAndObserve returns an observable that emits the model.
-  // However, withObservables flat mapping is key here.
-  // Actually, standard pattern for ID->Model is:
-  // friend: database.get('friends').findAndObserve(props.friendId)
-  // For interactions, we might need a second layer or simpler: just observe friend first, then getting interactions is easy if we had the friend object.
-  // But since we *don't* have the friend object in props, we can't easily chain strictly in one go without a "switchMap" style logic which withObservables does via the function.
-  // Wait, `withObservables` first arg function receives props.
-  // If we only have `friendId`, we can observe the friend.
-  // But we also want `interactions`.
-  // Using a 2-step HOC or just letting the child fetch interactions (via another HOC or inside) is common.
-  // HOWEVER, simpler approach: The `FriendDetailSheet` *is* the HOCed component.
-  // If we return `friend: ...findAndObserve(id)`, the prop `friend` passed to component is the resolved Model.
-  // But we ALSO want `interactions` as a prop.
-  // We can't access `friend` (the model) inside the `withObservables` input function because it hasn't been resolved yet.
-  // Solution: Just observe `friend` here. Inside the component, we can have a child component that takes `friend` and observes interactions, OR we rely on `friend.interactions.observe()` logic inside the component if we don't need them as top-level props for some reason (though we do use them for count).
-  // Actually, standard WatermelonDB pattern:
-  // const Enhance = withObservables(['friendId'], ({ friendId }) => ({
-  //   friend: database.get<FriendModel>('friends').findAndObserve(friendId),
-  // }))
-  // ... but then we miss `interactions` prop which the internal component uses: `interactions.length`.
-  // We can wrap `FriendDetailSheetContent` with `withObservables` for interactions taking `friend` as prop.
-  // So:
-  // 1. FriendDetailSheet (Public) -> takes friendId.
-  // 2. Connector1 -> observes friendId -> renders Connector2 with `friend`.
-  // 3. Connector2 -> observes `friend` -> renders Content with `friend` + `interactions`.
-
-  // Let's implement this 2-layer approach for correctness.
+  interactionFriends: database
+    .get('interaction_friends')
+    .query(Q.where('friend_id', friendId))
+    .observe(),
 }))(FriendDetailSheetContent);

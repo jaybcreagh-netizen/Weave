@@ -118,6 +118,8 @@ export default function FriendBadgePopup({
         (if_: any) => if_.interactionId || if_.interaction_id || (if_._raw && if_._raw.interaction_id)
       ).filter(Boolean);
 
+      Logger.debug('[FriendBadgePopup] Extracted interaction IDs:', interactionIds.length);
+
       const interactions = await database
         .get('interactions')
         .query(Q.where('id', Q.oneOf(interactionIds)))
@@ -158,7 +160,9 @@ export default function FriendBadgePopup({
 
       const newStats = {
         archetype: friend.archetype as Archetype,
-        totalWeaves: interactions.length,
+        // Use interactionFriends count as the source of truth for "Total Weaves"
+        // This is more robust as it represents the links, even if the interaction objects fetch has issues
+        totalWeaves: interactionFriends.length,
         birthday: friend.birthday ? new Date(friend.birthday) : undefined,
         favoriteWeaveTypes: pattern.preferredCategories,
         badgeCount: badgeRecords.length,

@@ -88,14 +88,21 @@ function RootLayoutContent() {
   // useActivityKeepAwake();
 
   const posthog = usePostHog();
+  const [analyticsInitialized, setAnalyticsInitialized] = useState(false);
 
   const pathname = usePathname();
 
   useEffect(() => {
     if (posthog) {
       setPostHogInstance(posthog);
+
+      if (!analyticsInitialized) {
+        trackEvent(AnalyticsEvents.APP_OPENED);
+        trackRetentionMetrics();
+        setAnalyticsInitialized(true);
+      }
     }
-  }, [posthog]);
+  }, [posthog, analyticsInitialized]);
 
   // Manually track screen views
   useEffect(() => {
@@ -157,10 +164,9 @@ function RootLayoutContent() {
         await initializeUserProfile();
         await initializeUserProgress();
         // Initialize analytics
+        // Note: Actual tracking happens in useEffect dependent on posthog instance
         await initializeAnalytics();
-        // Track app open and retention metrics
-        trackEvent(AnalyticsEvents.APP_OPENED);
-        await trackRetentionMetrics();
+
 
         // Sync calendar changes on app launch (non-blocking)
         import('@/modules/interactions').then(({ useInteractionsStore }) => {

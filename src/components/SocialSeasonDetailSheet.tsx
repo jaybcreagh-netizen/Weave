@@ -9,8 +9,8 @@ import {
     StyleSheet,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
-import { X, Activity, BarChart3, Scale } from 'lucide-react-native';
-import { startOfMonth, endOfMonth, eachDayOfInterval, format, isSameDay, startOfWeek, endOfWeek, differenceInDays } from 'date-fns';
+import { X, Activity, BarChart3, Scale, ChevronLeft, ChevronRight, Zap, Book, CheckCircle2 } from 'lucide-react-native';
+import { startOfMonth, endOfMonth, eachDayOfInterval, format, isSameDay, startOfWeek, endOfWeek, differenceInDays, addMonths, subMonths } from 'date-fns';
 import { Q } from '@nozbe/watermelondb';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { type SocialSeason, type SeasonExplanationData } from '@/modules/intelligence';
@@ -25,6 +25,7 @@ import { useUserProfileStore } from '@/modules/auth';
 import { Card } from '@/components/ui/Card';
 import { WidgetHeader } from '@/components/ui/WidgetHeader';
 import { Stat } from '@/components/ui/Stat';
+import Friend from '@/db/models/Friend';
 
 interface SocialSeasonDetailSheetProps {
     isVisible: boolean;
@@ -179,22 +180,43 @@ function PulseTabContent({
 }) {
     const { tokens, typography, spacing, isDarkMode } = useTheme();
     const explanation = seasonData ? generateSeasonExplanation(seasonData) : null;
-    const [monthlyActivity, setMonthlyActivity] = useState<Map<string, boolean>>(new Map());
-    const [completedWeaves, setCompletedWeaves] = useState<Map<string, boolean>>(new Map());
-    const [monthlyWeaves, setMonthlyWeaves] = useState(0);
-    const [totalWeaves, setTotalWeaves] = useState(0);
-    const [totalDaysActive, setTotalDaysActive] = useState(0);
     const { profile } = useUserProfileStore();
 
-    useEffect(() => {
-        loadMonthlyStats();
-    }, []);
+    // State for navigation and selection
+    const [currentMonth, setCurrentMonth] = useState(new Date());
+    const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
-    const loadMonthlyStats = async () => {
+    // Stats for the displayed month
+    const [monthlyActivity, setMonthlyActivity] = useState<Map<string, boolean>>(new Map());
+    const [completedWeaves, setCompletedWeaves] = useState<Map<string, boolean>>(new Map());
+    const [monthlyWeavesCount, setMonthlyWeavesCount] = useState(0);
+    const [totalWeaves, setTotalWeaves] = useState(0);
+    const [totalDaysActive, setTotalDaysActive] = useState(0);
+
+    // Detailed data for the selected day
+    const [dayDetails, setDayDetails] = useState<{
+        weaves: { id: string; name: string; type: string }[];
+        hasJournal: boolean;
+        hasCheckin: boolean;
+        isLoading: boolean;
+    } | null>(null);
+
+    useEffect(() => {
+        loadMonthlyStats(currentMonth);
+    }, [currentMonth]);
+
+    useEffect(() => {
+        if (selectedDate) {
+            loadDayDetails(selectedDate);
+        } else {
+            setDayDetails(null);
+        }
+    }, [selectedDate]);
+
+    const loadMonthlyStats = async (date: Date) => {
         try {
-            const today = new Date();
-            const monthStart = startOfMonth(today);
-            const monthEnd = endOfMonth(today);
+            const monthStart = startOfMonth(date);
+            const monthEnd = endOfMonth(date);
 
             const monthlyInteractions = await database
                 .get<Interaction>('interactions')
@@ -205,7 +227,7 @@ function PulseTabContent({
                 )
                 .fetch();
 
-            setMonthlyWeaves(monthlyInteractions.length);
+            setMonthlyWeavesCount(monthlyInteractions.length);
 
             const activityMap = new Map<string, boolean>();
             const completedWeavesMap = new Map<string, boolean>();
@@ -216,27 +238,33 @@ function PulseTabContent({
                 completedWeavesMap.set(dateKey, true);
             });
 
+            // Check for other activity (Battery, Journal) to mark "activity" days
             const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
+
+            // We need to fetch reflections for the whole month efficiently
+            const monthlyReflections = await database
+                .get<WeeklyReflection>('weekly_reflections')
+                .query(
+                    Q.where('created_at', Q.gte(monthStart.getTime())),
+                    Q.where('created_at', Q.lte(monthEnd.getTime()))
+                )
+                .fetch();
+
+            const reflectionSet = new Set(monthlyReflections.map(r => format(new Date(r.createdAt), 'yyyy-MM-dd')));
+
+            // Check local profile battery history
+            const batteryHistory = profile?.socialBatteryHistory || [];
+
             for (const day of days) {
                 const dayStart = day.getTime();
                 const dayEnd = dayStart + 24 * 60 * 60 * 1000;
                 const dateKey = format(day, 'yyyy-MM-dd');
 
                 if (!activityMap.has(dateKey)) {
-                    const [batteryCheckins, journalEntries] = await Promise.all([
-                        profile?.socialBatteryHistory?.filter(
-                            entry => entry.timestamp >= dayStart && entry.timestamp < dayEnd
-                        ).length || 0,
-                        database
-                            .get<WeeklyReflection>('weekly_reflections')
-                            .query(
-                                Q.where('created_at', Q.gte(dayStart)),
-                                Q.where('created_at', Q.lt(dayEnd))
-                            )
-                            .fetchCount(),
-                    ]);
+                    const hasBattery = batteryHistory.some(entry => entry.timestamp >= dayStart && entry.timestamp < dayEnd);
+                    const hasJournal = reflectionSet.has(dateKey);
 
-                    if (batteryCheckins > 0 || journalEntries > 0) {
+                    if (hasBattery || hasJournal) {
                         activityMap.set(dateKey, true);
                     }
                 }
@@ -245,14 +273,14 @@ function PulseTabContent({
             setMonthlyActivity(activityMap);
             setCompletedWeaves(completedWeavesMap);
 
-            const allCompletedWeaves = await database
+            // Global stats (Total Weaves & Active Days) - these are lifetime stats
+            const allCompletedWeavesCount = await database
                 .get<Interaction>('interactions')
                 .query(Q.where('status', 'completed'))
                 .fetchCount();
 
-            setTotalWeaves(allCompletedWeaves);
+            setTotalWeaves(allCompletedWeavesCount);
 
-            // Calculate total days active
             const allInteractions = await database
                 .get<Interaction>('interactions')
                 .query(Q.where('status', 'completed'))
@@ -271,9 +299,70 @@ function PulseTabContent({
         }
     };
 
-    const today = new Date();
-    const monthStart = startOfMonth(today);
-    const monthEnd = endOfMonth(today);
+    const loadDayDetails = async (date: Date) => {
+        setDayDetails(prev => ({ ...prev, weaves: [], hasJournal: false, hasCheckin: false, isLoading: true }));
+        try {
+            const dayStart = date.getTime();
+            const nextDay = new Date(date);
+            nextDay.setDate(date.getDate() + 1);
+            nextDay.setHours(0, 0, 0, 0);
+            const dayEnd = nextDay.getTime();
+
+            // Fetch interactions
+            const dayInteractions = await database
+                .get<Interaction>('interactions')
+                .query(
+                    Q.where('status', 'completed'),
+                    Q.where('interaction_date', Q.gte(dayStart)),
+                    Q.where('interaction_date', Q.lt(dayEnd))
+                )
+                .fetch();
+
+            // Enrich interactions with Friend names
+            const enrichedWeaves = await Promise.all(
+                dayInteractions.map(async (interaction) => {
+                    const friends = await interaction.friends.fetch();
+                    const names = friends.map(f => f.firstName).join(', ');
+                    return {
+                        id: interaction.id,
+                        name: names || 'Unknown Friend',
+                        type: interaction.type
+                    };
+                })
+            );
+
+            // Check Check-in
+            const hasCheckin = (profile?.socialBatteryHistory || []).some(
+                entry => entry.timestamp >= dayStart && entry.timestamp < dayEnd
+            );
+
+            // Check Journal
+            const journalCount = await database
+                .get<WeeklyReflection>('weekly_reflections')
+                .query(
+                    Q.where('created_at', Q.gte(dayStart)),
+                    Q.where('created_at', Q.lt(dayEnd))
+                )
+                .fetchCount();
+
+            setDayDetails({
+                weaves: enrichedWeaves,
+                hasJournal: journalCount > 0,
+                hasCheckin: hasCheckin,
+                isLoading: false
+            });
+
+        } catch (error) {
+            console.error('Error loading day details:', error);
+            setDayDetails({ weaves: [], hasJournal: false, hasCheckin: false, isLoading: false });
+        }
+    };
+
+    const handlePrevMonth = () => setCurrentMonth(subMonths(currentMonth, 1));
+    const handleNextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
+
+    const monthStart = startOfMonth(currentMonth);
+    const monthEnd = endOfMonth(currentMonth);
     const calendarStart = startOfWeek(monthStart, { weekStartsOn: 1 });
     const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 1 });
     const calendarDays = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
@@ -304,7 +393,44 @@ function PulseTabContent({
 
             {/* Calendar */}
             <Card>
-                <WidgetHeader title="Rhythm" subtitle={format(today, 'MMMM yyyy')} />
+                <View style={[styles.header, { paddingHorizontal: 0, marginBottom: 12 }]}>
+                    <View>
+                        <Text style={{
+                            color: tokens.foreground,
+                            fontFamily: typography.fonts.serifBold,
+                            fontSize: 18
+                        }}>
+                            Rhythm
+                        </Text>
+                        <Text style={{
+                            color: tokens.foregroundMuted,
+                            fontFamily: typography.fonts.sans,
+                            fontSize: 14
+                        }}>
+                            {format(currentMonth, 'MMMM yyyy')}
+                        </Text>
+                    </View>
+                    <View style={{ flexDirection: 'row', gap: 8 }}>
+                        <TouchableOpacity onPress={handlePrevMonth} style={styles.navButton}>
+                            <ChevronLeft size={20} color={tokens.foreground} />
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={handleNextMonth} style={styles.navButton}>
+                            <ChevronRight size={20} color={tokens.foreground} />
+                        </TouchableOpacity>
+                    </View>
+                </View>
+
+                {/* Legend */}
+                <View style={styles.legendContainer}>
+                    <View style={styles.legendItem}>
+                        <View style={[styles.legendDot, { backgroundColor: tokens.primary }]} />
+                        <Text style={[styles.legendText, { color: tokens.foregroundMuted }]}>Weave</Text>
+                    </View>
+                    <View style={styles.legendItem}>
+                        <View style={[styles.legendDot, { backgroundColor: tokens.primary + '20' }]} />
+                        <Text style={[styles.legendText, { color: tokens.foregroundMuted }]}>Activity</Text>
+                    </View>
+                </View>
 
                 <View style={styles.calendarHeader}>
                     {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, index) => (
@@ -319,32 +445,89 @@ function PulseTabContent({
                         const dateKey = format(day, 'yyyy-MM-dd');
                         const hasActivity = monthlyActivity.get(dateKey) || false;
                         const hasCompletedWeave = completedWeaves.get(dateKey) || false;
-                        const isToday = isSameDay(day, today);
-                        const isCurrentMonth = day.getMonth() === today.getMonth();
+                        const isCurrentMonth = day.getMonth() === currentMonth.getMonth();
+                        const isSelected = selectedDate && isSameDay(day, selectedDate);
 
                         return (
-                            <View key={index} style={styles.dayCell}>
+                            <TouchableOpacity
+                                key={index}
+                                style={styles.dayCell}
+                                onPress={() => setSelectedDate(day)}
+                            >
                                 <View style={[
                                     styles.dayContent,
                                     hasActivity && { backgroundColor: tokens.primary + '20' },
-                                    hasCompletedWeave && { backgroundColor: tokens.primary, borderRadius: 999 },
+                                    hasCompletedWeave && { backgroundColor: tokens.primary },
+                                    isSelected && { borderWidth: 2, borderColor: tokens.foreground },
                                     !isCurrentMonth && { opacity: 0.3 }
                                 ]}>
                                     <Text style={[
                                         styles.dayText,
                                         {
                                             color: hasCompletedWeave ? tokens.primaryForeground : tokens.foreground,
-                                            fontFamily: isToday ? typography.fonts.sansSemiBold : typography.fonts.sans
+                                            fontFamily: isSelected ? typography.fonts.sansBold : (hasCompletedWeave ? typography.fonts.sansSemiBold : typography.fonts.sans)
                                         }
                                     ]}>
                                         {day.getDate()}
                                     </Text>
                                 </View>
-                            </View>
+                            </TouchableOpacity>
                         );
                     })}
                 </View>
             </Card>
+
+            {/* Selected Day Details */}
+            {selectedDate && (
+                <Card>
+                    <WidgetHeader
+                        title={isSameDay(selectedDate, new Date()) ? "Today's Pulse" : `Pulse for ${format(selectedDate, 'MMM d')}`}
+                        subtitle={dayDetails?.isLoading ? "Loading..." : (!dayDetails?.weaves.length && !dayDetails?.hasCheckin && !dayDetails?.hasJournal ? "No activity recorded" : "")}
+                    />
+
+                    {!dayDetails?.isLoading && (
+                        <View style={{ gap: 12 }}>
+                            {dayDetails?.weaves.map(weave => (
+                                <View key={weave.id} style={styles.detailRow}>
+                                    <View style={[styles.iconBox, { backgroundColor: tokens.primary + '20' }]}>
+                                        <CheckCircle2 size={16} color={tokens.primary} />
+                                    </View>
+                                    <View>
+                                        <Text style={[styles.detailText, { color: tokens.foreground, fontFamily: typography.fonts.sansMedium }]}>
+                                            Weave with {weave.name}
+                                        </Text>
+                                        <Text style={[styles.detailSubtext, { color: tokens.foregroundMuted }]}>
+                                            {weave.type}
+                                        </Text>
+                                    </View>
+                                </View>
+                            ))}
+
+                            {dayDetails?.hasCheckin && (
+                                <View style={styles.detailRow}>
+                                    <View style={[styles.iconBox, { backgroundColor: tokens.alert + '20' }]}>
+                                        <Zap size={16} color={tokens.alert} />
+                                    </View>
+                                    <Text style={[styles.detailText, { color: tokens.foreground, fontFamily: typography.fonts.sansMedium }]}>
+                                        Social Battery Check-in
+                                    </Text>
+                                </View>
+                            )}
+
+                            {dayDetails?.hasJournal && (
+                                <View style={styles.detailRow}>
+                                    <View style={[styles.iconBox, { backgroundColor: tokens.purple + '20' }]}>
+                                        <Book size={16} color={tokens.purple} />
+                                    </View>
+                                    <Text style={[styles.detailText, { color: tokens.foreground, fontFamily: typography.fonts.sansMedium }]}>
+                                        Journal Entry
+                                    </Text>
+                                </View>
+                            )}
+                        </View>
+                    )}
+                </Card>
+            )}
 
             {/* Stats */}
             <Card>
@@ -352,7 +535,7 @@ function PulseTabContent({
                 <View style={styles.statsGrid}>
                     <Stat label="Total Weaves" value={totalWeaves} />
                     <Stat label="Active Days" value={totalDaysActive} />
-                    <Stat label="This Month" value={monthlyWeaves} />
+                    <Stat label="This Month" value={monthlyWeavesCount} />
                 </View>
             </Card>
         </View>
@@ -439,4 +622,44 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
     },
+    navButton: {
+        padding: 8,
+    },
+    legendContainer: {
+        flexDirection: 'row',
+        justifyContent: 'flex-start',
+        gap: 16,
+        marginBottom: 16,
+    },
+    legendItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+    },
+    legendDot: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+    },
+    legendText: {
+        fontSize: 12,
+    },
+    detailRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+    },
+    iconBox: {
+        width: 32,
+        height: 32,
+        borderRadius: 8,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    detailText: {
+        fontSize: 14,
+    },
+    detailSubtext: {
+        fontSize: 12,
+    }
 });

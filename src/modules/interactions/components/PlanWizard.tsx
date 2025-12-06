@@ -91,68 +91,58 @@ export function PlanWizard({ visible, onClose, initialFriend, prefillData, repla
       const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
       try {
-        // 1. Fetch Planned Dates
-        const joinRecords = await database
-          .get('interaction_friends')
-          .query(Q.where('friend_id', initialFriend.id))
+        // 1. Fetch Planned Dates (Optimized with Q.on)
+        const plannedInteractions = await database
+          .get<Interaction>('interactions')
+          .query(
+            Q.on('interaction_friends', Q.where('friend_id', initialFriend.id)),
+            Q.where('status', 'planned'),
+            Q.where('interaction_date', Q.gte(today.getTime()))
+          )
           .fetch();
 
-        if (joinRecords.length > 0) {
-          const interactionIds = joinRecords.map((jr: any) => jr.interactionId);
-          const interactions = await database
-            .get<Interaction>('interactions')
-            .query(
-              Q.where('id', Q.oneOf(interactionIds)),
-              Q.where('status', 'planned'),
-              Q.where('interaction_date', Q.gte(today.getTime()))
-            )
-            .fetch();
-          setPlannedDates(interactions.map(i => startOfDay(i.interactionDate)));
-        }
+        setPlannedDates(plannedInteractions.map(i => startOfDay(i.interactionDate)));
 
-        // 2. Calculate Most Common Day
-        if (joinRecords.length > 0) {
-          const interactionIds = joinRecords.map((jr: any) => jr.interactionId);
-          const interactions = await database
-            .get<Interaction>('interactions')
-            .query(
-              Q.where('id', Q.oneOf(interactionIds)),
-              Q.where('status', 'completed')
-            )
-            .fetch();
+        // 2. Calculate Most Common Day (Optimized with Q.on)
+        const completedInteractions = await database
+          .get<Interaction>('interactions')
+          .query(
+            Q.on('interaction_friends', Q.where('friend_id', initialFriend.id)),
+            Q.where('status', 'completed')
+          )
+          .fetch();
 
-          if (interactions.length > 0) {
-            const dayCounts: Record<number, number> = {};
-            interactions.forEach(interaction => {
-              const dayOfWeek = getDay(interaction.interactionDate);
-              dayCounts[dayOfWeek] = (dayCounts[dayOfWeek] || 0) + 1;
-            });
+        if (completedInteractions.length > 0) {
+          const dayCounts: Record<number, number> = {};
+          completedInteractions.forEach(interaction => {
+            const dayOfWeek = getDay(interaction.interactionDate);
+            dayCounts[dayOfWeek] = (dayCounts[dayOfWeek] || 0) + 1;
+          });
 
-            let maxCount = 0;
-            let commonDay = 0;
-            Object.entries(dayCounts).forEach(([day, count]) => {
-              if (count > maxCount) {
-                maxCount = count;
-                commonDay = parseInt(day);
-              }
-            });
-
-            const currentDay = getDay(today);
-            let nextOccurrence: Date;
-            if (commonDay === currentDay) {
-              nextOccurrence = today;
-            } else if (commonDay > currentDay) {
-              nextOccurrence = addDays(today, commonDay - currentDay);
-            } else {
-              nextOccurrence = addDays(today, 7 - currentDay + commonDay);
+          let maxCount = 0;
+          let commonDay = 0;
+          Object.entries(dayCounts).forEach(([day, count]) => {
+            if (count > maxCount) {
+              maxCount = count;
+              commonDay = parseInt(day);
             }
+          });
 
-            setMostCommonDay({
-              day: commonDay,
-              name: dayNames[commonDay],
-              date: nextOccurrence,
-            });
+          const currentDay = getDay(today);
+          let nextOccurrence: Date;
+          if (commonDay === currentDay) {
+            nextOccurrence = today;
+          } else if (commonDay > currentDay) {
+            nextOccurrence = addDays(today, commonDay - currentDay);
+          } else {
+            nextOccurrence = addDays(today, 7 - currentDay + commonDay);
           }
+
+          setMostCommonDay({
+            day: commonDay,
+            name: dayNames[commonDay],
+            date: nextOccurrence,
+          });
         }
 
         // 3. Calculate Category Priorities

@@ -7,6 +7,7 @@ import JournalEntry from '@/db/models/JournalEntry';
 import WeeklyReflection from '@/db/models/WeeklyReflection';
 import { type Memory } from '@/modules/journal/services/journal-context-engine';
 import { type DigestItem } from '@/modules/notifications/services/channels/evening-digest';
+import { trackEvent, AnalyticsEvents } from '@/shared/services/analytics.service';
 
 interface MemoryMomentData {
   memory: Memory;
@@ -161,13 +162,19 @@ export const useUIStore = create<UIStore>((set, get) => ({
   closeCalendarView: () => set({ calendarViewOpen: false, calendarSelectedFriendId: null, calendarSelectedDate: null }),
   setCalendarSelectedDate: (date) => set({ calendarSelectedDate: date }),
   toggleShowDebugScore: () => set((state) => ({ showDebugScore: !state.showDebugScore })),
-  openQuickWeave: (friendId, centerPoint, activities) => set({
-    isQuickWeaveOpen: true,
-    isQuickWeaveClosing: false,
-    quickWeaveFriendId: friendId,
-    quickWeaveCenterPoint: centerPoint,
-    quickWeaveActivities: activities
-  }),
+  openQuickWeave: (friendId, centerPoint, activities) => {
+    set({
+      isQuickWeaveOpen: true,
+      isQuickWeaveClosing: false,
+      quickWeaveFriendId: friendId,
+      quickWeaveCenterPoint: centerPoint,
+      quickWeaveActivities: activities
+    });
+    trackEvent(AnalyticsEvents.QUICK_WEAVE_OPENED, {
+      friendId,
+      activity_count: activities.length
+    });
+  },
 
   // This just starts the closing animation
   closeQuickWeave: () => set({ isQuickWeaveClosing: true }),
