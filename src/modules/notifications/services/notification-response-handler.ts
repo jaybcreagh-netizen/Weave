@@ -104,27 +104,32 @@ export function handleNotificationResponse(
  * Navigate to home tab and trigger battery check-in modal
  */
 function handleBatteryCheckinNotification(): void {
-  // Navigate to home tab
-  router.push('/(tabs)/home');
+  // Navigate to dashboard first
+  if (router.canGoBack()) {
+    router.dismissAll();
+  }
+  router.replace('/dashboard');
 
-  // Trigger battery sheet via a URL parameter or global state
-  // We'll use a URL parameter that home.tsx can read
+  // Open the sheet via global store
   setTimeout(() => {
-    router.setParams({ showBattery: 'true' });
-  }, 300);
+    useUIStore.getState().openSocialBatterySheet();
+  }, 500);
 }
 
 /**
  * Navigate to home tab and trigger weekly reflection modal
  */
 function handleWeeklyReflectionNotification(): void {
-  // Navigate to home tab
-  router.push('/(tabs)/home');
+  // Navigate to dashboard first
+  if (router.canGoBack()) {
+    router.dismissAll();
+  }
+  router.replace('/dashboard');
 
-  // Trigger weekly reflection via URL parameter
+  // Open the modal via global store
   setTimeout(() => {
-    router.setParams({ showReflection: 'true' });
-  }, 300);
+    useUIStore.getState().openWeeklyReflection();
+  }, 500);
 }
 
 /**
@@ -214,16 +219,18 @@ function handleLifeEventNotification(data: NotificationData): void {
  * Navigate to home tab and show anniversary reflection
  */
 function handleMemoryNudgeNotification(data: NotificationData): void {
-  // Navigate to home tab
-  router.push('/(tabs)/home');
+  // Navigate to dashboard
+  if (router.canGoBack()) {
+    router.dismissAll();
+  }
+  router.replace('/dashboard');
 
-  // Trigger memory reflection modal via URL parameter
+  // Trigger memory reflection modal via URL parameter (if Home supports it)
+  // For now, mapping to Weekly Reflection as fallback or specific memory modal if exists
   setTimeout(() => {
-    router.setParams({
-      showMemory: 'true',
-      reflectionId: data.reflectionId,
-    });
-  }, 300);
+    useUIStore.getState().openWeeklyReflection();
+    // TODO: Pass memory specific data if WeeklyReflectionModal supports it
+  }, 500);
 }
 
 /**

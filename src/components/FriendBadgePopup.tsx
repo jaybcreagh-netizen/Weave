@@ -115,8 +115,8 @@ export default function FriendBadgePopup({
       Logger.debug('[FriendBadgePopup] InteractionFriends count:', interactionFriends.length);
 
       const interactionIds = interactionFriends.map(
-        (if_: any) => if_.interactionId
-      );
+        (if_: any) => if_.interactionId || if_.interaction_id || (if_._raw && if_._raw.interaction_id)
+      ).filter(Boolean);
 
       const interactions = await database
         .get('interactions')

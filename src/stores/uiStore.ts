@@ -46,6 +46,10 @@ interface UIStore {
   isTrophyCabinetOpen: boolean;
 
   isWeeklyReflectionOpen: boolean;
+  isSocialBatterySheetOpen: boolean;
+  openSocialBatterySheet: () => void;
+  closeSocialBatterySheet: () => void;
+
   openWeeklyReflection: () => void;
   closeWeeklyReflection: () => void;
 
@@ -110,6 +114,10 @@ export const useUIStore = create<UIStore>((set, get) => ({
   isDarkMode: false,
   isTrophyCabinetOpen: false,
   isWeeklyReflectionOpen: false,
+  isSocialBatterySheetOpen: false,
+
+  openSocialBatterySheet: () => set({ isSocialBatterySheetOpen: true }),
+  closeSocialBatterySheet: () => set({ isSocialBatterySheetOpen: false }),
 
   openWeeklyReflection: () => set({ isWeeklyReflectionOpen: true }),
   closeWeeklyReflection: () => set({ isWeeklyReflectionOpen: false }),

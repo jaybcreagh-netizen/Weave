@@ -7,6 +7,7 @@ import { SettingsModal } from '@/components/settings-modal';
 import { SocialBatterySheet } from '@/components/home/SocialBatterySheet';
 import BadgeUnlockModal from '@/components/BadgeUnlockModal';
 import { useUserProfileStore } from '@/modules/auth';
+import { useUIStore } from '@/stores/uiStore';
 import { useSuggestions } from '@/modules/interactions';
 import HomeScreen from './_home';
 import FriendsScreen from './_friends';
@@ -18,7 +19,11 @@ export default function Dashboard() {
     const colors = theme?.colors || {};
     const [activeTab, setActiveTab] = useState<'insights' | 'circle'>('circle');
     const [showSettings, setShowSettings] = useState(false);
-    const [showBatterySheet, setShowBatterySheet] = useState(false);
+    const {
+        isSocialBatterySheetOpen,
+        openSocialBatterySheet,
+        closeSocialBatterySheet
+    } = useUIStore();
     const { submitBatteryCheckin } = useUserProfileStore();
     const { suggestions } = useSuggestions();
     const suggestionCount = suggestions.length;
@@ -143,16 +148,19 @@ export default function Dashboard() {
                 <SettingsModal
                     isOpen={showSettings}
                     onClose={() => setShowSettings(false)}
-                    onOpenBatteryCheckIn={() => setShowBatterySheet(true)}
+                    onOpenBatteryCheckIn={() => {
+                        setShowSettings(false);
+                        openSocialBatterySheet();
+                    }}
                 />
 
                 <SocialBatterySheet
-                    isVisible={showBatterySheet}
+                    isVisible={isSocialBatterySheetOpen}
                     onSubmit={async (value, note) => {
                         await submitBatteryCheckin(value, note);
-                        setShowBatterySheet(false);
+                        closeSocialBatterySheet();
                     }}
-                    onDismiss={() => setShowBatterySheet(false)}
+                    onDismiss={() => closeSocialBatterySheet()}
                 />
             </SafeAreaView>
             <BadgeUnlockModal />

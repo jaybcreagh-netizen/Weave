@@ -478,9 +478,16 @@ export async function scheduleWeeklyReflection(): Promise<void> {
     // Check grace period before scheduling
     const gracePeriodCheck = await shouldSendWeeklyReflectionNotification();
     if (!gracePeriodCheck.shouldSend) {
-
       return;
     }
+
+    // Get user preference for reflection day
+    const profiles = await database.get<UserProfile>('user_profile').query().fetch();
+    const profile = profiles[0];
+    const reflectionDayIndex = profile?.reflectionDay ?? 0; // 0 = Sunday
+
+    // Map 0-6 (Sun-Sat) to Expo's 1-7 (Sun-Sat)
+    const expoWeekday = reflectionDayIndex + 1;
 
     await Notifications.scheduleNotificationAsync({
       identifier: WEEKLY_REFLECTION_ID,
@@ -490,7 +497,7 @@ export async function scheduleWeeklyReflection(): Promise<void> {
         data: { type: 'weekly-reflection' },
       },
       trigger: {
-        weekday: 1, // Sunday
+        weekday: expoWeekday,
         hour: 19,
         minute: 0,
         repeats: true,
