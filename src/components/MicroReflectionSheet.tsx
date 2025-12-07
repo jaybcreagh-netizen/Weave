@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Dimensions, Modal, TouchableWithoutFeedback, Keyboard } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Dimensions, Modal, TouchableWithoutFeedback, Keyboard, ScrollView } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming, runOnJS } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 
 import { useTheme } from '@/shared/hooks/useTheme';
 import { type Vibe } from './types';
+import { getCategoryMetadata } from '@/shared/constants/interaction-categories';
+import { type InteractionCategory } from './types';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
-const SHEET_HEIGHT = SCREEN_HEIGHT * 0.6;
+const SHEET_HEIGHT = SCREEN_HEIGHT * 0.85;
 
 interface MicroReflectionSheetProps {
   isVisible: boolean;
@@ -20,13 +22,7 @@ interface MicroReflectionSheetProps {
   onSkip: () => void;
 }
 
-const MOON_PHASES: { vibe: Vibe; emoji: string; label: string }[] = [
-  { vibe: 'NewMoon', emoji: '🌑', label: 'New Moon' },
-  { vibe: 'WaxingCrescent', emoji: '🌘', label: 'Waxing' },
-  { vibe: 'FirstQuarter', emoji: '🌗', label: 'Half' },
-  { vibe: 'WaxingGibbous', emoji: '🌖', label: 'Gibbous' },
-  { vibe: 'FullMoon', emoji: '🌕', label: 'Full Moon' },
-];
+import { MoonPhaseSelector } from '@/components/MoonPhaseSelector';
 
 export function MicroReflectionSheet({
   isVisible,
@@ -45,15 +41,19 @@ export function MicroReflectionSheet({
   const sheetTranslateY = useSharedValue(SHEET_HEIGHT);
   const backdropOpacity = useSharedValue(0);
 
-  // Auto-dismiss timer
+  // Auto-dismiss timer removed per user request
   useEffect(() => {
     if (isVisible) {
-      setTitle(activityLabel); // Reset title when opening
-      const timer = setTimeout(() => {
-        handleSkip();
-      }, 10000); // 10 seconds
+      // Check if activityLabel looks like a category ID (e.g. "event-party")
+      if (activityLabel && activityLabel.includes('-')) {
+        const metadata = getCategoryMetadata(activityLabel as InteractionCategory);
+        if (metadata && metadata.label) {
+          setTitle(metadata.label);
+          return;
+        }
+      }
 
-      return () => clearTimeout(timer);
+      setTitle(activityLabel); // Reset title when opening
     }
   }, [isVisible, activityLabel]);
 
@@ -166,120 +166,90 @@ export function MicroReflectionSheet({
                 {/* Handle */}
                 <View style={[styles.handle, { backgroundColor: colors['muted-foreground'] }]} />
 
-                {/* Header */}
-                <View style={styles.header}>
-                  <Text style={[styles.activityText, { color: colors['muted-foreground'] }]}>
-                    ✨ Logged
-                  </Text>
-                  <TextInput
-                    style={[styles.titleInput, { color: colors.foreground }]}
-                    value={title}
-                    onChangeText={setTitle}
-                    placeholder="Interaction Title"
-                    placeholderTextColor={colors['muted-foreground'] + '80'}
-                    returnKeyType="done"
-                  />
-                  <Text style={[styles.friendNameText, { color: colors.foreground }]}>
-                    with {friendName}
-                  </Text>
-                </View>
-
-                {/* Prompt */}
-                <Text style={[styles.promptText, { color: colors.foreground }]}>
-                  {getPrompt()}
-                </Text>
-
-                {/* Moon Phase Selector */}
-                <View style={styles.moonContainer}>
-                  {MOON_PHASES.map(({ vibe, emoji, label }) => {
-                    const isSelected = selectedVibe === vibe;
-                    return (
-                      <TouchableOpacity
-                        key={vibe}
-                        style={[
-                          styles.moonButton,
-                          isSelected && {
-                            backgroundColor: isDarkMode ? colors.primary + '20' : colors.primary + '15',
-                            borderColor: colors.primary,
-                            borderWidth: 2,
-                          },
-                        ]}
-                        onPress={() => handleVibeSelect(vibe)}
-                        activeOpacity={0.7}
-                      >
-                        <Text
-                          style={[
-                            styles.moonEmoji,
-                            !isSelected && { opacity: 0.4 },
-                          ]}
-                        >
-                          {emoji}
-                        </Text>
-                        <Text
-                          style={[
-                            styles.moonLabel,
-                            { color: isSelected ? colors.primary : colors['muted-foreground'] },
-                            !isSelected && { opacity: 0.5 },
-                          ]}
-                        >
-                          {label}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-
-                {/* Optional Note */}
-                <View style={styles.noteSection}>
-                  <Text style={[styles.noteLabel, { color: colors['muted-foreground'] }]}>
-                    Optional: Add a note
-                  </Text>
-                  <TextInput
-                    style={[
-                      styles.noteInput,
-                      {
-                        backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)',
-                        color: colors.foreground,
-                        borderColor: colors.border,
-                      },
-                    ]}
-                    placeholder="What happened? How are you feeling?"
-                    placeholderTextColor={colors['muted-foreground'] + '80'}
-                    value={notes}
-                    onChangeText={setNotes}
-                    multiline
-                    numberOfLines={3}
-                    textAlignVertical="top"
-                    returnKeyType="done"
-                    blurOnSubmit
-                  />
-                </View>
-
-                {/* Actions */}
-                <View style={styles.actions}>
-                  <TouchableOpacity
-                    style={[styles.skipButton, { borderColor: colors.border }]}
-                    onPress={handleSkip}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={[styles.skipButtonText, { color: colors['muted-foreground'] }]}>
-                      Skip
+                <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+                  {/* Header */}
+                  <View style={styles.header}>
+                    <Text style={[styles.activityText, { color: colors['muted-foreground'] }]}>
+                      ✨ Logged
                     </Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[
-                      styles.saveButton,
-                      { backgroundColor: colors.primary },
-                    ]}
-                    onPress={handleSave}
-                    activeOpacity={0.8}
-                  >
-                    <Text style={[styles.saveButtonText, { color: colors['primary-foreground'] }]}>
-                      Save ✨
+                    <TextInput
+                      style={[styles.titleInput, { color: colors.foreground }]}
+                      value={title}
+                      onChangeText={setTitle}
+                      placeholder="Interaction Title"
+                      placeholderTextColor={colors['muted-foreground'] + '80'}
+                      returnKeyType="done"
+                    />
+                    <Text style={[styles.friendNameText, { color: colors.foreground }]}>
+                      with {friendName}
                     </Text>
-                  </TouchableOpacity>
-                </View>
+                  </View>
+
+                  {/* Prompt */}
+                  <Text style={[styles.promptText, { color: colors.foreground }]}>
+                    {getPrompt()}
+                  </Text>
+
+                  {/* Moon Phase Selector */}
+                  <View style={styles.moonContainer}>
+                    <MoonPhaseSelector
+                      selectedVibe={selectedVibe}
+                      onSelect={handleVibeSelect}
+                    />
+                  </View>
+
+                  {/* Optional Note */}
+                  <View style={styles.noteSection}>
+                    <Text style={[styles.noteLabel, { color: colors['muted-foreground'] }]}>
+                      Optional: Add a note
+                    </Text>
+                    <TextInput
+                      style={[
+                        styles.noteInput,
+                        {
+                          backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)',
+                          color: colors.foreground,
+                          borderColor: colors.border,
+                        },
+                      ]}
+                      placeholder="What happened? How are you feeling?"
+                      placeholderTextColor={colors['muted-foreground'] + '80'}
+                      value={notes}
+                      onChangeText={setNotes}
+                      multiline
+                      numberOfLines={3}
+                      textAlignVertical="top"
+                      returnKeyType="done"
+                      blurOnSubmit
+                    />
+                  </View>
+
+                  {/* Actions */}
+                  <View style={styles.actions}>
+                    <TouchableOpacity
+                      style={[styles.skipButton, { borderColor: colors.border }]}
+                      onPress={handleSkip}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={[styles.skipButtonText, { color: colors['muted-foreground'] }]}>
+                        Skip
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[
+                        styles.saveButton,
+                        { backgroundColor: colors.primary },
+                      ]}
+                      onPress={handleSave}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={[styles.saveButtonText, { color: colors['primary-foreground'] }]}>
+                        Save ✨
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </ScrollView>
               </View>
             </TouchableWithoutFeedback>
           </BlurView>
@@ -353,30 +323,13 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   moonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 28,
-    gap: 8,
+    // Container style can remain or be adjusted if needed, currently flex row but Selector is vertical list
+    // MoonPhaseSelector handles its own width/layout mainly.
+    // Let's reset it to simpler container
+    width: '100%',
+    marginBottom: 20,
   },
-  moonButton: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 4,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'transparent',
-  },
-  moonEmoji: {
-    fontSize: 28,
-    marginBottom: 4,
-  },
-  moonLabel: {
-    fontSize: 10,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
+  // Removed unused moonButton, moonEmoji, moonLabel styles
   noteSection: {
     marginBottom: 24,
   },

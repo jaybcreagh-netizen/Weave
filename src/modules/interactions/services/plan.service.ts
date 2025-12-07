@@ -14,20 +14,29 @@ import { InteractionFormData } from '../types';
  * Completes a plan, updating its status, applying scoring, and tracking milestones.
  * @param interactionId - The ID of the interaction to complete.
  */
-export async function completePlan(interactionId: string): Promise<void> {
+export async function completePlan(interactionId: string, data?: { vibe?: string; note?: string }): Promise<void> {
   const interaction = await database.get<Interaction>('interactions').find(interactionId);
   const previousStatus = interaction.status;
 
+  console.log('[PlanService] Completing interaction:', interactionId, 'Status:', previousStatus);
   if (previousStatus !== 'planned' && previousStatus !== 'pending_confirm') {
-    // Already completed or in a different state, no action needed.
+    console.warn('[PlanService] Interaction not in planned/pending state:', previousStatus);
     return;
   }
 
   await database.write(async () => {
     await interaction.update(i => {
       i.status = 'completed';
+      if (data?.vibe) {
+        console.log('[PlanService] Setting vibe:', data.vibe);
+        i.vibe = data.vibe;
+      }
+      if (data?.note) {
+        i.note = data.note;
+      }
     });
   });
+  console.log('[PlanService] DB Update committed. Status is now completed.');
 
   const interactionFriends = await database.get<InteractionFriend>('interaction_friends').query(Q.where('interaction_id', interactionId)).fetch();
   const friendIds = interactionFriends.map(ifriend => ifriend.friendId);
@@ -96,6 +105,7 @@ export async function checkPendingPlans(): Promise<void> {
     .query(
       Q.where('status', 'planned'),
       Q.where('interaction_date', Q.lt(today.getTime())),
+      Q.where('interaction_date', Q.gte(today.getTime() - 2 * 24 * 60 * 60 * 1000)), // Limit to last 48 hours (previous day + padding)
       Q.or(
         Q.where('completion_prompted_at', null),
         Q.where('completion_prompted_at', Q.lt(now - 24 * 60 * 60 * 1000))

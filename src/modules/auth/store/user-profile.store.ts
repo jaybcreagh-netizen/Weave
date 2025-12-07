@@ -176,15 +176,15 @@ export const useUserProfileStore = create<UserProfileStore>((set, get) => ({
     // Trigger smart notification evaluation after battery check-in
     // This is a good time since user is engaged and we have fresh battery data
     try {
-      const { evaluateAndScheduleSmartNotifications, rescheduleDailyBatteryCheckinForTomorrow } = await import('@/modules/notifications');
+      const { SmartSuggestionsChannel, BatteryCheckinChannel } = await import('@/modules/notifications');
 
       // 1. Reschedule "Social Battery" notification (Safety Net)
       // Since user just checked in, we silence today's reminder and schedule for tomorrow.
       const batteryTime = profile.batteryCheckinTime || '20:00';
-      await rescheduleDailyBatteryCheckinForTomorrow(batteryTime);
+      await BatteryCheckinChannel.rescheduleForTomorrow(batteryTime);
 
       // 2. Evaluate other smart notifications
-      await evaluateAndScheduleSmartNotifications();
+      await SmartSuggestionsChannel.evaluateAndSchedule();
     } catch (error) {
       console.error('Error evaluating smart notifications after battery check-in:', error);
     }
@@ -204,8 +204,12 @@ export const useUserProfileStore = create<UserProfileStore>((set, get) => ({
     });
 
     // Update notification schedule
-    const { updateBatteryNotificationFromProfile } = await import('@/modules/notifications');
-    await updateBatteryNotificationFromProfile();
+    const { BatteryCheckinChannel } = await import('@/modules/notifications');
+    if (enabled) {
+      await BatteryCheckinChannel.schedule(time || '20:00');
+    } else {
+      await BatteryCheckinChannel.cancel();
+    }
   },
 
   updateProfile: async (updates: Partial<UserProfile>) => {

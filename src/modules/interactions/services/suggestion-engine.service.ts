@@ -15,6 +15,11 @@ import {
   getArchetypePreferredCategory,
   getArchetypeDriftSuggestion,
   getArchetypeMomentumSuggestion,
+  getArchetypeDriftTitle,
+  getArchetypeDormantTitle,
+  getArchetypeNewTitle,
+  getArchetypeWarmingTitle,
+  getArchetypeThrivingTitle,
 } from '@/shared/constants/archetype-content';
 import { differenceInDays } from 'date-fns';
 import { database } from '@/db';
@@ -620,7 +625,7 @@ export async function generateSuggestion(input: SuggestionInput): Promise<Sugges
 
     // Add pattern-aware context if available
     const patternContext = isPatternReliable(pattern)
-      ? ` Connect ${getPatternDescription(pattern)}.`
+      ? ` ${getPatternDescription(pattern)}.`
       : '';
 
     return {
@@ -629,10 +634,10 @@ export async function generateSuggestion(input: SuggestionInput): Promise<Sugges
       friendName: friend.name,
       urgency: 'critical',
       category: 'drift',
-      title: `${friend.name} is drifting`,
+      title: getArchetypeDormantTitle(friend.archetype, friend.name),
       subtitle: `${contextualAction}.${patternContext}`,
       actionLabel: 'Reach Out',
-      icon: 'AlertTriangle',
+      icon: 'Wind',
       action: {
         type: 'log',
         prefilledCategory: getArchetypePreferredCategory(friend.archetype),
@@ -654,7 +659,7 @@ export async function generateSuggestion(input: SuggestionInput): Promise<Sugges
 
     // Add pattern-aware context
     const patternContext = isPatternReliable(pattern)
-      ? ` Connect ${getPatternDescription(pattern)}.`
+      ? ` ${getPatternDescription(pattern)}.`
       : '';
 
     return {
@@ -663,10 +668,10 @@ export async function generateSuggestion(input: SuggestionInput): Promise<Sugges
       friendName: friend.name,
       urgency: 'high',
       category: 'drift',
-      title: `Reconnect with ${friend.name}`,
+      title: getArchetypeDriftTitle(friend.archetype, friend.name),
       subtitle: `${contextualAction}.${patternContext}`,
       actionLabel: 'Plan',
-      icon: 'History', // Using History instead of RefreshCw? or Link. RefreshCw seems best for reconnect
+      icon: 'Wind',
       action: {
         type: 'plan',
         prefilledCategory: getArchetypePreferredCategory(friend.archetype),
@@ -695,7 +700,7 @@ export async function generateSuggestion(input: SuggestionInput): Promise<Sugges
         friendName: friend.name,
         urgency: 'medium',
         category: 'maintain',
-        title: `Start thread with ${friend.name}`,
+        title: getArchetypeNewTitle(friend.archetype, friend.name),
         subtitle: 'Log your first interaction.',
         actionLabel: 'Log',
         icon: 'Sparkles',
@@ -726,7 +731,7 @@ export async function generateSuggestion(input: SuggestionInput): Promise<Sugges
         friendName: friend.name,
         urgency: 'medium',
         category: 'deepen',
-        title: `Momentum with ${friend.name}`,
+        title: getArchetypeWarmingTitle(friend.archetype, friend.name),
         subtitle: `Ride the wave! ${contextualAction}`,
         actionLabel: 'Deepen',
         icon: 'Zap',
@@ -793,7 +798,7 @@ export async function generateSuggestion(input: SuggestionInput): Promise<Sugges
       friendName: friend.name,
       urgency: 'low',
       category: 'celebrate',
-      title: `Thriving bond with ${friend.name}`,
+      title: getArchetypeThrivingTitle(friend.archetype, friend.name),
       subtitle: `Celebrate! ${contextualAction}`,
       actionLabel: 'Plan',
       icon: 'Sparkles',

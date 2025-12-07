@@ -8,7 +8,6 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Keyboard } from 'react-native';
-import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { Edit3, Sparkles } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
 import {
@@ -27,6 +26,7 @@ interface ReflectionPromptStepProps {
 
 export function ReflectionPromptStep({ prompt, onNext }: ReflectionPromptStepProps) {
   const { colors } = useTheme();
+
   const [text, setText] = useState('');
   const [selectedChipIds, setSelectedChipIds] = useState<Set<string>>(new Set());
   const [detectedChips, setDetectedChips] = useState<DetectedChip[]>([]);
@@ -97,30 +97,27 @@ export function ReflectionPromptStep({ prompt, onNext }: ReflectionPromptStepPro
           {/* Top Section - Prompt */}
           <View className="flex-1 justify-center px-2">
             {/* Icon */}
-            <Animated.View
-              entering={FadeIn.duration(400)}
-              className="items-center mb-6"
-            >
+            <View className="items-center mb-6">
               <View
                 className="w-14 h-14 rounded-full items-center justify-center"
                 style={{ backgroundColor: colors.primary + '15' }}
               >
                 <Edit3 size={24} color={colors.primary} />
               </View>
-            </Animated.View>
+            </View>
 
             {/* Prompt Question */}
-            <Animated.View entering={FadeInDown.delay(100).duration(400)}>
+            <View>
               <Text
                 className="text-xl text-center leading-7 mb-8 px-4"
                 style={{ color: colors.foreground, fontFamily: 'Lora_500Medium' }}
               >
                 {prompt.question}
               </Text>
-            </Animated.View>
+            </View>
 
             {/* Text Input */}
-            <Animated.View entering={FadeInDown.delay(200).duration(400)}>
+            <View>
               <TextInput
                 value={text}
                 onChangeText={setText}
@@ -140,14 +137,11 @@ export function ReflectionPromptStep({ prompt, onNext }: ReflectionPromptStepPro
                   maxHeight: 200,
                 }}
               />
-            </Animated.View>
+            </View>
 
             {/* Detected/Suggested Chips */}
             {displayChips.length > 0 && (
-              <Animated.View
-                entering={FadeInDown.delay(300).duration(300)}
-                className="mt-4"
-              >
+              <View className="mt-4">
                 <View className="flex-row items-center gap-2 mb-3">
                   <Sparkles size={14} color={colors['muted-foreground']} />
                   <Text
@@ -187,15 +181,12 @@ export function ReflectionPromptStep({ prompt, onNext }: ReflectionPromptStepPro
                     );
                   })}
                 </View>
-              </Animated.View>
+              </View>
             )}
           </View>
 
           {/* Bottom Section - Continue Button */}
-          <Animated.View
-            entering={FadeInDown.delay(400).duration(400)}
-            className="pt-4 pb-2"
-          >
+          <View className="pt-4 pb-2">
             <TouchableOpacity
               onPress={handleContinue}
               className="py-4 rounded-2xl items-center flex-row justify-center"
@@ -218,7 +209,7 @@ export function ReflectionPromptStep({ prompt, onNext }: ReflectionPromptStepPro
                 You can always add a reflection later
               </Text>
             )}
-          </Animated.View>
+          </View>
         </View>
       </TouchableWithoutFeedback>
     </KeyboardAvoidingView>

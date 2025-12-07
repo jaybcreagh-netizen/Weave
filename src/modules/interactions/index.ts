@@ -1,6 +1,7 @@
 // Components
 export { QuickWeaveOverlay } from './components/QuickWeaveOverlay';
 export { PlanWizard } from './components/PlanWizard';
+export { PostWeaveRatingModal } from './components/PostWeaveRatingModal';
 
 // Hooks
 export { useInteractions } from './hooks/useInteractions';
@@ -29,4 +30,4 @@ export * from './store/event-suggestion.store';
 export * from './types';
 
 // Constants
-export { itemPositions, HIGHLIGHT_THRESHOLD, SELECTION_THRESHOLD } from './constants';
+export { itemPositions, HIGHLIGHT_THRESHOLD, SELECTION_THRESHOLD, getCategoryLabel } from './constants';

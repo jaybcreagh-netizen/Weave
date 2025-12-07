@@ -489,13 +489,7 @@ export default function WeaveLoggerScreen() {
                   />
                 </View>
 
-                {/* Vibe Section */}
-                <View className="mb-8">
-                  <Text className="font-lora-bold text-xl mb-4" style={{ color: colors.foreground }}>
-                    How did it feel? 🌙
-                  </Text>
-                  <MoonPhaseSelector onSelect={setSelectedVibe} selectedVibe={selectedVibe} />
-                </View>
+
 
                 {/* Reciprocity Section */}
                 <View className="mb-8">
@@ -528,6 +522,14 @@ export default function WeaveLoggerScreen() {
                     value={reflection}
                     onChange={setReflection}
                   />
+                </View>
+
+                {/* Vibe Section */}
+                <View className="mb-8">
+                  <Text className="font-lora-bold text-xl mb-4" style={{ color: colors.foreground }}>
+                    How did it feel? 🌙
+                  </Text>
+                  <MoonPhaseSelector onSelect={setSelectedVibe} selectedVibe={selectedVibe} />
                 </View>
 
 

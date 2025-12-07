@@ -12,7 +12,6 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, View, Text, TouchableOpacity, SafeAreaView } from 'react-native';
 import { WeaveLoading } from '@/shared/components/WeaveLoading';
-import Animated, { SlideInRight, SlideOutLeft } from 'react-native-reanimated';
 import { X, ChevronLeft } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
 import {
@@ -27,7 +26,7 @@ import {
   InsightLine,
   PromptEngineInput,
 } from '@/modules/reflection';
-import { markReflectionComplete } from '@/modules/notifications';
+import { notificationStore } from '@/modules/notifications';
 import { ReflectionPromptStep } from './ReflectionPromptStepComponent';
 import { WeekSnapshotStep } from './WeekSnapshotStepComponent';
 import { CalendarEventsStep } from './CalendarEventsStepComponent';
@@ -35,6 +34,7 @@ import { database } from '@/db';
 import WeeklyReflection from '@/db/models/WeeklyReflection';
 import { ScannedEvent } from '@/modules/interactions';
 import * as Haptics from 'expo-haptics';
+import { WeeklyReflectionChannel } from '@/modules/notifications/services/channels/weekly-reflection';
 
 // ============================================================================
 // TYPES
@@ -144,6 +144,7 @@ export function WeeklyReflectionModal({ isOpen, onClose }: WeeklyReflectionModal
 
       // Check for unlogged calendar events
       const eventReview = await scanWeekForUnloggedEvents();
+
       setHasUnloggedEvents(eventReview.events.length > 0);
 
     } catch (error) {
@@ -163,6 +164,12 @@ export function WeeklyReflectionModal({ isOpen, onClose }: WeeklyReflectionModal
   };
 
   const handleSnapshotComplete = async () => {
+    // Save completion
+    if (summary) {
+      await notificationStore.setLastReflectionDate(new Date());
+    }
+
+    // Move to next step or save and close
     if (hasUnloggedEvents) {
       setCurrentStep('events');
     } else {
@@ -219,7 +226,9 @@ export function WeeklyReflectionModal({ isOpen, onClose }: WeeklyReflectionModal
       });
 
       // Mark reflection as complete (for timing/notifications)
-      await markReflectionComplete();
+      await notificationStore.setLastReflectionDate(new Date());
+      // Cancel the scheduled notification since user completed it now
+      await WeeklyReflectionChannel.cancel();
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       onClose();
@@ -336,31 +345,31 @@ export function WeeklyReflectionModal({ isOpen, onClose }: WeeklyReflectionModal
           ) : summary && prompt && insight ? (
             <>
               {currentStep === 'prompt' && (
-                <Animated.View entering={SlideInRight} exiting={SlideOutLeft} className="flex-1">
+                <View className="flex-1">
                   <ReflectionPromptStep
                     prompt={prompt}
                     onNext={handlePromptNext}
                   />
-                </Animated.View>
+                </View>
               )}
 
               {currentStep === 'snapshot' && (
-                <Animated.View entering={SlideInRight} exiting={SlideOutLeft} className="flex-1">
+                <View className="flex-1">
                   <WeekSnapshotStep
                     summary={summary}
                     insight={insight}
                     onComplete={handleSnapshotComplete}
                   />
-                </Animated.View>
+                </View>
               )}
 
               {currentStep === 'events' && (
-                <Animated.View entering={SlideInRight} exiting={SlideOutLeft} className="flex-1">
+                <View className="flex-1">
                   <CalendarEventsStep
                     onNext={handleEventsNext}
                     onSkip={handleEventsSkip}
                   />
-                </Animated.View>
+                </View>
               )}
             </>
           ) : (

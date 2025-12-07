@@ -13,6 +13,8 @@ import { shouldFilterEvent, isAmbiguousEvent, recordFeedback } from '@/modules/i
 import { CalendarService } from '@/modules/interactions';
 import Logger from '@/shared/utils/Logger';
 
+import InteractionFriend from '@/db/models/InteractionFriend';
+
 export interface WeeklyEventReview {
   events: ScannedEvent[];
   totalScanned: number;
@@ -58,10 +60,60 @@ export async function scanWeekForUnloggedEvents(): Promise<WeeklyEventReview> {
     // Filter to only events with friend matches
     const candidateEvents = scanResult.events.filter(e => e.matchedFriends.length > 0);
 
-    // Check if already logged
+    // Batch fetch data for "already logged" check
+    // ---------------------------------------------------------
+    // 1. Get all completed interactions for the entire scan window (+/- buffer)
+    // We scan from weekAgo to now. Events could be logged +/- 3 hours.
+    const queryStart = weekAgo.getTime() - (3 * 60 * 60 * 1000);
+    const queryEnd = now.getTime() + (3 * 60 * 60 * 1000);
+
+    const existingInteractions = await database
+      .get<InteractionModel>('interactions')
+      .query(
+        Q.where('interaction_date', Q.between(queryStart, queryEnd)),
+        Q.where('status', 'completed')
+      )
+      .fetch();
+
+    // 2. Get all friend links for these interactions
+    const interactionIds = existingInteractions.map(i => i.id);
+    let interactionFriendMap = new Map<string, Set<string>>();
+
+    if (interactionIds.length > 0) {
+      // Fetch in chunks if too many (WatermelonDB/SQLite limit safety)
+      const chunkedIds = [];
+      const CHUNK_SIZE = 500;
+      for (let i = 0; i < interactionIds.length; i += CHUNK_SIZE) {
+        chunkedIds.push(interactionIds.slice(i, i + CHUNK_SIZE));
+      }
+
+      const allLinks = [];
+      for (const chunk of chunkedIds) {
+        const links = await database
+          .get<InteractionFriend>('interaction_friends')
+          .query(Q.where('interaction_id', Q.oneOf(chunk)))
+          .fetch();
+        allLinks.push(...links);
+      }
+
+      // Build map: interactionId -> Set<friendId>
+      for (const link of allLinks) {
+        if (!interactionFriendMap.has(link.interactionId)) {
+          interactionFriendMap.set(link.interactionId, new Set());
+        }
+        interactionFriendMap.get(link.interactionId)?.add(link.friendId);
+      }
+    }
+
+    // Pre-process interactions for faster time-based lookup
+    // Sort by time for binary search or just simple iteration (list is likely small enough)
+    const sortedInteractions = existingInteractions.sort((a, b) => a.interactionDate.getTime() - b.interactionDate.getTime());
+    // ---------------------------------------------------------
+
+    // Check if already logged (IN MEMORY)
     const unloggedEvents: ScannedEvent[] = [];
     for (const event of candidateEvents) {
-      const isLogged = await isEventAlreadyLogged(event);
+      const isLogged = isEventAlreadyLoggedInMemory(event, sortedInteractions, interactionFriendMap);
       if (!isLogged) {
         unloggedEvents.push(event);
       }
@@ -113,9 +165,13 @@ export async function scanWeekForUnloggedEvents(): Promise<WeeklyEventReview> {
 }
 
 /**
- * Check if a calendar event has already been logged as an interaction
+ * Check if a calendar event has already been logged as an interaction (In-Memory Version)
  */
-async function isEventAlreadyLogged(event: ScannedEvent): Promise<boolean> {
+function isEventAlreadyLoggedInMemory(
+  event: ScannedEvent,
+  sortedInteractions: InteractionModel[],
+  interactionFriendMap: Map<string, Set<string>>
+): boolean {
   try {
     // Check if any interaction exists for this event's friends around the same time
     // Look for interactions within +/- 3 hours of event time
@@ -124,25 +180,22 @@ async function isEventAlreadyLogged(event: ScannedEvent): Promise<boolean> {
     const startWindow = eventTime - threeHours;
     const endWindow = eventTime + threeHours;
 
-    const friendIds = event.matchedFriends.map(m => m.friend.id);
+    const eventFriendIds = event.matchedFriends.map(m => m.friend.id);
+    if (eventFriendIds.length === 0) return false;
 
-    // Query interactions in time window
-    const interactions = await database
-      .get<InteractionModel>('interactions')
-      .query(
-        Q.where('interaction_date', Q.gte(startWindow)),
-        Q.where('interaction_date', Q.lte(endWindow)),
-        Q.where('status', 'completed')
-      )
-      .fetch();
+    // Filter candidate interactions by time window (in memory)
+    // Since list is sorted, we could optimize, but simple filter is fine for <1000 items
+    const candidates = sortedInteractions.filter(i =>
+      i.interactionDate.getTime() >= startWindow && i.interactionDate.getTime() <= endWindow
+    );
 
-    // Check if any interaction involves these friends
-    for (const interaction of interactions) {
-      const interactionFriendIds = await interaction.interactionFriends.fetch();
-      const friendIdSet = new Set(interactionFriendIds.map((f: any) => f.id));
+    // Check if any candidate interaction involves these friends
+    for (const interaction of candidates) {
+      const interactionFriendIds = interactionFriendMap.get(interaction.id);
+      if (!interactionFriendIds) continue;
 
       // If any of the event's friends are in this interaction, consider it logged
-      const hasOverlap = friendIds.some(id => friendIdSet.has(id));
+      const hasOverlap = eventFriendIds.some(id => interactionFriendIds.has(id));
       if (hasOverlap) {
         Logger.debug(`[WeeklyReview] Event "${event.title}" already logged as interaction ${interaction.id}`);
         return true;

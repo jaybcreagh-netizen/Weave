@@ -96,7 +96,15 @@ export function FriendProfileModals({
                 interaction={editingReflection as any}
                 isOpen={editingReflection !== null}
                 onClose={() => setEditingReflection(null)}
-                onSave={updateReflection}
+                onSave={async (id, reflection, vibe) => {
+                    // Update reflection
+                    await updateReflection(id, reflection);
+
+                    // Update vibe if changed
+                    if (vibe !== undefined) {
+                        await updateInteraction(id, { vibe });
+                    }
+                }}
                 friendArchetype={friend?.archetype as any}
             />
 

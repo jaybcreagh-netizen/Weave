@@ -168,8 +168,31 @@ async function calculateFriendActivity(
 }
 
 /**
+ * Count total unique completed interactions for the week
+ */
+async function countWeeklyInteractions(
+  weekStart: Date,
+  weekEnd: Date
+): Promise<number> {
+  const interactions = await database
+    .get<InteractionModel>('interactions')
+    .query(
+      Q.where('interaction_date', Q.between(weekStart.getTime(), weekEnd.getTime())),
+      Q.where('status', 'completed')
+    )
+    .fetch();
+
+  return interactions.length;
+}
+
+/**
  * Find reconnections - friends contacted this week after a significant gap
  * A "reconnection" is defined as contact after 14+ days of no interaction
+ */
+/**
+ * Find reconnections - friends contacted this week after a significant gap
+ * A "reconnection" is defined as contact after 14+ days of no interaction
+ * Optimized to use batch queries.
  */
 async function findReconnections(
   weekStart: Date,
@@ -212,40 +235,66 @@ async function findReconnections(
 
   if (friendIdsThisWeek.size === 0) return [];
 
-  // For each friend, find their most recent interaction BEFORE this week
-  const reconnections: ReconnectionItem[] = [];
+  // Batch fetch previous interactions for all relevant friends
+  // -------------------------------------------------------------
+  const friendIdsArray = Array.from(friendIdsThisWeek);
   const beforeWeekStart = weekStart.getTime() - 1;
 
+  // 1. Get ALL previous interaction links for these friends
+  // This might be large, but usually manageable per user. 
+  // If extremely large, would need chunking or raw SQL.
+  const allHistoryLinks = await database
+    .get<InteractionFriend>('interaction_friends')
+    .query(Q.where('friend_id', Q.oneOf(friendIdsArray)))
+    .fetch();
+
+  if (allHistoryLinks.length === 0) return [];
+
+  const allHistoryInteractionIds = allHistoryLinks.map(l => l.interactionId);
+
+  // 2. Fetch the interactions themselves (filtered by date < weekStart)
+  const historyInteractions = await database
+    .get<InteractionModel>('interactions')
+    .query(
+      Q.where('id', Q.oneOf(allHistoryInteractionIds)),
+      Q.where('interaction_date', Q.lt(beforeWeekStart)),
+      Q.where('status', 'completed'),
+      Q.sortBy('interaction_date', Q.desc)
+      // We can't use take(1) per friend here easily with standard queries, 
+      // so we fetch history and filter in memory.
+    )
+    .fetch();
+
+  // Map interactionId -> Interaction
+  const historyMap = new Map<string, InteractionModel>();
+  historyInteractions.forEach(i => historyMap.set(i.id, i));
+
+  // Find last interaction for each friend
+  const reconnections: ReconnectionItem[] = [];
+
   for (const friendId of friendIdsThisWeek) {
-    // Get most recent interaction with this friend before this week
-    const previousInteractions = await database
-      .get<InteractionFriend>('interaction_friends')
-      .query(Q.where('friend_id', friendId))
-      .fetch();
+    // Get links for this friend
+    const friendLinks = allHistoryLinks.filter(l => l.friendId === friendId);
 
-    if (previousInteractions.length === 0) continue;
+    // Find most recent interaction from history
+    let lastInteractionDate: Date | null = null;
 
-    // Get the interaction details
-    const previousInteractionIds = previousInteractions.map(pif => pif.interactionId);
-    const interactions = await database
-      .get<InteractionModel>('interactions')
-      .query(
-        Q.where('id', Q.oneOf(previousInteractionIds)),
-        Q.where('interaction_date', Q.lt(beforeWeekStart)),
-        Q.where('status', 'completed'),
-        Q.sortBy('interaction_date', Q.desc),
-        Q.take(1)
-      )
-      .fetch();
+    for (const link of friendLinks) {
+      const interaction = historyMap.get(link.interactionId);
+      if (interaction) {
+        const date = new Date(interaction.interactionDate);
+        if (!lastInteractionDate || date > lastInteractionDate) {
+          lastInteractionDate = date;
+        }
+      }
+    }
 
-    if (interactions.length === 0) {
-      // No previous interaction - this is their first contact ever (not a "reconnection")
+    if (!lastInteractionDate) {
+      // First time contact (not reconnection)
       continue;
     }
 
-    const lastInteractionDate = new Date(interactions[0].interactionDate);
     const thisWeekFirstDate = friendFirstInteraction.get(friendId);
-
     if (!thisWeekFirstDate) continue;
 
     const daysSince = Math.floor(
@@ -253,7 +302,10 @@ async function findReconnections(
     );
 
     if (daysSince >= minGapDays) {
-      // Get friend name
+      // Get friend name (fetch from DB or if we have a cache)
+      // We can optimize by fetching these friends in batch too if strictly needed,
+      // but fetching ~3-5 reconnection friends individually is acceptable cost 
+      // compared to the previous loop. Let's strict optimize though.
       const friend = await database.get<FriendModel>('friends').find(friendId);
 
       reconnections.push({
@@ -378,16 +430,18 @@ export async function calculateExtendedWeeklySummary(): Promise<ExtendedWeeklySu
     weekStreak,
     previousWeekStats,
     averageWeeklyWeaves,
+    totalWeaves,
   ] = await Promise.all([
     calculateFriendActivity(weekStart, weekEnd),
     findReconnections(weekStart, weekEnd),
     calculateWeekStreak(),
     getPreviousWeekStats(),
     getAverageWeeklyWeaves(),
+    countWeeklyInteractions(weekStart, weekEnd),
   ]);
 
   // Calculate basic stats from friendActivity
-  const totalWeaves = friendActivity.reduce((sum, f) => sum + f.weaveCount, 0);
+  // const totalWeaves = friendActivity.reduce((sum, f) => sum + f.weaveCount, 0); // OLD: Counted person-interactions
   const friendsContacted = friendActivity.length;
 
   // Get top activity (would need interaction data - simplified here)
@@ -471,6 +525,10 @@ async function getTopActivity(
 /**
  * Get friends who need attention (low weave scores in important tiers)
  */
+/**
+ * Get friends who need attention (low weave scores in important tiers)
+ * Optimized to batch fetch last interaction dates.
+ */
 async function getMissedFriends(): Promise<MissedFriend[]> {
   // Get non-dormant friends with low scores
   const friends = await database
@@ -482,11 +540,72 @@ async function getMissedFriends(): Promise<MissedFriend[]> {
     )
     .fetch();
 
+  if (friends.length === 0) return [];
+
+  // Batch fetch last interactions for these friends
+  // -------------------------------------------------------------
+  const friendIds = friends.map(f => f.id);
+
+  // 1. Get all interaction links for these friends
+  const allLinks = await database
+    .get<InteractionFriend>('interaction_friends')
+    .query(Q.where('friend_id', Q.oneOf(friendIds)))
+    .fetch();
+
+  const interactionIds = allLinks.map(l => l.interactionId);
+
+  // 2. Fetch the actual interactions
+  // NOTE: If user has minimal history, this is small. 
+  // If user has huge history, filtering by date DESC and limit might be better in SQL,
+  // but WatermelonDB support for complex joins is limited.
+  // We'll fetch 'completed' interactions for these IDs.
+  // To optimize, we probably only care about RECENT interactions (e.g. last 30 days) to confirm 'missed' state? 
+  // No, we need the *absolute last*. 
+  // Let's fetch them sorted by date desc.
+
+  let interactions: InteractionModel[] = [];
+  if (interactionIds.length > 0) {
+    interactions = await database
+      .get<InteractionModel>('interactions')
+      .query(
+        Q.where('id', Q.oneOf(interactionIds)),
+        Q.where('status', 'completed')
+      )
+      .fetch();
+  }
+
+  // Map interactionId -> Interaction
+  const interactionMap = new Map<string, InteractionModel>();
+  interactions.forEach(i => interactionMap.set(i.id, i));
+
+  // Determine last interaction date per friend
+  const lastInteractionMap = new Map<string, Date>();
+
+  for (const friendId of friendIds) {
+    const friendLinks = allLinks.filter(l => l.friendId === friendId);
+    let maxDate: Date | null = null;
+
+    for (const link of friendLinks) {
+      const interaction = interactionMap.get(link.interactionId);
+      if (interaction) {
+        const date = new Date(interaction.interactionDate);
+        if (!maxDate || date > maxDate) {
+          maxDate = date;
+        }
+      }
+    }
+
+    if (maxDate) {
+      lastInteractionMap.set(friendId, maxDate);
+    }
+  }
+  // -------------------------------------------------------------
+
   const missedFriends: MissedFriend[] = [];
 
   for (const friend of friends) {
     // Calculate days since last contact
-    const lastInteraction = await getLastInteractionDate(friend.id);
+    const lastInteraction = lastInteractionMap.get(friend.id);
     const daysSince = lastInteraction
       ? Math.floor((Date.now() - lastInteraction.getTime()) / (1000 * 60 * 60 * 24))
       : 999;
@@ -505,6 +624,7 @@ async function getMissedFriends(): Promise<MissedFriend[]> {
 
 /**
  * Get the date of the last interaction with a friend
+ * (Deprecated helper - kept for compatibility if needed elsewhere, but logic inlined above)
  */
 async function getLastInteractionDate(friendId: string): Promise<Date | null> {
   const links = await database

@@ -182,7 +182,7 @@ export function calculateToleranceWindow(pattern: FriendshipPattern): number {
  */
 export function getPatternDescription(pattern: FriendshipPattern): string {
   if (!isPatternReliable(pattern)) {
-    return 'Building a pattern...';
+    return '';
   }
 
   const intervalText = pattern.averageIntervalDays === 1
@@ -195,13 +195,7 @@ export function getPatternDescription(pattern: FriendshipPattern): string {
           ? 'monthly'
           : `every ${pattern.averageIntervalDays} days`;
 
-  const consistencyText = pattern.consistency > 0.7
-    ? 'very regular'
-    : pattern.consistency > 0.5
-      ? 'fairly regular'
-      : 'varies';
-
-  return `${intervalText}, ${consistencyText}`;
+  return `You usually connect ${intervalText}`;
 }
 
 /**

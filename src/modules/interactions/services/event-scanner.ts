@@ -112,16 +112,10 @@ function calculateSimilarity(str1: string, str2: string): number {
  * Match friend names from extracted names in event title
  * Returns friends with confidence scores
  */
-async function matchFriends(extractedNames: string[]): Promise<FriendMatch[]> {
+async function matchFriends(extractedNames: string[], friends: FriendModel[]): Promise<FriendMatch[]> {
   if (extractedNames.length === 0) {
     return [];
   }
-
-  // Get all non-dormant friends
-  const friends = await database
-    .get<FriendModel>('friends')
-    .query(Q.where('is_dormant', false))
-    .fetch();
 
   const matches: FriendMatch[] = [];
 
@@ -174,19 +168,13 @@ async function matchFriends(extractedNames: string[]): Promise<FriendMatch[]> {
  * Match friends from calendar event attendees (Android only)
  * Matches attendee email or name against friend data
  */
-async function matchAttendeesWithFriends(eventId: string): Promise<FriendMatch[]> {
+async function matchAttendeesWithFriends(eventId: string, friends: FriendModel[]): Promise<FriendMatch[]> {
   try {
     // Get attendees (only works on Android)
     const attendees = await Calendar.getAttendeesForEventAsync(eventId);
     if (!attendees || attendees.length === 0) {
       return [];
     }
-
-    // Get all friends
-    const friends = await database
-      .get<FriendModel>('friends')
-      .query(Q.where('is_dormant', false))
-      .fetch();
 
     const matches: FriendMatch[] = [];
 
@@ -273,6 +261,14 @@ export async function scanCalendarEvents(options: ScanOptions): Promise<ScanResu
     Logger.debug(`[EventScanner] Found ${events.length} events in date range`);
     result.totalScanned = events.length;
 
+    // OPTIMIZATION: Fetch all friends once instead of in the loop
+    const allFriends = await database
+      .get<FriendModel>('friends')
+      .query(Q.where('is_dormant', false))
+      .fetch();
+
+    Logger.debug(`[EventScanner] Loaded ${allFriends.length} friends for matching`);
+
     // Process each event
     for (const event of events) {
       try {
@@ -302,10 +298,10 @@ export async function scanCalendarEvents(options: ScanOptions): Promise<ScanResu
         const extractedNames = extractNamesFromTitle(event.title || '');
 
         // Match friends from title
-        const friendMatches = await matchFriends(extractedNames);
+        const friendMatches = await matchFriends(extractedNames, allFriends);
 
         // Try to match attendees (Android only)
-        const attendeeMatches = await matchAttendeesWithFriends(event.id);
+        const attendeeMatches = await matchAttendeesWithFriends(event.id, allFriends);
 
         // Combine matches (remove duplicates)
         const allMatches = [...friendMatches, ...attendeeMatches];

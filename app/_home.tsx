@@ -23,11 +23,15 @@ import { isSameWeek } from 'date-fns';
  */
 export default function Home() {
   const { observeProfile, profile, submitBatteryCheckin, updateProfile } = useUserProfileStore();
-  const { openWeeklyReflection } = useUIStore();
+  const {
+    openWeeklyReflection,
+    isReflectionPromptOpen,
+    openReflectionPrompt,
+    closeReflectionPrompt
+  } = useUIStore();
   const theme = useTheme();
   const colors = theme?.colors || {};
   const [showBatterySheet, setShowBatterySheet] = useState(false);
-  const [showReflectionPrompt, setShowReflectionPrompt] = useState(false);
   const [showYearInMoons, setShowYearInMoons] = useState(false);
   const [isReflectionDue, setIsReflectionDue] = useState(false);
 
@@ -165,8 +169,9 @@ export default function Home() {
         // Wait longer than battery check-in so it doesn't conflict
         // Show after 2 seconds if battery sheet is dismissed or not shown
         reflectionPromptTimerRef.current = setTimeout(() => {
+          // Use global open action
           if (isMountedRef.current && !showBatterySheet) {
-            setShowReflectionPrompt(true);
+            openReflectionPrompt();
           }
         }, 2000);
         return () => {
@@ -186,13 +191,15 @@ export default function Home() {
   };
 
   const handleReflectionStart = () => {
-    setShowReflectionPrompt(false);
-    // Use global modal from useUIStore instead of local state
-    openWeeklyReflection();
+    closeReflectionPrompt();
+    // Add small delay to ensure prompt closes before reflection opens (prevents iOS modal conflict)
+    setTimeout(() => {
+      openWeeklyReflection();
+    }, 500);
   };
 
   const handleReflectionRemindLater = async () => {
-    setShowReflectionPrompt(false);
+    closeReflectionPrompt();
     // Save snooze timestamp to profile
     if (profile) {
       await updateProfile({
@@ -246,7 +253,7 @@ export default function Home() {
         fullWidth: true,
       },
       props: {
-        onPress: () => setShowReflectionPrompt(true),
+        onPress: openReflectionPrompt, // Use global action
       },
       position: 3,
       visible: isReflectionDue,
@@ -273,10 +280,10 @@ export default function Home() {
       />
 
       <ReflectionReadyPrompt
-        isVisible={showReflectionPrompt}
+        isVisible={isReflectionPromptOpen}
         onStart={handleReflectionStart}
         onRemindLater={handleReflectionRemindLater}
-        onDismiss={() => setShowReflectionPrompt(false)}
+        onDismiss={closeReflectionPrompt}
       />
 
       <YearInMoonsModal

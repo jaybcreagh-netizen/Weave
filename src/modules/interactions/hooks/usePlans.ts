@@ -7,6 +7,8 @@ export function usePlans() {
     interactions,
     intentions,
     isLoading,
+    observeInteractions,
+    unobserveInteractions,
     observeIntentions,
     unobserveIntentions,
     planWeave,
@@ -18,9 +20,13 @@ export function usePlans() {
   } = useInteractionsStore();
 
   useEffect(() => {
+    observeInteractions();
     observeIntentions();
-    return () => unobserveIntentions();
-  }, [observeIntentions, unobserveIntentions]);
+    return () => {
+      unobserveInteractions();
+      unobserveIntentions();
+    };
+  }, [observeInteractions, unobserveInteractions, observeIntentions, unobserveIntentions]);
 
 
 

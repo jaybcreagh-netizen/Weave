@@ -57,14 +57,26 @@ interface UIStore {
   isDarkMode: boolean;
   isTrophyCabinetOpen: boolean;
   memoryMomentData: MemoryMomentData | null;
+  lastReflectionPromptDate: number | null;
+  markReflectionPromptShown: () => void;
 
   isWeeklyReflectionOpen: boolean;
   isSocialBatterySheetOpen: boolean;
   openSocialBatterySheet: () => void;
-  closeSocialBatterySheet: () => void;
-
   openWeeklyReflection: () => void;
   closeWeeklyReflection: () => void;
+
+  closeSocialBatterySheet: () => void;
+
+  isReflectionPromptOpen: boolean;
+  openReflectionPrompt: () => void;
+  closeReflectionPrompt: () => void;
+
+  isPostWeaveRatingOpen: boolean;
+  postWeaveRatingTargetId: string | null;
+  openPostWeaveRating: (interactionId?: string) => void;
+  closePostWeaveRating: () => void;
+
 
   setSelectedFriendId: (id: string | null) => void;
   setArchetypeModal: (archetype: Archetype | null) => void;
@@ -134,7 +146,26 @@ export const useUIStore = create<UIStore>((set, get) => ({
   isDarkMode: false,
   isTrophyCabinetOpen: false,
   isWeeklyReflectionOpen: false,
+  isReflectionPromptOpen: false,
   isSocialBatterySheetOpen: false,
+  memoryMomentData: null, // Moved here for consistency
+
+  lastReflectionPromptDate: null,
+  markReflectionPromptShown: () => set({ lastReflectionPromptDate: Date.now() }),
+
+  openReflectionPrompt: () => set({ isReflectionPromptOpen: true }),
+  closeReflectionPrompt: () => set({ isReflectionPromptOpen: false }),
+
+  isPostWeaveRatingOpen: false,
+  postWeaveRatingTargetId: null,
+  openPostWeaveRating: (interactionId) => set({
+    isPostWeaveRatingOpen: true,
+    postWeaveRatingTargetId: interactionId || null
+  }),
+  closePostWeaveRating: () => set({
+    isPostWeaveRatingOpen: false,
+    postWeaveRatingTargetId: null
+  }),
 
   openSocialBatterySheet: () => set({ isSocialBatterySheetOpen: true }),
   closeSocialBatterySheet: () => set({ isSocialBatterySheetOpen: false }),
@@ -226,7 +257,6 @@ export const useUIStore = create<UIStore>((set, get) => ({
   openTrophyCabinet: () => set({ isTrophyCabinetOpen: true }),
   closeTrophyCabinet: () => set({ isTrophyCabinetOpen: false }),
 
-  memoryMomentData: null,
   openMemoryMoment: (data) => set({ memoryMomentData: data }),
   closeMemoryMoment: () => set({ memoryMomentData: null }),
 

@@ -18,6 +18,8 @@ import { ListItem } from '@/components/ui/ListItem';
 import { FocusDetailSheet } from '@/components/FocusDetailSheet';
 import FriendModel from '@/db/models/Friend';
 import { Suggestion } from '@/shared/types/common';
+import { PlanWizard } from '@/modules/interactions/components/PlanWizard';
+import { getCategoryLabel } from '@/modules/interactions';
 
 const WIDGET_CONFIG: HomeWidgetConfig = {
     id: 'todays-focus',
@@ -45,10 +47,17 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = ({ friends })
     const { suggestions } = useSuggestions();
     const { allInteractions: interactions } = useInteractions();
     const { completePlan } = usePlans();
+    const { openPostWeaveRating } = useUIStore();
 
     const [showDetailSheet, setShowDetailSheet] = useState(false);
     const [upcomingDates, setUpcomingDates] = useState<UpcomingDate[]>([]);
     const [confirmingIds, setConfirmingIds] = useState<Set<string>>(new Set());
+
+    // Rescheduling state
+    const [isPlanWizardOpen, setIsPlanWizardOpen] = useState(false);
+    const [wizardFriend, setWizardFriend] = useState<FriendModel | null>(null);
+    const [wizardPrefill, setWizardPrefill] = useState<any>(null);
+    const [replaceInteractionId, setReplaceInteractionId] = useState<string | undefined>(undefined);
 
     // Logic ported from V1
     const pendingConfirmations = useMemo(() => {
@@ -140,49 +149,35 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = ({ friends })
     const { showMicroReflectionSheet } = useUIStore();
 
     const handleConfirmPlan = async (interactionId: string) => {
-        setConfirmingIds(prev => new Set(prev).add(interactionId));
-        try {
-            const plan = interactions.find(i => i.id === interactionId);
-
-            await completePlan(interactionId);
-
-            if (plan) {
-                // Fetch friend details for the reflection sheet
-                const iFriends = await plan.interactionFriends.fetch();
-                const friendId = iFriends.length > 0 ? iFriends[0].friendId : '';
-                const friend = friends.find(f => f.id === friendId);
-
-                if (friend) {
-                    showMicroReflectionSheet({
-                        friendId: friend.id,
-                        friendName: friend.name,
-                        activityId: plan.interactionCategory || 'hangout',
-                        activityLabel: plan.title || 'Interaction',
-                        interactionId: plan.id,
-                        friendArchetype: friend.archetype,
-                    });
-                }
-            }
-
-            setConfirmingIds(prev => {
-                const next = new Set(prev);
-                next.delete(interactionId);
-                return next;
-            });
-        } catch (error) {
-            console.error('Error confirming plan:', error);
-            setConfirmingIds(prev => {
-                const next = new Set(prev);
-                next.delete(interactionId);
-                return next;
-            });
-        }
+        // Just open the rating modal for this plan
+        openPostWeaveRating(interactionId);
     };
 
-    const handleReschedulePlan = (plan: Interaction) => {
-        // Placeholder for reschedule logic - in V1 this opened a wizard
-        // For V2, we might want to open the sheet or navigate
-        console.log('Reschedule', plan.id);
+    const handleReschedulePlan = async (plan: Interaction) => {
+        try {
+            // Fetch the primary friend for this plan
+            const iFriends = await plan.interactionFriends.fetch();
+            if (iFriends.length === 0) return;
+            const friendId = iFriends[0].friendId;
+            const friend = friends.find(f => f.id === friendId);
+
+            if (friend) {
+                setWizardFriend(friend);
+                setWizardPrefill({
+                    date: new Date(plan.interactionDate),
+                    category: plan.interactionCategory,
+                    title: plan.title,
+                    location: plan.location,
+                    time: new Date(plan.interactionDate), // Ensure time is passed too if needed by wizard
+                    notes: plan.note,
+                });
+                setReplaceInteractionId(plan.id);
+                setIsPlanWizardOpen(true);
+                setShowDetailSheet(false); // Close sheet if open
+            }
+        } catch (e) {
+            console.error('Error preparing reschedule:', e);
+        }
     };
 
     const handleDeepenWeave = async (plan: Interaction) => {
@@ -202,6 +197,10 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = ({ friends })
         }
     };
 
+    const handleReviewPlan = (id?: string) => {
+        openPostWeaveRating(id); // Pass ID if available, otherwise opens queue
+    };
+
     const handleSuggestionAction = (suggestion: Suggestion) => {
         const friend = friends.find(f => f.id === suggestion.friendId);
         if (friend) {
@@ -210,14 +209,30 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = ({ friends })
         setShowDetailSheet(false);
     };
 
-    const todaysPlans = useMemo(() => visiblePendingPlans.filter(p => differenceInDays(new Date(p.interactionDate), new Date()) === 0), [visiblePendingPlans]);
+    const todaysUpcoming = useMemo(() =>
+        interactions.filter(i =>
+            differenceInDays(new Date(i.interactionDate), new Date()) === 0 &&
+            i.status === 'planned'
+        ).sort((a, b) => new Date(a.interactionDate).getTime() - new Date(b.interactionDate).getTime())
+        , [interactions]);
+
+    const todaysCompleted = useMemo(() =>
+        interactions.filter(i =>
+            differenceInDays(new Date(i.interactionDate), new Date()) === 0 &&
+            i.status === 'completed'
+        ).sort((a, b) => new Date(b.interactionDate).getTime() - new Date(a.interactionDate).getTime())
+        , [interactions]);
+
+    const pendingReviews = useMemo(() => interactions.filter((i: Interaction) => i.status === 'pending_confirm'), [interactions]);
+
     const [planFriendIds, setPlanFriendIds] = useState<Record<string, string[]>>({});
 
     useEffect(() => {
         let isMounted = true;
         const loadFriends = async () => {
             const newMap: Record<string, string[]> = {};
-            for (const plan of todaysPlans) {
+            const allItems = [...todaysUpcoming, ...todaysCompleted];
+            for (const plan of allItems) {
                 try {
                     const iFriends = await plan.interactionFriends.fetch();
                     newMap[plan.id] = iFriends.map((f: any) => f.friendId);
@@ -229,12 +244,14 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = ({ friends })
         };
         loadFriends();
         return () => { isMounted = false; };
-    }, [todaysPlans]);
+    }, [todaysUpcoming, todaysCompleted]);
 
-    const hasPlans = todaysPlans.length > 0;
+    const hasUpcoming = todaysUpcoming.length > 0;
+    const hasCompleted = todaysCompleted.length > 0;
+    const hasReviews = pendingReviews.length > 0;
     const hasSuggestions = suggestions.length > 0;
-    const hasUpcoming = upcomingDates.length > 0;
-    const isAllClear = !hasPlans && !hasSuggestions && !hasUpcoming;
+    const hasUpcomingDates = upcomingDates.length > 0;
+    const isAllClear = !hasUpcoming && !hasCompleted && !hasReviews && !hasSuggestions && !hasUpcomingDates;
 
     return (
         <>
@@ -246,55 +263,94 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = ({ friends })
                     />
                 </View>
 
-                {hasPlans ? (
-                    todaysPlans.map((plan, index) => {
-                        const friendIds = planFriendIds[plan.id] || [];
-                        const planFriends = friends.filter(f => friendIds.includes(f.id));
-                        const friendName = planFriends.length > 0 ? planFriends[0].name : '';
-                        const subtitle = `${friendName ? `with ${friendName} • ` : ''}${format(new Date(plan.interactionDate), 'h:mm a')}`;
-                        const isCompleted = plan.status === 'completed';
-                        const isConfirming = confirmingIds.has(plan.id);
+                {/* Upcoming Plans Section */}
+                {hasUpcoming && (
+                    <View>
+                        {/* Only show header if there are other sections to differentiate from */}
+                        {(hasCompleted || hasReviews) && (
+                            <View style={styles.sectionHeader}>
+                                <Text style={[styles.sectionTitle, { color: tokens.foregroundMuted }]}>Upcoming</Text>
+                            </View>
+                        )}
+                        {todaysUpcoming.map((plan, index) => {
+                            const friendIds = planFriendIds[plan.id] || [];
+                            const planFriends = friends.filter(f => friendIds.includes(f.id));
+                            const friendName = planFriends.length > 0 ? planFriends[0].name : '';
+                            const subtitle = `${friendName ? `with ${friendName} • ` : ''}${format(new Date(plan.interactionDate), 'h:mm a')}`;
 
-                        return (
-                            <View key={plan.id} style={{ paddingHorizontal: 16 }}>
-                                <ListItem
-                                    title={plan.title || 'Untitled Plan'}
-                                    subtitle={subtitle}
-                                    showDivider={index < todaysPlans.length - 1 || hasSuggestions || hasUpcoming}
-                                    trailing={
-                                        <View style={styles.actions}>
-                                            {isCompleted ? (
+                            return (
+                                <View key={plan.id} style={{ paddingHorizontal: 16 }}>
+                                    <ListItem
+                                        title={plan.title || `${getCategoryLabel(plan.interactionCategory)}${friendName ? ` with ${friendName}` : ''}`}
+                                        subtitle={subtitle}
+                                        showDivider={index < todaysUpcoming.length - 1} // Divider between items
+                                        trailing={
+                                            <View style={styles.actions}>
+                                                <TouchableOpacity
+                                                    onPress={() => handleReschedulePlan(plan)}
+                                                    style={[styles.iconBtn, { backgroundColor: tokens.primary + '20' }]}
+                                                >
+                                                    <Clock size={18} color={tokens.primary} />
+                                                </TouchableOpacity>
+                                            </View>
+                                        }
+                                    />
+                                </View>
+                            );
+                        })}
+                    </View>
+                )}
+
+                {/* Completed Plans Section */}
+                {hasCompleted && (
+                    <View style={{ marginTop: hasUpcoming ? 8 : 0 }}>
+                        <View style={styles.sectionHeader}>
+                            <Text style={[styles.sectionTitle, { color: tokens.foregroundMuted }]}>Completed Today</Text>
+                        </View>
+                        {todaysCompleted.slice(0, 3).map((plan, index) => {
+                            const friendIds = planFriendIds[plan.id] || [];
+                            const planFriends = friends.filter(f => friendIds.includes(f.id));
+                            const friendName = planFriends.length > 0 ? planFriends[0].name : '';
+                            const subtitle = `${friendName ? `with ${friendName} • ` : ''}${format(new Date(plan.interactionDate), 'h:mm a')}`;
+
+                            return (
+                                <View key={plan.id} style={{ paddingHorizontal: 16 }}>
+                                    <ListItem
+                                        title={plan.title || `${getCategoryLabel(plan.interactionCategory)}${friendName ? ` with ${friendName}` : ''}`}
+                                        subtitle={subtitle}
+                                        showDivider={index < Math.min(todaysCompleted.length, 3) - 1}
+                                        trailing={
+                                            <View style={styles.actions}>
                                                 <TouchableOpacity
                                                     onPress={() => handleDeepenWeave(plan)}
                                                     style={[styles.iconBtn, { backgroundColor: tokens.primary + '15' }]}
                                                 >
                                                     <Sparkles size={18} color={tokens.primary} />
                                                 </TouchableOpacity>
-                                            ) : (
-                                                <>
-                                                    <TouchableOpacity
-                                                        onPress={() => handleConfirmPlan(plan.id)}
-                                                        disabled={isConfirming}
-                                                        style={[styles.iconBtn, { backgroundColor: tokens.success + '20', opacity: isConfirming ? 0.5 : 1 }]}
-                                                    >
-                                                        <Check size={18} color={tokens.success} />
-                                                    </TouchableOpacity>
-                                                    <TouchableOpacity
-                                                        onPress={() => handleReschedulePlan(plan)}
-                                                        disabled={isConfirming}
-                                                        style={[styles.iconBtn, { backgroundColor: tokens.primary + '20', marginLeft: 8, opacity: isConfirming ? 0.5 : 1 }]}
-                                                    >
-                                                        <Clock size={18} color={tokens.primary} />
-                                                    </TouchableOpacity>
-                                                </>
-                                            )}
-                                        </View>
-                                    }
-                                />
-                            </View>
-                        );
-                    })
-                ) : isAllClear ? (
+                                            </View>
+                                        }
+                                    />
+                                </View>
+                            );
+                        })}
+                        {todaysCompleted.length > 3 && (
+                            <TouchableOpacity
+                                onPress={() => setShowDetailSheet(true)}
+                                style={{ paddingVertical: 8, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center' }}
+                            >
+                                <Text style={{
+                                    fontFamily: typography.fonts.sansMedium,
+                                    fontSize: 13,
+                                    color: tokens.primary
+                                }}>
+                                    + {todaysCompleted.length - 3} more completed
+                                </Text>
+                            </TouchableOpacity>
+                        )}
+                    </View>
+                )}
+
+                {isAllClear ? (
                     <View style={styles.emptyState}>
                         <CheckCircle2 size={32} color={tokens.success} />
                         <Text style={[styles.emptyText, {
@@ -308,9 +364,43 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = ({ friends })
                     </View>
                 ) : null}
 
+                {hasReviews && (
+                    <View style={{ marginTop: (hasUpcoming || hasCompleted) ? 8 : 0 }}>
+                        <View style={styles.sectionHeader}>
+                            <Text style={[styles.sectionTitle, { color: tokens.foregroundMuted }]}>
+                                Pending Reviews
+                            </Text>
+                        </View>
+                        {pendingReviews.map((review, index) => (
+                            <View key={review.id} style={{ paddingHorizontal: 16 }}>
+                                <ListItem
+                                    title={`How was ${review.activity}?`}
+                                    subtitle="Rate this weave"
+                                    showDivider={index < pendingReviews.length - 1}
+                                    trailing={
+                                        <View style={styles.actions}>
+                                            <TouchableOpacity
+                                                onPress={() => handleReviewPlan(review.id)}
+                                                style={[styles.iconBtn, { backgroundColor: tokens.primary + '20' }]}
+                                            >
+                                                <Sparkles size={18} color={tokens.primary} />
+                                            </TouchableOpacity>
+                                        </View>
+                                    }
+                                    onPress={() => handleReviewPlan(review.id)}
+                                />
+                            </View>
+                        ))}
+                    </View>
+                )}
+
+                {(hasUpcoming || hasCompleted || hasReviews) && <View style={{ height: 16 }} />}
+
+                {/* Visual Separator if needed, but spacing might be enough */}
+
                 {hasSuggestions && (
                     <TouchableOpacity onPress={() => setShowDetailSheet(true)}>
-                        <View style={[styles.summaryRow, (hasPlans || hasUpcoming) && { borderTopWidth: 1, borderTopColor: tokens.borderSubtle }]}>
+                        <View style={[styles.summaryRow, (hasUpcoming || hasCompleted || hasReviews || hasUpcomingDates) && { borderTopWidth: 1, borderTopColor: tokens.borderSubtle }]}>
                             <View style={styles.summaryContent}>
                                 <Sparkles size={16} color={tokens.primaryMuted} style={{ marginRight: 8 }} />
                                 <Text style={[styles.summaryText, {
@@ -327,9 +417,9 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = ({ friends })
                     </TouchableOpacity>
                 )}
 
-                {hasUpcoming && (
+                {hasUpcomingDates && (
                     <TouchableOpacity onPress={() => setShowDetailSheet(true)}>
-                        <View style={[styles.summaryRow, (hasPlans || hasSuggestions) && { borderTopWidth: 1, borderTopColor: tokens.borderSubtle }]}>
+                        <View style={[styles.summaryRow, (hasUpcoming || hasCompleted || hasReviews || hasSuggestions) && { borderTopWidth: 1, borderTopColor: tokens.borderSubtle }]}>
                             <View style={styles.summaryContent}>
                                 <Calendar size={16} color={tokens.primaryMuted} style={{ marginRight: 8 }} />
                                 <Text style={[styles.summaryText, {
@@ -351,7 +441,8 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = ({ friends })
             <FocusDetailSheet
                 isVisible={showDetailSheet}
                 onClose={() => setShowDetailSheet(false)}
-                plans={visiblePendingPlans}
+                upcomingPlans={todaysUpcoming}
+                completedPlans={todaysCompleted}
                 suggestions={suggestions}
                 upcomingDates={upcomingDates}
                 friends={friends}
@@ -359,6 +450,21 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = ({ friends })
                 onReschedulePlan={handleReschedulePlan}
                 onSuggestionAction={handleSuggestionAction}
             />
+
+            {wizardFriend && (
+                <PlanWizard
+                    visible={isPlanWizardOpen}
+                    onClose={() => {
+                        setIsPlanWizardOpen(false);
+                        setWizardFriend(null);
+                        setWizardPrefill(null);
+                        setReplaceInteractionId(undefined);
+                    }}
+                    initialFriend={wizardFriend}
+                    prefillData={wizardPrefill}
+                    replaceInteractionId={replaceInteractionId}
+                />
+            )}
         </>
     );
 };
@@ -404,5 +510,16 @@ const styles = StyleSheet.create({
     },
     emptyText: {
         // Font size handled by typography.scale.body in component
+    },
+    sectionHeader: {
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        paddingTop: 16,
+    },
+    sectionTitle: {
+        fontSize: 12,
+        fontFamily: 'Inter_600SemiBold',
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
     },
 });

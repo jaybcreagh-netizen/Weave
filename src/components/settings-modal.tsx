@@ -4,7 +4,7 @@ import { router } from 'expo-router';
 import { format } from 'date-fns';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
-import { X, Moon, Sun, Palette, RefreshCw, Bug, BarChart3, Battery, Calendar as CalendarIcon, ChevronRight, Bell, Clock, Trophy, Sparkles, MessageSquare, Download, Upload, Database, Trash2, BookOpen, Users, Shield, FileText } from 'lucide-react-native';
+import { X, Moon, Sun, Palette, RefreshCw, Bug, BarChart3, Battery, Calendar as CalendarIcon, ChevronRight, Bell, Clock, Trophy, Sparkles, MessageSquare, Download, Upload, Database, Trash2, BookOpen, Users, Shield, FileText, Star } from 'lucide-react-native';
 import * as FileSystem from 'expo-file-system';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
@@ -62,7 +62,7 @@ export function SettingsModal({
   onOpenBatteryCheckIn,
 }: SettingsModalProps) {
   const insets = useSafeAreaInsets();
-  const { isDarkMode, toggleDarkMode, openTrophyCabinet, openWeeklyReflection } = useUIStore();
+  const { isDarkMode, toggleDarkMode, openTrophyCabinet, openWeeklyReflection, openReflectionPrompt } = useUIStore();
   const { profile, updateBatteryPreferences, updateProfile } = useUserProfileStore();
   const { colors } = useTheme();
   const [shouldRender, setShouldRender] = useState(false);
@@ -262,11 +262,53 @@ export function SettingsModal({
 
       setAvailableCalendars(calendars);
     }
-
     const settings = await CalendarService.getCalendarSettings();
     await CalendarService.saveCalendarSettings({ ...settings, enabled });
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setCalendarSettings((prev: any) => ({ ...prev, enabled }));
+  };
+
+  const handleTestPostWeaveRating = async () => {
+    try {
+      // 1. Get a random friend to plan with
+      const friends = await database.get<FriendModel>('friends').query().fetch();
+      if (friends.length === 0) {
+        Alert.alert('No Friends', 'You need at least one friend to test this.');
+        return;
+      }
+      const randomFriend = friends[Math.floor(Math.random() * friends.length)];
+
+      // 2. Create a "Planned" interaction in the past (yesterday)
+      await database.write(async () => {
+        const interaction = await database.get('interactions').create((i: any) => {
+          i.interactionType = 'plan';
+          i.status = 'planned';
+          i.interactionDate = new Date(Date.now() - 24 * 60 * 60 * 1000).getTime(); // Yesterday
+          i.activity = 'Test Party';
+          i.mode = 'plan';
+          i.note = 'This is a test plan created from settings.';
+          // Necessary fields
+          i._raw.id = 'test_plan_' + Date.now();
+        });
+
+        // Link friend
+        await database.get('interaction_friends').create((join: any) => {
+          join.interaction.set(interaction);
+          join.friend.set(randomFriend);
+        });
+      });
+
+      // 3. Trigger the check
+      const { PlanService } = require('@/modules/interactions');
+      await PlanService.checkPendingPlans();
+
+      // 4. Close settings so user can see the modal
+      onClose();
+
+    } catch (e) {
+      console.error(e);
+      Alert.alert('Error', 'Failed to trigger test rating flow.');
+    }
   };
 
   const handleToggleTwoWaySync = async (enabled: boolean) => {
@@ -1062,6 +1104,28 @@ export function SettingsModal({
               </TouchableOpacity>
             </View>
           </View>
+
+          {/* Test Weekly Reflection */}
+          <TouchableOpacity
+            onPress={() => {
+              onClose();
+              setTimeout(() => {
+                openReflectionPrompt();
+              }, 500);
+            }}
+            className="flex-row items-center justify-between p-4 bg-white rounded-2xl border border-gray-100 mb-3"
+          >
+            <View className="flex-row items-center gap-3">
+              <View className="w-10 h-10 rounded-full items-center justify-center bg-purple-50">
+                <Sparkles size={20} color={colors.primary} />
+              </View>
+              <View>
+                <Text className="text-base font-medium text-gray-900">Test Weekly Reflection</Text>
+                <Text className="text-sm text-gray-500">Trigger the weekly check-in flow</Text>
+              </View>
+            </View>
+            <ChevronRight size={20} color={colors.mutedForeground} />
+          </TouchableOpacity>
 
           <View className="flex-row items-center justify-between pl-13 mt-3">
             <View className="flex-1">

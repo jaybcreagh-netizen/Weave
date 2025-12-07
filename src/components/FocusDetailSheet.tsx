@@ -17,6 +17,7 @@ import { Suggestion } from '@/shared/types/common';
 import FriendModel from '@/db/models/Friend';
 import { format } from 'date-fns';
 import { calculateWeeklySummary, generateContextualPrompts, selectBestPrompt, ContextualPrompt } from '@/modules/reflection';
+import { getCategoryLabel } from '@/modules/interactions';
 
 interface UpcomingDate {
     friend: FriendModel;
@@ -29,7 +30,8 @@ interface UpcomingDate {
 interface FocusDetailSheetProps {
     isVisible: boolean;
     onClose: () => void;
-    plans: Interaction[];
+    upcomingPlans: Interaction[];
+    completedPlans: Interaction[];
     suggestions: Suggestion[];
     upcomingDates: UpcomingDate[];
     friends: FriendModel[];
@@ -41,7 +43,8 @@ interface FocusDetailSheetProps {
 export const FocusDetailSheet: React.FC<FocusDetailSheetProps> = ({
     isVisible,
     onClose,
-    plans,
+    upcomingPlans,
+    completedPlans,
     suggestions,
     upcomingDates,
     friends,
@@ -57,7 +60,8 @@ export const FocusDetailSheet: React.FC<FocusDetailSheetProps> = ({
         let isMounted = true;
         const loadFriends = async () => {
             const newMap: Record<string, string[]> = {};
-            for (const plan of plans) {
+            const allPlans = [...upcomingPlans, ...completedPlans];
+            for (const plan of allPlans) {
                 try {
                     const iFriends = await plan.interactionFriends.fetch();
                     newMap[plan.id] = iFriends.map((f: any) => f.friendId);
@@ -69,7 +73,7 @@ export const FocusDetailSheet: React.FC<FocusDetailSheetProps> = ({
         };
         loadFriends();
         return () => { isMounted = false; };
-    }, [plans]);
+    }, [upcomingPlans, completedPlans]);
 
     React.useEffect(() => {
         let isMounted = true;
@@ -154,12 +158,12 @@ export const FocusDetailSheet: React.FC<FocusDetailSheetProps> = ({
                             </View>
                         )}
 
-                        {/* Plans Section */}
-                        {plans.length > 0 && (
+                        {/* Upcoming Plans Section */}
+                        {upcomingPlans.length > 0 && (
                             <View style={styles.section}>
-                                <WidgetHeader title="Plans" icon={<Calendar size={20} color={tokens.primaryMuted} />} />
+                                <WidgetHeader title="Upcoming" icon={<Calendar size={20} color={tokens.primaryMuted} />} />
                                 <Card padding="none">
-                                    {plans.map((plan, index) => {
+                                    {upcomingPlans.map((plan, index) => {
                                         const friendIds = planFriendIds[plan.id] || [];
                                         const planFriends = friends.filter(f => friendIds.includes(f.id));
                                         const friendName = planFriends.length > 0 ? planFriends[0].name : '';
@@ -168,16 +172,53 @@ export const FocusDetailSheet: React.FC<FocusDetailSheetProps> = ({
                                         return (
                                             <View key={plan.id} style={{ paddingHorizontal: 16 }}>
                                                 <ListItem
-                                                    title={plan.title || 'Untitled Plan'}
+                                                    title={plan.title || `${getCategoryLabel(plan.interactionCategory ?? undefined)}${friendName ? ` with ${friendName}` : ''}`}
                                                     subtitle={subtitle}
-                                                    showDivider={index < plans.length - 1}
+                                                    showDivider={index < upcomingPlans.length - 1}
                                                     compact
                                                     trailing={
                                                         <View style={styles.actions}>
                                                             <Button
-                                                                label="Confirm"
+                                                                label="Reschedule"
                                                                 size="small"
-                                                                onPress={() => onConfirmPlan(plan.id)}
+                                                                variant="secondary"
+                                                                onPress={() => onReschedulePlan(plan)}
+                                                                style={compactButtonStyle}
+                                                            />
+                                                        </View>
+                                                    }
+                                                />
+                                            </View>
+                                        );
+                                    })}
+                                </Card>
+                            </View>
+                        )}
+
+                        {/* Completed Plans Section */}
+                        {completedPlans.length > 0 && (
+                            <View style={styles.section}>
+                                <WidgetHeader title="Completed Today" icon={<CheckCircle2 size={20} color={tokens.success} />} />
+                                <Card padding="none">
+                                    {completedPlans.map((plan, index) => {
+                                        const friendIds = planFriendIds[plan.id] || [];
+                                        const planFriends = friends.filter(f => friendIds.includes(f.id));
+                                        const friendName = planFriends.length > 0 ? planFriends[0].name : '';
+                                        const subtitle = `${friendName ? `with ${friendName} • ` : ''}${format(new Date(plan.interactionDate), 'h:mm a')}`;
+
+                                        return (
+                                            <View key={plan.id} style={{ paddingHorizontal: 16 }}>
+                                                <ListItem
+                                                    title={plan.title || `${getCategoryLabel(plan.interactionCategory ?? undefined)}${friendName ? ` with ${friendName}` : ''}`}
+                                                    subtitle={subtitle}
+                                                    showDivider={index < completedPlans.length - 1}
+                                                    compact
+                                                    trailing={
+                                                        <View style={styles.actions}>
+                                                            <Button
+                                                                label="Deepen"
+                                                                size="small"
+                                                                onPress={() => onConfirmPlan(plan.id)} // This triggers Deepen/Review depending on setup (Deepen usually opens reflection)
                                                                 style={compactButtonStyle}
                                                             />
                                                         </View>
@@ -241,7 +282,7 @@ export const FocusDetailSheet: React.FC<FocusDetailSheetProps> = ({
                             </View>
                         )}
 
-                        {plans.length === 0 && suggestions.length === 0 && upcomingDates.length === 0 && (
+                        {upcomingPlans.length === 0 && completedPlans.length === 0 && suggestions.length === 0 && upcomingDates.length === 0 && (
                             <View style={styles.emptyState}>
                                 <CheckCircle2 size={48} color={tokens.success} />
                                 <Text style={[styles.emptyTitle, { color: tokens.foreground, fontFamily: typography.fonts.serifBold }]}>

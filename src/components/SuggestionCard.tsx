@@ -2,6 +2,12 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Suggestion } from '@/shared/types/common';
 import { useTheme } from '@/shared/hooks/useTheme';
+import {
+  Gift, Heart, Briefcase, Home, GraduationCap, Activity,
+  PartyPopper, HeartCrack, Egg, Calendar, Star, Target,
+  AlertTriangle, History, Sparkles, Zap, Clock, Wind,
+  Anchor, Cloud, Feather
+} from 'lucide-react-native';
 
 interface SuggestionCardProps {
   suggestion: Suggestion;
@@ -9,8 +15,15 @@ interface SuggestionCardProps {
   onLater: () => void;
 }
 
+const ICON_MAP: Record<string, any> = {
+  Gift, Heart, Briefcase, Home, GraduationCap, Activity,
+  PartyPopper, HeartCrack, Egg, Calendar, Star, Target,
+  AlertTriangle, History, Sparkles, Zap, Clock, Wind,
+  Anchor, Cloud, Feather
+};
+
 export function SuggestionCard({ suggestion, onAct, onLater }: SuggestionCardProps) {
-  const { colors } = useTheme();
+  const { colors, tokens } = useTheme();
 
   const urgencyColors = {
     critical: colors.destructive,
@@ -19,12 +32,21 @@ export function SuggestionCard({ suggestion, onAct, onLater }: SuggestionCardPro
     low: colors['muted-foreground'],
   };
 
-  const urgencyColor = urgencyColors[suggestion.urgency || 'low'];
+  let urgencyColor: string = urgencyColors[suggestion.urgency || 'low'];
+
+  // Override for drift suggestions to be softer/mindful
+  if (suggestion.category === 'drift' && suggestion.urgency === 'critical') {
+    urgencyColor = '#78350F'; // Amber 900 - Deeper brown for mindful alert
+  }
+
+  const IconComponent = ICON_MAP[suggestion.icon] || Star;
 
   return (
     <View style={[styles.container, { backgroundColor: colors.muted, borderColor: colors.border }]}>
       <View style={styles.header}>
-        <Text style={styles.icon}>{suggestion.icon}</Text>
+        <View style={styles.iconContainer}>
+          <IconComponent size={24} color={urgencyColor} />
+        </View>
         <View style={styles.headerText}>
           <Text style={[styles.title, { color: urgencyColor }]}>
             {suggestion.title}
@@ -68,8 +90,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 12,
   },
-  icon: {
-    fontSize: 28,
+  iconContainer: {
     marginRight: 12,
   },
   headerText: {

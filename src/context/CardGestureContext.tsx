@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useMemo } from 'react';
+import React, { createContext, useContext, useMemo, useRef } from 'react';
 import { View } from 'react-native';
 import Animated, { useSharedValue, useAnimatedScrollHandler, runOnJS, measure } from 'react-native-reanimated';
 import { Gesture } from 'react-native-gesture-handler';
@@ -33,6 +33,26 @@ export function useCardGesture() {
 
 function useCardGestureCoordinator(): CardGestureContextType {
   const { handleInteractionSelection, handleOpenQuickWeave, handleTap, closeQuickWeave } = useQuickWeave();
+
+  // Create refs to hold the latest version of the handlers
+  // This prevents the stale closure issue where the gesture (which is memoized once)
+  // holds onto the *initial* version of these functions (and thus the initial activities list/state).
+  const interactionSelectionRef = useRef(handleInteractionSelection);
+  const openQuickWeaveRef = useRef(handleOpenQuickWeave);
+  const tapRef = useRef(handleTap);
+  const closeQuickWeaveRef = useRef(closeQuickWeave);
+
+  // Always keep refs up to date
+  interactionSelectionRef.current = handleInteractionSelection;
+  openQuickWeaveRef.current = handleOpenQuickWeave;
+  tapRef.current = handleTap;
+  closeQuickWeaveRef.current = closeQuickWeave;
+
+  // Stable wrappers that use the refs
+  const handleInteractionSelectionStable = (index: number, fId: string) => interactionSelectionRef.current(index, fId);
+  const handleOpenQuickWeaveStable = (fId: string, point: { x: number; y: number }) => openQuickWeaveRef.current(fId, point);
+  const handleTapStable = (fId: string) => tapRef.current(fId);
+  const closeQuickWeaveStable = () => closeQuickWeaveRef.current();
 
   const cardRefs = useSharedValue<Record<string, React.RefObject<Animated.View>>>({});
   const scrollOffset = useSharedValue(0);
@@ -82,7 +102,7 @@ function useCardGestureCoordinator(): CardGestureContextType {
         if (success && !isLongPressActive.value) {
           const targetId = findTargetCardId(event.absoluteX, event.absoluteY);
           if (targetId) {
-            runOnJS(handleTap)(targetId);
+            runOnJS(handleTapStable)(targetId);
           }
         }
       });
@@ -111,7 +131,7 @@ function useCardGestureCoordinator(): CardGestureContextType {
             x: event.absoluteX,
             y: event.absoluteY, // Use absolute position since overlay is screen-positioned
           };
-          runOnJS(handleOpenQuickWeave)(targetId, centerPoint);
+          runOnJS(handleOpenQuickWeaveStable)(targetId, centerPoint);
         }
       })
       .onTouchesMove((event, state) => {
@@ -155,14 +175,14 @@ function useCardGestureCoordinator(): CardGestureContextType {
         'worklet';
         if (isLongPressActive.value) {
           // Close the overlay first
-          runOnJS(closeQuickWeave)();
+          runOnJS(closeQuickWeaveStable)();
 
           const distance = Math.sqrt(dragX.value ** 2 + dragY.value ** 2);
           if (distance >= SELECTION_THRESHOLD && highlightedIndex.value !== -1 && activeCardId.value) {
             // Process interaction selection after overlay closes
             const selectedIndex = highlightedIndex.value;
             const friendId = activeCardId.value;
-            runOnJS(handleInteractionSelection)(selectedIndex, friendId);
+            runOnJS(handleInteractionSelectionStable)(selectedIndex, friendId);
           }
         }
 

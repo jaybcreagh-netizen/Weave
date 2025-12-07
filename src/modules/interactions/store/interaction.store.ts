@@ -30,7 +30,7 @@ interface InteractionsStore {
     deleteWeave: (id: string) => Promise<void>;
 
     // Plan Actions (calling services)
-    completePlan: (id: string) => Promise<void>;
+    completePlan: (id: string, data?: { vibe?: string; note?: string }) => Promise<void>;
     cancelPlan: (id: string) => Promise<void>;
 
     // Calendar Actions (calling services)
@@ -108,7 +108,7 @@ export const useInteractionsStore = create<InteractionsStore>((set, get) => ({
     logWeave: async (data) => WeaveLoggingService.logWeave(data),
     planWeave: async (data) => WeaveLoggingService.planWeave(data),
     deleteWeave: async (id) => WeaveLoggingService.deleteWeave(id),
-    completePlan: async (id) => PlanService.completePlan(id),
+    completePlan: async (id, data) => PlanService.completePlan(id, data),
     cancelPlan: async (id) => PlanService.cancelPlan(id),
     syncCalendar: async () => CalendarService.syncCalendarChanges(),
 

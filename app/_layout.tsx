@@ -30,6 +30,7 @@ import {
   NotificationOrchestrator,
   useNotificationResponseHandler,
 } from '@/modules/notifications';
+import { PostWeaveRatingModal, PlanService } from '@/modules/interactions';
 import { useNotificationPermissions } from '@/modules/notifications/hooks/useNotificationPermissions';
 import { AppState } from 'react-native';
 import { AutoBackupService } from '@/modules/backup/AutoBackupService';
@@ -49,6 +50,8 @@ import * as Sentry from '@sentry/react-native';
 import { initializeAnalytics, trackEvent, trackRetentionMetrics, AnalyticsEvents, setPostHogInstance } from '@/shared/services/analytics.service';
 import { PostHogProvider, usePostHog, POSTHOG_API_KEY, posthogOptions } from '@/shared/services/posthog.service';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { isSunday, isSameDay } from 'date-fns';
+import { notificationStore } from '@/modules/notifications';
 
 const queryClient = new QueryClient();
 
@@ -118,7 +121,10 @@ function RootLayoutContent() {
   const isTrophyCabinetOpen = useUIStore((state) => state.isTrophyCabinetOpen);
   const closeTrophyCabinet = useUIStore((state) => state.closeTrophyCabinet);
   const isWeeklyReflectionOpen = useUIStore((state) => state.isWeeklyReflectionOpen);
+  const openWeeklyReflection = useUIStore((state) => state.openWeeklyReflection);
   const closeWeeklyReflection = useUIStore((state) => state.closeWeeklyReflection);
+  const lastReflectionPromptDate = useUIStore((state) => state.lastReflectionPromptDate);
+  const markReflectionPromptShown = useUIStore((state) => state.markReflectionPromptShown);
   const memoryMomentData = useUIStore((state) => state.memoryMomentData);
   const digestSheetVisible = useUIStore((state) => state.digestSheetVisible);
   const digestItems = useUIStore((state) => state.digestItems);
@@ -180,6 +186,11 @@ function RootLayoutContent() {
           useEventSuggestionStore.getState().scanForSuggestions().catch((error) => {
             console.error('[App] Error scanning for event suggestions on launch:', error);
           });
+        });
+
+        // Check for pending plans (past events that need rating)
+        PlanService.checkPendingPlans().catch(err => {
+          console.error('[App] Error checking pending plans on launch:', err);
         });
 
         setDataLoaded(true);
@@ -256,6 +267,11 @@ function RootLayoutContent() {
         useEventSuggestionStore.getState().scanForSuggestions().catch((error) => {
           console.error('[App] Error scanning for event suggestions:', error);
         });
+      });
+
+      // Check for pending plans when app comes to foreground
+      PlanService.checkPendingPlans().catch(err => {
+        console.error('[App] Error checking pending plans on active:', err);
       });
     } else if (state === 'background') {
 
@@ -340,6 +356,35 @@ function RootLayoutContent() {
 
     checkNotificationPermissions();
   }, [hasCompletedOnboarding, dataLoaded]);
+
+  // Weekly Reflection Sunday Check
+  useEffect(() => {
+    const checkWeeklyReflection = async () => {
+      // Only run if UI is mounted and data loaded
+      if (!uiMounted || !dataLoaded || !hasCompletedOnboarding) return;
+
+      const now = new Date();
+
+      // 1. Must be Sunday
+      if (!isSunday(now)) return;
+
+      // 2. Must not have completed reflection today
+      const lastReflectionDate = await notificationStore.getLastReflectionDate();
+      if (lastReflectionDate && isSameDay(lastReflectionDate, now)) return;
+
+      // 3. Must not have shown prompt today
+      if (lastReflectionPromptDate && isSameDay(new Date(lastReflectionPromptDate), now)) return;
+
+      // Show it!
+      markReflectionPromptShown();
+      // Small delay to let animations settle
+      setTimeout(() => {
+        openWeeklyReflection();
+      }, 1000);
+    };
+
+    checkWeeklyReflection();
+  }, [uiMounted, dataLoaded, hasCompletedOnboarding, lastReflectionPromptDate]);
 
 
 
@@ -429,6 +474,9 @@ function RootLayoutContent() {
 
                   {/* Sync Conflict Modal */}
                   <SyncConflictModal />
+
+                  {/* Post Weave Rating Modal */}
+                  <PostWeaveRatingModal />
 
                   {/* Memory Moment Modal */}
                   <MemoryMomentModal

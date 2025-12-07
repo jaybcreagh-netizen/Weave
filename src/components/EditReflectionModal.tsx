@@ -9,11 +9,13 @@ import { useTheme } from '@/shared/hooks/useTheme';
 import { type Interaction, type StructuredReflection, type InteractionCategory, type Archetype, type Vibe } from './types';
 import { calculateDeepeningLevel } from '@/modules/intelligence';
 
+import { MoonPhaseSelector } from './MoonPhaseSelector';
+
 interface EditReflectionModalProps {
   interaction: Interaction | null;
   isOpen: boolean;
   onClose: () => void;
-  onSave: (interactionId: string, reflection: StructuredReflection) => Promise<void>;
+  onSave: (interactionId: string, reflection: StructuredReflection, vibe?: Vibe | null) => Promise<void>;
   friendArchetype?: Archetype;
 }
 
@@ -28,6 +30,7 @@ export function EditReflectionModal({
   const [reflection, setReflection] = useState<StructuredReflection>(
     interaction?.reflection || {}
   );
+  const [selectedVibe, setSelectedVibe] = useState<Vibe | null>(interaction?.vibe as Vibe | null);
   const [isSaving, setIsSaving] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
 
@@ -35,6 +38,7 @@ export function EditReflectionModal({
   React.useEffect(() => {
     if (interaction) {
       setReflection(interaction.reflection || {});
+      setSelectedVibe(interaction.vibe as Vibe | null);
     }
   }, [interaction]);
 
@@ -43,7 +47,7 @@ export function EditReflectionModal({
 
     setIsSaving(true);
     try {
-      await onSave(interaction.id, reflection);
+      await onSave(interaction.id, reflection, selectedVibe);
 
       // Show celebration animation
       setShowCelebration(true);
@@ -79,14 +83,9 @@ export function EditReflectionModal({
           onComplete={() => setShowCelebration(false)}
         />
         <View style={[styles.header, { borderBottomColor: colors.border }]}>
-          <View>
-            <Text style={[styles.headerTitle, { color: colors.foreground }]}>
-              {reflection.chips?.length ? 'Edit Reflection' : 'Deepen this weave'}
-            </Text>
-            <Text style={[styles.headerSubtitle, { color: colors['muted-foreground'] }]}>
-              Add depth to this moment
-            </Text>
-          </View>
+          <Text style={[styles.headerTitle, { color: colors.foreground }]}>
+            Tell me more
+          </Text>
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>
             <X color={colors['muted-foreground']} size={24} />
           </TouchableOpacity>
@@ -102,10 +101,20 @@ export function EditReflectionModal({
             keyboardShouldPersistTaps="handled"
           >
             <Animated.View entering={FadeIn.duration(300)}>
+              <View style={styles.section}>
+                <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
+                  How did it feel?
+                </Text>
+                <MoonPhaseSelector
+                  selectedVibe={selectedVibe}
+                  onSelect={setSelectedVibe}
+                />
+              </View>
+
               <ContextualReflectionInput
                 category={category}
                 archetype={friendArchetype}
-                vibe={interaction.vibe as Vibe}
+                vibe={selectedVibe}
                 value={reflection}
                 onChange={setReflection}
               />
@@ -135,21 +144,24 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    justifyContent: 'center', // Center content
+    alignItems: 'center',
     padding: 20,
     borderBottomWidth: 1,
+    position: 'relative', // For absolute positioning of close button
   },
   headerTitle: {
     fontSize: 24,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  headerSubtitle: {
-    fontSize: 14,
+    fontWeight: '700',
+    fontFamily: 'Lora-Bold', // Use Lora font
+    marginBottom: 0,
+    textAlign: 'center',
   },
   closeButton: {
     padding: 8,
+    position: 'absolute',
+    right: 16,
+    top: 16,
   },
   scrollView: {
     flex: 1,
@@ -174,5 +186,13 @@ const styles = StyleSheet.create({
   saveButtonText: {
     fontSize: 16,
     fontWeight: '600',
+  },
+  section: {
+    marginBottom: 24,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 16,
   },
 });

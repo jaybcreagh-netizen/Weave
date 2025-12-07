@@ -141,7 +141,7 @@ export const SmartSuggestionsChannel: NotificationChannel & {
 
         // 4. Generate Suggestions
         const suggestions: Suggestion[] = [];
-        const friends = await database.get<Friend>('friends').query(Q.where('is_archived', false)).fetch();
+        const friends = await database.get<Friend>('friends').query().fetch();
 
         for (const friend of friends) {
             // Junction check
@@ -174,7 +174,7 @@ export const SmartSuggestionsChannel: NotificationChannel & {
             const suggestion = await generateSuggestion({
                 friend: friend as unknown as HydratedFriend,
                 currentScore,
-                lastInteractionDate: lastInteraction?.interactionDate ?? null,
+                lastInteractionDate: lastInteractionDate ?? null,
                 interactionCount,
                 momentumScore,
                 recentInteractions
