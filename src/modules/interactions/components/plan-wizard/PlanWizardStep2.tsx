@@ -23,8 +23,6 @@ interface PlanWizardStep2Props {
   }>;
 }
 
-
-
 export function PlanWizardStep2({
   selectedCategory,
   onCategorySelect,
@@ -38,7 +36,16 @@ export function PlanWizardStep2({
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const scale = useSharedValue(1);
 
+  // Ref to track timeout for cleanup
+  const timeoutRef = React.useRef<NodeJS.Timeout>();
 
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
 
   // Create animated style once at the top level
   const animatedStyle = useAnimatedStyle(() => ({
@@ -52,7 +59,7 @@ export function PlanWizardStep2({
 
       // Visual feedback: scale down then advance
       scale.value = withSpring(0.95, { damping: 15 });
-      setTimeout(() => {
+      timeoutRef.current = setTimeout(() => {
         scale.value = withSpring(1, { damping: 15 });
         onContinue();
       }, 200);
@@ -65,11 +72,12 @@ export function PlanWizardStep2({
 
     // Visual feedback: scale down then advance
     scale.value = withSpring(0.95, { damping: 15 });
-    setTimeout(() => {
+    timeoutRef.current = setTimeout(() => {
       scale.value = withSpring(1, { damping: 15 });
       onContinue();
     }, 200);
   };
+  // ... rest of file
 
   const getCategoryData = (value: InteractionCategory) => {
     return orderedCategories.find(c => c.value === value);
