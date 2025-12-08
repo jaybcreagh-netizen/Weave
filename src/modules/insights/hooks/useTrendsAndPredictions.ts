@@ -8,6 +8,7 @@ import { analyzeInteractionPattern } from '../services/pattern.service';
 import { database } from '@/db';
 import FriendModel from '@/db/models/Friend';
 import InteractionModel from '@/db/models/Interaction';
+import InteractionFriend from '@/db/models/InteractionFriend';
 import { Q } from '@nozbe/watermelondb';
 
 /**
@@ -119,13 +120,28 @@ export function usePredictions() {
               )
               .fetch();
 
+            // Get friend counts for each interaction (to filter group events)
+            const interactionsWithCounts = await Promise.all(
+              friendInteractions.map(async i => {
+                const friendLinks = await database
+                  .get<InteractionFriend>('interaction_friends')
+                  .query(Q.where('interaction_id', i.id))
+                  .fetchCount();
+
+                return {
+                  id: i.id,
+                  interactionDate: i.interactionDate,
+                  status: i.status,
+                  category: i.interactionCategory,
+                  friendCount: friendLinks,
+                };
+              })
+            );
+
+            // Use primaryOnly filter for more accurate personal rhythm
             const pattern = analyzeInteractionPattern(
-              friendInteractions.map(i => ({
-                id: i.id,
-                interactionDate: i.interactionDate,
-                status: i.status,
-                category: i.interactionCategory,
-              }))
+              interactionsWithCounts,
+              { primaryOnly: true, primaryMaxFriends: 3 }
             );
 
             const prediction = predictFriendDrift(friend, pattern);
@@ -212,13 +228,28 @@ export function useProactiveSuggestions() {
               )
               .fetch();
 
+            // Get friend counts for each interaction (to filter group events)
+            const interactionsWithCounts = await Promise.all(
+              friendInteractions.map(async i => {
+                const friendLinks = await database
+                  .get<InteractionFriend>('interaction_friends')
+                  .query(Q.where('interaction_id', i.id))
+                  .fetchCount();
+
+                return {
+                  id: i.id,
+                  interactionDate: i.interactionDate,
+                  status: i.status,
+                  category: i.interactionCategory,
+                  friendCount: friendLinks,
+                };
+              })
+            );
+
+            // Use primaryOnly filter for more accurate personal rhythm
             pattern = analyzeInteractionPattern(
-              friendInteractions.map(i => ({
-                id: i.id,
-                interactionDate: i.interactionDate,
-                status: i.status,
-                category: i.interactionCategory,
-              }))
+              interactionsWithCounts,
+              { primaryOnly: true, primaryMaxFriends: 3 }
             );
           }
 

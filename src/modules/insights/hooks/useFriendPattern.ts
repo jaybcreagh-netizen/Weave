@@ -52,14 +52,28 @@ export function useFriendPattern(friendId: string): {
                     )
                     .fetch();
 
-                // Analyze pattern
+                // Get friend counts for each interaction (to filter group events)
+                const interactionsWithCounts = await Promise.all(
+                    interactions.map(async (i) => {
+                        const friendLinks = await database
+                            .get<InteractionFriend>('interaction_friends')
+                            .query(Q.where('interaction_id', i.id))
+                            .fetchCount();
+
+                        return {
+                            id: i.id,
+                            interactionDate: i.interactionDate,
+                            status: 'completed' as const,
+                            category: i.interactionCategory,
+                            friendCount: friendLinks,
+                        };
+                    })
+                );
+
+                // Analyze pattern with primary-only filter for more accurate personal rhythm
                 const analyzedPattern = analyzeInteractionPattern(
-                    interactions.map((i) => ({
-                        id: i.id,
-                        interactionDate: i.interactionDate,
-                        status: 'completed' as const,
-                        category: i.interactionCategory,
-                    }))
+                    interactionsWithCounts,
+                    { primaryOnly: true, primaryMaxFriends: 3 }
                 );
 
                 setPattern(analyzedPattern);
