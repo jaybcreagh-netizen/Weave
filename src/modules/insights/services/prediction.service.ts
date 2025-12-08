@@ -1,10 +1,10 @@
 import FriendModel from '@/db/models/Friend';
-import { calculateCurrentScore } from '@/modules/intelligence';
 import { FriendshipPattern } from './pattern.service';
 import { TierDecayRates } from '@/modules/intelligence/constants';
 import { Tier } from '@/shared/types/common';
-import { differenceInDays } from 'date-fns';
+import { differenceInDays, getDay } from 'date-fns';
 import { FriendPrediction, ProactiveSuggestion } from '../types';
+import { analyzeReciprocity, calculateReciprocityScore, ReciprocityAnalysis } from './reciprocity.service';
 
 /**
  * Predicts when a friend will need attention based on decay rate and patterns
@@ -104,12 +104,52 @@ export function predictFriendDrift(
 }
 
 /**
- * Generates proactive suggestions based on predictions and patterns
+ * Options for generating proactive suggestions
+ */
+export interface SuggestionOptions {
+  /** Include reciprocity-based suggestions (default: true) */
+  includeReciprocity?: boolean;
+  /** Include smart scheduling suggestions (default: true) */
+  includeSmartScheduling?: boolean;
+  /** Best days data from pattern detection (for smart scheduling) */
+  bestDaysData?: BestDaysData;
+  /** Current battery level (0-5) for battery-aware scheduling */
+  currentBatteryLevel?: number;
+}
+
+/**
+ * Data about best connection days from pattern detection
+ */
+export interface BestDaysData {
+  bestDay: {
+    day: number; // 0-6 (Sunday-Saturday)
+    avgBattery: number;
+    avgWeaves: number;
+  };
+  allDays: Array<{
+    day: number;
+    avgBattery: number;
+    avgWeaves: number;
+  }>;
+}
+
+const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+/**
+ * Generates proactive suggestions based on predictions, patterns, and multiple signals
  */
 export function generateProactiveSuggestions(
   friend: FriendModel,
-  pattern?: FriendshipPattern
+  pattern?: FriendshipPattern,
+  options: SuggestionOptions = {}
 ): ProactiveSuggestion[] {
+  const {
+    includeReciprocity = true,
+    includeSmartScheduling = true,
+    bestDaysData,
+    currentBatteryLevel,
+  } = options;
+
   const suggestions: ProactiveSuggestion[] = [];
   const prediction = predictFriendDrift(friend, pattern);
 
@@ -127,7 +167,7 @@ export function generateProactiveSuggestions(
   }
 
   // 2. Optimal timing suggestion based on pattern
-  if (pattern && pattern.sampleSize >= 2) { // Lowered from 3 to 2
+  if (pattern && pattern.sampleSize >= 2) {
     const lastInteractionDate = friend.lastUpdated;
     const daysSinceLastInteraction = differenceInDays(new Date(), lastInteractionDate);
     const expectedNextDay = pattern.averageIntervalDays;
@@ -147,7 +187,7 @@ export function generateProactiveSuggestions(
   }
 
   // 3. Pattern break alert (when they're significantly overdue)
-  if (pattern && pattern.sampleSize >= 2) { // Lowered from 3 to 2
+  if (pattern && pattern.sampleSize >= 2) {
     const lastInteractionDate = friend.lastUpdated;
     const daysSinceLastInteraction = differenceInDays(new Date(), lastInteractionDate);
     const expectedNextDay = pattern.averageIntervalDays;
@@ -177,12 +217,155 @@ export function generateProactiveSuggestions(
       friendName: friend.name,
       title: `Ride the momentum with ${friend.name}`,
       message: `You're connecting well right now (score: ${Math.round(currentScore)}). Another interaction soon would build a strong streak.`,
-      daysUntil: 2, // Suggest within 2 days
+      daysUntil: 2,
       urgency: 'medium',
     });
   }
 
+  // 5. Reciprocity imbalance suggestion
+  if (includeReciprocity) {
+    const reciprocitySuggestion = generateReciprocitySuggestion(friend);
+    if (reciprocitySuggestion) {
+      suggestions.push(reciprocitySuggestion);
+    }
+  }
+
+  // 6. Smart scheduling suggestion (battery-aware best day)
+  if (includeSmartScheduling && bestDaysData) {
+    const schedulingSuggestion = generateSmartSchedulingSuggestion(
+      friend,
+      bestDaysData,
+      currentBatteryLevel
+    );
+    if (schedulingSuggestion) {
+      suggestions.push(schedulingSuggestion);
+    }
+  }
+
   return suggestions;
+}
+
+/**
+ * Generates a reciprocity-based suggestion if there's an imbalance
+ */
+function generateReciprocitySuggestion(friend: FriendModel): ProactiveSuggestion | null {
+  const analysis = analyzeReciprocity(friend);
+
+  // Only suggest if we have enough data and there's an imbalance
+  if (analysis.totalInitiations < 5) return null;
+  if (analysis.balance === 'balanced') return null;
+
+  const ratio = analysis.initiationRatio;
+  const userPercent = Math.round(ratio * 100);
+  const friendPercent = 100 - userPercent;
+
+  // User is initiating too much (> 70%)
+  if (ratio > 0.7) {
+    const urgency = analysis.balance === 'one-sided' ? 'high' :
+      analysis.balance === 'very-imbalanced' ? 'medium' : 'low';
+
+    // Skip low urgency to reduce noise
+    if (urgency === 'low') return null;
+
+    return {
+      type: 'reciprocity-imbalance',
+      friendId: friend.id,
+      friendName: friend.name,
+      title: `Consider letting ${friend.name} reach out`,
+      message: `You've initiated ${userPercent}% of interactions (${analysis.consecutiveUserInitiations} in a row). Consider creating space for them to reach out.`,
+      daysUntil: 0, // Informational, not time-based
+      urgency,
+      metadata: {
+        initiationRatio: ratio,
+      },
+    };
+  }
+
+  // Friend is initiating too much (< 30%) - encourage user to reach out more
+  if (ratio < 0.3) {
+    const urgency = analysis.balance === 'one-sided' ? 'medium' :
+      analysis.balance === 'very-imbalanced' ? 'low' : 'low';
+
+    // Skip low urgency
+    if (urgency === 'low') return null;
+
+    return {
+      type: 'reciprocity-imbalance',
+      friendId: friend.id,
+      friendName: friend.name,
+      title: `Reach out to ${friend.name}`,
+      message: `${friend.name} has initiated ${friendPercent}% of your interactions. Consider reaching out first to balance the relationship.`,
+      daysUntil: 0,
+      urgency,
+      metadata: {
+        initiationRatio: ratio,
+      },
+    };
+  }
+
+  return null;
+}
+
+/**
+ * Generates a smart scheduling suggestion based on best connection days and battery level
+ */
+function generateSmartSchedulingSuggestion(
+  friend: FriendModel,
+  bestDaysData: BestDaysData,
+  currentBatteryLevel?: number
+): ProactiveSuggestion | null {
+  const today = getDay(new Date()); // 0-6 (Sunday-Saturday)
+  const bestDay = bestDaysData.bestDay;
+
+  // Calculate days until best day (can be 0-6)
+  let daysUntilBest = bestDay.day - today;
+  if (daysUntilBest < 0) daysUntilBest += 7;
+
+  // Only suggest if the best day is within the next 3 days
+  if (daysUntilBest > 3) return null;
+
+  // Check if friend needs attention soon (to make this suggestion relevant)
+  const daysSinceLastUpdate = (Date.now() - friend.lastUpdated.getTime()) / 86400000;
+  const toleranceWindow = friend.toleranceWindowDays || {
+    InnerCircle: 7,
+    CloseFriends: 14,
+    Community: 21,
+  }[friend.dunbarTier as Tier];
+
+  // Only suggest if approaching or past tolerance window
+  if (daysSinceLastUpdate < toleranceWindow * 0.7) return null;
+
+  // Battery-aware messaging
+  let batteryContext = '';
+  if (currentBatteryLevel !== undefined) {
+    if (currentBatteryLevel >= 4 && bestDay.avgBattery >= 3.5) {
+      batteryContext = ' Your energy is high and matches this day well.';
+    } else if (currentBatteryLevel < 3 && bestDay.avgBattery >= 4) {
+      batteryContext = ` Wait for ${DAY_NAMES[bestDay.day]} when your energy is typically higher.`;
+    }
+  }
+
+  const dayName = DAY_NAMES[bestDay.day];
+  const isToday = daysUntilBest === 0;
+
+  return {
+    type: 'best-day-scheduling',
+    friendId: friend.id,
+    friendName: friend.name,
+    title: isToday
+      ? `Today is your best day to connect with ${friend.name}`
+      : `${dayName} is ideal for ${friend.name}`,
+    message: isToday
+      ? `Based on your patterns, you have high energy (${bestDay.avgBattery.toFixed(1)}/5) and connection success on ${dayName}s.${batteryContext}`
+      : `Consider scheduling time with ${friend.name} on ${dayName} when your energy is typically ${bestDay.avgBattery.toFixed(1)}/5.${batteryContext}`,
+    daysUntil: daysUntilBest,
+    urgency: isToday ? 'medium' : 'low',
+    metadata: {
+      recommendedDay: bestDay.day,
+      recommendedDayName: dayName,
+      currentBatteryLevel,
+    },
+  };
 }
 
 /**
@@ -302,4 +485,98 @@ export function calculateCompositeHealthPrediction(
     .map((f) => f.key);
 
   return { score, confidence: 0.85, topFactors: factors };
+}
+
+/**
+ * Builds a CompositeHealthSignal from friend data and patterns
+ * This aggregates multiple signals into a format ready for composite health prediction
+ */
+export function buildCompositeHealthSignal(
+  friend: FriendModel,
+  pattern?: FriendshipPattern,
+  currentBatteryLevel?: number
+): CompositeHealthSignal {
+  // 1. Decay score: Based on current weave score (already incorporates decay)
+  const decayScore = friend.weaveScore;
+
+  // 2. Pattern score: How consistent is the interaction pattern?
+  let patternScore = 50; // Default neutral score
+  if (pattern && pattern.sampleSize >= 2) {
+    // Score based on consistency (0-1 maps to 0-100)
+    const consistencyScore = pattern.consistency * 100;
+
+    // Bonus for being within expected interval
+    const daysSinceLastUpdate = (Date.now() - friend.lastUpdated.getTime()) / 86400000;
+    const expectedInterval = pattern.averageIntervalDays;
+    const intervalRatio = daysSinceLastUpdate / expectedInterval;
+
+    // Perfect score around 0.8-1.2 ratio (approaching expected interval)
+    let intervalBonus = 0;
+    if (intervalRatio >= 0.8 && intervalRatio <= 1.2) {
+      intervalBonus = 20; // On track
+    } else if (intervalRatio < 0.8) {
+      intervalBonus = 10; // Ahead of schedule (good)
+    } else if (intervalRatio > 1.5) {
+      intervalBonus = -20; // Significantly overdue (bad)
+    }
+
+    patternScore = Math.min(100, Math.max(0, consistencyScore + intervalBonus));
+  }
+
+  // 3. Reciprocity score: From reciprocity service (0-1 maps to 0-100)
+  const reciprocityScore = calculateReciprocityScore(friend) * 100;
+
+  // 4. Battery alignment score: Based on current battery vs typical interaction energy
+  let batteryAlignmentScore = 50; // Default neutral
+  if (currentBatteryLevel !== undefined) {
+    // Higher score when user has energy to connect
+    batteryAlignmentScore = (currentBatteryLevel / 5) * 100;
+  }
+
+  // 5. Momentum score: Based on friend's momentum (can be negative or positive)
+  // Normalize momentum from typical range (-30 to +30) to 0-100
+  const rawMomentum = friend.momentumScore || 0;
+  const momentumScore = Math.min(100, Math.max(0, 50 + (rawMomentum * 1.67)));
+
+  // 6. Quality score: Based on recent quality weighting
+  // Use qualityWeightedRating if available, otherwise use base weave score
+  const qualityScore = friend.qualityWeightedRating
+    ? (friend.qualityWeightedRating / 5) * 100
+    : Math.min(100, friend.weaveScore);
+
+  return {
+    decayScore,
+    patternScore,
+    reciprocityScore,
+    batteryAlignmentScore,
+    momentumScore,
+    qualityScore,
+  };
+}
+
+/**
+ * Gets a comprehensive health prediction for a friend using all available signals
+ */
+export function getComprehensiveHealthPrediction(
+  friend: FriendModel,
+  pattern?: FriendshipPattern,
+  currentBatteryLevel?: number
+): {
+  compositeScore: number;
+  confidence: number;
+  topFactors: string[];
+  signals: CompositeHealthSignal;
+  prediction: FriendPrediction;
+} {
+  const signals = buildCompositeHealthSignal(friend, pattern, currentBatteryLevel);
+  const composite = calculateCompositeHealthPrediction(friend, signals);
+  const prediction = predictFriendDrift(friend, pattern);
+
+  return {
+    compositeScore: composite.score,
+    confidence: composite.confidence,
+    topFactors: composite.topFactors,
+    signals,
+    prediction,
+  };
 }
