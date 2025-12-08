@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
-import { X, Battery } from 'lucide-react-native';
+import { X, Battery, Trophy, BookOpen, Users } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { CustomBottomSheet } from '@/shared/ui/Sheet/BottomSheet';
@@ -14,6 +14,12 @@ import { TestingSettings } from './settings/TestingSettings';
 import { DataSettings } from './settings/DataSettings';
 import { NotificationSettings } from './settings/NotificationSettings';
 
+// Modals
+import TrophyCabinetModal from './TrophyCabinetModal';
+import { ArchetypeLibrary } from './ArchetypeLibrary';
+import { FriendManagementModal } from './FriendManagementModal';
+import { GroupListModal } from './groups/GroupListModal';
+
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -26,8 +32,10 @@ export function SettingsModal({
   onOpenBatteryCheckIn,
 }: SettingsModalProps) {
   const { colors } = useTheme();
-  // CustomBottomSheet handles safe area internally or we might need bottom padding
-  // But strictly speaking, CustomBottomSheet usually wraps content in a safe way.
+  const [showTrophyCabinet, setShowTrophyCabinet] = useState(false);
+  const [showArchetypeLibrary, setShowArchetypeLibrary] = useState(false);
+  const [showFriendManagement, setShowFriendManagement] = useState(false);
+  const [showGroupList, setShowGroupList] = useState(false);
 
   if (!isOpen) return null;
 
@@ -53,17 +61,44 @@ export function SettingsModal({
 
           <View className="border-t border-border" style={{ borderColor: colors.border }} />
 
-          {/* Testing / Debug (Test Weekly Reflection, Test Badge) */}
-          <TestingSettings onClose={onClose} />
+          {/* Vital Features (Archetype, Friends, Trophy, Battery) */}
+          <SettingsItem
+            icon={BookOpen}
+            title="Archetype Library"
+            subtitle="Explore connection archetypes"
+            onPress={() => setShowArchetypeLibrary(true)}
+          />
 
           <View className="border-t border-border" style={{ borderColor: colors.border }} />
 
-          {/* General (Groups, Feedback, Trophy, Archetype, Friends, Smart Defaults, Legal) */}
-          <GeneralSettings onClose={onClose} />
+          <SettingsItem
+            icon={Users}
+            title="Manage Friends"
+            subtitle="Batch remove friends"
+            onPress={() => setShowFriendManagement(true)}
+          />
 
           <View className="border-t border-border" style={{ borderColor: colors.border }} />
 
-          {/* Social Battery Check-in (Optional Prop) */}
+          <SettingsItem
+            icon={Users}
+            title="Manage Groups"
+            subtitle="Create and edit friend groups"
+            onPress={() => setShowGroupList(true)}
+          />
+
+          <View className="border-t border-border" style={{ borderColor: colors.border }} />
+
+          <SettingsItem
+            icon={Trophy}
+            title="Trophy Cabinet"
+            subtitle="View your achievements"
+            onPress={() => setShowTrophyCabinet(true)}
+          />
+
+          <View className="border-t border-border" style={{ borderColor: colors.border }} />
+
+          {/* Social Battery Check-in */}
           {onOpenBatteryCheckIn && (
             <>
               <SettingsItem
@@ -78,6 +113,18 @@ export function SettingsModal({
               <View className="border-t border-border" style={{ borderColor: colors.border }} />
             </>
           )}
+
+          {/* Testing / Debug Loop */}
+          <TestingSettings onClose={onClose} />
+
+          <View className="border-t border-border" style={{ borderColor: colors.border }} />
+
+          {/* General (Groups, Feedback, Smart Defaults, Legal) */}
+          <GeneralSettings
+            onClose={onClose}
+          />
+
+          <View className="border-t border-border" style={{ borderColor: colors.border }} />
 
           {/* Calendar */}
           <CalendarSettings />
@@ -100,6 +147,27 @@ export function SettingsModal({
           Weave • Social Relationship Management
         </Text>
       </View>
+
+      {/* Modals */}
+      <TrophyCabinetModal
+        visible={showTrophyCabinet}
+        onClose={() => setShowTrophyCabinet(false)}
+      />
+
+      <ArchetypeLibrary
+        isVisible={showArchetypeLibrary}
+        onClose={() => setShowArchetypeLibrary(false)}
+      />
+
+      <FriendManagementModal
+        visible={showFriendManagement}
+        onClose={() => setShowFriendManagement(false)}
+      />
+
+      <GroupListModal
+        visible={showGroupList}
+        onClose={() => setShowGroupList(false)}
+      />
 
     </CustomBottomSheet>
   );

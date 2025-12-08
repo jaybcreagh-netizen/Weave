@@ -147,6 +147,11 @@ export const TestingSettings: React.FC<TestingSettingsProps> = ({ onClose }) => 
 
     return (
         <View className="gap-4">
+            {/* Debug Section Title */}
+            <Text className="text-xs font-inter-semibold uppercase tracking-wide mb-2" style={{ color: colors['muted-foreground'] }}>
+                Debug Tools
+            </Text>
+
             {/* Test Actions */}
             <SettingsItem
                 icon={Sparkles}
@@ -185,11 +190,6 @@ export const TestingSettings: React.FC<TestingSettingsProps> = ({ onClose }) => 
             />
 
             <View className="border-t border-border" style={{ borderColor: colors.border }} />
-
-            {/* Debug Section Title */}
-            <Text className="text-xs font-inter-semibold uppercase tracking-wide mb-2" style={{ color: colors['muted-foreground'] }}>
-                Debug Tools
-            </Text>
 
             <SettingsItem
                 icon={Database}

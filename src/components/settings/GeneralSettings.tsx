@@ -8,18 +8,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
     Users,
     MessageSquare,
-    Trophy,
-    BookOpen,
     Shield,
     FileText,
     Sparkles
 } from 'lucide-react-native';
 
 // Modals
-import TrophyCabinetModal from '../TrophyCabinetModal';
 import { FeedbackModal } from '../FeedbackModal';
-import { ArchetypeLibrary } from '../ArchetypeLibrary';
-import { FriendManagementModal } from '../FriendManagementModal';
 
 interface GeneralSettingsProps {
     onClose: () => void;
@@ -29,9 +24,6 @@ export const GeneralSettings: React.FC<GeneralSettingsProps> = ({ onClose }) => 
     const { colors } = useTheme();
 
     const [showFeedbackModal, setShowFeedbackModal] = useState(false);
-    const [showTrophyCabinet, setShowTrophyCabinet] = useState(false);
-    const [showArchetypeLibrary, setShowArchetypeLibrary] = useState(false);
-    const [showFriendManagement, setShowFriendManagement] = useState(false);
     const [smartDefaultsEnabled, setSmartDefaultsEnabled] = useState(true);
 
     useEffect(() => {
@@ -51,18 +43,6 @@ export const GeneralSettings: React.FC<GeneralSettingsProps> = ({ onClose }) => 
     return (
         <View className="gap-4">
             {/* Community / Management */}
-            <SettingsItem
-                icon={Users}
-                title="Manage Groups"
-                subtitle="Create and edit friend groups"
-                onPress={() => {
-                    onClose();
-                    setTimeout(() => setShowFriendManagement(true), 300);
-                }}
-            />
-
-            <View className="border-t border-border" style={{ borderColor: colors.border }} />
-
             <SettingsItem
                 icon={Sparkles}
                 title="Smart Activity Ordering"
@@ -84,32 +64,7 @@ export const GeneralSettings: React.FC<GeneralSettingsProps> = ({ onClose }) => 
                 onPress={() => setShowFeedbackModal(true)}
             />
 
-            <View className="border-t border-border" style={{ borderColor: colors.border }} />
 
-            <SettingsItem
-                icon={Trophy}
-                title="Trophy Cabinet"
-                subtitle="View your achievements"
-                onPress={() => setShowTrophyCabinet(true)}
-            />
-
-            <View className="border-t border-border" style={{ borderColor: colors.border }} />
-
-            <SettingsItem
-                icon={BookOpen}
-                title="Archetype Library"
-                subtitle="Explore connection archetypes"
-                onPress={() => setShowArchetypeLibrary(true)}
-            />
-
-            <View className="border-t border-border" style={{ borderColor: colors.border }} />
-
-            <SettingsItem
-                icon={Users}
-                title="Manage Friends"
-                subtitle="Batch remove friends"
-                onPress={() => setShowFriendManagement(true)}
-            />
 
             <View className="border-t border-border" style={{ borderColor: colors.border }} />
 
@@ -141,24 +96,9 @@ export const GeneralSettings: React.FC<GeneralSettingsProps> = ({ onClose }) => 
             />
 
             {/* Modals */}
-            <TrophyCabinetModal
-                visible={showTrophyCabinet}
-                onClose={() => setShowTrophyCabinet(false)}
-            />
-
             <FeedbackModal
                 visible={showFeedbackModal}
                 onClose={() => setShowFeedbackModal(false)}
-            />
-
-            <ArchetypeLibrary
-                isVisible={showArchetypeLibrary}
-                onClose={() => setShowArchetypeLibrary(false)}
-            />
-
-            <FriendManagementModal
-                visible={showFriendManagement}
-                onClose={() => setShowFriendManagement(false)}
             />
         </View>
     );
