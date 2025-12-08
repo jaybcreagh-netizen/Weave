@@ -19,38 +19,46 @@ export function useTierFit(friendId: string) {
 
   useEffect(() => {
     let subscription: any;
+    let isMounted = true;
 
     const loadAnalysis = async () => {
       try {
         const friend = await database.get<Friend>('friends').find(friendId);
 
-        // Run analysis
-        const tierFitAnalysis = analyzeTierFit(friend);
-        setAnalysis(tierFitAnalysis);
+        // Run analysis (now async)
+        const tierFitAnalysis = await analyzeTierFit(friend);
+        if (isMounted) {
+          setAnalysis(tierFitAnalysis);
 
-        // Check if suggestion should be shown
-        const show = shouldShowTierSuggestion(friend);
-        setShouldShow(show);
+          // Check if suggestion should be shown
+          const show = shouldShowTierSuggestion(friend);
+          setShouldShow(show);
 
-        setIsLoading(false);
+          setIsLoading(false);
+        }
 
         // Subscribe to friend changes
-        subscription = friend.observe().subscribe((updatedFriend: Friend) => {
-          const updatedAnalysis = analyzeTierFit(updatedFriend);
-          setAnalysis(updatedAnalysis);
+        subscription = friend.observe().subscribe(async (updatedFriend: Friend) => {
+          const updatedAnalysis = await analyzeTierFit(updatedFriend);
+          if (isMounted) {
+            setAnalysis(updatedAnalysis);
 
-          const updatedShow = shouldShowTierSuggestion(updatedFriend);
-          setShouldShow(updatedShow);
+            const updatedShow = shouldShowTierSuggestion(updatedFriend);
+            setShouldShow(updatedShow);
+          }
         });
       } catch (error) {
         console.error('[useTierFit] Error loading tier fit analysis:', error);
-        setIsLoading(false);
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     };
 
     loadAnalysis();
 
     return () => {
+      isMounted = false;
       if (subscription) {
         subscription.unsubscribe();
       }

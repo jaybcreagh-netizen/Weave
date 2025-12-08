@@ -21,6 +21,26 @@ export interface PatternInteractionData {
   interactionDate: Date;
   status: string;
   category?: InteractionCategory | string | null;
+  friendCount?: number; // Number of friends in this interaction (for filtering)
+}
+
+/**
+ * Options for pattern analysis filtering
+ */
+export interface PatternAnalysisOptions {
+  /**
+   * Filter to only include "primary" interactions (small groups of 1-3 friends).
+   * This gives a more accurate picture of personal rhythm vs group events.
+   * Default: false (include all interactions)
+   */
+  primaryOnly?: boolean;
+
+  /**
+   * Maximum number of friends to consider an interaction "primary".
+   * Only used when primaryOnly is true.
+   * Default: 3
+   */
+  primaryMaxFriends?: number;
 }
 
 /**
@@ -28,15 +48,27 @@ export interface PatternInteractionData {
  * and preferences. This enables personalized suggestions and adaptive decay.
  *
  * @param interactions - Array of completed interactions, sorted newest to oldest
+ * @param options - Optional filtering options for pattern analysis
  * @returns FriendshipPattern with learned characteristics
  */
 export function analyzeInteractionPattern(
-  interactions: PatternInteractionData[]
+  interactions: PatternInteractionData[],
+  options: PatternAnalysisOptions = {}
 ): FriendshipPattern {
+  const { primaryOnly = false, primaryMaxFriends = 3 } = options;
+
   // Filter to only completed interactions with valid dates
-  const completed = interactions
-    .filter(i => i.status === 'completed' && i.interactionDate && !isNaN(i.interactionDate.getTime()))
-    .sort((a, b) => b.interactionDate.getTime() - a.interactionDate.getTime());
+  let completed = interactions
+    .filter(i => i.status === 'completed' && i.interactionDate && !isNaN(i.interactionDate.getTime()));
+
+  // Apply primary-only filter if requested (small group interactions)
+  if (primaryOnly) {
+    completed = completed.filter(i =>
+      i.friendCount === undefined || i.friendCount <= primaryMaxFriends
+    );
+  }
+
+  completed = completed.sort((a, b) => b.interactionDate.getTime() - a.interactionDate.getTime());
 
   // Need at least 2 interactions to establish a pattern
   if (completed.length < 2) {

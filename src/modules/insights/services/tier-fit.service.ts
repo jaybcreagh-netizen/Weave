@@ -1,6 +1,8 @@
 // src/modules/insights/services/tier-fit.service.ts
 import { database } from '@/db';
 import Friend from '@/db/models/Friend';
+import Interaction from '@/db/models/Interaction';
+import InteractionFriend from '@/db/models/InteractionFriend';
 import { Q } from '@nozbe/watermelondb';
 import { Tier } from '@/shared/types/core';
 import type {
@@ -9,6 +11,10 @@ import type {
   NetworkTierHealth,
   TierHealth
 } from '../types';
+import {
+  analyzeInteractionPattern,
+  type PatternInteractionData
+} from './pattern.service';
 
 /**
  * Expected interaction intervals per tier (in days)
@@ -26,24 +32,105 @@ const MINIMUM_SAMPLE_SIZE = 2;
 const CONFIDENT_SAMPLE_SIZE = 5;
 
 /**
- * Analyze how well a friend's actual interaction pattern matches their tier
+ * Fetch interactions for a friend and convert to PatternInteractionData format.
+ * Filters to primary interactions (small groups) for more accurate personal rhythm.
+ *
+ * @param friendId - The friend to fetch interactions for
+ * @returns Array of PatternInteractionData for pattern analysis
+ */
+async function fetchInteractionsForPattern(friendId: string): Promise<PatternInteractionData[]> {
+  // Get all interaction links for this friend
+  const interactionFriends = await database
+    .get<InteractionFriend>('interaction_friends')
+    .query(Q.where('friend_id', friendId))
+    .fetch();
+
+  const interactionIds = interactionFriends.map(ifriend => ifriend.interactionId);
+
+  if (interactionIds.length === 0) {
+    return [];
+  }
+
+  // Fetch completed interactions from last 180 days for better pattern detection
+  const sixMonthsAgo = Date.now() - 180 * 24 * 60 * 60 * 1000;
+  const interactions = await database
+    .get<Interaction>('interactions')
+    .query(
+      Q.where('id', Q.oneOf(interactionIds)),
+      Q.where('status', 'completed'),
+      Q.where('interaction_date', Q.gte(sixMonthsAgo)),
+      Q.sortBy('interaction_date', Q.desc)
+    )
+    .fetch();
+
+  // For each interaction, count how many friends were involved
+  // This helps filter out large group events
+  const interactionWithCounts: PatternInteractionData[] = await Promise.all(
+    interactions.map(async (interaction) => {
+      const friendLinks = await database
+        .get<InteractionFriend>('interaction_friends')
+        .query(Q.where('interaction_id', interaction.id))
+        .fetchCount();
+
+      return {
+        id: interaction.id,
+        interactionDate: interaction.interactionDate,
+        status: interaction.status,
+        category: interaction.interactionCategory,
+        friendCount: friendLinks
+      };
+    })
+  );
+
+  return interactionWithCounts;
+}
+
+/**
+ * Analyze how well a friend's actual interaction pattern matches their tier.
+ * Now calculates patterns on-the-fly if typicalIntervalDays is not cached.
  *
  * @param friend - The friend to analyze
  * @returns Tier fit analysis with suggestions
  */
-export function analyzeTierFit(friend: Friend): TierFitAnalysis {
+export async function analyzeTierFit(friend: Friend): Promise<TierFitAnalysis> {
   const expectedInterval = TIER_EXPECTED_INTERVALS[friend.dunbarTier as Tier];
-  const actualInterval = friend.typicalIntervalDays;
 
-  // Need sufficient data (5+ interactions)
-  if (!actualInterval || friend.ratedWeavesCount < MINIMUM_SAMPLE_SIZE) {
+  // Try to use cached value, otherwise calculate on-the-fly
+  let actualInterval = friend.typicalIntervalDays;
+  let interactionCount = friend.ratedWeavesCount;
+
+  // If no cached interval, calculate from interactions
+  if (!actualInterval || actualInterval === 0) {
+    const interactions = await fetchInteractionsForPattern(friend.id);
+
+    if (interactions.length >= MINIMUM_SAMPLE_SIZE) {
+      // Calculate pattern with primaryOnly filter to focus on personal interactions
+      const pattern = analyzeInteractionPattern(interactions, {
+        primaryOnly: true,
+        primaryMaxFriends: 3
+      });
+
+      actualInterval = pattern.averageIntervalDays;
+      interactionCount = pattern.sampleSize;
+
+      // If primary-only has too few interactions, fall back to all interactions
+      if (pattern.sampleSize < MINIMUM_SAMPLE_SIZE) {
+        const allPattern = analyzeInteractionPattern(interactions);
+        actualInterval = allPattern.averageIntervalDays;
+        interactionCount = allPattern.sampleSize;
+      }
+    }
+  }
+
+  // Still no valid interval? Return insufficient data
+  if (!actualInterval || actualInterval === 0 || interactionCount < MINIMUM_SAMPLE_SIZE) {
     return {
       friendId: friend.id,
       friendName: friend.name,
       currentTier: friend.dunbarTier as Tier,
       actualIntervalDays: 0,
       expectedIntervalDays: expectedInterval,
-      interactionCount: friend.ratedWeavesCount,
+      interactionCount: interactionCount,
       fitScore: 0,
       fitCategory: 'insufficient_data',
       confidence: 0,
@@ -52,7 +139,7 @@ export function analyzeTierFit(friend: Friend): TierFitAnalysis {
     };
   }
 
-  const isPreliminary = friend.ratedWeavesCount < CONFIDENT_SAMPLE_SIZE;
+  const isPreliminary = interactionCount < CONFIDENT_SAMPLE_SIZE;
 
   // Calculate deviation ratio
   const deviationRatio = actualInterval / expectedInterval;
@@ -123,7 +210,7 @@ export function analyzeTierFit(friend: Friend): TierFitAnalysis {
   // More interactions = higher confidence
   const confidence = Math.min(
     0.95,
-    0.5 + (friend.ratedWeavesCount / 20) * 0.45
+    0.5 + (interactionCount / 20) * 0.45
   );
 
   return {
@@ -132,7 +219,7 @@ export function analyzeTierFit(friend: Friend): TierFitAnalysis {
     currentTier: friend.dunbarTier as Tier,
     actualIntervalDays: actualInterval,
     expectedIntervalDays: expectedInterval,
-    interactionCount: friend.ratedWeavesCount,
+    interactionCount: interactionCount,
     fitScore,
     fitCategory,
     suggestedTier,
@@ -154,8 +241,8 @@ export async function analyzeNetworkTierHealth(): Promise<NetworkTierHealth> {
     .query(Q.where('is_dormant', false))
     .fetch();
 
-  // Analyze each friend
-  const analyses = friends.map(analyzeTierFit);
+  // Analyze each friend (now async)
+  const analyses = await Promise.all(friends.map(friend => analyzeTierFit(friend)));
 
   // Initialize tier health buckets
   const tierHealth: NetworkTierHealth['tierHealth'] = {
