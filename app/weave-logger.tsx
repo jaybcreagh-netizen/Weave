@@ -9,6 +9,7 @@ import { BlurView } from 'expo-blur';
 
 import { useInteractions, type StructuredReflection } from '@/modules/interactions';
 import { WeaveReflectPrompt, useWeaveReflectPrompt } from '@/components/Journal';
+import { useDebounceCallback } from '@/shared/hooks/useDebounceCallback';
 import { Calendar as CalendarIcon, X, Sparkles, Users } from 'lucide-react-native';
 import { CustomCalendar } from '@/components/CustomCalendar';
 import { MoonPhaseSelector } from '@/components/MoonPhaseSelector';
@@ -49,6 +50,7 @@ export default function WeaveLoggerScreen() {
   const [showCelebration, setShowCelebration] = useState(false);
   const [title, setTitle] = useState<string>('');
   const [initiator, setInitiator] = useState<InitiatorType | undefined>(undefined);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const {
     showPrompt,
@@ -133,9 +135,10 @@ export default function WeaveLoggerScreen() {
     Vibration.vibrate(50);
   };
 
-  const handleSave = async () => {
-    if (!selectedCategory || selectedFriends.length === 0 || !selectedDate) return;
+  const handleSave = useDebounceCallback(async () => {
+    if (!selectedCategory || selectedFriends.length === 0 || !selectedDate || isSubmitting) return;
 
+    setIsSubmitting(true);
     try {
       // Build legacy notes field from chips + custom notes for backward compatibility
       const legacyNotes = [
@@ -246,8 +249,16 @@ export default function WeaveLoggerScreen() {
           router.replace('/');
         }
       }, 100);
+    } finally {
+      // Only unlock submission if something went wrong quickly or if prompt is shown?
+      // Actually, if prompt is shown, we want to keep it locked maybe?
+      // But if user cancels alert or something, we might want to unlock.
+      // Given the navigation, locking it until unmount/nav is fine.
+      // But if there's an error, we should unlock?
+      // The error block navigates away too. So essentially this is a one-way trip.
+      // We can leave isSubmitting true to prevent any further taps during transition.
     }
-  };
+  });
 
   const deepeningMetrics = calculateDeepeningLevel(reflection);
 
@@ -547,7 +558,7 @@ export default function WeaveLoggerScreen() {
             <TouchableOpacity
               className="p-4 rounded-xl items-center"
               style={{
-                backgroundColor: colors.primary,
+                backgroundColor: isSubmitting ? colors.muted : colors.primary,
                 shadowColor: '#000',
                 shadowOffset: { width: 0, height: 4 },
                 shadowOpacity: 0.1,
@@ -555,9 +566,10 @@ export default function WeaveLoggerScreen() {
                 elevation: 8,
               }}
               onPress={handleSave}
+              disabled={isSubmitting}
             >
-              <Text className="font-inter-semibold text-base" style={{ color: colors['primary-foreground'] }}>
-                Save Weave
+              <Text className="font-inter-semibold text-base" style={{ color: isSubmitting ? colors['muted-foreground'] : colors['primary-foreground'] }}>
+                {isSubmitting ? 'Saving...' : 'Save Weave'}
               </Text>
             </TouchableOpacity>
           </View>

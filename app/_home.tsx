@@ -33,7 +33,7 @@ export default function Home() {
   const colors = theme?.colors || {};
   const [showBatterySheet, setShowBatterySheet] = useState(false);
   const [showYearInMoons, setShowYearInMoons] = useState(false);
-  const [isReflectionDue, setIsReflectionDue] = useState(false);
+  const [isWidgetVisible, setIsWidgetVisible] = useState(false);
 
   // Mounted state and timeout refs to prevent race conditions
   const isMountedRef = useRef(true);
@@ -140,15 +140,18 @@ export default function Home() {
       const accountAge = await getUserAccountAge();
       const meetsGracePeriod = accountAge !== null && accountAge >= 3;
 
-      // Check if today is Sunday (reflection day)
+      // Check days
       const today = new Date();
       const currentDay = today.getDay();
       const isSunday = currentDay === 0;
+      const isMonday = currentDay === 1;
 
-      // Widget should only be visible if reflection is due, account is 3+ days old, and it's Sunday
-      setIsReflectionDue(isDue && meetsGracePeriod && isSunday);
+      // Widget Visibility: Sunday OR Monday, if due and meets grace period
+      const widgetVisible = isDue && meetsGracePeriod && (isSunday || isMonday);
+      setIsWidgetVisible(widgetVisible);
 
-      if (!isDue || !meetsGracePeriod) return;
+      // Prompt Logic: Sunday ONLY, if due and meets grace period
+      if (!isDue || !meetsGracePeriod || !isSunday) return;
 
       // Get user preferences (defaults: Sunday, auto-show enabled)
       const reflectionDay = profile.reflectionDay ?? 0; // 0 = Sunday
@@ -164,13 +167,13 @@ export default function Home() {
         isSnoozed = today < snoozeUntil;
       }
 
-      // Only auto-show if it's the reflection day, auto-show is enabled, and not snoozed
+      // Only auto-show if it's the reflection day (Sunday), auto-show is enabled, and not snoozed
       if (currentDay === reflectionDay && autoShow && !isSnoozed) {
         // Wait longer than battery check-in so it doesn't conflict
         // Show after 2 seconds if battery sheet is dismissed or not shown
         reflectionPromptTimerRef.current = setTimeout(() => {
           // Use global open action
-          if (isMountedRef.current && !showBatterySheet) {
+          if (isMountedRef.current && !showBatterySheet && !isReflectionPromptOpen) {
             openReflectionPrompt();
           }
         }, 2000);
@@ -256,7 +259,7 @@ export default function Home() {
         onPress: openReflectionPrompt, // Use global action
       },
       position: 3,
-      visible: isReflectionDue,
+      visible: isWidgetVisible,
     },
   ];
 

@@ -20,7 +20,7 @@ export interface DiagnosticReport {
 }
 
 const VALID_TIERS = ['InnerCircle', 'CloseFriends', 'Community', 'Acquaintance'];
-const VALID_ARCHETYPES = ['Sun', 'Hermit', 'Emperor', 'Fool', 'Empress', 'Magician', 'HighPriestess', 'Unknown'];
+const VALID_ARCHETYPES = ['Sun', 'Hermit', 'Emperor', 'Fool', 'Empress', 'Magician', 'HighPriestess', 'Unknown', 'Lovers'];
 
 export const DiagnosticService = {
     /**
@@ -83,23 +83,25 @@ export const DiagnosticService = {
                     });
                 }
 
-                // Check dates
-                if (friend.birthday && !/^\d{2}-\d{2}$/.test(friend.birthday)) {
+                // Check dates - allow MM-DD (standard) or YYYY-MM-DD (legacy/ISO)
+                const validDateRegex = /^(\d{4}-)?\d{2}-\d{2}(T.*)?$/;
+
+                if (friend.birthday && !validDateRegex.test(friend.birthday)) {
                     issues.push({
                         type: 'invalid_date',
                         table: 'friends',
                         id: friend.id,
-                        description: `Invalid Birthday Format: ${friend.birthday} (Expected MM-DD)`,
+                        description: `Invalid Birthday Format: ${friend.birthday} (Expected MM-DD or ISO)`,
                         severity: 'low',
                     });
                 }
 
-                if (friend.anniversary && !/^\d{2}-\d{2}$/.test(friend.anniversary)) {
+                if (friend.anniversary && !validDateRegex.test(friend.anniversary)) {
                     issues.push({
                         type: 'invalid_date',
                         table: 'friends',
                         id: friend.id,
-                        description: `Invalid Anniversary Format: ${friend.anniversary} (Expected MM-DD)`,
+                        description: `Invalid Anniversary Format: ${friend.anniversary} (Expected MM-DD or ISO)`,
                         severity: 'low',
                     });
                 }

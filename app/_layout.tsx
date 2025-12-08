@@ -357,34 +357,7 @@ function RootLayoutContent() {
     checkNotificationPermissions();
   }, [hasCompletedOnboarding, dataLoaded]);
 
-  // Weekly Reflection Sunday Check
-  useEffect(() => {
-    const checkWeeklyReflection = async () => {
-      // Only run if UI is mounted and data loaded
-      if (!uiMounted || !dataLoaded || !hasCompletedOnboarding) return;
 
-      const now = new Date();
-
-      // 1. Must be Sunday
-      if (!isSunday(now)) return;
-
-      // 2. Must not have completed reflection today
-      const lastReflectionDate = await notificationStore.getLastReflectionDate();
-      if (lastReflectionDate && isSameDay(lastReflectionDate, now)) return;
-
-      // 3. Must not have shown prompt today
-      if (lastReflectionPromptDate && isSameDay(new Date(lastReflectionPromptDate), now)) return;
-
-      // Show it!
-      markReflectionPromptShown();
-      // Small delay to let animations settle
-      setTimeout(() => {
-        openWeeklyReflection();
-      }, 1000);
-    };
-
-    checkWeeklyReflection();
-  }, [uiMounted, dataLoaded, hasCompletedOnboarding, lastReflectionPromptDate]);
 
 
 

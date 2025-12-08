@@ -19,6 +19,7 @@ import Interaction from '@/db/models/Interaction';
 import { startOfDay, addDays, isSaturday, nextSaturday, getDay } from 'date-fns';
 import { Q } from '@nozbe/watermelondb';
 import { InitiatorType } from '@/components/ReciprocitySelector';
+import { useDebounceCallback } from '@/shared/hooks/useDebounceCallback';
 
 const CATEGORIES: Array<{
   value: InteractionCategory;
@@ -216,7 +217,7 @@ export function PlanWizard({ visible, onClose, initialFriend, prefillData, repla
     onClose();
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = useDebounceCallback(async () => {
     if (!formData.date || !formData.category) {
       console.error('Missing required fields');
       return;
@@ -295,7 +296,7 @@ export function PlanWizard({ visible, onClose, initialFriend, prefillData, repla
     } finally {
       setIsSubmitting(false);
     }
-  };
+  });
 
   const canProceedFromStep1 = !!formData.date;
   const canProceedFromStep2 = !!formData.category;

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useDebounceCallback } from '@/shared/hooks/useDebounceCallback';
 import { View, Text, TouchableOpacity, TextInput, ScrollView, Image, StyleSheet, Modal, Alert, ActivityIndicator } from 'react-native';
 import { ArrowLeft, Camera, X, Users, AlertCircle } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
@@ -161,7 +162,7 @@ export function FriendForm({ onSave, friend, initialTier, fromOnboarding, onSkip
     // }
   };
 
-  const handleSave = () => {
+  const handleSave = useDebounceCallback(() => {
     // 1. Validate name
     if (!formData.name.trim()) {
       Alert.alert('Name Required', 'Please enter a name for your friend.');
@@ -211,7 +212,7 @@ export function FriendForm({ onSave, friend, initialTier, fromOnboarding, onSkip
 
     // Proceed with save
     proceedWithSave();
-  };
+  });
 
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();

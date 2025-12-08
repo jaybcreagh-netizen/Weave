@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
+import { useDebounceCallback } from '@/shared/hooks/useDebounceCallback';
 import { View, Text, StyleSheet, Modal, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, ScrollView, TouchableWithoutFeedback, Keyboard } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { usePlans } from '../hooks/usePlans';
@@ -27,6 +28,7 @@ export function PostWeaveRatingModal() {
 
     // Animation control
     const [isVisible, setIsVisible] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     useEffect(() => {
         if (isPostWeaveRatingOpen && currentPlanId) {
@@ -109,14 +111,10 @@ export function PostWeaveRatingModal() {
     // Sanity check, should exist if currentPlanId is set
     if (!currentPlan) return null;
 
-    const handleConfirm = async () => {
-        if (!currentPlanId) return;
+    const handleConfirm = useDebounceCallback(async () => {
+        if (!currentPlanId || isSubmitting) return;
 
-        // Default to 'WaxingCrescent' (neutral-ish positive) if not selected, or maybe require it?
-        // Let's require it to encourage mindfulness, or default to something neutral.
-        // Given the prompt "How was the party?", let's require a selection or default to 'NewMoon' if they just click yes?
-        // Actually, completePlan takes whatever we give it. Let's send the selected vibe.
-
+        setIsSubmitting(true);
         try {
             // We need to update the interaction with the rating.
             // completePlan in usePlans -> calls service.
@@ -159,17 +157,22 @@ export function PostWeaveRatingModal() {
             console.error("[PostWeaveRatingModal] Failed to complete plan", e);
             // @ts-ignore
             alert(`Failed to complete: ${e.message}`);
+        } finally {
+            setIsSubmitting(false);
         }
-    };
+    });
 
-    const handleDidntHappen = async () => {
-        if (!currentPlanId) return;
+    const handleDidntHappen = useDebounceCallback(async () => {
+        if (!currentPlanId || isSubmitting) return;
+        setIsSubmitting(true);
         try {
             await cancelPlan(currentPlanId);
         } catch (e) {
             console.error("Failed to cancel plan", e);
+        } finally {
+            setIsSubmitting(false);
         }
-    };
+    });
 
     const handleSkip = () => {
         // If they skip, maybe we just close the modal for now?
@@ -250,8 +253,9 @@ export function PostWeaveRatingModal() {
                                             {/* Actions */}
                                             <View style={styles.actions}>
                                                 <TouchableOpacity
-                                                    style={styles.secondaryButton}
+                                                    style={[styles.secondaryButton, isSubmitting && styles.buttonDisabled]}
                                                     onPress={handleDidntHappen}
+                                                    disabled={isSubmitting}
                                                 >
                                                     <Text style={styles.secondaryButtonText}>It didn't happen</Text>
                                                 </TouchableOpacity>
@@ -259,13 +263,15 @@ export function PostWeaveRatingModal() {
                                                 <TouchableOpacity
                                                     style={[
                                                         styles.primaryButton,
-                                                        !selectedVibe && styles.buttonDisabled
+                                                        (!selectedVibe || isSubmitting) && styles.buttonDisabled
                                                     ]}
                                                     onPress={handleConfirm}
-                                                    disabled={!selectedVibe}
+                                                    disabled={!selectedVibe || isSubmitting}
                                                 >
-                                                    <Text style={styles.primaryButtonText}>Complete</Text>
-                                                    <Check size={20} color="white" />
+                                                    <Text style={styles.primaryButtonText}>
+                                                        {isSubmitting ? 'Weaving...' : 'Complete'}
+                                                    </Text>
+                                                    {!isSubmitting && <Check size={20} color="white" />}
                                                 </TouchableOpacity>
                                             </View>
                                         </View>

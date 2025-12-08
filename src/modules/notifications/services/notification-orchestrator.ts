@@ -38,7 +38,7 @@ class NotificationOrchestratorService {
                     }
 
                     return {
-                        shouldShowAlert: true,
+                        shouldShowAlert: type !== 'weekly-reflection', // Don't show banner if app is open (we show modal instead)
                         shouldPlaySound: true,
                         shouldSetBadge: false,
                     };

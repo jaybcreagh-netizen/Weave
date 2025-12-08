@@ -109,11 +109,13 @@ export async function generateStressTestData(
           f.dormantSince = f.isDormant ? new Date(Date.now() - 60 * 24 * 60 * 60 * 1000) : undefined;
 
           // Random birthday
-          const month = Math.floor(Math.random() * 12);
-          const day = Math.floor(Math.random() * 28) + 1;
-          f.birthday = new Date(1990 + Math.floor(Math.random() * 10), month, day).toISOString();
+          const month = Math.floor(Math.random() * 12) + 1; // 1-12
+          const day = Math.floor(Math.random() * 28) + 1; // 1-28 safe
+          const monthStr = month.toString().padStart(2, '0');
+          const dayStr = day.toString().padStart(2, '0');
+          f.birthday = `${monthStr}-${dayStr}`;
 
-          f.anniversary = Math.random() > 0.8 ? new Date(2020, month, day).toISOString() : undefined;
+          f.anniversary = Math.random() > 0.8 ? `${monthStr}-${dayStr}` : undefined;
           f.relationshipType = undefined;
         });
 

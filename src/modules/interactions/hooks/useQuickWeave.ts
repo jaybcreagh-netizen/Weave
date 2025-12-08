@@ -1,4 +1,5 @@
 import { useCallback } from 'react';
+import { useDebounceCallback } from '@/shared/hooks/useDebounceCallback';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { database } from '@/db';
@@ -22,7 +23,7 @@ export function useQuickWeave() {
     } = useUIStore();
     const { logWeave } = useInteractions();
 
-    const handleInteraction = useCallback(async (activityId: string, activityLabel: string, friendId: string) => {
+    const handleInteraction = useDebounceCallback(useCallback(async (activityId: string, activityLabel: string, friendId: string) => {
         const friend = await database.get<Friend>(Friend.table).find(friendId);
         if (!friend) return;
 
@@ -60,7 +61,7 @@ export function useQuickWeave() {
                 friendArchetype: friend.archetype,
             });
         }, 200);
-    }, [logWeave, setJustNurturedFriendId, showToast, showMicroReflectionSheet]);
+    }, [logWeave, setJustNurturedFriendId, showToast, showMicroReflectionSheet]));
 
     const handleInteractionSelection = useCallback(async (selectedIndex: number, friendId: string) => {
         try {
@@ -112,7 +113,7 @@ export function useQuickWeave() {
         }
     }, [openQuickWeave]);
 
-    const handleTap = useCallback(async (friendId: string) => {
+    const handleTap = useDebounceCallback(useCallback(async (friendId: string) => {
         try {
             const friend = await database.get<Friend>(Friend.table).find(friendId);
 
@@ -129,7 +130,7 @@ export function useQuickWeave() {
             setSelectedFriendId(friendId);
             router.push(`/friend-profile?friendId=${friendId}`);
         }
-    }, [router, setSelectedFriendId]);
+    }, [router, setSelectedFriendId]));
 
     return {
         handleInteractionSelection,
