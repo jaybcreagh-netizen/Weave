@@ -5,9 +5,11 @@ import { type TrendAnalysis } from '../types';
 import { predictFriendDrift, generateProactiveSuggestions, forecastNetworkHealth } from '../services/prediction.service';
 import { type FriendPrediction, type ProactiveSuggestion } from '../types';
 import { analyzeInteractionPattern } from '../services/pattern.service';
+import { getBestConnectionDaysData, getCurrentBatteryLevel, type BestDaysData } from '../services/pattern-detection.service';
 import { database } from '@/db';
 import FriendModel from '@/db/models/Friend';
 import InteractionModel from '@/db/models/Interaction';
+import InteractionFriend from '@/db/models/InteractionFriend';
 import { Q } from '@nozbe/watermelondb';
 
 /**
@@ -119,13 +121,28 @@ export function usePredictions() {
               )
               .fetch();
 
+            // Get friend counts for each interaction (to filter group events)
+            const interactionsWithCounts = await Promise.all(
+              friendInteractions.map(async i => {
+                const friendLinks = await database
+                  .get<InteractionFriend>('interaction_friends')
+                  .query(Q.where('interaction_id', i.id))
+                  .fetchCount();
+
+                return {
+                  id: i.id,
+                  interactionDate: i.interactionDate,
+                  status: i.status,
+                  category: i.interactionCategory,
+                  friendCount: friendLinks,
+                };
+              })
+            );
+
+            // Use primaryOnly filter for more accurate personal rhythm
             const pattern = analyzeInteractionPattern(
-              friendInteractions.map(i => ({
-                id: i.id,
-                interactionDate: i.interactionDate,
-                status: i.status,
-                category: i.interactionCategory,
-              }))
+              interactionsWithCounts,
+              { primaryOnly: true, primaryMaxFriends: 3 }
             );
 
             const prediction = predictFriendDrift(friend, pattern);
@@ -165,11 +182,14 @@ export function usePredictions() {
 
 /**
  * Hook to get proactive suggestions based on predictions
+ * Now includes reciprocity analysis and smart scheduling
  */
 export function useProactiveSuggestions() {
   const [friends, setFriends] = useState<FriendModel[]>([]);
   const [suggestions, setSuggestions] = useState<ProactiveSuggestion[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [bestDaysData, setBestDaysData] = useState<BestDaysData | null>(null);
+  const [currentBattery, setCurrentBattery] = useState<number | undefined>(undefined);
 
   useEffect(() => {
     const subscription = database
@@ -179,6 +199,24 @@ export function useProactiveSuggestions() {
       .subscribe(setFriends);
 
     return () => subscription.unsubscribe();
+  }, []);
+
+  // Fetch best days data and battery level for smart scheduling
+  useEffect(() => {
+    const fetchSchedulingData = async () => {
+      try {
+        const [bestDays, battery] = await Promise.all([
+          getBestConnectionDaysData(),
+          getCurrentBatteryLevel(),
+        ]);
+        setBestDaysData(bestDays);
+        setCurrentBattery(battery);
+      } catch (error) {
+        console.error('Error fetching scheduling data:', error);
+      }
+    };
+
+    fetchSchedulingData();
   }, []);
 
   useEffect(() => {
@@ -212,17 +250,38 @@ export function useProactiveSuggestions() {
               )
               .fetch();
 
+            // Get friend counts for each interaction (to filter group events)
+            const interactionsWithCounts = await Promise.all(
+              friendInteractions.map(async i => {
+                const friendLinks = await database
+                  .get<InteractionFriend>('interaction_friends')
+                  .query(Q.where('interaction_id', i.id))
+                  .fetchCount();
+
+                return {
+                  id: i.id,
+                  interactionDate: i.interactionDate,
+                  status: i.status,
+                  category: i.interactionCategory,
+                  friendCount: friendLinks,
+                };
+              })
+            );
+
+            // Use primaryOnly filter for more accurate personal rhythm
             pattern = analyzeInteractionPattern(
-              friendInteractions.map(i => ({
-                id: i.id,
-                interactionDate: i.interactionDate,
-                status: i.status,
-                category: i.interactionCategory,
-              }))
+              interactionsWithCounts,
+              { primaryOnly: true, primaryMaxFriends: 3 }
             );
           }
 
-          const friendSuggestions = generateProactiveSuggestions(friend, pattern);
+          // Generate suggestions with reciprocity and smart scheduling
+          const friendSuggestions = generateProactiveSuggestions(friend, pattern, {
+            includeReciprocity: true,
+            includeSmartScheduling: true,
+            bestDaysData: bestDaysData ?? undefined,
+            currentBatteryLevel: currentBattery,
+          });
           allSuggestions.push(...friendSuggestions);
         }
 
@@ -244,11 +303,15 @@ export function useProactiveSuggestions() {
     };
 
     loadSuggestions();
-  }, [friends]);
+  }, [friends, bestDaysData, currentBattery]);
 
   return {
     suggestions,
     isLoading,
+    /** Best days data for scheduling context */
+    bestDaysData,
+    /** Current battery level if available */
+    currentBatteryLevel: currentBattery,
   };
 }
 

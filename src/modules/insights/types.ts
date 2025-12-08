@@ -97,14 +97,33 @@ export interface FriendPrediction {
   urgency: 'critical' | 'high' | 'medium' | 'low';
 }
 
+export type SuggestionType =
+  | 'upcoming-drift'
+  | 'optimal-timing'
+  | 'pattern-break'
+  | 'momentum-opportunity'
+  | 'reciprocity-imbalance'
+  | 'best-day-scheduling';
+
 export interface ProactiveSuggestion {
-  type: 'upcoming-drift' | 'optimal-timing' | 'pattern-break' | 'momentum-opportunity';
+  type: SuggestionType;
   friendId: string;
   friendName: string;
   title: string;
   message: string;
   daysUntil: number;
   urgency: 'critical' | 'high' | 'medium' | 'low';
+  /** Optional metadata for specific suggestion types */
+  metadata?: {
+    /** For reciprocity-imbalance: the ratio of user initiations (0-1) */
+    initiationRatio?: number;
+    /** For best-day-scheduling: recommended day of week (0-6) */
+    recommendedDay?: number;
+    /** For best-day-scheduling: day name */
+    recommendedDayName?: string;
+    /** Battery level when this suggestion was generated */
+    currentBatteryLevel?: number;
+  };
 }
 
 // Effectiveness Types

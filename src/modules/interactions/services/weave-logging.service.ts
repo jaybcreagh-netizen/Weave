@@ -15,6 +15,7 @@ import { trackEvent, AnalyticsEvents, updateLastInteractionTimestamp } from '@/s
 import { analyzeAndTagLifeEvents } from '@/modules/relationships/services/life-event-detection';
 import { deleteWeaveCalendarEvent } from './calendar.service';
 import { checkTierSuggestionAfterInteraction } from '@/modules/insights/services/tier-suggestion-engine.service';
+import { analyzeTierFit } from '@/modules/insights/services/tier-fit.service';
 import { updateTierFit } from '@/modules/insights/services/tier-management.service';
 import Logger from '@/shared/utils/Logger';
 
@@ -112,29 +113,43 @@ export async function logWeave(data: InteractionFormData): Promise<Interaction> 
             }
         }
 
-        // Tier Intelligence (Check for tier suggestions after interaction)
+        // Tier Intelligence: Always analyze and persist patterns after interaction
         for (const friend of friends) {
             try {
                 // Refetch friend to get updated ratedWeavesCount after scoring
                 const updatedFriend = await database.get<FriendModel>('friends').find(friend.id);
                 const wasFirstInteraction = updatedFriend.ratedWeavesCount === 1;
 
-                const suggestion = await checkTierSuggestionAfterInteraction(
-                    updatedFriend.id,
-                    wasFirstInteraction
-                );
+                // Skip tier analysis for first interaction - need at least 2 for patterns
+                if (wasFirstInteraction) {
+                    continue;
+                }
 
-                // If a suggestion was returned, update the tier fit in the database
-                if (suggestion) {
+                // Always run tier fit analysis to update cached interval data
+                const analysis = await analyzeTierFit(updatedFriend);
+
+                // Only persist if we have valid data (not insufficient_data)
+                if (analysis.fitCategory !== 'insufficient_data' && analysis.actualIntervalDays > 0) {
                     await updateTierFit(
                         updatedFriend.id,
-                        suggestion.analysis.fitScore,
-                        suggestion.analysis.suggestedTier
+                        analysis.fitScore,
+                        analysis.suggestedTier,
+                        analysis.actualIntervalDays // Always persist the calculated interval
                     );
-                    Logger.info(`[WeaveLogging] Tier suggestion for ${updatedFriend.name}: ${suggestion.analysis.currentTier} → ${suggestion.analysis.suggestedTier}`);
+
+                    // Log suggestion if there's a mismatch at a milestone
+                    if (analysis.suggestedTier) {
+                        const suggestion = await checkTierSuggestionAfterInteraction(
+                            updatedFriend.id,
+                            wasFirstInteraction
+                        );
+                        if (suggestion) {
+                            Logger.info(`[WeaveLogging] Tier suggestion for ${updatedFriend.name}: ${analysis.currentTier} → ${analysis.suggestedTier}`);
+                        }
+                    }
                 }
             } catch (error) {
-                Logger.error('Error checking tier suggestion:', error);
+                Logger.error('Error updating tier patterns:', error);
             }
         }
     } catch (error) {

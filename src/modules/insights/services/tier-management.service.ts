@@ -103,12 +103,14 @@ export async function dismissTierSuggestion(
  * @param friendId - Friend to update
  * @param fitScore - New fit score (0-1)
  * @param suggestedTier - Suggested tier based on analysis
+ * @param typicalIntervalDays - Calculated average interval between interactions
  * @returns Promise that resolves when updated
  */
 export async function updateTierFit(
   friendId: string,
   fitScore: number,
-  suggestedTier?: Tier
+  suggestedTier?: Tier,
+  typicalIntervalDays?: number
 ): Promise<void> {
   try {
     let currentTier: Tier | undefined;
@@ -121,6 +123,10 @@ export async function updateTierFit(
         record.tierFitScore = fitScore;
         record.tierFitLastCalculated = Date.now();
         record.suggestedTier = suggestedTier;
+        // Persist the calculated interval for caching
+        if (typicalIntervalDays !== undefined && typicalIntervalDays > 0) {
+          record.typicalIntervalDays = typicalIntervalDays;
+        }
       });
     });
 
@@ -130,6 +136,7 @@ export async function updateTierFit(
       current_tier: currentTier,
       fit_score: fitScore,
       suggested_tier: suggestedTier,
+      typical_interval_days: typicalIntervalDays,
       has_mismatch: suggestedTier !== undefined && suggestedTier !== currentTier,
     });
 

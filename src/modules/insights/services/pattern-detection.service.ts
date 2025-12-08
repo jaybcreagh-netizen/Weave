@@ -707,3 +707,99 @@ export async function getPatternDataStats(): Promise<{ batteryDays: number; weav
   const weaves = await fetchWeaves(90);
   return { batteryDays: history.length, weaveCount: weaves.length };
 }
+
+/**
+ * Data about best connection days for smart scheduling
+ */
+export interface BestDaysData {
+  bestDay: {
+    day: number; // 0-6 (Sunday-Saturday)
+    avgBattery: number;
+    avgWeaves: number;
+  };
+  allDays: Array<{
+    day: number;
+    avgBattery: number;
+    avgWeaves: number;
+  }>;
+}
+
+/**
+ * Get best connection days data for smart scheduling
+ * Returns the analyzed day-of-week data for battery and weave patterns
+ */
+export async function getBestConnectionDaysData(): Promise<BestDaysData | null> {
+  const history = await fetchBatteryHistory();
+  const weaves = await fetchWeaves(90);
+
+  if (history.length < 12) return null; // Need enough history
+
+  // Analyze by day of week
+  const dayScores = Array.from({ length: 7 }, (_, i) => ({
+    day: i,
+    totalBattery: 0,
+    totalWeaves: 0,
+    count: 0,
+  }));
+
+  // Sum up battery by day of week
+  history.forEach((entry) => {
+    const date = new Date(entry.timestamp);
+    const dayOfWeek = date.getDay();
+    dayScores[dayOfWeek].totalBattery += entry.value;
+    dayScores[dayOfWeek].count += 1;
+  });
+
+  // Sum up weaves by day of week
+  weaves.forEach((weave) => {
+    const date = new Date(weave.interactionDate);
+    const dayOfWeek = date.getDay();
+    dayScores[dayOfWeek].totalWeaves += 1;
+  });
+
+  // Calculate composite score and averages for each day
+  const scored = dayScores
+    .filter((d) => d.count >= 2)
+    .map((d) => ({
+      day: d.day,
+      avgBattery: d.totalBattery / d.count,
+      avgWeaves: d.totalWeaves / d.count,
+      compositeScore: (d.totalBattery / d.count) * 0.5 + (d.totalWeaves / d.count) * 0.5,
+    }))
+    .sort((a, b) => b.compositeScore - a.compositeScore);
+
+  if (scored.length < 3) return null;
+
+  const bestDay = scored[0];
+
+  return {
+    bestDay: {
+      day: bestDay.day,
+      avgBattery: bestDay.avgBattery,
+      avgWeaves: bestDay.avgWeaves,
+    },
+    allDays: scored.map(d => ({
+      day: d.day,
+      avgBattery: d.avgBattery,
+      avgWeaves: d.avgWeaves,
+    })),
+  };
+}
+
+/**
+ * Get current battery level from the most recent check-in
+ * Returns undefined if no recent battery data
+ */
+export async function getCurrentBatteryLevel(): Promise<number | undefined> {
+  const history = await fetchBatteryHistory();
+  if (history.length === 0) return undefined;
+
+  // Get the most recent entry
+  const mostRecent = history[history.length - 1];
+
+  // Only return if checked in within last 24 hours
+  const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
+  if (mostRecent.timestamp < oneDayAgo) return undefined;
+
+  return mostRecent.value;
+}

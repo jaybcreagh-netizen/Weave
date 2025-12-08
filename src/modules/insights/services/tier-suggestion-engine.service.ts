@@ -48,8 +48,8 @@ export async function checkTierSuggestionAfterInteraction(
       return null;
     }
 
-    // Analyze tier fit
-    const analysis = analyzeTierFit(friend);
+    // Analyze tier fit (now async)
+    const analysis = await analyzeTierFit(friend);
 
     // Only show if clear mismatch
     if (analysis.fitCategory !== 'mismatch' || !analysis.suggestedTier) {
@@ -129,8 +129,8 @@ export async function checkRepeatedRedFriend(
       return null;
     }
 
-    // Analyze tier fit
-    const analysis = analyzeTierFit(friend);
+    // Analyze tier fit (now async)
+    const analysis = await analyzeTierFit(friend);
 
     if (analysis.fitCategory !== 'mismatch' || !analysis.suggestedTier) {
       return null;
@@ -178,7 +178,8 @@ export async function getActiveTierSuggestions(): Promise<TierSuggestionContext[
         continue;
       }
 
-      const analysis = analyzeTierFit(friend);
+      // Analyze tier fit (now async)
+      const analysis = await analyzeTierFit(friend);
 
       if (analysis.fitCategory === 'mismatch' && analysis.suggestedTier) {
         // Check if this is a repeated red friend (high urgency)
