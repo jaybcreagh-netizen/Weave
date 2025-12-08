@@ -7,7 +7,7 @@ import { notificationStore } from '../notification-store';
 import { differenceInDays } from 'date-fns';
 
 export interface DigestItem {
-    type: 'plan' | 'confirmation' | 'suggestion' | 'birthday' | 'life_event' | 'memory';
+    type: 'plan' | 'confirmation' | 'suggestion' | 'birthday' | 'anniversary' | 'life_event' | 'memory';
     priority: number;
     title: string;
     subtitle?: string;
@@ -117,7 +117,7 @@ export const EveningDigestChannel: NotificationChannel & {
         focusData.upcomingDates.forEach(d => {
             const priority = d.daysUntil <= 1 ? 90 : (d.importance === 'critical' ? 80 : 30);
             items.push({
-                type: d.type as any,
+                type: d.type,
                 priority,
                 title: d.type === 'birthday' ? `${d.friend.name}'s Birthday` : (d.title || d.type),
                 subtitle: d.daysUntil === 0 ? 'Today' : (d.daysUntil === 1 ? 'Tomorrow' : `In ${d.daysUntil} days`),

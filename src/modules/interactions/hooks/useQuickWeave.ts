@@ -27,6 +27,9 @@ export function useQuickWeave() {
         const friend = await database.get<Friend>(Friend.table).find(friendId);
         if (!friend) return;
 
+        // Ensure overlay is closed immediately
+        closeQuickWeave();
+
         // 1. Log the interaction and get the ID back
         const newInteraction = await logWeave({
             friendIds: [friendId],

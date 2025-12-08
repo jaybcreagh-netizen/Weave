@@ -211,6 +211,7 @@ export const SmartSuggestionsChannel: NotificationChannel & {
                         suggestionId: s.id
                     }
                 },
+                // Expo types for trigger are strict/complex, casting to any for Date object
                 trigger: trigger as any
             });
 
@@ -244,7 +245,7 @@ export const SmartSuggestionsChannel: NotificationChannel & {
 
     handleTap: (data, router) => {
         if (data.friendId) {
-            router.push(`/friends/${data.friendId}`);
+            router.push(`/friend-profile?friendId=${data.friendId}`);
             notificationAnalytics.trackActionCompleted('friend-suggestion', 'view_profile');
         } else {
             router.replace('/dashboard');

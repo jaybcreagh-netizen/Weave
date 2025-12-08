@@ -158,6 +158,8 @@ export function ArchetypeCarouselPicker({
                 styles.tarotCardContainer,
                 {
                   shadowColor: gradient[0],
+                  backgroundColor: colors.card,
+                  borderRadius: 12,
                 },
               ]}
             >

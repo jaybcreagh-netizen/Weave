@@ -230,7 +230,12 @@ export const useUIStore = create<UIStore>((set, get) => ({
   },
   hideToast: () => set({ toastData: null }),
 
-  showMicroReflectionSheet: (data) => set({ microReflectionData: data }),
+  showMicroReflectionSheet: (data) => set({
+    microReflectionData: data,
+    // Force close Quick Weave overlay to prevent "double modal" visual
+    isQuickWeaveOpen: false,
+    isQuickWeaveClosing: false,
+  }),
   hideMicroReflectionSheet: () => set({ microReflectionData: null }),
 
   showMilestoneCelebration: (milestone) => set({ milestoneCelebrationData: milestone }),

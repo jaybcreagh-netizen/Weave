@@ -228,7 +228,7 @@ export function WeeklyReflectionModal({ isOpen, onClose }: WeeklyReflectionModal
       // Mark reflection as complete (for timing/notifications)
       await notificationStore.setLastReflectionDate(new Date());
       // Cancel the scheduled notification since user completed it now
-      await WeeklyReflectionChannel.cancel();
+      await WeeklyReflectionChannel.cancel('weekly-reflection');
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       onClose();

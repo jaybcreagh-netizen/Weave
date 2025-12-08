@@ -13,6 +13,10 @@ import { NotificationChannel } from '../../types';
 import { ScannedEvent } from '@/modules/interactions/services/event-scanner';
 import { format } from 'date-fns';
 
+export async function scheduleEventSuggestionNotification(event: ScannedEvent) {
+    return EventSuggestionChannel.scheduleEvent(event);
+}
+
 const MAX_ID_LENGTH = 64; // Expo imposes limits on ID length on Android sometimes, but usually string is fine.
 const ID_PREFIX = 'event-suggestion-';
 
@@ -108,25 +112,29 @@ export const EventSuggestionChannel: NotificationChannel & {
 
         const {
             friendIds,
-            eventDate,
-            eventTitle,
-            suggestedCategory,
-            location,
-            notes,
+            // eventDate,
+            // eventTitle,
+            // suggestedCategory,
+            // location,
+            // notes,
         } = data;
 
-        const params = new URLSearchParams({
-            type: 'log',
-            friendIds: Array.isArray(friendIds) ? friendIds.join(',') : friendIds,
-            date: eventDate,
-            title: eventTitle,
+        // WeaveLogger currently mainly supports friendId param.
+        // For now, we route there with the first friend to prevent the dead-end.
+        // TODO: Update WeaveLogger to accept date/category/notes via params
+
+        const params: any = {};
+        if (Array.isArray(friendIds) && friendIds.length > 0) {
+            params.friendId = friendIds[0];
+        } else if (typeof friendIds === 'string') {
+            params.friendId = friendIds;
+        }
+
+        router.push({
+            pathname: '/weave-logger',
+            params
         });
 
-        if (suggestedCategory) params.append('category', suggestedCategory);
-        if (location) params.append('location', location);
-        if (notes) params.append('notes', notes);
-
-        router.push(`/interaction-form?${params.toString()}`);
         notificationAnalytics.trackActionCompleted('event-suggestion', 'open_form');
     }
 };

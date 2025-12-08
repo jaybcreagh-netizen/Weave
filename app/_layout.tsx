@@ -60,7 +60,7 @@ Sentry.init({
 
   // Adds more context data to events (IP address, cookies, user, etc.)
   // For more information, visit: https://docs.sentry.io/platforms/react-native/data-management/data-collected/
-  sendDefaultPii: true,
+  sendDefaultPii: false,
 
   // Enable Logs
 
@@ -208,21 +208,30 @@ function RootLayoutContent() {
   useEffect(() => {
     if (!dataLoaded) return;
 
-    const checkFriendsLoaded = async () => {
-      // Just check if we can query the database, effectively
+    // Use a flag to track if component is still mounted to prevent race conditions
+    let isMounted = true;
+
+    const checkReady = async () => {
       try {
+        // Ensure database is accessible
         await database.get('friends').query().fetchCount();
-        setTimeout(() => {
+        if (isMounted) {
           setUiMounted(true);
-        }, 300);
+        }
       } catch (e) {
         console.error('Failed to check friends', e);
-        // Fallback
-        setUiMounted(true);
+        // Even if check fails, we proceed if we think data is loaded to avoid stuck splash screen
+        if (isMounted) {
+          setUiMounted(true);
+        }
       }
     };
 
-    checkFriendsLoaded();
+    checkReady();
+
+    return () => {
+      isMounted = false;
+    };
   }, [dataLoaded]);
 
   // Fade in content when UI is mounted

@@ -192,6 +192,9 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 5,
     height: 80,
+    width: 80,
+    borderRadius: 40,
+    backgroundColor: theme.colors.background,
   },
   textContainer: {
     alignItems: 'center',

@@ -492,7 +492,8 @@ function ActivityHeatmap({
   const availableWidth = screenWidth - 40 - 40 - (weeksToShow - 1) * cellGap;
   const cellSize = Math.floor(availableWidth / weeksToShow);
 
-  const maxCount = Math.max(...data.map(d => d.count), 1);
+  const rawMaxCount = Math.max(...data.map(d => d.count), 1);
+  const maxCount = (isNaN(rawMaxCount) || rawMaxCount === -Infinity) ? 1 : rawMaxCount;
 
   const getHeatColor = (count: number) => {
     if (count === 0) return theme.heatmapEmpty;
@@ -632,7 +633,8 @@ function TierHealthRings({
           {/* Tier rings */}
           {sortedTiers.map((tier: any, index: number) => {
             const radius = maxRadius * (1 - index * 0.33);
-            const healthPercent = tier.avgScore / 100;
+            const rawHealthPercent = tier.avgScore / 100;
+            const healthPercent = isNaN(rawHealthPercent) ? 0 : Math.max(0, Math.min(1, rawHealthPercent));
             const strokeWidth = 20;
 
             return (

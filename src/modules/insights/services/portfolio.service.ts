@@ -46,10 +46,13 @@ export async function analyzePortfolioAsync(input: PortfolioAnalysisInput): Prom
   const { friends, recentInteractions } = input;
 
   // Calculate current scores for all friends
-  const friendsWithScores = await Promise.all(friends.map(async friend => ({
-    friend,
-    currentScore: calculateCurrentScore(friend),
-  })));
+  const friendsWithScores = await Promise.all(friends.map(async friend => {
+    const score = calculateCurrentScore(friend);
+    return {
+      friend,
+      currentScore: isNaN(score) ? 0 : score,
+    };
+  }));
 
   // Overall health score (weighted by tier importance)
   const tierWeights: Record<Tier, number> = {
@@ -77,14 +80,15 @@ export async function analyzePortfolioAsync(input: PortfolioAnalysisInput): Prom
   // Tier distribution
   const tierGroups = groupByTier(friendsWithScores);
   const tierDistribution = Object.entries(tierGroups).map(([tier, group]) => {
-    const avgScore = group.reduce((sum, f) => sum + f.currentScore, 0) / (group.length || 1);
-    const needsAttention = avgScore < 50 || (tier === 'InnerCircle' && avgScore < 60);
+    const avgScore = group.reduce((sum, f) => sum + (isNaN(f.currentScore) ? 0 : f.currentScore), 0) / (group.length || 1);
+    const safeAvgScore = isNaN(avgScore) ? 0 : avgScore;
+    const needsAttention = safeAvgScore < 50 || (tier === 'InnerCircle' && safeAvgScore < 60);
 
     return {
       tier: tier as Tier,
       count: group.length,
       percentage: Math.round((group.length / friends.length) * 100) || 0,
-      avgScore: Math.round(avgScore),
+      avgScore: Math.round(safeAvgScore),
       needsAttention,
     };
   });

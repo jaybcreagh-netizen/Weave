@@ -418,6 +418,66 @@ export async function cleanupOrphanedImages(
   }
 }
 
+/**
+ * Get relative path from absolute URI
+ * Use this before saving to database
+ */
+export function getRelativePath(uri: string): string {
+  if (!uri) return '';
+  if (uri.startsWith(FileSystem.documentDirectory as string)) {
+    return uri.replace(FileSystem.documentDirectory as string, '');
+  }
+  return uri;
+}
+
+/**
+ * Resolve absolute URI from potential relative path
+ * Handles:
+ * 1. Already absolute paths (checks existence, attempts recovery if broken)
+ * 2. Relative paths (prepends documentDirectory)
+ * 3. Empty paths (returns default/empty)
+ */
+export async function resolveImageUri(path: string): Promise<string> {
+  if (!path) return '';
+
+  // Case 1: Already absolute path (Legacy support)
+  if (path.startsWith('file://') || path.startsWith('/')) {
+    const fileInfo = await FileSystem.getInfoAsync(path);
+
+    if (fileInfo.exists) {
+      return path;
+    }
+
+    // Recovery attempt for iOS Container migration
+    // If we have a full path like /.../CoreSimulator/.../weave_images/profile.jpg
+    // extract just the filename and try to find it in current documents dir
+    const filename = path.split('/').pop();
+    if (filename) {
+      const recoveryPath = `${LOCAL_STORAGE_DIR}${filename}`;
+      const recoveryInfo = await FileSystem.getInfoAsync(recoveryPath);
+      if (recoveryInfo.exists) {
+        Logger.info('[ImageService] Recovered broken path:', { old: path, new: recoveryPath });
+        return recoveryPath; // Return the working local URI
+      }
+    }
+
+    Logger.warn('[ImageService] Image file missing:', path);
+    return path; // Return original as fail-safe (or could return empty)
+  }
+
+  // Case 2: Relative path (New way)
+  // Ensure we don't double-slash
+  const cleanDocDir = (FileSystem.documentDirectory as string).replace(/\/$/, '');
+  const cleanPath = path.replace(/^\//, '');
+
+  // If path implies weave_images, just join
+  // But wait, LOCAL_STORAGE_DIR includes weave_images/
+  // If we saved relative from docDir, it might include weave_images/
+
+  // Strategy: Just blindly prepend docDir
+  return (FileSystem.documentDirectory as string) + path;
+}
+
 // =====================================================
 // UTILITIES
 // =====================================================

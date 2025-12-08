@@ -113,6 +113,7 @@ export function ArchetypeCard({
             shadowOffset: { width: 0, height: 2 },
             shadowRadius: 8,
             elevation: isSelected ? 4 : 2,
+            backgroundColor: colors.card,
           }}
         >
           {React.createElement(TAROT_CARD_COMPONENTS[archetype], {

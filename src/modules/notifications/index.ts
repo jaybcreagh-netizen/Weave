@@ -22,6 +22,7 @@ export * from './services/channels/event-reminder';
 export * from './services/channels/memory-nudge';
 export * from './services/channels/evening-digest';
 export * from './services/channels/smart-suggestions';
+export * from './services/channels/event-suggestion';
 // ... others as needed, simpler to just rely on Orchestrator for most things
 // but ResponseHandler uses them internally.
 

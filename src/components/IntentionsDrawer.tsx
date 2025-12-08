@@ -7,8 +7,7 @@ import { formatDistanceToNow } from 'date-fns';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { getCategoryMetadata } from '@/shared/constants/interaction-categories';
-import Intention from '@/db/models/Intention';
-import { InteractionCategory } from './types';
+import { Intention, InteractionCategory } from '@/components/types';
 
 interface IntentionsDrawerProps {
   intentions: Intention[];

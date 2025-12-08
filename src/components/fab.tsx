@@ -32,18 +32,18 @@ export function FAB({ onClick }: FABProps) {
 }
 
 const styles = StyleSheet.create({
-    container: {
-        position: 'absolute',
-        width: 64,
-        height: 64,
-        borderRadius: 32,
-        shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.25,
-        shadowRadius: 8,
-        elevation: 12,
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 50,
-        right: 24,
-    }
+  container: {
+    position: 'absolute',
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 50,
+    right: 24,
+  }
 });

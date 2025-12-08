@@ -13,19 +13,25 @@ export function QuickWeaveProvider({ children }: { children: React.ReactNode }) 
   const handleSave = async (data: { vibe?: any; notes?: string; title?: string }) => {
     if (!microReflectionData) return;
 
-    // Update vibe and notes
-    await updateInteractionVibeAndNotes(
-      microReflectionData.interactionId,
-      data.vibe,
-      data.notes
-    );
+    try {
+      // Update vibe and notes
+      await updateInteractionVibeAndNotes(
+        microReflectionData.interactionId,
+        data.vibe,
+        data.notes
+      );
 
-    // Update title if changed
-    if (data.title && data.title !== microReflectionData.activityLabel) {
-      await updateInteraction(microReflectionData.interactionId, { title: data.title });
+      // Update title if changed
+      if (data.title && data.title !== microReflectionData.activityLabel) {
+        await updateInteraction(microReflectionData.interactionId, { title: data.title });
+      }
+    } catch (error) {
+      console.error('Error saving micro-reflection:', error);
+      // Optional: Show error toast here
+    } finally {
+      // Always close the sheet
+      hideMicroReflectionSheet();
     }
-
-    hideMicroReflectionSheet();
   };
 
   return (

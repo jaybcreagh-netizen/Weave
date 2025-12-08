@@ -20,7 +20,7 @@ import { normalizeContactImageUri } from '../utils/image.utils';
 import { SimpleTutorialTooltip } from '@/components/SimpleTutorialTooltip';
 import { useTutorialStore } from '@/stores/tutorialStore';
 import { validateMMDDFormat } from '@/shared/utils/validation-helpers';
-import { processAndStoreImage } from '../services/image.service';
+import { processAndStoreImage, getRelativePath, resolveImageUri } from '../services/image.service';
 
 interface FriendFormProps {
   onSave: (friendData: FriendFormData) => void;
@@ -75,6 +75,17 @@ export function FriendForm({ onSave, friend, initialTier, fromOnboarding, onSkip
     anniversary: friend?.anniversary,
     relationshipType: friend?.relationshipType as RelationshipType | undefined,
   });
+
+  // Resolve initial photo URL if it's a relative path
+  useEffect(() => {
+    if (friend?.photoUrl) {
+      resolveImageUri(friend.photoUrl).then(resolvedUri => {
+        if (resolvedUri !== friend.photoUrl) {
+          setFormData(prev => ({ ...prev, photoUrl: resolvedUri }));
+        }
+      });
+    }
+  }, [friend?.photoUrl]);
 
   const [imageError, setImageError] = useState(false);
   const [imageProcessing, setImageProcessing] = useState(false);
@@ -147,7 +158,14 @@ export function FriendForm({ onSave, friend, initialTier, fromOnboarding, onSkip
 
   const proceedWithSave = async () => {
     setShowCapacityWarning(false);
-    onSave(formData);
+
+    // Convert absolute path to relative path before saving
+    const dataToSave = {
+      ...formData,
+      photoUrl: getRelativePath(formData.photoUrl)
+    };
+
+    onSave(dataToSave);
 
     // Mark first friend added if this is from onboarding
     if (showTutorial && !friend) {

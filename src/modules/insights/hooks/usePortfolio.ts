@@ -10,7 +10,7 @@ import {
   getWeeklyFocusRecommendation,
 } from '../services/portfolio.service';
 import { type FriendshipPortfolio } from '../types';
-import { generatePortfolioSuggestions } from '../../interactions/services/suggestion-engine.service';
+import { generatePortfolioSuggestions } from '../../insights/services/portfolio-suggestions.service';
 import { type Suggestion } from '@/shared/types/common';
 
 /**

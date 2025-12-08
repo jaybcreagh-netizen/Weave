@@ -16,10 +16,12 @@ import FriendBadgePopup from '@/components/FriendBadgePopup';
 import { TierFitBottomSheetWrapper } from './TierFitBottomSheetWrapper';
 import { useFriendProfileModals } from '@/modules/relationships/hooks/useFriendProfileModals';
 
+import { Intention } from '@/components/types';
+
 interface FriendProfileModalsProps {
     friend: Friend;
     modals: ReturnType<typeof useFriendProfileModals>;
-    friendIntentions: IntentionModel[];
+    friendIntentions: Intention[];
     updateReflection: (id: string, reflection: StructuredReflection) => Promise<void>;
     updateInteraction: (id: string, updates: any) => Promise<void>; // Using any to avoid Model vs DTO conflicts
     createIntention: (friendIds: string[], description: string, category?: InteractionCategory) => Promise<void>;

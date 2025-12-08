@@ -197,7 +197,9 @@ export async function processWeaveScoring(
  * function from weave-engine.ts.
  */
 export function calculateCurrentScore(friend: FriendModel | Friend): number {
-  return applyDecay(friend);
+  const score = applyDecay(friend);
+  // Ensure we never return NaN
+  return isNaN(score) ? 0 : score;
 }
 
 /**

@@ -195,7 +195,7 @@ function PulseTabContent({
 
     // Detailed data for the selected day
     const [dayDetails, setDayDetails] = useState<{
-        weaves: { id: string; name: string; type: string }[];
+        weaves: { id: string; name: string; type: string; status: string }[];
         hasJournal: boolean;
         hasCheckin: boolean;
         isLoading: boolean;
@@ -327,7 +327,7 @@ function PulseTabContent({
                     return {
                         id: interaction.id,
                         name: names || 'Unknown Friend',
-                        type: interaction.type,
+                        type: interaction.interactionType,
                         status: interaction.status
                     };
                 })
@@ -467,7 +467,7 @@ function PulseTabContent({
                                         styles.dayText,
                                         {
                                             color: hasCompletedWeave ? tokens.primaryForeground : tokens.foreground,
-                                            fontFamily: isSelected ? typography.fonts.sansBold : (hasCompletedWeave ? typography.fonts.sansSemiBold : typography.fonts.sans)
+                                            fontFamily: isSelected ? typography.fonts.sansSemiBold : (hasCompletedWeave ? typography.fonts.sansSemiBold : typography.fonts.sans)
                                         }
                                     ]}>
                                         {day.getDate()}
@@ -507,8 +507,8 @@ function PulseTabContent({
 
                             {dayDetails?.hasCheckin && (
                                 <View style={styles.detailRow}>
-                                    <View style={[styles.iconBox, { backgroundColor: tokens.alert + '20' }]}>
-                                        <Zap size={16} color={tokens.alert} />
+                                    <View style={[styles.iconBox, { backgroundColor: tokens.destructive + '20' }]}>
+                                        <Zap size={16} color={tokens.destructive} />
                                     </View>
                                     <Text style={[styles.detailText, { color: tokens.foreground, fontFamily: typography.fonts.sansMedium }]}>
                                         Social Battery Check-in
@@ -518,8 +518,8 @@ function PulseTabContent({
 
                             {dayDetails?.hasJournal && (
                                 <View style={styles.detailRow}>
-                                    <View style={[styles.iconBox, { backgroundColor: tokens.purple + '20' }]}>
-                                        <Book size={16} color={tokens.purple} />
+                                    <View style={[styles.iconBox, { backgroundColor: tokens.mystic.accent + '20' }]}>
+                                        <Book size={16} color={tokens.mystic.accent} />
                                     </View>
                                     <Text style={[styles.detailText, { color: tokens.foreground, fontFamily: typography.fonts.sansMedium }]}>
                                         Journal Entry

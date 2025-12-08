@@ -22,6 +22,7 @@ import { useCardGesture } from '@/context/CardGestureContext';
 import { calculateCurrentScore } from '@/modules/intelligence';
 import { generateIntelligentStatusLine } from '@/modules/intelligence';
 import { normalizeContactImageUri } from '../utils/image.utils';
+import { resolveImageUri } from '../services/image.service';
 import { statusLineCache } from '@/modules/intelligence';
 import { FriendDetailSheet } from './FriendDetailSheet';
 import { HydratedFriend } from '@/types/hydrated';
@@ -93,6 +94,19 @@ export const FriendListRowContent = ({ friend, animatedRef, variant = 'default' 
   // Reset image error state when photoUrl changes
   useEffect(() => {
     setImageError(false);
+  }, [photoUrl]);
+
+  // Resolve photo URL
+  const [resolvedPhotoUrl, setResolvedPhotoUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (photoUrl) {
+      resolveImageUri(photoUrl).then(uri => {
+        if (uri) setResolvedPhotoUrl(uri);
+      });
+    } else {
+      setResolvedPhotoUrl(null);
+    }
   }, [photoUrl]);
 
   // Update intelligent status line with caching for performance
@@ -257,9 +271,9 @@ export const FriendListRowContent = ({ friend, animatedRef, variant = 'default' 
               borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
             }}
           >
-            {photoUrl && !imageError ? (
+            {resolvedPhotoUrl && !imageError ? (
               <Image
-                source={{ uri: normalizeContactImageUri(photoUrl) }}
+                source={{ uri: normalizeContactImageUri(resolvedPhotoUrl) }}
                 className="w-full h-full"
                 resizeMode="cover"
                 onError={() => setImageError(true)}

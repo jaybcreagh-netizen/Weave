@@ -6,7 +6,7 @@ import FriendModel from '@/db/models/Friend';
 import { fetchSuggestions } from '../services/suggestion-provider.service';
 import { calculateCurrentScore } from '@/modules/intelligence';
 import { SuggestionTrackerService } from '../services/suggestion-tracker.service';
-import { SuggestionStorageService } from '../services/suggestion-storage.service';
+import * as SuggestionStorageService from '../services/suggestion-storage.service';
 import Interaction from '@/db/models/Interaction';
 import InteractionFriend from '@/db/models/InteractionFriend';
 

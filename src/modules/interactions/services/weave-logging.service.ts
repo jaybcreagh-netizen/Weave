@@ -26,10 +26,7 @@ export async function logWeave(data: InteractionFormData): Promise<Interaction> 
         throw new Error(`Invalid weave data: ${error instanceof Error ? error.message : String(error)}`);
     }
 
-    // Defer database access to avoid circular dependency
-    const { database } = require('@/db');
-
-    const friends = await database.get('friends').query(Q.where('id', Q.oneOf(data.friendIds))).fetch();
+    const friends = await database.get<FriendModel>('friends').query(Q.where('id', Q.oneOf(data.friendIds))).fetch();
 
     if (friends.length === 0) {
         throw new Error('No friends found for this interaction.');
@@ -37,9 +34,8 @@ export async function logWeave(data: InteractionFormData): Promise<Interaction> 
 
     // 1. Create the interaction record (Main Transaction)
     const { interaction } = await database.write(async () => {
-        const batchOps: any[] = [];
+        const batchOps: any[] = []; // keeping any[] for flexibility with WatermelonDB batch which sometimes requires specific Model types
 
-        // @ts-ignore - WatermelonDB types might be mismatching here, but this is correct
         const newInteraction = database.get<Interaction>('interactions').prepareCreate((interaction: Interaction) => {
             interaction.interactionDate = data.date;
             interaction.interactionType = 'log';
@@ -120,7 +116,7 @@ export async function logWeave(data: InteractionFormData): Promise<Interaction> 
         for (const friend of friends) {
             try {
                 // Refetch friend to get updated ratedWeavesCount after scoring
-                const updatedFriend = await database.get('friends').find(friend.id);
+                const updatedFriend = await database.get<FriendModel>('friends').find(friend.id);
                 const wasFirstInteraction = updatedFriend.ratedWeavesCount === 1;
 
                 const suggestion = await checkTierSuggestionAfterInteraction(
@@ -151,7 +147,7 @@ export async function logWeave(data: InteractionFormData): Promise<Interaction> 
 }
 
 export async function planWeave(data: InteractionFormData): Promise<Interaction> {
-    const friends = await database.get('friends').query(Q.where('id', Q.oneOf(data.friendIds))).fetch();
+    const friends = await database.get<FriendModel>('friends').query(Q.where('id', Q.oneOf(data.friendIds))).fetch();
 
     if (friends.length === 0) {
         throw new Error('No friends found for this plan.');

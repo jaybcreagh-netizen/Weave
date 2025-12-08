@@ -6,7 +6,7 @@ import { Q } from '@nozbe/watermelondb';
 import { type FriendFormData } from '../types';
 import { tierMap } from '@/shared/constants/constants';
 import { trackEvent, AnalyticsEvents } from '@/shared/services/analytics.service';
-import { deleteImage } from './image.service';
+import { deleteImage, getRelativePath } from './image.service';
 
 export async function createFriend(data: FriendFormData): Promise<Friend> {
   let newFriend: Friend | undefined;
@@ -18,7 +18,7 @@ export async function createFriend(data: FriendFormData): Promise<Friend> {
         friend.name = data.name;
         friend.dunbarTier = tierMap[data.tier] || 'Community';
         friend.archetype = data.archetype;
-        friend.photoUrl = data.photoUrl;
+        friend.photoUrl = getRelativePath(data.photoUrl || '');
         friend.notes = data.notes;
         friend.weaveScore = 50; // Start with a neutral score (Green)
         friend.lastUpdated = new Date();
@@ -74,7 +74,7 @@ export async function updateFriend(id: string, data: FriendFormData): Promise<Fr
       record.name = data.name;
       record.dunbarTier = tierMap[data.tier] || 'Community';
       record.archetype = data.archetype;
-      record.photoUrl = data.photoUrl;
+      record.photoUrl = getRelativePath(data.photoUrl || '');
       record.notes = data.notes;
       record.birthday = data.birthday || undefined;
       record.anniversary = data.anniversary || undefined;
@@ -128,7 +128,7 @@ export async function batchAddFriends(contacts: Array<{ name: string; photoUrl?:
             friend.name = contact.name;
             friend.dunbarTier = tier;
             friend.archetype = 'Unknown';
-            friend.photoUrl = contact.photoUrl || '';
+            friend.photoUrl = getRelativePath(contact.photoUrl || '');
             friend.notes = '';
             friend.weaveScore = 50;
             friend.lastUpdated = new Date();

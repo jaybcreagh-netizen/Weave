@@ -102,7 +102,13 @@ export const DeepeningNudgeChannel: NotificationChannel = {
 
     handleTap: (data, router) => {
         if (data.interactionId) {
-            router.push(`/interactions/${data.interactionId}`);
+            router.push({
+                pathname: '/journal',
+                params: {
+                    mode: 'guided',
+                    weaveId: data.interactionId
+                }
+            });
             notificationAnalytics.trackActionCompleted('deepening-nudge', 'add_reflection');
         } else {
             router.replace('/dashboard');

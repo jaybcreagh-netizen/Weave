@@ -3,6 +3,7 @@ import { database } from '@/db';
 import { Q } from '@nozbe/watermelondb';
 import { Subscription } from 'rxjs';
 import Interaction from '@/db/models/Interaction';
+import FriendModel from '@/db/models/Friend';
 import Intention from '@/db/models/Intention';
 import IntentionFriend from '@/db/models/IntentionFriend';
 import { InteractionFormData, StructuredReflection } from '../types';
@@ -183,19 +184,33 @@ export const useInteractionsStore = create<InteractionsStore>((set, get) => ({
     },
 
     createIntention: async (friendIds, description, category) => {
+        // Fetch friends first to ensure they exist and to set relations correctly
+        const friends = await database.get<FriendModel>('friends').query(Q.where('id', Q.oneOf(friendIds))).fetch();
+
+        if (friends.length === 0) {
+            console.error('[createIntention] No friends found for intention');
+            return;
+        }
+
         await database.write(async () => {
-            const intention = await database.get<Intention>('intentions').create(i => {
+            const batchOps: any[] = [];
+
+            const intention = database.get<Intention>('intentions').prepareCreate(i => {
                 i.description = description;
                 i.interactionCategory = category;
                 i.status = 'active';
             });
+            batchOps.push(intention);
 
-            for (const friendId of friendIds) {
-                await database.get<IntentionFriend>('intention_friends').create(ifriend => {
+            for (const friend of friends) {
+                const intentionFriend = database.get<IntentionFriend>('intention_friends').prepareCreate(ifriend => {
                     ifriend.intention.set(intention);
-                    ifriend.friendId = friendId;
+                    ifriend.friend.set(friend);
                 });
+                batchOps.push(intentionFriend);
             }
+
+            await database.batch(batchOps);
         });
     },
 

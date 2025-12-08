@@ -85,6 +85,7 @@ export function MicroReflectionSheet({
   };
 
   const animateOut = (callback: () => void) => {
+    Keyboard.dismiss(); // Ensure keyboard is gone before animating out
     backdropOpacity.value = withTiming(0, { duration: 150 });
     sheetTranslateY.value = withTiming(SHEET_HEIGHT, { duration: 200 }, (finished) => {
       if (finished) {
@@ -136,126 +137,119 @@ export function MicroReflectionSheet({
   if (!isVisible) return null;
 
   return (
-    <Modal
-      visible={isVisible}
-      transparent
-      animationType="none"
-      onRequestClose={handleSkip}
-    >
-      <View style={styles.container}>
-        {/* Backdrop */}
-        <Animated.View style={[styles.backdrop, backdropStyle]}>
-          <TouchableOpacity
-            style={StyleSheet.absoluteFill}
-            activeOpacity={1}
-            onPress={handleSkip}
-          >
-            <BlurView intensity={20} tint="dark" style={StyleSheet.absoluteFill} />
-          </TouchableOpacity>
-        </Animated.View>
+    <View style={[styles.container, StyleSheet.absoluteFill, { zIndex: 9999 }]} pointerEvents="box-none">
+      {/* Backdrop */}
+      <Animated.View style={[styles.backdrop, backdropStyle]}>
+        <TouchableOpacity
+          style={StyleSheet.absoluteFill}
+          activeOpacity={1}
+          onPress={handleSkip}
+        >
+          <BlurView intensity={20} tint="dark" style={StyleSheet.absoluteFill} />
+        </TouchableOpacity>
+      </Animated.View>
 
-        {/* Bottom Sheet */}
-        <Animated.View style={[styles.sheet, sheetStyle]}>
-          <BlurView
-            intensity={isDarkMode ? 60 : 100}
-            tint={isDarkMode ? 'dark' : 'light'}
-            style={styles.sheetBlur}
-          >
-            <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-              <View style={[styles.sheetContent, { backgroundColor: isDarkMode ? 'rgba(30, 30, 40, 0.95)' : 'rgba(255, 255, 255, 0.95)' }]}>
-                {/* Handle */}
-                <View style={[styles.handle, { backgroundColor: colors['muted-foreground'] }]} />
+      {/* Bottom Sheet */}
+      <Animated.View style={[styles.sheet, sheetStyle]}>
+        <BlurView
+          intensity={isDarkMode ? 60 : 100}
+          tint={isDarkMode ? 'dark' : 'light'}
+          style={styles.sheetBlur}
+        >
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+            <View style={[styles.sheetContent, { backgroundColor: isDarkMode ? 'rgba(30, 30, 40, 0.95)' : 'rgba(255, 255, 255, 0.95)' }]}>
+              {/* Handle */}
+              <View style={[styles.handle, { backgroundColor: colors['muted-foreground'] }]} />
 
-                <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
-                  {/* Header */}
-                  <View style={styles.header}>
-                    <Text style={[styles.activityText, { color: colors['muted-foreground'] }]}>
-                      ✨ Logged
-                    </Text>
-                    <TextInput
-                      style={[styles.titleInput, { color: colors.foreground }]}
-                      value={title}
-                      onChangeText={setTitle}
-                      placeholder="Interaction Title"
-                      placeholderTextColor={colors['muted-foreground'] + '80'}
-                      returnKeyType="done"
-                    />
-                    <Text style={[styles.friendNameText, { color: colors.foreground }]}>
-                      with {friendName}
-                    </Text>
-                  </View>
-
-                  {/* Prompt */}
-                  <Text style={[styles.promptText, { color: colors.foreground }]}>
-                    {getPrompt()}
+              <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+                {/* Header */}
+                <View style={styles.header}>
+                  <Text style={[styles.activityText, { color: colors['muted-foreground'] }]}>
+                    ✨ Logged
                   </Text>
+                  <TextInput
+                    style={[styles.titleInput, { color: colors.foreground }]}
+                    value={title}
+                    onChangeText={setTitle}
+                    placeholder="Interaction Title"
+                    placeholderTextColor={colors['muted-foreground'] + '80'}
+                    returnKeyType="done"
+                  />
+                  <Text style={[styles.friendNameText, { color: colors.foreground }]}>
+                    with {friendName}
+                  </Text>
+                </View>
 
-                  {/* Moon Phase Selector */}
-                  <View style={styles.moonContainer}>
-                    <MoonPhaseSelector
-                      selectedVibe={selectedVibe}
-                      onSelect={handleVibeSelect}
-                    />
-                  </View>
+                {/* Prompt */}
+                <Text style={[styles.promptText, { color: colors.foreground }]}>
+                  {getPrompt()}
+                </Text>
 
-                  {/* Optional Note */}
-                  <View style={styles.noteSection}>
-                    <Text style={[styles.noteLabel, { color: colors['muted-foreground'] }]}>
-                      Optional: Add a note
+                {/* Moon Phase Selector */}
+                <View style={styles.moonContainer}>
+                  <MoonPhaseSelector
+                    selectedVibe={selectedVibe}
+                    onSelect={handleVibeSelect}
+                  />
+                </View>
+
+                {/* Optional Note */}
+                <View style={styles.noteSection}>
+                  <Text style={[styles.noteLabel, { color: colors['muted-foreground'] }]}>
+                    Optional: Add a note
+                  </Text>
+                  <TextInput
+                    style={[
+                      styles.noteInput,
+                      {
+                        backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)',
+                        color: colors.foreground,
+                        borderColor: colors.border,
+                      },
+                    ]}
+                    placeholder="What happened? How are you feeling?"
+                    placeholderTextColor={colors['muted-foreground'] + '80'}
+                    value={notes}
+                    onChangeText={setNotes}
+                    multiline
+                    numberOfLines={3}
+                    textAlignVertical="top"
+                    returnKeyType="done"
+                    blurOnSubmit
+                  />
+                </View>
+
+                {/* Actions */}
+                <View style={styles.actions}>
+                  <TouchableOpacity
+                    style={[styles.skipButton, { borderColor: colors.border }]}
+                    onPress={handleSkip}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.skipButtonText, { color: colors['muted-foreground'] }]}>
+                      Skip
                     </Text>
-                    <TextInput
-                      style={[
-                        styles.noteInput,
-                        {
-                          backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)',
-                          color: colors.foreground,
-                          borderColor: colors.border,
-                        },
-                      ]}
-                      placeholder="What happened? How are you feeling?"
-                      placeholderTextColor={colors['muted-foreground'] + '80'}
-                      value={notes}
-                      onChangeText={setNotes}
-                      multiline
-                      numberOfLines={3}
-                      textAlignVertical="top"
-                      returnKeyType="done"
-                      blurOnSubmit
-                    />
-                  </View>
+                  </TouchableOpacity>
 
-                  {/* Actions */}
-                  <View style={styles.actions}>
-                    <TouchableOpacity
-                      style={[styles.skipButton, { borderColor: colors.border }]}
-                      onPress={handleSkip}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={[styles.skipButtonText, { color: colors['muted-foreground'] }]}>
-                        Skip
-                      </Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={[
-                        styles.saveButton,
-                        { backgroundColor: colors.primary },
-                      ]}
-                      onPress={handleSave}
-                      activeOpacity={0.8}
-                    >
-                      <Text style={[styles.saveButtonText, { color: colors['primary-foreground'] }]}>
-                        Save ✨
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                </ScrollView>
-              </View>
-            </TouchableWithoutFeedback>
-          </BlurView>
-        </Animated.View>
-      </View>
-    </Modal >
+                  <TouchableOpacity
+                    style={[
+                      styles.saveButton,
+                      { backgroundColor: colors.primary },
+                    ]}
+                    onPress={handleSave}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={[styles.saveButtonText, { color: colors['primary-foreground'] }]}>
+                      Save ✨
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </ScrollView>
+            </View>
+          </TouchableWithoutFeedback>
+        </BlurView>
+      </Animated.View>
+    </View>
   );
 }
 

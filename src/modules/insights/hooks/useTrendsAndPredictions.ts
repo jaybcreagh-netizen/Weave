@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { usePortfolio } from './usePortfolio';
-import { analyzeTrends, getHistoricalSnapshots, type TrendAnalysis } from '@/modules/insights';
-import { predictFriendDrift, generateProactiveSuggestions, forecastNetworkHealth, type FriendPrediction, type ProactiveSuggestion } from '@/modules/insights';
-import { analyzeInteractionPattern } from '@/modules/insights';
+import { analyzeTrends, getHistoricalSnapshots } from '../services/trend.service';
+import { type TrendAnalysis } from '../types';
+import { predictFriendDrift, generateProactiveSuggestions, forecastNetworkHealth } from '../services/prediction.service';
+import { type FriendPrediction, type ProactiveSuggestion } from '../types';
+import { analyzeInteractionPattern } from '../services/pattern.service';
 import { database } from '@/db';
 import FriendModel from '@/db/models/Friend';
 import InteractionModel from '@/db/models/Interaction';

@@ -28,6 +28,9 @@ export function daysAgo(date: Date): number {
  */
 export function daysSince(date: Date | null): number {
   if (!date) return Infinity;
+  // Handle invalid dates
+  if (isNaN(date.getTime())) return Infinity;
+
   return Math.floor((Date.now() - date.getTime()) / 86400000);
 }
 

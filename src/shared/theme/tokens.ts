@@ -205,6 +205,12 @@ const lightTokens = {
       lg: 0.08,
     },
   },
+  // Mystic accent (consistent with dark mode structure)
+  mystic: {
+    glow: palette.mystic[500],
+    accent: palette.mystic[600],
+    subtle: palette.mystic[400],
+  },
 } as const;
 
 // ============================================
