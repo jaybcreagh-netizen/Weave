@@ -5,7 +5,7 @@ import InteractionOutcome from '@/db/models/InteractionOutcome';
 import { Q } from '@nozbe/watermelondb';
 import { applyDecay } from '../../intelligence/services/decay.service';
 import { InteractionCategory, Tier } from '@/shared/types/common';
-import { TierDecayRates } from '@/modules/intelligence/constants';
+import { TierDecayRates, EffectivenessLearningConfig } from '@/modules/intelligence/constants';
 import { EffectivenessInsights } from '../types';
 export type { EffectivenessInsights };
 
@@ -157,7 +157,37 @@ function calculateScoreAtTime(
 }
 
 /**
- * Updates a friend's learned effectiveness for a category
+ * Calculates the adaptive learning rate (alpha) based on outcome count.
+ * Uses higher alpha initially for faster learning, then decays to stable rate.
+ *
+ * @param outcomeCount - Current number of measured outcomes for this friend
+ * @returns Learning rate to use for EMA update
+ */
+export function calculateAdaptiveLearningRate(outcomeCount: number): number {
+  const { initialAlpha, baseAlpha, fastLearningThreshold } = EffectivenessLearningConfig;
+
+  if (outcomeCount < fastLearningThreshold) {
+    // Gradual transition from initial to base alpha
+    // At 0 outcomes: use initialAlpha (0.35)
+    // At fastLearningThreshold: use baseAlpha (0.2)
+    const progress = outcomeCount / fastLearningThreshold;
+    return initialAlpha - (initialAlpha - baseAlpha) * progress;
+  }
+
+  return baseAlpha;
+}
+
+/**
+ * Clamps effectiveness ratio to prevent extreme values
+ */
+function clampEffectiveness(value: number): number {
+  const { effectivenessFloor, effectivenessCeiling } = EffectivenessLearningConfig;
+  return Math.max(effectivenessFloor, Math.min(effectivenessCeiling, value));
+}
+
+/**
+ * Updates a friend's learned effectiveness for a category.
+ * Uses adaptive learning rate: higher alpha initially, then stabilizes.
  */
 async function updateLearnedEffectiveness(
   friend: FriendModel,
@@ -176,13 +206,18 @@ async function updateLearnedEffectiveness(
         }
       }
 
-      // Update with exponential moving average (weight new data at 20%)
+      // Calculate adaptive learning rate based on how much data we have
+      const alpha = calculateAdaptiveLearningRate(record.outcomeCount || 0);
+
+      // Update with exponential moving average using adaptive alpha
       const currentValue = effectiveness[category] || 1.0;
-      const alpha = 0.2; // Learning rate
-      effectiveness[category] = currentValue * (1 - alpha) + effectivenessRatio * alpha;
+      const newValue = currentValue * (1 - alpha) + effectivenessRatio * alpha;
+
+      // Clamp to prevent extreme values
+      effectiveness[category] = clampEffectiveness(newValue);
 
       record.categoryEffectiveness = JSON.stringify(effectiveness);
-      record.outcomeCount += 1;
+      record.outcomeCount = (record.outcomeCount || 0) + 1;
     });
   });
 }

@@ -6,6 +6,104 @@ export const TierDecayRates: Record<Tier, number> = {
   Community: 0.5,
 };
 
+/**
+ * Maximum points that can be earned from a single interaction.
+ * This prevents extreme outliers from multiplicative stacking of bonuses.
+ * Even with perfect conditions (FullMoon vibe, Extended duration, archetype alignment,
+ * event multiplier, momentum, etc.), scores are capped to maintain balance.
+ */
+export const MAX_INTERACTION_SCORE = 50;
+
+/**
+ * Group dilution curve parameters.
+ * Uses a smooth logarithmic decay instead of discrete buckets.
+ * Formula: 1 / (1 + DILUTION_RATE * ln(groupSize))
+ * - groupSize 1: 1.0 (no dilution)
+ * - groupSize 2: ~0.87
+ * - groupSize 4: ~0.71
+ * - groupSize 8: ~0.54
+ * - groupSize 15: ~0.43
+ */
+export const GROUP_DILUTION_RATE = 0.35;
+export const GROUP_DILUTION_FLOOR = 0.25; // Minimum dilution factor (never below 25%)
+
+/**
+ * Personalized attention threshold configuration.
+ * Thresholds are calculated based on friend's historical score patterns.
+ */
+export const PersonalizedThresholdConfig = {
+  // Base thresholds by tier (used when no historical data)
+  baseThresholds: {
+    InnerCircle: 50,
+    CloseFriends: 40,
+    Community: 30,
+  } as Record<Tier, number>,
+
+  // How much the threshold can be adjusted based on history
+  // If friend typically hovers at 75, threshold becomes: 75 * 0.65 = ~49
+  historicalFactor: 0.65,
+
+  // Minimum interactions needed to use personalized threshold
+  minInteractionsForPersonalization: 5,
+
+  // Weight given to historical average vs base threshold (0-1)
+  // Higher = more weight to friend's actual patterns
+  personalizationWeight: 0.6,
+};
+
+/**
+ * Tier Migration Suggestion Configuration.
+ * Controls when and how tier changes are suggested to users.
+ */
+export const TierMigrationConfig = {
+  // Days of persistent mismatch before showing soft suggestion
+  daysForSoftSuggestion: 30,
+
+  // Fit score threshold below which we consider it a mismatch
+  // (0-1 scale, lower = worse fit)
+  mismatchThreshold: 0.5,
+
+  // Days of dramatic mismatch before showing strong suggestion
+  daysForStrongSuggestion: 60,
+
+  // Minimum interactions needed to suggest tier change
+  minInteractionsForSuggestion: 5,
+
+  // Days to wait after user dismisses a suggestion before showing again
+  dismissalCooldownDays: 90,
+
+  // Upward migration detection: if pattern ratio is below this, suggest promotion
+  // e.g., Community friend connecting every 10 days (10/28 = 0.36) should move up
+  upwardMigrationRatio: 0.5,
+
+  // Downward migration detection: if pattern ratio is above this, suggest demotion
+  // e.g., Inner Circle friend connecting every 20 days (20/7 = 2.86) should move down
+  downwardMigrationRatio: 2.0,
+};
+
+/**
+ * Adaptive Effectiveness Learning Configuration.
+ * Uses higher learning rate initially, then decays to stable rate.
+ */
+export const EffectivenessLearningConfig = {
+  // Initial learning rate for first N outcomes (faster learning)
+  initialAlpha: 0.35,
+
+  // Base learning rate after enough data (stable learning)
+  baseAlpha: 0.2,
+
+  // Number of outcomes before transitioning to base alpha
+  fastLearningThreshold: 10,
+
+  // Minimum outcomes before using learned effectiveness in scoring
+  minOutcomesForUse: 3,
+
+  // Cap on how much effectiveness can deviate from 1.0
+  // Prevents extreme values from dominating
+  effectivenessFloor: 0.5,
+  effectivenessCeiling: 1.5,
+};
+
 // DEPRECATED: Old activity-based scores (kept for backwards compatibility)
 export const InteractionBaseScores: Record<InteractionType, number> = {
   // Original
