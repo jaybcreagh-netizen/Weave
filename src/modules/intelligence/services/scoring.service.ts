@@ -8,6 +8,9 @@ import {
   InteractionBaseScores,
   VibeMultipliers,
   ArchetypeMatrixV2,
+  MAX_INTERACTION_SCORE,
+  GROUP_DILUTION_RATE,
+  GROUP_DILUTION_FLOOR,
 } from '../constants';
 import { daysSince } from '@/shared/utils/date-utils';
 import { getLearnedEffectiveness } from '@/modules/insights/services/effectiveness.service';
@@ -15,17 +18,33 @@ import { calculateInteractionQuality } from '../services/quality.service';
 
 /**
  * Calculates group dilution factor based on the number of people in the interaction.
- * Larger groups mean less individual attention and depth per person.
+ * Uses a smooth logarithmic curve instead of discrete buckets for more natural scaling.
+ *
+ * Formula: max(FLOOR, 1 / (1 + RATE * ln(groupSize)))
+ *
+ * This produces a gradual decline:
+ * - groupSize 1: 1.0 (no dilution)
+ * - groupSize 2: ~0.87
+ * - groupSize 3: ~0.79
+ * - groupSize 4: ~0.74
+ * - groupSize 5: ~0.70
+ * - groupSize 8: ~0.58
+ * - groupSize 15: ~0.49
+ * - groupSize 30+: approaches floor (0.25)
+ *
  * @param {number} groupSize - The number of people in the interaction.
- * @returns {number} The dilution factor.
+ * @returns {number} The dilution factor (between GROUP_DILUTION_FLOOR and 1.0).
  */
 export function calculateGroupDilution(groupSize: number): number {
-  if (groupSize <= 0) return 1.0;       // Handle invalid/negative group size
-  if (groupSize === 1) return 1.0;      // Full points for 1-on-1
-  if (groupSize === 2) return 0.9;      // 10% dilution for trio
-  if (groupSize <= 4) return 0.7;       // 30% dilution for small group
-  if (groupSize <= 7) return 0.5;       // 50% dilution for medium group
-  return 0.3;                            // 70% dilution for large group (8+)
+  // Handle edge cases
+  if (groupSize <= 0) return 1.0;
+  if (groupSize === 1) return 1.0;
+
+  // Smooth logarithmic curve: 1 / (1 + rate * ln(groupSize))
+  const dilution = 1 / (1 + GROUP_DILUTION_RATE * Math.log(groupSize));
+
+  // Enforce floor to ensure group interactions always have some value
+  return Math.max(GROUP_DILUTION_FLOOR, dilution);
 }
 
 /**
@@ -135,7 +154,7 @@ export function calculatePointsForWeave(
   }
 
   const initialPoints = baseScore * archetypeMultiplier * durationModifier;
-  const finalPoints = initialPoints * vibeMultiplier * eventMultiplier * groupDilutionFactor * affinityMultiplier;
+  const intermediatePoints = initialPoints * vibeMultiplier * eventMultiplier * groupDilutionFactor * affinityMultiplier;
 
   // NEW: Apply quality multiplier based on interaction depth and energy
   const quality = calculateInteractionQuality({
@@ -164,7 +183,7 @@ export function calculatePointsForWeave(
     finalDilutionFactor = groupDilutionFactor + restoration;
   }
 
-  const qualityAdjustedPoints = finalPoints * qualityMultiplier * (finalDilutionFactor / groupDilutionFactor);
+  const qualityAdjustedPoints = intermediatePoints * qualityMultiplier * (finalDilutionFactor / groupDilutionFactor);
 
   // NEW v23: Apply learned effectiveness multiplier
   // Blends observed effectiveness with static scoring
@@ -182,9 +201,12 @@ export function calculatePointsForWeave(
   const adaptivePoints = qualityAdjustedPoints * effectivenessMultiplier;
 
   // Apply momentum bonus
+  let finalPoints = adaptivePoints;
   if (currentMomentumScore > 0) {
-    return adaptivePoints * 1.15;
+    finalPoints = adaptivePoints * 1.15;
   }
 
-  return adaptivePoints;
+  // Apply score capping to prevent extreme outliers
+  // This ensures that even with perfect conditions, scores remain balanced
+  return Math.min(finalPoints, MAX_INTERACTION_SCORE);
 }

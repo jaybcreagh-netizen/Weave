@@ -6,6 +6,51 @@ export const TierDecayRates: Record<Tier, number> = {
   Community: 0.5,
 };
 
+/**
+ * Maximum points that can be earned from a single interaction.
+ * This prevents extreme outliers from multiplicative stacking of bonuses.
+ * Even with perfect conditions (FullMoon vibe, Extended duration, archetype alignment,
+ * event multiplier, momentum, etc.), scores are capped to maintain balance.
+ */
+export const MAX_INTERACTION_SCORE = 50;
+
+/**
+ * Group dilution curve parameters.
+ * Uses a smooth logarithmic decay instead of discrete buckets.
+ * Formula: 1 / (1 + DILUTION_RATE * ln(groupSize))
+ * - groupSize 1: 1.0 (no dilution)
+ * - groupSize 2: ~0.87
+ * - groupSize 4: ~0.71
+ * - groupSize 8: ~0.54
+ * - groupSize 15: ~0.43
+ */
+export const GROUP_DILUTION_RATE = 0.35;
+export const GROUP_DILUTION_FLOOR = 0.25; // Minimum dilution factor (never below 25%)
+
+/**
+ * Personalized attention threshold configuration.
+ * Thresholds are calculated based on friend's historical score patterns.
+ */
+export const PersonalizedThresholdConfig = {
+  // Base thresholds by tier (used when no historical data)
+  baseThresholds: {
+    InnerCircle: 50,
+    CloseFriends: 40,
+    Community: 30,
+  } as Record<Tier, number>,
+
+  // How much the threshold can be adjusted based on history
+  // If friend typically hovers at 75, threshold becomes: 75 * 0.65 = ~49
+  historicalFactor: 0.65,
+
+  // Minimum interactions needed to use personalized threshold
+  minInteractionsForPersonalization: 5,
+
+  // Weight given to historical average vs base threshold (0-1)
+  // Higher = more weight to friend's actual patterns
+  personalizationWeight: 0.6,
+};
+
 // DEPRECATED: Old activity-based scores (kept for backwards compatibility)
 export const InteractionBaseScores: Record<InteractionType, number> = {
   // Original

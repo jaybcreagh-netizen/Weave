@@ -1,13 +1,94 @@
 import FriendModel from '@/db/models/Friend';
 import { FriendshipPattern } from './pattern.service';
-import { TierDecayRates } from '@/modules/intelligence/constants';
+import { TierDecayRates, PersonalizedThresholdConfig } from '@/modules/intelligence/constants';
 import { Tier } from '@/shared/types/common';
 import { differenceInDays, getDay } from 'date-fns';
 import { FriendPrediction, ProactiveSuggestion } from '../types';
 import { analyzeReciprocity, calculateReciprocityScore, ReciprocityAnalysis } from './reciprocity.service';
 
 /**
- * Predicts when a friend will need attention based on decay rate and patterns
+ * Calculates a personalized attention threshold for a friend based on their historical patterns.
+ *
+ * Instead of using fixed thresholds (IC: 50, CF: 40, C: 30), this function adapts to each
+ * friend's actual score patterns. If a friend typically maintains a score of 75-85, alerting
+ * at 50 is too late. This calculates a threshold that triggers earlier based on their baseline.
+ *
+ * @param friend - The friend model with historical data
+ * @returns The personalized attention threshold (higher for friends who typically have higher scores)
+ */
+export function calculatePersonalizedAttentionThreshold(friend: FriendModel): number {
+  const tier = friend.dunbarTier as Tier;
+  const baseThreshold = PersonalizedThresholdConfig.baseThresholds[tier] ||
+    PersonalizedThresholdConfig.baseThresholds.Community;
+
+  // Need sufficient interaction history to personalize
+  const interactionCount = friend.ratedWeavesCount || 0;
+  if (interactionCount < PersonalizedThresholdConfig.minInteractionsForPersonalization) {
+    return baseThreshold;
+  }
+
+  // Use the friend's current score as a proxy for their typical baseline
+  // In a more sophisticated implementation, we'd track historical average score
+  const currentScore = friend.weaveScore;
+
+  // Calculate personalized threshold based on their typical score level
+  // If they usually hover at 75, threshold becomes: 75 * 0.65 = ~49
+  const personalizedThreshold = currentScore * PersonalizedThresholdConfig.historicalFactor;
+
+  // Blend personalized with base threshold
+  // This prevents threshold from being too extreme in either direction
+  const weight = PersonalizedThresholdConfig.personalizationWeight;
+  const blendedThreshold = (personalizedThreshold * weight) + (baseThreshold * (1 - weight));
+
+  // Ensure threshold stays within reasonable bounds
+  // Minimum: tier base threshold - 10 (don't alert too late)
+  // Maximum: tier base threshold + 25 (don't alert too early for consistently high scorers)
+  const minThreshold = Math.max(20, baseThreshold - 10);
+  const maxThreshold = Math.min(80, baseThreshold + 25);
+
+  return Math.round(Math.max(minThreshold, Math.min(maxThreshold, blendedThreshold)));
+}
+
+/**
+ * Gets attention threshold details including whether it's personalized
+ */
+export function getAttentionThresholdDetails(friend: FriendModel): {
+  threshold: number;
+  isPersonalized: boolean;
+  baseThreshold: number;
+  reason: string;
+} {
+  const tier = friend.dunbarTier as Tier;
+  const baseThreshold = PersonalizedThresholdConfig.baseThresholds[tier] ||
+    PersonalizedThresholdConfig.baseThresholds.Community;
+
+  const interactionCount = friend.ratedWeavesCount || 0;
+  const isPersonalized = interactionCount >= PersonalizedThresholdConfig.minInteractionsForPersonalization;
+
+  const threshold = calculatePersonalizedAttentionThreshold(friend);
+
+  let reason: string;
+  if (!isPersonalized) {
+    reason = `Using default ${tier} threshold (${interactionCount}/${PersonalizedThresholdConfig.minInteractionsForPersonalization} interactions for personalization)`;
+  } else if (threshold > baseThreshold) {
+    reason = `Higher threshold due to typically strong connection (score usually ~${Math.round(friend.weaveScore)})`;
+  } else if (threshold < baseThreshold) {
+    reason = `Lower threshold - this relationship tends to hover at lower scores`;
+  } else {
+    reason = `Personalized threshold aligns with ${tier} default`;
+  }
+
+  return {
+    threshold,
+    isPersonalized,
+    baseThreshold,
+    reason,
+  };
+}
+
+/**
+ * Predicts when a friend will need attention based on decay rate and patterns.
+ * Now uses personalized attention thresholds based on friend's historical score patterns.
  */
 export function predictFriendDrift(
   friend: FriendModel,
@@ -28,9 +109,9 @@ export function predictFriendDrift(
   const currentScore = friend.weaveScore; // Use model value directly
   const tierDecayRate = TierDecayRates[friend.dunbarTier as Tier];
 
-  // Determine attention threshold based on tier
-  const attentionThreshold = friend.dunbarTier === 'InnerCircle' ? 50 :
-    friend.dunbarTier === 'CloseFriends' ? 40 : 30;
+  // Use personalized attention threshold instead of fixed tier-based values
+  // This adapts to each friend's typical score patterns for more accurate predictions
+  const attentionThreshold = calculatePersonalizedAttentionThreshold(friend);
 
   // If already below threshold, immediate attention needed
   if (currentScore <= attentionThreshold) {
@@ -420,9 +501,8 @@ export function forecastNetworkHealth(
     forecastedWeightedSum += forecastedScore * weight;
     weightTotal += weight;
 
-    // Check if friend will need attention
-    const attentionThreshold = friend.dunbarTier === 'InnerCircle' ? 50 :
-      friend.dunbarTier === 'CloseFriends' ? 40 : 30;
+    // Check if friend will need attention using personalized thresholds
+    const attentionThreshold = calculatePersonalizedAttentionThreshold(friend);
 
     if (forecastedScore <= attentionThreshold) {
       friendsNeedingAttention.push(friend);
