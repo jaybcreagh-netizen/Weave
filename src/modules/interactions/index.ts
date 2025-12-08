@@ -14,6 +14,7 @@ export { useQuickWeave } from './hooks/useQuickWeave';
 export * as WeaveLoggingService from './services/weave-logging.service';
 export * as PlanService from './services/plan.service';
 export * as CalendarService from './services/calendar.service';
+export * as CalendarExportService from './services/calendar-export.service';
 export * from './services/smart-defaults.service';
 export * from './services/suggestion-engine.service';
 export * as suggestionEngine from './services/suggestion-engine.service';

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Modal, View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
-import { X, Calendar, MapPin, Heart, MessageCircle, Sparkles, Edit3, Trash2 } from 'lucide-react-native';
+import { X, Calendar, MapPin, Heart, MessageCircle, Sparkles, Edit3, Trash2, Share2 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, runOnJS } from 'react-native-reanimated';
@@ -13,6 +13,8 @@ import { STORY_CHIPS } from '@/modules/reflection';
 import { database } from '@/db';
 import { Q } from '@nozbe/watermelondb';
 import FriendModel from '@/db/models/Friend';
+import InteractionModel from '@/db/models/Interaction';
+import { shareInteractionAsICS } from '@/modules/interactions/services/calendar-export.service';
 
 const moonPhaseIcons: Record<MoonPhase, string> = {
   'NewMoon': '🌑',
@@ -118,6 +120,21 @@ export function InteractionDetailModal({
   const { date, time } = formatDateTime(interaction.interactionDate);
   const moonIcon = interaction.vibe ? moonPhaseIcons[interaction.vibe as MoonPhase] : null;
   const isPast = new Date(interaction.interactionDate) < new Date();
+  const isPlanned = interaction.status === 'planned' || interaction.status === 'pending_confirm';
+
+  // Handler for sharing the plan
+  const handleShare = async () => {
+    try {
+      // Fetch the full Interaction model from database to pass to share function
+      const interactionModel = await database.get<InteractionModel>('interactions').find(interaction.id);
+      const success = await shareInteractionAsICS(interactionModel);
+      if (!success) {
+        console.warn('Share was cancelled or failed');
+      }
+    } catch (error) {
+      console.error('Error sharing interaction:', error);
+    }
+  };
 
   // Get friendly label and icon for category (or fall back to activity)
   // Check if activity looks like a category ID (has a dash)
@@ -176,6 +193,14 @@ export function InteractionDetailModal({
 
               {/* Action buttons */}
               <View style={styles.headerActions}>
+                {isPlanned && (
+                  <TouchableOpacity
+                    onPress={handleShare}
+                    style={styles.actionButton}
+                  >
+                    <Share2 color={colors.primary} size={20} />
+                  </TouchableOpacity>
+                )}
                 {onEdit && (
                   <TouchableOpacity
                     onPress={() => {
