@@ -6,15 +6,30 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, ActivityIndicator } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { AlertCircle } from 'lucide-react-native';
+import { AlertCircle, Calendar, Zap, Sparkles, Star, Scale, Activity, TrendingUp, TrendingDown, ArrowRight, Gem, Brain, Users } from 'lucide-react-native';
 import { detectPatterns, getPatternDataStats, Pattern } from '@/modules/insights';
 import { useTheme } from '@/shared/hooks/useTheme';
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 interface PatternsTabContentProps { }
 
+const ICON_MAP: Record<string, React.ElementType> = {
+  'calendar': Calendar,
+  'zap': Zap,
+  'sparkles': Sparkles,
+  'star': Star,
+  'scale': Scale,
+  'activity': Activity,
+  'trending-up': TrendingUp,
+  'trending-down': TrendingDown,
+  'arrow-right': ArrowRight,
+  'gem': Gem,
+  'brain': Brain,
+  'users': Users,
+};
+
 export function PatternsTabContent({ }: PatternsTabContentProps) {
-  const { isDarkMode } = useTheme();
+  const { isDarkMode, tokens } = useTheme();
   const [patterns, setPatterns] = useState<Pattern[]>([]);
   const [dataStats, setDataStats] = useState<{ batteryDays: number; weaveCount: number } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -50,6 +65,14 @@ export function PatternsTabContent({ }: PatternsTabContentProps) {
     }
   };
 
+  const getPatternIcon = (iconKey: string) => {
+    const IconComponent = ICON_MAP[iconKey];
+    if (IconComponent) {
+      return <IconComponent size={32} color={isDarkMode ? '#F5F1E8' : '#2D3142'} />;
+    }
+    return <Text className="text-3xl">{iconKey}</Text>;
+  };
+
   const getTypeLabel = (type: Pattern['type']) => {
     switch (type) {
       case 'cyclical':
@@ -62,6 +85,9 @@ export function PatternsTabContent({ }: PatternsTabContentProps) {
         return 'Consistency';
       case 'trend':
         return 'Trend';
+      default:
+        // Handle newer types if needed or return capitalized
+        return type.charAt(0).toUpperCase() + type.slice(1).replace('_', ' ');
     }
   };
 
@@ -139,8 +165,8 @@ export function PatternsTabContent({ }: PatternsTabContentProps) {
           >
             {/* Header Row: Icon, Title, Type Badge */}
             <View className="flex-row items-start justify-between mb-3">
-              <View className="flex-row items-center gap-2 flex-1">
-                <Text className="text-3xl">{pattern.icon}</Text>
+              <View className="flex-row items-center gap-3 flex-1">
+                {getPatternIcon(pattern.icon)}
                 <View className="flex-1">
                   <Text
                     className="text-base font-bold mb-0.5"

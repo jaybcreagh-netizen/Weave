@@ -5,4 +5,4 @@
  * Groups allow users to organize friends and log interactions with multiple people at once.
  */
 
-export { groupService } from './services/group.service';
+export { groupService, GroupSuggestion } from './services/group.service';

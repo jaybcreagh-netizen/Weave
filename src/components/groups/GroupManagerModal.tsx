@@ -13,6 +13,7 @@ interface GroupManagerModalProps {
     visible: boolean;
     onClose: () => void;
     groupToEdit?: Group; // If provided, we are editing
+    initialData?: { name: string; memberIds: string[] }; // For pre-filling (e.g. from suggestions)
     onGroupSaved: () => void;
     asModal?: boolean;
 }
@@ -21,6 +22,7 @@ export function GroupManagerModal({
     visible,
     onClose,
     groupToEdit,
+    initialData,
     onGroupSaved,
     asModal = false
 }: GroupManagerModalProps) {
@@ -40,7 +42,7 @@ export function GroupManagerModal({
         return () => subscription.unsubscribe();
     }, []);
 
-    // Initialize form when groupToEdit changes
+    // Initialize form when groupToEdit or initialData changes
     useEffect(() => {
         if (groupToEdit) {
             setName(groupToEdit.name);
@@ -48,11 +50,14 @@ export function GroupManagerModal({
             groupToEdit.members.fetch().then((members: any[]) => {
                 setSelectedFriendIds(members.map((m: any) => m.friendId));
             });
+        } else if (initialData) {
+            setName(initialData.name);
+            setSelectedFriendIds(initialData.memberIds);
         } else {
             setName('');
             setSelectedFriendIds([]);
         }
-    }, [groupToEdit, visible]);
+    }, [groupToEdit, initialData, visible]);
 
     const toggleFriend = (friendId: string) => {
         if (selectedFriendIds.includes(friendId)) {

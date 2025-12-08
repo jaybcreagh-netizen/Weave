@@ -312,7 +312,7 @@ function PulseTabContent({
             const dayInteractions = await database
                 .get<Interaction>('interactions')
                 .query(
-                    Q.where('status', 'completed'),
+                    Q.where('status', Q.oneOf(['completed', 'planned'])),
                     Q.where('interaction_date', Q.gte(dayStart)),
                     Q.where('interaction_date', Q.lt(dayEnd))
                 )
@@ -321,12 +321,14 @@ function PulseTabContent({
             // Enrich interactions with Friend names
             const enrichedWeaves = await Promise.all(
                 dayInteractions.map(async (interaction) => {
-                    const friends = await interaction.friends.fetch();
-                    const names = friends.map(f => f.firstName).join(', ');
+                    const interactionFriends = await interaction.interactionFriends.fetch();
+                    const friends = await Promise.all(interactionFriends.map((ifriend: any) => ifriend.friend.fetch()));
+                    const names = friends.map((f: any) => f.name).join(', ');
                     return {
                         id: interaction.id,
                         name: names || 'Unknown Friend',
-                        type: interaction.type
+                        type: interaction.type,
+                        status: interaction.status
                     };
                 })
             );
@@ -497,7 +499,7 @@ function PulseTabContent({
                                             Weave with {weave.name}
                                         </Text>
                                         <Text style={[styles.detailSubtext, { color: tokens.foregroundMuted }]}>
-                                            {weave.type}
+                                            {weave.type} {weave.status === 'planned' ? '(Planned)' : ''}
                                         </Text>
                                     </View>
                                 </View>

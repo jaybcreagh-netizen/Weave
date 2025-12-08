@@ -66,6 +66,15 @@ export function TierFitBottomSheet({
         </View>
 
         <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
+          {/* Preliminary Badge for Detail View */}
+          {!!analysis.isPreliminary && (
+            <View style={[styles.section, { padding: 12, backgroundColor: colors.muted }]}>
+              <Text style={{ fontSize: 13, textAlign: 'center', color: colors.foreground }}>
+                <Text style={{ fontWeight: '600' }}>Preliminary Result:</Text> Based on only {analysis.interactionCount} interactions. Reliability improves with time.
+              </Text>
+            </View>
+          )}
+
           {/* Analysis Summary */}
           <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <View style={styles.iconRow}>

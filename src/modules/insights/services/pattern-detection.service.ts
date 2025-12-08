@@ -132,7 +132,7 @@ function detectDayOfWeekPatterns(history: BatteryHistoryEntry[]): Pattern | null
     description: `Your energy peaks on ${dayNames[highestDay.day]}s (${highestDay.avgBattery.toFixed(1)}/5) and dips on ${dayNames[lowestDay.day]}s (${lowestDay.avgBattery.toFixed(1)}/5).`,
     insight: `Plan important connections on ${dayNames[highestDay.day]}s when your battery is naturally higher.`,
     confidence: difference >= 1.5 ? 'high' : difference >= 1.0 ? 'medium' : 'low',
-    icon: '📅',
+    icon: 'calendar',
     data: { dayData, highestDay, lowestDay },
   };
 }
@@ -249,7 +249,7 @@ async function detectBatteryWeaveCorrelation(
       description: `Strong correlation (${correlation.toFixed(2)}) between your energy and social activity. You weave significantly more when your battery is full.`,
       insight: 'Your social energy directly supports connection. Prioritize recharge when depleted.',
       confidence: correlation > 0.7 ? 'high' : 'medium',
-      icon: '⚡',
+      icon: 'zap',
       data: { correlation, avgWeavesHigh, avgWeavesLow },
     };
   }
@@ -274,7 +274,7 @@ async function detectBatteryWeaveCorrelation(
       description: `Inverse correlation (${correlation.toFixed(2)}) detected. You tend to weave more when your reported battery is lower.`,
       insight: 'Connection might be recharging you. Your friendships could be your battery source.',
       confidence: Math.abs(correlation) > 0.7 ? 'high' : 'medium',
-      icon: '💫',
+      icon: 'sparkles',
       data: { correlation, avgWeavesHigh, avgWeavesLow },
     };
   }
@@ -337,7 +337,7 @@ async function detectBestConnectionDays(
     description: `${dayNames[bestDay.day]}s are your best connection days—high energy (${bestDay.avgBattery.toFixed(1)}/5) and active weaving (${bestDay.avgWeaves.toFixed(1)} weaves).`,
     insight: `Schedule meaningful catch-ups on ${dayNames[bestDay.day]}s when you're naturally in sync.`,
     confidence: bestDay.compositeScore >= 3 ? 'high' : bestDay.compositeScore >= 2 ? 'medium' : 'low',
-    icon: '⭐',
+    icon: 'star',
     data: { bestDay, allDays: scored },
   };
 }
@@ -363,7 +363,7 @@ function detectConsistencyPattern(history: BatteryHistoryEntry[]): Pattern | nul
       description: `Your battery stays remarkably consistent around ${avg.toFixed(1)}/5 (variance: ${stdDev.toFixed(2)}).`,
       insight: 'Your steady rhythm suggests strong self-awareness and energy management.',
       confidence: 'high',
-      icon: '🧘',
+      icon: 'scale',
       data: { avg, stdDev },
     };
   }
@@ -376,7 +376,7 @@ function detectConsistencyPattern(history: BatteryHistoryEntry[]): Pattern | nul
       description: `Your battery fluctuates significantly (variance: ${stdDev.toFixed(2)}), ranging across ${Math.max(...history.map((h) => h.value)) - Math.min(...history.map((h) => h.value))} levels.`,
       insight: 'Your energy is responsive to external factors. Consider tracking what influences your shifts.',
       confidence: 'high',
-      icon: '🌊',
+      icon: 'activity',
       data: { avg, stdDev },
     };
   }
@@ -409,7 +409,7 @@ function detectTrendPattern(history: BatteryHistoryEntry[]): Pattern | null {
       description: `Your battery has increased from ${avgFirst.toFixed(1)}/5 to ${avgSecond.toFixed(1)}/5 recently (+${change.toFixed(1)}).`,
       insight: 'Something is working! Reflect on what has been different lately.',
       confidence: change >= 1.0 ? 'high' : 'medium',
-      icon: '📈',
+      icon: 'trending-up',
       data: { avgFirst, avgSecond, change },
     };
   }
@@ -423,7 +423,7 @@ function detectTrendPattern(history: BatteryHistoryEntry[]): Pattern | null {
       description: `Your battery has decreased from ${avgFirst.toFixed(1)}/5 to ${avgSecond.toFixed(1)}/5 recently (${change.toFixed(1)}).`,
       insight: 'This might be a signal to prioritize rest and recalibrate your pace.',
       confidence: Math.abs(change) >= 1.0 ? 'high' : 'medium',
-      icon: '📉',
+      icon: 'trending-down',
       data: { avgFirst, avgSecond, change },
     };
   }
@@ -436,7 +436,7 @@ function detectTrendPattern(history: BatteryHistoryEntry[]): Pattern | null {
     description: `Your battery has remained stable around ${avgSecond.toFixed(1)}/5.`,
     insight: 'Your current rhythm is sustainable. Keep doing what works.',
     confidence: 'medium',
-    icon: '➡️',
+    icon: 'arrow-right',
     data: { avgFirst, avgSecond, change },
   };
 }
@@ -519,7 +519,7 @@ async function detectQualityDepthPattern(weaves: Interaction[]): Promise<Pattern
     description: `Your deepest, most intentional interactions are with ${topFriendsList.join(', ')} (${topFriend.avgQuality.toFixed(1)}/5 quality vs ${avgAllQuality.toFixed(1)}/5 average).`,
     insight: `Consider bringing this level of intentionality to other friendships. Depth creates lasting bonds.`,
     confidence: topFriend.avgQuality >= 4 ? 'high' : topFriend.avgQuality >= 3.5 ? 'medium' : 'low',
-    icon: '🧘',
+    icon: 'gem',
     data: { topFriends: qualityFriends.slice(0, 5), avgAllQuality },
   };
 }
@@ -570,7 +570,7 @@ async function detectAdaptiveDecayPattern(): Promise<Pattern | null> {
     description: `You and ${mostAdapted.name} have settled into a ${rhythm} ${mostAdapted.learnedWindow}-day rhythm (vs typical ${mostAdapted.defaultWindow}-day for ${mostAdapted.tier}).`,
     insight: `The app has adapted to honor this natural flow. Your authentic connection patterns are being respected.`,
     confidence: adaptedFriends.length >= 5 ? 'high' : 'medium',
-    icon: '🌊',
+    icon: 'brain',
     data: { mostAdapted, allAdaptations: adaptations.slice(0, 5) },
   };
 }
@@ -648,7 +648,7 @@ async function detectArchetypeAffinityPattern(weaves: Interaction[]): Promise<Pa
     description: `You thrive with ${best.archetype} friends (avg ${Math.round(best.avgScore)} health), but ${worst.archetype} connections need more attention (avg ${Math.round(worst.avgScore)}).`,
     insight: `Your ${best.archetype} relationships come naturally. Consider being more intentional with ${worst.archetype} friends to maintain balance.`,
     confidence: scoreDifference >= 20 ? 'high' : scoreDifference >= 10 ? 'medium' : 'low', // Adjusted thresholds
-    icon: '🎭',
+    icon: 'users',
     data: { best, worst, allArchetypes: archetypeScores },
   };
 }

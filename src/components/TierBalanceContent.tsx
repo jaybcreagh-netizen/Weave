@@ -185,6 +185,7 @@ export const TierBalanceContent: React.FC = () => {
                                     {tierFriends.map((analysis) => {
                                         const isMismatch = analysis.fitCategory === 'mismatch';
                                         const isLearning = analysis.fitCategory === 'insufficient_data';
+                                        const isPreliminary = !!analysis.isPreliminary && !isLearning;
                                         const isGood = analysis.fitCategory === 'great' || analysis.fitCategory === 'good';
 
                                         return (
@@ -229,13 +230,21 @@ export const TierBalanceContent: React.FC = () => {
                                                             </Text>
                                                         </View>
                                                     )}
+
+                                                    {isPreliminary && (
+                                                        <View style={[styles.suggestionBadge, { backgroundColor: colors.muted }]}>
+                                                            <Text style={[styles.suggestionBadgeText, { color: colors['muted-foreground'] }]}>
+                                                                Preliminary
+                                                            </Text>
+                                                        </View>
+                                                    )}
                                                 </View>
 
                                                 <View style={styles.friendCardStats}>
                                                     {isLearning ? (
                                                         <Text style={[styles.friendCardStat, { color: colors['muted-foreground'] }]}>
-                                                            {5 - analysis.interactionCount > 0
-                                                                ? `Need ${5 - analysis.interactionCount} more interactions to analyze rhythm`
+                                                            {2 - analysis.interactionCount > 0
+                                                                ? `Need ${2 - analysis.interactionCount} more interactions to analyze rhythm`
                                                                 : `Keep weaving to analyze rhythm`}
                                                         </Text>
                                                     ) : (
@@ -246,6 +255,11 @@ export const TierBalanceContent: React.FC = () => {
                                                             <Text style={[styles.friendCardStat, { color: colors['muted-foreground'] }]}>
                                                                 Tier expects: Every {analysis.expectedIntervalDays} days
                                                             </Text>
+                                                            {isPreliminary && (
+                                                                <Text style={[styles.friendCardStat, { color: colors['muted-foreground'], fontStyle: 'italic', fontSize: 12 }]}>
+                                                                    Data limited ({analysis.interactionCount}/5 interactions)
+                                                                </Text>
+                                                            )}
                                                         </>
                                                     )}
                                                 </View>

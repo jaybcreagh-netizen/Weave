@@ -1,6 +1,8 @@
 import { database } from '@/db';
 import Group from '@/db/models/Group';
 import GroupMember from '@/db/models/GroupMember';
+import Friend from '@/db/models/Friend';
+import InteractionFriend from '@/db/models/InteractionFriend';
 import { Q } from '@nozbe/watermelondb';
 
 export const groupService = {
@@ -99,12 +101,88 @@ export const groupService = {
 
     /**
      * Detect smart groups based on interaction history
-     * This is a simplified version - in production this would be more complex
      */
-    async detectSmartGroups(): Promise<void> {
-        // 1. Fetch all interaction_friends to analyze patterns
-        // This is expensive, so we should limit to recent history or run in background
-        // For MVP, we'll skip the complex implementation and just stub it
-        console.log('Smart group detection not yet implemented');
+    async detectSmartGroups(): Promise<GroupSuggestion[]> {
+        const interactionFriends = await database.get<InteractionFriend>('interaction_friends').query().fetch();
+
+        // Group friends by interaction
+        const interactionMap = new Map<string, string[]>();
+        interactionFriends.forEach(ifriend => {
+            const current = interactionMap.get(ifriend.interactionId) || [];
+            current.push(ifriend.friendId);
+            interactionMap.set(ifriend.interactionId, current);
+        });
+
+        // Identify clusters (size >= 2)
+        const clusterCounts = new Map<string, number>();
+        const clusterMembers = new Map<string, string[]>();
+
+        for (const [_, members] of interactionMap.entries()) {
+            if (members.length < 2) continue;
+
+            // Sort to ensure unique key for same set of friends
+            const sortedMembers = [...members].sort();
+            const key = sortedMembers.join('|');
+
+            clusterCounts.set(key, (clusterCounts.get(key) || 0) + 1);
+            clusterMembers.set(key, sortedMembers);
+        }
+
+        // Filter and Format Suggestions
+        const rawSuggestions: Omit<GroupSuggestion, 'friends'>[] = [];
+        const existingGroups = await this.getManualGroups();
+
+        // Build set of existing group signatures
+        const existingSignatures = new Set<string>();
+        for (const group of existingGroups) {
+            const members = await group.members.fetch();
+            const memberIds = members.map((m: any) => m.friendId).sort();
+            existingSignatures.add(memberIds.join('|'));
+        }
+
+        for (const [key, count] of clusterCounts.entries()) {
+            // Threshold: appeared together at least 3 times
+            if (count < 3) continue;
+
+            // Check if group already exists (exact match)
+            if (existingSignatures.has(key)) continue;
+
+            const friendIds = clusterMembers.get(key)!;
+
+            rawSuggestions.push({
+                friendIds,
+                confidence: Math.min(count * 0.1, 1.0), // Simple confidence
+                interactionCount: count,
+                suggestedName: '', // Will be filled by UI or helper
+            });
+        }
+
+        // Populate Friend objects
+        const enrichedSuggestions: GroupSuggestion[] = [];
+
+        for (const s of rawSuggestions) {
+            const friends = await database.get<Friend>('friends').query(Q.where('id', Q.oneOf(s.friendIds))).fetch();
+            if (friends.length !== s.friendIds.length) continue; // Some friends might be deleted
+
+            const names = friends.map(f => f.name).join(', ');
+
+            enrichedSuggestions.push({
+                ...s,
+                friends,
+                suggestedName: names,
+                reason: `You often weave with ${names} together`
+            });
+        }
+
+        return enrichedSuggestions.sort((a, b) => b.interactionCount - a.interactionCount);
     }
 };
+
+export interface GroupSuggestion {
+    friendIds: string[];
+    friends: Friend[];
+    suggestedName: string;
+    confidence: number;
+    interactionCount: number;
+    reason?: string;
+}

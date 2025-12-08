@@ -139,6 +139,7 @@ export interface TierFitAnalysis {
   suggestedTier?: Tier;
   confidence: number; // 0-1
   reason: string;
+  isPreliminary?: boolean;
 }
 
 export interface TierHealth {

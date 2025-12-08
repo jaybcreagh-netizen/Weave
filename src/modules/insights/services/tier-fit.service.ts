@@ -22,7 +22,8 @@ const TIER_EXPECTED_INTERVALS: Record<Tier, number> = {
 /**
  * Minimum sample size to provide tier fit analysis
  */
-const MINIMUM_SAMPLE_SIZE = 5;
+const MINIMUM_SAMPLE_SIZE = 2;
+const CONFIDENT_SAMPLE_SIZE = 5;
 
 /**
  * Analyze how well a friend's actual interaction pattern matches their tier
@@ -46,9 +47,12 @@ export function analyzeTierFit(friend: Friend): TierFitAnalysis {
       fitScore: 0,
       fitCategory: 'insufficient_data',
       confidence: 0,
-      reason: 'Not enough interaction history yet (need at least 5 interactions)'
+      reason: 'Not enough interaction history yet (need at least 2 interactions)',
+      isPreliminary: true
     };
   }
+
+  const isPreliminary = friend.ratedWeavesCount < CONFIDENT_SAMPLE_SIZE;
 
   // Calculate deviation ratio
   const deviationRatio = actualInterval / expectedInterval;
@@ -133,7 +137,8 @@ export function analyzeTierFit(friend: Friend): TierFitAnalysis {
     fitCategory,
     suggestedTier,
     confidence,
-    reason
+    reason,
+    isPreliminary
   };
 }
 
