@@ -13,6 +13,7 @@ import { useNetworkTierHealth, TierFitBottomSheet } from '@/modules/insights';
 import type { Tier } from '@/shared/types/core';
 import type { TierFitAnalysis } from '@/modules/insights/types';
 import { changeFriendTier, dismissTierSuggestion } from '@/modules/insights/services/tier-management.service';
+import { useUIStore } from '@/stores/uiStore';
 
 const TIER_DISPLAY_NAMES: Record<Tier, string> = {
     InnerCircle: 'Inner Circle',
@@ -39,10 +40,16 @@ export const TierBalanceContent: React.FC = () => {
         });
     };
 
-    const handleChangeTier = async (friendId: string, newTier: Tier) => {
+    const handleChangeTier = async (friendId: string, newTier: Tier, friendName: string) => {
         try {
             await changeFriendTier(friendId, newTier, true);
+            // Dismiss modal first
             setSelectedAnalysis(null);
+
+            // Show toast after slight delay to allow modal to close
+            setTimeout(() => {
+                useUIStore.getState().showToast(`Moved ${friendName} to ${TIER_DISPLAY_NAMES[newTier]}`, friendName);
+            }, 400);
         } catch (error) {
             console.error('Failed to change tier:', error);
         }
@@ -202,42 +209,44 @@ export const TierBalanceContent: React.FC = () => {
                                                 activeOpacity={0.7}
                                             >
                                                 <View style={styles.friendCardHeader}>
-                                                    <View style={styles.friendCardLeft}>
-                                                        {isMismatch ? (
-                                                            <AlertCircle size={20} color="#F59E0B" />
-                                                        ) : isLearning ? (
-                                                            <TrendingUp size={20} color={colors['muted-foreground']} />
-                                                        ) : (
-                                                            <CheckCircle size={20} color="#10B981" />
+                                                    <View style={styles.friendCardContent}>
+                                                        <View style={styles.friendNameRow}>
+                                                            {isMismatch ? (
+                                                                <AlertCircle size={20} color="#F59E0B" />
+                                                            ) : isLearning ? (
+                                                                <TrendingUp size={20} color={colors['muted-foreground']} />
+                                                            ) : (
+                                                                <CheckCircle size={20} color="#10B981" />
+                                                            )}
+                                                            <Text style={[styles.friendName, { color: colors.foreground }]}>
+                                                                {analysis.friendName}
+                                                            </Text>
+                                                        </View>
+
+                                                        {analysis.suggestedTier && (
+                                                            <View style={[styles.suggestionBadge, { backgroundColor: colors.primary + '20', alignSelf: 'flex-start', marginLeft: 28, marginTop: 4 }]}>
+                                                                <Text style={[styles.suggestionBadgeText, { color: colors.primary }]}>
+                                                                    Suggest: {TIER_DISPLAY_NAMES[analysis.suggestedTier]}
+                                                                </Text>
+                                                            </View>
                                                         )}
-                                                        <Text style={[styles.friendName, { color: colors.foreground }]}>
-                                                            {analysis.friendName}
-                                                        </Text>
+
+                                                        {isLearning && (
+                                                            <View style={[styles.suggestionBadge, { backgroundColor: colors.muted, alignSelf: 'flex-start', marginLeft: 28, marginTop: 4 }]}>
+                                                                <Text style={[styles.suggestionBadgeText, { color: colors['muted-foreground'] }]}>
+                                                                    Learning...
+                                                                </Text>
+                                                            </View>
+                                                        )}
+
+                                                        {isPreliminary && (
+                                                            <View style={[styles.suggestionBadge, { backgroundColor: colors.muted, alignSelf: 'flex-start', marginLeft: 28, marginTop: 4 }]}>
+                                                                <Text style={[styles.suggestionBadgeText, { color: colors['muted-foreground'] }]}>
+                                                                    Preliminary
+                                                                </Text>
+                                                            </View>
+                                                        )}
                                                     </View>
-
-                                                    {analysis.suggestedTier && (
-                                                        <View style={[styles.suggestionBadge, { backgroundColor: colors.primary + '20' }]}>
-                                                            <Text style={[styles.suggestionBadgeText, { color: colors.primary }]}>
-                                                                Suggest: {TIER_DISPLAY_NAMES[analysis.suggestedTier]}
-                                                            </Text>
-                                                        </View>
-                                                    )}
-
-                                                    {isLearning && (
-                                                        <View style={[styles.suggestionBadge, { backgroundColor: colors.muted }]}>
-                                                            <Text style={[styles.suggestionBadgeText, { color: colors['muted-foreground'] }]}>
-                                                                Learning...
-                                                            </Text>
-                                                        </View>
-                                                    )}
-
-                                                    {isPreliminary && (
-                                                        <View style={[styles.suggestionBadge, { backgroundColor: colors.muted }]}>
-                                                            <Text style={[styles.suggestionBadgeText, { color: colors['muted-foreground'] }]}>
-                                                                Preliminary
-                                                            </Text>
-                                                        </View>
-                                                    )}
                                                 </View>
 
                                                 <View style={styles.friendCardStats}>
@@ -285,7 +294,7 @@ export const TierBalanceContent: React.FC = () => {
                     visible={!!selectedAnalysis}
                     analysis={selectedAnalysis}
                     onDismiss={() => setSelectedAnalysis(null)}
-                    onChangeTier={(newTier) => handleChangeTier(selectedAnalysis.friendId, newTier)}
+                    onChangeTier={(newTier) => handleChangeTier(selectedAnalysis.friendId, newTier, selectedAnalysis.friendName)}
                     onStayInTier={() => handleStayInTier(selectedAnalysis.friendId)}
                     onDismissSuggestion={() => handleDismissSuggestion(selectedAnalysis.friendId)}
                 />
@@ -416,11 +425,14 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         gap: 12,
     },
-    friendCardLeft: {
+    friendCardContent: {
+        flex: 1,
+        gap: 2,
+    },
+    friendNameRow: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 8,
-        flex: 1,
     },
     friendName: {
         fontSize: 16,

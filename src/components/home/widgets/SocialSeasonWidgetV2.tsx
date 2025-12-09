@@ -176,26 +176,44 @@ const SocialSeasonWidgetContent: React.FC<SocialSeasonWidgetProps> = ({ friends 
                     onPress={() => setShowDetailSheet(true)}
                     activeOpacity={0.7}
                 >
-                    <View style={styles.container}>
-                        <View style={styles.iconContainer}>
-                            <SeasonIcon season={season} size={48} color={tokens.primary} />
+                    <View>
+                        <View style={styles.container}>
+                            <View style={styles.iconContainer}>
+                                <SeasonIcon season={season} size={48} color={tokens.primary} />
+                            </View>
+                            <View style={styles.textContainer}>
+                                <Text style={[styles.headline, {
+                                    color: tokens.foreground,
+                                    fontFamily: typography.fonts.serifBold,
+                                    fontSize: typography.scale.h2.fontSize,
+                                    lineHeight: typography.scale.h2.lineHeight
+                                }]}>
+                                    {getSeasonDisplayName(season)}
+                                </Text>
+                                <Text style={[styles.subtext, {
+                                    color: tokens.foregroundMuted,
+                                    fontFamily: typography.fonts.sans,
+                                    fontSize: typography.scale.body.fontSize,
+                                    lineHeight: typography.scale.body.lineHeight
+                                }]}>
+                                    {greeting.subtext}
+                                </Text>
+                            </View>
                         </View>
-                        <View style={styles.textContainer}>
-                            <Text style={[styles.headline, {
-                                color: tokens.foreground,
-                                fontFamily: typography.fonts.serifBold,
-                                fontSize: typography.scale.h2.fontSize,
-                                lineHeight: typography.scale.h2.lineHeight
-                            }]}>
-                                {getSeasonDisplayName(season)}
-                            </Text>
-                            <Text style={[styles.subtext, {
-                                color: tokens.foregroundMuted,
-                                fontFamily: typography.fonts.sans,
-                                fontSize: typography.scale.body.fontSize,
-                                lineHeight: typography.scale.body.lineHeight
-                            }]}>
-                                {greeting.subtext}
+
+                        <View style={{
+                            marginTop: 12,
+                            paddingTop: 12,
+                            borderTopWidth: 1,
+                            borderTopColor: tokens.borderSubtle,
+                            alignItems: 'center'
+                        }}>
+                            <Text style={{
+                                color: tokens.primary,
+                                fontFamily: typography.fonts.sansMedium,
+                                fontSize: typography.scale.label.fontSize,
+                            }}>
+                                See insights
                             </Text>
                         </View>
                     </View>

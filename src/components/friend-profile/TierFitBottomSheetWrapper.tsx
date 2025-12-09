@@ -27,7 +27,17 @@ export function TierFitBottomSheetWrapper({
         try {
             await changeFriendTier(friendId, newTier, true); // true = wasFromSuggestion
             console.log(`[TierFit] Successfully changed ${friendId} to ${newTier}`);
+
+            // Dismiss the modal first
             onDismiss();
+
+            // Show toast after a slight delay to allow modal to close (avoiding z-index layering issues)
+            // and provide feedback to the user
+            setTimeout(() => {
+                const { showToast } = require('@/stores/uiStore').useUIStore.getState();
+                showToast(`Moved to ${newTier}`, analysis.friendName);
+            }, 400);
+
         } catch (error) {
             console.error('[TierFit] Error changing tier:', error);
             Alert.alert('Error', 'Failed to change tier. Please try again.');

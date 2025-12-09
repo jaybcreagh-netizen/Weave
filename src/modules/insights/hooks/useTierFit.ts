@@ -83,24 +83,51 @@ export function useNetworkTierHealth() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const loadNetworkHealth = async () => {
+    let isMounted = true;
+    let subscription: any;
+
+    const setupSubscription = async () => {
       try {
-        const health = await analyzeNetworkTierHealth();
-        setNetworkHealth(health);
-        setIsLoading(false);
+        // Initial load
+        const initialHealth = await analyzeNetworkTierHealth();
+        if (isMounted) {
+          setNetworkHealth(initialHealth);
+          setIsLoading(false);
+        }
+
+        // Subscribe to ANY change in the friends collection
+        // This is a bit broad, but ensures we catch tier changes, new adds, etc.
+        subscription = database.get<Friend>('friends')
+          .query()
+          .observe()
+          .subscribe(async () => {
+            // When friends change, re-run analysis
+            // Note: analyzeNetworkTierHealth is async, so we can't just pass it to subscribe
+            try {
+              const updatedHealth = await analyzeNetworkTierHealth();
+              if (isMounted) {
+                setNetworkHealth(updatedHealth);
+              }
+            } catch (err) {
+              console.error('[useNetworkTierHealth] Error updating network health:', err);
+            }
+          });
+
       } catch (error) {
-        console.error('[useNetworkTierHealth] Error loading network health:', error);
-        setIsLoading(false);
+        console.error('[useNetworkTierHealth] Error setting up subscription:', error);
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     };
 
-    loadNetworkHealth();
-
-    // Re-calculate periodically (every 5 minutes) or when app resumes
-    const interval = setInterval(loadNetworkHealth, 5 * 60 * 1000);
+    setupSubscription();
 
     return () => {
-      clearInterval(interval);
+      isMounted = false;
+      if (subscription) {
+        subscription.unsubscribe();
+      }
     };
   }, []);
 

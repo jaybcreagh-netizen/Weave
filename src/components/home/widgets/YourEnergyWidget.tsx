@@ -243,7 +243,7 @@ const YourEnergyWidgetContent: React.FC<YourEnergyWidgetContentProps> = ({ logs 
                                     fontFamily: typography.fonts.sansMedium,
                                     color: tokens.foreground
                                 }}>
-                                    Full Year
+                                    See patterns
                                 </Text>
                             </TouchableOpacity>
                         </View>

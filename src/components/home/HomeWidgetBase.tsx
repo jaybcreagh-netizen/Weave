@@ -43,7 +43,10 @@ export const HomeWidgetBase: React.FC<HomeWidgetBaseProps> = ({
       padding={padding}
       style={[
         styles.card,
-        { minHeight: config.minHeight || 160 },
+        {
+          minHeight: config.minHeight || 160,
+          backgroundColor: tokens.backgroundSubtle
+        },
       ]}
     >
       {/* Loading State */}

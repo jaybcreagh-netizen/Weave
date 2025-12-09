@@ -103,13 +103,10 @@ export function PostWeaveRatingModal() {
         fetchFriends();
     }, [currentPlanId, pendingConfirmations]);
 
-    if (!currentPlanId || !isPostWeaveRatingOpen) return null;
-
     // Resolve plan from either pendingConfirmations OR allInteractions
-    const currentPlan = pendingConfirmations.find(p => p.id === currentPlanId) || allInteractions.find(p => p.id === currentPlanId);
-
-    // Sanity check, should exist if currentPlanId is set
-    if (!currentPlan) return null;
+    const currentPlan = currentPlanId
+        ? (pendingConfirmations.find(p => p.id === currentPlanId) || allInteractions.find(p => p.id === currentPlanId))
+        : null;
 
     const handleConfirm = useDebounceCallback(async () => {
         if (!currentPlanId || isSubmitting) return;
@@ -180,6 +177,11 @@ export function PostWeaveRatingModal() {
         // "Close with the X" usually means "Not now".
         performClose();
     };
+
+    if (!currentPlanId || !isPostWeaveRatingOpen) return null;
+
+    // Sanity check, should exist if currentPlanId is set
+    if (!currentPlan) return null;
 
     return (
         <Modal

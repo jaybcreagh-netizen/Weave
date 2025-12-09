@@ -41,6 +41,8 @@ import { CATEGORY_METADATA } from '@/shared/constants/interaction-categories';
 import { useTheme } from '@/shared/hooks/useTheme';
 import type { Archetype, InteractionCategory } from '@/components/types';
 import Logger from '@/shared/utils/Logger';
+import { analyzeTierFit, getTierFitSummary } from '@/modules/insights';
+import type { TierFitAnalysis } from '@/modules/insights/types';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -64,6 +66,7 @@ interface FriendStats {
     icon: string;
     rarity: string;
   }>;
+  tierFit?: TierFitAnalysis;
 }
 
 export default function FriendBadgePopup({
@@ -167,6 +170,7 @@ export default function FriendBadgePopup({
         favoriteWeaveTypes: pattern.preferredCategories,
         badgeCount: badgeRecords.length,
         badges: badgesWithDetails,
+        tierFit: await analyzeTierFit(friend),
       };
 
       Logger.debug('[FriendBadgePopup] Setting stats:', newStats);
@@ -280,6 +284,30 @@ export default function FriendBadgePopup({
                             {archetypeInfo.careStyle}
                           </Text>
                         </View>
+                      </View>
+                    </View>
+                  )}
+
+                  {/* Connection Health Section */}
+                  {stats.tierFit && stats.tierFit.fitCategory !== 'insufficient_data' && (
+                    <View style={styles.section}>
+                      <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
+                        Connection Health
+                      </Text>
+                      <View style={[styles.healthCard, { backgroundColor: colors.muted }]}>
+                        <View style={styles.healthStatusRow}>
+                          <View style={[
+                            styles.healthDot,
+                            { backgroundColor: stats.tierFit.fitCategory === 'mismatch' ? '#F59E0B' : '#10B981' }
+                          ]} />
+                          <Text style={[styles.healthStatusText, { color: colors.foreground }]}>
+                            {stats.tierFit.fitCategory === 'mismatch' ? 'Needs Attention' : 'On Track'}
+                          </Text>
+                        </View>
+                        <Text style={[styles.healthDetails, { color: colors['muted-foreground'] }]}>
+                          Connecting every {Math.round(stats.tierFit.actualIntervalDays)} days
+                          {'\n'}(Tier expects every {stats.tierFit.expectedIntervalDays} days)
+                        </Text>
                       </View>
                     </View>
                   )}
@@ -658,5 +686,30 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontFamily: 'Inter_700Bold',
     letterSpacing: 0.5,
+  },
+  healthCard: {
+    borderRadius: 16,
+    padding: 16,
+    gap: 8,
+  },
+  healthStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  healthDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  healthStatusText: {
+    fontSize: 16,
+    fontWeight: '600',
+    fontFamily: 'Inter_600SemiBold',
+  },
+  healthDetails: {
+    fontSize: 14,
+    fontFamily: 'Inter_400Regular',
+    lineHeight: 20,
   },
 });
