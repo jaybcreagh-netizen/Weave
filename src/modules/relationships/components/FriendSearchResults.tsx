@@ -12,7 +12,7 @@ import { useCardGesture } from '@/context/CardGestureContext';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { WeaveIcon } from '@/components/WeaveIcon';
 import { calculateCurrentScore } from '@/modules/intelligence';
-import { SearchFilters, HealthStatus } from './FriendSearchBar';
+import { SearchFilters, HealthStatus, SortOption } from './FriendSearchBar';
 import { Archetype } from '@/modules/relationships/types';
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -29,6 +29,16 @@ const getHealthStatus = (score: number): HealthStatus => {
   if (score >= ATTENTION_THRESHOLD) return 'stable';
   if (score >= DRIFTING_THRESHOLD) return 'attention';
   return 'drifting';
+};
+
+// Sort label mapping for display
+const SORT_LABELS: Record<SortOption, string> = {
+  'default': 'Default',
+  'needs-attention': 'Needs attention first',
+  'thriving-first': 'Thriving first',
+  'recently-connected': 'Recently connected',
+  'longest-since': 'Longest since contact',
+  'alphabetical': 'A-Z',
 };
 
 // Animated item wrapper with gesture registration
@@ -62,6 +72,7 @@ interface FriendSearchResultsProps {
   friends: FriendModel[];
   searchQuery: string;
   filters: SearchFilters;
+  sortOption: SortOption;
   scrollHandler?: any;
   isQuickWeaveOpen?: boolean;
 }
@@ -70,14 +81,15 @@ const FriendSearchResultsContent = ({
   friends,
   searchQuery,
   filters,
+  sortOption,
   scrollHandler,
   isQuickWeaveOpen,
 }: FriendSearchResultsProps) => {
   const { colors } = useTheme();
 
-  // Filter friends based on search query and filters
+  // Filter and sort friends based on search query, filters, and sort option
   const filteredFriends = useMemo(() => {
-    let results = friends;
+    let results = [...friends];
 
     // Text search filter
     if (searchQuery.trim()) {
@@ -103,13 +115,56 @@ const FriendSearchResultsContent = ({
       );
     }
 
-    // Sort by weave score (ascending - needs attention first)
-    return results.sort((a, b) => {
-      const scoreA = calculateCurrentScore(a);
-      const scoreB = calculateCurrentScore(b);
-      return scoreA - scoreB;
-    });
-  }, [friends, searchQuery, filters]);
+    // Apply sorting
+    switch (sortOption) {
+      case 'needs-attention':
+        // Weave score ascending (lowest/needs attention first)
+        return results.sort((a, b) => {
+          const scoreA = calculateCurrentScore(a);
+          const scoreB = calculateCurrentScore(b);
+          return scoreA - scoreB;
+        });
+
+      case 'thriving-first':
+        // Weave score descending (highest/thriving first)
+        return results.sort((a, b) => {
+          const scoreA = calculateCurrentScore(a);
+          const scoreB = calculateCurrentScore(b);
+          return scoreB - scoreA;
+        });
+
+      case 'recently-connected':
+        // Last updated descending (most recent first)
+        return results.sort((a, b) => {
+          const dateA = a.lastUpdated?.getTime() || 0;
+          const dateB = b.lastUpdated?.getTime() || 0;
+          return dateB - dateA;
+        });
+
+      case 'longest-since':
+        // Last updated ascending (oldest first)
+        return results.sort((a, b) => {
+          const dateA = a.lastUpdated?.getTime() || 0;
+          const dateB = b.lastUpdated?.getTime() || 0;
+          return dateA - dateB;
+        });
+
+      case 'alphabetical':
+        // Alphabetical A-Z
+        return results.sort((a, b) =>
+          a.name.localeCompare(b.name)
+        );
+
+      case 'default':
+      default:
+        // Default: needs attention first (same as needs-attention)
+        return results.sort((a, b) => {
+          const scoreA = calculateCurrentScore(a);
+          const scoreB = calculateCurrentScore(b);
+          return scoreA - scoreB;
+        });
+    }
+  }, [friends, searchQuery, filters, sortOption]);
 
   const hasActiveSearch = searchQuery.trim().length > 0 ||
     filters.healthStatus.length > 0 ||
@@ -136,6 +191,13 @@ const FriendSearchResultsContent = ({
     <AnimatedSearchResultItem item={item} index={index} />
   );
 
+  // Build results header text
+  const sortLabel = SORT_LABELS[sortOption] || '';
+  const countText = `${filteredFriends.length} friend${filteredFriends.length !== 1 ? 's' : ''}`;
+  const headerText = sortOption !== 'default' && !hasActiveSearch
+    ? `${countText} · ${sortLabel}`
+    : countText;
+
   return (
     <View style={{ flex: 1, width: screenWidth }}>
       {/* Results count header */}
@@ -144,7 +206,7 @@ const FriendSearchResultsContent = ({
           className="font-inter-medium text-sm"
           style={{ color: colors['muted-foreground'] }}
         >
-          {filteredFriends.length} friend{filteredFriends.length !== 1 ? 's' : ''} found
+          {headerText}
         </Text>
       </View>
 

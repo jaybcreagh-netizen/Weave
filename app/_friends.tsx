@@ -6,7 +6,8 @@ import { GestureDetector } from 'react-native-gesture-handler';
 import * as Haptics from 'expo-haptics';
 import { Q } from '@nozbe/watermelondb';
 
-import { checkAndApplyDormancy, FriendSearchBar, FriendSearchResults, SearchFilters } from '@/modules/relationships';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { checkAndApplyDormancy, FriendSearchBar, FriendSearchResults, SearchFilters, SortOption } from '@/modules/relationships';
 import { FriendTierList } from '@/modules/relationships/components/FriendTierList';
 import { TierSegmentedControl } from '@/components/TierSegmentedControl';
 import { TierInfo } from '@/components/TierInfo';
@@ -53,13 +54,30 @@ function DashboardContent() {
     healthStatus: [],
     archetypes: [],
   });
+  const [sortOption, setSortOption] = useState<SortOption>('default');
 
-  // Determine if search is active
+  // Load persisted sort preference
+  useEffect(() => {
+    AsyncStorage.getItem('friendSortPreference').then(stored => {
+      if (stored && ['default', 'needs-attention', 'thriving-first', 'recently-connected', 'longest-since', 'alphabetical'].includes(stored)) {
+        setSortOption(stored as SortOption);
+      }
+    });
+  }, []);
+
+  // Persist sort preference when it changes
+  const handleSortChange = useCallback((newSort: SortOption) => {
+    setSortOption(newSort);
+    AsyncStorage.setItem('friendSortPreference', newSort);
+  }, []);
+
+  // Determine if search/sort view is active (any non-default state)
   const isSearchActive = useMemo(() => {
     return searchQuery.trim().length > 0 ||
       searchFilters.healthStatus.length > 0 ||
-      searchFilters.archetypes.length > 0;
-  }, [searchQuery, searchFilters]);
+      searchFilters.archetypes.length > 0 ||
+      sortOption !== 'default';
+  }, [searchQuery, searchFilters, sortOption]);
 
   // Manual friend count for segmented control (simplified fetch)
   const [friendCounts, setFriendCounts] = useState({ inner: 0, close: 0, community: 0 });
@@ -228,7 +246,8 @@ function DashboardContent() {
   const handleClearSearch = useCallback(() => {
     setSearchQuery('');
     setSearchFilters({ healthStatus: [], archetypes: [] });
-  }, []);
+    handleSortChange('default');
+  }, [handleSortChange]);
 
   return (
     <View style={[styles.safeArea, { backgroundColor: colors.background }]}>
@@ -238,6 +257,8 @@ function DashboardContent() {
         onSearchChange={setSearchQuery}
         filters={searchFilters}
         onFiltersChange={setSearchFilters}
+        sortOption={sortOption}
+        onSortChange={handleSortChange}
         isActive={isSearchActive}
         onClear={handleClearSearch}
       />
@@ -255,6 +276,7 @@ function DashboardContent() {
             <FriendSearchResults
               searchQuery={searchQuery}
               filters={searchFilters}
+              sortOption={sortOption}
               scrollHandler={animatedScrollHandler}
               isQuickWeaveOpen={isQuickWeaveOpen}
             />
