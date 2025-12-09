@@ -1,4 +1,4 @@
-import { differenceInDays, format } from 'date-fns';
+import { differenceInDays, format, startOfDay } from 'date-fns';
 import { parseFlexibleDate } from '@/shared/utils/date-utils';
 import { database } from '@/db';
 import LifeEvent from '@/db/models/LifeEvent';
@@ -478,8 +478,7 @@ async function checkConnectionHealth(friend: HydratedFriend | Friend): Promise<S
  */
 async function checkUpcomingPlans(friend: HydratedFriend | Friend): Promise<StatusLine | null> {
   try {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const today = startOfDay(new Date());
 
     const futureInteractions = await database
       .get<Interaction>('interactions')
@@ -494,7 +493,8 @@ async function checkUpcomingPlans(friend: HydratedFriend | Friend): Promise<Stat
     for (const interaction of futureInteractions) {
       const interactionFriends = await interaction.interactionFriends.fetch();
       if (interactionFriends.some((jf: InteractionFriend) => jf.friendId === friend.id)) {
-        const daysUntil = differenceInDays(interaction.interactionDate, today);
+        // Use startOfDay on both dates for accurate calendar-day comparison
+        const daysUntil = differenceInDays(startOfDay(interaction.interactionDate), today);
         const categoryLabel = getCategoryLabel(interaction.interactionCategory);
 
         if (daysUntil === 0) {
