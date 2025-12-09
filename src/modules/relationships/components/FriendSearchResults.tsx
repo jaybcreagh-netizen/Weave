@@ -18,16 +18,16 @@ import { Archetype } from '@/modules/relationships/types';
 const { width: screenWidth } = Dimensions.get('window');
 const AnimatedFlashList = Animated.createAnimatedComponent(FlashList);
 
-// Health thresholds matching FriendListRow.tsx
+// Health thresholds for search filters
+const THRIVING_THRESHOLD = 70;
 const ATTENTION_THRESHOLD = 35;
-const STABLE_THRESHOLD = 65;
 const DRIFTING_THRESHOLD = 20;
 
 // Helper to determine health status from score
 const getHealthStatus = (score: number): HealthStatus => {
-  if (score > STABLE_THRESHOLD) return 'thriving';
-  if (score > ATTENTION_THRESHOLD) return 'stable';
-  if (score > DRIFTING_THRESHOLD) return 'attention';
+  if (score >= THRIVING_THRESHOLD) return 'thriving';
+  if (score >= ATTENTION_THRESHOLD) return 'stable';
+  if (score >= DRIFTING_THRESHOLD) return 'attention';
   return 'drifting';
 };
 
