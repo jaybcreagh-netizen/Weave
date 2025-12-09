@@ -1,4 +1,4 @@
-import { differenceInHours, differenceInDays, differenceInWeeks, differenceInMonths, format, isToday, isYesterday, isPast } from 'date-fns';
+import { differenceInHours, differenceInDays, differenceInWeeks, differenceInMonths, format, isToday, isYesterday, isPast, startOfDay } from 'date-fns';
 
 /**
  * Formats a date into poetic, human-readable language
@@ -10,7 +10,9 @@ export const formatPoeticDate = (date: Date | string): {
   const d = typeof date === 'string' ? new Date(date) : date;
   const now = new Date();
   const hoursAgo = differenceInHours(now, d);
-  const daysAgo = differenceInDays(now, d);
+  // Use startOfDay for calendar-day comparisons to avoid time-of-day issues
+  // (e.g., 3 PM today vs 10 AM tomorrow is only 19 hours, but should be 1 day)
+  const daysAgo = differenceInDays(startOfDay(now), startOfDay(d));
   const weeksAgo = differenceInWeeks(now, d);
   const monthsAgo = differenceInMonths(now, d);
 

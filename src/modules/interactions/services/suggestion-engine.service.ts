@@ -21,7 +21,7 @@ import {
   getArchetypeWarmingTitle,
   getArchetypeThrivingTitle,
 } from '@/shared/constants/archetype-content';
-import { differenceInDays } from 'date-fns';
+import { differenceInDays, startOfDay } from 'date-fns';
 import { database } from '@/db';
 import LifeEvent, { LifeEventType } from '@/db/models/LifeEvent';
 import { daysUntil, isPast as isPastService } from '@/modules/relationships';
@@ -94,8 +94,7 @@ interface LifeEventInfo {
 }
 
 async function checkUpcomingLifeEvent(friend: SuggestionInput['friend']): Promise<LifeEventInfo | null> {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const today = startOfDay(new Date());
 
   // First check database for detected life events (highest priority if critical)
   try {
@@ -134,13 +133,13 @@ async function checkUpcomingLifeEvent(friend: SuggestionInput['friend']): Promis
       const aScore = importanceOrder[a.importance];
       const bScore = importanceOrder[b.importance];
       if (aScore !== bScore) return bScore - aScore;
-      // If same importance, prioritize by proximity
-      return Math.abs(differenceInDays(a.eventDate, today)) - Math.abs(differenceInDays(b.eventDate, today));
+      // If same importance, prioritize by proximity (normalize dates to avoid time-of-day issues)
+      return Math.abs(differenceInDays(startOfDay(a.eventDate), today)) - Math.abs(differenceInDays(startOfDay(b.eventDate), today));
     });
 
     if (sortedEvents.length > 0) {
       const topEvent = sortedEvents[0];
-      const daysUntil = differenceInDays(topEvent.eventDate, today);
+      const daysUntil = differenceInDays(startOfDay(topEvent.eventDate), today);
 
       return {
         type: topEvent.eventType,
