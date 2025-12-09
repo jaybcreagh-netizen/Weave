@@ -1,12 +1,12 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { View, Text, ScrollView, Dimensions, StyleSheet } from 'react-native';
-import Animated from 'react-native-reanimated';
+import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { GestureDetector } from 'react-native-gesture-handler';
 import * as Haptics from 'expo-haptics';
 import { Q } from '@nozbe/watermelondb';
 
-import { checkAndApplyDormancy } from '@/modules/relationships';
+import { checkAndApplyDormancy, FriendSearchBar, FriendSearchResults, SearchFilters } from '@/modules/relationships';
 import { FriendTierList } from '@/modules/relationships/components/FriendTierList';
 import { TierSegmentedControl } from '@/components/TierSegmentedControl';
 import { TierInfo } from '@/components/TierInfo';
@@ -46,6 +46,20 @@ function DashboardContent() {
   const [insightsSheetVisible, setInsightsSheetVisible] = useState(false);
   const [selectedIntention, setSelectedIntention] = useState<Intention | null>(null);
   const [addFriendMenuVisible, setAddFriendMenuVisible] = useState(false);
+
+  // Search state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchFilters, setSearchFilters] = useState<SearchFilters>({
+    healthStatus: [],
+    archetypes: [],
+  });
+
+  // Determine if search is active
+  const isSearchActive = useMemo(() => {
+    return searchQuery.trim().length > 0 ||
+      searchFilters.healthStatus.length > 0 ||
+      searchFilters.archetypes.length > 0;
+  }, [searchQuery, searchFilters]);
 
   // Manual friend count for segmented control (simplified fetch)
   const [friendCounts, setFriendCounts] = useState({ inner: 0, close: 0, community: 0 });
@@ -211,31 +225,74 @@ function DashboardContent() {
     );
   };
 
+  const handleClearSearch = useCallback(() => {
+    setSearchQuery('');
+    setSearchFilters({ healthStatus: [], archetypes: [] });
+  }, []);
+
   return (
     <View style={[styles.safeArea, { backgroundColor: colors.background }]}>
-      <TierSegmentedControl
-        activeTier={activeTier}
-        onTierChange={handleTierChange}
-        counts={friendCounts}
+      {/* Search Bar - Always visible */}
+      <FriendSearchBar
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        filters={searchFilters}
+        onFiltersChange={setSearchFilters}
+        isActive={isSearchActive}
+        onClear={handleClearSearch}
       />
-      <TierInfo activeTier={activeTier} />
 
-      <GestureDetector gesture={gesture}>
-        <Animated.ScrollView
-          ref={scrollViewRef as any}
-          horizontal
-          pagingEnabled
-          showsHorizontalScrollIndicator={false}
-          onMomentumScrollEnd={onScroll}
-          scrollEventThrottle={16}
-          scrollEnabled={!isQuickWeaveOpen}
-          directionalLockEnabled={true}
+      {/* Conditional Rendering: Search Results or Tier View */}
+      {isSearchActive ? (
+        /* Search Results View */
+        <Animated.View
+          key="search-results"
+          entering={FadeIn.duration(200)}
+          exiting={FadeOut.duration(150)}
+          style={{ flex: 1 }}
         >
-          {renderTier('inner')}
-          {renderTier('close')}
-          {renderTier('community')}
-        </Animated.ScrollView>
-      </GestureDetector>
+          <GestureDetector gesture={gesture}>
+            <FriendSearchResults
+              searchQuery={searchQuery}
+              filters={searchFilters}
+              scrollHandler={animatedScrollHandler}
+              isQuickWeaveOpen={isQuickWeaveOpen}
+            />
+          </GestureDetector>
+        </Animated.View>
+      ) : (
+        /* Normal Tier View */
+        <Animated.View
+          key="tier-view"
+          entering={FadeIn.duration(200)}
+          exiting={FadeOut.duration(150)}
+          style={{ flex: 1 }}
+        >
+          <TierSegmentedControl
+            activeTier={activeTier}
+            onTierChange={handleTierChange}
+            counts={friendCounts}
+          />
+          <TierInfo activeTier={activeTier} />
+
+          <GestureDetector gesture={gesture}>
+            <Animated.ScrollView
+              ref={scrollViewRef as any}
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              onMomentumScrollEnd={onScroll}
+              scrollEventThrottle={16}
+              scrollEnabled={!isQuickWeaveOpen}
+              directionalLockEnabled={true}
+            >
+              {renderTier('inner')}
+              {renderTier('close')}
+              {renderTier('community')}
+            </Animated.ScrollView>
+          </GestureDetector>
+        </Animated.View>
+      )}
 
       <FAB onClick={onAddFriend} />
 

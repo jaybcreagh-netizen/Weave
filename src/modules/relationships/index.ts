@@ -24,3 +24,5 @@ export * from './services/life-event.service';
 export { FriendForm } from './components/FriendForm';
 export { FriendListRow, FriendListRowContent } from './components/FriendListRow';
 export { FriendDetailSheet } from './components/FriendDetailSheet';
+export { FriendSearchBar, type SearchFilters, type HealthStatus } from './components/FriendSearchBar';
+export { FriendSearchResults } from './components/FriendSearchResults';
