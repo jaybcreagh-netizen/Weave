@@ -1,7 +1,8 @@
 import React from 'react';
-import { Modal, View, Text, TouchableOpacity, ScrollView, SafeAreaView } from 'react-native';
-import { X, Calendar, Users, Activity, Heart, Sparkles } from 'lucide-react-native';
+import { View, Text, ScrollView } from 'react-native';
+import { Activity, Heart, Sparkles } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
+import { StandardBottomSheet } from '@/shared/ui/Sheet';
 import WeeklyReflection from '@/db/models/WeeklyReflection';
 import { format } from 'date-fns';
 import { STORY_CHIPS } from '@/modules/reflection';
@@ -24,38 +25,23 @@ export function WeeklyReflectionDetailModal({ isOpen, onClose, reflection }: Wee
     };
 
     return (
-        <Modal
+        <StandardBottomSheet
             visible={isOpen}
-            animationType="slide"
-            presentationStyle="pageSheet"
-            onRequestClose={onClose}
+            onClose={onClose}
+            height="full"
+            title="Weekly Reflection"
         >
-            <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
-                {/* Header */}
-                <View
-                    className="px-5 py-4 flex-row items-center justify-between"
-                    style={{ borderBottomWidth: 1, borderBottomColor: colors.border }}
+            {/* Date Range Subtitle */}
+            <View className="px-5 pb-3" style={{ borderBottomWidth: 1, borderBottomColor: colors.border }}>
+                <Text
+                    className="text-sm"
+                    style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
                 >
-                    <View>
-                        <Text
-                            className="text-xl font-bold"
-                            style={{ color: colors.foreground, fontFamily: 'Lora_700Bold' }}
-                        >
-                            Weekly Reflection
-                        </Text>
-                        <Text
-                            className="text-sm"
-                            style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
-                        >
-                            {formatDateRange(reflection.weekStartDate, reflection.weekEndDate)}
-                        </Text>
-                    </View>
-                    <TouchableOpacity onPress={onClose} className="p-2">
-                        <X size={24} color={colors['muted-foreground']} />
-                    </TouchableOpacity>
-                </View>
+                    {formatDateRange(reflection.weekStartDate, reflection.weekEndDate)}
+                </Text>
+            </View>
 
-                <ScrollView className="flex-1 px-5 py-6" showsVerticalScrollIndicator={false}>
+            <ScrollView className="flex-1 px-5 py-6" showsVerticalScrollIndicator={false}>
                     {/* Stats Grid */}
                     <View className="flex-row flex-wrap gap-3 mb-8">
                         <View className="flex-1 min-w-[45%] p-4 rounded-2xl" style={{ backgroundColor: colors.muted }}>
@@ -154,9 +140,8 @@ export function WeeklyReflectionDetailModal({ isOpen, onClose, reflection }: Wee
                         <Text className="text-xs" style={{ color: colors['muted-foreground'] }}>
                             Completed on {format(new Date(reflection.completedAt), 'MMMM d, yyyy')}
                         </Text>
-                    </View>
-                </ScrollView>
-            </SafeAreaView>
-        </Modal>
+                </View>
+            </ScrollView>
+        </StandardBottomSheet>
     );
 }
