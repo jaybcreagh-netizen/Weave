@@ -1,8 +1,6 @@
-import React, { useEffect, useState } from 'react';
-import { Modal, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import Animated, { useSharedValue, useAnimatedStyle, withTiming, withSpring, runOnJS } from 'react-native-reanimated';
-import { BlurView } from 'expo-blur';
-import { Calendar, X } from 'lucide-react-native';
+import React, { useEffect, useState, useRef } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { Calendar } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { Q } from '@nozbe/watermelondb';
 import { useTheme } from '@/shared/hooks/useTheme';
@@ -11,6 +9,7 @@ import Intention from '@/db/models/Intention';
 import FriendModel from '@/db/models/Friend';
 import { InteractionCategory } from './types';
 import { database } from '@/db';
+import { AnimatedBottomSheet } from '@/shared/ui/Sheet';
 
 interface IntentionActionSheetProps {
   intention: Intention | null;
@@ -19,8 +18,6 @@ interface IntentionActionSheetProps {
   onSchedule: (intention: Intention, friend: FriendModel) => void;
   onDismiss: (intention: Intention) => void;
 }
-
-const SHEET_HEIGHT = 280;
 
 /**
  * Action sheet for acting on an intention
@@ -33,10 +30,11 @@ export function IntentionActionSheet({
   onSchedule,
   onDismiss,
 }: IntentionActionSheetProps) {
-  const { colors, isDarkMode } = useTheme();
-  const backdropOpacity = useSharedValue(0);
-  const sheetTranslateY = useSharedValue(SHEET_HEIGHT);
+  const { colors } = useTheme();
   const [friend, setFriend] = useState<FriendModel | null>(null);
+
+  // Track the pending action to execute after close animation
+  const pendingActionRef = useRef<'schedule' | 'dismiss' | 'close' | null>(null);
 
   // Load friend data through the join table
   useEffect(() => {
@@ -56,172 +54,101 @@ export function IntentionActionSheet({
     }
   }, [intention]);
 
-  useEffect(() => {
-    if (isOpen) {
-      backdropOpacity.value = withTiming(1, { duration: 200 });
-      sheetTranslateY.value = withSpring(0, { damping: 50, stiffness: 400 });
-    }
-  }, [isOpen]);
-
-  const animateOut = (callback: () => void) => {
-    backdropOpacity.value = withTiming(0, { duration: 150 });
-    sheetTranslateY.value = withTiming(SHEET_HEIGHT, { duration: 200 }, (finished) => {
-      if (finished) {
-        runOnJS(callback)();
-      }
-    });
-  };
-
   const handleSchedule = () => {
-    if (intention && friend) {
-      animateOut(() => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        onSchedule(intention, friend);
-      });
-    }
+    pendingActionRef.current = 'schedule';
+    onClose();
   };
 
-  const handleDismiss = () => {
-    if (intention) {
-      animateOut(() => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        onDismiss(intention);
-      });
-    }
+  const handleDismissAction = () => {
+    pendingActionRef.current = 'dismiss';
+    onClose();
   };
 
-  const backdropStyle = useAnimatedStyle(() => ({
-    opacity: backdropOpacity.value,
-  }));
+  const handleClose = () => {
+    pendingActionRef.current = 'close';
+    onClose();
+  };
 
-  const sheetStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: sheetTranslateY.value }],
-  }));
+  const handleCloseComplete = () => {
+    if (!intention || !friend) return;
 
-  if (!isOpen || !intention || !friend) return null;
+    if (pendingActionRef.current === 'schedule') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      onSchedule(intention, friend);
+    } else if (pendingActionRef.current === 'dismiss') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      onDismiss(intention);
+    }
+
+    pendingActionRef.current = null;
+  };
+
+  if (!intention || !friend) return null;
 
   const category = intention.interactionCategory
     ? getCategoryMetadata(intention.interactionCategory as InteractionCategory)
     : null;
 
   return (
-    <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
-      <TouchableOpacity
-        style={StyleSheet.absoluteFill}
-        activeOpacity={1}
-        onPress={() => animateOut(onClose)}
-      >
-        <Animated.View
-          style={[
-            StyleSheet.absoluteFill,
-            backdropStyle,
-            { backgroundColor: isDarkMode ? 'rgba(0, 0, 0, 0.6)' : 'rgba(0, 0, 0, 0.4)' }
-          ]}
+    <AnimatedBottomSheet
+      visible={isOpen}
+      onClose={handleClose}
+      onCloseComplete={handleCloseComplete}
+      height="action"
+      title={`Connection with ${friend.name}`}
+    >
+      {/* Category and Description */}
+      <View style={styles.headerContent}>
+        {category && <Text style={styles.categoryIcon}>{category.icon}</Text>}
+        {intention.description && (
+          <Text style={[styles.description, { color: colors['muted-foreground'] }]}>
+            {intention.description}
+          </Text>
+        )}
+      </View>
+
+      {/* Actions */}
+      <View style={styles.actions}>
+        <TouchableOpacity
+          style={[styles.actionButton, styles.primaryButton, { backgroundColor: colors.primary }]}
+          onPress={handleSchedule}
+          activeOpacity={0.8}
         >
-          <BlurView intensity={isDarkMode ? 20 : 10} tint={isDarkMode ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
-        </Animated.View>
-      </TouchableOpacity>
+          <Calendar color={colors['primary-foreground']} size={20} />
+          <Text style={[styles.actionButtonText, { color: colors['primary-foreground'] }]}>
+            Schedule It
+          </Text>
+        </TouchableOpacity>
 
-      <Animated.View
-        style={[
-          styles.sheet,
-          { backgroundColor: colors.card },
-          sheetStyle,
-        ]}
-        pointerEvents="box-none"
-      >
-        <View style={[styles.header, { borderBottomColor: colors.border }]}>
-          <View style={styles.headerContent}>
-            {category && <Text style={styles.categoryIcon}>{category.icon}</Text>}
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.title, { color: colors.foreground }]}>
-                Connection with {friend.name}
-              </Text>
-              {intention.description && (
-                <Text style={[styles.description, { color: colors['muted-foreground'] }]}>
-                  {intention.description}
-                </Text>
-              )}
-            </View>
-          </View>
-          <TouchableOpacity onPress={() => animateOut(onClose)} style={styles.closeButton}>
-            <X color={colors['muted-foreground']} size={24} />
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.actions}>
-          <TouchableOpacity
-            style={[styles.actionButton, styles.primaryButton, { backgroundColor: colors.primary }]}
-            onPress={handleSchedule}
-            activeOpacity={0.8}
-          >
-            <Calendar color={colors['primary-foreground']} size={20} />
-            <Text style={[styles.actionButtonText, { color: colors['primary-foreground'] }]}>
-              Schedule It
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.actionButton, styles.secondaryButton, { backgroundColor: colors.muted, borderColor: colors.border }]}
-            onPress={handleDismiss}
-            activeOpacity={0.8}
-          >
-            <Text style={[styles.actionButtonText, { color: colors.foreground }]}>
-              Dismiss
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </Animated.View>
-    </View>
+        <TouchableOpacity
+          style={[styles.actionButton, styles.secondaryButton, { backgroundColor: colors.muted, borderColor: colors.border }]}
+          onPress={handleDismissAction}
+          activeOpacity={0.8}
+        >
+          <Text style={[styles.actionButtonText, { color: colors.foreground }]}>
+            Dismiss
+          </Text>
+        </TouchableOpacity>
+      </View>
+    </AnimatedBottomSheet>
   );
 }
 
 const styles = StyleSheet.create({
-  sheet: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: SHEET_HEIGHT,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 16,
-    elevation: 16,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    paddingHorizontal: 24,
-    paddingVertical: 20,
-    borderBottomWidth: 1,
-  },
   headerContent: {
-    flex: 1,
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     gap: 12,
+    marginBottom: 16,
   },
   categoryIcon: {
     fontSize: 32,
   },
-  title: {
-    fontSize: 20,
-    fontWeight: '600',
-    fontFamily: 'Lora_700Bold',
-    marginBottom: 4,
-  },
   description: {
     fontSize: 15,
-  },
-  closeButton: {
-    padding: 4,
+    flex: 1,
   },
   actions: {
-    padding: 24,
     gap: 12,
   },
   actionButton: {
