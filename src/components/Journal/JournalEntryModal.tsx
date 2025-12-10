@@ -5,17 +5,16 @@
 
 import React, { useState, useEffect } from 'react';
 import {
-  Modal,
   View,
   Text,
   TouchableOpacity,
-  SafeAreaView,
   ScrollView,
   TextInput,
   Platform,
 } from 'react-native';
-import { X, Calendar, Users, Sparkles } from 'lucide-react-native';
+import { Calendar, Sparkles } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
+import { StandardBottomSheet } from '@/shared/ui/Sheet';
 import { database } from '@/db';
 import JournalEntry from '@/db/models/JournalEntry';
 import FriendModel from '@/db/models/Friend';
@@ -174,50 +173,35 @@ export function JournalEntryModal({ isOpen, onClose, entry, onSave }: JournalEnt
   };
 
   return (
-    <Modal
+    <StandardBottomSheet
       visible={isOpen}
-      animationType="slide"
-      presentationStyle="pageSheet"
-      onRequestClose={handleClose}
+      onClose={handleClose}
+      height="full"
+      title={isEditMode ? 'Edit Entry' : 'New Journal Entry'}
     >
-      <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
-        {/* Header */}
-        <View
-          className="px-5 py-4 flex-row items-center justify-between"
-          style={{ borderBottomWidth: 1, borderBottomColor: colors.border }}
+      {/* Save Button in Header Area */}
+      <View className="flex-row justify-end px-5 pb-3" style={{ borderBottomWidth: 1, borderBottomColor: colors.border }}>
+        <TouchableOpacity
+          onPress={handleSave}
+          disabled={!content.trim()}
+          className="px-4 py-2 rounded-lg"
+          style={{
+            backgroundColor: content.trim() ? colors.primary : colors.muted,
+          }}
         >
           <Text
-            className="text-xl font-bold"
-            style={{ color: colors.foreground, fontFamily: 'Lora_700Bold' }}
+            className="text-sm font-semibold"
+            style={{
+              color: content.trim() ? colors['primary-foreground'] : colors['muted-foreground'],
+              fontFamily: 'Inter_600SemiBold',
+            }}
           >
-            {isEditMode ? 'Edit Entry' : 'New Journal Entry'}
+            Save
           </Text>
-          <View className="flex-row items-center gap-2">
-            <TouchableOpacity
-              onPress={handleSave}
-              disabled={!content.trim()}
-              className="px-4 py-2 rounded-lg"
-              style={{
-                backgroundColor: content.trim() ? colors.primary : colors.muted,
-              }}
-            >
-              <Text
-                className="text-sm font-semibold"
-                style={{
-                  color: content.trim() ? colors['primary-foreground'] : colors['muted-foreground'],
-                  fontFamily: 'Inter_600SemiBold',
-                }}
-              >
-                Save
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={handleClose} className="p-2">
-              <X size={24} color={colors['muted-foreground']} />
-            </TouchableOpacity>
-          </View>
-        </View>
+        </TouchableOpacity>
+      </View>
 
-        <ScrollView className="flex-1 px-5 py-4" showsVerticalScrollIndicator={false}>
+      <ScrollView className="flex-1 px-5 py-4" showsVerticalScrollIndicator={false}>
           {/* Date Selector */}
           <View className="mb-4">
             <Text
@@ -439,8 +423,7 @@ export function JournalEntryModal({ isOpen, onClose, entry, onSave }: JournalEnt
               </View>
             )}
           </View>
-        </ScrollView>
-      </SafeAreaView>
-    </Modal>
+      </ScrollView>
+    </StandardBottomSheet>
   );
 }

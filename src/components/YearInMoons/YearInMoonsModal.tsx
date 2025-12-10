@@ -6,11 +6,9 @@
 
 import React, { useState, useEffect } from 'react';
 import {
-  Modal,
   View,
   Text,
   TouchableOpacity,
-  SafeAreaView,
   ScrollView,
   ActivityIndicator,
   Dimensions,
@@ -20,6 +18,7 @@ import Animated, { FadeIn } from 'react-native-reanimated';
 import { X, Calendar, BarChart3, Sparkles } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '@/shared/hooks/useTheme';
+import { StandardBottomSheet } from '@/shared/ui/Sheet';
 import { useUserProfileStore } from '@/modules/auth';
 import { MoonPhaseIllustration } from './MoonPhaseIllustration';
 import { PatternsTabContent } from './PatternsTabContent';
@@ -164,45 +163,13 @@ export function YearInMoonsModal({ isOpen, onClose }: YearInMoonsModalProps) {
   ];
 
   return (
-    <Modal
+    <StandardBottomSheet
       visible={isOpen}
-      animationType="slide"
-      presentationStyle="pageSheet"
-      onRequestClose={handleClose}
+      onClose={handleClose}
+      height="full"
+      title={`Year in Moons · ${currentYear}`}
     >
-      <LinearGradient
-        colors={isDarkMode ? ['#1a1d2e', '#0f1419'] : ['#FAF1E0', '#F3EAD8']}
-        style={{ flex: 1 }}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
-      >
-        <SafeAreaView className="flex-1">
-          {/* Header */}
-          <View
-            className="flex-row items-center justify-between px-5 py-4"
-            style={{ borderBottomWidth: 1, borderBottomColor: isDarkMode ? '#2A2E3F' : '#E0E3E9' }}
-          >
-            <View className="flex-1">
-              <Text
-                className="text-xl font-bold"
-                style={{ color: isDarkMode ? '#F5F1E8' : '#2D3142', fontFamily: 'Lora_700Bold' }}
-              >
-                Year in Moons
-              </Text>
-              <Text
-                className="text-xs mt-0.5"
-                style={{ color: isDarkMode ? '#8A8F9E' : '#6C7589', fontFamily: 'Inter_400Regular' }}
-              >
-                {currentYear}
-              </Text>
-            </View>
-
-            <TouchableOpacity onPress={handleClose} className="p-2 -mr-2">
-              <X size={24} color={isDarkMode ? '#8A8F9E' : '#6C7589'} />
-            </TouchableOpacity>
-          </View>
-
-          {/* Tab Navigation */}
+      {/* Tab Navigation */}
           <View className="flex-row px-5 py-3 gap-2">
             {tabs.map((tab) => {
               const Icon = tab.icon;
@@ -447,8 +414,6 @@ export function YearInMoonsModal({ isOpen, onClose }: YearInMoonsModalProps) {
               )}
             </View>
           )}
-        </SafeAreaView>
-      </LinearGradient>
 
       {/* Battery Check-in Sheet */}
       <SocialBatterySheet
@@ -456,6 +421,6 @@ export function YearInMoonsModal({ isOpen, onClose }: YearInMoonsModalProps) {
         onSubmit={handleBatteryCheckinSubmit}
         onDismiss={handleBatterySheetDismiss}
       />
-    </Modal>
+    </StandardBottomSheet>
   );
 }
