@@ -1,8 +1,8 @@
 import React from 'react';
-import { StyleSheet, View, Text, Modal, TouchableOpacity, ScrollView } from 'react-native';
-import { BlurView } from 'expo-blur';
-import { X, Calendar, Sparkles, CheckCircle2, Clock, Moon } from 'lucide-react-native';
+import { StyleSheet, View, Text, ScrollView } from 'react-native';
+import { Calendar, Sparkles, Clock, Moon } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
+import { AnimatedBottomSheet } from '@/shared/ui/Sheet';
 import { ListItem } from '@/components/ui/ListItem';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -77,32 +77,23 @@ export const DigestSheet: React.FC<DigestSheetProps> = ({
     );
 
     return (
-        <Modal
+        <AnimatedBottomSheet
             visible={isVisible}
-            transparent
-            animationType="slide"
-            onRequestClose={onClose}
+            onClose={onClose}
+            height="form"
         >
-            <View style={styles.overlay}>
-                <BlurView intensity={isDarkMode ? 40 : 20} style={StyleSheet.absoluteFill} />
-                <TouchableOpacity style={StyleSheet.absoluteFill} onPress={onClose} activeOpacity={1} />
+            <View style={styles.header}>
+                <View>
+                    <Text style={[styles.title, { color: tokens.foreground, fontFamily: typography.fonts.serifBold }]}>
+                        Evening Check-in
+                    </Text>
+                    <Text style={[styles.subtitle, { color: tokens.foregroundMuted, fontFamily: typography.fonts.sans }]}>
+                        {format(new Date(), 'EEEE, MMMM d')}
+                    </Text>
+                </View>
+            </View>
 
-                <View style={[styles.sheet, { backgroundColor: tokens.backgroundElevated }]}>
-                    <View style={styles.header}>
-                        <View>
-                            <Text style={[styles.title, { color: tokens.foreground, fontFamily: typography.fonts.serifBold }]}>
-                                Evening Check-in
-                            </Text>
-                            <Text style={[styles.subtitle, { color: tokens.foregroundMuted, fontFamily: typography.fonts.sans }]}>
-                                {format(new Date(), 'EEEE, MMMM d')}
-                            </Text>
-                        </View>
-                        <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                            <X size={24} color={tokens.foregroundMuted} />
-                        </TouchableOpacity>
-                    </View>
-
-                    <ScrollView contentContainerStyle={styles.content}>
+            <ScrollView contentContainerStyle={styles.content}>
 
                         {plans.length > 0 && (
                             <View style={styles.section}>
@@ -142,10 +133,8 @@ export const DigestSheet: React.FC<DigestSheetProps> = ({
                                 </Text>
                             </View>
                         )}
-                    </ScrollView>
-                </View>
-            </View>
-        </Modal>
+            </ScrollView>
+        </AnimatedBottomSheet>
     );
 };
 

@@ -1,13 +1,13 @@
 import React from 'react';
-import { StyleSheet, View, Text, Modal, TouchableOpacity, ScrollView } from 'react-native';
-import { BlurView } from 'expo-blur';
+import { StyleSheet, View, Text, ScrollView } from 'react-native';
 import {
-    X, Calendar, Sparkles, CheckCircle2, Lightbulb,
+    Calendar, Sparkles, CheckCircle2, Lightbulb,
     AlertTriangle, RefreshCw, Zap, Heart, Clock, Star,
     Gift, Briefcase, Home, GraduationCap, PartyPopper,
     HeartCrack, Activity, Target, History, Egg
 } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
+import { AnimatedBottomSheet } from '@/shared/ui/Sheet';
 import { ListItem } from '@/components/ui/ListItem';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -122,27 +122,18 @@ export const FocusDetailSheet: React.FC<FocusDetailSheetProps> = ({
     };
 
     return (
-        <Modal
+        <AnimatedBottomSheet
             visible={isVisible}
-            transparent
-            animationType="slide"
-            onRequestClose={onClose}
+            onClose={onClose}
+            height="full"
         >
-            <View style={styles.overlay}>
-                <BlurView intensity={isDarkMode ? 40 : 20} style={StyleSheet.absoluteFill} />
-                <TouchableOpacity style={StyleSheet.absoluteFill} onPress={onClose} activeOpacity={1} />
+            <View style={styles.header}>
+                <Text style={[styles.title, { color: tokens.foreground, fontFamily: typography.fonts.serifBold }]}>
+                    Today's Focus
+                </Text>
+            </View>
 
-                <View style={[styles.sheet, { backgroundColor: tokens.backgroundElevated }]}>
-                    <View style={styles.header}>
-                        <Text style={[styles.title, { color: tokens.foreground, fontFamily: typography.fonts.serifBold }]}>
-                            Today's Focus
-                        </Text>
-                        <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                            <X size={24} color={tokens.foregroundMuted} />
-                        </TouchableOpacity>
-                    </View>
-
-                    <ScrollView contentContainerStyle={styles.content}>
+            <ScrollView contentContainerStyle={styles.content}>
                         {/* Reflection Prompt */}
                         {prompt && (
                             <View style={[styles.promptContainer, { backgroundColor: tokens.primary + '10', borderColor: tokens.primary + '20' }]}>
@@ -293,10 +284,8 @@ export const FocusDetailSheet: React.FC<FocusDetailSheetProps> = ({
                                 </Text>
                             </View>
                         )}
-                    </ScrollView>
-                </View>
-            </View>
-        </Modal>
+            </ScrollView>
+        </AnimatedBottomSheet>
     );
 };
 
