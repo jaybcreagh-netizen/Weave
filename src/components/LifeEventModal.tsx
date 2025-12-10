@@ -11,7 +11,7 @@ import { LifeEvent } from '@/components/types';
 import UserProgress from '@/db/models/UserProgress';
 import { CustomCalendar } from './CustomCalendar';
 import { startOfDay } from 'date-fns';
-import { CustomBottomSheet } from '@/shared/ui/Sheet/BottomSheet';
+import { StandardBottomSheet } from '@/shared/ui/Sheet';
 
 interface LifeEventModalProps {
   visible: boolean;
@@ -152,11 +152,10 @@ export const LifeEventModal: React.FC<LifeEventModalProps> = ({
   };
 
   return (
-    <CustomBottomSheet
+    <StandardBottomSheet
       visible={visible}
       onClose={onClose}
-      snapPoints={['90%']}
-      index={0}
+      height="full"
     >
       <View className="flex-1 px-6">
         <View className="flex-row justify-between items-center mb-6">
@@ -303,11 +302,10 @@ export const LifeEventModal: React.FC<LifeEventModalProps> = ({
         </ScrollView>
 
         {/* Calendar Sheet */}
-        <CustomBottomSheet
+        <StandardBottomSheet
           visible={showDatePicker}
           onClose={() => setShowDatePicker(false)}
-          snapPoints={['50%']}
-          index={0}
+          height="form"
         >
           <View className="flex-1 p-6">
             <View className="flex-row justify-between items-center mb-4">
@@ -325,8 +323,8 @@ export const LifeEventModal: React.FC<LifeEventModalProps> = ({
               minDate={undefined}
             />
           </View>
-        </CustomBottomSheet>
+        </StandardBottomSheet>
       </View>
-    </CustomBottomSheet>
+    </StandardBottomSheet>
   );
 };
