@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { X } from 'lucide-react-native';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { useTheme } from '@/shared/hooks/useTheme';
+import { StandardBottomSheet } from '@/shared/ui/Sheet';
 import { type Interaction, type InteractionCategory, type Vibe, type StructuredReflection } from './types';
 import { getAllCategories, getCategoryMetadata, type CategoryMetadata } from '@/shared/constants/interaction-categories';
 import { MoonPhaseSelector } from './MoonPhaseSelector';
@@ -105,28 +105,13 @@ export function EditInteractionModal({
   if (!interaction) return null;
 
   return (
-    <Modal
+    <StandardBottomSheet
       visible={isOpen}
-      animationType="slide"
-      presentationStyle="pageSheet"
-      onRequestClose={onClose}
+      onClose={onClose}
+      height="full"
+      title="Edit Weave"
     >
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-        <View style={[styles.header, { borderBottomColor: colors.border }]}>
-          <View>
-            <Text style={[styles.headerTitle, { color: colors.foreground }]}>
-              Edit Weave
-            </Text>
-            <Text style={[styles.headerSubtitle, { color: colors['muted-foreground'] }]}>
-              Change the interaction type
-            </Text>
-          </View>
-          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-            <X color={colors['muted-foreground']} size={24} />
-          </TouchableOpacity>
-        </View>
-
-        <ScrollView
+      <ScrollView
           style={styles.scrollView}
           contentContainerStyle={styles.scrollViewContent}
           showsVerticalScrollIndicator={false}
@@ -246,20 +231,19 @@ export function EditInteractionModal({
           </View>
 
 
-        </ScrollView>
+      </ScrollView>
 
-        <View style={[styles.footer, { backgroundColor: colors.background, borderTopColor: colors.border }]}>
-          <TouchableOpacity
-            style={[styles.saveButton, { backgroundColor: colors.primary }]}
-            onPress={handleSave}
-            disabled={isSaving || !selectedCategory}
-          >
-            <Text style={[styles.saveButtonText, { color: colors['primary-foreground'] }]}>
-              {isSaving ? 'Saving...' : 'Save Changes'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
+      <View style={[styles.footer, { backgroundColor: colors.background, borderTopColor: colors.border }]}>
+        <TouchableOpacity
+          style={[styles.saveButton, { backgroundColor: colors.primary }]}
+          onPress={handleSave}
+          disabled={isSaving || !selectedCategory}
+        >
+          <Text style={[styles.saveButtonText, { color: colors['primary-foreground'] }]}>
+            {isSaving ? 'Saving...' : 'Save Changes'}
+          </Text>
+        </TouchableOpacity>
+      </View>
 
       {/* Calendar Modal */}
       {showDatePicker && (
@@ -307,7 +291,7 @@ export function EditInteractionModal({
           </BlurView>
         </Modal>
       )}
-    </Modal>
+    </StandardBottomSheet>
   );
 }
 

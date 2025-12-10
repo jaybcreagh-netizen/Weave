@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, View, Text, TouchableOpacity, ScrollView, Alert } from 'react-native';
-import { X, Trash2, Check } from 'lucide-react-native';
+import { View, Text, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import { Trash2, Check } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
+import { StandardBottomSheet } from '@/shared/ui/Sheet';
 import { useFriendActions } from '@/modules/relationships/hooks/useFriendActions';
 import { calculateCurrentScore } from '@/modules/intelligence';
 import type FriendModel from '@/db/models/Friend';
@@ -96,42 +97,13 @@ export function FriendManagementModal({ visible, onClose }: FriendManagementModa
   const sortedFriends = friends ? [...friends].sort((a, b) => a.name.localeCompare(b.name)) : [];
 
   return (
-    <Modal
+    <StandardBottomSheet
       visible={visible}
-      animationType="slide"
-      transparent={true}
-      onRequestClose={onClose}
+      onClose={onClose}
+      height="full"
+      title="Manage Friends"
     >
-      <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }}>
-        <View
-          style={{
-            flex: 1,
-            marginTop: 60,
-            backgroundColor: colors.background,
-            borderTopLeftRadius: 20,
-            borderTopRightRadius: 20
-          }}
-        >
-          {/* Header */}
-          <View
-            style={{
-              flexDirection: 'row',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              padding: 20,
-              borderBottomWidth: 1,
-              borderBottomColor: colors.border
-            }}
-          >
-            <Text style={{ fontSize: 20, fontWeight: '600', color: colors.foreground, fontFamily: 'Lora_700Bold' }}>
-              Manage Friends
-            </Text>
-            <TouchableOpacity onPress={onClose}>
-              <X size={24} color={colors['muted-foreground']} />
-            </TouchableOpacity>
-          </View>
-
-          {/* Selection Controls */}
+      {/* Selection Controls */}
           <View style={{ flexDirection: 'row', gap: 12, padding: 16, borderBottomWidth: 1, borderBottomColor: colors.border }}>
             <TouchableOpacity
               onPress={selectAll}
@@ -256,8 +228,6 @@ export function FriendManagementModal({ visible, onClose }: FriendManagementModa
               </Text>
             </TouchableOpacity>
           </View>
-        </View>
-      </View>
-    </Modal>
+    </StandardBottomSheet>
   );
 }
