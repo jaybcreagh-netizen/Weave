@@ -20,10 +20,14 @@ interface EditInteractionModalProps {
   onSave: (interactionId: string, updates: {
     title?: string;
     category?: InteractionCategory;
+    interactionCategory?: InteractionCategory;
+    activity?: string;
     vibe?: Vibe | null;
     reflection?: StructuredReflection;
+    reflectionJSON?: string;
     interactionDate?: Date;
     initiator?: InitiatorType;
+    note?: string;
   }) => Promise<void>;
 }
 
@@ -70,7 +74,8 @@ export function EditInteractionModal({
       }
 
       if (selectedCategory && selectedCategory !== (interaction.interactionCategory || interaction.activity)) {
-        updates.category = selectedCategory;
+        updates.interactionCategory = selectedCategory;
+        updates.activity = selectedCategory;
       }
 
       if (selectedVibe !== interaction.vibe) {
@@ -79,10 +84,12 @@ export function EditInteractionModal({
 
       // Update reflection if custom notes changed
       if (customNotes !== (interaction.reflection?.customNotes || interaction.note || '')) {
-        updates.reflection = {
+        const newReflection = {
           ...interaction.reflection,
           customNotes,
         };
+        updates.reflectionJSON = JSON.stringify(newReflection);
+        updates.note = customNotes;
       }
 
       if (selectedDate && selectedDate.getTime() !== interaction.interactionDate.getTime()) {
