@@ -47,7 +47,7 @@ import {
   Inter_600SemiBold,
 } from '@expo-google-fonts/inter';
 import * as Sentry from '@sentry/react-native';
-import { initializeAnalytics, trackEvent, trackRetentionMetrics, AnalyticsEvents, setPostHogInstance } from '@/shared/services/analytics.service';
+import { initializeAnalytics, trackEvent, trackRetentionMetrics, AnalyticsEvents, setPostHogInstance, setUserProperties } from '@/shared/services/analytics.service';
 import { PostHogProvider, usePostHog, POSTHOG_API_KEY, posthogOptions } from '@/shared/services/posthog.service';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { isSunday, isSameDay } from 'date-fns';
@@ -92,6 +92,7 @@ function RootLayoutContent() {
 
   const posthog = usePostHog();
   const [analyticsInitialized, setAnalyticsInitialized] = useState(false);
+  const hasCompletedOnboarding = useTutorialStore((state) => state.hasCompletedOnboarding);
 
   const pathname = usePathname();
 
@@ -104,8 +105,13 @@ function RootLayoutContent() {
         trackRetentionMetrics();
         setAnalyticsInitialized(true);
       }
+
+      // Sync onboarding status for existing users who might have missed the event
+      if (hasCompletedOnboarding) {
+        setUserProperties({ onboarding_completed: true });
+      }
     }
-  }, [posthog, analyticsInitialized]);
+  }, [posthog, analyticsInitialized, hasCompletedOnboarding]);
 
   // Manually track screen views
   useEffect(() => {
@@ -128,7 +134,6 @@ function RootLayoutContent() {
   const memoryMomentData = useUIStore((state) => state.memoryMomentData);
   const digestSheetVisible = useUIStore((state) => state.digestSheetVisible);
   const digestItems = useUIStore((state) => state.digestItems);
-  const hasCompletedOnboarding = useTutorialStore((state) => state.hasCompletedOnboarding);
 
   const [fontsLoaded, fontError] = useFonts({
     Lora_400Regular,

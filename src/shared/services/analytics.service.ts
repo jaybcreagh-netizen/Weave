@@ -164,7 +164,19 @@ export function setUserProperties(properties: Record<string, any>): void {
       return;
     }
 
-    posthogInstance.setPersonPropertiesForFlags(properties);
+    // Use identify to set person properties. 
+    // If we don't pass a distinctId (first arg), it might reset it or throw.
+    // Safe bet for existing anonymous users is to capture an $identify event or use the capture('$set') pattern if we don't want to manage IDs manually.
+    // However, the best practice is often: posthog.identify(posthog.getDistinctId(), properties)
+
+    // Check if we can get the distinct ID
+    const distinctId = posthogInstance.getDistinctId();
+    if (distinctId) {
+      posthogInstance.identify(distinctId, properties);
+    } else {
+      // Fallback if no ID is available (unlikely if authorized)
+      posthogInstance.capture('$set', { $set: properties });
+    }
   } catch (error) {
     console.error('[Analytics] Failed to set user properties:', error);
   }

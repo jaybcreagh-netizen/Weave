@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { trackEvent, AnalyticsEvents } from '@/shared/services/analytics.service';
+import { trackEvent, AnalyticsEvents, setUserProperties } from '@/shared/services/analytics.service';
 
 interface TutorialState {
   // Onboarding completion flags
@@ -68,7 +68,10 @@ export const useTutorialStore = create<TutorialState>((set, get) => ({
   completeOnboarding: async () => {
     const { persistState } = get();
     await persistState({ hasCompletedOnboarding: true });
+
+    // Track event and set user property for reliable segmentation
     trackEvent(AnalyticsEvents.ONBOARDING_COMPLETED);
+    setUserProperties({ onboarding_completed: true });
   },
 
   markFirstFriendAdded: async () => {
