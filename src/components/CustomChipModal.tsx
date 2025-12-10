@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Modal, ScrollView } from 'react-native';
-import { X } from 'lucide-react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
+import { AnimatedBottomSheet } from '@/shared/ui/Sheet';
 import { type ChipType, getChipTypeLabel } from '@/modules/reflection';
 import { createNewCustomChip } from '@/modules/reflection';
 
@@ -48,25 +48,19 @@ export function CustomChipModal({
   };
 
   return (
-    <Modal
+    <AnimatedBottomSheet
       visible={isOpen}
-      transparent
-      animationType="slide"
-      onRequestClose={onClose}
+      onClose={onClose}
+      height="form"
     >
-      <View style={styles.overlay}>
-        <View style={[styles.modal, { backgroundColor: colors.background }]}>
-          {/* Header */}
-          <View style={styles.header}>
-            <Text style={[styles.title, { color: colors.foreground }]}>
-              Create Custom Chip
-            </Text>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <X size={24} color={colors['muted-foreground']} />
-            </TouchableOpacity>
-          </View>
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={[styles.title, { color: colors.foreground }]}>
+          Create Custom Chip
+        </Text>
+      </View>
 
-          <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
             {/* Suggestion hint */}
             {suggestedText && (
               <View style={[styles.suggestionBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -147,34 +141,32 @@ export function CustomChipModal({
                 ))}
               </View>
             </View>
-          </ScrollView>
+      </ScrollView>
 
-          {/* Footer */}
-          <View style={[styles.footer, { borderTopColor: colors.border }]}>
-            <TouchableOpacity
-              style={[styles.cancelButton, { borderColor: colors.border }]}
-              onPress={onClose}
-            >
-              <Text style={[styles.cancelButtonText, { color: colors['muted-foreground'] }]}>
-                Cancel
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.createButton,
-                { backgroundColor: chipText.trim() ? colors.primary : colors.muted },
-              ]}
-              onPress={handleCreate}
-              disabled={!chipText.trim() || isCreating}
-            >
-              <Text style={styles.createButtonText}>
-                {isCreating ? 'Creating...' : 'Create Chip'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+      {/* Footer */}
+      <View style={[styles.footer, { borderTopColor: colors.border }]}>
+        <TouchableOpacity
+          style={[styles.cancelButton, { borderColor: colors.border }]}
+          onPress={onClose}
+        >
+          <Text style={[styles.cancelButtonText, { color: colors['muted-foreground'] }]}>
+            Cancel
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[
+            styles.createButton,
+            { backgroundColor: chipText.trim() ? colors.primary : colors.muted },
+          ]}
+          onPress={handleCreate}
+          disabled={!chipText.trim() || isCreating}
+        >
+          <Text style={styles.createButtonText}>
+            {isCreating ? 'Creating...' : 'Create Chip'}
+          </Text>
+        </TouchableOpacity>
       </View>
-    </Modal>
+    </AnimatedBottomSheet>
   );
 }
 

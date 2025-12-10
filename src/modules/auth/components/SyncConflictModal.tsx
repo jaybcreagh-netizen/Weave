@@ -1,8 +1,9 @@
 import React from 'react';
-import { Modal, View, Text, TouchableOpacity, SafeAreaView, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { useSyncConflictStore } from '../store/sync-conflict.store';
-import { AlertTriangle, Check, X, Server, Smartphone } from 'lucide-react-native';
+import { AlertTriangle, Server, Smartphone } from 'lucide-react-native';
+import { StandardBottomSheet } from '@/shared/ui/Sheet';
 
 export function SyncConflictModal() {
     const { colors } = useTheme();
@@ -63,27 +64,24 @@ export function SyncConflictModal() {
 
     const diffs = getDiffFields();
 
+    // Note: onClose is empty to prevent closing without resolution
     return (
-        <Modal
+        <StandardBottomSheet
             visible={isModalOpen}
-            animationType="slide"
-            presentationStyle="pageSheet"
-            onRequestClose={() => { }} // Prevent closing without resolution
+            onClose={() => { }} // Prevent closing without resolution
+            height="full"
+            title="Sync Conflict Detected"
         >
-            <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-                <View style={styles.header}>
-                    <View style={[styles.iconContainer, { backgroundColor: colors.destructive + '20' }]}>
-                        <AlertTriangle size={24} color={colors.destructive} />
-                    </View>
-                    <Text style={[styles.title, { color: colors.foreground }]}>
-                        Sync Conflict Detected
-                    </Text>
-                    <Text style={[styles.subtitle, { color: colors.muted }]}>
-                        Table: {tableName} • ID: {currentConflict.id.substring(0, 8)}...
-                    </Text>
+            <View style={styles.header}>
+                <View style={[styles.iconContainer, { backgroundColor: colors.destructive + '20' }]}>
+                    <AlertTriangle size={24} color={colors.destructive} />
                 </View>
+                <Text style={[styles.subtitle, { color: colors.muted }]}>
+                    Table: {tableName} • ID: {currentConflict.id.substring(0, 8)}...
+                </Text>
+            </View>
 
-                <ScrollView style={styles.content}>
+            <ScrollView style={styles.content}>
                     <Text style={[styles.instruction, { color: colors.foreground }]}>
                         The server has a newer version of this record than your device. Which version would you like to keep?
                     </Text>
@@ -140,13 +138,12 @@ export function SyncConflictModal() {
                     </TouchableOpacity>
                 </View>
 
-                <View style={styles.queueInfo}>
-                    <Text style={{ color: colors.muted, fontSize: 12 }}>
-                        {conflicts.length > 1 ? `${conflicts.length - 1} more conflicts waiting` : 'Last conflict'}
-                    </Text>
-                </View>
-            </SafeAreaView>
-        </Modal>
+            <View style={styles.queueInfo}>
+                <Text style={{ color: colors.muted, fontSize: 12 }}>
+                    {conflicts.length > 1 ? `${conflicts.length - 1} more conflicts waiting` : 'Last conflict'}
+                </Text>
+            </View>
+        </StandardBottomSheet>
     );
 }
 

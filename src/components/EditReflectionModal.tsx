@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
-import { Modal, View, Text, TouchableOpacity, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { X } from 'lucide-react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { ContextualReflectionInput } from './ContextualReflectionInput';
 import { CelebrationAnimation } from './CelebrationAnimation';
 import { useTheme } from '@/shared/hooks/useTheme';
+import { StandardBottomSheet } from '@/shared/ui/Sheet';
 import { type Interaction, type StructuredReflection, type InteractionCategory, type Archetype, type Vibe } from './types';
 import { calculateDeepeningLevel } from '@/modules/intelligence';
 
@@ -69,29 +68,20 @@ export function EditReflectionModal({
   const deepeningMetrics = calculateDeepeningLevel(reflection);
 
   return (
-    <Modal
+    <StandardBottomSheet
       visible={isOpen}
-      animationType="slide"
-      presentationStyle="pageSheet"
-      onRequestClose={onClose}
+      onClose={onClose}
+      height="full"
+      title="Tell me more"
     >
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-        {/* Celebration animation */}
-        <CelebrationAnimation
-          visible={showCelebration}
-          intensity={deepeningMetrics.level === 'none' ? 'light' : deepeningMetrics.level}
-          onComplete={() => setShowCelebration(false)}
-        />
-        <View style={[styles.header, { borderBottomColor: colors.border }]}>
-          <Text style={[styles.headerTitle, { color: colors.foreground }]}>
-            Tell me more
-          </Text>
-          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-            <X color={colors['muted-foreground']} size={24} />
-          </TouchableOpacity>
-        </View>
+      {/* Celebration animation */}
+      <CelebrationAnimation
+        visible={showCelebration}
+        intensity={deepeningMetrics.level === 'none' ? 'light' : deepeningMetrics.level}
+        onComplete={() => setShowCelebration(false)}
+      />
 
-        <KeyboardAvoidingView
+      <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={{ flex: 1 }}
         >
@@ -120,21 +110,20 @@ export function EditReflectionModal({
               />
             </Animated.View>
           </ScrollView>
-        </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
 
-        <View style={[styles.footer, { backgroundColor: colors.background, borderTopColor: colors.border }]}>
-          <TouchableOpacity
-            style={[styles.saveButton, { backgroundColor: colors.primary }]}
-            onPress={handleSave}
-            disabled={isSaving}
-          >
-            <Text style={[styles.saveButtonText, { color: colors['primary-foreground'] }]}>
-              {isSaving ? 'Saving...' : 'Save Reflection'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
-    </Modal>
+      <View style={[styles.footer, { backgroundColor: colors.background, borderTopColor: colors.border }]}>
+        <TouchableOpacity
+          style={[styles.saveButton, { backgroundColor: colors.primary }]}
+          onPress={handleSave}
+          disabled={isSaving}
+        >
+          <Text style={[styles.saveButtonText, { color: colors['primary-foreground'] }]}>
+            {isSaving ? 'Saving...' : 'Save Reflection'}
+          </Text>
+        </TouchableOpacity>
+      </View>
+    </StandardBottomSheet>
   );
 }
 

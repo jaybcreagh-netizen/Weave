@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, TextInput, FlatList, Alert, Modal, SafeAreaView } from 'react-native';
-import { X, Check, Trash2 } from 'lucide-react-native';
+import { View, Text, TouchableOpacity, TextInput, FlatList, Alert } from 'react-native';
+import { Check, Trash2 } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
-import { CustomBottomSheet } from '@/shared/ui/Sheet/BottomSheet';
+import { StandardBottomSheet } from '@/shared/ui/Sheet';
 import FriendModel from '@/db/models/Friend';
 import { database } from '@/db';
 import { Q } from '@nozbe/watermelondb';
@@ -15,7 +15,6 @@ interface GroupManagerModalProps {
     groupToEdit?: Group; // If provided, we are editing
     initialData?: { name: string; memberIds: string[] }; // For pre-filling (e.g. from suggestions)
     onGroupSaved: () => void;
-    asModal?: boolean;
 }
 
 export function GroupManagerModal({
@@ -24,7 +23,6 @@ export function GroupManagerModal({
     groupToEdit,
     initialData,
     onGroupSaved,
-    asModal = false
 }: GroupManagerModalProps) {
     const { colors } = useTheme();
     const [allFriends, setAllFriends] = useState<FriendModel[]>([]);
@@ -136,106 +134,78 @@ export function GroupManagerModal({
         );
     };
 
-    const Content = (
-        <View className="flex-1">
-            {/* Header */}
-            <View className="flex-row justify-between items-center p-5 border-b" style={{ borderColor: colors.border }}>
-                <Text className="font-lora-bold text-xl" style={{ color: colors.foreground }}>
-                    {groupToEdit ? 'Edit Group' : 'New Group'}
-                </Text>
-                <TouchableOpacity onPress={onClose} className="p-2 -mr-2">
-                    <X color={colors['muted-foreground']} size={24} />
-                </TouchableOpacity>
-            </View>
+    return (
+        <StandardBottomSheet
+            visible={visible}
+            onClose={onClose}
+            height="full"
+            title={groupToEdit ? 'Edit Group' : 'New Group'}
+        >
+            <View className="flex-1">
+                {/* Form */}
+                <View className="p-5">
+                    <Text className="font-inter-medium text-sm mb-2" style={{ color: colors['muted-foreground'] }}>
+                        Group Name
+                    </Text>
+                    <TextInput
+                        className="p-4 rounded-xl font-inter-regular text-base border"
+                        style={{
+                            backgroundColor: colors.background,
+                            borderColor: colors.border,
+                            color: colors.foreground
+                        }}
+                        placeholder="e.g., Girl Group, Family"
+                        placeholderTextColor={colors['muted-foreground']}
+                        value={name}
+                        onChangeText={setName}
+                    />
+                </View>
 
-            {/* Form */}
-            <View className="p-5">
-                <Text className="font-inter-medium text-sm mb-2" style={{ color: colors['muted-foreground'] }}>
-                    Group Name
-                </Text>
-                <TextInput
-                    className="p-4 rounded-xl font-inter-regular text-base border"
+                <View className="px-5 pb-2">
+                    <Text className="font-inter-medium text-sm" style={{ color: colors['muted-foreground'] }}>
+                        Select Members ({selectedFriendIds.length})
+                    </Text>
+                </View>
+
+                {/* Friend List */}
+                <FlatList
+                    data={allFriends}
+                    renderItem={renderFriendItem}
+                    keyExtractor={item => item.id}
+                    contentContainerStyle={{ paddingBottom: 100 }}
+                />
+
+                {/* Footer Actions */}
+                <View
+                    className="absolute bottom-0 left-0 right-0 p-5 border-t flex-row gap-3"
                     style={{
                         backgroundColor: colors.background,
                         borderColor: colors.border,
-                        color: colors.foreground
+                        paddingBottom: 30
                     }}
-                    placeholder="e.g., Girl Group, Family"
-                    placeholderTextColor={colors['muted-foreground']}
-                    value={name}
-                    onChangeText={setName}
-                />
-            </View>
-
-            <View className="px-5 pb-2">
-                <Text className="font-inter-medium text-sm" style={{ color: colors['muted-foreground'] }}>
-                    Select Members ({selectedFriendIds.length})
-                </Text>
-            </View>
-
-            {/* Friend List */}
-            <FlatList
-                data={allFriends}
-                renderItem={renderFriendItem}
-                keyExtractor={item => item.id}
-                contentContainerStyle={{ paddingBottom: 100 }}
-            />
-
-            {/* Footer Actions */}
-            <View
-                className="absolute bottom-0 left-0 right-0 p-5 border-t flex-row gap-3"
-                style={{
-                    backgroundColor: colors.background,
-                    borderColor: colors.border,
-                    paddingBottom: 30
-                }}
-            >
-                {groupToEdit && (
-                    <TouchableOpacity
-                        onPress={handleDelete}
-                        className="p-4 rounded-xl items-center justify-center border"
-                        style={{ borderColor: colors.destructive, width: 60 }}
-                    >
-                        <Trash2 size={20} color={colors.destructive} />
-                    </TouchableOpacity>
-                )}
-
-                <TouchableOpacity
-                    onPress={handleSave}
-                    disabled={isSaving}
-                    className="flex-1 py-4 rounded-xl items-center justify-center"
-                    style={{ backgroundColor: colors.primary, opacity: isSaving ? 0.7 : 1 }}
                 >
-                    <Text className="font-inter-semibold text-base" style={{ color: colors.background }}>
-                        {isSaving ? 'Saving...' : 'Save Group'}
-                    </Text>
-                </TouchableOpacity>
+                    {groupToEdit && (
+                        <TouchableOpacity
+                            onPress={handleDelete}
+                            className="p-4 rounded-xl items-center justify-center border"
+                            style={{ borderColor: colors.destructive, width: 60 }}
+                        >
+                            <Trash2 size={20} color={colors.destructive} />
+                        </TouchableOpacity>
+                    )}
+
+                    <TouchableOpacity
+                        onPress={handleSave}
+                        disabled={isSaving}
+                        className="flex-1 py-4 rounded-xl items-center justify-center"
+                        style={{ backgroundColor: colors.primary, opacity: isSaving ? 0.7 : 1 }}
+                    >
+                        <Text className="font-inter-semibold text-base" style={{ color: colors.background }}>
+                            {isSaving ? 'Saving...' : 'Save Group'}
+                        </Text>
+                    </TouchableOpacity>
+                </View>
             </View>
-        </View>
-    );
-
-    if (asModal) {
-        return (
-            <Modal
-                visible={visible}
-                animationType="slide"
-                presentationStyle="pageSheet"
-                onRequestClose={onClose}
-            >
-                <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
-                    {Content}
-                </SafeAreaView>
-            </Modal>
-        );
-    }
-
-    return (
-        <CustomBottomSheet
-            visible={visible}
-            onClose={onClose}
-            snapPoints={['90%']}
-        >
-            {Content}
-        </CustomBottomSheet>
+        </StandardBottomSheet>
     );
 }

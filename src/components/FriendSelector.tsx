@@ -7,7 +7,7 @@ import FriendModel from '@/db/models/Friend';
 import Group from '@/db/models/Group';
 import { database } from '@/db';
 import { Q } from '@nozbe/watermelondb';
-import { CustomBottomSheet } from '@/shared/ui/Sheet/BottomSheet';
+import { StandardBottomSheet } from '@/shared/ui/Sheet';
 import { groupService } from '@/modules/groups';
 import { GroupManagerModal } from './groups/GroupManagerModal';
 
@@ -406,12 +406,12 @@ export function FriendSelector({
     }
 
     return (
-        <CustomBottomSheet
+        <StandardBottomSheet
             visible={visible}
             onClose={onClose}
-            snapPoints={['90%']}
+            height="full"
         >
             {Content}
-        </CustomBottomSheet>
+        </StandardBottomSheet>
     );
 }

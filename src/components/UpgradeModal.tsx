@@ -5,11 +5,11 @@
  */
 
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Modal } from 'react-native';
-import { Check, X, Crown, Star, Sparkles } from 'lucide-react-native';
-import { useAuthStore } from '@/modules/auth';
+import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import { Check, X, Crown, Star } from 'lucide-react-native';
 import { TIER_LIMITS, FEATURE_DESCRIPTIONS } from '@/modules/auth';
 import { useTierInfo } from '@/modules/auth';
+import { StandardBottomSheet } from '@/shared/ui/Sheet';
 
 interface UpgradeModalProps {
   visible: boolean;
@@ -95,22 +95,13 @@ export function UpgradeModal({ visible, onClose, highlightFeature }: UpgradeModa
   ];
 
   return (
-    <Modal
+    <StandardBottomSheet
       visible={visible}
-      animationType="slide"
-      presentationStyle="pageSheet"
-      onRequestClose={onClose}
+      onClose={onClose}
+      height="full"
+      title="Upgrade Weave"
     >
-      <View className="flex-1 bg-white">
-        {/* Header */}
-        <View className="flex-row items-center justify-between px-6 py-4 border-b border-gray-200">
-          <Text className="text-2xl font-lora font-bold">Upgrade Weave</Text>
-          <TouchableOpacity onPress={onClose}>
-            <X size={24} color="#6B7280" />
-          </TouchableOpacity>
-        </View>
-
-        <ScrollView className="flex-1">
+      <ScrollView className="flex-1">
           {/* Current Tier Badge */}
           <View className="px-6 py-4 bg-gray-50">
             <Text className="text-sm text-gray-600">Current Plan</Text>
@@ -254,27 +245,26 @@ export function UpgradeModal({ visible, onClose, highlightFeature }: UpgradeModa
               Cancel anytime. Prices in USD. Subscriptions auto-renew.
             </Text>
           </View>
-        </ScrollView>
+      </ScrollView>
 
-        {/* CTA Button */}
-        <View className="px-6 py-4 border-t border-gray-200 bg-white">
-          <TouchableOpacity
-            onPress={handleUpgrade}
-            className="bg-purple-600 rounded-xl py-4 items-center"
-          >
-            <Text className="text-white font-semibold text-lg">
-              Upgrade to {selectedTier === 'plus' ? 'Plus' : 'Premium'}
-            </Text>
-            <Text className="text-purple-200 text-sm mt-1">
-              ${selectedTier === 'plus' ? '4.99' : '9.99'}/month
-            </Text>
-          </TouchableOpacity>
+      {/* CTA Button */}
+      <View className="px-6 py-4 border-t border-gray-200 bg-white">
+        <TouchableOpacity
+          onPress={handleUpgrade}
+          className="bg-purple-600 rounded-xl py-4 items-center"
+        >
+          <Text className="text-white font-semibold text-lg">
+            Upgrade to {selectedTier === 'plus' ? 'Plus' : 'Premium'}
+          </Text>
+          <Text className="text-purple-200 text-sm mt-1">
+            ${selectedTier === 'plus' ? '4.99' : '9.99'}/month
+          </Text>
+        </TouchableOpacity>
 
-          <TouchableOpacity onPress={onClose} className="mt-3">
-            <Text className="text-center text-gray-500">Maybe Later</Text>
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity onPress={onClose} className="mt-3">
+          <Text className="text-center text-gray-500">Maybe Later</Text>
+        </TouchableOpacity>
       </View>
-    </Modal>
+    </StandardBottomSheet>
   );
 }

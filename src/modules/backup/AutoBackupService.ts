@@ -1,5 +1,6 @@
 import { CloudStorage } from 'react-native-cloud-storage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 import { exportAllData } from '../auth/services/data-export';
 import Logger from '../../shared/utils/Logger';
 
@@ -13,6 +14,11 @@ export const AutoBackupService = {
      * Initialize the backup service
      */
     init: async (): Promise<boolean> => {
+        // Cloud backup is currently iOS-only (iCloud)
+        if (Platform.OS === 'android') {
+            return false;
+        }
+
         try {
             let exists = false;
             try {

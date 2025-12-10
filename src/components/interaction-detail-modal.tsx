@@ -1,11 +1,9 @@
-import React, { useEffect, useState } from 'react';
-import { Modal, View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
-import { X, Calendar, MapPin, Heart, MessageCircle, Sparkles, Edit3, Trash2, Share2 } from 'lucide-react-native';
+import React, { useEffect, useState, useRef } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+import { Calendar, MapPin, Heart, MessageCircle, Sparkles, Edit3, Trash2, Share2 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { GestureDetector, Gesture } from 'react-native-gesture-handler';
-import Animated, { useSharedValue, useAnimatedStyle, withSpring, runOnJS } from 'react-native-reanimated';
-import { BlurView } from 'expo-blur';
 import { useTheme } from '@/shared/hooks/useTheme';
+import { AnimatedBottomSheet } from '@/shared/ui/Sheet';
 import { type Interaction, type MoonPhase, type InteractionCategory } from './types';
 import { modeIcons } from '@/shared/constants/constants';
 import { getCategoryMetadata } from '@/shared/constants/interaction-categories';
@@ -56,23 +54,9 @@ export function InteractionDetailModal({
 }: InteractionDetailModalProps) {
   const insets = useSafeAreaInsets();
   const { colors, isDarkMode } = useTheme();
-  const translateY = useSharedValue(0);
 
-  const pan = Gesture.Pan()
-    .onUpdate((event) => {
-      translateY.value = Math.max(0, event.translationY);
-    })
-    .onEnd((event) => {
-      if (event.translationY > 200) {
-        runOnJS(onClose)();
-      } else {
-        translateY.value = withSpring(0);
-      }
-    });
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: translateY.value }],
-  }));
+  // Track pending actions for after close animation
+  const pendingActionRef = useRef<'edit' | 'delete' | 'editReflection' | null>(null);
 
   const [participants, setParticipants] = useState<FriendModel[]>([]);
 
@@ -136,6 +120,36 @@ export function InteractionDetailModal({
     }
   };
 
+  // Handle close completion - execute pending action
+  const handleCloseComplete = () => {
+    if (!interaction) return;
+
+    if (pendingActionRef.current === 'edit' && onEdit) {
+      onEdit(interaction.id);
+    } else if (pendingActionRef.current === 'delete' && onDelete) {
+      onDelete(interaction.id);
+    } else if (pendingActionRef.current === 'editReflection' && onEditReflection) {
+      onEditReflection(interaction);
+    }
+    pendingActionRef.current = null;
+  };
+
+  // Action handlers that set pending action and close
+  const handleEditPress = () => {
+    pendingActionRef.current = 'edit';
+    onClose();
+  };
+
+  const handleDeletePress = () => {
+    pendingActionRef.current = 'delete';
+    onClose();
+  };
+
+  const handleEditReflectionPress = () => {
+    pendingActionRef.current = 'editReflection';
+    onClose();
+  };
+
   // Get friendly label and icon for category (or fall back to activity)
   // Check if activity looks like a category ID (has a dash)
   const isCategory = interaction.activity && interaction.activity.includes('-');
@@ -160,76 +174,53 @@ export function InteractionDetailModal({
   }
 
   return (
-    <Modal
-      animationType="slide"
-      transparent={true}
+    <AnimatedBottomSheet
       visible={isOpen}
-      onRequestClose={onClose}
+      onClose={onClose}
+      height="form"
+      onCloseComplete={handleCloseComplete}
     >
-      <BlurView style={styles.backdrop} intensity={isDarkMode ? 10 : 30} tint={isDarkMode ? 'dark' : 'light'}>
-        <GestureDetector gesture={pan}>
-          <Animated.View style={[
-            styles.modalContainer,
-            {
-              paddingBottom: insets.bottom,
-              backgroundColor: isDarkMode ? colors.background + 'F0' : colors.background,
-            },
-            animatedStyle
-          ]}>
-            <View style={styles.handleBarContainer}>
-              <View style={[styles.handleBar, { backgroundColor: colors.muted }]} />
-            </View>
+      <View style={styles.header}>
+        <View style={styles.headerTitleContainer}>
+          <Text style={styles.headerIcon}>{displayIcon}</Text>
+          <View>
+            <Text style={[styles.headerTitle, { color: colors.foreground }]}>{displayLabel}</Text>
+            <Text style={[styles.headerSubtitle, { color: colors['muted-foreground'] }]}>
+              {interaction.mode?.replace('-', ' ')} • {interaction.interactionType}
+            </Text>
+          </View>
+        </View>
 
-            <View style={styles.header}>
-              <View style={styles.headerTitleContainer}>
-                <Text style={styles.headerIcon}>{displayIcon}</Text>
-                <View>
-                  <Text style={[styles.headerTitle, { color: colors.foreground }]}>{displayLabel}</Text>
-                  <Text style={[styles.headerSubtitle, { color: colors['muted-foreground'] }]}>
-                    {interaction.mode?.replace('-', ' ')} • {interaction.interactionType}
-                  </Text>
-                </View>
-              </View>
+        {/* Action buttons */}
+        <View style={styles.headerActions}>
+          {isPlanned && (
+            <TouchableOpacity
+              onPress={handleShare}
+              style={styles.actionButton}
+            >
+              <Share2 color={colors.primary} size={20} />
+            </TouchableOpacity>
+          )}
+          {onEdit && (
+            <TouchableOpacity
+              onPress={handleEditPress}
+              style={styles.actionButton}
+            >
+              <Edit3 color={colors.primary} size={20} />
+            </TouchableOpacity>
+          )}
+          {onDelete && (
+            <TouchableOpacity
+              onPress={handleDeletePress}
+              style={styles.actionButton}
+            >
+              <Trash2 color={colors.destructive} size={20} />
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
 
-              {/* Action buttons */}
-              <View style={styles.headerActions}>
-                {isPlanned && (
-                  <TouchableOpacity
-                    onPress={handleShare}
-                    style={styles.actionButton}
-                  >
-                    <Share2 color={colors.primary} size={20} />
-                  </TouchableOpacity>
-                )}
-                {onEdit && (
-                  <TouchableOpacity
-                    onPress={() => {
-                      onEdit(interaction.id);
-                      onClose();
-                    }}
-                    style={styles.actionButton}
-                  >
-                    <Edit3 color={colors.primary} size={20} />
-                  </TouchableOpacity>
-                )}
-                {onDelete && (
-                  <TouchableOpacity
-                    onPress={() => {
-                      onDelete(interaction.id);
-                      onClose();
-                    }}
-                    style={styles.actionButton}
-                  >
-                    <Trash2 color={colors.destructive} size={20} />
-                  </TouchableOpacity>
-                )}
-                <TouchableOpacity onPress={onClose} style={styles.actionButton}>
-                  <X color={colors['muted-foreground']} size={24} />
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            <ScrollView contentContainerStyle={styles.scrollViewContent}>
+      <ScrollView contentContainerStyle={styles.scrollViewContent}>
               <View style={[styles.statusBadge, interaction.status === 'completed' ? styles.statusCompleted : styles.statusPlanned]}>
                 <Text style={[styles.statusBadgeText, interaction.status === 'completed' ? styles.statusCompletedText : styles.statusPlannedText]}>
                   {interaction.status === 'completed' ? '✓ Completed' : '⏳ Planned'}
@@ -291,26 +282,23 @@ export function InteractionDetailModal({
               )}
 
               {interaction.note && <InfoRow icon={<MessageCircle color={colors['muted-foreground']} size={20} />} title={interaction.note} subtitle="Notes" colors={colors} />}
-            </ScrollView>
+      </ScrollView>
 
-            {/* Deepen Weave / Edit Reflection Button - Only for past interactions */}
-            {onEditReflection && isPast && (
-              <View style={[styles.footer, { paddingBottom: insets.bottom + 16, borderTopColor: colors.border }]}>
-                <TouchableOpacity
-                  style={[styles.deepenButton, { backgroundColor: colors.primary }]}
-                  onPress={() => onEditReflection(interaction)}
-                >
-                  <Sparkles color={colors['primary-foreground']} size={20} />
-                  <Text style={[styles.deepenButtonText, { color: colors['primary-foreground'] }]}>
-                    {interaction.reflection?.chips?.length ? 'Edit Reflection' : 'Deepen this weave'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            )}
-          </Animated.View>
-        </GestureDetector>
-      </BlurView>
-    </Modal>
+      {/* Deepen Weave / Edit Reflection Button - Only for past interactions */}
+      {onEditReflection && isPast && (
+        <View style={[styles.footer, { paddingBottom: insets.bottom + 16, borderTopColor: colors.border }]}>
+          <TouchableOpacity
+            style={[styles.deepenButton, { backgroundColor: colors.primary }]}
+            onPress={handleEditReflectionPress}
+          >
+            <Sparkles color={colors['primary-foreground']} size={20} />
+            <Text style={[styles.deepenButtonText, { color: colors['primary-foreground'] }]}>
+              {interaction.reflection?.chips?.length ? 'Edit Reflection' : 'Deepen this weave'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
+    </AnimatedBottomSheet>
   );
 }
 

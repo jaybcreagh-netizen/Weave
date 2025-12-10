@@ -10,10 +10,11 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Modal, View, Text, TouchableOpacity, SafeAreaView } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { WeaveLoading } from '@/shared/components/WeaveLoading';
-import { X, ChevronLeft } from 'lucide-react-native';
+import { ChevronLeft } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
+import { StandardBottomSheet } from '@/shared/ui/Sheet';
 import {
   scanWeekForUnloggedEvents,
   batchLogCalendarEvents,
@@ -274,44 +275,23 @@ export function WeeklyReflectionModal({ isOpen, onClose }: WeeklyReflectionModal
   const currentStepIndex = steps.indexOf(currentStep);
 
   return (
-    <Modal
+    <StandardBottomSheet
       visible={isOpen}
-      animationType="slide"
-      presentationStyle="pageSheet"
-      onRequestClose={handleClose}
+      onClose={handleClose}
+      height="full"
+      title={stepTitles[currentStep]}
     >
-      <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
-        {/* Header */}
-        <View
-          className="flex-row items-center justify-between px-5 py-4"
-          style={{ borderBottomWidth: 1, borderBottomColor: colors.border }}
-        >
-          {/* Back Button */}
-          {currentStep !== 'prompt' ? (
-            <TouchableOpacity onPress={handleBack} className="p-2 -ml-2">
-              <ChevronLeft size={24} color={colors.foreground} />
-            </TouchableOpacity>
-          ) : (
-            <View className="w-10" />
-          )}
-
-          {/* Title */}
-          <View className="flex-1 items-center">
-            <Text
-              className="text-lg font-semibold"
-              style={{ color: colors.foreground, fontFamily: 'Lora_600SemiBold' }}
-            >
-              {stepTitles[currentStep]}
-            </Text>
-          </View>
-
-          {/* Close Button */}
-          <TouchableOpacity onPress={handleClose} className="p-2 -mr-2">
-            <X size={24} color={colors['muted-foreground']} />
+      {/* Back Button */}
+      {currentStep !== 'prompt' && (
+        <View className="px-5 pb-3" style={{ borderBottomWidth: 1, borderBottomColor: colors.border }}>
+          <TouchableOpacity onPress={handleBack} className="flex-row items-center gap-1">
+            <ChevronLeft size={20} color={colors.foreground} />
+            <Text style={{ color: colors.foreground, fontFamily: 'Inter_500Medium' }}>Back</Text>
           </TouchableOpacity>
         </View>
+      )}
 
-        {/* Progress Indicator */}
+      {/* Progress Indicator */}
         <View className="flex-row px-5 py-3 gap-2">
           {steps.map((step, index) => {
             const isActive = step === currentStep;
@@ -395,7 +375,6 @@ export function WeeklyReflectionModal({ isOpen, onClose }: WeeklyReflectionModal
             </View>
           )}
         </View>
-      </SafeAreaView>
-    </Modal>
+    </StandardBottomSheet>
   );
 }

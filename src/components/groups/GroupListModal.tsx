@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, FlatList, Alert } from 'react-native';
 import { X, Plus, Users, ChevronRight, Trash2, Sparkles } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
-import { CustomBottomSheet } from '@/shared/ui/Sheet/BottomSheet';
+import { StandardBottomSheet } from '@/shared/ui/Sheet';
 import Group from '@/db/models/Group';
 import { groupService, GroupSuggestion } from '@/modules/groups';
 import { GroupManagerModal } from './GroupManagerModal';
@@ -108,10 +108,10 @@ export function GroupListModal({ visible, onClose }: GroupListModalProps) {
     };
 
     return (
-        <CustomBottomSheet
+        <StandardBottomSheet
             visible={visible}
             onClose={onClose}
-            snapPoints={['90%']}
+            height="full"
         >
             <View className="flex-1">
                 {/* Header */}
@@ -204,6 +204,6 @@ export function GroupListModal({ visible, onClose }: GroupListModalProps) {
                     onGroupSaved={loadGroups}
                 />
             </View>
-        </CustomBottomSheet>
+        </StandardBottomSheet>
     );
 }

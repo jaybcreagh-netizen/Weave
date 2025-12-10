@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Modal } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { X, BookOpen, Sparkles } from 'lucide-react-native';
+import { X, Sparkles } from 'lucide-react-native';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
+import { StandardBottomSheet } from '@/shared/ui/Sheet';
 
 import { type Archetype, type InteractionCategory } from './types';
 import { archetypeData, CategoryArchetypeMatrix } from '@/shared/constants/constants';
@@ -101,43 +102,23 @@ export function ArchetypeLibrary({ isVisible, onClose }: ArchetypeLibraryProps) 
   };
 
   return (
-    <Modal
+    <StandardBottomSheet
       visible={isVisible}
-      animationType="slide"
-      presentationStyle="pageSheet"
-      onRequestClose={onClose}
+      onClose={onClose}
+      height="full"
+      title="Archetype Library"
     >
-      <View style={{ flex: 1, backgroundColor: colors.background }}>
-        {/* Header */}
-        <View
-          className="flex-row items-center justify-between px-6 pt-6 pb-4"
-          style={{ borderBottomWidth: 1, borderBottomColor: colors.border }}
+      {/* Description */}
+      <View className="px-6 py-4" style={{ borderBottomWidth: 1, borderBottomColor: colors.border }}>
+        <Text
+          className="font-inter text-[15px] leading-[22px]"
+          style={{ color: colors['muted-foreground'] }}
         >
-          <View className="flex-row items-center gap-3">
-            <BookOpen size={24} color={colors.primary} />
-            <Text
-              className="font-lora text-2xl font-bold"
-              style={{ color: colors.foreground }}
-            >
-              Archetype Library
-            </Text>
-          </View>
-          <TouchableOpacity onPress={onClose} className="p-2">
-            <X size={24} color={colors['muted-foreground']} />
-          </TouchableOpacity>
-        </View>
+          Discover the eight connection archetypes and how they shape meaningful relationships
+        </Text>
+      </View>
 
-        {/* Description */}
-        <View className="px-6 py-4" style={{ borderBottomWidth: 1, borderBottomColor: colors.border }}>
-          <Text
-            className="font-inter text-[15px] leading-[22px]"
-            style={{ color: colors['muted-foreground'] }}
-          >
-            Discover the eight connection archetypes and how they shape meaningful relationships
-          </Text>
-        </View>
-
-        {/* Archetype Grid */}
+      {/* Archetype Grid */}
         <ScrollView
           contentContainerStyle={{ padding: 20, paddingBottom: 40 }}
           showsVerticalScrollIndicator={false}
@@ -411,7 +392,6 @@ export function ArchetypeLibrary({ isVisible, onClose }: ArchetypeLibraryProps) 
             </BlurView>
           </Modal>
         )}
-      </View>
-    </Modal>
+    </StandardBottomSheet>
   );
 }

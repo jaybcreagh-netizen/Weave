@@ -1,9 +1,9 @@
 // src/modules/insights/components/TierFitBottomSheet.tsx
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView } from 'react-native';
-import { X, AlertCircle, TrendingUp, TrendingDown } from 'lucide-react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import { AlertCircle, TrendingUp, TrendingDown } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
+import { StandardBottomSheet } from '@/shared/ui/Sheet';
 import type { TierFitAnalysis } from '../types';
 import type { Tier } from '@/shared/types/core';
 
@@ -48,24 +48,13 @@ export function TierFitBottomSheet({
     (analysis.currentTier === 'CloseFriends' && analysis.suggestedTier === 'Community');
 
   return (
-    <Modal
+    <StandardBottomSheet
       visible={visible}
-      animationType="slide"
-      presentationStyle="pageSheet"
-      onRequestClose={onDismiss}
+      onClose={onDismiss}
+      height="full"
+      title={`Tier Fit for ${analysis.friendName}`}
     >
-      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
-        {/* Header */}
-        <View style={[styles.header, { borderBottomColor: colors.border }]}>
-          <Text style={[styles.headerTitle, { color: colors.foreground }]}>
-            Tier Fit for {analysis.friendName}
-          </Text>
-          <TouchableOpacity onPress={onDismiss} style={styles.closeButton}>
-            <X size={24} color={colors['muted-foreground']} />
-          </TouchableOpacity>
-        </View>
-
-        <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
+      <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
           {/* Preliminary Badge for Detail View */}
           {!!analysis.isPreliminary && (
             <View style={[styles.section, { padding: 12, backgroundColor: colors.muted }]}>
@@ -220,30 +209,12 @@ export function TierFitBottomSheet({
               Based on {analysis.interactionCount} interactions
             </Text>
           </View>
-        </ScrollView>
-      </SafeAreaView>
-    </Modal>
+      </ScrollView>
+    </StandardBottomSheet>
   );
 }
 
 const styles = StyleSheet.create({
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    fontFamily: 'Lora_700Bold',
-    flex: 1,
-  },
-  closeButton: {
-    padding: 4,
-  },
   content: {
     flex: 1,
   },

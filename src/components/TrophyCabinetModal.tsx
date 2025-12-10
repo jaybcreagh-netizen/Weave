@@ -10,13 +10,11 @@ import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  Modal,
   TouchableOpacity,
   ScrollView,
-  SafeAreaView,
-  Dimensions,
 } from 'react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
+import { StandardBottomSheet } from '@/shared/ui/Sheet';
 import { database } from '@/db';
 import UserProgress from '@/db/models/UserProgress';
 import {
@@ -292,36 +290,13 @@ export default function TrophyCabinetModal({ visible, onClose }: TrophyCabinetMo
   }
 
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
-      <SafeAreaView
-        className="flex-1"
-        style={{ backgroundColor: colors.background }}
-      >
-        {/* Header */}
-        <View
-          className="flex-row items-center justify-between px-4 py-3"
-          style={{
-            borderBottomWidth: 1,
-            borderBottomColor: colors.border,
-          }}
-        >
-          <Text
-            className="font-['Lora'] text-2xl font-bold"
-            style={{ color: colors.foreground }}
-          >
-            Achievements
-          </Text>
-          <TouchableOpacity onPress={onClose} className="p-2">
-            <Text
-              className="font-['Inter'] text-lg"
-              style={{ color: colors['muted-foreground'] }}
-            >
-              ✕
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Tabs */}
+    <StandardBottomSheet
+      visible={visible}
+      onClose={onClose}
+      height="full"
+      title="Achievements"
+    >
+      {/* Tabs */}
         <View
           className="flex-row px-4"
           style={{
@@ -383,7 +358,6 @@ export default function TrophyCabinetModal({ visible, onClose }: TrophyCabinetMo
             </>
           )}
         </View>
-      </SafeAreaView>
-    </Modal>
+    </StandardBottomSheet>
   );
 }

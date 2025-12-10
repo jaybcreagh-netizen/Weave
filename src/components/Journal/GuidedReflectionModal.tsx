@@ -17,37 +17,31 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  Modal,
-  SafeAreaView,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
 } from 'react-native';
 import Animated, {
-  FadeIn,
   FadeInDown,
-  FadeOut,
   SlideInRight,
   SlideOutLeft,
   SlideInLeft,
   SlideOutRight,
 } from 'react-native-reanimated';
 import {
-  X,
   ChevronLeft,
   ChevronRight,
   Clock,
   User,
   MessageCircle,
   Sparkles,
-  BookOpen,
   Coffee,
-  Heart,
   PanelRightOpen,
   PanelRightClose,
 } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
+import { StandardBottomSheet } from '@/shared/ui/Sheet';
 import { database } from '@/db';
 import FriendModel from '@/db/models/Friend';
 import JournalEntry from '@/db/models/JournalEntry';
@@ -1046,90 +1040,77 @@ export function GuidedReflectionModal({
 
   if (!visible) return null;
 
+  const titleMap = {
+    context: 'New Reflection',
+    prompt: 'Choose a Prompt',
+    write: 'Write'
+  };
+
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
-      <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
-        {/* Header */}
+    <StandardBottomSheet
+      visible={visible}
+      onClose={handleClose}
+      height="full"
+      title={titleMap[step]}
+    >
+      {/* Header with Back Button */}
+      {step !== 'context' && (
         <View
-          className="flex-row items-center justify-between px-5 py-4 border-b"
-          style={{ borderColor: colors.border }}
+          className="flex-row items-center px-5 pb-3"
+          style={{ borderBottomColor: colors.border, borderBottomWidth: 1 }}
         >
-          {/* Back Button */}
-          {step !== 'context' ? (
-            <TouchableOpacity
-              onPress={handleBack}
-              className="flex-row items-center gap-1"
-            >
-              <ChevronLeft size={20} color={colors.foreground} />
-              <Text
-                className="text-base"
-                style={{ color: colors.foreground, fontFamily: 'Inter_500Medium' }}
-              >
-                Back
-              </Text>
-            </TouchableOpacity>
-          ) : (
-            <View className="w-16" />
-          )}
-
-          {/* Title */}
-          <Text
-            className="text-base"
-            style={{ color: colors.foreground, fontFamily: 'Lora_600SemiBold' }}
-          >
-            {step === 'context' && 'New Reflection'}
-            {step === 'prompt' && 'Choose a Prompt'}
-            {step === 'write' && 'Write'}
-          </Text>
-
-          {/* Close Button */}
           <TouchableOpacity
-            onPress={handleClose}
-            className="p-2 -mr-2"
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            onPress={handleBack}
+            className="flex-row items-center gap-1"
           >
-            <X size={24} color={colors.foreground} />
+            <ChevronLeft size={20} color={colors.foreground} />
+            <Text
+              className="text-base"
+              style={{ color: colors.foreground, fontFamily: 'Inter_500Medium' }}
+            >
+              Back
+            </Text>
           </TouchableOpacity>
         </View>
+      )}
 
-        {/* Progress Dots */}
-        <View className="flex-row justify-center gap-2 py-3">
-          {['context', 'prompt', 'write'].map((s, i) => (
-            <View
-              key={s}
-              className="w-2 h-2 rounded-full"
-              style={{
-                backgroundColor:
-                  s === step
-                    ? colors.primary
-                    : ['context', 'prompt', 'write'].indexOf(step) > i
-                      ? colors.primary + '50'
-                      : colors.border,
-              }}
-            />
-          ))}
+      {/* Progress Dots */}
+      <View className="flex-row justify-center gap-2 py-3">
+        {['context', 'prompt', 'write'].map((s, i) => (
+          <View
+            key={s}
+            className="w-2 h-2 rounded-full"
+            style={{
+              backgroundColor:
+                s === step
+                  ? colors.primary
+                  : ['context', 'prompt', 'write'].indexOf(step) > i
+                    ? colors.primary + '50'
+                    : colors.border,
+            }}
+          />
+        ))}
+      </View>
+
+      {/* Content */}
+      {loading ? (
+        <View className="flex-1 items-center justify-center">
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text
+            className="text-sm mt-4"
+            style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
+          >
+            Loading...
+          </Text>
         </View>
-
-        {/* Content */}
-        {loading ? (
-          <View className="flex-1 items-center justify-center">
-            <ActivityIndicator size="large" color={colors.primary} />
-            <Text
-              className="text-sm mt-4"
-              style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
-            >
-              Loading...
-            </Text>
-          </View>
-        ) : (
-          <>
-            {step === 'context' && renderContextStep()}
-            {step === 'prompt' && renderPromptStep()}
-            {step === 'write' && renderWriteStep()}
-          </>
-        )}
-      </SafeAreaView>
-    </Modal>
+      ) : (
+        <>
+          {step === 'context' && renderContextStep()}
+          {step === 'prompt' && renderPromptStep()}
+          {step === 'write' && renderWriteStep()}
+        </>
+      )}
+    </StandardBottomSheet>
   );
 }
 

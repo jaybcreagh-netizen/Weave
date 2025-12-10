@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { X, Battery, Trophy, BookOpen, Users } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/shared/hooks/useTheme';
-import { CustomBottomSheet } from '@/shared/ui/Sheet/BottomSheet';
+import { StandardBottomSheet } from '@/shared/ui/Sheet';
 
 // Components
 import { SettingsItem } from './settings/SettingsItem';
@@ -40,11 +40,11 @@ export function SettingsModal({
   if (!isOpen) return null;
 
   return (
-    <CustomBottomSheet
+    <StandardBottomSheet
       visible={isOpen}
       onClose={onClose}
-      snapPoints={['90%']}
-      scrollable={true}
+      height="full"
+      scrollable
     >
       <View className="mb-6 px-6 pt-6 flex-row items-center justify-between">
         <Text style={{ color: colors.foreground }} className="font-lora text-[22px] font-bold">Settings</Text>
@@ -169,6 +169,6 @@ export function SettingsModal({
         onClose={() => setShowGroupList(false)}
       />
 
-    </CustomBottomSheet>
+    </StandardBottomSheet>
   );
 }

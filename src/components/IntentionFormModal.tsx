@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
-import { Modal, View, Text, TouchableOpacity, TextInput, StyleSheet, ScrollView } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { X } from 'lucide-react-native';
+import { View, Text, TouchableOpacity, TextInput, StyleSheet, ScrollView } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '@/shared/hooks/useTheme';
+import { StandardBottomSheet } from '@/shared/ui/Sheet';
 import { InteractionCategory } from './types';
 import { getCategoryMetadata, INTERACTION_CATEGORIES } from '@/shared/constants/interaction-categories';
 
@@ -52,28 +51,13 @@ export function IntentionFormModal({
   };
 
   return (
-    <Modal
+    <StandardBottomSheet
       visible={isOpen}
-      animationType="slide"
-      presentationStyle="pageSheet"
-      onRequestClose={handleClose}
+      onClose={handleClose}
+      height="full"
+      title={`Set an Intention with ${friendName}`}
     >
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-        <View style={[styles.header, { borderBottomColor: colors.border }]}>
-          <View>
-            <Text style={[styles.headerTitle, { color: colors.foreground }]}>
-              Set an Intention
-            </Text>
-            <Text style={[styles.headerSubtitle, { color: colors['muted-foreground'] }]}>
-              with {friendName}
-            </Text>
-          </View>
-          <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
-            <X color={colors['muted-foreground']} size={24} />
-          </TouchableOpacity>
-        </View>
-
-        <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollViewContent}>
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollViewContent}>
           <View style={styles.section}>
             <Text style={[styles.sectionLabel, { color: colors.foreground }]}>
               What's the idea? (optional)
@@ -139,21 +123,20 @@ export function IntentionFormModal({
               })}
             </View>
           </View>
-        </ScrollView>
+      </ScrollView>
 
-        <View style={[styles.footer, { backgroundColor: colors.background, borderTopColor: colors.border }]}>
-          <TouchableOpacity
-            style={[styles.saveButton, { backgroundColor: colors.primary }]}
-            onPress={handleSave}
-            disabled={isSaving}
-          >
-            <Text style={[styles.saveButtonText, { color: colors['primary-foreground'] }]}>
-              {isSaving ? 'Saving...' : 'Set Intention'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
-    </Modal>
+      <View style={[styles.footer, { backgroundColor: colors.background, borderTopColor: colors.border }]}>
+        <TouchableOpacity
+          style={[styles.saveButton, { backgroundColor: colors.primary }]}
+          onPress={handleSave}
+          disabled={isSaving}
+        >
+          <Text style={[styles.saveButtonText, { color: colors['primary-foreground'] }]}>
+            {isSaving ? 'Saving...' : 'Set Intention'}
+          </Text>
+        </TouchableOpacity>
+      </View>
+    </StandardBottomSheet>
   );
 }
 
