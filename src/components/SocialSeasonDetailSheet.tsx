@@ -1,18 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import {
-    Modal,
     View,
     Text,
     TouchableOpacity,
-    SafeAreaView,
     ScrollView,
     StyleSheet,
 } from 'react-native';
-import { BlurView } from 'expo-blur';
-import { X, Activity, BarChart3, Scale, ChevronLeft, ChevronRight, Zap, Book, CheckCircle2 } from 'lucide-react-native';
-import { startOfMonth, endOfMonth, eachDayOfInterval, format, isSameDay, startOfWeek, endOfWeek, differenceInDays, addMonths, subMonths } from 'date-fns';
+import { Activity, BarChart3, Scale, ChevronLeft, ChevronRight, Zap, Book, CheckCircle2 } from 'lucide-react-native';
+import { startOfMonth, endOfMonth, eachDayOfInterval, format, isSameDay, startOfWeek, endOfWeek, addMonths, subMonths } from 'date-fns';
 import { Q } from '@nozbe/watermelondb';
 import { useTheme } from '@/shared/hooks/useTheme';
+import { AnimatedBottomSheet } from '@/shared/ui/Sheet';
 import { type SocialSeason, type SeasonExplanationData } from '@/modules/intelligence';
 import { SEASON_STYLES, getSeasonDisplayName } from '@/modules/intelligence';
 import { generateSeasonExplanation } from '@/modules/reflection';
@@ -54,33 +52,24 @@ export function SocialSeasonDetailSheet({
     if (!isVisible) return null;
 
     return (
-        <Modal
+        <AnimatedBottomSheet
             visible={isVisible}
-            transparent
-            animationType="slide"
-            onRequestClose={onClose}
+            onClose={onClose}
+            height="full"
         >
-            <View style={styles.overlay}>
-                <BlurView intensity={isDarkMode ? 40 : 20} style={StyleSheet.absoluteFill} />
-                <TouchableOpacity style={StyleSheet.absoluteFill} onPress={onClose} activeOpacity={1} />
+            {/* Header */}
+            <View style={styles.header}>
+                <View>
+                    <Text style={[styles.title, { color: tokens.foreground, fontFamily: typography.fonts.serifBold }]}>
+                        {getSeasonDisplayName(season)}
+                    </Text>
+                    <Text style={[styles.subtitle, { color: tokens.foregroundMuted, fontFamily: typography.fonts.sans }]}>
+                        Network Health & Insights
+                    </Text>
+                </View>
+            </View>
 
-                <View style={[styles.sheet, { backgroundColor: tokens.backgroundElevated }]}>
-                    {/* Header */}
-                    <View style={styles.header}>
-                        <View>
-                            <Text style={[styles.title, { color: tokens.foreground, fontFamily: typography.fonts.serifBold }]}>
-                                {getSeasonDisplayName(season)}
-                            </Text>
-                            <Text style={[styles.subtitle, { color: tokens.foregroundMuted, fontFamily: typography.fonts.sans }]}>
-                                Network Health & Insights
-                            </Text>
-                        </View>
-                        <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                            <X size={24} color={tokens.foregroundMuted} />
-                        </TouchableOpacity>
-                    </View>
-
-                    {/* Tabs */}
+            {/* Tabs */}
                     <View style={styles.tabContainer}>
                         <TouchableOpacity
                             onPress={() => setCurrentTab('pulse')}
@@ -160,10 +149,8 @@ export function SocialSeasonDetailSheet({
                         {currentTab === 'insights' && (
                             <GraphsTabContent />
                         )}
-                    </ScrollView>
-                </View>
-            </View>
-        </Modal>
+            </ScrollView>
+        </AnimatedBottomSheet>
     );
 }
 
