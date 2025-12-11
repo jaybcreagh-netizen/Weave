@@ -180,7 +180,16 @@ export const useInteractionsStore = create<InteractionsStore>((set, get) => ({
     },
 
     updateInteractionVibeAndNotes: async (interactionId, vibe, notes) => {
-        get().updateInteraction(interactionId, { vibe: vibe || undefined, note: notes });
+        const updates: Partial<Interaction> = { vibe: vibe || undefined, note: notes };
+        // Also set reflectionJSON so that FocusPlanItem can detect the reflection
+        if (vibe || notes) {
+            updates.reflectionJSON = JSON.stringify({
+                vibe,
+                notes,
+                timestamp: Date.now()
+            });
+        }
+        get().updateInteraction(interactionId, updates);
     },
 
     createIntention: async (friendIds, description, category) => {
