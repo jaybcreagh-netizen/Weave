@@ -166,7 +166,7 @@ export const useInteractionsStore = create<InteractionsStore>((set, get) => ({
         // 3. Perform the actual update
         await database.write(async () => {
             await interaction.update(i => {
-                Object.assign(i, updates);
+                Object.assign(i, { ...updates, updatedAt: new Date() });
             });
         });
     },

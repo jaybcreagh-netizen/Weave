@@ -1,24 +1,26 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, SafeAreaView, ActivityIndicator, StyleSheet, FlatList, Image, TextInput } from 'react-native';
+import { View, Text, TouchableOpacity, SafeAreaView, ActivityIndicator, StyleSheet, TextInput } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as Contacts from 'expo-contacts';
-import { ArrowLeft, Check, Search } from 'lucide-react-native';
+import { ArrowLeft, Check, Search, X } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { normalizeContactImageUri, batchAddFriends } from '@/modules/relationships';
 import { database } from '@/db';
 import FriendModel from '@/db/models/Friend';
 import { DuplicateResolverModal } from '@/components/DuplicateResolverModal';
+import { ContactPickerGrid } from '@/components/onboarding/ContactPickerGrid';
 
 export default function BatchAddFriends() {
   const router = useRouter();
   const { tier } = useLocalSearchParams<{ tier: 'inner' | 'close' | 'community' }>();
-  const { colors } = useTheme();
+  const { colors, isDarkMode } = useTheme();
 
   const [selectedContacts, setSelectedContacts] = useState<Contacts.Contact[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showResolver, setShowResolver] = useState(false);
   const [conflicts, setConflicts] = useState<any[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const processBatchAdd = async (contactsToAdd: Array<{ name: string; photoUrl: string; contactId?: string }>) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -70,16 +72,6 @@ export default function BatchAddFriends() {
         }
       } else {
         // No resolution needed (wasn't a conflict), add as is
-        // BUT wait, we need to make sure we don't add duplicates that WEREN'T resolved because they were the "first" occurrence
-        // Actually, my checkConflicts logic below flags subsequent duplicates.
-        // If I have "Alex" (existing) and I select "Alex" (new), that's a conflict.
-
-        // However, if I select "Alex" (id: 1) and "Alex" (id: 2).
-        // My check logic will flag one of them.
-
-        // Let's refine the logic: checkConflicts returns a list of contacts that HAVE issues.
-        // Contacts NOT in that list are safe to add AS IS.
-
         const isConflict = conflicts.some(c => c.contact.id === contact.id);
         if (!isConflict) {
           finalContacts.push({
@@ -149,28 +141,77 @@ export default function BatchAddFriends() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Header */}
-      <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-        <TouchableOpacity onPress={() => {
-          if (router.canGoBack()) {
-            router.back();
-          }
-        }} style={styles.backButton}>
-          <ArrowLeft color={colors.foreground} size={24} />
-        </TouchableOpacity>
-        <View style={styles.headerTitle}>
-          <Text style={[styles.title, { color: colors.foreground }]}>Batch Add Friends</Text>
-          <Text style={[styles.subtitle, { color: colors['muted-foreground'] }]}>
-            Select contacts to add to {tier === 'inner' ? 'Inner Circle' : tier === 'close' ? 'Close Friends' : 'Community'}
-          </Text>
+      {/* Stick Header + Search */}
+      <View style={{ backgroundColor: colors.background, zIndex: 10 }}>
+        {/* Navigation Header */}
+        <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+          <TouchableOpacity onPress={() => {
+            if (router.canGoBack()) {
+              router.back();
+            }
+          }} style={styles.backButton}>
+            <ArrowLeft color={colors.foreground} size={24} />
+          </TouchableOpacity>
+          <View style={styles.headerTitle}>
+            <Text style={[styles.title, { color: colors.foreground }]}>Batch Add Friends</Text>
+            <Text style={[styles.subtitle, { color: colors['muted-foreground'] }]}>
+              Select contacts to add to {tier === 'inner' ? 'Inner Circle' : tier === 'close' ? 'Close Friends' : 'Community'}
+            </Text>
+          </View>
+        </View>
+
+        {/* Search Bar */}
+        <View
+          style={{
+            paddingHorizontal: 16,
+            paddingVertical: 12,
+            backgroundColor: colors.card,
+            borderBottomWidth: 1,
+            borderBottomColor: colors.border,
+          }}
+        >
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.05)',
+              borderRadius: 12,
+              paddingHorizontal: 12,
+              paddingVertical: 10,
+            }}
+          >
+            <Search color={colors['muted-foreground']} size={20} />
+            <TextInput
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder="Search contacts..."
+              placeholderTextColor={colors['muted-foreground']}
+              style={{
+                flex: 1,
+                marginLeft: 8,
+                fontSize: 16,
+                color: colors.foreground,
+              }}
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery('')}>
+                <X size={18} color={colors['muted-foreground']} />
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
       </View>
 
       {/* Contact Picker */}
       <View style={styles.content}>
-        <BatchContactPicker
+        <ContactPickerGrid
+          maxSelection={999} // Unlimited for batch
           onSelectionChange={setSelectedContacts}
-          selectedCount={selectedContacts.length}
+          externalSearchQuery={searchQuery}
+          hideHeader={true}
+          showAddManually={false}
+          title="" // Hidden anyway
+          subtitle="" // Hidden anyway
         />
       </View>
 
@@ -205,296 +246,6 @@ export default function BatchAddFriends() {
         onCancel={() => setShowResolver(false)}
       />
     </SafeAreaView>
-  );
-}
-
-// Batch-specific contact picker (no max limit)
-// We create a custom wrapper to hide the ContactPickerGrid's header
-// since we have our own header in the parent component
-const ITEM_HEIGHT = 160;
-
-function BatchContactPicker({
-  onSelectionChange,
-}: {
-  onSelectionChange: (contacts: Contacts.Contact[]) => void;
-  selectedCount: number;
-}) {
-  const { colors, isDarkMode } = useTheme();
-  const [contacts, setContacts] = React.useState<Contacts.Contact[]>([]);
-  const [selectedContactIds, setSelectedContactIds] = React.useState<string[]>([]);
-  const [loading, setLoading] = React.useState(true);
-  const [permissionDenied, setPermissionDenied] = React.useState(false);
-  const [imageError, setImageError] = React.useState<Record<string, boolean>>({});
-  const [searchQuery, setSearchQuery] = React.useState('');
-
-  React.useEffect(() => {
-    (async () => {
-      // Check if already granted first
-      let { status } = await Contacts.getPermissionsAsync();
-
-      // Only request if not already granted
-      if (status !== 'granted') {
-        const result = await Contacts.requestPermissionsAsync();
-        status = result.status;
-      }
-
-      if (status !== 'granted') {
-        setPermissionDenied(true);
-        setLoading(false);
-        return;
-      }
-
-      const { data } = await Contacts.getContactsAsync({
-        fields: [
-          Contacts.Fields.FirstName,
-          Contacts.Fields.LastName,
-          Contacts.Fields.Image
-        ],
-      });
-
-      if (data.length > 0) {
-        const sorted = data.sort((a, b) =>
-          (a.name || '').localeCompare(b.name || '')
-        );
-        setContacts(sorted);
-      }
-
-      setLoading(false);
-    })();
-  }, []);
-
-  React.useEffect(() => {
-    const selected = contacts.filter(c => c.id && selectedContactIds.includes(c.id));
-    onSelectionChange(selected);
-  }, [selectedContactIds, contacts, onSelectionChange]);
-
-  const handleSelectContact = (contactId: string) => {
-    setSelectedContactIds(prevSelectedIds => {
-      if (prevSelectedIds.includes(contactId)) {
-        return prevSelectedIds.filter(id => id !== contactId);
-      } else {
-        return [...prevSelectedIds, contactId];
-      }
-    });
-  };
-
-  const getInitials = (name: string) => {
-    if (!name) return '?';
-    const names = name.split(' ');
-    const firstName = names[0] || '';
-    const lastName = names.length > 1 ? names[names.length - 1] : '';
-    return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
-  };
-
-  const getAvatarColor = (name: string) => {
-    const colors = [
-      '#10b981',
-      '#f59e0b',
-      '#ef4444',
-      '#6366f1',
-      '#14b8a6',
-    ];
-    const hash = name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-    return colors[hash % colors.length];
-  };
-
-  // Filter contacts based on search query
-  const filteredContacts = React.useMemo(() => {
-    if (!searchQuery.trim()) return contacts;
-    const query = searchQuery.toLowerCase();
-    return contacts.filter(contact =>
-      (contact.name || '').toLowerCase().includes(query)
-    );
-  }, [contacts, searchQuery]);
-
-  // Memoize renderItem to prevent unnecessary re-renders
-  const renderItem = React.useCallback(({ item, index }: { item: Contacts.Contact, index: number }) => {
-    const isSelected = item.id ? selectedContactIds.includes(item.id) : false;
-    const avatarColor = getAvatarColor(item.name || '');
-
-    return (
-      <TouchableOpacity
-        onPress={() => item.id && handleSelectContact(item.id)}
-        style={{
-          alignItems: 'center',
-          padding: 12,
-          width: '33.33%',
-          height: ITEM_HEIGHT
-        }}
-        activeOpacity={0.7}
-      >
-        <View style={{ position: 'relative' }}>
-          <View
-            style={{
-              width: 80,
-              height: 80,
-              borderRadius: 40,
-              justifyContent: 'center',
-              alignItems: 'center',
-              backgroundColor: isSelected ? '#10b981' : avatarColor,
-              borderWidth: isSelected ? 4 : 0,
-              borderColor: '#10b981',
-            }}
-          >
-            {item.imageAvailable && item.image && item.id && !imageError[item.id] ? (
-              <Image
-                source={{ uri: normalizeContactImageUri(item.image.uri) }}
-                style={{ width: '100%', height: '100%', borderRadius: 40 }}
-                resizeMode="cover"
-                onError={() => item.id && setImageError(prev => ({ ...prev, [item.id as string]: true }))}
-              />
-            ) : (
-              <Text style={{ fontSize: 24, fontWeight: '600', color: 'white' }}>
-                {getInitials(item.name || '')}
-              </Text>
-            )}
-          </View>
-          {isSelected && (
-            <View
-              style={{
-                position: 'absolute',
-                top: -4,
-                right: -4,
-                backgroundColor: '#10b981',
-                borderRadius: 10,
-                padding: 4,
-              }}
-            >
-              <Check color="white" size={16} strokeWidth={3} />
-            </View>
-          )}
-        </View>
-
-        <Text
-          style={{
-            marginTop: 8,
-            textAlign: 'center',
-            fontSize: 14,
-            color: '#374151',
-            fontWeight: '500',
-            height: 48, // Fixed height for 2 lines of text
-            lineHeight: 20 // Ensure consistent line height
-          }}
-          numberOfLines={2}
-          ellipsizeMode="tail"
-        >
-          {item.name || 'Unknown'}
-        </Text>
-      </TouchableOpacity>
-    );
-  }, [selectedContactIds, imageError, selectedContactIds.length]); // Added dependencies
-
-  if (loading) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 80 }}>
-        <ActivityIndicator size="large" color="#10b981" />
-        <Text style={{ color: '#6b7280', marginTop: 16 }}>Loading your contacts...</Text>
-      </View>
-    );
-  }
-
-  if (permissionDenied) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 80, paddingHorizontal: 24 }}>
-        <Text style={{ fontSize: 48 }}>📇</Text>
-        <Text style={{ fontSize: 20, fontWeight: '600', color: '#374151', marginTop: 16, textAlign: 'center' }}>
-          Contacts Access Needed
-        </Text>
-        <Text style={{ fontSize: 16, color: '#6b7280', marginTop: 8, textAlign: 'center' }}>
-          Weave needs access to your contacts for batch importing. Please enable it in Settings.
-        </Text>
-      </View>
-    );
-  }
-
-  if (contacts.length === 0) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 80, paddingHorizontal: 24 }}>
-        <Text style={{ fontSize: 48 }}>📇</Text>
-        <Text style={{ fontSize: 20, fontWeight: '600', color: '#374151', marginTop: 16, textAlign: 'center' }}>
-          No Contacts Found
-        </Text>
-        <Text style={{ fontSize: 16, color: '#6b7280', marginTop: 8, textAlign: 'center' }}>
-          Add some contacts to your device first.
-        </Text>
-      </View>
-    );
-  }
-
-  return (
-    <View style={{ flex: 1 }}>
-      {/* Search Bar */}
-      <View
-        style={{
-          paddingHorizontal: 16,
-          paddingVertical: 12,
-          backgroundColor: colors.card,
-          borderBottomWidth: 1,
-          borderBottomColor: colors.border,
-        }}
-      >
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.05)',
-            borderRadius: 12,
-            paddingHorizontal: 12,
-            paddingVertical: 10,
-          }}
-        >
-          <Search color={colors['muted-foreground']} size={20} />
-          <TextInput
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            placeholder="Search contacts..."
-            placeholderTextColor={colors['muted-foreground']}
-            style={{
-              flex: 1,
-              marginLeft: 8,
-              fontSize: 16,
-              color: colors.foreground,
-            }}
-          />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <Text style={{ color: colors['muted-foreground'], fontSize: 14, fontWeight: '500' }}>
-                Clear
-              </Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      </View>
-
-      {/* Contacts Grid */}
-      <FlatList
-        data={filteredContacts}
-        numColumns={3}
-        keyExtractor={(item) => item.id || Math.random().toString()}
-        renderItem={renderItem}
-        getItemLayout={(data, index) => ({
-          length: ITEM_HEIGHT,
-          offset: ITEM_HEIGHT * Math.floor(index / 3),
-          index,
-        })}
-        contentContainerStyle={{ paddingBottom: 90, paddingTop: 10 }}
-        removeClippedSubviews={true}
-        initialNumToRender={15}
-        maxToRenderPerBatch={10}
-        windowSize={5}
-        ListEmptyComponent={
-          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 60 }}>
-            <Search size={48} color={colors['muted-foreground']} />
-            <Text style={{ fontSize: 18, fontWeight: '600', color: colors.foreground, marginTop: 16, textAlign: 'center' }}>
-              No contacts found
-            </Text>
-            <Text style={{ fontSize: 14, color: colors['muted-foreground'], marginTop: 8, textAlign: 'center' }}>
-              Try a different search term
-            </Text>
-          </View>
-        }
-      />
-    </View>
   );
 }
 

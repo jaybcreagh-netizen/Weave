@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { Modal, View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, Modal } from 'react-native';
 import { X } from 'lucide-react-native';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { useTheme } from '@/shared/hooks/useTheme';
-import { StandardBottomSheet } from '@/shared/ui/Sheet';
+import { AnimatedBottomSheet } from '@/shared/ui/Sheet';
 import { type Interaction, type InteractionCategory, type Vibe, type StructuredReflection } from './types';
 import { getAllCategories, getCategoryMetadata, type CategoryMetadata } from '@/shared/constants/interaction-categories';
 import { MoonPhaseSelector } from './MoonPhaseSelector';
@@ -22,6 +22,7 @@ interface EditInteractionModalProps {
     category?: InteractionCategory;
     interactionCategory?: InteractionCategory;
     activity?: string;
+    interactionType?: string;
     vibe?: Vibe | null;
     reflection?: StructuredReflection;
     reflectionJSON?: string;
@@ -76,6 +77,8 @@ export function EditInteractionModal({
       if (selectedCategory && selectedCategory !== (interaction.interactionCategory || interaction.activity)) {
         updates.interactionCategory = selectedCategory;
         updates.activity = selectedCategory;
+        const metadata = getCategoryMetadata(selectedCategory);
+        updates.interactionType = metadata.label;
       }
 
       if (selectedVibe !== interaction.vibe) {
@@ -112,135 +115,13 @@ export function EditInteractionModal({
   if (!interaction) return null;
 
   return (
-    <StandardBottomSheet
+    <AnimatedBottomSheet
       visible={isOpen}
       onClose={onClose}
       height="full"
       title="Edit Weave"
-    >
-      <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={styles.scrollViewContent}
-          showsVerticalScrollIndicator={false}
-        >
-          {/* Title Input */}
-          <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-              Title
-            </Text>
-            <TextInput
-              style={[
-                styles.titleInput,
-                { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }
-              ]}
-              placeholder='e.g., "Coffee at Blue Bottle"'
-              placeholderTextColor={colors['muted-foreground']}
-              value={title}
-              onChangeText={setTitle}
-            />
-          </View>
-
-          {/* Date Selection */}
-          <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-              Date
-            </Text>
-            <TouchableOpacity
-              onPress={() => setShowDatePicker(true)}
-              style={[
-                styles.dateInput,
-                { backgroundColor: colors.card, borderColor: colors.border }
-              ]}
-            >
-              <View style={styles.dateContent}>
-                <CalendarDays size={20} color={colors.primary} />
-                <Text style={[styles.dateText, { color: colors.foreground }]}>
-                  {selectedDate ? format(selectedDate, 'EEEE, MMMM d, yyyy') : 'Select date'}
-                </Text>
-              </View>
-            </TouchableOpacity>
-          </View>
-
-          {/* Category Selection */}
-          <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-              Category
-            </Text>
-            <View style={styles.gridContainer}>
-              {categories.map((cat, index) => (
-                <Animated.View
-                  key={cat.id}
-                  style={{ width: '48%' }}
-                  entering={FadeInUp.duration(500).delay(index * 50)}
-                >
-                  <TouchableOpacity
-                    style={[
-                      styles.gridItem,
-                      { backgroundColor: colors.card, borderColor: colors.border },
-                      selectedCategory === cat.id && [
-                        styles.gridItemSelected,
-                        { borderColor: colors.primary }
-                      ]
-                    ]}
-                    onPress={() => setSelectedCategory(cat.id)}
-                  >
-                    <Text style={styles.gridItemIcon}>{cat.icon}</Text>
-                    <Text style={[styles.gridItemLabel, { color: colors.foreground }]}>
-                      {cat.label}
-                    </Text>
-                    <Text style={[styles.gridItemSublabel, { color: colors['muted-foreground'] }]}>
-                      {cat.description}
-                    </Text>
-                  </TouchableOpacity>
-                </Animated.View>
-              ))}
-            </View>
-          </View>
-
-          {/* Vibe Selection */}
-          <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-              Vibe
-            </Text>
-            <MoonPhaseSelector onSelect={setSelectedVibe} selectedVibe={selectedVibe} />
-          </View>
-
-          {/* Reciprocity Section */}
-          <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-              Who initiated?
-            </Text>
-            <ReciprocitySelector
-              value={initiator}
-              onChange={setInitiator}
-              hideLabel
-            />
-          </View>
-
-          {/* Notes */}
-          <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-              Notes
-            </Text>
-            <TextInput
-              style={[
-                styles.notesInput,
-                { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }
-              ]}
-              placeholder="Add notes about this moment..."
-              placeholderTextColor={colors['muted-foreground']}
-              value={customNotes}
-              onChangeText={setCustomNotes}
-              multiline
-              numberOfLines={4}
-              textAlignVertical="top"
-            />
-          </View>
-
-
-      </ScrollView>
-
-      <View style={[styles.footer, { backgroundColor: colors.background, borderTopColor: colors.border }]}>
+      scrollable
+      footerComponent={
         <TouchableOpacity
           style={[styles.saveButton, { backgroundColor: colors.primary }]}
           onPress={handleSave}
@@ -250,6 +131,121 @@ export function EditInteractionModal({
             {isSaving ? 'Saving...' : 'Save Changes'}
           </Text>
         </TouchableOpacity>
+      }
+    >
+      <View style={styles.scrollViewContent}>
+        {/* Title Input */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
+            Title
+          </Text>
+          <TextInput
+            style={[
+              styles.titleInput,
+              { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }
+            ]}
+            placeholder='e.g., "Coffee at Blue Bottle"'
+            placeholderTextColor={colors['muted-foreground']}
+            value={title}
+            onChangeText={setTitle}
+          />
+        </View>
+
+        {/* Date Selection */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
+            Date
+          </Text>
+          <TouchableOpacity
+            onPress={() => setShowDatePicker(true)}
+            style={[
+              styles.dateInput,
+              { backgroundColor: colors.card, borderColor: colors.border }
+            ]}
+          >
+            <View style={styles.dateContent}>
+              <CalendarDays size={20} color={colors.primary} />
+              <Text style={[styles.dateText, { color: colors.foreground }]}>
+                {selectedDate ? format(selectedDate, 'EEEE, MMMM d, yyyy') : 'Select date'}
+              </Text>
+            </View>
+          </TouchableOpacity>
+        </View>
+
+        {/* Category Selection */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
+            Category
+          </Text>
+          <View style={styles.gridContainer}>
+            {categories.map((cat, index) => (
+              <Animated.View
+                key={cat.id}
+                style={{ width: '48%' }}
+              >
+                <TouchableOpacity
+                  style={[
+                    styles.gridItem,
+                    { backgroundColor: colors.card, borderColor: colors.border },
+                    selectedCategory === cat.id && [
+                      styles.gridItemSelected,
+                      { borderColor: colors.primary }
+                    ]
+                  ]}
+                  onPress={() => setSelectedCategory(cat.id)}
+                >
+                  <Text style={styles.gridItemIcon}>{cat.icon}</Text>
+                  <Text style={[styles.gridItemLabel, { color: colors.foreground }]}>
+                    {cat.label}
+                  </Text>
+                  <Text style={[styles.gridItemSublabel, { color: colors['muted-foreground'] }]}>
+                    {cat.description}
+                  </Text>
+                </TouchableOpacity>
+              </Animated.View>
+            ))}
+          </View>
+        </View>
+
+        {/* Vibe Selection */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
+            Vibe
+          </Text>
+          <MoonPhaseSelector onSelect={setSelectedVibe} selectedVibe={selectedVibe} />
+        </View>
+
+        {/* Reciprocity Section */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
+            Who initiated?
+          </Text>
+          <ReciprocitySelector
+            value={initiator}
+            onChange={setInitiator}
+            hideLabel
+          />
+        </View>
+
+        {/* Notes */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
+            Notes
+          </Text>
+          <TextInput
+            style={[
+              styles.notesInput,
+              { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }
+            ]}
+            placeholder="Add notes about this moment..."
+            placeholderTextColor={colors['muted-foreground']}
+            value={customNotes}
+            onChangeText={setCustomNotes}
+            multiline
+            numberOfLines={4}
+            textAlignVertical="top"
+          />
+        </View>
       </View>
 
       {/* Calendar Modal */}
@@ -298,7 +294,7 @@ export function EditInteractionModal({
           </BlurView>
         </Modal>
       )}
-    </StandardBottomSheet>
+    </AnimatedBottomSheet>
   );
 }
 

@@ -22,6 +22,7 @@ interface FriendProfileModalsProps {
     friend: Friend;
     modals: ReturnType<typeof useFriendProfileModals>;
     friendIntentions: Intention[];
+    selectedInteraction: Interaction | null; // Reactive selected interaction
     updateReflection: (id: string, reflection: StructuredReflection) => Promise<void>;
     updateInteraction: (id: string, updates: any) => Promise<void>; // Using any to avoid Model vs DTO conflicts
     createIntention: (friendIds: string[], description: string, category?: InteractionCategory) => Promise<void>;
@@ -34,6 +35,7 @@ export function FriendProfileModals({
     friend,
     modals,
     friendIntentions,
+    selectedInteraction, // Deconstruct explicit prop
     updateReflection,
     updateInteraction,
     createIntention,
@@ -42,8 +44,7 @@ export function FriendProfileModals({
     refreshLifeEvents,
 }: FriendProfileModalsProps) {
     const {
-        selectedInteraction,
-        setSelectedInteraction,
+        setSelectedInteraction, // Still need setter trigger
         editingReflection,
         setEditingReflection,
         editingInteraction,
@@ -83,10 +84,8 @@ export function FriendProfileModals({
                         setEditingReflection(interaction as any);
                     }, 500);
                 }}
-                onEdit={(id) => {
-                    if (selectedInteraction && selectedInteraction.id === id) {
-                        handleEditInteraction(selectedInteraction);
-                    }
+                onEdit={(interaction) => {
+                    handleEditInteraction(interaction as any);
                 }}
                 onDelete={async (id) => {
                     await deleteWeave(id);
@@ -112,7 +111,7 @@ export function FriendProfileModals({
 
             <EditInteractionModal
                 interaction={editingInteraction as any}
-                isOpen={editingInteraction !== null && !isFuture(new Date(editingInteraction?.interactionDate || Date.now()))}
+                isOpen={editingInteraction !== null && !showPlanWizard}
                 onClose={() => setEditingInteraction(null)}
                 onSave={updateInteraction as any}
             />

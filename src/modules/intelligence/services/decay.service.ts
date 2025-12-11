@@ -16,12 +16,16 @@ import type { Tier } from '@/shared/types/common';
  * @param useFlexibleDecay - Whether to use flexible decay system (default: true)
  * @returns Current score after decay
  */
-export function applyDecay(
+/**
+ * Calculate the amount of decay for a specific number of days
+ */
+export function calculateDecayAmount(
   friend: FriendModel | Friend,
+  days: number,
   flexibilityMode: FlexibilityMode = 'balanced',
   useFlexibleDecay: boolean = true
 ): number {
-  const daysSinceLastUpdate = daysSince(friend.lastUpdated);
+  if (days <= 0) return 0;
 
   // Use flexible decay rate if enabled, otherwise use base tier rate
   const tierDecayRate = useFlexibleDecay
@@ -43,17 +47,37 @@ export function applyDecay(
 
   let decayAmount: number;
 
-  if (toleranceWindow && daysSinceLastUpdate <= toleranceWindow) {
+  if (days <= toleranceWindow) {
     // Within normal pattern - minimal decay (50% of base rate)
-    decayAmount = (daysSinceLastUpdate * tierDecayRate * 0.5) / safeResilience;
+    decayAmount = (days * tierDecayRate * 0.5) / safeResilience;
   } else {
     // Outside tolerance - accelerating decay
     const safeToleranceWindow = toleranceWindow || 14; // Default to 14 days if undefined
-    const excessDays = daysSinceLastUpdate - safeToleranceWindow;
+    const excessDays = days - safeToleranceWindow;
     const baseDecay = (safeToleranceWindow * tierDecayRate * 0.5) / safeResilience;
     const acceleratedDecay = (excessDays * tierDecayRate * 1.5) / safeResilience;
     decayAmount = baseDecay + acceleratedDecay;
   }
+
+  return decayAmount;
+}
+
+/**
+ * Apply decay to a friend's score
+ * Now supports flexible decay based on learned patterns
+ *
+ * @param friend - The friend to apply decay to
+ * @param flexibilityMode - How strict vs flexible to be (default: 'balanced')
+ * @param useFlexibleDecay - Whether to use flexible decay system (default: true)
+ * @returns Current score after decay
+ */
+export function applyDecay(
+  friend: FriendModel | Friend,
+  flexibilityMode: FlexibilityMode = 'balanced',
+  useFlexibleDecay: boolean = true
+): number {
+  const daysSinceLastUpdate = daysSince(friend.lastUpdated);
+  const decayAmount = calculateDecayAmount(friend, daysSinceLastUpdate, flexibilityMode, useFlexibleDecay);
 
   return Math.max(0, friend.weaveScore - decayAmount);
 }

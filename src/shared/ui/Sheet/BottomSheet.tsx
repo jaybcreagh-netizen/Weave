@@ -69,7 +69,10 @@ export function CustomBottomSheet({
                 backgroundStyle={{ backgroundColor: colors.card }}
                 handleIndicatorStyle={{ backgroundColor: colors.border }}
             >
-                <ContentWrapper style={styles.contentContainer}>
+                <ContentWrapper
+                    style={styles.contentContainer}
+                    showsVerticalScrollIndicator={false}
+                >
                     {children}
                 </ContentWrapper>
             </BottomSheet>

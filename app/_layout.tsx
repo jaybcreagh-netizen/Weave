@@ -262,9 +262,9 @@ function RootLayoutContent() {
       trackEvent(AnalyticsEvents.APP_OPENED);
       trackRetentionMetrics();
 
-      // Trigger smart notification evaluation when app comes to foreground
-      NotificationOrchestrator.evaluateSmartNotifications().catch((error) => {
-        console.error('[App] Error evaluating smart notifications on foreground:', error);
+      // Trigger maintenance checks and smart notification evaluation when app comes to foreground
+      NotificationOrchestrator.onAppForeground().catch((error) => {
+        console.error('[App] Error during foreground notification checks:', error);
       });
 
       // Sync calendar changes when app becomes active

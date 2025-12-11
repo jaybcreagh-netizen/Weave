@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-nati
 import { Calendar, MapPin, Heart, MessageCircle, Sparkles, Edit3, Trash2, Share2 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/shared/hooks/useTheme';
-import { AnimatedBottomSheet } from '@/shared/ui/Sheet';
+import { AnimatedBottomSheet, AnimatedBottomSheetRef } from '@/shared/ui/Sheet';
 import { type Interaction, type MoonPhase, type InteractionCategory } from './types';
 import { modeIcons } from '@/shared/constants/constants';
 import { getCategoryMetadata } from '@/shared/constants/interaction-categories';
@@ -39,7 +39,7 @@ interface InteractionDetailModalProps {
   onClose: () => void;
   friendName?: string;
   onEditReflection?: (interaction: Interaction) => void;
-  onEdit?: (interactionId: string) => void;
+  onEdit?: (interaction: Interaction) => void;
   onDelete?: (interactionId: string) => void;
 }
 
@@ -55,6 +55,21 @@ export function InteractionDetailModal({
   const insets = useSafeAreaInsets();
   const { colors, isDarkMode } = useTheme();
 
+  // Ref to control the sheet animation
+  const sheetRef = useRef<AnimatedBottomSheetRef>(null);
+
+  // Cache interaction to keep displaying it during close animation
+  const [cachedInteraction, setCachedInteraction] = useState<Interaction | null>(interaction);
+
+  useEffect(() => {
+    if (interaction) {
+      setCachedInteraction(interaction);
+    }
+  }, [interaction]);
+
+  // Use cached version if current is null (during closing)
+  const activeInteraction = interaction || cachedInteraction;
+
   // Track pending actions for after close animation
   const pendingActionRef = useRef<'edit' | 'delete' | 'editReflection' | null>(null);
 
@@ -62,7 +77,7 @@ export function InteractionDetailModal({
 
   // Fetch all participants for this interaction
   useEffect(() => {
-    if (!interaction) {
+    if (!activeInteraction) {
       setParticipants([]);
       return;
     }
@@ -72,7 +87,7 @@ export function InteractionDetailModal({
         // Get join records for this interaction
         const joinRecords = await database
           .get('interaction_friends')
-          .query(Q.where('interaction_id', interaction.id))
+          .query(Q.where('interaction_id', activeInteraction.id))
           .fetch();
 
         if (joinRecords.length === 0) {
@@ -97,20 +112,20 @@ export function InteractionDetailModal({
     };
 
     fetchParticipants();
-  }, [interaction]);
+  }, [activeInteraction]);
 
-  if (!interaction) return null;
+  if (!activeInteraction) return null;
 
-  const { date, time } = formatDateTime(interaction.interactionDate);
-  const moonIcon = interaction.vibe ? moonPhaseIcons[interaction.vibe as MoonPhase] : null;
-  const isPast = new Date(interaction.interactionDate) < new Date();
-  const isPlanned = interaction.status === 'planned' || interaction.status === 'pending_confirm';
+  const { date, time } = formatDateTime(activeInteraction.interactionDate);
+  const moonIcon = activeInteraction.vibe ? moonPhaseIcons[activeInteraction.vibe as MoonPhase] : null;
+  const isPast = new Date(activeInteraction.interactionDate) < new Date();
+  const isPlanned = activeInteraction.status === 'planned' || activeInteraction.status === 'pending_confirm';
 
   // Handler for sharing the plan
   const handleShare = async () => {
     try {
       // Fetch the full Interaction model from database to pass to share function
-      const interactionModel = await database.get<InteractionModel>('interactions').find(interaction.id);
+      const interactionModel = await database.get<InteractionModel>('interactions').find(activeInteraction.id);
       const success = await shareInteractionAsICS(interactionModel);
       if (!success) {
         console.warn('Share was cancelled or failed');
@@ -122,59 +137,60 @@ export function InteractionDetailModal({
 
   // Handle close completion - execute pending action
   const handleCloseComplete = () => {
-    if (!interaction) return;
+    if (!activeInteraction) return;
 
     if (pendingActionRef.current === 'edit' && onEdit) {
-      onEdit(interaction.id);
+      onEdit(activeInteraction);
     } else if (pendingActionRef.current === 'delete' && onDelete) {
-      onDelete(interaction.id);
+      onDelete(activeInteraction.id);
     } else if (pendingActionRef.current === 'editReflection' && onEditReflection) {
-      onEditReflection(interaction);
+      onEditReflection(activeInteraction);
     }
     pendingActionRef.current = null;
   };
 
-  // Action handlers that set pending action and close
+  // Action handlers that set pending action and close via ref to trigger animation
   const handleEditPress = () => {
     pendingActionRef.current = 'edit';
-    onClose();
+    sheetRef.current?.close();
   };
 
   const handleDeletePress = () => {
     pendingActionRef.current = 'delete';
-    onClose();
+    sheetRef.current?.close();
   };
 
   const handleEditReflectionPress = () => {
     pendingActionRef.current = 'editReflection';
-    onClose();
+    sheetRef.current?.close();
   };
 
   // Get friendly label and icon for category (or fall back to activity)
   // Check if activity looks like a category ID (has a dash)
-  const isCategory = interaction.activity && interaction.activity.includes('-');
+  const isCategory = activeInteraction.activity && activeInteraction.activity.includes('-');
 
   let displayLabel: string;
   let displayIcon: string;
 
   if (isCategory) {
-    const categoryData = getCategoryMetadata(interaction.activity as InteractionCategory);
+    const categoryData = getCategoryMetadata(activeInteraction.activity as InteractionCategory);
     if (categoryData) {
       displayLabel = categoryData.label;
       displayIcon = categoryData.icon;
     } else {
       // Fallback if category not found
-      displayLabel = interaction.activity || 'Interaction';
-      displayIcon = modeIcons[interaction.mode as keyof typeof modeIcons] || '📅';
+      displayLabel = activeInteraction.activity || 'Interaction';
+      displayIcon = modeIcons[activeInteraction.mode as keyof typeof modeIcons] || '📅';
     }
   } else {
     // Old format - use mode icon and activity name
-    displayLabel = interaction.activity || 'Interaction';
-    displayIcon = modeIcons[interaction.mode as keyof typeof modeIcons] || '📅';
+    displayLabel = activeInteraction.activity || 'Interaction';
+    displayIcon = modeIcons[activeInteraction.mode as keyof typeof modeIcons] || '📅';
   }
 
   return (
     <AnimatedBottomSheet
+      ref={sheetRef}
       visible={isOpen}
       onClose={onClose}
       height="form"
@@ -186,7 +202,7 @@ export function InteractionDetailModal({
           <View>
             <Text style={[styles.headerTitle, { color: colors.foreground }]}>{displayLabel}</Text>
             <Text style={[styles.headerSubtitle, { color: colors['muted-foreground'] }]}>
-              {interaction.mode?.replace('-', ' ')} • {interaction.interactionType}
+              {activeInteraction.mode?.replace('-', ' ')} • {activeInteraction.interactionType}
             </Text>
           </View>
         </View>
@@ -221,67 +237,67 @@ export function InteractionDetailModal({
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollViewContent}>
-              <View style={[styles.statusBadge, interaction.status === 'completed' ? styles.statusCompleted : styles.statusPlanned]}>
-                <Text style={[styles.statusBadgeText, interaction.status === 'completed' ? styles.statusCompletedText : styles.statusPlannedText]}>
-                  {interaction.status === 'completed' ? '✓ Completed' : '⏳ Planned'}
-                </Text>
-              </View>
+        <View style={[styles.statusBadge, activeInteraction.status === 'completed' ? styles.statusCompleted : styles.statusPlanned]}>
+          <Text style={[styles.statusBadgeText, activeInteraction.status === 'completed' ? styles.statusCompletedText : styles.statusPlannedText]}>
+            {activeInteraction.status === 'completed' ? '✓ Completed' : '⏳ Planned'}
+          </Text>
+        </View>
 
-              <InfoRow icon={<Calendar color={colors['muted-foreground']} size={20} />} title={date} subtitle={time} colors={colors} />
-              {participants.length > 0 && (
-                <InfoRow
-                  icon={<Heart color={colors['muted-foreground']} size={20} />}
-                  title={participants.map(f => f.name).join(', ')}
-                  subtitle={participants.length === 1 ? 'With' : `With ${participants.length} friends`}
-                  colors={colors}
-                />
-              )}
-              {isPast && moonIcon && <InfoRow icon={<Text style={{ fontSize: 24 }}>{moonIcon}</Text>} title={(interaction.vibe || '').replace(/([A-Z])/g, ' $1').trim()} subtitle="Moon phase" colors={colors} />}
-              {interaction.location && <InfoRow icon={<MapPin color={colors['muted-foreground']} size={20} />} title={interaction.location} subtitle="Location" colors={colors} />}
+        <InfoRow icon={<Calendar color={colors['muted-foreground']} size={20} />} title={date} subtitle={time} colors={colors} />
+        {participants.length > 0 && (
+          <InfoRow
+            icon={<Heart color={colors['muted-foreground']} size={20} />}
+            title={participants.map(f => f.name).join(', ')}
+            subtitle={participants.length === 1 ? 'With' : `With ${participants.length} friends`}
+            colors={colors}
+          />
+        )}
+        {isPast && moonIcon && <InfoRow icon={<Text style={{ fontSize: 24 }}>{moonIcon}</Text>} title={(activeInteraction.vibe || '').replace(/([A-Z])/g, ' $1').trim()} subtitle="Moon phase" colors={colors} />}
+        {activeInteraction.location && <InfoRow icon={<MapPin color={colors['muted-foreground']} size={20} />} title={activeInteraction.location} subtitle="Location" colors={colors} />}
 
-              {/* Reflection chips display */}
-              {interaction.reflection && (interaction.reflection.chips?.length || interaction.reflection.customNotes) && (
-                <View style={[styles.reflectionSection, { backgroundColor: colors.muted + '80' }]}>
-                  <View style={styles.reflectionHeader}>
-                    <Sparkles color={colors.primary} size={16} />
-                    <Text style={[styles.reflectionHeaderText, { color: colors.foreground }]}>Reflection</Text>
-                  </View>
+        {/* Reflection chips display */}
+        {activeInteraction.reflection && (activeInteraction.reflection.chips?.length || activeInteraction.reflection.customNotes) && (
+          <View style={[styles.reflectionSection, { backgroundColor: colors.muted + '80' }]}>
+            <View style={styles.reflectionHeader}>
+              <Sparkles color={colors.primary} size={16} />
+              <Text style={[styles.reflectionHeaderText, { color: colors.foreground }]}>Reflection</Text>
+            </View>
 
-                  {/* Story chips */}
-                  {interaction.reflection.chips && interaction.reflection.chips.length > 0 && (
-                    <View style={styles.reflectionChips}>
-                      {interaction.reflection.chips.map((chip, index) => {
-                        const storyChip = STORY_CHIPS.find(s => s.id === chip.chipId);
-                        if (!storyChip) return null;
+            {/* Story chips */}
+            {activeInteraction.reflection.chips && activeInteraction.reflection.chips.length > 0 && (
+              <View style={styles.reflectionChips}>
+                {activeInteraction.reflection.chips.map((chip, index) => {
+                  const storyChip = STORY_CHIPS.find(s => s.id === chip.chipId);
+                  if (!storyChip) return null;
 
-                        // Build the text with overrides
-                        let text = storyChip.template;
-                        if (storyChip.components) {
-                          Object.entries(storyChip.components).forEach(([componentId, component]) => {
-                            const value = chip.componentOverrides[componentId] || component.original;
-                            text = text.replace(`{${componentId}}`, value);
-                          });
-                        }
+                  // Build the text with overrides
+                  let text = storyChip.template;
+                  if (storyChip.components) {
+                    Object.entries(storyChip.components).forEach(([componentId, component]) => {
+                      const value = chip.componentOverrides[componentId] || component.original;
+                      text = text.replace(`{${componentId}}`, value);
+                    });
+                  }
 
-                        return (
-                          <View key={index} style={[styles.reflectionChip, { backgroundColor: colors.primary + '20', borderColor: colors.primary + '40' }]}>
-                            <Text style={[styles.reflectionChipText, { color: colors.foreground }]}>{text}</Text>
-                          </View>
-                        );
-                      })}
+                  return (
+                    <View key={index} style={[styles.reflectionChip, { backgroundColor: colors.primary + '20', borderColor: colors.primary + '40' }]}>
+                      <Text style={[styles.reflectionChipText, { color: colors.foreground }]}>{text}</Text>
                     </View>
-                  )}
+                  );
+                })}
+              </View>
+            )}
 
-                  {/* Custom notes */}
-                  {interaction.reflection.customNotes && (
-                    <Text style={[styles.reflectionCustomNotes, { color: colors.foreground }]}>
-                      {interaction.reflection.customNotes}
-                    </Text>
-                  )}
-                </View>
-              )}
+            {/* Custom notes */}
+            {activeInteraction.reflection.customNotes && (
+              <Text style={[styles.reflectionCustomNotes, { color: colors.foreground }]}>
+                {activeInteraction.reflection.customNotes}
+              </Text>
+            )}
+          </View>
+        )}
 
-              {interaction.note && <InfoRow icon={<MessageCircle color={colors['muted-foreground']} size={20} />} title={interaction.note} subtitle="Notes" colors={colors} />}
+        {activeInteraction.note && <InfoRow icon={<MessageCircle color={colors['muted-foreground']} size={20} />} title={activeInteraction.note} subtitle="Notes" colors={colors} />}
       </ScrollView>
 
       {/* Deepen Weave / Edit Reflection Button - Only for past interactions */}
@@ -293,7 +309,7 @@ export function InteractionDetailModal({
           >
             <Sparkles color={colors['primary-foreground']} size={20} />
             <Text style={[styles.deepenButtonText, { color: colors['primary-foreground'] }]}>
-              {interaction.reflection?.chips?.length ? 'Edit Reflection' : 'Deepen this weave'}
+              {activeInteraction.reflection?.chips?.length ? 'Edit Reflection' : 'Deepen this weave'}
             </Text>
           </TouchableOpacity>
         </View>

@@ -98,6 +98,7 @@ export const SocialBatterySheet: React.FC<SocialBatterySheetProps> = ({
       onClose={handleDismiss}
       onCloseComplete={resetState}
       height="form"
+      scrollable
     >
       {/* Header */}
       <View className="mb-6 items-center">

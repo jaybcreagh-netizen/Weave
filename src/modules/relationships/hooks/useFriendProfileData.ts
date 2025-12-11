@@ -7,7 +7,7 @@ import { LifeEventRepository } from '@/repositories/LifeEventRepository';
 import LifeEventModel from '@/db/models/LifeEvent';
 import { Friend, Interaction, LifeEvent, Intention } from '@/components/types';
 import { switchMap } from 'rxjs/operators';
-import { of } from 'rxjs';
+import { of, combineLatest } from 'rxjs';
 import IntentionFriend from '@/db/models/IntentionFriend';
 import FriendModel from '@/db/models/Friend';
 import InteractionModel from '@/db/models/Interaction';
@@ -64,12 +64,23 @@ export function useFriendProfileData(friendId: string | undefined) {
                 Q.take(interactionsLimit)
             );
 
-        const subscription = query.observe().subscribe(interactions => {
-            setInteractionsModels(interactions);
-            // Simple check for "has more": if we got as many as the limit, assume there might be more.
-            // A perfect check would require a count query, but this is a reasonable heuristic for now.
-            setHasMoreInteractions(interactions.length >= interactionsLimit);
-        });
+        const subscription = query.observe()
+            .pipe(
+                switchMap(interactions => {
+                    if (interactions.length === 0) {
+                        return of([]);
+                    }
+                    // Observe each interaction model for changes individually
+                    // This ensures that if a property of an interaction changes (like activity type), we get an update
+                    return combineLatest(interactions.map(i => i.observe()));
+                })
+            )
+            .subscribe(interactions => {
+                setInteractionsModels(interactions);
+                // Simple check for "has more": if we got as many as the limit, assume there might be more.
+                // A perfect check would require a count query, but this is a reasonable heuristic for now.
+                setHasMoreInteractions(interactions.length >= interactionsLimit);
+            });
 
         return () => subscription.unsubscribe();
     }, [friendId, interactionsLimit]);

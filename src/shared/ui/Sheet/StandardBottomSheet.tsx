@@ -46,6 +46,8 @@ import { StandardBottomSheetProps } from './types';
  *   <FormContent />
  * </StandardBottomSheet>
  */
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 export function StandardBottomSheet({
   visible,
   onClose,
@@ -59,9 +61,12 @@ export function StandardBottomSheet({
   showCloseButton = true,
   children,
   testID,
+  scrollRef,
+  footerComponent,
 }: StandardBottomSheetProps) {
   const { colors, isDarkMode } = useTheme();
   const bottomSheetRef = useRef<BottomSheet>(null);
+  const insets = useSafeAreaInsets();
 
   // Compute snap points from height variant or custom
   const snapPoints = useMemo(() => {
@@ -95,6 +100,11 @@ export function StandardBottomSheet({
     []
   );
 
+  // Handle manual close with animation
+  const handleClose = useCallback(() => {
+    bottomSheetRef.current?.close();
+  }, []);
+
   // Sync visibility with sheet state
   useEffect(() => {
     if (visible) {
@@ -108,6 +118,12 @@ export function StandardBottomSheet({
   if (!visible) return null;
 
   const ContentWrapper = scrollable ? BottomSheetScrollView : BottomSheetView;
+
+  const footer = footerComponent ? (
+    <View style={[styles.footer, { backgroundColor: colors.card, borderTopColor: colors.border }]}>
+      {footerComponent}
+    </View>
+  ) : null;
 
   return (
     <Portal>
@@ -131,39 +147,57 @@ export function StandardBottomSheet({
           stiffness: SHEET_SPRING_CONFIG.stiffness,
         }}
         style={styles.sheet}
-        testID={testID}
       >
-        <ContentWrapper style={styles.contentContainer}>
-          {/* Header with optional title and close button */}
-          {(title || showCloseButton) && (
-            <View style={styles.header}>
-              {title ? (
-                <Text
-                  style={[styles.title, { color: colors.foreground }]}
-                  numberOfLines={1}
-                >
-                  {title}
-                </Text>
-              ) : (
-                <View style={{ flex: 1 }} />
-              )}
-              {showCloseButton && (
-                <TouchableOpacity
-                  onPress={onClose}
-                  style={styles.closeButton}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                  accessibilityLabel="Close"
-                  accessibilityRole="button"
-                >
-                  <X size={24} color={colors['muted-foreground']} />
-                </TouchableOpacity>
-              )}
-            </View>
-          )}
+        {/* Header with optional title and close button */}
+        {(title || showCloseButton) && (
+          <View style={styles.header}>
+            {title ? (
+              <Text
+                style={[styles.title, { color: colors.foreground }]}
+                numberOfLines={1}
+              >
+                {title}
+              </Text>
+            ) : (
+              <View style={{ flex: 1 }} />
+            )}
+            {showCloseButton && (
+              <TouchableOpacity
+                onPress={handleClose}
+                style={styles.closeButton}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                accessibilityLabel="Close"
+                accessibilityRole="button"
+              >
+                <X size={24} color={colors['muted-foreground']} />
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
 
-          {/* Sheet content */}
-          <View style={styles.content}>{children}</View>
-        </ContentWrapper>
+        <View style={{ flex: 1 }}>
+          <ContentWrapper
+            style={styles.contentContainer}
+            ref={scrollable ? scrollRef : undefined}
+            contentContainerStyle={[
+              scrollable && {
+                paddingBottom: footerComponent ? 0 : Math.max(insets.bottom, 24),
+                flexGrow: 1
+              }
+            ]}
+            showsVerticalScrollIndicator={false}
+          >
+            {/* Sheet content */}
+            <View style={[
+              styles.content,
+              scrollable && { flex: 0 },
+              { paddingBottom: scrollable || footerComponent ? 0 : Math.max(insets.bottom + 20, 24) }
+            ]}>
+              {children}
+            </View>
+          </ContentWrapper>
+          {footer}
+        </View>
       </BottomSheet>
     </Portal>
   );
@@ -194,9 +228,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 24,
-    paddingTop: 16,
-    paddingBottom: 12,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 8,
   },
   title: {
     fontSize: 20,
@@ -210,7 +244,11 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingHorizontal: 24,
-    paddingBottom: 24,
+    paddingHorizontal: 16,
+    // paddingBottom handled dynamically
+  },
+  footer: {
+    padding: 16,
+    borderTopWidth: 1,
   },
 });

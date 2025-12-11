@@ -326,7 +326,7 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     contentContainer: {
-        padding: 20,
+        padding: 16,
         gap: 16,
     },
     healthCard: {

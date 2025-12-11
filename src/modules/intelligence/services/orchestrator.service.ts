@@ -4,7 +4,8 @@ import { type InteractionFormData } from '@/modules/interactions/types';
 import { type ScoreUpdate, type QualityMetrics } from '../types';
 import { calculateInteractionQuality } from './quality.service';
 import { calculatePointsForWeave } from './scoring.service';
-import { applyDecay } from './decay.service';
+import { applyDecay, calculateDecayAmount } from './decay.service';
+import { differenceInDays, isAfter } from 'date-fns';
 import { calculateMomentumBonus, updateMomentum } from './momentum.service';
 import { updateResilience } from './resilience.service';
 import { Vibe } from '@/shared/types/common';
@@ -155,25 +156,73 @@ export async function processWeaveScoring(
       const momentumBonus = calculateMomentumBonus(friend);
       pointsEarned *= momentumBonus;
 
-      const scoreAfter = Math.min(100, scoreBefore + pointsEarned);
+      // Backdating Logic: calculate score based on interaction date relative to last update
+      const rawScore = friend.weaveScore;
+      const lastUpdated = friend.lastUpdated || new Date(0);
+      const interactionDate = interactionData.date ? new Date(interactionData.date) : new Date();
 
-      // 4. Get updates for momentum and resilience.
-      const { momentumScore, momentumLastUpdated } = updateMomentum(friend);
-      const newResilience = updateResilience(friend, interactionData.vibe as Vibe | null);
+      let newScore = rawScore;
+      let newLastUpdated = lastUpdated;
+      let effectivePoints = pointsEarned;
+      let isNewerInteraction = false;
+
+      if (isAfter(interactionDate, lastUpdated)) {
+        // Case 1: Newer Interaction (Standard flow or "Fast-forward")
+        // We move the state forward to this new date.
+        // First, apply decay that occurred between lastUpdated and this new interaction.
+        const gap = differenceInDays(interactionDate, lastUpdated);
+        const decay = calculateDecayAmount(friend, gap);
+
+        // Then add the fresh points
+        newScore = Math.max(0, rawScore - decay) + pointsEarned;
+        newLastUpdated = interactionDate;
+        isNewerInteraction = true;
+      } else {
+        // Case 2: Older interaction (Back-filling)
+        // The state (lastUpdated) is anchored in the future relative to this event.
+        // We do NOT move lastUpdated back.
+        // Instead, we discount the points based on how much they WOULD have decayed 
+        // from the interaction date to the current lastUpdated date.
+        const gap = differenceInDays(lastUpdated, interactionDate);
+        const penalty = calculateDecayAmount(friend, gap);
+        effectivePoints = Math.max(0, pointsEarned - penalty);
+        newScore = rawScore + effectivePoints;
+      }
+
+      const scoreAfterRaw = Math.min(100, newScore);
+
+      // 4. Get updates for momentum and resilience (only if moving timeline forward)
+      let momentumScore: number | undefined;
+      let momentumLastUpdated: Date | undefined;
+      let newResilience: number | null | undefined;
+
+      if (isNewerInteraction) {
+        const momentumResult = updateMomentum(friend);
+        momentumScore = momentumResult.momentumScore;
+        momentumLastUpdated = momentumResult.momentumLastUpdated;
+        newResilience = updateResilience(friend, interactionData.vibe as Vibe | null);
+      }
 
       // 5. Prepare update for the friend record.
       batchOps.push(friend.prepareUpdate(record => {
-        record.weaveScore = scoreAfter;
-        record.lastUpdated = new Date();
-        record.momentumScore = momentumScore;
-        record.momentumLastUpdated = momentumLastUpdated;
-        if (newResilience !== null) {
-          record.resilience = newResilience;
+        record.weaveScore = scoreAfterRaw;
+        record.lastUpdated = newLastUpdated;
+
+        if (isNewerInteraction) {
+          if (momentumScore !== undefined) record.momentumScore = momentumScore;
+          if (momentumLastUpdated !== undefined) record.momentumLastUpdated = momentumLastUpdated;
+          if (newResilience !== undefined && newResilience !== null) {
+            record.resilience = newResilience;
+          }
         }
+
         if (interactionData.vibe) {
           record.ratedWeavesCount += 1;
         }
       }));
+
+      // For the UI return value, we estimate the impact on the current viewed score
+      const scoreAfter = Math.min(100, scoreBefore + effectivePoints);
 
       scoreUpdates.push({
         friendId: friend.id,

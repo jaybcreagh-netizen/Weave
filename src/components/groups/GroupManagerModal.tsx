@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, TextInput, FlatList, Alert } from 'react-native';
 import { Check, Trash2 } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
-import { StandardBottomSheet } from '@/shared/ui/Sheet';
+import { AnimatedBottomSheet } from '@/shared/ui/Sheet';
 import FriendModel from '@/db/models/Friend';
 import { database } from '@/db';
 import { Q } from '@nozbe/watermelondb';
@@ -135,11 +135,36 @@ export function GroupManagerModal({
     };
 
     return (
-        <StandardBottomSheet
+        <AnimatedBottomSheet
             visible={visible}
             onClose={onClose}
             height="full"
             title={groupToEdit ? 'Edit Group' : 'New Group'}
+            scrollable
+            footerComponent={
+                <View className="flex-row gap-3">
+                    {groupToEdit && (
+                        <TouchableOpacity
+                            onPress={handleDelete}
+                            className="p-4 rounded-xl items-center justify-center border"
+                            style={{ borderColor: colors.destructive, width: 60 }}
+                        >
+                            <Trash2 size={20} color={colors.destructive} />
+                        </TouchableOpacity>
+                    )}
+
+                    <TouchableOpacity
+                        onPress={handleSave}
+                        disabled={isSaving}
+                        className="flex-1 py-4 rounded-xl items-center justify-center"
+                        style={{ backgroundColor: colors.primary, opacity: isSaving ? 0.7 : 1 }}
+                    >
+                        <Text className="font-inter-semibold text-base" style={{ color: colors.background }}>
+                            {isSaving ? 'Saving...' : 'Save Group'}
+                        </Text>
+                    </TouchableOpacity>
+                </View>
+            }
         >
             <View className="flex-1">
                 {/* Form */}
@@ -168,44 +193,11 @@ export function GroupManagerModal({
                 </View>
 
                 {/* Friend List */}
-                <FlatList
-                    data={allFriends}
-                    renderItem={renderFriendItem}
-                    keyExtractor={item => item.id}
-                    contentContainerStyle={{ paddingBottom: 100 }}
-                />
-
-                {/* Footer Actions */}
-                <View
-                    className="absolute bottom-0 left-0 right-0 p-5 border-t flex-row gap-3"
-                    style={{
-                        backgroundColor: colors.background,
-                        borderColor: colors.border,
-                        paddingBottom: 30
-                    }}
-                >
-                    {groupToEdit && (
-                        <TouchableOpacity
-                            onPress={handleDelete}
-                            className="p-4 rounded-xl items-center justify-center border"
-                            style={{ borderColor: colors.destructive, width: 60 }}
-                        >
-                            <Trash2 size={20} color={colors.destructive} />
-                        </TouchableOpacity>
-                    )}
-
-                    <TouchableOpacity
-                        onPress={handleSave}
-                        disabled={isSaving}
-                        className="flex-1 py-4 rounded-xl items-center justify-center"
-                        style={{ backgroundColor: colors.primary, opacity: isSaving ? 0.7 : 1 }}
-                    >
-                        <Text className="font-inter-semibold text-base" style={{ color: colors.background }}>
-                            {isSaving ? 'Saving...' : 'Save Group'}
-                        </Text>
-                    </TouchableOpacity>
+                <View style={{ paddingBottom: 20 }}>
+                    {allFriends.map(item => renderFriendItem({ item }))}
                 </View>
+
             </View>
-        </StandardBottomSheet>
+        </AnimatedBottomSheet>
     );
 }

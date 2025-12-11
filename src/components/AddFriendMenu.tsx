@@ -1,6 +1,6 @@
-import React, { useEffect } from 'react';
-import { Modal, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import Animated, { useSharedValue, useAnimatedStyle, withTiming, withSpring, runOnJS } from 'react-native-reanimated';
+import React from 'react';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import Animated, { FadeIn, FadeOut, SlideInDown, SlideOutDown } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
 import { UserPlus, Users, X } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
@@ -35,80 +35,58 @@ export function AddFriendMenu({
   onAddBatch,
 }: AddFriendMenuProps) {
   const { colors, isDarkMode } = useTheme();
-  const backdropOpacity = useSharedValue(0);
-  const sheetTranslateY = useSharedValue(SHEET_HEIGHT);
-
-  useEffect(() => {
-    if (isOpen) {
-      backdropOpacity.value = withTiming(1, { duration: 200 });
-      sheetTranslateY.value = withSpring(0, { damping: 50, stiffness: 400 });
-    }
-  }, [isOpen]);
-
-  const animateOut = (callback: () => void) => {
-    backdropOpacity.value = withTiming(0, { duration: 150 });
-    sheetTranslateY.value = withTiming(SHEET_HEIGHT, { duration: 200 }, (finished) => {
-      if (finished) {
-        runOnJS(callback)();
-      }
-    });
-  };
-
-  const handleAddSingle = () => {
-    animateOut(() => {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      onAddSingle();
-    });
-  };
-
-  const handleAddBatch = () => {
-    animateOut(() => {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      onAddBatch();
-    });
-  };
-
-  const backdropStyle = useAnimatedStyle(() => ({
-    opacity: backdropOpacity.value,
-  }));
-
-  const sheetStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: sheetTranslateY.value }],
-  }));
 
   if (!isOpen) return null;
 
+  const handleAddSingle = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    onAddSingle();
+    onClose();
+  };
+
+  const handleAddBatch = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    onAddBatch();
+    onClose();
+  };
+
   return (
-    <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
-      <TouchableOpacity
+    <View style={StyleSheet.absoluteFill} pointerEvents="box-none" zIndex={100}>
+      <Animated.View
         style={StyleSheet.absoluteFill}
-        activeOpacity={1}
-        onPress={() => animateOut(onClose)}
+        entering={FadeIn.duration(200)}
+        exiting={FadeOut.duration(200)}
       >
-        <Animated.View
-          style={[
-            StyleSheet.absoluteFill,
-            backdropStyle,
-            { backgroundColor: isDarkMode ? 'rgba(0, 0, 0, 0.6)' : 'rgba(0, 0, 0, 0.4)' }
-          ]}
+        <TouchableOpacity
+          style={StyleSheet.absoluteFill}
+          activeOpacity={1}
+          onPress={onClose}
         >
-          <BlurView intensity={isDarkMode ? 20 : 10} tint={isDarkMode ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
-        </Animated.View>
-      </TouchableOpacity>
+          <View
+            style={[
+              StyleSheet.absoluteFill,
+              { backgroundColor: isDarkMode ? 'rgba(0, 0, 0, 0.6)' : 'rgba(0, 0, 0, 0.4)' }
+            ]}
+          >
+            <BlurView intensity={isDarkMode ? 20 : 10} tint={isDarkMode ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
+          </View>
+        </TouchableOpacity>
+      </Animated.View>
 
       <Animated.View
         style={[
           styles.sheet,
           { backgroundColor: colors.card },
-          sheetStyle,
         ]}
+        entering={SlideInDown.springify().damping(28).stiffness(220)}
+        exiting={SlideOutDown.duration(200)}
         pointerEvents="box-none"
       >
         <View style={[styles.header, { borderBottomColor: colors.border }]}>
           <Text style={[styles.title, { color: colors.foreground }]}>
             Add Friends
           </Text>
-          <TouchableOpacity onPress={() => animateOut(onClose)} style={styles.closeButton}>
+          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
             <X color={colors['muted-foreground']} size={24} />
           </TouchableOpacity>
         </View>

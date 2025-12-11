@@ -108,88 +108,87 @@ export function MicroReflectionSheet({
       onClose={handleSkip}
       onCloseComplete={handleCloseComplete}
       height="full"
+      scrollable
     >
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={[styles.activityText, { color: colors['muted-foreground'] }]}>
-            Logged
-          </Text>
-          <TextInput
-            style={[styles.titleInput, { color: colors.foreground }]}
-            value={title}
-            onChangeText={setTitle}
-            placeholder="Interaction Title"
-            placeholderTextColor={colors['muted-foreground'] + '80'}
-            returnKeyType="done"
-          />
-          <Text style={[styles.friendNameText, { color: colors.foreground }]}>
-            with {friendName}
-          </Text>
-        </View>
-
-        {/* Prompt */}
-        <Text style={[styles.promptText, { color: colors.foreground }]}>
-          {getPrompt()}
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={[styles.activityText, { color: colors['muted-foreground'] }]}>
+          Logged
         </Text>
+        <TextInput
+          style={[styles.titleInput, { color: colors.foreground }]}
+          value={title}
+          onChangeText={setTitle}
+          placeholder="Interaction Title"
+          placeholderTextColor={colors['muted-foreground'] + '80'}
+          returnKeyType="done"
+        />
+        <Text style={[styles.friendNameText, { color: colors.foreground }]}>
+          with {friendName}
+        </Text>
+      </View>
 
-        {/* Moon Phase Selector */}
-        <View style={styles.moonContainer}>
-          <MoonPhaseSelector
-            selectedVibe={selectedVibe}
-            onSelect={handleVibeSelect}
-          />
-        </View>
+      {/* Prompt */}
+      <Text style={[styles.promptText, { color: colors.foreground }]}>
+        {getPrompt()}
+      </Text>
 
-        {/* Optional Note */}
-        <View style={styles.noteSection}>
-          <Text style={[styles.noteLabel, { color: colors['muted-foreground'] }]}>
-            Optional: Add a note
+      {/* Moon Phase Selector */}
+      <View style={styles.moonContainer}>
+        <MoonPhaseSelector
+          selectedVibe={selectedVibe}
+          onSelect={handleVibeSelect}
+        />
+      </View>
+
+      {/* Optional Note */}
+      <View style={styles.noteSection}>
+        <Text style={[styles.noteLabel, { color: colors['muted-foreground'] }]}>
+          Optional: Add a note
+        </Text>
+        <TextInput
+          style={[
+            styles.noteInput,
+            {
+              backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)',
+              color: colors.foreground,
+              borderColor: colors.border,
+            },
+          ]}
+          placeholder="What happened? How are you feeling?"
+          placeholderTextColor={colors['muted-foreground'] + '80'}
+          value={notes}
+          onChangeText={setNotes}
+          multiline
+          numberOfLines={3}
+          textAlignVertical="top"
+          returnKeyType="done"
+          blurOnSubmit
+        />
+      </View>
+
+      {/* Actions */}
+      <View style={styles.actions}>
+        <TouchableOpacity
+          style={[styles.skipButton, { borderColor: colors.border }]}
+          onPress={handleSkip}
+          activeOpacity={0.7}
+        >
+          <Text style={[styles.skipButtonText, { color: colors['muted-foreground'] }]}>
+            Skip
           </Text>
-          <TextInput
-            style={[
-              styles.noteInput,
-              {
-                backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)',
-                color: colors.foreground,
-                borderColor: colors.border,
-              },
-            ]}
-            placeholder="What happened? How are you feeling?"
-            placeholderTextColor={colors['muted-foreground'] + '80'}
-            value={notes}
-            onChangeText={setNotes}
-            multiline
-            numberOfLines={3}
-            textAlignVertical="top"
-            returnKeyType="done"
-            blurOnSubmit
-          />
-        </View>
+        </TouchableOpacity>
 
-        {/* Actions */}
-        <View style={styles.actions}>
-          <TouchableOpacity
-            style={[styles.skipButton, { borderColor: colors.border }]}
-            onPress={handleSkip}
-            activeOpacity={0.7}
-          >
-            <Text style={[styles.skipButtonText, { color: colors['muted-foreground'] }]}>
-              Skip
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.saveButton, { backgroundColor: colors.primary }]}
-            onPress={handleSave}
-            activeOpacity={0.8}
-          >
-            <Text style={[styles.saveButtonText, { color: colors['primary-foreground'] }]}>
-              Save
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
+        <TouchableOpacity
+          style={[styles.saveButton, { backgroundColor: colors.primary }]}
+          onPress={handleSave}
+          activeOpacity={0.8}
+        >
+          <Text style={[styles.saveButtonText, { color: colors['primary-foreground'] }]}>
+            Save
+          </Text>
+        </TouchableOpacity>
+      </View>
     </AnimatedBottomSheet>
   );
 }

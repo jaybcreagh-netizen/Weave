@@ -3,7 +3,12 @@ import { Interaction, LifeEvent, Intention } from '@/components/types';
 import { isFuture } from 'date-fns';
 
 export function useFriendProfileModals() {
-    const [selectedInteraction, setSelectedInteraction] = useState<Interaction | null>(null);
+    // Store ID instead of object for reactivity
+    const [selectedInteractionId, setSelectedInteractionId] = useState<string | null>(null);
+
+    // Computed for compatibility (though consumers should prefer ID lookup from live data)
+    // We don't compute selectedInteraction here because we don't have the list.
+
     const [editingReflection, setEditingReflection] = useState<Interaction | null>(null);
     const [editingInteraction, setEditingInteraction] = useState<Interaction | null>(null);
     const [showPlanChoice, setShowPlanChoice] = useState(false);
@@ -17,7 +22,7 @@ export function useFriendProfileModals() {
     const [showTierFitSheet, setShowTierFitSheet] = useState(false);
 
     const resetModals = useCallback(() => {
-        setSelectedInteraction(null);
+        setSelectedInteractionId(null);
         setEditingReflection(null);
         setEditingInteraction(null);
         setShowPlanChoice(false);
@@ -29,6 +34,11 @@ export function useFriendProfileModals() {
         setEditingLifeEvent(null);
         setShowBadgePopup(false);
         setShowTierFitSheet(false);
+    }, []);
+
+    // Wrapper to match expected interface for onInteractionPress
+    const setSelectedInteraction = useCallback((interaction: Interaction | null) => {
+        setSelectedInteractionId(interaction?.id || null);
     }, []);
 
     const handleEditInteraction = useCallback((interaction: Interaction) => {
@@ -49,7 +59,8 @@ export function useFriendProfileModals() {
 
     return {
         // State
-        selectedInteraction,
+        selectedInteractionId,
+        selectedInteraction: null, // Deprecated, use ID lookup
         setSelectedInteraction,
         editingReflection,
         setEditingReflection,

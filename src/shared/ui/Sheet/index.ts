@@ -47,7 +47,7 @@
 
 // Components
 export { StandardBottomSheet } from './StandardBottomSheet';
-export { AnimatedBottomSheet } from './AnimatedBottomSheet';
+export { AnimatedBottomSheet, type AnimatedBottomSheetRef } from './AnimatedBottomSheet';
 
 // Legacy export for backwards compatibility during migration
 export { CustomBottomSheet } from './BottomSheet';

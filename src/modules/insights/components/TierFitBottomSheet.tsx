@@ -41,6 +41,8 @@ export function TierFitBottomSheet({
 }: TierFitBottomSheetProps) {
   const { colors } = useTheme();
 
+  const scrollRef = React.useRef<ScrollView>(null);
+
   const isMismatch = analysis.fitCategory === 'mismatch';
   const hasSuggestion = analysis.suggestedTier !== undefined;
   const isMovingDown = hasSuggestion &&
@@ -53,163 +55,165 @@ export function TierFitBottomSheet({
       onClose={onDismiss}
       height="full"
       title={`Tier Fit for ${analysis.friendName}`}
+      scrollable
+      scrollRef={scrollRef}
     >
-      <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
-          {/* Preliminary Badge for Detail View */}
-          {!!analysis.isPreliminary && (
-            <View style={[styles.section, { padding: 12, backgroundColor: colors.muted }]}>
-              <Text style={{ fontSize: 13, textAlign: 'center', color: colors.foreground }}>
-                <Text style={{ fontWeight: '600' }}>Preliminary Result:</Text> Based on only {analysis.interactionCount} interactions. Reliability improves with time.
-              </Text>
-            </View>
-          )}
-
-          {/* Analysis Summary */}
-          <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <View style={styles.iconRow}>
-              {isMovingDown ? (
-                <TrendingDown size={32} color="#F59E0B" />
-              ) : (
-                <TrendingUp size={32} color="#3B82F6" />
-              )}
-            </View>
-
-            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-              Your Connection Pattern
+      <View style={styles.content}>
+        {/* Preliminary Badge for Detail View */}
+        {!!analysis.isPreliminary && (
+          <View style={[styles.section, { padding: 12, backgroundColor: colors.muted }]}>
+            <Text style={{ fontSize: 13, textAlign: 'center', color: colors.foreground }}>
+              <Text style={{ fontWeight: '600' }}>Preliminary Result:</Text> Based on only {analysis.interactionCount} interactions. Reliability improves with time.
             </Text>
-
-            <View style={styles.statsGrid}>
-              <View style={styles.statBox}>
-                <Text style={[styles.statLabel, { color: colors['muted-foreground'] }]}>
-                  Your rhythm
-                </Text>
-                <Text style={[styles.statValue, { color: colors.foreground }]}>
-                  Every {Math.round(analysis.actualIntervalDays)} days
-                </Text>
-              </View>
-
-              <View style={styles.statBox}>
-                <Text style={[styles.statLabel, { color: colors['muted-foreground'] }]}>
-                  {TIER_DISPLAY_NAMES[analysis.currentTier]} expects
-                </Text>
-                <Text style={[styles.statValue, { color: colors.foreground }]}>
-                  Every {analysis.expectedIntervalDays} days
-                </Text>
-              </View>
-            </View>
-
-            <View style={[styles.reasonBox, { backgroundColor: colors.muted }]}>
-              <Text style={[styles.reasonText, { color: colors.foreground }]}>
-                {analysis.reason}
-              </Text>
-            </View>
           </View>
+        )}
 
-          {/* Impact Explanation */}
-          {isMismatch && (
-            <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <View style={[styles.warningBadge, { backgroundColor: '#F59E0B20' }]}>
-                <AlertCircle size={20} color="#F59E0B" />
-                <Text style={[styles.warningText, { color: '#F59E0B' }]}>
-                  This mismatch may cause stress
-                </Text>
-              </View>
-
-              <Text style={[styles.impactTitle, { color: colors.foreground }]}>
-                Why this matters:
-              </Text>
-
-              <View style={styles.bulletList}>
-                <Text style={[styles.bulletPoint, { color: colors['muted-foreground'] }]}>
-                  • {analysis.friendName}'s score keeps dropping despite your care
-                </Text>
-                <Text style={[styles.bulletPoint, { color: colors['muted-foreground'] }]}>
-                  • You feel pressure that doesn't match your actual friendship
-                </Text>
-                <Text style={[styles.bulletPoint, { color: colors['muted-foreground'] }]}>
-                  • The tier expectation isn't aligned with reality
-                </Text>
-              </View>
-            </View>
-          )}
-
-          {/* Options */}
-          <View style={styles.optionsSection}>
-            <Text style={[styles.optionsTitle, { color: colors.foreground }]}>
-              What would you like to do?
-            </Text>
-
-            {/* Option 1: Change Tier (if suggested) */}
-            {hasSuggestion && analysis.suggestedTier && (
-              <TouchableOpacity
-                style={[styles.optionCard, { backgroundColor: colors.card, borderColor: colors.primary }]}
-                onPress={() => {
-                  onChangeTier(analysis.suggestedTier!);
-                  onDismiss();
-                }}
-              >
-                <View style={styles.optionHeader}>
-                  <Text style={[styles.optionTitle, { color: colors.primary }]}>
-                    Move to {TIER_DISPLAY_NAMES[analysis.suggestedTier]}
-                  </Text>
-                  <Text style={[styles.optionBadge, { color: colors.primary, borderColor: colors.primary }]}>
-                    Recommended
-                  </Text>
-                </View>
-                <Text style={[styles.optionDescription, { color: colors['muted-foreground'] }]}>
-                  {TIER_DESCRIPTIONS[analysis.suggestedTier]}
-                </Text>
-                <Text style={[styles.optionBenefit, { color: colors.foreground }]}>
-                  ✓ Better fit for your rhythm • Less stress • More honest reflection
-                </Text>
-              </TouchableOpacity>
+        {/* Analysis Summary */}
+        <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View style={styles.iconRow}>
+            {isMovingDown ? (
+              <TrendingDown size={32} color="#F59E0B" />
+            ) : (
+              <TrendingUp size={32} color="#3B82F6" />
             )}
+          </View>
 
-            {/* Option 2: Stay in Current Tier */}
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
+            Your Connection Pattern
+          </Text>
+
+          <View style={styles.statsGrid}>
+            <View style={styles.statBox}>
+              <Text style={[styles.statLabel, { color: colors['muted-foreground'] }]}>
+                Your rhythm
+              </Text>
+              <Text style={[styles.statValue, { color: colors.foreground }]}>
+                Every {Math.round(analysis.actualIntervalDays)} days
+              </Text>
+            </View>
+
+            <View style={styles.statBox}>
+              <Text style={[styles.statLabel, { color: colors['muted-foreground'] }]}>
+                {TIER_DISPLAY_NAMES[analysis.currentTier]} expects
+              </Text>
+              <Text style={[styles.statValue, { color: colors.foreground }]}>
+                Every {analysis.expectedIntervalDays} days
+              </Text>
+            </View>
+          </View>
+
+          <View style={[styles.reasonBox, { backgroundColor: colors.muted }]}>
+            <Text style={[styles.reasonText, { color: colors.foreground }]}>
+              {analysis.reason}
+            </Text>
+          </View>
+        </View>
+
+        {/* Impact Explanation */}
+        {isMismatch && (
+          <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <View style={[styles.warningBadge, { backgroundColor: '#F59E0B20' }]}>
+              <AlertCircle size={20} color="#F59E0B" />
+              <Text style={[styles.warningText, { color: '#F59E0B' }]}>
+                This mismatch may cause stress
+              </Text>
+            </View>
+
+            <Text style={[styles.impactTitle, { color: colors.foreground }]}>
+              Why this matters:
+            </Text>
+
+            <View style={styles.bulletList}>
+              <Text style={[styles.bulletPoint, { color: colors['muted-foreground'] }]}>
+                • {analysis.friendName}'s score keeps dropping despite your care
+              </Text>
+              <Text style={[styles.bulletPoint, { color: colors['muted-foreground'] }]}>
+                • You feel pressure that doesn't match your actual friendship
+              </Text>
+              <Text style={[styles.bulletPoint, { color: colors['muted-foreground'] }]}>
+                • The tier expectation isn't aligned with reality
+              </Text>
+            </View>
+          </View>
+        )}
+
+        {/* Options */}
+        <View style={styles.optionsSection}>
+          <Text style={[styles.optionsTitle, { color: colors.foreground }]}>
+            What would you like to do?
+          </Text>
+
+          {/* Option 1: Change Tier (if suggested) */}
+          {hasSuggestion && analysis.suggestedTier && (
             <TouchableOpacity
-              style={[styles.optionCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+              style={[styles.optionCard, { backgroundColor: colors.card, borderColor: colors.primary }]}
               onPress={() => {
-                onStayInTier();
+                onChangeTier(analysis.suggestedTier!);
                 onDismiss();
               }}
             >
-              <Text style={[styles.optionTitle, { color: colors.foreground }]}>
-                Stay in {TIER_DISPLAY_NAMES[analysis.currentTier]}
-              </Text>
+              <View style={styles.optionHeader}>
+                <Text style={[styles.optionTitle, { color: colors.primary }]}>
+                  Move to {TIER_DISPLAY_NAMES[analysis.suggestedTier]}
+                </Text>
+                <Text style={[styles.optionBadge, { color: colors.primary, borderColor: colors.primary }]}>
+                  Recommended
+                </Text>
+              </View>
               <Text style={[styles.optionDescription, { color: colors['muted-foreground'] }]}>
-                Keep current tier and maintain {isMovingDown ? 'higher' : 'current'} expectations
+                {TIER_DESCRIPTIONS[analysis.suggestedTier]}
               </Text>
-              <Text style={[styles.optionNote, { color: colors['muted-foreground'] }]}>
-                {isMovingDown
-                  ? "Your call - they're important to you!"
-                  : "You're connecting well - this tier works!"}
+              <Text style={[styles.optionBenefit, { color: colors.foreground }]}>
+                ✓ Better fit for your rhythm • Less stress • More honest reflection
               </Text>
             </TouchableOpacity>
+          )}
 
-            {/* Option 3: Dismiss Suggestion */}
-            <TouchableOpacity
-              style={[styles.dismissButton]}
-              onPress={() => {
-                onDismissSuggestion();
-                onDismiss();
-              }}
-            >
-              <Text style={[styles.dismissText, { color: colors['muted-foreground'] }]}>
-                Don't show this suggestion again
-              </Text>
-            </TouchableOpacity>
-          </View>
+          {/* Option 2: Stay in Current Tier */}
+          <TouchableOpacity
+            style={[styles.optionCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+            onPress={() => {
+              onStayInTier();
+              onDismiss();
+            }}
+          >
+            <Text style={[styles.optionTitle, { color: colors.foreground }]}>
+              Stay in {TIER_DISPLAY_NAMES[analysis.currentTier]}
+            </Text>
+            <Text style={[styles.optionDescription, { color: colors['muted-foreground'] }]}>
+              Keep current tier and maintain {isMovingDown ? 'higher' : 'current'} expectations
+            </Text>
+            <Text style={[styles.optionNote, { color: colors['muted-foreground'] }]}>
+              {isMovingDown
+                ? "Your call - they're important to you!"
+                : "You're connecting well - this tier works!"}
+            </Text>
+          </TouchableOpacity>
 
-          {/* Confidence Indicator */}
-          <View style={styles.confidenceSection}>
-            <Text style={[styles.confidenceLabel, { color: colors['muted-foreground'] }]}>
-              Suggestion confidence: {Math.round(analysis.confidence * 100)}%
+          {/* Option 3: Dismiss Suggestion */}
+          <TouchableOpacity
+            style={[styles.dismissButton]}
+            onPress={() => {
+              onDismissSuggestion();
+              onDismiss();
+            }}
+          >
+            <Text style={[styles.dismissText, { color: colors['muted-foreground'] }]}>
+              Don't show this suggestion again
             </Text>
-            <Text style={[styles.confidenceNote, { color: colors['muted-foreground'] }]}>
-              Based on {analysis.interactionCount} interactions
-            </Text>
-          </View>
-      </ScrollView>
+          </TouchableOpacity>
+        </View>
+
+        {/* Confidence Indicator */}
+        <View style={styles.confidenceSection}>
+          <Text style={[styles.confidenceLabel, { color: colors['muted-foreground'] }]}>
+            Suggestion confidence: {Math.round(analysis.confidence * 100)}%
+          </Text>
+          <Text style={[styles.confidenceNote, { color: colors['muted-foreground'] }]}>
+            Based on {analysis.interactionCount} interactions
+          </Text>
+        </View>
+      </View>
     </StandardBottomSheet>
   );
 }

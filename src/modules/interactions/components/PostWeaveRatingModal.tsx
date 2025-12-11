@@ -165,68 +165,67 @@ export function PostWeaveRatingModal() {
             onClose={handleSkip}
             onCloseComplete={handleCloseComplete}
             height="form"
+            scrollable
         >
-            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-                {/* Header */}
-                <View style={styles.header}>
-                    <Text style={[styles.title, { color: colors.foreground }]}>
-                        How was the {currentPlan.activity}{friendNames ? ` with ${friendNames}` : ''}?
+            {/* Header */}
+            <View style={styles.header}>
+                <Text style={[styles.title, { color: colors.foreground }]}>
+                    How was the {currentPlan.activity}{friendNames ? ` with ${friendNames}` : ''}?
+                </Text>
+                <Text style={[styles.subtitle, { color: colors['muted-foreground'] }]}>
+                    {format(new Date(currentPlan.interactionDate), 'EEEE, MMMM do')}
+                </Text>
+            </View>
+
+            {/* Moon Phase Selector */}
+            <View style={styles.section}>
+                <MoonPhaseSelector
+                    selectedVibe={selectedVibe}
+                    onSelect={setSelectedVibe}
+                />
+            </View>
+
+            {/* Notes Input */}
+            <View style={styles.section}>
+                <Text style={[styles.label, { color: colors.foreground }]}>Notes (Optional)</Text>
+                <TextInput
+                    style={[styles.input, { backgroundColor: colors.background, color: colors.foreground }]}
+                    placeholder="Capture a memory or feeling..."
+                    placeholderTextColor={colors['muted-foreground']}
+                    multiline
+                    value={notes}
+                    onChangeText={setNotes}
+                    numberOfLines={3}
+                />
+            </View>
+
+            {/* Actions */}
+            <View style={styles.actions}>
+                <TouchableOpacity
+                    style={[styles.secondaryButton, isSubmitting && styles.buttonDisabled]}
+                    onPress={handleDidntHappen}
+                    disabled={isSubmitting}
+                >
+                    <Text style={[styles.secondaryButtonText, { color: colors['muted-foreground'] }]}>
+                        It didn't happen
                     </Text>
-                    <Text style={[styles.subtitle, { color: colors['muted-foreground'] }]}>
-                        {format(new Date(currentPlan.interactionDate), 'EEEE, MMMM do')}
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                    style={[
+                        styles.primaryButton,
+                        { backgroundColor: colors.primary },
+                        (!selectedVibe || isSubmitting) && styles.buttonDisabled
+                    ]}
+                    onPress={handleConfirm}
+                    disabled={!selectedVibe || isSubmitting}
+                >
+                    <Text style={[styles.primaryButtonText, { color: colors['primary-foreground'] }]}>
+                        {isSubmitting ? 'Weaving...' : 'Complete'}
                     </Text>
-                </View>
-
-                {/* Moon Phase Selector */}
-                <View style={styles.section}>
-                    <MoonPhaseSelector
-                        selectedVibe={selectedVibe}
-                        onSelect={setSelectedVibe}
-                    />
-                </View>
-
-                {/* Notes Input */}
-                <View style={styles.section}>
-                    <Text style={[styles.label, { color: colors.foreground }]}>Notes (Optional)</Text>
-                    <TextInput
-                        style={[styles.input, { backgroundColor: colors.background, color: colors.foreground }]}
-                        placeholder="Capture a memory or feeling..."
-                        placeholderTextColor={colors['muted-foreground']}
-                        multiline
-                        value={notes}
-                        onChangeText={setNotes}
-                        numberOfLines={3}
-                    />
-                </View>
-
-                {/* Actions */}
-                <View style={styles.actions}>
-                    <TouchableOpacity
-                        style={[styles.secondaryButton, isSubmitting && styles.buttonDisabled]}
-                        onPress={handleDidntHappen}
-                        disabled={isSubmitting}
-                    >
-                        <Text style={[styles.secondaryButtonText, { color: colors['muted-foreground'] }]}>
-                            It didn't happen
-                        </Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                        style={[
-                            styles.primaryButton,
-                            { backgroundColor: colors.primary },
-                            (!selectedVibe || isSubmitting) && styles.buttonDisabled
-                        ]}
-                        onPress={handleConfirm}
-                        disabled={!selectedVibe || isSubmitting}
-                    >
-                        <Text style={[styles.primaryButtonText, { color: colors['primary-foreground'] }]}>
-                            {isSubmitting ? 'Weaving...' : 'Complete'}
-                        </Text>
-                        {!isSubmitting && <Check size={20} color={colors['primary-foreground']} />}
-                    </TouchableOpacity>
-                </View>
-            </ScrollView>
+                    {!isSubmitting && <Check size={20} color={colors['primary-foreground']} />}
+                </TouchableOpacity>
+            </View>
         </AnimatedBottomSheet>
     );
 }

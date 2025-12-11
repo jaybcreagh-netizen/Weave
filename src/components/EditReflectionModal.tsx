@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { ContextualReflectionInput } from './ContextualReflectionInput';
 import { CelebrationAnimation } from './CelebrationAnimation';
 import { useTheme } from '@/shared/hooks/useTheme';
-import { StandardBottomSheet } from '@/shared/ui/Sheet';
+import { AnimatedBottomSheet } from '@/shared/ui/Sheet';
 import { type Interaction, type StructuredReflection, type InteractionCategory, type Archetype, type Vibe } from './types';
 import { calculateDeepeningLevel } from '@/modules/intelligence';
 
@@ -68,51 +68,13 @@ export function EditReflectionModal({
   const deepeningMetrics = calculateDeepeningLevel(reflection);
 
   return (
-    <StandardBottomSheet
+    <AnimatedBottomSheet
       visible={isOpen}
       onClose={onClose}
       height="full"
       title="Tell me more"
-    >
-      {/* Celebration animation */}
-      <CelebrationAnimation
-        visible={showCelebration}
-        intensity={deepeningMetrics.level === 'none' ? 'light' : deepeningMetrics.level}
-        onComplete={() => setShowCelebration(false)}
-      />
-
-      <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={{ flex: 1 }}
-        >
-          <ScrollView
-            style={styles.scrollView}
-            contentContainerStyle={styles.scrollViewContent}
-            keyboardShouldPersistTaps="handled"
-          >
-            <Animated.View entering={FadeIn.duration(300)}>
-              <View style={styles.section}>
-                <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-                  How did it feel?
-                </Text>
-                <MoonPhaseSelector
-                  selectedVibe={selectedVibe}
-                  onSelect={setSelectedVibe}
-                />
-              </View>
-
-              <ContextualReflectionInput
-                category={category}
-                archetype={friendArchetype}
-                vibe={selectedVibe}
-                value={reflection}
-                onChange={setReflection}
-              />
-            </Animated.View>
-          </ScrollView>
-      </KeyboardAvoidingView>
-
-      <View style={[styles.footer, { backgroundColor: colors.background, borderTopColor: colors.border }]}>
+      scrollable
+      footerComponent={
         <TouchableOpacity
           style={[styles.saveButton, { backgroundColor: colors.primary }]}
           onPress={handleSave}
@@ -122,8 +84,35 @@ export function EditReflectionModal({
             {isSaving ? 'Saving...' : 'Save Reflection'}
           </Text>
         </TouchableOpacity>
-      </View>
-    </StandardBottomSheet>
+      }
+    >
+      {/* Celebration animation */}
+      <CelebrationAnimation
+        visible={showCelebration}
+        intensity={deepeningMetrics.level === 'none' ? 'light' : deepeningMetrics.level}
+        onComplete={() => setShowCelebration(false)}
+      />
+
+      <Animated.View entering={FadeIn.duration(300)}>
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
+            How did it feel?
+          </Text>
+          <MoonPhaseSelector
+            selectedVibe={selectedVibe}
+            onSelect={setSelectedVibe}
+          />
+        </View>
+
+        <ContextualReflectionInput
+          category={category}
+          archetype={friendArchetype}
+          vibe={selectedVibe}
+          value={reflection}
+          onChange={setReflection}
+        />
+      </Animated.View>
+    </AnimatedBottomSheet>
   );
 }
 
@@ -159,7 +148,8 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   footer: {
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingTop: 16,
     borderTopWidth: 1,
   },
   saveButton: {

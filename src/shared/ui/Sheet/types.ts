@@ -78,4 +78,15 @@ export interface StandardBottomSheetProps {
    * Test ID for testing
    */
   testID?: string;
+
+  /**
+   * Ref for the internal scroll view (only used when scrollable is true)
+   */
+  scrollRef?: React.RefObject<any>;
+
+  /**
+   * Optional footer component that stays sticky at the bottom
+   * Useful for primary actions (e.g., Save, Submit) that should always be visible
+   */
+  footerComponent?: ReactNode;
 }

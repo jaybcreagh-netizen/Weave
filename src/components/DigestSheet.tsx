@@ -81,6 +81,7 @@ export const DigestSheet: React.FC<DigestSheetProps> = ({
             visible={isVisible}
             onClose={onClose}
             height="form"
+            scrollable
         >
             <View style={styles.header}>
                 <View>
@@ -93,47 +94,46 @@ export const DigestSheet: React.FC<DigestSheetProps> = ({
                 </View>
             </View>
 
-            <ScrollView contentContainerStyle={styles.content}>
+            <View style={{ paddingHorizontal: 20 }}>
+                {plans.length > 0 && (
+                    <View style={styles.section}>
+                        <WidgetHeader title="Plans" icon={<Clock size={20} color={tokens.primaryMuted} />} />
+                        <Card padding="none">
+                            {plans.map((item, i) => renderItem(item, i, plans.length))}
+                        </Card>
+                    </View>
+                )}
 
-                        {plans.length > 0 && (
-                            <View style={styles.section}>
-                                <WidgetHeader title="Plans" icon={<Clock size={20} color={tokens.primaryMuted} />} />
-                                <Card padding="none">
-                                    {plans.map((item, i) => renderItem(item, i, plans.length))}
-                                </Card>
-                            </View>
-                        )}
+                {upcoming.length > 0 && (
+                    <View style={styles.section}>
+                        <WidgetHeader title="Coming Up" icon={<Calendar size={20} color={tokens.primaryMuted} />} />
+                        <Card padding="none">
+                            {upcoming.map((item, i) => renderItem(item, i, upcoming.length))}
+                        </Card>
+                    </View>
+                )}
 
-                        {upcoming.length > 0 && (
-                            <View style={styles.section}>
-                                <WidgetHeader title="Coming Up" icon={<Calendar size={20} color={tokens.primaryMuted} />} />
-                                <Card padding="none">
-                                    {upcoming.map((item, i) => renderItem(item, i, upcoming.length))}
-                                </Card>
-                            </View>
-                        )}
+                {suggestions.length > 0 && (
+                    <View style={styles.section}>
+                        <WidgetHeader title="Suggestions" icon={<Sparkles size={20} color={tokens.primaryMuted} />} />
+                        <Card padding="none">
+                            {suggestions.map((item, i) => renderItem(item, i, suggestions.length))}
+                        </Card>
+                    </View>
+                )}
 
-                        {suggestions.length > 0 && (
-                            <View style={styles.section}>
-                                <WidgetHeader title="Suggestions" icon={<Sparkles size={20} color={tokens.primaryMuted} />} />
-                                <Card padding="none">
-                                    {suggestions.map((item, i) => renderItem(item, i, suggestions.length))}
-                                </Card>
-                            </View>
-                        )}
-
-                        {items.length === 0 && (
-                            <View style={styles.emptyState}>
-                                <Moon size={48} color={tokens.primaryMuted} />
-                                <Text style={[styles.emptyTitle, { color: tokens.foreground, fontFamily: typography.fonts.serifBold }]}>
-                                    All Quiet Tonight
-                                </Text>
-                                <Text style={[styles.emptyText, { color: tokens.foregroundMuted, fontFamily: typography.fonts.sans }]}>
-                                    No pending plans or urgent suggestions. Rest easy!
-                                </Text>
-                            </View>
-                        )}
-            </ScrollView>
+                {items.length === 0 && (
+                    <View style={styles.emptyState}>
+                        <Moon size={48} color={tokens.primaryMuted} />
+                        <Text style={[styles.emptyTitle, { color: tokens.foreground, fontFamily: typography.fonts.serifBold }]}>
+                            All Quiet Tonight
+                        </Text>
+                        <Text style={[styles.emptyText, { color: tokens.foregroundMuted, fontFamily: typography.fonts.sans }]}>
+                            No pending plans or urgent suggestions. Rest easy!
+                        </Text>
+                    </View>
+                )}
+            </View>
         </AnimatedBottomSheet>
     );
 };

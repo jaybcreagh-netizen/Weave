@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback, ReactNode } from 'react';
+import React, { useEffect, useCallback, ReactNode, forwardRef, useImperativeHandle } from 'react';
 import {
   View,
   Text,
@@ -32,6 +32,10 @@ import {
 } from './constants';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+
+export interface AnimatedBottomSheetRef {
+  close: () => void;
+}
 
 interface AnimatedBottomSheetProps {
   /**
@@ -98,6 +102,11 @@ interface AnimatedBottomSheetProps {
    * Test ID for testing
    */
   testID?: string;
+
+  /**
+   * Optional footer component to render at the bottom of the sheet
+   */
+  footerComponent?: ReactNode;
 }
 
 /**
@@ -122,7 +131,10 @@ interface AnimatedBottomSheetProps {
  *   <RatingForm />
  * </AnimatedBottomSheet>
  */
-export function AnimatedBottomSheet({
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ScrollView } from 'react-native-gesture-handler';
+
+export const AnimatedBottomSheet = forwardRef<AnimatedBottomSheetRef, AnimatedBottomSheetProps & { scrollable?: boolean }>(({
   visible,
   onClose,
   height = 'form',
@@ -135,8 +147,11 @@ export function AnimatedBottomSheet({
   onCloseComplete,
   children,
   testID,
-}: AnimatedBottomSheetProps) {
+  scrollable = false,
+  footerComponent,
+}, ref) => {
   const { colors, isDarkMode } = useTheme();
+  const insets = useSafeAreaInsets();
 
   // Calculate sheet height
   const heightPercentage = customHeight ?? parseFloat(SHEET_HEIGHTS[height]) / 100;
@@ -194,6 +209,12 @@ export function AnimatedBottomSheet({
     [sheetHeight, dismissKeyboardOnBackdropPress, onCloseComplete]
   );
 
+  useImperativeHandle(ref, () => ({
+    close: () => {
+      animateOut(onClose);
+    }
+  }));
+
   const handleBackdropPress = useCallback(() => {
     if (closeOnBackdropPress) {
       animateOut(onClose);
@@ -203,8 +224,6 @@ export function AnimatedBottomSheet({
   const handleClosePress = useCallback(() => {
     animateOut(onClose);
   }, [animateOut, onClose]);
-
-  if (!visible) return null;
 
   return (
     <Modal
@@ -284,12 +303,36 @@ export function AnimatedBottomSheet({
           )}
 
           {/* Content */}
-          <View style={styles.content}>{children}</View>
+          {scrollable ? (
+            <ScrollView
+              style={{ flex: 1 }}
+              contentContainerStyle={{
+                paddingHorizontal: 16,
+                paddingBottom: footerComponent ? 0 : Math.max(insets.bottom + 24, 40)
+              }}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
+              {children}
+            </ScrollView>
+          ) : (
+            <View style={[styles.content, { paddingBottom: footerComponent ? 0 : Math.max(insets.bottom + 24, 40) }]}>
+              {children}
+            </View>
+          )}
+
+          {/* Footer */}
+          {footerComponent && (
+            <View style={[styles.footer, { borderTopColor: colors.border, paddingBottom: Math.max(insets.bottom, 16) }]}>
+              {footerComponent}
+            </View>
+          )}
+
         </Animated.View>
       </KeyboardAvoidingView>
     </Modal>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {
@@ -323,8 +366,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   title: {
@@ -339,7 +382,12 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingHorizontal: 24,
+    paddingHorizontal: 16,
     paddingBottom: 24,
+  },
+  footer: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
 });

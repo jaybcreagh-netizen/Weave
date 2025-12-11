@@ -72,7 +72,7 @@ export default function TrophyCabinetModal({ visible, onClose }: TrophyCabinetMo
     const totalAchievements = GLOBAL_ACHIEVEMENTS.length;
 
     return (
-      <ScrollView className="flex-1 px-4">
+      <View className="flex-1 px-4">
         {/* Header Stats */}
         <View
           className="rounded-2xl p-4 mb-4"
@@ -154,7 +154,7 @@ export default function TrophyCabinetModal({ visible, onClose }: TrophyCabinetMo
             </View>
           );
         })}
-      </ScrollView>
+      </View>
     );
   }
 
@@ -164,7 +164,7 @@ export default function TrophyCabinetModal({ visible, onClose }: TrophyCabinetMo
     );
 
     return (
-      <ScrollView className="flex-1 px-4">
+      <View className="flex-1 px-4">
         {/* Header */}
         <View
           className="rounded-2xl p-4 mb-4"
@@ -285,7 +285,7 @@ export default function TrophyCabinetModal({ visible, onClose }: TrophyCabinetMo
             </Text>
           </View>
         )}
-      </ScrollView>
+      </View>
     );
   }
 
@@ -295,69 +295,70 @@ export default function TrophyCabinetModal({ visible, onClose }: TrophyCabinetMo
       onClose={onClose}
       height="full"
       title="Achievements"
+      scrollable
     >
       {/* Tabs */}
-        <View
-          className="flex-row px-4"
+      <View
+        className="flex-row px-4"
+        style={{
+          borderBottomWidth: 1,
+          borderBottomColor: colors.border,
+        }}
+      >
+        <TouchableOpacity
+          onPress={() => setActiveTab('global')}
+          className="flex-1 py-3 items-center"
           style={{
-            borderBottomWidth: 1,
-            borderBottomColor: colors.border,
+            borderBottomWidth: activeTab === 'global' ? 2 : 0,
+            borderBottomColor: colors.primary,
           }}
         >
-          <TouchableOpacity
-            onPress={() => setActiveTab('global')}
-            className="flex-1 py-3 items-center"
+          <Text
+            className="font-['Inter'] text-sm font-semibold"
             style={{
-              borderBottomWidth: activeTab === 'global' ? 2 : 0,
-              borderBottomColor: colors.primary,
+              color: activeTab === 'global' ? colors.primary : colors['muted-foreground'],
             }}
           >
-            <Text
-              className="font-['Inter'] text-sm font-semibold"
-              style={{
-                color: activeTab === 'global' ? colors.primary : colors['muted-foreground'],
-              }}
-            >
-              🏆 Global
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => setActiveTab('hidden')}
-            className="flex-1 py-3 items-center"
+            🏆 Global
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => setActiveTab('hidden')}
+          className="flex-1 py-3 items-center"
+          style={{
+            borderBottomWidth: activeTab === 'hidden' ? 2 : 0,
+            borderBottomColor: colors.primary,
+          }}
+        >
+          <Text
+            className="font-['Inter'] text-sm font-semibold"
             style={{
-              borderBottomWidth: activeTab === 'hidden' ? 2 : 0,
-              borderBottomColor: colors.primary,
+              color: activeTab === 'hidden' ? colors.primary : colors['muted-foreground'],
             }}
           >
-            <Text
-              className="font-['Inter'] text-sm font-semibold"
-              style={{
-                color: activeTab === 'hidden' ? colors.primary : colors['muted-foreground'],
-              }}
-            >
-              🔮 Hidden
-            </Text>
-          </TouchableOpacity>
-        </View>
+            🔮 Hidden
+          </Text>
+        </TouchableOpacity>
+      </View>
 
-        {/* Tab Content */}
-        <View className="flex-1 pt-4">
-          {loading ? (
-            <View className="flex-1 items-center justify-center">
-              <Text
-                className="font-['Inter'] text-sm"
-                style={{ color: colors['muted-foreground'] }}
-              >
-                Loading...
-              </Text>
-            </View>
-          ) : (
-            <>
-              {activeTab === 'global' && renderGlobalTab()}
-              {activeTab === 'hidden' && renderHiddenTab()}
-            </>
-          )}
-        </View>
+      {/* Tab Content */}
+      <View className="flex-1 pt-4">
+        {loading ? (
+          <View className="flex-1 items-center justify-center">
+            <Text
+              className="font-['Inter'] text-sm"
+              style={{ color: colors['muted-foreground'] }}
+            >
+              Loading...
+            </Text>
+          </View>
+        ) : (
+          <>
+            {activeTab === 'global' && renderGlobalTab()}
+            {activeTab === 'hidden' && renderHiddenTab()}
+          </>
+        )}
+      </View>
     </StandardBottomSheet>
   );
 }

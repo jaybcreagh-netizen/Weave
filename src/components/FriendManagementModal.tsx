@@ -102,132 +102,133 @@ export function FriendManagementModal({ visible, onClose }: FriendManagementModa
       onClose={onClose}
       height="full"
       title="Manage Friends"
+      scrollable
     >
       {/* Selection Controls */}
-          <View style={{ flexDirection: 'row', gap: 12, padding: 16, borderBottomWidth: 1, borderBottomColor: colors.border }}>
-            <TouchableOpacity
-              onPress={selectAll}
-              style={{
-                flex: 1,
-                padding: 12,
-                borderRadius: 8,
-                borderWidth: 1,
-                borderColor: colors.border,
-                backgroundColor: colors.muted,
-                alignItems: 'center'
-              }}
-            >
-              <Text style={{ color: colors.foreground, fontWeight: '600' }}>Select All</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={deselectAll}
-              style={{
-                flex: 1,
-                padding: 12,
-                borderRadius: 8,
-                borderWidth: 1,
-                borderColor: colors.border,
-                backgroundColor: colors.muted,
-                alignItems: 'center'
-              }}
-            >
-              <Text style={{ color: colors.foreground, fontWeight: '600' }}>Deselect All</Text>
-            </TouchableOpacity>
+      <View style={{ flexDirection: 'row', gap: 12, padding: 16, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+        <TouchableOpacity
+          onPress={selectAll}
+          style={{
+            flex: 1,
+            padding: 12,
+            borderRadius: 8,
+            borderWidth: 1,
+            borderColor: colors.border,
+            backgroundColor: colors.muted,
+            alignItems: 'center'
+          }}
+        >
+          <Text style={{ color: colors.foreground, fontWeight: '600' }}>Select All</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={deselectAll}
+          style={{
+            flex: 1,
+            padding: 12,
+            borderRadius: 8,
+            borderWidth: 1,
+            borderColor: colors.border,
+            backgroundColor: colors.muted,
+            alignItems: 'center'
+          }}
+        >
+          <Text style={{ color: colors.foreground, fontWeight: '600' }}>Deselect All</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Friend List */}
+      <View style={{ flex: 1 }}>
+        {sortedFriends.length === 0 ? (
+          <View style={{ padding: 40, alignItems: 'center' }}>
+            <Text style={{ color: colors['muted-foreground'], fontSize: 16, textAlign: 'center' }}>
+              No friends to manage
+            </Text>
           </View>
+        ) : (
+          sortedFriends.map((friend) => {
+            const isSelected = selectedIds.has(friend.id);
+            const currentScore = calculateCurrentScore(friend);
 
-          {/* Friend List */}
-          <ScrollView style={{ flex: 1 }}>
-            {sortedFriends.length === 0 ? (
-              <View style={{ padding: 40, alignItems: 'center' }}>
-                <Text style={{ color: colors['muted-foreground'], fontSize: 16, textAlign: 'center' }}>
-                  No friends to manage
-                </Text>
-              </View>
-            ) : (
-              sortedFriends.map((friend) => {
-                const isSelected = selectedIds.has(friend.id);
-                const currentScore = calculateCurrentScore(friend);
-
-                return (
-                  <TouchableOpacity
-                    key={friend.id}
-                    onPress={() => toggleSelection(friend.id)}
-                    style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      padding: 16,
-                      borderBottomWidth: 1,
-                      borderBottomColor: colors.border,
-                      backgroundColor: isSelected ? colors.primary + '10' : 'transparent',
-                    }}
-                  >
-                    {/* Checkbox */}
-                    <View
-                      style={{
-                        width: 24,
-                        height: 24,
-                        borderRadius: 6,
-                        borderWidth: 2,
-                        borderColor: isSelected ? colors.primary : colors.border,
-                        backgroundColor: isSelected ? colors.primary : 'transparent',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        marginRight: 12,
-                      }}
-                    >
-                      {isSelected && <Check size={16} color={colors['primary-foreground']} />}
-                    </View>
-
-                    {/* Friend Info */}
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 16, fontWeight: '600', color: colors.foreground }}>
-                        {friend.name}
-                      </Text>
-                      <Text style={{ fontSize: 14, color: colors['muted-foreground'], marginTop: 2 }}>
-                        {friend.dunbarTier} • Score: {Math.round(currentScore)}
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
-                );
-              })
-            )}
-          </ScrollView>
-
-          {/* Footer with Delete Button */}
-          <View
-            style={{
-              padding: 20,
-              borderTopWidth: 1,
-              borderTopColor: colors.border,
-              backgroundColor: colors.background,
-            }}
-          >
-            <TouchableOpacity
-              onPress={handleDelete}
-              disabled={selectedIds.size === 0 || isDeleting}
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: 16,
-                borderRadius: 12,
-                backgroundColor: selectedIds.size > 0 ? colors.destructive : colors.muted,
-                opacity: selectedIds.size === 0 || isDeleting ? 0.5 : 1,
-              }}
-            >
-              <Trash2 size={20} color={selectedIds.size > 0 ? colors['destructive-foreground'] : colors['muted-foreground']} />
-              <Text
+            return (
+              <TouchableOpacity
+                key={friend.id}
+                onPress={() => toggleSelection(friend.id)}
                 style={{
-                  marginLeft: 8,
-                  fontSize: 16,
-                  fontWeight: '600',
-                  color: selectedIds.size > 0 ? colors['destructive-foreground'] : colors['muted-foreground']
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  padding: 16,
+                  borderBottomWidth: 1,
+                  borderBottomColor: colors.border,
+                  backgroundColor: isSelected ? colors.primary + '10' : 'transparent',
                 }}
               >
-                {isDeleting ? 'Deleting...' : `Delete ${selectedIds.size} Friend${selectedIds.size !== 1 ? 's' : ''}`}
-              </Text>
-            </TouchableOpacity>
-          </View>
+                {/* Checkbox */}
+                <View
+                  style={{
+                    width: 24,
+                    height: 24,
+                    borderRadius: 6,
+                    borderWidth: 2,
+                    borderColor: isSelected ? colors.primary : colors.border,
+                    backgroundColor: isSelected ? colors.primary : 'transparent',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginRight: 12,
+                  }}
+                >
+                  {isSelected && <Check size={16} color={colors['primary-foreground']} />}
+                </View>
+
+                {/* Friend Info */}
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 16, fontWeight: '600', color: colors.foreground }}>
+                    {friend.name}
+                  </Text>
+                  <Text style={{ fontSize: 14, color: colors['muted-foreground'], marginTop: 2 }}>
+                    {friend.dunbarTier} • Score: {Math.round(currentScore)}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            );
+          })
+        )}
+      </View>
+
+      {/* Footer with Delete Button */}
+      <View
+        style={{
+          padding: 20,
+          borderTopWidth: 1,
+          borderTopColor: colors.border,
+          backgroundColor: colors.background,
+        }}
+      >
+        <TouchableOpacity
+          onPress={handleDelete}
+          disabled={selectedIds.size === 0 || isDeleting}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 16,
+            borderRadius: 12,
+            backgroundColor: selectedIds.size > 0 ? colors.destructive : colors.muted,
+            opacity: selectedIds.size === 0 || isDeleting ? 0.5 : 1,
+          }}
+        >
+          <Trash2 size={20} color={selectedIds.size > 0 ? colors['destructive-foreground'] : colors['muted-foreground']} />
+          <Text
+            style={{
+              marginLeft: 8,
+              fontSize: 16,
+              fontWeight: '600',
+              color: selectedIds.size > 0 ? colors['destructive-foreground'] : colors['muted-foreground']
+            }}
+          >
+            {isDeleting ? 'Deleting...' : `Delete ${selectedIds.size} Friend${selectedIds.size !== 1 ? 's' : ''}`}
+          </Text>
+        </TouchableOpacity>
+      </View>
     </StandardBottomSheet>
   );
 }

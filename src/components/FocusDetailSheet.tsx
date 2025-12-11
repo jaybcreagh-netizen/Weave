@@ -126,6 +126,7 @@ export const FocusDetailSheet: React.FC<FocusDetailSheetProps> = ({
             visible={isVisible}
             onClose={onClose}
             height="full"
+            scrollable
         >
             <View style={styles.header}>
                 <Text style={[styles.title, { color: tokens.foreground, fontFamily: typography.fonts.serifBold }]}>
@@ -133,158 +134,158 @@ export const FocusDetailSheet: React.FC<FocusDetailSheetProps> = ({
                 </Text>
             </View>
 
-            <ScrollView contentContainerStyle={styles.content}>
-                        {/* Reflection Prompt */}
-                        {prompt && (
-                            <View style={[styles.promptContainer, { backgroundColor: tokens.primary + '10', borderColor: tokens.primary + '20' }]}>
-                                <View style={styles.promptHeader}>
-                                    <Lightbulb size={16} color={tokens.primary} />
-                                    <Text style={[styles.promptLabel, { color: tokens.primary, fontFamily: typography.fonts.sansSemiBold }]}>
-                                        REFLECTION
-                                    </Text>
+            <View style={{ paddingHorizontal: 20 }}>
+                {/* Reflection Prompt */}
+                {prompt && (
+                    <View style={[styles.promptContainer, { backgroundColor: tokens.primary + '10', borderColor: tokens.primary + '20' }]}>
+                        <View style={styles.promptHeader}>
+                            <Lightbulb size={16} color={tokens.primary} />
+                            <Text style={[styles.promptLabel, { color: tokens.primary, fontFamily: typography.fonts.sansSemiBold }]}>
+                                REFLECTION
+                            </Text>
+                        </View>
+                        <Text style={[styles.promptText, { color: tokens.foreground, fontFamily: typography.fonts.serif }]}>
+                            {prompt.prompt}
+                        </Text>
+                    </View>
+                )}
+
+                {/* Upcoming Plans Section */}
+                {upcomingPlans.length > 0 && (
+                    <View style={styles.section}>
+                        <WidgetHeader title="Upcoming" icon={<Calendar size={20} color={tokens.primaryMuted} />} />
+                        <Card padding="none">
+                            {upcomingPlans.map((plan, index) => {
+                                const friendIds = planFriendIds[plan.id] || [];
+                                const planFriends = friends.filter(f => friendIds.includes(f.id));
+                                const friendName = planFriends.length > 0 ? planFriends[0].name : '';
+                                const subtitle = `${friendName ? `with ${friendName} • ` : ''}${format(new Date(plan.interactionDate), 'h:mm a')}`;
+
+                                return (
+                                    <View key={plan.id} style={{ paddingHorizontal: 16 }}>
+                                        <ListItem
+                                            title={plan.title || `${getCategoryLabel(plan.interactionCategory ?? undefined)}${friendName ? ` with ${friendName}` : ''}`}
+                                            subtitle={subtitle}
+                                            showDivider={index < upcomingPlans.length - 1}
+                                            compact
+                                            trailing={
+                                                <View style={styles.actions}>
+                                                    <Button
+                                                        label="Reschedule"
+                                                        size="small"
+                                                        variant="secondary"
+                                                        onPress={() => onReschedulePlan(plan)}
+                                                        style={compactButtonStyle}
+                                                    />
+                                                </View>
+                                            }
+                                        />
+                                    </View>
+                                );
+                            })}
+                        </Card>
+                    </View>
+                )}
+
+                {/* Completed Plans Section */}
+                {completedPlans.length > 0 && (
+                    <View style={styles.section}>
+                        <WidgetHeader title="Completed Today" icon={<CheckCircle2 size={20} color={tokens.success} />} />
+                        <Card padding="none">
+                            {completedPlans.map((plan, index) => {
+                                const friendIds = planFriendIds[plan.id] || [];
+                                const planFriends = friends.filter(f => friendIds.includes(f.id));
+                                const friendName = planFriends.length > 0 ? planFriends[0].name : '';
+                                const subtitle = `${friendName ? `with ${friendName} • ` : ''}${format(new Date(plan.interactionDate), 'h:mm a')}`;
+
+                                return (
+                                    <View key={plan.id} style={{ paddingHorizontal: 16 }}>
+                                        <ListItem
+                                            title={plan.title || `${getCategoryLabel(plan.interactionCategory ?? undefined)}${friendName ? ` with ${friendName}` : ''}`}
+                                            subtitle={subtitle}
+                                            showDivider={index < completedPlans.length - 1}
+                                            compact
+                                            trailing={
+                                                <View style={styles.actions}>
+                                                    <Button
+                                                        label="Deepen"
+                                                        size="small"
+                                                        onPress={() => onConfirmPlan(plan.id)} // This triggers Deepen/Review depending on setup (Deepen usually opens reflection)
+                                                        style={compactButtonStyle}
+                                                    />
+                                                </View>
+                                            }
+                                        />
+                                    </View>
+                                );
+                            })}
+                        </Card>
+                    </View>
+                )}
+
+                {/* Suggestions Section */}
+                {suggestions.length > 0 && (
+                    <View style={styles.section}>
+                        <WidgetHeader title="Suggestions" icon={<Sparkles size={20} color={tokens.primaryMuted} />} />
+                        <Card padding="none">
+                            {suggestions.map((suggestion, index) => {
+                                const friend = friends.find(f => f.id === suggestion.friendId);
+                                return (
+                                    <View key={suggestion.id} style={{ paddingHorizontal: 16 }}>
+                                        <ListItem
+                                            leading={renderSuggestionIcon(suggestion.icon, suggestion.category)}
+                                            title={suggestion.title}
+                                            subtitle={suggestion.subtitle}
+                                            showDivider={index < suggestions.length - 1}
+                                            compact
+                                            trailing={
+                                                <Button
+                                                    label={suggestion.actionLabel || "View"}
+                                                    variant="secondary"
+                                                    size="small"
+                                                    style={compactButtonStyle}
+                                                    onPress={() => onSuggestionAction(suggestion)}
+                                                />
+                                            }
+                                        />
+                                    </View>
+                                );
+                            })}
+                        </Card>
+                    </View>
+                )}
+
+                {/* Upcoming Events Section */}
+                {upcomingDates.length > 0 && (
+                    <View style={styles.section}>
+                        <WidgetHeader title="Upcoming" icon={<Calendar size={20} color={tokens.primaryMuted} />} />
+                        <Card padding="none">
+                            {upcomingDates.map((event, index) => (
+                                <View key={`${event.friend.id}-${event.type}`} style={{ paddingHorizontal: 16 }}>
+                                    <ListItem
+                                        title={event.friend.name}
+                                        subtitle={`${event.type === 'birthday' ? 'Birthday' : event.title} • ${event.daysUntil === 0 ? 'Today' : event.daysUntil === 1 ? 'Tomorrow' : `In ${event.daysUntil} days`}`}
+                                        showDivider={index < upcomingDates.length - 1}
+                                        compact
+                                    />
                                 </View>
-                                <Text style={[styles.promptText, { color: tokens.foreground, fontFamily: typography.fonts.serif }]}>
-                                    {prompt.prompt}
-                                </Text>
-                            </View>
-                        )}
+                            ))}
+                        </Card>
+                    </View>
+                )}
 
-                        {/* Upcoming Plans Section */}
-                        {upcomingPlans.length > 0 && (
-                            <View style={styles.section}>
-                                <WidgetHeader title="Upcoming" icon={<Calendar size={20} color={tokens.primaryMuted} />} />
-                                <Card padding="none">
-                                    {upcomingPlans.map((plan, index) => {
-                                        const friendIds = planFriendIds[plan.id] || [];
-                                        const planFriends = friends.filter(f => friendIds.includes(f.id));
-                                        const friendName = planFriends.length > 0 ? planFriends[0].name : '';
-                                        const subtitle = `${friendName ? `with ${friendName} • ` : ''}${format(new Date(plan.interactionDate), 'h:mm a')}`;
-
-                                        return (
-                                            <View key={plan.id} style={{ paddingHorizontal: 16 }}>
-                                                <ListItem
-                                                    title={plan.title || `${getCategoryLabel(plan.interactionCategory ?? undefined)}${friendName ? ` with ${friendName}` : ''}`}
-                                                    subtitle={subtitle}
-                                                    showDivider={index < upcomingPlans.length - 1}
-                                                    compact
-                                                    trailing={
-                                                        <View style={styles.actions}>
-                                                            <Button
-                                                                label="Reschedule"
-                                                                size="small"
-                                                                variant="secondary"
-                                                                onPress={() => onReschedulePlan(plan)}
-                                                                style={compactButtonStyle}
-                                                            />
-                                                        </View>
-                                                    }
-                                                />
-                                            </View>
-                                        );
-                                    })}
-                                </Card>
-                            </View>
-                        )}
-
-                        {/* Completed Plans Section */}
-                        {completedPlans.length > 0 && (
-                            <View style={styles.section}>
-                                <WidgetHeader title="Completed Today" icon={<CheckCircle2 size={20} color={tokens.success} />} />
-                                <Card padding="none">
-                                    {completedPlans.map((plan, index) => {
-                                        const friendIds = planFriendIds[plan.id] || [];
-                                        const planFriends = friends.filter(f => friendIds.includes(f.id));
-                                        const friendName = planFriends.length > 0 ? planFriends[0].name : '';
-                                        const subtitle = `${friendName ? `with ${friendName} • ` : ''}${format(new Date(plan.interactionDate), 'h:mm a')}`;
-
-                                        return (
-                                            <View key={plan.id} style={{ paddingHorizontal: 16 }}>
-                                                <ListItem
-                                                    title={plan.title || `${getCategoryLabel(plan.interactionCategory ?? undefined)}${friendName ? ` with ${friendName}` : ''}`}
-                                                    subtitle={subtitle}
-                                                    showDivider={index < completedPlans.length - 1}
-                                                    compact
-                                                    trailing={
-                                                        <View style={styles.actions}>
-                                                            <Button
-                                                                label="Deepen"
-                                                                size="small"
-                                                                onPress={() => onConfirmPlan(plan.id)} // This triggers Deepen/Review depending on setup (Deepen usually opens reflection)
-                                                                style={compactButtonStyle}
-                                                            />
-                                                        </View>
-                                                    }
-                                                />
-                                            </View>
-                                        );
-                                    })}
-                                </Card>
-                            </View>
-                        )}
-
-                        {/* Suggestions Section */}
-                        {suggestions.length > 0 && (
-                            <View style={styles.section}>
-                                <WidgetHeader title="Suggestions" icon={<Sparkles size={20} color={tokens.primaryMuted} />} />
-                                <Card padding="none">
-                                    {suggestions.map((suggestion, index) => {
-                                        const friend = friends.find(f => f.id === suggestion.friendId);
-                                        return (
-                                            <View key={suggestion.id} style={{ paddingHorizontal: 16 }}>
-                                                <ListItem
-                                                    leading={renderSuggestionIcon(suggestion.icon, suggestion.category)}
-                                                    title={suggestion.title}
-                                                    subtitle={suggestion.subtitle}
-                                                    showDivider={index < suggestions.length - 1}
-                                                    compact
-                                                    trailing={
-                                                        <Button
-                                                            label={suggestion.actionLabel || "View"}
-                                                            variant="secondary"
-                                                            size="small"
-                                                            style={compactButtonStyle}
-                                                            onPress={() => onSuggestionAction(suggestion)}
-                                                        />
-                                                    }
-                                                />
-                                            </View>
-                                        );
-                                    })}
-                                </Card>
-                            </View>
-                        )}
-
-                        {/* Upcoming Events Section */}
-                        {upcomingDates.length > 0 && (
-                            <View style={styles.section}>
-                                <WidgetHeader title="Upcoming" icon={<Calendar size={20} color={tokens.primaryMuted} />} />
-                                <Card padding="none">
-                                    {upcomingDates.map((event, index) => (
-                                        <View key={`${event.friend.id}-${event.type}`} style={{ paddingHorizontal: 16 }}>
-                                            <ListItem
-                                                title={event.friend.name}
-                                                subtitle={`${event.type === 'birthday' ? 'Birthday' : event.title} • ${event.daysUntil === 0 ? 'Today' : event.daysUntil === 1 ? 'Tomorrow' : `In ${event.daysUntil} days`}`}
-                                                showDivider={index < upcomingDates.length - 1}
-                                                compact
-                                            />
-                                        </View>
-                                    ))}
-                                </Card>
-                            </View>
-                        )}
-
-                        {upcomingPlans.length === 0 && completedPlans.length === 0 && suggestions.length === 0 && upcomingDates.length === 0 && (
-                            <View style={styles.emptyState}>
-                                <CheckCircle2 size={48} color={tokens.success} />
-                                <Text style={[styles.emptyTitle, { color: tokens.foreground, fontFamily: typography.fonts.serifBold }]}>
-                                    All Caught Up
-                                </Text>
-                                <Text style={[styles.emptyText, { color: tokens.foregroundMuted, fontFamily: typography.fonts.sans }]}>
-                                    You've handled everything for now. Enjoy your day!
-                                </Text>
-                            </View>
-                        )}
-            </ScrollView>
+                {upcomingPlans.length === 0 && completedPlans.length === 0 && suggestions.length === 0 && upcomingDates.length === 0 && (
+                    <View style={styles.emptyState}>
+                        <CheckCircle2 size={48} color={tokens.success} />
+                        <Text style={[styles.emptyTitle, { color: tokens.foreground, fontFamily: typography.fonts.serifBold }]}>
+                            All Caught Up
+                        </Text>
+                        <Text style={[styles.emptyText, { color: tokens.foregroundMuted, fontFamily: typography.fonts.sans }]}>
+                            You've handled everything for now. Enjoy your day!
+                        </Text>
+                    </View>
+                )}
+            </View>
         </AnimatedBottomSheet>
     );
 };

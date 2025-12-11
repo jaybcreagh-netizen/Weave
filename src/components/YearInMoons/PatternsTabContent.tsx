@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, ActivityIndicator } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { AlertCircle, Calendar, Zap, Sparkles, Star, Scale, Activity, TrendingUp, TrendingDown, ArrowRight, Gem, Brain, Users } from 'lucide-react-native';
 import { detectPatterns, getPatternDataStats, Pattern } from '@/modules/insights';
@@ -33,6 +33,8 @@ export function PatternsTabContent({ }: PatternsTabContentProps) {
   const [patterns, setPatterns] = useState<Pattern[]>([]);
   const [dataStats, setDataStats] = useState<{ batteryDays: number; weaveCount: number } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  // ... existing useEffect and helpers ...
 
   useEffect(() => {
     loadPatterns();
@@ -131,10 +133,8 @@ export function PatternsTabContent({ }: PatternsTabContentProps) {
   }
 
   return (
-    <ScrollView
+    <View
       className="flex-1 px-5 py-4"
-      showsVerticalScrollIndicator={false}
-      contentContainerStyle={{ paddingBottom: 24 }}
     >
       {/* Header */}
       <View className="mb-6">
@@ -233,6 +233,6 @@ export function PatternsTabContent({ }: PatternsTabContentProps) {
           Patterns update as you check in your battery and log weaves. These insights are probabilistic, not prescriptive—use them as gentle guides, not rules.
         </Text>
       </View>
-    </ScrollView>
+    </View>
   );
 }

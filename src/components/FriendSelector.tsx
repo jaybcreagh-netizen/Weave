@@ -207,14 +207,17 @@ export function FriendSelector({
     const Content = (
         <View className="flex-1">
             {/* Header */}
-            <View className="flex-row justify-between items-center p-5 border-b" style={{ borderColor: colors.border }}>
-                <Text className="font-lora-bold text-xl" style={{ color: colors.foreground }}>
-                    Add Friends
-                </Text>
-                <TouchableOpacity onPress={onClose} style={{ padding: 8, marginRight: -8 }}>
-                    <X color={colors['muted-foreground']} size={24} />
-                </TouchableOpacity>
-            </View>
+            {/* Header - Only show in modal mode */}
+            {asModal && (
+                <View className="flex-row justify-between items-center p-5 border-b" style={{ borderColor: colors.border }}>
+                    <Text className="font-lora-bold text-xl" style={{ color: colors.foreground }}>
+                        Add Friends
+                    </Text>
+                    <TouchableOpacity onPress={onClose} style={{ padding: 8, marginRight: -8 }}>
+                        <X color={colors['muted-foreground']} size={24} />
+                    </TouchableOpacity>
+                </View>
+            )}
 
             {/* Tabs */}
             <View className="flex-row p-2 mx-5 mt-3 rounded-xl" style={{ backgroundColor: colors.muted }}>
@@ -384,7 +387,6 @@ export function FriendSelector({
                     onClose={() => setIsGroupModalVisible(false)}
                     groupToEdit={editingGroup}
                     onGroupSaved={loadGroups}
-                    asModal={asModal}
                 />
             )}
         </View>
@@ -410,6 +412,7 @@ export function FriendSelector({
             visible={visible}
             onClose={onClose}
             height="full"
+            title="Add Friends"
         >
             {Content}
         </StandardBottomSheet>

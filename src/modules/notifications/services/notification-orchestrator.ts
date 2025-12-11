@@ -23,6 +23,7 @@ import { NotificationType } from '../types';
 
 class NotificationOrchestratorService {
     private isInitialized = false;
+    private lastCheckTime: number = 0;
 
     async init(): Promise<void> {
         if (this.isInitialized) return;
@@ -60,24 +61,27 @@ class NotificationOrchestratorService {
     }
 
     /**
-     * Run checks that should happen on app launch
+     * Run checks that should happen on app launch or significant foregrounding
      */
     async runStartupChecks(): Promise<void> {
-        Logger.info('[NotificationOrchestrator] Running startup checks');
+        Logger.info('[NotificationOrchestrator] Running startup/maintenance checks');
+        this.lastCheckTime = Date.now();
 
-        // Check if battery batch needs extending
-        await BatteryCheckinChannel.checkAndExtendBatch();
+        try {
+            // Check if battery batch needs extending
+            // This checks if we're running low on scheduled notifications and adds more if needed
+            await BatteryCheckinChannel.checkAndExtendBatch();
 
-        // Refresh memory nudges (they change daily/weekly)
-        // We might want to only do this once a day? 
-        // For now, running it on startup is safe as it checks dates.
-        await MemoryNudgeChannel.schedule(); // This function cleans up old ones internally
+            // Refresh memory nudges (they change daily)
+            // This ensures if we open the app on a new day, we schedule the new nudge
+            await MemoryNudgeChannel.schedule();
 
-        // Ensure weekly reflection is scheduled (idempotent)
-        await WeeklyReflectionChannel.schedule();
+            // Ensure weekly reflection is scheduled (idempotent)
+            await WeeklyReflectionChannel.schedule();
 
-        // Note: We do NOT automatically schedule smart suggestions here. 
-        // That usually happens via background tasks or specialized triggers.
+        } catch (error) {
+            Logger.error('[NotificationOrchestrator] Error during startup checks:', error);
+        }
     }
 
     /**
@@ -112,6 +116,33 @@ class NotificationOrchestratorService {
      */
     async evaluateSmartNotifications(): Promise<void> {
         await SmartSuggestionsChannel.evaluateAndSchedule();
+    }
+
+    /**
+     * Handle app returning to foreground
+     * Checks if maintenance is needed based on time elapsed
+     */
+    async onAppForeground(): Promise<void> {
+        Logger.info('[NotificationOrchestrator] App foregrounded');
+
+        // Always evaluate smart notifications as they are context-dependent (time, location, etc)
+        await this.evaluateSmartNotifications();
+
+        // Throttle heavy maintenance checks
+        // If it's been more than an hour, or if the day has changed (logic simplified to time interval for now)
+        const now = Date.now();
+        const ONE_HOUR = 60 * 60 * 1000;
+
+        // Check if day changed
+        const lastCheckDate = new Date(this.lastCheckTime);
+        const currentDate = new Date(now);
+        const isDifferentDay = lastCheckDate.getDate() !== currentDate.getDate() ||
+            lastCheckDate.getMonth() !== currentDate.getMonth();
+
+        if (isDifferentDay || (now - this.lastCheckTime > ONE_HOUR)) {
+            Logger.info('[NotificationOrchestrator] Running maintenance checks due to time elapsed/day change');
+            await this.runStartupChecks();
+        }
     }
 }
 

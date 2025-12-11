@@ -269,6 +269,8 @@ export default function FriendProfile() {
             friend={friend}
             modals={modals}
             friendIntentions={friendIntentions}
+            // Derive the live interaction object from the reactive list using the ID
+            selectedInteraction={interactions.find(i => i.id === modals.selectedInteractionId) || null}
             updateReflection={updateReflection}
             updateInteraction={updateInteraction}
             createIntention={createIntention}

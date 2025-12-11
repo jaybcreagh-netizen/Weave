@@ -11,7 +11,7 @@ import { LifeEvent } from '@/components/types';
 import UserProgress from '@/db/models/UserProgress';
 import { CustomCalendar } from './CustomCalendar';
 import { startOfDay } from 'date-fns';
-import { StandardBottomSheet } from '@/shared/ui/Sheet';
+import { AnimatedBottomSheet } from '@/shared/ui/Sheet';
 
 interface LifeEventModalProps {
   visible: boolean;
@@ -152,26 +152,38 @@ export const LifeEventModal: React.FC<LifeEventModalProps> = ({
   };
 
   return (
-    <StandardBottomSheet
+    <AnimatedBottomSheet
       visible={visible}
       onClose={onClose}
       height="full"
-    >
-      <View className="flex-1 px-6">
-        <View className="flex-row justify-between items-center mb-6">
-          <Text className="font-lora-bold text-xl" style={{ color: colors.foreground }}>
-            {existingEvent ? 'Edit Life Event' : 'Add Life Event'}
-          </Text>
+      title={existingEvent ? 'Edit Life Event' : 'Add Life Event'}
+      scrollable
+      footerComponent={
+        <View className="flex-row gap-3">
+          {existingEvent && (
+            <TouchableOpacity
+              onPress={handleDelete}
+              className="flex-1 py-3 px-6 rounded-full items-center"
+              style={{ backgroundColor: colors.destructive }}
+            >
+              <Text className="font-inter-semibold text-base text-white">Delete</Text>
+            </TouchableOpacity>
+          )}
           <TouchableOpacity
-            onPress={onClose}
-            className="p-2 -mr-2"
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            onPress={handleSave}
+            disabled={isSaving}
+            className="flex-1 py-3 px-6 rounded-full items-center"
+            style={{ backgroundColor: colors.primary, opacity: isSaving ? 0.6 : 1 }}
           >
-            <X size={20} color={colors['muted-foreground']} />
+            <Text className="font-inter-semibold text-base text-white">
+              {isSaving ? 'Saving...' : 'Save'}
+            </Text>
           </TouchableOpacity>
         </View>
-
-        <ScrollView showsVerticalScrollIndicator={false} className="flex-1">
+      }
+    >
+      <View className="flex-1">
+        <View className="flex-1">
           {/* Event Type */}
           <Text className="font-inter-semibold text-sm mb-2" style={{ color: colors.foreground }}>
             Event Type
@@ -277,38 +289,16 @@ export const LifeEventModal: React.FC<LifeEventModalProps> = ({
             style={{ backgroundColor: colors.muted, color: colors.foreground, textAlignVertical: 'top' }}
           />
 
-          {/* Actions */}
-          <View className="flex-row gap-3 mb-8">
-            {existingEvent && (
-              <TouchableOpacity
-                onPress={handleDelete}
-                className="flex-1 py-3 px-6 rounded-full items-center"
-                style={{ backgroundColor: colors.destructive }}
-              >
-                <Text className="font-inter-semibold text-base text-white">Delete</Text>
-              </TouchableOpacity>
-            )}
-            <TouchableOpacity
-              onPress={handleSave}
-              disabled={isSaving}
-              className="flex-1 py-3 px-6 rounded-full items-center"
-              style={{ backgroundColor: colors.primary, opacity: isSaving ? 0.6 : 1 }}
-            >
-              <Text className="font-inter-semibold text-base text-white">
-                {isSaving ? 'Saving...' : 'Save'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </ScrollView>
+        </View>
 
         {/* Calendar Sheet */}
-        <StandardBottomSheet
+        <AnimatedBottomSheet
           visible={showDatePicker}
           onClose={() => setShowDatePicker(false)}
           height="form"
         >
-          <View className="flex-1 p-6">
-            <View className="flex-row justify-between items-center mb-4">
+          <View className="flex-1">
+            <View className="flex-row justify-between items-center mb-4 px-6 pt-2">
               <Text className="font-lora-bold text-xl" style={{ color: colors.foreground }}>
                 Pick a Date
               </Text>
@@ -317,14 +307,16 @@ export const LifeEventModal: React.FC<LifeEventModalProps> = ({
               </TouchableOpacity>
             </View>
 
-            <CustomCalendar
-              selectedDate={eventDate}
-              onDateSelect={handleDateSelect}
-              minDate={undefined}
-            />
+            <View className="px-4">
+              <CustomCalendar
+                selectedDate={eventDate}
+                onDateSelect={handleDateSelect}
+                minDate={undefined}
+              />
+            </View>
           </View>
-        </StandardBottomSheet>
+        </AnimatedBottomSheet>
       </View>
-    </StandardBottomSheet>
+    </AnimatedBottomSheet>
   );
 };

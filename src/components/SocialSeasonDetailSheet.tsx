@@ -56,6 +56,7 @@ export function SocialSeasonDetailSheet({
             visible={isVisible}
             onClose={onClose}
             height="full"
+            scrollable
         >
             {/* Header */}
             <View style={styles.header}>
@@ -70,86 +71,86 @@ export function SocialSeasonDetailSheet({
             </View>
 
             {/* Tabs */}
-                    <View style={styles.tabContainer}>
-                        <TouchableOpacity
-                            onPress={() => setCurrentTab('pulse')}
-                            style={[
-                                styles.tab,
-                                currentTab === 'pulse' && { backgroundColor: tokens.background },
-                                currentTab === 'pulse' && { borderColor: tokens.border, borderWidth: 1 },
-                            ]}
-                        >
-                            <Activity size={16} color={currentTab === 'pulse' ? tokens.primary : tokens.foregroundMuted} />
-                            <Text style={[
-                                styles.tabText,
-                                {
-                                    color: currentTab === 'pulse' ? tokens.primary : tokens.foregroundMuted,
-                                    fontFamily: typography.fonts.sansMedium
-                                }
-                            ]}>
-                                Pulse
-                            </Text>
-                        </TouchableOpacity>
+            <View style={styles.tabContainer}>
+                <TouchableOpacity
+                    onPress={() => setCurrentTab('pulse')}
+                    style={[
+                        styles.tab,
+                        currentTab === 'pulse' && { backgroundColor: tokens.background },
+                        currentTab === 'pulse' && { borderColor: tokens.border, borderWidth: 1 },
+                    ]}
+                >
+                    <Activity size={16} color={currentTab === 'pulse' ? tokens.primary : tokens.foregroundMuted} />
+                    <Text style={[
+                        styles.tabText,
+                        {
+                            color: currentTab === 'pulse' ? tokens.primary : tokens.foregroundMuted,
+                            fontFamily: typography.fonts.sansMedium
+                        }
+                    ]}>
+                        Pulse
+                    </Text>
+                </TouchableOpacity>
 
-                        <TouchableOpacity
-                            onPress={() => setCurrentTab('alignment')}
-                            style={[
-                                styles.tab,
-                                currentTab === 'alignment' && { backgroundColor: tokens.background },
-                                currentTab === 'alignment' && { borderColor: tokens.border, borderWidth: 1 },
-                            ]}
-                        >
-                            <Scale size={16} color={currentTab === 'alignment' ? tokens.primary : tokens.foregroundMuted} />
-                            <Text style={[
-                                styles.tabText,
-                                {
-                                    color: currentTab === 'alignment' ? tokens.primary : tokens.foregroundMuted,
-                                    fontFamily: typography.fonts.sansMedium
-                                }
-                            ]}>
-                                Alignment
-                            </Text>
-                        </TouchableOpacity>
+                <TouchableOpacity
+                    onPress={() => setCurrentTab('alignment')}
+                    style={[
+                        styles.tab,
+                        currentTab === 'alignment' && { backgroundColor: tokens.background },
+                        currentTab === 'alignment' && { borderColor: tokens.border, borderWidth: 1 },
+                    ]}
+                >
+                    <Scale size={16} color={currentTab === 'alignment' ? tokens.primary : tokens.foregroundMuted} />
+                    <Text style={[
+                        styles.tabText,
+                        {
+                            color: currentTab === 'alignment' ? tokens.primary : tokens.foregroundMuted,
+                            fontFamily: typography.fonts.sansMedium
+                        }
+                    ]}>
+                        Alignment
+                    </Text>
+                </TouchableOpacity>
 
-                        <TouchableOpacity
-                            onPress={() => setCurrentTab('insights')}
-                            style={[
-                                styles.tab,
-                                currentTab === 'insights' && { backgroundColor: tokens.background },
-                                currentTab === 'insights' && { borderColor: tokens.border, borderWidth: 1 },
-                            ]}
-                        >
-                            <BarChart3 size={16} color={currentTab === 'insights' ? tokens.primary : tokens.foregroundMuted} />
-                            <Text style={[
-                                styles.tabText,
-                                {
-                                    color: currentTab === 'insights' ? tokens.primary : tokens.foregroundMuted,
-                                    fontFamily: typography.fonts.sansMedium
-                                }
-                            ]}>
-                                Insights
-                            </Text>
-                        </TouchableOpacity>
-                    </View>
+                <TouchableOpacity
+                    onPress={() => setCurrentTab('insights')}
+                    style={[
+                        styles.tab,
+                        currentTab === 'insights' && { backgroundColor: tokens.background },
+                        currentTab === 'insights' && { borderColor: tokens.border, borderWidth: 1 },
+                    ]}
+                >
+                    <BarChart3 size={16} color={currentTab === 'insights' ? tokens.primary : tokens.foregroundMuted} />
+                    <Text style={[
+                        styles.tabText,
+                        {
+                            color: currentTab === 'insights' ? tokens.primary : tokens.foregroundMuted,
+                            fontFamily: typography.fonts.sansMedium
+                        }
+                    ]}>
+                        Insights
+                    </Text>
+                </TouchableOpacity>
+            </View>
 
-                    <ScrollView contentContainerStyle={styles.content}>
-                        {currentTab === 'pulse' && (
-                            <PulseTabContent
-                                season={season}
-                                seasonData={seasonData}
-                                weeklyWeaves={weeklyWeaves}
-                                currentStreak={currentStreak}
-                            />
-                        )}
+            <View>
+                {currentTab === 'pulse' && (
+                    <PulseTabContent
+                        season={season}
+                        seasonData={seasonData}
+                        weeklyWeaves={weeklyWeaves}
+                        currentStreak={currentStreak}
+                    />
+                )}
 
-                        {currentTab === 'alignment' && (
-                            <TierBalanceContent />
-                        )}
+                {currentTab === 'alignment' && (
+                    <TierBalanceContent />
+                )}
 
-                        {currentTab === 'insights' && (
-                            <GraphsTabContent />
-                        )}
-            </ScrollView>
+                {currentTab === 'insights' && (
+                    <GraphsTabContent />
+                )}
+            </View>
         </AnimatedBottomSheet>
     );
 }
@@ -357,7 +358,7 @@ function PulseTabContent({
     const calendarDays = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
 
     return (
-        <View style={{ gap: spacing[6] }}>
+        <View style={{ gap: spacing[6], paddingHorizontal: 16, paddingBottom: 20 }}>
             {/* Season Explanation */}
             {explanation && (
                 <Card variant="elevated">

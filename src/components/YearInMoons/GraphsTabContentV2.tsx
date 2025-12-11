@@ -387,7 +387,7 @@ export function GraphsTabContent({ year = new Date().getFullYear() }: GraphsTabC
 
   return (
     <View
-      style={[styles.container, { padding: layout.screenPadding }]}
+      style={[styles.container, { padding: 16 }]}
     >
       {/* Period Toggle */}
       <View style={styles.toggleContainer}>

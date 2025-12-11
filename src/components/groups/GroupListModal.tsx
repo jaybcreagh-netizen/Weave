@@ -80,6 +80,7 @@ export function GroupListModal({ visible, onClose }: GroupListModalProps) {
     const renderGroupItem = ({ item }: { item: Group }) => {
         return (
             <TouchableOpacity
+                key={item.id}
                 className="flex-row items-center justify-between p-4 border-b"
                 style={{ borderColor: colors.border }}
                 onPress={() => handleEditGroup(item)}
@@ -112,18 +113,10 @@ export function GroupListModal({ visible, onClose }: GroupListModalProps) {
             visible={visible}
             onClose={onClose}
             height="full"
+            scrollable
+            title="Manage Groups"
         >
             <View className="flex-1">
-                {/* Header */}
-                <View className="flex-row justify-between items-center p-5 border-b" style={{ borderColor: colors.border }}>
-                    <Text className="font-lora-bold text-xl" style={{ color: colors.foreground }}>
-                        Manage Groups
-                    </Text>
-                    <TouchableOpacity onPress={onClose} className="p-2 -mr-2">
-                        <X color={colors['muted-foreground']} size={24} />
-                    </TouchableOpacity>
-                </View>
-
                 {/* Create Button */}
                 <TouchableOpacity
                     className="flex-row items-center p-4 border-b"
@@ -138,63 +131,62 @@ export function GroupListModal({ visible, onClose }: GroupListModalProps) {
                     </Text>
                 </TouchableOpacity>
 
-                <FlatList
-                    data={groups}
-                    renderItem={renderGroupItem}
-                    keyExtractor={item => item.id}
-                    contentContainerStyle={{ paddingBottom: 100 }}
-                    ListHeaderComponent={
-                        suggestions.length > 0 ? (
-                            <View className="mb-4">
-                                <View className="px-5 py-3 bg-indigo-50 dark:bg-indigo-900/20 border-b border-indigo-100 dark:border-indigo-800/50">
-                                    <View className="flex-row items-center gap-2 mb-1">
-                                        <Sparkles size={16} color={colors.primary} />
-                                        <Text className="font-inter-semibold text-sm" style={{ color: colors.primary }}>
-                                            Suggested Groups
-                                        </Text>
-                                    </View>
-                                    <Text className="font-inter-regular text-xs" style={{ color: colors['muted-foreground'] }}>
-                                        Based on your weaving patterns
-                                    </Text>
-                                </View>
-                                {suggestions.map((suggestion, index) => (
-                                    <TouchableOpacity
-                                        key={index}
-                                        className="flex-row items-center justify-between p-4 border-b border-indigo-50 dark:border-indigo-900/10"
-                                        onPress={() => handleCreateFromSuggestion(suggestion)}
-                                    >
-                                        <View className="flex-1 mr-4">
-                                            <Text className="font-inter-medium text-base mb-1" style={{ color: colors.foreground }}>
-                                                {suggestion.suggestedName}
-                                            </Text>
-                                            <View className="flex-row items-center gap-2">
-                                                <Text className="font-inter-regular text-xs" style={{ color: colors['muted-foreground'] }}>
-                                                    {suggestion.interactionCount} weaves together
-                                                </Text>
-                                                <View className="px-2 py-0.5 rounded-full bg-green-100 dark:bg-green-900/30">
-                                                    <Text className="font-inter-medium text-[10px] text-green-700 dark:text-green-300">
-                                                        {(suggestion.confidence * 100).toFixed(0)}% Confidence
-                                                    </Text>
-                                                </View>
-                                            </View>
-                                        </View>
-                                        <View className="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/50 items-center justify-center">
-                                            <Plus size={16} color={colors.primary} />
-                                        </View>
-                                    </TouchableOpacity>
-                                ))}
+                {/* Suggestions Header Component */}
+                {suggestions.length > 0 && (
+                    <View className="mb-4">
+                        <View className="px-5 py-3 bg-indigo-50 dark:bg-indigo-900/20 border-b border-indigo-100 dark:border-indigo-800/50">
+                            <View className="flex-row items-center gap-2 mb-1">
+                                <Sparkles size={16} color={colors.primary} />
+                                <Text className="font-inter-semibold text-sm" style={{ color: colors.primary }}>
+                                    Suggested Groups
+                                </Text>
                             </View>
-                        ) : null
-                    }
-                    ListEmptyComponent={
+                            <Text className="font-inter-regular text-xs" style={{ color: colors['muted-foreground'] }}>
+                                Based on your weaving patterns
+                            </Text>
+                        </View>
+                        {suggestions.map((suggestion, index) => (
+                            <TouchableOpacity
+                                key={index}
+                                className="flex-row items-center justify-between p-4 border-b border-indigo-50 dark:border-indigo-900/10"
+                                onPress={() => handleCreateFromSuggestion(suggestion)}
+                            >
+                                <View className="flex-1 mr-4">
+                                    <Text className="font-inter-medium text-base mb-1" style={{ color: colors.foreground }}>
+                                        {suggestion.suggestedName}
+                                    </Text>
+                                    <View className="flex-row items-center gap-2">
+                                        <Text className="font-inter-regular text-xs" style={{ color: colors['muted-foreground'] }}>
+                                            {suggestion.interactionCount} weaves together
+                                        </Text>
+                                        <View className="px-2 py-0.5 rounded-full bg-green-100 dark:bg-green-900/30">
+                                            <Text className="font-inter-medium text-[10px] text-green-700 dark:text-green-300">
+                                                {(suggestion.confidence * 100).toFixed(0)}% Confidence
+                                            </Text>
+                                        </View>
+                                    </View>
+                                </View>
+                                <View className="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/50 items-center justify-center">
+                                    <Plus size={16} color={colors.primary} />
+                                </View>
+                            </TouchableOpacity>
+                        ))}
+                    </View>
+                )}
+
+                {/* Groups List */}
+                <View style={{ paddingBottom: 100 }}>
+                    {groups.length > 0 ? (
+                        groups.map(item => renderGroupItem({ item }))
+                    ) : (
                         <View className="items-center py-12 px-10">
                             <Text className="text-center mb-2" style={{ color: colors.foreground }}>No groups yet</Text>
                             <Text className="text-center text-sm" style={{ color: colors['muted-foreground'] }}>
                                 Create groups to easily organize your friends.
                             </Text>
                         </View>
-                    }
-                />
+                    )}
+                </View>
 
                 <GroupManagerModal
                     visible={isManagerVisible}
