@@ -93,8 +93,6 @@ export const FocusDetailSheet: React.FC<FocusDetailSheetProps> = ({
         return () => { isMounted = false; };
     }, [isVisible]);
 
-    if (!isVisible) return null;
-
     const renderSuggestionIcon = (iconName: string, category?: string) => {
         const size = 20;
         const color = tokens.primary;
@@ -127,14 +125,9 @@ export const FocusDetailSheet: React.FC<FocusDetailSheetProps> = ({
             onClose={onClose}
             height="full"
             scrollable
+            title="Today's Focus"
         >
-            <View style={styles.header}>
-                <Text style={[styles.title, { color: tokens.foreground, fontFamily: typography.fonts.serifBold }]}>
-                    Today's Focus
-                </Text>
-            </View>
-
-            <View style={{ paddingHorizontal: 20 }}>
+            <View>
                 {/* Reflection Prompt */}
                 {prompt && (
                     <View style={[styles.promptContainer, { backgroundColor: tokens.primary + '10', borderColor: tokens.primary + '20' }]}>

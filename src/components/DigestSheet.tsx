@@ -27,8 +27,6 @@ export const DigestSheet: React.FC<DigestSheetProps> = ({
     const router = useRouter();
     const { openMemoryMoment } = useUIStore();
 
-    if (!isVisible) return null;
-
     const plans = items.filter(i => i.type === 'plan' || i.type === 'confirmation');
     const upcoming = items.filter(i => i.type === 'birthday' || i.type === 'life_event');
     const suggestions = items.filter(i => i.type === 'suggestion');

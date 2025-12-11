@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
-import { X, Battery, Trophy, BookOpen, Users } from 'lucide-react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { View, Text, TouchableOpacity } from 'react-native';
+import { Battery, Trophy, BookOpen, Users } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { StandardBottomSheet } from '@/shared/ui/Sheet';
 
@@ -45,15 +44,9 @@ export function SettingsModal({
       onClose={onClose}
       height="full"
       scrollable
+      title="Settings"
     >
-      <View className="mb-6 px-6 pt-6 flex-row items-center justify-between">
-        <Text style={{ color: colors.foreground }} className="font-lora text-[22px] font-bold">Settings</Text>
-        <TouchableOpacity onPress={onClose} className="p-2">
-          <X size={24} color={colors['muted-foreground']} />
-        </TouchableOpacity>
-      </View>
-
-      <View style={{ paddingBottom: 40, paddingHorizontal: 24 }}>
+      <View style={{ paddingBottom: 40 }}>
         <View className="gap-4">
 
           {/* Appearance (Theme) */}

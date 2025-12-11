@@ -357,29 +357,31 @@ export function FriendSelector({
                 </>
             )}
 
-            {/* Done Button */}
-            <View
-                className="absolute bottom-0 left-0 right-0 p-5 border-t"
-                style={{
-                    backgroundColor: colors.background,
-                    borderColor: colors.border,
-                    paddingBottom: 30 // Safe area padding
-                }}
-            >
-                <TouchableOpacity
-                    onPress={onClose}
+            {/* Done Button - Only in modal mode (StandardBottomSheet uses footerComponent) */}
+            {asModal && (
+                <View
+                    className="absolute bottom-0 left-0 right-0 p-5 border-t"
                     style={{
-                        paddingVertical: 16,
-                        borderRadius: 12,
-                        alignItems: 'center',
-                        backgroundColor: colors.primary
+                        backgroundColor: colors.background,
+                        borderColor: colors.border,
+                        paddingBottom: 30 // Safe area padding
                     }}
                 >
-                    <Text className="font-inter-semibold text-base" style={{ color: colors.background }}>
-                        Done ({selectedFriends.length})
-                    </Text>
-                </TouchableOpacity>
-            </View>
+                    <TouchableOpacity
+                        onPress={onClose}
+                        style={{
+                            paddingVertical: 16,
+                            borderRadius: 12,
+                            alignItems: 'center',
+                            backgroundColor: colors.primary
+                        }}
+                    >
+                        <Text className="font-inter-semibold text-base" style={{ color: colors.background }}>
+                            Done ({selectedFriends.length})
+                        </Text>
+                    </TouchableOpacity>
+                </View>
+            )}
 
             {isGroupModalVisible && (
                 <GroupManagerModal
@@ -407,12 +409,29 @@ export function FriendSelector({
         );
     }
 
+    const footerContent = (
+        <TouchableOpacity
+            onPress={onClose}
+            style={{
+                paddingVertical: 16,
+                borderRadius: 12,
+                alignItems: 'center',
+                backgroundColor: colors.primary
+            }}
+        >
+            <Text className="font-inter-semibold text-base" style={{ color: colors.background }}>
+                Done ({selectedFriends.length})
+            </Text>
+        </TouchableOpacity>
+    );
+
     return (
         <StandardBottomSheet
             visible={visible}
             onClose={onClose}
             height="full"
             title="Add Friends"
+            footerComponent={footerContent}
         >
             {Content}
         </StandardBottomSheet>
