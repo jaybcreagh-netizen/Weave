@@ -4,7 +4,7 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  Dimensions,
+  useWindowDimensions,
   Modal,
   KeyboardAvoidingView,
   Platform,
@@ -30,8 +30,6 @@ import {
   SHEET_BORDER_RADIUS,
   SheetHeight,
 } from './constants';
-
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export interface AnimatedBottomSheetRef {
   close: () => void;
@@ -152,10 +150,11 @@ export const AnimatedBottomSheet = forwardRef<AnimatedBottomSheetRef, AnimatedBo
 }, ref) => {
   const { colors, isDarkMode } = useTheme();
   const insets = useSafeAreaInsets();
+  const { height: screenHeight } = useWindowDimensions();
 
-  // Calculate sheet height
+  // Calculate sheet height (reactive to screen dimension changes)
   const heightPercentage = customHeight ?? parseFloat(SHEET_HEIGHTS[height]) / 100;
-  const sheetHeight = SCREEN_HEIGHT * heightPercentage;
+  const sheetHeight = screenHeight * heightPercentage;
 
   // Animation values
   const sheetTranslateY = useSharedValue(sheetHeight);
@@ -277,7 +276,7 @@ export const AnimatedBottomSheet = forwardRef<AnimatedBottomSheetRef, AnimatedBo
 
           {/* Header with optional title and close button */}
           {(title || showCloseButton) && (
-            <View style={[styles.header, { borderBottomColor: colors.border }]}>
+            <View style={styles.header}>
               {title ? (
                 <Text
                   style={[styles.title, { color: colors.foreground }]}
@@ -359,16 +358,15 @@ const styles = StyleSheet.create({
     height: 4,
     borderRadius: 2,
     alignSelf: 'center',
-    marginTop: 12,
-    marginBottom: 8,
+    marginTop: 8,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingTop: 12,
+    paddingBottom: 8,
   },
   title: {
     fontSize: 20,
