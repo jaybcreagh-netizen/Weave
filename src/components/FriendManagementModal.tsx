@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, Alert } from 'react-native';
 import { Trash2, Check } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { StandardBottomSheet } from '@/shared/ui/Sheet';
@@ -92,9 +92,35 @@ export function FriendManagementModal({ visible, onClose }: FriendManagementModa
     );
   };
 
-  if (!visible) return null;
-
   const sortedFriends = friends ? [...friends].sort((a, b) => a.name.localeCompare(b.name)) : [];
+
+  const footerContent = (
+    <TouchableOpacity
+      onPress={handleDelete}
+      disabled={selectedIds.size === 0 || isDeleting}
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 16,
+        borderRadius: 12,
+        backgroundColor: selectedIds.size > 0 ? colors.destructive : colors.muted,
+        opacity: selectedIds.size === 0 || isDeleting ? 0.5 : 1,
+      }}
+    >
+      <Trash2 size={20} color={selectedIds.size > 0 ? colors['destructive-foreground'] : colors['muted-foreground']} />
+      <Text
+        style={{
+          marginLeft: 8,
+          fontSize: 16,
+          fontWeight: '600',
+          color: selectedIds.size > 0 ? colors['destructive-foreground'] : colors['muted-foreground']
+        }}
+      >
+        {isDeleting ? 'Deleting...' : `Delete ${selectedIds.size} Friend${selectedIds.size !== 1 ? 's' : ''}`}
+      </Text>
+    </TouchableOpacity>
+  );
 
   return (
     <StandardBottomSheet
@@ -103,6 +129,7 @@ export function FriendManagementModal({ visible, onClose }: FriendManagementModa
       height="full"
       title="Manage Friends"
       scrollable
+      footerComponent={footerContent}
     >
       {/* Selection Controls */}
       <View style={{ flexDirection: 'row', gap: 12, padding: 16, borderBottomWidth: 1, borderBottomColor: colors.border }}>
@@ -192,42 +219,6 @@ export function FriendManagementModal({ visible, onClose }: FriendManagementModa
             );
           })
         )}
-      </View>
-
-      {/* Footer with Delete Button */}
-      <View
-        style={{
-          padding: 20,
-          borderTopWidth: 1,
-          borderTopColor: colors.border,
-          backgroundColor: colors.background,
-        }}
-      >
-        <TouchableOpacity
-          onPress={handleDelete}
-          disabled={selectedIds.size === 0 || isDeleting}
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: 16,
-            borderRadius: 12,
-            backgroundColor: selectedIds.size > 0 ? colors.destructive : colors.muted,
-            opacity: selectedIds.size === 0 || isDeleting ? 0.5 : 1,
-          }}
-        >
-          <Trash2 size={20} color={selectedIds.size > 0 ? colors['destructive-foreground'] : colors['muted-foreground']} />
-          <Text
-            style={{
-              marginLeft: 8,
-              fontSize: 16,
-              fontWeight: '600',
-              color: selectedIds.size > 0 ? colors['destructive-foreground'] : colors['muted-foreground']
-            }}
-          >
-            {isDeleting ? 'Deleting...' : `Delete ${selectedIds.size} Friend${selectedIds.size !== 1 ? 's' : ''}`}
-          </Text>
-        </TouchableOpacity>
       </View>
     </StandardBottomSheet>
   );

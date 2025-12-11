@@ -54,7 +54,6 @@ export function StandardBottomSheet({
   height = 'form',
   snapPoints: customSnapPoints,
   initialSnapIndex = 0,
-  blurBackdrop = true,
   enableSwipeClose = true,
   scrollable = false,
   title,
@@ -186,6 +185,7 @@ export function StandardBottomSheet({
               }
             ]}
             showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
           >
             {/* Sheet content */}
             <View style={[

@@ -39,12 +39,6 @@ export interface StandardBottomSheetProps {
   initialSnapIndex?: number;
 
   /**
-   * Whether to show blur backdrop
-   * @default true
-   */
-  blurBackdrop?: boolean;
-
-  /**
    * Whether the sheet can be closed by swiping down
    * @default true
    */

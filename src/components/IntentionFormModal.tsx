@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, TextInput, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput, StyleSheet } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { StandardBottomSheet } from '@/shared/ui/Sheet';
@@ -50,124 +50,100 @@ export function IntentionFormModal({
     onClose();
   };
 
+  const footerContent = (
+    <TouchableOpacity
+      style={[styles.saveButton, { backgroundColor: colors.primary }]}
+      onPress={handleSave}
+      disabled={isSaving}
+    >
+      <Text style={[styles.saveButtonText, { color: colors['primary-foreground'] }]}>
+        {isSaving ? 'Saving...' : 'Set Intention'}
+      </Text>
+    </TouchableOpacity>
+  );
+
   return (
     <StandardBottomSheet
       visible={isOpen}
       onClose={handleClose}
       height="full"
       title={`Set an Intention with ${friendName}`}
+      scrollable
+      footerComponent={footerContent}
     >
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollViewContent}>
-          <View style={styles.section}>
-            <Text style={[styles.sectionLabel, { color: colors.foreground }]}>
-              What's the idea? (optional)
-            </Text>
-            <Text style={[styles.sectionHint, { color: colors['muted-foreground'] }]}>
-              Can be vague or specific - whatever feels right
-            </Text>
-            <TextInput
-              style={[
-                styles.textInput,
-                {
-                  backgroundColor: colors.card,
-                  borderColor: colors.border,
-                  color: colors.foreground,
-                }
-              ]}
-              placeholder="e.g., grab coffee, catch up, go hiking..."
-              placeholderTextColor={colors['muted-foreground']}
-              value={description}
-              onChangeText={setDescription}
-              multiline
-              numberOfLines={3}
-              textAlignVertical="top"
-            />
-          </View>
-
-          <View style={styles.section}>
-            <Text style={[styles.sectionLabel, { color: colors.foreground }]}>
-              Activity type (optional)
-            </Text>
-            <View style={styles.categoryGrid}>
-              {INTERACTION_CATEGORIES.map(category => {
-                const metadata = getCategoryMetadata(category);
-                const isSelected = selectedCategory === category;
-
-                return (
-                  <TouchableOpacity
-                    key={category}
-                    style={[
-                      styles.categoryChip,
-                      {
-                        backgroundColor: isSelected ? colors.primary : colors.card,
-                        borderColor: isSelected ? colors.primary : colors.border,
-                      }
-                    ]}
-                    onPress={() => {
-                      setSelectedCategory(isSelected ? undefined : category);
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    }}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.categoryIcon}>{metadata.icon}</Text>
-                    <Text
-                      style={[
-                        styles.categoryLabel,
-                        { color: isSelected ? colors['primary-foreground'] : colors.foreground }
-                      ]}
-                    >
-                      {metadata.label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </View>
-      </ScrollView>
-
-      <View style={[styles.footer, { backgroundColor: colors.background, borderTopColor: colors.border }]}>
-        <TouchableOpacity
-          style={[styles.saveButton, { backgroundColor: colors.primary }]}
-          onPress={handleSave}
-          disabled={isSaving}
-        >
-          <Text style={[styles.saveButtonText, { color: colors['primary-foreground'] }]}>
-            {isSaving ? 'Saving...' : 'Set Intention'}
+      <View style={styles.contentContainer}>
+        <View style={styles.section}>
+          <Text style={[styles.sectionLabel, { color: colors.foreground }]}>
+            What's the idea? (optional)
           </Text>
-        </TouchableOpacity>
+          <Text style={[styles.sectionHint, { color: colors['muted-foreground'] }]}>
+            Can be vague or specific - whatever feels right
+          </Text>
+          <TextInput
+            style={[
+              styles.textInput,
+              {
+                backgroundColor: colors.card,
+                borderColor: colors.border,
+                color: colors.foreground,
+              }
+            ]}
+            placeholder="e.g., grab coffee, catch up, go hiking..."
+            placeholderTextColor={colors['muted-foreground']}
+            value={description}
+            onChangeText={setDescription}
+            multiline
+            numberOfLines={3}
+            textAlignVertical="top"
+          />
+        </View>
+
+        <View style={styles.section}>
+          <Text style={[styles.sectionLabel, { color: colors.foreground }]}>
+            Activity type (optional)
+          </Text>
+          <View style={styles.categoryGrid}>
+            {INTERACTION_CATEGORIES.map(category => {
+              const metadata = getCategoryMetadata(category);
+              const isSelected = selectedCategory === category;
+
+              return (
+                <TouchableOpacity
+                  key={category}
+                  style={[
+                    styles.categoryChip,
+                    {
+                      backgroundColor: isSelected ? colors.primary : colors.card,
+                      borderColor: isSelected ? colors.primary : colors.border,
+                    }
+                  ]}
+                  onPress={() => {
+                    setSelectedCategory(isSelected ? undefined : category);
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.categoryIcon}>{metadata.icon}</Text>
+                  <Text
+                    style={[
+                      styles.categoryLabel,
+                      { color: isSelected ? colors['primary-foreground'] : colors.foreground }
+                    ]}
+                  >
+                    {metadata.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
       </View>
     </StandardBottomSheet>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    padding: 20,
-    borderBottomWidth: 1,
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: '600',
-    fontFamily: 'Lora_700Bold',
-    marginBottom: 4,
-  },
-  headerSubtitle: {
-    fontSize: 16,
-  },
-  closeButton: {
-    padding: 8,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollViewContent: {
-    padding: 20,
+  contentContainer: {
     gap: 32,
   },
   section: {
@@ -207,10 +183,6 @@ const styles = StyleSheet.create({
   categoryLabel: {
     fontSize: 14,
     fontWeight: '500',
-  },
-  footer: {
-    padding: 20,
-    borderTopWidth: 1,
   },
   saveButton: {
     padding: 16,

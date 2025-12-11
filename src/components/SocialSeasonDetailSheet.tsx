@@ -49,8 +49,6 @@ export function SocialSeasonDetailSheet({
     const { tokens, typography, spacing, isDarkMode } = useTheme();
     const [currentTab, setCurrentTab] = useState<Tab>('pulse');
 
-    if (!isVisible) return null;
-
     return (
         <AnimatedBottomSheet
             visible={isVisible}
