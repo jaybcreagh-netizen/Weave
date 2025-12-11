@@ -93,27 +93,29 @@ export function PostWeaveRatingModal() {
         : null;
 
     const handleConfirm = useDebounceCallback(async () => {
-        if (!currentPlanId || isSubmitting || !selectedVibe) return;
+        if (!currentPlanId || isSubmitting) return;
 
         Keyboard.dismiss();
 
-        // ANALYTICS: Track rating
-        // Map Moon Phases to Score (1-5)
-        const vibeScores: Record<string, number> = {
-            'FullMoon': 5,
-            'WaxingGibbous': 4,
-            'WaningGibbous': 4,
-            'FirstQuarter': 3,
-            'LastQuarter': 3,
-            'WaxingCrescent': 2,
-            'WaningCrescent': 2,
-            'NewMoon': 1
-        };
-        const rating = vibeScores[selectedVibe as string] || 3;
-        SeasonAnalyticsService.trackInteractionRating(rating).catch(console.error);
+        // ANALYTICS: Track rating (if vibe selected)
+        if (selectedVibe) {
+            // Map Moon Phases to Score (1-5)
+            const vibeScores: Record<string, number> = {
+                'FullMoon': 5,
+                'WaxingGibbous': 4,
+                'WaningGibbous': 4,
+                'FirstQuarter': 3,
+                'LastQuarter': 3,
+                'WaxingCrescent': 2,
+                'WaningCrescent': 2,
+                'NewMoon': 1
+            };
+            const rating = vibeScores[selectedVibe as string] || 3;
+            SeasonAnalyticsService.trackInteractionRating(rating).catch(console.error);
+        }
 
         pendingActionRef.current = 'confirm';
-        pendingDataRef.current = { vibe: selectedVibe, note: notes };
+        pendingDataRef.current = { vibe: selectedVibe || undefined, note: notes };
         closePostWeaveRating();
     });
 
@@ -247,10 +249,10 @@ export function PostWeaveRatingModal() {
                     style={[
                         styles.primaryButton,
                         { backgroundColor: colors.primary },
-                        (!selectedVibe || isSubmitting) && styles.buttonDisabled
+                        isSubmitting && styles.buttonDisabled
                     ]}
                     onPress={handleConfirm}
-                    disabled={!selectedVibe || isSubmitting}
+                    disabled={isSubmitting}
                 >
                     <Text style={[styles.primaryButtonText, { color: colors['primary-foreground'] }]}>
                         {isSubmitting ? 'Weaving...' : 'Complete'}
