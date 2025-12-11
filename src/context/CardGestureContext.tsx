@@ -11,6 +11,7 @@ interface CardGestureContextType {
   gesture: any; // Using any to avoid complex Gesture type issues
   animatedScrollHandler: any;
   activeCardId: Animated.SharedValue<string | null>;
+  pendingCardId: Animated.SharedValue<string | null>; // Card being held (before long-press activates)
   registerRef: (id: string, ref: React.RefObject<Animated.View>) => void;
   unregisterRef: (id: string) => void;
   dragX: Animated.SharedValue<number>;
@@ -57,11 +58,34 @@ function useCardGestureCoordinator(): CardGestureContextType {
   const cardRefs = useSharedValue<Record<string, React.RefObject<Animated.View>>>({});
   const scrollOffset = useSharedValue(0);
   const activeCardId = useSharedValue<string | null>(null);
+  const pendingCardId = useSharedValue<string | null>(null); // Track which card is being held before activation
   const isLongPressActive = useSharedValue(false);
   const dragX = useSharedValue(0);
   const dragY = useSharedValue(0);
   const highlightedIndex = useSharedValue(-1);
   const startCoordinates = useSharedValue<{ x: number, y: number }>({ x: 0, y: 0 });
+
+  // Timeout for delayed pending feedback (so quick taps don't trigger it)
+  const pendingFeedbackTimeout = useRef<NodeJS.Timeout | null>(null);
+
+  const startPendingFeedback = (targetId: string) => {
+    // Clear any existing timeout
+    if (pendingFeedbackTimeout.current) {
+      clearTimeout(pendingFeedbackTimeout.current);
+    }
+    // Delay the visual feedback by 80ms so quick taps bypass it
+    pendingFeedbackTimeout.current = setTimeout(() => {
+      pendingCardId.value = targetId;
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }, 80);
+  };
+
+  const clearPendingFeedback = () => {
+    if (pendingFeedbackTimeout.current) {
+      clearTimeout(pendingFeedbackTimeout.current);
+      pendingFeedbackTimeout.current = null;
+    }
+  };
 
   const registerRef = (id: string, ref: React.RefObject<Animated.View>) => {
     'worklet';
@@ -96,9 +120,11 @@ function useCardGestureCoordinator(): CardGestureContextType {
   // THE FIX: Wrap the entire gesture definition in useMemo to prevent re-creation on re-renders.
   const gesture = useMemo(() => {
     const tap = Gesture.Tap()
-      .maxDuration(400) // Increased to 400ms for more reliable taps
+      .maxDuration(100) // Snappy tap recognition
       .onEnd((event, success) => {
         'worklet';
+        // Clear any pending feedback timeout so quick taps don't trigger it
+        runOnJS(clearPendingFeedback)();
         if (success && !isLongPressActive.value) {
           const targetId = findTargetCardId(event.absoluteX, event.absoluteY);
           if (targetId) {
@@ -108,22 +134,28 @@ function useCardGestureCoordinator(): CardGestureContextType {
       });
 
     const longPressAndDrag = Gesture.LongPress()
-      .minDuration(400) // Aligned with tap maxDuration to prevent overlap
+      .minDuration(200) // Quick activation when visual feedback peaks
       .maxDistance(999999)
       .shouldCancelWhenOutside(false)
       .onBegin((event) => {
         'worklet';
-        // Store coordinates but don't set activeCardId yet
+        // Store coordinates immediately, but delay the visual feedback
+        // so quick taps don't trigger the "charging" animation/haptic
         const targetId = findTargetCardId(event.absoluteX, event.absoluteY);
         if (targetId) {
           startCoordinates.value = { x: event.x, y: event.y };
+          // Delay pending feedback - only shows if user holds for 80ms+
+          runOnJS(startPendingFeedback)(targetId);
         }
       })
       .onStart((event) => {
         'worklet';
+        // Clear the delayed pending feedback since we're now activating
+        runOnJS(clearPendingFeedback)();
         // Now set activeCardId when long press actually activates
         const targetId = findTargetCardId(event.absoluteX, event.absoluteY);
         if (targetId) {
+          pendingCardId.value = null; // Clear pending state
           activeCardId.value = targetId;
           isLongPressActive.value = true;
           runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Medium);
@@ -189,6 +221,7 @@ function useCardGestureCoordinator(): CardGestureContextType {
         // Reset all state immediately - always, regardless of gesture state
         isLongPressActive.value = false;
         activeCardId.value = null;
+        pendingCardId.value = null;
         dragX.value = 0;
         dragY.value = 0;
         highlightedIndex.value = -1;
@@ -197,6 +230,7 @@ function useCardGestureCoordinator(): CardGestureContextType {
         'worklet';
         // Final cleanup to ensure card scale resets - extra safety
         activeCardId.value = null;
+        pendingCardId.value = null;
         isLongPressActive.value = false;
         dragX.value = 0;
         dragY.value = 0;
@@ -206,5 +240,5 @@ function useCardGestureCoordinator(): CardGestureContextType {
     return Gesture.Exclusive(tap, longPressAndDrag);
   }, []); // Empty dependency array means this runs only once.
 
-  return { gesture, animatedScrollHandler, activeCardId, registerRef, unregisterRef, dragX, dragY, highlightedIndex };
+  return { gesture, animatedScrollHandler, activeCardId, pendingCardId, registerRef, unregisterRef, dragX, dragY, highlightedIndex };
 }

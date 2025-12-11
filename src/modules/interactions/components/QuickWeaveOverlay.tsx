@@ -109,8 +109,8 @@ export function QuickWeaveOverlay() {
   // Exit Animation - Fast dismiss
   useEffect(() => {
     if (isQuickWeaveClosing) {
-      menuScale.value = withTiming(0.3, { duration: 100 });
-      overlayOpacity.value = withTiming(0, { duration: 120 }, (finished) => {
+      menuScale.value = withTiming(0.3, { duration: 60 });
+      overlayOpacity.value = withTiming(0, { duration: 80 }, (finished) => {
         if (finished) {
           runOnJS(_finishClosingQuickWeave)();
         }

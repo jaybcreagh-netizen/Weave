@@ -116,23 +116,10 @@ export function useQuickWeave() {
         }
     }, [openQuickWeave]);
 
-    const handleTap = useDebounceCallback(useCallback(async (friendId: string) => {
-        try {
-            const friend = await database.get<Friend>(Friend.table).find(friendId);
-
-            // If archetype is Unknown, go to edit screen to assign one
-            if (friend && friend.archetype === 'Unknown') {
-                router.push(`/edit-friend?friendId=${friendId}`);
-            } else {
-                setSelectedFriendId(friendId);
-                router.push(`/friend-profile?friendId=${friendId}`);
-            }
-        } catch (error) {
-            // Fallback to profile on error
-            console.error('Error handling tap:', error);
-            setSelectedFriendId(friendId);
-            router.push(`/friend-profile?friendId=${friendId}`);
-        }
+    const handleTap = useDebounceCallback(useCallback((friendId: string) => {
+        // Navigate immediately for snappy feel - friend profile handles unknown archetypes
+        setSelectedFriendId(friendId);
+        router.push(`/friend-profile?friendId=${friendId}`);
     }, [router, setSelectedFriendId]));
 
     return {

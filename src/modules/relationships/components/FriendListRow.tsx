@@ -61,7 +61,7 @@ export const FriendListRowContent = ({ friend, animatedRef, variant = 'default' 
   const [showDetailSheet, setShowDetailSheet] = useState(false);
   const { colors, isDarkMode } = useTheme();
   const { setArchetypeModal, justNurturedFriendId, setJustNurturedFriendId } = useUIStore();
-  const { activeCardId } = useCardGesture();
+  const { activeCardId, pendingCardId } = useCardGesture();
 
   // Calculate current score with decay - memoized by ID to avoid recalculation
   const weaveScore = useMemo(
@@ -170,21 +170,43 @@ export const FriendListRowContent = ({ friend, animatedRef, variant = 'default' 
   // Animated styles for gesture feedback
   const rowStyle = useAnimatedStyle(() => {
     const isGestureActive = activeCardId.value === id;
-    const targetScale = isGestureActive ? 1.02 : 1;
-    const targetPressOpacity = isGestureActive ? gradientOpacity + 0.1 : gradientOpacity;
+    const isPending = pendingCardId.value === id;
 
+    // During pending: smooth continuous growth, during active: slightly larger
+    let targetScale = 1;
+    if (isGestureActive) {
+      targetScale = 1.03;
+    } else if (isPending) {
+      targetScale = 1.03; // Grows to same as active for seamless transition
+    }
+
+    // Use timing with easeOut for smooth continuous growth (no "tick tick")
     return {
-      transform: [{ scale: withSpring(targetScale, { damping: 15, stiffness: 400 }) }],
+      transform: [{
+        scale: withTiming(targetScale, {
+          duration: isPending ? 250 : 150, // Match long-press duration for pending, quick return otherwise
+          easing: Easing.out(Easing.quad)
+        })
+      }],
       opacity: isDormant ? 0.6 : 1,
     };
   });
 
   const gradientStyle = useAnimatedStyle(() => {
     const isGestureActive = activeCardId.value === id;
-    const targetOpacity = isGestureActive ? gradientOpacity + 0.1 : gradientOpacity;
+    const isPending = pendingCardId.value === id;
+
+    // Gradient grows smoothly more visible during pending/active states
+    let targetOpacity = gradientOpacity;
+    if (isGestureActive || isPending) {
+      targetOpacity = gradientOpacity + 0.12; // Same target for seamless transition
+    }
 
     return {
-      opacity: withTiming(targetOpacity, { duration: 150 }),
+      opacity: withTiming(targetOpacity, {
+        duration: (isGestureActive || isPending) ? 250 : 150,
+        easing: Easing.out(Easing.quad)
+      }),
     };
   });
 

@@ -1,6 +1,7 @@
 import React from 'react';
 import { TouchableOpacity, StyleSheet, View, Text } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
+import { Sparkles } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '@/shared/hooks/useTheme';
 
@@ -50,7 +51,7 @@ export function IntentionsFAB({ count, onClick }: IntentionsFABProps) {
           animatedStyle,
         ]}
       >
-        <Text style={styles.icon}>💫</Text>
+        <Sparkles color={colors.foreground} size={26} />
         {count > 0 ? (
           <View style={[styles.badge, { backgroundColor: colors.primary }]}>
             <Text style={[styles.badgeText, { color: colors['primary-foreground'] }]}>
