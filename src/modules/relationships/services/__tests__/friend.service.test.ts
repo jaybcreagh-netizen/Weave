@@ -103,6 +103,27 @@ describe('friend.service', () => {
     expect(mockUserProgress.prepareUpdate).toHaveBeenCalled();
   });
 
+  it('should track friend creation with custom source', async () => {
+    const friendData: FriendFormData = {
+      name: 'Jane Doe',
+      tier: 'InnerCircle',
+      archetype: 'Emperor',
+      notes: '',
+    };
+
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const analyticsService = require('@/shared/services/analytics.service');
+
+    await createFriend(friendData, 'onboarding');
+
+    expect(analyticsService.trackEvent).toHaveBeenCalledWith(
+      analyticsService.AnalyticsEvents.FRIEND_ADDED,
+      expect.objectContaining({
+        source: 'onboarding'
+      })
+    );
+  });
+
   it('should update a friend', async () => {
     const friendData: FriendFormData = {
       name: 'John Doe',

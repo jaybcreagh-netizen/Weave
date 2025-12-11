@@ -134,15 +134,19 @@ export function StandardBottomSheet({
         testID={testID}
       >
         <ContentWrapper style={styles.contentContainer}>
-          {/* Optional header with title and close button */}
-          {title && (
+          {/* Header with optional title and close button */}
+          {(title || showCloseButton) && (
             <View style={styles.header}>
-              <Text
-                style={[styles.title, { color: colors.foreground }]}
-                numberOfLines={1}
-              >
-                {title}
-              </Text>
+              {title ? (
+                <Text
+                  style={[styles.title, { color: colors.foreground }]}
+                  numberOfLines={1}
+                >
+                  {title}
+                </Text>
+              ) : (
+                <View style={{ flex: 1 }} />
+              )}
               {showCloseButton && (
                 <TouchableOpacity
                   onPress={onClose}

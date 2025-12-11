@@ -256,15 +256,19 @@ export function AnimatedBottomSheet({
             style={[styles.handleIndicator, { backgroundColor: colors.border }]}
           />
 
-          {/* Optional header */}
-          {title && (
+          {/* Header with optional title and close button */}
+          {(title || showCloseButton) && (
             <View style={[styles.header, { borderBottomColor: colors.border }]}>
-              <Text
-                style={[styles.title, { color: colors.foreground }]}
-                numberOfLines={1}
-              >
-                {title}
-              </Text>
+              {title ? (
+                <Text
+                  style={[styles.title, { color: colors.foreground }]}
+                  numberOfLines={1}
+                >
+                  {title}
+                </Text>
+              ) : (
+                <View style={{ flex: 1 }} />
+              )}
               {showCloseButton && (
                 <TouchableOpacity
                   onPress={handleClosePress}

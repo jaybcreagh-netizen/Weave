@@ -8,7 +8,7 @@ import { tierMap } from '@/shared/constants/constants';
 import { trackEvent, AnalyticsEvents } from '@/shared/services/analytics.service';
 import { deleteImage, getRelativePath } from './image.service';
 
-export async function createFriend(data: FriendFormData): Promise<Friend> {
+export async function createFriend(data: FriendFormData, source: 'manual' | 'onboarding' | 'import' = 'manual'): Promise<Friend> {
   let newFriend: Friend | undefined;
   try {
     await database.write(async () => {
@@ -55,7 +55,7 @@ export async function createFriend(data: FriendFormData): Promise<Friend> {
     trackEvent(AnalyticsEvents.FRIEND_ADDED, {
       archetype: data.archetype,
       tier: data.tier,
-      source: 'manual',
+      source: source,
       has_photo: !!data.photoUrl,
       has_notes: !!data.notes,
     });
