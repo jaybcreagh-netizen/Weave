@@ -13,11 +13,10 @@ import { TierSegmentedControl } from '@/components/TierSegmentedControl';
 import { TierInfo } from '@/components/TierInfo';
 import { FAB } from '@/components/fab';
 import { InsightsFAB } from '@/components/InsightsFAB';
-import { MicroReflectionSheet } from '@/components/MicroReflectionSheet';
 import { InsightsSheet } from '@/components/InsightsSheet';
 import { AddFriendMenu } from '@/components/AddFriendMenu';
 import { useUIStore } from '@/stores/uiStore';
-import { useInteractions, usePlans, PlanService, getSuggestionCooldownDays } from '@/modules/interactions';
+import { usePlans, PlanService, getSuggestionCooldownDays } from '@/modules/interactions';
 import { useSuggestions } from '@/modules/interactions';
 import { Suggestion } from '@/shared/types/common';
 import { useTheme } from '@/shared/hooks/useTheme';
@@ -36,8 +35,7 @@ const { width: screenWidth } = Dimensions.get('window');
 function DashboardContent() {
   const router = useRouter();
   const { colors } = useTheme();
-  const { isQuickWeaveOpen, microReflectionData, hideMicroReflectionSheet, showMicroReflectionSheet } = useUIStore();
-  const { updateInteractionVibeAndNotes } = useInteractions();
+  const { isQuickWeaveOpen, showMicroReflectionSheet } = useUIStore();
   const { gesture, animatedScrollHandler, activeCardId } = useCardGesture();
   const { suggestions, dismissSuggestion } = useSuggestions();
 
@@ -324,24 +322,7 @@ function DashboardContent() {
         onClick={() => setInsightsSheetVisible(true)}
       />
 
-      <MicroReflectionSheet
-        isVisible={microReflectionData !== null}
-        friendName={microReflectionData?.friendName || ''}
-        activityLabel={microReflectionData?.activityLabel || ''}
-        activityId={microReflectionData?.activityId || ''}
-        friendArchetype={microReflectionData?.friendArchetype}
-        onSave={async (data) => {
-          if (microReflectionData) {
-            await updateInteractionVibeAndNotes(
-              microReflectionData.interactionId,
-              data.vibe,
-              data.notes
-            );
-          }
-          hideMicroReflectionSheet();
-        }}
-        onSkip={hideMicroReflectionSheet}
-      />
+      {/* MicroReflectionSheet is handled globally by QuickWeaveProvider in _layout.tsx */}
 
       <InsightsSheet
         isVisible={insightsSheetVisible}
