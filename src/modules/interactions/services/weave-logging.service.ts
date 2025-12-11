@@ -4,6 +4,7 @@ import FriendModel from '@/db/models/Friend';
 import Interaction from '@/db/models/Interaction';
 import InteractionFriend from '@/db/models/InteractionFriend';
 import { processWeaveScoring } from '@/modules/intelligence/services/orchestrator.service';
+import { useUserProfileStore } from '@/modules/auth';
 import { checkAndAwardFriendBadges } from '@/modules/gamification/services/badge.service';
 import { checkAndAwardGlobalAchievements } from '@/modules/gamification/services/achievement.service';
 import { recordPractice } from '@/modules/gamification/services/milestone-tracker.service';
@@ -76,8 +77,9 @@ export async function logWeave(data: InteractionFormData): Promise<Interaction> 
 
     // 2. Run Side Effects (Sequential, outside main transaction to avoid deadlocks)
     try {
-        // Scoring
-        await processWeaveScoring(friends, data, database);
+        // Scoring (with season-aware bonuses)
+        const currentSeason = useUserProfileStore.getState().getSocialSeason();
+        await processWeaveScoring(friends, data, database, currentSeason);
 
         // Badges & Achievements
         for (const friend of friends) {

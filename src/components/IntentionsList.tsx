@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { formatDistanceToNow } from 'date-fns';
 import { Q } from '@nozbe/watermelondb';
-import { Trash2 } from 'lucide-react-native';
+import { Trash2, Target } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { getCategoryMetadata } from '@/shared/constants/interaction-categories';
 import Intention from '@/db/models/Intention';
@@ -147,10 +147,11 @@ export function IntentionsList({ intentions, onIntentionPress }: IntentionsListP
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.muted + '40', borderColor: colors.border }]}>
+    <View style={styles.container}>
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <Text style={[styles.headerTitle, { color: colors.foreground }]}>🌱 Connection Intentions</Text>
+          <Target size={20} color={colors.primary} />
+          <Text style={[styles.headerTitle, { color: colors.foreground }]}>Connection Intentions</Text>
           <Text style={[styles.headerCount, { color: colors['muted-foreground'] }]}>
             {intentionsWithFriends.length}
           </Text>
@@ -211,10 +212,9 @@ export function IntentionsList({ intentions, onIntentionPress }: IntentionsListP
 
 const styles = StyleSheet.create({
   container: {
-    borderRadius: 16,
-    padding: 16,
+    // Removed background/border, keeping padding/margin for spacing
     marginBottom: 20,
-    borderWidth: 1,
+    paddingHorizontal: 4,
   },
   header: {
     flexDirection: 'row',

@@ -16,6 +16,7 @@ import { SEASON_STYLES, getSeasonDisplayName } from '@/modules/intelligence';
 import { generateSeasonExplanation } from '@/modules/reflection';
 import { GraphsTabContent } from './YearInMoons/GraphsTabContentV2';
 import { TierBalanceContent } from './TierBalanceContent';
+import { SeasonEffectsPanel } from './SeasonEffectsPanel';
 import { database } from '@/db';
 import Interaction from '@/db/models/Interaction';
 import WeeklyReflection from '@/db/models/WeeklyReflection';
@@ -359,24 +360,27 @@ function PulseTabContent({
         <View style={{ gap: spacing[6], paddingHorizontal: 16, paddingBottom: 20 }}>
             {/* Season Explanation */}
             {explanation && (
-                <Card variant="elevated">
-                    <Text style={{
-                        color: tokens.foreground,
-                        fontFamily: typography.fonts.serifBold,
-                        fontSize: typography.scale.h3.fontSize,
-                        marginBottom: spacing[2]
-                    }}>
-                        {explanation.headline}
-                    </Text>
-                    <Text style={{
-                        color: tokens.foregroundMuted,
-                        fontFamily: typography.fonts.sans,
-                        fontSize: typography.scale.body.fontSize,
-                        lineHeight: typography.scale.body.lineHeight
-                    }}>
-                        {explanation.insight}
-                    </Text>
-                </Card>
+                <View style={{ gap: 16 }}>
+                    <Card variant="elevated">
+                        <Text style={{
+                            color: tokens.foreground,
+                            fontFamily: typography.fonts.serifBold,
+                            fontSize: typography.scale.h3.fontSize,
+                            marginBottom: spacing[2]
+                        }}>
+                            {explanation.headline}
+                        </Text>
+                        <Text style={{
+                            color: tokens.foregroundMuted,
+                            fontFamily: typography.fonts.sans,
+                            fontSize: typography.scale.body.fontSize,
+                            lineHeight: typography.scale.body.lineHeight
+                        }}>
+                            {explanation.insight}
+                        </Text>
+                    </Card>
+                    <SeasonEffectsPanel season={season} />
+                </View>
             )}
 
             {/* Calendar */}

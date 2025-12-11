@@ -14,20 +14,18 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  Keyboard,
+  ScrollView,
   Modal,
   KeyboardAvoidingView,
   Platform,
-  Keyboard,
-  ScrollView,
+  StyleSheet,
 } from 'react-native';
 import Animated, {
   FadeIn,
   FadeOut,
   SlideInDown,
   SlideOutDown,
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
 } from 'react-native-reanimated';
 import { X, User, ChevronRight, Sparkles } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
@@ -76,9 +74,6 @@ export function QuickCaptureSheet({
   const [friends, setFriends] = useState<FriendModel[]>([]);
   const [saving, setSaving] = useState(false);
 
-  // Animation values
-  const sheetHeight = useSharedValue(0);
-
   // Load friends on mount
   useEffect(() => {
     loadFriends();
@@ -104,9 +99,10 @@ export function QuickCaptureSheet({
   // Focus input when sheet opens
   useEffect(() => {
     if (visible) {
+      // Small delay to allow sheet animation to start/finish
       setTimeout(() => {
         inputRef.current?.focus();
-      }, 300);
+      }, 500);
     }
   }, [visible]);
 
@@ -194,211 +190,239 @@ export function QuickCaptureSheet({
 
   const hasContent = text.trim().length > 0;
 
-  // Animated sheet style
-  const animatedSheetStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: withSpring(sheetHeight.value) }],
-  }));
+  // Footer component for StandardBottomSheet
+  const renderFooter = (
+    <View className="gap-4">
+      <TouchableOpacity
+        onPress={handleSave}
+        disabled={!hasContent || saving}
+        className="py-4 rounded-2xl items-center"
+        style={{
+          backgroundColor: hasContent ? colors.primary : colors.muted,
+          opacity: saving ? 0.7 : 1,
+        }}
+        activeOpacity={0.8}
+      >
+        <Text
+          className="text-base"
+          style={{
+            color: hasContent ? colors['primary-foreground'] : colors['muted-foreground'],
+            fontFamily: 'Inter_600SemiBold',
+          }}
+        >
+          {saving ? 'Saving...' : 'Save note'}
+        </Text>
+      </TouchableOpacity>
 
-  if (!visible) return null;
+      {/* Expand to full */}
+      {hasContent && (
+        <TouchableOpacity
+          onPress={handleExpandToFull}
+          className="flex-row items-center justify-center gap-2"
+        >
+          <Sparkles size={16} color={colors.primary} />
+          <Text
+            className="text-sm"
+            style={{ color: colors.primary, fontFamily: 'Inter_500Medium' }}
+          >
+            Expand into full reflection
+          </Text>
+          <ChevronRight size={16} color={colors.primary} />
+        </TouchableOpacity>
+      )}
+    </View>
+  );
 
   return (
     <Modal
       visible={visible}
       transparent
-      animationType="none"
+      animationType="fade"
       onRequestClose={handleClose}
+      statusBarTranslucent
     >
-      {/* Backdrop */}
-      <Animated.View
-        entering={FadeIn.duration(200)}
-        exiting={FadeOut.duration(200)}
-        className="flex-1 bg-black/50"
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}
       >
+        {/* Backdrop */}
         <TouchableOpacity
-          className="flex-1"
+          style={{
+            ...StyleSheet.absoluteFillObject,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+          }}
           activeOpacity={1}
           onPress={handleClose}
         />
-      </Animated.View>
 
-      {/* Sheet */}
-      <Animated.View
-        entering={SlideInDown.springify().damping(20)}
-        exiting={SlideOutDown.springify().damping(20)}
-        className="absolute bottom-0 left-0 right-0"
-        style={[
-          {
-            backgroundColor: colors.background,
-            borderTopLeftRadius: 24,
-            borderTopRightRadius: 24,
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: -4 },
-            shadowOpacity: 0.15,
-            shadowRadius: 12,
-            elevation: 10,
-          },
-          animatedSheetStyle,
-        ]}
-      >
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          keyboardVerticalOffset={0}
-        >
-          {/* Handle */}
-          <View className="items-center pt-3 pb-2">
-            <View
-              className="w-10 h-1 rounded-full"
-              style={{ backgroundColor: colors.border }}
-            />
-          </View>
-
-          {/* Header */}
-          <View className="flex-row items-center justify-between px-5 pb-3">
-            <Text
-              className="text-lg"
-              style={{ color: colors.foreground, fontFamily: 'Lora_600SemiBold' }}
-            >
-              Quick Note
-            </Text>
-            <TouchableOpacity
-              onPress={handleClose}
-              className="w-8 h-8 items-center justify-center rounded-full"
-              style={{ backgroundColor: colors.muted }}
-            >
-              <X size={18} color={colors['muted-foreground']} />
-            </TouchableOpacity>
-          </View>
-
-          {/* Content */}
-          <View className="px-5">
-            {/* Text Input */}
-            <TextInput
-              ref={inputRef}
-              value={text}
-              onChangeText={setText}
-              placeholder="What happened?"
-              placeholderTextColor={colors['muted-foreground']}
-              multiline
-              numberOfLines={4}
-              textAlignVertical="top"
-              className="text-base"
-              style={{
-                color: colors.foreground,
-                fontFamily: 'Inter_400Regular',
-                minHeight: 100,
-                maxHeight: 200,
-              }}
-            />
-
-            {/* Friend Selector */}
-            <View className="mt-4">
-              <Text
-                className="text-xs mb-2"
-                style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
-              >
-                Who was involved? (optional)
-              </Text>
-
-              <View className="flex-row flex-wrap gap-2">
-                {selectedFriends.map((friend) => (
-                  <TouchableOpacity
-                    key={friend.id}
-                    onPress={() => {
-                      const fullFriend = friends.find(f => f.id === friend.id);
-                      if (fullFriend) toggleFriend(fullFriend);
-                    }}
-                    className="flex-row items-center gap-1.5 px-3 py-2 rounded-full"
-                    style={{
-                      backgroundColor: colors.primary + '20',
-                      borderWidth: 1,
-                      borderColor: colors.primary,
-                    }}
-                  >
-                    <User size={14} color={colors.primary} />
-                    <Text
-                      className="text-sm"
-                      style={{ color: colors.primary, fontFamily: 'Inter_500Medium' }}
-                    >
-                      {friend.name}
-                    </Text>
-                    <X size={12} color={colors.primary} />
-                  </TouchableOpacity>
-                ))}
-
-                <TouchableOpacity
-                  onPress={() => setShowFriendPicker(true)}
-                  className="flex-row items-center gap-1.5 px-3 py-2 rounded-full"
-                  style={{
-                    backgroundColor: colors.muted,
-                    borderWidth: 1,
-                    borderColor: colors.border,
-                  }}
-                >
-                  <User size={14} color={colors['muted-foreground']} />
-                  <Text
-                    className="text-sm"
-                    style={{ color: colors['muted-foreground'], fontFamily: 'Inter_500Medium' }}
-                  >
-                    {selectedFriends.length > 0 ? 'Add' : 'Tag friend'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
+        {/* Content Container */}
+        <View className="flex-1 justify-end">
+          <View
+            style={{
+              backgroundColor: colors.background,
+              borderTopLeftRadius: 24,
+              borderTopRightRadius: 24,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: -4 },
+              shadowOpacity: 0.15,
+              shadowRadius: 12,
+              elevation: 10,
+              paddingBottom: 24, // Initial padding
+            }}
+          >
+            {/* Handle */}
+            <View className="items-center pt-3 pb-2">
+              <View
+                className="w-10 h-1 rounded-full"
+                style={{ backgroundColor: colors.border }}
+              />
             </View>
-          </View>
 
-          {/* Actions */}
-          <View className="px-5 pt-6 pb-8">
-            {/* Save Button */}
-            <TouchableOpacity
-              onPress={handleSave}
-              disabled={!hasContent || saving}
-              className="py-4 rounded-2xl items-center"
-              style={{
-                backgroundColor: hasContent ? colors.primary : colors.muted,
-                opacity: saving ? 0.7 : 1,
-              }}
-              activeOpacity={0.8}
-            >
+            {/* Header */}
+            <View className="flex-row items-center justify-between px-5 pb-3">
               <Text
+                className="text-lg"
+                style={{ color: colors.foreground, fontFamily: 'Lora_600SemiBold' }}
+              >
+                Quick Note
+              </Text>
+              <TouchableOpacity
+                onPress={handleClose}
+                className="w-8 h-8 items-center justify-center rounded-full"
+                style={{ backgroundColor: colors.muted }}
+              >
+                <X size={18} color={colors['muted-foreground']} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Content */}
+            <View className="px-5">
+              <TextInput
+                ref={inputRef}
+                value={text}
+                onChangeText={setText}
+                placeholder="What happened?"
+                placeholderTextColor={colors['muted-foreground']}
+                multiline
+                numberOfLines={4}
+                textAlignVertical="top"
                 className="text-base"
                 style={{
-                  color: hasContent ? colors['primary-foreground'] : colors['muted-foreground'],
-                  fontFamily: 'Inter_600SemiBold',
+                  color: colors.foreground,
+                  fontFamily: 'Inter_400Regular',
+                  minHeight: 100,
+                  maxHeight: 200,
                 }}
-              >
-                {saving ? 'Saving...' : 'Save note'}
-              </Text>
-            </TouchableOpacity>
+              />
 
-            {/* Expand to full */}
-            {hasContent && (
-              <TouchableOpacity
-                onPress={handleExpandToFull}
-                className="flex-row items-center justify-center gap-2 mt-4"
-              >
-                <Sparkles size={16} color={colors.primary} />
+              {/* Friend Selector */}
+              <View className="mt-4">
                 <Text
-                  className="text-sm"
-                  style={{ color: colors.primary, fontFamily: 'Inter_500Medium' }}
+                  className="text-xs mb-2"
+                  style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
                 >
-                  Expand into full reflection
+                  Who was involved? (optional)
                 </Text>
-                <ChevronRight size={16} color={colors.primary} />
-              </TouchableOpacity>
-            )}
-          </View>
-        </KeyboardAvoidingView>
 
-        {/* Friend Picker Modal */}
-        <FriendPickerModal
-          visible={showFriendPicker}
-          onClose={() => setShowFriendPicker(false)}
-          friends={friends}
-          selectedFriendIds={selectedFriends.map(f => f.id)}
-          onToggleFriend={toggleFriend}
-          colors={colors}
-        />
-      </Animated.View>
+                <View className="flex-row flex-wrap gap-2">
+                  {selectedFriends.map((friend) => (
+                    <TouchableOpacity
+                      key={friend.id}
+                      onPress={() => {
+                        const fullFriend = friends.find(f => f.id === friend.id);
+                        if (fullFriend) toggleFriend(fullFriend);
+                      }}
+                      className="flex-row items-center gap-1.5 px-3 py-2 rounded-full"
+                      style={{
+                        backgroundColor: colors.primary + '20',
+                        borderWidth: 1,
+                        borderColor: colors.primary,
+                      }}
+                    >
+                      <User size={14} color={colors.primary} />
+                      <Text
+                        className="text-sm"
+                        style={{ color: colors.primary, fontFamily: 'Inter_500Medium' }}
+                      >
+                        {friend.name}
+                      </Text>
+                      <X size={12} color={colors.primary} />
+                    </TouchableOpacity>
+                  ))}
+
+                  <TouchableOpacity
+                    onPress={() => setShowFriendPicker(true)}
+                    className="flex-row items-center gap-1.5 px-3 py-2 rounded-full"
+                    style={{
+                      backgroundColor: colors.muted,
+                      borderWidth: 1,
+                      borderColor: colors.border,
+                    }}
+                  >
+                    <User size={14} color={colors['muted-foreground']} />
+                    <Text
+                      className="text-sm"
+                      style={{ color: colors['muted-foreground'], fontFamily: 'Inter_500Medium' }}
+                    >
+                      {selectedFriends.length > 0 ? 'Add' : 'Tag friend'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+
+            {/* Footer Actions */}
+            <View className="px-5 pt-6">
+              <TouchableOpacity
+                onPress={handleSave}
+                disabled={!hasContent || saving}
+                className="py-4 rounded-2xl items-center"
+                style={{
+                  backgroundColor: hasContent ? colors.primary : colors.muted,
+                  opacity: saving ? 0.7 : 1,
+                }}
+                activeOpacity={0.8}
+              >
+                <Text
+                  className="text-base"
+                  style={{
+                    color: hasContent ? colors['primary-foreground'] : colors['muted-foreground'],
+                    fontFamily: 'Inter_600SemiBold',
+                  }}
+                >
+                  {saving ? 'Saving...' : 'Save note'}
+                </Text>
+              </TouchableOpacity>
+
+              {hasContent && (
+                <TouchableOpacity
+                  onPress={handleExpandToFull}
+                  className="flex-row items-center justify-center gap-2 mt-4"
+                >
+                  <Sparkles size={16} color={colors.primary} />
+                  <Text
+                    className="text-sm"
+                    style={{ color: colors.primary, fontFamily: 'Inter_500Medium' }}
+                  >
+                    Expand into full reflection
+                  </Text>
+                  <ChevronRight size={16} color={colors.primary} />
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+        </View>
+      </KeyboardAvoidingView>
+
+      {/* Friend Picker Modal */}
+      <FriendPickerModal
+        visible={showFriendPicker}
+        onClose={() => setShowFriendPicker(false)}
+        friends={friends}
+        selectedFriendIds={selectedFriends.map(f => f.id)}
+        onToggleFriend={toggleFriend}
+        colors={colors}
+      />
     </Modal>
   );
 }

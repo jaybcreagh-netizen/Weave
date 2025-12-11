@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Alert } from 'react-native';
 import { Trash2, Check } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
-import { StandardBottomSheet } from '@/shared/ui/Sheet';
+import { AnimatedBottomSheet } from '@/shared/ui/Sheet';
 import { useFriendActions } from '@/modules/relationships/hooks/useFriendActions';
 import { calculateCurrentScore } from '@/modules/intelligence';
 import type FriendModel from '@/db/models/Friend';
@@ -123,7 +123,7 @@ export function FriendManagementModal({ visible, onClose }: FriendManagementModa
   );
 
   return (
-    <StandardBottomSheet
+    <AnimatedBottomSheet
       visible={visible}
       onClose={onClose}
       height="full"
@@ -220,6 +220,6 @@ export function FriendManagementModal({ visible, onClose }: FriendManagementModa
           })
         )}
       </View>
-    </StandardBottomSheet>
+    </AnimatedBottomSheet>
   );
 }

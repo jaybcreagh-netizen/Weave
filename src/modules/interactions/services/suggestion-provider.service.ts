@@ -5,6 +5,8 @@ import { generateSuggestion } from './suggestion-engine.service';
 import * as SuggestionStorageService from './suggestion-storage.service';
 import { Suggestion } from '@/shared/types/common';
 import { calculateCurrentScore } from '@/modules/intelligence/services/orchestrator.service';
+import { filterSuggestionsBySeason, getSeasonSuggestionConfig } from '@/modules/intelligence/services/social-season/season-suggestions.service';
+import type { SocialSeason } from '@/db/models/UserProfile';
 import Interaction from '@/db/models/Interaction';
 import InteractionFriend from '@/db/models/InteractionFriend';
 import { filterSuggestionsByTime } from '@/shared/utils/time-aware-filter';
@@ -13,6 +15,7 @@ import {
     analyzeArchetypeBalance,
     type PortfolioAnalysisStats
 } from '@/modules/insights/services/portfolio.service';
+import { SeasonAnalyticsService } from '@/modules/intelligence';
 
 /**
  * Selects diverse suggestions to provide a balanced "options menu" experience.
@@ -79,7 +82,17 @@ export function selectDiverseSuggestions(suggestions: Suggestion[], maxCount: nu
     return selected.sort((a, b) => getUrgencyScore(a.urgency) - getUrgencyScore(b.urgency));
 }
 
-export async function fetchSuggestions(limit: number = 3): Promise<Suggestion[]> {
+/**
+ * Fetches and filters suggestions based on friend data and user's current season
+ *
+ * @param limit - Maximum number of suggestions to return
+ * @param season - Current social season for season-aware filtering (optional)
+ * @returns Filtered, diversified list of suggestions
+ */
+export async function fetchSuggestions(
+    limit: number = 3,
+    season?: SocialSeason | null
+): Promise<Suggestion[]> {
     // Fetch all friends directly from DB
     const friends = await database.get<FriendModel>('friends').query().fetch();
 
@@ -222,6 +235,23 @@ export async function fetchSuggestions(limit: number = 3): Promise<Suggestion[]>
     // Apply time-based filtering (e.g., don't show "plan dinner" at 11pm)
     const timeAppropriate = filterSuggestionsByTime(active);
 
+    // Apply season-aware filtering (caps, category restrictions, life event bypass)
+    const seasonFiltered = filterSuggestionsBySeason(timeAppropriate, season);
+
+    // Get season-appropriate limit (use season config if provided)
+    const effectiveLimit = season
+        ? Math.max(limit, getSeasonSuggestionConfig(season).maxDaily)
+        : limit;
+
     // Diversify suggestions to provide balanced "options menu" experience
-    return selectDiverseSuggestions(timeAppropriate, limit);
+    const finalSuggestions = selectDiverseSuggestions(seasonFiltered, effectiveLimit);
+
+    // ANALYTICS: Track how many suggestions are being shown
+    if (finalSuggestions.length > 0) {
+        SeasonAnalyticsService.trackSuggestionsShown(finalSuggestions.length).catch(e => {
+            console.error('[Analytics] Failed to track suggestions shown:', e);
+        });
+    }
+
+    return finalSuggestions;
 }

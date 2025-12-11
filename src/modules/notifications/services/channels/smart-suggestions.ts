@@ -20,6 +20,7 @@ import { generateSuggestion } from '@/modules/interactions';
 import { calculateCurrentScore } from '@/modules/intelligence';
 import { HydratedFriend } from '@/types/hydrated';
 import { Suggestion } from '@/shared/types/common';
+import { applySeasonLimit, shouldSendNotification } from '../season-notifications.service';
 
 const ID_PREFIX = 'smart-suggestion';
 const MIN_HOURS_BETWEEN_NOTIFICATIONS = 2;
@@ -132,12 +133,17 @@ export const SmartSuggestionsChannel: NotificationChannel & {
         const scheduledStats = await notificationStore.getScheduledSmartNotifications();
         const alreadyScheduledCount = (scheduledStats?.date === today) ? scheduledStats.ids.length : 0;
 
-        const remainingSlots = maxAllowed - alreadyScheduledCount;
-        if (remainingSlots <= 0) return;
-
-        // 3. Battery Check
+        // 3. Battery Check & Season Limits
         const profiles = await database.get<UserProfile>('user_profile').query().fetch();
-        const batteryLevel = profiles[0]?.socialBatteryCurrent ?? null;
+        const profile = profiles[0];
+        const batteryLevel = profile?.socialBatteryCurrent ?? null;
+        const currentSeason = profile?.currentSocialSeason;
+
+        // Apply season limits
+        const seasonAdjustedLimit = applySeasonLimit(maxAllowed, currentSeason);
+        const remainingSlots = seasonAdjustedLimit - alreadyScheduledCount;
+
+        if (remainingSlots <= 0) return;
 
         // 4. Generate Suggestions
         const suggestions: Suggestion[] = [];
@@ -187,7 +193,13 @@ export const SmartSuggestionsChannel: NotificationChannel & {
         const urgencyOrder: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
         const sorted = suggestions.sort((a, b) => urgencyOrder[a.urgency || 'medium'] - urgencyOrder[b.urgency || 'medium']);
 
-        const eligible = sorted.filter(s => shouldRespectBattery(batteryLevel, s.urgency, prefs));
+        // Filter by battery AND season
+        const eligible = sorted.filter(s => {
+            const batteryOk = shouldRespectBattery(batteryLevel, s.urgency, prefs);
+            const seasonOk = shouldSendNotification(currentSeason, 'friend-suggestion', s.category as any, s.urgency); // Type assertion for safety
+            return batteryOk && seasonOk;
+        });
+
         const toSchedule = eligible.slice(0, remainingSlots);
         const delays = calculateSpreadDelays(toSchedule.length, prefs);
 

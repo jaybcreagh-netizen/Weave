@@ -893,6 +893,39 @@ export default schemaMigrations({
         `),
       ],
     },
+    {
+      // Migration from schema v40 to v41
+      // Season Override Features (Phase 3)
+      // Adds ability to set manual overrides with expiry/reason
+      toVersion: 41,
+      steps: [
+        addColumns({
+          table: 'user_profile',
+          columns: [
+            { name: 'season_override_until', type: 'number', isOptional: true },
+            { name: 'season_override_reason', type: 'string', isOptional: true },
+          ],
+        }),
+      ],
+    },
+    {
+      // Migration from schema v41 to v42
+      // Phase 4: Social Season Analytics
+      toVersion: 42,
+      steps: [
+        addColumns({
+          table: 'social_season_logs',
+          columns: [
+            { name: 'manual_override', type: 'boolean', isOptional: true },
+            { name: 'battery_start', type: 'number', isOptional: true },
+            { name: 'battery_end', type: 'number', isOptional: true },
+            { name: 'suggestions_shown', type: 'number', isOptional: true },
+            { name: 'suggestions_accepted', type: 'number', isOptional: true },
+            { name: 'avg_interaction_rating', type: 'number', isOptional: true },
+          ],
+        }),
+      ],
+    },
   ],
 });
 

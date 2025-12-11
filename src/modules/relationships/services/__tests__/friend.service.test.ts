@@ -105,6 +105,7 @@ describe('friend.service', () => {
 
   it('should track friend creation with custom source', async () => {
     const friendData: FriendFormData = {
+      photoUrl: 'https://example.com/photo.jpg',
       name: 'Jane Doe',
       tier: 'InnerCircle',
       archetype: 'Emperor',

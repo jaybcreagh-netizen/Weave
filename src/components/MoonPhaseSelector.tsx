@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { theme } from '@/shared/theme/theme';
+import { useTheme } from '@/shared/hooks/useTheme';
 import { type Vibe } from './types';
 import Animated, { FadeIn, FadeOut, useSharedValue, useAnimatedStyle, withTiming, withSequence, runOnJS } from 'react-native-reanimated';
 import Slider from '@react-native-community/slider';
@@ -64,6 +64,8 @@ interface MoonPhaseSelectorProps {
 }
 
 export function MoonPhaseSelector({ onSelect, selectedVibe }: MoonPhaseSelectorProps) {
+  const { colors } = useTheme();
+
   // Determine current numeric value from selectedVibe, default to 3 (FirstQuarter) if null
   const currentIndex = selectedVibe ? VIBE_ORDER.indexOf(selectedVibe) : 2;
   const sliderValue = currentIndex !== -1 ? currentIndex + 1 : 3;
@@ -126,23 +128,30 @@ export function MoonPhaseSelector({ onSelect, selectedVibe }: MoonPhaseSelectorP
     <View style={styles.container}>
       {/* Icon Display */}
       <View style={styles.iconContainer}>
-        <Animated.View style={[styles.iconWrapper, iconAnimatedStyle]}>
-          <MoonIcon width={64} height={64} color={theme.colors.primary} fill={theme.colors.primary} />
+        <Animated.View style={[
+          styles.iconWrapper,
+          iconAnimatedStyle,
+          {
+            shadowColor: colors.primary,
+            backgroundColor: colors.background
+          }
+        ]}>
+          <MoonIcon width={64} height={64} color={colors.primary} fill={colors.primary} />
         </Animated.View>
 
         <View style={styles.textContainer}>
           <Animated.View style={textAnimatedStyle}>
-            <Text style={styles.label}>{phaseInfo.title}</Text>
+            <Text style={[styles.label, { color: colors.foreground }]}>{phaseInfo.title}</Text>
           </Animated.View>
 
           <View style={styles.descriptionWrapper}>
-            <Animated.Text style={[styles.description, textAnimatedStyle]}>
+            <Animated.Text style={[styles.description, textAnimatedStyle, { color: colors['muted-foreground'] }]}>
               {phaseInfo.description.split('\n')[0]}
             </Animated.Text>
 
             {phaseInfo.description.split('\n')[1] && (
               <Animated.Text
-                style={[styles.description, textAnimatedStyle, { marginTop: 4, opacity: 0.8 }]} // Base opacity handled by parent, but we can stack or just use textOpacity
+                style={[styles.description, textAnimatedStyle, { marginTop: 4, opacity: 0.8, color: colors['muted-foreground'] }]}
               >
                 {phaseInfo.description.split('\n')[1]}
               </Animated.Text>
@@ -160,9 +169,9 @@ export function MoonPhaseSelector({ onSelect, selectedVibe }: MoonPhaseSelectorP
           step={1}
           value={sliderValue}
           onValueChange={handleSliderChange}
-          minimumTrackTintColor={theme.colors.primary}
-          maximumTrackTintColor={theme.colors.border}
-          thumbTintColor={theme.colors.primary}
+          minimumTrackTintColor={colors.primary}
+          maximumTrackTintColor={colors.border}
+          thumbTintColor={colors.primary}
         />
       </View>
     </View>
@@ -186,7 +195,6 @@ const styles = StyleSheet.create({
   iconWrapper: {
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: theme.colors.primary,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.3,
     shadowRadius: 10,
@@ -194,7 +202,6 @@ const styles = StyleSheet.create({
     height: 80,
     width: 80,
     borderRadius: 40,
-    backgroundColor: theme.colors.background,
   },
   textContainer: {
     alignItems: 'center',
@@ -209,13 +216,11 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 20,
     fontFamily: 'Lora-Bold',
-    color: theme.colors.foreground,
     textAlign: 'center',
   },
   description: {
     fontSize: 14,
     fontFamily: 'Inter-Regular',
-    color: theme.colors['muted-foreground'],
     textAlign: 'center',
     lineHeight: 20,
   },
@@ -232,7 +237,6 @@ const styles = StyleSheet.create({
   sliderLabelText: {
     fontSize: 12,
     fontFamily: 'Inter-Regular',
-    color: theme.colors['muted-foreground'],
   },
 });
 

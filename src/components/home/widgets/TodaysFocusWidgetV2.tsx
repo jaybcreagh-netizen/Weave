@@ -16,10 +16,12 @@ import { Card } from '@/components/ui/Card';
 import { WidgetHeader } from '@/components/ui/WidgetHeader';
 import { ListItem } from '@/components/ui/ListItem';
 import { FocusDetailSheet } from '@/components/FocusDetailSheet';
+import { FocusPlanItem } from './components/FocusPlanItem';
 import FriendModel from '@/db/models/Friend';
 import { Suggestion } from '@/shared/types/common';
 import { PlanWizard } from '@/modules/interactions/components/PlanWizard';
 import { getCategoryLabel } from '@/modules/interactions';
+import { SeasonAnalyticsService } from '@/modules/intelligence';
 
 const WIDGET_CONFIG: HomeWidgetConfig = {
     id: 'todays-focus',
@@ -205,6 +207,9 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = ({ friends })
         const friend = friends.find(f => f.id === suggestion.friendId);
         if (friend) {
             router.push(`/friend-profile?friendId=${friend.id}`);
+
+            // ANALYTICS: Track acceptance
+            SeasonAnalyticsService.trackSuggestionAccepted().catch(console.error);
         }
         setShowDetailSheet(false);
     };
@@ -273,29 +278,14 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = ({ friends })
                             </View>
                         )}
                         {todaysUpcoming.map((plan, index) => {
-                            const friendIds = planFriendIds[plan.id] || [];
-                            const planFriends = friends.filter(f => friendIds.includes(f.id));
-                            const friendName = planFriends.length > 0 ? planFriends[0].name : '';
-                            const subtitle = `${friendName ? `with ${friendName} • ` : ''}${format(new Date(plan.interactionDate), 'h:mm a')}`;
-
                             return (
-                                <View key={plan.id} style={{ paddingHorizontal: 16 }}>
-                                    <ListItem
-                                        title={plan.title || `${getCategoryLabel(plan.interactionCategory)}${friendName ? ` with ${friendName}` : ''}`}
-                                        subtitle={subtitle}
-                                        showDivider={index < todaysUpcoming.length - 1} // Divider between items
-                                        trailing={
-                                            <View style={styles.actions}>
-                                                <TouchableOpacity
-                                                    onPress={() => handleReschedulePlan(plan)}
-                                                    style={[styles.iconBtn, { backgroundColor: tokens.primary + '20' }]}
-                                                >
-                                                    <Clock size={18} color={tokens.primary} />
-                                                </TouchableOpacity>
-                                            </View>
-                                        }
-                                    />
-                                </View>
+                                <FocusPlanItem
+                                    key={plan.id}
+                                    interaction={plan}
+                                    friends={friends}
+                                    onReschedule={handleReschedulePlan}
+                                    isCompletedSection={false}
+                                />
                             );
                         })}
                     </View>
@@ -308,29 +298,14 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = ({ friends })
                             <Text style={[styles.sectionTitle, { color: tokens.foregroundMuted }]}>Completed Today</Text>
                         </View>
                         {todaysCompleted.slice(0, 3).map((plan, index) => {
-                            const friendIds = planFriendIds[plan.id] || [];
-                            const planFriends = friends.filter(f => friendIds.includes(f.id));
-                            const friendName = planFriends.length > 0 ? planFriends[0].name : '';
-                            const subtitle = `${friendName ? `with ${friendName} • ` : ''}${format(new Date(plan.interactionDate), 'h:mm a')}`;
-
                             return (
-                                <View key={plan.id} style={{ paddingHorizontal: 16 }}>
-                                    <ListItem
-                                        title={plan.title || `${getCategoryLabel(plan.interactionCategory)}${friendName ? ` with ${friendName}` : ''}`}
-                                        subtitle={subtitle}
-                                        showDivider={index < Math.min(todaysCompleted.length, 3) - 1}
-                                        trailing={
-                                            <View style={styles.actions}>
-                                                <TouchableOpacity
-                                                    onPress={() => handleDeepenWeave(plan)}
-                                                    style={[styles.iconBtn, { backgroundColor: tokens.primary + '15' }]}
-                                                >
-                                                    <Sparkles size={18} color={tokens.primary} />
-                                                </TouchableOpacity>
-                                            </View>
-                                        }
-                                    />
-                                </View>
+                                <FocusPlanItem
+                                    key={plan.id}
+                                    interaction={plan}
+                                    friends={friends}
+                                    onDeepen={handleDeepenWeave}
+                                    isCompletedSection={true}
+                                />
                             );
                         })}
                         {todaysCompleted.length > 3 && (

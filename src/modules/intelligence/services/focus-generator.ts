@@ -4,7 +4,8 @@ import Interaction from '@/db/models/Interaction';
 import LifeEvent from '@/db/models/LifeEvent';
 import FriendModel from '@/db/models/Friend';
 import { Suggestion } from '@/shared/types/common';
-import { fetchSuggestions } from '@/modules/interactions/services/suggestion-provider.service'; // Ensure this path is correct
+import { fetchSuggestions } from '@/modules/interactions/services/suggestion-provider.service';
+import type { SocialSeason } from '@/db/models/UserProfile';
 import { differenceInDays, isSameDay } from 'date-fns';
 
 export interface UpcomingDate {
@@ -122,10 +123,10 @@ export const FocusGenerator = {
     },
 
     /**
-     * Get suggestions
+     * Get suggestions with optional season-aware filtering
      */
-    async getSuggestions(limit: number = 3): Promise<Suggestion[]> {
-        return fetchSuggestions(limit);
+    async getSuggestions(limit: number = 3, season?: SocialSeason | null): Promise<Suggestion[]> {
+        return fetchSuggestions(limit, season);
     },
 
     /**

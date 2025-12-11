@@ -9,6 +9,9 @@ import Logger from '@/shared/utils/Logger';
 import { notificationAnalytics } from '../notification-analytics';
 import { NotificationChannel } from '../../types';
 import { getAnniversaryMemories, getMemoryForNotification } from '@/modules/journal/services/journal-context-engine';
+import { database } from '@/db';
+import UserProfile from '@/db/models/UserProfile';
+import { shouldSendNotification } from '../season-notifications.service';
 
 const ID_PREFIX = 'memory-nudge-';
 
@@ -17,6 +20,17 @@ export const MemoryNudgeChannel: NotificationChannel = {
         try {
             // Get memories for roughly "today" (logic inside handles window)
             const memories = await getAnniversaryMemories();
+
+            // Check season suppression
+            const profiles = await database.get<UserProfile>('user_profile').query().fetch();
+            const currentSeason = profiles[0]?.currentSocialSeason;
+
+            if (!shouldSendNotification(currentSeason, 'memory-nudge')) {
+                Logger.info('[MemoryNudge] Suppressed due to social season');
+                // Even if suppressed, ensure we don't have lingering old ones
+                await MemoryNudgeChannel.cancel(ID_PREFIX);
+                return;
+            }
 
             // Clear old
             await MemoryNudgeChannel.cancel(ID_PREFIX);

@@ -13,6 +13,8 @@ import Logger from '@/shared/utils/Logger';
 import { notificationAnalytics } from '../notification-analytics';
 import { notificationStore } from '../notification-store';
 import { NotificationChannel } from '../../types';
+import UserProfile from '@/db/models/UserProfile';
+import { shouldSendNotification } from '../season-notifications.service';
 
 const ID_PREFIX = 'deepening-nudge-';
 
@@ -20,6 +22,15 @@ export const DeepeningNudgeChannel: NotificationChannel = {
     schedule: async (interaction: Interaction): Promise<void> => {
         try {
             if (interaction.status !== 'completed') return;
+
+            // Check season suppression
+            const profiles = await database.get<UserProfile>('user_profile').query().fetch();
+            const currentSeason = profiles[0]?.currentSocialSeason;
+
+            if (!shouldSendNotification(currentSeason, 'deepening-nudge')) {
+                Logger.info('[DeepeningNudge] Suppressed due to social season');
+                return;
+            }
 
             const interactionDate = new Date(interaction.interactionDate);
             const now = new Date();

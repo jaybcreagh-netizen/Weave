@@ -20,12 +20,14 @@ import {
   FlatList,
   ActivityIndicator,
   RefreshControl,
+  StyleSheet,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
   FadeIn,
   FadeInDown,
   FadeInUp,
+  FadeOutDown,
 } from 'react-native-reanimated';
 import {
   Search,
@@ -105,6 +107,7 @@ export function JournalHome({
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
+  const [fabExpanded, setFabExpanded] = useState(false);
 
 
 
@@ -904,9 +907,38 @@ export function JournalHome({
       {activeTab === 'friend' && renderFriendTab()}
       {activeTab === 'calendar' && renderCalendarTab()}
 
+      {/* Backdrop for FAB */}
+      {fabExpanded && (
+        <TouchableOpacity
+          style={{
+            ...StyleSheet.absoluteFillObject,
+            backgroundColor: 'rgba(0,0,0,0.6)', // Darken background for focus
+            zIndex: 40,
+          }}
+          activeOpacity={1}
+          onPress={() => setFabExpanded(false)}
+        >
+          <Animated.View
+            entering={FadeIn.duration(200)}
+            style={StyleSheet.absoluteFill}
+          />
+        </TouchableOpacity>
+      )}
+
       {/* Floating Action Button */}
-      <View className="absolute bottom-6 right-5">
-        <NewEntryFAB onPress={onNewEntry} colors={colors} />
+      <View className="absolute bottom-6 right-5 z-50">
+        <NewEntryFAB
+          expanded={fabExpanded}
+          onToggle={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            setFabExpanded(!fabExpanded);
+          }}
+          onPress={(mode) => {
+            setFabExpanded(false);
+            onNewEntry(mode);
+          }}
+          colors={colors}
+        />
       </View>
     </View>
   );
@@ -971,119 +1003,120 @@ function FriendTags({ friendIds, colors }: FriendTagsProps) {
 }
 
 interface NewEntryFABProps {
+  expanded: boolean;
+  onToggle: () => void;
   onPress: (mode: 'quick' | 'guided') => void;
   colors: any;
 }
 
-function NewEntryFAB({ onPress, colors }: NewEntryFABProps) {
-  const [expanded, setExpanded] = useState(false);
-
-  const handlePress = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setExpanded(!expanded);
-  };
-
+function NewEntryFAB({ expanded, onToggle, onPress, colors }: NewEntryFABProps) {
   const handleQuick = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setExpanded(false);
     onPress('quick');
   };
 
   const handleGuided = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setExpanded(false);
     onPress('guided');
   };
 
   return (
-    <View>
+    <View className="items-end">
       {/* Expanded Options */}
       {expanded && (
-        <Animated.View entering={FadeInUp.duration(200)} className="mb-3">
-          {/* Quick Capture */}
-          <TouchableOpacity
-            onPress={handleQuick}
-            className="flex-row items-center gap-3 px-4 py-3 rounded-2xl mb-2"
-            style={{
-              backgroundColor: colors.card,
-              borderWidth: 1,
-              borderColor: colors.border,
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.1,
-              shadowRadius: 4,
-              elevation: 3,
-            }}
-            activeOpacity={0.8}
+        <View className="mb-4 gap-3">
+          {/* Quick Capture (Top) */}
+          <Animated.View
+            entering={FadeInDown.springify().damping(15).delay(50)}
+            exiting={FadeOutDown.duration(150)}
           >
-            <Edit3 size={18} color={colors.primary} />
-            <View>
-              <Text
-                className="text-sm"
-                style={{ color: colors.foreground, fontFamily: 'Inter_500Medium' }}
+            <TouchableOpacity
+              onPress={handleQuick}
+              className="flex-row items-center justify-end gap-3"
+              activeOpacity={0.9}
+            >
+              <View
+                className="px-4 py-2 rounded-xl"
+                style={{ backgroundColor: colors.card }}
               >
-                Quick Note
-              </Text>
-              <Text
-                className="text-xs"
-                style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
+                <Text
+                  className="text-sm font-medium"
+                  style={{ color: colors.foreground, fontFamily: 'Inter_500Medium' }}
+                >
+                  Quick Note
+                </Text>
+              </View>
+              <View
+                className="w-12 h-12 rounded-full items-center justify-center"
+                style={{
+                  backgroundColor: colors.card,
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 4,
+                  elevation: 3,
+                }}
               >
-                Capture a thought fast
-              </Text>
-            </View>
-          </TouchableOpacity>
+                <Edit3 size={20} color={colors.primary} />
+              </View>
+            </TouchableOpacity>
+          </Animated.View>
 
-          {/* Guided Reflection */}
-          <TouchableOpacity
-            onPress={handleGuided}
-            className="flex-row items-center gap-3 px-4 py-3 rounded-2xl"
-            style={{
-              backgroundColor: colors.card,
-              borderWidth: 1,
-              borderColor: colors.border,
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.1,
-              shadowRadius: 4,
-              elevation: 3,
-            }}
-            activeOpacity={0.8}
+          {/* Guided Reflection (Bottom) */}
+          <Animated.View
+            entering={FadeInDown.springify().damping(15)}
+            exiting={FadeOutDown.duration(150)}
           >
-            <Sparkles size={18} color={colors.primary} />
-            <View>
-              <Text
-                className="text-sm"
-                style={{ color: colors.foreground, fontFamily: 'Inter_500Medium' }}
+            <TouchableOpacity
+              onPress={handleGuided}
+              className="flex-row items-center justify-end gap-3"
+              activeOpacity={0.9}
+            >
+              <View
+                className="px-4 py-2 rounded-xl"
+                style={{ backgroundColor: colors.card }}
               >
-                Guided Reflection
-              </Text>
-              <Text
-                className="text-xs"
-                style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
+                <Text
+                  className="text-sm font-medium"
+                  style={{ color: colors.foreground, fontFamily: 'Inter_500Medium' }}
+                >
+                  Guided Reflection
+                </Text>
+              </View>
+              <View
+                className="w-12 h-12 rounded-full items-center justify-center"
+                style={{
+                  backgroundColor: colors.card,
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 4,
+                  elevation: 3,
+                }}
               >
-                Write with prompts
-              </Text>
-            </View>
-          </TouchableOpacity>
-        </Animated.View>
+                <Sparkles size={20} color={colors.primary} />
+              </View>
+            </TouchableOpacity>
+          </Animated.View>
+        </View>
       )}
 
       {/* Main FAB */}
       <TouchableOpacity
-        onPress={handlePress}
+        onPress={onToggle}
         className="w-14 h-14 rounded-full items-center justify-center"
         style={{
-          backgroundColor: colors.primary,
+          backgroundColor: expanded ? colors.card : colors.primary, // Change color instead of rotating
           shadowColor: '#000',
           shadowOffset: { width: 0, height: 4 },
           shadowOpacity: 0.2,
           shadowRadius: 8,
           elevation: 6,
-          transform: [{ rotate: expanded ? '45deg' : '0deg' }],
+          // Removed rotation transform
         }}
         activeOpacity={0.9}
       >
-        <Plus size={24} color={colors['primary-foreground']} />
+        <Plus size={24} color={expanded ? colors.primary : colors['primary-foreground']} />
       </TouchableOpacity>
     </View>
   );

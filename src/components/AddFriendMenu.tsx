@@ -51,7 +51,7 @@ export function AddFriendMenu({
   };
 
   return (
-    <View style={StyleSheet.absoluteFill} pointerEvents="box-none" zIndex={100}>
+    <View style={[StyleSheet.absoluteFill, { zIndex: 100 }]} pointerEvents="box-none">
       <Animated.View
         style={StyleSheet.absoluteFill}
         entering={FadeIn.duration(200)}

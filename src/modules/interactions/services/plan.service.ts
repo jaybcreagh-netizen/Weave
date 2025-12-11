@@ -6,6 +6,7 @@ import InteractionFriend from '@/db/models/InteractionFriend';
 import FriendModel from '@/db/models/Friend';
 import { Q } from '@nozbe/watermelondb';
 import { processWeaveScoring } from '@/modules/intelligence';
+import { useUserProfileStore } from '@/modules/auth';
 import { recordPractice } from '@/modules/gamification';
 import { deleteWeaveCalendarEvent } from './calendar.service';
 import { InteractionFormData } from '../types';
@@ -56,7 +57,9 @@ export async function completePlan(interactionId: string, data?: { vibe?: string
     reflection: interaction.reflectionJSON ? JSON.parse(interaction.reflectionJSON) : undefined,
   };
 
-  await processWeaveScoring(friends, interactionData, database);
+  // Apply scoring with season-aware bonuses
+  const currentSeason = useUserProfileStore.getState().getSocialSeason();
+  await processWeaveScoring(friends, interactionData, database, currentSeason);
   await recordPractice('log_weave');
   // TODO: Trigger UI celebration from the hook/store that calls this service.
 }

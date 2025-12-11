@@ -3,7 +3,7 @@ import { FriendshipPattern } from './pattern.service';
 import { TierDecayRates, PersonalizedThresholdConfig } from '@/modules/intelligence/constants';
 import { Tier } from '@/shared/types/common';
 import { differenceInDays, getDay } from 'date-fns';
-import { FriendPrediction, ProactiveSuggestion } from '../types';
+import { FriendPrediction, ProactiveSuggestion, BestDaysData } from '../types';
 import { analyzeReciprocity, calculateReciprocityScore, ReciprocityAnalysis } from './reciprocity.service';
 
 /**
@@ -201,18 +201,7 @@ export interface SuggestionOptions {
 /**
  * Data about best connection days from pattern detection
  */
-export interface BestDaysData {
-  bestDay: {
-    day: number; // 0-6 (Sunday-Saturday)
-    avgBattery: number;
-    avgWeaves: number;
-  };
-  allDays: Array<{
-    day: number;
-    avgBattery: number;
-    avgWeaves: number;
-  }>;
-}
+
 
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -618,11 +607,8 @@ export function buildCompositeHealthSignal(
   const rawMomentum = friend.momentumScore || 0;
   const momentumScore = Math.min(100, Math.max(0, 50 + (rawMomentum * 1.67)));
 
-  // 6. Quality score: Based on recent quality weighting
-  // Use qualityWeightedRating if available, otherwise use base weave score
-  const qualityScore = friend.qualityWeightedRating
-    ? (friend.qualityWeightedRating / 5) * 100
-    : Math.min(100, friend.weaveScore);
+  // 6. Quality score: Based on base weave score (qualityWeightedRating removed)
+  const qualityScore = Math.min(100, friend.weaveScore);
 
   return {
     decayScore,

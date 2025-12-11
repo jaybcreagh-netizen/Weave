@@ -57,6 +57,11 @@ export interface StandardBottomSheetProps {
   title?: string;
 
   /**
+   * Optional custom title component (overrides title string)
+   */
+  titleComponent?: ReactNode;
+
+  /**
    * Whether to show a close button in the header
    * Only shown when title is provided
    * @default true

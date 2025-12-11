@@ -1,7 +1,7 @@
 import * as BackgroundFetch from 'expo-background-fetch';
 import * as TaskManager from 'expo-task-manager';
-import { scanCalendarEvents, CalendarService } from '@/modules/interactions';
-const { getCalendarSettings } = CalendarService;
+import { scanCalendarEvents } from '@/modules/interactions/services/event-scanner';
+import { getCalendarSettings } from '@/modules/interactions/services/calendar.service';
 import { database } from '@/db';
 import SuggestionEvent from '@/db/models/SuggestionEvent';
 import AsyncStorage from '@react-native-async-storage/async-storage';

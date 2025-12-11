@@ -711,18 +711,7 @@ export async function getPatternDataStats(): Promise<{ batteryDays: number; weav
 /**
  * Data about best connection days for smart scheduling
  */
-export interface BestDaysData {
-  bestDay: {
-    day: number; // 0-6 (Sunday-Saturday)
-    avgBattery: number;
-    avgWeaves: number;
-  };
-  allDays: Array<{
-    day: number;
-    avgBattery: number;
-    avgWeaves: number;
-  }>;
-}
+
 
 /**
  * Get best connection days data for smart scheduling

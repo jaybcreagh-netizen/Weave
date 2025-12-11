@@ -4,26 +4,28 @@ import { type Friend } from '@/components/types';
 import { TierDecayRates } from '../constants';
 import { daysSince } from '@/shared/utils/date-utils';
 import { calculateFlexibleDecay } from './flexible-decay.service';
+import { getSeasonDecayMultiplier } from './social-season/season-decay.service';
 import type { FlexibilityMode } from '@/modules/insights/types';
 import type { Tier } from '@/shared/types/common';
+import type { SocialSeason } from '@/db/models/UserProfile';
 
 /**
- * Apply decay to a friend's score
- * Now supports flexible decay based on learned patterns
+ * Calculate the amount of decay for a specific number of days
+ * Now supports season-aware decay multipliers
  *
- * @param friend - The friend to apply decay to
+ * @param friend - The friend to calculate decay for
+ * @param days - Number of days since last interaction
  * @param flexibilityMode - How strict vs flexible to be (default: 'balanced')
  * @param useFlexibleDecay - Whether to use flexible decay system (default: true)
- * @returns Current score after decay
- */
-/**
- * Calculate the amount of decay for a specific number of days
+ * @param season - Current social season for decay multiplier (optional)
+ * @returns Decay amount to subtract from score
  */
 export function calculateDecayAmount(
   friend: FriendModel | Friend,
   days: number,
   flexibilityMode: FlexibilityMode = 'balanced',
-  useFlexibleDecay: boolean = true
+  useFlexibleDecay: boolean = true,
+  season?: SocialSeason | null
 ): number {
   if (days <= 0) return 0;
 
@@ -59,25 +61,35 @@ export function calculateDecayAmount(
     decayAmount = baseDecay + acceleratedDecay;
   }
 
+  // Apply season multiplier if provided
+  // Resting: 0.7-0.8× (slower decay), Blooming: 1.0-1.2× (faster for close ties)
+  if (season) {
+    const seasonMultiplier = getSeasonDecayMultiplier(season, friend.dunbarTier);
+    decayAmount *= seasonMultiplier;
+  }
+
   return decayAmount;
 }
 
 /**
  * Apply decay to a friend's score
- * Now supports flexible decay based on learned patterns
+ * Now supports season-aware decay based on user's current social season
  *
  * @param friend - The friend to apply decay to
  * @param flexibilityMode - How strict vs flexible to be (default: 'balanced')
  * @param useFlexibleDecay - Whether to use flexible decay system (default: true)
+ * @param season - Current social season for decay multiplier (optional)
  * @returns Current score after decay
  */
 export function applyDecay(
   friend: FriendModel | Friend,
   flexibilityMode: FlexibilityMode = 'balanced',
-  useFlexibleDecay: boolean = true
+  useFlexibleDecay: boolean = true,
+  season?: SocialSeason | null
 ): number {
   const daysSinceLastUpdate = daysSince(friend.lastUpdated);
-  const decayAmount = calculateDecayAmount(friend, daysSinceLastUpdate, flexibilityMode, useFlexibleDecay);
+  const decayAmount = calculateDecayAmount(friend, daysSinceLastUpdate, flexibilityMode, useFlexibleDecay, season);
 
   return Math.max(0, friend.weaveScore - decayAmount);
 }
+

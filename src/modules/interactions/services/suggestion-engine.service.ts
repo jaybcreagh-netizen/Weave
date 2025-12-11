@@ -932,6 +932,8 @@ export function convertProactiveSuggestionsToSuggestions(
       'optimal-timing': '🎯',
       'pattern-break': '⚠️',
       'momentum-opportunity': '🚀',
+      'reciprocity-imbalance': '⚖️',
+      'best-day-scheduling': '📅',
     };
 
     // Map proactive type to category
@@ -940,6 +942,8 @@ export function convertProactiveSuggestionsToSuggestions(
       'optimal-timing': 'maintain',
       'pattern-break': 'reconnect',
       'momentum-opportunity': 'deepen',
+      'reciprocity-imbalance': 'insight',
+      'best-day-scheduling': 'plan',
     };
 
     return {

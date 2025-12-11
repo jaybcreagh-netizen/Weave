@@ -23,6 +23,9 @@ export default class UserProfile extends Model {
   // Social Season State
   @text('current_social_season') currentSocialSeason?: SocialSeason;
   @field('season_last_calculated') seasonLastCalculated?: number;
+  // NEW v41: Season Override (Phase 3)
+  @field('season_override_until') seasonOverrideUntil?: number;
+  @field('season_override_reason') seasonOverrideReason?: string;
 
   // Social Battery
   @field('social_battery_current') socialBatteryCurrent?: number; // 1-5

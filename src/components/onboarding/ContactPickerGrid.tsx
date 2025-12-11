@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { View, Text, FlatList, TouchableOpacity, Image, TextInput, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, Image, TextInput, ActivityIndicator } from 'react-native';
 import { WeaveLoading } from '@/shared/components/WeaveLoading';
 import * as Contacts from 'expo-contacts';
 import { CheckCircle2, Users, Plus, Search, X } from 'lucide-react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
+import { FlashList } from '@shopify/flash-list';
 import { normalizeContactImageUri } from '@/modules/relationships/utils/image.utils';
 import { useTheme } from '@/shared/hooks/useTheme';
 
@@ -369,21 +370,13 @@ export function ContactPickerGrid({
           </Text>
         </View>
       ) : (
-        <FlatList
+        <FlashList
           data={filteredContacts}
           numColumns={NUM_COLUMNS}
-          keyExtractor={(item) => item.id || `contact-${Math.random()}`}
+          keyExtractor={(item, index) => item.id || `contact-${index}-${item.name}`}
           renderItem={renderItem}
           contentContainerStyle={{ paddingBottom: 90, paddingTop: 10 }}
-          removeClippedSubviews={true}
-          maxToRenderPerBatch={10}
-          initialNumToRender={15}
-          windowSize={5}
-          getItemLayout={(data, index) => ({
-            length: ITEM_HEIGHT,
-            offset: ITEM_HEIGHT * Math.floor(index / NUM_COLUMNS),
-            index,
-          })}
+          estimatedItemSize={ITEM_HEIGHT}
         />
       )}
     </Animated.View>

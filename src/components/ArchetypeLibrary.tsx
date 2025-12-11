@@ -4,7 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { X, Sparkles } from 'lucide-react-native';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
-import { StandardBottomSheet } from '@/shared/ui/Sheet';
+import { AnimatedBottomSheet } from '@/shared/ui/Sheet';
 
 import { type Archetype, type InteractionCategory } from './types';
 import { archetypeData, CategoryArchetypeMatrix } from '@/shared/constants/constants';
@@ -102,7 +102,7 @@ export function ArchetypeLibrary({ isVisible, onClose }: ArchetypeLibraryProps) 
   };
 
   return (
-    <StandardBottomSheet
+    <AnimatedBottomSheet
       visible={isVisible}
       onClose={onClose}
       height="full"
@@ -390,6 +390,6 @@ export function ArchetypeLibrary({ isVisible, onClose }: ArchetypeLibraryProps) 
           </BlurView>
         </Modal>
       )}
-    </StandardBottomSheet>
+    </AnimatedBottomSheet>
   );
 }

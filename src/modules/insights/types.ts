@@ -179,3 +179,16 @@ export interface NetworkTierHealth {
   suggestions: TierFitAnalysis[]; // Top suggestions with suggestedTier
   allAnalyses: TierFitAnalysis[]; // All analyses including insufficient_data
 }
+
+export interface BestDaysData {
+  bestDay: {
+    day: number; // 0-6 (Sunday-Saturday)
+    avgBattery: number;
+    avgWeaves: number;
+  };
+  allDays: Array<{
+    day: number;
+    avgBattery: number;
+    avgWeaves: number;
+  }>;
+}

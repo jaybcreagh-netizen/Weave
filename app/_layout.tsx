@@ -146,6 +146,7 @@ function RootLayoutContent() {
   const [dataLoaded, setDataLoaded] = useState(false);
   const [uiMounted, setUiMounted] = useState(false);
   const [showNotificationPermissionModal, setShowNotificationPermissionModal] = useState(false);
+  const [isSplashAnimationComplete, setIsSplashAnimationComplete] = useState(false);
 
   // Animated opacity for smooth fade-in of content
   const contentOpacity = useSharedValue(0);
@@ -161,11 +162,20 @@ function RootLayoutContent() {
     };
   }, []);
   useEffect(() => {
-    if (fontsLoaded || fontError) {
-      // Hide the splash screen after the fonts have loaded or an error occurred
-      SplashScreen.hideAsync();
-    }
-  }, [fontsLoaded, fontError]);
+    // Hide the native splash screen immediately to show our custom animated LoadingScreen
+    // This allows the Weave logo animation to start right away
+    SplashScreen.hideAsync().catch(() => {
+      // Ignore errors if splash screen is already hidden
+    });
+
+    // Enforce minimum display time for the splash animation
+    // This prevents a "white flash" on fast loads where the animation doesn't have time to draw
+    const timer = setTimeout(() => {
+      setIsSplashAnimationComplete(true);
+    }, 1500); // Match animation duration
+
+    return () => clearTimeout(timer);
+  }, []);
 
   // Run data migrations and initialize user profile on app startup
   useEffect(() => {
@@ -515,8 +525,8 @@ function RootLayoutContent() {
 
                 </Animated.View>
 
-                {/* Loading Screen - shows until data is loaded AND UI is mounted */}
-                <LoadingScreen visible={fontsLoaded && (!dataLoaded || !uiMounted)} />
+                {/* Loading Screen - shows until data is loaded AND UI is mounted AND animation is done */}
+                <LoadingScreen visible={!fontsLoaded || !dataLoaded || !uiMounted || !isSplashAnimationComplete} />
               </ErrorBoundary>
             </ToastProvider>
           </QuickWeaveProvider>

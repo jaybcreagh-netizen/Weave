@@ -200,12 +200,25 @@ export const FocusDetailSheet: React.FC<FocusDetailSheetProps> = ({
                                             compact
                                             trailing={
                                                 <View style={styles.actions}>
-                                                    <Button
-                                                        label="Deepen"
-                                                        size="small"
-                                                        onPress={() => onConfirmPlan(plan.id)} // This triggers Deepen/Review depending on setup (Deepen usually opens reflection)
-                                                        style={compactButtonStyle}
-                                                    />
+                                                    {plan.reflectionJSON || plan.reflection ? (
+                                                        <View style={{ flexDirection: 'row', alignItems: 'center', opacity: 0.7 }}>
+                                                            <CheckCircle2 size={16} color={tokens.success} style={{ marginRight: 4 }} />
+                                                            <Text style={{
+                                                                color: tokens.success,
+                                                                fontFamily: typography.fonts.sansMedium,
+                                                                fontSize: 12
+                                                            }}>
+                                                                Reflected
+                                                            </Text>
+                                                        </View>
+                                                    ) : (
+                                                        <Button
+                                                            label="Deepen"
+                                                            size="small"
+                                                            onPress={() => onConfirmPlan(plan.id)}
+                                                            style={compactButtonStyle}
+                                                        />
+                                                    )}
                                                 </View>
                                             }
                                         />

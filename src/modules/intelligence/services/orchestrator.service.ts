@@ -8,8 +8,11 @@ import { applyDecay, calculateDecayAmount } from './decay.service';
 import { differenceInDays, isAfter } from 'date-fns';
 import { calculateMomentumBonus, updateMomentum } from './momentum.service';
 import { updateResilience } from './resilience.service';
+import { applySeasonScoringBonus } from './social-season/season-scoring.service';
 import { Vibe } from '@/shared/types/common';
-import { InteractionType, InteractionCategory, Duration, Friend } from '@/components/types';
+import { InteractionCategory, Duration, Friend } from '@/components/types';
+import type { InteractionType } from '@/components/types';
+import type { SocialSeason } from '@/db/models/UserProfile';
 import Logger from '@/shared/utils/Logger';
 
 /**
@@ -92,11 +95,17 @@ export async function recalculateScoreOnEdit(
  * Main entry point - coordinates all scoring services.
  * This function calculates and applies score updates to friends in a database transaction.
  * It replaces the scoring logic previously found in `lib/weave-engine.ts`.
+ *
+ * @param friends - Friends to update scores for
+ * @param interactionData - The interaction being logged
+ * @param database - Database instance for the transaction
+ * @param season - Optional social season for season-aware scoring bonuses
  */
 export async function processWeaveScoring(
   friends: FriendModel[],
   interactionData: InteractionFormData,
-  database: Database
+  database: Database,
+  season?: SocialSeason | null
 ): Promise<ScoreUpdate[]> {
   const scoreUpdates: ScoreUpdate[] = [];
 
@@ -155,6 +164,12 @@ export async function processWeaveScoring(
       // 3. Apply momentum bonus for recent interactions.
       const momentumBonus = calculateMomentumBonus(friend);
       pointsEarned *= momentumBonus;
+
+      // 4. Apply season scoring bonus
+      // Resting: +20% for any interaction, Blooming: +10% for high-quality
+      if (season) {
+        pointsEarned = applySeasonScoringBonus(pointsEarned, season, interactionData.vibe as Vibe | null);
+      }
 
       // Backdating Logic: calculate score based on interaction date relative to last update
       const rawScore = friend.weaveScore;
@@ -244,9 +259,16 @@ export async function processWeaveScoring(
  * Calculates the current score of a friend, including decay.
  * This is the public-facing function to get a score, replacing the old
  * function from weave-engine.ts.
+ *
+ * @param friend - The friend to calculate score for
+ * @param season - Optional social season for season-aware decay multipliers
+ * @returns Current score after decay (0-100)
  */
-export function calculateCurrentScore(friend: FriendModel | Friend): number {
-  const score = applyDecay(friend);
+export function calculateCurrentScore(
+  friend: FriendModel | Friend,
+  season?: SocialSeason | null
+): number {
+  const score = applyDecay(friend, 'balanced', true, season);
   // Ensure we never return NaN
   return isNaN(score) ? 0 : score;
 }
@@ -256,10 +278,14 @@ export function calculateCurrentScore(friend: FriendModel | Friend): number {
  * Uses tier-specific weights (Inner: 50%, Close: 35%, Community: 15%)
  * to prevent low-engagement community friends from dragging down overall health.
  *
- * @param {FriendModel[]} friends - Array of all friends.
- * @returns {number} Weighted network health score (0-100).
+ * @param friends - Array of all friends.
+ * @param season - Optional social season for season-aware decay multipliers
+ * @returns Weighted network health score (0-100).
  */
-export function calculateWeightedNetworkHealth(friends: FriendModel[]): number {
+export function calculateWeightedNetworkHealth(
+  friends: FriendModel[],
+  season?: SocialSeason | null
+): number {
   if (friends.length === 0) return 0;
 
   // Group friends by tier
@@ -269,15 +295,15 @@ export function calculateWeightedNetworkHealth(friends: FriendModel[]): number {
 
   // Calculate average score for each tier
   const innerAvg = innerCircle.length > 0
-    ? innerCircle.reduce((sum, f) => sum + calculateCurrentScore(f), 0) / innerCircle.length
+    ? innerCircle.reduce((sum, f) => sum + calculateCurrentScore(f, season), 0) / innerCircle.length
     : 0;
 
   const closeAvg = closeFriends.length > 0
-    ? closeFriends.reduce((sum, f) => sum + calculateCurrentScore(f), 0) / closeFriends.length
+    ? closeFriends.reduce((sum, f) => sum + calculateCurrentScore(f, season), 0) / closeFriends.length
     : 0;
 
   const communityAvg = community.length > 0
-    ? community.reduce((sum, f) => sum + calculateCurrentScore(f), 0) / community.length
+    ? community.reduce((sum, f) => sum + calculateCurrentScore(f, season), 0) / community.length
     : 0;
 
   // Handle cases where some tiers are empty - redistribute weight to populated tiers

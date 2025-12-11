@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { HomeWidgetBase, HomeWidgetConfig } from '../HomeWidgetBase';
 import { useUserProfileStore } from '@/modules/auth';
@@ -21,9 +22,10 @@ import Interaction from '@/db/models/Interaction';
 import FriendModel from '@/db/models/Friend';
 import { Q } from '@nozbe/watermelondb';
 import withObservables from '@nozbe/with-observables';
-import { startOfDay, subDays } from 'date-fns';
+import { startOfDay, subDays, format } from 'date-fns';
 import { SeasonIcon } from '@/components/SeasonIcon';
 import { SocialSeasonDetailSheet } from '@/components/SocialSeasonDetailSheet';
+import { SeasonOverrideModal } from '@/components/SeasonOverrideModal';
 
 const WIDGET_CONFIG: HomeWidgetConfig = {
     id: 'social-season',
@@ -46,6 +48,7 @@ const SocialSeasonWidgetContent: React.FC<SocialSeasonWidgetProps> = ({ friends 
     const [season, setSeason] = useState<SocialSeason>('balanced');
     const [seasonData, setSeasonData] = useState<SeasonExplanationData | null>(null);
     const [showDetailSheet, setShowDetailSheet] = useState(false);
+    const [showOverrideModal, setShowOverrideModal] = useState(false);
     const [weeklyWeaves, setWeeklyWeaves] = useState(0);
     const [currentStreak, setCurrentStreak] = useState(0);
     const [networkHealth, setNetworkHealth] = useState(0);
@@ -125,7 +128,15 @@ const SocialSeasonWidgetContent: React.FC<SocialSeasonWidgetProps> = ({ friends 
                 batteryTrend: batteryTrend,
             };
 
-            const newSeason = calculateSocialSeason(input, profile.currentSocialSeason);
+            let newSeason = calculateSocialSeason(input, profile.currentSocialSeason);
+
+            // CHECK OVERRIDE: If active, keep current season. If expired, allow calculation (which clears it).
+            let isOverridden = false;
+            if (profile.seasonOverrideUntil && profile.seasonOverrideUntil > Date.now()) {
+                newSeason = profile.currentSocialSeason as SocialSeason;
+                isOverridden = true;
+            }
+
             setSeason(newSeason);
             setSeasonData({
                 season: newSeason,
@@ -139,8 +150,14 @@ const SocialSeasonWidgetContent: React.FC<SocialSeasonWidgetProps> = ({ friends 
             });
 
             const oneHourAgo = Date.now() - 60 * 60 * 1000;
-            if (newSeason !== profile.currentSocialSeason || !profile.seasonLastCalculated || profile.seasonLastCalculated < oneHourAgo) {
-                await updateSocialSeason(newSeason);
+
+            // Only update DB if NOT overridden. 
+            // If overridden, we skip auto-updates effectively pausing the engine.
+            // If expired (isOverridden=false), we proceed, which calls updateSocialSeason(newSeason), clearing the expired fields.
+            if (!isOverridden) {
+                if (newSeason !== profile.currentSocialSeason || !profile.seasonLastCalculated || profile.seasonLastCalculated < oneHourAgo) {
+                    await updateSocialSeason(newSeason);
+                }
             }
 
             // Log network health for historical tracking (throttled internally to once per 24h)
@@ -169,11 +186,23 @@ const SocialSeasonWidgetContent: React.FC<SocialSeasonWidgetProps> = ({ friends 
 
     const greeting = getSeasonGreeting(season, context);
 
+    const handleLongPress = () => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        setShowOverrideModal(true);
+    };
+
+    const handleSeasonOverride = async (newSeason: SocialSeason, durationDays?: number) => {
+        setSeason(newSeason);
+        await updateSocialSeason(newSeason, durationDays);
+    };
+
     return (
         <>
             <HomeWidgetBase config={WIDGET_CONFIG} isLoading={isCalculating}>
                 <TouchableOpacity
                     onPress={() => setShowDetailSheet(true)}
+                    onLongPress={handleLongPress}
+                    delayLongPress={500}
                     activeOpacity={0.7}
                 >
                     <View>
@@ -201,6 +230,29 @@ const SocialSeasonWidgetContent: React.FC<SocialSeasonWidgetProps> = ({ friends 
                             </View>
                         </View>
 
+                        {profile?.seasonOverrideUntil && profile.seasonOverrideUntil > Date.now() && (
+                            <View style={{
+                                marginTop: 12,
+                                backgroundColor: tokens.primary + '15',
+                                alignSelf: 'flex-start',
+                                paddingHorizontal: 10,
+                                paddingVertical: 4,
+                                borderRadius: 8,
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                gap: 6
+                            }}>
+                                <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: tokens.primary }} />
+                                <Text style={{
+                                    color: tokens.primary,
+                                    fontFamily: typography.fonts.sansMedium,
+                                    fontSize: 12
+                                }}>
+                                    Override active until {format(profile.seasonOverrideUntil, 'MMM d')}
+                                </Text>
+                            </View>
+                        )}
+
                         <View style={{
                             marginTop: 12,
                             paddingTop: 12,
@@ -217,8 +269,8 @@ const SocialSeasonWidgetContent: React.FC<SocialSeasonWidgetProps> = ({ friends 
                             </Text>
                         </View>
                     </View>
-                </TouchableOpacity>
-            </HomeWidgetBase>
+                </TouchableOpacity >
+            </HomeWidgetBase >
 
             <SocialSeasonDetailSheet
                 isVisible={showDetailSheet}
@@ -228,6 +280,13 @@ const SocialSeasonWidgetContent: React.FC<SocialSeasonWidgetProps> = ({ friends 
                 weeklyWeaves={weeklyWeaves}
                 currentStreak={currentStreak}
                 networkHealth={networkHealth}
+            />
+
+            <SeasonOverrideModal
+                visible={showOverrideModal}
+                onClose={() => setShowOverrideModal(false)}
+                currentSeason={season}
+                onSelectSeason={handleSeasonOverride}
             />
         </>
     );

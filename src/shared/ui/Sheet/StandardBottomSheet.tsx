@@ -57,6 +57,7 @@ export function StandardBottomSheet({
   enableSwipeClose = true,
   scrollable = false,
   title,
+  titleComponent,
   showCloseButton = true,
   children,
   testID,
@@ -145,12 +146,19 @@ export function StandardBottomSheet({
           damping: SHEET_SPRING_CONFIG.damping,
           stiffness: SHEET_SPRING_CONFIG.stiffness,
         }}
+        keyboardBehavior="interactive"
+        keyboardBlurBehavior="restore"
+        android_keyboardInputMode="adjustResize"
         style={styles.sheet}
       >
         {/* Header with optional title and close button */}
-        {(title || showCloseButton) && (
+        {(title || titleComponent || showCloseButton) && (
           <View style={styles.header}>
-            {title ? (
+            {titleComponent ? (
+              <View style={{ flex: 1, marginRight: 16 }}>
+                {titleComponent}
+              </View>
+            ) : title ? (
               <Text
                 style={[styles.title, { color: colors.foreground }]}
                 numberOfLines={1}
@@ -210,6 +218,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 16,
     elevation: 16,
+    zIndex: 1000,
   },
   background: {
     borderTopLeftRadius: SHEET_BORDER_RADIUS,

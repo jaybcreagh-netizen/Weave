@@ -1,8 +1,8 @@
 import { create } from 'zustand';
 import { database, initializeUserProfile } from '@/db';
 import UserProfile, { SocialSeason } from '@/db/models/UserProfile';
-import SocialSeasonLog from '@/db/models/SocialSeasonLog';
 import SocialBatteryLog from '@/db/models/SocialBatteryLog';
+import { SeasonAnalyticsService } from '@/modules/intelligence';
 // Removed service imports as logic is now inline
 
 import { Q } from '@nozbe/watermelondb';
@@ -23,7 +23,7 @@ interface UserProfileStore {
   unobserveProfile: () => void;
 
   // Social Season Actions
-  updateSocialSeason: (season: SocialSeason) => Promise<void>;
+  updateSocialSeason: (season: SocialSeason, durationDays?: number) => Promise<void>;
 
   // Social Battery Actions
   submitBatteryCheckin: (value: number, note?: string, customTimestamp?: number, overwriteDay?: boolean) => Promise<void>;
@@ -83,7 +83,7 @@ export const useUserProfileStore = create<UserProfileStore>((set, get) => ({
     }
   },
 
-  updateSocialSeason: async (season: SocialSeason) => {
+  updateSocialSeason: async (season: SocialSeason, durationDays?: number) => {
     const { profile } = get();
     if (!profile) return;
 
@@ -92,38 +92,28 @@ export const useUserProfileStore = create<UserProfileStore>((set, get) => ({
 
     await database.write(async () => {
       // Update user profile
+      // Update user profile
       await profile.update(p => {
         p.currentSocialSeason = season;
         p.seasonLastCalculated = now;
-      });
 
-      // Update social season logs
-      const logsCollection = database.get<SocialSeasonLog>('social_season_logs');
-
-      // Close previous season if needed
-      if (oldSeason && oldSeason !== season) {
-        const openLogs = await logsCollection.query(
-          Q.where('user_id', profile.id),
-          Q.where('season', oldSeason),
-          Q.where('end_date', null)
-        ).fetch();
-
-        for (const log of openLogs) {
-          await log.update(l => {
-            l.endDate = now;
-          });
+        if (durationDays) {
+          const expiry = now + (durationDays * 24 * 60 * 60 * 1000);
+          p.seasonOverrideUntil = expiry;
+          p.seasonOverrideReason = 'manual_override';
+        } else {
+          // Clear override if no duration provided (means auto-calculated)
+          p.seasonOverrideUntil = undefined;
+          p.seasonOverrideReason = undefined;
         }
-      }
-
-      // Create new log entry
-      if (!oldSeason || oldSeason !== season) {
-        await logsCollection.create(log => {
-          log.userId = profile.id;
-          log.season = season;
-          log.startDate = now;
-        });
-      }
+      });
     });
+
+    // Log the season transition with analytics
+    // We do this outside the main write block to avoid nested transactions
+    if (!oldSeason || oldSeason !== season) {
+      await SeasonAnalyticsService.transitionSeason(season, !!durationDays);
+    }
   },
 
   submitBatteryCheckin: async (value: number, note?: string, customTimestamp?: number, overwriteDay?: boolean) => {

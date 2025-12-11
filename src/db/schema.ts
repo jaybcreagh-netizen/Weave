@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb'
 
 export default appSchema({
-  version: 40, // UPDATED: Added composite indexes for performance optimization
+  version: 42, // UPDATED: Phase 4 Analytics columns
   tables: [
     tableSchema({
       name: 'oracle_insights',
@@ -168,6 +168,9 @@ export default appSchema({
         // Social Season State
         { name: 'current_social_season', type: 'string', isOptional: true }, // 'resting' | 'flowing' | 'blooming'
         { name: 'season_last_calculated', type: 'number', isOptional: true },
+        // NEW v41: Season Override (Phase 3)
+        { name: 'season_override_until', type: 'number', isOptional: true },
+        { name: 'season_override_reason', type: 'string', isOptional: true },
 
         // Social Battery
         { name: 'social_battery_current', type: 'number', isOptional: true }, // 1-5 scale
@@ -371,6 +374,13 @@ export default appSchema({
         { name: 'season', type: 'string' },
         { name: 'start_date', type: 'number' },
         { name: 'end_date', type: 'number' },
+        // NEW v42: Phase 4 Analytics
+        { name: 'manual_override', type: 'boolean', isOptional: true },
+        { name: 'battery_start', type: 'number', isOptional: true },
+        { name: 'battery_end', type: 'number', isOptional: true },
+        { name: 'suggestions_shown', type: 'number', isOptional: true },
+        { name: 'suggestions_accepted', type: 'number', isOptional: true },
+        { name: 'avg_interaction_rating', type: 'number', isOptional: true },
       ]
     }),
     tableSchema({

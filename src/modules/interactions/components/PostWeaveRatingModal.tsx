@@ -10,6 +10,7 @@ import { Vibe } from '@/shared/types/common';
 import { Check } from 'lucide-react-native';
 import { format } from 'date-fns';
 import { AnimatedBottomSheet } from '@/shared/ui/Sheet';
+import { SeasonAnalyticsService } from '@/modules/intelligence';
 
 export function PostWeaveRatingModal() {
     const { colors } = useTheme();
@@ -94,6 +95,22 @@ export function PostWeaveRatingModal() {
         if (!currentPlanId || isSubmitting || !selectedVibe) return;
 
         Keyboard.dismiss();
+
+        // ANALYTICS: Track rating
+        // Map Moon Phases to Score (1-5)
+        const vibeScores: Record<string, number> = {
+            'FullMoon': 5,
+            'WaxingGibbous': 4,
+            'WaningGibbous': 4,
+            'FirstQuarter': 3,
+            'LastQuarter': 3,
+            'WaxingCrescent': 2,
+            'WaningCrescent': 2,
+            'NewMoon': 1
+        };
+        const rating = vibeScores[selectedVibe as string] || 3;
+        SeasonAnalyticsService.trackInteractionRating(rating).catch(console.error);
+
         pendingActionRef.current = 'confirm';
         pendingDataRef.current = { vibe: selectedVibe, note: notes };
         closePostWeaveRating();

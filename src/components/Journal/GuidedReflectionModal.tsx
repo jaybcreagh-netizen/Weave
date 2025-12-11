@@ -21,6 +21,8 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Modal,
+  StyleSheet,
 } from 'react-native';
 import Animated, {
   FadeInDown,
@@ -39,9 +41,9 @@ import {
   Coffee,
   PanelRightOpen,
   PanelRightClose,
+  X,
 } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
-import { StandardBottomSheet } from '@/shared/ui/Sheet';
 import { database } from '@/db';
 import FriendModel from '@/db/models/Friend';
 import JournalEntry from '@/db/models/JournalEntry';
@@ -796,10 +798,8 @@ export function GuidedReflectionModal({
       exiting={SlideOutLeft.duration(300)}
       className="flex-1"
     >
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      <View
         className="flex-1"
-        keyboardVerticalOffset={100}
       >
         <View className="flex-1 flex-row">
           {/* Main Writing Area */}
@@ -1030,7 +1030,7 @@ export function GuidedReflectionModal({
             </Text>
           </TouchableOpacity>
         </View>
-      </KeyboardAvoidingView>
+      </View>
     </Animated.View>
   );
 
@@ -1047,70 +1047,137 @@ export function GuidedReflectionModal({
   };
 
   return (
-    <StandardBottomSheet
+    <Modal
       visible={visible}
-      onClose={handleClose}
-      height="full"
-      title={titleMap[step]}
+      transparent
+      animationType="slide"
+      onRequestClose={handleClose}
+      statusBarTranslucent
     >
-      {/* Header with Back Button */}
-      {step !== 'context' && (
-        <View
-          className="flex-row items-center px-5 pb-3"
-          style={{ borderBottomColor: colors.border, borderBottomWidth: 1 }}
-        >
-          <TouchableOpacity
-            onPress={handleBack}
-            className="flex-row items-center gap-1"
-          >
-            <ChevronLeft size={20} color={colors.foreground} />
-            <Text
-              className="text-base"
-              style={{ color: colors.foreground, fontFamily: 'Inter_500Medium' }}
-            >
-              Back
-            </Text>
-          </TouchableOpacity>
-        </View>
-      )}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}
+      >
+        {/* Backdrop */}
+        <TouchableOpacity
+          style={{
+            ...StyleSheet.absoluteFillObject,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+          }}
+          activeOpacity={1}
+          onPress={handleClose}
+        />
 
-      {/* Progress Dots */}
-      <View className="flex-row justify-center gap-2 py-3">
-        {['context', 'prompt', 'write'].map((s, i) => (
+        {/* Sheet Container */}
+        <View className="flex-1 justify-end">
           <View
-            key={s}
-            className="w-2 h-2 rounded-full"
             style={{
-              backgroundColor:
-                s === step
-                  ? colors.primary
-                  : ['context', 'prompt', 'write'].indexOf(step) > i
-                    ? colors.primary + '50'
-                    : colors.border,
+              backgroundColor: colors.background,
+              borderTopLeftRadius: 24,
+              borderTopRightRadius: 24,
+              height: '92%', // Use significant height for guided flow
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: -4 },
+              shadowOpacity: 0.15,
+              shadowRadius: 12,
+              elevation: 10,
+              overflow: 'hidden',
             }}
-          />
-        ))}
-      </View>
-
-      {/* Content */}
-      {loading ? (
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text
-            className="text-sm mt-4"
-            style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
           >
-            Loading...
-          </Text>
+            {/* Handle */}
+            <View
+              className="items-center pt-3 pb-2 z-10"
+              style={{ backgroundColor: colors.background }}
+            >
+              <View
+                className="w-10 h-1 rounded-full"
+                style={{ backgroundColor: colors.border }}
+              />
+            </View>
+
+            {/* Header */}
+            <View
+              className="flex-row items-center justify-between px-5 pb-3 z-10"
+              style={{
+                backgroundColor: colors.background,
+                borderBottomColor: colors.border,
+                borderBottomWidth: 1,
+              }}
+            >
+              <View className="flex-1 flex-row items-center">
+                {step !== 'context' && (
+                  <TouchableOpacity
+                    onPress={handleBack}
+                    className="mr-3"
+                  >
+                    <ChevronLeft size={24} color={colors.foreground} />
+                  </TouchableOpacity>
+                )}
+                <Text
+                  className="text-lg"
+                  style={{ color: colors.foreground, fontFamily: 'Lora_600SemiBold' }}
+                >
+                  {titleMap[step]}
+                </Text>
+              </View>
+
+              <TouchableOpacity
+                onPress={handleClose}
+                className="w-8 h-8 items-center justify-center rounded-full"
+                style={{ backgroundColor: colors.muted }}
+              >
+                <X size={18} color={colors['muted-foreground']} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Progress Dots */}
+            <View
+              className="flex-row justify-center gap-2 py-3 z-10"
+              style={{ backgroundColor: colors.background }}
+            >
+              {['context', 'prompt', 'write'].map((s, i) => (
+                <View
+                  key={s}
+                  className="w-2 h-2 rounded-full"
+                  style={{
+                    backgroundColor:
+                      s === step
+                        ? colors.primary
+                        : ['context', 'prompt', 'write'].indexOf(step) > i
+                          ? colors.primary + '50'
+                          : colors.border,
+                  }}
+                />
+              ))}
+            </View>
+
+            {/* Content */}
+            <View
+              className="flex-1"
+              style={{ backgroundColor: colors.background }}
+            >
+              {loading ? (
+                <View className="flex-1 items-center justify-center">
+                  <ActivityIndicator size="large" color={colors.primary} />
+                  <Text
+                    className="text-sm mt-4"
+                    style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
+                  >
+                    Loading...
+                  </Text>
+                </View>
+              ) : (
+                <>
+                  {step === 'context' && renderContextStep()}
+                  {step === 'prompt' && renderPromptStep()}
+                  {step === 'write' && renderWriteStep()}
+                </>
+              )}
+            </View>
+          </View>
         </View>
-      ) : (
-        <>
-          {step === 'context' && renderContextStep()}
-          {step === 'prompt' && renderPromptStep()}
-          {step === 'write' && renderWriteStep()}
-        </>
-      )}
-    </StandardBottomSheet>
+      </KeyboardAvoidingView>
+    </Modal>
   );
 }
 
