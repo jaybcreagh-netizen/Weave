@@ -73,11 +73,11 @@ function useCardGestureCoordinator(): CardGestureContextType {
     if (pendingFeedbackTimeout.current) {
       clearTimeout(pendingFeedbackTimeout.current);
     }
-    // Delay the visual feedback by 80ms so quick taps bypass it
+    // Delay the visual feedback by 120ms so quick taps bypass it
     pendingFeedbackTimeout.current = setTimeout(() => {
       pendingCardId.value = targetId;
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }, 80);
+    }, 120);
   };
 
   const clearPendingFeedback = () => {
@@ -120,7 +120,7 @@ function useCardGestureCoordinator(): CardGestureContextType {
   // THE FIX: Wrap the entire gesture definition in useMemo to prevent re-creation on re-renders.
   const gesture = useMemo(() => {
     const tap = Gesture.Tap()
-      .maxDuration(100) // Snappy tap recognition
+      .maxDuration(260) // Increased for more forgiving quick taps
       .onEnd((event, success) => {
         'worklet';
         // Clear any pending feedback timeout so quick taps don't trigger it
@@ -134,7 +134,7 @@ function useCardGestureCoordinator(): CardGestureContextType {
       });
 
     const longPressAndDrag = Gesture.LongPress()
-      .minDuration(200) // Quick activation when visual feedback peaks
+      .minDuration(260) // Aligned with tap maxDuration
       .maxDistance(999999)
       .shouldCancelWhenOutside(false)
       .onBegin((event) => {
@@ -144,7 +144,7 @@ function useCardGestureCoordinator(): CardGestureContextType {
         const targetId = findTargetCardId(event.absoluteX, event.absoluteY);
         if (targetId) {
           startCoordinates.value = { x: event.x, y: event.y };
-          // Delay pending feedback - only shows if user holds for 80ms+
+          // Delay pending feedback - only shows if user holds for 120ms+
           runOnJS(startPendingFeedback)(targetId);
         }
       })

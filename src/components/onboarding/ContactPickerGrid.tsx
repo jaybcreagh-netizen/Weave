@@ -72,7 +72,7 @@ const ContactItem = React.memo(({
   return (
     <TouchableOpacity
       onPress={onSelect}
-      className="items-center p-2 w-1/3"
+      className="items-center p-2 w-full"
       style={{ height: ITEM_HEIGHT }}
       activeOpacity={0.7}
     >

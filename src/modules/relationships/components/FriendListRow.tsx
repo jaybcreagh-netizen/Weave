@@ -184,7 +184,7 @@ export const FriendListRowContent = ({ friend, animatedRef, variant = 'default' 
     return {
       transform: [{
         scale: withTiming(targetScale, {
-          duration: isPending ? 250 : 150, // Match long-press duration for pending, quick return otherwise
+          duration: isPending ? 260 : 150, // Match long-press duration for pending, quick return otherwise
           easing: Easing.out(Easing.quad)
         })
       }],
@@ -204,7 +204,7 @@ export const FriendListRowContent = ({ friend, animatedRef, variant = 'default' 
 
     return {
       opacity: withTiming(targetOpacity, {
-        duration: (isGestureActive || isPending) ? 250 : 150,
+        duration: (isGestureActive || isPending) ? 260 : 150,
         easing: Easing.out(Easing.quad)
       }),
     };

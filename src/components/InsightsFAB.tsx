@@ -6,12 +6,13 @@ import { useTheme } from '@/shared/hooks/useTheme';
 import { WeaveIcon } from './WeaveIcon';
 
 interface InsightsFABProps {
+  isVisible: boolean;
   hasSuggestions: boolean;
   hasCritical: boolean;
   onClick: () => void;
 }
 
-export function InsightsFAB({ hasSuggestions, hasCritical, onClick }: InsightsFABProps) {
+export function InsightsFAB({ isVisible, hasSuggestions, hasCritical, onClick }: InsightsFABProps) {
   const insets = useSafeAreaInsets();
   const { colors, isDarkMode } = useTheme();
   const pulseScale = useSharedValue(1);
@@ -33,7 +34,7 @@ export function InsightsFAB({ hasSuggestions, hasCritical, onClick }: InsightsFA
     transform: [{ scale: pulseScale.value }],
   }));
 
-  if (!hasSuggestions) return null; // Don't show FAB if no suggestions
+  if (!isVisible) return null;
 
   // Match the styling of the main + FAB
   const fabStyle = {

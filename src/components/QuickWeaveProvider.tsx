@@ -1,4 +1,5 @@
 import React from 'react';
+import * as Haptics from 'expo-haptics';
 import { useUIStore } from '../stores/uiStore';
 import { QuickWeaveOverlay } from '@/modules/interactions';
 import { MicroReflectionSheet } from './MicroReflectionSheet';
@@ -26,20 +27,25 @@ export function QuickWeaveProvider({ children }: { children: React.ReactNode }) 
         updates.title = data.title;
       }
 
-      // Save reflection data if vibe or notes exist (basic reflection structure)
-      if (data.vibe || data.notes) {
-        updates.reflectionJSON = JSON.stringify({
-          vibe: data.vibe,
-          notes: data.notes,
-          timestamp: Date.now()
-        });
-      }
+      // Always save reflection data to mark as "deepened" even if just title changed
+      // This ensures the icon changes from Sparkles to Check
+      // Always save reflection data when user hits Save, even if partial
+      updates.reflectionJSON = JSON.stringify({
+        vibe: data.vibe,
+        notes: data.notes,
+        timestamp: Date.now()
+      });
 
       await updateInteraction(microReflectionData.interactionId, updates);
-      // Success feedback (optional but helpful if user says "no feedback")
-      // showToast("Reflection saved", microReflectionData.friendName); 
+
+      // Provide haptic feedback for successful save
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+      // Show success toast
+      showToast("Reflection saved", microReflectionData.friendName);
     } catch (error) {
       console.error('Error saving micro-reflection:', error);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       showToast("Failed to save reflection", microReflectionData.friendName);
     } finally {
       // Always close the sheet

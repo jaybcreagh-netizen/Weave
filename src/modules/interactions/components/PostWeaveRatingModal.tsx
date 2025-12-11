@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useDebounceCallback } from '@/shared/hooks/useDebounceCallback';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, Keyboard } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { usePlans } from '../hooks/usePlans';
 import { useInteractions } from '../hooks/useInteractions';
 import { useUIStore } from '@/stores/uiStore';
@@ -14,7 +15,7 @@ import { SeasonAnalyticsService } from '@/modules/intelligence';
 
 export function PostWeaveRatingModal() {
     const { colors } = useTheme();
-    const { isPostWeaveRatingOpen, postWeaveRatingTargetId, closePostWeaveRating } = useUIStore();
+    const { isPostWeaveRatingOpen, postWeaveRatingTargetId, closePostWeaveRating, showToast } = useUIStore();
     const { pendingConfirmations, completePlan, cancelPlan } = usePlans();
     const { allInteractions } = useInteractions();
     const [currentPlanId, setCurrentPlanId] = useState<string | null>(null);
@@ -151,8 +152,15 @@ export function PostWeaveRatingModal() {
                 });
                 console.log('[PostWeaveRatingModal] Plan completed successfully');
                 setCompletedIds(prev => new Set(prev).add(planId));
+
+                // Provide success feedback
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                showToast("Weave completed", friendNames || 'Friend');
             } catch (e) {
                 console.error("[PostWeaveRatingModal] Failed to complete plan", e);
+                // Provide error feedback
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+                showToast("Failed to complete weave", friendNames || 'Friend');
             } finally {
                 setIsSubmitting(false);
             }
@@ -160,8 +168,15 @@ export function PostWeaveRatingModal() {
             setIsSubmitting(true);
             try {
                 await cancelPlan(planId);
+
+                // Provide feedback for cancellation
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                showToast("Plan cancelled", friendNames || 'Friend');
             } catch (e) {
                 console.error("Failed to cancel plan", e);
+                // Provide error feedback
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+                showToast("Failed to cancel plan", friendNames || 'Friend');
             } finally {
                 setIsSubmitting(false);
             }

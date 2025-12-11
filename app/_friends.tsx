@@ -317,6 +317,7 @@ function DashboardContent() {
       <FAB onClick={onAddFriend} />
 
       <InsightsFAB
+        isVisible={suggestionCount > 0 || intentions.length > 0}
         hasSuggestions={suggestionCount > 0}
         hasCritical={hasCritical}
         onClick={() => setInsightsSheetVisible(true)}

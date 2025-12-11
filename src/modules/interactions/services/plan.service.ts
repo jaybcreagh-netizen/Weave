@@ -107,7 +107,7 @@ export async function checkPendingPlans(): Promise<void> {
     .get<Interaction>('interactions')
     .query(
       Q.where('status', 'planned'),
-      Q.where('interaction_date', Q.lt(today.getTime())),
+      Q.where('interaction_date', Q.lt(now)),
       Q.where('interaction_date', Q.gte(today.getTime() - 2 * 24 * 60 * 60 * 1000)), // Limit to last 48 hours (previous day + padding)
       Q.or(
         Q.where('completion_prompted_at', null),
