@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Keyboard } from 'react-native';
 import * as Haptics from 'expo-haptics';
 
@@ -33,9 +33,6 @@ export function MicroReflectionSheet({
   const [notes, setNotes] = useState('');
   const [title, setTitle] = useState(activityLabel);
 
-  // Track the pending action to execute after close animation
-  const pendingActionRef = useRef<'save' | 'skip' | null>(null);
-  const pendingDataRef = useRef<{ vibe?: Vibe; notes?: string; title?: string } | null>(null);
 
   // Set title from activityLabel when opening
   useEffect(() => {
@@ -58,32 +55,24 @@ export function MicroReflectionSheet({
 
   const handleSave = () => {
     Keyboard.dismiss();
-    pendingActionRef.current = 'save';
-    pendingDataRef.current = {
+    // Call onSave directly - the parent's handleSave will close the sheet after saving
+    onSave({
       vibe: selectedVibe || undefined,
       notes: notes.trim() || undefined,
       title: title.trim() || activityLabel,
-    };
-    onSkip(); // This triggers close - we'll handle the actual save in onCloseComplete
+    });
   };
 
   const handleSkip = () => {
     Keyboard.dismiss();
-    pendingActionRef.current = 'skip';
     onSkip();
   };
 
   const handleCloseComplete = () => {
-    // Execute the pending action
-    if (pendingActionRef.current === 'save' && pendingDataRef.current) {
-      onSave(pendingDataRef.current);
-    }
-    // Reset state
+    // Reset state after close animation completes
     setSelectedVibe(null);
     setNotes('');
     setTitle('');
-    pendingActionRef.current = null;
-    pendingDataRef.current = null;
   };
 
   const getPrompt = () => {
