@@ -216,7 +216,7 @@ npm start -- --clear
 - **Feature Logic**: All feature logic belongs in `src/modules/`
 - **Shared Helpers**: Generic helpers belong in `src/shared/`
 - **Services**: Put business logic in `services/`. Services should be pure functions or stateless classes where possible
-- **Stores**: Use Zustand for state
+- **State**: Use React Query + WatermelonDB observables (not Zustand)
 - **Components**: Module-specific components stay within the module
 
 ### Working with WatermelonDB
@@ -259,9 +259,10 @@ See `docs/REFACTORING_ROADMAP.md` for the full plan.
 - 🔄 Migrating components to use `@/shared/ui` primitives
 - 🔄 Replacing `StyleSheet.create` with NativeWind `className`
 
-**Blocked:**
-- ⏸️ Pure Tailwind styling for colors — requires dark mode strategy in tailwind.config
-- ⏸️ Current workaround: hybrid `className` (layout) + `style` (colors via useTheme)
+**Next Up:**
+- 🎯 Implement NativeWind `dark:` modifier classes for dark mode
+- 🎯 Update `tailwind.config.ts` to support dark theme tokens
+- 🎯 Then migrate from hybrid approach to pure Tailwind color classes
 
 **Migration Priority:**
 1. High-usage components (SuggestionCard, ArchetypeCard)
