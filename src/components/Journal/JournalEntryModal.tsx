@@ -11,6 +11,7 @@ import {
   ScrollView,
   TextInput,
   Platform,
+  Alert,
 } from 'react-native';
 import { Calendar, Sparkles } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
@@ -60,7 +61,7 @@ export function JournalEntryModal({ isOpen, onClose, entry, onSave }: JournalEnt
           .query(Q.where('journal_entry_id', entry.id))
           .fetch()
           .then(links => {
-             setSelectedFriendIds(new Set(links.map(link => link.friendId)));
+            setSelectedFriendIds(new Set(links.map(link => link.friendId)));
           })
           .catch(console.error);
 
@@ -108,11 +109,11 @@ export function JournalEntryModal({ isOpen, onClose, entry, onSave }: JournalEnt
 
           // Update friends - remove old links
           const links = await database.get<JournalEntryFriend>('journal_entry_friends')
-             .query(Q.where('journal_entry_id', journalEntry.id))
-             .fetch();
+            .query(Q.where('journal_entry_id', journalEntry.id))
+            .fetch();
 
           for (const link of links) {
-             await link.destroyPermanently();
+            await link.destroyPermanently();
           }
 
         } else {
@@ -127,13 +128,13 @@ export function JournalEntryModal({ isOpen, onClose, entry, onSave }: JournalEnt
 
         // Create new friend links
         if (journalEntry) {
-           const friendsCollection = database.get<JournalEntryFriend>('journal_entry_friends');
-           for (const friendId of Array.from(selectedFriendIds)) {
-             await friendsCollection.create(link => {
-               link.journalEntryId = journalEntry!.id;
-               link.friendId = friendId;
-             });
-           }
+          const friendsCollection = database.get<JournalEntryFriend>('journal_entry_friends');
+          for (const friendId of Array.from(selectedFriendIds)) {
+            await friendsCollection.create(link => {
+              link.journalEntryId = journalEntry!.id;
+              link.friendId = friendId;
+            });
+          }
         }
       });
 
@@ -146,8 +147,31 @@ export function JournalEntryModal({ isOpen, onClose, entry, onSave }: JournalEnt
   };
 
   const handleClose = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    onClose();
+    // Check for unsaved changes (content modified from original or new entry with content)
+    const hasChanges = entry
+      ? content.trim() !== entry.content || title !== (entry.title || '')
+      : content.trim().length > 0;
+
+    if (hasChanges) {
+      Alert.alert(
+        'Discard changes?',
+        'You have unsaved changes that will be lost.',
+        [
+          { text: 'Keep Editing', style: 'cancel' },
+          {
+            text: 'Discard',
+            style: 'destructive',
+            onPress: () => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              onClose();
+            },
+          },
+        ]
+      );
+    } else {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      onClose();
+    }
   };
 
   const toggleFriend = (friendId: string) => {
@@ -202,227 +226,227 @@ export function JournalEntryModal({ isOpen, onClose, entry, onSave }: JournalEnt
       </View>
 
       <ScrollView className="flex-1 px-5 py-4" showsVerticalScrollIndicator={false}>
-          {/* Date Selector */}
-          <View className="mb-4">
+        {/* Date Selector */}
+        <View className="mb-4">
+          <Text
+            className="text-sm font-medium mb-2"
+            style={{ color: colors['muted-foreground'], fontFamily: 'Inter_500Medium' }}
+          >
+            Entry Date
+          </Text>
+          <TouchableOpacity
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setShowDatePicker(true);
+            }}
+            className="flex-row items-center px-4 py-3 rounded-xl"
+            style={{ backgroundColor: colors.muted }}
+          >
+            <Calendar size={18} color={colors.foreground} />
             <Text
-              className="text-sm font-medium mb-2"
-              style={{ color: colors['muted-foreground'], fontFamily: 'Inter_500Medium' }}
+              className="text-base ml-3"
+              style={{ color: colors.foreground, fontFamily: 'Inter_400Regular' }}
             >
-              Entry Date
+              {entryDate.toLocaleDateString('en-US', {
+                weekday: 'short',
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric'
+              })}
             </Text>
-            <TouchableOpacity
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                setShowDatePicker(true);
+          </TouchableOpacity>
+
+          {showDatePicker && (
+            <DateTimePicker
+              value={entryDate}
+              mode="date"
+              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              onChange={(event, selectedDate) => {
+                setShowDatePicker(Platform.OS === 'ios');
+                if (selectedDate) {
+                  setEntryDate(selectedDate);
+                }
               }}
-              className="flex-row items-center px-4 py-3 rounded-xl"
-              style={{ backgroundColor: colors.muted }}
-            >
-              <Calendar size={18} color={colors.foreground} />
-              <Text
-                className="text-base ml-3"
-                style={{ color: colors.foreground, fontFamily: 'Inter_400Regular' }}
-              >
-                {entryDate.toLocaleDateString('en-US', {
-                  weekday: 'short',
-                  month: 'short',
-                  day: 'numeric',
-                  year: 'numeric'
-                })}
-              </Text>
-            </TouchableOpacity>
+            />
+          )}
+        </View>
 
-            {showDatePicker && (
-              <DateTimePicker
-                value={entryDate}
-                mode="date"
-                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                onChange={(event, selectedDate) => {
-                  setShowDatePicker(Platform.OS === 'ios');
-                  if (selectedDate) {
-                    setEntryDate(selectedDate);
-                  }
-                }}
-              />
-            )}
-          </View>
+        {/* Title (optional) */}
+        <View className="mb-4">
+          <Text
+            className="text-sm font-medium mb-2"
+            style={{ color: colors['muted-foreground'], fontFamily: 'Inter_500Medium' }}
+          >
+            Title (optional)
+          </Text>
+          <TextInput
+            value={title}
+            onChangeText={setTitle}
+            placeholder="Give this entry a title..."
+            placeholderTextColor={colors['muted-foreground']}
+            className="px-4 py-3 rounded-xl text-base"
+            style={{
+              backgroundColor: colors.muted,
+              color: colors.foreground,
+              fontFamily: 'Inter_400Regular',
+            }}
+          />
+        </View>
 
-          {/* Title (optional) */}
-          <View className="mb-4">
+        {/* Content */}
+        <View className="mb-4">
+          <Text
+            className="text-sm font-medium mb-2"
+            style={{ color: colors['muted-foreground'], fontFamily: 'Inter_500Medium' }}
+          >
+            What's on your mind?
+          </Text>
+          <TextInput
+            value={content}
+            onChangeText={setContent}
+            placeholder="Write your thoughts..."
+            placeholderTextColor={colors['muted-foreground']}
+            multiline
+            numberOfLines={8}
+            textAlignVertical="top"
+            className="px-4 py-3 rounded-xl text-base"
+            style={{
+              backgroundColor: colors.muted,
+              color: colors.foreground,
+              fontFamily: 'Inter_400Regular',
+              minHeight: 150,
+            }}
+          />
+        </View>
+
+        {/* Friend Tags */}
+        <View className="mb-4">
+          <Text
+            className="text-sm font-medium mb-2"
+            style={{ color: colors['muted-foreground'], fontFamily: 'Inter_500Medium' }}
+          >
+            Tag Friends
+          </Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            className="flex-row gap-2 mb-2"
+          >
+            {allFriends.map(friend => {
+              const isSelected = selectedFriendIds.has(friend.id);
+              return (
+                <TouchableOpacity
+                  key={friend.id}
+                  onPress={() => toggleFriend(friend.id)}
+                  className="px-4 py-2 rounded-full"
+                  style={{
+                    backgroundColor: isSelected ? colors.primary : colors.muted,
+                  }}
+                >
+                  <Text
+                    className="text-sm"
+                    style={{
+                      color: isSelected ? colors['primary-foreground'] : colors.foreground,
+                      fontFamily: 'Inter_500Medium',
+                    }}
+                  >
+                    {friend.name}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+          {selectedFriendIds.size === 0 && (
             <Text
-              className="text-sm font-medium mb-2"
-              style={{ color: colors['muted-foreground'], fontFamily: 'Inter_500Medium' }}
+              className="text-xs"
+              style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
             >
-              Title (optional)
+              No friends tagged
             </Text>
-            <TextInput
-              value={title}
-              onChangeText={setTitle}
-              placeholder="Give this entry a title..."
-              placeholderTextColor={colors['muted-foreground']}
-              className="px-4 py-3 rounded-xl text-base"
-              style={{
-                backgroundColor: colors.muted,
-                color: colors.foreground,
-                fontFamily: 'Inter_400Regular',
+          )}
+        </View>
+
+        {/* Your Patterns */}
+        {!isEditMode && (
+          <View className="mb-6">
+            <YourPatternsSection
+              onCustomChipCreated={() => {
+                // Reload patterns when a custom chip is created
+                console.log('Custom chip created');
               }}
             />
           </View>
+        )}
 
-          {/* Content */}
-          <View className="mb-4">
+        {/* Story Chips (Optional) */}
+        <View className="mb-4">
+          <TouchableOpacity
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setShowChipSelector(!showChipSelector);
+            }}
+            className="flex-row items-center justify-between mb-2"
+          >
             <Text
-              className="text-sm font-medium mb-2"
+              className="text-sm font-medium"
               style={{ color: colors['muted-foreground'], fontFamily: 'Inter_500Medium' }}
             >
-              What's on your mind?
+              Story Chips (optional)
             </Text>
-            <TextInput
-              value={content}
-              onChangeText={setContent}
-              placeholder="Write your thoughts..."
-              placeholderTextColor={colors['muted-foreground']}
-              multiline
-              numberOfLines={8}
-              textAlignVertical="top"
-              className="px-4 py-3 rounded-xl text-base"
-              style={{
-                backgroundColor: colors.muted,
-                color: colors.foreground,
-                fontFamily: 'Inter_400Regular',
-                minHeight: 150,
-              }}
-            />
-          </View>
+            <Sparkles size={16} color={colors['muted-foreground']} />
+          </TouchableOpacity>
 
-          {/* Friend Tags */}
-          <View className="mb-4">
-            <Text
-              className="text-sm font-medium mb-2"
-              style={{ color: colors['muted-foreground'], fontFamily: 'Inter_500Medium' }}
-            >
-              Tag Friends
-            </Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              className="flex-row gap-2 mb-2"
-            >
-              {allFriends.map(friend => {
-                const isSelected = selectedFriendIds.has(friend.id);
+          {showChipSelector && (
+            <View className="flex-row flex-wrap gap-2 mb-2">
+              {STORY_CHIPS.map(chip => {
+                const isSelected = selectedChips.has(chip.id);
                 return (
                   <TouchableOpacity
-                    key={friend.id}
-                    onPress={() => toggleFriend(friend.id)}
-                    className="px-4 py-2 rounded-full"
+                    key={chip.id}
+                    onPress={() => toggleChip(chip.id)}
+                    className="px-3 py-2 rounded-full"
                     style={{
-                      backgroundColor: isSelected ? colors.primary : colors.muted,
+                      backgroundColor: isSelected ? colors.primary + '20' : colors.muted,
                     }}
                   >
                     <Text
-                      className="text-sm"
+                      className="text-xs"
                       style={{
-                        color: isSelected ? colors['primary-foreground'] : colors.foreground,
-                        fontFamily: 'Inter_500Medium',
+                        color: isSelected ? colors.primary : colors.foreground,
+                        fontFamily: 'Inter_400Regular',
                       }}
                     >
-                      {friend.name}
+                      {chip.plainText}
                     </Text>
                   </TouchableOpacity>
                 );
               })}
-            </ScrollView>
-            {selectedFriendIds.size === 0 && (
-              <Text
-                className="text-xs"
-                style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
-              >
-                No friends tagged
-              </Text>
-            )}
-          </View>
-
-          {/* Your Patterns */}
-          {!isEditMode && (
-            <View className="mb-6">
-              <YourPatternsSection
-                onCustomChipCreated={() => {
-                  // Reload patterns when a custom chip is created
-                  console.log('Custom chip created');
-                }}
-              />
             </View>
           )}
 
-          {/* Story Chips (Optional) */}
-          <View className="mb-4">
-            <TouchableOpacity
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                setShowChipSelector(!showChipSelector);
-              }}
-              className="flex-row items-center justify-between mb-2"
-            >
-              <Text
-                className="text-sm font-medium"
-                style={{ color: colors['muted-foreground'], fontFamily: 'Inter_500Medium' }}
-              >
-                Story Chips (optional)
-              </Text>
-              <Sparkles size={16} color={colors['muted-foreground']} />
-            </TouchableOpacity>
-
-            {showChipSelector && (
-              <View className="flex-row flex-wrap gap-2 mb-2">
-                {STORY_CHIPS.map(chip => {
-                  const isSelected = selectedChips.has(chip.id);
-                  return (
-                    <TouchableOpacity
-                      key={chip.id}
-                      onPress={() => toggleChip(chip.id)}
-                      className="px-3 py-2 rounded-full"
-                      style={{
-                        backgroundColor: isSelected ? colors.primary + '20' : colors.muted,
-                      }}
+          {selectedChips.size > 0 && !showChipSelector && (
+            <View className="flex-row flex-wrap gap-2">
+              {Array.from(selectedChips).map(chipId => {
+                const chip = STORY_CHIPS.find(c => c.id === chipId);
+                if (!chip) return null;
+                return (
+                  <View
+                    key={chipId}
+                    className="px-3 py-1.5 rounded-full"
+                    style={{ backgroundColor: colors.primary + '15' }}
+                  >
+                    <Text
+                      className="text-xs"
+                      style={{ color: colors.primary, fontFamily: 'Inter_400Regular' }}
                     >
-                      <Text
-                        className="text-xs"
-                        style={{
-                          color: isSelected ? colors.primary : colors.foreground,
-                          fontFamily: 'Inter_400Regular',
-                        }}
-                      >
-                        {chip.plainText}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            )}
-
-            {selectedChips.size > 0 && !showChipSelector && (
-              <View className="flex-row flex-wrap gap-2">
-                {Array.from(selectedChips).map(chipId => {
-                  const chip = STORY_CHIPS.find(c => c.id === chipId);
-                  if (!chip) return null;
-                  return (
-                    <View
-                      key={chipId}
-                      className="px-3 py-1.5 rounded-full"
-                      style={{ backgroundColor: colors.primary + '15' }}
-                    >
-                      <Text
-                        className="text-xs"
-                        style={{ color: colors.primary, fontFamily: 'Inter_400Regular' }}
-                      >
-                        {chip.plainText}
-                      </Text>
-                    </View>
-                  );
-                })}
-              </View>
-            )}
-          </View>
+                      {chip.plainText}
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
+          )}
+        </View>
       </ScrollView>
     </StandardBottomSheet>
   );

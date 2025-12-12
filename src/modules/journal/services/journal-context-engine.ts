@@ -155,6 +155,40 @@ export async function getRecentMeaningfulWeaves(
 
   if (interactions.length === 0) return [];
 
+  // OPTIMIZATION: Batch fetch all friends for these interactions to avoid N+1 queries
+  const interactionIds = interactions.map(i => i.id);
+
+  // 1. Get all join records
+  const allLinks = await database
+    .get<InteractionFriend>('interaction_friends')
+    .query(Q.where('interaction_id', Q.oneOf(interactionIds)))
+    .fetch();
+
+  // 2. Get all involved friend IDs
+  const allFriendIds = Array.from(new Set(allLinks.map(l => l.friendId)));
+
+  // 3. Fetch all friend objects
+  const allFriends = await database
+    .get<FriendModel>('friends')
+    .query(Q.where('id', Q.oneOf(allFriendIds)))
+    .fetch();
+
+  // 4. Create a lookup map
+  const friendsMap = new Map<string, FriendModel>();
+  allFriends.forEach(f => friendsMap.set(f.id, f));
+
+  // 5. Group friends by interaction
+  const interactionFriendsMap = new Map<string, FriendModel[]>();
+  for (const link of allLinks) {
+    const friend = friendsMap.get(link.friendId);
+    if (friend) {
+      if (!interactionFriendsMap.has(link.interactionId)) {
+        interactionFriendsMap.set(link.interactionId, []);
+      }
+      interactionFriendsMap.get(link.interactionId)?.push(friend);
+    }
+  }
+
   // Score and filter interactions
   const scored: MeaningfulWeave[] = [];
 
@@ -162,8 +196,8 @@ export async function getRecentMeaningfulWeaves(
     const { score, reasons } = calculateMeaningfulnessScore(interaction);
 
     if (score >= 30) {  // Minimum threshold to be "meaningful"
-      // Get friends for this interaction
-      const friends = await getFriendsForInteraction(interaction.id);
+      // Get friends from pre-fetched map
+      const friends = interactionFriendsMap.get(interaction.id) || [];
 
       scored.push({
         interaction,
@@ -702,11 +736,18 @@ async function getDetectedThemesForFriend(friendId: string): Promise<string[]> {
     .query(Q.where('friend_id', friendId))
     .fetch();
 
+  if (links.length === 0) return [];
+
   const entryIds = links.map(l => l.journalEntryId);
 
+  // OPTIMIZATION: Limit to last 50 entries to prevent freeze on large history
   const friendEntries = await database
     .get<JournalEntry>('journal_entries')
-    .query(Q.where('id', Q.oneOf(entryIds)))
+    .query(
+      Q.where('id', Q.oneOf(entryIds)),
+      Q.sortBy('entry_date', Q.desc),
+      Q.take(50)
+    )
     .fetch();
 
   const allText = friendEntries.map(e => e.content || '').join(' ');

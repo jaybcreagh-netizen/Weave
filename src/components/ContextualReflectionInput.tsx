@@ -186,7 +186,7 @@ export function ContextualReflectionInput({
       )}
 
       {/* Contextual prompt based on user's text */}
-      {contextualPrompt && (
+      {!!contextualPrompt && (
         <Animated.View entering={FadeIn.duration(300)} style={styles.promptContainer}>
           <Text style={[styles.promptText, { color: colors.foreground }]}>
             {contextualPrompt}
@@ -208,7 +208,7 @@ export function ContextualReflectionInput({
       )}
 
       {/* Show story chips for next type */}
-      {nextChipType && (
+      {!!nextChipType && (
         <ReflectionStoryChips
           chipType={nextChipType}
           category={category}

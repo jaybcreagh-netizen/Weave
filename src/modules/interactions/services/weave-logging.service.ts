@@ -146,6 +146,13 @@ export async function planWeave(data: InteractionFormData): Promise<Interaction>
             friends_count: friends.length,
         });
 
+        // Trigger side effects (like notifications)
+        eventBus.emit('interaction:created', {
+            interactionId: newInteraction.id,
+            friends,
+            data
+        }).catch(err => Logger.error('Error emitting interaction:created for plan:', err));
+
         return newInteraction;
     });
 

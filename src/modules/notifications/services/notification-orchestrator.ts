@@ -21,6 +21,11 @@ import { DeepeningNudgeChannel } from './channels/deepening-nudge';
 import { EventReminderChannel } from './channels/event-reminder';
 import { NotificationType } from '../types';
 
+import { EveningDigestChannel } from './channels/evening-digest';
+import { eventBus } from '@/shared/events/event-bus';
+import { database } from '@/db';
+import Interaction from '@/db/models/Interaction';
+
 class NotificationOrchestratorService {
     private isInitialized = false;
     private lastCheckTime: number = 0;
@@ -53,6 +58,9 @@ class NotificationOrchestratorService {
                 await this.runStartupChecks();
             }
 
+            // 4. Setup Event Listeners
+            this.setupEventListeners();
+
             this.isInitialized = true;
             Logger.info('[NotificationOrchestrator] Initialized');
         } catch (error) {
@@ -79,9 +87,50 @@ class NotificationOrchestratorService {
             // Ensure weekly reflection is scheduled (idempotent)
             await WeeklyReflectionChannel.schedule();
 
+            // Ensure evening digest is scheduled
+            await EveningDigestChannel.schedule();
+
+            // Restore event reminders
+            await EventReminderChannel.scheduleAll();
+
         } catch (error) {
             Logger.error('[NotificationOrchestrator] Error during startup checks:', error);
         }
+    }
+
+    private setupEventListeners() {
+        // Listen for new interactions to schedule reminders
+        eventBus.on('interaction:created', async (payload: any) => {
+            try {
+                if (!payload?.interactionId) return;
+                const interaction = await database.get<Interaction>('interactions').find(payload.interactionId);
+                if (interaction && interaction.status === 'planned') {
+                    await EventReminderChannel.schedule(interaction);
+                }
+            } catch (error) {
+                Logger.error('[NotificationOrchestrator] Failed to handle interaction:created:', error);
+            }
+        });
+
+        // Listen for interaction updates (reschedule or cancel)
+        eventBus.on('interaction:updated', async (payload: any) => {
+            // If plan changed, we might need to reschedule.
+            // For now, simpler to just reschedule if it's planned.
+            try {
+                if (!payload?.interactionId) return;
+                const interaction = await database.get<Interaction>('interactions').find(payload.interactionId);
+                if (interaction) {
+                    if (interaction.status === 'planned') {
+                        await EventReminderChannel.schedule(interaction);
+                    } else {
+                        // If cancelled or completed, cancel reminder
+                        await EventReminderChannel.cancel(interaction.id);
+                    }
+                }
+            } catch (error) {
+                Logger.error('[NotificationOrchestrator] Failed to handle interaction:updated:', error);
+            }
+        });
     }
 
     /**

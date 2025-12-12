@@ -77,7 +77,7 @@ export function PlanChoiceModal({
     <StandardBottomSheet
       visible={isOpen}
       onClose={onClose}
-      height="auto"
+      snapPoints={['40%']}
       title="Plan a Weave"
     >
       <View className="px-5 pb-8">

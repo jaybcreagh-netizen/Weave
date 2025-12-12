@@ -469,7 +469,7 @@ export default function WeaveLoggerScreen() {
             </View>
 
             {/* Details Section - Only shows after category selected */}
-            {selectedCategory && (
+            {!!selectedCategory && (
               <Animated.View
                 entering={FadeInUp.duration(500)}
                 onLayout={(event) => {

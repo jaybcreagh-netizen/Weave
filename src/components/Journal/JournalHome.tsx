@@ -109,7 +109,9 @@ export function JournalHome({
   const [selectedDate, setSelectedDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
   const [fabExpanded, setFabExpanded] = useState(false);
 
-
+  // Pagination state
+  const [hasMoreEntries, setHasMoreEntries] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   // Data
   const [entries, setEntries] = useState<(JournalEntry | WeeklyReflection)[]>([]);
@@ -140,20 +142,32 @@ export function JournalHome({
     }
   };
 
-  const loadEntries = async () => {
+  const ENTRIES_PAGE_SIZE = 50;
+
+  const loadEntries = async (reset = true) => {
+    const offset = reset ? 0 : entries.length;
+
     const [journalEntries, reflections] = await Promise.all([
       database
         .get<JournalEntry>('journal_entries')
-        .query(Q.sortBy('entry_date', Q.desc))
+        .query(
+          Q.sortBy('entry_date', Q.desc),
+          Q.skip(offset),
+          Q.take(ENTRIES_PAGE_SIZE)
+        )
         .fetch(),
-      database
+      // Only fetch reflections on initial load
+      reset ? database
         .get<WeeklyReflection>('weekly_reflections')
         .query(Q.sortBy('week_start_date', Q.desc), Q.take(20))
-        .fetch(),
+        .fetch() : Promise.resolve([]),
     ]);
 
+    // Check if there are more entries to load
+    setHasMoreEntries(journalEntries.length === ENTRIES_PAGE_SIZE);
+
     // Combine and sort by date
-    const combined = [
+    const newEntries = [
       ...journalEntries,
       ...reflections,
     ].sort((a, b) => {
@@ -162,7 +176,29 @@ export function JournalHome({
       return dateB - dateA;
     });
 
-    setEntries(combined);
+    if (reset) {
+      setEntries(newEntries);
+    } else {
+      // Append to existing entries, avoiding duplicates
+      setEntries(prev => {
+        const existingIds = new Set(prev.map(e => e.id));
+        const uniqueNew = newEntries.filter(e => !existingIds.has(e.id));
+        return [...prev, ...uniqueNew];
+      });
+    }
+  };
+
+  const loadMoreEntries = async () => {
+    if (loadingMore || !hasMoreEntries) return;
+
+    setLoadingMore(true);
+    try {
+      await loadEntries(false);
+    } catch (error) {
+      console.error('[JournalHome] Error loading more entries:', error);
+    } finally {
+      setLoadingMore(false);
+    }
   };
 
   const loadFriends = async () => {
@@ -191,7 +227,8 @@ export function JournalHome({
   // COMPUTED
   // ============================================================================
 
-  const markedDates = useMemo(() => {
+  // Base marked dates computed only when entries or friends change
+  const baseMarkedDates = useMemo(() => {
     const marks: any = {};
 
     entries.forEach(entry => {
@@ -201,14 +238,6 @@ export function JournalHome({
 
       // Get friend avatars for this entry
       let entryAvatars: string[] = [];
-      // if ('friendTags' in entry && entry.friendTags) {
-      //   try {
-      //     const ids = JSON.parse(entry.friendTags || '[]');
-      //     entryAvatars = ids
-      //       .map((id: string) => allFriends.get(id)?.photoUrl)
-      //       .filter(Boolean);
-      //   } catch (e) { }
-      // }
 
       // Merge with existing data for this date
       const existing = marks[dateStr] || {};
@@ -220,21 +249,12 @@ export function JournalHome({
       };
     });
 
-    // Add Milestones (Birthdays/Anniversaries) & Throwbacks
-    // We iterate through a reasonable range or just check all friends?
-    // For performance, let's just check the currently loaded entries for throwbacks
-    // And iterate all friends for milestones (but we need to know WHICH dates to mark)
-    // Actually, react-native-calendars expects a map of ALL marked dates.
-    // So we should iterate friends and mark their birthdays/anniversaries for the current year(s)
-
-    // 1. Milestones
+    // Add Milestones (Birthdays/Anniversaries)
     const currentYear = new Date().getFullYear();
     allFriends.forEach(friend => {
       if (friend.birthday) {
-        // birthday format "MM-DD"
         const [m, d] = friend.birthday.split('-');
         if (m && d) {
-          // Mark for current year and maybe next/prev
           const bdayStr = `${currentYear}-${m}-${d}`;
           const existing = marks[bdayStr] || {};
           const milestones = existing.milestones || [];
@@ -262,14 +282,10 @@ export function JournalHome({
       }
     });
 
-    // 2. Throwbacks (entries from 1 year ago)
+    // Throwbacks (entries from 1 year ago)
     entries.forEach(entry => {
       const dateVal = 'entryDate' in entry ? entry.entryDate : entry.weekStartDate;
       const date = new Date(dateVal);
-      // Check if this entry is from ~1 year ago relative to NOW? 
-      // Or do we mark the date 1 year later?
-      // "This time last year" means if I look at Today (2025), I see an entry from 2024.
-      // So we take the entry date, ADD 1 year, and mark THAT date.
 
       const nextYearDate = new Date(date);
       nextYearDate.setFullYear(date.getFullYear() + 1);
@@ -281,16 +297,21 @@ export function JournalHome({
       };
     });
 
-    // Mark selected date
-    if (selectedDate) {
-      marks[selectedDate] = {
-        ...(marks[selectedDate] || {}),
-        selected: true,
-      };
-    }
-
     return marks;
-  }, [entries, selectedDate, allFriends]);
+  }, [entries, allFriends]);
+
+  // Final marked dates with selection - only recalculates when selection changes
+  const markedDates = useMemo(() => {
+    if (!selectedDate) return baseMarkedDates;
+
+    return {
+      ...baseMarkedDates,
+      [selectedDate]: {
+        ...(baseMarkedDates[selectedDate] || {}),
+        selected: true,
+      },
+    };
+  }, [baseMarkedDates, selectedDate]);
 
   const selectedDateEntries = useMemo(() => {
     return entries.filter(entry => {
@@ -601,6 +622,33 @@ export function JournalHome({
       ) : (
         <ScrollView showsVerticalScrollIndicator={false} className="flex-1">
           {entries.map((entry, index) => renderEntryCard(entry, index))}
+
+          {/* Load More Button */}
+          {hasMoreEntries && (
+            <View className="px-5 py-4">
+              <TouchableOpacity
+                onPress={loadMoreEntries}
+                disabled={loadingMore}
+                className="py-3 rounded-xl items-center"
+                style={{
+                  backgroundColor: colors.muted,
+                  opacity: loadingMore ? 0.6 : 1,
+                }}
+                activeOpacity={0.7}
+              >
+                {loadingMore ? (
+                  <ActivityIndicator size="small" color={colors.primary} />
+                ) : (
+                  <Text
+                    className="text-sm"
+                    style={{ color: colors['muted-foreground'], fontFamily: 'Inter_500Medium' }}
+                  >
+                    Load more entries
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          )}
 
           {/* Bottom padding */}
           <View className="h-24" />

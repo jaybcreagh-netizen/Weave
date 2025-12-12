@@ -23,6 +23,7 @@ import {
   ActivityIndicator,
   Modal,
   StyleSheet,
+  Alert,
 } from 'react-native';
 import Animated, {
   FadeInDown,
@@ -373,8 +374,27 @@ export function GuidedReflectionModal({
   };
 
   const handleClose = () => {
-    resetState();
-    onClose();
+    // Check for unsaved changes
+    if (text.trim() && !saving) {
+      Alert.alert(
+        'Discard reflection?',
+        'You have unsaved changes that will be lost.',
+        [
+          { text: 'Keep Writing', style: 'cancel' },
+          {
+            text: 'Discard',
+            style: 'destructive',
+            onPress: () => {
+              resetState();
+              onClose();
+            },
+          },
+        ]
+      );
+    } else {
+      resetState();
+      onClose();
+    }
   };
 
   // ============================================================================

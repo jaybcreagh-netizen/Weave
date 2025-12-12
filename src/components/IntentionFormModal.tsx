@@ -57,7 +57,7 @@ export function IntentionFormModal({
     <StandardBottomSheet
       visible={isOpen}
       onClose={handleClose}
-      height="full"
+      snapPoints={['95%']}
       title={`Set an Intention with ${friendName}`}
       scrollable
       footerComponent={

@@ -20,6 +20,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
+  Alert,
 } from 'react-native';
 import Animated, {
   FadeIn,
@@ -27,7 +28,7 @@ import Animated, {
   SlideInDown,
   SlideOutDown,
 } from 'react-native-reanimated';
-import { X, User, ChevronRight, Sparkles } from 'lucide-react-native';
+import { X, User, ChevronRight, Sparkles, Calendar } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { database } from '@/db';
 import FriendModel from '@/db/models/Friend';
@@ -35,6 +36,8 @@ import JournalEntry from '@/db/models/JournalEntry';
 import { Q } from '@nozbe/watermelondb';
 import * as Haptics from 'expo-haptics';
 import JournalEntryFriend from '@/db/models/JournalEntryFriend';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { format, isToday, isYesterday, startOfDay } from 'date-fns';
 
 // ============================================================================
 // TYPES
@@ -73,6 +76,8 @@ export function QuickCaptureSheet({
   const [showFriendPicker, setShowFriendPicker] = useState(false);
   const [friends, setFriends] = useState<FriendModel[]>([]);
   const [saving, setSaving] = useState(false);
+  const [entryDate, setEntryDate] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   // Load friends on mount
   useEffect(() => {
@@ -144,7 +149,7 @@ export function QuickCaptureSheet({
       await database.write(async () => {
         const newEntry = await database.get<JournalEntry>('journal_entries').create((entry) => {
           entry.content = text.trim();
-          entry.entryDate = Date.now();
+          entry.entryDate = startOfDay(entryDate).getTime();
           entry.title = '';
           entry.isDraft = true;
         });
@@ -182,10 +187,31 @@ export function QuickCaptureSheet({
   };
 
   const handleClose = () => {
-    Keyboard.dismiss();
-    setText('');
-    setSelectedFriends([]);
-    onClose();
+    // Check for unsaved changes
+    if (text.trim()) {
+      Alert.alert(
+        'Discard note?',
+        'You have unsaved changes that will be lost.',
+        [
+          { text: 'Keep Writing', style: 'cancel' },
+          {
+            text: 'Discard',
+            style: 'destructive',
+            onPress: () => {
+              Keyboard.dismiss();
+              setText('');
+              setSelectedFriends([]);
+              onClose();
+            },
+          },
+        ]
+      );
+    } else {
+      Keyboard.dismiss();
+      setText('');
+      setSelectedFriends([]);
+      onClose();
+    }
   };
 
   const hasContent = text.trim().length > 0;
@@ -293,6 +319,49 @@ export function QuickCaptureSheet({
               >
                 <X size={18} color={colors['muted-foreground']} />
               </TouchableOpacity>
+            </View>
+
+            {/* Date Selector */}
+            <View className="px-5 pb-3">
+              <TouchableOpacity
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setShowDatePicker(true);
+                }}
+                className="flex-row items-center gap-2 px-3 py-2 rounded-full self-start"
+                style={{
+                  backgroundColor: colors.muted,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                }}
+              >
+                <Calendar size={14} color={colors['muted-foreground']} />
+                <Text
+                  className="text-sm"
+                  style={{ color: colors['muted-foreground'], fontFamily: 'Inter_500Medium' }}
+                >
+                  {isToday(entryDate)
+                    ? 'Today'
+                    : isYesterday(entryDate)
+                      ? 'Yesterday'
+                      : format(entryDate, 'MMM d')}
+                </Text>
+              </TouchableOpacity>
+
+              {showDatePicker && (
+                <DateTimePicker
+                  value={entryDate}
+                  mode="date"
+                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                  maximumDate={new Date()}
+                  onChange={(event, selectedDate) => {
+                    setShowDatePicker(Platform.OS === 'ios');
+                    if (selectedDate) {
+                      setEntryDate(selectedDate);
+                    }
+                  }}
+                />
+              )}
             </View>
 
             {/* Content */}

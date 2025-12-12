@@ -15,10 +15,10 @@ import { NotificationChannel } from '@/modules/notifications';
 
 const ID_PREFIX = 'event-reminder-';
 
-export const EventReminderChannel: NotificationChannel = {
+export const EventReminderChannel: NotificationChannel & { scheduleAll: () => Promise<void> } = {
     schedule: async (interaction: Interaction): Promise<void> => {
         try {
-            if (interaction.status !== 'planned') return;
+            if (!interaction || interaction.status !== 'planned') return;
 
             const interactionDate = new Date(interaction.interactionDate);
             const now = new Date();
@@ -65,6 +65,27 @@ export const EventReminderChannel: NotificationChannel = {
             });
         } catch (error) {
             Logger.error('[EventReminder] Error scheduling:', error);
+        }
+    },
+
+    scheduleAll: async (): Promise<void> => {
+        try {
+            const now = Date.now();
+            const plannedInteractions = await database
+                .get<Interaction>('interactions')
+                .query(
+                    Q.where('status', 'planned'),
+                    Q.where('interaction_date', Q.gt(now))
+                )
+                .fetch();
+
+            Logger.info(`[EventReminder] Scheduling ${plannedInteractions.length} reminders`);
+
+            for (const interaction of plannedInteractions) {
+                await EventReminderChannel.schedule(interaction);
+            }
+        } catch (error) {
+            Logger.error('[EventReminder] Error scheduling all:', error);
         }
     },
 

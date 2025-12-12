@@ -136,7 +136,7 @@ export const NotificationSettings = () => {
         setEventRemindersEnabled(enabled);
         await AsyncStorage.setItem('@weave:event_reminders_enabled', JSON.stringify(enabled));
         if (enabled) {
-            await EventReminderChannel.schedule();
+            await EventReminderChannel.scheduleAll();
         }
     };
 
