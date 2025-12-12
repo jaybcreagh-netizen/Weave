@@ -14,6 +14,8 @@ import { Q } from '@nozbe/watermelondb';
 import InteractionFriend from '@/db/models/InteractionFriend';
 import FriendModel from '@/db/models/Friend';
 import { getCategoryMetadata } from '@/shared/constants/interaction-categories';
+import { InteractionDetailModal } from '@/components/interaction-detail-modal';
+import { Interaction } from '@/components/types';
 
 export default function GlobalCalendar() {
   const router = useRouter();
@@ -25,6 +27,8 @@ export default function GlobalCalendar() {
   const [selectedDateInteractions, setSelectedDateInteractions] = useState<any[]>([]);
   const [dayDetailModalVisible, setDayDetailModalVisible] = useState(false);
   const [interactionFriends, setInteractionFriends] = useState<Map<string, FriendModel[]>>(new Map());
+  const [selectedInteractionDetail, setSelectedInteractionDetail] = useState<Interaction | null>(null);
+  const [interactionDetailVisible, setInteractionDetailVisible] = useState(false);
 
   // Load friends for interactions when modal opens
   useEffect(() => {
@@ -76,7 +80,8 @@ export default function GlobalCalendar() {
     } else if (friends.length > 1) {
       // For group weaves, could navigate to interaction detail or show options
       setDayDetailModalVisible(false);
-      // TODO: Could open interaction detail modal here
+      setSelectedInteractionDetail(interaction);
+      setInteractionDetailVisible(true);
     }
   };
 
@@ -265,6 +270,13 @@ export default function GlobalCalendar() {
           </ScrollView>
         </SafeAreaView>
       </Modal>
+
+      {/* Interaction Detail Modal */}
+      <InteractionDetailModal
+        interaction={selectedInteractionDetail}
+        isOpen={interactionDetailVisible}
+        onClose={() => setInteractionDetailVisible(false)}
+      />
     </SafeAreaView>
   );
 }
