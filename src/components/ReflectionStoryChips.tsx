@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import { View, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { getChipsForType, getChipTypeLabel, type StoryChip, type ChipType } from '@/modules/reflection';
 import { type InteractionCategory, type Archetype, type Vibe, type Tier } from './types';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { getChipFrequencyScores, getCustomChipsAsStoryChips } from '@/modules/reflection';
+import { Text } from '@/shared/ui/Text';
+import { Button } from '@/shared/ui/Button';
 
 interface ReflectionStoryChipsProps {
   chipType: ChipType;
@@ -33,7 +35,7 @@ export function ReflectionStoryChips({
   userText,
   onChipSelect,
 }: ReflectionStoryChipsProps) {
-  const { colors } = useTheme();
+  const { colors, tokens } = useTheme();
   const [frequencyScores, setFrequencyScores] = useState<Record<string, number>>({});
   const [customChips, setCustomChips] = useState<StoryChip[]>([]);
   const [showAll, setShowAll] = useState(false);
@@ -79,7 +81,7 @@ export function ReflectionStoryChips({
 
   return (
     <View style={styles.container}>
-      <Text style={[styles.label, { color: colors['muted-foreground'] }]}>
+      <Text variant="label" style={{ color: colors['muted-foreground'] }}>
         {getChipTypeLabel(chipType)}
       </Text>
 
@@ -99,12 +101,14 @@ export function ReflectionStoryChips({
                 {
                   backgroundColor: colors.card,
                   borderColor: colors.border,
+                  shadowColor: tokens?.shadow.color || '#000',
+                  shadowOpacity: tokens?.shadow.opacity.sm || 0.05,
                 },
               ]}
               onPress={() => onChipSelect(chip)}
               activeOpacity={0.7}
             >
-              <Text style={[styles.chipText, { color: colors.foreground }]}>
+              <Text style={{ color: colors.foreground }}>
                 {chip.plainText}
               </Text>
             </TouchableOpacity>
@@ -113,21 +117,19 @@ export function ReflectionStoryChips({
 
         {/* Show more/less button */}
         {hasMore && (
-          <TouchableOpacity
-            style={[
-              styles.showMoreButton,
-              {
-                backgroundColor: colors.muted,
-                borderColor: colors.border,
-              },
-            ]}
+          <Button
+            variant="ghost"
+            size="sm"
             onPress={() => setShowAll(!showAll)}
-            activeOpacity={0.7}
-          >
-            <Text style={[styles.showMoreText, { color: colors['muted-foreground'] }]}>
-              {showAll ? 'Show less' : `+${allChips.length - 5} more`}
-            </Text>
-          </TouchableOpacity>
+            label={showAll ? 'Show less' : `+${allChips.length - 5} more`}
+            style={{
+              alignSelf: 'center',
+              borderColor: colors.border,
+              borderWidth: 1,
+              borderRadius: 20,
+              height: 48, // matching chip height roughly
+            }}
+          />
         )}
       </ScrollView>
     </View>
@@ -138,10 +140,6 @@ const styles = StyleSheet.create({
   container: {
     gap: 12,
   },
-  label: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
   scrollContent: {
     gap: 8,
     paddingRight: 16,
@@ -151,26 +149,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 20,
     borderWidth: 1.5,
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 1,
-  },
-  chipText: {
-    fontSize: 15,
-    fontWeight: '500',
-  },
-  showMoreButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-    borderWidth: 1.5,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  showMoreText: {
-    fontSize: 14,
-    fontWeight: '600',
   },
 });

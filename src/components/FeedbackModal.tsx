@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Modal, View, Text, TextInput, TouchableOpacity, ScrollView, Platform, Alert } from 'react-native';
+import { Modal, View, TouchableOpacity, ScrollView, Platform, Alert } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { X, Send } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -7,6 +7,9 @@ import * as Sentry from '@sentry/react-native';
 import Constants from 'expo-constants';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { trackEvent, AnalyticsEvents } from '@/shared/services/analytics.service';
+import { Text } from '@/shared/ui/Text';
+import { Input } from '@/shared/ui/Input';
+import { Button } from '@/shared/ui/Button';
 
 interface FeedbackModalProps {
   visible: boolean;
@@ -111,10 +114,7 @@ export function FeedbackModal({ visible, onClose }: FeedbackModalProps) {
         >
           {/* Header */}
           <View className="mb-6 flex-row items-center justify-between">
-            <Text
-              style={{ color: colors.foreground }}
-              className="font-lora text-[22px] font-bold"
-            >
+            <Text variant="h2" weight="bold">
               Send Feedback
             </Text>
             <TouchableOpacity onPress={onClose} className="p-2">
@@ -125,53 +125,46 @@ export function FeedbackModal({ visible, onClose }: FeedbackModalProps) {
           <ScrollView showsVerticalScrollIndicator={false}>
             {/* Instructions */}
             <Text
-              style={{ color: colors['muted-foreground'] }}
-              className="mb-4 font-inter-regular text-sm"
+              color="muted"
+              className="mb-4"
             >
               Help us improve Weave! Share any bugs, suggestions, or thoughts you have.
               Your feedback is invaluable.
             </Text>
 
             {/* Feedback Input */}
-            <TextInput
+            <Input
               value={feedback}
               onChangeText={setFeedback}
               placeholder="What happened? Any suggestions?"
-              placeholderTextColor={colors['muted-foreground']}
               multiline
               numberOfLines={6}
-              className="mb-4 rounded-xl p-4 font-inter-regular text-base"
               style={{
-                backgroundColor: colors.muted,
-                color: colors.foreground,
-                textAlignVertical: 'top',
                 minHeight: 120,
+                textAlignVertical: 'top',
+                paddingTop: 12,
               }}
+              containerClassName="mb-4"
             />
 
             {/* Device Info Notice */}
             <Text
-              style={{ color: colors['muted-foreground'] }}
-              className="mb-6 font-inter-regular text-xs"
+              variant="caption"
+              color="muted"
+              className="mb-6"
             >
               Device info (OS, version, model) will be included automatically to help us debug.
             </Text>
 
             {/* Submit Button */}
-            <TouchableOpacity
-              className="flex-row items-center justify-center gap-2 rounded-xl py-4"
-              style={{
-                backgroundColor: isSubmitting ? colors.muted : colors.primary,
-                opacity: isSubmitting ? 0.6 : 1,
-              }}
+            <Button
+              variant="primary"
               onPress={handleSubmit}
-              disabled={isSubmitting}
-            >
-              <Send size={20} color={colors.card} />
-              <Text className="font-inter-semibold text-base" style={{ color: colors.card }}>
-                {isSubmitting ? 'Sending...' : 'Submit Feedback'}
-              </Text>
-            </TouchableOpacity>
+              loading={isSubmitting}
+              fullWidth
+              icon={<Send size={20} color={colors['primary-foreground']} />}
+              label="Submit Feedback"
+            />
           </ScrollView>
         </View>
       </View>

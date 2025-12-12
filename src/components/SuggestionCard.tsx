@@ -1,7 +1,8 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, TouchableOpacity, StyleSheet } from 'react-native';
 import { Suggestion } from '@/shared/types/common';
 import { useTheme } from '@/shared/hooks/useTheme';
+import { Text } from '@/shared/ui/Text';
 import {
   Gift, Heart, Briefcase, Home, GraduationCap, Activity,
   PartyPopper, HeartCrack, Egg, Calendar, Star, Target,
@@ -23,7 +24,7 @@ const ICON_MAP: Record<string, any> = {
 };
 
 export function SuggestionCard({ suggestion, onAct, onLater }: SuggestionCardProps) {
-  const { colors, tokens } = useTheme();
+  const { colors } = useTheme();
 
   const urgencyColors = {
     critical: colors.destructive,
@@ -32,12 +33,7 @@ export function SuggestionCard({ suggestion, onAct, onLater }: SuggestionCardPro
     low: colors['muted-foreground'],
   };
 
-  let urgencyColor: string = urgencyColors[suggestion.urgency || 'low'];
-
-  // Override for drift suggestions to be softer/mindful
-  if (suggestion.category === 'drift' && suggestion.urgency === 'critical') {
-    urgencyColor = '#78350F'; // Amber 900 - Deeper brown for mindful alert
-  }
+  const urgencyColor: string = urgencyColors[suggestion.urgency || 'low'];
 
   const IconComponent = ICON_MAP[suggestion.icon] || Star;
 
@@ -48,13 +44,13 @@ export function SuggestionCard({ suggestion, onAct, onLater }: SuggestionCardPro
           <IconComponent size={24} color={urgencyColor} />
         </View>
         <View style={styles.headerText}>
-          <Text style={[styles.title, { color: urgencyColor }]}>
+          <Text variant="h3" weight="bold" style={{ color: urgencyColor }}>
             {suggestion.title}
           </Text>
         </View>
       </View>
 
-      <Text style={[styles.subtitle, { color: colors.foreground }]}>
+      <Text variant="body" style={[styles.subtitle, { color: colors.foreground }]}>
         {suggestion.subtitle}
       </Text>
 
@@ -63,12 +59,14 @@ export function SuggestionCard({ suggestion, onAct, onLater }: SuggestionCardPro
           style={[styles.primaryButton, { backgroundColor: urgencyColor }]}
           onPress={onAct}
         >
-          <Text style={styles.primaryButtonText}>{suggestion.actionLabel}</Text>
+          <Text variant="button" style={styles.primaryButtonText}>
+            {suggestion.actionLabel}
+          </Text>
         </TouchableOpacity>
 
         {suggestion.dismissible && (
           <TouchableOpacity style={styles.secondaryButton} onPress={onLater}>
-            <Text style={[styles.secondaryButtonText, { color: colors['muted-foreground'] }]}>
+            <Text variant="button" style={{ color: colors['muted-foreground'] }}>
               Later
             </Text>
           </TouchableOpacity>
@@ -96,14 +94,7 @@ const styles = StyleSheet.create({
   headerText: {
     flex: 1,
   },
-  title: {
-    fontSize: 18,
-    fontWeight: '700',
-    fontFamily: 'Lora_700Bold',
-  },
   subtitle: {
-    fontSize: 15,
-    lineHeight: 22,
     marginBottom: 20,
   },
   actions: {
@@ -116,15 +107,9 @@ const styles = StyleSheet.create({
   },
   primaryButtonText: {
     color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
   },
   secondaryButton: {
     paddingVertical: 12,
     alignItems: 'center',
-  },
-  secondaryButtonText: {
-    fontSize: 15,
-    fontWeight: '500',
   },
 });
