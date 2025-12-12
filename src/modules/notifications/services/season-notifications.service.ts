@@ -13,7 +13,7 @@
 
 import { SocialSeason } from '@/db/models/UserProfile';
 import { NotificationType } from '../types';
-import { SuggestionCategory } from '@/modules/intelligence/services/social-season/season-suggestions.service';
+import { SuggestionCategory } from '@/modules/intelligence';
 
 export interface SeasonNotificationConfig {
     /** Multiplier for max daily notifications (0.4 = 60% reduction) */

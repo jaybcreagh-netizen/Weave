@@ -2,7 +2,7 @@ import React from 'react';
 import { isFuture } from 'date-fns';
 import { Interaction, InteractionCategory, Friend } from '@/components/types';
 import IntentionModel from '@/db/models/Intention';
-import { StructuredReflection } from '@/modules/interactions/types';
+import { StructuredReflection } from '@/modules/interactions';
 import { InteractionDetailModal } from '@/components/interaction-detail-modal';
 import { EditReflectionModal } from '@/components/EditReflectionModal';
 import { EditInteractionModal } from '@/components/EditInteractionModal';
@@ -14,7 +14,7 @@ import { IntentionActionSheet } from '@/components/IntentionActionSheet';
 import { LifeEventModal } from '@/components/LifeEventModal';
 import FriendBadgePopup from '@/components/FriendBadgePopup';
 import { TierFitBottomSheetWrapper } from './TierFitBottomSheetWrapper';
-import { useFriendProfileModals } from '@/modules/relationships/hooks/useFriendProfileModals';
+import { useFriendProfileModals } from '@/modules/relationships';
 
 import { Intention } from '@/components/types';
 

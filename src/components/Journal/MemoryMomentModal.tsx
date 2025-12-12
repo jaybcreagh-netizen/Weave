@@ -23,7 +23,7 @@ import { format } from 'date-fns';
 import * as Haptics from 'expo-haptics';
 import JournalEntry from '@/db/models/JournalEntry';
 import WeeklyReflection from '@/db/models/WeeklyReflection';
-import { Memory } from '@/modules/journal/services/journal-context-engine';
+import { Memory } from '@/modules/journal';
 import { trackEvent } from '@/shared/services/analytics.service';
 
 interface MemoryMomentModalProps {

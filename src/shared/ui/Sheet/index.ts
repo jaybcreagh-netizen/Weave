@@ -50,7 +50,8 @@ export { StandardBottomSheet } from './StandardBottomSheet';
 export { AnimatedBottomSheet, type AnimatedBottomSheetRef } from './AnimatedBottomSheet';
 
 // Legacy export for backwards compatibility during migration
-export { CustomBottomSheet } from './BottomSheet';
+// Legacy export removed
+// export { CustomBottomSheet } from './BottomSheet';
 
 // Types
 export type { StandardBottomSheetProps } from './types';

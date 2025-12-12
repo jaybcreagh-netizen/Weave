@@ -1,8 +1,7 @@
 import { FriendDTO } from '@/shared/types/validators';
 import { calculateCurrentScore } from '@/modules/intelligence';
 
-import { database } from '@/db';
-import FriendModel from '@/db/models/Friend';
+import { friendRepository } from '../repositories/friend.repository';
 
 /**
  * Pure business logic for Friend entities.
@@ -10,7 +9,10 @@ import FriendModel from '@/db/models/Friend';
  */
 
 export async function getFriendScore(friendId: string): Promise<number> {
-    const friend = await database.get<FriendModel>('friends').find(friendId);
+    const friend = await friendRepository.getFriendById(friendId);
+    if (!friend) {
+        throw new Error(`Friend with id ${friendId} not found`);
+    }
     return calculateCurrentScore(friend);
 }
 

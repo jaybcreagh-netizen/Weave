@@ -7,8 +7,8 @@
 import * as Notifications from 'expo-notifications';
 import Logger from '@/shared/utils/Logger';
 import { notificationAnalytics } from '../notification-analytics';
-import { NotificationChannel } from '../../types';
-import { getAnniversaryMemories, getMemoryForNotification } from '@/modules/journal/services/journal-context-engine';
+import { NotificationChannel } from '@/modules/notifications';
+import { getAnniversaryMemories, getMemoryForNotification } from '@/modules/journal';
 import { database } from '@/db';
 import UserProfile from '@/db/models/UserProfile';
 import { shouldSendNotification } from '../season-notifications.service';

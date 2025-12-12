@@ -13,7 +13,7 @@ import {
   GROUP_DILUTION_FLOOR,
 } from '../constants';
 import { daysSince } from '@/shared/utils/date-utils';
-import { getLearnedEffectiveness } from '@/modules/insights/services/effectiveness.service';
+import { getLearnedEffectiveness } from '@/modules/insights';
 import { calculateInteractionQuality } from '../services/quality.service';
 
 /**

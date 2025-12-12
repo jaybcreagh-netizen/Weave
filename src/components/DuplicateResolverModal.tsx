@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Modal, TouchableOpacity, TextInput, Image, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Modal, TouchableOpacity, Image, KeyboardAvoidingView, Platform } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { Check, X, AlertCircle } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
 import * as Contacts from 'expo-contacts';
+import { Text } from '@/shared/ui/Text';
+import { Input } from '@/shared/ui/Input';
 
 interface DuplicateResolverModalProps {
     isVisible: boolean;
@@ -62,21 +64,28 @@ export function DuplicateResolverModal({ isVisible, conflicts, onResolve, onCanc
             animationType="fade"
             statusBarTranslucent
         >
-            <BlurView intensity={20} style={StyleSheet.absoluteFill}>
+            <BlurView intensity={20} className="flex-1 justify-center items-center p-5 bg-black/40">
                 <KeyboardAvoidingView
                     behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                    style={styles.container}
+                    className="flex-1 justify-center items-center w-full"
                 >
-                    <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                    <View
+                        className="w-full max-w-sm rounded-3xl p-6 border shadow-xl"
+                        style={{
+                            backgroundColor: colors.card,
+                            borderColor: colors.border,
+                            elevation: 8
+                        }}
+                    >
 
-                        <View style={styles.header}>
-                            <View style={[styles.iconContainer, { backgroundColor: '#fef3c7' }]}>
+                        <View className="items-center mb-6">
+                            <View className="w-16 h-16 rounded-full justify-center items-center mb-4 bg-amber-100">
                                 <AlertCircle size={32} color="#d97706" />
                             </View>
-                            <Text style={[styles.title, { color: colors.foreground }]}>
+                            <Text variant="h3" weight="bold" className="mb-2 text-center">
                                 Duplicate Found ({currentIndex + 1}/{conflicts.length})
                             </Text>
-                            <Text style={[styles.description, { color: colors['muted-foreground'] }]}>
+                            <Text align="center" color="muted" className="leading-6">
                                 {currentConflict.type === 'existing_friend'
                                     ? `You already have a friend named "${currentConflict.originalName}".`
                                     : `You selected multiple contacts named "${currentConflict.originalName}".`
@@ -84,63 +93,65 @@ export function DuplicateResolverModal({ isVisible, conflicts, onResolve, onCanc
                             </Text>
                         </View>
 
-                        <View style={[styles.contactPreview, { backgroundColor: colors.background }]}>
-                            <View style={styles.avatarContainer}>
+                        <View
+                            className="flex-row items-center p-4 rounded-2xl mb-6 gap-4"
+                            style={{ backgroundColor: colors.background }}
+                        >
+                            <View className="w-14 h-14">
                                 {currentConflict.contact.imageAvailable && currentConflict.contact.image ? (
                                     <Image
                                         source={{ uri: currentConflict.contact.image.uri }}
-                                        style={styles.avatar}
+                                        className="w-full h-full rounded-full"
                                     />
                                 ) : (
-                                    <View style={[styles.avatarPlaceholder, { backgroundColor: colors.primary }]}>
-                                        <Text style={styles.avatarInitials}>
+                                    <View
+                                        className="w-full h-full rounded-full justify-center items-center"
+                                        style={{ backgroundColor: colors.primary }}
+                                    >
+                                        <Text weight="bold" className="text-xl text-white">
                                             {currentConflict.originalName.charAt(0)}
                                         </Text>
                                     </View>
                                 )}
                             </View>
-                            <View style={styles.inputContainer}>
-                                <Text style={[styles.label, { color: colors['muted-foreground'] }]}>
-                                    Save as:
-                                </Text>
-                                <TextInput
-                                    style={[styles.input, {
-                                        backgroundColor: colors.input,
-                                        color: colors.foreground,
-                                        borderColor: colors.border
-                                    }]}
+                            <View className="flex-1">
+                                <Input
+                                    label="Save as:"
                                     value={currentName}
                                     onChangeText={setCurrentName}
                                     autoFocus
                                     selectTextOnFocus
+                                    containerClassName="mb-0"
                                 />
                             </View>
                         </View>
 
-                        <View style={styles.actions}>
+                        <View className="flex-row gap-3 mb-4">
                             <TouchableOpacity
-                                style={[styles.button, styles.skipButton, { borderColor: colors.border }]}
+                                className="flex-1 h-12 rounded-xl flex-row justify-center items-center gap-2 border"
+                                style={{ borderColor: colors.border }}
                                 onPress={() => handleNext(true)}
                             >
                                 <X size={20} color={colors['muted-foreground']} />
-                                <Text style={[styles.buttonText, { color: colors['muted-foreground'] }]}>Don't Add</Text>
+                                <Text color="muted" weight="semibold">Don't Add</Text>
                             </TouchableOpacity>
 
                             <TouchableOpacity
-                                style={[styles.button, styles.saveButton, { backgroundColor: colors.primary }]}
+                                className="flex-1 h-12 rounded-xl flex-row justify-center items-center gap-2"
+                                style={{ backgroundColor: colors.primary, opacity: !currentName.trim() ? 0.5 : 1 }}
                                 onPress={() => handleNext(false)}
                                 disabled={!currentName.trim()}
                             >
                                 <Check size={20} color={colors['primary-foreground']} />
-                                <Text style={[styles.buttonText, { color: colors['primary-foreground'] }]}>Save</Text>
+                                <Text style={{ color: colors['primary-foreground'] }} weight="semibold">Save</Text>
                             </TouchableOpacity>
                         </View>
 
                         <TouchableOpacity
-                            style={styles.cancelLink}
+                            className="items-center"
                             onPress={onCancel}
                         >
-                            <Text style={[styles.cancelText, { color: colors['muted-foreground'] }]}>Cancel Import</Text>
+                            <Text color="muted" weight="medium" className="underline">Cancel Import</Text>
                         </TouchableOpacity>
 
                     </View>
@@ -149,125 +160,3 @@ export function DuplicateResolverModal({ isVisible, conflicts, onResolve, onCanc
         </Modal>
     );
 }
-
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: 20,
-        backgroundColor: 'rgba(0,0,0,0.4)',
-    },
-    card: {
-        width: '100%',
-        maxWidth: 360,
-        borderRadius: 24,
-        padding: 24,
-        borderWidth: 1,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 12,
-        elevation: 8,
-    },
-    header: {
-        alignItems: 'center',
-        marginBottom: 24,
-    },
-    iconContainer: {
-        width: 64,
-        height: 64,
-        borderRadius: 32,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginBottom: 16,
-    },
-    title: {
-        fontSize: 20,
-        fontWeight: '600',
-        marginBottom: 8,
-        textAlign: 'center',
-    },
-    description: {
-        fontSize: 15,
-        textAlign: 'center',
-        lineHeight: 22,
-    },
-    contactPreview: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        padding: 16,
-        borderRadius: 16,
-        marginBottom: 24,
-        gap: 16,
-    },
-    avatarContainer: {
-        width: 56,
-        height: 56,
-    },
-    avatar: {
-        width: '100%',
-        height: '100%',
-        borderRadius: 28,
-    },
-    avatarPlaceholder: {
-        width: '100%',
-        height: '100%',
-        borderRadius: 28,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    avatarInitials: {
-        color: 'white',
-        fontSize: 24,
-        fontWeight: '600',
-    },
-    inputContainer: {
-        flex: 1,
-    },
-    label: {
-        fontSize: 12,
-        marginBottom: 4,
-        fontWeight: '500',
-    },
-    input: {
-        height: 44,
-        borderRadius: 10,
-        paddingHorizontal: 12,
-        fontSize: 16,
-        borderWidth: 1,
-    },
-    actions: {
-        flexDirection: 'row',
-        gap: 12,
-        marginBottom: 16,
-    },
-    button: {
-        flex: 1,
-        height: 48,
-        borderRadius: 12,
-        flexDirection: 'row',
-        justifyContent: 'center',
-        alignItems: 'center',
-        gap: 8,
-    },
-    skipButton: {
-        borderWidth: 1,
-        backgroundColor: 'transparent',
-    },
-    saveButton: {
-
-    },
-    buttonText: {
-        fontSize: 16,
-        fontWeight: '600',
-    },
-    cancelLink: {
-        alignItems: 'center',
-    },
-    cancelText: {
-        fontSize: 14,
-        fontWeight: '500',
-        textDecorationLine: 'underline',
-    },
-});

@@ -12,7 +12,7 @@ import { database } from '@/db';
 import { Q } from '@nozbe/watermelondb';
 import FriendModel from '@/db/models/Friend';
 import InteractionModel from '@/db/models/Interaction';
-import { shareInteractionAsICS } from '@/modules/interactions/services/calendar-export.service';
+import { shareInteractionAsICS } from '@/modules/interactions';
 
 const moonPhaseIcons: Record<MoonPhase, string> = {
   'NewMoon': '🌑',

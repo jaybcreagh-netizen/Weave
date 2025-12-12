@@ -4,7 +4,7 @@ import Interaction from '@/db/models/Interaction';
 import LifeEvent from '@/db/models/LifeEvent';
 import FriendModel from '@/db/models/Friend';
 import { Suggestion } from '@/shared/types/common';
-import { fetchSuggestions } from '@/modules/interactions/services/suggestion-provider.service';
+import { fetchSuggestions } from '@/modules/interactions';
 import type { SocialSeason } from '@/db/models/UserProfile';
 import { differenceInDays, isSameDay } from 'date-fns';
 

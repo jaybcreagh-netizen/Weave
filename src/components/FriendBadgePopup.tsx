@@ -33,7 +33,7 @@ import { database } from '@/db';
 import FriendBadge from '@/db/models/FriendBadge';
 import Friend from '@/db/models/Friend';
 import { Q } from '@nozbe/watermelondb';
-import { getBadgeById } from '@/modules/gamification/constants/badge-definitions';
+import { getBadgeById } from '@/modules/gamification';
 import { analyzeInteractionPattern } from '@/modules/insights';
 import { archetypeData } from '@/shared/constants/constants';
 import { CATEGORY_METADATA } from '@/shared/constants/interaction-categories';
@@ -42,7 +42,7 @@ import { useTheme } from '@/shared/hooks/useTheme';
 import type { Archetype, InteractionCategory } from '@/components/types';
 import Logger from '@/shared/utils/Logger';
 import { analyzeTierFit, getTierFitSummary } from '@/modules/insights';
-import type { TierFitAnalysis } from '@/modules/insights/types';
+import type { TierFitAnalysis } from '@/modules/insights';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 

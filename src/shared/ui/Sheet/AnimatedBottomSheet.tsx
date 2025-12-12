@@ -10,6 +10,7 @@ import {
   Platform,
   TouchableWithoutFeedback,
   Keyboard,
+  Alert,
 } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -105,6 +106,20 @@ interface AnimatedBottomSheetProps {
    * Optional footer component to render at the bottom of the sheet
    */
   footerComponent?: ReactNode;
+
+  /**
+   * Whether the sheet has unsaved changes.
+   * If true, attempting to close the sheet (via backdrop press or close button)
+   * will trigger a confirmation alert.
+   * @default false
+   */
+  hasUnsavedChanges?: boolean;
+
+  /**
+   * Custom message to display in the unsaved changes alert
+   * @default "Discard Changes? You have unsaved changes. Are you sure you want to discard them?"
+   */
+  confirmCloseMessage?: string;
 }
 
 /**
@@ -147,6 +162,8 @@ export const AnimatedBottomSheet = forwardRef<AnimatedBottomSheetRef, AnimatedBo
   testID,
   scrollable = false,
   footerComponent,
+  hasUnsavedChanges = false,
+  confirmCloseMessage = 'Discard Changes? You have unsaved changes. Are you sure you want to discard them?',
 }, ref) => {
   const { colors, isDarkMode } = useTheme();
   const insets = useSafeAreaInsets();
@@ -214,15 +231,37 @@ export const AnimatedBottomSheet = forwardRef<AnimatedBottomSheetRef, AnimatedBo
     }
   }));
 
-  const handleBackdropPress = useCallback(() => {
-    if (closeOnBackdropPress) {
+  const handleAttemptClose = useCallback(() => {
+    if (hasUnsavedChanges) {
+      Alert.alert(
+        'Discard Changes?',
+        confirmCloseMessage,
+        [
+          {
+            text: 'Cancel',
+            style: 'cancel',
+          },
+          {
+            text: 'Discard',
+            style: 'destructive',
+            onPress: () => animateOut(onClose),
+          },
+        ]
+      );
+    } else {
       animateOut(onClose);
     }
-  }, [closeOnBackdropPress, animateOut, onClose]);
+  }, [hasUnsavedChanges, confirmCloseMessage, animateOut, onClose]);
+
+  const handleBackdropPress = useCallback(() => {
+    if (closeOnBackdropPress) {
+      handleAttemptClose();
+    }
+  }, [closeOnBackdropPress, handleAttemptClose]);
 
   const handleClosePress = useCallback(() => {
-    animateOut(onClose);
-  }, [animateOut, onClose]);
+    handleAttemptClose();
+  }, [handleAttemptClose]);
 
   return (
     <Modal

@@ -21,7 +21,7 @@ import { getAllCategories, getCategoryMetadata, type CategoryMetadata } from '@/
 import { database } from '@/db';
 import FriendModel from '@/db/models/Friend';
 import { FriendSelector } from '@/components/FriendSelector';
-import { CustomBottomSheet } from '@/shared/ui/Sheet/BottomSheet';
+import { StandardBottomSheet } from '@/shared/ui/Sheet';
 import { ReciprocitySelector, InitiatorType } from '@/components/ReciprocitySelector';
 import { STORY_CHIPS } from '@/modules/reflection';
 import { ErrorBoundary } from '@/shared/components/ErrorBoundary';
@@ -283,7 +283,7 @@ export default function WeaveLoggerScreen() {
         />
 
         {/* Calendar Sheet */}
-        <CustomBottomSheet
+        <StandardBottomSheet
           visible={showCalendar}
           onClose={() => setShowCalendar(false)}
           snapPoints={['50%']}
@@ -304,7 +304,7 @@ export default function WeaveLoggerScreen() {
               minDate={undefined}
             />
           </View>
-        </CustomBottomSheet>
+        </StandardBottomSheet>
 
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
           <ScrollView

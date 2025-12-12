@@ -1,8 +1,7 @@
 import { Database, Q } from '@nozbe/watermelondb';
 import FriendModel from '@/db/models/Friend';
-import { type InteractionFormData } from '@/modules/interactions/types';
-import { type ScoreUpdate, type QualityMetrics } from '../types';
-import { calculateInteractionQuality } from './quality.service';
+import { type InteractionFormData } from '@/modules/interactions';
+import { type ScoreUpdate } from '../types';
 import { calculatePointsForWeave } from './scoring.service';
 import { applyDecay, calculateDecayAmount } from './decay.service';
 import { differenceInDays, isAfter } from 'date-fns';
@@ -16,29 +15,21 @@ import type { SocialSeason } from '@/db/models/UserProfile';
 import Logger from '@/shared/utils/Logger';
 
 /**
- * This is a temporary function that adapts the existing scoring service
- * to use the QualityMetrics, as intended by the architecture specification.
- * Ideally, this logic would be inside scoring.service.ts.
+ * Helper to convert InteractionFormData to the weaveData format expected by calculatePointsForWeave.
  */
-export function calculateInteractionPoints(
-  friend: FriendModel,
+function toWeaveData(
   interaction: InteractionFormData,
-  quality: QualityMetrics,
   historyCount: number = 0
-): number {
-  const baseScore = calculatePointsForWeave(friend, {
+): Parameters<typeof calculatePointsForWeave>[1] {
+  return {
     interactionType: interaction.activity as InteractionType,
     category: interaction.category as InteractionCategory,
     duration: interaction.duration as Duration | null,
     vibe: interaction.vibe as Vibe | null,
+    note: interaction.notes,
+    reflectionJSON: interaction.reflection ? JSON.stringify(interaction.reflection) : undefined,
     interactionHistoryCount: historyCount,
-  });
-
-  // Example of using quality score: add a bonus based on quality.
-  // A quality of 3 is neutral. Let's apply a +/- 10% modifier per point.
-  const qualityModifier = 1 + (quality.overallQuality - 3) * 0.1;
-
-  return baseScore * qualityModifier;
+  };
 }
 
 /**
@@ -54,27 +45,12 @@ export async function recalculateScoreOnEdit(
   const friend = await database.get<FriendModel>('friends').find(friendId);
   if (!friend) return;
 
-  // Calculate old points
-  const oldQuality = calculateInteractionQuality({
-    note: oldData.notes,
-    reflectionJSON: oldData.reflection ? JSON.stringify(oldData.reflection) : undefined,
-    duration: oldData.duration,
-    vibe: oldData.vibe,
-  });
-
+  // Calculate old and new points using the scoring service directly.
+  // Quality is calculated internally by calculatePointsForWeave.
   // For simplicity in edit, we assume history count hasn't drastically changed 
-  // enough to affect the tier multiplier for this single calculation, 
-  // or we accept the slight inaccuracy. Fetching exact history for both states is expensive.
-  const oldPoints = calculateInteractionPoints(friend, oldData, oldQuality, 0);
-
-  // Calculate new points
-  const newQuality = calculateInteractionQuality({
-    note: newData.notes,
-    reflectionJSON: newData.reflection ? JSON.stringify(newData.reflection) : undefined,
-    duration: newData.duration,
-    vibe: newData.vibe,
-  });
-  const newPoints = calculateInteractionPoints(friend, newData, newQuality, 0);
+  // enough to affect the tier multiplier for this single calculation.
+  const oldPoints = calculatePointsForWeave(friend, toWeaveData(oldData, 0));
+  const newPoints = calculatePointsForWeave(friend, toWeaveData(newData, 0));
 
   const delta = newPoints - oldPoints;
 
@@ -109,15 +85,7 @@ export async function processWeaveScoring(
 ): Promise<ScoreUpdate[]> {
   const scoreUpdates: ScoreUpdate[] = [];
 
-  // 1. Calculate the quality of the interaction once for all friends.
-  const quality = calculateInteractionQuality({
-    note: interactionData.notes,
-    reflectionJSON: interactionData.reflection ? JSON.stringify(interactionData.reflection) : undefined,
-    duration: interactionData.duration,
-    vibe: interactionData.vibe,
-  });
-
-  // 2. Pre-fetch interaction history counts for all friends
+  // 1. Pre-fetch interaction history counts for all friends
   // We do this OUTSIDE the write transaction to avoid holding the lock during reads
   const historyCounts = new Map<string, number>();
 
@@ -154,11 +122,10 @@ export async function processWeaveScoring(
       const historyCount = historyCounts.get(friend.id) || 0;
 
       // 2. Calculate points earned from this specific interaction.
-      let pointsEarned = calculateInteractionPoints(
+      // Quality is calculated internally by calculatePointsForWeave.
+      let pointsEarned = calculatePointsForWeave(
         friend,
-        interactionData,
-        quality,
-        historyCount
+        toWeaveData(interactionData, historyCount)
       );
 
       // 3. Apply momentum bonus for recent interactions.

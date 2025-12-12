@@ -8,7 +8,7 @@ import { Q } from '@nozbe/watermelondb';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { checkAndApplyDormancy, FriendSearchBar, FriendSearchResults, SearchFilters, SortOption } from '@/modules/relationships';
-import { FriendTierList } from '@/modules/relationships/components/FriendTierList';
+import { FriendTierList } from '@/modules/relationships';
 import { TierSegmentedControl } from '@/components/TierSegmentedControl';
 import { TierInfo } from '@/components/TierInfo';
 import { FAB } from '@/components/fab';
@@ -26,7 +26,7 @@ import { IntentionActionSheet } from '@/components/IntentionActionSheet';
 import Intention from '@/db/models/Intention';
 import { SimpleTutorialTooltip } from '@/components/SimpleTutorialTooltip';
 import { useTutorialStore } from '@/stores/tutorialStore';
-import { Tier } from '@/modules/relationships/types';
+import { Tier } from '@/modules/relationships';
 import { database } from '@/db';
 import FriendModel from '@/db/models/Friend';
 

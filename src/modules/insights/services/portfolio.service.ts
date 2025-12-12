@@ -1,6 +1,6 @@
 import { Tier, Archetype } from '@/shared/types/common';
 import { InteractionCategory } from '@/shared/types/common';
-import { calculateCurrentScore } from '../../intelligence/services/orchestrator.service';
+import { calculateCurrentScore } from '@/modules/intelligence';
 import FriendModel from '@/db/models/Friend';
 import { capturePortfolioSnapshot } from './trend.service';
 import { FriendshipPortfolio, PortfolioImbalance } from '../types';

@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, TextInput, StyleSheet } from 'react-native';
+import { View, TouchableOpacity, } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { StandardBottomSheet } from '@/shared/ui/Sheet';
+import { Text } from '@/shared/ui/Text';
+import { Input } from '@/shared/ui/Input';
+import { Button } from '@/shared/ui/Button';
 import { InteractionCategory } from './types';
 import { getCategoryMetadata, INTERACTION_CATEGORIES } from '@/shared/constants/interaction-categories';
 
@@ -50,18 +53,6 @@ export function IntentionFormModal({
     onClose();
   };
 
-  const footerContent = (
-    <TouchableOpacity
-      style={[styles.saveButton, { backgroundColor: colors.primary }]}
-      onPress={handleSave}
-      disabled={isSaving}
-    >
-      <Text style={[styles.saveButtonText, { color: colors['primary-foreground'] }]}>
-        {isSaving ? 'Saving...' : 'Set Intention'}
-      </Text>
-    </TouchableOpacity>
-  );
-
   return (
     <StandardBottomSheet
       visible={isOpen}
@@ -69,40 +60,42 @@ export function IntentionFormModal({
       height="full"
       title={`Set an Intention with ${friendName}`}
       scrollable
-      footerComponent={footerContent}
+      footerComponent={
+        <Button
+          label={isSaving ? 'Saving...' : 'Set Intention'}
+          onPress={handleSave}
+          loading={isSaving}
+          disabled={isSaving}
+          fullWidth
+          variant="primary"
+        />
+      }
     >
-      <View style={styles.contentContainer}>
-        <View style={styles.section}>
-          <Text style={[styles.sectionLabel, { color: colors.foreground }]}>
+      <View className="flex-1 px-5 pb-10 gap-8">
+        {/* Description Section */}
+        <View>
+          <Text variant="label" className="mb-1" style={{ color: colors.foreground }}>
             What's the idea? (optional)
           </Text>
-          <Text style={[styles.sectionHint, { color: colors['muted-foreground'] }]}>
+          <Text variant="caption" className="mb-3" style={{ color: colors['muted-foreground'] }}>
             Can be vague or specific - whatever feels right
           </Text>
-          <TextInput
-            style={[
-              styles.textInput,
-              {
-                backgroundColor: colors.card,
-                borderColor: colors.border,
-                color: colors.foreground,
-              }
-            ]}
+          <Input
             placeholder="e.g., grab coffee, catch up, go hiking..."
-            placeholderTextColor={colors['muted-foreground']}
             value={description}
             onChangeText={setDescription}
             multiline
             numberOfLines={3}
-            textAlignVertical="top"
+            style={{ minHeight: 100, textAlignVertical: 'top', paddingTop: 12 }}
           />
         </View>
 
-        <View style={styles.section}>
-          <Text style={[styles.sectionLabel, { color: colors.foreground }]}>
+        {/* Category Section */}
+        <View>
+          <Text variant="label" className="mb-3" style={{ color: colors.foreground }}>
             Activity type (optional)
           </Text>
-          <View style={styles.categoryGrid}>
+          <View className="flex-row flex-wrap gap-3">
             {INTERACTION_CATEGORIES.map(category => {
               const metadata = getCategoryMetadata(category);
               const isSelected = selectedCategory === category;
@@ -110,25 +103,18 @@ export function IntentionFormModal({
               return (
                 <TouchableOpacity
                   key={category}
-                  style={[
-                    styles.categoryChip,
-                    {
-                      backgroundColor: isSelected ? colors.primary : colors.card,
-                      borderColor: isSelected ? colors.primary : colors.border,
-                    }
-                  ]}
                   onPress={() => {
                     setSelectedCategory(isSelected ? undefined : category);
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   }}
                   activeOpacity={0.7}
+                  className={`flex-row items-center gap-2 px-4 py-3 rounded-xl border ${isSelected ? 'border-primary bg-primary' : 'border-border bg-card'}`}
+                  style={isSelected ? { borderColor: colors.primary } : { borderColor: colors.border, backgroundColor: colors.card }}
                 >
-                  <Text style={styles.categoryIcon}>{metadata.icon}</Text>
+                  <Text className="text-xl">{metadata.icon}</Text>
                   <Text
-                    style={[
-                      styles.categoryLabel,
-                      { color: isSelected ? colors['primary-foreground'] : colors.foreground }
-                    ]}
+                    variant="button"
+                    style={{ color: isSelected ? colors['primary-foreground'] : colors.foreground }}
                   >
                     {metadata.label}
                   </Text>
@@ -141,61 +127,3 @@ export function IntentionFormModal({
     </StandardBottomSheet>
   );
 }
-
-const styles = StyleSheet.create({
-  contentContainer: {
-    gap: 32,
-  },
-  section: {
-    gap: 12,
-  },
-  sectionLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  sectionHint: {
-    fontSize: 14,
-  },
-  textInput: {
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 16,
-    fontSize: 16,
-    minHeight: 100,
-  },
-  categoryGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  categoryChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    borderWidth: 1.5,
-  },
-  categoryIcon: {
-    fontSize: 20,
-  },
-  categoryLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  saveButton: {
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  saveButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-});

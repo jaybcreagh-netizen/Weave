@@ -1,5 +1,5 @@
 import { calculateAdaptiveLearningRate } from '../services/effectiveness.service';
-import { EffectivenessLearningConfig } from '@/modules/intelligence/constants';
+import { EffectivenessLearningConfig } from '@/modules/intelligence';
 
 // Mock database
 jest.mock('@/db', () => ({

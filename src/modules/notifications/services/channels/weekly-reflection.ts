@@ -10,7 +10,7 @@ import UserProfile from '@/db/models/UserProfile';
 import Logger from '@/shared/utils/Logger';
 import { notificationAnalytics } from '../notification-analytics';
 import { shouldSendWeeklyReflectionNotification } from '../notification-grace-periods';
-import { NotificationChannel } from '../../types';
+import { NotificationChannel } from '@/modules/notifications';
 
 const ID = 'weekly-reflection';
 

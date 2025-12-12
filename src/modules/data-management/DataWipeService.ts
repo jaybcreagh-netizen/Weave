@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { clearDatabase } from '@/db';
-import { supabase } from '@/modules/auth/services/supabase.service';
-import { AutoBackupService } from '@/modules/backup/AutoBackupService';
+import { supabase } from '@/modules/auth';
+import { AutoBackupService } from '@/modules/backup';
 // import * as Updates from 'expo-updates';
 import Logger from '@/shared/utils/Logger';
 

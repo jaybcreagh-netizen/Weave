@@ -114,53 +114,53 @@ export const archetypeData: Record<Archetype, { name: string; essence: string; d
 };
 
 export const archetypeIcons: Record<Archetype, any> = {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    Emperor: require('@/assets/icon.png'),
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    Empress: require('@/assets/icon.png'),
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    HighPriestess: require('@/assets/icon.png'),
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    Fool: require('@/assets/icon.png'),
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    Sun: require('@/assets/icon.png'),
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    Hermit: require('@/assets/icon.png'),
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    Magician: require('@/assets/icon.png'),
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    Lovers: require('@/assets/icon.png'),
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    Unknown: require('@/assets/icon.png'),
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  Emperor: require('@/assets/icon.png'),
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  Empress: require('@/assets/icon.png'),
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  HighPriestess: require('@/assets/icon.png'),
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  Fool: require('@/assets/icon.png'),
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  Sun: require('@/assets/icon.png'),
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  Hermit: require('@/assets/icon.png'),
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  Magician: require('@/assets/icon.png'),
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  Lovers: require('@/assets/icon.png'),
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  Unknown: require('@/assets/icon.png'),
 };
 
 export const tierColors = {
-    InnerCircle: '#10B981',
-    CloseFriends: '#3B82F6',
-    Community: '#8B5CF6',
+  InnerCircle: '#10B981',
+  CloseFriends: '#3B82F6',
+  Community: '#8B5CF6',
 };
 
 export const tierMap: Record<string, Tier> = {
-    inner: 'InnerCircle',
-    close: 'CloseFriends',
-    community: 'Community',
-    InnerCircle: 'InnerCircle',
-    CloseFriends: 'CloseFriends',
-    Community: 'Community',
+  inner: 'InnerCircle',
+  close: 'CloseFriends',
+  community: 'Community',
+  InnerCircle: 'InnerCircle',
+  CloseFriends: 'CloseFriends',
+  Community: 'Community',
 };
 
 export const moonPhasesData = {
-    NewMoon: { icon: '🌑', label: 'New Moon' },
-    WaxingCrescent: { icon: '🌒', label: 'Waxing Crescent' },
-    FirstQuarter: { icon: '🌓', label: 'First Quarter' },
-    WaxingGibbous: { icon: '🌔', label: 'Waxing Gibbous' },
-    FullMoon: { icon: '🌕', label: 'Full Moon' },
+  NewMoon: { icon: '🌑', label: 'New Moon' },
+  WaxingCrescent: { icon: '🌒', label: 'Waxing Crescent' },
+  FirstQuarter: { icon: '🌓', label: 'First Quarter' },
+  WaxingGibbous: { icon: '🌔', label: 'Waxing Gibbous' },
+  FullMoon: { icon: '🌕', label: 'Full Moon' },
 };
 
 export const modeIcons = {
-    light: '☀️',
-    dark: '🌙',
-    system: '⚙️',
+  light: '☀️',
+  dark: '🌙',
+  system: '⚙️',
 };
 
 // V2 Matrix: Maps Archetype -> Interaction Category -> Multiplier (0.5 to 2.0)
@@ -265,4 +265,16 @@ export const CategoryArchetypeMatrix: Record<Archetype, Record<InteractionCatego
     'favor-support': 1.0,
     'celebration': 1.0
   }
+};
+
+export const ARCHETYPE_GRADIENTS: Record<Archetype, string[]> = {
+  Emperor: ['#ef4444', '#dc2626'],
+  Empress: ['#10b981', '#059669'],
+  HighPriestess: ['#8b5cf6', '#7c3aed'],
+  Fool: ['#f59e0b', '#d97706'],
+  Sun: ['#eab308', '#ca8a04'],
+  Hermit: ['#6366f1', '#4f46e5'],
+  Magician: ['#ec4899', '#db2777'],
+  Lovers: ['#fb7185', '#f43f5e'],
+  Unknown: ['#9ca3af', '#6b7280'],
 };

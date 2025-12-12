@@ -1,8 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, TextInput, FlatList, Alert } from 'react-native';
-import { Check, Trash2 } from 'lucide-react-native';
+import { View, TouchableOpacity, Alert, FlatList } from 'react-native';
+import { Check, Trash2, Users } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
-import { AnimatedBottomSheet } from '@/shared/ui/Sheet';
+import { StandardBottomSheet } from '@/shared/ui/Sheet';
+import { Text } from '@/shared/ui/Text';
+import { Button } from '@/shared/ui/Button';
+import { Input } from '@/shared/ui/Input';
+import { Card } from '@/shared/ui/Card';
 import FriendModel from '@/db/models/Friend';
 import { database } from '@/db';
 import { Q } from '@nozbe/watermelondb';
@@ -122,82 +126,78 @@ export function GroupManagerModal({
         const isSelected = selectedFriendIds.includes(item.id);
         return (
             <TouchableOpacity
-                className="flex-row items-center justify-between p-4 border-b"
-                style={{ borderColor: colors.border }}
                 onPress={() => toggleFriend(item.id)}
+                activeOpacity={0.7}
             >
-                <Text className="font-inter-medium text-base" style={{ color: colors.foreground }}>
-                    {item.name}
-                </Text>
-                {isSelected && <Check size={20} color={colors.primary} />}
+                <Card
+                    className={`flex-row items-center justify-between p-4 mb-2 border ${isSelected ? 'border-primary bg-primary/5' : 'border-transparent'}`}
+                >
+                    <Text variant="body" className={`font-medium ${isSelected ? 'text-primary' : 'text-foreground'}`}>
+                        {item.name}
+                    </Text>
+                    {isSelected && <Check size={20} color={colors.primary} />}
+                </Card>
             </TouchableOpacity>
         );
     };
 
     return (
-        <AnimatedBottomSheet
+        <StandardBottomSheet
             visible={visible}
             onClose={onClose}
-            height="full"
             title={groupToEdit ? 'Edit Group' : 'New Group'}
-            scrollable
-            footerComponent={
-                <View className="flex-row gap-3">
-                    {groupToEdit && (
-                        <TouchableOpacity
-                            onPress={handleDelete}
-                            className="p-4 rounded-xl items-center justify-center border"
-                            style={{ borderColor: colors.destructive, width: 60 }}
-                        >
-                            <Trash2 size={20} color={colors.destructive} />
-                        </TouchableOpacity>
-                    )}
-
-                    <TouchableOpacity
-                        onPress={handleSave}
-                        disabled={isSaving}
-                        className="flex-1 py-4 rounded-xl items-center justify-center"
-                        style={{ backgroundColor: colors.primary, opacity: isSaving ? 0.7 : 1 }}
-                    >
-                        <Text className="font-inter-semibold text-base" style={{ color: colors.background }}>
-                            {isSaving ? 'Saving...' : 'Save Group'}
-                        </Text>
-                    </TouchableOpacity>
-                </View>
-            }
+            snapPoints={['90%']}
+            scrollable={false} // Using FlatList for custom scrolling
         >
-            <View className="flex-1">
+            <View className="flex-1 px-4">
                 {/* Form */}
-                <View className="p-5">
-                    <Text className="font-inter-medium text-sm mb-2" style={{ color: colors['muted-foreground'] }}>
-                        Group Name
-                    </Text>
-                    <TextInput
-                        className="p-4 rounded-xl font-inter-regular text-base border"
-                        style={{
-                            backgroundColor: colors.background,
-                            borderColor: colors.border,
-                            color: colors.foreground
-                        }}
+                <View className="mb-6">
+                    <Input
+                        label="Group Name"
                         placeholder="e.g., Girl Group, Family"
-                        placeholderTextColor={colors['muted-foreground']}
                         value={name}
                         onChangeText={setName}
+                        autoCapitalize="words"
                     />
                 </View>
 
-                <View className="px-5 pb-2">
-                    <Text className="font-inter-medium text-sm" style={{ color: colors['muted-foreground'] }}>
+                <View className="flex-1 mb-2">
+                    <Text variant="h4" className="mb-2 text-muted-foreground font-medium">
                         Select Members ({selectedFriendIds.length})
                     </Text>
+
+                    <FlatList
+                        data={allFriends}
+                        keyExtractor={item => item.id}
+                        renderItem={renderFriendItem}
+                        showsVerticalScrollIndicator={false}
+                        contentContainerStyle={{ paddingBottom: 120 }}
+                        nestedScrollEnabled={true}
+                    />
                 </View>
 
-                {/* Friend List */}
-                <View style={{ paddingBottom: 20 }}>
-                    {allFriends.map(item => renderFriendItem({ item }))}
-                </View>
+                {/* Footer Actions */}
+                <View className="absolute bottom-0 left-0 right-0 p-4 border-t border-border bg-background flex-row gap-3">
+                    {groupToEdit && (
+                        <Button
+                            onPress={handleDelete}
+                            variant="destructive"
+                            className="px-4"
+                        >
+                            <Trash2 size={20} color={colors['destructive-foreground']} />
+                        </Button>
+                    )}
 
+                    <Button
+                        onPress={handleSave}
+                        variant="primary"
+                        disabled={isSaving}
+                        className="flex-1"
+                    >
+                        {isSaving ? 'Saving...' : 'Save Group'}
+                    </Button>
+                </View>
             </View>
-        </AnimatedBottomSheet>
+        </StandardBottomSheet>
     );
 }

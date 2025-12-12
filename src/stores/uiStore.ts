@@ -5,8 +5,8 @@ import { type BadgeUnlock } from '@/modules/gamification';
 import { type AchievementUnlockData } from '@/modules/gamification';
 import JournalEntry from '@/db/models/JournalEntry';
 import WeeklyReflection from '@/db/models/WeeklyReflection';
-import { type Memory } from '@/modules/journal/services/journal-context-engine';
-import { type DigestItem } from '@/modules/notifications/services/channels/evening-digest';
+import { type Memory } from '@/modules/journal';
+import { type DigestItem } from '@/modules/notifications';
 import { trackEvent, AnalyticsEvents } from '@/shared/services/analytics.service';
 
 interface MemoryMomentData {

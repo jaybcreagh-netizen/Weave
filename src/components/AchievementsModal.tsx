@@ -4,7 +4,7 @@ import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming, run
 import { BlurView } from 'expo-blur';
 import { X } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
-import { useAchievements, Achievement } from '@/modules/gamification/hooks/useAchievements';
+import { useAchievements, Achievement } from '@/modules/gamification';
 
 /**
  * @interface AchievementsModalProps

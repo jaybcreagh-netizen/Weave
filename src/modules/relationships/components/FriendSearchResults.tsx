@@ -13,7 +13,7 @@ import { useTheme } from '@/shared/hooks/useTheme';
 import { WeaveIcon } from '@/components/WeaveIcon';
 import { calculateCurrentScore } from '@/modules/intelligence';
 import { SearchFilters, HealthStatus, SortOption } from './FriendSearchBar';
-import { Archetype } from '@/modules/relationships/types';
+import { Archetype } from '../types';
 
 const { width: screenWidth } = Dimensions.get('window');
 const AnimatedFlashList = Animated.createAnimatedComponent(FlashList);

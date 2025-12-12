@@ -7,7 +7,7 @@
  */
 
 import React, { useState, useMemo } from 'react';
-import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import { View, ScrollView, TouchableOpacity } from 'react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { Sparkles, ChevronRight, Clock } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
@@ -19,6 +19,9 @@ import { database } from '@/db';
 import Intention from '@/db/models/Intention';
 import IntentionFriend from '@/db/models/IntentionFriend';
 import * as Haptics from 'expo-haptics';
+import { Text } from '@/shared/ui/Text';
+import { Button } from '@/shared/ui/Button';
+import { Card } from '@/shared/ui/Card';
 
 // ============================================================================
 // TYPES
@@ -161,94 +164,69 @@ export function WeekSnapshotStep({ summary, insight, onComplete }: WeekSnapshotS
         {/* Stats Card */}
         <Animated.View
           entering={FadeIn.duration(400)}
-          className="p-5 rounded-2xl mb-4"
-          style={{
-            backgroundColor: colors.card,
-            borderColor: colors.border,
-            borderWidth: 1,
-          }}
+          className="mb-4"
         >
-          {/* Stats Row */}
-          <View className="flex-row items-center justify-center mb-4">
-            <View className="items-center px-4">
-              <Text
-                className="text-3xl font-bold"
-                style={{ color: colors.foreground, fontFamily: 'Lora_700Bold' }}
-              >
-                {summary.totalWeaves}
-              </Text>
-              <Text
-                className="text-xs mt-1"
-                style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
-              >
-                weaves
-              </Text>
+          <Card className="p-5">
+            {/* Stats Row */}
+            <View className="flex-row items-center justify-center mb-4">
+              <View className="items-center px-4">
+                <Text variant="h2" className="font-lora-bold">
+                  {summary.totalWeaves}
+                </Text>
+                <Text variant="caption" className="text-muted-foreground mt-1">
+                  weaves
+                </Text>
+              </View>
+
+              <View
+                className="w-px h-10 mx-2 bg-border"
+              />
+
+              <View className="items-center px-4">
+                <Text variant="h2" className="font-lora-bold">
+                  {summary.friendsContacted}
+                </Text>
+                <Text variant="caption" className="text-muted-foreground mt-1">
+                  friends
+                </Text>
+              </View>
+
+              {summary.topActivity && (
+                <>
+                  <View
+                    className="w-px h-10 mx-2 bg-border"
+                  />
+
+                  <View className="items-center px-4">
+                    <Text variant="h3" className="font-inter-semibold">
+                      {summary.topActivity}
+                    </Text>
+                    <Text variant="caption" className="text-muted-foreground mt-1">
+                      {summary.topActivityCount}×
+                    </Text>
+                  </View>
+                </>
+              )}
             </View>
 
-            <View
-              className="w-px h-10 mx-2"
-              style={{ backgroundColor: colors.border }}
-            />
-
-            <View className="items-center px-4">
+            {/* Insight Line */}
+            <View className="flex-row items-center justify-center">
+              <Sparkles size={14} color={insightColor} style={{ marginRight: 6 }} />
               <Text
-                className="text-3xl font-bold"
-                style={{ color: colors.foreground, fontFamily: 'Lora_700Bold' }}
+                variant="body"
+                className="text-center font-medium"
+                style={{ color: insightColor }}
               >
-                {summary.friendsContacted}
-              </Text>
-              <Text
-                className="text-xs mt-1"
-                style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
-              >
-                friends
+                {insight.text}
               </Text>
             </View>
-
-            {summary.topActivity && (
-              <>
-                <View
-                  className="w-px h-10 mx-2"
-                  style={{ backgroundColor: colors.border }}
-                />
-
-                <View className="items-center px-4">
-                  <Text
-                    className="text-lg font-semibold"
-                    style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold' }}
-                  >
-                    {summary.topActivity}
-                  </Text>
-                  <Text
-                    className="text-xs mt-1"
-                    style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
-                  >
-                    {summary.topActivityCount}×
-                  </Text>
-                </View>
-              </>
-            )}
-          </View>
-
-          {/* Insight Line */}
-          <View className="flex-row items-center justify-center">
-            <Sparkles size={14} color={insightColor} style={{ marginRight: 6 }} />
-            <Text
-              className="text-sm text-center"
-              style={{ color: insightColor, fontFamily: 'Inter_500Medium' }}
-            >
-              {insight.text}
-            </Text>
-          </View>
+          </Card>
         </Animated.View>
 
         {/* Friends Needing Attention */}
         {attentionFriends.length > 0 && (
           <Animated.View entering={FadeInDown.delay(200).duration(400)}>
-            <Text
-              className="text-sm mb-3"
-              style={{ color: colors['muted-foreground'], fontFamily: 'Inter_500Medium' }}
-            >
+            <Text variant="body" className="font-medium mb-3 text-muted-foreground">
               Might appreciate a hello
             </Text>
 
@@ -259,89 +237,69 @@ export function WeekSnapshotStep({ summary, insight, onComplete }: WeekSnapshotS
                 <Animated.View
                   key={af.friend.id}
                   entering={FadeInDown.delay(300 + index * 100).duration(300)}
-                  className="mb-3 p-4 rounded-xl"
-                  style={{
-                    backgroundColor: colors.card,
-                    borderColor: hasIntention ? colors.primary + '40' : colors.border,
-                    borderWidth: 1,
-                  }}
+                  className="mb-3"
                 >
-                  <View className="flex-row items-center justify-between">
-                    {/* Friend Info */}
-                    <View className="flex-row items-center flex-1">
-                      {/* Archetype Icon */}
-                      <View
-                        className="w-10 h-10 rounded-full items-center justify-center mr-3"
-                        style={{ backgroundColor: colors.muted }}
-                      >
-                        <ArchetypeIcon
-                          archetype={af.friend.archetype as Archetype}
-                          size={20}
-                          color={colors.foreground}
-                        />
-                      </View>
-
-                      <View className="flex-1">
-                        <Text
-                          className="text-base font-semibold"
-                          style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold' }}
+                  <Card
+                    className={`p-4 border ${hasIntention ? 'border-primary/40' : 'border-border'}`}
+                  >
+                    <View className="flex-row items-center justify-between">
+                      {/* Friend Info */}
+                      <View className="flex-row items-center flex-1">
+                        {/* Archetype Icon */}
+                        <View
+                          className="w-10 h-10 rounded-full items-center justify-center mr-3 bg-muted"
                         >
-                          {af.friend.name}
-                        </Text>
-                        <View className="flex-row items-center gap-2 mt-0.5">
-                          <Text
-                            className="text-xs"
-                            style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
-                          >
-                            {af.tierLabel}
-                          </Text>
-                          <View
-                            className="w-1 h-1 rounded-full"
-                            style={{ backgroundColor: colors['muted-foreground'] }}
+                          <ArchetypeIcon
+                            archetype={af.friend.archetype as Archetype}
+                            size={20}
+                            color={colors.foreground}
                           />
-                          <View className="flex-row items-center">
-                            <Clock size={10} color={colors['muted-foreground']} style={{ marginRight: 3 }} />
-                            <Text
-                              className="text-xs"
-                              style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
-                            >
-                              {formatDaysSince(af.daysSinceContact)}
+                        </View>
+
+                        <View className="flex-1">
+                          <Text variant="h4" className="font-semibold">
+                            {af.friend.name}
+                          </Text>
+                          <View className="flex-row items-center gap-2 mt-0.5">
+                            <Text variant="caption" className="text-muted-foreground">
+                              {af.tierLabel}
                             </Text>
+                            <View
+                              className="w-1 h-1 rounded-full bg-muted-foreground"
+                            />
+                            <View className="flex-row items-center">
+                              <Clock size={10} color={colors['muted-foreground']} style={{ marginRight: 3 }} />
+                              <Text variant="caption" className="text-muted-foreground">
+                                {formatDaysSince(af.daysSinceContact)}
+                              </Text>
+                            </View>
                           </View>
                         </View>
                       </View>
-                    </View>
 
-                    {/* Action Button */}
-                    {hasIntention ? (
-                      <View
-                        className="px-3 py-2 rounded-lg"
-                        style={{ backgroundColor: colors.primary + '15' }}
-                      >
-                        <Text
-                          className="text-xs font-medium"
-                          style={{ color: colors.primary, fontFamily: 'Inter_500Medium' }}
+                      {/* Action Button */}
+                      {hasIntention ? (
+                        <View
+                          className="px-3 py-2 rounded-lg bg-primary/15"
                         >
-                          💫 Intention set
-                        </Text>
-                      </View>
-                    ) : (
-                      <TouchableOpacity
-                        onPress={() => handleSetIntention(af.friend)}
-                        className="px-3 py-2 rounded-lg flex-row items-center"
-                        style={{ backgroundColor: colors.muted }}
-                        activeOpacity={0.7}
-                      >
-                        <Text
-                          className="text-xs font-medium mr-1"
-                          style={{ color: colors.foreground, fontFamily: 'Inter_500Medium' }}
+                          <Text variant="caption" className="font-medium text-primary">
+                            💫 Intention set
+                          </Text>
+                        </View>
+                      ) : (
+                        <TouchableOpacity
+                          onPress={() => handleSetIntention(af.friend)}
+                          className="px-3 py-2 rounded-lg flex-row items-center bg-muted"
+                          activeOpacity={0.7}
                         >
-                          Set intention
-                        </Text>
-                        <Text style={{ fontSize: 12 }}>💫</Text>
-                      </TouchableOpacity>
-                    )}
-                  </View>
+                          <Text variant="caption" className="font-medium mr-1 text-foreground">
+                            Set intention
+                          </Text>
+                          <Text style={{ fontSize: 12 }}>💫</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  </Card>
                 </Animated.View>
               );
             })}
@@ -355,10 +313,7 @@ export function WeekSnapshotStep({ summary, insight, onComplete }: WeekSnapshotS
             className="items-center py-8"
           >
             <Text className="text-4xl mb-3">🌙</Text>
-            <Text
-              className="text-base text-center"
-              style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
-            >
+            <Text variant="body" className="text-center text-muted-foreground">
               A quiet week. Rest is part of the rhythm.
             </Text>
           </Animated.View>
@@ -370,20 +325,18 @@ export function WeekSnapshotStep({ summary, insight, onComplete }: WeekSnapshotS
         entering={FadeInDown.delay(500).duration(400)}
         className="pt-4 pb-2"
       >
-        <TouchableOpacity
+        <Button
           onPress={handleComplete}
-          className="py-4 rounded-2xl items-center flex-row justify-center"
-          style={{ backgroundColor: colors.primary }}
-          activeOpacity={0.8}
+          variant="primary"
+          className="flex-row justify-center items-center"
         >
-          <Text
-            className="text-base font-semibold mr-2"
-            style={{ color: colors['primary-foreground'], fontFamily: 'Inter_600SemiBold' }}
-          >
-            Complete
-          </Text>
-          <ChevronRight size={18} color={colors['primary-foreground']} />
-        </TouchableOpacity>
+          <View className="flex-row items-center">
+            <Text variant="button" className="mr-2 text-primary-foreground">
+              Complete
+            </Text>
+            <ChevronRight size={18} color={colors['primary-foreground']} />
+          </View>
+        </Button>
       </Animated.View>
 
       {/* Intention Form Modal */}

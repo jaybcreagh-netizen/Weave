@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, TouchableOpacity } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { ContextualReflectionInput } from './ContextualReflectionInput';
 import { CelebrationAnimation } from './CelebrationAnimation';
 import { useTheme } from '@/shared/hooks/useTheme';
-import { AnimatedBottomSheet } from '@/shared/ui/Sheet';
+import { StandardBottomSheet } from '@/shared/ui/Sheet';
 import { type Interaction, type StructuredReflection, type InteractionCategory, type Archetype, type Vibe } from './types';
 import { calculateDeepeningLevel } from '@/modules/intelligence';
+import { Text } from '@/shared/ui/Text';
+import { Button } from '@/shared/ui/Button';
 
 import { MoonPhaseSelector } from './MoonPhaseSelector';
 
@@ -26,9 +28,7 @@ export function EditReflectionModal({
   friendArchetype,
 }: EditReflectionModalProps) {
   const { colors } = useTheme();
-  const [reflection, setReflection] = useState<StructuredReflection>(
-    interaction?.reflection || {}
-  );
+  const [reflection, setReflection] = useState<StructuredReflection>(interaction?.reflection || {});
   const [selectedVibe, setSelectedVibe] = useState<Vibe | null>(interaction?.vibe as Vibe | null);
   const [isSaving, setIsSaving] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
@@ -68,22 +68,21 @@ export function EditReflectionModal({
   const deepeningMetrics = calculateDeepeningLevel(reflection);
 
   return (
-    <AnimatedBottomSheet
+    <StandardBottomSheet
       visible={isOpen}
       onClose={onClose}
       height="full"
       title="Tell me more"
       scrollable
       footerComponent={
-        <TouchableOpacity
-          style={[styles.saveButton, { backgroundColor: colors.primary }]}
+        <Button
+          label={isSaving ? 'Saving...' : 'Save Reflection'}
           onPress={handleSave}
+          loading={isSaving}
           disabled={isSaving}
-        >
-          <Text style={[styles.saveButtonText, { color: colors['primary-foreground'] }]}>
-            {isSaving ? 'Saving...' : 'Save Reflection'}
-          </Text>
-        </TouchableOpacity>
+          fullWidth
+          variant="primary"
+        />
       }
     >
       {/* Celebration animation */}
@@ -93,9 +92,9 @@ export function EditReflectionModal({
         onComplete={() => setShowCelebration(false)}
       />
 
-      <Animated.View entering={FadeIn.duration(300)}>
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
+      <Animated.View entering={FadeIn.duration(300)} className="px-5 pb-5">
+        <View className="mb-6">
+          <Text variant="h3" className="mb-4">
             How did it feel?
           </Text>
           <MoonPhaseSelector
@@ -112,66 +111,6 @@ export function EditReflectionModal({
           onChange={setReflection}
         />
       </Animated.View>
-    </AnimatedBottomSheet>
+    </StandardBottomSheet>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'center', // Center content
-    alignItems: 'center',
-    padding: 20,
-    borderBottomWidth: 1,
-    position: 'relative', // For absolute positioning of close button
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    fontFamily: 'Lora-Bold', // Use Lora font
-    marginBottom: 0,
-    textAlign: 'center',
-  },
-  closeButton: {
-    padding: 8,
-    position: 'absolute',
-    right: 16,
-    top: 16,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollViewContent: {
-    padding: 20,
-  },
-  footer: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    borderTopWidth: 1,
-  },
-  saveButton: {
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  saveButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  section: {
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 16,
-  },
-});

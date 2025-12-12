@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import { View, TouchableOpacity, ScrollView } from 'react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { AnimatedBottomSheet } from '@/shared/ui/Sheet';
 import { type ChipType, getChipTypeLabel } from '@/modules/reflection';
 import { createNewCustomChip } from '@/modules/reflection';
+import { Text } from '@/shared/ui/Text';
+import { Input } from '@/shared/ui/Input';
+import { Button } from '@/shared/ui/Button';
 
 interface CustomChipModalProps {
   isOpen: boolean;
@@ -53,236 +56,103 @@ export function CustomChipModal({
       onClose={onClose}
       height="form"
     >
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={[styles.title, { color: colors.foreground }]}>
-          Create Custom Chip
-        </Text>
-      </View>
+      <View className="px-5 pb-5">
+        {/* Header */}
+        <View className="flex-row items-center justify-between py-4 pb-4">
+          <Text variant="h3" weight="bold">
+            Create Custom Chip
+          </Text>
+        </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-            {/* Suggestion hint */}
-            {suggestedText && (
-              <View style={[styles.suggestionBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <Text style={[styles.suggestionLabel, { color: colors['muted-foreground'] }]}>
-                  Suggested based on your patterns:
-                </Text>
-                <Text style={[styles.suggestionText, { color: colors.foreground }]}>
-                  "{suggestedText}"
-                </Text>
-              </View>
-            )}
-
-            {/* Chip text input */}
-            <View style={styles.section}>
-              <Text style={[styles.label, { color: colors['muted-foreground'] }]}>
-                Chip text
+        <ScrollView showsVerticalScrollIndicator={false}>
+          {/* Suggestion hint */}
+          {suggestedText && (
+            <View
+              className="p-4 rounded-xl border mb-6"
+              style={{ backgroundColor: colors.card, borderColor: colors.border }}
+            >
+              <Text variant="label" className="mb-1" style={{ color: colors['muted-foreground'] }}>
+                Suggested based on your patterns:
               </Text>
-              <TextInput
-                style={[
-                  styles.input,
-                  {
-                    backgroundColor: colors.card,
-                    borderColor: colors.border,
-                    color: colors.foreground,
-                  },
-                ]}
-                value={chipText}
-                onChangeText={setChipText}
-                placeholder="e.g., talked about our favorite memories"
-                placeholderTextColor={colors['muted-foreground']}
-                multiline
-                maxLength={100}
-              />
-              <Text style={[styles.hint, { color: colors['muted-foreground'] }]}>
-                {chipText.length}/100 characters
+              <Text weight="semibold">
+                "{suggestedText}"
               </Text>
             </View>
+          )}
 
-            {/* Chip type selector */}
-            <View style={styles.section}>
-              <Text style={[styles.label, { color: colors['muted-foreground'] }]}>
-                What type of chip is this?
-              </Text>
-              <View style={styles.typeGrid}>
-                {CHIP_TYPES.map(type => (
-                  <TouchableOpacity
-                    key={type}
-                    style={[
-                      styles.typeChip,
-                      {
-                        backgroundColor: selectedType === type ? colors.primary : colors.card,
-                        borderColor: selectedType === type ? colors.primary : colors.border,
-                      },
-                    ]}
-                    onPress={() => setSelectedType(type)}
+          {/* Chip text input */}
+          <View className="mb-6">
+            <Input
+              label="Chip text"
+              value={chipText}
+              onChangeText={setChipText}
+              placeholder="e.g., talked about our favorite memories"
+              multiline
+              numberOfLines={3}
+              style={{ minHeight: 80, textAlignVertical: 'top', paddingTop: 12 }}
+            />
+            <Text variant="caption" className="mt-1 text-right" style={{ color: colors['muted-foreground'] }}>
+              {chipText.length}/100 characters
+            </Text>
+          </View>
+
+          {/* Chip type selector */}
+          <View className="mb-6">
+            <Text variant="label" className="mb-2" style={{ color: colors['muted-foreground'] }}>
+              What type of chip is this?
+            </Text>
+            <View className="flex-row flex-wrap gap-2">
+              {CHIP_TYPES.map(type => (
+                <TouchableOpacity
+                  key={type}
+                  className="w-[48%] p-3 rounded-xl border-2"
+                  style={{
+                    backgroundColor: selectedType === type ? colors.primary : colors.card,
+                    borderColor: selectedType === type ? colors.primary : colors.border,
+                  }}
+                  onPress={() => setSelectedType(type)}
+                >
+                  <Text
+                    weight="semibold"
+                    className="mb-0.5 capitalize"
+                    style={{
+                      color: selectedType === type ? 'white' : colors.foreground,
+                    }}
                   >
-                    <Text
-                      style={[
-                        styles.typeChipText,
-                        {
-                          color: selectedType === type ? 'white' : colors.foreground,
-                        },
-                      ]}
-                    >
-                      {type}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.typeChipLabel,
-                        {
-                          color: selectedType === type ? 'rgba(255,255,255,0.8)' : colors['muted-foreground'],
-                        },
-                      ]}
-                    >
-                      {getChipTypeLabel(type)}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+                    {type}
+                  </Text>
+                  <Text
+                    variant="caption"
+                    style={{
+                      color: selectedType === type ? 'rgba(255,255,255,0.8)' : colors['muted-foreground'],
+                    }}
+                  >
+                    {getChipTypeLabel(type)}
+                  </Text>
+                </TouchableOpacity>
+              ))}
             </View>
-      </ScrollView>
+          </View>
+        </ScrollView>
 
-      {/* Footer */}
-      <View style={[styles.footer, { borderTopColor: colors.border }]}>
-        <TouchableOpacity
-          style={[styles.cancelButton, { borderColor: colors.border }]}
-          onPress={onClose}
-        >
-          <Text style={[styles.cancelButtonText, { color: colors['muted-foreground'] }]}>
-            Cancel
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[
-            styles.createButton,
-            { backgroundColor: chipText.trim() ? colors.primary : colors.muted },
-          ]}
-          onPress={handleCreate}
-          disabled={!chipText.trim() || isCreating}
-        >
-          <Text style={styles.createButtonText}>
-            {isCreating ? 'Creating...' : 'Create Chip'}
-          </Text>
-        </TouchableOpacity>
+        {/* Footer */}
+        <View className="flex-row gap-3 pt-5 border-t" style={{ borderTopColor: colors.border }}>
+          <Button
+            label="Cancel"
+            onPress={onClose}
+            variant="outline"
+            className="flex-1"
+          />
+          <Button
+            label={isCreating ? 'Creating...' : 'Create Chip'}
+            onPress={handleCreate}
+            disabled={!chipText.trim() || isCreating}
+            loading={isCreating}
+            variant="primary"
+            className="flex-1"
+          />
+        </View>
       </View>
     </AnimatedBottomSheet>
   );
 }
-
-const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
-  },
-  modal: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: '85%',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 20,
-    paddingBottom: 16,
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: '700',
-  },
-  closeButton: {
-    padding: 4,
-  },
-  content: {
-    paddingHorizontal: 20,
-  },
-  suggestionBox: {
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    marginBottom: 24,
-  },
-  suggestionLabel: {
-    fontSize: 12,
-    fontWeight: '500',
-    marginBottom: 4,
-  },
-  suggestionText: {
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  section: {
-    marginBottom: 24,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 8,
-  },
-  input: {
-    borderWidth: 1.5,
-    borderRadius: 12,
-    padding: 16,
-    fontSize: 16,
-    minHeight: 80,
-    textAlignVertical: 'top',
-  },
-  hint: {
-    fontSize: 12,
-    marginTop: 4,
-    textAlign: 'right',
-  },
-  typeGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  typeChip: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    minWidth: '48%',
-    flexBasis: '48%',
-  },
-  typeChipText: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 2,
-    textTransform: 'capitalize',
-  },
-  typeChipLabel: {
-    fontSize: 11,
-    fontWeight: '500',
-  },
-  footer: {
-    flexDirection: 'row',
-    gap: 12,
-    padding: 20,
-    borderTopWidth: 1,
-  },
-  cancelButton: {
-    flex: 1,
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    alignItems: 'center',
-  },
-  cancelButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  createButton: {
-    flex: 1,
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  createButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: 'white',
-  },
-});

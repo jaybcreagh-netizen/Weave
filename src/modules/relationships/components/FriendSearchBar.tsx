@@ -6,7 +6,7 @@ import * as Haptics from 'expo-haptics';
 
 import { useTheme } from '@/shared/hooks/useTheme';
 import { ArchetypeIcon } from '@/components/ArchetypeIcon';
-import { Archetype } from '@/modules/relationships/types';
+import { Archetype } from '../types';
 
 // Health status based on weave score thresholds
 export type HealthStatus = 'thriving' | 'stable' | 'attention' | 'drifting';

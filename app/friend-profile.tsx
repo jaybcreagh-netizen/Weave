@@ -7,7 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useTheme } from '@/shared/hooks/useTheme';
 import { useFriendProfileData, useFriendTimeline } from '@/modules/relationships';
-import { useFriendProfileModals } from '@/modules/relationships/hooks/useFriendProfileModals';
+import { useFriendProfileModals } from '@/modules/relationships';
 
 // Components
 import { ProfileHeader } from '@/components/friend-profile/ProfileHeader';

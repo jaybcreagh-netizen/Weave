@@ -4,13 +4,16 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
-import { TrendingUp, Plus } from 'lucide-react-native';
+import { View, ScrollView, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { getMostUsedChips, analyzeCustomNotesForPatterns } from '@/modules/reflection';
 import { STORY_CHIPS, type ChipType } from '@/modules/reflection';
 import { CustomChipModal } from './CustomChipModal';
 import Animated, { FadeIn } from 'react-native-reanimated';
+import { Text } from '@/shared/ui/Text';
+import { Button } from '@/shared/ui/Button';
+import { Icon } from '@/shared/ui/Icon';
+import { Card } from '@/shared/ui/Card';
 
 interface YourPatternsSectionProps {
   onCustomChipCreated?: () => void;
@@ -77,8 +80,8 @@ export function YourPatternsSection({ onCustomChipCreated }: YourPatternsSection
 
   if (isLoading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="small" />
+      <View className="p-5 items-center">
+        <ActivityIndicator size="small" color={colors.primary} />
       </View>
     );
   }
@@ -88,35 +91,37 @@ export function YourPatternsSection({ onCustomChipCreated }: YourPatternsSection
   }
 
   return (
-    <Animated.View entering={FadeIn.duration(400)} style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <TrendingUp size={20} color={colors.primary} />
-          <Text style={[styles.title, { color: colors.foreground }]}>
+    <Animated.View entering={FadeIn.duration(400)} className="gap-4">
+      <View className="flex-row items-center justify-between">
+        <View className="flex-row items-center gap-2">
+          <Icon name="TrendingUp" size={20} color={colors.primary} />
+          <Text variant="h3" weight="bold">
             Your Patterns
           </Text>
         </View>
-        <TouchableOpacity
-          style={[styles.addButton, { backgroundColor: colors.card, borderColor: colors.border }]}
+        <Button
+          variant="outline"
+          size="sm"
           onPress={() => handleCreateCustomChip()}
+          className="flex-row items-center gap-1.5 px-3 py-2 rounded-lg bg-card border-border"
         >
-          <Plus size={16} color={colors.primary} />
-          <Text style={[styles.addButtonText, { color: colors.primary }]}>
+          <Icon name="Plus" size={16} color={colors.primary} />
+          <Text variant="button" className="text-primary text-xs font-semibold">
             Custom Chip
           </Text>
-        </TouchableOpacity>
+        </Button>
       </View>
 
       {/* Most used chips */}
       {topChips.length > 0 && (
-        <View style={styles.section}>
-          <Text style={[styles.sectionLabel, { color: colors['muted-foreground'] }]}>
+        <View className="gap-3">
+          <Text className="text-muted-foreground text-xs font-semibold">
             Your most-used chips:
           </Text>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.chipsScroll}
+            contentContainerClassName="gap-2 pr-4"
           >
             {topChips.map((item, index) => (
               <Animated.View
@@ -124,19 +129,13 @@ export function YourPatternsSection({ onCustomChipCreated }: YourPatternsSection
                 entering={FadeIn.duration(300).delay(index * 50)}
               >
                 <View
-                  style={[
-                    styles.patternChip,
-                    {
-                      backgroundColor: colors.card,
-                      borderColor: colors.border,
-                    },
-                  ]}
+                  className="flex-row items-center gap-2 px-3.5 py-2.5 rounded-2xl border border-border bg-card"
                 >
-                  <Text style={[styles.chipText, { color: colors.foreground }]}>
+                  <Text variant="body" weight="medium">
                     {getChipDisplay(item.chipId, item.isCustom)}
                   </Text>
-                  <View style={[styles.chipBadge, { backgroundColor: colors.primary }]}>
-                    <Text style={styles.chipBadgeText}>{item.count}×</Text>
+                  <View className="px-1.5 py-0.5 rounded-lg bg-primary">
+                    <Text className="text-[11px] font-bold text-white">{item.count}×</Text>
                   </View>
                 </View>
               </Animated.View>
@@ -147,29 +146,28 @@ export function YourPatternsSection({ onCustomChipCreated }: YourPatternsSection
 
       {/* Custom chip suggestion */}
       {suggestion && (
-        <View style={styles.section}>
-          <Text style={[styles.sectionLabel, { color: colors['muted-foreground'] }]}>
+        <View className="gap-3">
+          <Text className="text-muted-foreground text-xs font-semibold">
             Create a chip?
           </Text>
           <TouchableOpacity
-            style={[
-              styles.suggestionCard,
-              {
-                backgroundColor: colors.card,
-                borderColor: colors.primary + '40',
-              },
-            ]}
             onPress={() => handleCreateCustomChip(suggestion.text, 'feeling')}
+            activeOpacity={0.7}
           >
-            <View style={styles.suggestionContent}>
-              <Text style={[styles.suggestionText, { color: colors.foreground }]}>
-                "{suggestion.text}"
-              </Text>
-              <Text style={[styles.suggestionHint, { color: colors['muted-foreground'] }]}>
-                You've used this {suggestion.occurrences} times
-              </Text>
-            </View>
-            <Plus size={20} color={colors.primary} />
+            <Card
+              variant="outlined"
+              className="flex-row items-center justify-between p-4 border-primary/40 bg-card"
+            >
+              <View className="flex-1 gap-1">
+                <Text variant="body" weight="semibold">
+                  "{suggestion.text}"
+                </Text>
+                <Text variant="caption" className="text-muted-foreground">
+                  You've used this {suggestion.occurrences} times
+                </Text>
+              </View>
+              <Icon name="Plus" size={20} color={colors.primary} />
+            </Card>
           </TouchableOpacity>
         </View>
       )}
@@ -185,94 +183,3 @@ export function YourPatternsSection({ onCustomChipCreated }: YourPatternsSection
     </Animated.View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    gap: 16,
-  },
-  loadingContainer: {
-    padding: 20,
-    alignItems: 'center',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  addButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    borderWidth: 1.5,
-  },
-  addButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  section: {
-    gap: 12,
-  },
-  sectionLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  chipsScroll: {
-    gap: 8,
-    paddingRight: 16,
-  },
-  patternChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 16,
-    borderWidth: 1.5,
-  },
-  chipText: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  chipBadge: {
-    paddingVertical: 2,
-    paddingHorizontal: 6,
-    borderRadius: 10,
-  },
-  chipBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: 'white',
-  },
-  suggestionCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1.5,
-  },
-  suggestionContent: {
-    flex: 1,
-    gap: 4,
-  },
-  suggestionText: {
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  suggestionHint: {
-    fontSize: 12,
-    fontWeight: '500',
-  },
-});

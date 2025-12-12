@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Alert } from 'react-native';
-import { Trash2, Check } from 'lucide-react-native';
+import { View, Alert, FlatList, TouchableOpacity } from 'react-native';
+import { Trash2, Check, Users } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
-import { AnimatedBottomSheet } from '@/shared/ui/Sheet';
-import { useFriendActions } from '@/modules/relationships/hooks/useFriendActions';
+import { StandardBottomSheet } from '@/shared/ui/Sheet';
+import { Text } from '@/shared/ui/Text';
+import { Button } from '@/shared/ui/Button';
+import { Card } from '@/shared/ui/Card';
+import { useFriendActions } from '@/modules/relationships';
 import { calculateCurrentScore } from '@/modules/intelligence';
 import type FriendModel from '@/db/models/Friend';
 import { database } from '@/db';
@@ -18,6 +21,8 @@ export function FriendManagementModal({ visible, onClose }: FriendManagementModa
   const { colors } = useTheme();
   const [friends, setFriends] = useState<FriendModel[]>([]);
   const { batchDeleteFriends } = useFriendActions();
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     const subscription = database
@@ -28,8 +33,6 @@ export function FriendManagementModal({ visible, onClose }: FriendManagementModa
 
     return () => subscription.unsubscribe();
   }, []);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [isDeleting, setIsDeleting] = useState(false);
 
   // Reset selection when modal closes
   useEffect(() => {
@@ -94,132 +97,90 @@ export function FriendManagementModal({ visible, onClose }: FriendManagementModa
 
   const sortedFriends = friends ? [...friends].sort((a, b) => a.name.localeCompare(b.name)) : [];
 
-  const footerContent = (
-    <TouchableOpacity
-      onPress={handleDelete}
-      disabled={selectedIds.size === 0 || isDeleting}
-      style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 16,
-        borderRadius: 12,
-        backgroundColor: selectedIds.size > 0 ? colors.destructive : colors.muted,
-        opacity: selectedIds.size === 0 || isDeleting ? 0.5 : 1,
-      }}
-    >
-      <Trash2 size={20} color={selectedIds.size > 0 ? colors['destructive-foreground'] : colors['muted-foreground']} />
-      <Text
-        style={{
-          marginLeft: 8,
-          fontSize: 16,
-          fontWeight: '600',
-          color: selectedIds.size > 0 ? colors['destructive-foreground'] : colors['muted-foreground']
-        }}
+  const renderItem = ({ item: friend }: { item: FriendModel }) => {
+    const isSelected = selectedIds.has(friend.id);
+    const currentScore = calculateCurrentScore(friend);
+
+    return (
+      <TouchableOpacity
+        onPress={() => toggleSelection(friend.id)}
+        activeOpacity={0.7}
       >
-        {isDeleting ? 'Deleting...' : `Delete ${selectedIds.size} Friend${selectedIds.size !== 1 ? 's' : ''}`}
-      </Text>
-    </TouchableOpacity>
-  );
-
-  return (
-    <AnimatedBottomSheet
-      visible={visible}
-      onClose={onClose}
-      height="full"
-      title="Manage Friends"
-      scrollable
-      footerComponent={footerContent}
-    >
-      {/* Selection Controls */}
-      <View style={{ flexDirection: 'row', gap: 12, padding: 16, borderBottomWidth: 1, borderBottomColor: colors.border }}>
-        <TouchableOpacity
-          onPress={selectAll}
-          style={{
-            flex: 1,
-            padding: 12,
-            borderRadius: 8,
-            borderWidth: 1,
-            borderColor: colors.border,
-            backgroundColor: colors.muted,
-            alignItems: 'center'
-          }}
+        <Card
+          className={`flex-row items-center p-4 mb-2 border ${isSelected ? 'border-destructive/50 bg-destructive/5' : 'border-transparent'}`}
         >
-          <Text style={{ color: colors.foreground, fontWeight: '600' }}>Select All</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={deselectAll}
-          style={{
-            flex: 1,
-            padding: 12,
-            borderRadius: 8,
-            borderWidth: 1,
-            borderColor: colors.border,
-            backgroundColor: colors.muted,
-            alignItems: 'center'
-          }}
-        >
-          <Text style={{ color: colors.foreground, fontWeight: '600' }}>Deselect All</Text>
-        </TouchableOpacity>
-      </View>
+          {/* Checkbox */}
+          <View
+            className={`w-6 h-6 rounded-md border items-center justify-center mr-3 ${isSelected ? 'bg-destructive border-destructive' : 'border-muted-foreground'}`}
+          >
+            {isSelected && <Check size={16} color={colors['destructive-foreground']} />}
+          </View>
 
-      {/* Friend List */}
-      <View style={{ flex: 1 }}>
-        {sortedFriends.length === 0 ? (
-          <View style={{ padding: 40, alignItems: 'center' }}>
-            <Text style={{ color: colors['muted-foreground'], fontSize: 16, textAlign: 'center' }}>
-              No friends to manage
+          {/* Friend Info */}
+          <View className="flex-1">
+            <Text variant="body" className="font-semibold">
+              {friend.name}
+            </Text>
+            <Text variant="caption" className="text-muted-foreground mt-0.5">
+              {friend.dunbarTier} • Score: {Math.round(currentScore)}
             </Text>
           </View>
-        ) : (
-          sortedFriends.map((friend) => {
-            const isSelected = selectedIds.has(friend.id);
-            const currentScore = calculateCurrentScore(friend);
+        </Card>
+      </TouchableOpacity>
+    );
+  };
 
-            return (
-              <TouchableOpacity
-                key={friend.id}
-                onPress={() => toggleSelection(friend.id)}
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  padding: 16,
-                  borderBottomWidth: 1,
-                  borderBottomColor: colors.border,
-                  backgroundColor: isSelected ? colors.primary + '10' : 'transparent',
-                }}
-              >
-                {/* Checkbox */}
-                <View
-                  style={{
-                    width: 24,
-                    height: 24,
-                    borderRadius: 6,
-                    borderWidth: 2,
-                    borderColor: isSelected ? colors.primary : colors.border,
-                    backgroundColor: isSelected ? colors.primary : 'transparent',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    marginRight: 12,
-                  }}
-                >
-                  {isSelected && <Check size={16} color={colors['primary-foreground']} />}
-                </View>
+  return (
+    <StandardBottomSheet
+      visible={visible}
+      onClose={onClose}
+      title="Manage Friends"
+      snapPoints={['90%']}
+      disableContentPanning
+    >
+      <View className="flex-1 px-4">
+        {/* Selection Controls */}
+        <View className="flex-row gap-3 mb-4">
+          <Button
+            onPress={selectAll}
+            variant="secondary"
+            className="flex-1"
+            label="Select All"
+          />
+          <Button
+            onPress={deselectAll}
+            variant="secondary"
+            className="flex-1"
+            label="Deselect All"
+          />
+        </View>
 
-                {/* Friend Info */}
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 16, fontWeight: '600', color: colors.foreground }}>
-                    {friend.name}
-                  </Text>
-                  <Text style={{ fontSize: 14, color: colors['muted-foreground'], marginTop: 2 }}>
-                    {friend.dunbarTier} • Score: {Math.round(currentScore)}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            );
-          })
-        )}
+        {/* Friend List */}
+        <FlatList
+          data={sortedFriends}
+          keyExtractor={item => item.id}
+          renderItem={renderItem}
+          contentContainerStyle={{ paddingBottom: 120 }}
+          ListEmptyComponent={
+            <View className="items-center py-10">
+              <Text variant="body" className="text-muted-foreground text-center">
+                No friends to manage
+              </Text>
+            </View>
+          }
+        />
+
+        {/* Footer */}
+        <View className="absolute bottom-0 left-0 right-0 p-4 border-t border-border bg-background">
+          <Button
+            onPress={handleDelete}
+            variant="destructive"
+            disabled={selectedIds.size === 0 || isDeleting}
+            className="w-full"
+            label={isDeleting ? 'Deleting...' : `Delete ${selectedIds.size} Friend${selectedIds.size !== 1 ? 's' : ''}`}
+          />
+        </View>
       </View>
-    </AnimatedBottomSheet>
+    </StandardBottomSheet>
   );
 }

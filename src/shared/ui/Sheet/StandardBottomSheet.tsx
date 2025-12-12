@@ -1,10 +1,12 @@
 import React, { useCallback, useMemo, useRef, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Alert, TouchableWithoutFeedback } from 'react-native';
 import BottomSheet, {
   BottomSheetBackdrop,
   BottomSheetView,
   BottomSheetScrollView,
   BottomSheetBackdropProps,
+  BottomSheetFooter,
+  BottomSheetFooterProps,
 } from '@gorhom/bottom-sheet';
 import { Portal } from '@gorhom/portal';
 import { X } from 'lucide-react-native';
@@ -63,18 +65,27 @@ export function StandardBottomSheet({
   testID,
   scrollRef,
   footerComponent,
+  disableContentPanning = false,
+  renderScrollContent,
+  hasUnsavedChanges = false,
+  confirmCloseMessage = 'Discard Changes? You have unsaved changes. Are you sure you want to discard them?',
 }: StandardBottomSheetProps) {
   const { colors, isDarkMode } = useTheme();
   const bottomSheetRef = useRef<BottomSheet>(null);
   const insets = useSafeAreaInsets();
 
+  const isDynamic = height === 'auto';
+
   // Compute snap points from height variant or custom
   const snapPoints = useMemo(() => {
+    if (isDynamic) {
+      return [];
+    }
     if (customSnapPoints) {
       return customSnapPoints;
     }
-    return [SHEET_HEIGHTS[height]];
-  }, [height, customSnapPoints]);
+    return [SHEET_HEIGHTS[height as keyof typeof SHEET_HEIGHTS]];
+  }, [height, customSnapPoints, isDynamic]);
 
   // Handle sheet state changes
   const handleSheetChanges = useCallback(
@@ -86,24 +97,52 @@ export function StandardBottomSheet({
     [onClose]
   );
 
-  // Render backdrop with consistent styling
+  // Handle attempt to close (checks for unsaved changes)
+  const handleAttemptClose = useCallback(() => {
+    if (hasUnsavedChanges) {
+      Alert.alert(
+        'Discard Changes?',
+        confirmCloseMessage,
+        [
+          {
+            text: 'Cancel',
+            style: 'cancel',
+          },
+          {
+            text: 'Discard',
+            style: 'destructive',
+            onPress: () => onClose(),
+          },
+        ]
+      );
+    } else {
+      onClose();
+    }
+  }, [hasUnsavedChanges, onClose, confirmCloseMessage]);
+
+  // Render backdrop with consistent styling and interception
   const renderBackdrop = useCallback(
     (props: BottomSheetBackdropProps) => (
-      <BottomSheetBackdrop
-        {...props}
-        disappearsOnIndex={-1}
-        appearsOnIndex={0}
-        opacity={BACKDROP_OPACITY.visible}
-        pressBehavior="close"
-      />
+      <View style={StyleSheet.absoluteFill}>
+        <BottomSheetBackdrop
+          {...props}
+          disappearsOnIndex={-1}
+          appearsOnIndex={0}
+          opacity={BACKDROP_OPACITY.visible}
+          pressBehavior="none"
+        />
+        <TouchableWithoutFeedback onPress={handleAttemptClose}>
+          <View style={StyleSheet.absoluteFill} />
+        </TouchableWithoutFeedback>
+      </View>
     ),
-    []
+    [handleAttemptClose]
   );
 
   // Handle manual close with animation
   const handleClose = useCallback(() => {
-    bottomSheetRef.current?.close();
-  }, []);
+    handleAttemptClose();
+  }, [handleAttemptClose]);
 
   // Sync visibility with sheet state
   useEffect(() => {
@@ -114,16 +153,29 @@ export function StandardBottomSheet({
     }
   }, [visible, initialSnapIndex]);
 
+  // Render footer using BottomSheetFooter for robust handling
+  const renderFooter = useCallback(
+    (props: BottomSheetFooterProps) => (
+      <BottomSheetFooter {...props} bottomInset={0}>
+        <View style={[
+          styles.footer,
+          {
+            backgroundColor: colors.card,
+            borderTopColor: colors.border,
+            paddingBottom: Math.max(insets.bottom, 16)
+          }
+        ]}>
+          {footerComponent}
+        </View>
+      </BottomSheetFooter>
+    ),
+    [footerComponent, colors.card, colors.border, insets.bottom]
+  );
+
   // Don't render anything if not visible
   if (!visible) return null;
 
   const ContentWrapper = scrollable ? BottomSheetScrollView : BottomSheetView;
-
-  const footer = footerComponent ? (
-    <View style={[styles.footer, { backgroundColor: colors.card, borderTopColor: colors.border }]}>
-      {footerComponent}
-    </View>
-  ) : null;
 
   return (
     <Portal>
@@ -131,9 +183,12 @@ export function StandardBottomSheet({
         ref={bottomSheetRef}
         index={initialSnapIndex}
         snapPoints={snapPoints}
+        enableDynamicSizing={isDynamic}
         onChange={handleSheetChanges}
-        enablePanDownToClose={enableSwipeClose}
+        enablePanDownToClose={enableSwipeClose && !hasUnsavedChanges}
+        enableContentPanningGesture={!scrollable && !disableContentPanning}
         backdropComponent={renderBackdrop}
+        footerComponent={footerComponent ? renderFooter : undefined}
         backgroundStyle={[
           styles.background,
           { backgroundColor: colors.card },
@@ -151,13 +206,11 @@ export function StandardBottomSheet({
         android_keyboardInputMode="adjustResize"
         style={styles.sheet}
       >
-        {/* Header with optional title and close button */}
+        {/* Header with optional title and close button - FIXED AT TOP */}
         {(title || titleComponent || showCloseButton) && (
-          <View style={styles.header}>
+          <View style={[styles.header, { backgroundColor: colors.card }]}>
             {titleComponent ? (
-              <View style={{ flex: 1, marginRight: 16 }}>
-                {titleComponent}
-              </View>
+              titleComponent
             ) : title ? (
               <Text
                 style={[styles.title, { color: colors.foreground }]}
@@ -165,9 +218,7 @@ export function StandardBottomSheet({
               >
                 {title}
               </Text>
-            ) : (
-              <View style={{ flex: 1 }} />
-            )}
+            ) : null}
             {showCloseButton && (
               <TouchableOpacity
                 onPress={handleClose}
@@ -182,32 +233,40 @@ export function StandardBottomSheet({
           </View>
         )}
 
-        <View style={{ flex: 1 }}>
+        {/* Render custom scrollable content directly, or use ContentWrapper */}
+        {renderScrollContent ? (
+          renderScrollContent()
+        ) : (
           <ContentWrapper
-            style={styles.contentContainer}
+            style={[
+              styles.contentContainer,
+              !scrollable && { marginTop: 56 } // Push non-scrollable content below header (header is ~56px tall)
+            ]}
             ref={scrollable ? scrollRef : undefined}
             contentContainerStyle={[
               scrollable && {
-                paddingBottom: footerComponent ? 0 : Math.max(insets.bottom, 24),
+                paddingTop: 16, // Space between header and content
+                paddingHorizontal: 16, // Default horizontal padding for scrollable content (can be overridden by children)
+                paddingBottom: footerComponent ? 80 : Math.max(insets.bottom, 24), // Extra padding for footer overlap
                 flexGrow: 1
               }
             ]}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="interactive"
           >
             {/* Sheet content */}
-            <View style={[
-              styles.content,
-              scrollable && { flex: 0 },
-              { paddingBottom: scrollable || footerComponent ? 0 : Math.max(insets.bottom + 20, 24) }
-            ]}>
-              {children}
-            </View>
+            {scrollable ? (
+              children
+            ) : (
+              <View style={styles.content}>
+                {children}
+              </View>
+            )}
           </ContentWrapper>
-          {footer}
-        </View>
-      </BottomSheet>
-    </Portal>
+        )}
+      </BottomSheet >
+    </Portal >
   );
 }
 
@@ -236,25 +295,30 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center', // Center the header content
     paddingHorizontal: 16,
     paddingTop: 12,
-    paddingBottom: 8,
+    paddingBottom: 12,
+    borderBottomWidth: 0, // No border by default, can be added via theme if needed
+    zIndex: 10, // Ensure header stays on top of scrolling content
   },
   title: {
     fontSize: 20,
     fontFamily: 'Lora_700Bold',
     fontWeight: '700',
+    textAlign: 'center', // Center the text
     flex: 1,
-    marginRight: 16,
   },
   closeButton: {
+    position: 'absolute',
+    right: 16,
+    top: 12,
     padding: 4,
+    zIndex: 1,
   },
   content: {
     flex: 1,
     paddingHorizontal: 16,
-    // paddingBottom handled dynamically
   },
   footer: {
     padding: 16,

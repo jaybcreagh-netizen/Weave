@@ -92,26 +92,41 @@ export function PlanWizard({ visible, onClose, initialFriend, prefillData, repla
       const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
       try {
-        // 1. Fetch Planned Dates (Optimized with Q.on)
-        const plannedInteractions = await database
-          .get<Interaction>('interactions')
-          .query(
-            Q.on('interaction_friends', Q.where('friend_id', initialFriend.id)),
-            Q.where('status', 'planned'),
-            Q.where('interaction_date', Q.gte(today.getTime()))
-          )
+        // 1. Fetch Planned Dates (Safe 2-step query)
+        // Step A: Get all interaction IDs for this friend
+        const interactionLinks = await database
+          .get('interaction_friends')
+          .query(Q.where('friend_id', initialFriend.id))
           .fetch();
+
+        const interactionIds = interactionLinks.map((link: any) => link.interactionId);
+
+        // Step B: Fetch the actual interactions if we have any links
+        let plannedInteractions: Interaction[] = [];
+        if (interactionIds.length > 0) {
+          plannedInteractions = await database
+            .get<Interaction>('interactions')
+            .query(
+              Q.where('id', Q.oneOf(interactionIds)),
+              Q.where('status', 'planned'),
+              Q.where('interaction_date', Q.gte(today.getTime()))
+            )
+            .fetch();
+        }
 
         setPlannedDates(plannedInteractions.map(i => startOfDay(i.interactionDate)));
 
-        // 2. Calculate Most Common Day (Optimized with Q.on)
-        const completedInteractions = await database
-          .get<Interaction>('interactions')
-          .query(
-            Q.on('interaction_friends', Q.where('friend_id', initialFriend.id)),
-            Q.where('status', 'completed')
-          )
-          .fetch();
+        // 2. Calculate Most Common Day (Safe 2-step query)
+        let completedInteractions: Interaction[] = [];
+        if (interactionIds.length > 0) {
+          completedInteractions = await database
+            .get<Interaction>('interactions')
+            .query(
+              Q.where('id', Q.oneOf(interactionIds)),
+              Q.where('status', 'completed')
+            )
+            .fetch();
+        }
 
         if (completedInteractions.length > 0) {
           const dayCounts: Record<number, number> = {};

@@ -4,8 +4,8 @@ import { useTheme } from '@/shared/hooks/useTheme';
 import { Database, Upload, Download, RefreshCw } from 'lucide-react-native';
 import { ModernSwitch } from '@/components/ui/ModernSwitch';
 import { SettingsItem } from './SettingsItem';
-import { AutoBackupService } from '@/modules/backup/AutoBackupService';
-import { DataWipeService } from '@/modules/data-management/DataWipeService';
+import { AutoBackupService } from '@/modules/backup';
+import { DataWipeService } from '@/modules/data-management';
 import {
     exportAndShareData,
     getExportStats,

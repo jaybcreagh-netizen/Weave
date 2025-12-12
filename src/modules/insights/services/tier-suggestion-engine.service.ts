@@ -4,7 +4,7 @@ import Friend from '@/db/models/Friend';
 import Interaction from '@/db/models/Interaction';
 import { Q } from '@nozbe/watermelondb';
 import { analyzeTierFit, shouldShowTierSuggestion } from './tier-fit.service';
-import { TierMigrationConfig } from '@/modules/intelligence/constants';
+import { TierMigrationConfig } from '@/modules/intelligence';
 import type { TierFitAnalysis } from '../types';
 import { Tier } from '@/shared/types/common';
 

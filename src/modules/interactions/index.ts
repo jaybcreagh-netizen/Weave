@@ -22,6 +22,7 @@ export * from './services/event-suggestion-learning.service';
 export * from './services/event-scanner';
 export * as SuggestionTrackerService from './services/suggestion-tracker.service';
 export * as SuggestionStorageService from './services/suggestion-storage.service';
+export * from './services/suggestion-provider.service';
 
 // Stores
 export * from './store';

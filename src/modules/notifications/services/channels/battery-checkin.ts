@@ -10,7 +10,7 @@ import UserProfile from '@/db/models/UserProfile';
 import Logger from '@/shared/utils/Logger';
 import { notificationAnalytics } from '../notification-analytics';
 import { shouldSendSocialBatteryNotification } from '../notification-grace-periods';
-import { NotificationChannel } from '../../types';
+import { NotificationChannel } from '@/modules/notifications';
 
 const ID_PREFIX = 'daily-battery-checkin';
 

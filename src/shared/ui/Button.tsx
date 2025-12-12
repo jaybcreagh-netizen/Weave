@@ -28,91 +28,51 @@ export function Button({
 }: ButtonProps) {
     const { colors } = useTheme();
 
-    // Base container styles
-    let containerStyle = 'flex-row items-center justify-center rounded-xl';
+    // Map variant to container classes
+    const variantClasses = {
+        primary: 'bg-primary border border-transparent',
+        secondary: 'bg-secondary border border-transparent',
+        outline: 'bg-transparent border border-border',
+        ghost: 'bg-transparent border border-transparent',
+        destructive: 'bg-destructive border border-transparent',
+    };
 
-    // Size styles
-    switch (size) {
-        case 'sm':
-            containerStyle += ' px-3 py-2';
-            break;
-        case 'md':
-            containerStyle += ' px-4 py-3';
-            break;
-        case 'lg':
-            containerStyle += ' px-6 py-4';
-            break;
-    }
+    // Map size to container padding
+    const sizeClasses = {
+        sm: 'px-3 py-2',
+        md: 'px-4 py-3',
+        lg: 'px-6 py-4',
+    };
 
-    // Width
-    if (fullWidth) {
-        containerStyle += ' w-full';
-    }
+    // Construct container class
+    const containerClass = [
+        'flex-row items-center justify-center rounded-xl',
+        sizeClasses[size],
+        fullWidth ? 'w-full' : '',
+        variantClasses[variant],
+        (disabled || loading) ? 'opacity-50' : '',
+        className
+    ].filter(Boolean).join(' ');
 
-    // Variant styles (backgrounds and borders)
-    // We'll use inline styles for colors mostly to be safe with theme
-    const getVariantStyles = () => {
+    // Determine text color based on variant
+    // We pass this as className to the Text component to override default color
+    const getTextColorClass = () => {
         switch (variant) {
-            case 'primary':
-                return {
-                    backgroundColor: colors.primary,
-                    borderColor: 'transparent',
-                    borderWidth: 0,
-                };
-            case 'secondary':
-                return {
-                    backgroundColor: colors.secondary,
-                    borderColor: 'transparent',
-                    borderWidth: 0,
-                };
+            case 'primary': return 'text-primary-foreground';
+            case 'secondary': return 'text-secondary-foreground';
+            case 'destructive': return 'text-destructive-foreground';
             case 'outline':
-                return {
-                    backgroundColor: 'transparent',
-                    borderColor: colors.border,
-                    borderWidth: 1,
-                };
             case 'ghost':
-                return {
-                    backgroundColor: 'transparent',
-                    borderColor: 'transparent',
-                    borderWidth: 0,
-                };
-            case 'destructive':
-                return {
-                    backgroundColor: colors.destructive,
-                    borderColor: 'transparent',
-                    borderWidth: 0,
-                };
-            default:
-                return {};
+            default: return 'text-foreground';
         }
     };
 
-    // Text color based on variant
-    const getTextColor = () => {
-        switch (variant) {
-            case 'primary':
-                return 'primary-foreground';
-            case 'secondary':
-                return 'secondary-foreground';
-            case 'outline':
-                return 'default';
-            case 'ghost':
-                return 'default';
-            case 'destructive':
-                return 'white'; // Usually white on destructive
-            default:
-                return 'default';
-        }
-    };
-
-    const variantStyles = getVariantStyles();
-    const textColor = getTextColor();
+    const textClass = getTextColorClass();
 
     return (
         <TouchableOpacity
-            className={`${containerStyle} ${className} ${disabled || loading ? 'opacity-50' : ''}`}
-            style={[variantStyles, style]}
+            className={containerClass}
+            style={style}
             disabled={disabled || loading}
             activeOpacity={0.7}
             {...props}
@@ -120,7 +80,7 @@ export function Button({
             {loading ? (
                 <ActivityIndicator
                     size="small"
-                    color={variant === 'outline' || variant === 'ghost' ? colors.foreground : '#FFFFFF'}
+                    color={['outline', 'ghost'].includes(variant) ? colors.foreground : '#FFFFFF'}
                 />
             ) : (
                 <>
@@ -128,8 +88,11 @@ export function Button({
                     {label ? (
                         <Text
                             variant="button"
-                            color={textColor as any}
-                            style={variant === 'primary' ? { color: colors['primary-foreground'] } : {}}
+                            className={textClass}
+                        // We don't use 'color' prop here, we assume className handles it.
+                        // However, Text component default 'color="default"' adds 'text-foreground'.
+                        // If we pass className 'text-primary-foreground', it should win via cascade or order.
+                        // In my Text implementation, className is last, so it should win.
                         >
                             {label}
                         </Text>

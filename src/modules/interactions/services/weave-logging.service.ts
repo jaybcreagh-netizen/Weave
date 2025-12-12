@@ -3,22 +3,14 @@ import { Q } from '@nozbe/watermelondb';
 import FriendModel from '@/db/models/Friend';
 import Interaction from '@/db/models/Interaction';
 import InteractionFriend from '@/db/models/InteractionFriend';
-import { processWeaveScoring } from '@/modules/intelligence/services/orchestrator.service';
-import { useUserProfileStore } from '@/modules/auth';
-import { checkAndAwardFriendBadges } from '@/modules/gamification/services/badge.service';
-import { checkAndAwardGlobalAchievements } from '@/modules/gamification/services/achievement.service';
-import { recordPractice } from '@/modules/gamification/services/milestone-tracker.service';
 import { InteractionFormData } from '../types';
 import { WeaveLogSchema } from '@/shared/types/validators';
 
 // TODO: These should be moved to the insights module
 import { trackEvent, AnalyticsEvents, updateLastInteractionTimestamp } from '@/shared/services/analytics.service';
-import { analyzeAndTagLifeEvents } from '@/modules/relationships/services/life-event-detection';
 import { deleteWeaveCalendarEvent } from './calendar.service';
-import { checkTierSuggestionAfterInteraction } from '@/modules/insights/services/tier-suggestion-engine.service';
-import { analyzeTierFit } from '@/modules/insights/services/tier-fit.service';
-import { updateTierFit } from '@/modules/insights/services/tier-management.service';
 import Logger from '@/shared/utils/Logger';
+import { eventBus } from '@/shared/events/event-bus';
 
 export async function logWeave(data: InteractionFormData): Promise<Interaction> {
     // Validate input data
@@ -75,20 +67,19 @@ export async function logWeave(data: InteractionFormData): Promise<Interaction> 
         return { interaction: newInteraction };
     });
 
-    // 2. Run Side Effects (Sequential, outside main transaction to avoid deadlocks)
+
+    // 2. Run Side Effects (Decoupled via Event Bus)
+    // We emit the event and let subscribers handle scoring, gamification, analytics, etc.
+    // This resolves circular dependencies.
     try {
-        // Scoring (with season-aware bonuses)
-        const currentSeason = useUserProfileStore.getState().getSocialSeason();
-        await processWeaveScoring(friends, data, database, currentSeason);
+        await eventBus.emit('interaction:created', {
+            interactionId: interaction.id,
+            friends,
+            data
+        });
 
-        // Badges & Achievements
-        for (const friend of friends) {
-            await checkAndAwardFriendBadges(friend.id, friend.name);
-        }
-
-        await checkAndAwardGlobalAchievements();
-
-        // Analytics
+        // Analytics - We keep this here as it's a cross-cutting concern often tied to the action itself,
+        // but it could also be moved to a listener if desired. For now, we leave it to match the plan.
         trackEvent(AnalyticsEvents.INTERACTION_LOGGED, {
             activity: data.activity,
             category: data.category,
@@ -101,64 +92,11 @@ export async function logWeave(data: InteractionFormData): Promise<Interaction> 
         });
         updateLastInteractionTimestamp();
 
-        // Gamification
-        await recordPractice('log_weave', interaction.id);
-
-        // Insights (Life Events)
-        if (data.notes && data.notes.trim().length > 0) {
-            for (const friend of friends) {
-                try {
-                    await analyzeAndTagLifeEvents(friend.id, data.notes, data.date);
-                } catch (error) {
-                    Logger.error('Error analyzing life events:', error);
-                }
-            }
-        }
-
-        // Tier Intelligence: Always analyze and persist patterns after interaction
-        for (const friend of friends) {
-            try {
-                // Refetch friend to get updated ratedWeavesCount after scoring
-                const updatedFriend = await database.get<FriendModel>('friends').find(friend.id);
-                const wasFirstInteraction = updatedFriend.ratedWeavesCount === 1;
-
-                // Skip tier analysis for first interaction - need at least 2 for patterns
-                if (wasFirstInteraction) {
-                    continue;
-                }
-
-                // Always run tier fit analysis to update cached interval data
-                const analysis = await analyzeTierFit(updatedFriend);
-
-                // Only persist if we have valid data (not insufficient_data)
-                if (analysis.fitCategory !== 'insufficient_data' && analysis.actualIntervalDays > 0) {
-                    await updateTierFit(
-                        updatedFriend.id,
-                        analysis.fitScore,
-                        analysis.suggestedTier,
-                        analysis.actualIntervalDays // Always persist the calculated interval
-                    );
-
-                    // Log suggestion if there's a mismatch at a milestone
-                    if (analysis.suggestedTier) {
-                        const suggestion = await checkTierSuggestionAfterInteraction(
-                            updatedFriend.id,
-                            wasFirstInteraction
-                        );
-                        if (suggestion) {
-                            Logger.info(`[WeaveLogging] Tier suggestion for ${updatedFriend.name}: ${analysis.currentTier} → ${analysis.suggestedTier}`);
-                        }
-                    }
-                }
-            } catch (error) {
-                Logger.error('Error updating tier patterns:', error);
-            }
-        }
     } catch (error) {
-        Logger.error('Error running side effects for logWeave:', error);
+        Logger.error('Error emitting interaction event:', error);
         // We do NOT throw here, because the interaction was successfully created.
-        // Failing side effects shouldn't block the user flow.
     }
+
 
     return interaction;
 }

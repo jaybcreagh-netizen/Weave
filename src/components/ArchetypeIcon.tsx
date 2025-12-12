@@ -13,15 +13,19 @@ import LoversIcon from '@/assets/TarotIcons/TheLovers.svg';
 
 interface ArchetypeIconProps {
   archetype: Archetype;
-  size: number;
-  color: string;
+  size?: number;
+  width?: number;
+  height?: number;
+  color?: string;
+  style?: any;
 }
 
-export function ArchetypeIcon({ archetype, size, color }: ArchetypeIconProps) {
+export function ArchetypeIcon({ archetype, size = 24, width, height, color, style }: ArchetypeIconProps) {
   const iconProps: SvgProps = {
-    width: size,
-    height: size,
+    width: width || size,
+    height: height || size,
     fill: color,
+    style
   };
 
   switch (archetype) {

@@ -1,8 +1,8 @@
 import * as Notifications from 'expo-notifications';
 import Logger from '@/shared/utils/Logger';
 import { notificationAnalytics } from '../notification-analytics';
-import { NotificationChannel } from '../../types';
-import { FocusGenerator, FocusData } from '@/modules/intelligence/services/focus-generator';
+import { NotificationChannel } from '@/modules/notifications';
+import { FocusGenerator, FocusData } from '@/modules/intelligence';
 import { notificationStore } from '../notification-store';
 import { differenceInDays } from 'date-fns';
 

@@ -432,6 +432,7 @@ export function FriendSelector({
             height="full"
             title="Add Friends"
             footerComponent={footerContent}
+            disableContentPanning
         >
             {Content}
         </StandardBottomSheet>

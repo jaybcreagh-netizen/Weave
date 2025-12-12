@@ -15,7 +15,7 @@ import { Q } from '@nozbe/watermelondb';
 import Logger from '@/shared/utils/Logger';
 import { notificationAnalytics } from '../notification-analytics';
 import { notificationStore } from '../notification-store';
-import { NotificationChannel, NotificationPreferences } from '../../types';
+import { NotificationChannel, NotificationPreferences } from '@/modules/notifications';
 import { generateSuggestion } from '@/modules/interactions';
 import { calculateCurrentScore } from '@/modules/intelligence';
 import { HydratedFriend } from '@/types/hydrated';

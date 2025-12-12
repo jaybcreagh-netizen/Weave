@@ -1,5 +1,5 @@
 import { Suggestion } from '@/shared/types/common';
-import { type FriendshipPortfolio, type PortfolioImbalance } from '@/modules/insights/types';
+import { type FriendshipPortfolio, type PortfolioImbalance, type FlexibilityMode } from '../types';
 
 /**
  * Generates portfolio-level suggestions based on network-wide imbalances

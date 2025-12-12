@@ -1,14 +1,18 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, Modal } from 'react-native';
-import { X } from 'lucide-react-native';
+import React, { useState, useMemo } from 'react';
+import { View, TouchableOpacity, ScrollView, Modal, StyleSheet } from 'react-native';
+import { X, CalendarDays, Check } from 'lucide-react-native';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { useTheme } from '@/shared/hooks/useTheme';
-import { AnimatedBottomSheet } from '@/shared/ui/Sheet';
+import { StandardBottomSheet } from '@/shared/ui/Sheet';
+import { Text } from '@/shared/ui/Text';
+import { Input } from '@/shared/ui/Input';
+import { Button } from '@/shared/ui/Button';
+import { Card } from '@/shared/ui/Card';
+import { Icon } from '@/shared/ui/Icon';
 import { type Interaction, type InteractionCategory, type Vibe, type StructuredReflection } from './types';
 import { getAllCategories, getCategoryMetadata, type CategoryMetadata } from '@/shared/constants/interaction-categories';
 import { MoonPhaseSelector } from './MoonPhaseSelector';
 import { CustomCalendar } from '@/components/CustomCalendar';
-import { CalendarDays } from 'lucide-react-native';
 import { format } from 'date-fns';
 import { BlurView } from 'expo-blur';
 import { ReciprocitySelector, InitiatorType } from '@/components/ReciprocitySelector';
@@ -40,7 +44,7 @@ export function EditInteractionModal({
   onClose,
   onSave,
 }: EditInteractionModalProps) {
-  const { colors } = useTheme();
+  const { colors, isDarkMode } = useTheme();
   const [title, setTitle] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<InteractionCategory | null>(null);
   const [selectedVibe, setSelectedVibe] = useState<Vibe | null>(null);
@@ -49,7 +53,6 @@ export function EditInteractionModal({
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [initiator, setInitiator] = useState<InitiatorType | undefined>(undefined);
-  const { isDarkMode } = useTheme();
 
   // Update state when interaction changes
   React.useEffect(() => {
@@ -112,60 +115,77 @@ export function EditInteractionModal({
     }
   };
 
+  // Calculate dirty state
+  const isDirty = React.useMemo(() => {
+    if (!interaction) return false;
+
+    const initialTitle = interaction.title || '';
+    const initialCategory = (interaction.interactionCategory || interaction.activity) as InteractionCategory;
+    const initialVibe = interaction.vibe || null;
+    const initialNotes = interaction.reflection?.customNotes || interaction.note || '';
+    // Handle potential string dates if data isn't perfectly typed at runtime, though types say Date.
+    const initialDate = interaction.interactionDate instanceof Date ? interaction.interactionDate.getTime() : new Date(interaction.interactionDate).getTime();
+    const initialInitiator = interaction.initiator as InitiatorType | undefined;
+
+    // Current date comparison
+    const currentDate = selectedDate ? selectedDate.getTime() : 0;
+
+    return (
+      title !== initialTitle ||
+      selectedCategory !== initialCategory ||
+      selectedVibe !== initialVibe ||
+      customNotes !== initialNotes ||
+      currentDate !== initialDate ||
+      initiator !== initialInitiator
+    );
+  }, [interaction, title, selectedCategory, selectedVibe, customNotes, selectedDate, initiator]);
+
   if (!interaction) return null;
 
+  const footerComponent = React.useMemo(() => (
+    <Button
+      label="Save Changes"
+      onPress={handleSave}
+      loading={isSaving}
+      disabled={isSaving || !selectedCategory}
+      fullWidth
+      variant="primary"
+    />
+  ), [isSaving, selectedCategory, handleSave]);
+
   return (
-    <AnimatedBottomSheet
+    <StandardBottomSheet
       visible={isOpen}
       onClose={onClose}
+      hasUnsavedChanges={isDirty}
       height="full"
       title="Edit Weave"
       scrollable
-      footerComponent={
-        <TouchableOpacity
-          style={[styles.saveButton, { backgroundColor: colors.primary }]}
-          onPress={handleSave}
-          disabled={isSaving || !selectedCategory}
-        >
-          <Text style={[styles.saveButtonText, { color: colors['primary-foreground'] }]}>
-            {isSaving ? 'Saving...' : 'Save Changes'}
-          </Text>
-        </TouchableOpacity>
-      }
+      footerComponent={footerComponent}
     >
-      <View style={styles.scrollViewContent}>
+      <View className="px-5 pb-10 gap-8">
         {/* Title Input */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-            Title
-          </Text>
-          <TextInput
-            style={[
-              styles.titleInput,
-              { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }
-            ]}
+        <View>
+          <Input
+            label="Title"
             placeholder='e.g., "Coffee at Blue Bottle"'
-            placeholderTextColor={colors['muted-foreground']}
             value={title}
             onChangeText={setTitle}
           />
         </View>
 
         {/* Date Selection */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
+        <View>
+          <Text variant="label" className="mb-2" style={{ color: colors.foreground }}>
             Date
           </Text>
           <TouchableOpacity
             onPress={() => setShowDatePicker(true)}
-            style={[
-              styles.dateInput,
-              { backgroundColor: colors.card, borderColor: colors.border }
-            ]}
+            activeOpacity={0.7}
           >
-            <View style={styles.dateContent}>
+            <View className="flex-row items-center gap-3 p-4 border rounded-xl" style={{ backgroundColor: colors.card, borderColor: colors.border }}>
               <CalendarDays size={20} color={colors.primary} />
-              <Text style={[styles.dateText, { color: colors.foreground }]}>
+              <Text variant="body">
                 {selectedDate ? format(selectedDate, 'EEEE, MMMM d, yyyy') : 'Select date'}
               </Text>
             </View>
@@ -173,51 +193,57 @@ export function EditInteractionModal({
         </View>
 
         {/* Category Selection */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
+        <View>
+          <Text variant="label" className="mb-3" style={{ color: colors.foreground }}>
             Category
           </Text>
-          <View style={styles.gridContainer}>
-            {categories.map((cat, index) => (
-              <Animated.View
-                key={cat.id}
-                style={{ width: '48%' }}
-              >
-                <TouchableOpacity
-                  style={[
-                    styles.gridItem,
-                    { backgroundColor: colors.card, borderColor: colors.border },
-                    selectedCategory === cat.id && [
-                      styles.gridItemSelected,
-                      { borderColor: colors.primary }
-                    ]
-                  ]}
-                  onPress={() => setSelectedCategory(cat.id)}
+          <View className="flex-row flex-wrap justify-between gap-y-3">
+            {categories.map((cat) => {
+              const isSelected = selectedCategory === cat.id;
+              return (
+                <Animated.View
+                  key={cat.id}
+                  className="w-[48%]"
                 >
-                  <Text style={styles.gridItemIcon}>{cat.icon}</Text>
-                  <Text style={[styles.gridItemLabel, { color: colors.foreground }]}>
-                    {cat.label}
-                  </Text>
-                  <Text style={[styles.gridItemSublabel, { color: colors['muted-foreground'] }]}>
-                    {cat.description}
-                  </Text>
-                </TouchableOpacity>
-              </Animated.View>
-            ))}
+                  <TouchableOpacity
+                    onPress={() => setSelectedCategory(cat.id)}
+                    activeOpacity={0.7}
+                    className={`p-3 rounded-2xl border items-center justify-center min-h-[120px] ${isSelected ? 'border-2' : 'border'}`}
+                    style={{
+                      backgroundColor: colors.card,
+                      borderColor: isSelected ? colors.primary : colors.border,
+                      shadowColor: '#000',
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: 0.05,
+                      shadowRadius: 8,
+                      elevation: 2,
+                    }}
+                  >
+                    <Text className="text-3xl mb-2">{cat.icon}</Text>
+                    <Text variant="body" weight="semibold" className="text-center mb-1">
+                      {cat.label}
+                    </Text>
+                    <Text variant="caption" color="muted" className="text-center text-xs">
+                      {cat.description}
+                    </Text>
+                  </TouchableOpacity>
+                </Animated.View>
+              );
+            })}
           </View>
         </View>
 
         {/* Vibe Selection */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
+        <View>
+          <Text variant="label" className="mb-3" style={{ color: colors.foreground }}>
             Vibe
           </Text>
           <MoonPhaseSelector onSelect={setSelectedVibe} selectedVibe={selectedVibe} />
         </View>
 
         {/* Reciprocity Section */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
+        <View>
+          <Text variant="label" className="mb-3" style={{ color: colors.foreground }}>
             Who initiated?
           </Text>
           <ReciprocitySelector
@@ -228,27 +254,20 @@ export function EditInteractionModal({
         </View>
 
         {/* Notes */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-            Notes
-          </Text>
-          <TextInput
-            style={[
-              styles.notesInput,
-              { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }
-            ]}
+        <View>
+          <Input
+            label="Notes"
             placeholder="Add notes about this moment..."
-            placeholderTextColor={colors['muted-foreground']}
             value={customNotes}
             onChangeText={setCustomNotes}
             multiline
             numberOfLines={4}
-            textAlignVertical="top"
+            style={{ minHeight: 120, textAlignVertical: 'top', paddingTop: 12 }}
           />
         </View>
       </View>
 
-      {/* Calendar Modal */}
+      {/* Calendar Modal - Keeping legacy simple modal for date picker to avoid nesting sheets complexities, but styled with NativeWind */}
       {showDatePicker && (
         <Modal
           visible={true}
@@ -258,25 +277,23 @@ export function EditInteractionModal({
         >
           <BlurView intensity={isDarkMode ? 20 : 40} tint={isDarkMode ? 'dark' : 'light'} style={StyleSheet.absoluteFill}>
             <TouchableOpacity
-              style={styles.modalOverlay}
+              className="flex-1 justify-center items-center p-5"
               activeOpacity={1}
               onPress={() => setShowDatePicker(false)}
             >
               <Animated.View
                 entering={FadeInUp.duration(200).springify()}
-                style={[
-                  styles.calendarContainer,
-                  {
-                    backgroundColor: isDarkMode ? colors.background + 'F5' : colors.background + 'F8',
-                  }
-                ]}
+                className="w-full max-w-md rounded-3xl p-6 shadow-2xl"
+                style={{
+                  backgroundColor: isDarkMode ? colors.background + 'F5' : colors.background + 'F8',
+                }}
                 onStartShouldSetResponder={() => true}
               >
-                <View style={styles.calendarHeader}>
-                  <Text style={[styles.calendarTitle, { color: colors.foreground }]}>
+                <View className="flex-row justify-between items-center mb-4">
+                  <Text variant="h3" weight="bold">
                     Pick a Date
                   </Text>
-                  <TouchableOpacity onPress={() => setShowDatePicker(false)} style={styles.closeCalendarButton}>
+                  <TouchableOpacity onPress={() => setShowDatePicker(false)} className="p-2 -mr-2">
                     <X color={colors['muted-foreground']} size={22} />
                   </TouchableOpacity>
                 </View>
@@ -287,165 +304,12 @@ export function EditInteractionModal({
                     setSelectedDate(date);
                     setShowDatePicker(false);
                   }}
-                // Let's allow any date for now as it's an edit.
                 />
               </Animated.View>
             </TouchableOpacity>
           </BlurView>
         </Modal>
       )}
-    </AnimatedBottomSheet>
+    </StandardBottomSheet>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    padding: 20,
-    borderBottomWidth: 1,
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  headerSubtitle: {
-    fontSize: 14,
-  },
-  closeButton: {
-    padding: 8,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollViewContent: {
-    padding: 20,
-    paddingBottom: 40,
-  },
-  section: {
-    marginBottom: 32,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 12,
-  },
-  titleInput: {
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 16,
-    fontSize: 16,
-  },
-  notesInput: {
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 16,
-    fontSize: 16,
-    minHeight: 120,
-  },
-  gridContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
-  gridItem: {
-    width: '100%',
-    minHeight: 120,
-    borderWidth: 1,
-    borderRadius: 16,
-    padding: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  gridItemSelected: {
-    borderWidth: 2,
-  },
-  gridItemIcon: {
-    fontSize: 32,
-    marginBottom: 8,
-  },
-  gridItemLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  gridItemSublabel: {
-    fontSize: 12,
-    marginTop: 2,
-    textAlign: 'center',
-  },
-  footer: {
-    padding: 20,
-    borderTopWidth: 1,
-  },
-  saveButton: {
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  saveButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  dateInput: {
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 16,
-  },
-  dateContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  dateText: {
-    fontSize: 16,
-  },
-  modalOverlay: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  calendarContainer: {
-    width: '100%',
-    maxWidth: 400,
-    borderRadius: 24,
-    padding: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 20 },
-    shadowOpacity: 0.25,
-    shadowRadius: 30,
-    elevation: 20,
-  },
-  calendarHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  calendarTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    fontFamily: 'Lora-Bold',
-  },
-  closeCalendarButton: {
-    padding: 8,
-    marginRight: -8,
-  },
-});

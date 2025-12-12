@@ -22,8 +22,9 @@ export interface StandardBottomSheetProps {
    * - 'action': 35% - Quick action sheets with 2-3 options
    * - 'form': 65% - Forms, selectors, moderate content
    * - 'full': 90% - Complex content, long forms, scrollable lists
+   * - 'auto': Dynamic - Fits content height
    */
-  height?: SheetHeight;
+  height?: SheetHeight | 'auto';
 
   /**
    * Custom snap points (overrides height variant)
@@ -88,4 +89,30 @@ export interface StandardBottomSheetProps {
    * Useful for primary actions (e.g., Save, Submit) that should always be visible
    */
   footerComponent?: ReactNode;
+  /**
+   * Manually disable content panning gesture (useful for custom scrollables like FlatList)
+   */
+  disableContentPanning?: boolean;
+
+  /**
+   * Render function for custom scrollable content (BottomSheetFlatList, BottomSheetFlashList, etc.)
+   * When provided, this renders directly inside the BottomSheet with proper header spacing,
+   * bypassing the ContentWrapper to avoid gesture conflicts.
+   * Use this for FlatLists/FlashLists that need proper scroll gesture handling.
+   */
+  renderScrollContent?: () => ReactNode;
+
+  /**
+   * Whether the sheet has unsaved changes.
+   * If true, attempting to close the sheet (via backdrop press, close button, or swipe if enabled)
+   * will trigger a confirmation alert.
+   * @default false
+   */
+  hasUnsavedChanges?: boolean;
+
+  /**
+   * Custom message to display in the unsaved changes alert
+   * @default "Discard Changes? You have unsaved changes. Are you sure you want to discard them?"
+   */
+  confirmCloseMessage?: string;
 }

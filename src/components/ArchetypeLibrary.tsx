@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Modal } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { X, Sparkles } from 'lucide-react-native';
+import { Sparkles, X } from 'lucide-react-native';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import { AnimatedBottomSheet } from '@/shared/ui/Sheet';
@@ -10,40 +9,8 @@ import { type Archetype, type InteractionCategory } from './types';
 import { archetypeData, CategoryArchetypeMatrix } from '@/shared/constants/constants';
 import { CATEGORY_METADATA } from '@/shared/constants/interaction-categories';
 import { useTheme } from '@/shared/hooks/useTheme';
-
-// Import SVG files as components
-import EmperorSvg from '@/assets/TarotIcons/TheEmperor.svg';
-import EmpressSvg from '@/assets/TarotIcons/TheEmpress.svg';
-import HighPriestessSvg from '@/assets/TarotIcons/HighPriestess.svg';
-import FoolSvg from '@/assets/TarotIcons/TheFool.svg';
-import SunSvg from '@/assets/TarotIcons/TheSun.svg';
-import HermitSvg from '@/assets/TarotIcons/TheHermit.svg';
-import MagicianSvg from '@/assets/TarotIcons/TheMagician.svg';
-import LoversSvg from '@/assets/TarotIcons/TheLovers.svg';
-
-const TAROT_CARD_COMPONENTS: Record<Archetype, React.FC<any>> = {
-  Emperor: EmperorSvg,
-  Empress: EmpressSvg,
-  HighPriestess: HighPriestessSvg,
-  Fool: FoolSvg,
-  Sun: SunSvg,
-  Hermit: HermitSvg,
-  Magician: MagicianSvg,
-  Lovers: LoversSvg,
-  Unknown: React.Fragment,
-};
-
-const ARCHETYPE_GRADIENTS: Record<Archetype, string[]> = {
-  Emperor: ['#ef4444', '#dc2626'],
-  Empress: ['#10b981', '#059669'],
-  HighPriestess: ['#8b5cf6', '#7c3aed'],
-  Fool: ['#f59e0b', '#d97706'],
-  Sun: ['#eab308', '#ca8a04'],
-  Hermit: ['#6366f1', '#4f46e5'],
-  Magician: ['#ec4899', '#db2777'],
-  Lovers: ['#fb7185', '#f43f5e'],
-  Unknown: ['#9ca3af', '#6b7280'],
-};
+import { ArchetypeCard } from './ArchetypeCard';
+import { ArchetypeIcon } from './ArchetypeIcon';
 
 const ALL_ARCHETYPES: Archetype[] = [
   'Emperor',
@@ -121,72 +88,16 @@ export function ArchetypeLibrary({ isVisible, onClose }: ArchetypeLibraryProps) 
 
       {/* Archetype Grid */}
       <View style={{ padding: 20 }}>
-        <View className="flex-row flex-wrap gap-3">
-          {ALL_ARCHETYPES.map((archetype) => {
-            const data = archetypeData[archetype];
-            const gradient = ARCHETYPE_GRADIENTS[archetype];
-
-            return (
-              <TouchableOpacity
-                key={archetype}
+        <View className="flex-row flex-wrap gap-3 justify-between">
+          {ALL_ARCHETYPES.map((archetype) => (
+            <View key={archetype} style={{ width: '48%', marginBottom: 12 }}>
+              <ArchetypeCard
+                archetype={archetype}
                 onPress={() => handleArchetypePress(archetype)}
-                className="rounded-2xl overflow-hidden"
-                style={{
-                  width: '48%',
-                  minHeight: 200,
-                  backgroundColor: colors.card,
-                  shadowColor: '#000',
-                  shadowOpacity: 0.1,
-                  shadowOffset: { width: 0, height: 2 },
-                  shadowRadius: 8,
-                  elevation: 3,
-                }}
-                activeOpacity={0.8}
-              >
-                <LinearGradient
-                  colors={[...gradient.map(c => c + '15'), 'transparent'] as any}
-                  className="absolute inset-0"
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                />
-
-                <View className="items-center justify-center p-4 relative z-10">
-                  <View
-                    className="mb-2"
-                    style={{
-                      width: 70,
-                      height: 105,
-                      shadowColor: gradient[0],
-                      shadowOpacity: 0.2,
-                      shadowOffset: { width: 0, height: 2 },
-                      shadowRadius: 6,
-                    }}
-                  >
-                    {React.createElement(TAROT_CARD_COMPONENTS[archetype], {
-                      width: 70,
-                      height: 105,
-                      color: colors.foreground,
-                    })}
-                  </View>
-
-                  <Text
-                    className="font-lora text-base font-semibold text-center mb-1"
-                    style={{ color: colors.foreground }}
-                  >
-                    {data.name.replace('The ', '')}
-                  </Text>
-
-                  <Text
-                    className="font-inter text-[11px] text-center"
-                    style={{ color: colors['muted-foreground'] }}
-                    numberOfLines={2}
-                  >
-                    {data.essence}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            );
-          })}
+                className="w-full"
+              />
+            </View>
+          ))}
         </View>
       </View>
 
@@ -227,7 +138,7 @@ export function ArchetypeLibrary({ isVisible, onClose }: ArchetypeLibraryProps) 
                     showsVerticalScrollIndicator={false}
                     contentContainerStyle={{ alignItems: 'center', paddingHorizontal: 16, paddingBottom: 20 }}
                   >
-                    {/* Tarot Card */}
+                    {/* Tarot Card via ArchetypeIcon */}
                     <View
                       className="mb-4 mt-2"
                       style={{
@@ -235,10 +146,12 @@ export function ArchetypeLibrary({ isVisible, onClose }: ArchetypeLibraryProps) 
                         height: 180,
                       }}
                     >
-                      {React.createElement(TAROT_CARD_COMPONENTS[selectedArchetype], {
-                        width: 120,
-                        height: 180,
-                      })}
+                      <ArchetypeIcon
+                        archetype={selectedArchetype}
+                        width={120}
+                        height={180}
+                        color={colors.foreground}
+                      />
                     </View>
 
                     {/* Name & Essence */}

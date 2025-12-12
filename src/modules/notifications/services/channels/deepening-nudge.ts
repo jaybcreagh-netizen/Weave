@@ -12,7 +12,7 @@ import { Q } from '@nozbe/watermelondb';
 import Logger from '@/shared/utils/Logger';
 import { notificationAnalytics } from '../notification-analytics';
 import { notificationStore } from '../notification-store';
-import { NotificationChannel } from '../../types';
+import { NotificationChannel } from '@/modules/notifications';
 import UserProfile from '@/db/models/UserProfile';
 import { shouldSendNotification } from '../season-notifications.service';
 

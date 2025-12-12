@@ -5,7 +5,7 @@ import { TierDecayRates } from '../constants';
 import { daysSince } from '@/shared/utils/date-utils';
 import { calculateFlexibleDecay } from './flexible-decay.service';
 import { getSeasonDecayMultiplier } from './social-season/season-decay.service';
-import type { FlexibilityMode } from '@/modules/insights/types';
+import type { FlexibilityMode } from '@/modules/insights';
 import type { Tier } from '@/shared/types/common';
 import type { SocialSeason } from '@/db/models/UserProfile';
 

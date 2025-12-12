@@ -3,7 +3,7 @@ import type FriendModel from '@/db/models/Friend';
 import { type Friend } from '@/components/types';
 import { TierDecayRates } from '../constants';
 import { Tier } from '@/shared/types/common';
-import type { FlexibilityMode } from '@/modules/insights/types';
+import type { FlexibilityMode } from '@/modules/insights';
 
 /**
  * Tier expected interaction intervals (in days)

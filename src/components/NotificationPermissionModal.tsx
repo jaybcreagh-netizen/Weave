@@ -11,7 +11,7 @@ import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { theme } from '@/shared/theme/theme';
 import { trackEvent } from '@/shared/services/analytics.service';
-import { notificationAnalytics } from '@/modules/notifications/services/notification-analytics';
+import { notificationAnalytics } from '@/modules/notifications';
 
 interface NotificationPermissionModalProps {
   visible: boolean;

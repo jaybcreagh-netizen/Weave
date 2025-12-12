@@ -11,8 +11,8 @@ import { AlertCircle, CheckCircle, TrendingUp, ChevronDown, ChevronUp } from 'lu
 import { useTheme } from '@/shared/hooks/useTheme';
 import { useNetworkTierHealth, TierFitBottomSheet } from '@/modules/insights';
 import type { Tier } from '@/shared/types/core';
-import type { TierFitAnalysis } from '@/modules/insights/types';
-import { changeFriendTier, dismissTierSuggestion } from '@/modules/insights/services/tier-management.service';
+import type { TierFitAnalysis } from '@/modules/insights';
+import { changeFriendTier, dismissTierSuggestion } from '@/modules/insights';
 import { useUIStore } from '@/stores/uiStore';
 
 const TIER_DISPLAY_NAMES: Record<Tier, string> = {

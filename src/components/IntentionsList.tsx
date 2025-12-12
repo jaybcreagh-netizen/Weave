@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { View, TouchableOpacity, ScrollView, StyleSheet, Alert } from 'react-native';
 import { formatDistanceToNow } from 'date-fns';
 import { Q } from '@nozbe/watermelondb';
 import { Trash2, Target } from 'lucide-react-native';
@@ -10,6 +10,7 @@ import FriendModel from '@/db/models/Friend';
 import IntentionFriend from '@/db/models/IntentionFriend';
 import { InteractionCategory } from './types';
 import { database } from '@/db';
+import { Text } from '@/shared/ui/Text'; // Use shared Text component
 
 interface IntentionWithFriend {
   intention: Intention;
@@ -23,10 +24,10 @@ interface IntentionsListProps {
 
 /**
  * Displays active intentions at the top of Insights sheet
- * Always visible section - shows "No intentions set" when empty
+ * Horizontal scrolling layout for a more modern feel
  */
 export function IntentionsList({ intentions, onIntentionPress }: IntentionsListProps) {
-  const { colors } = useTheme();
+  const { colors, tokens } = useTheme();
   const [intentionsWithFriends, setIntentionsWithFriends] = useState<IntentionWithFriend[]>([]);
 
   const clearAllIntentions = async () => {
@@ -45,12 +46,9 @@ export function IntentionsList({ intentions, onIntentionPress }: IntentionsListP
               record.status = 'dismissed';
             })
           );
-
-          // Use spread operator to ensure compatibility with all WatermelonDB versions
           await database.batch(...updates);
         }
       });
-      console.log('[IntentionsList] Intentions cleared successfully');
     } catch (error) {
       console.error('[IntentionsList] Error clearing intentions:', error);
       Alert.alert('Error', 'Failed to clear intentions');
@@ -60,14 +58,12 @@ export function IntentionsList({ intentions, onIntentionPress }: IntentionsListP
   const cleanupOrphanedIntentions = async () => {
     try {
       await database.write(async () => {
-        // Find active intentions
         const activeIntentions = await database.get<Intention>('intentions')
           .query(Q.where('status', 'active'))
           .fetch();
 
         const intentionsToDelete: Intention[] = [];
 
-        // Check each for friends
         for (const intention of activeIntentions) {
           const count = await intention.intentionFriends.fetchCount();
           if (count === 0) {
@@ -79,7 +75,6 @@ export function IntentionsList({ intentions, onIntentionPress }: IntentionsListP
           await database.batch(
             intentionsToDelete.map(intention => intention.prepareDestroyPermanently())
           );
-          console.log(`Cleaned up ${intentionsToDelete.length} orphaned intentions`);
         }
       });
     } catch (error) {
@@ -87,35 +82,28 @@ export function IntentionsList({ intentions, onIntentionPress }: IntentionsListP
     }
   };
 
-  // Clean up orphaned intentions on mount
   useEffect(() => {
     cleanupOrphanedIntentions().catch(error => {
       console.error('Error cleaning orphaned intentions:', error);
     });
   }, []);
 
-  // Load friend data for each intention
   useEffect(() => {
     const loadFriends = async () => {
       const withFriends = await Promise.all(
         intentions.map(async (intention) => {
-          // Get the IntentionFriend join records for this intention
           const intentionFriends = await database
             .get<IntentionFriend>('intention_friends')
             .query(Q.where('intention_id', intention.id))
             .fetch();
 
-          // Get the first friend (intentions can have multiple friends, but we'll show the first one)
           if (intentionFriends.length > 0) {
             const friend = await intentionFriends[0].friend.fetch();
             return { intention, friend };
           }
-
           return null;
         })
       );
-
-      // Filter out any null values (intentions without friends)
       setIntentionsWithFriends(withFriends.filter(Boolean) as IntentionWithFriend[]);
     };
 
@@ -131,151 +119,137 @@ export function IntentionsList({ intentions, onIntentionPress }: IntentionsListP
       'Clear All Intentions',
       'Are you sure you want to dismiss all active intentions?',
       [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Clear All',
-          style: 'destructive',
-          onPress: async () => {
-            await clearAllIntentions();
-          },
-        },
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Clear All', style: 'destructive', onPress: clearAllIntentions },
       ]
     );
   };
+
+  if (intentionsWithFriends.length === 0) {
+    return null; // Hide completely if empty to save space, or we can keep a "Good job" state
+  }
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <Target size={20} color={colors.primary} />
-          <Text style={[styles.headerTitle, { color: colors.foreground }]}>Connection Intentions</Text>
-          <Text style={[styles.headerCount, { color: colors['muted-foreground'] }]}>
-            {intentionsWithFriends.length}
+          <Text variant="h3" style={{ color: colors.foreground }}>
+            Focus & Intentions
           </Text>
+          <View style={[styles.countBadge, { backgroundColor: colors.secondary }]}>
+            <Text variant="caption" style={{ color: colors.foreground }}>
+              {intentionsWithFriends.length}
+            </Text>
+          </View>
         </View>
-        {intentionsWithFriends.length > 0 && (
-          <TouchableOpacity onPress={handleClearAll} style={styles.clearButton}>
-            <Trash2 size={18} color={colors['muted-foreground']} />
-          </TouchableOpacity>
-        )}
+        <TouchableOpacity onPress={handleClearAll} style={styles.clearButton}>
+          <Text variant="caption" style={{ color: colors['muted-foreground'] }}>Clear All</Text>
+        </TouchableOpacity>
       </View>
 
-      {intentionsWithFriends.length === 0 ? (
-        <Text style={[styles.emptyText, { color: colors['muted-foreground'] }]}>
-          No intentions set yet
-        </Text>
-      ) : (
-        <View style={styles.intentionsGrid}>
-          {intentionsWithFriends.map(({ intention, friend }) => {
-            const category = intention.interactionCategory
-              ? getCategoryMetadata(intention.interactionCategory as InteractionCategory)
-              : null;
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
+        {intentionsWithFriends.map(({ intention, friend }) => {
+          const category = intention.interactionCategory
+            ? getCategoryMetadata(intention.interactionCategory as InteractionCategory)
+            : null;
 
-            const timeAgo = formatDistanceToNow(intention.createdAt, { addSuffix: true });
-
-            return (
-              <TouchableOpacity
-                key={intention.id}
-                style={[styles.intentionCard, { backgroundColor: colors.card, borderColor: colors.border }]}
-                onPress={() => onIntentionPress(intention)}
-                activeOpacity={0.7}
-              >
-                <View style={styles.intentionContent}>
-                  {category && (
-                    <Text style={styles.categoryIcon}>{category.icon}</Text>
-                  )}
-                  <View style={styles.intentionText}>
-                    <Text style={[styles.friendName, { color: colors.foreground }]} numberOfLines={1}>
-                      {friend.name}
-                    </Text>
-                    {intention.description && (
-                      <Text style={[styles.description, { color: colors['muted-foreground'] }]} numberOfLines={1}>
-                        {intention.description}
-                      </Text>
-                    )}
-                  </View>
+          return (
+            <TouchableOpacity
+              key={intention.id}
+              style={[
+                styles.intentionCard,
+                {
+                  backgroundColor: colors.card,
+                  borderColor: colors.border,
+                  shadowColor: tokens.shadow.color
+                }
+              ]}
+              onPress={() => onIntentionPress(intention)}
+              activeOpacity={0.7}
+            >
+              <View style={styles.cardHeader}>
+                <View style={[styles.iconContainer, { backgroundColor: colors.secondary }]}>
+                  <Text style={{ fontSize: 16 }}>{category?.icon || '🎯'}</Text>
                 </View>
-                <Text style={[styles.timeAgo, { color: colors['muted-foreground'] }]}>
-                  {timeAgo}
+                <Text variant="caption" style={{ color: colors['muted-foreground'] }}>
+                  {formatDistanceToNow(intention.createdAt, { addSuffix: true })}
                 </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-      )}
+              </View>
+
+              <Text variant="body" weight="bold" style={{ color: colors.foreground, marginTop: 8 }} numberOfLines={1}>
+                {friend.name}
+              </Text>
+
+              {intention.description ? (
+                <Text variant="caption" style={{ color: colors['muted-foreground'], marginTop: 4 }} numberOfLines={2}>
+                  {intention.description}
+                </Text>
+              ) : (
+                <Text variant="caption" style={{ color: colors['muted-foreground'], marginTop: 4, fontStyle: 'italic' }}>
+                  No specifics set
+                </Text>
+              )}
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    // Removed background/border, keeping padding/margin for spacing
-    marginBottom: 20,
-    paddingHorizontal: 4,
+    marginBottom: 24,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 12,
+    paddingHorizontal: 4, // Align with parent padding
   },
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
-  headerTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    fontFamily: 'Lora_700Bold',
-  },
-  headerCount: {
-    fontSize: 14,
-    fontWeight: '500',
+  countBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 12,
   },
   clearButton: {
     padding: 4,
   },
-  emptyText: {
-    fontSize: 14,
-    fontStyle: 'italic',
-  },
-  intentionsGrid: {
+  scrollContent: {
+    paddingRight: 16, // End padding for scroll
     gap: 12,
   },
   intentionCard: {
+    width: 160,
+    padding: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  iconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     alignItems: 'center',
-    padding: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-  },
-  intentionContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    flex: 1,
-  },
-  categoryIcon: {
-    fontSize: 24,
-  },
-  intentionText: {
-    flex: 1,
-  },
-  friendName: {
-    fontSize: 15,
-    fontWeight: '600',
-    marginBottom: 2,
-  },
-  description: {
-    fontSize: 13,
-  },
-  timeAgo: {
-    fontSize: 12,
-    marginLeft: 8,
+    justifyContent: 'center',
   },
 });
+

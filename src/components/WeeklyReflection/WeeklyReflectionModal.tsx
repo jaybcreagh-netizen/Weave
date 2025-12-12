@@ -10,11 +10,13 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, TouchableOpacity } from 'react-native';
 import { WeaveLoading } from '@/shared/components/WeaveLoading';
 import { ChevronLeft } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { StandardBottomSheet } from '@/shared/ui/Sheet';
+import { Text } from '@/shared/ui/Text';
+import { Button } from '@/shared/ui/Button';
 import {
   scanWeekForUnloggedEvents,
   batchLogCalendarEvents,
@@ -35,7 +37,7 @@ import { database } from '@/db';
 import WeeklyReflection from '@/db/models/WeeklyReflection';
 import { ScannedEvent } from '@/modules/interactions';
 import * as Haptics from 'expo-haptics';
-import { WeeklyReflectionChannel } from '@/modules/notifications/services/channels/weekly-reflection';
+import { WeeklyReflectionChannel } from '@/modules/notifications';
 
 // ============================================================================
 // TYPES
@@ -283,98 +285,87 @@ export function WeeklyReflectionModal({ isOpen, onClose }: WeeklyReflectionModal
     >
       {/* Back Button */}
       {currentStep !== 'prompt' && (
-        <View className="px-5 pb-3" style={{ borderBottomWidth: 1, borderBottomColor: colors.border }}>
+        <View className="px-5 pb-3 border-b border-border">
           <TouchableOpacity onPress={handleBack} className="flex-row items-center gap-1">
             <ChevronLeft size={20} color={colors.foreground} />
-            <Text style={{ color: colors.foreground, fontFamily: 'Inter_500Medium' }}>Back</Text>
+            <Text variant="body" className="font-medium text-foreground">Back</Text>
           </TouchableOpacity>
         </View>
       )}
 
       {/* Progress Indicator */}
-        <View className="flex-row px-5 py-3 gap-2">
-          {steps.map((step, index) => {
-            const isActive = step === currentStep;
-            const isCompleted = index < currentStepIndex;
+      <View className="flex-row px-5 py-3 gap-2">
+        {steps.map((step, index) => {
+          const isActive = step === currentStep;
+          const isCompleted = index < currentStepIndex;
 
-            return (
-              <View
-                key={step}
-                className="flex-1 h-1 rounded-full"
-                style={{
-                  backgroundColor: isActive || isCompleted ? colors.primary : colors.muted,
-                  opacity: isActive ? 1 : isCompleted ? 0.6 : 0.3,
-                }}
-              />
-            );
-          })}
-        </View>
+          return (
+            <View
+              key={step}
+              className="flex-1 h-1 rounded-full"
+              style={{
+                backgroundColor: isActive || isCompleted ? colors.primary : colors.muted,
+                opacity: isActive ? 1 : isCompleted ? 0.6 : 0.3,
+              }}
+            />
+          );
+        })}
+      </View>
 
-        {/* Content */}
-        <View className="flex-1 px-5 py-2">
-          {isLoading ? (
-            <View className="flex-1 items-center justify-center">
-              <WeaveLoading size={48} />
-              <Text
-                className="text-sm mt-4"
-                style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
-              >
-                Preparing your check-in...
-              </Text>
-            </View>
-          ) : summary && prompt && insight ? (
-            <>
-              {currentStep === 'prompt' && (
-                <View className="flex-1">
-                  <ReflectionPromptStep
-                    prompt={prompt}
-                    onNext={handlePromptNext}
-                  />
-                </View>
-              )}
+      {/* Content */}
+      <View className="flex-1 px-5 py-2">
+        {isLoading ? (
+          <View className="flex-1 items-center justify-center">
+            <WeaveLoading size={48} />
+            <Text variant="caption" className="text-muted-foreground mt-4">
+              Preparing your check-in...
+            </Text>
+          </View>
+        ) : summary && prompt && insight ? (
+          <>
+            {currentStep === 'prompt' && (
+              <View className="flex-1">
+                <ReflectionPromptStep
+                  prompt={prompt}
+                  onNext={handlePromptNext}
+                />
+              </View>
+            )}
 
-              {currentStep === 'snapshot' && (
-                <View className="flex-1">
-                  <WeekSnapshotStep
-                    summary={summary}
-                    insight={insight}
-                    onComplete={handleSnapshotComplete}
-                  />
-                </View>
-              )}
+            {currentStep === 'snapshot' && (
+              <View className="flex-1">
+                <WeekSnapshotStep
+                  summary={summary}
+                  insight={insight}
+                  onComplete={handleSnapshotComplete}
+                />
+              </View>
+            )}
 
-              {currentStep === 'events' && (
-                <View className="flex-1">
-                  <CalendarEventsStep
-                    onNext={handleEventsNext}
-                    onSkip={handleEventsSkip}
-                  />
-                </View>
-              )}
-            </>
-          ) : (
-            <View className="flex-1 items-center justify-center">
-              <Text
-                className="text-base text-center"
-                style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
-              >
-                Unable to load check-in. Please try again.
-              </Text>
-              <TouchableOpacity
-                onPress={loadData}
-                className="mt-4 px-6 py-3 rounded-xl"
-                style={{ backgroundColor: colors.primary }}
-              >
-                <Text
-                  className="text-sm font-semibold"
-                  style={{ color: colors['primary-foreground'], fontFamily: 'Inter_600SemiBold' }}
-                >
-                  Retry
-                </Text>
-              </TouchableOpacity>
-            </View>
-          )}
-        </View>
+            {currentStep === 'events' && (
+              <View className="flex-1">
+                <CalendarEventsStep
+                  onNext={handleEventsNext}
+                  onSkip={handleEventsSkip}
+                />
+              </View>
+            )}
+          </>
+        ) : (
+          <View className="flex-1 items-center justify-center">
+            <Text variant="body" className="text-muted-foreground text-center">
+              Unable to load check-in. Please try again.
+            </Text>
+            <Button
+              onPress={loadData}
+              variant="primary"
+              className="mt-4"
+            >
+              Retry
+            </Button>
+          </View>
+        )}
+      </View>
     </StandardBottomSheet>
   );
 }

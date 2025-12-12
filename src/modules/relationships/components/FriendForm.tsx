@@ -11,7 +11,7 @@ import { database } from '@/db';
 import { Q } from '@nozbe/watermelondb';
 import FriendModel from '@/db/models/Friend';
 import { type Archetype, type FriendFormData, type Tier, type RelationshipType } from '@/components/types';
-import { ArchetypeCard } from '@/components/archetype-card';
+import { ArchetypeCard } from '@/components/ArchetypeCard';
 import { ArchetypeDetailModal } from '@/components/ArchetypeDetailModal';
 import { ContactPickerGrid } from '@/components/onboarding/ContactPickerGrid';
 import { MonthDayPicker } from '@/components/MonthDayPicker';

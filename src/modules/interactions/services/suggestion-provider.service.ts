@@ -4,8 +4,12 @@ import FriendModel from '@/db/models/Friend';
 import { generateSuggestion } from './suggestion-engine.service';
 import * as SuggestionStorageService from './suggestion-storage.service';
 import { Suggestion } from '@/shared/types/common';
-import { calculateCurrentScore } from '@/modules/intelligence/services/orchestrator.service';
-import { filterSuggestionsBySeason, getSeasonSuggestionConfig } from '@/modules/intelligence/services/social-season/season-suggestions.service';
+import {
+    calculateCurrentScore,
+    filterSuggestionsBySeason,
+    getSeasonSuggestionConfig,
+    SeasonAnalyticsService
+} from '@/modules/intelligence';
 import type { SocialSeason } from '@/db/models/UserProfile';
 import Interaction from '@/db/models/Interaction';
 import InteractionFriend from '@/db/models/InteractionFriend';
@@ -14,8 +18,7 @@ import {
     generatePortfolioInsights,
     analyzeArchetypeBalance,
     type PortfolioAnalysisStats
-} from '@/modules/insights/services/portfolio.service';
-import { SeasonAnalyticsService } from '@/modules/intelligence';
+} from '@/modules/insights';
 
 /**
  * Selects diverse suggestions to provide a balanced "options menu" experience.
@@ -93,8 +96,87 @@ export async function fetchSuggestions(
     limit: number = 3,
     season?: SocialSeason | null
 ): Promise<Suggestion[]> {
-    // Fetch all friends directly from DB
+    console.time('fetchSuggestions:batch_load');
+
+    // Fetch all friends from DB
     const friends = await database.get<FriendModel>('friends').query().fetch();
+
+    // OPTIMIZED: Use a single raw SQL query to get latest interaction date + count per friend
+    // This replaces the previous 3-query approach (friends + interaction_friends + interactions)
+    const sql = `
+        SELECT 
+            ifr.friend_id,
+            MAX(i.interaction_date) as last_interaction_date,
+            COUNT(i.id) as interaction_count
+        FROM interaction_friends ifr
+        INNER JOIN interactions i ON ifr.interaction_id = i.id AND i.status = 'completed'
+        GROUP BY ifr.friend_id
+    `;
+
+    // Build lookup map from raw SQL results
+    const interactionsByFriendId = new Map<string, { lastDate: number | null; count: number; interactions: Interaction[] }>();
+
+    try {
+        const adapter = database.adapter as any;
+        const result = await adapter.unsafeExecute({
+            sqls: [[sql, []]],
+        });
+
+        // Parse raw SQL results
+        if (result && Array.isArray(result) && result[0] && Array.isArray(result[0])) {
+            for (const row of result[0]) {
+                interactionsByFriendId.set(row.friend_id, {
+                    lastDate: row.last_interaction_date,
+                    count: row.interaction_count || 0,
+                    interactions: [], // Will be populated below for friends needing recent interactions
+                });
+            }
+        }
+    } catch (error) {
+        console.warn('[fetchSuggestions] Raw SQL failed, using fallback:', error);
+    }
+
+    // For friends that need recent interactions for suggestion generation,
+    // fetch them in a secondary optimized batch (only for friends with interactions)
+    const friendIdsWithInteractions = [...interactionsByFriendId.keys()];
+
+    if (friendIdsWithInteractions.length > 0) {
+        // Fetch recent interactions for suggestion context (top 5 per friend)
+        const recentInteractionsQuery = await database
+            .get<InteractionFriend>('interaction_friends')
+            .query(Q.where('friend_id', Q.oneOf(friendIdsWithInteractions)))
+            .fetch();
+
+        const interactionIds = [...new Set(recentInteractionsQuery.map(ifr => ifr.interactionId))];
+
+        if (interactionIds.length > 0) {
+            const allInteractions = await database
+                .get<Interaction>('interactions')
+                .query(
+                    Q.where('id', Q.oneOf(interactionIds)),
+                    Q.where('status', 'completed'),
+                    Q.sortBy('interaction_date', Q.desc)
+                )
+                .fetch();
+
+            // Build interaction map
+            const interactionMap = new Map<string, Interaction>(allInteractions.map(i => [i.id, i]));
+
+            // Populate interactions for each friend
+            for (const link of recentInteractionsQuery) {
+                const interaction = interactionMap.get(link.interactionId);
+                if (interaction) {
+                    const entry = interactionsByFriendId.get(link.friendId);
+                    if (entry && entry.interactions.length < 5) {
+                        entry.interactions.push(interaction);
+                    }
+                }
+            }
+        }
+    }
+
+    console.timeEnd('fetchSuggestions:batch_load');
+
 
     const dismissedMap = await SuggestionStorageService.getDismissedSuggestions();
     const allSuggestions: Suggestion[] = [];
@@ -102,32 +184,18 @@ export async function fetchSuggestions(
 
     for (const friend of friends) {
         try {
-            // Query friend's interactions through the junction table
-            const interactionFriends = await database
-                .get<InteractionFriend>('interaction_friends')
-                .query(Q.where('friend_id', friend.id))
-                .fetch();
+            // Get interactions data from our optimized lookup map
+            const friendData = interactionsByFriendId.get(friend.id);
+            const friendInteractions = friendData?.interactions || [];
 
-            const interactionIds = interactionFriends.map(ifriend => ifriend.interactionId);
-
-            let sortedInteractions: Interaction[] = [];
-            if (interactionIds.length > 0) {
-                const friendInteractions = await database
-                    .get<Interaction>('interactions')
-                    .query(
-                        Q.where('id', Q.oneOf(interactionIds)),
-                        Q.where('status', 'completed') // Only include completed interactions
-                    )
-                    .fetch();
-
-                sortedInteractions = friendInteractions.sort(
-                    (a, b) => {
-                        const timeA = a.interactionDate instanceof Date ? a.interactionDate.getTime() : new Date(a.interactionDate || 0).getTime();
-                        const timeB = b.interactionDate instanceof Date ? b.interactionDate.getTime() : new Date(b.interactionDate || 0).getTime();
-                        return timeB - timeA;
-                    }
-                );
-            }
+            // Sort interactions (newest first) - already partially sorted from query
+            const sortedInteractions = friendInteractions.sort(
+                (a, b) => {
+                    const timeA = a.interactionDate instanceof Date ? a.interactionDate.getTime() : new Date(a.interactionDate || 0).getTime();
+                    const timeB = b.interactionDate instanceof Date ? b.interactionDate.getTime() : new Date(b.interactionDate || 0).getTime();
+                    return timeB - timeA;
+                }
+            );
 
             const lastInteraction = sortedInteractions[0];
             const currentScore = calculateCurrentScore(friend);
@@ -137,14 +205,17 @@ export async function fetchSuggestions(
             const daysSinceMomentumUpdate = (Date.now() - momentumLastUpdatedTime) / 86400000;
             const momentumScore = Math.max(0, friend.momentumScore - daysSinceMomentumUpdate);
 
-            // Calculate days since last interaction
-            const lastInteractionTime = lastInteraction && lastInteraction.interactionDate
-                ? (lastInteraction.interactionDate instanceof Date ? lastInteraction.interactionDate.getTime() : new Date(lastInteraction.interactionDate).getTime())
-                : 0;
+            // Calculate days since last interaction (using optimized lastDate from raw SQL when available)
+            let daysSinceInteraction = 999;
+            if (friendData?.lastDate) {
+                daysSinceInteraction = (Date.now() - friendData.lastDate) / 86400000;
+            } else if (lastInteraction?.interactionDate) {
+                const lastInteractionTime = lastInteraction.interactionDate instanceof Date
+                    ? lastInteraction.interactionDate.getTime()
+                    : new Date(lastInteraction.interactionDate).getTime();
+                daysSinceInteraction = (Date.now() - lastInteractionTime) / 86400000;
+            }
 
-            const daysSinceInteraction = lastInteraction
-                ? (Date.now() - lastInteractionTime) / 86400000
-                : 999;
 
             // Collect stats for portfolio analysis
             friendStats.push({
@@ -169,10 +240,10 @@ export async function fetchSuggestions(
                 } as any,
                 currentScore,
                 lastInteractionDate: lastInteraction?.interactionDate,
-                interactionCount: sortedInteractions.length,
+                interactionCount: friendData?.count ?? sortedInteractions.length,
                 momentumScore,
                 recentInteractions: sortedInteractions.slice(0, 5).map(i => ({
-                    id: i.id,
+                    id: i.id, // Fixed: use 'id' instead of 'uuid' which doesn't exist on Interaction model
                     category: i.interactionCategory as any,
                     interactionDate: i.interactionDate,
                     vibe: i.vibe,

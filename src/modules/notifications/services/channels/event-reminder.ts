@@ -11,7 +11,7 @@ import Interaction from '@/db/models/Interaction';
 import { Q } from '@nozbe/watermelondb';
 import Logger from '@/shared/utils/Logger';
 import { notificationAnalytics } from '../notification-analytics';
-import { NotificationChannel } from '../../types';
+import { NotificationChannel } from '@/modules/notifications';
 
 const ID_PREFIX = 'event-reminder-';
 

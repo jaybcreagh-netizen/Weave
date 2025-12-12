@@ -9,8 +9,8 @@ import { Platform } from 'react-native';
 import Logger from '@/shared/utils/Logger';
 import { notificationAnalytics } from '../notification-analytics';
 import { shouldSendAmbientLoggingNotification } from '../notification-grace-periods';
-import { NotificationChannel } from '../../types';
-import { ScannedEvent } from '@/modules/interactions/services/event-scanner';
+import { NotificationChannel } from '@/modules/notifications';
+import { ScannedEvent } from '@/modules/interactions';
 import { format } from 'date-fns';
 
 export async function scheduleEventSuggestionNotification(event: ScannedEvent) {

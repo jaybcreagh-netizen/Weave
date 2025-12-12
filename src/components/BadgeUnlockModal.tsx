@@ -8,11 +8,7 @@
 import React, { useEffect } from 'react';
 import {
   View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
   Dimensions,
-  Platform,
 } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -20,8 +16,6 @@ import Animated, {
   withSpring,
   withTiming,
   runOnJS,
-  SlideInUp,
-  SlideOutUp,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -30,9 +24,9 @@ import { markBadgeAsCelebrated } from '@/modules/gamification';
 import { markAchievementAsCelebrated } from '@/modules/gamification';
 import { BlurView } from 'expo-blur';
 import { useTheme } from '@/shared/hooks/useTheme';
+import { Text } from '@/shared/ui/Text';
 
 const { width } = Dimensions.get('window');
-const BANNER_HEIGHT = 80;
 
 export default function BadgeUnlockModal() {
   const badgeQueue = useUIStore((state) => state.badgeUnlockQueue);
@@ -40,7 +34,7 @@ export default function BadgeUnlockModal() {
   const dismissBadge = useUIStore((state) => state.dismissBadgeUnlock);
   const dismissAchievement = useUIStore((state) => state.dismissAchievementUnlock);
   const insets = useSafeAreaInsets();
-  const { isDarkMode } = useTheme();
+  const { isDarkMode, colors } = useTheme();
 
   // Badge takes priority over achievements
   const currentBadge = badgeQueue[0];
@@ -123,35 +117,58 @@ export default function BadgeUnlockModal() {
     legendary: { bg: '#f59e0b', border: '#d97706' }, // amber-500
   };
 
-  const colors = rarityColors[item.rarity as keyof typeof rarityColors] || rarityColors.common;
+  const rarity = item.rarity as keyof typeof rarityColors || 'common';
+  const rarityColor = rarityColors[rarity] || rarityColors.common;
 
   return (
     <GestureDetector gesture={pan}>
       <Animated.View
+        className="absolute top-0 left-0 right-0 items-center z-50 px-4"
         style={[
-          styles.container,
           animatedStyle,
           { paddingTop: insets.top + 10 },
         ]}
       >
-        <View style={styles.wrapper}>
+        <View
+          className="w-full max-w-[400px] shadow-lg"
+          style={{
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.15,
+            shadowRadius: 12,
+            elevation: 5,
+          }}
+        >
           <BlurView
             intensity={90}
             tint={isDarkMode ? 'dark' : 'light'}
-            style={[styles.blurContainer, { borderColor: colors.border }]}
+            className="rounded-2xl overflow-hidden border"
+            style={{ borderColor: rarityColor.border }}
           >
-            <View style={styles.content}>
-              <View style={[styles.iconContainer, { backgroundColor: colors.bg }]}>
-                <Text style={styles.icon}>{item.icon}</Text>
+            <View className="flex-row items-center p-3 gap-3">
+              <View
+                className="w-12 h-12 rounded-full items-center justify-center"
+                style={{ backgroundColor: rarityColor.bg }}
+              >
+                <Text className="text-2xl">{item.icon}</Text>
               </View>
 
-              <View style={styles.textContainer}>
-                <Text style={[styles.title, { color: isDarkMode ? '#fff' : '#000' }]}>
+              <View className="flex-1 justify-center">
+                <Text
+                  className="text-xs uppercase tracking-wider mb-0.5 font-sans-semibold"
+                  style={{ color: isDarkMode ? '#fff' : '#000' }}
+                >
                   {isHidden ? 'Hidden Discovery!' : currentBadge ? 'Badge Earned!' : 'Achievement Unlocked!'}
                 </Text>
-                <Text style={[styles.name, { color: colors.bg }]}>{item.name}</Text>
+                <Text
+                  variant="h3"
+                  className="text-base mb-0.5"
+                  style={{ color: rarityColor.bg, fontFamily: 'Lora_700Bold' }}
+                >
+                  {item.name}
+                </Text>
                 {friendName && (
-                  <Text style={[styles.subtitle, { color: isDarkMode ? '#ccc' : '#666' }]}>
+                  <Text variant="caption" style={{ color: isDarkMode ? '#ccc' : '#666' }}>
                     with {friendName}
                   </Text>
                 )}
@@ -163,65 +180,3 @@ export default function BadgeUnlockModal() {
     </GestureDetector>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-    zIndex: 1000,
-    paddingHorizontal: 16,
-  },
-  wrapper: {
-    width: '100%',
-    maxWidth: 400,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 5,
-  },
-  blurContainer: {
-    borderRadius: 16,
-    overflow: 'hidden',
-    borderWidth: 1,
-  },
-  content: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    gap: 12,
-  },
-  iconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  icon: {
-    fontSize: 24,
-  },
-  textContainer: {
-    flex: 1,
-    justifyContent: 'center',
-  },
-  title: {
-    fontSize: 12,
-    fontFamily: 'Inter_600SemiBold',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 2,
-  },
-  name: {
-    fontSize: 16,
-    fontFamily: 'Lora_700Bold',
-    marginBottom: 2,
-  },
-  subtitle: {
-    fontSize: 12,
-    fontFamily: 'Inter_400Regular',
-  },
-});

@@ -1,4 +1,4 @@
-import { tokens } from './src/shared/theme/tokens';
+import { tokens, typography, spacing, radius } from './src/shared/theme/tokens';
 import { type Config } from 'tailwindcss';
 
 /**
@@ -90,46 +90,46 @@ const config: Config = {
       },
       fontSize: {
         // Display
-        'display-lg': ['32px', { lineHeight: '40px' }],
+        'display-lg': [`${typography.scale.displayLarge.fontSize}px`, { lineHeight: `${typography.scale.displayLarge.lineHeight}px` }],
 
         // Headings
-        'h1': ['24px', { lineHeight: '32px' }],
-        'h2': ['20px', { lineHeight: '28px' }],
-        'h3': ['17px', { lineHeight: '24px' }],
+        'h1': [`${typography.scale.h1.fontSize}px`, { lineHeight: `${typography.scale.h1.lineHeight}px` }],
+        'h2': [`${typography.scale.h2.fontSize}px`, { lineHeight: `${typography.scale.h2.lineHeight}px` }],
+        'h3': [`${typography.scale.h3.fontSize}px`, { lineHeight: `${typography.scale.h3.lineHeight}px` }],
 
         // Body
-        'body-lg': ['17px', { lineHeight: '26px' }],
-        'body': ['15px', { lineHeight: '22px' }],
-        'body-sm': ['13px', { lineHeight: '18px' }],
+        'body-lg': [`${typography.scale.bodyLarge.fontSize}px`, { lineHeight: `${typography.scale.bodyLarge.lineHeight}px` }],
+        'body': [`${typography.scale.body.fontSize}px`, { lineHeight: `${typography.scale.body.lineHeight}px` }],
+        'body-sm': [`${typography.scale.bodySmall.fontSize}px`, { lineHeight: `${typography.scale.bodySmall.lineHeight}px` }],
 
         // UI
-        'label': ['13px', { lineHeight: '16px' }],
-        'label-sm': ['11px', { lineHeight: '14px', letterSpacing: '0.5px' }],
-        'caption': ['12px', { lineHeight: '16px' }],
+        'label': [`${typography.scale.label.fontSize}px`, { lineHeight: `${typography.scale.label.lineHeight}px` }],
+        'label-sm': [`${typography.scale.labelSmall.fontSize}px`, { lineHeight: `${typography.scale.labelSmall.lineHeight}px`, letterSpacing: `${typography.scale.labelSmall.letterSpacing}px` }],
+        'caption': [`${typography.scale.caption.fontSize}px`, { lineHeight: `${typography.scale.caption.lineHeight}px` }],
       },
       borderRadius: {
-        xs: '4px',
-        sm: '8px',
-        md: '12px',
-        lg: '16px',
-        xl: '20px',
-        full: '9999px',
+        xs: `${radius.xs}px`,
+        sm: `${radius.sm}px`,
+        md: `${radius.md}px`,
+        lg: `${radius.lg}px`,
+        xl: `${radius.xl}px`,
+        full: `${radius.full}px`,
       },
       spacing: {
         // Mapping tokens.ts spacing
-        0.5: '2px',
-        1: '4px',
-        1.5: '6px',
-        2: '8px',
-        2.5: '10px',
-        3: '12px',
-        4: '16px',
-        5: '20px',
-        6: '24px',
-        8: '32px',
-        10: '40px',
-        12: '48px',
-        16: '64px',
+        0.5: `${spacing[0.5]}px`,
+        1: `${spacing[1]}px`,
+        1.5: `${spacing[1.5]}px`,
+        2: `${spacing[2]}px`,
+        2.5: `${spacing[2.5]}px`,
+        3: `${spacing[3]}px`,
+        4: `${spacing[4]}px`,
+        5: `${spacing[5]}px`,
+        6: `${spacing[6]}px`,
+        8: `${spacing[8]}px`,
+        10: `${spacing[10]}px`,
+        12: `${spacing[12]}px`,
+        16: `${spacing[16]}px`,
       }
     },
   },

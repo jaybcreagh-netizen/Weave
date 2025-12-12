@@ -19,7 +19,7 @@ import { FocusDetailSheet } from '@/components/FocusDetailSheet';
 import { FocusPlanItem } from './components/FocusPlanItem';
 import FriendModel from '@/db/models/Friend';
 import { Suggestion } from '@/shared/types/common';
-import { PlanWizard } from '@/modules/interactions/components/PlanWizard';
+import { PlanWizard } from '@/modules/interactions';
 import { getCategoryLabel } from '@/modules/interactions';
 import { SeasonAnalyticsService } from '@/modules/intelligence';
 
@@ -228,7 +228,7 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = ({ friends })
         ).sort((a, b) => new Date(b.interactionDate).getTime() - new Date(a.interactionDate).getTime())
         , [interactions]);
 
-    const pendingReviews = useMemo(() => interactions.filter((i: Interaction) => i.status === 'pending_confirm'), [interactions]);
+
 
     const [planFriendIds, setPlanFriendIds] = useState<Record<string, string[]>>({});
 
@@ -253,10 +253,10 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = ({ friends })
 
     const hasUpcoming = todaysUpcoming.length > 0;
     const hasCompleted = todaysCompleted.length > 0;
-    const hasReviews = pendingReviews.length > 0;
+    const hasReviews = false; // Disabled in condensed widget
     const hasSuggestions = suggestions.length > 0;
     const hasUpcomingDates = upcomingDates.length > 0;
-    const isAllClear = !hasUpcoming && !hasCompleted && !hasReviews && !hasSuggestions && !hasUpcomingDates;
+    const isAllClear = !hasUpcoming && !hasCompleted && !hasSuggestions && !hasUpcomingDates;
 
     return (
         <>
@@ -272,7 +272,7 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = ({ friends })
                 {hasUpcoming && (
                     <View>
                         {/* Only show header if there are other sections to differentiate from */}
-                        {(hasCompleted || hasReviews) && (
+                        {(hasCompleted) && (
                             <View style={styles.sectionHeader}>
                                 <Text style={[styles.sectionTitle, { color: tokens.foregroundMuted }]}>Upcoming</Text>
                             </View>
@@ -339,43 +339,15 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = ({ friends })
                     </View>
                 ) : null}
 
-                {hasReviews && (
-                    <View style={{ marginTop: (hasUpcoming || hasCompleted) ? 8 : 0 }}>
-                        <View style={styles.sectionHeader}>
-                            <Text style={[styles.sectionTitle, { color: tokens.foregroundMuted }]}>
-                                Pending Reviews
-                            </Text>
-                        </View>
-                        {pendingReviews.map((review, index) => (
-                            <View key={review.id} style={{ paddingHorizontal: 16 }}>
-                                <ListItem
-                                    title={`How was ${review.activity}?`}
-                                    subtitle="Rate this weave"
-                                    showDivider={index < pendingReviews.length - 1}
-                                    trailing={
-                                        <View style={styles.actions}>
-                                            <TouchableOpacity
-                                                onPress={() => handleReviewPlan(review.id)}
-                                                style={[styles.iconBtn, { backgroundColor: tokens.primary + '20' }]}
-                                            >
-                                                <Sparkles size={18} color={tokens.primary} />
-                                            </TouchableOpacity>
-                                        </View>
-                                    }
-                                    onPress={() => handleReviewPlan(review.id)}
-                                />
-                            </View>
-                        ))}
-                    </View>
-                )}
 
-                {(hasUpcoming || hasCompleted || hasReviews) && <View style={{ height: 16 }} />}
+
+                {(hasUpcoming || hasCompleted) && <View style={{ height: 16 }} />}
 
                 {/* Visual Separator if needed, but spacing might be enough */}
 
                 {hasSuggestions && (
                     <TouchableOpacity onPress={() => setShowDetailSheet(true)}>
-                        <View style={[styles.summaryRow, (hasUpcoming || hasCompleted || hasReviews || hasUpcomingDates) && { borderTopWidth: 1, borderTopColor: tokens.borderSubtle }]}>
+                        <View style={[styles.summaryRow, (hasUpcoming || hasCompleted || hasUpcomingDates) && { borderTopWidth: 1, borderTopColor: tokens.borderSubtle }]}>
                             <View style={styles.summaryContent}>
                                 <Sparkles size={16} color={tokens.primaryMuted} style={{ marginRight: 8 }} />
                                 <Text style={[styles.summaryText, {
@@ -394,7 +366,7 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = ({ friends })
 
                 {hasUpcomingDates && (
                     <TouchableOpacity onPress={() => setShowDetailSheet(true)}>
-                        <View style={[styles.summaryRow, (hasUpcoming || hasCompleted || hasReviews || hasSuggestions) && { borderTopWidth: 1, borderTopColor: tokens.borderSubtle }]}>
+                        <View style={[styles.summaryRow, (hasUpcoming || hasCompleted || hasSuggestions) && { borderTopWidth: 1, borderTopColor: tokens.borderSubtle }]}>
                             <View style={styles.summaryContent}>
                                 <Calendar size={16} color={tokens.primaryMuted} style={{ marginRight: 8 }} />
                                 <Text style={[styles.summaryText, {

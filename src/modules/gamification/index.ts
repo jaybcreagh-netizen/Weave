@@ -27,3 +27,6 @@ export * from './types';
 // Constants
 export * from './constants/badge-definitions';
 export * from './constants/achievement-definitions';
+
+// Listeners
+export * from './listeners/gamification.listener';

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Text as RNText, TextProps as RNTextProps } from 'react-native';
-import { useTheme } from '@/shared/hooks/useTheme';
+
 
 export interface TextProps extends RNTextProps {
     variant?: 'h1' | 'h2' | 'h3' | 'h4' | 'body' | 'caption' | 'label' | 'button';
@@ -20,96 +20,63 @@ export function Text({
     children,
     ...props
 }: TextProps) {
-    const { colors } = useTheme();
+    // Map variants to Tailwind classes
+    const variantClasses = {
+        h1: 'font-serif text-h1',
+        h2: 'font-serif text-h2',
+        h3: 'font-serif text-h3',
+        h4: 'font-serif text-h4', // fallback if h4 not in config, but assuming h4 exists or use h3
+        body: 'font-sans text-body',
+        caption: 'font-sans text-caption',
+        label: 'font-sans text-label uppercase tracking-wide',
+        button: 'font-sans-medium text-sm',
+    };
 
-    // Base styles
-    let baseStyle = '';
+    // Map weights
+    // Note: Tailwind config has font-family specific weights (e.g. font-serif-bold).
+    // Standard font-bold sets fontWeight: '700'.
+    const getWeightClass = () => {
+        // If variant is a heading (serif), handle bold/regular
+        const isHeading = ['h1', 'h2', 'h3', 'h4'].includes(variant);
 
-    // Variant styles
-    switch (variant) {
-        case 'h1':
-            baseStyle += " font-['Lora'] text-3xl";
-            break;
-        case 'h2':
-            baseStyle += " font-['Lora'] text-2xl";
-            break;
-        case 'h3':
-            baseStyle += " font-['Lora'] text-xl";
-            break;
-        case 'h4':
-            baseStyle += " font-['Lora'] text-lg";
-            break;
-        case 'body':
-            baseStyle += " font-['Inter'] text-base";
-            break;
-        case 'caption':
-            baseStyle += " font-['Inter'] text-xs";
-            break;
-        case 'label':
-            baseStyle += " font-['Inter'] text-sm uppercase tracking-wide";
-            break;
-        case 'button':
-            baseStyle += " font-['Inter'] text-sm font-semibold";
-            break;
-    }
-
-    // Weight styles (overrides variant default if specified)
-    // Note: Tailwind classes for weight might conflict if not handled carefully, 
-    // but here we just append.
-    switch (weight) {
-        case 'regular':
-            baseStyle += ' font-normal';
-            break;
-        case 'medium':
-            baseStyle += ' font-medium';
-            break;
-        case 'semibold':
-            baseStyle += ' font-semibold';
-            break;
-        case 'bold':
-            baseStyle += ' font-bold';
-            break;
-    }
-
-    // Alignment
-    switch (align) {
-        case 'center':
-            baseStyle += ' text-center';
-            break;
-        case 'right':
-            baseStyle += ' text-right';
-            break;
-        default:
-            baseStyle += ' text-left';
-            break;
-    }
-
-    // Color styles - using inline styles for dynamic theme colors to be safe, 
-    // or we can use tailwind classes if they map to theme.
-    // We'll use inline styles for colors to ensure they match the current theme context perfectly.
-    const getTextColor = () => {
-        switch (color) {
-            case 'muted':
-                return colors['muted-foreground'];
-            case 'primary':
-                return colors.primary;
-            case 'secondary':
-                return colors.secondary;
-            case 'accent':
-                return colors.accent;
-            case 'destructive':
-                return colors.destructive;
-            case 'white':
-                return '#FFFFFF';
-            default:
-                return colors.foreground;
+        switch (weight) {
+            case 'regular': return 'font-normal';
+            case 'medium': return 'font-medium'; // might need font-sans-medium
+            case 'semibold': return 'font-semibold'; // might need font-sans-semibold
+            case 'bold':
+                return isHeading ? 'font-serif-bold' : 'font-bold';
+            default: return '';
         }
     };
 
+    // Map colors
+    const colorClasses = {
+        default: 'text-foreground',
+        muted: 'text-muted-foreground',
+        primary: 'text-primary',
+        secondary: 'text-secondary',
+        accent: 'text-primary-muted', // Mapping 'accent' to primary-muted based on legacy keys or similar
+        destructive: 'text-destructive',
+        white: 'text-white',
+    };
+
+    // Map alignment
+    const alignClass = `text-${align}`;
+
+    // Combine classes
+    // Note: We use specific checks to robustly map props to classes
+    const finalClass = [
+        variantClasses[variant] || 'font-sans text-body',
+        getWeightClass(),
+        colorClasses[color] || 'text-foreground',
+        alignClass,
+        className
+    ].filter(Boolean).join(' ');
+
     return (
         <RNText
-            className={`${baseStyle} ${className}`}
-            style={[{ color: getTextColor() }, style]}
+            className={finalClass}
+            style={style}
             {...props}
         >
             {children}

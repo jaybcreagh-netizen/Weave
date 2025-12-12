@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, StyleSheet } from 'react-native';
+import { BottomSheetFlatList } from '@gorhom/bottom-sheet';
 import { Sparkles } from 'lucide-react-native';
 import { Suggestion } from '@/shared/types/common';
 import { SuggestionCard } from './SuggestionCard';
@@ -8,6 +9,7 @@ import { useTheme } from '@/shared/hooks/useTheme';
 import Intention from '@/db/models/Intention';
 import { StandardBottomSheet } from '@/shared/ui/Sheet';
 import { WeaveIcon } from '@/components/WeaveIcon';
+import { Text } from '@/shared/ui/Text';
 
 interface InsightsSheetProps {
   isVisible: boolean;
@@ -30,11 +32,61 @@ export function InsightsSheet({
 }: InsightsSheetProps) {
   const { colors } = useTheme();
 
+  // Debug: Switch to BottomSheetFlatList to verify renderScrollContent works
+  const BottomSheetList = React.useMemo(() => {
+    return BottomSheetFlatList;
+  }, []);
+
   const CustomTitle = (
     <View style={styles.titleContainer}>
-      <WeaveIcon size={24} color={colors.primary} />
-      <Text style={[styles.titleText, { color: colors.foreground }]}>
-        Insights for Your Weave
+      <WeaveIcon size={28} color={colors.primary} />
+      <View>
+        <Text variant="h2" style={{ color: colors.foreground, fontFamily: 'Lora_700Bold' }}>
+          Insights
+        </Text>
+        <Text variant="caption" style={{ color: colors.foregroundMuted }}>
+          Nurture your connections
+        </Text>
+      </View>
+    </View>
+  );
+
+  const renderItem = ({ item, index }: { item: Suggestion; index: number }) => (
+    <SuggestionCard
+      suggestion={item}
+      index={index}
+      onAct={() => onAct(item)}
+      onLater={() => onLater(item.id)}
+    />
+  );
+
+  const renderHeader = () => (
+    <View style={{ marginBottom: 24, marginTop: 8 }}>
+      <IntentionsList intentions={intentions} onIntentionPress={onIntentionPress} />
+
+      {suggestions.length > 0 && (
+        <View style={styles.sectionHeader}>
+          <Text variant="h3" style={{ color: colors.foreground }}>
+            Suggested Actions
+          </Text>
+          <View style={[styles.badge, { backgroundColor: colors.secondary }]}>
+            <Text variant="labelSmall" style={{ color: colors.foreground }}>{suggestions.length}</Text>
+          </View>
+        </View>
+      )}
+    </View>
+  );
+
+  const renderEmpty = () => (
+    <View style={styles.emptyState}>
+      <View style={[styles.emptyIconContainer, { backgroundColor: colors.secondary }]}>
+        <Sparkles size={48} color={colors.primary} style={styles.emptyIcon} />
+      </View>
+      <Text variant="h2" style={[styles.emptyTitle, { color: colors.foreground }]}>
+        All caught up!
+      </Text>
+      <Text variant="body" style={[styles.emptySubtitle, { color: colors.foregroundMuted }]}>
+        Your weave is looking strong. Time to relax or reach out spontaneously.
       </Text>
     </View>
   );
@@ -44,34 +96,22 @@ export function InsightsSheet({
       visible={isVisible}
       onClose={onClose}
       height="full"
-      scrollable
       titleComponent={CustomTitle}
+      disableContentPanning
+      hasUnsavedChanges={false}
+      renderScrollContent={() => (
+        <BottomSheetList
+          data={suggestions}
+          renderItem={renderItem}
+          keyExtractor={(item: Suggestion) => item.id}
+          ListHeaderComponent={renderHeader}
+          ListEmptyComponent={renderEmpty}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+        />
+      )}
     >
-      <View style={{ gap: 16, paddingBottom: 24 }}>
-        {/* Always show intentions section at top */}
-        <IntentionsList intentions={intentions} onIntentionPress={onIntentionPress} />
-
-        {suggestions.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Sparkles size={64} color={colors.primary} style={styles.emptyIcon} />
-            <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
-              All caught up!
-            </Text>
-            <Text style={[styles.emptySubtitle, { color: colors['muted-foreground'] }]}>
-              Your weave is looking strong. Keep nurturing your connections.
-            </Text>
-          </View>
-        ) : (
-          suggestions.map((suggestion) => (
-            <SuggestionCard
-              key={suggestion.id}
-              suggestion={suggestion}
-              onAct={() => onAct(suggestion)}
-              onLater={() => onLater(suggestion.id)}
-            />
-          ))
-        )}
-      </View>
+      {null}
     </StandardBottomSheet>
   );
 }
@@ -80,29 +120,47 @@ const styles = StyleSheet.create({
   titleContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 12,
   },
-  titleText: {
-    fontSize: 20,
-    fontFamily: 'Lora_700Bold',
-    fontWeight: '700',
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 16,
+    paddingHorizontal: 4,
+  },
+  badge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
   },
   emptyState: {
     alignItems: 'center',
     paddingVertical: 60,
+    marginTop: 20,
+  },
+  emptyIconContainer: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
   },
   emptyIcon: {
-    marginBottom: 16,
+    opacity: 0.8
   },
   emptyTitle: {
-    fontSize: 24,
-    fontWeight: '700',
+    marginBottom: 12,
     fontFamily: 'Lora_700Bold',
-    marginBottom: 8,
   },
   emptySubtitle: {
-    fontSize: 16,
     textAlign: 'center',
     paddingHorizontal: 40,
+    lineHeight: 24,
+  },
+  listContent: {
+    paddingBottom: 40,
+    paddingHorizontal: 16,
   },
 });

@@ -3,6 +3,9 @@
 // Hooks
 export * from './hooks/useFeatureGate';
 
+// Components
+export * from './components/SyncConflictModal';
+
 // Stores
 export * from './store/auth.store';
 export * from './store/user-profile.store';

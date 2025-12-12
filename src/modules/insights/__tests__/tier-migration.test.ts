@@ -1,4 +1,4 @@
-import { TierMigrationConfig, EffectivenessLearningConfig } from '@/modules/intelligence/constants';
+import { TierMigrationConfig, EffectivenessLearningConfig } from '@/modules/intelligence';
 
 // Mock database
 jest.mock('@/db', () => ({

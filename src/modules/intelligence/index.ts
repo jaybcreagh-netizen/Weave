@@ -13,9 +13,16 @@ export * as orchestrator from './services/orchestrator.service';
 export { calculateInteractionQuality } from './services/quality.service';
 export * from './services/deepening.service';
 export * from './services/season-aware-streak.service';
+export * from './services/focus-generator';
+
+// Listeners
+export * from './listeners/intelligence.listener';
 
 // Types
 export * from './types';
+
+// Constants
+export * from './constants';
 
 // Social Season
 export * from './services/social-season/season-types';

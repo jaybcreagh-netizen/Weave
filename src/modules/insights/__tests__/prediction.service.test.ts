@@ -3,7 +3,7 @@ import {
   getAttentionThresholdDetails,
   predictFriendDrift,
 } from '../services/prediction.service';
-import { PersonalizedThresholdConfig } from '@/modules/intelligence/constants';
+import { PersonalizedThresholdConfig } from '@/modules/intelligence';
 import FriendModel from '@/db/models/Friend';
 
 // Mock database

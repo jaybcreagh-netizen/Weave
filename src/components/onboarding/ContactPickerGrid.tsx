@@ -5,7 +5,7 @@ import * as Contacts from 'expo-contacts';
 import { CheckCircle2, Users, Plus, Search, X } from 'lucide-react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { FlashList } from '@shopify/flash-list';
-import { normalizeContactImageUri } from '@/modules/relationships/utils/image.utils';
+import { normalizeContactImageUri } from '@/modules/relationships';
 import { useTheme } from '@/shared/hooks/useTheme';
 
 // Consts for layout to prevent jumping

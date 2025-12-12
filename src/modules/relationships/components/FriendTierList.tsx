@@ -5,14 +5,15 @@ import { FlashList } from '@shopify/flash-list';
 import withObservables from '@nozbe/with-observables';
 import { Q } from '@nozbe/watermelondb';
 
-import { database } from '@/db';
+// import { database } from '@/db';
 import FriendModel from '@/db/models/Friend';
+import { friendRepository } from '../repositories/friend.repository';
 import { FriendListRow } from '@/modules/relationships';
 import { useCardGesture } from '@/context/CardGestureContext';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { WeaveIcon } from '@/components/WeaveIcon';
 import { tierColors } from '@/shared/constants/constants';
-import { Tier } from '@/modules/relationships/types';
+import { type Tier } from '../types';
 
 const { width: screenWidth } = Dimensions.get('window');
 const AnimatedFlashList = Animated.createAnimatedComponent(FlashList);
@@ -122,10 +123,7 @@ const FriendTierListContent = ({ tier, friends, scrollHandler, isQuickWeaveOpen 
 };
 
 const enhance = withObservables(['tier'], ({ tier }: { tier: Tier }) => ({
-    friends: database.get<FriendModel>('friends').query(
-        Q.where('dunbar_tier', tier),
-        Q.sortBy('weave_score', Q.asc)
-    ).observe(),
+    friends: friendRepository.getFriendsByTierQuery(tier),
 }));
 
 export const FriendTierList = enhance(FriendTierListContent);

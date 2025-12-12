@@ -2,7 +2,7 @@ import { CloudStorage } from 'react-native-cloud-storage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import { exportAllData } from '../auth/services/data-export';
-import Logger from '../../shared/utils/Logger';
+import Logger from '@/shared/utils/Logger';
 
 const BACKUP_FOLDER = 'Backups';
 const MAX_BACKUPS = 5;

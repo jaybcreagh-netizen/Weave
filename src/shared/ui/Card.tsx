@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, ViewProps } from 'react-native';
-import { useTheme } from '@/shared/hooks/useTheme';
+
 
 export interface CardProps extends ViewProps {
     variant?: 'default' | 'outlined' | 'ghost';
@@ -16,51 +16,32 @@ export function Card({
     children,
     ...props
 }: CardProps) {
-    const { colors } = useTheme();
-
-    // Base styles
-    let baseStyle = 'rounded-2xl overflow-hidden';
-
-    // Padding
-    switch (padding) {
-        case 'sm':
-            baseStyle += ' p-3';
-            break;
-        case 'md':
-            baseStyle += ' p-4';
-            break;
-        case 'lg':
-            baseStyle += ' p-6';
-            break;
-    }
-
-    // Variant styles
-    const getVariantStyles = () => {
-        switch (variant) {
-            case 'default':
-                return {
-                    backgroundColor: colors.card,
-                    // Add shadow if needed, but keeping it simple for now
-                };
-            case 'outlined':
-                return {
-                    backgroundColor: 'transparent',
-                    borderColor: colors.border,
-                    borderWidth: 1,
-                };
-            case 'ghost':
-                return {
-                    backgroundColor: 'transparent',
-                };
-            default:
-                return {};
-        }
+    // Map variant to classes
+    const variantClasses = {
+        default: 'bg-card', // Shadow usually handled via style/elevation or shadow-* classes. NativeWind shadow classes work on iOS.
+        outlined: 'bg-transparent border border-border',
+        ghost: 'bg-transparent',
     };
+
+    // Map padding
+    const paddingClasses = {
+        none: 'p-0',
+        sm: 'p-3',
+        md: 'p-4',
+        lg: 'p-6',
+    };
+
+    const finalClass = [
+        'rounded-2xl overflow-hidden',
+        variantClasses[variant],
+        paddingClasses[padding],
+        className
+    ].filter(Boolean).join(' ');
 
     return (
         <View
-            className={`${baseStyle} ${className}`}
-            style={[getVariantStyles(), style]}
+            className={finalClass}
+            style={style}
             {...props}
         >
             {children}

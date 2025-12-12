@@ -241,7 +241,7 @@ export const FriendListRowContent = ({ friend, animatedRef, variant = 'default' 
   return (
     <Animated.View ref={animatedRef} style={rowStyle}>
       <View
-        className={`mb-3 rounded-weave-card overflow-hidden ${variant === 'full' ? '' : 'mx-4'}`}
+        className={`mb-3 rounded-2xl overflow-hidden ${variant === 'full' ? '' : 'mx-4'}`}
         style={{
           borderWidth: 0.5,
           borderColor,
@@ -286,7 +286,7 @@ export const FriendListRowContent = ({ friend, animatedRef, variant = 'default' 
         >
           {/* Avatar */}
           <View
-            className="w-avatar-sm h-avatar-sm rounded-full overflow-hidden items-center justify-center"
+            className="w-12 h-12 rounded-full overflow-hidden items-center justify-center"
             style={{
               backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.08)',
               borderWidth: 0.5,
@@ -355,7 +355,7 @@ export const FriendListRowContent = ({ friend, animatedRef, variant = 'default' 
           {/* Archetype Icon */}
           <View className="relative">
             <View
-              className="w-9 h-9 rounded-[10px] items-center justify-center"
+              className="w-10 h-10 rounded-[10px] items-center justify-center"
               style={{
                 backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)',
                 borderWidth: 0.5,

@@ -11,7 +11,7 @@ import { Bell, Users, CalendarDays, CheckCircle2, XCircle } from 'lucide-react-n
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { useTheme } from '@/shared/hooks/useTheme';
-import { useNotificationPermissions } from '@/modules/notifications/hooks/useNotificationPermissions';
+import { useNotificationPermissions } from '@/modules/notifications';
 
 const PERMISSIONS_COMPLETED_KEY = '@weave:permissions_completed';
 const NOTIFICATION_PERMISSION_ASKED_KEY = '@weave:notification_permission_asked';
