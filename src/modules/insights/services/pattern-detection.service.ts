@@ -654,6 +654,94 @@ async function detectArchetypeAffinityPattern(weaves: Interaction[]): Promise<Pa
 }
 
 /**
+ * Detect content patterns (correlations between Chips/topics and Battery)
+ */
+async function detectContentPatterns(
+  history: BatteryHistoryEntry[],
+  weaves: Interaction[]
+): Promise<Pattern[]> {
+  const patterns: Pattern[] = [];
+  if (history.length < 8 || weaves.length < 5) return patterns;
+
+  // Create date -> battery map
+  const batteryByDate = new Map<string, number>();
+  history.forEach(entry => {
+    const dateKey = new Date(entry.timestamp).toISOString().split('T')[0];
+    batteryByDate.set(dateKey, entry.value);
+  });
+
+  // Group weaves by Chip ID
+  const chipStats = new Map<string, { totalBattery: number; count: number; name: string }>();
+
+  weaves.forEach(weave => {
+    if (!weave.reflection) return;
+    const dateKey = new Date(weave.interactionDate).toISOString().split('T')[0];
+    const battery = batteryByDate.get(dateKey);
+
+    // Only analyze weaves that have associated battery data
+    if (battery !== undefined && weave.reflection.chips) {
+      weave.reflection.chips.forEach(chip => {
+        const stats = chipStats.get(chip.id) || { totalBattery: 0, count: 0, name: chip.plainText };
+        stats.totalBattery += battery;
+        stats.count += 1;
+        chipStats.set(chip.id, stats);
+      });
+    }
+  });
+
+  // Calculate average battery for each chip
+  const avgAllBattery = history.reduce((sum, h) => sum + h.value, 0) / history.length;
+
+  const meaningfulStats = Array.from(chipStats.values())
+    .filter(stat => stat.count >= 3) // At least 3 occurrences
+    .map(stat => ({
+      name: stat.name,
+      avgBattery: stat.totalBattery / stat.count,
+      diff: (stat.totalBattery / stat.count) - avgAllBattery,
+      count: stat.count
+    }));
+
+  // Find energizing topics (high battery)
+  const energizing = meaningfulStats
+    .filter(stat => stat.diff >= 0.5)
+    .sort((a, b) => b.diff - a.diff)[0];
+
+  if (energizing) {
+    patterns.push({
+      id: `content-energizing-${energizing.name.replace(/\s/g, '-')}`,
+      type: 'thematic',
+      title: 'Energizing Topics',
+      description: `You report higher energy (${energizing.avgBattery.toFixed(1)}/5) when you "${energizing.name}".`,
+      insight: 'This activity seems to refill your cup. Prioritize it when feeling drained.',
+      confidence: energizing.count >= 5 ? 'high' : 'medium',
+      icon: 'zap',
+      data: { stat: energizing }
+    });
+  }
+
+  // Find draining topics (low battery)
+  const draining = meaningfulStats
+    .filter(stat => stat.diff <= -0.5)
+    .sort((a, b) => a.diff - b.diff)[0]; // Sort ascending (most negative first)
+
+  if (draining) {
+    patterns.push({
+      id: `content-draining-${draining.name.replace(/\s/g, '-')}`,
+      type: 'thematic',
+      title: 'Draining Activities',
+      description: `Your energy tends to be lower (${draining.avgBattery.toFixed(1)}/5) when you "${draining.name}".`,
+      insight: 'Be mindful of your capacity before committing to this.',
+      confidence: draining.count >= 5 ? 'high' : 'medium',
+      icon: 'battery-charging',
+      data: { stat: draining }
+    });
+  }
+
+  return patterns;
+}
+
+
+/**
  * Main function: detect all patterns
  */
 export async function detectPatterns(): Promise<Pattern[]> {
@@ -691,6 +779,10 @@ export async function detectPatterns(): Promise<Pattern[]> {
 
   const archetypeAffinityPattern = await detectArchetypeAffinityPattern(weaves);
   if (archetypeAffinityPattern) patterns.push(archetypeAffinityPattern);
+
+  // Run content pattern detection
+  const contentPatterns = await detectContentPatterns(history, weaves);
+  patterns.push(...contentPatterns);
 
   // Sort by confidence
   const confidenceOrder = { high: 3, medium: 2, low: 1 };

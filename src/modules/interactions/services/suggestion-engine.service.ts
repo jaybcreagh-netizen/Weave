@@ -2,6 +2,7 @@ import { Suggestion } from '@/shared/types/common';
 import FriendModel from '@/db/models/Friend';
 import InteractionModel from '@/db/models/Interaction';
 import { HydratedFriend } from '@/types/hydrated';
+import { StoryChip } from '@/modules/reflection/services/story-chips.service';
 
 export interface SuggestionInput {
   friend: HydratedFriend;
@@ -64,6 +65,7 @@ const COOLDOWN_DAYS = {
   'maintenance': 3,
   'deepen': 7,
   'reflect': 2,
+  'reactive-insight': 1,
 };
 
 // Archetype-specific celebration suggestions
@@ -852,6 +854,113 @@ function checkReflectSuggestion(
     };
   }
 
+  // REACTIVE INSIGHT: If recently reflected (within 24h) and has rich data
+  if (hoursSince < 24 && hoursSince >= 0 && mostRecent.reflection) {
+    return generatePostInteractionInsight(mostRecent, friend.name, friend.id);
+  }
+
+  return null;
+}
+
+/**
+ * Generate a reactive insight based on the completed interaction's content
+ */
+export function generatePostInteractionInsight(
+  interaction: InteractionModel,
+  friendName: string,
+  friendId: string
+): Suggestion | null {
+  if (!interaction.reflection) return null;
+
+  const chips: StoryChip[] = interaction.reflection.chips || [];
+  const chipIds = chips.map(c => c.id);
+
+  // 1. DEEP DIVE: Suggest follow-up for deep conversations
+  const hasDeepContent = chipIds.some(id =>
+    id.includes('deep') ||
+    id.includes('vulnerable') ||
+    id.includes('breakthrough') ||
+    id.includes('struggles')
+  );
+
+  if (hasDeepContent) {
+    return {
+      id: `reactive-deep-${interaction.id}`,
+      friendId,
+      friendName,
+      urgency: 'medium',
+      category: 'deepen',
+      title: 'Meaningful Connection',
+      subtitle: 'You had a deep conversation. Want to set an intention to check in next week?',
+      actionLabel: 'Set Intention',
+      icon: 'Heart',
+      action: {
+        type: 'plan',
+        prefilledCategory: 'text-call',
+      },
+      dismissible: true,
+      createdAt: new Date(),
+      type: 'deepen',
+    };
+  }
+
+  // 2. REPAIR: Suggest cooling down or repair if conflict detected
+  const hasConflict = chipIds.some(id =>
+    id.includes('conflict') ||
+    id.includes('argument') ||
+    id.includes('disagreement') ||
+    id.includes('misunderstood')
+  );
+
+  if (hasConflict) {
+    return {
+      id: `reactive-conflict-${interaction.id}`,
+      friendId,
+      friendName,
+      urgency: 'high',
+      category: 'insight',
+      title: 'Navigation Needed',
+      subtitle: 'Relationships have ups and downs. Consider sending a "thinking of you" message in a few days.',
+      actionLabel: 'Plan Reach Out',
+      icon: 'Umbrella',
+      action: {
+        type: 'plan',
+        prefilledCategory: 'text-call',
+      },
+      dismissible: true,
+      createdAt: new Date(),
+      type: 'reconnect',
+    };
+  }
+
+  // 3. POSITIVE MOMENTUM: If highly positive, suggest doing it again
+  const hasJoy = chipIds.some(id =>
+    id.includes('laugh') ||
+    id.includes('joy') ||
+    id.includes('energized') ||
+    id.includes('inspired')
+  );
+
+  if (hasJoy) {
+    return {
+      id: `reactive-joy-${interaction.id}`,
+      friendId,
+      friendName,
+      urgency: 'low',
+      category: 'celebrate',
+      title: 'Spark Captured! ✨',
+      subtitle: 'That sounded energized! This kind of interaction fuels your bond.',
+      actionLabel: 'Remember This',
+      icon: 'Zap',
+      action: {
+        type: 'connect',
+      },
+      dismissible: true,
+      createdAt: new Date(),
+      type: 'celebrate',
+    };
+  }
+
   return null;
 }
 
@@ -909,6 +1018,7 @@ export function getSuggestionCooldownDays(suggestionId: string): number {
   if (suggestionId.startsWith('maintenance')) return COOLDOWN_DAYS['maintenance'];
   if (suggestionId.startsWith('deepen')) return COOLDOWN_DAYS['deepen'];
   if (suggestionId.startsWith('reflect')) return COOLDOWN_DAYS['reflect'];
+  if (suggestionId.startsWith('reactive-')) return COOLDOWN_DAYS['reactive-insight'];
   if (suggestionId.startsWith('portfolio')) return 7; // Portfolio insights weekly
   if (suggestionId.startsWith('proactive-')) return 2; // Proactive predictions refresh often
   return 3; // Default
