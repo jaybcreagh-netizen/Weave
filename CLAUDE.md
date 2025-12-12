@@ -60,8 +60,8 @@ While Dunbar's Number provides quantitative structure, our **7 Tarot Archetypes*
 - **Language**: TypeScript (strict mode)
 - **Navigation**: `expo-router` (file-based routing in `app/` directory)
 - **Database**: WatermelonDB (reactive, local-first) - **single source of truth**
-- **State Management**: Zustand (ephemeral UI state & module stores)
-- **Query/Cache**: React Query (`@tanstack/react-query`) - for complex data requirements
+- **State Management**: React Query + WatermelonDB observables (Zustand being phased out)
+- **Query/Cache**: React Query (`@tanstack/react-query`) - derived data, async state
 - **Styling**: NativeWind (Tailwind CSS for React Native)
 - **Design Tokens**: `src/shared/theme/tokens.ts`
 - **Animations**: React Native Reanimated
@@ -123,13 +123,22 @@ The core scoring logic. **This is the brain of the application.**
 
 ### State Management
 
-**Zustand Stores** (inside modules):
-- Stores manage UI state and wrap service calls
-- They often subscribe to WatermelonDB observables or React Query hooks
-- Examples: `useRelationshipsStore`, `useInteractionsStore`
+**Strategy**: React Query + WatermelonDB observables (migrating away from Zustand)
+
+**WatermelonDB Observables**:
+- Primary source of truth for all persistent data
+- Use `.observe()` for reactive UI updates
+- Components subscribe directly to model observables
 
 **React Query**:
-- Used for complex derived data or expensive calculations that don't fit well into WatermelonDB's observable pattern
+- Derived/computed data from WatermelonDB
+- Async operations and caching
+- Complex aggregations that don't fit the observable pattern
+
+**Zustand** (legacy - being phased out):
+- Some stores still exist in `src/modules/*/store/` and `src/stores/`
+- New features should NOT use Zustand
+- Existing Zustand stores will be migrated to React Query + observables
 
 ### Navigation Structure (`app/`)
 
@@ -150,12 +159,23 @@ File-based routing via expo-router:
 - `Input`: Form input component
 
 **Design Tokens** (`src/shared/theme/tokens.ts`):
-- Color palette (light/dark themes)
+- Color palette (light/dark themes defined)
 - Typography scales
 - Spacing system
 - Border radius values
 
-**Styling Strategy**: NativeWind (Tailwind CSS) is the primary styling engine. All components should use `className` props with Tailwind utility classes mapped to design tokens.
+**Current Styling Reality** (hybrid approach):
+- `tailwind.config.ts` imports from `tokens.ts` (single source of truth)
+- **However**: Only light theme is mapped to Tailwind classes currently
+- Shared UI components use a **hybrid pattern**:
+  - `className` for layout/spacing (NativeWind)
+  - `style` prop + `useTheme()` hook for colors (runtime dark mode)
+- This hybrid approach exists because pure Tailwind dark mode isn't fully configured
+
+**Technical Debt:**
+- 87 files still use `StyleSheet.create`
+- 2400+ inline `style={}` usages across codebase
+- Dark mode in Tailwind config needs CSS variables or NativeWind dark strategy
 
 ---
 
@@ -204,11 +224,13 @@ npm start -- --clear
 - **Observables**: Use `.observe()` for reactive updates
 - **Performance**: Use `prepareCreate`/`prepareUpdate` and `batch` for multiple operations
 
-### Styling
-- **NativeWind**: Use Tailwind classes for styling via `className` prop
-- **Theme**: Use the `useTheme` hook for dynamic colors (light/dark mode)
-- **Tokens**: Never hardcode colors or spacing. Use design tokens via Tailwind classes
-- **Shared UI**: Prefer `@/shared/ui` components over raw React Native primitives
+### Styling (Hybrid Approach)
+- **Layout/Spacing**: Use NativeWind `className` with Tailwind utilities
+- **Colors**: Use `useTheme()` hook + inline `style` prop (until dark mode is solved in Tailwind)
+- **Tokens**: Never hardcode hex values. Reference `tokens.ts` via Tailwind classes or `useTheme()`
+- **Shared UI**: Prefer `@/shared/ui` components (Text, Button, Card, Icon, Input) over raw RN primitives
+- **New Components**: Follow the hybrid pattern in existing shared components
+- **Migration**: When touching legacy files, opportunistically replace `StyleSheet.create` with `className`
 
 ### Testing
 - **Jest**: Run tests with `npm test`
@@ -226,18 +248,34 @@ npm start -- --clear
 
 ### UI Standardization (In Progress)
 
-We are currently refactoring the UI layer to eliminate technical debt and establish consistency. See `docs/REFACTORING_ROADMAP.md` for the full plan.
+See `docs/REFACTORING_ROADMAP.md` for the full plan.
 
-**Goals:**
-- Single source of truth for design tokens in `tailwind.config.js` ← `tokens.ts`
-- All components use `@/shared/ui` primitives instead of raw React Native components
-- Zero `StyleSheet.create` usage; all styling via NativeWind `className`
-- "Unsaved Changes" protection in all modals/sheets
+**Completed:**
+- ✅ Design tokens defined in `src/shared/theme/tokens.ts`
+- ✅ `tailwind.config.ts` imports from tokens (light theme)
+- ✅ Core shared UI components created (Text, Button, Card, Icon, Input)
+
+**In Progress:**
+- 🔄 Migrating components to use `@/shared/ui` primitives
+- 🔄 Replacing `StyleSheet.create` with NativeWind `className`
+
+**Blocked:**
+- ⏸️ Pure Tailwind styling for colors — requires dark mode strategy in tailwind.config
+- ⏸️ Current workaround: hybrid `className` (layout) + `style` (colors via useTheme)
 
 **Migration Priority:**
-1. Core shared components (Text, Button, Card, Icon)
-2. High-usage components (SuggestionCard, ArchetypeCard)
-3. Modal components (EditInteractionModal, etc.)
+1. High-usage components (SuggestionCard, ArchetypeCard)
+2. Modal components (EditInteractionModal, etc.)
+3. Remaining `StyleSheet.create` files (87 total)
+
+### State Management Migration (Planned)
+
+**Goal:** Remove Zustand dependency, use React Query + WatermelonDB observables only.
+
+**Current Zustand Usage** (to migrate):
+- `src/modules/auth/store/` (auth, sync, user-profile stores)
+- `src/modules/interactions/store/` (interaction, event-suggestion stores)
+- `src/stores/` (tutorialStore, uiStore)
 
 ---
 
