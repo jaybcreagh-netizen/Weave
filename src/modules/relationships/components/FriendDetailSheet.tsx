@@ -17,6 +17,7 @@ import { archetypeData, CategoryArchetypeMatrix } from '@/shared/constants/const
 import { CATEGORY_METADATA } from '@/shared/constants/interaction-categories';
 import { type InteractionCategory, Archetype } from '@/components/types';
 import FriendModel from '@/db/models/Friend';
+import Interaction from '@/db/models/Interaction';
 import { database } from '@/db';
 import { Q } from '@nozbe/watermelondb';
 import { calculateCurrentScore } from '@/modules/intelligence';
@@ -47,14 +48,14 @@ interface FriendDetailSheetProps {
   onClose: () => void;
   friendId: string;
   friend: FriendModel; // Injected
-  interactionFriends: any[]; // Injected
+  interactions: Interaction[]; // Injected
 }
 
 const FriendDetailSheetContent: React.FC<FriendDetailSheetProps> = ({
   isVisible,
   onClose,
   friend,
-  interactionFriends,
+  interactions,
 }) => {
   const { colors, isDarkMode } = useTheme();
   // const { activeFriendInteractions } = useRelationshipsStore(); // Removed
@@ -99,12 +100,9 @@ const FriendDetailSheetContent: React.FC<FriendDetailSheetProps> = ({
   const archetypeInfo = archetypeData[friend.archetype];
   const weaveScore = calculateCurrentScore(friend);
 
-  // Use observed interactions directly
-  const totalWeaves = interactionFriends?.length || 0;
-  // TODO: If we need precise status, we need to inspect the interaction objects.
-  // Ideally interactions are observed as Interaction[] if using query correctly.
-  // For now assuming all are valid.
-  const completedWeaves = totalWeaves;
+  // Use observed interactions directly to calculate stats
+  // We can filter by status now that we have the full Interaction objects
+  const completedWeaves = interactions.filter(i => i.status === 'completed').length;
 
   const topInteractions = getTopInteractions(friend.archetype);
 
@@ -370,8 +368,8 @@ const FriendDetailSheetContent: React.FC<FriendDetailSheetProps> = ({
 // Enhance with observables
 export const FriendDetailSheet = withObservables(['friendId'], ({ friendId }: { friendId: string }) => ({
   friend: database.get<FriendModel>('friends').findAndObserve(friendId),
-  interactionFriends: database
-    .get('interaction_friends')
-    .query(Q.where('friend_id', friendId))
+  interactions: database
+    .get<Interaction>('interactions')
+    .query(Q.on('interaction_friends', 'friend_id', friendId))
     .observe(),
 }))(FriendDetailSheetContent);
