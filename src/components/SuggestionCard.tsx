@@ -45,7 +45,7 @@ export function SuggestionCard({ suggestion, onAct, onLater, index = 0 }: Sugges
         {
           backgroundColor: colors.card,
           borderColor: colors.border,
-          shadowColor: tokens.shadow.color
+          shadowColor: tokens.shadow?.color ?? '#000'
         }
       ]}
     >

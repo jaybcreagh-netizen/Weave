@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, Image, Pressable } from 'react-native';
+import { View, Text, Image, Pressable, ScrollView } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
@@ -26,6 +26,9 @@ import { resolveImageUri } from '../services/image.service';
 import { statusLineCache } from '@/modules/intelligence';
 import { FriendDetailSheet } from './FriendDetailSheet';
 import { HydratedFriend } from '@/types/hydrated';
+import { ArchetypeCard } from '@/components/ArchetypeCard';
+import { StandardBottomSheet } from '@/shared/ui/Sheet/StandardBottomSheet';
+import { database } from '@/db';
 
 const ATTENTION_THRESHOLD = 35;
 const STABLE_THRESHOLD = 65;
@@ -59,6 +62,7 @@ export const FriendListRowContent = ({ friend, animatedRef, variant = 'default' 
   });
   const [imageError, setImageError] = useState(false);
   const [showDetailSheet, setShowDetailSheet] = useState(false);
+  const [showArchetypePicker, setShowArchetypePicker] = useState(false);
   const { colors, isDarkMode } = useTheme();
   const { setArchetypeModal, justNurturedFriendId, setJustNurturedFriendId } = useUIStore();
   const { activeCardId, pendingCardId } = useCardGesture();
@@ -165,6 +169,29 @@ export const FriendListRowContent = ({ friend, animatedRef, variant = 'default' 
 
     setShowDetailSheet(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  };
+
+  // Handle tap to assign archetype for Unknown archetypes
+  const handleCardPress = () => {
+    if (archetype === 'Unknown') {
+      setShowArchetypePicker(true);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+  };
+
+  // Handle archetype selection
+  const handleArchetypeSelect = async (selectedArchetype: Archetype) => {
+    try {
+      await database.write(async () => {
+        await friend.update((f) => {
+          f.archetype = selectedArchetype;
+        });
+      });
+      setShowArchetypePicker(false);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (error) {
+      console.error('Error updating archetype:', error);
+    }
   };
 
   // Animated styles for gesture feedback
@@ -280,6 +307,7 @@ export const FriendListRowContent = ({ friend, animatedRef, variant = 'default' 
 
         {/* Content */}
         <Pressable
+          onPress={handleCardPress}
           onLongPress={handleCardLongPress}
           delayLongPress={500}
           className="flex-row items-center p-3 gap-3"
@@ -391,6 +419,35 @@ export const FriendListRowContent = ({ friend, animatedRef, variant = 'default' 
         onClose={() => setShowDetailSheet(false)}
         friendId={friend.id}
       />
+
+      {/* Quick Archetype Picker Sheet */}
+      <StandardBottomSheet
+        visible={showArchetypePicker}
+        onClose={() => setShowArchetypePicker(false)}
+        height="full"
+        title={`Choose ${name}'s Archetype`}
+        scrollable
+      >
+        <View className="px-5 pb-6">
+          <Text
+            className="text-sm mb-4 text-center"
+            style={{ color: colors['muted-foreground'] }}
+          >
+            Tap to select • Long-press to learn more
+          </Text>
+          <View className="flex-row flex-wrap gap-3">
+            {(['Emperor', 'Empress', 'HighPriestess', 'Fool', 'Sun', 'Hermit', 'Magician', 'Lovers'] as Archetype[]).map((arch) => (
+              <View key={arch} style={{ width: '48%' }}>
+                <ArchetypeCard
+                  archetype={arch}
+                  isSelected={false}
+                  onSelect={handleArchetypeSelect}
+                />
+              </View>
+            ))}
+          </View>
+        </View>
+      </StandardBottomSheet>
     </Animated.View>
   );
 };

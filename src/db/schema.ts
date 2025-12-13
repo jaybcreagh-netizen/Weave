@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb'
 
 export default appSchema({
-  version: 42, // UPDATED: Phase 4 Analytics columns
+  version: 43, // UPDATED: Added evening_digests table
   tables: [
     tableSchema({
       name: 'oracle_insights',
@@ -510,6 +510,17 @@ export default appSchema({
       columns: [
         { name: 'score', type: 'number' },
         { name: 'timestamp', type: 'number', isIndexed: true },
+        { name: 'created_at', type: 'number' },
+      ]
+    }),
+    tableSchema({
+      name: 'evening_digests',
+      columns: [
+        { name: 'digest_date', type: 'number', isIndexed: true }, // Date the digest is for (start of day timestamp)
+        { name: 'items_json', type: 'string' }, // JSON array of DigestItem[]
+        { name: 'notification_title', type: 'string' },
+        { name: 'notification_body', type: 'string' },
+        { name: 'item_count', type: 'number' }, // Quick count for display
         { name: 'created_at', type: 'number' },
       ]
     })

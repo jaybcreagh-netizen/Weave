@@ -30,6 +30,7 @@ import GroupMember from './models/GroupMember';
 import OracleInsight from './models/OracleInsight';
 import OracleUsage from './models/OracleUsage';
 import NetworkHealthLog from './models/NetworkHealthLog';
+import EveningDigest from './models/EveningDigest';
 
 import { setGenerator } from '@nozbe/watermelondb/utils/common/randomId';
 import { v4 as uuidv4 } from 'uuid';
@@ -78,6 +79,7 @@ export const database = new Database({
     OracleInsight,
     OracleUsage,
     NetworkHealthLog,
+    EveningDigest,
   ],
 });
 

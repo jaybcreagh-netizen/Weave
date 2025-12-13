@@ -2,6 +2,7 @@ import { Q } from '@nozbe/watermelondb';
 import { database } from '@/db';
 import FriendModel from '@/db/models/Friend';
 import { generateSuggestion } from './suggestion-engine.service';
+import { generateGuaranteedSuggestions } from './guaranteed-suggestions.service';
 import * as SuggestionStorageService from './suggestion-storage.service';
 import { Suggestion } from '@/shared/types/common';
 import {
@@ -42,6 +43,9 @@ export function selectDiverseSuggestions(suggestions: Suggestion[], maxCount: nu
         maintain: suggestions.filter(s => s.category === 'maintain'),
         insight: suggestions.filter(s => s.category === 'insight'),
         portfolio: suggestions.filter(s => s.category === 'portfolio'),
+        dailyReflect: suggestions.filter(s => s.category === 'daily-reflect'),
+        gentleNudge: suggestions.filter(s => s.category === 'gentle-nudge'),
+        wildcard: suggestions.filter(s => s.category === 'wildcard'),
     };
 
     const selected: Suggestion[] = [];
@@ -54,8 +58,11 @@ export function selectDiverseSuggestions(suggestions: Suggestion[], maxCount: nu
     }
 
     // 2. Build a diverse set from different buckets
-    // Priority order: reflect -> lifeEvent -> drift -> portfolio -> deepen -> maintain -> insight
-    const bucketOrder: Array<keyof typeof buckets> = ['reflect', 'lifeEvent', 'drift', 'portfolio', 'deepen', 'maintain', 'insight'];
+    // Priority order: reflect -> lifeEvent -> drift -> portfolio -> deepen -> maintain -> insight -> guaranteed types
+    const bucketOrder: Array<keyof typeof buckets> = [
+        'reflect', 'lifeEvent', 'drift', 'portfolio', 'deepen', 'maintain', 'insight',
+        'dailyReflect', 'gentleNudge', 'wildcard'
+    ];
 
     // Round-robin selection: pick best from each bucket
     for (const bucketName of bucketOrder) {
@@ -295,6 +302,14 @@ export async function fetchSuggestions(
         if (portfolioInsight) {
             allSuggestions.push(portfolioInsight);
         }
+    }
+
+    // MINIMUM SUGGESTIONS: Add guaranteed suggestions if we're below threshold
+    // This ensures users always have meaningful options even when network is healthy
+    const MIN_SUGGESTIONS = 3;
+    if (allSuggestions.length < MIN_SUGGESTIONS && friends.length > 0) {
+        const guaranteed = generateGuaranteedSuggestions(friends, allSuggestions, season);
+        allSuggestions.push(...guaranteed);
     }
 
     // Filter out dismissed (unless critical)

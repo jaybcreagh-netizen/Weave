@@ -4,7 +4,10 @@ import { notificationAnalytics } from '../notification-analytics';
 import { NotificationChannel } from '@/modules/notifications';
 import { FocusGenerator, FocusData } from '@/modules/intelligence';
 import { notificationStore } from '../notification-store';
-import { differenceInDays } from 'date-fns';
+import { differenceInDays, startOfDay } from 'date-fns';
+import { database } from '@/db';
+import EveningDigest from '@/db/models/EveningDigest';
+import { Q } from '@nozbe/watermelondb';
 
 export interface DigestItem {
     type: 'plan' | 'confirmation' | 'suggestion' | 'birthday' | 'anniversary' | 'life_event' | 'memory';
@@ -28,6 +31,8 @@ const ID_PREFIX = 'evening-digest';
 
 export const EveningDigestChannel: NotificationChannel & {
     generateContent: () => Promise<DigestContent>,
+    generateAndSave: () => Promise<DigestContent>,
+    loadDigestForDate: (date: Date) => Promise<EveningDigest | null>,
     cancel: () => Promise<void>
 } = {
     schedule: async (time: string = '19:00'): Promise<void> => {
@@ -43,29 +48,6 @@ export const EveningDigestChannel: NotificationChannel & {
                 Logger.error('[EveningDigest] Invalid time:', time);
                 return;
             }
-
-            // Standard daily schedule
-            // We schedule a "check" notification that will trigger standard "Evening Check-in" 
-            // OR we must accept that content is static "Check your evening digest" 
-            // UNLESS we use background fetch to update the notification body daily.
-            // For Weave's current architecture (local, no background fetch guaranteed), 
-            // we will use a GENERIC message that encourages opening.
-            // "Your evening check-in is ready. Tap to view today's summary."
-            // AND we generate the *actual* content (DigestContent) only when the user TAPS (in handleTap).
-
-            // Wait, the Requirement said: "Notification Copy Generation: { title: "Sarah's birthday tomorrow", body: "Tap to see details" }"
-            // To do this dynamically without server/background fetch is hard on Expo/iOS.
-            // HOWEVER, we CAN schedule specific notifications if we know the events ahead of time (like birthdays).
-            // But plans change.
-            // Compromise: We schedule a recurring notification with a generic message,
-            // OR the user accepts that it might be slightly stale if we schedule it 24h ahead?
-            // Actually, we can "reschedule after each digest fires" (from requirements).
-            // This suggests validation happens when the app is OPEN.
-            // If the app is NOT opened, the recurring notification fires with generic or last-known content.
-
-            // For V1 of Digest, let's stick to a reliable recurring notification with a static, inviting message.
-            // "Your evening brief is ready 🌙"
-            // "Take a moment to review today's connections and plans."
 
             await Notifications.scheduleNotificationAsync({
                 identifier: ID_PREFIX,
@@ -99,13 +81,11 @@ export const EveningDigestChannel: NotificationChannel & {
         const items: DigestItem[] = [];
 
         // 1. Pending Confirmations / Today's Plans (Priority 100/70)
-        // FocusGenerator.getImportantPlans includes both.
-        // We separate them by date if needed, or Treat 'pending' as high priority.
         focusData.pendingConfirmations.forEach(p => {
             const isToday = differenceInDays(new Date(p.interactionDate), new Date()) === 0;
             items.push({
                 type: isToday ? 'plan' : 'confirmation',
-                priority: isToday ? 100 : 70, // Today's plans strictly higher
+                priority: isToday ? 100 : 70,
                 title: p.title || 'Untitled Plan',
                 subtitle: isToday ? `Today` : `Pending from ${new Date(p.interactionDate).toLocaleDateString()}`,
                 interactionId: p.id,
@@ -141,59 +121,87 @@ export const EveningDigestChannel: NotificationChannel & {
         // Sort items by priority desc
         items.sort((a, b) => b.priority - a.priority);
 
-        // Determine if meaningful
-        // "Nothing meaningful" criteria: No plans, no birthdays <3 days, no crit events, no high urgency suggestions.
-        // Simplified: If items length > 0, it's meaningful (since we filter upstream partially).
-        // But let's check priorities.
         const highValueItems = items.filter(i => i.priority >= 40);
         const shouldSend = highValueItems.length > 0;
 
         return {
             items,
-            notificationTitle: "Your evening brief 🌙", // Dynamic copy not used for static schedule
+            notificationTitle: "Your evening brief 🌙",
             notificationBody: "Tap to view summary",
             shouldSend
         };
     },
 
-    handleTap: async (data: any, router: any) => {
-        // We need to OPEN the digest sheet.
-        // We'll use UIStore to toggle visibility and pass data.
-        // Lazy load store
-        const { useUIStore } = require('@/stores/uiStore');
-        const { Alert } = require('react-native');
+    /**
+     * Generate content AND save it to the database for this day
+     */
+    generateAndSave: async (): Promise<DigestContent> => {
+        const content = await EveningDigestChannel.generateContent();
 
-        // Check time restriction (7 PM - 9 PM) unless it's a test
-        const now = new Date();
-        const currentHour = now.getHours();
-        const isEvening = currentHour >= 19 && currentHour < 21; // 7 PM to 8:59 PM
-        const isTest = data?.isTest === true;
+        const today = startOfDay(new Date()).getTime();
 
-        if (!isEvening && !isTest) {
-            Logger.info('[EveningDigest] Tap ignored outside 7-9 PM window');
-            // Optional: Show an alert explaining why it didn't open?
-            // "The evening digest is only available between 7 PM and 9 PM."
-            // User requirement: "I only want the evening digest to appear in the evening - 7-9pm"
-            // It's better to give feedback than do nothing if they tap the notification.
-            Alert.alert(
-                'Evening Digest',
-                'The evening digest is only available between 7:00 PM and 9:00 PM.'
-            );
-            return;
+        try {
+            // Check if we already have a digest for today
+            const existing = await database
+                .get<EveningDigest>('evening_digests')
+                .query(Q.where('digest_date', today))
+                .fetch();
+
+            await database.write(async () => {
+                if (existing.length > 0) {
+                    // Update existing
+                    await existing[0].update(d => {
+                        d.itemsJson = JSON.stringify(content.items);
+                        d.notificationTitle = content.notificationTitle;
+                        d.notificationBody = content.notificationBody;
+                        d.itemCount = content.items.length;
+                    });
+                } else {
+                    // Create new
+                    await database.get<EveningDigest>('evening_digests').create(d => {
+                        d.digestDate = today;
+                        d.itemsJson = JSON.stringify(content.items);
+                        d.notificationTitle = content.notificationTitle;
+                        d.notificationBody = content.notificationBody;
+                        d.itemCount = content.items.length;
+                    });
+                }
+            });
+
+            Logger.info(`[EveningDigest] Saved digest for ${new Date(today).toLocaleDateString()} with ${content.items.length} items`);
+        } catch (error) {
+            Logger.error('[EveningDigest] Error saving digest:', error);
         }
 
-        // Generate FRESH content on tap to ensure it's up to date
-        // (e.g. if user completed a plan since notification fired)
-        try {
-            const content = await EveningDigestChannel.generateContent();
+        return content;
+    },
 
-            // Verify if still meaningful? 
-            // Even if empty, if user TAPPED, we should show the sheet (maybe empty state).
+    /**
+     * Load a saved digest for a specific date
+     */
+    loadDigestForDate: async (date: Date): Promise<EveningDigest | null> => {
+        try {
+            const dayStart = startOfDay(date).getTime();
+            const digests = await database
+                .get<EveningDigest>('evening_digests')
+                .query(Q.where('digest_date', dayStart))
+                .fetch();
+
+            return digests.length > 0 ? digests[0] : null;
+        } catch (error) {
+            Logger.error('[EveningDigest] Error loading digest:', error);
+            return null;
+        }
+    },
+
+    handleTap: async (data: any, router: any) => {
+        const { useUIStore } = require('@/stores/uiStore');
+
+        try {
+            // Generate fresh content AND save it
+            const content = await EveningDigestChannel.generateAndSave();
 
             if (router.canGoBack()) router.dismissAll();
-            // Navigate to home first or stay current?
-            // DigestSheet is likely global or on Home.
-            // If global modal, we can just open it.
 
             useUIStore.getState().openDigestSheet(content.items);
             notificationAnalytics.trackActionCompleted('evening-digest', 'open_sheet');

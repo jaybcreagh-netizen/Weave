@@ -23,6 +23,7 @@ export * from './services/event-scanner';
 export * as SuggestionTrackerService from './services/suggestion-tracker.service';
 export * as SuggestionStorageService from './services/suggestion-storage.service';
 export * from './services/suggestion-provider.service';
+export * from './services/guaranteed-suggestions.service';
 
 // Stores
 export * from './store';

@@ -926,6 +926,24 @@ export default schemaMigrations({
         }),
       ],
     },
+    {
+      // Migration from schema v42 to v43
+      // Evening Digest Persistence - Save daily digests for calendar view
+      toVersion: 43,
+      steps: [
+        createTable({
+          name: 'evening_digests',
+          columns: [
+            { name: 'digest_date', type: 'number', isIndexed: true },
+            { name: 'items_json', type: 'string' },
+            { name: 'notification_title', type: 'string' },
+            { name: 'notification_body', type: 'string' },
+            { name: 'item_count', type: 'number' },
+            { name: 'created_at', type: 'number' },
+          ],
+        }),
+      ],
+    },
   ],
 });
 

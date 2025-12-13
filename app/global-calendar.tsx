@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, Modal, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowLeft, X, Calendar as CalendarIcon, Users } from 'lucide-react-native';
+import { ArrowLeft, X, Calendar as CalendarIcon, Users, Moon } from 'lucide-react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { format, isToday } from 'date-fns';
 import * as Haptics from 'expo-haptics';
@@ -13,15 +13,19 @@ import { database } from '@/db';
 import { Q } from '@nozbe/watermelondb';
 import InteractionFriend from '@/db/models/InteractionFriend';
 import FriendModel from '@/db/models/Friend';
+import EveningDigest from '@/db/models/EveningDigest';
 import { getCategoryMetadata } from '@/shared/constants/interaction-categories';
 import { InteractionDetailModal } from '@/components/interaction-detail-modal';
 import { Interaction } from '@/components/types';
+import { EveningDigestChannel } from '@/modules/notifications';
+import { useUIStore } from '@/stores/uiStore';
 
 export default function GlobalCalendar() {
   const router = useRouter();
   const { fromFriendId } = useLocalSearchParams<{ fromFriendId: string }>();
   const { colors } = useTheme();
   const { allInteractions } = useInteractions();
+  const openDigestSheet = useUIStore(state => state.openDigestSheet);
 
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedDateInteractions, setSelectedDateInteractions] = useState<any[]>([]);
@@ -29,6 +33,7 @@ export default function GlobalCalendar() {
   const [interactionFriends, setInteractionFriends] = useState<Map<string, FriendModel[]>>(new Map());
   const [selectedInteractionDetail, setSelectedInteractionDetail] = useState<Interaction | null>(null);
   const [interactionDetailVisible, setInteractionDetailVisible] = useState(false);
+  const [selectedDateDigest, setSelectedDateDigest] = useState<EveningDigest | null>(null);
 
   // Load friends for interactions when modal opens
   useEffect(() => {
@@ -58,11 +63,15 @@ export default function GlobalCalendar() {
     setInteractionFriends(friendsMap);
   };
 
-  const handleDateSelect = (date: Date, interactions: any[]) => {
+  const handleDateSelect = async (date: Date, interactions: any[]) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSelectedDate(date);
     setSelectedDateInteractions(interactions);
     setDayDetailModalVisible(true);
+
+    // Load digest for this date
+    const digest = await EveningDigestChannel.loadDigestForDate(date);
+    setSelectedDateDigest(digest);
   };
 
   const handleInteractionPress = (interaction: any) => {
@@ -266,6 +275,45 @@ export default function GlobalCalendar() {
                   );
                 })}
               </View>
+            )}
+
+            {/* Evening Digest Card */}
+            {selectedDateDigest && (
+              <TouchableOpacity
+                onPress={() => {
+                  setDayDetailModalVisible(false);
+                  openDigestSheet(selectedDateDigest.items);
+                }}
+                className="p-4 rounded-2xl mt-4"
+                style={{
+                  backgroundColor: colors.card,
+                  borderColor: colors.accent,
+                  borderWidth: 1,
+                }}
+              >
+                <View className="flex-row items-center gap-3">
+                  <View
+                    className="w-10 h-10 rounded-full items-center justify-center"
+                    style={{ backgroundColor: colors.accent + '20' }}
+                  >
+                    <Moon size={20} color={colors.accent} />
+                  </View>
+                  <View className="flex-1">
+                    <Text
+                      className="text-base font-semibold"
+                      style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold' }}
+                    >
+                      Evening Brief
+                    </Text>
+                    <Text
+                      className="text-sm"
+                      style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
+                    >
+                      {selectedDateDigest.itemCount} items · Tap to view
+                    </Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
             )}
           </ScrollView>
         </SafeAreaView>

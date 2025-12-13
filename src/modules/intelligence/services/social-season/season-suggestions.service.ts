@@ -28,7 +28,10 @@ export type SuggestionCategory =
     | 'deepen'          // Thriving relationship
     | 'reflect'         // Reflection needed
     | 'celebrate'       // Celebration opportunity
-    | 'expansion';      // New connections (blooming only)
+    | 'expansion'       // New connections (blooming only)
+    | 'daily-reflect'   // Guaranteed daily reflection prompt
+    | 'gentle-nudge'    // Low-pressure reach-out suggestion
+    | 'wildcard';       // Spontaneous, serendipitous ideas
 
 /**
  * Effort level for interaction types
@@ -61,6 +64,7 @@ const SEASON_SUGGESTION_CONFIGS: Record<SocialSeason, SeasonSuggestionConfig> = 
             'critical-drift',
             'life-event',       // Always include life events
             'first-weave',      // Still encourage first contact with new friends
+            'daily-reflect',    // Gentle reflection prompts always available
         ],
         preferredEffort: 'low',
         bypassCategories: ['life-event'], // Birthdays, anniversaries always shown
@@ -80,6 +84,9 @@ const SEASON_SUGGESTION_CONFIGS: Record<SocialSeason, SeasonSuggestionConfig> = 
             'deepen',
             'reflect',
             'celebrate',
+            'daily-reflect',    // Guaranteed daily reflection
+            'gentle-nudge',     // Low-pressure reach-out
+            'wildcard',         // Spontaneous ideas
         ],
         preferredEffort: 'medium',
         bypassCategories: ['life-event'],
@@ -99,7 +106,10 @@ const SEASON_SUGGESTION_CONFIGS: Record<SocialSeason, SeasonSuggestionConfig> = 
             'deepen',
             'reflect',
             'celebrate',
-            'expansion', // Only in blooming: encourage new connections
+            'expansion',        // Only in blooming: encourage new connections
+            'daily-reflect',    // Guaranteed daily reflection
+            'gentle-nudge',     // Low-pressure reach-out
+            'wildcard',         // Spontaneous ideas
         ],
         preferredEffort: 'high',
         bypassCategories: ['life-event'],
