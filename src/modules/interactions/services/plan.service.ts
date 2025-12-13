@@ -61,7 +61,6 @@ export async function completePlan(interactionId: string, data?: { vibe?: string
   const currentSeason = useUserProfileStore.getState().getSocialSeason();
   await processWeaveScoring(friends, interactionData, database, currentSeason);
   await recordPractice('log_weave');
-  // TODO: Trigger UI celebration from the hook/store that calls this service.
 }
 
 /**

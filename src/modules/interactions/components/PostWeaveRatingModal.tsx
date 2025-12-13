@@ -15,7 +15,7 @@ import { SeasonAnalyticsService } from '@/modules/intelligence';
 
 export function PostWeaveRatingModal() {
     const { colors } = useTheme();
-    const { isPostWeaveRatingOpen, postWeaveRatingTargetId, closePostWeaveRating, showToast } = useUIStore();
+    const { isPostWeaveRatingOpen, postWeaveRatingTargetId, closePostWeaveRating, showToast, showCelebration } = useUIStore();
     const { pendingConfirmations, completePlan, cancelPlan } = usePlans();
     const { allInteractions } = useInteractions();
     const [currentPlanId, setCurrentPlanId] = useState<string | null>(null);
@@ -158,6 +158,9 @@ export function PostWeaveRatingModal() {
                 // Provide success feedback
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                 showToast("Weave completed", friendNames || 'Friend');
+
+                // Trigger celebration
+                showCelebration('moderate');
             } catch (e) {
                 console.error("[PostWeaveRatingModal] Failed to complete plan", e);
                 // Provide error feedback
