@@ -35,7 +35,13 @@ const dateOptions = [
 
 export default function WeaveLoggerScreen() {
   const router = useRouter();
-  const { friendId } = useLocalSearchParams<{ friendId: string }>();
+  const { friendId, date, category, notes, title: initialTitle } = useLocalSearchParams<{
+    friendId: string;
+    date?: string;
+    category?: string;
+    notes?: string;
+    title?: string;
+  }>();
   const { logWeave } = useInteractions();
   const { colors, isDarkMode } = useTheme();
 
@@ -76,8 +82,9 @@ export default function WeaveLoggerScreen() {
     };
   }, []);
 
-  // Fetch friend's data and set as initial selected friend
+  // Initialize from params
   useEffect(() => {
+    // Friend
     if (friendId) {
       database.get<FriendModel>(FriendModel.table)
         .find(friendId)
@@ -105,7 +112,36 @@ export default function WeaveLoggerScreen() {
           );
         });
     }
-  }, [friendId]);
+
+    // Date
+    if (date) {
+      const parsedDate = new Date(date);
+      if (!isNaN(parsedDate.getTime())) {
+        setSelectedDate(startOfDay(parsedDate));
+      }
+    }
+
+    // Category
+    if (category) {
+      const isValid = getAllCategories().includes(category as InteractionCategory);
+      if (isValid) {
+        setSelectedCategory(category as InteractionCategory);
+      }
+    }
+
+    // Notes
+    if (notes) {
+      setReflection(prev => ({
+        ...prev,
+        customNotes: notes
+      }));
+    }
+
+    // Title
+    if (initialTitle) {
+      setTitle(initialTitle);
+    }
+  }, [friendId, date, category, notes, initialTitle]);
 
   // Auto-scroll to details section when category is selected
   useEffect(() => {
