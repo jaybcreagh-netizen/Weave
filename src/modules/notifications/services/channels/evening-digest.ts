@@ -199,7 +199,7 @@ export const EveningDigestChannel: NotificationChannel & {
 
         // Navigate first to ensure stable route where GlobalModals is mounted
         if (router.canGoBack()) router.dismissAll();
-        router.replace('/(tabs)/_friends');
+        router.replace('/dashboard');
 
         // Generate content (non-blocking save)
         try {
