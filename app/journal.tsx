@@ -152,7 +152,11 @@ export default function JournalScreen() {
                     setPrefilledText(text);
                     setPrefilledFriendIds(friendIds);
                     setShowQuickCapture(false);
-                    setShowGuided(true);
+                    // Add delay to allow sheet to close before opening modal to avoid race condition
+                    // "Attempt to present ... whose view is not in the window hierarchy"
+                    setTimeout(() => {
+                        setShowGuided(true);
+                    }, 500);
                 }}
             />
 

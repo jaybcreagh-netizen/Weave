@@ -8,6 +8,7 @@ import * as Notifications from 'expo-notifications';
 import { useRouter } from 'expo-router';
 import Logger from '@/shared/utils/Logger';
 import { notificationAnalytics } from './notification-analytics';
+import { notificationStore } from './notification-store';
 import { NotificationType } from '../types';
 
 // Channels
@@ -23,7 +24,7 @@ import { EveningDigestChannel } from './channels/evening-digest';
 export const useNotificationResponseHandler = () => {
   const router = useRouter();
 
-  const handleResponse = (response: Notifications.NotificationResponse) => {
+  const handleResponse = async (response: Notifications.NotificationResponse) => {
     try {
       const data = response.notification.request.content.data;
       const type = data?.type as NotificationType;
@@ -34,8 +35,16 @@ export const useNotificationResponseHandler = () => {
       // Track the interaction
       notificationAnalytics.trackTapped(type, actionId, data);
 
-      // If simply dismissing, we might not want to do anything
+      // Reset ignore count for this type (user engaged!)
+      if (type) {
+        await notificationStore.resetIgnoreCount(type);
+      }
+
+      // If simply dismissing, track as ignore and return
       if (actionId === 'dismiss') {
+        if (type) {
+          await notificationStore.incrementIgnoreCount(type);
+        }
         return;
       }
 

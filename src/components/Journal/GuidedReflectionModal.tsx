@@ -31,6 +31,8 @@ import Animated, {
   SlideOutLeft,
   SlideInLeft,
   SlideOutRight,
+  SlideInDown,
+  SlideOutDown,
 } from 'react-native-reanimated';
 import {
   ChevronLeft,
@@ -117,6 +119,7 @@ export function GuidedReflectionModal({
   const [selectedContext, setSelectedContext] = useState<ContextSelection | null>(null);
   const [prompts, setPrompts] = useState<JournalPrompt[]>([]);
   const [selectedPrompt, setSelectedPrompt] = useState<JournalPrompt | null>(null);
+  const [showFriendPicker, setShowFriendPicker] = useState(false);
 
   // Writing state
   const [text, setText] = useState(prefilledText || '');
@@ -132,6 +135,20 @@ export function GuidedReflectionModal({
   // ============================================================================
   // DATA LOADING
   // ============================================================================
+
+  const toggleFriend = useCallback((friend: FriendModel) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+    setSelectedFriendIds(prev => {
+      const next = new Set(prev);
+      if (next.has(friend.id)) {
+        next.delete(friend.id);
+      } else {
+        next.add(friend.id);
+      }
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     if (visible) {
@@ -151,16 +168,38 @@ export function GuidedReflectionModal({
   }, [prefilledWeaveId, meaningfulWeaves]);
 
   // Handle prefilled text (from QuickCapture expand)
+  // When expanding from QuickCapture, skip directly to write step
   useEffect(() => {
     if (prefilledText) {
       setText(prefilledText);
+
+      // Skip context and prompt selection - go straight to write
+      // BUT still generate prompts for "Active Inspiration"
+      const context: ContextSelection = { type: 'general' };
+      setSelectedContext(context);
+
+      const promptContext: PromptContext = { type: 'general' };
+      const generatedPrompts = generateJournalPrompts(promptContext);
+      setPrompts(generatedPrompts);
+      // Don't select one by default, let them choose if they want
+
+      setStep('write');
+      // Focus text input after render
+      setTimeout(() => textInputRef.current?.focus(), 300);
     }
   }, [prefilledText]);
 
-  // Handle prefilled friends (from Friend Profile)
+  // Handle prefilled friends (from Friend Profile or QuickCapture)
   useEffect(() => {
     if (prefilledFriendIds && prefilledFriendIds.length > 0 && friends.length > 0) {
-      // If we have a single friend, try to set up the friend context
+      // If we have prefilled text, just pre-select friends for tagging
+      // (we're already skipping to write step via the prefilledText effect)
+      if (prefilledText) {
+        setSelectedFriendIds(new Set(prefilledFriendIds));
+        return;
+      }
+
+      // No prefilled text - normal flow from Friend Profile
       if (prefilledFriendIds.length === 1) {
         const friendId = prefilledFriendIds[0];
         const friend = friends.find(f => f.id === friendId);
@@ -172,7 +211,7 @@ export function GuidedReflectionModal({
         setSelectedFriendIds(new Set(prefilledFriendIds));
       }
     }
-  }, [prefilledFriendIds, friends]);
+  }, [prefilledFriendIds, friends, prefilledText]);
 
   const loadData = async () => {
     setLoading(true);
@@ -824,8 +863,8 @@ export function GuidedReflectionModal({
         <View className="flex-1 flex-row">
           {/* Main Writing Area */}
           <View className="flex-1 px-5">
-            {/* Prompt Display */}
-            {selectedPrompt && (
+            {/* Prompt Display or Inspiration */}
+            {selectedPrompt ? (
               <Animated.View entering={FadeInDown.duration(300)} className="mt-4 mb-4">
                 <View className="flex-row items-center gap-2 mb-2">
                   <Sparkles size={14} color={colors.primary} />
@@ -835,6 +874,9 @@ export function GuidedReflectionModal({
                   >
                     Your prompt
                   </Text>
+                  <TouchableOpacity onPress={() => setSelectedPrompt(null)}>
+                    <X size={14} color={colors['muted-foreground']} />
+                  </TouchableOpacity>
                 </View>
                 <Text
                   className="text-lg leading-7"
@@ -843,6 +885,46 @@ export function GuidedReflectionModal({
                   {selectedPrompt.question}
                 </Text>
               </Animated.View>
+            ) : (
+              prompts.length > 0 && (
+                <Animated.View entering={FadeInDown.duration(300)} className="mt-4 mb-4">
+                  <View className="flex-row items-center gap-2 mb-3">
+                    <Sparkles size={14} color={colors.primary} />
+                    <Text
+                      className="text-xs uppercase tracking-wide"
+                      style={{ color: colors['muted-foreground'], fontFamily: 'Inter_600SemiBold' }}
+                    >
+                      Need inspiration?
+                    </Text>
+                  </View>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} className="-mx-5 px-5">
+                    <View className="flex-row gap-3">
+                      {prompts.slice(0, 5).map((prompt, i) => (
+                        <TouchableOpacity
+                          key={prompt.id}
+                          onPress={() => {
+                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                            setSelectedPrompt(prompt);
+                          }}
+                          className="p-3 rounded-xl border max-w-[200px]"
+                          style={{
+                            borderColor: colors.border,
+                            backgroundColor: colors.card,
+                          }}
+                        >
+                          <Text
+                            className="text-sm"
+                            style={{ color: colors.foreground, fontFamily: 'Lora_500Medium' }}
+                            numberOfLines={3}
+                          >
+                            {prompt.question}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </ScrollView>
+                </Animated.View>
+              )
             )}
 
             {/* Text Input */}
@@ -863,30 +945,45 @@ export function GuidedReflectionModal({
             />
 
             {/* Friend Tags */}
-            {selectedFriendIds.size > 0 && (
-              <View className="flex-row flex-wrap gap-2 pb-4">
-                {Array.from(selectedFriendIds).map((id) => {
-                  const friend = friends.find(f => f.id === id);
-                  if (!friend) return null;
+            <View className="flex-row flex-wrap gap-2 pb-4">
+              {selectedFriendIds.size > 0 && Array.from(selectedFriendIds).map((id) => {
+                const friend = friends.find(f => f.id === id);
+                if (!friend) return null;
 
-                  return (
-                    <View
-                      key={id}
-                      className="flex-row items-center gap-1.5 px-3 py-1.5 rounded-full"
-                      style={{ backgroundColor: colors.primary + '15' }}
+                return (
+                  <TouchableOpacity
+                    key={id}
+                    onPress={() => toggleFriend(friend)}
+                    className="flex-row items-center gap-1.5 px-3 py-1.5 rounded-full"
+                    style={{ backgroundColor: colors.primary + '15' }}
+                  >
+                    <User size={12} color={colors.primary} />
+                    <Text
+                      className="text-xs"
+                      style={{ color: colors.primary, fontFamily: 'Inter_500Medium' }}
                     >
-                      <User size={12} color={colors.primary} />
-                      <Text
-                        className="text-xs"
-                        style={{ color: colors.primary, fontFamily: 'Inter_500Medium' }}
-                      >
-                        {friend.name}
-                      </Text>
-                    </View>
-                  );
-                })}
-              </View>
-            )}
+                      {friend.name}
+                    </Text>
+                    <X size={10} color={colors.primary} />
+                  </TouchableOpacity>
+                );
+              })}
+
+              {/* Add Friend Button */}
+              <TouchableOpacity
+                onPress={() => setShowFriendPicker(true)}
+                className="flex-row items-center gap-1.5 px-3 py-1.5 rounded-full"
+                style={{ backgroundColor: colors.muted, borderWidth: 1, borderColor: colors.border }}
+              >
+                <User size={12} color={colors['muted-foreground']} />
+                <Text
+                  className="text-xs"
+                  style={{ color: colors['muted-foreground'], fontFamily: 'Inter_500Medium' }}
+                >
+                  {selectedFriendIds.size > 0 ? 'Add another' : 'Tag friend'}
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* Context Panel (collapsible) */}
@@ -1202,3 +1299,159 @@ export function GuidedReflectionModal({
 }
 
 export default GuidedReflectionModal;
+
+// ============================================================================
+// FRIEND PICKER MODAL
+// ============================================================================
+
+interface FriendPickerModalProps {
+  visible: boolean;
+  onClose: () => void;
+  friends: FriendModel[];
+  selectedFriendIds: string[];
+  onToggleFriend: (friend: FriendModel) => void;
+  colors: any;
+}
+
+function FriendPickerModal({
+  visible,
+  onClose,
+  friends,
+  selectedFriendIds,
+  onToggleFriend,
+  colors,
+}: FriendPickerModalProps) {
+  const [search, setSearch] = useState('');
+
+  const filteredFriends = search
+    ? friends.filter(f => f.name.toLowerCase().includes(search.toLowerCase()))
+    : friends;
+
+  if (!visible) return null;
+
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={onClose}
+    >
+      <View className="flex-1 justify-end bg-black/50">
+        <TouchableOpacity className="flex-1" onPress={onClose} activeOpacity={1} />
+
+        <Animated.View
+          entering={SlideInDown.springify().damping(20)}
+          exiting={SlideOutDown.springify().damping(20)}
+          className="rounded-t-3xl"
+          style={{
+            backgroundColor: colors.background,
+            maxHeight: '70%',
+          }}
+        >
+          {/* Header */}
+          <View className="flex-row items-center justify-between px-5 py-4 border-b" style={{ borderColor: colors.border }}>
+            <Text
+              className="text-lg"
+              style={{ color: colors.foreground, fontFamily: 'Lora_600SemiBold' }}
+            >
+              Tag Friends
+            </Text>
+            <TouchableOpacity onPress={onClose}>
+              <Text
+                className="text-base"
+                style={{ color: colors.primary, fontFamily: 'Inter_600SemiBold' }}
+              >
+                Done
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Search */}
+          <View className="px-5 py-3">
+            <TextInput
+              value={search}
+              onChangeText={setSearch}
+              placeholder="Search friends..."
+              placeholderTextColor={colors['muted-foreground']}
+              className="px-4 py-3 rounded-xl text-base"
+              style={{
+                backgroundColor: colors.muted,
+                color: colors.foreground,
+                fontFamily: 'Inter_400Regular',
+              }}
+            />
+          </View>
+
+          {/* Friend List */}
+          <ScrollView className="px-5 pb-8" showsVerticalScrollIndicator={false}>
+            {filteredFriends.map((friend) => {
+              const isSelected = selectedFriendIds.includes(friend.id);
+
+              return (
+                <TouchableOpacity
+                  key={friend.id}
+                  onPress={() => onToggleFriend(friend)}
+                  className="flex-row items-center justify-between py-3.5 border-b"
+                  style={{ borderColor: colors.border }}
+                  activeOpacity={0.7}
+                >
+                  <View className="flex-row items-center gap-3">
+                    <View
+                      className="w-10 h-10 rounded-full items-center justify-center"
+                      style={{ backgroundColor: colors.muted }}
+                    >
+                      <Text
+                        className="text-base"
+                        style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold' }}
+                      >
+                        {friend.name.charAt(0).toUpperCase()}
+                      </Text>
+                    </View>
+                    <View>
+                      <Text
+                        className="text-base"
+                        style={{ color: colors.foreground, fontFamily: 'Inter_500Medium' }}
+                      >
+                        {friend.name}
+                      </Text>
+                      <Text
+                        className="text-xs"
+                        style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
+                      >
+                        {friend.dunbarTier}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View
+                    className="w-6 h-6 rounded-full items-center justify-center"
+                    style={{
+                      backgroundColor: isSelected ? colors.primary : 'transparent',
+                      borderWidth: isSelected ? 0 : 2,
+                      borderColor: colors.border,
+                    }}
+                  >
+                    {isSelected && (
+                      <Text style={{ color: colors['primary-foreground'], fontSize: 14 }}>✓</Text>
+                    )}
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+
+            {filteredFriends.length === 0 && (
+              <View className="py-8 items-center">
+                <Text
+                  className="text-sm"
+                  style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
+                >
+                  No friends found
+                </Text>
+              </View>
+            )}
+          </ScrollView>
+        </Animated.View>
+      </View>
+    </Modal>
+  );
+}

@@ -58,6 +58,12 @@ const IMAGE_SETTINGS = {
     quality: 0.8, // Higher quality for journal photos
     format: ImageManipulator.SaveFormat.JPEG,
   },
+  groupPicture: {
+    width: 400,
+    height: 400,
+    quality: 0.7, // Same settings as profile pictures
+    format: ImageManipulator.SaveFormat.JPEG,
+  },
 } as const;
 
 /**
@@ -73,7 +79,7 @@ const SUPABASE_BUCKETS = {
 // TYPES
 // =====================================================
 
-export type ImageType = 'profilePicture' | 'journalPhoto';
+export type ImageType = 'profilePicture' | 'journalPhoto' | 'groupPicture';
 
 export interface ProcessImageOptions {
   uri: string;
@@ -149,8 +155,8 @@ export async function processAndStoreImage(
     const actions: ImageManipulator.Action[] = [];
 
     // Step 2: Smart Center Crop (if needed)
-    // Only apply for profile pictures or if we want square images
-    if (type === 'profilePicture' && Math.abs(width - height) > 5) {
+    // Only apply for profile pictures, group pictures, or if we want square images
+    if ((type === 'profilePicture' || type === 'groupPicture') && Math.abs(width - height) > 5) {
       const size = Math.min(width, height);
       const originX = (width - size) / 2;
       const originY = (height - size) / 2;
@@ -190,8 +196,11 @@ export async function processAndStoreImage(
       processedUri: manipulatedImage.uri,
     });
 
-    // Step 4: Save to local storage (persistent)
-    const fileName = `${type}_${imageId}.jpg`;
+    // Step 4: Clean up old images and save new one
+    await cleanupOldImages(imageId, type);
+
+    const timestamp = Date.now();
+    const fileName = `${type}_${imageId}_${timestamp}.jpg`;
     const localUri = `${LOCAL_STORAGE_DIR}${fileName}`;
 
     await FileSystem.copyAsync({
@@ -297,14 +306,9 @@ export async function deleteImage(params: {
 
   try {
     // Delete local file
-    const fileName = `${type}_${imageId}.jpg`;
-    const localUri = `${LOCAL_STORAGE_DIR}${fileName}`;
-    const fileInfo = await FileSystem.getInfoAsync(localUri);
-
-    if (fileInfo.exists) {
-      await FileSystem.deleteAsync(localUri, { idempotent: true });
-      Logger.info('[ImageService] Deleted local file:', localUri);
-    }
+    // Delete local file(s)
+    await cleanupOldImages(imageId, type);
+    Logger.info('[ImageService] Deleted local files for:', imageId);
 
     // Delete from cloud (if enabled)
     if (ENABLE_CLOUD_STORAGE && userId) {
@@ -362,18 +366,32 @@ export async function getImageUri(params: {
   const { imageId, type, cloudUrl } = params;
 
   // Check local storage first
-  const fileName = `${type}_${imageId}.jpg`;
-  const localUri = `${LOCAL_STORAGE_DIR}${fileName}`;
-  const fileInfo = await FileSystem.getInfoAsync(localUri);
+  // Check local storage first - need to find potential timestamped file
+  const dirInfo = await FileSystem.getInfoAsync(LOCAL_STORAGE_DIR);
+  if (dirInfo.exists) {
+    const contents = await FileSystem.readDirectoryAsync(LOCAL_STORAGE_DIR);
+    const prefix = `${type}_${imageId}`;
 
-  if (fileInfo.exists) {
-    return localUri;
+    // Find all matching files
+    const matches = contents.filter(item =>
+      item === `${type}_${imageId}.jpg` || item.startsWith(`${type}_${imageId}_`)
+    );
+
+    if (matches.length > 0) {
+      // Sort to get the latest (if there are multiple for some reason)
+      // Timestamped ones will sort last alphabetically if format is consistent, 
+      // but let's just pick the last one which is likely the newest or the only one
+      matches.sort();
+      const latestFile = matches[matches.length - 1];
+      return `${LOCAL_STORAGE_DIR}${latestFile}`;
+    }
   }
 
   // If cloud URL exists, download and cache
   if (cloudUrl && ENABLE_CLOUD_STORAGE) {
     try {
       await ensureDirectoryExists();
+      const localUri = `${LOCAL_STORAGE_DIR}${type}_${imageId}.jpg`;
       await FileSystem.downloadAsync(cloudUrl, localUri);
       Logger.info('[ImageService] Downloaded from cloud to cache:', localUri);
       return localUri;
@@ -383,6 +401,36 @@ export async function getImageUri(params: {
   }
 
   return null;
+}
+
+/**
+ * Clean up old images for a specific entity
+ */
+async function cleanupOldImages(imageId: string, type: ImageType): Promise<void> {
+  try {
+    const dirInfo = await FileSystem.getInfoAsync(LOCAL_STORAGE_DIR);
+    if (!dirInfo.exists) return;
+
+    const contents = await FileSystem.readDirectoryAsync(LOCAL_STORAGE_DIR);
+    const prefix = `${type}_${imageId}`;
+
+    // Match files that start with the prefix (covers both legacy "type_id.jpg" and new "type_id_timestamp.jpg")
+    for (const item of contents) {
+      if (item.startsWith(prefix)) {
+        // Double check it's the right ID (excludes "type_id2..." if id is "type_id")
+        // The format is either `${type}_${imageId}.jpg` or `${type}_${imageId}_${timestamp}.jpg`
+        // So checking if it starts with `${type}_${imageId}_` or equals `${type}_${imageId}.jpg` is safer
+        const isMatch = item === `${type}_${imageId}.jpg` || item.startsWith(`${type}_${imageId}_`);
+
+        if (isMatch) {
+          await FileSystem.deleteAsync(`${LOCAL_STORAGE_DIR}${item}`, { idempotent: true });
+          Logger.debug('[ImageService] Cleaned up old image:', item);
+        }
+      }
+    }
+  } catch (error) {
+    Logger.warn('[ImageService] Error cleaning up old images:', error);
+  }
 }
 
 /**
@@ -587,5 +635,55 @@ export async function deleteFriendPhoto(friendId: string): Promise<void> {
   return deleteImage({
     imageId: friendId,
     type: 'profilePicture',
+  });
+}
+
+/**
+ * Upload group profile photo
+ */
+export async function uploadGroupPhoto(uri: string, groupId: string): Promise<ImageResult> {
+  return processAndStoreImage({
+    uri,
+    type: 'groupPicture',
+    imageId: groupId,
+  });
+}
+
+/**
+ * Rotate an image 90 degrees clockwise
+ */
+export async function rotateImage(uri: string, type: ImageType, imageId: string): Promise<ImageResult> {
+  try {
+    // 1. Rotate the image using manipulateAsync
+    const result = await ImageManipulator.manipulateAsync(
+      uri,
+      [{ rotate: 90 }],
+      {
+        compress: 1, // Keep high quality for intermediate step
+        format: ImageManipulator.SaveFormat.JPEG
+      }
+    );
+
+    // 2. Process and store the rotated image (this handles resizing, final compression, and saving)
+    // The processAndStoreImage function will also handle the cleanup of old images for this ID
+    return await processAndStoreImage({
+      uri: result.uri,
+      type,
+      imageId
+    });
+  } catch (error) {
+    Logger.error('[ImageService] Error rotating image:', error);
+    return {
+      localUri: '',
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error during rotation',
+    };
+  }
+}
+
+export async function deleteGroupPhoto(groupId: string): Promise<void> {
+  return deleteImage({
+    imageId: groupId,
+    type: 'groupPicture',
   });
 }

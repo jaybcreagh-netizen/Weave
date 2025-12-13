@@ -18,6 +18,8 @@ export {
 export {
   uploadFriendPhoto,
   deleteFriendPhoto,
+  uploadGroupPhoto,
+  deleteGroupPhoto,
 } from './services/image.service';
 export * from './utils/image.utils';
 export * from './services/life-event-detection';

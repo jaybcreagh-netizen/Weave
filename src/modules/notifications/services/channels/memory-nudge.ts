@@ -7,6 +7,7 @@
 import * as Notifications from 'expo-notifications';
 import Logger from '@/shared/utils/Logger';
 import { notificationAnalytics } from '../notification-analytics';
+import { notificationStore } from '../notification-store';
 import { NotificationChannel } from '@/modules/notifications';
 import { getAnniversaryMemories, getMemoryForNotification } from '@/modules/journal';
 import { database } from '@/db';
@@ -20,6 +21,21 @@ export const MemoryNudgeChannel: NotificationChannel = {
         try {
             // Get memories for roughly "today" (logic inside handles window)
             const memories = await getAnniversaryMemories();
+
+            // Check if this type is suppressed (ignored 3+ times)
+            if (await notificationStore.isTypeSuppressed('memory-nudge')) {
+                Logger.info('[MemoryNudge] Suppressed due to repeated ignores');
+                await MemoryNudgeChannel.cancel(ID_PREFIX);
+                return;
+            }
+
+            // Check global daily budget
+            const budget = await notificationStore.getDailyBudget();
+            if (budget.used >= budget.limit) {
+                Logger.info('[MemoryNudge] Daily budget exhausted');
+                await MemoryNudgeChannel.cancel(ID_PREFIX);
+                return;
+            }
 
             // Check season suppression
             const profiles = await database.get<UserProfile>('user_profile').query().fetch();
@@ -68,13 +84,19 @@ export const MemoryNudgeChannel: NotificationChannel = {
                             (bestMemory.id.includes('reflection') ? 'reflection' : 'journal')
                     },
                 },
-                trigger: trigger as any,
+                trigger: {
+                    type: Notifications.SchedulableTriggerInputTypes.DATE,
+                    date: trigger
+                },
             });
 
             await notificationAnalytics.trackScheduled('memory-nudge', id, {
                 entryId: bestMemory.relatedEntryId,
                 type: bestMemory.type
             });
+
+            // Increment global daily budget
+            await notificationStore.checkAndIncrementBudget();
 
         } catch (error) {
             Logger.error('[MemoryNudge] Error:', error);

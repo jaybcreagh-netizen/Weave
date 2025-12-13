@@ -11,6 +11,11 @@ import { Q } from '@nozbe/watermelondb';
 import PortfolioSnapshot from '@/db/models/PortfolioSnapshot';
 import { STORY_CHIPS, StoryChip } from './story-chips.service';
 
+// Pre-built lookup map for O(1) chip access (avoid O(n) .find() on every keystroke)
+const CHIP_LOOKUP_MAP = new Map<string, StoryChip>(
+  STORY_CHIPS.map(chip => [chip.id, chip])
+);
+
 // ============================================================================
 // TYPES
 // ============================================================================
@@ -519,7 +524,7 @@ export function detectChipsFromText(text: string): DetectedChip[] {
   const detected: DetectedChip[] = [];
 
   for (const [chipId, confidence] of detectedChipIds.entries()) {
-    const chip = STORY_CHIPS.find(c => c.id === chipId);
+    const chip = CHIP_LOOKUP_MAP.get(chipId);
     if (chip) {
       // Filter to only feeling and moment chips for weekly reflection
       if (chip.type === 'feeling' || chip.type === 'moment') {

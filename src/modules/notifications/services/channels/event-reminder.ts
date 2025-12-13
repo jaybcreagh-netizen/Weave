@@ -56,7 +56,10 @@ export const EventReminderChannel: NotificationChannel & { scheduleAll: () => Pr
                         friendId: friends.length > 0 ? friends[0].id : undefined,
                     },
                 },
-                trigger: reminderTime as any,
+                trigger: {
+                    type: Notifications.SchedulableTriggerInputTypes.DATE,
+                    date: reminderTime
+                },
             });
 
             await notificationAnalytics.trackScheduled('event-reminder', id, {
@@ -96,9 +99,9 @@ export const EventReminderChannel: NotificationChannel & { scheduleAll: () => Pr
     },
 
     handleTap: (data, router) => {
-        if (data.interactionId) {
-            router.push(`/interactions/${data.interactionId}`);
-            notificationAnalytics.trackActionCompleted('event-reminder', 'view_interaction');
+        if (data.friendId) {
+            router.push(`/friend-profile?friendId=${data.friendId}`);
+            notificationAnalytics.trackActionCompleted('event-reminder', 'view_profile');
         } else {
             router.replace('/dashboard');
         }

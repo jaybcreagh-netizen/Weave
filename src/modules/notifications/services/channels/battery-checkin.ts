@@ -59,7 +59,10 @@ export const BatteryCheckinChannel = {
                         body: "Take 10 seconds to check in with your social battery.",
                         data: { type: 'battery-checkin' },
                     },
-                    trigger: target as any,
+                    trigger: {
+                        type: Notifications.SchedulableTriggerInputTypes.DATE,
+                        date: target
+                    },
                 });
 
                 await notificationAnalytics.trackScheduled('battery-checkin', id, {

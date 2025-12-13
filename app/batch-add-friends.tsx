@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, TouchableOpacity, SafeAreaView, ActivityIndicator, StyleSheet, TextInput } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as Contacts from 'expo-contacts';
@@ -21,6 +21,10 @@ export default function BatchAddFriends() {
   const [showResolver, setShowResolver] = useState(false);
   const [conflicts, setConflicts] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+
+  const selectedIds = useMemo(() => {
+    return selectedContacts.map(c => c.id).filter(Boolean) as string[];
+  }, [selectedContacts]);
 
   const processBatchAdd = async (contactsToAdd: Array<{ name: string; photoUrl: string; contactId?: string }>) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -212,6 +216,7 @@ export default function BatchAddFriends() {
           showAddManually={false}
           title="" // Hidden anyway
           subtitle="" // Hidden anyway
+          selectedIds={selectedIds}
         />
       </View>
 

@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb'
 
 export default appSchema({
-  version: 43, // UPDATED: Added evening_digests table
+  version: 44, // UPDATED: Added photo_url to groups table
   tables: [
     tableSchema({
       name: 'oracle_insights',
@@ -494,6 +494,7 @@ export default appSchema({
         { name: 'name', type: 'string' },
         { name: 'type', type: 'string' }, // 'manual' | 'smart'
         { name: 'smart_confidence', type: 'number', isOptional: true },
+        { name: 'photo_url', type: 'string', isOptional: true },
         { name: 'created_at', type: 'number' },
         { name: 'updated_at', type: 'number' },
       ]

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useDebounceCallback } from '@/shared/hooks/useDebounceCallback';
 import { View, Text, TouchableOpacity, TextInput, ScrollView, Image, StyleSheet, Modal, Alert, ActivityIndicator } from 'react-native';
-import { ArrowLeft, Camera, X, Users, AlertCircle } from 'lucide-react-native';
+import { ArrowLeft, Camera, X, Users, AlertCircle, RotateCw } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as Contacts from 'expo-contacts';
 import { useRouter } from 'expo-router';
@@ -20,7 +20,7 @@ import { normalizeContactImageUri } from '../utils/image.utils';
 import { SimpleTutorialTooltip } from '@/components/SimpleTutorialTooltip';
 import { useTutorialStore } from '@/stores/tutorialStore';
 import { validateMMDDFormat } from '@/shared/utils/validation-helpers';
-import { processAndStoreImage, getRelativePath, resolveImageUri } from '../services/image.service';
+import { processAndStoreImage, getRelativePath, resolveImageUri, rotateImage } from '../services/image.service';
 
 interface FriendFormProps {
   onSave: (friendData: FriendFormData) => void;
@@ -292,6 +292,31 @@ export function FriendForm({ onSave, friend, initialTier, fromOnboarding, onSkip
     setFormData({ ...formData, photoUrl: "" });
   };
 
+  const handleRotate = async () => {
+    if (!formData.photoUrl || imageProcessing) return;
+
+    setImageProcessing(true);
+    try {
+      const resolvedUri = await resolveImageUri(formData.photoUrl);
+      const imageId = friend?.id || `temp_${Date.now()}`;
+
+      const result = await rotateImage(resolvedUri, 'profilePicture', imageId);
+
+      if (result.success) {
+        setFormData(prev => ({ ...prev, photoUrl: result.localUri }));
+        setImageError(false);
+      } else {
+        console.error('[FriendForm] Rotation failed:', result.error);
+        Alert.alert('Rotation Failed', 'Could not rotate the image. Please try again.');
+      }
+    } catch (error) {
+      console.error('[FriendForm] Error rotating image:', error);
+      Alert.alert('Error', 'An unexpected error occurred while rotating the image.');
+    } finally {
+      setImageProcessing(false);
+    }
+  };
+
   const handleContactSelection = useCallback(async (selectedContacts: Contacts.Contact[]) => {
     if (selectedContacts.length > 0) {
       // 1. Close modal immediately to prevent stuck state
@@ -378,9 +403,18 @@ export function FriendForm({ onSave, friend, initialTier, fromOnboarding, onSkip
                 </View>
               </TouchableOpacity>
               {formData.photoUrl && (
-                <TouchableOpacity onPress={removePhoto} style={styles.removeImageButton}>
-                  <X size={12} color="white" />
-                </TouchableOpacity>
+                <>
+                  <TouchableOpacity onPress={removePhoto} style={styles.removeImageButton}>
+                    <X size={12} color="white" />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={handleRotate}
+                    style={[styles.rotateImageButton, { backgroundColor: colors.muted, borderColor: colors.border }]}
+                    disabled={imageProcessing}
+                  >
+                    <RotateCw size={14} color={colors.foreground} />
+                  </TouchableOpacity>
+                </>
               )}
               <View style={{ flex: 1, gap: 8 }}>
                 <TouchableOpacity
@@ -706,6 +740,18 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  rotateImageButton: {
+    position: 'absolute',
+    bottom: -8,
+    left: 68,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
   },
   addPhotoButton: {
     width: '100%',

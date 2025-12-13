@@ -944,6 +944,19 @@ export default schemaMigrations({
         }),
       ],
     },
+    {
+      // Migration from schema v43 to v44
+      // Group Profile Pictures - Add photo_url column to groups table
+      toVersion: 44,
+      steps: [
+        addColumns({
+          table: 'groups',
+          columns: [
+            { name: 'photo_url', type: 'string', isOptional: true },
+          ],
+        }),
+      ],
+    },
   ],
 });
 

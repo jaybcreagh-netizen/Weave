@@ -22,6 +22,7 @@ export function useFriendProfileData(friendId: string | undefined) {
     const [activeLifeEvents, setActiveLifeEvents] = useState<LifeEvent[]>([]);
     const [isLoadingMore, setIsLoadingMore] = useState(false);
     const [interactionsLimit, setInteractionsLimit] = useState(20);
+    const [version, setVersion] = useState(0);
 
     const [friendModel, setFriendModel] = useState<FriendModel | null>(null);
     const [interactionsModels, setInteractionsModels] = useState<InteractionModel[]>([]);
@@ -40,6 +41,7 @@ export function useFriendProfileData(friendId: string | undefined) {
             .subscribe({
                 next: (friend) => {
                     setFriendModel(friend);
+                    setVersion(v => v + 1);
                     setIsDataLoaded(true);
                 },
                 error: (error) => {
@@ -157,7 +159,7 @@ export function useFriendProfileData(friendId: string | undefined) {
             resilience: friendModel.resilience,
             typicalIntervalDays: friendModel.typicalIntervalDays,
         };
-    }, [friendModel]);
+    }, [friendModel, version]);
 
     // Map Interaction Models to DTOs
     const interactions: Interaction[] = useMemo(() => {

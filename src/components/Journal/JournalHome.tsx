@@ -123,12 +123,12 @@ export function JournalHome({
   // DATA LOADING
   // ============================================================================
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  // ============================================================================
+  // DATA LOADING
+  // ============================================================================
 
-  const loadData = async () => {
-    setLoading(true);
+  const loadData = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       await Promise.all([
         loadEntries(),
@@ -138,9 +138,29 @@ export function JournalHome({
     } catch (error) {
       console.error('[JournalHome] Error loading data:', error);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    // Initial load
+    loadData(false);
+
+    // Subscribe to changes
+    const entriesSub = database.get<JournalEntry>('journal_entries').changes.subscribe(() => {
+      loadData(true);
+    });
+
+    // Also subscribe to weekly reflections changes
+    const reflectionsSub = database.get<WeeklyReflection>('weekly_reflections').changes.subscribe(() => {
+      loadData(true);
+    });
+
+    return () => {
+      entriesSub.unsubscribe();
+      reflectionsSub.unsubscribe();
+    };
+  }, []);
 
   const ENTRIES_PAGE_SIZE = 50;
 

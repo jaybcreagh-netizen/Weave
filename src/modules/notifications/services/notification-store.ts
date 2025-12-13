@@ -33,6 +33,22 @@ const KEYS = {
 
     // Analytics
     CORRELATION: '@weave:notification_correlation',
+
+    // Daily Budget
+    DAILY_BUDGET: '@weave:daily_budget',
+
+    // Adaptive Frequency (ignore tracking)
+    IGNORE_COUNTS: '@weave:notification_ignore_counts',
+
+    // Digest Batching - pending events to show in evening digest
+    PENDING_EVENTS: '@weave:pending_events_for_digest',
+} as const;
+
+// Budget limits per frequency setting
+const BUDGET_LIMITS = {
+    light: 3,
+    moderate: 5,
+    proactive: 8,
 } as const;
 
 // Default Preferences
@@ -182,6 +198,159 @@ class NotificationStoreService {
 
     async setPermissionRequested(requested: boolean): Promise<void> {
         await AsyncStorage.setItem(KEYS.PERMISSION_REQUESTED, requested ? 'true' : 'false');
+    }
+
+    // ==============================================================================
+    // Daily Budget
+    // ==============================================================================
+
+    async getDailyBudget(): Promise<{ date: string; used: number; limit: number }> {
+        try {
+            const val = await AsyncStorage.getItem(KEYS.DAILY_BUDGET);
+            const prefs = await this.getPreferences();
+            const limit = BUDGET_LIMITS[prefs.frequency];
+            const today = new Date().toDateString();
+
+            if (val) {
+                const data = JSON.parse(val);
+                // Reset if different day
+                if (data.date !== today) {
+                    return { date: today, used: 0, limit };
+                }
+                return { ...data, limit };
+            }
+            return { date: today, used: 0, limit };
+        } catch (e) {
+            return { date: new Date().toDateString(), used: 0, limit: BUDGET_LIMITS.moderate };
+        }
+    }
+
+    /**
+     * Check if budget allows another notification and increment if so.
+     * Returns true if notification is allowed, false if budget exhausted.
+     */
+    async checkAndIncrementBudget(): Promise<boolean> {
+        const budget = await this.getDailyBudget();
+        if (budget.used >= budget.limit) {
+            Logger.info(`[NotificationStore] Budget exhausted: ${budget.used}/${budget.limit}`);
+            return false;
+        }
+
+        const newBudget = { date: budget.date, used: budget.used + 1 };
+        await AsyncStorage.setItem(KEYS.DAILY_BUDGET, JSON.stringify(newBudget));
+        Logger.debug(`[NotificationStore] Budget used: ${newBudget.used}/${budget.limit}`);
+        return true;
+    }
+
+    // ==============================================================================
+    // Adaptive Frequency (Ignore Tracking)
+    // ==============================================================================
+
+    /**
+     * Get consecutive ignore count for a notification type.
+     */
+    async getIgnoreCount(type: string): Promise<number> {
+        try {
+            const val = await AsyncStorage.getItem(KEYS.IGNORE_COUNTS);
+            if (val) {
+                const counts = JSON.parse(val);
+                return counts[type] || 0;
+            }
+        } catch (e) { /* ignore */ }
+        return 0;
+    }
+
+    /**
+     * Increment ignore count for a type (called when notification dismissed/ignored).
+     */
+    async incrementIgnoreCount(type: string): Promise<void> {
+        try {
+            const val = await AsyncStorage.getItem(KEYS.IGNORE_COUNTS);
+            const counts = val ? JSON.parse(val) : {};
+            counts[type] = (counts[type] || 0) + 1;
+            await AsyncStorage.setItem(KEYS.IGNORE_COUNTS, JSON.stringify(counts));
+            Logger.debug(`[NotificationStore] Ignore count for ${type}: ${counts[type]}`);
+        } catch (e) {
+            Logger.error('[NotificationStore] Error incrementing ignore count', e);
+        }
+    }
+
+    /**
+     * Reset ignore count for a type (called when user taps notification).
+     */
+    async resetIgnoreCount(type: string): Promise<void> {
+        try {
+            const val = await AsyncStorage.getItem(KEYS.IGNORE_COUNTS);
+            const counts = val ? JSON.parse(val) : {};
+            counts[type] = 0;
+            await AsyncStorage.setItem(KEYS.IGNORE_COUNTS, JSON.stringify(counts));
+        } catch (e) { /* ignore */ }
+    }
+
+    /**
+     * Check if notification type should be suppressed due to repeated ignores.
+     * Returns true if type has been ignored 3+ times consecutively.
+     */
+    async isTypeSuppressed(type: string): Promise<boolean> {
+        const count = await this.getIgnoreCount(type);
+        return count >= 3;
+    }
+
+    // ==============================================================================
+    // Digest Batching - Pending Events
+    // ==============================================================================
+
+    /**
+     * Get pending events to show in the evening digest.
+     */
+    async getPendingEvents(): Promise<any[]> {
+        try {
+            const val = await AsyncStorage.getItem(KEYS.PENDING_EVENTS);
+            if (val) {
+                const data = JSON.parse(val);
+                // Only return events from today
+                const today = new Date().toDateString();
+                if (data.date === today) {
+                    return data.events || [];
+                }
+            }
+        } catch (e) { /* ignore */ }
+        return [];
+    }
+
+    /**
+     * Add a pending event to be shown in the evening digest.
+     */
+    async addPendingEvent(event: {
+        eventId: string;
+        title: string;
+        friendNames: string;
+        eventDate: string;
+        friendIds: string[];
+        suggestedCategory?: string;
+    }): Promise<void> {
+        try {
+            const today = new Date().toDateString();
+            const existing = await this.getPendingEvents();
+
+            // Prevent duplicates
+            if (existing.some(e => e.eventId === event.eventId)) {
+                return;
+            }
+
+            const events = [...existing, event];
+            await AsyncStorage.setItem(KEYS.PENDING_EVENTS, JSON.stringify({ date: today, events }));
+            Logger.debug(`[NotificationStore] Added pending event: ${event.title}`);
+        } catch (e) {
+            Logger.error('[NotificationStore] Error adding pending event', e);
+        }
+    }
+
+    /**
+     * Clear all pending events (called after digest is shown).
+     */
+    async clearPendingEvents(): Promise<void> {
+        await AsyncStorage.removeItem(KEYS.PENDING_EVENTS);
     }
 }
 

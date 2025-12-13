@@ -9,7 +9,7 @@ import FriendModel from '@/db/models/Friend';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { ListItem } from '@/components/ui/ListItem';
 import { getCategoryLabel } from '@/modules/interactions';
-
+import { groupService } from '@/modules/groups';
 interface FocusPlanItemProps {
     interaction: Interaction;
     friends: FriendModel[];
@@ -78,9 +78,61 @@ const PlanItemView: React.FC<{
     isCompletedSection: boolean;
 }> = ({ interaction, planFriends, onReschedule, onDeepen, isCompletedSection }) => {
     const { tokens } = useTheme();
+    const [groupName, setGroupName] = React.useState<string | null>(null);
 
-    const friendName = planFriends.length > 0 ? planFriends[0].name : '';
-    const subtitle = `${friendName ? `with ${friendName} • ` : ''}${format(new Date(interaction.interactionDate), 'h:mm a')}`;
+    React.useEffect(() => {
+        let isActive = true;
+
+        const checkGroupMatch = async () => {
+            if (planFriends.length < 2) {
+                if (isActive) setGroupName(null);
+                return;
+            }
+
+            try {
+                // Optimization: get groups for the first friend
+                const groups = await groupService.getGroupsForFriend(planFriends[0].id);
+
+                // Sort plan friend IDs for comparison
+                const planFriendIds = planFriends.map(f => f.id).sort();
+
+                for (const group of groups) {
+                    const members = await group.members.fetch();
+                    const memberIds = members.map((m: any) => m.friendId).sort();
+
+                    // Check for exact match
+                    if (memberIds.length === planFriendIds.length &&
+                        memberIds.every((id: string, index: number) => id === planFriendIds[index])) {
+                        if (isActive) {
+                            setGroupName(group.name);
+                        }
+                        return;
+                    }
+                }
+
+                if (isActive) setGroupName(null);
+            } catch (e) {
+                console.warn('Error checking group match:', e);
+                if (isActive) setGroupName(null);
+            }
+        };
+
+        checkGroupMatch();
+
+        return () => {
+            isActive = false;
+        };
+    }, [planFriends]);
+
+    const displayNames = React.useMemo(() => {
+        if (groupName) return groupName;
+        if (planFriends.length === 0) return '';
+        if (planFriends.length === 1) return planFriends[0].name;
+        if (planFriends.length === 2) return `${planFriends[0].name} & ${planFriends[1].name}`;
+        return `${planFriends[0].name} and ${planFriends.length - 1} more`;
+    }, [planFriends, groupName]);
+
+    const subtitle = `${displayNames ? `with ${displayNames} • ` : ''}${format(new Date(interaction.interactionDate), 'h:mm a')}`;
     const categoryLabel = getCategoryLabel(interaction.interactionCategory ?? undefined);
 
     const isReflected = interaction.reflectionJSON || interaction.reflection;
@@ -88,7 +140,7 @@ const PlanItemView: React.FC<{
     return (
         <View style={{ paddingHorizontal: 16 }}>
             <ListItem
-                title={interaction.title || `${categoryLabel}${friendName ? ` with ${friendName}` : ''}`}
+                title={interaction.title || `${categoryLabel}${displayNames ? ` with ${displayNames}` : ''}`}
                 subtitle={subtitle}
                 // showDivider handled by parent usually? We'll leave it simple for now or pass index.
                 // Replicating parent behavior:

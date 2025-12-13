@@ -4,16 +4,20 @@ import GroupMember from '@/db/models/GroupMember';
 import Friend from '@/db/models/Friend';
 import InteractionFriend from '@/db/models/InteractionFriend';
 import { Q } from '@nozbe/watermelondb';
+import { deleteGroupPhoto } from '@/modules/relationships';
 
 export const groupService = {
     /**
      * Create a new manual group
      */
-    async createGroup(name: string, friendIds: string[]): Promise<Group> {
+    async createGroup(name: string, friendIds: string[], photoUrl?: string): Promise<Group> {
         return await database.write(async () => {
             const group = await database.get<Group>('groups').create(g => {
                 g.name = name;
                 g.type = 'manual';
+                if (photoUrl) {
+                    g.photoUrl = photoUrl;
+                }
             });
 
             const memberCollection = database.get<GroupMember>('group_members');
@@ -33,14 +37,17 @@ export const groupService = {
     /**
      * Update an existing group
      */
-    async updateGroup(groupId: string, name: string, friendIds: string[]): Promise<void> {
+    async updateGroup(groupId: string, name: string, friendIds: string[], photoUrl?: string): Promise<void> {
         await database.write(async () => {
             const group = await database.get<Group>('groups').find(groupId);
 
-            // Update name
-            if (group.name !== name) {
+            // Update name and photo
+            if (group.name !== name || group.photoUrl !== photoUrl) {
                 await group.update(g => {
                     g.name = name;
+                    if (photoUrl !== undefined) {
+                        g.photoUrl = photoUrl;
+                    }
                 });
             }
 
@@ -65,6 +72,9 @@ export const groupService = {
      * Delete a group
      */
     async deleteGroup(groupId: string): Promise<void> {
+        // Clean up the group's photo if it exists
+        await deleteGroupPhoto(groupId);
+
         await database.write(async () => {
             const group = await database.get<Group>('groups').find(groupId);
             await group.destroyPermanently(); // Cascade delete should handle members if configured, but explicit is safe

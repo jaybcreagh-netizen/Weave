@@ -1,5 +1,5 @@
 import { Model } from '@nozbe/watermelondb';
-import { field, date, children, readonly } from '@nozbe/watermelondb/decorators';
+import { field, text, date, children, readonly } from '@nozbe/watermelondb/decorators';
 
 export default class Group extends Model {
     static table = 'groups';
@@ -11,6 +11,7 @@ export default class Group extends Model {
     @field('name') name!: string;
     @field('type') type!: 'manual' | 'smart';
     @field('smart_confidence') smartConfidence?: number;
+    @text('photo_url') photoUrl?: string;
 
     @children('group_members') members!: any;
 

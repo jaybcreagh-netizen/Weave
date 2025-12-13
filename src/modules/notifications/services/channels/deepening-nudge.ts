@@ -23,6 +23,19 @@ export const DeepeningNudgeChannel: NotificationChannel = {
         try {
             if (interaction.status !== 'completed') return;
 
+            // Check if this type is suppressed (ignored 3+ times)
+            if (await notificationStore.isTypeSuppressed('deepening-nudge')) {
+                Logger.info('[DeepeningNudge] Suppressed due to repeated ignores');
+                return;
+            }
+
+            // Check global daily budget
+            const budget = await notificationStore.getDailyBudget();
+            if (budget.used >= budget.limit) {
+                Logger.info('[DeepeningNudge] Daily budget exhausted');
+                return;
+            }
+
             // Check season suppression
             const profiles = await database.get<UserProfile>('user_profile').query().fetch();
             const currentSeason = profiles[0]?.currentSocialSeason;
@@ -86,13 +99,19 @@ export const DeepeningNudgeChannel: NotificationChannel = {
                         interactionId: interaction.id,
                     },
                 },
-                trigger: nudgeTime as any,
+                trigger: {
+                    type: Notifications.SchedulableTriggerInputTypes.DATE,
+                    date: nudgeTime
+                },
             });
 
             await notificationAnalytics.trackScheduled('deepening-nudge', id, {
                 interactionId: interaction.id,
                 delayHours
             });
+
+            // Increment global daily budget
+            await notificationStore.checkAndIncrementBudget();
 
             // Save to store
             existingNudges.push({

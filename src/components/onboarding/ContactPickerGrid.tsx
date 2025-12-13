@@ -377,6 +377,7 @@ export function ContactPickerGrid({
           renderItem={renderItem}
           contentContainerStyle={{ paddingBottom: 90, paddingTop: 10 }}
           estimatedItemSize={ITEM_HEIGHT}
+          extraData={selectedContactIds}
         />
       )}
     </Animated.View>

@@ -21,7 +21,7 @@ const AnimatedLine = Animated.createAnimatedComponent(Line);
 import { useTheme } from '@/shared/hooks/useTheme';
 import { formatPoeticDate, calculateWeaveWarmth, getThreadColors } from '@/shared/utils/timeline-utils';
 import { modeIcons } from '@/shared/constants/constants';
-import { getCategoryMetadata } from '@/shared/constants/interaction-categories';
+import { getCategoryMetadata, CATEGORY_METADATA } from '@/shared/constants/interaction-categories';
 import { type Interaction, type InteractionCategory } from './types';
 import { calculateDeepeningLevel, getDeepeningVisuals } from '@/modules/intelligence';
 import { usePausableAnimation } from '@/shared/hooks/usePausableAnimation';
@@ -188,7 +188,9 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, index,
 
   // Get friendly label and icon for category (memoized)
   const { displayLabel, displayIcon } = useMemo(() => {
-    const isCategory = interaction.activity && interaction.activity.includes('-');
+    // Check if the activity is a known category ID (e.g., 'hangout', 'meal-drink')
+    // Old logic only checked for hyphens, missing 'hangout' and 'celebration'
+    const isCategory = interaction.activity && (interaction.activity in CATEGORY_METADATA);
 
     if (isCategory) {
       const categoryData = getCategoryMetadata(interaction.activity as InteractionCategory);

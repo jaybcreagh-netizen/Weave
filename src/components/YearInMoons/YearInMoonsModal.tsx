@@ -15,7 +15,13 @@ import {
   Modal,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import Animated, { FadeIn } from 'react-native-reanimated';
+import Animated, {
+  FadeInDown,
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withSequence
+} from 'react-native-reanimated';
 import { X, Calendar, BarChart3, Sparkles } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '@/shared/hooks/useTheme';
@@ -42,6 +48,41 @@ interface YearInMoonsModalProps {
 
 type Tab = 'moons' | 'journal' | 'patterns';
 
+const AnimatedMoon = React.memo(({
+  children,
+  index,
+  monthIndex,
+  batteryLevel
+}: {
+  children: React.ReactNode;
+  index: number;
+  monthIndex: number;
+  batteryLevel: number | null;
+}) => {
+  const scale = useSharedValue(1);
+  const firstRender = React.useRef(true);
+
+  useEffect(() => {
+    // Skip animation on first render as entering handles it
+    if (firstRender.current) {
+      firstRender.current = false;
+      return;
+    }
+    // Pulse on subsequent updates
+    scale.value = withSequence(withSpring(1.2, { damping: 10 }), withSpring(1, { damping: 10 }));
+  }, [batteryLevel]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }]
+  }));
+
+  return (
+    <Animated.View style={animatedStyle}>
+      {children}
+    </Animated.View>
+  );
+});
+
 export function YearInMoonsModal({ isOpen, onClose }: YearInMoonsModalProps) {
   const { colors, isDarkMode, tokens } = useTheme();
   const { submitBatteryCheckin } = useUserProfileStore();
@@ -59,6 +100,7 @@ export function YearInMoonsModal({ isOpen, onClose }: YearInMoonsModalProps) {
   });
   const scrollViewRef = React.useRef<ScrollView>(null);
   const hasScrolledRef = React.useRef(false);
+  const currentScrollYRef = React.useRef(0);
 
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth(); // 0-11
@@ -72,8 +114,8 @@ export function YearInMoonsModal({ isOpen, onClose }: YearInMoonsModalProps) {
     }
   }, [isOpen]);
 
-  const loadYearData = async () => {
-    setIsLoading(true);
+  const loadYearData = async (showLoader = true) => {
+    if (showLoader) setIsLoading(true);
     try {
       const [data, stats] = await Promise.all([
         getYearMoonData(currentYear),
@@ -84,7 +126,7 @@ export function YearInMoonsModal({ isOpen, onClose }: YearInMoonsModalProps) {
     } catch (error) {
       console.error('Error loading year moon data:', error);
     } finally {
-      setIsLoading(false);
+      if (showLoader) setIsLoading(false);
     }
   };
 
@@ -118,19 +160,58 @@ export function YearInMoonsModal({ isOpen, onClose }: YearInMoonsModalProps) {
   };
 
   const handleBatteryCheckinSubmit = async (value: number, note?: string) => {
+    // Close sheet immediately for snappy UI
+    setBatterySheetVisible(false);
+    setDayForBatteryCheckin(null);
+
     if (dayForBatteryCheckin) {
-      // Set time to noon on the selected day to avoid timezone issues
+      // 1. Optimistic Update: Update local state immediately
+      // This makes the UI ripple instantly without waiting for DB
+      const targetDateStr = dayForBatteryCheckin.toISOString().split('T')[0];
+
+      setYearData(prevData => {
+        return prevData.map(month => {
+          // Optimization: Only clone/map if date is in this month
+          // Check simple month/year match first
+          if (month.month !== dayForBatteryCheckin.getMonth() ||
+            month.year !== dayForBatteryCheckin.getFullYear()) {
+            return month;
+          }
+
+          return {
+            ...month,
+            days: month.days.map(day => {
+              // Compare by date string to ignore time component
+              if (day.date.toISOString().split('T')[0] === targetDateStr) {
+                return {
+                  ...day,
+                  batteryLevel: value,
+                  hasCheckin: true,
+                  // We need to recalculate moon phase for the new value to be accurate immediately
+                  // We'll import batteryToMoonPhase helper or duplicate logic slightly for speed
+                  // Logic: 1->0.0, 2->0.25, 3->0.5, 4->0.75, 5->1.0
+                  moonPhase: [0.1, 0.0, 0.25, 0.5, 0.75, 1.0][value] || 0.1
+                };
+              }
+              return day;
+            })
+          };
+        });
+      });
+
+      // 2. Perform Async DB Write
       const timestamp = new Date(dayForBatteryCheckin);
       timestamp.setHours(12, 0, 0, 0);
 
       await submitBatteryCheckin(value, note, timestamp.getTime(), true);
 
-      // Reload the year data to reflect the new check-in
-      loadYearData();
+      // 3. Silent Re-sync (Safety Net)
+      // We still re-fetch to ensure consistency, but user sees the change already
+      // No delay needed for the UI, just for the data consistency check
+      setTimeout(async () => {
+        await loadYearData(false);
+      }, 500);
     }
-
-    setBatterySheetVisible(false);
-    setDayForBatteryCheckin(null);
   };
 
   const handleBatterySheetDismiss = () => {
@@ -216,6 +297,10 @@ export function YearInMoonsModal({ isOpen, onClose }: YearInMoonsModalProps) {
             ref={scrollViewRef}
             style={{ flex: 1 }}
             contentContainerStyle={{ paddingBottom: 100 }} // Add bottom padding for safety
+            onScroll={(e) => {
+              currentScrollYRef.current = e.nativeEvent.contentOffset.y;
+            }}
+            scrollEventThrottle={16}
           >
             {currentTab === 'moons' && (
               <View className="flex-1 px-5 py-4">
@@ -271,7 +356,7 @@ export function YearInMoonsModal({ isOpen, onClose }: YearInMoonsModalProps) {
                 {yearData.map((monthData, monthIndex) => (
                   <Animated.View
                     key={`${monthData.year}-${monthData.month}`}
-                    entering={FadeIn.delay(monthIndex * 50)}
+                    entering={FadeInDown.duration(600).delay(monthIndex * 50).springify()}
                     className="mb-6"
                     onLayout={(event) => {
                       if (monthData.month === currentMonth && !hasScrolledRef.current && scrollViewRef.current) {
@@ -322,35 +407,41 @@ export function YearInMoonsModal({ isOpen, onClose }: YearInMoonsModalProps) {
                       ))}
 
                       {/* Moon days */}
-                      {monthData.days.map((day) => (
-                        <TouchableOpacity
+                      {monthData.days.map((day, dayIndex) => (
+                        <AnimatedMoon
                           key={day.date.toISOString()}
-                          onPress={() => handleMoonPress(day)}
-                          onLongPress={() => handleMoonLongPress(day)}
-                          delayLongPress={200}
-                          className="items-center justify-center mb-2"
-                          style={{ width: moonSize, height: moonSize }}
+                          index={dayIndex}
+                          monthIndex={monthIndex}
+                          batteryLevel={day.batteryLevel}
                         >
-                          <MoonPhaseIllustration
-                            phase={day.moonPhase}
-                            size={moonSize - 8}
-                            hasCheckin={day.hasCheckin}
-                            batteryLevel={day.batteryLevel}
-                            color={tokens.primary}
-                          />
-                          {/* Day number */}
-                          <Text
-                            className="text-[9px] mt-0.5"
-                            style={{
-                              color: day.hasCheckin
-                                ? (isDarkMode ? '#F5F1E8' : '#2D3142')
-                                : (isDarkMode ? '#5A5F6E' : '#9CA3AF'),
-                              fontFamily: 'Inter_400Regular',
-                            }}
+                          <TouchableOpacity
+                            onPress={() => handleMoonPress(day)}
+                            onLongPress={() => handleMoonLongPress(day)}
+                            delayLongPress={200}
+                            className="items-center justify-center mb-2"
+                            style={{ width: moonSize, height: moonSize }}
                           >
-                            {day.date.getDate()}
-                          </Text>
-                        </TouchableOpacity>
+                            <MoonPhaseIllustration
+                              phase={day.moonPhase}
+                              size={moonSize - 8}
+                              hasCheckin={day.hasCheckin}
+                              batteryLevel={day.batteryLevel}
+                              color={tokens.primary}
+                            />
+                            {/* Day number */}
+                            <Text
+                              className="text-[9px] mt-0.5"
+                              style={{
+                                color: day.hasCheckin
+                                  ? (isDarkMode ? '#F5F1E8' : '#2D3142')
+                                  : (isDarkMode ? '#5A5F6E' : '#9CA3AF'),
+                                fontFamily: 'Inter_400Regular',
+                              }}
+                            >
+                              {day.date.getDate()}
+                            </Text>
+                          </TouchableOpacity>
+                        </AnimatedMoon>
                       ))}
                     </View>
                   </Animated.View>

@@ -43,11 +43,27 @@ export function batteryToMoonPhase(batteryLevel: number | null): number {
  */
 async function fetchBatteryHistory(): Promise<BatteryHistoryEntry[]> {
   try {
+    // Get current user profile to filter logs
+    const profiles = await database.get<UserProfile>('user_profile').query().fetch();
+    const profile = profiles[0];
+
+    if (!profile) {
+      console.warn('[YearInMoons] No user profile found');
+      return [];
+    }
+
     const logs = await database.get<SocialBatteryLog>('social_battery_logs')
       .query(
+        Q.where('user_id', profile.id),
         Q.sortBy('timestamp', Q.asc)
       )
       .fetch();
+
+    console.log(`[YearInMoons] Fetched ${logs.length} battery logs`);
+    if (logs.length > 0) {
+      const last = logs[logs.length - 1];
+      console.log(`[YearInMoons] Most recent log: Value=${last.value} Time=${new Date(last.timestamp).toISOString()}`);
+    }
 
     return logs.map(log => ({
       value: log.value,

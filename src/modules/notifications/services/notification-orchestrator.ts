@@ -43,9 +43,11 @@ class NotificationOrchestratorService {
                         notificationAnalytics.trackForegroundShown(type);
                     }
 
+                    // Suppress all foreground notifications - they'll still work in background
+                    // Users shouldn't be interrupted while actively using the app
                     return {
-                        shouldShowAlert: type !== 'weekly-reflection', // Don't show banner if app is open (we show modal instead)
-                        shouldPlaySound: true,
+                        shouldShowAlert: false,
+                        shouldPlaySound: false,
                         shouldSetBadge: false,
                     };
                 },

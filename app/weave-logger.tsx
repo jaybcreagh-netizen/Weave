@@ -10,7 +10,7 @@ import { BlurView } from 'expo-blur';
 import { useInteractions, type StructuredReflection } from '@/modules/interactions';
 import { WeaveReflectPrompt, useWeaveReflectPrompt } from '@/components/Journal';
 import { useDebounceCallback } from '@/shared/hooks/useDebounceCallback';
-import { Calendar as CalendarIcon, X, Sparkles, Users } from 'lucide-react-native';
+import { Calendar as CalendarIcon, X, Sparkles, Users, ChevronLeft } from 'lucide-react-native';
 import { CustomCalendar } from '@/components/CustomCalendar';
 import { MoonPhaseSelector } from '@/components/MoonPhaseSelector';
 import { ContextualReflectionInput } from '@/components/ContextualReflectionInput';
@@ -274,6 +274,31 @@ export default function WeaveLoggerScreen() {
     <ErrorBoundary>
       <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
         <Stack.Screen options={{ title: screenTitle }} />
+
+        {/* Custom Header with Back Button */}
+        <View className="flex-row items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-800" style={{ borderBottomColor: colors.border }}>
+          <TouchableOpacity
+            onPress={() => {
+              if (router.canGoBack()) {
+                router.back();
+              } else {
+                router.replace('/');
+              }
+            }}
+            className="p-2 -ml-2 rounded-full"
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <ChevronLeft size={24} color={colors.foreground} />
+          </TouchableOpacity>
+          <Text
+            className="flex-1 text-center font-lora-bold text-lg mx-2"
+            style={{ color: colors.foreground }}
+            numberOfLines={1}
+          >
+            {screenTitle}
+          </Text>
+          <View className="w-8" />
+        </View>
 
         {/* Celebration animation */}
         <CelebrationAnimation

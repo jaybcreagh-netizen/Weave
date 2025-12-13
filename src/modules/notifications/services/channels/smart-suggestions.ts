@@ -105,7 +105,20 @@ export const SmartSuggestionsChannel: NotificationChannel & {
     evaluateAndSchedule: async (): Promise<void> => {
         Logger.info('[SmartSuggestions] Evaluating...');
 
-        // 1. Cooldown check
+        // 0. Check if this type is suppressed (ignored 3+ times)
+        if (await notificationStore.isTypeSuppressed('friend-suggestion')) {
+            Logger.info('[SmartSuggestions] Suppressed due to repeated ignores');
+            return;
+        }
+
+        // 1. Check global daily budget
+        const budget = await notificationStore.getDailyBudget();
+        if (budget.used >= budget.limit) {
+            Logger.info('[SmartSuggestions] Daily budget exhausted');
+            return;
+        }
+
+        // 2. Cooldown check
         const lastTime = await notificationStore.getLastSmartNotificationTime();
         if (lastTime) {
             const hoursSince = (Date.now() - lastTime) / (1000 * 60 * 60);
@@ -223,8 +236,11 @@ export const SmartSuggestionsChannel: NotificationChannel & {
                         suggestionId: s.id
                     }
                 },
-                // Expo types for trigger are strict/complex, casting to any for Date object
-                trigger: trigger as any
+                // Expo types for trigger are strict/complex
+                trigger: {
+                    type: Notifications.SchedulableTriggerInputTypes.DATE,
+                    date: trigger
+                }
             });
 
             await notificationAnalytics.trackScheduled('friend-suggestion', id, {
@@ -232,6 +248,9 @@ export const SmartSuggestionsChannel: NotificationChannel & {
                 score: s.score,
                 delayMinutes: delay
             });
+
+            // Increment global daily budget
+            await notificationStore.checkAndIncrementBudget();
 
             scheduledIds.push(id);
             todayCount++;
