@@ -197,18 +197,31 @@ export const EveningDigestChannel: NotificationChannel & {
     handleTap: async (data: any, router: any) => {
         const { useUIStore } = require('@/stores/uiStore');
 
+        // Navigate first to ensure stable route where GlobalModals is mounted
+        if (router.canGoBack()) router.dismissAll();
+        router.replace('/(tabs)/_friends');
+
+        // Generate content (non-blocking save)
         try {
-            // Generate fresh content AND save it
-            const content = await EveningDigestChannel.generateAndSave();
+            const content = await EveningDigestChannel.generateContent();
 
-            if (router.canGoBack()) router.dismissAll();
+            // Open the sheet after navigation settles
+            setTimeout(() => {
+                useUIStore.getState().openDigestSheet(content.items);
+                notificationAnalytics.trackActionCompleted('evening-digest', 'open_sheet');
+            }, 500);
 
-            useUIStore.getState().openDigestSheet(content.items);
-            notificationAnalytics.trackActionCompleted('evening-digest', 'open_sheet');
+            // Save to database in background (don't block UI)
+            EveningDigestChannel.generateAndSave().catch(err => {
+                Logger.warn('[EveningDigest] Background save failed:', err);
+            });
 
         } catch (error) {
             Logger.error('[EveningDigest] Error generating content on tap:', error);
-            router.replace('/dashboard');
+            // Still try to open the sheet with empty state
+            setTimeout(() => {
+                useUIStore.getState().openDigestSheet([]);
+            }, 500);
         }
     }
 };

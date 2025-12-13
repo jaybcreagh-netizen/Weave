@@ -108,39 +108,16 @@ export async function fetchSuggestions(
     // Fetch all friends from DB
     const friends = await database.get<FriendModel>('friends').query().fetch();
 
-    // OPTIMIZED: Use a single raw SQL query to get latest interaction date + count per friend
-    // This replaces the previous 3-query approach (friends + interaction_friends + interactions)
-    const sql = `
-        SELECT 
-            ifr.friend_id,
-            MAX(i.interaction_date) as last_interaction_date,
-            COUNT(i.id) as interaction_count
-        FROM interaction_friends ifr
-        INNER JOIN interactions i ON ifr.interaction_id = i.id AND i.status = 'completed'
-        GROUP BY ifr.friend_id
-    `;
-
-    // Build lookup map from raw SQL results
+    // Build lookup map for interaction data per friend
     const interactionsByFriendId = new Map<string, { lastDate: number | null; count: number; interactions: Interaction[] }>();
 
-    try {
-        const adapter = database.adapter as any;
-        const result = await adapter.unsafeExecute({
-            sqls: [[sql, []]],
+    // Initialize empty entries for all friends
+    for (const friend of friends) {
+        interactionsByFriendId.set(friend.id, {
+            lastDate: null,
+            count: 0,
+            interactions: [],
         });
-
-        // Parse raw SQL results
-        if (result && Array.isArray(result) && result[0] && Array.isArray(result[0])) {
-            for (const row of result[0]) {
-                interactionsByFriendId.set(row.friend_id, {
-                    lastDate: row.last_interaction_date,
-                    count: row.interaction_count || 0,
-                    interactions: [], // Will be populated below for friends needing recent interactions
-                });
-            }
-        }
-    } catch (error) {
-        console.warn('[fetchSuggestions] Raw SQL failed, using fallback:', error);
     }
 
     // For friends that need recent interactions for suggestion generation,
@@ -169,13 +146,38 @@ export async function fetchSuggestions(
             // Build interaction map
             const interactionMap = new Map<string, Interaction>(allInteractions.map(i => [i.id, i]));
 
+            // Build a map to track interactions per friend
+            const friendInteractionsTemp = new Map<string, Interaction[]>();
+
             // Populate interactions for each friend
             for (const link of recentInteractionsQuery) {
                 const interaction = interactionMap.get(link.interactionId);
                 if (interaction) {
-                    const entry = interactionsByFriendId.get(link.friendId);
-                    if (entry && entry.interactions.length < 5) {
-                        entry.interactions.push(interaction);
+                    if (!friendInteractionsTemp.has(link.friendId)) {
+                        friendInteractionsTemp.set(link.friendId, []);
+                    }
+                    friendInteractionsTemp.get(link.friendId)!.push(interaction);
+                }
+            }
+
+            // Update the lookup map with computed values
+            for (const [friendId, interactions] of friendInteractionsTemp) {
+                const entry = interactionsByFriendId.get(friendId);
+                if (entry) {
+                    // Sort by date descending, keep up to 5
+                    const sorted = interactions.sort((a, b) => {
+                        const timeA = a.interactionDate instanceof Date ? a.interactionDate.getTime() : new Date(a.interactionDate || 0).getTime();
+                        const timeB = b.interactionDate instanceof Date ? b.interactionDate.getTime() : new Date(b.interactionDate || 0).getTime();
+                        return timeB - timeA;
+                    });
+
+                    entry.interactions = sorted.slice(0, 5);
+                    entry.count = interactions.length;
+
+                    // Get the latest interaction date
+                    if (sorted.length > 0 && sorted[0].interactionDate) {
+                        const lastDate = sorted[0].interactionDate;
+                        entry.lastDate = lastDate instanceof Date ? lastDate.getTime() : new Date(lastDate).getTime();
                     }
                 }
             }
