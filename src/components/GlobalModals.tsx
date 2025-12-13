@@ -10,10 +10,13 @@ import { SyncConflictModal } from '@/modules/auth';
 import { PostWeaveRatingModal } from '@/modules/interactions';
 import { MemoryMomentModal } from '@/components/Journal/MemoryMomentModal';
 import { DigestSheet } from '@/components/DigestSheet';
+import { CelebrationAnimation } from '@/components/CelebrationAnimation';
 
 export function GlobalModals() {
     const milestoneCelebrationData = useUIStore((state) => state.milestoneCelebrationData);
     const hideMilestoneCelebration = useUIStore((state) => state.hideMilestoneCelebration);
+    const celebrationConfig = useUIStore((state) => state.celebrationConfig);
+    const hideCelebration = useUIStore((state) => state.hideCelebration);
     const isTrophyCabinetOpen = useUIStore((state) => state.isTrophyCabinetOpen);
     const closeTrophyCabinet = useUIStore((state) => state.closeTrophyCabinet);
     const isWeeklyReflectionOpen = useUIStore((state) => state.isWeeklyReflectionOpen);
@@ -97,6 +100,13 @@ export function GlobalModals() {
                 isVisible={digestSheetVisible}
                 onClose={() => useUIStore.getState().closeDigestSheet()}
                 items={digestItems}
+            />
+
+            {/* Celebration Animation Overlay */}
+            <CelebrationAnimation
+                visible={!!celebrationConfig}
+                intensity={celebrationConfig?.intensity}
+                onComplete={hideCelebration}
             />
         </>
     );

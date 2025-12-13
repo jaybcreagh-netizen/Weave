@@ -30,6 +30,10 @@ interface MicroReflectionData {
   friendArchetype?: string;
 }
 
+interface CelebrationConfig {
+  intensity: 'light' | 'moderate' | 'deep' | 'profound';
+}
+
 interface UIStore {
   selectedFriendId: string | null;
   archetypeModal: Archetype | null;
@@ -52,6 +56,9 @@ interface UIStore {
   toastData: ToastData | null;
   microReflectionData: MicroReflectionData | null;
   milestoneCelebrationData: Milestone | null;
+  celebrationConfig: CelebrationConfig | null;
+  showCelebration: (intensity?: 'light' | 'moderate' | 'deep' | 'profound') => void;
+  hideCelebration: () => void;
   badgeUnlockQueue: BadgeUnlock[];
   achievementUnlockQueue: AchievementUnlockData[];
   isDarkMode: boolean;
@@ -100,6 +107,10 @@ interface UIStore {
   hideToast: () => void;
   showMicroReflectionSheet: (data: MicroReflectionData) => void;
   hideMicroReflectionSheet: () => void;
+
+  showCelebration: (intensity?: 'light' | 'moderate' | 'deep' | 'profound') => void;
+  hideCelebration: () => void;
+
   showMilestoneCelebration: (milestone: Milestone) => void;
   hideMilestoneCelebration: () => void;
   queueBadgeUnlocks: (unlocks: BadgeUnlock[]) => void;
@@ -237,6 +248,10 @@ export const useUIStore = create<UIStore>((set, get) => ({
     isQuickWeaveClosing: false,
   }),
   hideMicroReflectionSheet: () => set({ microReflectionData: null }),
+
+  celebrationConfig: null,
+  showCelebration: (intensity = 'moderate') => set({ celebrationConfig: { intensity } }),
+  hideCelebration: () => set({ celebrationConfig: null }),
 
   showMilestoneCelebration: (milestone) => set({ milestoneCelebrationData: milestone }),
   hideMilestoneCelebration: () => set({ milestoneCelebrationData: null }),
