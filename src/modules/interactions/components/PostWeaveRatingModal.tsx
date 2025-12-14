@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useDebounceCallback } from '@/shared/hooks/useDebounceCallback';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, Keyboard } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Keyboard } from 'react-native';
+import { BottomSheetTextInput } from '@gorhom/bottom-sheet';
 import * as Haptics from 'expo-haptics';
 import { usePlans } from '../hooks/usePlans';
 import { useInteractions } from '../hooks/useInteractions';
@@ -223,7 +224,7 @@ export function PostWeaveRatingModal() {
             {/* Notes Input */}
             <View style={styles.section}>
                 <Text style={[styles.label, { color: colors.foreground }]}>Notes (Optional)</Text>
-                <TextInput
+                <BottomSheetTextInput
                     style={[styles.input, { backgroundColor: colors.background, color: colors.foreground }]}
                     placeholder="Capture a memory or feeling..."
                     placeholderTextColor={colors['muted-foreground']}

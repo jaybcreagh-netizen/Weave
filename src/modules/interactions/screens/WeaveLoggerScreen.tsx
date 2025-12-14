@@ -7,7 +7,7 @@ import { CelebrationAnimation } from '@/modules/gamification';
 import { calculateDeepeningLevel } from '@/modules/intelligence';
 
 import { useInteractions, type StructuredReflection } from '@/modules/interactions';
-import { WeaveReflectPrompt, useWeaveReflectPrompt } from '@/modules/journal/components';
+import { WeaveReflectPrompt, useWeaveReflectPrompt } from '@/modules/journal';
 import { useDebounceCallback } from '@/shared/hooks/useDebounceCallback';
 import { Calendar as CalendarIcon, X, Sparkles, Users, ChevronLeft } from 'lucide-react-native';
 import { CustomCalendar } from '@/shared/components/CustomCalendar';

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Keyboard } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Keyboard } from 'react-native';
+import { BottomSheetTextInput } from '@gorhom/bottom-sheet';
 import * as Haptics from 'expo-haptics';
 import { type Vibe, type InteractionCategory } from '@/shared/types/common';
 
@@ -103,7 +104,7 @@ export function MicroReflectionSheet({
         <Text style={[styles.activityText, { color: colors['muted-foreground'] }]}>
           Logged
         </Text>
-        <TextInput
+        <BottomSheetTextInput
           style={[styles.titleInput, { color: colors.foreground }]}
           value={title}
           onChangeText={setTitle}
@@ -134,7 +135,7 @@ export function MicroReflectionSheet({
         <Text style={[styles.noteLabel, { color: colors['muted-foreground'] }]}>
           Optional: Add a note
         </Text>
-        <TextInput
+        <BottomSheetTextInput
           style={[
             styles.noteInput,
             {

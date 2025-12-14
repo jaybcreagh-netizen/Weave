@@ -25,7 +25,7 @@ import { STORY_CHIPS } from '@/modules/reflection';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as Haptics from 'expo-haptics';
 import { logger } from '@/shared/services/logger.service';
-import { YourPatternsSection } from '@/modules/insights/components/YourPatternsSection';
+import { YourPatternsSection } from '@/modules/insights';
 
 interface JournalEntryModalProps {
   isOpen: boolean;

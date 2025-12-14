@@ -9,3 +9,6 @@ export * from './services/journal-context-engine';
 
 // Prompts - contextual question generation
 export * from './services/journal-prompts';
+
+// Components
+export { WeaveReflectPrompt, useWeaveReflectPrompt } from './components/WeaveReflectPrompt';

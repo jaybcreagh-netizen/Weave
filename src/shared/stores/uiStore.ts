@@ -119,6 +119,12 @@ interface UIStore {
   digestItems: DigestItem[];
   openDigestSheet: (items: DigestItem[]) => void;
   closeDigestSheet: () => void;
+
+  // Popup Coordinator
+  activePopup: 'social-battery' | 'weekly-reflection' | null;
+  popupQueue: ('social-battery' | 'weekly-reflection')[];
+  requestPopup: (type: 'social-battery' | 'weekly-reflection') => void;
+  closePopup: (type: 'social-battery' | 'weekly-reflection') => void;
 }
 
 export const useUIStore = create<UIStore>((set, get) => ({
@@ -170,29 +176,99 @@ export const useUIStore = create<UIStore>((set, get) => ({
     postWeaveRatingTargetId: null
   }),
 
-  openSocialBatterySheet: () => set({ isSocialBatterySheetOpen: true }),
-  closeSocialBatterySheet: () => {
-    set({ isSocialBatterySheetOpen: false });
-    // Check if we have a pending reflection
-    if (get().isWeeklyReflectionPending) {
-      setTimeout(() => {
-        set({ isWeeklyReflectionPending: false });
-        get().openWeeklyReflection();
-      }, 1000); // 1s delay for nice transition
+  // Popup Coordinator State
+  activePopup: null,
+  popupQueue: [],
+
+  requestPopup: (type) => {
+    const state = get();
+
+    // If no popup is active, open immediately
+    if (!state.activePopup) {
+      if (type === 'social-battery') {
+        set({
+          activePopup: 'social-battery',
+          isSocialBatterySheetOpen: true
+        });
+      } else if (type === 'weekly-reflection') {
+        set({
+          activePopup: 'weekly-reflection',
+          isWeeklyReflectionOpen: true
+        });
+      }
+      return;
+    }
+
+    // If a popup is already active
+    if (state.activePopup === type) return; // Already open
+
+    // Logic: Social Battery takes priority over Weekly Reflection
+    // If Social Battery is requested but Weekly Reflection is open:
+    // We queue Social Battery? Or do we force it? 
+    // The requirement is "prevent springing on user". 
+    // Queuing is safer.
+
+    // Check if already in queue
+    if (state.popupQueue.includes(type)) return;
+
+    // Special Case: If Social Battery is requested and Weekly Reflection is the active one,
+    // we could potentially close Reflection and show Battery, but that's aggressive.
+    // Better to just queue it.
+
+    // However, if we want strict ordering on launch (Battery FIRST), 
+    // and both are requested almost simultaneously:
+    // 1. requestPopup('weekly-reflection') -> opens
+    // 2. requestPopup('social-battery') -> current logic would queue it.
+
+    // To fix the "Sunday Launch" issue where we want Battery THEN Reflection:
+    // If we are currently showing Reflection, and Battery comes in...
+    // ideally we shouldn't have shown Reflection yet. But we can't control the order of calls easily.
+
+    // If 'social-battery' is requested and 'weekly-reflection' is active:
+    // Close Reflection (temporarily), show Battery, queue Reflection?
+    // That seems too complex/glitchy.
+
+    // Simple Queue:
+    set((state) => ({
+      popupQueue: [...state.popupQueue, type]
+    }));
+  },
+
+  closePopup: (type) => {
+    // Close the specific popup UI
+    if (type === 'social-battery') {
+      set({ isSocialBatterySheetOpen: false });
+    } else if (type === 'weekly-reflection') {
+      set({ isWeeklyReflectionOpen: false });
+    }
+
+    // If this was the active popup, clear it and check queue
+    const state = get();
+    if (state.activePopup === type) {
+      set({ activePopup: null });
+
+      // Check queue after a small delay to allow animation
+      if (state.popupQueue.length > 0) {
+        setTimeout(() => {
+          const next = state.popupQueue[0];
+          const remaining = state.popupQueue.slice(1);
+
+          set({ popupQueue: remaining });
+          get().requestPopup(next); // Re-trigger open logic
+        }, 500);
+      }
     }
   },
+
+  openSocialBatterySheet: () => get().requestPopup('social-battery'),
+
+  closeSocialBatterySheet: () => get().closePopup('social-battery'),
 
   setWeeklyReflectionPending: (pending) => set({ isWeeklyReflectionPending: pending }),
 
-  openWeeklyReflection: () => {
-    const state = get();
-    if (state.isSocialBatterySheetOpen) {
-      set({ isWeeklyReflectionPending: true });
-    } else {
-      set({ isWeeklyReflectionOpen: true });
-    }
-  },
-  closeWeeklyReflection: () => set({ isWeeklyReflectionOpen: false }),
+  openWeeklyReflection: () => get().requestPopup('weekly-reflection'),
+
+  closeWeeklyReflection: () => get().closePopup('weekly-reflection'),
 
   setSelectedFriendId: (id) => set({ selectedFriendId: id }),
   setArchetypeModal: (archetype) => set({ archetypeModal: archetype }),

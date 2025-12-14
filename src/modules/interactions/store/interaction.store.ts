@@ -172,7 +172,7 @@ export const useInteractionsStore = create<InteractionsStore>((set, get) => ({
     },
 
     updateReflection: async (interactionId, reflection) => {
-        get().updateInteraction(interactionId, { reflectionJSON: JSON.stringify(reflection) });
+        await get().updateInteraction(interactionId, { reflectionJSON: JSON.stringify(reflection) });
     },
 
     updateInteractionCategory: async (interactionId, category) => {

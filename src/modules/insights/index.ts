@@ -31,6 +31,9 @@ export * from './hooks/useTierFit';
 export { TierFitCard } from './components/TierFitCard';
 export { TierFitBottomSheet } from './components/TierFitBottomSheet';
 export { TierSuggestionAlert } from './components/TierSuggestionAlert';
+export { YourPatternsSection } from './components/YourPatternsSection';
+export { InsightsFAB } from './components/InsightsFAB';
+export { InsightsSheet } from './components/InsightsSheet';
 
 // Types
 export * from './types';

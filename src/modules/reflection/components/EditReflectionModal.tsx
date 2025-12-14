@@ -110,6 +110,7 @@ export function EditReflectionModal({
           vibe={selectedVibe}
           value={reflection}
           onChange={setReflection}
+          useBottomSheetInput={true}
         />
       </Animated.View>
     </StandardBottomSheet>

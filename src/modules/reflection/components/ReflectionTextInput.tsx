@@ -5,6 +5,7 @@ import { X } from 'lucide-react-native';
 import { STORY_CHIPS, type StoryChip } from '@/modules/reflection';
 import { type ReflectionChip } from '@/shared/types/legacy-types';
 import { useTheme } from '@/shared/hooks/useTheme';
+import { BottomSheetTextInput } from '@gorhom/bottom-sheet';
 
 interface ReflectionTextInputProps {
   chips: ReflectionChip[];
@@ -13,6 +14,7 @@ interface ReflectionTextInputProps {
   onCustomTextChange: (text: string) => void;
   onRemoveChip: (chipIndex: number) => void;
   placeholder?: string;
+  useBottomSheetInput?: boolean;
 }
 
 /**
@@ -26,12 +28,14 @@ export function ReflectionTextInput({
   onCustomTextChange,
   onRemoveChip,
   placeholder = 'Or write your own...',
+  useBottomSheetInput = false,
 }: ReflectionTextInputProps) {
   const { colors } = useTheme();
   const [editingChip, setEditingChip] = useState<{ chipIndex: number; componentId: string } | null>(null);
 
   // Parse a chip's template to find tappable components
   const parseChipParts = (chip: ReflectionChip) => {
+    // ... existing implementation ...
     const storyChip = STORY_CHIPS.find(s => s.id === chip.chipId);
     if (!storyChip) return [];
 
@@ -73,6 +77,8 @@ export function ReflectionTextInput({
 
     return parts;
   };
+
+  const InputComponent = useBottomSheetInput ? BottomSheetTextInput : TextInput;
 
   return (
     <View style={styles.container}>
@@ -142,7 +148,7 @@ export function ReflectionTextInput({
         })}
 
         {/* Text input for additional notes */}
-        <TextInput
+        <InputComponent
           style={[
             styles.textInput,
             {

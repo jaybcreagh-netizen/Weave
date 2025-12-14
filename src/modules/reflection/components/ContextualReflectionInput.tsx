@@ -21,6 +21,7 @@ interface ContextualReflectionInputProps {
   friendId?: string; // Optional: for friend-specific pattern insights (single friend only)
   value: StructuredReflection;
   onChange: (reflection: StructuredReflection) => void;
+  useBottomSheetInput?: boolean;
 }
 
 /**
@@ -44,6 +45,7 @@ export function ContextualReflectionInput({
   friendId,
   value,
   onChange,
+  useBottomSheetInput,
 }: ContextualReflectionInputProps) {
   const { colors } = useTheme();
   const [nextChipType, setNextChipType] = useState<ChipType | null>('activity');
@@ -230,6 +232,7 @@ export function ContextualReflectionInput({
         onCustomTextChange={handleCustomTextChange}
         onRemoveChip={handleRemoveChip}
         placeholder="Add your own notes..."
+        useBottomSheetInput={useBottomSheetInput}
       />
     </Animated.View>
   );

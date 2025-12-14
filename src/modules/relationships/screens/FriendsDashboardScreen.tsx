@@ -8,8 +8,7 @@ import { Q } from '@nozbe/watermelondb';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FAB } from '@/shared/components/fab';
-import { InsightsFAB } from '@/modules/insights/components/InsightsFAB';
-import { InsightsSheet } from '@/modules/insights/components/InsightsSheet';
+import { InsightsFAB, InsightsSheet } from '@/modules/insights';
 import { useUIStore } from '@/shared/stores/uiStore';
 import { usePlans, PlanService, getSuggestionCooldownDays } from '@/modules/interactions';
 import { useSuggestions } from '@/modules/interactions';
