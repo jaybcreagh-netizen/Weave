@@ -143,8 +143,22 @@ export async function createWeaveCalendarEvent(params: {
     const startDate = new Date(params.date);
     const hasTime = startDate.getHours() !== 0 || startDate.getMinutes() !== 0;
 
-    const eventTitle = `🧵 Weave with ${params.friendNames} - ${params.title || params.category}`;
-    const eventNotes = `📅 Planned weave with ${params.friendNames}\n\nActivity: ${params.category}\nLocation: ${params.location || 'N/A'}\n\nNotes:\n${params.notes || ''}\n\n---\nCreated by Weave`;
+    // Use custom title as primary if provided, otherwise fall back to standard format
+    const eventTitle = params.title
+      ? `🧵 ${params.title}`
+      : `🧵 ${params.category} with ${params.friendNames}`;
+
+    const eventNotes = [
+      `📅 Planned weave with ${params.friendNames}`,
+      '',
+      `Activity: ${params.category}`,
+      params.location ? `Location: ${params.location}` : null,
+      '',
+      params.notes ? `Notes:\n${params.notes}` : null,
+      '',
+      '---',
+      'Created by Weave'
+    ].filter(Boolean).join('\n');
 
     const eventDetails: Partial<Calendar.Event> = {
       title: eventTitle,
@@ -169,7 +183,33 @@ export async function updateWeaveCalendarEvent(eventId: string, params: { title?
     const settings = await getCalendarSettings();
     if (!settings.enabled) return false;
 
-    await Calendar.updateEventAsync(eventId, params);
+    const hasPermission = await checkCalendarPermissions();
+    if (!hasPermission.granted) return false;
+
+    const updateParams: Partial<Calendar.Event> = {};
+
+    if (params.title !== undefined) {
+      // Format title consistently with create
+      updateParams.title = params.title ? `🧵 ${params.title}` : undefined;
+    }
+    if (params.date !== undefined) {
+      const hasTime = params.date.getHours() !== 0 || params.date.getMinutes() !== 0;
+      updateParams.startDate = params.date;
+      updateParams.endDate = hasTime
+        ? new Date(params.date.getTime() + 2 * 60 * 60 * 1000)
+        : params.date;
+      updateParams.allDay = !hasTime;
+    }
+    if (params.location !== undefined) {
+      updateParams.location = params.location || '';
+    }
+    if (params.notes !== undefined) {
+      updateParams.notes = params.notes || '';
+    }
+
+    if (Object.keys(updateParams).length > 0) {
+      await Calendar.updateEventAsync(eventId, updateParams);
+    }
     return true;
   } catch (error) {
     console.error('Error updating calendar event:', error);

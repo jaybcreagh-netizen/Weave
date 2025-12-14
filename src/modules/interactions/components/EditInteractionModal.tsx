@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from 'react';
-import { View, TouchableOpacity, ScrollView, Modal, StyleSheet } from 'react-native';
-import { X, CalendarDays, Check } from 'lucide-react-native';
+import { View, TouchableOpacity, ScrollView, Modal, StyleSheet, Platform } from 'react-native';
+import { X, CalendarDays, Check, Clock } from 'lucide-react-native';
 import Animated, { FadeInUp } from 'react-native-reanimated';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { StandardBottomSheet } from '@/shared/ui/Sheet';
 import { Text } from '@/shared/ui/Text';
@@ -34,6 +35,7 @@ interface EditInteractionModalProps {
     interactionDate?: Date;
     initiator?: InitiatorType;
     note?: string;
+    location?: string;
     friendIds?: string[];
   }) => Promise<void>;
 }
@@ -54,7 +56,9 @@ export function EditInteractionModal({
   const [isSaving, setIsSaving] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
   const [initiator, setInitiator] = useState<InitiatorType | undefined>(undefined);
+  const [location, setLocation] = useState('');
 
   // Participant State
   const [selectedFriendIds, setSelectedFriendIds] = useState<string[]>([]);
@@ -70,6 +74,7 @@ export function EditInteractionModal({
       setCustomNotes(interaction.reflection?.customNotes || interaction.note || '');
       setSelectedDate(interaction.interactionDate);
       setInitiator(interaction.initiator as InitiatorType | undefined);
+      setLocation(interaction.location || '');
 
       // Fetch participants
       const fetchParticipants = async () => {
@@ -130,6 +135,10 @@ export function EditInteractionModal({
         updates.initiator = initiator;
       }
 
+      if (location !== (interaction.location || '')) {
+        updates.location = location;
+      }
+
       // Check if participants changed
       const added = selectedFriendIds.filter(id => !initialFriendIds.includes(id));
       const removed = initialFriendIds.filter(id => !selectedFriendIds.includes(id));
@@ -155,6 +164,7 @@ export function EditInteractionModal({
     const initialCategory = (interaction.interactionCategory || interaction.activity) as InteractionCategory;
     const initialVibe = interaction.vibe || null;
     const initialNotes = interaction.reflection?.customNotes || interaction.note || '';
+    const initialLocation = interaction.location || '';
     // Handle potential string dates if data isn't perfectly typed at runtime, though types say Date.
     const initialDate = interaction.interactionDate instanceof Date ? interaction.interactionDate.getTime() : new Date(interaction.interactionDate).getTime();
     const initialInitiator = interaction.initiator as InitiatorType | undefined;
@@ -172,11 +182,12 @@ export function EditInteractionModal({
       selectedCategory !== initialCategory ||
       selectedVibe !== initialVibe ||
       customNotes !== initialNotes ||
+      location !== initialLocation ||
       currentDate !== initialDate ||
       initiator !== initialInitiator ||
       friendsChanged
     );
-  }, [interaction, title, selectedCategory, selectedVibe, customNotes, selectedDate, initiator, selectedFriendIds, initialFriendIds]);
+  }, [interaction, title, selectedCategory, selectedVibe, customNotes, location, selectedDate, initiator, selectedFriendIds, initialFriendIds]);
 
   const footerComponent = React.useMemo(() => (
     <Button
@@ -222,6 +233,16 @@ export function EditInteractionModal({
           />
         </View>
 
+        {/* Location Input */}
+        <View>
+          <Input
+            label="Location"
+            placeholder='e.g., "Blue Bottle Coffee, Hayes Valley"'
+            value={location}
+            onChangeText={setLocation}
+          />
+        </View>
+
         {/* Date Selection */}
         <View>
           <Text variant="label" className="mb-2" style={{ color: colors.foreground }}>
@@ -239,6 +260,74 @@ export function EditInteractionModal({
             </View>
           </TouchableOpacity>
         </View>
+
+        {/* Time Selection (for planned interactions) */}
+        {interaction?.status === 'planned' && (
+          <View>
+            <View className="flex-row items-center justify-between mb-2">
+              <Text variant="label" style={{ color: colors.foreground }}>
+                Time
+              </Text>
+              {selectedDate && (selectedDate.getHours() !== 0 || selectedDate.getMinutes() !== 0) && (
+                <TouchableOpacity
+                  onPress={() => {
+                    if (selectedDate) {
+                      const clearedDate = new Date(selectedDate);
+                      clearedDate.setHours(0, 0, 0, 0);
+                      setSelectedDate(clearedDate);
+                    }
+                  }}
+                >
+                  <Text variant="caption" style={{ color: colors.primary }}>
+                    Clear
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+            <TouchableOpacity
+              onPress={() => setShowTimePicker(true)}
+              activeOpacity={0.7}
+            >
+              <View className="flex-row items-center gap-3 p-4 border rounded-xl" style={{ backgroundColor: colors.card, borderColor: colors.border }}>
+                <Clock size={20} color={colors.primary} />
+                <Text variant="body" style={{ color: selectedDate && (selectedDate.getHours() !== 0 || selectedDate.getMinutes() !== 0) ? colors.foreground : colors['muted-foreground'] }}>
+                  {selectedDate && (selectedDate.getHours() !== 0 || selectedDate.getMinutes() !== 0)
+                    ? format(selectedDate, 'h:mm a')
+                    : 'Add a time (optional)'}
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            {showTimePicker && (
+              <View className="mt-3">
+                <DateTimePicker
+                  value={selectedDate || new Date()}
+                  mode="time"
+                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                  onChange={(event, time) => {
+                    if (Platform.OS === 'android') {
+                      setShowTimePicker(false);
+                    }
+                    if (time && event.type === 'set') {
+                      const newDate = new Date(selectedDate || new Date());
+                      newDate.setHours(time.getHours(), time.getMinutes(), 0, 0);
+                      setSelectedDate(newDate);
+                    }
+                  }}
+                />
+                {Platform.OS === 'ios' && (
+                  <TouchableOpacity
+                    onPress={() => setShowTimePicker(false)}
+                    className="py-2 px-4 rounded-full items-center self-center mt-2"
+                    style={{ backgroundColor: colors.primary }}
+                  >
+                    <Text variant="body" weight="semibold" style={{ color: 'white' }}>Done</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
+          </View>
+        )}
 
         {/* Category Selection */}
         <View>

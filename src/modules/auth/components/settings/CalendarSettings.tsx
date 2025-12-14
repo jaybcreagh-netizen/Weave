@@ -37,6 +37,20 @@ export const CalendarSettings = () => {
         setCalendarSettings(settings);
 
         if (settings.enabled) {
+            // Verify permissions are still granted
+            const { granted } = await CalendarService.checkCalendarPermissions();
+            if (!granted) {
+                // Permissions were revoked - disable calendar integration
+                await CalendarService.saveCalendarSettings({ ...settings, enabled: false });
+                setCalendarSettings(prev => ({ ...prev, enabled: false }));
+                Alert.alert(
+                    'Calendar Access Revoked',
+                    'Calendar permissions have been revoked. Please re-enable calendar integration to continue syncing.',
+                    [{ text: 'OK' }]
+                );
+                return;
+            }
+
             const calendars = await CalendarService.getAvailableCalendars();
             setAvailableCalendars(calendars);
         }
