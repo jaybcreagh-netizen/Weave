@@ -3,10 +3,10 @@ import '../global.css';
 import { Stack } from 'expo-router';
 import React from 'react';
 
-import { AppProviders } from '@/components/AppProviders';
-import { DataInitializer } from '@/components/DataInitializer';
-import { NotificationManager } from '@/components/NotificationManager';
-import { GlobalModals } from '@/components/GlobalModals';
+import { AppProviders } from '@/shared/components/AppProviders';
+import { DataInitializer } from '@/shared/components/DataInitializer';
+import { NotificationManager } from '@/shared/components/NotificationManager';
+import { GlobalModals } from '@/shared/components/GlobalModals';
 
 /**
  * The root layout component for the application.

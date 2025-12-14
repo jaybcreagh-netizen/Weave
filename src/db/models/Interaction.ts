@@ -1,7 +1,10 @@
 import { Model } from '@nozbe/watermelondb'
 import { field, date, children, text, writer, readonly } from '@nozbe/watermelondb/decorators'
 import { Associations } from '@nozbe/watermelondb/Model'
-import { type StructuredReflection } from '@/components/types'
+import { type StructuredReflection } from '@/shared/types/legacy-types'
+
+import InteractionFriend from './InteractionFriend'
+import { Query } from '@nozbe/watermelondb'
 
 export default class Interaction extends Model {
   static table = 'interactions'
@@ -10,7 +13,7 @@ export default class Interaction extends Model {
     interaction_friends: { type: 'has_many', foreignKey: 'interaction_id' }
   }
 
-  @children('interaction_friends') interactionFriends!: any
+  @children('interaction_friends') interactionFriends!: Query<InteractionFriend>
 
   @date('interaction_date') interactionDate!: Date
   @field('interaction_type') interactionType!: string

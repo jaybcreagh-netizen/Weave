@@ -37,6 +37,10 @@ interface WeaveDay {
   batteryLevel: number | null;
 }
 
+import { BestDaysData } from '../types';
+
+export { BestDaysData };
+
 /**
  * Fetch battery history from social_battery_logs table
  */

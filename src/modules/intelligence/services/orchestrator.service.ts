@@ -9,8 +9,8 @@ import { calculateMomentumBonus, updateMomentum } from './momentum.service';
 import { updateResilience } from './resilience.service';
 import { applySeasonScoringBonus } from './social-season/season-scoring.service';
 import { Vibe } from '@/shared/types/common';
-import { InteractionCategory, Duration, Friend } from '@/components/types';
-import type { InteractionType } from '@/components/types';
+import { InteractionCategory, Duration, Friend } from '@/shared/types/legacy-types';
+import type { InteractionType } from '@/shared/types/legacy-types';
 import type { SocialSeason } from '@/db/models/UserProfile';
 import Logger from '@/shared/utils/Logger';
 

@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { isFuture, isToday } from 'date-fns';
-import { type Interaction } from '@/components/types';
+import { type Interaction } from '@/shared/types/legacy-types';
 
 export function useFriendTimeline(interactions: Interaction[] | undefined) {
     const sortedInteractions = useMemo(() =>

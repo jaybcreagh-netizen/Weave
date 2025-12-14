@@ -1,8 +1,3 @@
-/**
- * Groups Module Public API
- *
- * Provides functionality for managing friend groups (both manual and smart/auto-detected).
- * Groups allow users to organize friends and log interactions with multiple people at once.
- */
-
-export { groupService, GroupSuggestion } from './services/group.service';
+export * from './components/GroupManagerModal';
+export * from './components/GroupListModal';
+export * from './services/group.service';

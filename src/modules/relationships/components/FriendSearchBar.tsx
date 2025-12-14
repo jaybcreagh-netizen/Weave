@@ -5,7 +5,7 @@ import { Search, X, ChevronDown, ChevronUp, ArrowUpDown } from 'lucide-react-nat
 import * as Haptics from 'expo-haptics';
 
 import { useTheme } from '@/shared/hooks/useTheme';
-import { ArchetypeIcon } from '@/components/ArchetypeIcon';
+import { ArchetypeIcon } from '@/modules/intelligence';
 import { Archetype } from '../types';
 
 // Health status based on weave score thresholds

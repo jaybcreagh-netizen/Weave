@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { Interaction, LifeEvent, Intention } from '@/components/types';
+import { Interaction, LifeEvent, Intention } from '@/shared/types/legacy-types';
 import { isFuture } from 'date-fns';
 
 export function useFriendProfileModals() {

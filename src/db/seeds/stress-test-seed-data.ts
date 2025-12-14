@@ -7,7 +7,7 @@ import JournalEntryFriend from '@/db/models/JournalEntryFriend';
 import LifeEvent from '@/db/models/LifeEvent';
 import Group from '@/db/models/Group';
 import GroupMember from '@/db/models/GroupMember';
-import { Archetype, Tier } from '@/components/types';
+import { Archetype, Tier } from '@/shared/types/legacy-types';
 import { Q } from '@nozbe/watermelondb';
 
 const ARCHETYPES: Archetype[] = [

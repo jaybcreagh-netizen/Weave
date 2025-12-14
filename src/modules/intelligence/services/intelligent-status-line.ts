@@ -7,7 +7,7 @@ import Interaction from '@/db/models/Interaction';
 import InteractionFriend from '@/db/models/InteractionFriend';
 import { Q } from '@nozbe/watermelondb';
 import { calculateCurrentScore } from './orchestrator.service';
-import { type Friend } from '@/components/types';
+import { type Friend } from '@/shared/types/legacy-types';
 import { HydratedFriend, HydratedLifeEvent } from '@/types/hydrated';
 
 export interface StatusLine {

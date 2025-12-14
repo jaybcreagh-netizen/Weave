@@ -1,4 +1,4 @@
-import { type InteractionCategory } from '@/components/types';
+import { type InteractionCategory } from '@/shared/types/legacy-types';
 
 /**
  * Event type classification

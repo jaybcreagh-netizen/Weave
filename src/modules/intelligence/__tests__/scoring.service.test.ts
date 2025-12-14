@@ -2,7 +2,7 @@ import { calculatePointsForWeave, calculateGroupDilution, calculateEventMultipli
 import { MAX_INTERACTION_SCORE, GROUP_DILUTION_RATE, GROUP_DILUTION_FLOOR } from '../constants';
 import FriendModel from '@/db/models/Friend';
 import { InteractionFormData } from '@/shared/types/scoring.types';
-import { Archetype, Duration, Vibe, InteractionCategory } from '@/components/types';
+import { Archetype, Duration, Vibe, InteractionCategory } from '@/shared/types/legacy-types';
 import * as qualityService from '../services/quality.service';
 
 // Mock the quality service to isolate scoring logic

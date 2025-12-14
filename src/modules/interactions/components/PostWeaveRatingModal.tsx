@@ -6,7 +6,7 @@ import { usePlans } from '../hooks/usePlans';
 import { useInteractions } from '../hooks/useInteractions';
 import { useUIStore } from '@/shared/stores/uiStore';
 import { logger } from '@/shared/services/logger.service';
-import { MoonPhaseSelector } from '@/components/MoonPhaseSelector';
+import { MoonPhaseSelector } from '@/modules/intelligence';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { Vibe } from '@/shared/types/common';
 import { Check } from 'lucide-react-native';

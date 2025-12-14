@@ -30,3 +30,12 @@ export * from './constants/achievement-definitions';
 
 // Listeners
 export * from './listeners/gamification.listener';
+
+// Components
+export { AchievementCard } from './components/AchievementCard'; // Note: AchievementCard might be a sub-component of AchievementsModal or missing, checking later. 
+export { TrophyCabinetModal } from './components/TrophyCabinetModal';
+export { AchievementsModal } from './components/AchievementsModal';
+export { BadgeUnlockModal } from './components/BadgeUnlockModal';
+export { CelebrationAnimation } from './components/CelebrationAnimation';
+export { MilestoneCelebration } from './components/MilestoneCelebration';
+export { PatternBadge } from './components/PatternBadge';

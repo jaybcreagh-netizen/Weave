@@ -10,7 +10,7 @@ import FriendModel from '@/db/models/Friend';
 import { FriendListRow } from '@/modules/relationships';
 import { useCardGesture } from '@/shared/context/CardGestureContext';
 import { useTheme } from '@/shared/hooks/useTheme';
-import { WeaveIcon } from '@/components/WeaveIcon';
+import { WeaveIcon } from '@/shared/components/WeaveIcon';
 import { calculateCurrentScore } from '@/modules/intelligence';
 import { SearchFilters, HealthStatus, SortOption } from './FriendSearchBar';
 import { Archetype } from '../types';

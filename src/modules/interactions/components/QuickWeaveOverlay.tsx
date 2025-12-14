@@ -30,7 +30,7 @@ import { useTheme } from '@/shared/hooks/useTheme';
 import { database } from '@/db';
 import FriendModel from '@/db/models/Friend';
 import { Q } from '@nozbe/watermelondb';
-import { InteractionCategory } from '@/components/types';
+import { InteractionCategory } from '@/shared/types/legacy-types';
 
 // Compact sizing for sleeker feel
 const MENU_RADIUS = 88; // Increased from 75px (was 100px originally)

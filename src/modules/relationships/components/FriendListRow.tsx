@@ -13,9 +13,9 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { useUIStore } from '@/shared/stores/uiStore';
-import { type Archetype, type RelationshipType, type Friend } from '@/components/types';
+import { type Archetype, type RelationshipType, type Friend } from '@/shared/types/legacy-types';
 import { useTheme } from '@/shared/hooks/useTheme';
-import { ArchetypeIcon } from '@/components/ArchetypeIcon';
+import { ArchetypeIcon } from '@/modules/intelligence';
 import { archetypeData } from '@/shared/constants/constants';
 import FriendModel from '@/db/models/Friend';
 import { useCardGesture } from '@/shared/context/CardGestureContext';
@@ -26,7 +26,7 @@ import { resolveImageUri } from '../services/image.service';
 import { statusLineCache } from '@/modules/intelligence';
 import { FriendDetailSheet } from './FriendDetailSheet';
 import { HydratedFriend } from '@/types/hydrated';
-import { ArchetypeCard } from '@/components/ArchetypeCard';
+import { ArchetypeCard } from '@/modules/intelligence';
 import { StandardBottomSheet } from '@/shared/ui/Sheet/StandardBottomSheet';
 import { database } from '@/db';
 

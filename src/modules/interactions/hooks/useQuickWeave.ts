@@ -7,7 +7,7 @@ import Friend from '@/db/models/Friend';
 import { useUIStore } from '@/shared/stores/uiStore';
 import { useInteractions } from './useInteractions';
 import { getTopActivities, isSmartDefaultsEnabled } from '../services/smart-defaults.service';
-import { type InteractionCategory } from '@/components/types';
+import { type InteractionCategory } from '@/shared/types/legacy-types';
 import { ACTIVITIES } from '../constants';
 
 export function useQuickWeave() {

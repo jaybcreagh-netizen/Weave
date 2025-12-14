@@ -7,8 +7,8 @@ import { useTheme } from '@/shared/hooks/useTheme';
 import { PlanFormData } from '../PlanWizard';
 import FriendModel from '@/db/models/Friend';
 import { usePlanSuggestion, PlanSuggestion } from '../../hooks/usePlanSuggestion';
-import { FriendSelector } from '@/components/FriendSelector';
-import { ReciprocitySelector } from '@/components/ReciprocitySelector';
+import { FriendSelector } from '@/modules/relationships/components/FriendSelector';
+import { ReciprocitySelector } from '@/modules/relationships/components/ReciprocitySelector';
 
 interface PlanWizardStep3Props {
   formData: Partial<PlanFormData>;

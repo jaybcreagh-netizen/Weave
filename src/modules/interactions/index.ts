@@ -2,6 +2,12 @@
 export { QuickWeaveOverlay } from './components/QuickWeaveOverlay';
 export { PlanWizard } from './components/PlanWizard';
 export { PostWeaveRatingModal } from './components/PostWeaveRatingModal';
+export { WeaveLoggerScreen } from './screens/WeaveLoggerScreen';
+export { EditInteractionModal } from './components/EditInteractionModal';
+export { InteractionDetailModal } from './components/InteractionDetailModal';
+export { PlanChoiceModal } from './components/PlanChoiceModal';
+export { SuggestionCard } from './components/SuggestionCard';
+export { EventSuggestionModal } from './components/EventSuggestionModal';
 
 // Hooks
 export { useInteractions } from './hooks/useInteractions';
@@ -15,6 +21,7 @@ export * as WeaveLoggingService from './services/weave-logging.service';
 export * as PlanService from './services/plan.service';
 export * as CalendarService from './services/calendar.service';
 export * as CalendarExportService from './services/calendar-export.service';
+export { shareInteractionAsICS } from './services/calendar-export.service';
 export * from './services/smart-defaults.service';
 export * from './services/suggestion-engine.service';
 export * as suggestionEngine from './services/suggestion-engine.service';

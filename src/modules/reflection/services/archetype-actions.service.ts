@@ -3,7 +3,7 @@
  * Maps each archetype to suggested connection actions for weekly reflection
  */
 
-import { Archetype } from '@/components/types';
+import { Archetype } from '@/shared/types/legacy-types';
 
 /**
  * Suggested actions for each archetype when they appear in "missed connections"

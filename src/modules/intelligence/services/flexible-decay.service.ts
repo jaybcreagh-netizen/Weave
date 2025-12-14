@@ -1,6 +1,6 @@
 // src/modules/intelligence/services/flexible-decay.service.ts
 import type FriendModel from '@/db/models/Friend';
-import { type Friend } from '@/components/types';
+import { type Friend } from '@/shared/types/legacy-types';
 import { TierDecayRates } from '../constants';
 import { Tier } from '@/shared/types/common';
 import type { FlexibilityMode } from '@/modules/insights';

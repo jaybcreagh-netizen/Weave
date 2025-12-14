@@ -15,7 +15,7 @@ import { incrementUsage } from './custom-chip.service';
 import Interaction from '@/db/models/Interaction';
 import FriendModel from '@/db/models/Friend';
 import { calculateChipFrequency, suggestCustomChip, createCustomChip, type StoryChip, type ChipType } from './story-chips.service';
-import { type ReflectionChip } from '@/components/types';
+import { type ReflectionChip } from '@/shared/types/legacy-types';
 import { Q } from '@nozbe/watermelondb';
 
 /**

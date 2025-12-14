@@ -466,13 +466,8 @@ export async function fetchSuggestions(
         }
     }
 
-    // MINIMUM SUGGESTIONS: Add guaranteed suggestions if we're below threshold
-    // This ensures users always have meaningful options even when network is healthy
-    const MIN_SUGGESTIONS = 3;
-    if (allSuggestions.length < MIN_SUGGESTIONS && friends.length > 0) {
-        const guaranteed = generateGuaranteedSuggestions(friends, allSuggestions, season);
-        allSuggestions.push(...guaranteed);
-    }
+    // NOTE: Guaranteed suggestions are now added AFTER filtering (see below)
+    // This ensures users always have options even when filters remove regular suggestions
 
     // Filter out dismissed (unless critical)
     const active = allSuggestions.filter(s => {
@@ -485,6 +480,21 @@ export async function fetchSuggestions(
 
     // Apply season-aware filtering (caps, category restrictions, life event bypass)
     const seasonFiltered = filterSuggestionsBySeason(timeAppropriate, season);
+
+    // POST-FILTER GUARANTEED: Ensure minimum suggestions after all filters
+    // This fixes the issue where guaranteed suggestions were being filtered out
+    const MIN_SUGGESTIONS = 3;
+    let finalPool = seasonFiltered;
+
+    if (finalPool.length < MIN_SUGGESTIONS && friends.length > 0) {
+        const guaranteed = generateGuaranteedSuggestions(friends, finalPool, season);
+
+        // Filter guaranteed suggestions by dismissal only (not time/season)
+        // Guaranteed suggestions are designed to be low-pressure and always appropriate
+        const freshGuaranteed = guaranteed.filter(s => !dismissedMap.has(s.id));
+
+        finalPool = [...finalPool, ...freshGuaranteed];
+    }
 
     // Get season-appropriate limit (use season config if provided)
     const effectiveLimit = season
@@ -499,7 +509,7 @@ export async function fetchSuggestions(
 
     // Diversify suggestions to provide balanced "options menu" experience
     // In low-energy mode, boost Hermit/Empress friends and text/call activities
-    const finalSuggestions = selectDiverseSuggestions(seasonFiltered, effectiveLimit, {
+    const finalSuggestions = selectDiverseSuggestions(finalPool, effectiveLimit, {
         isLowEnergy,
         friendLookup,
     });
@@ -513,3 +523,4 @@ export async function fetchSuggestions(
 
     return finalSuggestions;
 }
+

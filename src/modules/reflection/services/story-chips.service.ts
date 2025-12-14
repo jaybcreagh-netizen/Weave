@@ -1,4 +1,4 @@
-import { InteractionCategory, Archetype, Vibe, Tier } from '@/components/types';
+import { InteractionCategory, Archetype, Vibe, Tier } from '@/shared/types/legacy-types';
 import { analyzeText, calculateThemeRelevance } from '../utils/text-analysis';
 
 /**

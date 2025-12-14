@@ -6,7 +6,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { format, isToday } from 'date-fns';
 import * as Haptics from 'expo-haptics';
 
-import { GlobalYearCalendar } from '@/components/GlobalYearCalendar';
+import { GlobalYearCalendar } from '@/shared/components/GlobalYearCalendar';
 import { useInteractions } from '@/modules/interactions';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { database } from '@/db';
@@ -15,8 +15,8 @@ import InteractionFriend from '@/db/models/InteractionFriend';
 import FriendModel from '@/db/models/Friend';
 import EveningDigest from '@/db/models/EveningDigest';
 import { getCategoryMetadata } from '@/shared/constants/interaction-categories';
-import { InteractionDetailModal } from '@/components/interaction-detail-modal';
-import { Interaction } from '@/components/types';
+import { InteractionDetailModal } from '@/modules/interactions';
+import { Interaction } from '@/shared/types/legacy-types';
 import { EveningDigestChannel } from '@/modules/notifications';
 import { useUIStore } from '@/shared/stores/uiStore';
 

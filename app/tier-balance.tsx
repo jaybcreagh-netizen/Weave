@@ -10,7 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ArrowLeft } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
-import { TierBalanceContent } from '@/components/TierBalanceContent';
+import { TierBalanceContent } from '@/modules/relationships/components/TierBalanceContent';
 
 /**
  * Full-screen tier balance view

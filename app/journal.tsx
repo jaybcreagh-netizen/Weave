@@ -7,8 +7,8 @@ import {
     GuidedReflectionModal,
     FriendshipArcView,
     JournalEntryModal,
-} from '@/components/Journal';
-import { WeeklyReflectionDetailModal } from '@/components/WeeklyReflection/WeeklyReflectionDetailModal';
+} from '@/modules/journal/components';
+import { WeeklyReflectionDetailModal } from '@/modules/reflection';
 import JournalEntry from '@/db/models/JournalEntry';
 import WeeklyReflection from '@/db/models/WeeklyReflection';
 import { database } from '@/db';

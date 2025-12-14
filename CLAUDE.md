@@ -342,3 +342,30 @@ See `docs/REFACTORING_ROADMAP.md` for the full plan.
 - **Circular Dependencies**: Use the `Shared` module for common code to avoid cycles between feature modules
 - **NativeWind**: Ensure `className` is passed correctly; some RN components don't support it natively
 - **Bottom Sheets**: Use `@gorhom/bottom-sheet` components, not raw modals, for slide-up panels
+
+## 10. Strict Architectural Rules
+
+**CRITICAL**: All AI agents must adhere to these rules when creating or moving files.
+
+### 10.1 The "God Folder" Ban
+- `src/components/` is **deprecated**. Do not add new files here.
+- All components must reside in:
+  - `src/shared/ui/` (primitives like Buttons, Inputs)
+  - `src/shared/components/` (generic complex components)
+  - `src/modules/[module-name]/components/` (feature logic)
+
+### 10.2 Module Anatomy
+Every feature module in `src/modules/` must follow this structure:
+- `components/`: UI components
+- `screens/`: Full-page screens (exported to `app/`)
+- `services/`: Business logic & DB calls
+- `hooks/`: Custom React hooks
+- `types/`: Module-specific types
+- `index.ts`: The ONLY public entry point
+
+### 10.3 Thin Routes
+- Files in `app/` must be **thin wrappers**.
+- They should only:
+  1. Parse URL parameters
+  2. Render a Screen component from `src/modules/.../screens/`
+- **Never** write complex logic or UI trees inside `app/` files.

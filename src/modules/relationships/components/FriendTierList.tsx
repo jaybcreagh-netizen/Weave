@@ -11,7 +11,7 @@ import { friendRepository } from '../repositories/friend.repository';
 import { FriendListRow } from '@/modules/relationships';
 import { useCardGesture } from '@/shared/context/CardGestureContext';
 import { useTheme } from '@/shared/hooks/useTheme';
-import { WeaveIcon } from '@/components/WeaveIcon';
+import { WeaveIcon } from '@/shared/components/WeaveIcon';
 import { tierColors } from '@/shared/constants/constants';
 import { type Tier } from '../types';
 

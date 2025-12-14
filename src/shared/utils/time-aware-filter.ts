@@ -31,6 +31,13 @@ export function isSuggestionTimeAppropriate(suggestion: Suggestion, timeOfDay?: 
     return true;
   }
 
+  // Guaranteed categories always show (they're intentionally low-pressure)
+  // These are fallback suggestions designed to always be available
+  const guaranteedCategories = ['daily-reflect', 'gentle-nudge', 'wildcard'];
+  if (guaranteedCategories.includes(suggestion.category || '')) {
+    return true;
+  }
+
   // Night time (10pm-6am): Only show critical or time-sensitive reflections
   if (currentTime === 'night') {
     // Allow reflection suggestions if they're about to expire

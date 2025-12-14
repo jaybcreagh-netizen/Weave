@@ -8,8 +8,8 @@ import { useTheme } from '@/shared/hooks/useTheme';
 import { normalizeContactImageUri, batchAddFriends } from '@/modules/relationships';
 import { database } from '@/db';
 import FriendModel from '@/db/models/Friend';
-import { DuplicateResolverModal } from '@/components/DuplicateResolverModal';
-import { ContactPickerGrid } from '@/components/onboarding/ContactPickerGrid';
+import { DuplicateResolverModal } from '@/modules/relationships/components/DuplicateResolverModal';
+import { ContactPickerGrid } from '@/shared/components/onboarding/ContactPickerGrid';
 
 export default function BatchAddFriends() {
   const router = useRouter();

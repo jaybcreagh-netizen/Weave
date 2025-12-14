@@ -1,6 +1,6 @@
 import { applyDecay, calculateDecayAmount } from '../services/decay.service';
 import FriendModel from '@/db/models/Friend';
-import { Tier } from '@/components/types';
+import { Tier } from '@/shared/types/legacy-types';
 
 // Helper to create a date in the past
 const daysAgo = (days: number): Date => {

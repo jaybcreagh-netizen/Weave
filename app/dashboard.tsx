@@ -3,9 +3,9 @@ import { View, Text, TouchableOpacity, StyleSheet, Dimensions, ScrollView, Nativ
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Sparkles, Users, Settings } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
-import { SettingsModal } from '@/components/settings-modal';
-import { SocialBatterySheet } from '@/components/home/SocialBatterySheet';
-import BadgeUnlockModal from '@/components/BadgeUnlockModal';
+import { SettingsModal } from '@/modules/auth/components/settings-modal';
+import { SocialBatterySheet } from '@/modules/home/components/widgets/SocialBatterySheet';
+import { BadgeUnlockModal } from '@/modules/gamification';
 import { useUserProfileStore } from '@/modules/auth';
 import { useUIStore } from '@/shared/stores/uiStore';
 import { useSuggestions } from '@/modules/interactions';

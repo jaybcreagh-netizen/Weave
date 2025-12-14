@@ -1,6 +1,6 @@
 // src/modules/intelligence/services/scoring.service.ts
 import FriendModel from '@/db/models/Friend';
-import { Archetype, Duration, Vibe, InteractionCategory, InteractionType } from '@/components/types';
+import { Archetype, Duration, Vibe, InteractionCategory, InteractionType } from '@/shared/types/legacy-types';
 import {
   CategoryArchetypeMatrix,
   CategoryBaseScores,

@@ -1,5 +1,5 @@
 // src/modules/intelligence/services/quality.service.ts
-import { Duration, Vibe } from '@/components/types';
+import { Duration, Vibe } from '@/shared/types/legacy-types';
 
 /**
  * @interface InteractionQualityMetrics

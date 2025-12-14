@@ -6,7 +6,7 @@ import { Q } from '@nozbe/watermelondb';
 import IntentionModel from '@/db/models/Intention';
 import { LifeEventRepository } from '@/modules/relationships/repositories/life-event.repository';
 import LifeEventModel from '@/db/models/LifeEvent';
-import { Friend, Interaction, LifeEvent, Intention } from '@/components/types';
+import { Friend, Interaction, LifeEvent, Intention } from '@/shared/types/legacy-types';
 import { switchMap } from 'rxjs/operators';
 import { of, combineLatest } from 'rxjs';
 import IntentionFriend from '@/db/models/IntentionFriend';

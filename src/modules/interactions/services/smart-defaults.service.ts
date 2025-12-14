@@ -3,7 +3,7 @@ import { database } from '@/db';
 import Interaction from '@/db/models/Interaction';
 import FriendModel from '@/db/models/Friend';
 import { Q } from '@nozbe/watermelondb';
-import { type InteractionCategory } from '@/components/types';
+import { type InteractionCategory } from '@/shared/types/legacy-types';
 import { getArchetypePreferredCategory } from '@/shared/constants/archetype-content';
 
 /**

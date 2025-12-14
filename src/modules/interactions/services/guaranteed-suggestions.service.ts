@@ -67,6 +67,75 @@ const WILDCARD_SUGGESTIONS: WildcardSuggestion[] = [
 ];
 
 // ============================================================================
+// TIME-AWARE WILDCARDS
+// Context-sensitive suggestions based on time of day
+// ============================================================================
+
+type TimeOfDay = 'morning' | 'midday' | 'afternoon' | 'evening' | 'night';
+
+const TIME_AWARE_WILDCARDS: Partial<Record<TimeOfDay, WildcardSuggestion[]>> = {
+    morning: [
+        { title: "Morning check-in", subtitle: "Send a good morning to someone you're thinking of", icon: "Sun", actionType: 'log', prefilledCategory: 'text-call' },
+        { title: "Coffee date?", subtitle: "Invite someone for a quick coffee chat", icon: "Coffee", actionType: 'plan', prefilledCategory: 'meal-drink' },
+    ],
+    midday: [
+        { title: "Lunch hangout", subtitle: "Make midday more meaningful—invite someone to join", icon: "UtensilsCrossed", actionType: 'plan', prefilledCategory: 'meal-drink' },
+    ],
+    afternoon: [
+        { title: "Afternoon walk", subtitle: "Fresh air and good company—invite a friend for a walk", icon: "Footprints", actionType: 'plan', prefilledCategory: 'activity-hobby' },
+        { title: "Weekend plans?", subtitle: "Start thinking about who to see this weekend", icon: "Calendar", actionType: 'plan', prefilledCategory: 'hangout' },
+    ],
+    evening: [
+        { title: "Evening catch-up", subtitle: "Share what's on your mind with someone close", icon: "Moon", actionType: 'log', prefilledCategory: 'text-call' },
+        { title: "Tomorrow's plans", subtitle: "Who would make tomorrow more meaningful?", icon: "Calendar", actionType: 'plan', prefilledCategory: 'hangout' },
+    ],
+};
+
+// ============================================================================
+// DAY-SPECIFIC WILDCARDS
+// Special suggestions for certain days of the week
+// ============================================================================
+
+const DAY_SPECIFIC_WILDCARDS: Partial<Record<number, WildcardSuggestion[]>> = {
+    0: [ // Sunday
+        { title: "Sunday coffee", subtitle: "It's Sunday—grab a coffee with someone special", icon: "Coffee", actionType: 'plan', prefilledCategory: 'meal-drink' },
+        { title: "Slow Sunday", subtitle: "Sundays are for catching up—who's on your mind?", icon: "Heart", actionType: 'log', prefilledCategory: 'text-call' },
+    ],
+    5: [ // Friday
+        { title: "Friday plans?", subtitle: "The weekend is coming—who do you want to see?", icon: "PartyPopper", actionType: 'plan', prefilledCategory: 'hangout' },
+        { title: "Weekend kick-off", subtitle: "Start the weekend right—reach out to a friend", icon: "Sparkles", actionType: 'log', prefilledCategory: 'text-call' },
+    ],
+    6: [ // Saturday
+        { title: "Saturday adventure", subtitle: "Try something new with a friend today", icon: "Compass", actionType: 'plan', prefilledCategory: 'activity-hobby' },
+        { title: "Weekend vibes", subtitle: "Who would make today even better?", icon: "Sun", actionType: 'plan', prefilledCategory: 'hangout' },
+    ],
+};
+
+// ============================================================================
+// "WHY NOT REACH OUT" TEMPLATES
+// Low-pressure suggestions for slightly overdue friends
+// ============================================================================
+
+const WHY_NOT_REACH_OUT_TEMPLATES = [
+    { prefix: "Why not reach out to", suffix: "?", icon: "MessageCircle" },
+    { prefix: "Hey, it's been a while—say hi to", suffix: "", icon: "Hand" },
+    { prefix: "Thinking of", suffix: "? Drop them a line!", icon: "Heart" },
+    { prefix: "Missing", suffix: "? A quick hello goes a long way", icon: "Send" },
+];
+
+/**
+ * Get current time of day bucket
+ */
+function getTimeOfDay(): TimeOfDay {
+    const hour = new Date().getHours();
+    if (hour >= 6 && hour < 11) return 'morning';
+    if (hour >= 11 && hour < 14) return 'midday';
+    if (hour >= 14 && hour < 18) return 'afternoon';
+    if (hour >= 18 && hour < 22) return 'evening';
+    return 'night';
+}
+
+// ============================================================================
 // GENTLE NUDGE TEMPLATES
 // Low-pressure reach-out suggestions for healthy friends
 // ============================================================================
@@ -100,6 +169,9 @@ export function generateGuaranteedSuggestions(
     const existingFriendIds = new Set(existingSuggestions.map(s => s.friendId));
     const existingCategories = new Set(existingSuggestions.map(s => s.category));
 
+    // Track friend IDs we've already added suggestions for
+    const usedFriendIds = new Set(existingFriendIds);
+
     // 1. DAILY REFLECT - Always generate (unless one already exists)
     if (!existingCategories.has('reflect') && !existingCategories.has('daily-reflect')) {
         const reflectSuggestion = generateDailyReflect();
@@ -111,23 +183,36 @@ export function generateGuaranteedSuggestions(
     // 2. GENTLE NUDGE - Pick a healthy friend who's not already suggested
     // Skip in resting season to reduce pressure
     if (season !== 'resting' && !existingCategories.has('gentle-nudge')) {
-        const nudgeSuggestion = generateGentleNudge(friends, existingFriendIds);
+        const nudgeSuggestion = generateGentleNudge(friends, usedFriendIds);
         if (nudgeSuggestion) {
             suggestions.push(nudgeSuggestion);
+            if (nudgeSuggestion.friendId) usedFriendIds.add(nudgeSuggestion.friendId);
         }
     }
 
-    // 3. WILDCARD - Random spontaneous suggestion
+    // 3. WILDCARD - Context-aware spontaneous suggestion
     // Skip in resting season
     if (season !== 'resting' && !existingCategories.has('wildcard')) {
-        const wildcardSuggestion = generateWildcard(friends, existingFriendIds);
+        const wildcardSuggestion = generateWildcard(friends, usedFriendIds);
         if (wildcardSuggestion) {
             suggestions.push(wildcardSuggestion);
+            if (wildcardSuggestion.friendId) usedFriendIds.add(wildcardSuggestion.friendId);
+        }
+    }
+
+    // 4. WHY NOT REACH OUT - For slightly overdue friends (30-60% score)
+    // This provides an extra option when network is mostly healthy
+    // Skip in resting season
+    if (season !== 'resting' && suggestions.length < 3) {
+        const whyNotSuggestion = generateWhyNotReachOut(friends, usedFriendIds);
+        if (whyNotSuggestion) {
+            suggestions.push(whyNotSuggestion);
         }
     }
 
     return suggestions;
 }
+
 
 // ============================================================================
 // INDIVIDUAL GENERATORS
@@ -212,23 +297,48 @@ function generateGentleNudge(
 
 /**
  * Generate a wildcard spontaneous suggestion
- * Optionally targets a specific friend for friend-oriented wildcards
+ * Now context-aware: uses time of day and day of week for relevant suggestions
  */
 function generateWildcard(
     friends: FriendModel[],
     excludeFriendIds: Set<string>
 ): Suggestion | null {
-    // Pick a random wildcard template
-    const template = WILDCARD_SUGGESTIONS[Math.floor(Math.random() * WILDCARD_SUGGESTIONS.length)];
+    const timeOfDay = getTimeOfDay();
+    const dayOfWeek = new Date().getDay();
+
+    // Select template with context-awareness
+    let template: WildcardSuggestion;
+
+    // 60% chance to use context-aware template (if available)
+    if (Math.random() < 0.6) {
+        // Try day-specific first (30% of context-aware)
+        const dayTemplates = DAY_SPECIFIC_WILDCARDS[dayOfWeek];
+        const timeTemplates = TIME_AWARE_WILDCARDS[timeOfDay];
+
+        if (dayTemplates && dayTemplates.length > 0 && Math.random() < 0.3) {
+            template = dayTemplates[Math.floor(Math.random() * dayTemplates.length)];
+        } else if (timeTemplates && timeTemplates.length > 0) {
+            template = timeTemplates[Math.floor(Math.random() * timeTemplates.length)];
+        } else {
+            // Fall back to generic wildcards
+            template = WILDCARD_SUGGESTIONS[Math.floor(Math.random() * WILDCARD_SUGGESTIONS.length)];
+        }
+    } else {
+        // Use generic wildcards
+        template = WILDCARD_SUGGESTIONS[Math.floor(Math.random() * WILDCARD_SUGGESTIONS.length)];
+    }
 
     // Some wildcards work better with a specific friend
-    const friendOrientedWildcards = ['Voice note surprise', 'Spontaneous check-in', 'Deep dive'];
+    const friendOrientedWildcards = [
+        'Voice note surprise', 'Spontaneous check-in', 'Deep dive',
+        'Morning check-in', 'Evening catch-up', 'Slow Sunday'
+    ];
     const needsFriend = friendOrientedWildcards.some(w => template.title.includes(w));
 
     let targetFriend: FriendModel | null = null;
 
     if (needsFriend) {
-        // Find an eligible friend
+        // Find an eligible friend, prefer those with lower scores (slightly overdue)
         const eligibleFriends = friends.filter(f => {
             if (f.isDormant) return false;
             if (excludeFriendIds.has(f.id)) return false;
@@ -236,7 +346,14 @@ function generateWildcard(
         });
 
         if (eligibleFriends.length > 0) {
-            targetFriend = eligibleFriends[Math.floor(Math.random() * eligibleFriends.length)];
+            // Bias toward friends with lower scores (30-70 range)
+            const sortedByScore = eligibleFriends
+                .map(f => ({ friend: f, score: calculateCurrentScore(f) }))
+                .sort((a, b) => a.score - b.score);
+
+            // Pick from bottom half preferentially
+            const pickIndex = Math.floor(Math.random() * Math.min(sortedByScore.length, Math.ceil(sortedByScore.length / 2) + 2));
+            targetFriend = sortedByScore[pickIndex].friend;
         }
     }
 
@@ -265,6 +382,50 @@ function generateWildcard(
     };
 }
 
+/**
+ * Generate a "Why not reach out to X?" suggestion for slightly overdue friends
+ * Targets friends with score 30-60 (overdue but not critical)
+ */
+function generateWhyNotReachOut(
+    friends: FriendModel[],
+    excludeFriendIds: Set<string>
+): Suggestion | null {
+    // Target friends with score 30-60 (overdue but not critical)
+    const eligibleFriends = friends.filter(f => {
+        if (f.isDormant) return false;
+        if (excludeFriendIds.has(f.id)) return false;
+        const score = calculateCurrentScore(f);
+        return score >= 30 && score <= 60;
+    });
+
+    if (eligibleFriends.length === 0) return null;
+
+    // Pick random eligible friend, bias toward lower scores
+    const sorted = eligibleFriends
+        .map(f => ({ friend: f, score: calculateCurrentScore(f) }))
+        .sort((a, b) => a.score - b.score);
+
+    const pickIndex = Math.floor(Math.random() * Math.min(sorted.length, 5));
+    const selectedFriend = sorted[pickIndex].friend;
+    const template = WHY_NOT_REACH_OUT_TEMPLATES[Math.floor(Math.random() * WHY_NOT_REACH_OUT_TEMPLATES.length)];
+
+    return {
+        id: `why-not-${selectedFriend.id}-${new Date().toISOString().split('T')[0]}`,
+        friendId: selectedFriend.id,
+        friendName: selectedFriend.name,
+        type: 'connect',
+        title: `${template.prefix} ${selectedFriend.name}${template.suffix}`,
+        subtitle: "Small gestures keep friendships warm",
+        icon: template.icon,
+        category: 'wildcard', // Use wildcard category so it bypasses season filtering
+        urgency: 'low',
+        actionLabel: 'Reach Out',
+        action: { type: 'log', prefilledCategory: 'text-call' },
+        dismissible: true,
+        createdAt: new Date(),
+    };
+}
+
 // ============================================================================
 // UTILITIES
 // ============================================================================
@@ -283,3 +444,4 @@ export function getDailyReflectPrompt(): ReflectPrompt {
 export function getAllWildcardOptions(): WildcardSuggestion[] {
     return WILDCARD_SUGGESTIONS;
 }
+

@@ -18,6 +18,13 @@ export function setupIntelligenceListeners() {
 
         Logger.info('[Intelligence] Processing interaction:created event');
 
+        // Only process scoring for completed logs, not for plans.
+        // Plans are scored later when completed via completePlan() or auto-scored via checkPendingPlans().
+        if (data.type === 'plan' || data.status !== 'completed') {
+            Logger.info('[Intelligence] Skipping scoring for non-completed interaction (plan or pending)');
+            return;
+        }
+
         try {
             // Scoring (with season-aware bonuses)
             const currentSeason = useUserProfileStore.getState().getSocialSeason();

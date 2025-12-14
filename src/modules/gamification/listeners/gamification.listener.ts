@@ -7,9 +7,16 @@ import FriendModel from '@/db/models/Friend';
 
 export function setupGamificationListeners() {
     eventBus.on('interaction:created', async (payload: any) => {
-        const { interactionId, friends } = payload as { interactionId: string, friends: FriendModel[] };
+        const { interactionId, friends, data } = payload as { interactionId: string, friends: FriendModel[], data: { type?: string, status?: string } };
 
         Logger.info('[Gamification] Processing interaction:created event');
+
+        // Only process gamification for completed logs, not for plans.
+        // Plans trigger gamification when they are completed.
+        if (data?.type === 'plan' || data?.status !== 'completed') {
+            Logger.info('[Gamification] Skipping gamification for non-completed interaction');
+            return;
+        }
 
         try {
             // Badges & Achievements

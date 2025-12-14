@@ -30,3 +30,6 @@ export * from './services/channels/event-suggestion';
 // but try to use the hook or Orchestrator methods.
 export * from './services/permission.service';
 export * from './services/notification-grace-periods';
+
+// Components
+export { NotificationPermissionModal } from './components/NotificationPermissionModal';

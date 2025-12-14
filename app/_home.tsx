@@ -1,13 +1,13 @@
 import React, { useEffect, useState, useRef } from 'react';
 
-import { HomeWidgetGrid, WidgetGridItem } from '@/components/home/HomeWidgetGrid';
-import { SocialSeasonWidgetV2 } from '@/components/home/widgets/SocialSeasonWidgetV2';
-import { YourEnergyWidget } from '@/components/home/widgets/YourEnergyWidget';
-import { TodaysFocusWidgetV2 } from '@/components/home/widgets/TodaysFocusWidgetV2';
+import { HomeWidgetGrid, WidgetGridItem } from '@/modules/home/components/widgets/HomeWidgetGrid';
+import { SocialSeasonWidgetV2 } from '@/modules/home/components/widgets/widgets/SocialSeasonWidgetV2';
+import { YourEnergyWidget } from '@/modules/home/components/widgets/widgets/YourEnergyWidget';
+import { TodaysFocusWidgetV2 } from '@/modules/home/components/widgets/widgets/TodaysFocusWidgetV2';
 import { useTheme } from '@/shared/hooks/useTheme';
-import { ReflectionReadyWidget } from '@/components/home/widgets/ReflectionReadyWidget';
-import { ReflectionReadyPrompt } from '@/components/WeeklyReflection/ReflectionReadyPrompt';
-import { YearInMoonsModal } from '@/components/YearInMoons/YearInMoonsModal';
+import { ReflectionReadyWidget } from '@/modules/home/components/widgets/widgets/ReflectionReadyWidget';
+import { ReflectionReadyPrompt } from '@/modules/reflection/components/WeeklyReflection/ReflectionReadyPrompt';
+import { YearInMoonsModal } from '@/modules/intelligence';
 import { useUserProfileStore } from '@/modules/auth';
 import { notificationStore } from '@/modules/notifications';
 import { getUserAccountAge } from '@/modules/notifications';

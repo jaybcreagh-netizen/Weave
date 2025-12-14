@@ -1,4 +1,4 @@
-import { Tier, InteractionType, InteractionCategory, Duration, Vibe, Archetype } from '@/components/types';
+import { Tier, InteractionType, InteractionCategory, Duration, Vibe, Archetype } from '@/shared/types/legacy-types';
 
 export const TierDecayRates: Record<Tier, number> = {
   InnerCircle: 2.5,

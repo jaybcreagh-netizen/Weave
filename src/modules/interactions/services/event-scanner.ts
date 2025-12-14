@@ -10,7 +10,7 @@ import {
   type EventImportance,
 } from '@/modules/reflection';
 import { checkCalendarPermissions, getCalendarSettings } from './calendar.service';
-import { type InteractionCategory } from '@/components/types';
+import { type InteractionCategory } from '@/shared/types/legacy-types';
 import Logger from '@/shared/utils/Logger';
 
 /**

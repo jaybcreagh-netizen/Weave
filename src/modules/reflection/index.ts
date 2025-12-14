@@ -23,3 +23,11 @@ export * from './services/custom-chip.service';
 export * from './services/oracle/oracle-service';
 export * from './services/oracle/context-builder';
 export * from './services/oracle/types';
+
+// Components
+export { ContextualReflectionInput } from './components/ContextualReflectionInput';
+export { EditReflectionModal } from './components/EditReflectionModal';
+export { IntentionFormModal } from './components/IntentionFormModal';
+export { MicroReflectionSheet } from './components/MicroReflectionSheet';
+export { WeeklyReflectionModal } from './components/WeeklyReflection/WeeklyReflectionModal';
+export { WeeklyReflectionDetailModal } from './components/WeeklyReflection/WeeklyReflectionDetailModal';

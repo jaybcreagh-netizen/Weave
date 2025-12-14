@@ -12,10 +12,10 @@ import { Calendar, Heart, Sparkles, X } from 'lucide-react-native';
 import withObservables from '@nozbe/with-observables';
 
 import { useTheme } from '@/shared/hooks/useTheme';
-import { ArchetypeIcon } from '@/components/ArchetypeIcon';
+import { ArchetypeIcon } from '@/modules/intelligence';
 import { archetypeData, CategoryArchetypeMatrix } from '@/shared/constants/constants';
 import { CATEGORY_METADATA } from '@/shared/constants/interaction-categories';
-import { type InteractionCategory, Archetype } from '@/components/types';
+import { type InteractionCategory, Archetype } from '@/shared/types/legacy-types';
 import FriendModel from '@/db/models/Friend';
 import Interaction from '@/db/models/Interaction';
 import { database } from '@/db';
