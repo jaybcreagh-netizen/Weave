@@ -1,5 +1,6 @@
 import { startOfDay, subDays } from 'date-fns';
 import { database } from '@/db';
+import { logger } from '@/shared/services/logger.service';
 import Interaction from '@/db/models/Interaction';
 import Intention from '@/db/models/Intention';
 import InteractionFriend from '@/db/models/InteractionFriend';
@@ -19,7 +20,7 @@ export async function completePlan(interactionId: string, data?: { vibe?: string
   const interaction = await database.get<Interaction>('interactions').find(interactionId);
   const previousStatus = interaction.status;
 
-  console.log('[PlanService] Completing interaction:', interactionId, 'Status:', previousStatus);
+  logger.debug('PlanService', 'Completing interaction:', interactionId, 'Status:', previousStatus);
   if (previousStatus !== 'planned' && previousStatus !== 'pending_confirm') {
     console.warn('[PlanService] Interaction not in planned/pending state:', previousStatus);
     return;
@@ -29,7 +30,7 @@ export async function completePlan(interactionId: string, data?: { vibe?: string
     await interaction.update(i => {
       i.status = 'completed';
       if (data?.vibe) {
-        console.log('[PlanService] Setting vibe:', data.vibe);
+        logger.debug('PlanService', 'Setting vibe:', data.vibe);
         i.vibe = data.vibe;
       }
       if (data?.note) {
@@ -37,7 +38,7 @@ export async function completePlan(interactionId: string, data?: { vibe?: string
       }
     });
   });
-  console.log('[PlanService] DB Update committed. Status is now completed.');
+  logger.debug('PlanService', 'DB Update committed. Status is now completed.');
 
   const interactionFriends = await database.get<InteractionFriend>('interaction_friends').query(Q.where('interaction_id', interactionId)).fetch();
   const friendIds = interactionFriends.map(ifriend => ifriend.friendId);

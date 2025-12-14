@@ -10,7 +10,7 @@ import { useNotificationPermissions } from '@/modules/notifications';
 import { setupIntelligenceListeners } from '@/modules/intelligence';
 import { setupGamificationListeners } from '@/modules/gamification';
 import { NotificationPermissionModal } from '@/components/NotificationPermissionModal';
-import { useTutorialStore } from '@/stores/tutorialStore';
+import { useTutorialStore } from '@/shared/stores/tutorialStore';
 import { useDatabaseReady } from '@/shared/hooks/useDatabaseReady';
 
 const NOTIFICATION_PERMISSION_ASKED_KEY = '@weave:notification_permission_asked';

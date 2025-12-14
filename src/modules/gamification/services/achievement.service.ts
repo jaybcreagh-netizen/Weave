@@ -1,5 +1,6 @@
 // src/modules/gamification/services/achievement.service.ts
 import { Achievement } from '../types';
+import { logger } from '@/shared/services/logger.service';
 import {
   GlobalAchievement,
   GLOBAL_ACHIEVEMENTS,
@@ -138,7 +139,7 @@ export async function markAchievementAsCelebrated(achievementId: string): Promis
   // This is a placeholder. In a real implementation, we would update a 'celebrated_achievements' field
   // or similar. For now, we'll just log it or assume it's handled by the UI state if not persisted.
   // If persistence is needed, we should add a field to UserProgress.
-  console.log(`Marked achievement ${achievementId} as celebrated`);
+  logger.debug('AchievementService', `Marked achievement ${achievementId} as celebrated`);
 }
 
 export type HiddenAchievementTrigger =

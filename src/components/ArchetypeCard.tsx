@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Pressable, StyleProp, ViewStyle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
-import { useUIStore } from '../stores/uiStore';
+import { useUIStore } from '@/shared/stores/uiStore';
 import { type Archetype } from './types';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { archetypeData, ARCHETYPE_GRADIENTS } from '@/shared/constants/constants';

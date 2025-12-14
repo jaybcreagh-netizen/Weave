@@ -4,7 +4,8 @@ import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, Keyboa
 import * as Haptics from 'expo-haptics';
 import { usePlans } from '../hooks/usePlans';
 import { useInteractions } from '../hooks/useInteractions';
-import { useUIStore } from '@/stores/uiStore';
+import { useUIStore } from '@/shared/stores/uiStore';
+import { logger } from '@/shared/services/logger.service';
 import { MoonPhaseSelector } from '@/components/MoonPhaseSelector';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { Vibe } from '@/shared/types/common';
@@ -147,12 +148,12 @@ export function PostWeaveRatingModal() {
         if (action === 'confirm' && data) {
             setIsSubmitting(true);
             try {
-                console.log('[PostWeaveRatingModal] Completing plan:', planId, data);
+                logger.debug('PostWeaveRatingModal', 'Completing plan:', planId, data);
                 await completePlan(planId, {
                     vibe: data.vibe || undefined,
                     note: data.note
                 });
-                console.log('[PostWeaveRatingModal] Plan completed successfully');
+                logger.debug('PostWeaveRatingModal', 'Plan completed successfully');
                 setCompletedIds(prev => new Set(prev).add(planId));
 
                 // Provide success feedback

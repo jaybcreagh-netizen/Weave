@@ -25,7 +25,7 @@ import { getCategoryMetadata, CATEGORY_METADATA } from '@/shared/constants/inter
 import { type Interaction, type InteractionCategory } from './types';
 import { calculateDeepeningLevel, getDeepeningVisuals } from '@/modules/intelligence';
 import { usePausableAnimation } from '@/shared/hooks/usePausableAnimation';
-import { useUIStore } from '../stores/uiStore';
+import { useUIStore } from '@/shared/stores/uiStore';
 
 interface TimelineItemProps {
   interaction: Interaction;

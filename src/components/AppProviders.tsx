@@ -7,10 +7,10 @@ import * as Sentry from '@sentry/react-native';
 
 import { QuickWeaveProvider } from '@/components/QuickWeaveProvider';
 import { ToastProvider } from '@/components/toast_provider';
-import { CardGestureProvider } from '@/context/CardGestureContext';
+import { CardGestureProvider } from '@/shared/context/CardGestureContext';
 import { ErrorBoundary } from '@/shared/components/ErrorBoundary';
 import { PostHogProvider, POSTHOG_API_KEY, posthogOptions } from '@/shared/services/posthog.service';
-import { useUIStore } from '@/stores/uiStore';
+import { useUIStore } from '@/shared/stores/uiStore';
 import { useTheme } from '@/shared/hooks/useTheme';
 
 import { queryClient } from '@/shared/api/query-client';

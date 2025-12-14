@@ -3,7 +3,7 @@ import { Modal, View, Text, TouchableOpacity } from 'react-native';
 import { X, Calendar, MapPin, Users } from 'lucide-react-native';
 import { BlurView } from 'expo-blur';
 import { router } from 'expo-router';
-import { useEventSuggestions, useDismissSuggestion, type EventSuggestion } from '@/modules/interactions/hooks/useEventSuggestions';
+import { useEventSuggestions, useDismissSuggestion, type EventSuggestion } from '@/modules/interactions';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { format } from 'date-fns';
 import Animated, { FadeIn, FadeOut, SlideInDown, SlideOutDown } from 'react-native-reanimated';

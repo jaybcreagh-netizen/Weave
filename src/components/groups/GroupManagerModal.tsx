@@ -14,7 +14,7 @@ import { Q } from '@nozbe/watermelondb';
 import { groupService } from '@/modules/groups';
 import Group from '@/db/models/Group';
 import { uploadGroupPhoto } from '@/modules/relationships';
-import { resolveImageUri } from '@/modules/relationships/services/image.service';
+import { resolveImageUri } from '@/modules/relationships';
 
 interface GroupManagerModalProps {
     visible: boolean;

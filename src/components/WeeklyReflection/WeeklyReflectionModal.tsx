@@ -38,6 +38,7 @@ import WeeklyReflection from '@/db/models/WeeklyReflection';
 import { ScannedEvent } from '@/modules/interactions';
 import * as Haptics from 'expo-haptics';
 import { WeeklyReflectionChannel } from '@/modules/notifications';
+import { logger } from '@/shared/services/logger.service';
 
 // ============================================================================
 // TYPES
@@ -151,7 +152,7 @@ export function WeeklyReflectionModal({ isOpen, onClose }: WeeklyReflectionModal
       setHasUnloggedEvents(eventReview.events.length > 0);
 
     } catch (error) {
-      console.error('[WeeklyReflectionModal] Error loading data:', error);
+      logger.error('WeeklyReflection', 'Error loading data:', error);
     } finally {
       setIsLoading(false);
     }
@@ -207,7 +208,7 @@ export function WeeklyReflectionModal({ isOpen, onClose }: WeeklyReflectionModal
           emotionalRating,
           reflectionNotes: reflectionData.text.trim().length > 0 ? reflectionData.text : undefined,
         });
-        console.log(`[WeeklyReflection] Batch logged ${eventsToLog.length} calendar events`);
+        logger.info('WeeklyReflection', `Batch logged ${eventsToLog.length} calendar events`);
       }
 
       // Save weekly reflection to database
@@ -237,7 +238,7 @@ export function WeeklyReflectionModal({ isOpen, onClose }: WeeklyReflectionModal
       onClose();
 
     } catch (error) {
-      console.error('[WeeklyReflectionModal] Error saving reflection:', error);
+      logger.error('WeeklyReflection', 'Error saving reflection:', error);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       // Still close even if save fails
       onClose();

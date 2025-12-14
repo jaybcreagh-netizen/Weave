@@ -21,7 +21,7 @@ import { initializeDataMigrations, initializeUserProfile, initializeUserProgress
 import { LoadingScreen } from '@/shared/components/LoadingScreen';
 import { useDatabaseReady } from '@/shared/hooks/useDatabaseReady';
 import { useAppStateChange } from '@/shared/hooks/useAppState';
-import { useTutorialStore } from '@/stores/tutorialStore';
+import { useTutorialStore } from '@/shared/stores/tutorialStore';
 import { AutoBackupService } from '@/modules/backup';
 import { useBackgroundSyncStore } from '@/modules/auth';
 import { PlanService } from '@/modules/interactions';

@@ -2,6 +2,7 @@ import * as Calendar from 'expo-calendar';
 import { Linking, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { database } from '@/db';
+import { logger } from '@/shared/services/logger.service';
 import Interaction from '@/db/models/Interaction';
 import InteractionFriend from '@/db/models/InteractionFriend';
 import FriendModel from '@/db/models/Friend';
@@ -214,7 +215,7 @@ let isSyncing = false;
 
 export async function syncCalendarChanges(): Promise<CalendarSyncResult> {
   if (isSyncing) {
-    console.log('[CalendarService] Sync already in progress, skipping.');
+    logger.debug('CalendarService', 'Sync already in progress, skipping.');
     return { synced: 0, deleted: 0, errors: 0, changes: [] };
   }
 

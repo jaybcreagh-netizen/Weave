@@ -117,7 +117,7 @@ export const MemoryNudgeChannel: NotificationChannel = {
             const { entryId, entryType } = data;
 
             // Lazy load store to avoid potential cycles if imported at top level
-            const { useUIStore } = require('@/stores/uiStore');
+            const { useUIStore } = require('@/shared/stores/uiStore');
 
             if (entryType === 'reflection' || entryType === 'journal') {
                 const memoryData = await getMemoryForNotification(entryId, entryType);

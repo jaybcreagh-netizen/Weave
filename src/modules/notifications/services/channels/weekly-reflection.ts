@@ -59,7 +59,7 @@ export const WeeklyReflectionChannel: NotificationChannel = {
         router.replace('/dashboard');
 
         // Open modal via store
-        const { useUIStore } = require('@/stores/uiStore');
+        const { useUIStore } = require('@/shared/stores/uiStore');
 
         setTimeout(() => {
             useUIStore.getState().openWeeklyReflection();

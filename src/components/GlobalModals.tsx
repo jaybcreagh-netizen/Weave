@@ -1,6 +1,6 @@
 import React from 'react';
 import { router } from 'expo-router';
-import { useUIStore } from '@/stores/uiStore';
+import { useUIStore } from '@/shared/stores/uiStore';
 
 import { MilestoneCelebration } from '@/components/MilestoneCelebration';
 import TrophyCabinetModal from '@/components/TrophyCabinetModal';

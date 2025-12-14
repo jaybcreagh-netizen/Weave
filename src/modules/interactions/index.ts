@@ -25,6 +25,9 @@ export * as SuggestionStorageService from './services/suggestion-storage.service
 export * from './services/suggestion-provider.service';
 export * from './services/guaranteed-suggestions.service';
 
+// Hooks
+export { useEventSuggestions, useDismissSuggestion, type EventSuggestion } from './hooks/useEventSuggestions';
+
 // Stores
 export * from './store';
 

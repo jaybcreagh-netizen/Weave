@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useUIStore } from '@/stores/uiStore';
+import { useUIStore } from '@/shared/stores/uiStore';
 import {
   getTokens,
   createLegacyTheme,

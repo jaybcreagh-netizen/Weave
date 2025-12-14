@@ -1,6 +1,6 @@
 import { Redirect } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { useTutorialStore } from '@/stores/tutorialStore';
+import { useTutorialStore } from '@/shared/stores/tutorialStore';
 
 export default function StartPage() {
   const [isLoading, setIsLoading] = useState(true);

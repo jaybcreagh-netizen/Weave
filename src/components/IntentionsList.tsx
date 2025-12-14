@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { logger } from '@/shared/services/logger.service';
 import { View, TouchableOpacity, ScrollView, StyleSheet, Alert } from 'react-native';
 import { formatDistanceToNow } from 'date-fns';
 import { Q } from '@nozbe/watermelondb';
@@ -32,13 +33,13 @@ export function IntentionsList({ intentions, onIntentionPress }: IntentionsListP
 
   const clearAllIntentions = async () => {
     try {
-      console.log('[IntentionsList] Clearing all intentions...');
+      logger.info('IntentionsList', 'Clearing all intentions...');
       await database.write(async () => {
         const activeIntentions = await database.get<Intention>('intentions')
           .query(Q.where('status', 'active'))
           .fetch();
 
-        console.log(`[IntentionsList] Found ${activeIntentions.length} active intentions to clear`);
+        logger.info('IntentionsList', `Found ${activeIntentions.length} active intentions to clear`);
 
         if (activeIntentions.length > 0) {
           const updates = activeIntentions.map(intention =>
@@ -50,7 +51,7 @@ export function IntentionsList({ intentions, onIntentionPress }: IntentionsListP
         }
       });
     } catch (error) {
-      console.error('[IntentionsList] Error clearing intentions:', error);
+      logger.error('IntentionsList', 'Error clearing intentions:', error);
       Alert.alert('Error', 'Failed to clear intentions');
     }
   };
@@ -78,13 +79,13 @@ export function IntentionsList({ intentions, onIntentionPress }: IntentionsListP
         }
       });
     } catch (error) {
-      console.error('Error cleaning orphaned intentions:', error);
+      logger.error('IntentionsList', 'Error cleaning orphaned intentions:', error);
     }
   };
 
   useEffect(() => {
     cleanupOrphanedIntentions().catch(error => {
-      console.error('Error cleaning orphaned intentions:', error);
+      logger.error('IntentionsList', 'Error cleaning orphaned intentions:', error);
     });
   }, []);
 

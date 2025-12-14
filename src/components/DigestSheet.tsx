@@ -9,7 +9,7 @@ import { Card } from '@/components/ui/Card';
 import { WidgetHeader } from '@/components/ui/WidgetHeader';
 import { DigestItem, EveningDigestChannel } from '@/modules/notifications';
 import { useRouter } from 'expo-router';
-import { useUIStore } from '@/stores/uiStore';
+import { useUIStore } from '@/shared/stores/uiStore';
 import { format } from 'date-fns';
 
 interface DigestSheetProps {

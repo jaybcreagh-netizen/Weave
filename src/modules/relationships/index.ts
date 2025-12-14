@@ -20,6 +20,7 @@ export {
   deleteFriendPhoto,
   uploadGroupPhoto,
   deleteGroupPhoto,
+  resolveImageUri,
 } from './services/image.service';
 export * from './utils/image.utils';
 export * from './services/life-event-detection';

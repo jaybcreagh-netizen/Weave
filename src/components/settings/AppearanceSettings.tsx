@@ -1,7 +1,7 @@
 import React from 'react';
 import { View } from 'react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
-import { useUIStore } from '@/stores/uiStore';
+import { useUIStore } from '@/shared/stores/uiStore';
 import { Moon, Sun } from 'lucide-react-native';
 import { ModernSwitch } from '@/components/ui/ModernSwitch';
 import { SettingsItem } from './SettingsItem';

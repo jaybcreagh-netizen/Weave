@@ -12,8 +12,8 @@ import { YearInMoonsModal } from '@/components/YearInMoons/YearInMoonsModal';
 import { useUserProfileStore } from '@/modules/auth';
 import { notificationStore } from '@/modules/notifications';
 import { getUserAccountAge } from '@/modules/notifications';
-import { useTutorialStore } from '@/stores/tutorialStore';
-import { useUIStore } from '@/stores/uiStore';
+import { useTutorialStore } from '@/shared/stores/tutorialStore';
+import { useUIStore } from '@/shared/stores/uiStore';
 import { isSameWeek } from 'date-fns';
 
 /**

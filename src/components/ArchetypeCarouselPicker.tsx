@@ -23,7 +23,7 @@ import { useTheme } from '@/shared/hooks/useTheme';
 import { type Archetype } from './types';
 import { archetypeData } from '@/shared/constants/constants';
 import { ChevronLeft, ChevronRight, Info } from 'lucide-react-native';
-import { useUIStore } from '../stores/uiStore';
+import { useUIStore } from '@/shared/stores/uiStore';
 
 // Import assets
 import EmperorIcon from '@/assets/TarotIcons/TheEmperor.svg';

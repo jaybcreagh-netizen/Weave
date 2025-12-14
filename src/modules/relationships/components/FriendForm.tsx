@@ -18,7 +18,7 @@ import { MonthDayPicker } from '@/components/MonthDayPicker';
 import { getTierCapacity, getTierDisplayName, isTierAtCapacity } from '@/shared/constants/constants';
 import { normalizeContactImageUri } from '../utils/image.utils';
 import { SimpleTutorialTooltip } from '@/components/SimpleTutorialTooltip';
-import { useTutorialStore } from '@/stores/tutorialStore';
+import { useTutorialStore } from '@/shared/stores/tutorialStore';
 import { validateMMDDFormat } from '@/shared/utils/validation-helpers';
 import { processAndStoreImage, getRelativePath, resolveImageUri, rotateImage } from '../services/image.service';
 

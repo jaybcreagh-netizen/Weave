@@ -7,7 +7,7 @@ import { SettingsModal } from '@/components/settings-modal';
 import { SocialBatterySheet } from '@/components/home/SocialBatterySheet';
 import BadgeUnlockModal from '@/components/BadgeUnlockModal';
 import { useUserProfileStore } from '@/modules/auth';
-import { useUIStore } from '@/stores/uiStore';
+import { useUIStore } from '@/shared/stores/uiStore';
 import { useSuggestions } from '@/modules/interactions';
 import HomeScreen from './_home';
 import FriendsScreen from './_friends';

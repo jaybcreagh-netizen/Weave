@@ -18,7 +18,7 @@ import { getCategoryMetadata } from '@/shared/constants/interaction-categories';
 import { InteractionDetailModal } from '@/components/interaction-detail-modal';
 import { Interaction } from '@/components/types';
 import { EveningDigestChannel } from '@/modules/notifications';
-import { useUIStore } from '@/stores/uiStore';
+import { useUIStore } from '@/shared/stores/uiStore';
 
 export default function GlobalCalendar() {
   const router = useRouter();

@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, Modal, TouchableOpacity, ScrollView } from 'react-native';
-import { useUIStore } from '../stores/uiStore';
+import { useUIStore } from '@/shared/stores/uiStore';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { X, Sparkles } from 'lucide-react-native';
 import { type Archetype, type InteractionCategory } from './types';

@@ -40,6 +40,7 @@ import {
   DayMoonData,
 } from '@/modules/reflection';
 import * as Haptics from 'expo-haptics';
+import { logger } from '@/shared/services/logger.service';
 
 interface YearInMoonsModalProps {
   isOpen: boolean;
@@ -124,7 +125,7 @@ export function YearInMoonsModal({ isOpen, onClose }: YearInMoonsModalProps) {
       setYearData(data);
       setYearStats(stats);
     } catch (error) {
-      console.error('Error loading year moon data:', error);
+      logger.error('YearInMoons', 'Error loading year moon data:', error);
     } finally {
       if (showLoader) setIsLoading(false);
     }
@@ -361,7 +362,7 @@ export function YearInMoonsModal({ isOpen, onClose }: YearInMoonsModalProps) {
                     onLayout={(event) => {
                       if (monthData.month === currentMonth && !hasScrolledRef.current && scrollViewRef.current) {
                         const y = event.nativeEvent.layout.y;
-                        console.log(`[AutoScroll] Found current month at y=${y}, scrolling now...`);
+                        logger.debug('YearInMoons', `AutoScroll: Found current month at y=${y}, scrolling now...`);
 
                         // Small delay to ensure ScrollView content size is updated
                         setTimeout(() => {

@@ -13,8 +13,8 @@ import {
     ChevronRight
 } from 'lucide-react-native';
 import { SettingsItem } from './SettingsItem';
-import { useUIStore } from '@/stores/uiStore';
-import { DiagnosticService } from '@/services/diagnostic.service';
+import { useUIStore } from '@/shared/stores/uiStore';
+import { DiagnosticService } from '@/shared/services/diagnostic.service';
 import { EveningDigestChannel } from '@/modules/notifications';
 import { generateStressTestData, clearStressTestData, getDataStats } from '@/db/seeds/stress-test-seed-data';
 

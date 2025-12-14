@@ -1,5 +1,6 @@
 import 'react-native-get-random-values';
 import { Database } from '@nozbe/watermelondb';
+import { logger } from '@/shared/services/logger.service';
 import SQLiteAdapter from '@nozbe/watermelondb/adapters/sqlite';
 import schema from './schema';
 import migrations from './migrations';
@@ -45,7 +46,7 @@ const adapter = new SQLiteAdapter({
   jsi: true, // Enable JSI for 3x performance boost
   onSetUpError: error => {
     // Database failed to load
-    console.error('Database setup error:', error);
+    logger.error('Database', 'Database setup error:', error);
   }
 });
 
@@ -203,7 +204,7 @@ export const clearDatabase = async () => {
 
       // Safety check: if model is not registered, collection might be null or throw error
       if (!collection) {
-        console.warn(`[Database] Skipping clear for table '${tableName}' - collection not found (check model registration)`);
+        logger.warn('Database', `Skipping clear for table '${tableName}' - collection not found (check model registration)`);
         continue;
       }
 
@@ -215,12 +216,12 @@ export const clearDatabase = async () => {
           await database.batch(...batchOps);
         }
       } catch (error) {
-        console.error(`[Database] Failed to clear table '${tableName}':`, error);
+        logger.error('Database', `Failed to clear table '${tableName}':`, error);
       }
     }
   });
 
-  console.log('[Database] All data cleared successfully');
+  logger.info('Database', 'All data cleared successfully');
 
   // Re-initialize essential singletons
   await initializeUserProfile();

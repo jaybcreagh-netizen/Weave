@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { logger } from '@/shared/services/logger.service';
 import { useInteractions, usePlans } from '@/modules/interactions';
 import { database } from '@/db';
 import { Q } from '@nozbe/watermelondb';
 import IntentionModel from '@/db/models/Intention';
-import { LifeEventRepository } from '@/repositories/LifeEventRepository';
+import { LifeEventRepository } from '@/modules/relationships/repositories/life-event.repository';
 import LifeEventModel from '@/db/models/LifeEvent';
 import { Friend, Interaction, LifeEvent, Intention } from '@/components/types';
 import { switchMap } from 'rxjs/operators';
@@ -23,6 +24,7 @@ export function useFriendProfileData(friendId: string | undefined) {
     const [isLoadingMore, setIsLoadingMore] = useState(false);
     const [interactionsLimit, setInteractionsLimit] = useState(20);
     const [version, setVersion] = useState(0);
+    const [error, setError] = useState<Error | null>(null); // Added error state
 
     const [friendModel, setFriendModel] = useState<FriendModel | null>(null);
     const [interactionsModels, setInteractionsModels] = useState<InteractionModel[]>([]);
@@ -46,7 +48,11 @@ export function useFriendProfileData(friendId: string | undefined) {
                 },
                 error: (error) => {
                     // If friend is deleted or not found
-                    console.log('Error observing friend or friend deleted:', error);
+                    if (error.name === 'NotFoundError') {
+                        logger.warn('FriendProfileData', `Friend with ID ${friendId} not found`);
+                    } else {
+                        logger.error('FriendProfileData', 'Error observing friend:', error);
+                    }
                     setFriendModel(null);
                 }
             });
@@ -207,7 +213,8 @@ export function useFriendProfileData(friendId: string | undefined) {
             }));
             setActiveLifeEvents(eventDTOs);
         } catch (error) {
-            console.error('Error loading life events:', error);
+            logger.error('FriendProfileData', 'Error loading life events:', error);
+            setError(error instanceof Error ? error : new Error('Unknown error loading life events'));
         }
     }, []);
 
@@ -234,9 +241,10 @@ export function useFriendProfileData(friendId: string | undefined) {
                 });
                 // Navigation back is handled by the caller or simple reactivity will show "Friend deleted"
             }
-        } catch (e) {
-            console.error("Error deleting friend", e);
-            throw e;
+        } catch (err) {
+            logger.error('FriendProfileData', 'Error deleting friend:', err);
+            setError(err instanceof Error ? err : new Error('Unknown error deleting friend'));
+            throw err;
         }
     }, [friendModel]);
 

@@ -1,4 +1,5 @@
 import { AppState, AppStateStatus } from 'react-native';
+import { logger } from '@/shared/services/logger.service';
 
 type AppStateListener = (state: AppStateStatus) => void;
 type IdleStateListener = (isIdle: boolean) => void;
@@ -31,14 +32,14 @@ class AppStateManager {
 
       if (shouldBeIdle !== this.isCurrentlyIdle) {
         this.isCurrentlyIdle = shouldBeIdle;
-        console.log('[AppState] Idle state changed:', shouldBeIdle);
+        logger.debug('AppState', 'Idle state changed:', shouldBeIdle);
 
         // Notify idle listeners
         this.idleListeners.forEach(listener => {
           try {
             listener(shouldBeIdle);
           } catch (error) {
-            console.error('[AppState] Idle listener error:', error);
+            logger.error('AppState', 'Idle listener error:', error);
           }
         });
       }
@@ -58,14 +59,14 @@ class AppStateManager {
         try {
           listener(false);
         } catch (error) {
-          console.error('[AppState] Idle listener error:', error);
+          logger.error('AppState', 'Idle listener error:', error);
         }
       });
     }
   }
 
   private handleAppStateChange = (nextState: AppStateStatus) => {
-    console.log('[AppState] Changed from', this.currentState, 'to', nextState);
+    logger.debug('AppState', 'Changed from', this.currentState, 'to', nextState);
 
     this.currentState = nextState;
 
@@ -74,7 +75,7 @@ class AppStateManager {
       try {
         listener(nextState);
       } catch (error) {
-        console.error('[AppState] Listener error:', error);
+        logger.error('AppState', 'Listener error:', error);
       }
     });
   };

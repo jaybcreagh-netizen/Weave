@@ -6,6 +6,8 @@
  */
 
 import { database } from '@/db';
+import { startOfDay, endOfDay, addDays, getDay } from 'date-fns';
+import { logger } from '@/shared/services/logger.service';
 import EventSuggestionFeedback from '@/db/models/EventSuggestionFeedback';
 import FriendModel from '@/db/models/Friend';
 import { Q } from '@nozbe/watermelondb';
@@ -243,7 +245,7 @@ export async function recordFeedback(params: {
       await AsyncStorage.setItem(SNOOZE_STORAGE_KEY, JSON.stringify(snoozes));
     }
 
-    console.log(`[Learning] Recorded ${action} feedback for event: ${event.title}`);
+    logger.debug('Learning', `Recorded ${action} feedback for event: ${event.title}`);
   } catch (error) {
     console.error('[Learning] Error recording feedback:', error);
   }
@@ -423,7 +425,7 @@ function extractEventPattern(title: string): string | null {
  */
 export async function clearAllSnoozes(): Promise<void> {
   await AsyncStorage.removeItem(SNOOZE_STORAGE_KEY);
-  console.log('[Learning] Cleared all snoozes');
+  logger.debug('Learning', 'Cleared all snoozes');
 }
 
 /**

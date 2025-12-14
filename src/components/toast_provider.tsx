@@ -1,5 +1,5 @@
 import React from 'react';
-import { useUIStore } from '../stores/uiStore';
+import { useUIStore } from '@/shared/stores/uiStore';
 import { ToastNotification } from './toast_notification';
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {

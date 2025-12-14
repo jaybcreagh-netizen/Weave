@@ -195,7 +195,7 @@ export const EveningDigestChannel: NotificationChannel & {
     },
 
     handleTap: async (data: any, router: any) => {
-        const { useUIStore } = require('@/stores/uiStore');
+        const { useUIStore } = require('@/shared/stores/uiStore');
 
         // Navigate first to ensure stable route where GlobalModals is mounted
         if (router.canGoBack()) router.dismissAll();

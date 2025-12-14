@@ -8,7 +8,7 @@ import { Q } from '@nozbe/watermelondb';
 import { database } from '@/db';
 import FriendModel from '@/db/models/Friend';
 import { FriendListRow } from '@/modules/relationships';
-import { useCardGesture } from '@/context/CardGestureContext';
+import { useCardGesture } from '@/shared/context/CardGestureContext';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { WeaveIcon } from '@/components/WeaveIcon';
 import { calculateCurrentScore } from '@/modules/intelligence';

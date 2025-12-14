@@ -6,7 +6,7 @@ import { Check, Clock, ChevronRight, Sparkles, Calendar, CheckCircle2 } from 'lu
 import { useTheme } from '@/shared/hooks/useTheme';
 import { HomeWidgetBase, HomeWidgetConfig } from '../HomeWidgetBase';
 import { useSuggestions, useInteractions, usePlans } from '@/modules/interactions';
-import { useUIStore } from '@/stores/uiStore';
+import { useUIStore } from '@/shared/stores/uiStore';
 import { database } from '@/db';
 import LifeEvent from '@/db/models/LifeEvent';
 import { Q } from '@nozbe/watermelondb';

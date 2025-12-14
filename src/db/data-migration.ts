@@ -1,5 +1,6 @@
 import { Database, Q } from '@nozbe/watermelondb';
 import { InteractionCategory, ActivityType } from '@/components/types';
+import { logger } from '@/shared/services/logger.service';
 // import { migrateActivityToCategory } from '@/shared/constants/interaction-categories';
 
 
@@ -38,7 +39,7 @@ export async function migrateInteractionsToCategories(database: Database): Promi
     let offset = 0;
     let hasMore = true;
 
-    console.log('[Data Migration] Starting chunked interaction category migration...');
+    logger.info('DataMigration', 'Starting chunked interaction category migration...');
 
     while (hasMore) {
       // Fetch chunk of interactions
@@ -69,7 +70,7 @@ export async function migrateInteractionsToCategories(database: Database): Promi
             const oldActivity = (interaction._raw as any).activity as ActivityType;
 
             if (!oldActivity) {
-              console.warn(`[Data Migration] Interaction ${interaction.id} has no activity field, skipping`);
+              logger.warn('DataMigration', `Interaction ${interaction.id} has no activity field, skipping`);
               continue;
             }
 
@@ -83,7 +84,7 @@ export async function migrateInteractionsToCategories(database: Database): Promi
 
             batchOps.push(preparedUpdate);
           } catch (error) {
-            console.error(`[Data Migration] Error preparing migration for interaction ${interaction.id}:`, error);
+            logger.error('DataMigration', `Failed when processing interaction ${interaction.id}:`, error);
             errorCount++;
           }
         }
@@ -95,13 +96,13 @@ export async function migrateInteractionsToCategories(database: Database): Promi
         }
       });
 
-      console.log(`[Data Migration] Processed ${offset + chunk.length} interactions (migrated: ${migratedCount}, errors: ${errorCount})...`);
+      logger.info('DataMigration', `Processed ${offset + chunk.length} interactions (migrated: ${migratedCount}, errors: ${errorCount})...`);
       offset += chunk.length;
     }
 
-    console.log(`[Data Migration] ✅ Migration complete. Migrated ${migratedCount} interactions with ${errorCount} errors.`);
+    logger.info('DataMigration', `✅ Migration complete. Migrated ${migratedCount} interactions with ${errorCount} errors.`);
   } catch (error) {
-    console.error('[Data Migration] ❌ Fatal error during migration:', error);
+    logger.error('DataMigration', '❌ Fatal error during migration:', error);
     throw error;
   }
 }
@@ -142,8 +143,9 @@ export async function isDataMigrationComplete(database: Database): Promise<boole
 
       // Early return if we find any unmigrated interactions
       if (totalUnmigrated > 0) {
-        console.log(
-          `[Data Migration] Found ${totalUnmigrated} unmigrated interactions (checked ${offset + chunk.length} so far)`
+        logger.info(
+          'DataMigration',
+          `Found ${totalUnmigrated} unmigrated interactions (checked ${offset + chunk.length} so far)`
         );
         return false;
       }

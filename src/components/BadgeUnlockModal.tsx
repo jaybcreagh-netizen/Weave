@@ -19,7 +19,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { useUIStore } from '../stores/uiStore';
+import { useUIStore } from '@/shared/stores/uiStore';
 import { markBadgeAsCelebrated } from '@/modules/gamification';
 import { markAchievementAsCelebrated } from '@/modules/gamification';
 import { BlurView } from 'expo-blur';

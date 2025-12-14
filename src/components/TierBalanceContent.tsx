@@ -13,7 +13,7 @@ import { useNetworkTierHealth, TierFitBottomSheet } from '@/modules/insights';
 import type { Tier } from '@/shared/types/core';
 import type { TierFitAnalysis } from '@/modules/insights';
 import { changeFriendTier, dismissTierSuggestion } from '@/modules/insights';
-import { useUIStore } from '@/stores/uiStore';
+import { useUIStore } from '@/shared/stores/uiStore';
 
 const TIER_DISPLAY_NAMES: Record<Tier, string> = {
     InnerCircle: 'Inner Circle',

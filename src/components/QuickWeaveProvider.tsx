@@ -1,6 +1,6 @@
 import React from 'react';
 import * as Haptics from 'expo-haptics';
-import { useUIStore } from '../stores/uiStore';
+import { useUIStore } from '@/shared/stores/uiStore';
 import { QuickWeaveOverlay } from '@/modules/interactions';
 import { MicroReflectionSheet } from './MicroReflectionSheet';
 import { useInteractions } from '@/modules/interactions';

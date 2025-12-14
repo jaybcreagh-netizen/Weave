@@ -4,7 +4,8 @@
  */
 
 import { database } from '@/db';
-import { BatteryHistoryEntry } from '@/db/models/UserProfile';
+import { logger } from '@/shared/services/logger.service';
+import UserProfile, { BatteryHistoryEntry } from '@/db/models/UserProfile';
 import SocialBatteryLog from '@/db/models/SocialBatteryLog';
 import { Q } from '@nozbe/watermelondb';
 
@@ -48,7 +49,7 @@ async function fetchBatteryHistory(): Promise<BatteryHistoryEntry[]> {
     const profile = profiles[0];
 
     if (!profile) {
-      console.warn('[YearInMoons] No user profile found');
+      logger.warn('YearInMoons', 'No user profile found');
       return [];
     }
 
@@ -59,10 +60,10 @@ async function fetchBatteryHistory(): Promise<BatteryHistoryEntry[]> {
       )
       .fetch();
 
-    console.log(`[YearInMoons] Fetched ${logs.length} battery logs`);
+    logger.debug('YearInMoons', `Fetched ${logs.length} battery logs`);
     if (logs.length > 0) {
       const last = logs[logs.length - 1];
-      console.log(`[YearInMoons] Most recent log: Value=${last.value} Time=${new Date(last.timestamp).toISOString()}`);
+      logger.debug('YearInMoons', `Most recent log: Value=${last.value} Time=${new Date(last.timestamp).toISOString()}`);
     }
 
     return logs.map(log => ({
@@ -72,7 +73,7 @@ async function fetchBatteryHistory(): Promise<BatteryHistoryEntry[]> {
       // but the interface expects it. We'll leave it undefined for now.
     }));
   } catch (error) {
-    console.error('Error fetching battery history:', error);
+    logger.error('YearInMoons', 'Error fetching battery history:', error);
     return [];
   }
 }

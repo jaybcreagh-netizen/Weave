@@ -24,6 +24,7 @@ import { Q } from '@nozbe/watermelondb';
 import { STORY_CHIPS } from '@/modules/reflection';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as Haptics from 'expo-haptics';
+import { logger } from '@/shared/services/logger.service';
 import { YourPatternsSection } from '../YourPatternsSection';
 
 interface JournalEntryModalProps {
@@ -63,7 +64,7 @@ export function JournalEntryModal({ isOpen, onClose, entry, onSave }: JournalEnt
           .then(links => {
             setSelectedFriendIds(new Set(links.map(link => link.friendId)));
           })
-          .catch(console.error);
+          .catch(err => logger.error('JournalEntry', 'Error fetching linked friends:', err));
 
       } else {
         // Reset for new entry
@@ -84,7 +85,7 @@ export function JournalEntryModal({ isOpen, onClose, entry, onSave }: JournalEnt
         .fetch();
       setAllFriends(friends);
     } catch (error) {
-      console.error('Error loading friends:', error);
+      logger.error('JournalEntry', 'Error loading friends:', error);
     }
   };
 
@@ -142,7 +143,7 @@ export function JournalEntryModal({ isOpen, onClose, entry, onSave }: JournalEnt
       onSave();
       onClose();
     } catch (error) {
-      console.error('Error saving journal entry:', error);
+      logger.error('JournalEntry', 'Error saving journal entry:', error);
     }
   };
 
@@ -372,7 +373,7 @@ export function JournalEntryModal({ isOpen, onClose, entry, onSave }: JournalEnt
             <YourPatternsSection
               onCustomChipCreated={() => {
                 // Reload patterns when a custom chip is created
-                console.log('Custom chip created');
+                logger.debug('JournalEntry', 'Custom chip created, pattern reload triggered');
               }}
             />
           </View>

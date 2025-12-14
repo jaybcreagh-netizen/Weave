@@ -1,5 +1,6 @@
 import { Share, Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system';
+import { logger } from '@/shared/services/logger.service';
 import { database } from '@/db';
 import Interaction from '@/db/models/Interaction';
 import InteractionFriend from '@/db/models/InteractionFriend';
@@ -11,7 +12,7 @@ let Sharing: any = null;
 try {
   Sharing = require('expo-sharing');
 } catch (error) {
-  console.log('expo-sharing not available, using fallback Share API');
+  logger.warn('CalendarExport', 'expo-sharing not available, using fallback Share API');
 }
 
 /**
@@ -257,19 +258,19 @@ export async function shareInteractionAsICS(interaction: Interaction): Promise<b
       const result = await Share.share(
         Platform.OS === 'ios'
           ? {
-              message: icsContent,
-              title: 'Share Weave Plan',
-            }
+            message: icsContent,
+            title: 'Share Weave Plan',
+          }
           : {
-              message: `Here's our plan:\n\n${interaction.title || interaction.activity}\nDate: ${interaction.interactionDate.toLocaleDateString()}\n${interaction.location ? `Location: ${interaction.location}\n` : ''}`,
-              title: 'Share Weave Plan',
-            }
+            message: `Here's our plan:\n\n${interaction.title || interaction.activity}\nDate: ${interaction.interactionDate.toLocaleDateString()}\n${interaction.location ? `Location: ${interaction.location}\n` : ''}`,
+            title: 'Share Weave Plan',
+          }
       );
 
       return result.action === Share.sharedAction;
     }
   } catch (error) {
-    console.error('Error sharing interaction as ICS:', error);
+    logger.error('CalendarExport', 'Error sharing interaction as ICS:', error);
     return false;
   }
 }
@@ -294,7 +295,7 @@ export async function generateICSFile(interaction: Interaction): Promise<string 
 
     return fileUri;
   } catch (error) {
-    console.error('Error generating ICS file:', error);
+    logger.error('CalendarExport', 'Error generating ICS file:', error);
     return null;
   }
 }

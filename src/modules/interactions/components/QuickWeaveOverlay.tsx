@@ -24,8 +24,8 @@ import {
   HelpCircle
 } from 'lucide-react-native';
 
-import { useUIStore } from '@/stores/uiStore';
-import { useCardGesture } from '@/context/CardGestureContext';
+import { useUIStore } from '@/shared/stores/uiStore';
+import { useCardGesture } from '@/shared/context/CardGestureContext';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { database } from '@/db';
 import FriendModel from '@/db/models/Friend';

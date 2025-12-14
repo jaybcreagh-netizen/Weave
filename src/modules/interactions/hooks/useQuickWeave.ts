@@ -4,7 +4,7 @@ import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { database } from '@/db';
 import Friend from '@/db/models/Friend';
-import { useUIStore } from '@/stores/uiStore';
+import { useUIStore } from '@/shared/stores/uiStore';
 import { useInteractions } from './useInteractions';
 import { getTopActivities, isSmartDefaultsEnabled } from '../services/smart-defaults.service';
 import { type InteractionCategory } from '@/components/types';

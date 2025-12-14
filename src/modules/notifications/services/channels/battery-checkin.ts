@@ -107,7 +107,7 @@ export const BatteryCheckinChannel = {
         // But notice the original code used `useUIStore.getState().openSocialBatterySheet()`.
         // We will leave the side-effects (opening sheet) to the caller (ResponseHandler)
         // OR we import store here. Importing store is easiest for now.
-        const { useUIStore } = require('@/stores/uiStore');
+        const { useUIStore } = require('@/shared/stores/uiStore');
         setTimeout(() => {
             useUIStore.getState().openSocialBatterySheet();
             notificationAnalytics.trackActionCompleted('battery-checkin', 'open_sheet');
