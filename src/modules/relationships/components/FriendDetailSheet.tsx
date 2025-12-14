@@ -365,11 +365,29 @@ const FriendDetailSheetContent: React.FC<FriendDetailSheetProps> = ({
 };
 
 // Enhance with observables
+import { switchMap } from 'rxjs/operators';
+import { of } from 'rxjs';
+
 // Enhance with observables
 export const FriendDetailSheet = withObservables(['friendId'], ({ friendId }: { friendId: string }) => ({
   friend: database.get<FriendModel>('friends').findAndObserve(friendId),
   interactions: database
-    .get<Interaction>('interactions')
-    .query(Q.on('interaction_friends', 'friend_id', friendId))
-    .observe(),
+    .get('interaction_friends')
+    .query(Q.where('friend_id', friendId))
+    .observe()
+    .pipe(
+      switchMap(interactionFriends => {
+        // @ts-ignore - typing issue with complex watermelon queries
+        const interactionIds = interactionFriends.map(join => join.interactionId);
+
+        if (interactionIds.length === 0) {
+          return of([]);
+        }
+
+        return database
+          .get<Interaction>('interactions')
+          .query(Q.where('id', Q.oneOf(interactionIds)))
+          .observe();
+      })
+    ),
 }))(FriendDetailSheetContent);

@@ -35,6 +35,14 @@ const dateOptions = [
 interface WeaveLoggerScreenProps {
     /** Pre-selected friend ID (optional) */
     friendId?: string;
+    /** Pre-selected date (optional) */
+    date?: string;
+    /** Pre-selected category (optional) */
+    category?: InteractionCategory;
+    /** Pre-filled notes (optional) */
+    notes?: string;
+    /** Pre-filled title (optional) */
+    title?: string;
     /** Callback when the user wants to navigate back */
     onBack: () => void;
     /** Callback when weave is saved and user should navigate to home */
@@ -45,6 +53,10 @@ interface WeaveLoggerScreenProps {
 
 export function WeaveLoggerScreen({
     friendId,
+    date,
+    category,
+    notes,
+    title: initialTitle,
     onBack,
     onNavigateHome,
     onNavigateToJournal
@@ -108,6 +120,38 @@ export function WeaveLoggerScreen({
                 });
         }
     }, [friendId, onBack]);
+
+    // Initialize from other params
+    useEffect(() => {
+        // Date
+        if (date) {
+            const parsedDate = new Date(date);
+            if (!isNaN(parsedDate.getTime())) {
+                setSelectedDate(startOfDay(parsedDate));
+            }
+        }
+
+        // Category
+        if (category) {
+            const isValid = getAllCategories().includes(category);
+            if (isValid) {
+                setSelectedCategory(category);
+            }
+        }
+
+        // Notes
+        if (notes) {
+            setReflection(prev => ({
+                ...prev,
+                customNotes: notes
+            }));
+        }
+
+        // Title
+        if (initialTitle) {
+            setTitle(initialTitle);
+        }
+    }, [date, category, notes, initialTitle]);
 
     // Auto-scroll to details section when category is selected
     useEffect(() => {

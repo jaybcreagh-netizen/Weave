@@ -37,11 +37,20 @@ async function generateSuggestion(friend: FriendModel): Promise<PlanSuggestion |
     // Get past 90 days of completed interactions for this friend
     const ninetyDaysAgo = Date.now() - 90 * 24 * 60 * 60 * 1000;
 
-    // Optimized query using Q.on to filter by friend_id at the DB level
+    // Optimized query using manual 2-step fetch to avoid Q.on error
+    const interactionFriends = await database
+      .get('interaction_friends')
+      .query(Q.where('friend_id', friend.id))
+      .fetch();
+
+    // @ts-ignore - typing issue with watermelon
+    const interactionIds = interactionFriends.map(join => join.interactionId);
+
+    // Now fetch the interactions
     const friendInteractions = await database
       .get<Interaction>('interactions')
       .query(
-        Q.on('interaction_friends', Q.where('friend_id', friend.id)),
+        Q.where('id', Q.oneOf(interactionIds)),
         Q.where('status', 'completed'),
         Q.where('interaction_date', Q.gte(ninetyDaysAgo)),
         Q.sortBy('interaction_date', Q.desc)
