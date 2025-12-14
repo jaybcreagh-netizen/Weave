@@ -60,6 +60,7 @@ export const WeeklyReflectionChannel: NotificationChannel = {
 
         // Open modal via store
         const { useUIStore } = require('@/stores/uiStore');
+
         setTimeout(() => {
             useUIStore.getState().openWeeklyReflection();
             notificationAnalytics.trackActionCompleted('weekly-reflection', 'open_modal');

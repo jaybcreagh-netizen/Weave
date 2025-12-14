@@ -83,9 +83,8 @@ export function ReflectionReadyPrompt({
                 onPress={handleStart}
                 variant="primary"
                 className="w-full"
-              >
-                Let's Go
-              </Button>
+                label="Let's Go"
+              />
 
               {/* Secondary Actions Row */}
               <View className="flex-row gap-3">
@@ -94,18 +93,16 @@ export function ReflectionReadyPrompt({
                   onPress={handleRemindLater}
                   variant="secondary"
                   className="flex-1"
-                >
-                  Remind me later
-                </Button>
+                  label="Remind me later"
+                />
 
                 {/* Not Today */}
                 <Button
                   onPress={handleBackdropPress}
                   variant="secondary"
                   className="flex-1"
-                >
-                  Not today
-                </Button>
+                  label="Not today"
+                />
               </View>
             </View>
           </Card>

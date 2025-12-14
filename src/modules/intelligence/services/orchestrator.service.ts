@@ -1,6 +1,6 @@
 import { Database, Q } from '@nozbe/watermelondb';
 import FriendModel from '@/db/models/Friend';
-import { type InteractionFormData } from '@/modules/interactions';
+import { type InteractionFormData } from '@/shared/types/scoring.types';
 import { type ScoreUpdate } from '../types';
 import { calculatePointsForWeave } from './scoring.service';
 import { applyDecay, calculateDecayAmount } from './decay.service';
@@ -89,26 +89,54 @@ export async function processWeaveScoring(
   // We do this OUTSIDE the write transaction to avoid holding the lock during reads
   const historyCounts = new Map<string, number>();
 
-  // We need to fetch history for each friend. To do this efficiently, we can loop
-  // or do a complex query. Since we're iterating friends anyway, let's pre-fetch.
-  for (const friend of friends) {
-    const interactionFriends = await database.get('interaction_friends')
-      .query(Q.where('friend_id', friend.id))
-      .fetch();
+  // Extract all friend IDs
+  const friendIds = friends.map(f => f.id);
 
-    const interactionIds = interactionFriends.map((r: any) => r.interactionId);
+  if (friendIds.length > 0) {
+    // Step A: Fetch all link records for these friends
+    // Batching friend IDs in chunks of 900 to be safe (SQLite limit is usually 999 variables)
+    const FRIEND_BATCH_SIZE = 900;
+    let allLinks: any[] = [];
 
-    if (interactionIds.length > 0) {
-      const count = await database.get('interactions')
-        .query(
-          Q.where('id', Q.oneOf(interactionIds)),
-          Q.where('interaction_category', interactionData.category || ''),
-          Q.where('status', 'completed')
-        ).fetchCount();
-      historyCounts.set(friend.id, count);
-    } else {
-      historyCounts.set(friend.id, 0);
+    for (let i = 0; i < friendIds.length; i += FRIEND_BATCH_SIZE) {
+      const batch = friendIds.slice(i, i + FRIEND_BATCH_SIZE);
+      const links = await database.get('interaction_friends')
+        .query(Q.where('friend_id', Q.oneOf(batch)))
+        .fetch();
+      allLinks = allLinks.concat(links);
     }
+
+    // Step B: Extract all unique interaction IDs linked to these friends
+    const allInteractionIds = Array.from(new Set(allLinks.map((r: any) => r.interactionId)));
+
+    // Step C: Fetch valid interactions (matching category & status)
+    // We also valid interaction IDs to ensure we only count completed ones of the right category
+    const validInteractionIds = new Set<string>();
+
+    if (allInteractionIds.length > 0) {
+      const ID_BATCH_SIZE = 900;
+      for (let i = 0; i < allInteractionIds.length; i += ID_BATCH_SIZE) {
+        const batch = allInteractionIds.slice(i, i + ID_BATCH_SIZE);
+        const validInteractions = await database.get('interactions')
+          .query(
+            Q.where('id', Q.oneOf(batch)),
+            Q.where('interaction_category', interactionData.category || ''),
+            Q.where('status', 'completed')
+          ).fetch();
+
+        validInteractions.forEach((interaction: any) => validInteractionIds.add(interaction.id));
+      }
+    }
+
+    // Step D: Aggregate counts
+    // validInteractionIds now contains only IDs of interactions that match our criteria
+    // We iterate through the links again to count valid interactions per friend
+    allLinks.forEach((link: any) => {
+      if (validInteractionIds.has(link.interactionId)) {
+        const currentCount = historyCounts.get(link.friendId) || 0;
+        historyCounts.set(link.friendId, currentCount + 1);
+      }
+    });
   }
 
   // Use a single database transaction to ensure all updates are atomic.

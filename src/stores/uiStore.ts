@@ -61,10 +61,12 @@ interface UIStore {
   markReflectionPromptShown: () => void;
 
   isWeeklyReflectionOpen: boolean;
+  isWeeklyReflectionPending: boolean;
   isSocialBatterySheetOpen: boolean;
   openSocialBatterySheet: () => void;
   openWeeklyReflection: () => void;
   closeWeeklyReflection: () => void;
+  setWeeklyReflectionPending: (pending: boolean) => void;
 
   closeSocialBatterySheet: () => void;
 
@@ -146,6 +148,7 @@ export const useUIStore = create<UIStore>((set, get) => ({
   isDarkMode: false,
   isTrophyCabinetOpen: false,
   isWeeklyReflectionOpen: false,
+  isWeeklyReflectionPending: false,
   isReflectionPromptOpen: false,
   isSocialBatterySheetOpen: false,
   memoryMomentData: null, // Moved here for consistency
@@ -168,9 +171,27 @@ export const useUIStore = create<UIStore>((set, get) => ({
   }),
 
   openSocialBatterySheet: () => set({ isSocialBatterySheetOpen: true }),
-  closeSocialBatterySheet: () => set({ isSocialBatterySheetOpen: false }),
+  closeSocialBatterySheet: () => {
+    set({ isSocialBatterySheetOpen: false });
+    // Check if we have a pending reflection
+    if (get().isWeeklyReflectionPending) {
+      setTimeout(() => {
+        set({ isWeeklyReflectionPending: false });
+        get().openWeeklyReflection();
+      }, 1000); // 1s delay for nice transition
+    }
+  },
 
-  openWeeklyReflection: () => set({ isWeeklyReflectionOpen: true }),
+  setWeeklyReflectionPending: (pending) => set({ isWeeklyReflectionPending: pending }),
+
+  openWeeklyReflection: () => {
+    const state = get();
+    if (state.isSocialBatterySheetOpen) {
+      set({ isWeeklyReflectionPending: true });
+    } else {
+      set({ isWeeklyReflectionOpen: true });
+    }
+  },
   closeWeeklyReflection: () => set({ isWeeklyReflectionOpen: false }),
 
   setSelectedFriendId: (id) => set({ selectedFriendId: id }),

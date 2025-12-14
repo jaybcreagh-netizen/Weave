@@ -27,7 +27,7 @@ export * from './services/guaranteed-suggestions.service';
 
 // Stores
 export * from './store';
-export * from './store/event-suggestion.store';
+
 
 // Types
 export * from './types';

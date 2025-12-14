@@ -136,9 +136,12 @@ export function DataInitializer({ children }: DataInitializerProps) {
                 });
 
                 // Scan for event suggestions on app launch (non-blocking)
-                import('@/modules/interactions').then(({ useEventSuggestionStore }) => {
-                    useEventSuggestionStore.getState().scanForSuggestions().catch((error) => {
-                        console.error('[App] Error scanning for event suggestions on launch:', error);
+                // Scan for event suggestions on app launch (non-blocking)
+                import('@/modules/interactions/hooks/useEventSuggestions').then(({ prefetchEventSuggestions }) => {
+                    import('@/shared/api/query-client').then(({ queryClient }) => {
+                        prefetchEventSuggestions(queryClient).catch((error) => {
+                            console.error('[App] Error prefetching event suggestions:', error);
+                        });
                     });
                 });
 
@@ -201,9 +204,11 @@ export function DataInitializer({ children }: DataInitializerProps) {
                 });
             });
 
-            import('@/modules/interactions').then(({ useEventSuggestionStore }) => {
-                useEventSuggestionStore.getState().scanForSuggestions().catch((error) => {
-                    console.error('[App] Error scanning for event suggestions:', error);
+            import('@/modules/interactions/hooks/useEventSuggestions').then(({ prefetchEventSuggestions }) => {
+                import('@/shared/api/query-client').then(({ queryClient }) => {
+                    prefetchEventSuggestions(queryClient).catch((error) => {
+                        console.error('[App] Error prefetching event suggestions on foreground:', error);
+                    });
                 });
             });
 

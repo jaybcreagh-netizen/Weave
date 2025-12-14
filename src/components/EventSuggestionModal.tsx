@@ -1,9 +1,9 @@
-import React from 'react';
-import { Modal, View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { Modal, View, Text, TouchableOpacity } from 'react-native';
 import { X, Calendar, MapPin, Users } from 'lucide-react-native';
 import { BlurView } from 'expo-blur';
 import { router } from 'expo-router';
-import { useEventSuggestionStore } from '@/modules/interactions';
+import { useEventSuggestions, useDismissSuggestion, type EventSuggestion } from '@/modules/interactions/hooks/useEventSuggestions';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { format } from 'date-fns';
 import Animated, { FadeIn, FadeOut, SlideInDown, SlideOutDown } from 'react-native-reanimated';
@@ -13,8 +13,22 @@ import Animated, { FadeIn, FadeOut, SlideInDown, SlideOutDown } from 'react-nati
  * Shows up when the app detects a recent event with friend matches
  */
 export function EventSuggestionModal() {
-  const { showingPastEvent, dismissPastEvent, hidePastEventModal } = useEventSuggestionStore();
+  const { data } = useEventSuggestions();
+  const { mutate: dismissSuggestion } = useDismissSuggestion();
   const { colors } = useTheme();
+
+  // Local UI state for the modal
+  const [showingPastEvent, setShowingPastEvent] = useState<EventSuggestion | null>(null);
+
+  // Effect to automatically show the first available past event
+  // This implements the "Shows up when..." behavior described in the comment
+  useEffect(() => {
+    if (data?.pastEvents && data.pastEvents.length > 0 && !showingPastEvent) {
+      // Pick the most recent one or just the first one?
+      // The scanner likely returns them in order.
+      setShowingPastEvent(data.pastEvents[0]);
+    }
+  }, [data?.pastEvents, showingPastEvent]);
 
   if (!showingPastEvent) {
     return null;
@@ -44,17 +58,17 @@ export function EventSuggestionModal() {
       params.append('notes', event.notes);
     }
 
-    hidePastEventModal();
+    setShowingPastEvent(null);
     router.push(`/interaction-form?${params.toString()}`);
   };
 
   const handleDismiss = () => {
-    dismissPastEvent(event.id);
-    hidePastEventModal();
+    dismissSuggestion(event.id);
+    setShowingPastEvent(null);
   };
 
   const handleNotNow = () => {
-    hidePastEventModal();
+    setShowingPastEvent(null);
   };
 
   // Get event type emoji

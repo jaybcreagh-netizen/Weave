@@ -2,7 +2,7 @@ import React, { ReactNode } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StatusBar } from 'expo-status-bar';
 import { PortalProvider } from '@gorhom/portal';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import * as Sentry from '@sentry/react-native';
 
 import { QuickWeaveProvider } from '@/components/QuickWeaveProvider';
@@ -13,7 +13,7 @@ import { PostHogProvider, POSTHOG_API_KEY, posthogOptions } from '@/shared/servi
 import { useUIStore } from '@/stores/uiStore';
 import { useTheme } from '@/shared/hooks/useTheme';
 
-const queryClient = new QueryClient();
+import { queryClient } from '@/shared/api/query-client';
 
 // Initialize Sentry
 Sentry.init({

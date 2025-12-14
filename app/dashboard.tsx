@@ -157,8 +157,19 @@ export default function Dashboard() {
                 <SocialBatterySheet
                     isVisible={isSocialBatterySheetOpen}
                     onSubmit={async (value, note) => {
-                        await submitBatteryCheckin(value, note);
+                        // 1. Close immediately for snappy UI (optimistic)
                         closeSocialBatterySheet();
+
+                        // 2. Perform async work in background
+                        // We use a small timeout to let the sheet close animation start smoothly
+                        setTimeout(async () => {
+                            try {
+                                await submitBatteryCheckin(value, note);
+                            } catch (error) {
+                                console.error('Failed to submit battery checkin:', error);
+                                // Optional: Show toast error here if needed, but for now silent failure is better than stuck UI
+                            }
+                        }, 100);
                     }}
                     onDismiss={() => closeSocialBatterySheet()}
                 />
