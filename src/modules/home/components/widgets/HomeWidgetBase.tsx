@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, Pressable } from 'react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { Card } from '@/shared/ui/Card';
 
@@ -36,11 +36,10 @@ export const HomeWidgetBase: React.FC<HomeWidgetBaseProps> = ({
 }) => {
   const { colors, tokens } = useTheme();
 
-  return (
+  const content = (
     <Card
-      onPress={onPress}
-      variant={config.fullWidth ? 'elevated' : 'default'}
-      padding={padding}
+      variant={config.fullWidth ? 'default' : 'default'}
+      padding={padding === 'large' ? 'lg' : padding === 'none' ? 'none' : 'md'}
       style={[
         styles.card,
         {
@@ -69,6 +68,16 @@ export const HomeWidgetBase: React.FC<HomeWidgetBaseProps> = ({
       {!isLoading && !error && children}
     </Card>
   );
+
+  if (onPress) {
+    return (
+      <Pressable onPress={onPress}>
+        {content}
+      </Pressable>
+    );
+  }
+
+  return content;
 };
 
 const styles = StyleSheet.create({

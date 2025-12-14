@@ -175,84 +175,84 @@ export const CategoryArchetypeMatrix: Record<Archetype, Record<InteractionCatego
     'hangout': 1.2,
     'deep-talk': 1.0,
     'celebration': 1.0,
-    'voice-note': 0.8
+    'voice-note': 0.8,
   },
   Empress: {
     'meal-drink': 1.8,       // Nurturing through food
-    'hangout': 1.8,          // Cozy time
-    'celebration': 1.5,      // Loves gathering
+    'favor-support': 2.0,    // Acts of service
+    'deep-talk': 1.6,        // Emotional connection
     'text-call': 1.2,
+    'hangout': 1.5,
+    'activity-hobby': 1.0,
+    'event-party': 1.2,      // Hosting energy
+    'celebration': 1.5,
     'voice-note': 1.2,
-    'favor-support': 1.5,    // Emotional support
-    'deep-talk': 1.2,
-    'event-party': 1.2,
-    'activity-hobby': 1.0
   },
   HighPriestess: {
-    'deep-talk': 2.0,        // The core need
-    'voice-note': 1.5,       // Personal, asynchronous depth
-    'hangout': 1.5,          // Quiet time
+    'deep-talk': 2.2,        // Soul connection
+    'voice-note': 1.5,       // Intuitive sharing
     'text-call': 1.0,
-    'meal-drink': 1.0,
+    'meal-drink': 1.2,
+    'hangout': 1.2,          // Quiet presence
     'activity-hobby': 0.8,
-    'favor-support': 1.2,
-    'celebration': 0.8,      // Prefers intimacy
-    'event-party': 0.6       // Dislikes crowds
+    'event-party': 0.5,      // Draining
+    'favor-support': 1.5,    // Emotional support
+    'celebration': 0.8,
   },
   Fool: {
-    'activity-hobby': 1.8,   // Adventure!
-    'event-party': 1.8,      // Fun!
-    'hangout': 1.5,          // Spontaneous
-    'celebration': 1.5,
-    'meal-drink': 1.2,
+    'activity-hobby': 2.0,   // Adventure
+    'event-party': 1.8,      // Social chaos
+    'hangout': 1.5,          // Spontaneity
     'text-call': 1.0,
-    'voice-note': 1.0,
-    'favor-support': 0.8,    // Can be heavy
-    'deep-talk': 0.8
+    'meal-drink': 1.2,
+    'deep-talk': 0.8,        // Too serious
+    'favor-support': 1.0,
+    'celebration': 2.0,
+    'voice-note': 1.2,
   },
   Sun: {
-    'event-party': 2.0,      // Shines in groups
-    'celebration': 2.0,      // Loves joy
-    'activity-hobby': 1.5,   // Active
-    'meal-drink': 1.2,
-    'hangout': 1.2,
-    'text-call': 1.2,
-    'voice-note': 1.2,
-    'favor-support': 1.0,
-    'deep-talk': 1.0
+    'event-party': 2.2,      // Being seen, joy
+    'celebration': 2.2,      // Radiance
+    'activity-hobby': 1.8,   // Fun
+    'meal-drink': 1.5,
+    'hangout': 1.5,
+    'text-call': 1.5,
+    'deep-talk': 1.2,
+    'favor-support': 1.5,
+    'voice-note': 1.5,
   },
   Hermit: {
-    'deep-talk': 1.8,        // Wisdom sharing
-    'hangout': 1.5,          // Quiet parallel play
-    'text-call': 1.2,        // One-on-one
-    'meal-drink': 1.2,
-    'activity-hobby': 1.0,
-    'voice-note': 1.0,
+    'deep-talk': 2.0,        // One-on-one depth
+    'text-call': 0.8,        // Disturbance
+    'meal-drink': 1.2,       // Quiet coffee
+    'hangout': 1.5,          // Parallel play
+    'activity-hobby': 1.2,   // Shared interest, low talk
+    'event-party': 0.2,      // Nightmare
     'favor-support': 1.0,
-    'celebration': 0.8,
-    'event-party': 0.5       // Drains battery
+    'celebration': 0.5,
+    'voice-note': 1.0,
   },
   Magician: {
-    'activity-hobby': 1.8,   // Creating together
-    'deep-talk': 1.5,        // Brainstorming
-    'celebration': 1.5,      // Milestones
-    'event-party': 1.2,
-    'favor-support': 1.2,    // Solving problems
-    'text-call': 1.2,
-    'voice-note': 1.2,
-    'meal-drink': 1.0,
-    'hangout': 1.0
+    'activity-hobby': 2.2,   // Creating together
+    'deep-talk': 1.8,        // Intellectual sparring
+    'text-call': 1.5,        // Idea sharing
+    'meal-drink': 1.2,
+    'hangout': 1.2,
+    'event-party': 1.5,      // Networking
+    'favor-support': 1.2,
+    'celebration': 1.5,
+    'voice-note': 1.8,
   },
   Lovers: {
-    'meal-drink': 1.8,       // Intimate dates
-    'deep-talk': 1.8,        // Connection
-    'hangout': 1.5,          // Quality time
-    'text-call': 1.5,        // Constant contact
+    'deep-talk': 2.0,
+    'meal-drink': 1.8,
+    'hangout': 1.8,
+    'text-call': 1.5,
     'voice-note': 1.5,
-    'celebration': 1.5,
-    'favor-support': 1.5,
-    'activity-hobby': 1.2,
-    'event-party': 1.0
+    'event-party': 1.2,
+    'activity-hobby': 1.5,
+    'favor-support': 1.8,
+    'celebration': 1.8,
   },
   Unknown: {
     'text-call': 1.0,
@@ -263,9 +263,31 @@ export const CategoryArchetypeMatrix: Record<Archetype, Record<InteractionCatego
     'event-party': 1.0,
     'activity-hobby': 1.0,
     'favor-support': 1.0,
-    'celebration': 1.0
-  }
+    'celebration': 1.0,
+  },
 };
+
+export const ITEM_LABELS: Record<string, string> = {
+  'text-call': 'Text/Call',
+  'meal-drink': 'Meal/Drink',
+  'hangout': 'Hangout',
+  'deep-talk': 'Deep Talk',
+  'activity-hobby': 'Activity',
+  'voice-note': 'Voice Note',
+  'event-party': 'Event',
+  'favor-support': 'Support',
+  'celebration': 'Celebration',
+  'sleepover': 'Sleepover',
+  'date': 'Date',
+  'workout': 'Workout',
+  'co-working': 'Co-working',
+  'travel': 'Travel',
+};
+
+export const REVERSE_ITEM_LABELS: Record<string, string> = Object.entries(ITEM_LABELS).reduce((acc, [key, value]) => {
+  acc[value] = key;
+  return acc;
+}, {} as Record<string, string>);
 
 export const ARCHETYPE_GRADIENTS: Record<Archetype, string[]> = {
   Emperor: ['#ef4444', '#dc2626'],

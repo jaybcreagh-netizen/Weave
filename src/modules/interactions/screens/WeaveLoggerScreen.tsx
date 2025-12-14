@@ -19,9 +19,8 @@ import { useTheme } from '@/shared/hooks/useTheme';
 import { getAllCategories, getCategoryMetadata, type CategoryMetadata } from '@/shared/constants/interaction-categories';
 import { database } from '@/db';
 import FriendModel from '@/db/models/Friend';
-import { FriendSelector } from '@/modules/relationships/components/FriendSelector';
+import { FriendSelector, ReciprocitySelector, InitiatorType } from '@/modules/relationships';
 import { StandardBottomSheet } from '@/shared/ui/Sheet';
-import { ReciprocitySelector, InitiatorType } from '@/modules/relationships/components/ReciprocitySelector';
 import { STORY_CHIPS } from '@/modules/reflection';
 import { ErrorBoundary } from '@/shared/components/ErrorBoundary';
 

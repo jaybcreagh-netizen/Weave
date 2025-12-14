@@ -65,7 +65,7 @@ export const DigestSheet: React.FC<DigestSheetProps> = ({
                     <Button
                         label="View"
                         variant="secondary"
-                        size="small"
+                        size="sm"
                         style={{ height: 32, paddingVertical: 4, paddingHorizontal: 12 }}
                         onPress={() => handleAction(item)}
                     />

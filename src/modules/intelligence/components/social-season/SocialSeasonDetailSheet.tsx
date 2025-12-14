@@ -15,7 +15,7 @@ import { type SocialSeason, type SeasonExplanationData } from '@/modules/intelli
 import { SEASON_STYLES, getSeasonDisplayName } from '@/modules/intelligence';
 import { generateSeasonExplanation } from '@/modules/reflection';
 import { GraphsTabContent } from '@/modules/intelligence/components/social-season/YearInMoons/GraphsTabContentV2';
-import { TierBalanceContent } from '@/modules/relationships/components/TierBalanceContent';
+import { TierBalanceContent } from '@/modules/relationships';
 import { SeasonEffectsPanel } from '@/modules/intelligence';
 import { database } from '@/db';
 import Interaction from '@/db/models/Interaction';

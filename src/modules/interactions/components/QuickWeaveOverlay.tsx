@@ -21,7 +21,12 @@ import {
   PartyPopper,
   HeartHandshake,
   Star,
-  HelpCircle
+  HelpCircle,
+  Moon,
+  Heart,
+  Dumbbell,
+  Laptop,
+  Plane
 } from 'lucide-react-native';
 
 import { useUIStore } from '@/shared/stores/uiStore';

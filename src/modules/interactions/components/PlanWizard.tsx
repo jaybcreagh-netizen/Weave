@@ -18,7 +18,7 @@ import { database } from '@/db';
 import Interaction from '@/db/models/Interaction';
 import { startOfDay, addDays, isSaturday, nextSaturday, getDay } from 'date-fns';
 import { Q } from '@nozbe/watermelondb';
-import { InitiatorType } from '@/modules/relationships/components/ReciprocitySelector';
+import { InitiatorType } from '@/modules/relationships';
 import { useDebounceCallback } from '@/shared/hooks/useDebounceCallback';
 
 const CATEGORIES: Array<{

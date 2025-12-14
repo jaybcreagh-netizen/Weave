@@ -12,11 +12,11 @@ import { Icon } from '@/shared/ui/Icon';
 import { type Interaction, type InteractionCategory, type Vibe, type StructuredReflection } from '../types';
 import { getAllCategories, getCategoryMetadata, type CategoryMetadata } from '@/shared/constants/interaction-categories';
 import { MoonPhaseSelector } from '@/modules/intelligence';
-import { FriendSelector } from '@/modules/relationships/components/FriendSelector';
+import { FriendSelector } from '@/modules/relationships';
 import { CustomCalendar } from '@/shared/components/CustomCalendar';
 import { format } from 'date-fns';
 import { BlurView } from 'expo-blur';
-import { ReciprocitySelector, InitiatorType } from '@/modules/relationships/components/ReciprocitySelector';
+import { ReciprocitySelector, InitiatorType } from '@/modules/relationships';
 
 interface EditInteractionModalProps {
   interaction: Interaction | null;

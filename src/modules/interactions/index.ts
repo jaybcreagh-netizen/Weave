@@ -1,8 +1,9 @@
 // Components
 export { QuickWeaveOverlay } from './components/QuickWeaveOverlay';
 export { PlanWizard } from './components/PlanWizard';
-export { PostWeaveRatingModal } from './components/PostWeaveRatingModal';
+export { PostWeaveRatingModal } from './components/PostWeaveRatingModal';// Screens
 export { WeaveLoggerScreen } from './screens/WeaveLoggerScreen';
+export { GlobalCalendarScreen } from './screens/GlobalCalendarScreen';
 export { EditInteractionModal } from './components/EditInteractionModal';
 export { InteractionDetailModal } from './components/InteractionDetailModal';
 export { PlanChoiceModal } from './components/PlanChoiceModal';

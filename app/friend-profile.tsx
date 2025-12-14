@@ -10,12 +10,14 @@ import { useFriendProfileData, useFriendTimeline } from '@/modules/relationships
 import { useFriendProfileModals } from '@/modules/relationships';
 
 // Components
-import { ProfileHeader } from '@/modules/relationships/components/profile/ProfileHeader';
-import { ActionButtons } from '@/modules/relationships/components/profile/ActionButtons';
-import { LifeEventsSection } from '@/modules/relationships/components/profile/LifeEventsSection';
-import { TimelineList } from '@/modules/relationships/components/profile/TimelineList';
-import { FriendProfileModals } from '@/modules/relationships/components/profile/FriendProfileModals';
-import { IntentionsFAB } from '@/modules/relationships/components/IntentionsFAB';
+import {
+  ProfileHeader,
+  ActionButtons,
+  LifeEventsSection,
+  TimelineList,
+  FriendProfileModals,
+  IntentionsFAB
+} from '@/modules/relationships';
 import { ErrorBoundary } from '@/shared/components/ErrorBoundary';
 
 export default function FriendProfile() {

@@ -4,7 +4,7 @@ import { BottomSheetFlatList } from '@gorhom/bottom-sheet';
 import { Sparkles } from 'lucide-react-native';
 import { Suggestion } from '@/shared/types/common';
 import { SuggestionCard } from '@/modules/interactions';
-import { IntentionsList } from '@/modules/relationships/components/IntentionsList';
+import { IntentionsList } from '@/modules/relationships';
 import { useTheme } from '@/shared/hooks/useTheme';
 import Intention from '@/db/models/Intention';
 import { StandardBottomSheet } from '@/shared/ui/Sheet';

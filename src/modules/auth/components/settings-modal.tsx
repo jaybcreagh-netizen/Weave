@@ -16,7 +16,7 @@ import { NotificationSettings } from './settings/NotificationSettings';
 // Modals
 import { TrophyCabinetModal } from '@/modules/gamification';
 import { ArchetypeLibrary } from '@/modules/intelligence';
-import { FriendManagementModal } from '@/modules/relationships/components/FriendManagementModal';
+import { FriendManagementModal } from '@/modules/relationships';
 import { GroupListModal } from '@/modules/groups';
 
 interface SettingsModalProps {

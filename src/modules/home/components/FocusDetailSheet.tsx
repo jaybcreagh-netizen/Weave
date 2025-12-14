@@ -157,7 +157,7 @@ export const FocusDetailSheet: React.FC<FocusDetailSheetProps> = ({
                                 return (
                                     <View key={plan.id} style={{ paddingHorizontal: 16 }}>
                                         <ListItem
-                                            title={plan.title || `${getCategoryLabel(plan.interactionCategory ?? undefined)}${friendName ? ` with ${friendName}` : ''}`}
+                                            title={plan.title || `${getCategoryLabel(plan.interactionCategory as any)}${friendName ? ` with ${friendName}` : ''}`}
                                             subtitle={subtitle}
                                             showDivider={index < upcomingPlans.length - 1}
                                             compact
@@ -165,7 +165,7 @@ export const FocusDetailSheet: React.FC<FocusDetailSheetProps> = ({
                                                 <View style={styles.actions}>
                                                     <Button
                                                         label="Reschedule"
-                                                        size="small"
+                                                        size="sm"
                                                         variant="secondary"
                                                         onPress={() => onReschedulePlan(plan)}
                                                         style={compactButtonStyle}
@@ -194,7 +194,7 @@ export const FocusDetailSheet: React.FC<FocusDetailSheetProps> = ({
                                 return (
                                     <View key={plan.id} style={{ paddingHorizontal: 16 }}>
                                         <ListItem
-                                            title={plan.title || `${getCategoryLabel(plan.interactionCategory ?? undefined)}${friendName ? ` with ${friendName}` : ''}`}
+                                            title={plan.title || `${getCategoryLabel(plan.interactionCategory as any)}${friendName ? ` with ${friendName}` : ''}`}
                                             subtitle={subtitle}
                                             showDivider={index < completedPlans.length - 1}
                                             compact
@@ -214,7 +214,7 @@ export const FocusDetailSheet: React.FC<FocusDetailSheetProps> = ({
                                                     ) : (
                                                         <Button
                                                             label="Deepen"
-                                                            size="small"
+                                                            size="sm"
                                                             onPress={() => onConfirmPlan(plan.id)}
                                                             style={compactButtonStyle}
                                                         />
@@ -248,7 +248,7 @@ export const FocusDetailSheet: React.FC<FocusDetailSheetProps> = ({
                                                 <Button
                                                     label={suggestion.actionLabel || "View"}
                                                     variant="secondary"
-                                                    size="small"
+                                                    size="sm"
                                                     style={compactButtonStyle}
                                                     onPress={() => onSuggestionAction(suggestion)}
                                                 />

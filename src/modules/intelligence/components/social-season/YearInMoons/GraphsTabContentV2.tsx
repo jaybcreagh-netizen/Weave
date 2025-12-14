@@ -396,7 +396,7 @@ export function GraphsTabContent({ year = new Date().getFullYear() }: GraphsTabC
 
       {/* Network Health Card */}
       <View>
-        <Card variant="default" padding="large" style={{ marginBottom: layout.cardGap }}>
+        <Card variant="default" padding="lg" style={{ marginBottom: layout.cardGap }}>
           <WidgetHeader title="Network Health" />
 
           <MetricCard
@@ -442,7 +442,7 @@ export function GraphsTabContent({ year = new Date().getFullYear() }: GraphsTabC
 
       {/* Activity Card */}
       <View>
-        <Card variant="default" padding="large" style={{ marginBottom: layout.cardGap }}>
+        <Card variant="default" padding="lg" style={{ marginBottom: layout.cardGap }}>
           <WidgetHeader title="Activity" />
 
           <MetricCard
@@ -461,7 +461,7 @@ export function GraphsTabContent({ year = new Date().getFullYear() }: GraphsTabC
 
       {/* Energy & Connection Card */}
       <View>
-        <Card variant="default" padding="large" style={{ marginBottom: layout.cardGap }}>
+        <Card variant="default" padding="lg" style={{ marginBottom: layout.cardGap }}>
           <WidgetHeader title="Energy & Connection" />
 
           {/* Insight sentence */}
@@ -519,7 +519,7 @@ export function GraphsTabContent({ year = new Date().getFullYear() }: GraphsTabC
 
       {/* Circle Health Card */}
       <View>
-        <Card variant="default" padding="large" style={{ marginBottom: layout.cardGap }}>
+        <Card variant="default" padding="lg" style={{ marginBottom: layout.cardGap }}>
           <WidgetHeader title="Circle Health" />
 
           <View style={{ gap: spacing[3] }}>

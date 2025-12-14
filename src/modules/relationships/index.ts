@@ -31,3 +31,28 @@ export { FriendTierList } from './components/FriendTierList';
 export { FriendDetailSheet } from './components/FriendDetailSheet';
 export { FriendSearchBar, type SearchFilters, type HealthStatus, type SortOption } from './components/FriendSearchBar';
 export { FriendSearchResults } from './components/FriendSearchResults';
+
+// Components
+export { TimelineItem } from './components/TimelineItem';
+export { IntentionsDrawer } from './components/IntentionsDrawer';
+export { IntentionActionSheet } from './components/IntentionActionSheet';
+export { LifeEventModal } from './components/LifeEventModal';
+export { default as FriendBadgePopup } from './components/FriendBadgePopup';
+export { TierBalanceContent } from './components/TierBalanceContent';
+export { FriendSelector } from './components/FriendSelector';
+export { ReciprocitySelector, InitiatorType } from './components/ReciprocitySelector';
+export { FriendManagementModal } from './components/FriendManagementModal';
+export { IntentionsList } from './components/IntentionsList';
+export { TierInfo } from './components/TierInfo';
+export { TierSegmentedControl } from './components/TierSegmentedControl';
+export { AddFriendMenu } from './components/AddFriendMenu';
+export { DuplicateResolverModal } from './components/DuplicateResolverModal';
+export { ProfileHeader } from './components/profile/ProfileHeader';
+export { ActionButtons } from './components/profile/ActionButtons';
+export { LifeEventsSection } from './components/profile/LifeEventsSection';
+export { TimelineList } from './components/profile/TimelineList';
+export { FriendProfileModals } from './components/profile/FriendProfileModals';
+export { IntentionsFAB } from './components/IntentionsFAB';
+// Screens
+export { FriendsDashboardScreen } from './screens/FriendsDashboardScreen';
+
