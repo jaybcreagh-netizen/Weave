@@ -22,7 +22,7 @@ export function SuggestionCard({ suggestion, onAct, onLater, index = 0 }: Sugges
 
   // Urgency colors mapping
   const urgencyColors = {
-    critical: colors.destructive,
+    critical: colors.celebrate,
     high: colors.accent,
     medium: colors.primary,
     low: colors['muted-foreground'],
@@ -70,9 +70,9 @@ export function SuggestionCard({ suggestion, onAct, onLater, index = 0 }: Sugges
             {suggestion.urgency === 'critical' && (
               <View
                 className="self-start px-2 py-0.5 rounded-md"
-                style={{ backgroundColor: tokens.destructiveSubtle }}
+                style={{ backgroundColor: tokens.celebrateSubtle }}
               >
-                <Text variant="caption" color="destructive">Urgent</Text>
+                <Text variant="caption" style={{ color: colors.celebrate }}>Special</Text>
               </View>
             )}
           </View>

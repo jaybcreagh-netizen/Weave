@@ -6,7 +6,6 @@ import { YourEnergyWidget } from '@/components/home/widgets/YourEnergyWidget';
 import { TodaysFocusWidgetV2 } from '@/components/home/widgets/TodaysFocusWidgetV2';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { ReflectionReadyWidget } from '@/components/home/widgets/ReflectionReadyWidget';
-import { SocialBatterySheet } from '@/components/home/SocialBatterySheet';
 import { ReflectionReadyPrompt } from '@/components/WeeklyReflection/ReflectionReadyPrompt';
 import { YearInMoonsModal } from '@/components/YearInMoons/YearInMoonsModal';
 import { useUserProfileStore } from '@/modules/auth';
@@ -27,11 +26,12 @@ export default function Home() {
     openWeeklyReflection,
     isReflectionPromptOpen,
     openReflectionPrompt,
-    closeReflectionPrompt
+    closeReflectionPrompt,
+    isSocialBatterySheetOpen,
+    openSocialBatterySheet
   } = useUIStore();
   const theme = useTheme();
   const colors = theme?.colors || {};
-  const [showBatterySheet, setShowBatterySheet] = useState(false);
   const [showYearInMoons, setShowYearInMoons] = useState(false);
   const [isWidgetVisible, setIsWidgetVisible] = useState(false);
 
@@ -92,7 +92,7 @@ export default function Home() {
         // Never checked in - show after brief delay
         batteryTimerRef.current = setTimeout(() => {
           if (isMountedRef.current) {
-            setShowBatterySheet(true);
+            openSocialBatterySheet();
           }
         }, 600);
         return () => {
@@ -115,7 +115,7 @@ export default function Home() {
         // Last check-in was before today - show after brief delay
         batteryTimerRef.current = setTimeout(() => {
           if (isMountedRef.current) {
-            setShowBatterySheet(true);
+            openSocialBatterySheet();
           }
         }, 600);
         return () => {
@@ -173,7 +173,7 @@ export default function Home() {
         // Show after 2 seconds if battery sheet is dismissed or not shown
         reflectionPromptTimerRef.current = setTimeout(() => {
           // Use global open action
-          if (isMountedRef.current && !showBatterySheet && !isReflectionPromptOpen) {
+          if (isMountedRef.current && !isSocialBatterySheetOpen && !isReflectionPromptOpen) {
             openReflectionPrompt();
           }
         }, 2000);
@@ -186,12 +186,9 @@ export default function Home() {
     };
 
     checkWeeklyReflection();
-  }, [profile, showBatterySheet]);
+  }, [profile, isSocialBatterySheetOpen]);
 
-  const handleBatterySubmit = async (value: number, note?: string) => {
-    await submitBatteryCheckin(value, note);
-    setShowBatterySheet(false);
-  };
+
 
   const handleReflectionStart = () => {
     closeReflectionPrompt();
@@ -267,20 +264,6 @@ export default function Home() {
     <>
       <HomeWidgetGrid widgets={widgets} />
 
-      <SocialBatterySheet
-        isVisible={showBatterySheet}
-        onSubmit={handleBatterySubmit}
-        onDismiss={() => setShowBatterySheet(false)}
-        onViewYearInMoons={() => {
-          setShowBatterySheet(false);
-          // Add delay to allow sheet to close before opening modal
-          moonsTimerRef.current = setTimeout(() => {
-            if (isMountedRef.current) {
-              setShowYearInMoons(true);
-            }
-          }, 500);
-        }}
-      />
 
       <ReflectionReadyPrompt
         isVisible={isReflectionPromptOpen}

@@ -329,8 +329,8 @@ function generateReciprocitySuggestion(friend: FriendModel): ProactiveSuggestion
   const userPercent = Math.round(ratio * 100);
   const friendPercent = 100 - userPercent;
 
-  // User is initiating too much (> 70%)
-  if (ratio > 0.7) {
+  // User is initiating too much (>80%)
+  if (ratio > 0.8) {
     const urgency = analysis.balance === 'one-sided' ? 'high' :
       analysis.balance === 'very-imbalanced' ? 'medium' : 'low';
 

@@ -33,10 +33,10 @@ const EVENT_TYPES: Array<{ value: LifeEventType; label: string; icon: string }> 
 ];
 
 const IMPORTANCE_LEVELS: Array<{ value: LifeEventImportance; label: string; description: string }> = [
-  { value: 'low', label: 'Low', description: 'Minor event' },
-  { value: 'medium', label: 'Medium', description: 'Notable event' },
-  { value: 'high', label: 'High', description: 'Major life change' },
-  { value: 'critical', label: 'Critical', description: 'Urgent/significant' },
+  { value: 'low', label: 'Light', description: 'A small moment' },
+  { value: 'medium', label: 'Notable', description: 'Worth remembering' },
+  { value: 'high', label: 'Significant', description: 'A major moment' },
+  { value: 'critical', label: 'Special', description: 'A milestone to celebrate' },
 ];
 
 export const LifeEventModal: React.FC<LifeEventModalProps> = ({

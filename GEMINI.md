@@ -341,4 +341,5 @@ See `docs/REFACTORING_ROADMAP.md` for the full plan.
 - **React Query**: Remember to invalidate queries after mutations if they rely on WatermelonDB data that changed
 - **Circular Dependencies**: Use the `Shared` module for common code to avoid cycles between feature modules
 - **NativeWind**: Ensure `className` is passed correctly; some RN components don't support it natively
-- **Bottom Sheets**: Use `@gorhom/bottom-sheet` components, not raw modals, for slide-up panels
+- **Bottom Sheets**: Use `@gorhom/bottom-sheet` components, not raw modals, for slide-up panels.
+- **Scrollable Lists in Sheets**: If a complex list (like `FriendSelector`) has scrolling issues ("springing back") inside a bottom sheet, prefer using a full-screen Native Modal (`asModal={true}`) instead. Gesture conflicts between the sheet and the list are common and hard to perfect; native modals offer a more robust scrolling experience for deep lists.

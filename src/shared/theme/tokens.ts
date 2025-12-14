@@ -164,6 +164,11 @@ const lightTokens = {
   infoForeground: palette.white,
   infoSubtle: '#E0F2FE',
 
+  // Celebratory moments (birthdays, special events) - warm teal
+  celebrate: palette.emerald[500],
+  celebrateForeground: palette.white,
+  celebrateSubtle: '#D1FAE5',
+
   // Component tokens
   card: {
     background: palette.cream[50],
@@ -262,6 +267,11 @@ const darkTokens = {
   info: palette.sky[400],
   infoForeground: palette.night[900],
   infoSubtle: palette.sky[950],
+
+  // Celebratory moments (birthdays, special events) - warm teal
+  celebrate: palette.emerald[400],
+  celebrateForeground: palette.night[900],
+  celebrateSubtle: palette.emerald[950],
 
   // Component tokens
   card: {
@@ -450,6 +460,8 @@ export const createLegacyTheme = (isDarkMode: boolean) => {
       muted: t.backgroundMuted,
       'muted-foreground': t.foregroundMuted,
       destructive: t.destructive,
+      celebrate: t.celebrate,
+      'celebrate-foreground': t.celebrateForeground,
 
       // Card
       card: t.card.background,

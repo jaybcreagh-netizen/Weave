@@ -140,8 +140,6 @@ export function EditInteractionModal({
     );
   }, [interaction, title, selectedCategory, selectedVibe, customNotes, selectedDate, initiator]);
 
-  if (!interaction) return null;
-
   const footerComponent = React.useMemo(() => (
     <Button
       label="Save Changes"
@@ -152,6 +150,8 @@ export function EditInteractionModal({
       variant="primary"
     />
   ), [isSaving, selectedCategory, handleSave]);
+
+  if (!interaction) return null;
 
   return (
     <StandardBottomSheet

@@ -10,6 +10,7 @@ export interface SuggestionInput {
   interactionCount: number;
   momentumScore: number;
   recentInteractions: InteractionModel[];
+  plannedInteractions?: InteractionModel[];
 }
 import {
   getArchetypePreferredCategory,
@@ -32,6 +33,7 @@ import {
   calculateToleranceWindow,
   isPatternReliable,
   getPatternDescription,
+  getAllLearnedEffectiveness,
   type FriendshipPattern,
   type ProactiveSuggestion,
 } from '@/modules/insights';
@@ -53,6 +55,44 @@ function getCategoryLabel(category: string): string {
   return CATEGORY_LABELS[category] || 'time together';
 }
 
+/**
+ * Gets smart category recommendation based on learned effectiveness data.
+ * Falls back to archetype preference if not enough data or no clear winner.
+ * 
+ * @param friend - The friend to get category for
+ * @param minOutcomes - Minimum outcomes needed to trust learned data (default: 3)
+ * @returns Category and whether it's learned
+ */
+function getSmartCategory(
+  friend: HydratedFriend,
+  minOutcomes: number = 3
+): { category: string; isLearned: boolean } {
+  const archetypePref = getArchetypePreferredCategory(friend.archetype);
+
+  // Need minimum outcomes to trust learned data
+  // Cast to FriendModel since HydratedFriend may not have outcomeCount
+  const friendModel = friend as unknown as FriendModel;
+  if ((friendModel.outcomeCount || 0) < minOutcomes) {
+    return { category: archetypePref, isLearned: false };
+  }
+
+  const effectiveness = getAllLearnedEffectiveness(friendModel);
+
+  // Find most effective category (must be 15%+ better than average)
+  const sorted = Object.entries(effectiveness)
+    .filter(([_, ratio]) => ratio > 1.15)
+    .sort(([, a], [, b]) => b - a);
+
+  if (sorted.length > 0) {
+    return {
+      category: sorted[0][0],
+      isLearned: true
+    };
+  }
+
+  return { category: archetypePref, isLearned: false };
+}
+
 const COOLDOWN_DAYS = {
   'critical-drift': 1,
   'high-drift': 2,
@@ -64,6 +104,7 @@ const COOLDOWN_DAYS = {
   'maintenance': 3,
   'deepen': 7,
   'reflect': 2,
+  'planned-weave': 1,
 };
 
 // Archetype-specific celebration suggestions
@@ -87,6 +128,7 @@ function getArchetypeCelebrationSuggestion(archetype: string): string {
 }
 
 interface LifeEventInfo {
+  id: string; // Unique identifier for the life event (database ID or synthetic)
   type: 'birthday' | 'anniversary' | LifeEventType;
   daysUntil: number;
   importance?: 'low' | 'medium' | 'high' | 'critical';
@@ -142,6 +184,7 @@ async function checkUpcomingLifeEvent(friend: SuggestionInput['friend']): Promis
       const daysUntil = differenceInDays(startOfDay(topEvent.eventDate), today);
 
       return {
+        id: topEvent.id,
         type: topEvent.eventType,
         daysUntil,
         importance: topEvent.importance,
@@ -189,7 +232,7 @@ async function checkUpcomingLifeEvent(friend: SuggestionInput['friend']): Promis
     }
 
     if (daysUntil >= 0 && daysUntil <= 7) {
-      return { type: 'birthday', daysUntil, importance: 'high' };
+      return { id: `birthday-${friend.id}`, type: 'birthday', daysUntil, importance: 'high' };
     }
   }
 
@@ -237,7 +280,7 @@ async function checkUpcomingLifeEvent(friend: SuggestionInput['friend']): Promis
     }
 
     if (daysUntil >= 0 && daysUntil <= 14) {
-      return { type: 'anniversary', daysUntil, importance: 'medium' };
+      return { id: `anniversary-${friend.id}`, type: 'anniversary', daysUntil, importance: 'medium' };
     }
   }
 
@@ -486,6 +529,74 @@ function getContextualSuggestion(
   }
 }
 
+function checkPlannedWeaveSuggestion(
+  friend: SuggestionInput['friend'],
+  plannedInteractions: SuggestionInput['plannedInteractions']
+): Suggestion | null {
+  if (!plannedInteractions || plannedInteractions.length === 0) return null;
+
+  const now = Date.now();
+  // Filter for this friend (should already be filtered but safety first)
+  // Sort by date ascending (soonest first)
+  const relevantPlans = plannedInteractions.sort((a, b) => {
+    const timeA = a.interactionDate instanceof Date ? a.interactionDate.getTime() : new Date(a.interactionDate || 0).getTime();
+    const timeB = b.interactionDate instanceof Date ? b.interactionDate.getTime() : new Date(b.interactionDate || 0).getTime();
+    return timeA - timeB;
+  });
+
+  for (const plan of relevantPlans) {
+    const planTime = plan.interactionDate instanceof Date ? plan.interactionDate.getTime() : new Date(plan.interactionDate || 0).getTime();
+    const hoursDiff = (planTime - now) / 3600000;
+
+    // Past Due (within last 7 days)
+    if (hoursDiff < 0 && hoursDiff > -168) {
+      return {
+        id: `past-plan-${plan.id}`,
+        friendId: friend.id,
+        friendName: friend.name,
+        urgency: 'high',
+        category: 'maintain',
+        title: 'Did you meet?',
+        subtitle: `You had a plan with ${friend.name} for ${getCategoryLabel(plan.interactionCategory || 'hangout')}. Mark it complete?`,
+        actionLabel: 'Log Weave',
+        icon: 'CheckCircle',
+        action: {
+          type: 'log',
+          prefilledCategory: plan.interactionCategory as any,
+        },
+        dismissible: true,
+        createdAt: new Date(),
+        type: 'connect'
+      };
+    }
+
+    // Upcoming (Next 48 hours)
+    if (hoursDiff >= 0 && hoursDiff <= 48) {
+      const timeText = hoursDiff < 24 ? 'today' : 'tomorrow';
+
+      return {
+        id: `upcoming-plan-${plan.id}`,
+        friendId: friend.id,
+        friendName: friend.name,
+        urgency: 'medium',
+        category: 'plan',
+        title: 'Upcoming Plan',
+        subtitle: `You have a plan with ${friend.name} ${timeText}.`,
+        actionLabel: 'View',
+        icon: 'Calendar',
+        action: {
+          type: 'plan',
+        },
+        dismissible: true,
+        createdAt: new Date(),
+        type: 'connect'
+      };
+    }
+  }
+
+  return null;
+}
+
 /**
  * Generates intelligent suggestions for a friend based on their interaction history,
  * relationship health, and upcoming life events.
@@ -495,7 +606,7 @@ function getContextualSuggestion(
  * in recentInteractions as they cannot be reflected upon or used for pattern analysis.
  */
 export async function generateSuggestion(input: SuggestionInput): Promise<Suggestion | null> {
-  const { friend, currentScore, lastInteractionDate, interactionCount, momentumScore, recentInteractions } = input;
+  const { friend, currentScore, lastInteractionDate, interactionCount, momentumScore, recentInteractions, plannedInteractions } = input;
 
   // Analyze friendship pattern from interaction history
   const pattern = analyzeInteractionPattern(
@@ -510,11 +621,86 @@ export async function generateSuggestion(input: SuggestionInput): Promise<Sugges
   // Check for upcoming life event (used in multiple priorities)
   const lifeEvent = await checkUpcomingLifeEvent(friend);
 
-  // PRIORITY 1: Reflect on recent interaction (only past, completed interactions)
+  // Check for planned weaves
+  const plannedWeaveSuggestion = checkPlannedWeaveSuggestion(friend, plannedInteractions);
+
+  // PRIORITY 1: Past Due Planned Weaves (Immediate Action)
+  if (plannedWeaveSuggestion && plannedWeaveSuggestion.id.startsWith('past-plan')) {
+    return plannedWeaveSuggestion;
+  }
+
+  // PRIORITY 2: Urgent Life Events (Birthday/Anniversary Today or Tomorrow)
+  if (lifeEvent && lifeEvent.daysUntil <= 1) {
+    // Generate the life event suggestion immediately
+    const eventIconMap: Record<string, string> = {
+      birthday: 'Gift',
+      anniversary: 'Heart',
+      new_job: 'Briefcase',
+      moving: 'Home',
+      graduation: 'GraduationCap',
+      health_event: 'Activity',
+      celebration: 'PartyPopper',
+      loss: 'HeartCrack',
+      wedding: 'Heart',
+      baby: 'Egg',
+    };
+
+    const eventLabelMap: Record<string, string> = {
+      birthday: 'birthday',
+      anniversary: 'anniversary',
+      new_job: 'new job',
+      moving: 'move',
+      graduation: 'graduation',
+      health_event: 'health event',
+      celebration: 'celebration',
+      loss: 'loss',
+      wedding: 'wedding',
+      baby: 'baby',
+    };
+
+    const eventIcon = eventIconMap[lifeEvent.type] || 'Calendar';
+    const eventLabel = lifeEvent.title || eventLabelMap[lifeEvent.type] || lifeEvent.type;
+
+    const subtitle = (lifeEvent.type === 'birthday' || lifeEvent.type === 'anniversary')
+      ? getArchetypeCelebrationSuggestion(friend.archetype)
+      : getLifeEventSuggestion(lifeEvent.type, friend.archetype, lifeEvent);
+
+    const title = lifeEvent.daysUntil < 0
+      ? `Check in on ${friend.name}'s ${eventLabel}`
+      : `${friend.name}'s ${eventLabel} ${getDaysText(lifeEvent.daysUntil)}`;
+
+    const actionLabel = lifeEvent.daysUntil < 0 ? 'Reach Out' : 'Plan';
+
+    return {
+      id: `life-event-${lifeEvent.id}`,
+      friendId: friend.id,
+      friendName: friend.name,
+      urgency: 'critical',
+      category: 'life-event',
+      title,
+      subtitle,
+      actionLabel,
+      icon: eventIcon,
+      action: {
+        type: lifeEvent.daysUntil < 0 ? 'log' : 'plan',
+        prefilledCategory: 'celebration' as any,
+      },
+      dismissible: true,
+      createdAt: new Date(),
+      type: 'connect',
+    };
+  }
+
+  // PRIORITY 3: Reflect on recent interaction (only past, completed interactions)
   const recentReflectSuggestion = checkReflectSuggestion(friend, recentInteractions);
   if (recentReflectSuggestion) return recentReflectSuggestion;
 
-  // PRIORITY 2: Upcoming life event (birthday within 7 days, anniversary within 14 days)
+  // PRIORITY 4: Upcoming Planned Weaves (Reminder)
+  if (plannedWeaveSuggestion) {
+    return plannedWeaveSuggestion;
+  }
+
+  // PRIORITY 5: Upcoming life event (birthday within 7 days, anniversary within 14 days)
   if (lifeEvent) {
     // Map life event types to appropriate icons and labels
     const eventIconMap: Record<string, string> = {
@@ -559,7 +745,7 @@ export async function generateSuggestion(input: SuggestionInput): Promise<Sugges
     const actionLabel = lifeEvent.daysUntil < 0 ? 'Reach Out' : 'Plan';
 
     return {
-      id: `life-event-${friend.id}-${lifeEvent.type}`,
+      id: `life-event-${lifeEvent.id}`,
       friendId: friend.id,
       friendName: friend.name,
       urgency: lifeEvent.daysUntil <= 1 ? 'high' : 'medium',
@@ -637,7 +823,7 @@ export async function generateSuggestion(input: SuggestionInput): Promise<Sugges
       icon: 'Wind',
       action: {
         type: 'log',
-        prefilledCategory: getArchetypePreferredCategory(friend.archetype),
+        prefilledCategory: getSmartCategory(friend).category,
         prefilledMode: 'detailed',
       },
       dismissible: false, // Too important to dismiss
@@ -671,7 +857,7 @@ export async function generateSuggestion(input: SuggestionInput): Promise<Sugges
       icon: 'Wind',
       action: {
         type: 'plan',
-        prefilledCategory: getArchetypePreferredCategory(friend.archetype),
+        prefilledCategory: getSmartCategory(friend).category,
       },
       dismissible: true,
       createdAt: new Date(),
@@ -734,7 +920,7 @@ export async function generateSuggestion(input: SuggestionInput): Promise<Sugges
         icon: 'Zap',
         action: {
           type: 'plan',
-          prefilledCategory: getArchetypePreferredCategory(friend.archetype),
+          prefilledCategory: getSmartCategory(friend).category,
         },
         dismissible: true,
         createdAt: new Date(),
@@ -909,6 +1095,7 @@ export function getSuggestionCooldownDays(suggestionId: string): number {
   if (suggestionId.startsWith('maintenance')) return COOLDOWN_DAYS['maintenance'];
   if (suggestionId.startsWith('deepen')) return COOLDOWN_DAYS['deepen'];
   if (suggestionId.startsWith('reflect')) return COOLDOWN_DAYS['reflect'];
+  if (suggestionId.startsWith('past-plan') || suggestionId.startsWith('upcoming-plan')) return COOLDOWN_DAYS['planned-weave'];
   if (suggestionId.startsWith('portfolio')) return 7; // Portfolio insights weekly
   if (suggestionId.startsWith('proactive-')) return 2; // Proactive predictions refresh often
   return 3; // Default

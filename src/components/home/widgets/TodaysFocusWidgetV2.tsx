@@ -49,7 +49,7 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = ({ friends })
     const { suggestions } = useSuggestions();
     const { allInteractions: interactions } = useInteractions();
     const { completePlan } = usePlans();
-    const { openPostWeaveRating } = useUIStore();
+    const { openPostWeaveRating, openWeeklyReflection } = useUIStore();
 
     const [showDetailSheet, setShowDetailSheet] = useState(false);
     const [upcomingDates, setUpcomingDates] = useState<UpcomingDate[]>([]);
@@ -204,6 +204,14 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = ({ friends })
     };
 
     const handleSuggestionAction = (suggestion: Suggestion) => {
+        if (suggestion.id === 'weekly-reflection-sunday') {
+            setShowDetailSheet(false);
+            setTimeout(() => {
+                openWeeklyReflection();
+            }, 500);
+            return;
+        }
+
         const friend = friends.find(f => f.id === suggestion.friendId);
         if (friend) {
             router.push(`/friend-profile?friendId=${friend.id}`);

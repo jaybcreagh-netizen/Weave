@@ -298,7 +298,7 @@ export function getPortfolioHealthSummary(portfolio: FriendshipPortfolio): strin
   } else if (portfolio.overallHealthScore >= 40) {
     return `Your network needs some attention. ${portfolio.driftingFriends} friends are drifting.`;
   } else {
-    return `Your network needs urgent attention. Focus on your Inner Circle first.`;
+    return `Your inner circle could use some warmth. Start with those closest to you.`;
   }
 }
 

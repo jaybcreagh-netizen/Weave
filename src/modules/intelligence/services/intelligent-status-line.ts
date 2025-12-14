@@ -126,9 +126,9 @@ async function checkLifeEventStatus(friend: HydratedFriend | Friend): Promise<St
       } else if (daysUntil < 0 && daysUntil >= -7) {
         const daysAgo = Math.abs(daysUntil);
         if (daysAgo === 1) {
-          return { text: `${topEvent.title || topEvent.eventType} was yesterday`, icon, variant: 'warning' };
+          return { text: `${topEvent.title || topEvent.eventType} was yesterday`, icon, variant: 'accent' };
         }
-        return { text: `${topEvent.title || topEvent.eventType} was ${daysAgo} days ago`, icon, variant: 'warning' };
+        return { text: `${topEvent.title || topEvent.eventType} was ${daysAgo} days ago`, icon, variant: 'accent' };
       }
     }
 

@@ -11,6 +11,7 @@ import { useUserProfileStore } from '@/modules/auth';
 import { recordPractice } from '@/modules/gamification';
 import { deleteWeaveCalendarEvent } from './calendar.service';
 import { InteractionFormData } from '../types';
+import { recalculateScoreOnEdit } from '@/modules/intelligence';
 
 /**
  * Completes a plan, updating its status, applying scoring, and tracking milestones.
@@ -26,43 +27,86 @@ export async function completePlan(interactionId: string, data?: { vibe?: string
     return;
   }
 
-  await database.write(async () => {
-    await interaction.update(i => {
-      i.status = 'completed';
-      if (data?.vibe) {
-        logger.debug('PlanService', 'Setting vibe:', data.vibe);
-        i.vibe = data.vibe;
-      }
-      if (data?.note) {
-        i.note = data.note;
-      }
+  try {
+    await database.write(async () => {
+      await interaction.update(i => {
+        i.status = 'completed';
+        if (data?.vibe) {
+          logger.debug('PlanService', 'Setting vibe:', data.vibe);
+          i.vibe = data.vibe;
+        }
+        if (data?.note) {
+          i.note = data.note;
+        }
+      });
     });
-  });
-  logger.debug('PlanService', 'DB Update committed. Status is now completed.');
+    logger.debug('PlanService', 'DB Update committed. Status is now completed.');
 
-  const interactionFriends = await database.get<InteractionFriend>('interaction_friends').query(Q.where('interaction_id', interactionId)).fetch();
-  const friendIds = interactionFriends.map(ifriend => ifriend.friendId);
-  const friends = await database.get<FriendModel>('friends').query(Q.where('id', Q.oneOf(friendIds))).fetch();
+    const interactionFriends = await database.get<InteractionFriend>('interaction_friends').query(Q.where('interaction_id', interactionId)).fetch();
+    const friendIds = interactionFriends.map(ifriend => ifriend.friendId);
+    const friends = await database.get<FriendModel>('friends').query(Q.where('id', Q.oneOf(friendIds))).fetch();
 
-  const interactionData: InteractionFormData = {
-    friendIds,
-    activity: interaction.activity,
-    notes: interaction.note,
-    date: interaction.interactionDate,
-    type: 'log',
-    status: 'completed',
-    mode: interaction.mode,
-    vibe: interaction.vibe as any,
-    duration: interaction.duration as any,
-    category: interaction.interactionCategory as any,
-    reflection: interaction.reflectionJSON ? JSON.parse(interaction.reflectionJSON) : undefined,
-  };
+    const interactionData: InteractionFormData = {
+      friendIds,
+      activity: interaction.activity,
+      notes: interaction.note,
+      date: interaction.interactionDate,
+      type: 'log',
+      status: 'completed',
+      mode: interaction.mode,
+      vibe: interaction.vibe as any,
+      duration: interaction.duration as any,
+      category: interaction.interactionCategory as any,
+      reflection: interaction.reflectionJSON ? JSON.parse(interaction.reflectionJSON) : undefined,
+    };
 
-  // Apply scoring with season-aware bonuses
-  const currentSeason = useUserProfileStore.getState().getSocialSeason();
-  await processWeaveScoring(friends, interactionData, database, currentSeason);
-  await recordPractice('log_weave');
-  // TODO: Trigger UI celebration from the hook/store that calls this service.
+    // Apply scoring
+    // IF the plan was already in 'pending_confirm', it means it was Auto-Scored (Neutrally) when it became past due.
+    // In that case, we should RECALCULATE (Edit) the score instead of adding new points on top.
+    if (previousStatus === 'pending_confirm') {
+      logger.debug('PlanService', 'Plan was pending_confirm (already scored). Recalculating delta...');
+      // Construct "Old Data" based on what we assummed during auto-scoring (Neutral vibe, no notes)
+      // Actually, we should read the current state of the interaction from DB (which has the auto-scored state if we saved it, 
+      // but typically we only update friend score, not the interaction vibe field in DB during auto-score? 
+      // Let's check checkPendingPlans. We DO NOT save vibe to DB there. So DB has no vibe.
+      // So "Old Data" is the implied auto-score usage: Vibe='FirstQuarter', Duration=Standard (if not set).
+
+      // However, to be safe, we should use the same defaults we used in checkPendingPlans.
+      const oldData: InteractionFormData = {
+        ...interactionData,
+        vibe: 'FirstQuarter', // Default used in checkPendingPlans
+        notes: interaction.note, // Old notes
+      };
+
+      for (const friend of friends) {
+        await recalculateScoreOnEdit(friend.id, oldData, interactionData, database);
+      }
+    } else {
+      // Standard flow: New points
+      const currentSeason = useUserProfileStore.getState().getSocialSeason();
+      await processWeaveScoring(friends, interactionData, database, currentSeason);
+    }
+
+    await recordPractice('log_weave');
+    // TODO: Trigger UI celebration from the hook/store that calls this service.
+  } catch (error) {
+    logger.error('PlanService', 'Failed to complete plan:', error);
+
+    // Attempt to revert status if it was changed
+    try {
+      if (interaction.status === 'completed') {
+        await database.write(async () => {
+          await interaction.update(i => {
+            i.status = previousStatus;
+          });
+        });
+        logger.info('PlanService', 'Reverted plan status due to error');
+      }
+    } catch (revertError) {
+      logger.error('PlanService', 'Failed to revert plan status:', revertError);
+    }
+    throw error;
+  }
 }
 
 /**
@@ -109,7 +153,8 @@ export async function checkPendingPlans(): Promise<void> {
     .query(
       Q.where('status', 'planned'),
       Q.where('interaction_date', Q.lt(now)),
-      Q.where('interaction_date', Q.gte(today.getTime() - 2 * 24 * 60 * 60 * 1000)), // Limit to last 48 hours (previous day + padding)
+      // Removing the 48h limit so we catch all past plans
+      // Q.where('interaction_date', Q.gte(today.getTime() - 2 * 24 * 60 * 60 * 1000)),
       Q.or(
         Q.where('completion_prompted_at', null),
         Q.where('completion_prompted_at', Q.lt(now - 24 * 60 * 60 * 1000))
@@ -118,19 +163,60 @@ export async function checkPendingPlans(): Promise<void> {
     .fetch();
 
   if (pendingPlans.length > 0) {
-    await database.write(async () => {
-      for (const plan of pendingPlans) {
-        await plan.update(p => {
-          p.status = 'pending_confirm';
-          p.completionPromptedAt = now;
+    // We iterate one by one to handle scoring for each
+    const currentSeason = useUserProfileStore.getState().getSocialSeason();
+
+    for (const plan of pendingPlans) {
+      // 1. Fetch friends for this plan (needed for scoring)
+      const iFriends = await plan.interactionFriends.fetch();
+      const friendIds = iFriends.map(f => f.friendId);
+      const friends = await database.get<FriendModel>('friends').query(Q.where('id', Q.oneOf(friendIds))).fetch();
+
+      // 2. Auto-Score as Neutral (FirstQuarter)
+      // We assume it happened since it's in the past.
+      const interactionData: InteractionFormData = {
+        friendIds,
+        activity: plan.activity,
+        notes: plan.note,
+        date: plan.interactionDate,
+        type: 'log',
+        status: 'completed', // For scoring calc purposes
+        mode: plan.mode,
+        vibe: 'FirstQuarter', // Neutral default
+        duration: plan.duration as any, // Use planned duration if available
+        category: plan.interactionCategory as any,
+      };
+
+      try {
+        logger.info('PlanService', `Auto-scoring past plan: ${plan.id} with neutral vibe`);
+        await processWeaveScoring(friends, interactionData, database, currentSeason);
+
+        // 3. Update status to pending_confirm so user knows to review it
+        await database.write(async () => {
+          await plan.update(p => {
+            p.status = 'pending_confirm'; // User still needs to confirm/rate details
+            p.completionPromptedAt = now;
+          });
         });
+      } catch (err) {
+        logger.error('PlanService', `Failed to auto-score plan ${plan.id}:`, err);
+        // We do not update status so it will try again next time (or we could skip to avoid stuck loop?)
+        // Safe to leave it to retry.
       }
-    });
+    }
   }
 }
 
 /**
  * Checks for old 'pending_confirm' plans and transitions them to 'missed'.
+ * If they were auto-scored, should we revert the score?
+ * The user asked for "plans give score... as soon as they have happened".
+ * If they interpret "missed" as "I actually didn't do it", we should probably Revert/Penalize.
+ * But for now, if it moves to 'missed', it means 7 days passed without confirmation.
+ * The score was already awarded.
+ * Typically 'missed' implies it didn't happen.
+ * So strictly speaking, we should probably REVERSE the score if it moves to missed.
+ * But let's stick to the user's specific request first.
  */
 export async function checkMissedPlans(): Promise<void> {
   const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;

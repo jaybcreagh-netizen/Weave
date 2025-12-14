@@ -74,10 +74,25 @@ describe('PlanService', () => {
   });
 
   it('should check for pending plans and update their status', async () => {
-    const mockPlan = { id: 'plan1', update: jest.fn() };
+    const mockPlan = {
+      id: 'plan1',
+      update: jest.fn(),
+      interactionFriends: {
+        fetch: jest.fn().mockResolvedValue([{ friendId: 'friend1' }])
+      },
+      activity: 'test-activity',
+      note: 'test-note',
+      interactionDate: new Date(),
+      mode: 'test-mode',
+      duration: 'Standard',
+      interactionCategory: 'test-category'
+    };
+    const mockFriend = { id: 'friend1' };
+
     (database.get as jest.Mock).mockReturnValue({
       query: jest.fn().mockReturnThis(),
-      fetch: jest.fn().mockResolvedValue([mockPlan]),
+      fetch: jest.fn().mockResolvedValueOnce([mockPlan]).mockResolvedValue([mockFriend]),
+      find: jest.fn(),
     });
 
     await checkPendingPlans();

@@ -607,6 +607,7 @@ export default function WeaveLoggerScreen() {
           initialFriendId={friendId}
           selectedFriends={selectedFriends}
           onSelectionChange={setSelectedFriends}
+          asModal={true}
         />
 
         <WeaveReflectPrompt

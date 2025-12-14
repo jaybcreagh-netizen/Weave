@@ -8,6 +8,7 @@ import Group from '@/db/models/Group';
 import { database } from '@/db';
 import { Q } from '@nozbe/watermelondb';
 import { StandardBottomSheet } from '@/shared/ui/Sheet';
+import { BottomSheetFlatList } from '@gorhom/bottom-sheet';
 import { groupService } from '@/modules/groups';
 import { GroupManagerModal } from './groups/GroupManagerModal';
 
@@ -204,6 +205,8 @@ export function FriendSelector({
         );
     };
 
+    const ListComponent = (asModal ? FlatList : BottomSheetFlatList) as unknown as typeof FlatList;
+
     const Content = (
         <View className="flex-1">
             {/* Header */}
@@ -301,10 +304,11 @@ export function FriendSelector({
                     )}
 
                     {/* Friends List */}
-                    <FlatList
+                    <ListComponent
+                        style={{ flex: 1 }}
                         data={filteredFriends}
                         renderItem={renderFriendItem}
-                        keyExtractor={item => item.id}
+                        keyExtractor={(item: { id: any; }) => item.id}
                         contentContainerStyle={{ paddingBottom: 100 }}
                         showsVerticalScrollIndicator={false}
                         ListEmptyComponent={
@@ -317,10 +321,11 @@ export function FriendSelector({
             ) : (
                 <>
                     {/* Groups List */}
-                    <FlatList
+                    <ListComponent
+                        style={{ flex: 1 }}
                         data={groups}
                         renderItem={renderGroupItem}
-                        keyExtractor={item => item.id}
+                        keyExtractor={(item: { id: any; }) => item.id}
                         contentContainerStyle={{ paddingBottom: 100 }}
                         showsVerticalScrollIndicator={false}
                         ListHeaderComponent={
@@ -424,7 +429,6 @@ export function FriendSelector({
             </Text>
         </TouchableOpacity>
     );
-
     return (
         <StandardBottomSheet
             visible={visible}
