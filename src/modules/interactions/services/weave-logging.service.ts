@@ -11,6 +11,7 @@ import { trackEvent, AnalyticsEvents, updateLastInteractionTimestamp } from '@/s
 import { deleteWeaveCalendarEvent } from './calendar.service';
 import Logger from '@/shared/utils/Logger';
 import { eventBus } from '@/shared/events/event-bus';
+import { recalculateScoreOnDelete } from '@/modules/intelligence/services/orchestrator.service';
 
 export async function logWeave(data: InteractionFormData): Promise<Interaction> {
     // Validate input data
@@ -165,6 +166,14 @@ export async function deleteWeave(id: string): Promise<void> {
 
     await database.write(async () => {
         const joinRecords = await database.get('interaction_friends').query(Q.where('interaction_id', id)).fetch();
+
+        // RECALCULATE SCORING before deleting
+        const friendIds = joinRecords.map(r => r.friendId);
+        if (friendIds.length > 0) {
+            const friends = await database.get<FriendModel>('friends').query(Q.where('id', Q.oneOf(friendIds))).fetch();
+            await recalculateScoreOnDelete(interaction, friends, database);
+        }
+
         const recordsToDelete = joinRecords.map(r => r.prepareDestroyPermanently());
         await database.batch(...recordsToDelete, interaction.prepareDestroyPermanently());
     });

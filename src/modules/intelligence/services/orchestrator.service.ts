@@ -13,6 +13,9 @@ import { InteractionCategory, Duration, Friend } from '@/shared/types/legacy-typ
 import type { InteractionType } from '@/shared/types/legacy-types';
 import type { SocialSeason } from '@/db/models/UserProfile';
 import Logger from '@/shared/utils/Logger';
+import { eventBus } from '@/shared/events/event-bus';
+import { recalculateScoreOnDelete as orchestratorRecalculateScoreOnDelete } from '@/modules/intelligence/services/orchestrator.service';
+import Interaction from '@/db/models/Interaction';
 
 /**
  * Helper to convert InteractionFormData to the weaveData format expected by calculatePointsForWeave.
@@ -66,6 +69,82 @@ export async function recalculateScoreOnEdit(
     Logger.info(`[Score Recalc] Friend ${friend.name}: ${oldPoints.toFixed(1)} -> ${newPoints.toFixed(1)} (Delta: ${delta.toFixed(1)})`);
   }
 }
+
+/**
+ * Recalculates score when an interaction is deleted.
+ * Reverts the points earned and potentially rolls back lastUpdated.
+ */
+export async function recalculateScoreOnDelete(
+  interaction: Interaction,
+  friends: FriendModel[],
+  database: Database
+): Promise<void> {
+  // Helper to convert model to weave data
+  const interactionData = {
+    interactionType: interaction.activity as InteractionType,
+    category: interaction.interactionCategory as InteractionCategory,
+    duration: interaction.duration as Duration | null,
+    vibe: interaction.vibe as Vibe | null,
+    note: interaction.note,
+    reflectionJSON: interaction.reflectionJSON,
+    interactionHistoryCount: 0, // Fallback, won't drastically change removal logic
+  };
+
+  const batchOps: any[] = [];
+
+  for (const friend of friends) {
+    // 1. Calculate points that were added
+    const pointsToRemove = calculatePointsForWeave(friend, interactionData);
+
+    // 2. Determine if we need to rollback lastUpdated
+    // If the deleted interaction has the same date as lastUpdated, we might need to find the previous one
+    let newLastUpdated = friend.lastUpdated;
+    const interactionDate = new Date(interaction.interactionDate);
+
+    // Check if dates are close enough (ignoring milliseconds diffs that might happen)
+    const isLatest = friend.lastUpdated &&
+      Math.abs(friend.lastUpdated.getTime() - interactionDate.getTime()) < 1000;
+
+    if (isLatest) {
+      // Find the most recent completed interaction that ISN'T this one
+      // We query interactions directly, joining on interaction_friends
+      const latestInteractions = await database.get<Interaction>('interactions').query(
+        Q.experimentalJoinTables(['interaction_friends']),
+        Q.on('interaction_friends', Q.where('friend_id', friend.id)),
+        Q.where('status', 'completed'),
+        Q.where('id', Q.notEq(interaction.id)),
+        Q.sortBy('interaction_date', Q.desc),
+        Q.take(1)
+      ).fetch();
+
+      if (latestInteractions.length > 0) {
+        const latest = latestInteractions[0];
+        if (latest.interactionDate) {
+          newLastUpdated = latest.interactionDate;
+        }
+      } else {
+        // No other interactions?
+        if (friend.weaveScore - pointsToRemove <= 0) {
+          newLastUpdated = new Date(0);
+        }
+      }
+    }
+
+    batchOps.push(friend.prepareUpdate(f => {
+      f.weaveScore = Math.min(100, Math.max(0, f.weaveScore - pointsToRemove));
+      if (isLatest && newLastUpdated) {
+        f.lastUpdated = newLastUpdated;
+      }
+    }));
+
+    Logger.info(`[Score Revert] Friend ${friend.name}: Removed ${pointsToRemove.toFixed(1)} pts`);
+  }
+
+  if (batchOps.length > 0) {
+    await database.batch(batchOps);
+  }
+}
+
 
 /**
  * Main entry point - coordinates all scoring services.

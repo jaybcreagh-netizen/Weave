@@ -34,6 +34,7 @@ interface EditInteractionModalProps {
     interactionDate?: Date;
     initiator?: InitiatorType;
     note?: string;
+    friendIds?: string[];
   }) => Promise<void>;
 }
 
@@ -55,6 +56,11 @@ export function EditInteractionModal({
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [initiator, setInitiator] = useState<InitiatorType | undefined>(undefined);
 
+  // Participant State
+  const [selectedFriendIds, setSelectedFriendIds] = useState<string[]>([]);
+  const [initialFriendIds, setInitialFriendIds] = useState<string[]>([]);
+  const [isLoadingFriends, setIsLoadingFriends] = useState(false);
+
   // Update state when interaction changes
   React.useEffect(() => {
     if (interaction) {
@@ -64,6 +70,23 @@ export function EditInteractionModal({
       setCustomNotes(interaction.reflection?.customNotes || interaction.note || '');
       setSelectedDate(interaction.interactionDate);
       setInitiator(interaction.initiator as InitiatorType | undefined);
+
+      // Fetch participants
+      const fetchParticipants = async () => {
+        setIsLoadingFriends(true);
+        try {
+          const friends = await interaction.interactionFriends.fetch();
+          const ids = friends.map(f => f.friendId);
+          setInitialFriendIds(ids);
+          setSelectedFriendIds(ids);
+        } catch (error) {
+          console.error('Error fetching interaction friends:', error);
+        } finally {
+          setIsLoadingFriends(false);
+        }
+      };
+
+      fetchParticipants();
     }
   }, [interaction]);
 
@@ -107,6 +130,14 @@ export function EditInteractionModal({
         updates.initiator = initiator;
       }
 
+      // Check if participants changed
+      const added = selectedFriendIds.filter(id => !initialFriendIds.includes(id));
+      const removed = initialFriendIds.filter(id => !selectedFriendIds.includes(id));
+
+      if (added.length > 0 || removed.length > 0) {
+        updates.friendIds = selectedFriendIds;
+      }
+
       await onSave(interaction.id, updates);
       onClose();
     } catch (error) {
@@ -131,15 +162,21 @@ export function EditInteractionModal({
     // Current date comparison
     const currentDate = selectedDate ? selectedDate.getTime() : 0;
 
+    // Friends comparison
+    const friendsChanged =
+      selectedFriendIds.length !== initialFriendIds.length ||
+      !selectedFriendIds.every(id => initialFriendIds.includes(id));
+
     return (
       title !== initialTitle ||
       selectedCategory !== initialCategory ||
       selectedVibe !== initialVibe ||
       customNotes !== initialNotes ||
       currentDate !== initialDate ||
-      initiator !== initialInitiator
+      initiator !== initialInitiator ||
+      friendsChanged
     );
-  }, [interaction, title, selectedCategory, selectedVibe, customNotes, selectedDate, initiator]);
+  }, [interaction, title, selectedCategory, selectedVibe, customNotes, selectedDate, initiator, selectedFriendIds, initialFriendIds]);
 
   const footerComponent = React.useMemo(() => (
     <Button
@@ -165,6 +202,16 @@ export function EditInteractionModal({
       footerComponent={footerComponent}
     >
       <View className="px-5 pb-10 gap-8">
+
+        {/* Participants Selection */}
+        <View>
+          <FriendSelector
+            selectedFriendIds={selectedFriendIds}
+            onSelectionChange={setSelectedFriendIds}
+            asModal={true}
+          />
+        </View>
+
         {/* Title Input */}
         <View>
           <Input

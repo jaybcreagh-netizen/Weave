@@ -6,12 +6,13 @@ import Interaction from '@/db/models/Interaction';
 import FriendModel from '@/db/models/Friend';
 import Intention from '@/db/models/Intention';
 import IntentionFriend from '@/db/models/IntentionFriend';
+import InteractionFriend from '@/db/models/InteractionFriend';
 import { InteractionFormData, StructuredReflection } from '../types';
 import * as WeaveLoggingService from '../services/weave-logging.service';
 import * as PlanService from '../services/plan.service';
 import * as CalendarService from '../services/calendar.service';
 import { InteractionCategory, Vibe, Duration } from '@/shared/types/common';
-import { recalculateScoreOnEdit } from '@/modules/intelligence';
+import { recalculateScoreOnDelete, processWeaveScoring, recalculateScoreOnEdit } from '@/modules/intelligence/services/orchestrator.service';
 
 // --- State and Store Definition ---
 
@@ -113,25 +114,101 @@ export const useInteractionsStore = create<InteractionsStore>((set, get) => ({
     cancelPlan: async (id) => PlanService.cancelPlan(id),
     syncCalendar: async () => CalendarService.syncCalendarChanges(),
 
+
+
+    // ... (existing imports)
+
     updateInteraction: async (interactionId, updates) => {
-        // 1. Fetch current interaction state (before update)
+        // 1. Fetch current interaction state
         const interaction = await database.get<Interaction>('interactions').find(interactionId);
 
-        // 2. Check if score-affecting fields are changing
+        // Handle Participant Changes
+        // Check if friendIds are provided in updates (from EditInteractionModal)
+        // @ts-ignore - friendIds is not on Interaction model but passed in updates for this specific flow
+        const newFriendIds: string[] | undefined = updates.friendIds;
+
+        let addedFriendIds: string[] = [];
+        let removedFriendIds: string[] = [];
+
+        if (newFriendIds) {
+            const currentJoinRecords = await interaction.interactionFriends.fetch();
+            const currentFriendIds = currentJoinRecords.map(r => r.friendId);
+
+            const addedIds = newFriendIds.filter(id => !currentFriendIds.includes(id));
+            addedFriendIds = addedIds;
+            const removedIds = currentFriendIds.filter(id => !newFriendIds.includes(id));
+            removedFriendIds = removedIds;
+
+            if (removedIds.length > 0) {
+                const removedFriends = await database.get<FriendModel>('friends').query(Q.where('id', Q.oneOf(removedIds))).fetch();
+                // Revert score for removed friends
+                await recalculateScoreOnDelete(interaction, removedFriends, database);
+
+                // Delete join records
+                await database.write(async () => {
+                    const recordsToDelete = currentJoinRecords.filter(r => removedIds.includes(r.friendId));
+                    if (recordsToDelete.length > 0) {
+                        const ops = recordsToDelete.map(r => r.prepareDestroyPermanently());
+                        await database.batch(...ops);
+                    }
+                });
+            }
+
+            if (addedIds.length > 0) {
+                const addedFriends = await database.get<FriendModel>('friends').query(Q.where('id', Q.oneOf(addedIds))).fetch();
+
+                // Construct data object for scoring
+                const interactionData: InteractionFormData = {
+                    friendIds: [], // Not used for individual adding
+                    category: (updates.interactionCategory || interaction.interactionCategory) as InteractionCategory,
+                    activity: updates.activity || interaction.activity,
+                    date: updates.interactionDate || interaction.interactionDate,
+                    type: 'log',
+                    status: 'completed',
+                    mode: interaction.mode,
+                    vibe: (updates.vibe || interaction.vibe) as Vibe | null,
+                    duration: (updates.duration || interaction.duration) as Duration | null,
+                    notes: updates.note || interaction.note,
+                    reflection: interaction.reflectionJSON ? JSON.parse(interaction.reflectionJSON) : undefined,
+                };
+
+                // Create join records first
+                await database.write(async () => {
+                    const batchOps: any[] = [];
+                    for (const friend of addedFriends) {
+                        batchOps.push(database.get('interaction_friends').prepareCreate((_ifriend: any) => {
+                            const ifriend = _ifriend as InteractionFriend;
+                            ifriend.interaction.set(interaction);
+                            ifriend.friend.set(friend);
+                        }));
+                    }
+                    await database.batch(batchOps);
+                });
+
+                // processWeaveScoring for added friends
+                await processWeaveScoring(addedFriends, interactionData, database);
+            }
+
+            // Remove friendIds from updates before applying to Interaction model
+            // @ts-ignore
+            delete updates.friendIds;
+        }
+
+        // 2. Check if score-affecting fields are changing (Apply to REMAINING friends)
         const isScoreUpdateNeeded =
             interaction.status === 'completed' && (
                 (updates.interactionCategory && updates.interactionCategory !== interaction.interactionCategory) ||
                 (updates.activity && updates.activity !== interaction.activity) ||
                 (updates.vibe && updates.vibe !== interaction.vibe) ||
                 (updates.duration && updates.duration !== interaction.duration) ||
-                (updates.note && updates.note !== interaction.note) || // Notes affect quality
+                (updates.note && updates.note !== interaction.note) ||
                 (updates.reflectionJSON && updates.reflectionJSON !== interaction.reflectionJSON)
             );
 
         if (isScoreUpdateNeeded) {
             // Prepare data objects for recalculation
             const oldData: InteractionFormData = {
-                friendIds: [], // Not needed for point calc
+                friendIds: [],
                 category: interaction.interactionCategory as InteractionCategory,
                 activity: interaction.activity,
                 date: interaction.interactionDate,
@@ -157,21 +234,30 @@ export const useInteractionsStore = create<InteractionsStore>((set, get) => ({
             // Fetch associated friends
             const interactionFriends = await interaction.interactionFriends.fetch();
 
-            // Recalculate for each friend
+            // Recalculate for each friend, SKIPPING those we just added OR removed
             for (const iFriend of interactionFriends) {
+                if (addedFriendIds.includes(iFriend.friendId)) continue;
+                if (removedFriendIds.includes(iFriend.friendId)) continue;
                 await recalculateScoreOnEdit(iFriend.friendId, oldData, newData, database);
             }
         }
 
-        // 3. Perform the actual update
-        await database.write(async () => {
-            await interaction.update(i => {
-                Object.assign(i, { ...updates, updatedAt: new Date() });
+        // 3. Update Interaction Record
+        if (Object.keys(updates).length > 0) {
+            await database.write(async () => {
+                await interaction.update(rec => {
+                    if (updates.interactionCategory) rec.interactionCategory = updates.interactionCategory;
+                    if (updates.activity) rec.activity = updates.activity;
+                    // handle nulls/undefined for optional fields
+                    if (updates.vibe !== undefined) rec.vibe = updates.vibe;
+                    if (updates.duration !== undefined) rec.duration = updates.duration;
+                    if (updates.note !== undefined) rec.note = updates.note;
+                    if (updates.reflectionJSON) rec.reflectionJSON = updates.reflectionJSON;
+                    if (updates.interactionDate) rec.interactionDate = updates.interactionDate;
+                });
             });
-        });
-    },
-
-    updateReflection: async (interactionId, reflection) => {
+        }
+    }, updateReflection: async (interactionId, reflection) => {
         await get().updateInteraction(interactionId, { reflectionJSON: JSON.stringify(reflection) });
     },
 
