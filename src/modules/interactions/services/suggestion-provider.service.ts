@@ -111,10 +111,11 @@ export function selectDiverseSuggestions(
     }
 
     // 2. Build a diverse set from different buckets
-    // Priority order: reflect -> lifeEvent -> drift -> portfolio -> deepen -> maintain -> insight -> guaranteed types -> new categories
+    // Priority order: reflect -> lifeEvent -> drift -> portfolio -> fresh/wildcards -> deepen -> maintain -> insight
     const bucketOrder: Array<keyof typeof buckets> = [
-        'reflect', 'lifeEvent', 'drift', 'portfolio', 'deepen', 'maintain', 'insight',
-        'dailyReflect', 'gentleNudge', 'wildcard', 'communityCheckin', 'variety', 'setIntention'
+        'reflect', 'lifeEvent', 'drift', 'portfolio',
+        'communityCheckin', 'wildcard', 'variety', 'gentleNudge', 'setIntention', // Moved UP for freshness
+        'deepen', 'maintain', 'insight', 'dailyReflect'
     ];
 
     // Maintain a set of IDs to prevent duplicates (e.g. critical items picked again as category items)
