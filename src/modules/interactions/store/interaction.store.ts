@@ -39,7 +39,7 @@ interface InteractionsStore {
     syncCalendar: () => Promise<CalendarService.CalendarSyncResult>;
 
     // Direct DB Updates (for granular changes)
-    updateInteraction: (interactionId: string, updates: Partial<Interaction>) => Promise<void>;
+    updateInteraction: (interactionId: string, updates: Partial<Interaction> & { friendIds?: string[] }) => Promise<void>;
     updateReflection: (interactionId: string, reflection: StructuredReflection) => Promise<void>;
     updateInteractionCategory: (interactionId: string, category: InteractionCategory) => Promise<void>;
     updateInteractionVibeAndNotes: (interactionId: string, vibe?: Vibe | null, notes?: string) => Promise<void>;
@@ -124,7 +124,7 @@ export const useInteractionsStore = create<InteractionsStore>((set, get) => ({
 
         // Handle Participant Changes
         // Check if friendIds are provided in updates (from EditInteractionModal)
-        // @ts-ignore - friendIds is not on Interaction model but passed in updates for this specific flow
+        // friendIds is not on Interaction model but passed in updates for this specific flow
         const newFriendIds: string[] | undefined = updates.friendIds;
 
         let addedFriendIds: string[] = [];

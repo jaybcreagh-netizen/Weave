@@ -9,7 +9,10 @@ import { Input } from '@/shared/ui/Input';
 import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
 import { Icon } from '@/shared/ui/Icon';
-import { type Interaction, type InteractionCategory, type Vibe, type StructuredReflection } from '../types';
+import InteractionModel from '@/db/models/Interaction';
+import InteractionFriend from '@/db/models/InteractionFriend';
+import FriendModel from '@/db/models/Friend';
+import { type InteractionCategory, type Vibe, type StructuredReflection } from '../types';
 import { getAllCategories, getCategoryMetadata, type CategoryMetadata } from '@/shared/constants/interaction-categories';
 import { MoonPhaseSelector } from '@/modules/intelligence';
 import { FriendSelector } from '@/modules/relationships';
@@ -19,7 +22,7 @@ import { BlurView } from 'expo-blur';
 import { ReciprocitySelector, InitiatorType } from '@/modules/relationships';
 
 interface EditInteractionModalProps {
-  interaction: Interaction | null;
+  interaction: InteractionModel | null;
   isOpen: boolean;
   onClose: () => void;
   onSave: (interactionId: string, updates: {
@@ -57,7 +60,8 @@ export function EditInteractionModal({
   const [initiator, setInitiator] = useState<InitiatorType | undefined>(undefined);
 
   // Participant State
-  const [selectedFriendIds, setSelectedFriendIds] = useState<string[]>([]);
+  const [selectedFriends, setSelectedFriends] = useState<FriendModel[]>([]);
+  const [isFriendSelectorVisible, setIsFriendSelectorVisible] = useState(false);
   const [initialFriendIds, setInitialFriendIds] = useState<string[]>([]);
   const [isLoadingFriends, setIsLoadingFriends] = useState(false);
 
@@ -66,7 +70,7 @@ export function EditInteractionModal({
     if (interaction) {
       setTitle(interaction.title || '');
       setSelectedCategory((interaction.interactionCategory || interaction.activity) as InteractionCategory);
-      setSelectedVibe(interaction.vibe || null);
+      setSelectedVibe((interaction.vibe as Vibe) || null);
       setCustomNotes(interaction.reflection?.customNotes || interaction.note || '');
       setSelectedDate(interaction.interactionDate);
       setInitiator(interaction.initiator as InitiatorType | undefined);
@@ -75,10 +79,11 @@ export function EditInteractionModal({
       const fetchParticipants = async () => {
         setIsLoadingFriends(true);
         try {
-          const friends = await interaction.interactionFriends.fetch();
-          const ids = friends.map(f => f.friendId);
+          const interactionFriends = await interaction.interactionFriends.fetch() as unknown as InteractionFriend[];
+          const friendModels = await Promise.all(interactionFriends.map(join => join.friend.fetch()));
+          const ids = friendModels.map(f => f.id);
           setInitialFriendIds(ids);
-          setSelectedFriendIds(ids);
+          setSelectedFriends(friendModels);
         } catch (error) {
           console.error('Error fetching interaction friends:', error);
         } finally {
@@ -131,11 +136,12 @@ export function EditInteractionModal({
       }
 
       // Check if participants changed
-      const added = selectedFriendIds.filter(id => !initialFriendIds.includes(id));
-      const removed = initialFriendIds.filter(id => !selectedFriendIds.includes(id));
+      const currentSelectedIds = selectedFriends.map(f => f.id);
+      const added = currentSelectedIds.filter(id => !initialFriendIds.includes(id));
+      const removed = initialFriendIds.filter(id => !currentSelectedIds.includes(id));
 
       if (added.length > 0 || removed.length > 0) {
-        updates.friendIds = selectedFriendIds;
+        updates.friendIds = currentSelectedIds;
       }
 
       await onSave(interaction.id, updates);
@@ -163,9 +169,10 @@ export function EditInteractionModal({
     const currentDate = selectedDate ? selectedDate.getTime() : 0;
 
     // Friends comparison
+    const currentSelectedIds = selectedFriends.map(f => f.id);
     const friendsChanged =
-      selectedFriendIds.length !== initialFriendIds.length ||
-      !selectedFriendIds.every(id => initialFriendIds.includes(id));
+      currentSelectedIds.length !== initialFriendIds.length ||
+      !currentSelectedIds.every(id => initialFriendIds.includes(id));
 
     return (
       title !== initialTitle ||
@@ -176,7 +183,7 @@ export function EditInteractionModal({
       initiator !== initialInitiator ||
       friendsChanged
     );
-  }, [interaction, title, selectedCategory, selectedVibe, customNotes, selectedDate, initiator, selectedFriendIds, initialFriendIds]);
+  }, [interaction, title, selectedCategory, selectedVibe, customNotes, selectedDate, initiator, selectedFriends, initialFriendIds]);
 
   const footerComponent = React.useMemo(() => (
     <Button
@@ -205,9 +212,22 @@ export function EditInteractionModal({
 
         {/* Participants Selection */}
         <View>
+          <TouchableOpacity
+            onPress={() => setIsFriendSelectorVisible(true)}
+            style={{ flexDirection: 'row', alignItems: 'center', padding: 12, borderWidth: 1, borderColor: '#e2e8f0', borderRadius: 8 }}
+          >
+            <Icon name="Users" size={20} color="#64748b" />
+            <Text style={{ marginLeft: 8, fontSize: 16 }}>
+              {selectedFriends.length > 0
+                ? `${selectedFriends.length} Friends Selected`
+                : 'Manage Participants'}
+            </Text>
+          </TouchableOpacity>
           <FriendSelector
-            selectedFriendIds={selectedFriendIds}
-            onSelectionChange={setSelectedFriendIds}
+            visible={isFriendSelectorVisible}
+            onClose={() => setIsFriendSelectorVisible(false)}
+            selectedFriends={selectedFriends}
+            onSelectionChange={setSelectedFriends}
             asModal={true}
           />
         </View>

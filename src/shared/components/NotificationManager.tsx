@@ -12,6 +12,7 @@ import { setupGamificationListeners } from '@/modules/gamification';
 import { NotificationPermissionModal } from '@/modules/notifications';
 import { useTutorialStore } from '@/shared/stores/tutorialStore';
 import { useDatabaseReady } from '@/shared/hooks/useDatabaseReady';
+import { BackgroundTaskManager } from '@/shared/services/background-task-manager';
 
 const NOTIFICATION_PERMISSION_ASKED_KEY = '@weave:notification_permission_asked';
 
@@ -40,6 +41,8 @@ export function NotificationManager() {
         const setupNotifications = async () => {
             try {
                 await NotificationOrchestrator.init();
+                // Register background task for reliable notifications
+                await BackgroundTaskManager.registerBackgroundTask();
 
                 const response = await Notifications.getLastNotificationResponseAsync();
                 if (response) {

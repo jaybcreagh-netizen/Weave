@@ -361,9 +361,8 @@ export function WeeklyReflectionModal({ isOpen, onClose }: WeeklyReflectionModal
               onPress={loadData}
               variant="primary"
               className="mt-4"
-            >
-              Retry
-            </Button>
+              label="Retry"
+            />
           </View>
         )}
       </View>

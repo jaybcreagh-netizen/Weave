@@ -40,4 +40,6 @@ export type NotificationChannel = {
     cancel: (id: string) => Promise<void>;
     /** Handle tap action */
     handleTap: (data: any, router: any) => void;
+    /** Ensure notification is scheduled (idempotent/repair) - Optional */
+    ensureScheduled?: () => Promise<void>;
 };

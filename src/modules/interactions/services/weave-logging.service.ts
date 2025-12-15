@@ -165,7 +165,7 @@ export async function deleteWeave(id: string): Promise<void> {
     const calendarEventId = interaction.calendarEventId;
 
     await database.write(async () => {
-        const joinRecords = await database.get('interaction_friends').query(Q.where('interaction_id', id)).fetch();
+        const joinRecords = await database.get<InteractionFriend>('interaction_friends').query(Q.where('interaction_id', id)).fetch();
 
         // RECALCULATE SCORING before deleting
         const friendIds = joinRecords.map(r => r.friendId);

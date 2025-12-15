@@ -331,9 +331,8 @@ export function GroupManagerModal({
                         variant="primary"
                         disabled={isSaving}
                         className="flex-1"
-                    >
-                        {isSaving ? 'Saving...' : 'Save Group'}
-                    </Button>
+                        label={isSaving ? 'Saving...' : 'Save Group'}
+                    />
                 </View>
             </View>
         </StandardBottomSheet>

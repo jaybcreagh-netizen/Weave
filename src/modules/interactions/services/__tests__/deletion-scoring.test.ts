@@ -73,7 +73,7 @@ import { database } from '@/db';
 import { logWeave, deleteWeave } from '../weave-logging.service';
 import { calculateCurrentScore, processWeaveScoring } from '@/modules/intelligence/services/orchestrator.service';
 import FriendModel from '@/db/models/Friend';
-import { InteractionFormData } from '../types';
+import { InteractionFormData } from '../../types';
 
 describe('Interaction Deletion Scoring', () => {
     let friend: FriendModel;
