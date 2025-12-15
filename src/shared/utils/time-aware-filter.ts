@@ -38,14 +38,11 @@ export function isSuggestionTimeAppropriate(suggestion: Suggestion, timeOfDay?: 
     return true;
   }
 
-  // Night time (10pm-6am): Only show critical or time-sensitive reflections
+  // Night time (10pm-6am):
+  // User feedback: "shouldnt be a supression on suggestions at night"
+  // We still prioritize critical items, but we no longer hide others.
   if (currentTime === 'night') {
-    // Allow reflection suggestions if they're about to expire
-    if (suggestion.action.type === 'reflect' && suggestion.expiresAt) {
-      const hoursUntilExpiry = (suggestion.expiresAt.getTime() - Date.now()) / 3600000;
-      return hoursUntilExpiry < 6; // Show if expiring in next 6 hours
-    }
-    return false; // Skip all other suggestions at night
+    return true;
   }
 
   // Planning suggestions - best in morning/afternoon

@@ -88,7 +88,7 @@ export function selectDiverseSuggestions(
         critical: workingSuggestions.filter(s => s.urgency === 'critical'),
         reflect: workingSuggestions.filter(s => s.category === 'reflect'),
         lifeEvent: workingSuggestions.filter(s => s.category === 'life-event'),
-        drift: workingSuggestions.filter(s => s.category === 'drift'),
+        drift: workingSuggestions.filter(s => s.category === 'drift' || s.category === 'high-drift' || s.category === 'critical-drift'),
         deepen: workingSuggestions.filter(s => s.category === 'deepen' || s.category === 'celebrate'),
         maintain: workingSuggestions.filter(s => s.category === 'maintain'),
         insight: workingSuggestions.filter(s => s.category === 'insight'),
