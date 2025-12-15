@@ -109,6 +109,7 @@ export function calculatePointsForWeave(
     groupSize?: number;
     eventImportance?: 'low' | 'medium' | 'high' | 'critical';
     interactionHistoryCount?: number; // NEW: Count of prior interactions of this type/category
+    ignoreMomentum?: boolean; // NEW: For deletion/reversion logic
   }
 ): number {
   // Calculate current momentum
@@ -202,7 +203,7 @@ export function calculatePointsForWeave(
 
   // Apply momentum bonus
   let finalPoints = adaptivePoints;
-  if (currentMomentumScore > 0) {
+  if (!weaveData.ignoreMomentum && currentMomentumScore > 0) {
     finalPoints = adaptivePoints * 1.15;
   }
 

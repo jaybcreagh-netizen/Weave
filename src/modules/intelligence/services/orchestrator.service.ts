@@ -50,10 +50,12 @@ export async function recalculateScoreOnEdit(
 
   // Calculate old and new points using the scoring service directly.
   // Quality is calculated internally by calculatePointsForWeave.
-  // For simplicity in edit, we assume history count hasn't drastically changed 
   // enough to affect the tier multiplier for this single calculation.
-  const oldPoints = calculatePointsForWeave(friend, toWeaveData(oldData, 0));
-  const newPoints = calculatePointsForWeave(friend, toWeaveData(newData, 0));
+  const oldPoints = calculatePointsForWeave(friend, { ...toWeaveData(oldData, 0), ignoreMomentum: true }); // Ignore momentum on OLD data too to be safe? Or should match logic.
+  // Actually, for EDIT, we want delta. If we ignore momentum on OLD, we should ignore on NEW?
+  // If we don't, we are changing the basis.
+  // Best to ignore momentum on BOTH for edits to isolate value change.
+  const newPoints = calculatePointsForWeave(friend, { ...toWeaveData(newData, 0), ignoreMomentum: true });
 
   const delta = newPoints - oldPoints;
 
@@ -88,6 +90,7 @@ export async function recalculateScoreOnDelete(
     note: interaction.note,
     reflectionJSON: interaction.reflectionJSON,
     interactionHistoryCount: 0, // Fallback, won't drastically change removal logic
+    ignoreMomentum: true, // Use base points only to avoid excessive deduction
   };
 
   const batchOps: any[] = [];
@@ -248,7 +251,10 @@ export async function processWeaveScoring(
       // Backdating Logic: calculate score based on interaction date relative to last update
       const rawScore = friend.weaveScore;
       const lastUpdated = friend.lastUpdated || new Date(0);
-      const interactionDate = interactionData.date ? new Date(interactionData.date) : new Date();
+      const rawInteractionDate = interactionData.date ? new Date(interactionData.date) : new Date();
+      // Clamp date to now to prevent future dates from locking the timeline
+      const now = new Date();
+      const interactionDate = isAfter(rawInteractionDate, now) ? now : rawInteractionDate;
 
       let newScore = rawScore;
       let newLastUpdated = lastUpdated;
