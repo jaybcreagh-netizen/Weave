@@ -254,8 +254,33 @@ export const useInteractionsStore = create<InteractionsStore>((set, get) => ({
                     if (updates.note !== undefined) rec.note = updates.note;
                     if (updates.reflectionJSON) rec.reflectionJSON = updates.reflectionJSON;
                     if (updates.interactionDate) rec.interactionDate = updates.interactionDate;
+                    if (updates.title !== undefined) rec.title = updates.title;
+                    if (updates.location !== undefined) rec.location = updates.location;
                 });
             });
+        }
+
+        // 4. Sync Calendar Event (for planned interactions with calendar events)
+        if (interaction.calendarEventId && interaction.status === 'planned') {
+            const calendarUpdates: { title?: string; date?: Date; location?: string; notes?: string } = {};
+
+            if (updates.interactionDate) {
+                calendarUpdates.date = updates.interactionDate;
+            }
+            if (updates.title !== undefined) {
+                calendarUpdates.title = updates.title || undefined;
+            }
+            if (updates.location !== undefined) {
+                calendarUpdates.location = updates.location || undefined;
+            }
+            if (updates.note !== undefined) {
+                calendarUpdates.notes = updates.note || undefined;
+            }
+
+            if (Object.keys(calendarUpdates).length > 0) {
+                CalendarService.updateWeaveCalendarEvent(interaction.calendarEventId, calendarUpdates)
+                    .catch(err => console.warn('Failed to update calendar event:', err));
+            }
         }
     }, updateReflection: async (interactionId, reflection) => {
         await get().updateInteraction(interactionId, { reflectionJSON: JSON.stringify(reflection) });

@@ -111,15 +111,65 @@ export async function getAvailableCalendars(): Promise<Calendar.Calendar[]> {
 
 // --- Event Management ---
 
+/**
+ * Validates that a calendar ID still exists and is writable.
+ * Returns the calendar if valid, null otherwise.
+ */
+async function validateCalendarId(calendarId: string): Promise<Calendar.Calendar | null> {
+  try {
+    const calendars = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
+    const calendar = calendars.find(cal => cal.id === calendarId);
+
+    if (!calendar) {
+      logger.warn('CalendarService', `Calendar ${calendarId} no longer exists`);
+      return null;
+    }
+
+    if (!calendar.allowsModifications) {
+      logger.warn('CalendarService', `Calendar ${calendar.title} is read-only`);
+      return null;
+    }
+
+    return calendar;
+  } catch (error) {
+    logger.error('CalendarService', 'Error validating calendar:', error);
+    return null;
+  }
+}
+
 async function getDefaultCalendarId(): Promise<string | null> {
   const settings = await getCalendarSettings();
-  if (settings.calendarId) return settings.calendarId;
 
+  // If user has a saved calendar, validate it still exists
+  if (settings.calendarId) {
+    const calendar = await validateCalendarId(settings.calendarId);
+    if (calendar) {
+      logger.debug('CalendarService', `Using saved calendar: ${calendar.title} (${calendar.source.name})`);
+      return settings.calendarId;
+    }
+
+    // Saved calendar is invalid - clear it from settings
+    logger.warn('CalendarService', 'Saved calendar no longer valid, clearing setting');
+    await saveCalendarSettings({ ...settings, calendarId: null });
+  }
+
+  // Fall back to finding a default calendar
   const calendars = await getAvailableCalendars();
-  if (calendars.length === 0) return null;
+  if (calendars.length === 0) {
+    logger.warn('CalendarService', 'No writable calendars available');
+    return null;
+  }
 
   const defaultCal = calendars.find(cal => cal.isPrimary) || calendars[0];
+  logger.debug('CalendarService', `Using default calendar: ${defaultCal.title} (${defaultCal.source.name})`);
   return defaultCal.id;
+}
+
+export interface CreateEventResult {
+  success: boolean;
+  eventId: string | null;
+  error?: 'disabled' | 'no_permission' | 'no_calendar' | 'create_failed';
+  message?: string;
 }
 
 export async function createWeaveCalendarEvent(params: {
@@ -130,21 +180,56 @@ export async function createWeaveCalendarEvent(params: {
   location?: string;
   notes?: string;
 }): Promise<string | null> {
+  const result = await createWeaveCalendarEventWithResult(params);
+  return result.eventId;
+}
+
+export async function createWeaveCalendarEventWithResult(params: {
+  title: string;
+  friendNames: string;
+  category: string;
+  date: Date;
+  location?: string;
+  notes?: string;
+}): Promise<CreateEventResult> {
   try {
     const settings = await getCalendarSettings();
-    if (!settings.enabled) return null;
+    if (!settings.enabled) {
+      logger.debug('CalendarService', 'Calendar integration disabled');
+      return { success: false, eventId: null, error: 'disabled' };
+    }
 
     const hasPermission = await requestCalendarPermissions();
-    if (!hasPermission) return null;
+    if (!hasPermission) {
+      logger.warn('CalendarService', 'Calendar permissions not granted');
+      return { success: false, eventId: null, error: 'no_permission', message: 'Calendar permissions not granted' };
+    }
 
     const calendarId = await getDefaultCalendarId();
-    if (!calendarId) return null;
+    if (!calendarId) {
+      logger.warn('CalendarService', 'No calendar available for event creation');
+      return { success: false, eventId: null, error: 'no_calendar', message: 'No calendar available. Please select a calendar in Settings.' };
+    }
 
     const startDate = new Date(params.date);
     const hasTime = startDate.getHours() !== 0 || startDate.getMinutes() !== 0;
 
-    const eventTitle = `🧵 Weave with ${params.friendNames} - ${params.title || params.category}`;
-    const eventNotes = `📅 Planned weave with ${params.friendNames}\n\nActivity: ${params.category}\nLocation: ${params.location || 'N/A'}\n\nNotes:\n${params.notes || ''}\n\n---\nCreated by Weave`;
+    // Use custom title as primary if provided, otherwise fall back to standard format
+    const eventTitle = params.title
+      ? `🧵 ${params.title}`
+      : `🧵 ${params.category} with ${params.friendNames}`;
+
+    const eventNotes = [
+      `📅 Planned weave with ${params.friendNames}`,
+      '',
+      `Activity: ${params.category}`,
+      params.location ? `Location: ${params.location}` : null,
+      '',
+      params.notes ? `Notes:\n${params.notes}` : null,
+      '',
+      '---',
+      'Created by Weave'
+    ].filter(Boolean).join('\n');
 
     const eventDetails: Partial<Calendar.Event> = {
       title: eventTitle,
@@ -156,11 +241,15 @@ export async function createWeaveCalendarEvent(params: {
       alarms: settings.reminderMinutes > 0 && hasTime ? [{ relativeOffset: -settings.reminderMinutes }] : [],
     };
 
+    logger.info('CalendarService', `Creating event "${eventTitle}" on calendar ${calendarId}`);
     const eventId = await Calendar.createEventAsync(calendarId, eventDetails);
-    return eventId;
+    logger.info('CalendarService', `Event created successfully: ${eventId}`);
+
+    return { success: true, eventId };
   } catch (error) {
-    console.error('Error creating calendar event:', error);
-    return null;
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error('CalendarService', 'Error creating calendar event:', errorMessage);
+    return { success: false, eventId: null, error: 'create_failed', message: `Failed to create event: ${errorMessage}` };
   }
 }
 
@@ -169,7 +258,33 @@ export async function updateWeaveCalendarEvent(eventId: string, params: { title?
     const settings = await getCalendarSettings();
     if (!settings.enabled) return false;
 
-    await Calendar.updateEventAsync(eventId, params);
+    const hasPermission = await checkCalendarPermissions();
+    if (!hasPermission.granted) return false;
+
+    const updateParams: Partial<Calendar.Event> = {};
+
+    if (params.title !== undefined) {
+      // Format title consistently with create
+      updateParams.title = params.title ? `🧵 ${params.title}` : undefined;
+    }
+    if (params.date !== undefined) {
+      const hasTime = params.date.getHours() !== 0 || params.date.getMinutes() !== 0;
+      updateParams.startDate = params.date;
+      updateParams.endDate = hasTime
+        ? new Date(params.date.getTime() + 2 * 60 * 60 * 1000)
+        : params.date;
+      updateParams.allDay = !hasTime;
+    }
+    if (params.location !== undefined) {
+      updateParams.location = params.location || '';
+    }
+    if (params.notes !== undefined) {
+      updateParams.notes = params.notes || '';
+    }
+
+    if (Object.keys(updateParams).length > 0) {
+      await Calendar.updateEventAsync(eventId, updateParams);
+    }
     return true;
   } catch (error) {
     console.error('Error updating calendar event:', error);
