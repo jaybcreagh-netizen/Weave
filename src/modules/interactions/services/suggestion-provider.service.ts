@@ -503,12 +503,13 @@ export async function fetchSuggestions(
     // Apply season-aware filtering (caps, category restrictions, life event bypass)
     const seasonFiltered = filterSuggestionsBySeason(timeAppropriate, season);
 
-    // POST-FILTER GUARANTEED: Ensure minimum suggestions after all filters
-    // This fixes the issue where guaranteed suggestions were being filtered out
     const MIN_SUGGESTIONS = 3;
     let finalPool = seasonFiltered;
 
-    if (finalPool.length < MIN_SUGGESTIONS && friends.length > 0) {
+    // ALWAYS generate guaranteed suggestions (Wildcards, Daily Reflect, etc.)
+    // to provide variety even when the user has many reactive suggestions (like Momentum).
+    // selectDiverseSuggestions will handle the mixing and prioritization.
+    if (friends.length > 0) {
         const guaranteed = generateGuaranteedSuggestions(friends, finalPool, season);
 
         // Filter guaranteed suggestions by dismissal only (not time/season)

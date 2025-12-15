@@ -2,7 +2,18 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, Modal, ScrollView, SafeAreaView } from 'react-native';
 import Animated, { SlideInLeft, SlideInRight, SlideOutLeft, SlideOutRight } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
-import { X, ArrowLeft } from 'lucide-react-native';
+import {
+  X,
+  ArrowLeft,
+  Phone,
+  Utensils,
+  Users,
+  MessageCircle,
+  Palette,
+  PartyPopper,
+  HeartHandshake,
+  Star,
+} from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
 import FriendModel from '@/db/models/Friend';
 import { InteractionCategory } from '@/shared/types/common';
@@ -24,17 +35,17 @@ import { useDebounceCallback } from '@/shared/hooks/useDebounceCallback';
 const CATEGORIES: Array<{
   value: InteractionCategory;
   label: string;
-  icon: string;
+  icon: React.ElementType;
   description: string;
 }> = [
-    { value: 'text-call', label: 'Chat', icon: '💬', description: 'Call or video chat' },
-    { value: 'meal-drink', label: 'Meal', icon: '🍽️', description: 'Coffee, lunch, or dinner' },
-    { value: 'hangout', label: 'Hangout', icon: '👥', description: 'Casual time together' },
-    { value: 'deep-talk', label: 'Deep Talk', icon: '💭', description: 'Meaningful conversation' },
-    { value: 'activity-hobby', label: 'Activity', icon: '🚶', description: 'Sport, hobby, or adventure' },
-    { value: 'event-party', label: 'Event', icon: '🎉', description: 'Party or social gathering' },
-    { value: 'favor-support', label: 'Support', icon: '🤝', description: 'Help or emotional support' },
-    { value: 'celebration', label: 'Celebration', icon: '🎊', description: 'Special occasion' },
+    { value: 'text-call', label: 'Chat', icon: Phone, description: 'Call or video chat' },
+    { value: 'meal-drink', label: 'Meal', icon: Utensils, description: 'Coffee, lunch, or dinner' },
+    { value: 'hangout', label: 'Hangout', icon: Users, description: 'Casual time together' },
+    { value: 'deep-talk', label: 'Deep Talk', icon: MessageCircle, description: 'Meaningful conversation' },
+    { value: 'activity-hobby', label: 'Activity', icon: Palette, description: 'Sport, hobby, or adventure' },
+    { value: 'event-party', label: 'Event', icon: PartyPopper, description: 'Party or social gathering' },
+    { value: 'favor-support', label: 'Support', icon: HeartHandshake, description: 'Help or emotional support' },
+    { value: 'celebration', label: 'Celebration', icon: Star, description: 'Special occasion' },
   ];
 
 interface PlanWizardProps {
