@@ -929,7 +929,7 @@ export async function generateSuggestion(input: SuggestionInput): Promise<Sugges
     }
   }
 
-  // PRIORITY 7: Maintenance
+  // PRIORITY 7: Maintenance (expanded for healthy networks)
   const daysSinceInteraction = lastInteractionDate
     ? (Date.now() - lastInteractionDate.getTime()) / 86400000
     : 999;
@@ -943,7 +943,9 @@ export async function generateSuggestion(input: SuggestionInput): Promise<Sugges
       Community: 21,
     }[friend.dunbarTier];
 
-  if (currentScore >= 40 && currentScore <= 70 && maintenanceThreshold && daysSinceInteraction > maintenanceThreshold) {
+  // Expanded score range: 40-85 (was 40-70) to include healthier relationships
+  // This ensures power users with mostly green networks still get maintenance suggestions
+  if (currentScore >= 40 && currentScore <= 85 && maintenanceThreshold && daysSinceInteraction > maintenanceThreshold) {
     const contextualAction = getContextualSuggestion(recentInteractions, friend.archetype, friend.dunbarTier, pattern);
 
     // Create pattern-aware title
@@ -971,9 +973,14 @@ export async function generateSuggestion(input: SuggestionInput): Promise<Sugges
     };
   }
 
-  // PRIORITY 8: Deepen (thriving)
-  if (currentScore > 85 && friend.dunbarTier !== 'Community') {
+  // PRIORITY 8: Deepen (thriving) - now includes Community tier with high scores
+  if (currentScore > 85) {
     const contextualAction = getContextualSuggestion(recentInteractions, friend.archetype, friend.dunbarTier, pattern);
+
+    // Different messaging for Community tier
+    const subtitle = friend.dunbarTier === 'Community'
+      ? `This community connection is flourishing! ${contextualAction}`
+      : `Celebrate! ${contextualAction}`;
 
     return {
       id: `deepen-${friend.id}`,
@@ -982,13 +989,38 @@ export async function generateSuggestion(input: SuggestionInput): Promise<Sugges
       urgency: 'low',
       category: 'celebrate',
       title: getArchetypeThrivingTitle(friend.archetype, friend.name),
-      subtitle: `Celebrate! ${contextualAction}`,
+      subtitle,
       actionLabel: 'Plan',
       icon: 'Sparkles',
       action: { type: 'plan' },
       dismissible: true,
       createdAt: new Date(),
       type: 'celebrate',
+    };
+  }
+
+  // PRIORITY 9: Community drift (attention needed for community members)
+  // This catches Community tier friends who are drifting but not yet critical
+  if (friend.dunbarTier === 'Community' && currentScore < 40 && currentScore >= 20) {
+    const contextualAction = getContextualSuggestion(recentInteractions, friend.archetype, friend.dunbarTier, pattern);
+
+    return {
+      id: `community-drift-${friend.id}`,
+      friendId: friend.id,
+      friendName: friend.name,
+      urgency: 'low',
+      category: 'community-checkin',
+      title: `Reconnect with ${friend.name}`,
+      subtitle: `This community connection could use some attention. ${contextualAction}`,
+      actionLabel: 'Reach Out',
+      icon: 'Users',
+      action: {
+        type: 'log',
+        prefilledCategory: 'text-call',
+      },
+      dismissible: true,
+      createdAt: new Date(),
+      type: 'connect',
     };
   }
 

@@ -31,7 +31,10 @@ export type SuggestionCategory =
     | 'expansion'       // New connections (blooming only)
     | 'daily-reflect'   // Guaranteed daily reflection prompt
     | 'gentle-nudge'    // Low-pressure reach-out suggestion
-    | 'wildcard';       // Spontaneous, serendipitous ideas
+    | 'wildcard'        // Spontaneous, serendipitous ideas
+    | 'community-checkin' // Check in on community tier members
+    | 'variety'         // Encourage connecting with different people
+    | 'set-intention';  // Prompt to set an intention for a relationship
 
 /**
  * Effort level for interaction types
@@ -59,12 +62,16 @@ export interface SeasonSuggestionConfig {
  */
 const SEASON_SUGGESTION_CONFIGS: Record<SocialSeason, SeasonSuggestionConfig> = {
     resting: {
-        maxDaily: 2,
+        maxDaily: 3, // Increased from 2 to ensure users always have options
         allowedCategories: [
             'critical-drift',
             'life-event',       // Always include life events
             'first-weave',      // Still encourage first contact with new friends
             'daily-reflect',    // Gentle reflection prompts always available
+            'gentle-nudge',     // Low-pressure check-ins are appropriate during rest
+            'wildcard',         // Light spontaneous ideas can still be shown
+            'maintain',         // Allow maintenance for slightly overdue friends
+            'community-checkin', // Check on community members
         ],
         preferredEffort: 'low',
         bypassCategories: ['life-event'], // Birthdays, anniversaries always shown
@@ -87,6 +94,9 @@ const SEASON_SUGGESTION_CONFIGS: Record<SocialSeason, SeasonSuggestionConfig> = 
             'daily-reflect',    // Guaranteed daily reflection
             'gentle-nudge',     // Low-pressure reach-out
             'wildcard',         // Spontaneous ideas
+            'community-checkin', // Check on community members
+            'variety',          // Encourage connecting with different people
+            'set-intention',    // Prompt to set intentions
         ],
         preferredEffort: 'medium',
         bypassCategories: ['life-event'],
@@ -110,6 +120,9 @@ const SEASON_SUGGESTION_CONFIGS: Record<SocialSeason, SeasonSuggestionConfig> = 
             'daily-reflect',    // Guaranteed daily reflection
             'gentle-nudge',     // Low-pressure reach-out
             'wildcard',         // Spontaneous ideas
+            'community-checkin', // Check on community members
+            'variety',          // Encourage connecting with different people
+            'set-intention',    // Prompt to set intentions
         ],
         preferredEffort: 'high',
         bypassCategories: ['life-event'],

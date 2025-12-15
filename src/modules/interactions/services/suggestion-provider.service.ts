@@ -96,6 +96,9 @@ export function selectDiverseSuggestions(
         dailyReflect: workingSuggestions.filter(s => s.category === 'daily-reflect'),
         gentleNudge: workingSuggestions.filter(s => s.category === 'gentle-nudge'),
         wildcard: workingSuggestions.filter(s => s.category === 'wildcard'),
+        communityCheckin: workingSuggestions.filter(s => s.category === 'community-checkin'),
+        variety: workingSuggestions.filter(s => s.category === 'variety'),
+        setIntention: workingSuggestions.filter(s => s.category === 'set-intention'),
     };
 
     const selected: Suggestion[] = [];
@@ -108,10 +111,10 @@ export function selectDiverseSuggestions(
     }
 
     // 2. Build a diverse set from different buckets
-    // Priority order: reflect -> lifeEvent -> drift -> portfolio -> deepen -> maintain -> insight -> guaranteed types
+    // Priority order: reflect -> lifeEvent -> drift -> portfolio -> deepen -> maintain -> insight -> guaranteed types -> new categories
     const bucketOrder: Array<keyof typeof buckets> = [
         'reflect', 'lifeEvent', 'drift', 'portfolio', 'deepen', 'maintain', 'insight',
-        'dailyReflect', 'gentleNudge', 'wildcard'
+        'dailyReflect', 'gentleNudge', 'wildcard', 'communityCheckin', 'variety', 'setIntention'
     ];
 
     // Round-robin selection: pick best from each bucket
