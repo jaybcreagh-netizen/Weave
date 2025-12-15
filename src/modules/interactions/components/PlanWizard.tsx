@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, Modal, ScrollView, SafeAreaView } from 'react-native';
+import { View, Text, TouchableOpacity, Modal, ScrollView, SafeAreaView, Alert } from 'react-native';
 import Animated, { SlideInLeft, SlideInRight, SlideOutLeft, SlideOutRight } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
 import { X, ArrowLeft } from 'lucide-react-native';
@@ -281,23 +281,32 @@ export function PlanWizard({ visible, onClose, initialFriend, prefillData, repla
           const friendNames = selectedFriends.map(f => f.name).join(', ');
           const eventTitle = formData.title?.trim() || `${categoryMeta?.label || formData.category} with ${friendNames}`;
 
-          const calendarEventId = await CalendarService.createWeaveCalendarEvent({
+          const result = await CalendarService.createWeaveCalendarEventWithResult({
             title: eventTitle,
-            friendNames: friendNames, // Pass all friend names
+            friendNames: friendNames,
             category: categoryMeta?.label || formData.category,
-            date: finalDate, // Use the merged date with time
+            date: finalDate,
             location: formData.location?.trim(),
             notes: formData.notes?.trim(),
           });
 
-          // If calendar event created successfully, update the interaction with the event ID
-          if (calendarEventId && newPlan.id) {
+          if (result.success && result.eventId && newPlan.id) {
+            // Calendar event created successfully - update the interaction with the event ID
             await database.write(async () => {
               const interaction = await database.get<Interaction>('interactions').find(newPlan.id);
               await interaction.update(i => {
-                i.calendarEventId = calendarEventId;
+                i.calendarEventId = result.eventId!;
               });
             });
+          } else if (!result.success && result.error !== 'disabled') {
+            // Show user feedback for calendar failures (but not if just disabled)
+            setTimeout(() => {
+              Alert.alert(
+                'Calendar Sync Issue',
+                result.message || 'Could not add event to your calendar. The plan was still created.',
+                [{ text: 'OK' }]
+              );
+            }, 500);
           }
         }
       } catch (calendarError) {

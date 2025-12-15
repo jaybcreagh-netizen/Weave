@@ -80,8 +80,9 @@ export const CalendarSettings = () => {
     const handleSelectCalendar = async () => {
         if (availableCalendars.length === 0) return;
 
+        // Show calendar name with account/source for clarity
         const buttons = availableCalendars.map((cal) => ({
-            text: cal.title,
+            text: `${cal.title} (${cal.source?.name || 'Local'})`,
             onPress: async () => {
                 const settings = await CalendarService.getCalendarSettings();
                 await CalendarService.saveCalendarSettings({ ...settings, calendarId: cal.id });
@@ -91,7 +92,19 @@ export const CalendarSettings = () => {
 
         buttons.push({ text: 'Cancel', onPress: () => { }, style: 'cancel' } as any);
 
-        Alert.alert('Select Calendar', 'Choose which calendar to use for planned weaves', buttons);
+        Alert.alert(
+            'Select Calendar',
+            'Choose which calendar to use for planned weaves. Make sure to select your synced calendar (e.g., Gmail) rather than a local-only calendar.',
+            buttons
+        );
+    };
+
+    // Get the selected calendar with its source info
+    const getSelectedCalendarInfo = () => {
+        const selectedCal = availableCalendars.find((cal) => cal.id === calendarSettings.calendarId);
+        if (!selectedCal) return 'Default';
+        const sourceName = selectedCal.source?.name || 'Local';
+        return `${selectedCal.title} (${sourceName})`;
     };
 
     const handleToggleTwoWaySync = async (enabled: boolean) => {
@@ -131,10 +144,10 @@ export const CalendarSettings = () => {
                     className="flex-row items-center justify-between pl-13"
                     onPress={handleSelectCalendar}
                 >
-                    <View>
+                    <View className="flex-1 mr-2">
                         <Text className="text-sm font-inter-medium" style={{ color: colors.foreground }}>Calendar</Text>
                         <Text className="text-xs font-inter-regular" style={{ color: colors['muted-foreground'] }}>
-                            {availableCalendars.find((cal) => cal.id === calendarSettings.calendarId)?.title || 'Default'}
+                            {getSelectedCalendarInfo()}
                         </Text>
                     </View>
                     <ChevronRight color={colors['muted-foreground']} size={20} />
