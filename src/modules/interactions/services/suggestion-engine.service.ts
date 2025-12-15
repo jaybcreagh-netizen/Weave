@@ -105,6 +105,11 @@ const COOLDOWN_DAYS = {
   'deepen': 7,
   'reflect': 2,
   'planned-weave': 1,
+  'reciprocity-imbalance': 7, // Weekly check on reciprocity
+  'reciprocity-invest': 5, // Check more often if user not investing
+  'tier-mismatch': 14, // Bi-weekly tier review suggestions
+  'effectiveness-insight': 14, // Bi-weekly effectiveness reminders
+  'community-drift': 5, // Check community connections more frequently
 };
 
 // Archetype-specific celebration suggestions
@@ -390,14 +395,38 @@ function getDaysText(days: number | undefined): string {
 }
 
 /**
+ * Gets an effectiveness hint for the contextual suggestion if we have strong data
+ */
+function getEffectivenessHint(friend: HydratedFriend): string | null {
+  const friendModel = friend as unknown as FriendModel;
+  if ((friendModel.outcomeCount || 0) < 5) return null;
+
+  const effectiveness = getAllLearnedEffectiveness(friendModel);
+  const entries = Object.entries(effectiveness)
+    .filter(([_, ratio]) => ratio >= 1.25) // 25%+ better than average
+    .sort(([, a], [, b]) => b - a);
+
+  if (entries.length > 0) {
+    const [bestCategory, ratio] = entries[0];
+    const label = getCategoryLabel(bestCategory);
+    const percentBetter = Math.round((ratio - 1) * 100);
+    return `(${label}s work ${percentBetter}% better)`;
+  }
+
+  return null;
+}
+
+/**
  * Analyzes past interactions to suggest specific, personalized activities
  * based on what this friendship has done before.
+ * Now includes optional effectiveness hints when data is available.
  */
 function getContextualSuggestion(
   recentInteractions: SuggestionInput['recentInteractions'],
   archetype: string,
   tier: string,
-  pattern?: FriendshipPattern
+  pattern?: FriendshipPattern,
+  friend?: HydratedFriend
 ): string {
   // Use learned pattern preferences if available
   if (pattern && pattern.preferredCategories.length > 0) {
@@ -508,6 +537,8 @@ function getContextualSuggestion(
   }
 
   // Fallback to archetype + tier appropriate suggestions
+  let baseSuggestion: string;
+
   if (tier === 'InnerCircle') {
     const innerCircleSuggestions = [
       "Set aside quality time",
@@ -515,7 +546,7 @@ function getContextualSuggestion(
       "Have a proper catch-up",
       "Make time for connection",
     ];
-    return innerCircleSuggestions[Math.floor(Math.random() * innerCircleSuggestions.length)];
+    baseSuggestion = innerCircleSuggestions[Math.floor(Math.random() * innerCircleSuggestions.length)];
   } else if (tier === 'CloseFriends') {
     const closeFriendSuggestions = [
       "Send a thoughtful text",
@@ -523,10 +554,20 @@ function getContextualSuggestion(
       "Grab coffee or a bite",
       "Check in with them",
     ];
-    return closeFriendSuggestions[Math.floor(Math.random() * closeFriendSuggestions.length)];
+    baseSuggestion = closeFriendSuggestions[Math.floor(Math.random() * closeFriendSuggestions.length)];
   } else {
-    return "Send a friendly message";
+    baseSuggestion = "Send a friendly message";
   }
+
+  // Add effectiveness hint if we have strong data
+  if (friend) {
+    const hint = getEffectivenessHint(friend);
+    if (hint) {
+      return `${baseSuggestion} ${hint}`;
+    }
+  }
+
+  return baseSuggestion;
 }
 
 function checkPlannedWeaveSuggestion(
@@ -804,7 +845,7 @@ export async function generateSuggestion(input: SuggestionInput): Promise<Sugges
 
   // PRIORITY 3: Critical drift (Inner Circle emergency)
   if (friend.dunbarTier === 'InnerCircle' && currentScore < 30) {
-    const contextualAction = getContextualSuggestion(recentInteractions, friend.archetype, friend.dunbarTier, pattern);
+    const contextualAction = getContextualSuggestion(recentInteractions, friend.archetype, friend.dunbarTier, pattern, friend);
 
     // Add pattern-aware context if available
     const patternContext = isPatternReliable(pattern)
@@ -838,7 +879,7 @@ export async function generateSuggestion(input: SuggestionInput): Promise<Sugges
     (friend.dunbarTier === 'CloseFriends' && currentScore < 35);
 
   if (isHighDrift) {
-    const contextualAction = getContextualSuggestion(recentInteractions, friend.archetype, friend.dunbarTier, pattern);
+    const contextualAction = getContextualSuggestion(recentInteractions, friend.archetype, friend.dunbarTier, pattern, friend);
 
     // Add pattern-aware context
     const patternContext = isPatternReliable(pattern)
@@ -906,7 +947,7 @@ export async function generateSuggestion(input: SuggestionInput): Promise<Sugges
       : 999;
 
     if (daysSinceLast <= 7) {
-      const contextualAction = getContextualSuggestion(recentInteractions, friend.archetype, friend.dunbarTier, pattern);
+      const contextualAction = getContextualSuggestion(recentInteractions, friend.archetype, friend.dunbarTier, pattern, friend);
 
       return {
         id: `momentum-${friend.id}`,
@@ -946,7 +987,7 @@ export async function generateSuggestion(input: SuggestionInput): Promise<Sugges
   // Expanded score range: 40-85 (was 40-70) to include healthier relationships
   // This ensures power users with mostly green networks still get maintenance suggestions
   if (currentScore >= 40 && currentScore <= 85 && maintenanceThreshold && daysSinceInteraction > maintenanceThreshold) {
-    const contextualAction = getContextualSuggestion(recentInteractions, friend.archetype, friend.dunbarTier, pattern);
+    const contextualAction = getContextualSuggestion(recentInteractions, friend.archetype, friend.dunbarTier, pattern, friend);
 
     // Create pattern-aware title
     const title = isPatternReliable(pattern)
@@ -975,7 +1016,7 @@ export async function generateSuggestion(input: SuggestionInput): Promise<Sugges
 
   // PRIORITY 8: Deepen (thriving) - now includes Community tier with high scores
   if (currentScore > 85) {
-    const contextualAction = getContextualSuggestion(recentInteractions, friend.archetype, friend.dunbarTier, pattern);
+    const contextualAction = getContextualSuggestion(recentInteractions, friend.archetype, friend.dunbarTier, pattern, friend);
 
     // Different messaging for Community tier
     const subtitle = friend.dunbarTier === 'Community'
@@ -1002,7 +1043,7 @@ export async function generateSuggestion(input: SuggestionInput): Promise<Sugges
   // PRIORITY 9: Community drift (attention needed for community members)
   // This catches Community tier friends who are drifting but not yet critical
   if (friend.dunbarTier === 'Community' && currentScore < 40 && currentScore >= 20) {
-    const contextualAction = getContextualSuggestion(recentInteractions, friend.archetype, friend.dunbarTier, pattern);
+    const contextualAction = getContextualSuggestion(recentInteractions, friend.archetype, friend.dunbarTier, pattern, friend);
 
     return {
       id: `community-drift-${friend.id}`,
@@ -1022,6 +1063,143 @@ export async function generateSuggestion(input: SuggestionInput): Promise<Sugges
       createdAt: new Date(),
       type: 'connect',
     };
+  }
+
+  // Cast friend to FriendModel to access additional tracked fields
+  const friendModel = friend as unknown as FriendModel;
+
+  // PRIORITY 10: Reciprocity imbalance (user initiating too much)
+  // Surface when user has been driving the relationship consistently
+  if (friendModel.initiationRatio !== undefined && friendModel.initiationRatio > 0.75) {
+    const totalInteractions = (friendModel.totalUserInitiations || 0) + (friendModel.totalFriendInitiations || 0);
+
+    // Only show if we have enough data points (5+ interactions)
+    if (totalInteractions >= 5) {
+      const consecutive = friendModel.consecutiveUserInitiations || 0;
+
+      // More urgent if many consecutive user initiations
+      const urgency: 'low' | 'medium' = consecutive >= 4 ? 'medium' : 'low';
+
+      const subtitle = consecutive >= 4
+        ? `You've initiated ${consecutive} times in a row. Give ${friend.name} space to reach out.`
+        : `You've driven ${Math.round(friendModel.initiationRatio * 100)}% of interactions. Let them initiate next.`;
+
+      return {
+        id: `reciprocity-imbalance-${friend.id}`,
+        friendId: friend.id,
+        friendName: friend.name,
+        urgency,
+        category: 'insight',
+        title: `Rebalance with ${friend.name}`,
+        subtitle,
+        actionLabel: 'Pause & Wait',
+        icon: 'Scale',
+        action: { type: 'reflect' },
+        dismissible: true,
+        createdAt: new Date(),
+        type: 'reflect',
+      };
+    }
+  }
+
+  // PRIORITY 11: Reciprocity imbalance (friend initiating too much - user not investing)
+  if (friendModel.initiationRatio !== undefined && friendModel.initiationRatio < 0.25) {
+    const totalInteractions = (friendModel.totalUserInitiations || 0) + (friendModel.totalFriendInitiations || 0);
+
+    if (totalInteractions >= 5 && friend.dunbarTier !== 'Community') {
+      const contextualAction = getContextualSuggestion(recentInteractions, friend.archetype, friend.dunbarTier, pattern, friend);
+
+      return {
+        id: `reciprocity-invest-${friend.id}`,
+        friendId: friend.id,
+        friendName: friend.name,
+        urgency: 'medium',
+        category: 'insight',
+        title: `Invest more in ${friend.name}`,
+        subtitle: `${friend.name} usually reaches out first. Show you value them. ${contextualAction}`,
+        actionLabel: 'Reach Out',
+        icon: 'Heart',
+        action: {
+          type: 'log',
+          prefilledCategory: getSmartCategory(friend).category,
+        },
+        dismissible: true,
+        createdAt: new Date(),
+        type: 'connect',
+      };
+    }
+  }
+
+  // PRIORITY 12: Tier fit mismatch suggestion
+  // Surface when AI detects friend's patterns don't match their current tier
+  if (friendModel.tierFitScore !== undefined &&
+      friendModel.tierFitScore < 0.4 &&
+      friendModel.suggestedTier &&
+      friendModel.suggestedTier !== friend.dunbarTier &&
+      !friendModel.tierSuggestionDismissedAt) {
+
+    const currentTierLabel = friend.dunbarTier === 'InnerCircle' ? 'Inner Circle' :
+                             friend.dunbarTier === 'CloseFriends' ? 'Close Friends' : 'Community';
+    const suggestedTierLabel = friendModel.suggestedTier === 'InnerCircle' ? 'Inner Circle' :
+                               friendModel.suggestedTier === 'CloseFriends' ? 'Close Friends' : 'Community';
+
+    // Different messaging based on whether it's a promotion or demotion
+    const isPromotion = (friend.dunbarTier === 'Community' && friendModel.suggestedTier !== 'Community') ||
+                        (friend.dunbarTier === 'CloseFriends' && friendModel.suggestedTier === 'InnerCircle');
+
+    const subtitle = isPromotion
+      ? `Your natural rhythm with ${friend.name} matches ${suggestedTierLabel}. Ready to promote?`
+      : `Your interaction pattern with ${friend.name} suggests ${suggestedTierLabel} might fit better.`;
+
+    return {
+      id: `tier-mismatch-${friend.id}`,
+      friendId: friend.id,
+      friendName: friend.name,
+      urgency: 'low',
+      category: 'insight',
+      title: `Tier check: ${friend.name}`,
+      subtitle,
+      actionLabel: 'Review Tier',
+      icon: 'Layers',
+      action: { type: 'tier-review' as any },
+      dismissible: true,
+      createdAt: new Date(),
+      type: 'reflect',
+    };
+  }
+
+  // PRIORITY 13: Effectiveness insight (when we know what works best)
+  // Surface periodically to remind users what interaction types work well
+  const effectivenessData = getSmartCategory(friend, 5);
+  if (effectivenessData.isLearned && currentScore >= 50 && currentScore <= 80) {
+    const effectiveness = getAllLearnedEffectiveness(friendModel);
+    const bestCategory = effectivenessData.category;
+    const bestRatio = effectiveness[bestCategory] || 1;
+
+    // Only show if the effectiveness is notably high (30%+ better)
+    if (bestRatio >= 1.3) {
+      const percentBetter = Math.round((bestRatio - 1) * 100);
+      const categoryLabel = getCategoryLabel(bestCategory);
+
+      return {
+        id: `effectiveness-insight-${friend.id}`,
+        friendId: friend.id,
+        friendName: friend.name,
+        urgency: 'low',
+        category: 'insight',
+        title: `What works with ${friend.name}`,
+        subtitle: `${categoryLabel.charAt(0).toUpperCase() + categoryLabel.slice(1)}s are ${percentBetter}% more effective with ${friend.name}. Try scheduling one!`,
+        actionLabel: 'Plan',
+        icon: 'TrendingUp',
+        action: {
+          type: 'plan',
+          prefilledCategory: bestCategory,
+        },
+        dismissible: true,
+        createdAt: new Date(),
+        type: 'connect',
+      };
+    }
   }
 
   return null;
@@ -1130,6 +1308,12 @@ export function getSuggestionCooldownDays(suggestionId: string): number {
   if (suggestionId.startsWith('past-plan') || suggestionId.startsWith('upcoming-plan')) return COOLDOWN_DAYS['planned-weave'];
   if (suggestionId.startsWith('portfolio')) return 7; // Portfolio insights weekly
   if (suggestionId.startsWith('proactive-')) return 2; // Proactive predictions refresh often
+  // New data-driven suggestion types
+  if (suggestionId.startsWith('reciprocity-imbalance')) return COOLDOWN_DAYS['reciprocity-imbalance'];
+  if (suggestionId.startsWith('reciprocity-invest')) return COOLDOWN_DAYS['reciprocity-invest'];
+  if (suggestionId.startsWith('tier-mismatch')) return COOLDOWN_DAYS['tier-mismatch'];
+  if (suggestionId.startsWith('effectiveness-insight')) return COOLDOWN_DAYS['effectiveness-insight'];
+  if (suggestionId.startsWith('community-drift')) return COOLDOWN_DAYS['community-drift'];
   return 3; // Default
 }
 
