@@ -201,20 +201,49 @@ class NotificationOrchestratorService {
      */
     async runBackgroundChecks(): Promise<void> {
         Logger.info('[NotificationOrchestrator] Running background checks');
+
+        // Track overall success/failure but try to execute as much as possible
+        const errors: any[] = [];
+
         try {
             // Re-evaluate smart suggestions (calculate new ones if needed)
-            await SmartSuggestionsChannel.evaluateAndSchedule();
+            try {
+                await SmartSuggestionsChannel.evaluateAndSchedule();
+            } catch (err) {
+                Logger.error('[NotificationOrchestrator] Background SmartSuggestions failed:', err);
+                errors.push(err);
+            }
 
             // Ensure weekly reflection is still compliant
-            if (WeeklyReflectionChannel.ensureScheduled) {
-                await WeeklyReflectionChannel.ensureScheduled();
+            try {
+                if (WeeklyReflectionChannel.ensureScheduled) {
+                    await WeeklyReflectionChannel.ensureScheduled();
+                }
+            } catch (err) {
+                Logger.error('[NotificationOrchestrator] Background WeeklyReflection failed:', err);
+                errors.push(err);
             }
 
             // Ensure evening digest
-            await EveningDigestChannel.schedule();
+            try {
+                await EveningDigestChannel.schedule();
+            } catch (err) {
+                Logger.error('[NotificationOrchestrator] Background EveningDigest failed:', err);
+                errors.push(err);
+            }
 
             // Mark check time
             this.lastCheckTime = Date.now();
+
+            if (errors.length > 0) {
+                Logger.warn(`[NotificationOrchestrator] Background checks completed with ${errors.length} errors`);
+                // We still don't throw heavily here so the task manager counts it as "NewData" 
+                // essentially, unless it was catastrophic. 
+                // But for observability, we might want to throw if EVERYTHING failed.
+                if (errors.length >= 3) {
+                    throw new Error('All background sub-tasks failed');
+                }
+            }
         } catch (error) {
             Logger.error('[NotificationOrchestrator] Error during background checks:', error);
             throw error; // Let task manager know it failed

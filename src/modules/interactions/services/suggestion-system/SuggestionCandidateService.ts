@@ -21,44 +21,70 @@ export const SuggestionCandidateService = {
     getCandidates: async (limit: number = 50): Promise<string[]> => {
         const candidateIds = new Set<string>();
 
-        // 1. Critical/High Priority: Friends with upcoming plans or specific dates
-        // We actually might want to rely on the general generator for this, 
-        // BUT to optimize, we should ensure these friends are definitely included.
-        // For now, let's focus on the biggest volume driver: DRIFT and MAINTENANCE.
+        // Quota Configuration
+        // user requested: 20 drifting, 15 active, 15 reserved for stale
+        const DRIFT_LIMIT = 20;
+        const ACTIVE_LIMIT = 15;
+        // Stale limit is implicitly "the rest", but we must ensure we reserve space for it.
+        // We do this by strictly capping the others.
 
-        // 2. Drifting Friends (Low Score)
-        // Fetch up to limit/2 friends who are drifting (score < 50)
+        // 1. Drifting Friends (Low Score)
+        // Strict cap at DRIFT_LIMIT
         const driftingFriends = await database.get<FriendModel>('friends')
             .query(
                 Q.where('weave_score', Q.lt(50)),
                 Q.sortBy('weave_score', Q.asc), // Lowest score first
-                Q.take(Math.floor(limit / 2))
+                Q.take(DRIFT_LIMIT)
             ).fetch();
 
         driftingFriends.forEach(f => candidateIds.add(f.id));
 
-        // 3. Recent Interactions (Active Friends) - Query LINKS directly
-        // This is more robust than relying on Friend.last_updated
+        // 2. Recent Interactions (Active Friends)
+        // Strict cap at ACTIVE_LIMIT, but we must be careful with duplicates from step 1.
+        // We fetch more to account for overlap, but stop adding once we hit the quota or run out.
         const oneWeekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
         const recentInteractionFriends = await database.get<InteractionFriend>('interaction_friends')
             .query(
                 Q.on('interactions', 'interaction_date', Q.gte(oneWeekAgo)),
-                Q.take(limit) // Take more to account for duplicates, we dedupe below
+                Q.take(100) // Fetch plenty to filter through
             ).fetch();
 
-        recentInteractionFriends.forEach(link => candidateIds.add(link.friendId));
+        let activeAddedCount = 0;
+        for (const link of recentInteractionFriends) {
+            if (activeAddedCount >= ACTIVE_LIMIT) break;
 
-        // 4. Fill the rest with random/general friends ensuring we cycle through everyone eventually
-        // Since random sort is hard in WM, we might just query by 'updated_at' asc (stale records)
+            if (!candidateIds.has(link.friendId)) {
+                candidateIds.add(link.friendId);
+                activeAddedCount++;
+            }
+        }
+
+        // 3. Fill the rest with Stale/Middle friends
+        // This effectively reserves (limit - current_count) slots.
+        // If drift used 20 and active used 15, we have 15 left for Stale.
+        // If drift used 5 and active used 15, we have 30 left for Stale.
+        // This guarantees Stale gets exposure.
         if (candidateIds.size < limit) {
             const remainingSlots = limit - candidateIds.size;
+
+            // We fetch significantly more than needed because the "Stale" query might return users
+            // we ALREADY picked up in the Active/Drifting steps (if they haven't been updated recently).
+            // This ensures we dig deep enough to find actual NEW candidates.
             const staleFriends = await database.get<FriendModel>('friends')
                 .query(
                     Q.sortBy('last_updated', Q.asc), // Least recently updated/touched
-                    Q.take(remainingSlots)
+                    Q.take(Math.max(remainingSlots * 3, 50))
                 ).fetch();
 
-            staleFriends.forEach(f => candidateIds.add(f.id));
+            let staleAdded = 0;
+            for (const f of staleFriends) {
+                if (staleAdded >= remainingSlots) break;
+
+                if (!candidateIds.has(f.id)) {
+                    candidateIds.add(f.id);
+                    staleAdded++;
+                }
+            }
         }
 
         return Array.from(candidateIds);

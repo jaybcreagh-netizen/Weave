@@ -15,16 +15,17 @@ export const BACKGROUND_NOTIFICATION_TASK = 'BACKGROUND_NOTIFICATION_TASK';
 // 1. Define the task
 TaskManager.defineTask(BACKGROUND_NOTIFICATION_TASK, async () => {
     const now = new Date();
-    Logger.info(`[BackgroundTask] Running background task at ${now.toISOString()}`);
+    Logger.info(`[BackgroundTask] 🚀 Starting background task at ${now.toISOString()}`);
 
     try {
         // Run orchestrator background checks
         await NotificationOrchestrator.runBackgroundChecks();
 
+        Logger.info(`[BackgroundTask] ✅ Background task completed successfully at ${new Date().toISOString()}`);
         // Return success
         return BackgroundFetch.BackgroundFetchResult.NewData;
     } catch (error) {
-        Logger.error('[BackgroundTask] Error running background task:', error);
+        Logger.error('[BackgroundTask] ❌ Error running background task:', error);
         return BackgroundFetch.BackgroundFetchResult.Failed;
     }
 });
