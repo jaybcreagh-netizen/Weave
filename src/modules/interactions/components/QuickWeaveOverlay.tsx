@@ -29,7 +29,7 @@ import {
   Plane
 } from 'lucide-react-native';
 
-import { useUIStore } from '@/shared/stores/uiStore';
+import { useQuickWeaveStore } from '../store/quick-weave.store';
 import { useCardGesture } from '@/shared/context/CardGestureContext';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { database } from '@/db';
@@ -75,26 +75,34 @@ const DEFAULT_ACTIVITIES: InteractionCategory[] = [
 
 export function QuickWeaveOverlay() {
   const {
-    quickWeaveFriendId,
-    quickWeaveCenterPoint,
-    quickWeaveActivities,
-    isQuickWeaveClosing,
-    _finishClosingQuickWeave,
-  } = useUIStore();
-  const [allFriends, setAllFriends] = React.useState<FriendModel[]>([]);
-  const friend = allFriends.find(f => f.id === quickWeaveFriendId);
+    friendId: quickWeaveFriendId,
+    centerPoint: quickWeaveCenterPoint,
+    activities: quickWeaveActivities,
+    isClosing: isQuickWeaveClosing,
+    finishClosing: _finishClosingQuickWeave,
+  } = useQuickWeaveStore();
+  const [friend, setFriend] = React.useState<FriendModel | null>(null);
   const { dragX, dragY, highlightedIndex } = useCardGesture();
   const { colors, isDarkMode } = useTheme();
 
   useEffect(() => {
-    const subscription = database
-      .get<FriendModel>('friends')
-      .query(Q.sortBy('created_at', Q.desc))
-      .observe()
-      .subscribe(setAllFriends);
+    if (!quickWeaveFriendId) {
+      setFriend(null);
+      return;
+    }
 
-    return () => subscription.unsubscribe();
-  }, []);
+    // Efficiently fetch only the required friend
+    const fetchFriend = async () => {
+      try {
+        const found = await database.get<FriendModel>('friends').find(quickWeaveFriendId);
+        setFriend(found);
+      } catch (error) {
+        console.error('Error fetching friend for Quick Weave:', error);
+      }
+    };
+
+    fetchFriend();
+  }, [quickWeaveFriendId]);
 
   const overlayOpacity = useSharedValue(0);
   const menuScale = useSharedValue(0.3);
@@ -103,8 +111,8 @@ export function QuickWeaveOverlay() {
   // Entrance Animation - Fast and snappy
   useEffect(() => {
     if (quickWeaveFriendId) {
-      overlayOpacity.value = withTiming(1, { duration: 200 });
-      menuScale.value = withSpring(1, { damping: 12, stiffness: 100 });
+      overlayOpacity.value = withTiming(1, { duration: 100 });
+      menuScale.value = withSpring(1, { damping: 25, stiffness: 300 });
     } else if (!isQuickWeaveClosing) {
       overlayOpacity.value = 0;
       menuScale.value = 0.8;

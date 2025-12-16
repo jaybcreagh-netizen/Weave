@@ -16,24 +16,24 @@ import { NotificationSettings } from './settings/NotificationSettings';
 // Modals
 import { TrophyCabinetModal } from '@/modules/gamification';
 import { ArchetypeLibrary } from '@/modules/intelligence';
-import { FriendManagementModal } from '@/modules/relationships';
 import { GroupListModal } from '@/modules/groups';
 
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
   onOpenBatteryCheckIn?: () => void;
+  onOpenManageFriends?: () => void;
 }
 
 export function SettingsModal({
   isOpen,
   onClose,
   onOpenBatteryCheckIn,
+  onOpenManageFriends,
 }: SettingsModalProps) {
   const { colors } = useTheme();
   const [showTrophyCabinet, setShowTrophyCabinet] = useState(false);
   const [showArchetypeLibrary, setShowArchetypeLibrary] = useState(false);
-  const [showFriendManagement, setShowFriendManagement] = useState(false);
   const [showGroupList, setShowGroupList] = useState(false);
 
   if (!isOpen) return null;
@@ -68,7 +68,7 @@ export function SettingsModal({
             icon={Users}
             title="Manage Friends"
             subtitle="Batch remove friends"
-            onPress={() => setShowFriendManagement(true)}
+            onPress={() => onOpenManageFriends?.()}
           />
 
           <View className="border-t border-border" style={{ borderColor: colors.border }} />
@@ -150,11 +150,6 @@ export function SettingsModal({
       <ArchetypeLibrary
         isVisible={showArchetypeLibrary}
         onClose={() => setShowArchetypeLibrary(false)}
-      />
-
-      <FriendManagementModal
-        visible={showFriendManagement}
-        onClose={() => setShowFriendManagement(false)}
       />
 
       <GroupListModal

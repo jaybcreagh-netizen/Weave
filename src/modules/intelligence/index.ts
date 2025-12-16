@@ -8,13 +8,14 @@
  */
 
 // Services
-export { processWeaveScoring, calculateCurrentScore, calculateWeightedNetworkHealth, recalculateScoreOnEdit, logNetworkHealth } from './services/orchestrator.service';
+export { processWeaveScoring, calculateCurrentScore, calculateWeightedNetworkHealth, recalculateScoreOnEdit, recalculateScoreOnDelete, logNetworkHealth } from './services/orchestrator.service';
 export * as orchestrator from './services/orchestrator.service';
 export { calculateInteractionQuality } from './services/quality.service';
 export * from './services/deepening.service';
 export * from './services/decay.service';
 export * from './services/season-aware-streak.service';
 export * from './services/focus-generator';
+export * from './services/social-season.service';
 
 // Listeners
 export * from './listeners/intelligence.listener';

@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View } from 'react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
 
 interface ProgressBarProps {
@@ -13,37 +13,29 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
     color,
     height = 6,
 }) => {
-    const { tokens, radius } = useTheme();
+    const { tokens } = useTheme();
 
     const clampedProgress = Math.min(100, Math.max(0, Number.isFinite(progress) ? progress : 0));
     const fillColor = color || tokens.primary;
 
     return (
-        <View style={[
-            styles.track,
-            {
+        <View
+            className="w-full overflow-hidden"
+            style={{
                 height,
                 borderRadius: height / 2,
                 backgroundColor: tokens.borderSubtle,
-            }
-        ]}>
-            <View style={[
-                styles.fill,
-                {
+            }}
+        >
+            <View
+                style={{
                     width: `${clampedProgress}%`,
                     height,
                     borderRadius: height / 2,
                     backgroundColor: fillColor,
-                }
-            ]} />
+                }}
+            />
         </View>
     );
 };
 
-const styles = StyleSheet.create({
-    track: {
-        width: '100%',
-        overflow: 'hidden',
-    },
-    fill: {},
-});

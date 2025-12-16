@@ -31,3 +31,4 @@ export { IntentionFormModal } from './components/IntentionFormModal';
 export { MicroReflectionSheet } from './components/MicroReflectionSheet';
 export { WeeklyReflectionModal } from './components/WeeklyReflection/WeeklyReflectionModal';
 export { WeeklyReflectionDetailModal } from './components/WeeklyReflection/WeeklyReflectionDetailModal';
+export { CustomChipModal } from './components/CustomChipModal';

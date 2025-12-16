@@ -3,9 +3,10 @@
  * Stores ad-hoc journal entries (separate from weekly reflections)
  */
 
-import { Model } from '@nozbe/watermelondb';
+import { Model, Query } from '@nozbe/watermelondb';
 import { Associations } from '@nozbe/watermelondb/Model';
 import { field, text, date, readonly, children } from '@nozbe/watermelondb/decorators';
+import JournalEntryFriend from './JournalEntryFriend';
 
 export default class JournalEntry extends Model {
   static table = 'journal_entries';
@@ -14,7 +15,7 @@ export default class JournalEntry extends Model {
     journal_entry_friends: { type: 'has_many', foreignKey: 'journal_entry_id' },
   };
 
-  @children('journal_entry_friends') journalEntryFriends: any;
+  @children('journal_entry_friends') journalEntryFriends!: Query<JournalEntryFriend>;
 
   // Entry content
   @field('entry_date') entryDate!: number; // Date this entry is associated with
@@ -37,7 +38,7 @@ export default class JournalEntry extends Model {
 
   async prepareDestroyWithChildren() {
     const friends = await this.journalEntryFriends.fetch();
-    const friendsToDelete = friends.map((friend: any) => friend.prepareDestroyPermanently());
+    const friendsToDelete = friends.map((friend: JournalEntryFriend) => friend.prepareDestroyPermanently());
     await this.batch(...friendsToDelete);
     return this.prepareDestroyPermanently()
   }

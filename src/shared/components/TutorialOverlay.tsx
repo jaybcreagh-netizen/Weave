@@ -1,5 +1,5 @@
-import React, { useEffect, ReactNode } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Modal } from 'react-native';
+import React, { useEffect } from 'react';
+import { View, Text, TouchableOpacity, Modal, StyleSheet } from 'react-native';
 import Animated, {
   FadeIn,
   FadeOut,
@@ -7,9 +7,7 @@ import Animated, {
   useAnimatedStyle,
   withSpring,
   withSequence,
-  withTiming,
 } from 'react-native-reanimated';
-import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '@/shared/hooks/useTheme';
 
@@ -88,19 +86,17 @@ export function TutorialOverlay({
 
   return (
     <Modal transparent visible={visible} animationType="none">
-      <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+      <View className="absolute inset-0" pointerEvents="box-none">
         {/* Dimmed background - much lighter and allows touches through */}
         <Animated.View
-          style={StyleSheet.absoluteFill}
+          className="absolute inset-0"
           entering={FadeIn.duration(300)}
           exiting={FadeOut.duration(200)}
           pointerEvents="none"
         >
           <View
-            style={[
-              StyleSheet.absoluteFill,
-              { backgroundColor: isDarkMode ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.2)' },
-            ]}
+            className="absolute inset-0"
+            style={{ backgroundColor: isDarkMode ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.2)' }}
           />
         </Animated.View>
 
@@ -126,35 +122,55 @@ export function TutorialOverlay({
 
         {/* Tooltip */}
         <Animated.View
-          style={[
-            styles.tooltipContainer,
-            getTooltipPosition(step),
-          ]}
+          className="items-center z-[1000]"
+          style={getTooltipPosition(step)}
           entering={FadeIn.delay(100).duration(300).springify()}
           exiting={FadeOut.duration(200)}
         >
-          <View style={[styles.tooltip, { backgroundColor: colors.card }]}>
+          <View
+            className="rounded-2xl p-5 shadow-2xl max-w-[400px]"
+            style={{
+              backgroundColor: colors.card,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 8 },
+              shadowOpacity: 0.3,
+              shadowRadius: 16,
+              elevation: 16,
+            }}
+          >
             {/* Progress indicator */}
             {currentStep !== undefined && totalSteps !== undefined && (
-              <View style={styles.progressContainer}>
-                <Text style={[styles.progressText, { color: colors['muted-foreground'] }]}>
+              <View className="self-start mb-2">
+                <Text
+                  className="text-xs font-semibold uppercase tracking-wider"
+                  style={{ color: colors['muted-foreground'] }}
+                >
                   {currentStep + 1} of {totalSteps}
                 </Text>
               </View>
             )}
 
-            <Text style={[styles.tooltipTitle, { color: colors.foreground }]}>
+            <Text
+              className="text-xl font-bold font-lora-bold mb-2"
+              style={{ color: colors.foreground }}
+            >
               {step.title}
             </Text>
-            <Text style={[styles.tooltipDescription, { color: colors['muted-foreground'] }]}>
+            <Text
+              className="text-base leading-6 mb-4"
+              style={{ color: colors['muted-foreground'] }}
+            >
               {step.description}
             </Text>
 
             {/* Actions */}
-            <View style={styles.actionsContainer}>
+            <View className="flex-row justify-between items-center gap-3">
               {onSkip && (
-                <TouchableOpacity onPress={handleSkip} style={styles.skipButton}>
-                  <Text style={[styles.skipButtonText, { color: colors['muted-foreground'] }]}>
+                <TouchableOpacity onPress={handleSkip} className="p-2">
+                  <Text
+                    className="text-sm font-medium"
+                    style={{ color: colors['muted-foreground'] }}
+                  >
                     Skip tour
                   </Text>
                 </TouchableOpacity>
@@ -163,18 +179,20 @@ export function TutorialOverlay({
               {step.action ? (
                 <TouchableOpacity
                   onPress={step.action.onPress}
-                  style={[styles.actionButton, { backgroundColor: colors.primary }]}
+                  className="flex-1 py-3 px-6 rounded-xl items-center"
+                  style={{ backgroundColor: colors.primary }}
                   activeOpacity={0.8}
                 >
-                  <Text style={styles.actionButtonText}>{step.action.label}</Text>
+                  <Text className="text-white text-base font-semibold">{step.action.label}</Text>
                 </TouchableOpacity>
               ) : onNext ? (
                 <TouchableOpacity
                   onPress={handleNext}
-                  style={[styles.actionButton, { backgroundColor: colors.primary }]}
+                  className="flex-1 py-3 px-6 rounded-xl items-center"
+                  style={{ backgroundColor: colors.primary }}
                   activeOpacity={0.8}
                 >
-                  <Text style={styles.actionButtonText}>Next</Text>
+                  <Text className="text-white text-base font-semibold">Next</Text>
                 </TouchableOpacity>
               ) : null}
             </View>
@@ -183,10 +201,16 @@ export function TutorialOverlay({
           {/* Arrow pointer */}
           {step.targetPosition && (
             <View
+              className="w-0 h-0 bg-transparent border-solid"
               style={[
-                styles.arrow,
                 getArrowStyle(step.tooltipPosition || 'bottom'),
-                { borderTopColor: colors.card },
+                {
+                  // Overriding border color for the arrow direction based on card color
+                  ...(step.tooltipPosition === 'bottom' ? { borderTopColor: colors.card } : {}),
+                  ...(step.tooltipPosition === 'top' ? { borderBottomColor: colors.card } : {}),
+                  ...(step.tooltipPosition === 'left' ? { borderRightColor: colors.card } : {}),
+                  ...(step.tooltipPosition === 'right' ? { borderLeftColor: colors.card } : {}),
+                },
               ]}
             />
           )}
@@ -251,88 +275,7 @@ function getTooltipPosition(step: TutorialStep): any {
   }
 }
 
-function getArrowStyle(position: string): any {
-  switch (position) {
-    case 'top':
-      return styles.arrowBottom;
-    case 'bottom':
-      return styles.arrowTop;
-    case 'left':
-      return styles.arrowRight;
-    case 'right':
-      return styles.arrowLeft;
-    default:
-      return styles.arrowTop;
-  }
-}
-
-const styles = StyleSheet.create({
-  tooltipContainer: {
-    alignItems: 'center',
-    zIndex: 1000,
-  },
-  tooltip: {
-    borderRadius: 16,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 16,
-    maxWidth: 400,
-  },
-  progressContainer: {
-    alignSelf: 'flex-start',
-    marginBottom: 8,
-  },
-  progressText: {
-    fontSize: 12,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  tooltipTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    fontFamily: 'Lora_700Bold',
-    marginBottom: 8,
-  },
-  tooltipDescription: {
-    fontSize: 15,
-    lineHeight: 22,
-    marginBottom: 16,
-  },
-  actionsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: 12,
-  },
-  skipButton: {
-    padding: 8,
-  },
-  skipButtonText: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  actionButton: {
-    flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  actionButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  arrow: {
-    width: 0,
-    height: 0,
-    backgroundColor: 'transparent',
-    borderStyle: 'solid',
-  },
+const legacyStyles = {
   arrowTop: {
     borderLeftWidth: 10,
     borderRightWidth: 10,
@@ -347,7 +290,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 10,
     borderLeftColor: 'transparent',
     borderRightColor: 'transparent',
-    borderBottomColor: 'white',
     marginBottom: -1,
   },
   arrowLeft: {
@@ -356,7 +298,6 @@ const styles = StyleSheet.create({
     borderLeftWidth: 10,
     borderTopColor: 'transparent',
     borderBottomColor: 'transparent',
-    borderLeftColor: 'white',
     marginLeft: -1,
   },
   arrowRight: {
@@ -365,7 +306,21 @@ const styles = StyleSheet.create({
     borderRightWidth: 10,
     borderTopColor: 'transparent',
     borderBottomColor: 'transparent',
-    borderRightColor: 'white',
     marginRight: -1,
-  },
-});
+  }
+};
+
+function getArrowStyle(position: string): any {
+  switch (position) {
+    case 'top':
+      return legacyStyles.arrowBottom;
+    case 'bottom':
+      return legacyStyles.arrowTop;
+    case 'left':
+      return legacyStyles.arrowRight;
+    case 'right':
+      return legacyStyles.arrowLeft;
+    default:
+      return legacyStyles.arrowTop;
+  }
+}

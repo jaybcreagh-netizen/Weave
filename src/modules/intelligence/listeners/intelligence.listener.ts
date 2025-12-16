@@ -7,7 +7,7 @@ import {
 } from '@/modules/insights';
 import { analyzeAndTagLifeEvents } from '@/modules/relationships';
 import { database } from '@/db';
-import { useUserProfileStore } from '@/modules/auth';
+import UserProfile from '@/db/models/UserProfile';
 import Logger from '@/shared/utils/Logger';
 import FriendModel from '@/db/models/Friend';
 import { InteractionFormData } from '@/modules/interactions';
@@ -27,7 +27,9 @@ export function setupIntelligenceListeners() {
 
         try {
             // Scoring (with season-aware bonuses)
-            const currentSeason = useUserProfileStore.getState().getSocialSeason();
+            const profileCollection = database.get<UserProfile>('user_profile');
+            const profile = (await profileCollection.query().fetch())[0];
+            const currentSeason = profile?.currentSocialSeason || 'balanced' as any;
             await processWeaveScoring(friends, data, database, currentSeason);
 
             // Insights (Life Events)
@@ -69,7 +71,7 @@ export function setupIntelligenceListeners() {
                                 wasFirstInteraction
                             );
                             if (suggestion) {
-                                Logger.info(`[Intelligence] Tier suggestion for ${updatedFriend.name}: ${analysis.currentTier} → ${analysis.suggestedTier}`);
+                                Logger.info(`[Intelligence] Tier suggestion for ${updatedFriend.name}: ${analysis.currentTier} → ${analysis.suggestedTier} `);
                             }
                         }
                     }

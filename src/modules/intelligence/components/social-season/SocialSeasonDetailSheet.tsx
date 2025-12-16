@@ -4,7 +4,6 @@ import {
     Text,
     TouchableOpacity,
     ScrollView,
-    StyleSheet,
 } from 'react-native';
 import { Activity, BarChart3, Scale, ChevronLeft, ChevronRight, Zap, Book, CheckCircle2 } from 'lucide-react-native';
 import { startOfMonth, endOfMonth, eachDayOfInterval, format, isSameDay, startOfWeek, endOfWeek, addMonths, subMonths } from 'date-fns';
@@ -20,7 +19,7 @@ import { SeasonEffectsPanel } from '@/modules/intelligence';
 import { database } from '@/db';
 import Interaction from '@/db/models/Interaction';
 import WeeklyReflection from '@/db/models/WeeklyReflection';
-import { useUserProfileStore } from '@/modules/auth';
+import { useUserProfile } from '@/modules/auth';
 import { Card } from '@/shared/ui/Card';
 import { WidgetHeader } from '@/shared/ui/WidgetHeader';
 import { Stat } from '@/shared/ui/Stat';
@@ -58,75 +57,78 @@ export function SocialSeasonDetailSheet({
             scrollable
         >
             {/* Header */}
-            <View style={styles.header}>
+            <View className="flex-row justify-between items-center px-5 mb-5">
                 <View>
-                    <Text style={[styles.title, { color: tokens.foreground, fontFamily: typography.fonts.serifBold }]}>
+                    <Text
+                        className="text-2xl font-lora-bold"
+                        style={{ color: tokens.foreground }}
+                    >
                         {getSeasonDisplayName(season)}
                     </Text>
-                    <Text style={[styles.subtitle, { color: tokens.foregroundMuted, fontFamily: typography.fonts.sans }]}>
+                    <Text
+                        className="text-sm font-inter-regular"
+                        style={{ color: tokens.foregroundMuted }}
+                    >
                         Network Health & Insights
                     </Text>
                 </View>
             </View>
 
             {/* Tabs */}
-            <View style={styles.tabContainer}>
+            <View className="flex-row px-5 mb-5 gap-3">
                 <TouchableOpacity
                     onPress={() => setCurrentTab('pulse')}
+                    className="flex-1 flex-row items-center justify-center py-2.5 rounded-xl gap-2"
                     style={[
-                        styles.tab,
                         currentTab === 'pulse' && { backgroundColor: tokens.background },
                         currentTab === 'pulse' && { borderColor: tokens.border, borderWidth: 1 },
                     ]}
                 >
                     <Activity size={16} color={currentTab === 'pulse' ? tokens.primary : tokens.foregroundMuted} />
-                    <Text style={[
-                        styles.tabText,
-                        {
+                    <Text
+                        className="text-sm font-inter-medium"
+                        style={{
                             color: currentTab === 'pulse' ? tokens.primary : tokens.foregroundMuted,
-                            fontFamily: typography.fonts.sansMedium
-                        }
-                    ]}>
+                        }}
+                    >
                         Pulse
                     </Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
                     onPress={() => setCurrentTab('alignment')}
+                    className="flex-1 flex-row items-center justify-center py-2.5 rounded-xl gap-2"
                     style={[
-                        styles.tab,
                         currentTab === 'alignment' && { backgroundColor: tokens.background },
                         currentTab === 'alignment' && { borderColor: tokens.border, borderWidth: 1 },
                     ]}
                 >
                     <Scale size={16} color={currentTab === 'alignment' ? tokens.primary : tokens.foregroundMuted} />
-                    <Text style={[
-                        styles.tabText,
-                        {
+                    <Text
+                        className="text-sm font-inter-medium"
+                        style={{
                             color: currentTab === 'alignment' ? tokens.primary : tokens.foregroundMuted,
-                            fontFamily: typography.fonts.sansMedium
-                        }
-                    ]}>
+                        }}
+                    >
                         Alignment
                     </Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
                     onPress={() => setCurrentTab('insights')}
+                    className="flex-1 flex-row items-center justify-center py-2.5 rounded-xl gap-2"
                     style={[
-                        styles.tab,
                         currentTab === 'insights' && { backgroundColor: tokens.background },
                         currentTab === 'insights' && { borderColor: tokens.border, borderWidth: 1 },
                     ]}
                 >
                     <BarChart3 size={16} color={currentTab === 'insights' ? tokens.primary : tokens.foregroundMuted} />
-                    <Text style={[
-                        styles.tabText,
-                        {
+                    <Text
+                        className="text-sm font-inter-medium"
+                        style={{
                             color: currentTab === 'insights' ? tokens.primary : tokens.foregroundMuted,
-                            fontFamily: typography.fonts.sansMedium
-                        }
-                    ]}>
+                        }}
+                    >
                         Insights
                     </Text>
                 </TouchableOpacity>
@@ -167,7 +169,7 @@ function PulseTabContent({
 }) {
     const { tokens, typography, spacing, isDarkMode } = useTheme();
     const explanation = seasonData ? generateSeasonExplanation(seasonData) : null;
-    const { profile } = useUserProfileStore();
+    const { profile } = useUserProfile();
 
     // State for navigation and selection
     const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -248,7 +250,7 @@ function PulseTabContent({
                 const dateKey = format(day, 'yyyy-MM-dd');
 
                 if (!activityMap.has(dateKey)) {
-                    const hasBattery = batteryHistory.some(entry => entry.timestamp >= dayStart && entry.timestamp < dayEnd);
+                    const hasBattery = batteryHistory.some((entry: any) => entry.timestamp >= dayStart && entry.timestamp < dayEnd);
                     const hasJournal = reflectionSet.has(dateKey);
 
                     if (hasBattery || hasJournal) {
@@ -322,7 +324,7 @@ function PulseTabContent({
 
             // Check Check-in
             const hasCheckin = (profile?.socialBatteryHistory || []).some(
-                entry => entry.timestamp >= dayStart && entry.timestamp < dayEnd
+                (entry: any) => entry.timestamp >= dayStart && entry.timestamp < dayEnd
             );
 
             // Check Journal
@@ -362,20 +364,23 @@ function PulseTabContent({
             {explanation && (
                 <View style={{ gap: 16 }}>
                     <Card variant="outlined">
-                        <Text style={{
-                            color: tokens.foreground,
-                            fontFamily: typography.fonts.serifBold,
-                            fontSize: typography.scale.h3.fontSize,
-                            marginBottom: spacing[2]
-                        }}>
+                        <Text
+                            className="font-lora-bold mb-2"
+                            style={{
+                                color: tokens.foreground,
+                                fontSize: typography.scale.h3.fontSize,
+                            }}
+                        >
                             {explanation.headline}
                         </Text>
-                        <Text style={{
-                            color: tokens.foregroundMuted,
-                            fontFamily: typography.fonts.sans,
-                            fontSize: typography.scale.body.fontSize,
-                            lineHeight: typography.scale.body.lineHeight
-                        }}>
+                        <Text
+                            className="font-inter-regular"
+                            style={{
+                                color: tokens.foregroundMuted,
+                                fontSize: typography.scale.body.fontSize,
+                                lineHeight: typography.scale.body.lineHeight
+                            }}
+                        >
                             {explanation.insight}
                         </Text>
                     </Card>
@@ -385,54 +390,56 @@ function PulseTabContent({
 
             {/* Calendar */}
             <Card>
-                <View style={[styles.header, { paddingHorizontal: 0, marginBottom: 12 }]}>
+                <View className="flex-row justify-between items-center mb-3">
                     <View>
-                        <Text style={{
-                            color: tokens.foreground,
-                            fontFamily: typography.fonts.serifBold,
-                            fontSize: 18
-                        }}>
+                        <Text
+                            className="text-lg font-lora-bold"
+                            style={{ color: tokens.foreground }}
+                        >
                             Rhythm
                         </Text>
-                        <Text style={{
-                            color: tokens.foregroundMuted,
-                            fontFamily: typography.fonts.sans,
-                            fontSize: 14
-                        }}>
+                        <Text
+                            className="text-sm font-inter-regular"
+                            style={{ color: tokens.foregroundMuted }}
+                        >
                             {format(currentMonth, 'MMMM yyyy')}
                         </Text>
                     </View>
-                    <View style={{ flexDirection: 'row', gap: 8 }}>
-                        <TouchableOpacity onPress={handlePrevMonth} style={styles.navButton}>
+                    <View className="flex-row gap-2">
+                        <TouchableOpacity onPress={handlePrevMonth} className="p-2">
                             <ChevronLeft size={20} color={tokens.foreground} />
                         </TouchableOpacity>
-                        <TouchableOpacity onPress={handleNextMonth} style={styles.navButton}>
+                        <TouchableOpacity onPress={handleNextMonth} className="p-2">
                             <ChevronRight size={20} color={tokens.foreground} />
                         </TouchableOpacity>
                     </View>
                 </View>
 
                 {/* Legend */}
-                <View style={styles.legendContainer}>
-                    <View style={styles.legendItem}>
-                        <View style={[styles.legendDot, { backgroundColor: tokens.primary }]} />
-                        <Text style={[styles.legendText, { color: tokens.foregroundMuted }]}>Weave</Text>
+                <View className="flex-row justify-start gap-4 mb-4">
+                    <View className="flex-row items-center gap-1.5">
+                        <View className="w-2 h-2 rounded-full" style={{ backgroundColor: tokens.primary }} />
+                        <Text className="text-xs" style={{ color: tokens.foregroundMuted }}>Weave</Text>
                     </View>
-                    <View style={styles.legendItem}>
-                        <View style={[styles.legendDot, { backgroundColor: tokens.primary + '20' }]} />
-                        <Text style={[styles.legendText, { color: tokens.foregroundMuted }]}>Activity</Text>
+                    <View className="flex-row items-center gap-1.5">
+                        <View className="w-2 h-2 rounded-full" style={{ backgroundColor: tokens.primary + '20' }} />
+                        <Text className="text-xs" style={{ color: tokens.foregroundMuted }}>Activity</Text>
                     </View>
                 </View>
 
-                <View style={styles.calendarHeader}>
+                <View className="flex-row mb-2">
                     {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, index) => (
-                        <Text key={index} style={[styles.dayLabel, { color: tokens.foregroundMuted, fontFamily: typography.fonts.sansMedium }]}>
+                        <Text
+                            key={index}
+                            className="flex-1 text-center text-xs font-inter-medium"
+                            style={{ color: tokens.foregroundMuted }}
+                        >
                             {day}
                         </Text>
                     ))}
                 </View>
 
-                <View style={styles.calendarGrid}>
+                <View className="flex-row flex-wrap">
                     {calendarDays.map((day, index) => {
                         const dateKey = format(day, 'yyyy-MM-dd');
                         const hasActivity = monthlyActivity.get(dateKey) || false;
@@ -443,23 +450,27 @@ function PulseTabContent({
                         return (
                             <TouchableOpacity
                                 key={index}
-                                style={styles.dayCell}
+                                className="w-[14.28%] aspect-square p-0.5"
                                 onPress={() => setSelectedDate(day)}
                             >
-                                <View style={[
-                                    styles.dayContent,
-                                    hasActivity && { backgroundColor: tokens.primary + '20' },
-                                    hasCompletedWeave && { backgroundColor: tokens.primary },
-                                    isSelected && { borderWidth: 2, borderColor: tokens.foreground },
-                                    !isCurrentMonth && { opacity: 0.3 }
-                                ]}>
-                                    <Text style={[
-                                        styles.dayText,
-                                        {
-                                            color: hasCompletedWeave ? tokens.primaryForeground : tokens.foreground,
-                                            fontFamily: isSelected ? typography.fonts.sansSemiBold : (hasCompletedWeave ? typography.fonts.sansSemiBold : typography.fonts.sans)
-                                        }
-                                    ]}>
+                                <View
+                                    className="flex-1 items-center justify-center rounded-lg"
+                                    style={[
+                                        hasActivity && { backgroundColor: tokens.primary + '20' },
+                                        hasCompletedWeave && { backgroundColor: tokens.primary },
+                                        isSelected && { borderWidth: 2, borderColor: tokens.foreground },
+                                        !isCurrentMonth && { opacity: 0.3 }
+                                    ]}
+                                >
+                                    <Text
+                                        className="text-xs font-inter-regular"
+                                        style={[
+                                            {
+                                                color: hasCompletedWeave ? tokens.primaryForeground : tokens.foreground,
+                                                fontFamily: isSelected ? typography.fonts.sansSemiBold : (hasCompletedWeave ? typography.fonts.sansSemiBold : typography.fonts.sans)
+                                            }
+                                        ]}
+                                    >
                                         {day.getDate()}
                                     </Text>
                                 </View>
@@ -480,15 +491,15 @@ function PulseTabContent({
                     {!dayDetails?.isLoading && (
                         <View style={{ gap: 12 }}>
                             {dayDetails?.weaves.map(weave => (
-                                <View key={weave.id} style={styles.detailRow}>
-                                    <View style={[styles.iconBox, { backgroundColor: tokens.primary + '20' }]}>
+                                <View key={weave.id} className="flex-row items-center gap-3">
+                                    <View className="w-8 h-8 rounded-lg items-center justify-center" style={{ backgroundColor: tokens.primary + '20' }}>
                                         <CheckCircle2 size={16} color={tokens.primary} />
                                     </View>
                                     <View>
-                                        <Text style={[styles.detailText, { color: tokens.foreground, fontFamily: typography.fonts.sansMedium }]}>
+                                        <Text className="text-sm font-inter-medium" style={{ color: tokens.foreground }}>
                                             Weave with {weave.name}
                                         </Text>
-                                        <Text style={[styles.detailSubtext, { color: tokens.foregroundMuted }]}>
+                                        <Text className="text-xs" style={{ color: tokens.foregroundMuted }}>
                                             {weave.type} {weave.status === 'planned' ? '(Planned)' : ''}
                                         </Text>
                                     </View>
@@ -496,22 +507,22 @@ function PulseTabContent({
                             ))}
 
                             {dayDetails?.hasCheckin && (
-                                <View style={styles.detailRow}>
-                                    <View style={[styles.iconBox, { backgroundColor: tokens.destructive + '20' }]}>
+                                <View className="flex-row items-center gap-3">
+                                    <View className="w-8 h-8 rounded-lg items-center justify-center" style={{ backgroundColor: tokens.destructive + '20' }}>
                                         <Zap size={16} color={tokens.destructive} />
                                     </View>
-                                    <Text style={[styles.detailText, { color: tokens.foreground, fontFamily: typography.fonts.sansMedium }]}>
+                                    <Text className="text-sm font-inter-medium" style={{ color: tokens.foreground }}>
                                         Social Battery Check-in
                                     </Text>
                                 </View>
                             )}
 
                             {dayDetails?.hasJournal && (
-                                <View style={styles.detailRow}>
-                                    <View style={[styles.iconBox, { backgroundColor: tokens.mystic.accent + '20' }]}>
+                                <View className="flex-row items-center gap-3">
+                                    <View className="w-8 h-8 rounded-lg items-center justify-center" style={{ backgroundColor: tokens.mystic.accent + '20' }}>
                                         <Book size={16} color={tokens.mystic.accent} />
                                     </View>
-                                    <Text style={[styles.detailText, { color: tokens.foreground, fontFamily: typography.fonts.sansMedium }]}>
+                                    <Text className="text-sm font-inter-medium" style={{ color: tokens.foreground }}>
                                         Journal Entry
                                     </Text>
                                 </View>
@@ -524,7 +535,7 @@ function PulseTabContent({
             {/* Stats */}
             <Card>
                 <WidgetHeader title="History" />
-                <View style={styles.statsGrid}>
+                <View className="flex-row justify-between">
                     <Stat label="Total Weaves" value={totalWeaves} />
                     <Stat label="Active Days" value={totalDaysActive} />
                     <Stat label="This Month" value={monthlyWeavesCount} />
@@ -533,125 +544,3 @@ function PulseTabContent({
         </View>
     );
 }
-
-const styles = StyleSheet.create({
-    overlay: {
-        flex: 1,
-        justifyContent: 'flex-end',
-    },
-    sheet: {
-        borderTopLeftRadius: 24,
-        borderTopRightRadius: 24,
-        height: '90%',
-        paddingTop: 20,
-    },
-    header: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingHorizontal: 20,
-        marginBottom: 20,
-    },
-    title: {
-        fontSize: 24,
-    },
-    subtitle: {
-        fontSize: 14,
-    },
-    closeButton: {
-        padding: 4,
-    },
-    tabContainer: {
-        flexDirection: 'row',
-        paddingHorizontal: 20,
-        marginBottom: 20,
-        gap: 12,
-    },
-    tab: {
-        flex: 1,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingVertical: 10,
-        borderRadius: 12,
-        gap: 8,
-    },
-    tabText: {
-        fontSize: 14,
-    },
-    content: {
-        paddingHorizontal: 20,
-        paddingBottom: 40,
-    },
-    calendarHeader: {
-        flexDirection: 'row',
-        marginBottom: 8,
-    },
-    dayLabel: {
-        flex: 1,
-        textAlign: 'center',
-        fontSize: 12,
-    },
-    calendarGrid: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-    },
-    dayCell: {
-        width: '14.28%',
-        aspectRatio: 1,
-        padding: 2,
-    },
-    dayContent: {
-        flex: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
-        borderRadius: 8,
-    },
-    dayText: {
-        fontSize: 12,
-    },
-    statsGrid: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-    },
-    navButton: {
-        padding: 8,
-    },
-    legendContainer: {
-        flexDirection: 'row',
-        justifyContent: 'flex-start',
-        gap: 16,
-        marginBottom: 16,
-    },
-    legendItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
-    },
-    legendDot: {
-        width: 8,
-        height: 8,
-        borderRadius: 4,
-    },
-    legendText: {
-        fontSize: 12,
-    },
-    detailRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 12,
-    },
-    iconBox: {
-        width: 32,
-        height: 32,
-        borderRadius: 8,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    detailText: {
-        fontSize: 14,
-    },
-    detailSubtext: {
-        fontSize: 12,
-    }
-});

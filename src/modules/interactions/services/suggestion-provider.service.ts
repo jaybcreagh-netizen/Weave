@@ -1,3 +1,4 @@
+
 import { Q } from '@nozbe/watermelondb';
 import { database } from '@/db';
 import FriendModel from '@/db/models/Friend';
@@ -12,8 +13,6 @@ import {
     SeasonAnalyticsService
 } from '@/modules/intelligence';
 import type { SocialSeason } from '@/db/models/UserProfile';
-import Interaction from '@/db/models/Interaction';
-import InteractionFriend from '@/db/models/InteractionFriend';
 import { filterSuggestionsByTime } from '@/shared/utils/time-aware-filter';
 import {
     generatePortfolioInsights,
@@ -23,137 +22,12 @@ import {
     isPatternReliable,
     analyzeInteractionPattern,
 } from '@/modules/insights';
-import { InteractionCategory } from '@/shared/types/common';
 
-// Low-energy archetypes that work well for quieter, less draining connections
-const LOW_ENERGY_ARCHETYPES = ['Hermit', 'HighPriestess', 'Empress'];
-
-// Low-energy activity types that require less social bandwidth
-const LOW_ENERGY_CATEGORIES: InteractionCategory[] = ['text-call', 'voice-note', 'hangout'];
-
-/**
- * Options for diverse suggestion selection
- */
-interface SelectDiverseOptions {
-    /** When true, boosts friends with low-energy archetypes and low-energy activity types */
-    isLowEnergy?: boolean;
-    /** Friend lookup for archetype checking (needed for low-energy boost) */
-    friendLookup?: Map<string, FriendModel>;
-}
-
-/**
- * Selects diverse suggestions to provide a balanced "options menu" experience.
- * Ensures variety across different action types: reflect, drift/reconnect, deepen/momentum.
- * In low-energy mode, boosts suggestions for Hermit/Empress archetypes and text/call activities.
- */
-export function selectDiverseSuggestions(
-    suggestions: Suggestion[],
-    maxCount: number,
-    options?: SelectDiverseOptions
-): Suggestion[] {
-    if (suggestions.length === 0) return [];
-
-    let workingSuggestions = [...suggestions];
-
-    // Apply low-energy boosting if enabled
-    if (options?.isLowEnergy && options?.friendLookup) {
-        workingSuggestions = workingSuggestions.map(s => {
-            const friend = options.friendLookup?.get(s.friendId);
-            const isLowEnergyArchetype = friend && LOW_ENERGY_ARCHETYPES.includes(friend.archetype || '');
-            const isLowEnergyCategory = LOW_ENERGY_CATEGORIES.includes(
-                s.action?.prefilledCategory as InteractionCategory
-            );
-
-            // Assign boost score for sorting
-            return {
-                ...s,
-                _lowEnergyBoost: (isLowEnergyArchetype ? 2 : 0) + (isLowEnergyCategory ? 1 : 0),
-            };
-        }).sort((a, b) => {
-            // First sort by low-energy boost (descending)
-            const boostDiff = ((b as any)._lowEnergyBoost || 0) - ((a as any)._lowEnergyBoost || 0);
-            if (boostDiff !== 0) return boostDiff;
-            // Then fall through to normal urgency sorting
-            return 0;
-        });
-    }
-
-    const urgencyOrder = { critical: 0, high: 1, medium: 2, low: 3 };
-
-    // Safe urgency access
-    const getUrgencyScore = (u?: string) => urgencyOrder[u as keyof typeof urgencyOrder] ?? 3;
-
-    // Group suggestions by their action category
-    const buckets = {
-        critical: workingSuggestions.filter(s => s.urgency === 'critical'),
-        reflect: workingSuggestions.filter(s => s.category === 'reflect'),
-        lifeEvent: workingSuggestions.filter(s => s.category === 'life-event'),
-        drift: workingSuggestions.filter(s => s.category === 'drift' || s.category === 'high-drift' || s.category === 'critical-drift'),
-        deepen: workingSuggestions.filter(s => s.category === 'deepen' || s.category === 'celebrate'),
-        maintain: workingSuggestions.filter(s => s.category === 'maintain'),
-        insight: workingSuggestions.filter(s => s.category === 'insight'),
-        portfolio: workingSuggestions.filter(s => s.category === 'portfolio'),
-        dailyReflect: workingSuggestions.filter(s => s.category === 'daily-reflect'),
-        gentleNudge: workingSuggestions.filter(s => s.category === 'gentle-nudge'),
-        wildcard: workingSuggestions.filter(s => s.category === 'wildcard'),
-        communityCheckin: workingSuggestions.filter(s => s.category === 'community-checkin'),
-        variety: workingSuggestions.filter(s => s.category === 'variety'),
-        setIntention: workingSuggestions.filter(s => s.category === 'set-intention'),
-    };
-
-    const selected: Suggestion[] = [];
-
-    // 1. ALWAYS include critical suggestions (non-dismissible emergencies)
-    selected.push(...buckets.critical);
-
-    if (selected.length >= maxCount) {
-        return selected.slice(0, maxCount);
-    }
-
-    // 2. Build a diverse set from different buckets
-    // Priority order: reflect -> lifeEvent -> drift -> portfolio -> fresh/wildcards -> deepen -> maintain -> insight
-    const bucketOrder: Array<keyof typeof buckets> = [
-        'reflect', 'lifeEvent', 'drift', 'portfolio',
-        'communityCheckin', 'wildcard', 'variety', 'gentleNudge', 'setIntention', // Moved UP for freshness
-        'deepen', 'maintain', 'insight', 'dailyReflect'
-    ];
-
-    // Maintain a set of IDs to prevent duplicates (e.g. critical items picked again as category items)
-    const selectedIds = new Set(selected.map(s => s.id));
-
-    // Round-robin selection: pick best from each bucket
-    for (const bucketName of bucketOrder) {
-        if (selected.length >= maxCount) break;
-
-        const bucket = buckets[bucketName];
-        if (bucket.length === 0) continue;
-
-        // Sort bucket by urgency, then pick the top one
-        const sorted = bucket.sort((a, b) => getUrgencyScore(a.urgency) - getUrgencyScore(b.urgency));
-
-        // Find the first candidate not already selected
-        const candidate = sorted.find(s => !selectedIds.has(s.id));
-
-        if (candidate) {
-            selected.push(candidate);
-            selectedIds.add(candidate.id);
-        }
-    }
-
-    // 3. If we still have room, fill with highest urgency remaining
-    if (selected.length < maxCount) {
-        const remaining = workingSuggestions
-            .filter(s => !selectedIds.has(s.id))
-            .sort((a, b) => getUrgencyScore(a.urgency) - getUrgencyScore(b.urgency));
-
-        while (selected.length < maxCount && remaining.length > 0) {
-            selected.push(remaining.shift()!);
-        }
-    }
-
-    // Final sort: critical first, then by original urgency
-    return selected.sort((a, b) => getUrgencyScore(a.urgency) - getUrgencyScore(b.urgency));
-}
+import { SuggestionCandidateService } from './suggestion-system/SuggestionCandidateService';
+import { SuggestionDataLoader } from './suggestion-system/SuggestionDataLoader';
+import { selectDiverseSuggestions } from './suggestion-system/SuggestionDiversifier';
+import { TriageGenerator } from './suggestion-engine/generators/TriageGenerator';
+import { WeeklyReflectionGenerator } from './suggestion-engine/generators/WeeklyReflectionGenerator';
 
 /**
  * Maps proactive suggestion types to appropriate icons
@@ -172,6 +46,7 @@ function getProactiveIcon(type: string): string {
 
 /**
  * Fetches and filters suggestions based on friend data and user's current season
+ * Refactored to use Scalable Suggestion System (Candidate -> Load -> Data -> Diversify)
  *
  * @param limit - Maximum number of suggestions to return
  * @param season - Current social season for season-aware filtering (optional)
@@ -181,145 +56,40 @@ export async function fetchSuggestions(
     limit: number = 3,
     season?: SocialSeason | null
 ): Promise<Suggestion[]> {
-    console.time('fetchSuggestions:batch_load');
+    console.time('fetchSuggestions:modular_pipeline');
 
-    // Fetch all friends from DB
-    const friends = await database.get<FriendModel>('friends').query().fetch();
+    // 1. Candidate Selection: Identify WHO needs suggestions (limit to Top 50 candidates)
+    // This prevents loading all 1000+ friends into memory.
+    const candidateIds = await SuggestionCandidateService.getCandidates(50);
 
-    // Build lookup map for interaction data per friend
-    const interactionsByFriendId = new Map<string, { lastDate: number | null; count: number; interactions: Interaction[]; plannedInteractions: Interaction[] }>();
+    // 2. Data Loading: Fetch Context (Friend + Interactions) only for candidates
+    const contextMap = await SuggestionDataLoader.loadContextForCandidates(candidateIds);
+    const friends = Array.from(contextMap.values()).map(c => c.friend);
 
-    // Initialize empty entries for all friends
-    for (const friend of friends) {
-        interactionsByFriendId.set(friend.id, {
-            lastDate: null,
-            count: 0,
-            interactions: [],
-            plannedInteractions: [],
-        });
-    }
-
-    // For friends that need recent interactions for suggestion generation,
-    // fetch them in a secondary optimized batch (only for friends with interactions)
-    const friendIdsWithInteractions = [...interactionsByFriendId.keys()];
-
-    if (friendIdsWithInteractions.length > 0) {
-        // Fetch recent interactions for suggestion context (top 5 per friend)
-        const recentInteractionsQuery = await database
-            .get<InteractionFriend>('interaction_friends')
-            .query(Q.where('friend_id', Q.oneOf(friendIdsWithInteractions)))
-            .fetch();
-
-        const interactionIds = [...new Set(recentInteractionsQuery.map(ifr => ifr.interactionId))];
-
-        if (interactionIds.length > 0) {
-            const allInteractions = await database
-                .get<Interaction>('interactions')
-                .query(
-                    Q.where('id', Q.oneOf(interactionIds)),
-                    Q.where('status', Q.oneOf(['completed', 'planned'])),
-                    Q.sortBy('interaction_date', Q.desc)
-                )
-                .fetch();
-
-            // Build interaction map
-            const interactionMap = new Map<string, Interaction>(allInteractions.map(i => [i.id, i]));
-
-            // Build a map to track interactions per friend
-            const friendInteractionsTemp = new Map<string, Interaction[]>();
-
-            // Populate interactions for each friend
-            for (const link of recentInteractionsQuery) {
-                const interaction = interactionMap.get(link.interactionId);
-                if (interaction) {
-                    if (!friendInteractionsTemp.has(link.friendId)) {
-                        friendInteractionsTemp.set(link.friendId, []);
-                    }
-                    friendInteractionsTemp.get(link.friendId)!.push(interaction);
-                }
-            }
-
-            // Update the lookup map with computed values
-            for (const [friendId, interactions] of friendInteractionsTemp) {
-                const entry = interactionsByFriendId.get(friendId);
-                if (entry) {
-                    // Sort by date descending, keep up to 5
-                    const sorted = interactions.sort((a, b) => {
-                        const timeA = a.interactionDate instanceof Date ? a.interactionDate.getTime() : new Date(a.interactionDate || 0).getTime();
-                        const timeB = b.interactionDate instanceof Date ? b.interactionDate.getTime() : new Date(b.interactionDate || 0).getTime();
-                        return timeB - timeA;
-                    });
-
-                    // Separate completed vs planned
-                    const completed = sorted.filter(i => i.status === 'completed');
-                    const planned = sorted.filter(i => i.status === 'planned');
-
-                    entry.interactions = completed.slice(0, 5);
-                    entry.plannedInteractions = planned; // Keep all planned? Or limit?
-                    entry.count = completed.length;
-
-                    // Get the latest interaction date (from completed only)
-                    if (completed.length > 0 && completed[0].interactionDate) {
-                        const lastDate = completed[0].interactionDate;
-                        entry.lastDate = lastDate instanceof Date ? lastDate.getTime() : new Date(lastDate).getTime();
-                    }
-                }
-            }
-        }
-    }
-
-    console.timeEnd('fetchSuggestions:batch_load');
-
+    console.timeEnd('fetchSuggestions:modular_pipeline');
 
     const dismissedMap = await SuggestionStorageService.getDismissedSuggestions();
     let allSuggestions: Suggestion[] = [];
     const friendStats: PortfolioAnalysisStats['friends'] = [];
 
-    // Deduplicate friends to handle potential DB query anomalies
-    const uniqueFriendIds = new Set<string>();
-    const uniqueFriends = [];
-    for (const f of friends) {
-        if (!uniqueFriendIds.has(f.id)) {
-            uniqueFriendIds.add(f.id);
-            uniqueFriends.push(f);
-        }
-    }
-
-    for (const friend of uniqueFriends) {
+    // 3. Generation Loop
+    for (const friend of friends) {
         try {
-            // Get interactions data from our optimized lookup map
-            const friendData = interactionsByFriendId.get(friend.id);
-            const friendInteractions = friendData?.interactions || [];
-            const plannedInteractions = friendData?.plannedInteractions || [];
+            const context = contextMap.get(friend.id);
+            if (!context) continue;
 
-            // Sort interactions (newest first) - already partially sorted from query
-            const sortedInteractions = friendInteractions.sort(
-                (a, b) => {
-                    const timeA = a.interactionDate instanceof Date ? a.interactionDate.getTime() : new Date(a.interactionDate || 0).getTime();
-                    const timeB = b.interactionDate instanceof Date ? b.interactionDate.getTime() : new Date(b.interactionDate || 0).getTime();
-                    return timeB - timeA;
-                }
-            );
-
-            const lastInteraction = sortedInteractions[0];
             const currentScore = calculateCurrentScore(friend);
 
-            // Calculate current momentum score (decays over time)
+            // Calculate current momentum score
             const momentumLastUpdatedTime = friend.momentumLastUpdated instanceof Date ? friend.momentumLastUpdated.getTime() : new Date(friend.momentumLastUpdated || Date.now()).getTime();
             const daysSinceMomentumUpdate = (Date.now() - momentumLastUpdatedTime) / 86400000;
             const momentumScore = Math.max(0, friend.momentumScore - daysSinceMomentumUpdate);
 
-            // Calculate days since last interaction (using optimized lastDate from raw SQL when available)
+            // Calculate days since last interaction
             let daysSinceInteraction = 999;
-            if (friendData?.lastDate) {
-                daysSinceInteraction = (Date.now() - friendData.lastDate) / 86400000;
-            } else if (lastInteraction?.interactionDate) {
-                const lastInteractionTime = lastInteraction.interactionDate instanceof Date
-                    ? lastInteraction.interactionDate.getTime()
-                    : new Date(lastInteraction.interactionDate).getTime();
-                daysSinceInteraction = (Date.now() - lastInteractionTime) / 86400000;
+            if (context.lastDate) {
+                daysSinceInteraction = (Date.now() - context.lastDate) / 86400000;
             }
-
 
             // Collect stats for portfolio analysis
             friendStats.push({
@@ -331,6 +101,7 @@ export async function fetchSuggestions(
                 daysSinceInteraction: Math.round(daysSinceInteraction),
             });
 
+            // Generate "Engine" Suggestion
             const suggestion = await generateSuggestion({
                 friend: {
                     id: friend.id,
@@ -343,17 +114,17 @@ export async function fetchSuggestions(
                     relationshipType: friend.relationshipType,
                 } as any,
                 currentScore,
-                lastInteractionDate: lastInteraction?.interactionDate,
-                interactionCount: friendData?.count ?? sortedInteractions.length,
+                lastInteractionDate: context.interactions[0]?.interactionDate, // Data Loader sorts this
+                interactionCount: context.count,
                 momentumScore,
-                recentInteractions: sortedInteractions.slice(0, 5).map(i => ({
-                    id: i.id, // Fixed: use 'id' instead of 'uuid' which doesn't exist on Interaction model
+                recentInteractions: context.interactions.map(i => ({
+                    id: i.id,
                     category: i.interactionCategory as any,
                     interactionDate: i.interactionDate,
                     vibe: i.vibe,
                     notes: i.note,
                 } as any)),
-                plannedInteractions: plannedInteractions,
+                plannedInteractions: context.plannedInteractions,
             });
 
             if (suggestion) {
@@ -364,15 +135,15 @@ export async function fetchSuggestions(
         }
     }
 
-    // Generate proactive suggestions for friends with reliable patterns
+    // 4. Proactive Suggestions (Pattern Analysis)
     const proactiveSuggestions: Suggestion[] = [];
     const MAX_PROACTIVE = 2; // Cap proactive suggestions per session
 
     for (const friend of friends) {
         if (proactiveSuggestions.length >= MAX_PROACTIVE) break;
 
-        const friendData = interactionsByFriendId.get(friend.id);
-        const interactions = friendData?.interactions || [];
+        const context = contextMap.get(friend.id);
+        const interactions = context?.interactions || [];
 
         // Analyze pattern for this friend
         const pattern = analyzeInteractionPattern(
@@ -384,16 +155,14 @@ export async function fetchSuggestions(
             }))
         );
 
-        // Only generate proactive suggestions for friends with reliable patterns
         if (!isPatternReliable(pattern)) continue;
 
         try {
             const proactive = generateProactiveSuggestions(friend, pattern, {
                 includeReciprocity: true,
-                includeSmartScheduling: false, // Phase 3
+                includeSmartScheduling: false,
             });
 
-            // Convert ProactiveSuggestion to Suggestion format
             for (const p of proactive) {
                 if (proactiveSuggestions.length >= MAX_PROACTIVE) break;
 
@@ -417,47 +186,23 @@ export async function fetchSuggestions(
             console.error(`Error generating proactive suggestions for friend ${friend.id}:`, error);
         }
     }
-
-    // Add proactive suggestions to the pool
     allSuggestions.push(...proactiveSuggestions);
 
-    // Sunday Reflection Logic
-    const today = new Date();
-    if (today.getDay() === 0) { // Sunday
-        const startOfToday = new Date(today);
-        startOfToday.setHours(0, 0, 0, 0);
-
-        // Check if reflection exists for this week (created today or later)
-        const weeklyReflectionsCount = await database.get('weekly_reflections').query(
-            Q.where('created_at', Q.gte(startOfToday.getTime()))
-        ).fetchCount();
-
-        if (weeklyReflectionsCount === 0) {
-            allSuggestions.push({
-                id: 'weekly-reflection-sunday',
-                friendId: '',
-                friendName: 'Yourself',
-                urgency: 'high',
-                category: 'insight',
-                title: 'Sunday Reflection',
-                subtitle: 'Take a moment to look back on your week.',
-                actionLabel: 'Reflect',
-                icon: 'BookOpen',
-                action: { type: 'reflect' },
-                dismissible: true,
-                createdAt: new Date(),
-                type: 'reflect'
-            });
-        }
+    // 5. Sunday Reflection
+    const weeklyReflection = await WeeklyReflectionGenerator.generate();
+    if (weeklyReflection) {
+        allSuggestions.push(weeklyReflection);
     }
 
-    // Generate portfolio-level insights
-    // Deduplicate friend stats by ID (in case of duplicates in DB)
-    const uniqueFriendStats = Array.from(
-        new Map(friendStats.map(f => [f.id, f])).values()
-    );
-
+    // 6. Portfolio Insights
+    const uniqueFriendStats = Array.from(new Map(friendStats.map(f => [f.id, f])).values());
     if (uniqueFriendStats.length >= 3) {
+        // ... (Existing Portfolio Calculation Logic can remain essentially same, but operating on candidates)
+        // Limitation: Portfolio stats are now only drawn from "Candidates", not ALL friends.
+        // This is a trade-off for performance. Ideally Portfolio Analysis should have its own dedicated "Stats Loader" 
+        // that aggregates efficiently without loading models, but for now working on the active set is acceptable 
+        // or we accept it catches drift among the "active/drifting" population we just queried.
+
         const tierScores = {
             inner: {
                 avg: uniqueFriendStats.filter(f => f.tier === 'InnerCircle').reduce((sum, f, _, arr) => sum + f.score / arr.length, 0) || 0,
@@ -476,115 +221,58 @@ export async function fetchSuggestions(
             },
         };
 
-        const portfolioAnalysis: PortfolioAnalysisStats = {
+        const portfolioInsight = generatePortfolioInsights({
             friends: uniqueFriendStats,
             tierScores,
             archetypeBalance: analyzeArchetypeBalance(uniqueFriendStats),
-        };
-
-        const portfolioInsight = generatePortfolioInsights(portfolioAnalysis);
+        });
 
         if (portfolioInsight) {
             allSuggestions.push(portfolioInsight);
         }
     }
 
-    // NOTE: Guaranteed suggestions are now added AFTER filtering (see below)
-    // This ensures users always have options even when filters remove regular suggestions
+    // 7. Guaranteed Suggestions (Wildcards, etc.)
+    // Note: We need a pool of friends for this. The 'friends' array contains our Top 50 candidates.
+    // Guaranteed suggestions often pick "random" friends. 
+    // If our candidates don't include randoms, guaranteed might suffer.
+    // However, CandidateService Priority 4 is "Stale/Random", so we should be covered.
 
     // Filter out dismissed (unless critical)
     const active = allSuggestions.filter(s => {
-        if (s.urgency === 'critical') return true; // Critical always shows
+        if (s.urgency === 'critical') return true;
         return !dismissedMap.has(s.id);
     });
 
-    // Apply time-based filtering (e.g., don't show "plan dinner" at 11pm)
     const timeAppropriate = filterSuggestionsByTime(active);
-
-    // Apply season-aware filtering (caps, category restrictions, life event bypass)
     const seasonFiltered = filterSuggestionsBySeason(timeAppropriate, season);
 
     const MIN_SUGGESTIONS = 3;
     let finalPool = seasonFiltered;
 
-    // ALWAYS generate guaranteed suggestions (Wildcards, Daily Reflect, etc.)
-    // to provide variety even when the user has many reactive suggestions (like Momentum).
-    // selectDiverseSuggestions will handle the mixing and prioritization.
     if (friends.length > 0) {
         const guaranteed = generateGuaranteedSuggestions(friends, finalPool, season);
-
-        // Filter guaranteed suggestions by dismissal only (not time/season)
-        // Guaranteed suggestions are designed to be low-pressure and always appropriate
         const freshGuaranteed = guaranteed.filter(s => !dismissedMap.has(s.id));
-
         finalPool = [...finalPool, ...freshGuaranteed];
     }
 
-    // DORMANT USER STRATEGY:
-    // If the user is overwhelmed with Critical Drifts (> 5), enter "Triage Mode".
-    // 1. Limit visible Critical Drifts to top 3 (to prevent anxiety).
-    // 2. Suppress lower urgency drifts completely.
-    // 3. Ensure "Low Energy" actions are prioritized.
-    const criticalDriftsCount = finalPool.filter(s => s.urgency === 'critical' && (s.category === 'drift' || s.category === 'critical-drift')).length;
-    const isOverwhelmed = criticalDriftsCount > 5;
+    // 8. Dormant / Triage Logic
+    // 8. Dormant / Triage Logic
+    finalPool = await TriageGenerator.apply(finalPool);
 
-    if (isOverwhelmed) {
-        // 1. Keep only top 3 critical drifts (already sorted by urgency/score implicit via generator order)
-        const criticals = finalPool.filter(s => s.urgency === 'critical' && (s.category === 'drift' || s.category === 'critical-drift'));
-        const others = finalPool.filter(s => !(s.urgency === 'critical' && (s.category === 'drift' || s.category === 'critical-drift')));
-
-        // Take top 3 criticals
-        const visibleCriticals = criticals.slice(0, 3);
-
-        // 2. Filter out non-critical DRIFTS to reduce noise. 
-        // Keep "Easy Wins" (maintain, celebrate) to balance the vibe.
-        const nonDriftOthers = others.filter(s =>
-            s.category !== 'drift' &&
-            s.category !== 'high-drift' &&
-            s.category !== 'community-checkin'
-        );
-
-        finalPool = [...visibleCriticals, ...nonDriftOthers];
-
-        // Add a "Welcome Back" nudger if not present
-        if (!finalPool.find(s => s.id === 'dormant-triage-info')) {
-            finalPool.unshift({
-                id: 'dormant-triage-info',
-                friendId: 'system',
-                friendName: 'Weave',
-                urgency: 'high',
-                category: 'gentle-nudge',
-                title: 'Welcome back',
-                subtitle: 'Focus on these few connections to get back into the flow.',
-                actionLabel: 'Okay',
-                icon: 'Sun',
-                action: { type: 'connect' }, // Just a message basically
-                dismissible: true,
-                createdAt: new Date(),
-                type: 'connect'
-            });
-        }
-    }
-
-    // Get season-appropriate limit (use season config if provided)
+    // 9. Diversify
     const effectiveLimit = season
         ? Math.max(limit, getSeasonSuggestionConfig(season).maxDaily)
         : limit;
 
-    // Build friend lookup for low-energy mode
     const friendLookup = new Map(friends.map(f => [f.id, f]));
-
-    // Determine if user is in low-energy mode (resting season)
     const isLowEnergy = season === 'resting';
 
-    // Diversify suggestions to provide balanced "options menu" experience
-    // In low-energy mode, boost Hermit/Empress friends and text/call activities
     const finalSuggestions = selectDiverseSuggestions(finalPool, effectiveLimit, {
         isLowEnergy,
         friendLookup,
     });
 
-    // ANALYTICS: Track how many suggestions are being shown
     if (finalSuggestions.length > 0) {
         SeasonAnalyticsService.trackSuggestionsShown(finalSuggestions.length).catch(e => {
             console.error('[Analytics] Failed to track suggestions shown:', e);
@@ -593,4 +281,5 @@ export async function fetchSuggestions(
 
     return finalSuggestions;
 }
+
 

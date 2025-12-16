@@ -1,5 +1,5 @@
 import React from 'react';
-import { TouchableOpacity, StyleSheet, View, Text } from 'react-native';
+import { TouchableOpacity, View, Text } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import { Sparkles } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
@@ -42,19 +42,25 @@ export function IntentionsFAB({ count, onClick }: IntentionsFABProps) {
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
       activeOpacity={1}
-      style={styles.container}
+      className="absolute bottom-6 left-6 z-[1000]"
     >
       <Animated.View
+        className="w-14 h-14 rounded-full items-center justify-center shadow-md elevation-8"
         style={[
-          styles.fab,
-          { backgroundColor: colors.secondary },
+          {
+            backgroundColor: colors.secondary,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.3,
+            shadowRadius: 8
+          },
           animatedStyle,
         ]}
       >
         <Sparkles color={colors.foreground} size={26} />
         {count > 0 ? (
-          <View style={[styles.badge, { backgroundColor: colors.primary }]}>
-            <Text style={[styles.badgeText, { color: colors['primary-foreground'] }]}>
+          <View className="absolute -top-1 -right-1 min-w-[20px] h-5 rounded-full items-center justify-center px-1.5" style={{ backgroundColor: colors.primary }}>
+            <Text className="text-xs font-bold" style={{ color: colors['primary-foreground'] }}>
               {count}
             </Text>
           </View>
@@ -63,42 +69,3 @@ export function IntentionsFAB({ count, onClick }: IntentionsFABProps) {
     </TouchableOpacity>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    position: 'absolute',
-    bottom: 24,
-    left: 24,
-    zIndex: 1000,
-  },
-  fab: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  icon: {
-    fontSize: 28,
-  },
-  badge: {
-    position: 'absolute',
-    top: -4,
-    right: -4,
-    minWidth: 20,
-    height: 20,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 6,
-  },
-  badgeText: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
-});

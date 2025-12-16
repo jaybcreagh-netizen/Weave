@@ -5,7 +5,7 @@ import { Calendar as CalendarIcon, ChevronRight } from 'lucide-react-native';
 import { ModernSwitch } from '@/shared/ui/ModernSwitch';
 import { SettingsItem } from './SettingsItem';
 import { CalendarService } from '@/modules/interactions';
-import { useBackgroundSyncStore } from '@/modules/auth';
+import { useSyncSettings } from '@/modules/auth';
 
 export const CalendarSettings = () => {
     const { colors } = useTheme();
@@ -19,17 +19,15 @@ export const CalendarSettings = () => {
     });
     const [availableCalendars, setAvailableCalendars] = useState<any[]>([]);
 
-    // Background sync store
+    // Background sync settings from hook
     const {
         settings: backgroundSyncSettings,
-        loadSettings: loadBackgroundSyncSettings,
         toggleEnabled: toggleBackgroundSync,
-    } = useBackgroundSyncStore();
+    } = useSyncSettings();
 
     // Load settings on mount
     useEffect(() => {
         loadCalendarSettings();
-        loadBackgroundSyncSettings();
     }, []);
 
     const loadCalendarSettings = async () => {

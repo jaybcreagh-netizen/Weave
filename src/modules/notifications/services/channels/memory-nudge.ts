@@ -116,13 +116,13 @@ export const MemoryNudgeChannel: NotificationChannel = {
         try {
             const { entryId, entryType } = data;
 
-            // Lazy load store to avoid potential cycles if imported at top level
-            const { useUIStore } = require('@/shared/stores/uiStore');
+            // Use UIEventBus to trigger UI action from non-React context
+            const { UIEventBus } = await import('@/shared/services/ui-event-bus');
 
             if (entryType === 'reflection' || entryType === 'journal') {
                 const memoryData = await getMemoryForNotification(entryId, entryType);
                 if (memoryData) {
-                    useUIStore.getState().openMemoryMoment(memoryData);
+                    UIEventBus.emit({ type: 'OPEN_MEMORY_MOMENT', data: memoryData });
                     return;
                 }
             }

@@ -3,7 +3,6 @@ import {
   View,
   Text,
   TouchableOpacity,
-  StyleSheet,
   useWindowDimensions,
   Modal,
   KeyboardAvoidingView,
@@ -11,6 +10,7 @@ import {
   TouchableWithoutFeedback,
   Keyboard,
   Alert,
+  StyleSheet,
 } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -83,7 +83,6 @@ interface AnimatedBottomSheetProps {
 
   /**
    * Whether to show close button in header
-   * @default true
    */
   showCloseButton?: boolean;
 
@@ -122,28 +121,6 @@ interface AnimatedBottomSheetProps {
   confirmCloseMessage?: string;
 }
 
-/**
- * AnimatedBottomSheet - Reanimated-based bottom sheet for custom animation control
- *
- * Use this when you need:
- * - Custom animation sequences
- * - Control over close animation completion
- * - Integration with existing Reanimated animations
- *
- * For most use cases, prefer StandardBottomSheet which uses @gorhom/bottom-sheet
- * for native gesture handling.
- *
- * @example
- * <AnimatedBottomSheet
- *   visible={isOpen}
- *   onClose={() => setIsOpen(false)}
- *   onCloseComplete={() => resetForm()}
- *   height="form"
- *   title="Quick Rating"
- * >
- *   <RatingForm />
- * </AnimatedBottomSheet>
- */
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView } from 'react-native-gesture-handler';
 
@@ -273,12 +250,12 @@ export const AnimatedBottomSheet = forwardRef<AnimatedBottomSheetRef, AnimatedBo
       testID={testID}
     >
       <KeyboardAvoidingView
-        style={styles.container}
+        className="flex-1"
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         {/* Backdrop */}
         <TouchableWithoutFeedback onPress={handleBackdropPress}>
-          <Animated.View style={[styles.backdrop, backdropStyle]}>
+          <Animated.View className="absolute inset-0" style={backdropStyle}>
             {blurBackdrop ? (
               <BlurView
                 intensity={isDarkMode ? BLUR_INTENSITY.dark : BLUR_INTENSITY.light}
@@ -302,34 +279,46 @@ export const AnimatedBottomSheet = forwardRef<AnimatedBottomSheetRef, AnimatedBo
 
         {/* Sheet */}
         <Animated.View
+          className="absolute bottom-0 left-0 right-0 shadow-lg"
           style={[
-            styles.sheet,
-            { height: sheetHeight, backgroundColor: colors.card },
+            {
+              height: sheetHeight,
+              backgroundColor: colors.card,
+              borderTopLeftRadius: SHEET_BORDER_RADIUS,
+              borderTopRightRadius: SHEET_BORDER_RADIUS,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: -4 },
+              shadowOpacity: 0.15,
+              shadowRadius: 16,
+              elevation: 16,
+            },
             sheetStyle,
           ]}
         >
           {/* Handle indicator */}
           <View
-            style={[styles.handleIndicator, { backgroundColor: colors.border }]}
+            className="w-10 h-1 rounded-full self-center mt-2"
+            style={{ backgroundColor: colors.border }}
           />
 
           {/* Header with optional title and close button */}
           {(title || showCloseButton) && (
-            <View style={styles.header}>
+            <View className="flex-row items-center justify-between px-4 pt-3 pb-2">
               {title ? (
                 <Text
-                  style={[styles.title, { color: colors.foreground }]}
+                  className="text-xl font-lora-bold flex-1 mr-4"
+                  style={{ color: colors.foreground }}
                   numberOfLines={1}
                 >
                   {title}
                 </Text>
               ) : (
-                <View style={{ flex: 1 }} />
+                <View className="flex-1" />
               )}
               {showCloseButton && (
                 <TouchableOpacity
                   onPress={handleClosePress}
-                  style={styles.closeButton}
+                  className="p-1"
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                   accessibilityLabel="Close"
                   accessibilityRole="button"
@@ -354,14 +343,20 @@ export const AnimatedBottomSheet = forwardRef<AnimatedBottomSheetRef, AnimatedBo
               {children}
             </ScrollView>
           ) : (
-            <View style={[styles.content, { paddingBottom: footerComponent ? 0 : Math.max(insets.bottom + 24, 40) }]}>
+            <View
+              className="flex-1 px-4"
+              style={{ paddingBottom: footerComponent ? 0 : Math.max(insets.bottom + 24, 40) }}
+            >
               {children}
             </View>
           )}
 
           {/* Footer */}
           {footerComponent && (
-            <View style={[styles.footer, { borderTopColor: colors.border, paddingBottom: Math.max(insets.bottom, 16) }]}>
+            <View
+              className="px-4 pt-4 border-t"
+              style={{ borderTopColor: colors.border, paddingBottom: Math.max(insets.bottom, 16) }}
+            >
               {footerComponent}
             </View>
           )}
@@ -372,59 +367,3 @@ export const AnimatedBottomSheet = forwardRef<AnimatedBottomSheetRef, AnimatedBo
   );
 });
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  sheet: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    borderTopLeftRadius: SHEET_BORDER_RADIUS,
-    borderTopRightRadius: SHEET_BORDER_RADIUS,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 16,
-    elevation: 16,
-  },
-  handleIndicator: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    alignSelf: 'center',
-    marginTop: 8,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 8,
-  },
-  title: {
-    fontSize: 20,
-    fontFamily: 'Lora_700Bold',
-    fontWeight: '700',
-    flex: 1,
-    marginRight: 16,
-  },
-  closeButton: {
-    padding: 4,
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: 16,
-    paddingBottom: 24,
-  },
-  footer: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    borderTopWidth: StyleSheet.hairlineWidth,
-  },
-});

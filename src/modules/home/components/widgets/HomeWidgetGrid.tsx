@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet, ScrollView } from 'react-native';
+import { View, ScrollView } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -49,10 +49,8 @@ const AnimatedWidget: React.FC<{
 
   return (
     <Animated.View
-      style={[
-        animatedStyle,
-        item.config.fullWidth ? styles.fullWidthWidget : styles.halfWidthWidget,
-      ]}
+      className={item.config.fullWidth ? "w-full" : "w-[48%]"}
+      style={animatedStyle}
     >
       <WidgetComponent {...(item.props || {})} />
     </Animated.View>
@@ -78,12 +76,15 @@ export const HomeWidgetGrid: React.FC<HomeWidgetGridProps> = ({
 
   return (
     <ScrollView
-      style={styles.scrollView}
-      contentContainerStyle={styles.container}
+      className="flex-1"
+      contentContainerClassName="px-5 pt-4 pb-8"
       showsVerticalScrollIndicator={false}
     >
       {/* Render widgets in a flexible row layout */}
-      <View style={[styles.grid, { rowGap: layout.cardGap }]}>
+      <View
+        className="flex-row flex-wrap justify-between"
+        style={{ rowGap: layout.cardGap }}
+      >
         {visibleWidgets.map((item, index) => (
           <AnimatedWidget key={item.id} item={item} index={index} />
         ))}
@@ -92,24 +93,3 @@ export const HomeWidgetGrid: React.FC<HomeWidgetGridProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
-  scrollView: {
-    flex: 1,
-  },
-  container: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 32,
-  },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
-  fullWidthWidget: {
-    width: '100%',
-  },
-  halfWidthWidget: {
-    width: '48%', // Allows 2 columns with 4% gap
-  },
-});

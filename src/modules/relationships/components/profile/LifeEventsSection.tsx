@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import Animated, { SharedValue, useAnimatedStyle } from 'react-native-reanimated';
 import { Plus } from 'lucide-react-native';
 import { differenceInDays } from 'date-fns';
@@ -25,29 +25,25 @@ export function LifeEventsSection({
         opacity: buttonsOpacity.value,
     }));
 
-    if (lifeEvents.length === 0 && false) { // Logic from original file: always show?
-        // Original: activeLifeEvents.length > 0 || true
-        // So it always renders.
-    }
-
     return (
-        <View style={styles.container}>
-            <Animated.View style={[styles.lifeEventsSection, buttonsAnimatedStyle]}>
-                <View style={styles.lifeEventsSectionHeader}>
-                    <Text style={[styles.lifeEventsSectionTitle, { color: colors.foreground }]}>
+        <View className="px-5">
+            <Animated.View className="mt-2 mb-2" style={buttonsAnimatedStyle}>
+                <View className="flex-row justify-between items-center mb-2">
+                    <Text className="font-lora-bold text-[15px]" style={{ color: colors.foreground }}>
                         Life Events
                     </Text>
                     <TouchableOpacity
                         onPress={onAdd}
-                        style={[styles.addLifeEventButton, { backgroundColor: colors.muted }]}
+                        className="flex-row items-center gap-1 px-2.5 py-1 rounded-full"
+                        style={{ backgroundColor: colors.muted }}
                     >
                         <Plus size={14} color={colors.primary} />
-                        <Text style={[styles.addLifeEventText, { color: colors.primary }]}>Add</Text>
+                        <Text className="font-inter-semibold text-xs" style={{ color: colors.primary }}>Add</Text>
                     </TouchableOpacity>
                 </View>
 
                 {lifeEvents.length > 0 ? (
-                    <View style={styles.lifeEventsList}>
+                    <View className="gap-1.5">
                         {lifeEvents.map((event) => {
                             const daysUntil = differenceInDays(event.date, new Date());
                             const isPastEvent = daysUntil < 0;
@@ -63,21 +59,26 @@ export function LifeEventsSection({
                                 <TouchableOpacity
                                     key={event.id}
                                     onPress={() => onEdit(event)}
-                                    style={[
-                                        styles.lifeEventCard,
-                                        {
-                                            backgroundColor: colors.muted,
-                                            borderColor: isUpcoming ? colors.primary : colors.border,
-                                            borderWidth: isUpcoming ? 1.5 : 1,
-                                        }
-                                    ]}
+                                    className="flex-row items-center p-2.5 rounded-xl gap-2.5"
+                                    style={{
+                                        backgroundColor: colors.muted,
+                                        borderColor: isUpcoming ? colors.primary : colors.border,
+                                        borderWidth: isUpcoming ? 1.5 : 1,
+                                    }}
                                 >
-                                    <Text style={styles.lifeEventIcon}>{eventIcons[event.eventType]}</Text>
-                                    <View style={styles.lifeEventContent}>
-                                        <Text style={[styles.lifeEventTitle, { color: colors.foreground }]} numberOfLines={1}>
+                                    <Text className="text-xl">{eventIcons[event.eventType]}</Text>
+                                    <View className="flex-1">
+                                        <Text
+                                            className="font-inter-semibold text-[13px] mb-0.5"
+                                            style={{ color: colors.foreground }}
+                                            numberOfLines={1}
+                                        >
                                             {event.title}
                                         </Text>
-                                        <Text style={[styles.lifeEventDate, { color: colors['muted-foreground'] }]}>
+                                        <Text
+                                            className="font-inter-regular text-[11px]"
+                                            style={{ color: colors['muted-foreground'] }}
+                                        >
                                             {isPastEvent
                                                 ? `${Math.abs(daysUntil)}d ago`
                                                 : daysUntil === 0
@@ -92,7 +93,10 @@ export function LifeEventsSection({
                         })}
                     </View>
                 ) : (
-                    <Text style={[styles.noLifeEvents, { color: colors['muted-foreground'] }]}>
+                    <Text
+                        className="text-[13px] italic"
+                        style={{ color: colors['muted-foreground'] }}
+                    >
                         No active life events. Tap "Add" to create one.
                     </Text>
                 )}
@@ -100,63 +104,3 @@ export function LifeEventsSection({
         </View>
     );
 }
-
-const styles = StyleSheet.create({
-    container: { paddingHorizontal: 20 },
-    lifeEventsSection: {
-        marginTop: 8,
-        marginBottom: 8,
-    },
-    lifeEventsSectionHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 8,
-    },
-    lifeEventsSectionTitle: {
-        fontFamily: 'Lora_700Bold',
-        fontSize: 15,
-    },
-    addLifeEventButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 4,
-        paddingHorizontal: 10,
-        paddingVertical: 4,
-        borderRadius: 999,
-    },
-    addLifeEventText: {
-        fontFamily: 'Inter_600SemiBold',
-        fontSize: 12,
-    },
-    lifeEventsList: {
-        gap: 6,
-    },
-    lifeEventCard: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        padding: 10,
-        borderRadius: 10,
-        gap: 10,
-        marginBottom: 0,
-    },
-    lifeEventIcon: {
-        fontSize: 20,
-    },
-    lifeEventContent: {
-        flex: 1,
-    },
-    lifeEventTitle: {
-        fontFamily: 'Inter_600SemiBold',
-        fontSize: 13,
-        marginBottom: 1,
-    },
-    lifeEventDate: {
-        fontFamily: 'Inter_400Regular',
-        fontSize: 11,
-    },
-    noLifeEvents: {
-        fontSize: 13,
-        fontStyle: 'italic',
-    },
-});

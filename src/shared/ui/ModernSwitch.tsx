@@ -1,12 +1,11 @@
 import React, { useEffect } from 'react';
-import { Pressable, StyleSheet, ViewStyle } from 'react-native';
+import { Pressable, ViewStyle } from 'react-native';
 import Animated, {
     interpolate,
     interpolateColor,
     useAnimatedStyle,
     useSharedValue,
     withSpring,
-    withTiming,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '@/shared/hooks/useTheme';
@@ -29,7 +28,7 @@ export function ModernSwitch({
     disabled = false,
     style,
 }: ModernSwitchProps) {
-    const { tokens, isDarkMode } = useTheme();
+    const { tokens } = useTheme();
 
     // Animation values
     const progress = useSharedValue(value ? 1 : 0);
@@ -108,40 +107,19 @@ export function ModernSwitch({
             onPressIn={handlePressIn}
             onPressOut={handlePressOut}
             disabled={disabled}
-            style={[styles.container, style]}
+            className="w-[50px] h-[30px] justify-center"
+            style={style}
         >
-            <Animated.View style={[styles.track, containerAnimatedStyle]}>
-                <Animated.View style={[styles.knob, { backgroundColor: knobColor }, knobAnimatedStyle]} />
+            <Animated.View
+                className="w-full h-full rounded-full justify-center"
+                style={containerAnimatedStyle}
+            >
+                <Animated.View
+                    className="w-[26px] h-[26px] rounded-full absolute left-0 shadow-sm"
+                    style={[{ backgroundColor: knobColor }, knobAnimatedStyle]}
+                />
             </Animated.View>
         </Pressable>
     );
 }
 
-const styles = StyleSheet.create({
-    container: {
-        width: SWITCH_WIDTH,
-        height: SWITCH_HEIGHT,
-        justifyContent: 'center',
-    },
-    track: {
-        width: '100%',
-        height: '100%',
-        borderRadius: SWITCH_HEIGHT / 2,
-        justifyContent: 'center',
-    },
-    knob: {
-        width: KNOB_SIZE,
-        height: KNOB_SIZE,
-        borderRadius: KNOB_SIZE / 2,
-        position: 'absolute',
-        left: 0,
-        shadowColor: "#000",
-        shadowOffset: {
-            width: 0,
-            height: 2,
-        },
-        shadowOpacity: 0.2,
-        shadowRadius: 2.5,
-        elevation: 4,
-    },
-});

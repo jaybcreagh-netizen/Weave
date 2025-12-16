@@ -1,10 +1,9 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { Sparkles, ArrowRight } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { HomeWidgetBase, HomeWidgetConfig } from '../HomeWidgetBase';
-import { Card } from '@/shared/ui/Card';
 
 const WIDGET_CONFIG: HomeWidgetConfig = {
   id: 'reflection-ready',
@@ -18,7 +17,7 @@ interface ReflectionReadyWidgetProps {
 }
 
 export function ReflectionReadyWidget({ onPress }: ReflectionReadyWidgetProps) {
-  const { tokens, typography, spacing } = useTheme();
+  const { tokens, typography } = useTheme();
 
   const handlePress = () => {
     if (onPress) {
@@ -32,33 +31,44 @@ export function ReflectionReadyWidget({ onPress }: ReflectionReadyWidgetProps) {
       <TouchableOpacity
         onPress={handlePress}
         activeOpacity={0.7}
-        style={{ padding: 16 }}
+        className="p-4"
       >
-        <View style={styles.container}>
-          <View style={[styles.iconContainer, { backgroundColor: tokens.primary + '20' }]}>
+        <View className="flex-row items-center gap-4">
+          <View
+            className="w-12 h-12 rounded-full items-center justify-center"
+            style={{ backgroundColor: tokens.primary + '20' }}
+          >
             <Sparkles size={24} color={tokens.primary} />
           </View>
 
-          <View style={styles.content}>
-            <Text style={[styles.title, {
-              color: tokens.foreground,
-              fontFamily: typography.fonts.serifBold,
-              fontSize: typography.scale.h3.fontSize,
-              lineHeight: typography.scale.h3.lineHeight
-            }]}>
+          <View className="flex-1">
+            <Text
+              className="mb-1"
+              style={{
+                color: tokens.foreground,
+                fontFamily: typography.fonts.serifBold,
+                fontSize: typography.scale.h3.fontSize,
+                lineHeight: typography.scale.h3.lineHeight
+              }}
+            >
               Your weekly reflection is ready
             </Text>
-            <Text style={[styles.subtitle, {
-              color: tokens.foregroundMuted,
-              fontFamily: typography.fonts.sans,
-              fontSize: typography.scale.body.fontSize,
-              lineHeight: typography.scale.body.lineHeight
-            }]}>
+            <Text
+              style={{
+                color: tokens.foregroundMuted,
+                fontFamily: typography.fonts.sans,
+                fontSize: typography.scale.body.fontSize,
+                lineHeight: typography.scale.body.lineHeight
+              }}
+            >
               Tap to reflect on this week's connections
             </Text>
           </View>
 
-          <View style={[styles.arrowContainer, { backgroundColor: tokens.primary }]}>
+          <View
+            className="w-8 h-8 rounded-full items-center justify-center"
+            style={{ backgroundColor: tokens.primary }}
+          >
             <ArrowRight size={16} color={tokens.primaryForeground} />
           </View>
         </View>
@@ -67,31 +77,3 @@ export function ReflectionReadyWidget({ onPress }: ReflectionReadyWidgetProps) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-  },
-  iconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  content: {
-    flex: 1,
-  },
-  title: {
-    marginBottom: 4,
-  },
-  subtitle: {},
-  arrowContainer: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});

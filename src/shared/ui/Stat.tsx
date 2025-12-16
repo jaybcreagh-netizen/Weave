@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text } from 'react-native';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
 
@@ -16,7 +16,7 @@ export const Stat: React.FC<StatProps> = ({
     trend,
     size = 'default',
 }) => {
-    const { tokens, typography, spacing } = useTheme();
+    const { tokens, typography } = useTheme();
 
     const valueStyle = size === 'default'
         ? typography.scale.stat
@@ -26,41 +26,35 @@ export const Stat: React.FC<StatProps> = ({
     const trendColor = trend === 'up' ? tokens.success : trend === 'down' ? tokens.destructive : tokens.foregroundMuted;
 
     return (
-        <View style={styles.container}>
-            <View style={styles.valueRow}>
-                <Text style={[
-                    {
+        <View>
+            <View className="flex-row items-center">
+                <Text
+                    className="font-lora-bold"
+                    style={{
                         color: tokens.foreground,
                         fontSize: valueStyle.fontSize,
                         lineHeight: valueStyle.lineHeight,
-                        fontFamily: typography.fonts.serifBold,
-                    }
-                ]}>
+                    }}
+                >
                     {value}
                 </Text>
                 {trend && (
-                    <TrendIcon size={size === 'default' ? 16 : 14} color={trendColor} style={{ marginLeft: spacing[1] }} />
+                    <View className="ml-1">
+                        <TrendIcon size={size === 'default' ? 16 : 14} color={trendColor} />
+                    </View>
                 )}
             </View>
-            <Text style={[
-                {
+            <Text
+                className="mt-0.5 font-inter-regular"
+                style={{
                     color: tokens.foregroundMuted,
                     fontSize: typography.scale.caption.fontSize,
                     lineHeight: typography.scale.caption.lineHeight,
-                    fontFamily: typography.fonts.sans,
-                    marginTop: spacing[0.5],
-                }
-            ]}>
+                }}
+            >
                 {label}
             </Text>
         </View>
     );
 };
 
-const styles = StyleSheet.create({
-    container: {},
-    valueRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-});

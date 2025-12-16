@@ -124,7 +124,7 @@ export function ReflectionPromptStep({ prompt, onNext }: ReflectionPromptStepPro
                 multiline
                 numberOfLines={4}
                 textAlignVertical="top"
-                className="px-4 py-4 rounded-2xl text-base bg-card border border-border text-foreground font-inter-regular min-h-[120px] max-h-[200px]"
+                className="px-4 py-4 rounded-2xl text-base bg-card border border-border font-inter-regular min-h-[120px] max-h-[200px]"
                 style={{
                   color: colors.foreground
                 }}

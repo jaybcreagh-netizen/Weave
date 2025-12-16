@@ -4,6 +4,7 @@ import { scanCalendarEvents, CalendarService } from '@/modules/interactions';
 import { database } from '@/db';
 import SuggestionEvent from '@/db/models/SuggestionEvent';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { sync } from '@/shared/services/sync.service';
 import { scheduleEventSuggestionNotification } from '@/modules/notifications';
 import Logger from '@/shared/utils/Logger';
 
@@ -25,7 +26,7 @@ export interface BackgroundSyncSettings {
   lastSyncTimestamp: number | null;
 }
 
-const DEFAULT_SETTINGS: BackgroundSyncSettings = {
+export const DEFAULT_SETTINGS: BackgroundSyncSettings = {
   enabled: false, // Off by default - user must opt in
   scanIntervalHours: 24, // Once per day
   scanPastDays: 2, // Look back 2 days
@@ -90,6 +91,14 @@ TaskManager.defineTask(BACKGROUND_EVENT_SYNC_TASK, async () => {
     if (!settings.enabled) {
       Logger.info('[BackgroundSync] Feature disabled, skipping scan');
       return BackgroundFetch.BackgroundFetchResult.NoData;
+    }
+
+    // Perform database sync
+    try {
+      await sync();
+      Logger.info('[BackgroundSync] Native sync completed');
+    } catch (error) {
+      Logger.error('[BackgroundSync] Native sync failed:', error);
     }
 
     // Check if calendar integration is enabled

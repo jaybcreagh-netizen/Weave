@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { HomeWidgetBase, HomeWidgetConfig } from '../HomeWidgetBase';
-import { useUserProfileStore } from '@/modules/auth';
+import { useUserProfile, useSocialBatteryStats } from '@/modules/auth';
 import { useInteractions } from '@/modules/interactions';
 import {
     calculateSocialSeason,
@@ -15,7 +15,8 @@ import {
     type SocialSeason,
     type SeasonCalculationInput,
     type SeasonExplanationData,
-    logNetworkHealth
+    logNetworkHealth,
+    SocialSeasonService
 } from '@/modules/intelligence';
 import { database } from '@/db';
 import Interaction from '@/db/models/Interaction';
@@ -38,8 +39,9 @@ interface SocialSeasonWidgetProps {
 }
 
 const SocialSeasonWidgetContent: React.FC<SocialSeasonWidgetProps> = ({ friends }) => {
-    const { tokens, typography, spacing } = useTheme();
-    const { profile, updateSocialSeason, batteryStats } = useUserProfileStore();
+    const { tokens, typography } = useTheme();
+    const { profile } = useUserProfile();
+    const { data: batteryStats = { average: 50, trend: 'stable' } } = useSocialBatteryStats();
     const { allInteractions } = useInteractions();
 
     const [isCalculating, setIsCalculating] = useState(false);
@@ -152,9 +154,10 @@ const SocialSeasonWidgetContent: React.FC<SocialSeasonWidgetProps> = ({ friends 
             // Only update DB if NOT overridden. 
             // If overridden, we skip auto-updates effectively pausing the engine.
             // If expired (isOverridden=false), we proceed, which calls updateSocialSeason(newSeason), clearing the expired fields.
+            // If expired (isOverridden=false), we proceed, which calls updateSocialSeason(newSeason), clearing the expired fields.
             if (!isOverridden) {
                 if (newSeason !== profile.currentSocialSeason || !profile.seasonLastCalculated || profile.seasonLastCalculated < oneHourAgo) {
-                    await updateSocialSeason(newSeason);
+                    await SocialSeasonService.updateSeason(profile.id, newSeason);
                 }
             }
 
@@ -190,8 +193,9 @@ const SocialSeasonWidgetContent: React.FC<SocialSeasonWidgetProps> = ({ friends 
     };
 
     const handleSeasonOverride = async (newSeason: SocialSeason, durationDays?: number) => {
+        if (!profile) return;
         setSeason(newSeason);
-        await updateSocialSeason(newSeason, durationDays);
+        await SocialSeasonService.updateSeason(profile.id, newSeason, durationDays);
     };
 
     return (
@@ -204,42 +208,43 @@ const SocialSeasonWidgetContent: React.FC<SocialSeasonWidgetProps> = ({ friends 
                     activeOpacity={0.7}
                 >
                     <View>
-                        <View style={styles.container}>
-                            <View style={styles.iconContainer}>
+                        <View className="flex-row items-center gap-4">
+                            <View
+                                className="w-16 h-16 rounded-full items-center justify-center"
+                                style={{ backgroundColor: 'rgba(255, 215, 0, 0.1)' }} // Subtle gold tint
+                            >
                                 <SeasonIcon season={season} size={48} color={tokens.primary} />
                             </View>
-                            <View style={styles.textContainer}>
-                                <Text style={[styles.headline, {
-                                    color: tokens.foreground,
-                                    fontFamily: typography.fonts.serifBold,
-                                    fontSize: typography.scale.h2.fontSize,
-                                    lineHeight: typography.scale.h2.lineHeight
-                                }]}>
+                            <View className="flex-1">
+                                <Text
+                                    className="mb-1"
+                                    style={{
+                                        color: tokens.foreground,
+                                        fontFamily: typography.fonts.serifBold,
+                                        fontSize: typography.scale.h2.fontSize,
+                                        lineHeight: typography.scale.h2.lineHeight
+                                    }}
+                                >
                                     {getSeasonDisplayName(season)}
                                 </Text>
-                                <Text style={[styles.subtext, {
-                                    color: tokens.foregroundMuted,
-                                    fontFamily: typography.fonts.sans,
-                                    fontSize: typography.scale.body.fontSize,
-                                    lineHeight: typography.scale.body.lineHeight
-                                }]}>
+                                <Text
+                                    style={{
+                                        color: tokens.foregroundMuted,
+                                        fontFamily: typography.fonts.sans,
+                                        fontSize: typography.scale.body.fontSize,
+                                        lineHeight: typography.scale.body.lineHeight
+                                    }}
+                                >
                                     {greeting.subtext}
                                 </Text>
                             </View>
                         </View>
 
                         {profile?.seasonOverrideUntil && profile.seasonOverrideUntil > Date.now() && (
-                            <View style={{
-                                marginTop: 12,
-                                backgroundColor: tokens.primary + '15',
-                                alignSelf: 'flex-start',
-                                paddingHorizontal: 10,
-                                paddingVertical: 4,
-                                borderRadius: 8,
-                                flexDirection: 'row',
-                                alignItems: 'center',
-                                gap: 6
-                            }}>
+                            <View
+                                className="mt-3 self-start px-2.5 py-1 rounded-lg flex-row items-center gap-1.5"
+                                style={{ backgroundColor: tokens.primary + '15' }}
+                            >
                                 <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: tokens.primary }} />
                                 <Text style={{
                                     color: tokens.primary,
@@ -251,13 +256,10 @@ const SocialSeasonWidgetContent: React.FC<SocialSeasonWidgetProps> = ({ friends 
                             </View>
                         )}
 
-                        <View style={{
-                            marginTop: 12,
-                            paddingTop: 12,
-                            borderTopWidth: 1,
-                            borderTopColor: tokens.borderSubtle,
-                            alignItems: 'center'
-                        }}>
+                        <View
+                            className="mt-3 pt-3 border-t items-center"
+                            style={{ borderTopColor: tokens.borderSubtle }}
+                        >
                             <Text style={{
                                 color: tokens.primary,
                                 fontFamily: typography.fonts.sansMedium,
@@ -296,28 +298,4 @@ const enhance = withObservables([], () => ({
 
 export const SocialSeasonWidgetV2 = enhance(SocialSeasonWidgetContent);
 
-const styles = StyleSheet.create({
-    container: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 16,
-    },
-    iconContainer: {
-        width: 64,
-        height: 64,
-        borderRadius: 32,
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: 'rgba(255, 215, 0, 0.1)', // Subtle gold tint
-    },
-    textContainer: {
-        flex: 1,
-    },
-    headline: {
-        marginBottom: 4,
-    },
-    subtext: {
-        // Font size handled by typography.scale.body in component
-    },
-});
 

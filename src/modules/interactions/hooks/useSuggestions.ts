@@ -7,7 +7,7 @@ import { fetchSuggestions } from '../services/suggestion-provider.service';
 import { calculateCurrentScore } from '@/modules/intelligence';
 import { SuggestionTrackerService } from '../services/suggestion-tracker.service';
 import * as SuggestionStorageService from '../services/suggestion-storage.service';
-import { useUserProfileStore } from '@/modules/auth';
+import { useUserProfile } from '@/modules/auth';
 import Interaction from '@/db/models/Interaction';
 import InteractionFriend from '@/db/models/InteractionFriend';
 
@@ -16,7 +16,7 @@ export function useSuggestions() {
   const trackedSuggestions = useRef<Set<string>>(new Set()); // Track which suggestions we've already logged as "shown"
 
   // Get current social season from profile
-  const { profile } = useUserProfileStore();
+  const { profile } = useUserProfile();
   const currentSeason = profile?.currentSocialSeason || null;
 
   const { data: suggestions = [] } = useQuery({

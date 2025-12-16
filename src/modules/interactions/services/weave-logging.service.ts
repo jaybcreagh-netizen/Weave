@@ -11,7 +11,7 @@ import { trackEvent, AnalyticsEvents, updateLastInteractionTimestamp } from '@/s
 import { deleteWeaveCalendarEvent } from './calendar.service';
 import Logger from '@/shared/utils/Logger';
 import { eventBus } from '@/shared/events/event-bus';
-import { recalculateScoreOnDelete } from '@/modules/intelligence/services/orchestrator.service';
+import { recalculateScoreOnDelete } from '@/modules/intelligence';
 
 export async function logWeave(data: InteractionFormData): Promise<Interaction> {
     // Validate input data

@@ -32,11 +32,10 @@ export function TierFitBottomSheetWrapper({
             // Dismiss the modal first
             onDismiss();
 
-            // Show toast after a slight delay to allow modal to close (avoiding z-index layering issues)
-            // and provide feedback to the user
-            setTimeout(() => {
-                const { showToast } = require('@/shared/stores/uiStore').useUIStore.getState();
-                showToast(`Moved to ${newTier}`, analysis.friendName);
+            // Show toast after a slight delay using UIEventBus
+            setTimeout(async () => {
+                const { UIEventBus } = await import('@/shared/services/ui-event-bus');
+                UIEventBus.emit({ type: 'SHOW_TOAST', message: `Moved to ${newTier}`, friendName: analysis.friendName });
             }, 400);
 
         } catch (error) {

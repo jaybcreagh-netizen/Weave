@@ -27,11 +27,11 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '@/shared/hooks/useTheme';
 // import { StandardBottomSheet } from '@/shared/ui/Sheet';
 // import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
-import { useUserProfileStore } from '@/modules/auth';
+import { useUserProfile, SocialBatteryService } from '@/modules/auth';
 import { MoonPhaseIllustration } from './MoonPhaseIllustration';
 import { PatternsTabContent } from './PatternsTabContent';
 // import { ReflectionJourneyModal } from '../ReflectionJourney/ReflectionJourneyModal';
-import { SocialBatterySheet } from '@/modules/home/components/widgets/SocialBatterySheet';
+import { SocialBatterySheet } from '@/modules/home';
 import {
   getYearMoonData,
   getYearStats,
@@ -85,8 +85,10 @@ const AnimatedMoon = React.memo(({
 });
 
 export function YearInMoonsModal({ isOpen, onClose }: YearInMoonsModalProps) {
-  const { colors, isDarkMode, tokens } = useTheme();
-  const { submitBatteryCheckin } = useUserProfileStore();
+  const { tokens, isDarkMode, colors } = useTheme();
+  // We can't use the hook inside the function if we want to call it conditionally, but here it's fine
+  // However, submitBatteryCheckin was an action. We should use the service directly.
+  const { profile } = useUserProfile();
   const [currentTab, setCurrentTab] = useState<Tab>('moons');
   const [yearData, setYearData] = useState<MonthMoonData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -204,7 +206,12 @@ export function YearInMoonsModal({ isOpen, onClose }: YearInMoonsModalProps) {
       const timestamp = new Date(dayForBatteryCheckin);
       timestamp.setHours(12, 0, 0, 0);
 
-      await submitBatteryCheckin(value, note, timestamp.getTime(), true);
+      // 2. Perform Async DB Write
+      if (profile) {
+        await SocialBatteryService.submitCheckin(profile.id, value, note, timestamp.getTime(), true);
+      } else {
+        logger.warn('YearInMoons', 'Cannot submit checkin: No profile found');
+      }
 
       // 3. Silent Re-sync (Safety Net)
       // We still re-fetch to ensure consistency, but user sees the change already

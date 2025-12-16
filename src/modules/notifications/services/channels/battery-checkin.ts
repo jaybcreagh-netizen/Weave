@@ -91,25 +91,15 @@ export const BatteryCheckinChannel = {
         await notificationAnalytics.trackCancelled('battery-checkin', 'user_disabled_or_reset');
     },
 
-    handleTap: (data: any, router: any) => {
+    handleTap: async (data: any, router: any) => {
         // Navigate to dashboard then open sheet
         if (router.canGoBack()) router.dismissAll();
         router.replace('/dashboard');
 
-        // We need a way to open the sheet. 
-        // Ideally this shouldn't depend on UIStore directly here but for now we keep it consistent.
-        // In a pure refactor we might emit an event or use a different mechanism, 
-        // but the requirement is "Don't break functionality", so we will import store in response handler 
-        // or pass a callback.
-        // The response handler will likely import the store as before.
-        // For this 'Channel' interface, handleTap might just return where to go?
-        // Let's stick to the interface: handleTap(data, router)
-        // But notice the original code used `useUIStore.getState().openSocialBatterySheet()`.
-        // We will leave the side-effects (opening sheet) to the caller (ResponseHandler)
-        // OR we import store here. Importing store is easiest for now.
-        const { useUIStore } = require('@/shared/stores/uiStore');
+        // Use UIEventBus to trigger UI action from non-React context
+        const { UIEventBus } = await import('@/shared/services/ui-event-bus');
         setTimeout(() => {
-            useUIStore.getState().openSocialBatterySheet();
+            UIEventBus.emit({ type: 'OPEN_SOCIAL_BATTERY_SHEET' });
             notificationAnalytics.trackActionCompleted('battery-checkin', 'open_sheet');
         }, 500);
     },

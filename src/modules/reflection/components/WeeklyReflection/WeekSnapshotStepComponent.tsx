@@ -211,7 +211,7 @@ export function WeekSnapshotStep({ summary, insight, onComplete }: WeekSnapshotS
 
             {/* Insight Line */}
             <View className="flex-row items-center justify-center">
-              <Sparkles size={14} color={insightColor} style={{ marginRight: 6 }} />
+              <Sparkles size={14} color={insightColor} className="mr-1.5" />
               <Text
                 variant="body"
                 className="text-center font-medium"
@@ -268,7 +268,7 @@ export function WeekSnapshotStep({ summary, insight, onComplete }: WeekSnapshotS
                               className="w-1 h-1 rounded-full bg-muted-foreground"
                             />
                             <View className="flex-row items-center">
-                              <Clock size={10} color={colors['muted-foreground']} style={{ marginRight: 3 }} />
+                              <Clock size={10} color={colors['muted-foreground']} className="mr-[3px]" />
                               <Text variant="caption" className="text-muted-foreground">
                                 {formatDaysSince(af.daysSinceContact)}
                               </Text>
@@ -295,7 +295,7 @@ export function WeekSnapshotStep({ summary, insight, onComplete }: WeekSnapshotS
                           <Text variant="caption" className="font-medium mr-1 text-foreground">
                             Set intention
                           </Text>
-                          <Text style={{ fontSize: 12 }}>💫</Text>
+                          <Text className="text-xs">💫</Text>
                         </TouchableOpacity>
                       )}
                     </View>

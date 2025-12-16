@@ -1,6 +1,6 @@
 // src/modules/insights/components/TierSuggestionAlert.tsx
 import React, { useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { Lightbulb, X } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
 import type { TierSuggestionContext } from '../services/tier-suggestion-engine.service';
@@ -48,41 +48,61 @@ export function TierSuggestionAlert({
   }, [analysis.friendId, analysis.currentTier, analysis.suggestedTier, trigger, urgency, analysis.confidence, analysis.friendName]);
 
   return (
-    <View style={[styles.container, { backgroundColor: bgColor, borderColor: textColor + '40' }]}>
-      <View style={styles.iconContainer}>
+    <View
+      className="flex-row rounded-xl border p-4 gap-3 my-2"
+      style={{
+        backgroundColor: bgColor,
+        borderColor: textColor + '40'
+      }}
+    >
+      <View className="pt-0.5">
         <Lightbulb size={24} color={textColor} />
       </View>
 
-      <View style={styles.content}>
-        <Text style={[styles.title, { color: colors.foreground }]}>
+      <View className="flex-1 gap-2">
+        <Text
+          className="text-[15px] font-lora-bold font-semibold"
+          style={{ color: colors.foreground }}
+        >
           Tier Insight
         </Text>
 
-        <Text style={[styles.message, { color: colors['muted-foreground'] }]}>
+        <Text
+          className="text-sm leading-5"
+          style={{ color: colors['muted-foreground'] }}
+        >
           {message}
         </Text>
 
-        <Text style={[styles.suggestion, { color: colors.foreground }]}>
+        <Text
+          className="text-sm font-medium"
+          style={{ color: colors.foreground }}
+        >
           Consider moving to {TIER_DISPLAY_NAMES[analysis.suggestedTier || '']}
         </Text>
 
-        <View style={styles.actions}>
+        <View className="flex-row gap-2 mt-1">
           <TouchableOpacity
-            style={[styles.reviewButton, { backgroundColor: textColor }]}
+            className="py-2 px-4 rounded-lg"
+            style={{ backgroundColor: textColor }}
             onPress={onReview}
             activeOpacity={0.7}
           >
-            <Text style={[styles.reviewButtonText, { color: 'white' }]}>
+            <Text className="text-sm font-semibold text-white">
               Review Fit
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.dismissButton, { borderColor: colors.border }]}
+            className="py-2 px-4 rounded-lg border"
+            style={{ borderColor: colors.border }}
             onPress={onDismiss}
             activeOpacity={0.7}
           >
-            <Text style={[styles.dismissButtonText, { color: colors['muted-foreground'] }]}>
+            <Text
+              className="text-sm font-medium"
+              style={{ color: colors['muted-foreground'] }}
+            >
               Later
             </Text>
           </TouchableOpacity>
@@ -90,7 +110,7 @@ export function TierSuggestionAlert({
       </View>
 
       <TouchableOpacity
-        style={styles.closeButton}
+        className="p-1"
         onPress={onDismiss}
         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
       >
@@ -99,61 +119,3 @@ export function TierSuggestionAlert({
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
-    borderRadius: 12,
-    borderWidth: 1,
-    padding: 16,
-    gap: 12,
-    marginVertical: 8,
-  },
-  iconContainer: {
-    paddingTop: 2,
-  },
-  content: {
-    flex: 1,
-    gap: 8,
-  },
-  title: {
-    fontSize: 15,
-    fontWeight: '600',
-    fontFamily: 'Lora_700Bold',
-  },
-  message: {
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  suggestion: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  actions: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 4,
-  },
-  reviewButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-  },
-  reviewButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  dismissButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    borderWidth: 1,
-  },
-  dismissButtonText: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  closeButton: {
-    padding: 4,
-  },
-});

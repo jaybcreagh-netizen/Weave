@@ -123,7 +123,8 @@ The core scoring logic. **This is the brain of the application.**
 
 ### State Management
 
-**Strategy**: React Query + WatermelonDB observables (migrating away from Zustand)
+**Strategy**: React Query + WatermelonDB observables (Primary)
+**Exception**: Zustand for High-Frequency UI State (e.g., Quick Weave, Drag-and-Drop)
 
 **WatermelonDB Observables**:
 - Primary source of truth for all persistent data
@@ -135,10 +136,11 @@ The core scoring logic. **This is the brain of the application.**
 - Async operations and caching
 - Complex aggregations that don't fit the observable pattern
 
-**Zustand** (legacy - being phased out):
-- Some stores still exist in `src/modules/*/store/` and `src/stores/`
-- New features should NOT use Zustand
-- Existing Zustand stores will be migrated to React Query + observables
+**Zustand** (Strictly for Transient UI State):
+- Use for high-frequency, transient UI state where React Context causes excessive re-renders
+- Example: `QuickWeaveStore` (gesture coordinates, active hover state, animation values)
+- **Do NOT** use for persistent data or business logic
+- Existing legacy stores in `src/modules/*/store/` should still be migrated UNLESS they fit this specific "high-perf UI" criteria
 
 ### Navigation Structure (`app/`)
 

@@ -107,21 +107,29 @@ export function FriendManagementModal({ visible, onClose }: FriendManagementModa
         activeOpacity={0.7}
       >
         <Card
-          className={`flex-row items-center p-4 mb-2 border ${isSelected ? 'border-destructive/50 bg-destructive/5' : 'border-transparent'}`}
+          className="flex-row items-center p-4 mb-2 border"
+          style={{
+            borderColor: isSelected ? `${colors.destructive}80` : 'transparent',
+            backgroundColor: isSelected ? `${colors.destructive}0D` : colors.card, // 0D is ~5% opacity
+          }}
         >
           {/* Checkbox */}
           <View
-            className={`w-6 h-6 rounded-md border items-center justify-center mr-3 ${isSelected ? 'bg-destructive border-destructive' : 'border-muted-foreground'}`}
+            className="w-6 h-6 rounded-md border items-center justify-center mr-3"
+            style={{
+              backgroundColor: isSelected ? colors.destructive : 'transparent',
+              borderColor: isSelected ? colors.destructive : colors['muted-foreground']
+            }}
           >
             {isSelected && <Check size={16} color={colors['destructive-foreground']} />}
           </View>
 
           {/* Friend Info */}
           <View className="flex-1">
-            <Text variant="body" className="font-semibold">
+            <Text variant="body" className="font-semibold" style={{ color: colors.foreground }}>
               {friend.name}
             </Text>
-            <Text variant="caption" className="text-muted-foreground mt-0.5">
+            <Text variant="caption" className="mt-0.5" style={{ color: colors['muted-foreground'] }}>
               {friend.dunbarTier} • Score: {Math.round(currentScore)}
             </Text>
           </View>
@@ -163,7 +171,7 @@ export function FriendManagementModal({ visible, onClose }: FriendManagementModa
           contentContainerStyle={{ paddingBottom: 120 }}
           ListEmptyComponent={
             <View className="items-center py-10">
-              <Text variant="body" className="text-muted-foreground text-center">
+              <Text variant="body" className="text-center" style={{ color: colors['muted-foreground'] }}>
                 No friends to manage
               </Text>
             </View>
@@ -171,7 +179,7 @@ export function FriendManagementModal({ visible, onClose }: FriendManagementModa
         />
 
         {/* Footer */}
-        <View className="absolute bottom-0 left-0 right-0 p-4 border-t border-border bg-background">
+        <View className="absolute bottom-0 left-0 right-0 p-4 border-t" style={{ borderColor: colors.border, backgroundColor: colors.background }}>
           <Button
             onPress={handleDelete}
             variant="destructive"

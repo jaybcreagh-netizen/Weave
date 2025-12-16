@@ -6,7 +6,7 @@
  */
 
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text } from 'react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
 
 interface DayData {
@@ -25,21 +25,20 @@ export const ActivityDots: React.FC<ActivityDotsProps> = ({
   data,
   period,
 }) => {
-  const { tokens, spacing } = useTheme();
+  const { tokens } = useTheme();
 
   if (period === 'week') {
-    return <WeekView data={data} tokens={tokens} spacing={spacing} />;
+    return <WeekView data={data} tokens={tokens} />;
   }
 
-  return <MonthView data={data} tokens={tokens} spacing={spacing} />;
+  return <MonthView data={data} tokens={tokens} />;
 };
 
 // Week view: Single row of 7 dots
 const WeekView: React.FC<{
   data: DayData[];
   tokens: any;
-  spacing: any;
-}> = ({ data, tokens, spacing }) => {
+}> = ({ data, tokens }) => {
   // Ensure we have 7 days, filling with zeros if needed
   const weekData = React.useMemo(() => {
     const result: number[] = new Array(7).fill(0);
@@ -55,17 +54,16 @@ const WeekView: React.FC<{
   }, [data]);
 
   return (
-    <View style={styles.weekContainer}>
+    <View className="flex-row justify-between py-2">
       {weekData.map((count, index) => (
-        <View key={index} style={styles.dayColumn}>
+        <View key={index} className="items-center gap-1.5">
           <ActivityDot count={count} tokens={tokens} />
-          <Text style={[
-            styles.dayLabel,
-            {
+          <Text
+            className="text-[11px] font-inter-medium"
+            style={{
               color: tokens.foregroundMuted,
-              fontFamily: 'Inter_500Medium',
-            }
-          ]}>
+            }}
+          >
             {DAY_LABELS[index]}
           </Text>
         </View>
@@ -78,8 +76,7 @@ const WeekView: React.FC<{
 const MonthView: React.FC<{
   data: DayData[];
   tokens: any;
-  spacing: any;
-}> = ({ data, tokens, spacing }) => {
+}> = ({ data, tokens }) => {
   // Group data by weeks
   const weeks = React.useMemo(() => {
     if (data.length === 0) return [];
@@ -130,19 +127,16 @@ const MonthView: React.FC<{
   }, [data]);
 
   return (
-    <View style={styles.monthContainer}>
+    <View className="gap-1">
       {/* Day labels header */}
-      <View style={styles.monthHeader}>
+      <View className="flex-row justify-between mb-1">
         {DAY_LABELS.map((label, index) => (
           <Text
             key={index}
-            style={[
-              styles.monthDayLabel,
-              {
-                color: tokens.foregroundSubtle,
-                fontFamily: 'Inter_500Medium',
-              }
-            ]}
+            className="flex-1 text-center text-[10px] font-inter-medium"
+            style={{
+              color: tokens.foregroundSubtle,
+            }}
           >
             {label}
           </Text>
@@ -151,9 +145,9 @@ const MonthView: React.FC<{
 
       {/* Week rows */}
       {weeks.map((week, weekIndex) => (
-        <View key={weekIndex} style={styles.monthWeekRow}>
+        <View key={weekIndex} className="flex-row justify-between">
           {week.map((count, dayIndex) => (
-            <View key={dayIndex} style={styles.monthDayCell}>
+            <View key={dayIndex} className="flex-1 items-center py-1">
               <ActivityDot count={count} tokens={tokens} size="small" />
             </View>
           ))}
@@ -174,15 +168,14 @@ const ActivityDot: React.FC<{
   // No activity — empty dot
   if (count === 0) {
     return (
-      <View style={[
-        styles.dot,
-        {
+      <View
+        style={{
           width: dotSize,
           height: dotSize,
           borderRadius: dotSize / 2,
           backgroundColor: tokens.borderSubtle,
-        }
-      ]} />
+        }}
+      />
     );
   }
 
@@ -192,60 +185,16 @@ const ActivityDot: React.FC<{
   const opacity = Math.min(0.4 + (safeCount * 0.2), 1);
 
   return (
-    <View style={[
-      styles.dot,
-      {
+    <View
+      style={{
         width: dotSize,
         height: dotSize,
         borderRadius: dotSize / 2,
         backgroundColor: tokens.primary,
         opacity,
-      }
-    ]} />
+      }}
+    />
   );
 };
-
-const styles = StyleSheet.create({
-  // Week view
-  weekContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 8,
-  },
-  dayColumn: {
-    alignItems: 'center',
-    gap: 6,
-  },
-  dayLabel: {
-    fontSize: 11,
-  },
-
-  // Month view
-  monthContainer: {
-    gap: 4,
-  },
-  monthHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 4,
-  },
-  monthDayLabel: {
-    flex: 1,
-    textAlign: 'center',
-    fontSize: 10,
-  },
-  monthWeekRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  monthDayCell: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 3,
-  },
-
-  // Dot
-  dot: {},
-});
 
 export default ActivityDots;

@@ -8,7 +8,7 @@ import { View, ScrollView, ActivityIndicator, TouchableOpacity } from 'react-nat
 import { useTheme } from '@/shared/hooks/useTheme';
 import { getMostUsedChips, analyzeCustomNotesForPatterns } from '@/modules/reflection';
 import { STORY_CHIPS, type ChipType } from '@/modules/reflection';
-import { CustomChipModal } from '@/modules/reflection/components/CustomChipModal';
+import { CustomChipModal } from '@/modules/reflection';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { Text } from '@/shared/ui/Text';
 import { Button } from '@/shared/ui/Button';

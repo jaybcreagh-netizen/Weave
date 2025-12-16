@@ -50,7 +50,8 @@ jest.mock('@/db', () => {
 });
 
 import { database } from '@/db';
-import { logWeave, deleteWeave } from '@/modules/interactions/services/weave-logging.service';
+import { WeaveLoggingService } from '@/modules/interactions';
+const { logWeave, deleteWeave } = WeaveLoggingService;
 import { calculateCurrentScore, processWeaveScoring } from '@/modules/intelligence/services/orchestrator.service';
 import FriendModel from '@/db/models/Friend';
 import { InteractionFormData } from '@/modules/interactions/types';

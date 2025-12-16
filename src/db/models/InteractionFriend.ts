@@ -1,6 +1,8 @@
-import { Model } from '@nozbe/watermelondb';
+import { Model, Relation } from '@nozbe/watermelondb';
 import { relation, field, text } from '@nozbe/watermelondb/decorators';
 import { Associations } from '@nozbe/watermelondb/Model';
+import Interaction from './Interaction';
+import Friend from './Friend';
 
 export default class InteractionFriend extends Model {
   static table = 'interaction_friends';
@@ -13,8 +15,8 @@ export default class InteractionFriend extends Model {
   @field('interaction_id') interactionId!: string;
   @field('friend_id') friendId!: string;
 
-  @relation('interactions', 'interaction_id') interaction!: any;
-  @relation('friends', 'friend_id') friend!: any;
+  @relation('interactions', 'interaction_id') interaction!: Relation<Interaction>;
+  @relation('friends', 'friend_id') friend!: Relation<Friend>;
 
   // Cloud sync fields (v31)
   @field('user_id') userId?: string;

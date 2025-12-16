@@ -1,5 +1,5 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { AlertCircle, RefreshCw } from 'lucide-react-native';
 import * as Sentry from '@sentry/react-native';
 
@@ -74,19 +74,30 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
       // Default fallback UI
       return (
-        <View style={styles.container}>
-          <View style={styles.errorCard}>
-            <AlertCircle size={48} color="#EF4444" style={styles.icon} />
-            <Text style={styles.title}>Something went wrong</Text>
-            <Text style={styles.message}>
+        <View className="flex-1 justify-center items-center bg-gray-50 p-5">
+          <View
+            className="bg-white rounded-2xl p-6 items-center shadow-sm max-w-[400px]"
+            style={{
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.1,
+              shadowRadius: 8,
+              elevation: 3,
+            }}
+          >
+            <View className="mb-4">
+              <AlertCircle size={48} color="#EF4444" />
+            </View>
+            <Text className="text-xl font-bold text-gray-800 mb-2 text-center">Something went wrong</Text>
+            <Text className="text-sm text-gray-500 mb-6 text-center leading-5">
               {this.state.error.message || 'An unexpected error occurred'}
             </Text>
             <TouchableOpacity
-              style={styles.retryButton}
+              className="flex-row items-center bg-indigo-500 px-6 py-3 rounded-lg gap-2"
               onPress={this.handleRetry}
             >
               <RefreshCw size={20} color="#FFFFFF" />
-              <Text style={styles.retryText}>Try Again</Text>
+              <Text className="text-white text-base font-semibold">Try Again</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -97,55 +108,3 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   }
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#F9FAFB',
-    padding: 20,
-  },
-  errorCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 24,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
-    maxWidth: 400,
-  },
-  icon: {
-    marginBottom: 16,
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#1F2937',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  message: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginBottom: 24,
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  retryButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#6366F1',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-    gap: 8,
-  },
-  retryText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-});

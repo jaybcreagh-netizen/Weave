@@ -19,7 +19,6 @@ import {
   TouchableOpacity,
   ScrollView,
   Dimensions,
-  StyleSheet,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import Animated, {
@@ -211,38 +210,39 @@ export default function FriendBadgePopup({
 
   return (
     <Modal visible={visible} transparent animationType="none">
-      <View style={styles.modalContainer}>
+      <View className="flex-1 justify-end">
         {/* Backdrop */}
-        <Animated.View style={[styles.backdrop, backdropStyle]}>
+        <Animated.View className="absolute inset-0 bg-black/50" style={backdropStyle}>
           <TouchableOpacity
-            style={StyleSheet.absoluteFill}
+            className="flex-1"
             activeOpacity={1}
             onPress={onClose}
           />
         </Animated.View>
 
         {/* Content Card */}
-        <Animated.View style={[styles.contentContainer, containerStyle]}>
+        <Animated.View
+          className="h-[75%] rounded-t-3xl overflow-hidden"
+          style={containerStyle}
+        >
           <BlurView
             intensity={95}
             tint={isDarkMode ? 'dark' : 'light'}
-            style={styles.blurContainer}
+            className="flex-1 rounded-t-3xl pb-5"
           >
             {/* Handle Bar */}
             <View
-              style={[
-                styles.handleBar,
-                { backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.3)' : 'rgba(0, 0, 0, 0.2)' }
-              ]}
+              className="w-10 h-1 rounded-full self-center mt-3 mb-2"
+              style={{ backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.3)' : 'rgba(0, 0, 0, 0.2)' }}
             />
 
             {/* Header */}
-            <View style={[styles.header, { borderBottomColor: colors.border }]}>
-              <View style={styles.headerTextContainer}>
-                <Text style={[styles.friendName, { color: colors.foreground }]}>
+            <View className="flex-row items-center justify-between px-6 py-4 border-b" style={{ borderBottomColor: colors.border }}>
+              <View className="flex-1">
+                <Text className="text-2xl font-lora-bold font-bold" style={{ color: colors.foreground }}>
                   {friendName}
                 </Text>
-                <Text style={[styles.subtitle, { color: colors['muted-foreground'] }]}>
+                <Text className="text-sm font-inter-regular mt-0.5" style={{ color: colors['muted-foreground'] }}>
                   Friend Overview
                 </Text>
               </View>
@@ -250,7 +250,7 @@ export default function FriendBadgePopup({
 
             {/* Content */}
             <ScrollView
-              style={styles.scrollView}
+              className="flex-1"
               showsVerticalScrollIndicator={false}
               bounces={true}
             >
@@ -258,8 +258,8 @@ export default function FriendBadgePopup({
                 return null;
               })()}
               {loading ? (
-                <View style={styles.loadingContainer}>
-                  <Text style={[styles.loadingText, { color: colors['muted-foreground'] }]}>
+                <View className="p-10 items-center">
+                  <Text className="text-sm font-inter-regular" style={{ color: colors['muted-foreground'] }}>
                     Loading...
                   </Text>
                 </View>
@@ -267,20 +267,20 @@ export default function FriendBadgePopup({
                 <>
                   {/* Archetype Section */}
                   {archetypeInfo && (
-                    <View style={styles.section}>
-                      <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
+                    <View className="px-5 py-3">
+                      <Text className="text-base font-inter-bold font-bold mb-3" style={{ color: colors.foreground }}>
                         Archetype
                       </Text>
-                      <View style={[styles.archetypeCard, { backgroundColor: colors.muted }]}>
-                        <Text style={styles.archetypeIcon}>{archetypeInfo.icon}</Text>
-                        <View style={styles.archetypeInfo}>
-                          <Text style={[styles.archetypeName, { color: colors.foreground }]}>
+                      <View className="flex-row rounded-2xl p-4 gap-3" style={{ backgroundColor: colors.muted }}>
+                        <Text className="text-5xl">{archetypeInfo.icon}</Text>
+                        <View className="flex-1 gap-1">
+                          <Text className="text-lg font-lora-bold font-bold" style={{ color: colors.foreground }}>
                             {archetypeInfo.name}
                           </Text>
-                          <Text style={[styles.archetypeEssence, { color: colors['muted-foreground'] }]}>
+                          <Text className="text-sm font-inter-regular italic" style={{ color: colors['muted-foreground'] }}>
                             {archetypeInfo.essence}
                           </Text>
-                          <Text style={[styles.archetypeCare, { color: colors['muted-foreground'] }]}>
+                          <Text className="text-xs font-inter-regular mt-0.5" style={{ color: colors['muted-foreground'] }}>
                             {archetypeInfo.careStyle}
                           </Text>
                         </View>
@@ -290,21 +290,21 @@ export default function FriendBadgePopup({
 
                   {/* Connection Health Section */}
                   {stats.tierFit && stats.tierFit.fitCategory !== 'insufficient_data' && (
-                    <View style={styles.section}>
-                      <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
+                    <View className="px-5 py-3">
+                      <Text className="text-base font-inter-bold font-bold mb-3" style={{ color: colors.foreground }}>
                         Connection Health
                       </Text>
-                      <View style={[styles.healthCard, { backgroundColor: colors.muted }]}>
-                        <View style={styles.healthStatusRow}>
-                          <View style={[
-                            styles.healthDot,
-                            { backgroundColor: stats.tierFit.fitCategory === 'mismatch' ? '#F59E0B' : '#10B981' }
-                          ]} />
-                          <Text style={[styles.healthStatusText, { color: colors.foreground }]}>
+                      <View className="rounded-2xl p-4 gap-2" style={{ backgroundColor: colors.muted }}>
+                        <View className="flex-row items-center gap-2">
+                          <View
+                            className="w-2 h-2 rounded-full"
+                            style={{ backgroundColor: stats.tierFit.fitCategory === 'mismatch' ? '#F59E0B' : '#10B981' }}
+                          />
+                          <Text className="text-base font-inter-semibold font-semibold" style={{ color: colors.foreground }}>
                             {stats.tierFit.fitCategory === 'mismatch' ? 'Needs Attention' : 'On Track'}
                           </Text>
                         </View>
-                        <Text style={[styles.healthDetails, { color: colors['muted-foreground'] }]}>
+                        <Text className="text-sm font-inter-regular leading-5" style={{ color: colors['muted-foreground'] }}>
                           Connecting every {Math.round(stats.tierFit.actualIntervalDays)} days
                           {'\n'}(Tier expects every {stats.tierFit.expectedIntervalDays} days)
                         </Text>
@@ -313,45 +313,46 @@ export default function FriendBadgePopup({
                   )}
 
                   {/* Stats Grid */}
-                  <View style={styles.section}>
-                    <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
+                  <View className="px-5 py-3">
+                    <Text className="text-base font-inter-bold font-bold mb-3" style={{ color: colors.foreground }}>
                       Quick Stats
                     </Text>
-                    <View style={styles.statsGrid}>
+                    <View className="flex-row flex-wrap gap-3">
                       {/* Total Weaves */}
-                      <View style={[styles.statCard, { backgroundColor: colors.muted }]}>
-                        <Text style={styles.statIcon}>🧵</Text>
-                        <Text style={[styles.statValue, { color: colors.foreground }]}>
+                      <View className="flex-1 min-w-[45%] rounded-2xl p-4 items-center gap-1.5" style={{ backgroundColor: colors.muted }}>
+                        <Text className="text-4xl">🧵</Text>
+                        <Text className="text-2xl font-inter-bold font-bold" style={{ color: colors.foreground }}>
                           {stats.totalWeaves}
                         </Text>
-                        <Text style={[styles.statLabel, { color: colors['muted-foreground'] }]}>
+                        <Text className="text-xs font-inter-regular text-center" style={{ color: colors['muted-foreground'] }}>
                           Weaves Logged
                         </Text>
                       </View>
 
                       {/* Badges */}
                       <TouchableOpacity
-                        style={[styles.statCard, { backgroundColor: colors.muted }]}
+                        className="flex-1 min-w-[45%] rounded-2xl p-4 items-center gap-1.5"
+                        style={{ backgroundColor: colors.muted }}
                         onPress={() => setShowBadges(!showBadges)}
                         activeOpacity={0.7}
                       >
-                        <Text style={styles.statIcon}>🏆</Text>
-                        <Text style={[styles.statValue, { color: colors.foreground }]}>
+                        <Text className="text-4xl">🏆</Text>
+                        <Text className="text-2xl font-inter-bold font-bold" style={{ color: colors.foreground }}>
                           {stats.badgeCount}
                         </Text>
-                        <Text style={[styles.statLabel, { color: colors['muted-foreground'] }]}>
+                        <Text className="text-xs font-inter-regular text-center" style={{ color: colors['muted-foreground'] }}>
                           Badges Earned {stats.badgeCount > 0 ? '▼' : ''}
                         </Text>
                       </TouchableOpacity>
 
                       {/* Birthday */}
                       {stats.birthday && (
-                        <View style={[styles.statCard, { backgroundColor: colors.muted }]}>
-                          <Text style={styles.statIcon}>🎂</Text>
-                          <Text style={[styles.statValue, { color: colors.foreground }]}>
+                        <View className="flex-1 min-w-[45%] rounded-2xl p-4 items-center gap-1.5" style={{ backgroundColor: colors.muted }}>
+                          <Text className="text-4xl">🎂</Text>
+                          <Text className="text-2xl font-inter-bold font-bold" style={{ color: colors.foreground }}>
                             {format(stats.birthday, 'MMM d')}
                           </Text>
-                          <Text style={[styles.statLabel, { color: colors['muted-foreground'] }]}>
+                          <Text className="text-xs font-inter-regular text-center" style={{ color: colors['muted-foreground'] }}>
                             Birthday
                           </Text>
                         </View>
@@ -361,24 +362,25 @@ export default function FriendBadgePopup({
 
                   {/* Favorite Weave Types */}
                   {stats.favoriteWeaveTypes.length > 0 && (
-                    <View style={styles.section}>
-                      <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
+                    <View className="px-5 py-3">
+                      <Text className="text-base font-inter-bold font-bold mb-3" style={{ color: colors.foreground }}>
                         Favorite Connection Styles
                       </Text>
-                      <View style={styles.favoritesList}>
+                      <View className="gap-2.5">
                         {stats.favoriteWeaveTypes.map((category) => {
                           const metadata = CATEGORY_METADATA[category];
                           return (
                             <View
                               key={category}
-                              style={[styles.favoriteCard, { backgroundColor: colors.muted }]}
+                              className="flex-row rounded-xl p-3 gap-3 items-center"
+                              style={{ backgroundColor: colors.muted }}
                             >
-                              <Text style={styles.favoriteIcon}>{metadata.icon}</Text>
-                              <View style={styles.favoriteInfo}>
-                                <Text style={[styles.favoriteLabel, { color: colors.foreground }]}>
+                              <Text className="text-3xl">{metadata.icon}</Text>
+                              <View className="flex-1 gap-0.5">
+                                <Text className="text-[15px] font-inter-semibold font-semibold" style={{ color: colors.foreground }}>
                                   {metadata.label}
                                 </Text>
-                                <Text style={[styles.favoriteDescription, { color: colors['muted-foreground'] }]}>
+                                <Text className="text-xs font-inter-regular" style={{ color: colors['muted-foreground'] }}>
                                   {metadata.description}
                                 </Text>
                               </View>
@@ -391,38 +393,35 @@ export default function FriendBadgePopup({
 
                   {/* Badges Section */}
                   {showBadges && stats.badges.length > 0 && (
-                    <View style={styles.section}>
-                      <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
+                    <View className="px-5 py-3">
+                      <Text className="text-base font-inter-bold font-bold mb-3" style={{ color: colors.foreground }}>
                         Relationship Badges
                       </Text>
-                      <View style={styles.badgesList}>
+                      <View className="gap-3">
                         {stats.badges.map((badge) => {
                           const rarityColor = getRarityColor(badge.rarity);
                           return (
                             <View
                               key={badge.id}
-                              style={[styles.badgeCard, { backgroundColor: colors.muted }]}
+                              className="flex-row rounded-2xl p-4 gap-3"
+                              style={{ backgroundColor: colors.muted }}
                             >
                               <View
-                                style={[
-                                  styles.badgeIconContainer,
-                                  { borderColor: rarityColor },
-                                ]}
+                                className="w-14 h-14 rounded-full border-2 items-center justify-center"
+                                style={{ borderColor: rarityColor }}
                               >
-                                <Text style={styles.badgeIcon}>{badge.icon}</Text>
+                                <Text className="text-3xl">{badge.icon}</Text>
                               </View>
-                              <View style={styles.badgeInfo}>
-                                <Text style={[styles.badgeName, { color: colors.foreground }]}>
+                              <View className="flex-1 gap-1">
+                                <Text className="text-base font-lora-bold font-bold" style={{ color: colors.foreground }}>
                                   {badge.name}
                                 </Text>
-                                <Text style={[styles.badgeDescription, { color: colors['muted-foreground'] }]}>
+                                <Text className="text-sm font-inter-regular" style={{ color: colors['muted-foreground'] }}>
                                   {badge.description}
                                 </Text>
                                 <Text
-                                  style={[
-                                    styles.badgeRarity,
-                                    { color: rarityColor },
-                                  ]}
+                                  className="text-[10px] font-inter-bold font-bold tracking-wider uppercase"
+                                  style={{ color: rarityColor }}
                                 >
                                   {badge.rarity.toUpperCase()}
                                 </Text>
@@ -436,12 +435,12 @@ export default function FriendBadgePopup({
 
                   {/* No weaves state */}
                   {stats.totalWeaves === 0 && (
-                    <View style={styles.emptyState}>
-                      <Text style={styles.emptyEmoji}>🌱</Text>
-                      <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
+                    <View className="p-10 items-center">
+                      <Text className="text-6xl mb-4">🌱</Text>
+                      <Text className="text-lg font-lora-bold font-bold mb-2" style={{ color: colors.foreground }}>
                         Start Your Journey
                       </Text>
-                      <Text style={[styles.emptyText, { color: colors['muted-foreground'] }]}>
+                      <Text className="text-sm font-inter-regular text-center" style={{ color: colors['muted-foreground'] }}>
                         Log interactions with {friendName} to build your weave!
                       </Text>
                     </View>
@@ -453,9 +452,10 @@ export default function FriendBadgePopup({
             {/* Close Button */}
             <TouchableOpacity
               onPress={onClose}
-              style={[styles.closeButton, { backgroundColor: colors.primary }]}
+              className="mx-5 mt-3 rounded-xl py-3.5 items-center"
+              style={{ backgroundColor: colors.primary }}
             >
-              <Text style={[styles.closeButtonText, { color: colors['primary-foreground'] }]}>
+              <Text className="text-base font-inter-semibold font-semibold" style={{ color: colors['primary-foreground'] }}>
                 Close
               </Text>
             </TouchableOpacity>
@@ -465,251 +465,3 @@ export default function FriendBadgePopup({
     </Modal>
   );
 }
-
-const styles = StyleSheet.create({
-  modalContainer: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  },
-  contentContainer: {
-    height: SCREEN_HEIGHT * 0.75,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    overflow: 'hidden',
-  },
-  blurContainer: {
-    flex: 1,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingBottom: 20,
-  },
-  handleBar: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    alignSelf: 'center',
-    marginTop: 12,
-    marginBottom: 8,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 24,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-  },
-  headerTextContainer: {
-    flex: 1,
-  },
-  friendName: {
-    fontSize: 24,
-    fontWeight: '700',
-    fontFamily: 'Lora_700Bold',
-  },
-  subtitle: {
-    fontSize: 14,
-    fontFamily: 'Inter_400Regular',
-    marginTop: 2,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  loadingContainer: {
-    padding: 40,
-    alignItems: 'center',
-  },
-  loadingText: {
-    fontSize: 14,
-    fontFamily: 'Inter_400Regular',
-  },
-  section: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    fontFamily: 'Inter_700Bold',
-    marginBottom: 12,
-  },
-  archetypeCard: {
-    flexDirection: 'row',
-    borderRadius: 16,
-    padding: 16,
-    gap: 12,
-  },
-  archetypeIcon: {
-    fontSize: 48,
-  },
-  archetypeInfo: {
-    flex: 1,
-    gap: 4,
-  },
-  archetypeName: {
-    fontSize: 18,
-    fontWeight: '700',
-    fontFamily: 'Lora_700Bold',
-  },
-  archetypeEssence: {
-    fontSize: 13,
-    fontFamily: 'Inter_400Regular',
-    fontStyle: 'italic',
-  },
-  archetypeCare: {
-    fontSize: 12,
-    fontFamily: 'Inter_400Regular',
-    marginTop: 2,
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  statCard: {
-    flex: 1,
-    minWidth: '45%',
-    borderRadius: 16,
-    padding: 16,
-    alignItems: 'center',
-    gap: 6,
-  },
-  statIcon: {
-    fontSize: 32,
-  },
-  statValue: {
-    fontSize: 24,
-    fontWeight: '700',
-    fontFamily: 'Inter_700Bold',
-  },
-  statLabel: {
-    fontSize: 12,
-    fontFamily: 'Inter_400Regular',
-    textAlign: 'center',
-  },
-  favoritesList: {
-    gap: 10,
-  },
-  favoriteCard: {
-    flexDirection: 'row',
-    borderRadius: 12,
-    padding: 12,
-    gap: 12,
-    alignItems: 'center',
-  },
-  favoriteIcon: {
-    fontSize: 28,
-  },
-  favoriteInfo: {
-    flex: 1,
-    gap: 2,
-  },
-  favoriteLabel: {
-    fontSize: 15,
-    fontWeight: '600',
-    fontFamily: 'Inter_600SemiBold',
-  },
-  favoriteDescription: {
-    fontSize: 12,
-    fontFamily: 'Inter_400Regular',
-  },
-  emptyState: {
-    padding: 40,
-    alignItems: 'center',
-  },
-  emptyEmoji: {
-    fontSize: 64,
-    marginBottom: 16,
-  },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    fontFamily: 'Lora_700Bold',
-    marginBottom: 8,
-  },
-  emptyText: {
-    fontSize: 14,
-    fontFamily: 'Inter_400Regular',
-    textAlign: 'center',
-  },
-  closeButton: {
-    marginHorizontal: 20,
-    marginTop: 12,
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  closeButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    fontFamily: 'Inter_600SemiBold',
-  },
-  badgesList: {
-    gap: 12,
-  },
-  badgeCard: {
-    flexDirection: 'row',
-    borderRadius: 16,
-    padding: 16,
-    gap: 12,
-  },
-  badgeIconContainer: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    borderWidth: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  badgeIcon: {
-    fontSize: 28,
-  },
-  badgeInfo: {
-    flex: 1,
-    gap: 4,
-  },
-  badgeName: {
-    fontSize: 16,
-    fontWeight: '700',
-    fontFamily: 'Lora_700Bold',
-  },
-  badgeDescription: {
-    fontSize: 13,
-    fontFamily: 'Inter_400Regular',
-  },
-  badgeRarity: {
-    fontSize: 10,
-    fontWeight: '700',
-    fontFamily: 'Inter_700Bold',
-    letterSpacing: 0.5,
-  },
-  healthCard: {
-    borderRadius: 16,
-    padding: 16,
-    gap: 8,
-  },
-  healthStatusRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  healthDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  healthStatusText: {
-    fontSize: 16,
-    fontWeight: '600',
-    fontFamily: 'Inter_600SemiBold',
-  },
-  healthDetails: {
-    fontSize: 14,
-    fontFamily: 'Inter_400Regular',
-    lineHeight: 20,
-  },
-});

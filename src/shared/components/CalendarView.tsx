@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { ChevronLeft, ChevronRight } from 'lucide-react-native';
-import { theme } from '@/shared/theme/theme';
+import { useTheme } from '@/shared/hooks/useTheme';
 import { eachDayOfInterval, endOfMonth, endOfWeek, startOfMonth, startOfWeek, format, isToday, isSameMonth, isSameDay, isAfter } from 'date-fns';
 
 interface CalendarViewProps {
@@ -12,6 +12,7 @@ interface CalendarViewProps {
 
 export function CalendarView({ onDateSelect, selectedDate, maxDate }: CalendarViewProps) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  const { tokens } = useTheme();
 
   const firstDayOfMonth = startOfMonth(currentMonth);
   const lastDayOfMonth = endOfMonth(currentMonth);
@@ -32,46 +33,49 @@ export function CalendarView({ onDateSelect, selectedDate, maxDate }: CalendarVi
   const canGoToNextMonth = !maxDate || isSameMonth(currentMonth, maxDate) || !isAfter(firstDayOfMonth, maxDate);
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={prevMonth} style={styles.navButton}>
-          <ChevronLeft color={theme.colors.foreground} size={20} />
+    <View className="p-4 bg-card rounded-2xl border border-border">
+      <View className="flex-row justify-between items-center pb-4">
+        <TouchableOpacity onPress={prevMonth} className="p-2">
+          <ChevronLeft color={tokens.foreground} size={20} />
         </TouchableOpacity>
-        <Text style={styles.headerLabel}>{format(currentMonth, 'MMMM yyyy')}</Text>
-        <TouchableOpacity onPress={nextMonth} disabled={!canGoToNextMonth} style={styles.navButton}>
-          <ChevronRight color={!canGoToNextMonth ? theme.colors.muted : theme.colors.foreground} size={20} />
+        <Text className="text-lg font-semibold text-foreground">{format(currentMonth, 'MMMM yyyy')}</Text>
+        <TouchableOpacity onPress={nextMonth} disabled={!canGoToNextMonth} className="p-2">
+          <ChevronRight color={!canGoToNextMonth ? tokens.foregroundMuted : tokens.foreground} size={20} />
         </TouchableOpacity>
       </View>
 
-      <View style={styles.daysHeaderRow}>
+      <View className="flex-row justify-around pb-2 border-b border-border">
         {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-          <Text key={day} style={styles.dayHeaderCell}>{day}</Text>
+          <Text key={day} className="text-xs text-muted-foreground w-[14.28%] text-center">{day}</Text>
         ))}
       </View>
 
-      <View style={styles.daysGrid}>
+      <View className="flex-row flex-wrap justify-around pt-2">
         {days.map((day) => {
           const isSelected = isSameDay(day, selectedDate);
           const isDisabled = maxDate ? isAfter(day, maxDate) && !isSameDay(day, maxDate) : false;
+          const isCurrentMonth = isSameMonth(day, currentMonth);
 
           return (
             <TouchableOpacity
               key={day.toString()}
               disabled={isDisabled}
-              style={[
-                styles.dayCell,
-                isToday(day) && styles.dayToday,
-                isSelected && styles.daySelected,
-                isDisabled && styles.dayDisabled,
-              ]}
+              className={`
+                w-[14.28%] aspect-square items-center justify-center rounded-full
+                ${isToday(day) ? 'bg-secondary' : ''}
+                ${isSelected ? 'bg-primary' : ''}
+                ${isDisabled ? 'opacity-30' : ''}
+              `}
               onPress={() => onDateSelect(day)}
             >
-              <Text style={[
-                styles.dayText,
-                !isSameMonth(day, currentMonth) && styles.dayOutside,
-                isSelected && styles.daySelectedText,
-                isDisabled && styles.dayDisabledText,
-              ]}>
+              <Text
+                className={`
+                  text-base
+                  ${isSelected ? 'text-background' : 'text-foreground'}
+                  ${!isCurrentMonth ? 'text-muted-foreground opacity-50' : ''}
+                  ${isDisabled ? 'text-muted-foreground' : ''}
+                `}
+              >
                 {format(day, 'd')}
               </Text>
             </TouchableOpacity>
@@ -82,75 +86,3 @@ export function CalendarView({ onDateSelect, selectedDate, maxDate }: CalendarVi
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    padding: theme.spacing.md,
-    backgroundColor: theme.colors.card,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingBottom: theme.spacing.md,
-  },
-  navButton: {
-    padding: theme.spacing.sm,
-  },
-  headerLabel: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: theme.colors.foreground,
-  },
-  daysHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingBottom: theme.spacing.sm,
-    borderBottomWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  dayHeaderCell: {
-    fontSize: 12,
-    color: theme.colors['muted-foreground'],
-    width: '14.28%',
-    textAlign: 'center',
-  },
-  daysGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-around',
-    paddingTop: theme.spacing.sm,
-  },
-  dayCell: {
-    width: '14.28%',
-    aspectRatio: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 999, // Make it a circle
-  },
-  dayToday: {
-    backgroundColor: theme.colors.secondary,
-  },
-  daySelected: {
-    backgroundColor: theme.colors.primary,
-  },
-  dayDisabled: {
-    opacity: 0.3,
-  },
-  dayText: {
-    fontSize: 16,
-    color: theme.colors.foreground,
-  },
-  daySelectedText: {
-    color: theme.colors.background,
-  },
-  dayOutside: {
-    color: theme.colors['muted-foreground'],
-    opacity: 0.5,
-  },
-  dayDisabledText: {
-      color: theme.colors['muted-foreground'],
-  }
-});

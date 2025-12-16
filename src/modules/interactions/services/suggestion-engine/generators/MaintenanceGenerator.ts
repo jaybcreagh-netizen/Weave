@@ -74,8 +74,9 @@ export class MaintenanceGenerator implements SuggestionGenerator {
                 Community: 21,
             }[friend.dunbarTier];
 
-        // Expanded score range: 40-85 (was 40-70) to include healthier relationships
-        if (currentScore >= 40 && currentScore <= 85 && maintenanceThreshold && daysSinceInteraction > maintenanceThreshold) {
+        // Global Maintenance (Fallback for high scores too)
+        // Was 40-85, now 40+ to ensure we catch those who fall through DeepenGenerator
+        if (currentScore >= 40 && maintenanceThreshold && daysSinceInteraction > maintenanceThreshold) {
             const contextualAction = getContextualSuggestion(recentInteractions, friend.archetype, friend.dunbarTier, pattern, friend);
 
             // Create pattern-aware title

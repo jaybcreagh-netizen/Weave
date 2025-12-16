@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { ReflectionStoryChips } from './ReflectionStoryChips';
 import { ReflectionTextInput } from './ReflectionTextInput';
@@ -177,11 +177,14 @@ export function ContextualReflectionInput({
   };
 
   return (
-    <Animated.View entering={FadeIn.duration(400)} style={styles.container}>
+    <Animated.View entering={FadeIn.duration(400)} className="gap-4">
       {/* Reflection quality indicator */}
       {reflectionQuality.score > 0 && (
-        <Animated.View entering={FadeIn.duration(300)} style={styles.qualityBadge}>
-          <Text style={styles.qualityText}>
+        <Animated.View
+          entering={FadeIn.duration(300)}
+          className="self-start py-1.5 px-3 rounded-2xl bg-green-500/10"
+        >
+          <Text className="text-[13px] font-semibold text-green-500">
             {reflectionQuality.emoji} {reflectionQuality.label}
           </Text>
         </Animated.View>
@@ -189,8 +192,11 @@ export function ContextualReflectionInput({
 
       {/* Contextual prompt based on user's text */}
       {!!contextualPrompt && (
-        <Animated.View entering={FadeIn.duration(300)} style={styles.promptContainer}>
-          <Text style={[styles.promptText, { color: colors.foreground }]}>
+        <Animated.View
+          entering={FadeIn.duration(300)}
+          className="py-2 px-3 rounded-xl bg-purple-500/10"
+        >
+          <Text className="text-[15px] font-medium leading-[22px]" style={{ color: colors.foreground }}>
             {contextualPrompt}
           </Text>
         </Animated.View>
@@ -198,10 +204,10 @@ export function ContextualReflectionInput({
 
       {/* Pattern insights (friend-specific) */}
       {patternInsights.length > 0 && (
-        <Animated.View entering={FadeIn.duration(300)} style={styles.insightsContainer}>
+        <Animated.View entering={FadeIn.duration(300)} className="gap-2">
           {patternInsights.map((insight, index) => (
-            <View key={index} style={styles.insightItem}>
-              <Text style={[styles.insightText, { color: colors['muted-foreground'] }]}>
+            <View key={index} className="py-1.5 px-2.5 rounded-lg bg-blue-500/10">
+              <Text className="text-[13px] font-medium leading-[18px]" style={{ color: colors['muted-foreground'] }}>
                 {insight.message}
               </Text>
             </View>
@@ -237,46 +243,3 @@ export function ContextualReflectionInput({
     </Animated.View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    gap: 16,
-  },
-  qualityBadge: {
-    alignSelf: 'flex-start',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 16,
-    backgroundColor: 'rgba(34, 197, 94, 0.1)', // Subtle green tint
-  },
-  qualityText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#22c55e',
-  },
-  promptContainer: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 12,
-    backgroundColor: 'rgba(147, 51, 234, 0.08)', // Subtle purple tint
-  },
-  promptText: {
-    fontSize: 15,
-    fontWeight: '500',
-    lineHeight: 22,
-  },
-  insightsContainer: {
-    gap: 8,
-  },
-  insightItem: {
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 8,
-    backgroundColor: 'rgba(59, 130, 246, 0.08)', // Subtle blue tint
-  },
-  insightText: {
-    fontSize: 13,
-    fontWeight: '500',
-    lineHeight: 18,
-  },
-});

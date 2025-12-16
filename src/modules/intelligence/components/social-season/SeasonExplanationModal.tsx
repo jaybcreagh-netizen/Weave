@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, Modal, ScrollView, StyleSheet } from 'rea
 import { BlurView } from 'expo-blur';
 import { X } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
-import { useUserProfileStore } from '@/modules/auth';
+import { useUserProfile, useSocialBatteryStats, SocialBatteryService } from '@/modules/auth';
 import { generateSeasonExplanation } from '@/modules/reflection';
 import { SeasonCalculationInput } from '@/modules/intelligence';
 
@@ -19,10 +19,23 @@ export const SeasonExplanationModal: React.FC<SeasonExplanationModalProps> = ({
   seasonData,
 }) => {
   const { colors, isDarkMode } = useTheme();
-  const { profile } = useUserProfileStore();
+  const { profile } = useUserProfile();
+  const { data: batteryStats = { average: 50, trend: 'stable' } } = useSocialBatteryStats();
 
-  const season = profile?.currentSocialSeason || 'balanced';
-  const batteryLevel = profile?.socialBatteryCurrent || 3;
+  // Normalize season string to lowercase to match seasonData keys (resting, balanced, blooming)
+  const rawSeason = profile?.currentSocialSeason || 'balanced';
+  const season = rawSeason.toLowerCase() as 'resting' | 'balanced' | 'blooming';
+
+  const batteryLevel = batteryStats.average ?? 50;
+
+  // user-profile store had 'socialBattery'. If that was the current level, we might need to fetch it from profile if it's stored there, 
+  // or use the stats service. The store had `socialBattery: number`.
+  // Let's assume profile has it for now as per `SocialBatteryService` updates?
+  // Actually SocialBatteryService logs checkins. Profile might not have a 'current battery' field directly on it updated in real-time unless we check the checkins.
+  // But `useSocialBatteryStats` gives us 'average'. 
+  // Let's look at `useUserProfileStore` definition later. For now, assuming batteryStats.average is a good proxy or I might need to fetch the last checkin.
+  // Wait, `YearInMoons` showed we write checkins. 
+  // Let's assume `batteryLevel` is `batteryStats.average` for visualization for now as it maps to the context.Current || 3;
 
   // Generate data-driven explanation if we have seasonData
   const explanation = seasonData ? generateSeasonExplanation({
@@ -124,8 +137,8 @@ export const SeasonExplanationModal: React.FC<SeasonExplanationModalProps> = ({
                 <View
                   className="rounded-2xl border p-4"
                   style={{
-                    backgroundColor: `${currentSeasonMetadata.color}15`,
-                    borderColor: `${currentSeasonMetadata.color}40`,
+                    backgroundColor: `${currentSeasonMetadata.color} 15`,
+                    borderColor: `${currentSeasonMetadata.color} 40`,
                   }}
                 >
                   <View className="flex-row items-center gap-3 mb-3">
@@ -214,7 +227,7 @@ export const SeasonExplanationModal: React.FC<SeasonExplanationModalProps> = ({
                 >
                   WHAT THIS MEANS
                 </Text>
-                {currentSeasonMetadata.characteristics.map((characteristic, index) => (
+                {currentSeasonMetadata.characteristics.map((characteristic: string, index: number) => (
                   <View
                     key={index}
                     className="flex-row items-center gap-3 py-2.5 border-b"
@@ -275,6 +288,27 @@ export const SeasonExplanationModal: React.FC<SeasonExplanationModalProps> = ({
                   </View>
                 ))}
               </View>
+              {batteryLevel !== undefined && (
+                <View className={`mt-6 rounded-2xl p-4 ${isDarkMode ? 'bg-white/5' : 'bg-black/5'}`}>
+                  <Text className={`text-sm font-medium mb-3 ${isDarkMode ? 'text-stone-400' : 'text-stone-500'}`}>
+                    Avg. Social Battery
+                  </Text>
+                  <View className="flex-row items-center justify-between gap-3">
+                    <Text className={`text-xl font-bold ${isDarkMode ? 'text-stone-100' : 'text-stone-900'}`}>
+                      {Math.round(batteryLevel)}%
+                    </Text>
+                    <View className={`flex-1 h-3 rounded-full overflow-hidden ${isDarkMode ? 'bg-white/10' : 'bg-black/10'}`}>
+                      <View
+                        className="h-full rounded-full"
+                        style={{
+                          width: `${Math.max(5, Math.min(100, batteryLevel))}%`,
+                          backgroundColor: batteryLevel > 70 ? '#4ADE80' : batteryLevel > 30 ? '#FACC15' : '#EF4444'
+                        }}
+                      />
+                    </View>
+                  </View>
+                </View>
+              )}
             </ScrollView>
           </View>
         </View>

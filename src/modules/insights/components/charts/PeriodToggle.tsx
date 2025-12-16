@@ -5,7 +5,7 @@
  */
 
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import Animated, {
   useSharedValue,
@@ -25,7 +25,7 @@ export const PeriodToggle: React.FC<PeriodToggleProps> = ({
   value,
   onChange,
 }) => {
-  const { tokens, radius, spacing } = useTheme();
+  const { tokens } = useTheme();
 
   const slidePosition = useSharedValue(value === 'week' ? 0 : 1);
 
@@ -40,29 +40,25 @@ export const PeriodToggle: React.FC<PeriodToggleProps> = ({
     }
   };
 
+  const containerWidth = 200; // Fixed width for predictable animation
+
   const indicatorStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: slidePosition.value * (containerWidth / 2) }],
   }));
 
-  const containerWidth = 200; // Fixed width for predictable animation
-
   return (
-    <View style={[
-      styles.container,
-      {
-        backgroundColor: tokens.secondary, // Darker background for visibility
-        borderRadius: radius.md, // Slightly rounder
-        width: containerWidth,
-        padding: 4, // More padding
-      }
-    ]}>
+    <View
+      className="flex-row relative p-1 rounded-lg w-[200px]"
+      style={{
+        backgroundColor: tokens.secondary,
+      }}
+    >
       {/* Sliding indicator */}
       <Animated.View
+        className="absolute top-0.5 left-0.5 bottom-0.5 rounded shadow-sm"
         style={[
-          styles.indicator,
           {
-            backgroundColor: tokens.card.background, // White/Dark card bg
-            borderRadius: radius.sm,
+            backgroundColor: tokens.card.background,
             width: containerWidth / 2 - 4,
             shadowColor: '#000',
             shadowOffset: { width: 0, height: 1 },
@@ -77,16 +73,16 @@ export const PeriodToggle: React.FC<PeriodToggleProps> = ({
       {/* Week button */}
       <TouchableOpacity
         onPress={() => handlePress('week')}
-        style={styles.button}
+        className="flex-1 py-2 items-center justify-center z-10"
         activeOpacity={0.7}
       >
-        <Text style={[
-          styles.buttonText,
-          {
+        <Text
+          className="text-sm"
+          style={{
             color: value === 'week' ? tokens.foreground : tokens.foregroundMuted,
             fontFamily: value === 'week' ? 'Inter_600SemiBold' : 'Inter_500Medium',
-          }
-        ]}>
+          }}
+        >
           Week
         </Text>
       </TouchableOpacity>
@@ -94,43 +90,19 @@ export const PeriodToggle: React.FC<PeriodToggleProps> = ({
       {/* Month button */}
       <TouchableOpacity
         onPress={() => handlePress('month')}
-        style={styles.button}
+        className="flex-1 py-2 items-center justify-center z-10"
         activeOpacity={0.7}
       >
-        <Text style={[
-          styles.buttonText,
-          {
+        <Text
+          className="text-sm"
+          style={{
             color: value === 'month' ? tokens.foreground : tokens.foregroundMuted,
             fontFamily: value === 'month' ? 'Inter_600SemiBold' : 'Inter_500Medium',
-          }
-        ]}>
+          }}
+        >
           Month
         </Text>
       </TouchableOpacity>
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
-    padding: 2,
-    position: 'relative',
-  },
-  indicator: {
-    position: 'absolute',
-    top: 2,
-    left: 2,
-    bottom: 2,
-  },
-  button: {
-    flex: 1,
-    paddingVertical: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 1,
-  },
-  buttonText: {
-    fontSize: 14,
-  },
-});

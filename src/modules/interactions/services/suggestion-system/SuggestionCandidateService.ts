@@ -1,0 +1,92 @@
+import { Q } from '@nozbe/watermelondb';
+import { database } from '@/db';
+import FriendModel from '@/db/models/Friend';
+import InteractionFriend from '@/db/models/InteractionFriend';
+import Interaction from '@/db/models/Interaction';
+
+export interface CandidateResult {
+    friendIds: string[];
+    priority: 'critical' | 'high' | 'normal';
+}
+
+/**
+ * Service responsible for identifying WHICH friends need suggestion processing.
+ * Uses optimized SQL queries to select a candidate pool instead of loading all friends.
+ */
+export const SuggestionCandidateService = {
+    /**
+     * Get a prioritized list of friends to generate suggestions for.
+     * Limits the total number of candidates to prevent performance issues.
+     */
+    getCandidates: async (limit: number = 50): Promise<string[]> => {
+        const candidateIds = new Set<string>();
+
+        // Quota Configuration
+        // user requested: 20 drifting, 15 active, 15 reserved for stale
+        const DRIFT_LIMIT = 20;
+        const ACTIVE_LIMIT = 15;
+        // Stale limit is implicitly "the rest", but we must ensure we reserve space for it.
+        // We do this by strictly capping the others.
+
+        // 1. Drifting Friends (Low Score)
+        // Strict cap at DRIFT_LIMIT
+        const driftingFriends = await database.get<FriendModel>('friends')
+            .query(
+                Q.where('weave_score', Q.lt(50)),
+                Q.sortBy('weave_score', Q.asc), // Lowest score first
+                Q.take(DRIFT_LIMIT)
+            ).fetch();
+
+        driftingFriends.forEach(f => candidateIds.add(f.id));
+
+        // 2. Recent Interactions (Active Friends)
+        // Strict cap at ACTIVE_LIMIT, but we must be careful with duplicates from step 1.
+        // We fetch more to account for overlap, but stop adding once we hit the quota or run out.
+        const oneWeekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+        const recentInteractionFriends = await database.get<InteractionFriend>('interaction_friends')
+            .query(
+                Q.on('interactions', 'interaction_date', Q.gte(oneWeekAgo)),
+                Q.take(100) // Fetch plenty to filter through
+            ).fetch();
+
+        let activeAddedCount = 0;
+        for (const link of recentInteractionFriends) {
+            if (activeAddedCount >= ACTIVE_LIMIT) break;
+
+            if (!candidateIds.has(link.friendId)) {
+                candidateIds.add(link.friendId);
+                activeAddedCount++;
+            }
+        }
+
+        // 3. Fill the rest with Stale/Middle friends
+        // This effectively reserves (limit - current_count) slots.
+        // If drift used 20 and active used 15, we have 15 left for Stale.
+        // If drift used 5 and active used 15, we have 30 left for Stale.
+        // This guarantees Stale gets exposure.
+        if (candidateIds.size < limit) {
+            const remainingSlots = limit - candidateIds.size;
+
+            // We fetch significantly more than needed because the "Stale" query might return users
+            // we ALREADY picked up in the Active/Drifting steps (if they haven't been updated recently).
+            // This ensures we dig deep enough to find actual NEW candidates.
+            const staleFriends = await database.get<FriendModel>('friends')
+                .query(
+                    Q.sortBy('last_updated', Q.asc), // Least recently updated/touched
+                    Q.take(Math.max(remainingSlots * 3, 50))
+                ).fetch();
+
+            let staleAdded = 0;
+            for (const f of staleFriends) {
+                if (staleAdded >= remainingSlots) break;
+
+                if (!candidateIds.has(f.id)) {
+                    candidateIds.add(f.id);
+                    staleAdded++;
+                }
+            }
+        }
+
+        return Array.from(candidateIds);
+    }
+};

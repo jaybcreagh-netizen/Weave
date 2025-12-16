@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { Calendar } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { Q } from '@nozbe/watermelondb';
@@ -98,34 +98,36 @@ export function IntentionActionSheet({
       title={`Connection with ${friend.name}`}
     >
       {/* Category and Description */}
-      <View style={styles.headerContent}>
-        {category && <Text style={styles.categoryIcon}>{category.icon}</Text>}
+      <View className="flex-row items-center gap-3 mb-4">
+        {category && <Text className="text-3xl">{category.icon}</Text>}
         {intention.description && (
-          <Text style={[styles.description, { color: colors['muted-foreground'] }]}>
+          <Text className="text-[15px] flex-1" style={{ color: colors['muted-foreground'] }}>
             {intention.description}
           </Text>
         )}
       </View>
 
       {/* Actions */}
-      <View style={styles.actions}>
+      <View className="gap-3">
         <TouchableOpacity
-          style={[styles.actionButton, styles.primaryButton, { backgroundColor: colors.primary }]}
+          className="flex-row items-center justify-center gap-3 py-4 rounded-xl shadow-sm elevation-4"
+          style={{ backgroundColor: colors.primary, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 8 }}
           onPress={handleSchedule}
           activeOpacity={0.8}
         >
           <Calendar color={colors['primary-foreground']} size={20} />
-          <Text style={[styles.actionButtonText, { color: colors['primary-foreground'] }]}>
+          <Text className="text-base font-semibold" style={{ color: colors['primary-foreground'] }}>
             Schedule It
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.actionButton, styles.secondaryButton, { backgroundColor: colors.muted, borderColor: colors.border }]}
+          className="flex-row items-center justify-center gap-3 py-4 rounded-xl shadow-sm elevation-4 border"
+          style={{ backgroundColor: colors.muted, borderColor: colors.border, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 8 }}
           onPress={handleDismissAction}
           activeOpacity={0.8}
         >
-          <Text style={[styles.actionButtonText, { color: colors.foreground }]}>
+          <Text className="text-base font-semibold" style={{ color: colors.foreground }}>
             Dismiss
           </Text>
         </TouchableOpacity>
@@ -133,43 +135,3 @@ export function IntentionActionSheet({
     </AnimatedBottomSheet>
   );
 }
-
-const styles = StyleSheet.create({
-  headerContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 16,
-  },
-  categoryIcon: {
-    fontSize: 32,
-  },
-  description: {
-    fontSize: 15,
-    flex: 1,
-  },
-  actions: {
-    gap: 12,
-  },
-  actionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
-    paddingVertical: 16,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  primaryButton: {},
-  secondaryButton: {
-    borderWidth: 1,
-  },
-  actionButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-});

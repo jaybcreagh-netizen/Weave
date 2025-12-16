@@ -65,6 +65,7 @@ export default appSchema({
         { name: 'tier_fit_last_calculated', type: 'number', isOptional: true }, // When tier fit was last calculated
         { name: 'suggested_tier', type: 'string', isOptional: true }, // AI-suggested tier based on patterns
         { name: 'tier_suggestion_dismissed_at', type: 'number', isOptional: true }, // When user dismissed tier suggestion
+
       ]
     }),
     tableSchema({
@@ -101,6 +102,7 @@ export default appSchema({
         { name: 'synced_at', type: 'number', isOptional: true },
         { name: 'sync_status', type: 'string', isOptional: true },
         { name: 'server_updated_at', type: 'number', isOptional: true },
+
       ]
     }),
     tableSchema({
@@ -112,6 +114,7 @@ export default appSchema({
         { name: 'user_id', type: 'string', isOptional: true, isIndexed: true },
         { name: 'synced_at', type: 'number', isOptional: true },
         { name: 'sync_status', type: 'string', isOptional: true },
+
       ]
     }),
     tableSchema({
@@ -149,6 +152,7 @@ export default appSchema({
         { name: 'synced_at', type: 'number', isOptional: true },
         { name: 'sync_status', type: 'string', isOptional: true },
         { name: 'server_updated_at', type: 'number', isOptional: true },
+
       ]
     }),
     tableSchema({
@@ -160,6 +164,7 @@ export default appSchema({
         { name: 'user_id', type: 'string', isOptional: true, isIndexed: true },
         { name: 'synced_at', type: 'number', isOptional: true },
         { name: 'sync_status', type: 'string', isOptional: true },
+
       ]
     }),
     tableSchema({
@@ -198,6 +203,7 @@ export default appSchema({
         { name: 'synced_at', type: 'number', isOptional: true },
         { name: 'sync_status', type: 'string', isOptional: true },
         { name: 'server_updated_at', type: 'number', isOptional: true },
+
       ]
     }),
     tableSchema({
@@ -228,6 +234,7 @@ export default appSchema({
         { name: 'synced_at', type: 'number', isOptional: true },
         { name: 'sync_status', type: 'string', isOptional: true },
         { name: 'server_updated_at', type: 'number', isOptional: true },
+
       ]
     }),
     tableSchema({
@@ -270,6 +277,7 @@ export default appSchema({
         { name: 'synced_at', type: 'number', isOptional: true },
         { name: 'sync_status', type: 'string', isOptional: true },
         { name: 'server_updated_at', type: 'number', isOptional: true },
+
       ]
     }),
     tableSchema({
@@ -317,6 +325,7 @@ export default appSchema({
         { name: 'synced_at', type: 'number', isOptional: true },
         { name: 'sync_status', type: 'string', isOptional: true },
         { name: 'server_updated_at', type: 'number', isOptional: true },
+
       ]
     }),
     tableSchema({
@@ -358,6 +367,7 @@ export default appSchema({
         { name: 'synced_at', type: 'number', isOptional: true },
         { name: 'sync_status', type: 'string', isOptional: true },
         { name: 'server_updated_at', type: 'number', isOptional: true },
+
       ]
     }),
     tableSchema({

@@ -1,11 +1,9 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, Dimensions, StyleSheet } from 'react-native';
+import { View, Text, Dimensions } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withDelay, withTiming, useAnimatedRef, runOnUI } from 'react-native-reanimated';
 import { FlashList } from '@shopify/flash-list';
 import withObservables from '@nozbe/with-observables';
-import { Q } from '@nozbe/watermelondb';
 
-// import { database } from '@/db';
 import FriendModel from '@/db/models/Friend';
 import { friendRepository } from '../repositories/friend.repository';
 import { FriendListRow } from '@/modules/relationships';
@@ -68,7 +66,8 @@ const AnimatedFriendCardItem = React.memo(({
 
     return (
         <Animated.View
-            style={[animatedStyle, { marginBottom: 12 }]}>
+            className="mb-3"
+            style={animatedStyle}>
             <FriendListRow friend={item} animatedRef={animatedRef} />
         </Animated.View>
     );
@@ -89,11 +88,11 @@ const FriendTierListContent = ({ tier, friends, scrollHandler, isQuickWeaveOpen 
 
     if (friends.length === 0) {
         return (
-            <View style={[styles.emptyTierContainer, { width: screenWidth, backgroundColor: tierBgColor }]}>
-                <View style={styles.emptyTierEmoji}>
+            <View className="flex-1 items-center justify-center px-4" style={{ width: screenWidth, backgroundColor: tierBgColor }}>
+                <View className="mb-6 opacity-60">
                     <WeaveIcon size={120} color={colors['muted-foreground']} />
                 </View>
-                <Text style={[styles.emptyTierTitle, { color: colors.foreground }]}>Your weave is empty</Text>
+                <Text className="text-lg mb-3" style={{ color: colors.foreground }}>Your weave is empty</Text>
             </View>
         );
     }
@@ -106,9 +105,9 @@ const FriendTierListContent = ({ tier, friends, scrollHandler, isQuickWeaveOpen 
     );
 
     return (
-        <View style={{ width: screenWidth, height: '100%', backgroundColor: tierBgColor }}>
+        <View className="h-full" style={{ width: screenWidth, backgroundColor: tierBgColor }}>
             <AnimatedFlashList
-                contentContainerStyle={styles.tierScrollView}
+                contentContainerStyle={{ paddingHorizontal: 20, paddingVertical: 16 }}
                 data={friends}
                 estimatedItemSize={72}
                 keyExtractor={(item: any) => item.id}
@@ -127,10 +126,3 @@ const enhance = withObservables(['tier'], ({ tier }: { tier: Tier }) => ({
 }));
 
 export const FriendTierList = enhance(FriendTierListContent);
-
-const styles = StyleSheet.create({
-    emptyTierContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
-    emptyTierEmoji: { fontSize: 50, marginBottom: 24, opacity: 0.6 },
-    emptyTierTitle: { fontSize: 18, marginBottom: 12 },
-    tierScrollView: { paddingHorizontal: 20, paddingVertical: 16 },
-});

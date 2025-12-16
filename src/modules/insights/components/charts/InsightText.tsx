@@ -5,7 +5,7 @@
  */
 
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text } from 'react-native';
 import { Check, AlertCircle, Info } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
 
@@ -22,8 +22,8 @@ export const InsightText: React.FC<InsightTextProps> = ({
   type = 'neutral',
   showIcon = true,
 }) => {
-  const { tokens, spacing } = useTheme();
-  
+  const { tokens } = useTheme();
+
   const getColor = () => {
     switch (type) {
       case 'positive':
@@ -34,13 +34,13 @@ export const InsightText: React.FC<InsightTextProps> = ({
         return tokens.foregroundMuted;
     }
   };
-  
+
   const getIcon = () => {
     if (!showIcon) return null;
-    
+
     const iconSize = 14;
     const color = getColor();
-    
+
     switch (type) {
       case 'positive':
         return <Check size={iconSize} color={color} />;
@@ -50,32 +50,18 @@ export const InsightText: React.FC<InsightTextProps> = ({
         return <Info size={iconSize} color={color} />;
     }
   };
-  
+
   const color = getColor();
-  
+
   return (
-    <View style={[styles.container, { gap: spacing[1.5] }]}>
+    <View className="flex-row items-center gap-1.5">
       {getIcon()}
-      <Text style={[
-        styles.text,
-        {
-          color,
-          fontFamily: 'Inter_400Regular',
-        }
-      ]}>
+      <Text
+        className="text-[13px] leading-[18px] font-inter-regular"
+        style={{ color }}
+      >
         {text}
       </Text>
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  text: {
-    fontSize: 13,
-    lineHeight: 18,
-  },
-});

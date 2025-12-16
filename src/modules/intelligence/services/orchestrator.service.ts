@@ -14,7 +14,7 @@ import type { InteractionType } from '@/shared/types/legacy-types';
 import type { SocialSeason } from '@/db/models/UserProfile';
 import Logger from '@/shared/utils/Logger';
 import { eventBus } from '@/shared/events/event-bus';
-import { recalculateScoreOnDelete as orchestratorRecalculateScoreOnDelete } from '@/modules/intelligence/services/orchestrator.service';
+
 import Interaction from '@/db/models/Interaction';
 
 /**
@@ -95,7 +95,8 @@ export async function recalculateScoreOnDelete(
 
   const batchOps: any[] = [];
 
-  for (const friend of friends) {
+  // Parallelize the calculation and data fetching for each friend to avoid N+1 queries
+  const opsPromises = friends.map(async (friend) => {
     // 1. Calculate points that were added
     const pointsToRemove = calculatePointsForWeave(friend, interactionData);
 
@@ -133,15 +134,18 @@ export async function recalculateScoreOnDelete(
       }
     }
 
-    batchOps.push(friend.prepareUpdate(f => {
+    Logger.info(`[Score Revert] Friend ${friend.name}: Removed ${pointsToRemove.toFixed(1)} pts`);
+
+    return friend.prepareUpdate(f => {
       f.weaveScore = Math.min(100, Math.max(0, f.weaveScore - pointsToRemove));
       if (isLatest && newLastUpdated) {
         f.lastUpdated = newLastUpdated;
       }
-    }));
+    });
+  });
 
-    Logger.info(`[Score Revert] Friend ${friend.name}: Removed ${pointsToRemove.toFixed(1)} pts`);
-  }
+  const ops = await Promise.all(opsPromises);
+  batchOps.push(...ops);
 
   if (batchOps.length > 0) {
     await database.batch(batchOps);

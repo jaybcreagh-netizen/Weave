@@ -37,7 +37,7 @@ export * from './services/guaranteed-suggestions.service';
 export { useEventSuggestions, useDismissSuggestion, type EventSuggestion } from './hooks/useEventSuggestions';
 
 // Stores
-export * from './store';
+
 
 
 // Types

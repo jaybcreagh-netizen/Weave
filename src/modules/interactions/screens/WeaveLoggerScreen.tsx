@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, TextInput, ScrollView, Keyboard, TouchableWithoutFeedback, Vibration, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput, ScrollView, Keyboard, TouchableWithoutFeedback, Vibration, Alert, Modal } from 'react-native';
+import { BlurView } from 'expo-blur';
 import { Stack } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInUp, useSharedValue, withSpring } from 'react-native-reanimated';
@@ -18,9 +19,11 @@ import { type Vibe, type InteractionCategory, type Archetype } from '@/shared/ty
 import { useTheme } from '@/shared/hooks/useTheme';
 import { getAllCategories, getCategoryMetadata, type CategoryMetadata } from '@/shared/constants/interaction-categories';
 import { database } from '@/db';
+import Interaction from '@/db/models/Interaction';
+import { Q } from '@nozbe/watermelondb';
 import FriendModel from '@/db/models/Friend';
 import { FriendSelector, ReciprocitySelector, InitiatorType } from '@/modules/relationships';
-import { StandardBottomSheet } from '@/shared/ui/Sheet';
+
 import { STORY_CHIPS } from '@/modules/reflection';
 import { ErrorBoundary } from '@/shared/components/ErrorBoundary';
 
@@ -75,6 +78,7 @@ export function WeaveLoggerScreen({
     const [title, setTitle] = useState<string>('');
     const [initiator, setInitiator] = useState<InitiatorType | undefined>(undefined);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [calendarDates, setCalendarDates] = useState<{ planned: Date[]; completed: Date[] }>({ planned: [], completed: [] });
 
     const {
         showPrompt,
@@ -119,6 +123,44 @@ export function WeaveLoggerScreen({
                 });
         }
     }, [friendId, onBack]);
+
+    // Fetch interaction dates for calendar indicators
+    useEffect(() => {
+        const loadCalendarDates = async () => {
+            try {
+                // Fetch all interactions for the last 3 months and next month
+                const threeMonthsAgo = subDays(new Date(), 90);
+                const oneMonthAhead = new Date();
+                oneMonthAhead.setMonth(oneMonthAhead.getMonth() + 1);
+
+                const allInteractions = await database
+                    .get<Interaction>('interactions')
+                    .query(
+                        Q.where('interaction_date', Q.gte(threeMonthsAgo.getTime())),
+                        Q.where('interaction_date', Q.lte(oneMonthAhead.getTime()))
+                    )
+                    .fetch();
+
+                const planned: Date[] = [];
+                const completed: Date[] = [];
+
+                allInteractions.forEach(interaction => {
+                    const date = startOfDay(interaction.interactionDate);
+                    if (interaction.status === 'planned') {
+                        planned.push(date);
+                    } else if (interaction.status === 'completed') {
+                        completed.push(date);
+                    }
+                });
+
+                setCalendarDates({ planned, completed });
+            } catch (error) {
+                console.error('Error loading calendar dates:', error);
+            }
+        };
+
+        loadCalendarDates();
+    }, []);
 
     // Initialize from other params
     useEffect(() => {
@@ -294,29 +336,55 @@ export function WeaveLoggerScreen({
                     onComplete={() => setShowCelebration(false)}
                 />
 
-                {/* Calendar Sheet */}
-                <StandardBottomSheet
-                    visible={showCalendar}
-                    onClose={() => setShowCalendar(false)}
-                    snapPoints={['50%']}
-                >
-                    <View className="flex-1 p-6">
-                        <View className="flex-row justify-between items-center mb-4">
-                            <Text className="font-lora-bold text-xl" style={{ color: colors.foreground }}>
-                                Pick a Date
-                            </Text>
-                            <TouchableOpacity onPress={() => setShowCalendar(false)} className="p-2 -mr-2">
-                                <X color={colors['muted-foreground']} size={22} />
-                            </TouchableOpacity>
-                        </View>
+                {/* Calendar Modal (centered popup, matching Plan Weave style) */}
+                {showCalendar && (
+                    <Modal
+                        visible={true}
+                        transparent
+                        animationType="none"
+                        onRequestClose={() => setShowCalendar(false)}
+                    >
+                        <BlurView intensity={isDarkMode ? 20 : 40} tint={isDarkMode ? 'dark' : 'light'} className="flex-1">
+                            <TouchableOpacity
+                                className="flex-1 justify-center items-center px-5"
+                                activeOpacity={1}
+                                onPress={() => setShowCalendar(false)}
+                            >
+                                <Animated.View
+                                    entering={FadeInUp.duration(200).springify()}
+                                    className="w-full max-w-md rounded-3xl p-6"
+                                    style={{
+                                        backgroundColor: colors.background,
+                                        shadowColor: '#000',
+                                        shadowOffset: { width: 0, height: 20 },
+                                        shadowOpacity: 0.25,
+                                        shadowRadius: 30,
+                                        elevation: 20,
+                                    }}
+                                    onStartShouldSetResponder={() => true}
+                                >
+                                    {/* Header */}
+                                    <View className="flex-row justify-between items-center mb-4">
+                                        <Text className="font-lora-bold text-xl" style={{ color: colors.foreground }}>
+                                            Pick a Date
+                                        </Text>
+                                        <TouchableOpacity onPress={() => setShowCalendar(false)} className="p-2 -mr-2">
+                                            <X color={colors['muted-foreground']} size={22} />
+                                        </TouchableOpacity>
+                                    </View>
 
-                        <CustomCalendar
-                            selectedDate={selectedDate}
-                            onDateSelect={handleDateSelect}
-                            minDate={undefined}
-                        />
-                    </View>
-                </StandardBottomSheet>
+                                    <CustomCalendar
+                                        selectedDate={selectedDate}
+                                        onDateSelect={handleDateSelect}
+                                        minDate={undefined}
+                                        plannedDates={calendarDates.planned}
+                                        completedDates={calendarDates.completed}
+                                    />
+                                </Animated.View>
+                            </TouchableOpacity>
+                        </BlurView>
+                    </Modal>
+                )}
 
                 <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
                     <ScrollView

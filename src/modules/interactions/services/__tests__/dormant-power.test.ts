@@ -44,6 +44,11 @@ jest.mock('../guaranteed-suggestions.service', () => ({
     generateGuaranteedSuggestions: jest.fn().mockReturnValue([]),
 }));
 
+// Mock time filter to ensure suggestions aren't hidden by "night" logic
+jest.mock('@/shared/utils/time-aware-filter', () => ({
+    filterSuggestionsByTime: jest.fn((suggestions) => suggestions),
+}));
+
 // Setup LokiJS Database Mock
 import { Database } from '@nozbe/watermelondb';
 import LokiJSAdapter from '@nozbe/watermelondb/adapters/lokijs';
@@ -77,6 +82,7 @@ jest.mock('@/db', () => {
             Interaction,
             InteractionFriend,
             require('@/db/models/Intention').default,
+            require('@/db/models/IntentionFriend').default,
             require('@/db/models/LifeEvent').default,
         ],
     });
@@ -169,8 +175,7 @@ describe('Suggestion Engine Integrated Tests', () => {
                     f.dunbarTier = 'InnerCircle';
                     f.weaveScore = 95; // High score
                     f.archetype = 'Emperor';
-                    // @ts-ignore
-                    f.lastInteractionDate = new Date(); // Update field directly
+                    f.lastUpdated = new Date(); // Update field directly
                 });
             });
 

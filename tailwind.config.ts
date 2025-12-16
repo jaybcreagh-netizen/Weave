@@ -82,11 +82,25 @@ const config: Config = {
         'weave-fading': tokens.light.weave.fading,
       },
       fontFamily: {
+        // Semantic names (preferred)
         serif: ['Lora_400Regular'],
         'serif-bold': ['Lora_700Bold'],
         sans: ['Inter_400Regular'],
         'sans-medium': ['Inter_500Medium'],
         'sans-semibold': ['Inter_600SemiBold'],
+
+        // Lora aliases (for backward compatibility with existing class usage)
+        'lora': ['Lora_400Regular'],
+        'lora-regular': ['Lora_400Regular'],
+        'lora-bold': ['Lora_700Bold'],
+        'lora-medium': ['Lora_700Bold'], // Lora doesn't have medium, use bold
+        'lora-semibold': ['Lora_700Bold'], // Lora doesn't have semibold, use bold
+
+        // Inter aliases (for backward compatibility with existing class usage)
+        'inter': ['Inter_400Regular'],
+        'inter-regular': ['Inter_400Regular'],
+        'inter-medium': ['Inter_500Medium'],
+        'inter-semibold': ['Inter_600SemiBold'],
       },
       fontSize: {
         // Display

@@ -22,6 +22,8 @@ import { database } from '@/db';
 import { Q } from '@nozbe/watermelondb';
 import { calculateCurrentScore } from '@/modules/intelligence';
 import { getFriendMilestones, Milestone } from '@/modules/gamification';
+import { switchMap } from 'rxjs/operators';
+import { of } from 'rxjs';
 
 // Helper: Get top interaction suggestions for an archetype
 function getTopInteractions(archetype: Archetype): Array<{ category: InteractionCategory; multiplier: number; level: 'peak' | 'high' | 'good' }> {
@@ -137,7 +139,7 @@ const FriendDetailSheetContent: React.FC<FriendDetailSheetProps> = ({
         <View className="mb-6 flex-row items-center justify-between">
           <Text
             style={{ color: colors.foreground }}
-            className="font-lora text-[22px] font-bold"
+            className="font-lora-bold text-[22px] font-bold"
           >
             {friend.name}'s Details
           </Text>
@@ -159,13 +161,13 @@ const FriendDetailSheetContent: React.FC<FriendDetailSheetProps> = ({
               <View className="flex-1">
                 <Text
                   style={{ color: colors['muted-foreground'] }}
-                  className="font-inter text-xs"
+                  className="font-inter-regular text-xs"
                 >
                   Birthday
                 </Text>
                 <Text
                   style={{ color: colors.foreground }}
-                  className="font-inter text-base font-semibold"
+                  className="font-inter-semibold text-base font-semibold"
                 >
                   {(() => {
                     // Format MM-DD string to "Month Day"
@@ -190,13 +192,13 @@ const FriendDetailSheetContent: React.FC<FriendDetailSheetProps> = ({
               <View className="flex-1">
                 <Text
                   style={{ color: colors['muted-foreground'] }}
-                  className="font-inter text-xs"
+                  className="font-inter-regular text-xs"
                 >
                   Anniversary
                 </Text>
                 <Text
                   style={{ color: colors.foreground }}
-                  className="font-inter text-base font-semibold"
+                  className="font-inter-semibold text-base font-semibold"
                 >
                   {(() => {
                     const [month, day] = friend.anniversary.split('-');
@@ -212,7 +214,7 @@ const FriendDetailSheetContent: React.FC<FriendDetailSheetProps> = ({
           {!friend.birthday && !friend.anniversary && (
             <Text
               style={{ color: colors['muted-foreground'] }}
-              className="text-center font-inter text-sm"
+              className="text-center font-inter-regular text-sm"
             >
               No dates set
             </Text>
@@ -228,14 +230,14 @@ const FriendDetailSheetContent: React.FC<FriendDetailSheetProps> = ({
             <ArchetypeIcon archetype={friend.archetype} size={24} color={colors.primary} />
             <Text
               style={{ color: colors.foreground }}
-              className="font-lora text-lg font-bold"
+              className="font-lora-bold text-lg font-bold"
             >
               {archetypeInfo?.name || friend.archetype}
             </Text>
           </View>
           <Text
             style={{ color: colors['muted-foreground'] }}
-            className="font-inter text-sm leading-5 mb-4"
+            className="font-inter-regular text-sm leading-5 mb-4"
           >
             {archetypeInfo?.description || 'A unique archetype'}
           </Text>
@@ -270,13 +272,13 @@ const FriendDetailSheetContent: React.FC<FriendDetailSheetProps> = ({
                     >
                       <Text className="text-sm">{metadata.icon}</Text>
                       <Text
-                        className="font-inter text-[12px] font-semibold"
+                        className="font-inter-semibold text-[12px] font-semibold"
                         style={{ color: affinityColor }}
                       >
                         {metadata.label}
                       </Text>
                       <Text
-                        className="font-inter text-[10px] font-medium"
+                        className="font-inter-medium text-[10px] font-medium"
                         style={{ color: `${affinityColor}CC` }}
                       >
                         {level === 'peak' ? '★' : level === 'high' ? '✦' : '◆'}
@@ -294,7 +296,7 @@ const FriendDetailSheetContent: React.FC<FriendDetailSheetProps> = ({
           <View className="mb-6">
             <Text
               style={{ color: colors['muted-foreground'] }}
-              className="mb-3 font-inter text-xs uppercase tracking-wider"
+              className="mb-3 font-inter-medium text-xs uppercase tracking-wider"
             >
               Milestones
             </Text>
@@ -311,7 +313,7 @@ const FriendDetailSheetContent: React.FC<FriendDetailSheetProps> = ({
                   <Text className="text-base">{milestone.icon}</Text>
                   <Text
                     style={{ color: colors.primary }}
-                    className="font-inter text-xs font-semibold"
+                    className="font-inter-semibold text-xs font-semibold"
                   >
                     {milestone.name}
                   </Text>
@@ -329,13 +331,13 @@ const FriendDetailSheetContent: React.FC<FriendDetailSheetProps> = ({
           >
             <Text
               style={{ color: colors['muted-foreground'] }}
-              className="mb-1 font-inter text-xs"
+              className="mb-1 font-inter-regular text-xs"
             >
               Weave Score
             </Text>
             <Text
               style={{ color: colors.primary }}
-              className="font-lora text-2xl font-bold"
+              className="font-lora-bold text-2xl font-bold"
             >
               {Math.round(weaveScore)}
             </Text>
@@ -347,13 +349,13 @@ const FriendDetailSheetContent: React.FC<FriendDetailSheetProps> = ({
           >
             <Text
               style={{ color: colors['muted-foreground'] }}
-              className="mb-1 font-inter text-xs"
+              className="mb-1 font-inter-regular text-xs"
             >
               Total Weaves
             </Text>
             <Text
               style={{ color: colors.foreground }}
-              className="font-lora text-2xl font-bold"
+              className="font-lora-bold text-2xl font-bold"
             >
               {completedWeaves}
             </Text>
@@ -363,10 +365,6 @@ const FriendDetailSheetContent: React.FC<FriendDetailSheetProps> = ({
     </Modal>
   );
 };
-
-// Enhance with observables
-import { switchMap } from 'rxjs/operators';
-import { of } from 'rxjs';
 
 // Enhance with observables
 export const FriendDetailSheet = withObservables(['friendId'], ({ friendId }: { friendId: string }) => ({

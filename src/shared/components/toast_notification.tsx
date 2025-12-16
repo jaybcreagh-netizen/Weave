@@ -1,16 +1,13 @@
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import Animated, { 
-  useSharedValue, 
-  useAnimatedStyle, 
+import { View, Text } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
   withSpring,
-  withDelay,
   withTiming,
-  runOnJS,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Check } from 'lucide-react-native';
-import { theme } from '@/shared/theme/theme';
+import { useTheme } from '@/shared/hooks/useTheme';
 
 interface ToastNotificationProps {
   message: string;
@@ -20,6 +17,7 @@ interface ToastNotificationProps {
 
 export function ToastNotification({ message, friendName, onDismiss }: ToastNotificationProps) {
   const insets = useSafeAreaInsets();
+  const { colors, isDarkMode } = useTheme();
   const translateY = useSharedValue(-100);
   const opacity = useSharedValue(0);
 
@@ -47,71 +45,34 @@ export function ToastNotification({ message, friendName, onDismiss }: ToastNotif
   }));
 
   return (
-    <Animated.View 
+    <Animated.View
+      className="absolute left-5 right-5 z-[9999]"
       style={[
-        styles.container, 
         { top: insets.top + 12 },
         animatedStyle
       ]}
     >
-      <View style={styles.content}>
-        <Text style={styles.icon}>✓</Text>
-        <View style={styles.textContainer}>
-          <Text style={styles.message}>
-            <Text style={styles.activityText}>{message}</Text>
-            <Text style={styles.withText}> logged with </Text>
-            <Text style={styles.friendNameText}>{friendName}</Text>
+      <View
+        className="flex-row items-center rounded-2xl p-4 py-3.5 shadow-lg border-[1.5px]"
+        style={{
+          backgroundColor: isDarkMode ? colors.card : 'rgba(255, 255, 255, 0.95)',
+          borderColor: colors.primary + '4D', // 30% roughly 4D hex
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.15,
+          shadowRadius: 12,
+          elevation: 8,
+        }}
+      >
+        <Text className="text-2xl mr-3" style={{ color: colors.foreground }}>✓</Text>
+        <View className="flex-1">
+          <Text className="text-[15px] leading-5" style={{ color: colors.foreground }}>
+            <Text className="font-bold">{message}</Text>
+            <Text className="font-normal" style={{ color: colors['muted-foreground'] }}> logged with </Text>
+            <Text className="font-bold font-lora-bold" style={{ color: colors.primary }}>{friendName}</Text>
           </Text>
         </View>
       </View>
     </Animated.View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    position: 'absolute',
-    left: 20,
-    right: 20,
-    zIndex: 9999,
-  },
-  content: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    borderRadius: 16,
-    padding: 16,
-    paddingVertical: 14,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 8,
-    borderWidth: 1.5,
-    borderColor: 'rgba(181, 138, 108, 0.3)',
-  },
-  icon: {
-    fontSize: 24,
-    marginRight: 12,
-  },
-  textContainer: {
-    flex: 1,
-  },
-  message: {
-    fontSize: 15,
-    lineHeight: 20,
-  },
-  activityText: {
-    fontWeight: '700',
-    color: theme.colors.foreground,
-  },
-  withText: {
-    fontWeight: '400',
-    color: theme.colors['muted-foreground'],
-  },
-  friendNameText: {
-    fontWeight: '700',
-    color: theme.colors.primary,
-    fontFamily: 'Lora_700Bold',
-  },
-});
