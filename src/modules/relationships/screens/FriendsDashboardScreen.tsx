@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
-import { View, Dimensions, StyleSheet, ScrollView } from 'react-native';
+import { View, Dimensions, ScrollView } from 'react-native';
 import Animated, { FadeIn, FadeOut, useSharedValue, useAnimatedScrollHandler } from 'react-native-reanimated';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
@@ -9,7 +9,7 @@ import { Q } from '@nozbe/watermelondb';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FAB } from '@/shared/components/fab';
 import { InsightsFAB, InsightsSheet } from '@/modules/insights';
-import { useUIStore } from '@/shared/stores/uiStore';
+import { useGlobalUI } from '@/shared/context/GlobalUIContext';
 import { usePlans, PlanService, getSuggestionCooldownDays } from '@/modules/interactions';
 import { useSuggestions } from '@/modules/interactions';
 import { Suggestion } from '@/shared/types/common';
@@ -18,7 +18,7 @@ import { useCardGesture } from '@/shared/context/CardGestureContext';
 import { SuggestionTrackerService } from '@/modules/interactions';
 import Intention from '@/db/models/Intention';
 import { SimpleTutorialTooltip } from '@/shared/components/SimpleTutorialTooltip';
-import { useTutorialStore } from '@/shared/stores/tutorialStore';
+import { useTutorial } from '@/shared/context/TutorialContext';
 import { database } from '@/db';
 import FriendModel from '@/db/models/Friend';
 
@@ -40,7 +40,7 @@ const { width: screenWidth } = Dimensions.get('window');
 export function FriendsDashboardScreen() {
     const router = useRouter();
     const { colors } = useTheme();
-    const { isQuickWeaveOpen, showMicroReflectionSheet } = useUIStore();
+    const { isQuickWeaveOpen, showMicroReflectionSheet } = useGlobalUI();
     const { gesture, animatedScrollHandler, activeCardId } = useCardGesture();
     const { suggestions, dismissSuggestion } = useSuggestions();
 
@@ -86,11 +86,13 @@ export function FriendsDashboardScreen() {
     const [friendCounts, setFriendCounts] = useState({ inner: 0, close: 0, community: 0 });
 
     // Circle dashboard tutorial state
-    const hasAddedFirstFriend = useTutorialStore((state) => state.hasAddedFirstFriend);
-    const hasSeenQuickWeaveIntro = useTutorialStore((state) => state.hasSeenQuickWeaveIntro);
-    const hasPerformedQuickWeave = useTutorialStore((state) => state.hasPerformedQuickWeave);
-    const markQuickWeaveIntroSeen = useTutorialStore((state) => state.markQuickWeaveIntroSeen);
-    const markQuickWeavePerformed = useTutorialStore((state) => state.markQuickWeavePerformed);
+    const {
+        hasAddedFirstFriend,
+        hasSeenQuickWeaveIntro,
+        hasPerformedQuickWeave,
+        markQuickWeaveIntroSeen,
+        markQuickWeavePerformed,
+    } = useTutorial();
 
     const [showCircleTutorial, setShowCircleTutorial] = useState(false);
     const [circleTutorialStep, setCircleTutorialStep] = useState(0);
@@ -253,7 +255,7 @@ export function FriendsDashboardScreen() {
     }, [handleSortChange]);
 
     return (
-        <View style={[styles.safeArea, { backgroundColor: colors.background }]}>
+        <View className="flex-1" style={{ backgroundColor: colors.background }}>
             {/* Search Bar - Always visible */}
             <FriendSearchBar
                 searchQuery={searchQuery}
@@ -391,6 +393,4 @@ export function FriendsDashboardScreen() {
     );
 }
 
-const styles = StyleSheet.create({
-    safeArea: { flex: 1 },
-});
+

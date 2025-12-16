@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, Modal, TouchableOpacity, ScrollView } from 'react-native';
-import { useUIStore } from '@/shared/stores/uiStore';
+import { useGlobalUI } from '@/shared/context/GlobalUIContext';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { X, Sparkles } from 'lucide-react-native';
 import { type Archetype, type InteractionCategory } from '@/shared/types/common';
@@ -50,7 +50,7 @@ function getTopInteractions(archetype: Archetype): Array<{ category: Interaction
 }
 
 export function ArchetypeDetailModal() {
-  const { archetypeModal, setArchetypeModal } = useUIStore();
+  const { archetypeModal, setArchetypeModal } = useGlobalUI();
   const { colors, isDarkMode } = useTheme();
 
   if (!archetypeModal) {

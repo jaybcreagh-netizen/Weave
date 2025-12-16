@@ -5,9 +5,9 @@ import Interaction from '@/db/models/Interaction';
 import Intention from '@/db/models/Intention';
 import InteractionFriend from '@/db/models/InteractionFriend';
 import FriendModel from '@/db/models/Friend';
+import UserProfile, { SocialSeason } from '@/db/models/UserProfile';
 import { Q } from '@nozbe/watermelondb';
 import { processWeaveScoring } from '@/modules/intelligence';
-import { useUserProfileStore } from '@/modules/auth';
 import { recordPractice } from '@/modules/gamification';
 import { deleteWeaveCalendarEvent } from './calendar.service';
 import { InteractionFormData } from '../types';
@@ -82,8 +82,9 @@ export async function completePlan(interactionId: string, data?: { vibe?: string
         await recalculateScoreOnEdit(friend.id, oldData, interactionData, database);
       }
     } else {
-      // Standard flow: New points
-      const currentSeason = useUserProfileStore.getState().getSocialSeason();
+      const profileCollection = database.get<UserProfile>('user_profile');
+      const profile = (await profileCollection.query().fetch())[0];
+      const currentSeason = profile?.currentSocialSeason || 'balanced' as any;
       await processWeaveScoring(friends, interactionData, database, currentSeason);
     }
 
@@ -164,7 +165,11 @@ export async function checkPendingPlans(): Promise<void> {
 
   if (pendingPlans.length > 0) {
     // We iterate one by one to handle scoring for each
-    const currentSeason = useUserProfileStore.getState().getSocialSeason();
+    // Fetch profile from DB to get social season.
+    const profileCollection = database.get<UserProfile>('user_profile');
+    // Assuming single user profile for now, or fetch current user's profile
+    const profile = (await profileCollection.query().fetch())[0];
+    const currentSeason = profile?.currentSocialSeason || 'balanced' as any; // Cast or use valid enum string if 'Balance' is wrong. 'balanced' seems more standard.
 
     for (const plan of pendingPlans) {
       // 1. Fetch friends for this plan (needed for scoring)

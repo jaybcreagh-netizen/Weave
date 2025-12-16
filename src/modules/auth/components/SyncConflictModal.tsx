@@ -1,13 +1,14 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+import { View, TouchableOpacity, ScrollView } from 'react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
-import { useSyncConflictStore } from '../store/sync-conflict.store';
+import { useSyncConflict } from '../context/SyncConflictContext';
 import { AlertTriangle, Server, Smartphone } from 'lucide-react-native';
 import { StandardBottomSheet } from '@/shared/ui/Sheet';
+import { Text } from '@/shared/ui/Text';
 
 export function SyncConflictModal() {
     const { colors } = useTheme();
-    const { conflicts, isModalOpen, resolveConflict } = useSyncConflictStore();
+    const { conflicts, isModalOpen, resolveConflict } = useSyncConflict();
 
     if (!isModalOpen || conflicts.length === 0) {
         return null;
@@ -72,173 +73,86 @@ export function SyncConflictModal() {
             height="full"
             title="Sync Conflict Detected"
         >
-            <View style={styles.header}>
-                <View style={[styles.iconContainer, { backgroundColor: colors.destructive + '20' }]}>
+            <View className="items-center p-5 pb-2.5">
+                <View
+                    className="w-12 h-12 rounded-full items-center justify-center mb-3"
+                    style={{ backgroundColor: colors.destructive + '20' }}
+                >
                     <AlertTriangle size={24} color={colors.destructive} />
                 </View>
-                <Text style={[styles.subtitle, { color: colors.muted }]}>
+                <Text variant="caption" className="text-muted-foreground">
                     Table: {tableName} • ID: {currentConflict.id.substring(0, 8)}...
                 </Text>
             </View>
 
-            <ScrollView style={styles.content}>
-                    <Text style={[styles.instruction, { color: colors.foreground }]}>
-                        The server has a newer version of this record than your device. Which version would you like to keep?
-                    </Text>
+            <ScrollView className="flex-1 p-5">
+                <Text variant="body" className="text-center mb-6 leading-6">
+                    The server has a newer version of this record than your device. Which version would you like to keep?
+                </Text>
 
-                    {diffs.length > 0 ? (
-                        diffs.map((diff) => (
-                            <View key={diff.key} style={[styles.diffRow, { borderColor: colors.border }]}>
-                                <Text style={[styles.diffLabel, { color: colors.muted }]}>{diff.key}</Text>
-                                <View style={styles.diffValues}>
-                                    <View style={styles.diffValueContainer}>
-                                        <View style={styles.diffHeader}>
-                                            <Smartphone size={12} color={colors.primary} />
-                                            <Text style={[styles.diffHeaderLabel, { color: colors.primary }]}>Local</Text>
-                                        </View>
-                                        <Text style={[styles.diffValue, { color: colors.foreground }]}>
-                                            {JSON.stringify(diff.local)}
-                                        </Text>
+                {diffs.length > 0 ? (
+                    diffs.map((diff) => (
+                        <View key={diff.key} className="mb-4 border border-border rounded-xl overflow-hidden">
+                            <Text
+                                variant="caption"
+                                className="uppercase tracking-widest p-2 pl-3 bg-muted/30 text-muted-foreground"
+                            >
+                                {diff.key}
+                            </Text>
+                            <View className="flex-row">
+                                <View className="flex-1 p-3">
+                                    <View className="flex-row items-center mb-1">
+                                        <Smartphone size={12} color={colors.primary} />
+                                        <Text variant="caption" className="font-bold ml-1 text-primary">Local</Text>
                                     </View>
-                                    <View style={[styles.divider, { backgroundColor: colors.border }]} />
-                                    <View style={styles.diffValueContainer}>
-                                        <View style={styles.diffHeader}>
-                                            <Server size={12} color={colors.secondary} />
-                                            <Text style={[styles.diffHeaderLabel, { color: colors.secondary }]}>Server</Text>
-                                        </View>
-                                        <Text style={[styles.diffValue, { color: colors.foreground }]}>
-                                            {JSON.stringify(diff.server)}
-                                        </Text>
+                                    <Text variant="body" className="text-sm">
+                                        {JSON.stringify(diff.local)}
+                                    </Text>
+                                </View>
+                                <View className="w-px bg-border" />
+                                <View className="flex-1 p-3">
+                                    <View className="flex-row items-center mb-1">
+                                        <Server size={12} color={colors.secondary} />
+                                        <Text variant="caption" className="font-bold ml-1 text-secondary">Server</Text>
                                     </View>
+                                    <Text variant="body" className="text-sm">
+                                        {JSON.stringify(diff.server)}
+                                    </Text>
                                 </View>
                             </View>
-                        ))
-                    ) : (
-                        <Text style={{ color: colors.muted, textAlign: 'center', marginTop: 20 }}>
-                            No visible differences found (metadata only).
-                        </Text>
-                    )}
-                </ScrollView>
+                        </View>
+                    ))
+                ) : (
+                    <Text variant="body" className="text-muted-foreground text-center mt-5">
+                        No visible differences found (metadata only).
+                    </Text>
+                )}
+            </ScrollView>
 
-                <View style={[styles.footer, { borderTopColor: colors.border }]}>
-                    <TouchableOpacity
-                        style={[styles.button, { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 }]}
-                        onPress={handleKeepLocal}
-                    >
-                        <Smartphone size={20} color={colors.foreground} style={{ marginRight: 8 }} />
-                        <Text style={[styles.buttonText, { color: colors.foreground }]}>Keep Mine</Text>
-                    </TouchableOpacity>
+            <View className="p-5 border-t border-border flex-row gap-3">
+                <TouchableOpacity
+                    className="flex-1 flex-row h-[50px] rounded-xl items-center justify-center bg-card border border-border"
+                    onPress={handleKeepLocal}
+                >
+                    <Smartphone size={20} color={colors.foreground} style={{ marginRight: 8 }} />
+                    <Text variant="body" className="font-semibold">Keep Mine</Text>
+                </TouchableOpacity>
 
-                    <TouchableOpacity
-                        style={[styles.button, { backgroundColor: colors.primary }]}
-                        onPress={handleKeepServer}
-                    >
-                        <Server size={20} color={colors['primary-foreground']} style={{ marginRight: 8 }} />
-                        <Text style={[styles.buttonText, { color: colors['primary-foreground'] }]}>Accept Theirs</Text>
-                    </TouchableOpacity>
-                </View>
+                <TouchableOpacity
+                    className="flex-1 flex-row h-[50px] rounded-xl items-center justify-center"
+                    style={{ backgroundColor: colors.primary }}
+                    onPress={handleKeepServer}
+                >
+                    <Server size={20} color={colors['primary-foreground']} style={{ marginRight: 8 }} />
+                    <Text variant="body" className="font-semibold text-primary-foreground">Accept Theirs</Text>
+                </TouchableOpacity>
+            </View>
 
-            <View style={styles.queueInfo}>
-                <Text style={{ color: colors.muted, fontSize: 12 }}>
+            <View className="items-center pb-2.5">
+                <Text variant="caption" className="text-muted-foreground text-xs">
                     {conflicts.length > 1 ? `${conflicts.length - 1} more conflicts waiting` : 'Last conflict'}
                 </Text>
             </View>
         </StandardBottomSheet>
     );
 }
-
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-    },
-    header: {
-        alignItems: 'center',
-        padding: 20,
-        paddingBottom: 10,
-    },
-    iconContainer: {
-        width: 48,
-        height: 48,
-        borderRadius: 24,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: 12,
-    },
-    title: {
-        fontSize: 20,
-        fontWeight: 'bold',
-        marginBottom: 4,
-    },
-    subtitle: {
-        fontSize: 14,
-    },
-    content: {
-        flex: 1,
-        padding: 20,
-    },
-    instruction: {
-        fontSize: 16,
-        marginBottom: 24,
-        textAlign: 'center',
-        lineHeight: 22,
-    },
-    diffRow: {
-        marginBottom: 16,
-        borderWidth: 1,
-        borderRadius: 12,
-        overflow: 'hidden',
-    },
-    diffLabel: {
-        fontSize: 12,
-        textTransform: 'uppercase',
-        letterSpacing: 1,
-        padding: 8,
-        paddingLeft: 12,
-        backgroundColor: 'rgba(0,0,0,0.03)',
-    },
-    diffValues: {
-        flexDirection: 'row',
-    },
-    diffValueContainer: {
-        flex: 1,
-        padding: 12,
-    },
-    diffHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 4,
-    },
-    diffHeaderLabel: {
-        fontSize: 10,
-        fontWeight: 'bold',
-        marginLeft: 4,
-    },
-    diffValue: {
-        fontSize: 14,
-    },
-    divider: {
-        width: 1,
-    },
-    footer: {
-        padding: 20,
-        borderTopWidth: 1,
-        flexDirection: 'row',
-        gap: 12,
-    },
-    button: {
-        flex: 1,
-        flexDirection: 'row',
-        height: 50,
-        borderRadius: 12,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    buttonText: {
-        fontSize: 16,
-        fontWeight: '600',
-    },
-    queueInfo: {
-        alignItems: 'center',
-        paddingBottom: 10,
-    }
-});

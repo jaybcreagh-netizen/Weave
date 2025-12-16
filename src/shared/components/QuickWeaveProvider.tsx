@@ -1,15 +1,12 @@
 import React from 'react';
 import * as Haptics from 'expo-haptics';
-import { useUIStore } from '@/shared/stores/uiStore';
+import { useGlobalUI } from '@/shared/context/GlobalUIContext';
 import { QuickWeaveOverlay } from '@/modules/interactions';
 import { MicroReflectionSheet } from '@/modules/reflection';
 import { useInteractions } from '@/modules/interactions';
 
 export function QuickWeaveProvider({ children }: { children: React.ReactNode }) {
-  const isQuickWeaveOpen = useUIStore(state => state.isQuickWeaveOpen);
-  const microReflectionData = useUIStore(state => state.microReflectionData);
-  const hideMicroReflectionSheet = useUIStore(state => state.hideMicroReflectionSheet);
-  const showToast = useUIStore(state => state.showToast);
+  const { microReflectionData, hideMicroReflectionSheet, showToast } = useGlobalUI();
   const { updateInteraction } = useInteractions();
 
   const handleSave = async (data: { vibe?: any; notes?: string; title?: string }) => {
@@ -56,7 +53,7 @@ export function QuickWeaveProvider({ children }: { children: React.ReactNode }) 
   return (
     <>
       {children}
-      {isQuickWeaveOpen && <QuickWeaveOverlay />}
+      <QuickWeaveOverlay />
       {microReflectionData && (
         <MicroReflectionSheet
           isVisible={!!microReflectionData}

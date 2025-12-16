@@ -1,9 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { logger } from '@/shared/services/logger.service';
-import { View, TouchableOpacity, ScrollView, StyleSheet, Alert } from 'react-native';
+import { View, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { formatDistanceToNow } from 'date-fns';
 import { Q } from '@nozbe/watermelondb';
-import { Trash2, Target } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { getCategoryMetadata } from '@/shared/constants/interaction-categories';
 import Intention from '@/db/models/Intention';
@@ -131,19 +130,19 @@ export function IntentionsList({ intentions, onIntentionPress }: IntentionsListP
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
+    <View className="mb-6">
+      <View className="flex-row justify-between items-center mb-3 px-1">
+        <View className="flex-row items-center gap-2">
           <Text variant="h3" style={{ color: colors.foreground }}>
             Focus & Intentions
           </Text>
-          <View style={[styles.countBadge, { backgroundColor: colors.secondary }]}>
+          <View className="px-1.5 py-0.5 rounded-full" style={{ backgroundColor: colors.secondary }}>
             <Text variant="caption" style={{ color: colors.foreground }}>
               {intentionsWithFriends.length}
             </Text>
           </View>
         </View>
-        <TouchableOpacity onPress={handleClearAll} style={styles.clearButton}>
+        <TouchableOpacity onPress={handleClearAll} className="p-1">
           <Text variant="caption" style={{ color: colors['muted-foreground'] }}>Clear All</Text>
         </TouchableOpacity>
       </View>
@@ -151,7 +150,7 @@ export function IntentionsList({ intentions, onIntentionPress }: IntentionsListP
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={{ paddingRight: 16, gap: 12 }}
       >
         {intentionsWithFriends.map(({ intention, friend }) => {
           const category = intention.interactionCategory
@@ -161,19 +160,20 @@ export function IntentionsList({ intentions, onIntentionPress }: IntentionsListP
           return (
             <TouchableOpacity
               key={intention.id}
-              style={[
-                styles.intentionCard,
-                {
-                  backgroundColor: colors.card,
-                  borderColor: colors.border,
-                  shadowColor: tokens.shadow.color
-                }
-              ]}
+              className="w-40 p-3 rounded-2xl border shadow-sm elevation-2"
+              style={{
+                backgroundColor: colors.card,
+                borderColor: colors.border,
+                shadowColor: tokens.shadow.color,
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.05,
+                shadowRadius: 8
+              }}
               onPress={() => onIntentionPress(intention)}
               activeOpacity={0.7}
             >
-              <View style={styles.cardHeader}>
-                <View style={[styles.iconContainer, { backgroundColor: colors.secondary }]}>
+              <View className="flex-row justify-between items-start">
+                <View className="w-8 h-8 rounded-full items-center justify-center" style={{ backgroundColor: colors.secondary }}>
                   <Text style={{ fontSize: 16 }}>{category?.icon || '🎯'}</Text>
                 </View>
                 <Text variant="caption" style={{ color: colors['muted-foreground'] }}>
@@ -201,56 +201,3 @@ export function IntentionsList({ intentions, onIntentionPress }: IntentionsListP
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    marginBottom: 24,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-    paddingHorizontal: 4, // Align with parent padding
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  countBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 12,
-  },
-  clearButton: {
-    padding: 4,
-  },
-  scrollContent: {
-    paddingRight: 16, // End padding for scroll
-    gap: 12,
-  },
-  intentionCard: {
-    width: 160,
-    padding: 12,
-    borderRadius: 16,
-    borderWidth: 1,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  iconContainer: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
-

@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useDebounceCallback } from '@/shared/hooks/useDebounceCallback';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Keyboard } from 'react-native';
+import { View, Text, TouchableOpacity, Keyboard } from 'react-native';
 import { BottomSheetTextInput } from '@gorhom/bottom-sheet';
 import * as Haptics from 'expo-haptics';
 import { usePlans } from '../hooks/usePlans';
 import { useInteractions } from '../hooks/useInteractions';
-import { useUIStore } from '@/shared/stores/uiStore';
+import { useGlobalUI } from '@/shared/context/GlobalUIContext';
 import { logger } from '@/shared/services/logger.service';
 import { MoonPhaseSelector } from '@/modules/intelligence';
 import { useTheme } from '@/shared/hooks/useTheme';
@@ -17,7 +17,7 @@ import { SeasonAnalyticsService } from '@/modules/intelligence';
 
 export function PostWeaveRatingModal() {
     const { colors } = useTheme();
-    const { isPostWeaveRatingOpen, postWeaveRatingTargetId, closePostWeaveRating, showToast } = useUIStore();
+    const { isPostWeaveRatingOpen, postWeaveRatingTargetId, closePostWeaveRating, showToast } = useGlobalUI();
     const { pendingConfirmations, completePlan, cancelPlan } = usePlans();
     const { allInteractions } = useInteractions();
     const [currentPlanId, setCurrentPlanId] = useState<string | null>(null);
@@ -204,17 +204,23 @@ export function PostWeaveRatingModal() {
             scrollable
         >
             {/* Header */}
-            <View style={styles.header}>
-                <Text style={[styles.title, { color: colors.foreground }]}>
+            <View className="mb-6">
+                <Text
+                    className="text-2xl font-lora-bold mb-1"
+                    style={{ color: colors.foreground }}
+                >
                     How was the {currentPlan.activity}{friendNames ? ` with ${friendNames}` : ''}?
                 </Text>
-                <Text style={[styles.subtitle, { color: colors['muted-foreground'] }]}>
+                <Text
+                    className="text-sm font-inter-regular"
+                    style={{ color: colors['muted-foreground'] }}
+                >
                     {format(new Date(currentPlan.interactionDate), 'EEEE, MMMM do')}
                 </Text>
             </View>
 
             {/* Moon Phase Selector */}
-            <View style={styles.section}>
+            <View className="gap-3 mb-6">
                 <MoonPhaseSelector
                     selectedVibe={selectedVibe}
                     onSelect={setSelectedVibe}
@@ -222,10 +228,16 @@ export function PostWeaveRatingModal() {
             </View>
 
             {/* Notes Input */}
-            <View style={styles.section}>
-                <Text style={[styles.label, { color: colors.foreground }]}>Notes (Optional)</Text>
+            <View className="gap-3 mb-6">
+                <Text
+                    className="text-sm font-inter-semibold"
+                    style={{ color: colors.foreground }}
+                >
+                    Notes (Optional)
+                </Text>
                 <BottomSheetTextInput
-                    style={[styles.input, { backgroundColor: colors.background, color: colors.foreground }]}
+                    className="rounded-xl p-3 pt-3 min-h-[100px] text-base font-inter-regular text-start"
+                    style={{ backgroundColor: colors.background, color: colors.foreground }}
                     placeholder="Capture a memory or feeling..."
                     placeholderTextColor={colors['muted-foreground']}
                     multiline
@@ -236,27 +248,30 @@ export function PostWeaveRatingModal() {
             </View>
 
             {/* Actions */}
-            <View style={styles.actions}>
+            <View className="flex-row items-center justify-between mt-2">
                 <TouchableOpacity
-                    style={[styles.secondaryButton, isSubmitting && styles.buttonDisabled]}
+                    className={`py-3 px-4 ${isSubmitting ? 'opacity-50' : ''}`}
                     onPress={handleDidntHappen}
                     disabled={isSubmitting}
                 >
-                    <Text style={[styles.secondaryButtonText, { color: colors['muted-foreground'] }]}>
+                    <Text
+                        className="text-base font-inter-medium"
+                        style={{ color: colors['muted-foreground'] }}
+                    >
                         It didn't happen
                     </Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                    style={[
-                        styles.primaryButton,
-                        { backgroundColor: colors.primary },
-                        isSubmitting && styles.buttonDisabled
-                    ]}
+                    className={`rounded-full py-3 px-6 flex-row items-center gap-2 ${isSubmitting ? 'opacity-50' : ''}`}
+                    style={{ backgroundColor: colors.primary }}
                     onPress={handleConfirm}
                     disabled={isSubmitting}
                 >
-                    <Text style={[styles.primaryButtonText, { color: colors['primary-foreground'] }]}>
+                    <Text
+                        className="text-base font-inter-semibold"
+                        style={{ color: colors['primary-foreground'] }}
+                    >
                         {isSubmitting ? 'Weaving...' : 'Complete'}
                     </Text>
                     {!isSubmitting && <Check size={20} color={colors['primary-foreground']} />}
@@ -265,64 +280,3 @@ export function PostWeaveRatingModal() {
         </AnimatedBottomSheet>
     );
 }
-
-const styles = StyleSheet.create({
-    header: {
-        marginBottom: 24,
-    },
-    title: {
-        fontSize: 24,
-        fontFamily: 'Lora_700Bold',
-        marginBottom: 4,
-    },
-    subtitle: {
-        fontSize: 14,
-        fontFamily: 'Inter_400Regular',
-    },
-    section: {
-        gap: 12,
-        marginBottom: 24,
-    },
-    label: {
-        fontSize: 14,
-        fontFamily: 'Inter_600SemiBold',
-    },
-    input: {
-        borderRadius: 12,
-        padding: 12,
-        paddingTop: 12,
-        minHeight: 100,
-        fontSize: 16,
-        fontFamily: 'Inter_400Regular',
-        textAlignVertical: 'top',
-    },
-    actions: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        marginTop: 8,
-    },
-    secondaryButton: {
-        paddingVertical: 12,
-        paddingHorizontal: 16,
-    },
-    secondaryButtonText: {
-        fontSize: 16,
-        fontFamily: 'Inter_500Medium',
-    },
-    primaryButton: {
-        borderRadius: 999,
-        paddingVertical: 12,
-        paddingHorizontal: 24,
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
-    },
-    buttonDisabled: {
-        opacity: 0.5,
-    },
-    primaryButtonText: {
-        fontSize: 16,
-        fontFamily: 'Inter_600SemiBold',
-    },
-});

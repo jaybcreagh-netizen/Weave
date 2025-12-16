@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, TextInput, StyleSheet, Modal } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput, Modal } from 'react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { X } from 'lucide-react-native';
 import { STORY_CHIPS, type StoryChip } from '@/modules/reflection';
@@ -35,7 +35,6 @@ export function ReflectionTextInput({
 
   // Parse a chip's template to find tappable components
   const parseChipParts = (chip: ReflectionChip) => {
-    // ... existing implementation ...
     const storyChip = STORY_CHIPS.find(s => s.id === chip.chipId);
     if (!storyChip) return [];
 
@@ -81,16 +80,18 @@ export function ReflectionTextInput({
   const InputComponent = useBottomSheetInput ? BottomSheetTextInput : TextInput;
 
   return (
-    <View style={styles.container}>
+    <View>
       {/* Combined container - chip bubbles + text input together */}
       <View
-        style={[
-          styles.inputContainer,
-          {
-            backgroundColor: colors.card,
-            borderColor: colors.border,
-          },
-        ]}
+        className="border-[1.5px] rounded-2xl p-4 min-h-[120px] shadow-sm elevation-2"
+        style={{
+          backgroundColor: colors.card,
+          borderColor: colors.border,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.05,
+          shadowRadius: 8,
+        }}
       >
         {/* Multiple chip bubbles */}
         {chips.map((chip, chipIndex) => {
@@ -100,17 +101,15 @@ export function ReflectionTextInput({
             <Animated.View
               key={chipIndex}
               entering={FadeIn.duration(300)}
-              style={[
-                styles.chipBubble,
-                {
-                  backgroundColor: colors.muted,
-                  borderColor: colors.border,
-                },
-              ]}
+              className="flex-row items-center py-2.5 pl-3.5 pr-2.5 rounded-2xl border mb-3"
+              style={{
+                backgroundColor: colors.muted,
+                borderColor: colors.border,
+              }}
             >
               {/* Chip text with tappable components */}
-              <View style={styles.chipContent}>
-                <Text style={[styles.chipText, { color: colors.foreground }]}>
+              <View className="flex-1">
+                <Text className="text-[15px] leading-[22px]" style={{ color: colors.foreground }}>
                   {chipParts.map((part, partIndex) => {
                     if (part.type === 'text') {
                       return (
@@ -123,7 +122,8 @@ export function ReflectionTextInput({
                     return (
                       <Text
                         key={partIndex}
-                        style={[styles.tappableText, { color: colors.primary }]}
+                        className="font-semibold"
+                        style={{ color: colors.primary }}
                         onPress={() =>
                           setEditingChip({ chipIndex, componentId: part.componentId! })
                         }
@@ -137,7 +137,7 @@ export function ReflectionTextInput({
 
               {/* Remove chip button */}
               <TouchableOpacity
-                style={styles.removeChip}
+                className="p-1 ml-2"
                 onPress={() => onRemoveChip(chipIndex)}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
@@ -149,18 +149,16 @@ export function ReflectionTextInput({
 
         {/* Text input for additional notes */}
         <InputComponent
-          style={[
-            styles.textInput,
-            {
-              color: colors.foreground,
-            },
-          ]}
+          className="text-base leading-6 min-h-[40px] p-0"
+          style={{
+            color: colors.foreground,
+            textAlignVertical: 'top'
+          }}
           placeholder={chips.length > 0 ? 'Add more details...' : placeholder}
           placeholderTextColor={colors['muted-foreground']}
           value={customText}
           onChangeText={onCustomTextChange}
           multiline
-          textAlignVertical="top"
         />
       </View>
 
@@ -172,20 +170,20 @@ export function ReflectionTextInput({
           animationType="none"
           onRequestClose={() => setEditingChip(null)}
         >
-          <Animated.View entering={FadeIn.duration(200)} style={styles.modalOverlay}>
+          <Animated.View entering={FadeIn.duration(200)} className="flex-1 justify-center items-center">
             <TouchableOpacity
-              style={StyleSheet.absoluteFill}
+              className="absolute inset-0"
               activeOpacity={1}
               onPress={() => setEditingChip(null)}
             >
-              <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0, 0, 0, 0.5)' }]} />
+              <View className="absolute inset-0" style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }} />
             </TouchableOpacity>
 
             <Animated.View
               entering={FadeInDown.duration(300).springify()}
-              style={styles.bubbleMenu}
+              className="w-[80%] max-w-[400px] gap-3 pb-20"
             >
-              <Text style={styles.modalTitle}>Choose alternative</Text>
+              <Text className="text-lg font-semibold text-center mb-3 text-white">Choose alternative</Text>
 
               {(() => {
                 const chip = chips[editingChip.chipIndex];
@@ -207,13 +205,15 @@ export function ReflectionTextInput({
                       entering={FadeInDown.duration(300).delay(index * 50)}
                     >
                       <TouchableOpacity
-                        style={[
-                          styles.bubbleButton,
-                          {
-                            backgroundColor: isSelected ? colors.primary : colors.card,
-                            borderColor: isSelected ? colors.primary : colors.border,
-                          },
-                        ]}
+                        className="py-[18px] px-6 rounded-3xl border-0 shadow-sm elevation-3"
+                        style={{
+                          backgroundColor: isSelected ? colors.primary : colors.card,
+                          borderColor: isSelected ? colors.primary : colors.border,
+                          shadowColor: '#000',
+                          shadowOffset: { width: 0, height: 2 },
+                          shadowOpacity: 0.08,
+                          shadowRadius: 12,
+                        }}
                         onPress={() => {
                           onComponentChange(editingChip.chipIndex, editingChip.componentId, option);
                           setEditingChip(null);
@@ -221,13 +221,11 @@ export function ReflectionTextInput({
                         activeOpacity={0.7}
                       >
                         <Text
-                          style={[
-                            styles.bubbleText,
-                            {
-                              color: isSelected ? colors['primary-foreground'] : colors.foreground,
-                              fontWeight: isSelected ? '600' : '500',
-                            },
-                          ]}
+                          className="text-base text-center tracking-[0.3px]"
+                          style={{
+                            color: isSelected ? colors['primary-foreground'] : colors.foreground,
+                            fontWeight: isSelected ? '600' : '500',
+                          }}
                         >
                           {option}
                         </Text>
@@ -238,7 +236,13 @@ export function ReflectionTextInput({
               })()}
 
               <TouchableOpacity
-                style={styles.closeButtonCircle}
+                className="w-[60px] h-[60px] rounded-[30px] bg-white justify-center items-center self-center mt-5 shadow-lg elevation-6"
+                style={{
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: 0.2,
+                  shadowRadius: 8,
+                }}
                 onPress={() => setEditingChip(null)}
               >
                 <X size={24} color={colors.foreground} />
@@ -250,99 +254,3 @@ export function ReflectionTextInput({
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    gap: 0,
-  },
-  inputContainer: {
-    borderWidth: 1.5,
-    borderRadius: 16,
-    padding: 16,
-    minHeight: 120,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  chipBubble: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 10,
-    paddingLeft: 14,
-    paddingRight: 10,
-    borderRadius: 20,
-    borderWidth: 1,
-    marginBottom: 12,
-  },
-  chipContent: {
-    flex: 1,
-  },
-  chipText: {
-    fontSize: 15,
-    lineHeight: 22,
-  },
-  tappableText: {
-    fontWeight: '600',
-  },
-  removeChip: {
-    padding: 4,
-    marginLeft: 8,
-  },
-  textInput: {
-    fontSize: 16,
-    lineHeight: 24,
-    minHeight: 40,
-    padding: 0,
-  },
-  modalOverlay: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  bubbleMenu: {
-    width: '80%',
-    maxWidth: 400,
-    gap: 12,
-    paddingBottom: 80,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    textAlign: 'center',
-    marginBottom: 12,
-    color: '#fff',
-  },
-  bubbleButton: {
-    paddingVertical: 18,
-    paddingHorizontal: 24,
-    borderRadius: 24,
-    borderWidth: 0,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 3,
-  },
-  bubbleText: {
-    fontSize: 16,
-    textAlign: 'center',
-    letterSpacing: 0.3,
-  },
-  closeButtonCircle: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#fff',
-    justifyContent: 'center',
-    alignItems: 'center',
-    alignSelf: 'center',
-    marginTop: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-});

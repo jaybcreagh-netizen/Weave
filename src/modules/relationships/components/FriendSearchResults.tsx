@@ -1,5 +1,5 @@
 import React, { useMemo, useEffect } from 'react';
-import { View, Text, Dimensions, StyleSheet } from 'react-native';
+import { View, Text, Dimensions } from 'react-native';
 import Animated, { useAnimatedRef, runOnUI } from 'react-native-reanimated';
 import { FlashList } from '@shopify/flash-list';
 import withObservables from '@nozbe/with-observables';
@@ -60,7 +60,7 @@ const AnimatedSearchResultItem = React.memo(({
   }, [item.id, animatedRef, registerRef, unregisterRef]);
 
   return (
-    <Animated.View style={{ marginBottom: 12 }}>
+    <Animated.View className="mb-3">
       <FriendListRow friend={item} animatedRef={animatedRef} />
     </Animated.View>
   );
@@ -173,13 +173,13 @@ const FriendSearchResultsContent = ({
   // Empty state
   if (filteredFriends.length === 0) {
     return (
-      <View style={[styles.emptyContainer, { width: screenWidth }]}>
+      <View className="flex-1 items-center justify-center px-8 pt-[60px]" style={{ width: screenWidth }}>
         <WeaveIcon size={80} color={colors['muted-foreground']} />
-        <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
+        <Text className="text-lg font-semibold mt-5 mb-2 text-center" style={{ color: colors.foreground }}>
           {hasActiveSearch ? 'No friends match this search' : 'No friends yet'}
         </Text>
         {hasActiveSearch && (
-          <Text style={[styles.emptySubtitle, { color: colors['muted-foreground'] }]}>
+          <Text className="text-sm text-center" style={{ color: colors['muted-foreground'] }}>
             Try adjusting your search or filters
           </Text>
         )}
@@ -199,7 +199,7 @@ const FriendSearchResultsContent = ({
     : countText;
 
   return (
-    <View style={{ flex: 1, width: screenWidth }}>
+    <View className="flex-1" style={{ width: screenWidth }}>
       {/* Results count header */}
       <View className="px-5 py-2">
         <Text
@@ -211,7 +211,7 @@ const FriendSearchResultsContent = ({
       </View>
 
       <AnimatedFlashList
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={{ paddingHorizontal: 20, paddingVertical: 8 }}
         data={filteredFriends}
         estimatedItemSize={72}
         keyExtractor={(item: any) => item.id}
@@ -233,28 +233,3 @@ const enhance = withObservables([], () => ({
 }));
 
 export const FriendSearchResults = enhance(FriendSearchResultsContent);
-
-const styles = StyleSheet.create({
-  emptyContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 32,
-    paddingTop: 60,
-  },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginTop: 20,
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  emptySubtitle: {
-    fontSize: 14,
-    textAlign: 'center',
-  },
-  listContent: {
-    paddingHorizontal: 20,
-    paddingVertical: 8,
-  },
-});

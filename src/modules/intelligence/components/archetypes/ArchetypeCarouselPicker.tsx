@@ -1,11 +1,3 @@
-/**
- * ArchetypeCarouselPicker Component
- *
- * Beautiful native carousel-style archetype picker
- * Swipe through archetypes with smooth animations
- * Premium iOS-feeling design
- */
-
 import React, { useRef, useState, useEffect } from 'react';
 import {
   View,
@@ -13,7 +5,6 @@ import {
   FlatList,
   TouchableOpacity,
   Dimensions,
-  StyleSheet,
   Platform,
   Image,
 } from 'react-native';
@@ -23,7 +14,7 @@ import { useTheme } from '@/shared/hooks/useTheme';
 import { type Archetype } from '@/shared/types/common';
 import { archetypeData } from '@/shared/constants/constants';
 import { ChevronLeft, ChevronRight, Info } from 'lucide-react-native';
-import { useUIStore } from '@/shared/stores/uiStore';
+import { useGlobalUI } from '@/shared/context/GlobalUIContext';
 
 // Import assets
 import EmperorIcon from '@/assets/TarotIcons/TheEmperor.svg';
@@ -76,7 +67,7 @@ export function ArchetypeCarouselPicker({
   const [currentIndex, setCurrentIndex] = useState(
     ARCHETYPES.indexOf(selectedArchetype)
   );
-  const { setArchetypeModal } = useUIStore();
+  const { setArchetypeModal } = useGlobalUI();
 
   useEffect(() => {
     const newIndex = ARCHETYPES.indexOf(selectedArchetype);
@@ -132,55 +123,70 @@ export function ArchetypeCarouselPicker({
     const gradient = getArchetypeGradient(item);
 
     return (
-      <View style={styles.cardContainer}>
+      <View
+        style={{ width: SCREEN_WIDTH }}
+        className="items-center justify-center"
+      >
         <View
-          style={[
-            styles.card,
-            {
-              backgroundColor: colors.card,
-              borderColor: isSelected ? colors.primary : colors.border,
-              shadowColor: isSelected ? colors.primary : '#000',
-            },
-          ]}
+          className="rounded-3xl border-[3px] p-6 overflow-hidden"
+          style={{
+            width: CARD_WIDTH,
+            height: CARD_HEIGHT,
+            backgroundColor: colors.card,
+            borderColor: isSelected ? colors.primary : colors.border,
+            shadowColor: isSelected ? colors.primary : '#000',
+            shadowOffset: { width: 0, height: 8 },
+            shadowOpacity: 0.15,
+            shadowRadius: 16,
+            elevation: 8,
+          }}
         >
           {/* Gradient Background */}
           <LinearGradient
             colors={[...gradient.map(c => c + (isSelected ? 'E6' : '10')), 'transparent'] as any}
-            style={styles.gradientBackground}
+            className="absolute inset-0 opacity-50"
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
           />
 
           {/* Tarot Card Section */}
-          <View style={styles.iconSection}>
+          <View className="items-center mb-5">
             <View
-              style={[
-                styles.tarotCardContainer,
-                {
-                  shadowColor: gradient[0],
-                  backgroundColor: colors.card,
-                  borderRadius: 12,
-                },
-              ]}
+              className="w-[120px] h-[180px] items-center justify-center rounded-xl"
+              style={{
+                shadowColor: gradient[0],
+                backgroundColor: colors.card,
+                shadowOffset: { width: 0, height: 6 },
+                shadowOpacity: 0.25,
+                shadowRadius: 16,
+                elevation: 6,
+              }}
             >
               <Image
                 source={TAROT_CARD_SOURCES[item]}
-                style={styles.tarotCardImage}
+                className="w-full h-full"
                 resizeMode="contain"
               />
             </View>
           </View>
 
           {/* Info Section */}
-          <View style={styles.infoSection}>
-            <Text style={[styles.archetypeName, { color: colors.foreground }]}>
+          <View className="flex-1 items-center">
+            <Text
+              className="text-3xl font-bold font-lora-bold mb-2 text-center"
+              style={{ color: colors.foreground }}
+            >
               {data.name}
             </Text>
-            <Text style={[styles.archetypeEssence, { color: gradient[0] }]}>
+            <Text
+              className="text-base font-semibold font-inter-semibold mb-4 text-center uppercase tracking-widest"
+              style={{ color: gradient[0] }}
+            >
               {data.essence}
             </Text>
             <Text
-              style={[styles.archetypeDescription, { color: colors['muted-foreground'] }]}
+              className="text-15 leading-6 font-inter-regular text-center px-2"
+              style={{ color: colors['muted-foreground'] }}
               numberOfLines={3}
             >
               {data.description}
@@ -195,14 +201,18 @@ export function ArchetypeCarouselPicker({
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               }
             }}
-            style={[
-              styles.learnMoreButton,
-              { backgroundColor: gradient[0] + '15', borderColor: gradient[0] + '30' },
-            ]}
+            className="flex-row items-center justify-center py-3 px-5 rounded-2xl border gap-2"
+            style={{
+              backgroundColor: gradient[0] + '15',
+              borderColor: gradient[0] + '30'
+            }}
             activeOpacity={0.7}
           >
             <Info size={16} color={gradient[0]} />
-            <Text style={[styles.learnMoreText, { color: gradient[0] }]}>
+            <Text
+              className="text-sm font-semibold font-inter-semibold"
+              style={{ color: gradient[0] }}
+            >
               Learn More
             </Text>
           </TouchableOpacity>
@@ -212,7 +222,7 @@ export function ArchetypeCarouselPicker({
   };
 
   return (
-    <View style={styles.container}>
+    <View className="my-4">
       {/* Carousel */}
       <FlatList
         ref={flatListRef}
@@ -225,7 +235,7 @@ export function ArchetypeCarouselPicker({
         onMomentumScrollEnd={handleScroll}
         snapToInterval={SCREEN_WIDTH}
         decelerationRate="fast"
-        contentContainerStyle={styles.flatListContent}
+        contentContainerStyle={{ paddingHorizontal: 40 }}
         getItemLayout={(data, index) => ({
           length: SCREEN_WIDTH,
           offset: SCREEN_WIDTH * index,
@@ -234,38 +244,34 @@ export function ArchetypeCarouselPicker({
       />
 
       {/* Navigation Controls */}
-      <View style={styles.controls}>
+      <View className="flex-row items-center justify-between mt-6 px-10">
         <TouchableOpacity
           onPress={() => scrollToIndex(currentIndex - 1)}
           disabled={currentIndex === 0}
-          style={[
-            styles.navButton,
-            {
-              backgroundColor: colors.card,
-              borderColor: colors.border,
-              opacity: currentIndex === 0 ? 0.3 : 1,
-            },
-          ]}
+          className="w-12 h-12 rounded-full border-2 items-center justify-center"
+          style={{
+            backgroundColor: colors.card,
+            borderColor: colors.border,
+            opacity: currentIndex === 0 ? 0.3 : 1,
+          }}
           activeOpacity={0.7}
         >
           <ChevronLeft size={24} color={colors.foreground} />
         </TouchableOpacity>
 
         {/* Pagination Dots */}
-        <View style={styles.pagination}>
+        <View className="flex-row items-center gap-2">
           {ARCHETYPES.map((archetype, index) => {
             const isActive = index === currentIndex;
             return (
               <TouchableOpacity
                 key={archetype}
                 onPress={() => scrollToIndex(index)}
-                style={[
-                  styles.dot,
-                  {
-                    backgroundColor: isActive ? colors.primary : colors.border,
-                    width: isActive ? 24 : 8,
-                  },
-                ]}
+                className="h-2 rounded-full"
+                style={{
+                  backgroundColor: isActive ? colors.primary : colors.border,
+                  width: isActive ? 24 : 8,
+                }}
                 activeOpacity={0.7}
               />
             );
@@ -275,14 +281,12 @@ export function ArchetypeCarouselPicker({
         <TouchableOpacity
           onPress={() => scrollToIndex(currentIndex + 1)}
           disabled={currentIndex === ARCHETYPES.length - 1}
-          style={[
-            styles.navButton,
-            {
-              backgroundColor: colors.card,
-              borderColor: colors.border,
-              opacity: currentIndex === ARCHETYPES.length - 1 ? 0.3 : 1,
-            },
-          ]}
+          className="w-12 h-12 rounded-full border-2 items-center justify-center"
+          style={{
+            backgroundColor: colors.card,
+            borderColor: colors.border,
+            opacity: currentIndex === ARCHETYPES.length - 1 ? 0.3 : 1,
+          }}
           activeOpacity={0.7}
         >
           <ChevronRight size={24} color={colors.foreground} />
@@ -290,130 +294,12 @@ export function ArchetypeCarouselPicker({
       </View>
 
       {/* Helper Text */}
-      <Text style={[styles.helperText, { color: colors['muted-foreground'] }]}>
+      <Text
+        className="text-xs font-inter-regular text-center mt-4 px-10"
+        style={{ color: colors['muted-foreground'] }}
+      >
         Swipe or tap arrows to browse • Tap "Learn More" for details
       </Text>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    marginVertical: 16,
-  },
-  flatListContent: {
-    paddingHorizontal: 40,
-  },
-  cardContainer: {
-    width: SCREEN_WIDTH,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  card: {
-    width: CARD_WIDTH,
-    height: CARD_HEIGHT,
-    borderRadius: 24,
-    borderWidth: 3,
-    padding: 24,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.15,
-    shadowRadius: 16,
-    elevation: 8,
-    overflow: 'hidden',
-  },
-  gradientBackground: {
-    ...StyleSheet.absoluteFillObject,
-    opacity: 0.5,
-  },
-  iconSection: {
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  tarotCardContainer: {
-    width: 120,
-    height: 180,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.25,
-    shadowRadius: 16,
-    elevation: 6,
-  },
-  tarotCardImage: {
-    width: '100%',
-    height: '100%',
-  },
-  infoSection: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  archetypeName: {
-    fontSize: 28,
-    fontWeight: '700',
-    fontFamily: 'Lora_700Bold',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  archetypeEssence: {
-    fontSize: 16,
-    fontWeight: '600',
-    fontFamily: 'Inter_600SemiBold',
-    marginBottom: 16,
-    textAlign: 'center',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-  },
-  archetypeDescription: {
-    fontSize: 15,
-    lineHeight: 22,
-    fontFamily: 'Inter_400Regular',
-    textAlign: 'center',
-    paddingHorizontal: 8,
-  },
-  learnMoreButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 16,
-    borderWidth: 1,
-    gap: 8,
-  },
-  learnMoreText: {
-    fontSize: 14,
-    fontWeight: '600',
-    fontFamily: 'Inter_600SemiBold',
-  },
-  controls: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 24,
-    paddingHorizontal: 40,
-  },
-  navButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    borderWidth: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pagination: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  dot: {
-    height: 8,
-    borderRadius: 4,
-  },
-  helperText: {
-    fontSize: 13,
-    fontFamily: 'Inter_400Regular',
-    textAlign: 'center',
-    marginTop: 16,
-    paddingHorizontal: 40,
-  },
-});

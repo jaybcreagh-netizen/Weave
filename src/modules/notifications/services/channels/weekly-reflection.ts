@@ -55,15 +55,15 @@ export const WeeklyReflectionChannel: NotificationChannel = {
         await Notifications.cancelScheduledNotificationAsync(id);
     },
 
-    handleTap: (data, router) => {
+    handleTap: async (data, router) => {
         if (router.canGoBack()) router.dismissAll();
         router.replace('/dashboard');
 
-        // Open modal via store
-        const { useUIStore } = require('@/shared/stores/uiStore');
+        // Use UIEventBus to trigger UI action from non-React context
+        const { UIEventBus } = await import('@/shared/services/ui-event-bus');
 
         setTimeout(() => {
-            useUIStore.getState().openWeeklyReflection();
+            UIEventBus.emit({ type: 'OPEN_WEEKLY_REFLECTION' });
             notificationAnalytics.trackActionCompleted('weekly-reflection', 'open_modal');
         }, 500);
     },

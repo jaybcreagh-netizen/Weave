@@ -1,6 +1,6 @@
 import React from 'react';
 import { router } from 'expo-router';
-import { useUIStore } from '@/shared/stores/uiStore';
+import { useGlobalUI } from '@/shared/context/GlobalUIContext';
 
 import { MilestoneCelebration } from '@/modules/gamification';
 import { TrophyCabinetModal } from '@/modules/gamification';
@@ -12,15 +12,13 @@ import { MemoryMomentModal } from '@/modules/journal/components/MemoryMomentModa
 import { DigestSheet } from '@/modules/home/components/DigestSheet';
 
 export function GlobalModals() {
-    const milestoneCelebrationData = useUIStore((state) => state.milestoneCelebrationData);
-    const hideMilestoneCelebration = useUIStore((state) => state.hideMilestoneCelebration);
-    const isTrophyCabinetOpen = useUIStore((state) => state.isTrophyCabinetOpen);
-    const closeTrophyCabinet = useUIStore((state) => state.closeTrophyCabinet);
-    const isWeeklyReflectionOpen = useUIStore((state) => state.isWeeklyReflectionOpen);
-    const closeWeeklyReflection = useUIStore((state) => state.closeWeeklyReflection);
-    const memoryMomentData = useUIStore((state) => state.memoryMomentData);
-    const digestSheetVisible = useUIStore((state) => state.digestSheetVisible);
-    const digestItems = useUIStore((state) => state.digestItems);
+    const {
+        milestoneCelebrationData, hideMilestoneCelebration,
+        isTrophyCabinetOpen, closeTrophyCabinet,
+        isWeeklyReflectionOpen, closeWeeklyReflection,
+        memoryMomentData, closeMemoryMoment,
+        digestSheetVisible, digestItems, closeDigestSheet
+    } = useGlobalUI();
 
     return (
         <>
@@ -54,13 +52,13 @@ export function GlobalModals() {
             {/* Memory Moment Modal */}
             <MemoryMomentModal
                 visible={!!memoryMomentData}
-                onClose={() => useUIStore.getState().closeMemoryMoment()}
+                onClose={() => closeMemoryMoment()}
                 memory={memoryMomentData?.memory || null}
                 entry={memoryMomentData?.entry || null}
                 friendName={memoryMomentData?.friendName}
                 onReadEntry={() => {
-                    const data = useUIStore.getState().memoryMomentData;
-                    useUIStore.getState().closeMemoryMoment();
+                    const data = memoryMomentData;
+                    closeMemoryMoment();
 
                     if (data?.memory?.relatedEntryId) {
                         router.push({
@@ -75,8 +73,8 @@ export function GlobalModals() {
                     }
                 }}
                 onWriteAbout={() => {
-                    const data = useUIStore.getState().memoryMomentData;
-                    useUIStore.getState().closeMemoryMoment();
+                    const data = memoryMomentData;
+                    closeMemoryMoment();
 
                     if (data) {
                         router.push({
@@ -95,7 +93,7 @@ export function GlobalModals() {
             {/* Evening Digest Sheet */}
             <DigestSheet
                 isVisible={digestSheetVisible}
-                onClose={() => useUIStore.getState().closeDigestSheet()}
+                onClose={() => closeDigestSheet()}
                 items={digestItems}
             />
         </>

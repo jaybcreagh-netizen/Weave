@@ -1,11 +1,12 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { View, TouchableOpacity, Alert } from 'react-native';
 import { Clock } from 'lucide-react-native';
 import { differenceInDays } from 'date-fns';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { useFriendPattern, getIntervalDescription } from '@/modules/insights';
 import FriendModel from '@/db/models/Friend';
 import { type Friend } from '@/shared/types/legacy-types';
+import { Text } from '@/shared/ui/Text';
 
 interface PatternBadgeProps {
     friend: FriendModel | Friend;
@@ -55,27 +56,17 @@ export const PatternBadge: React.FC<PatternBadgeProps> = ({ friend, style }) => 
         <TouchableOpacity
             onPress={handlePress}
             activeOpacity={0.7}
-            style={[styles.badge, { backgroundColor: badgeColor }, style]}
+            className="flex-row items-center gap-1 px-2 py-1 rounded-lg"
+            style={[{ backgroundColor: badgeColor }, style]}
         >
             <Clock size={11} color={textColor} />
-            <Text style={[styles.badgeText, { color: textColor }]}>
+            <Text
+                variant="caption"
+                className="font-inter-medium text-[11px]"
+                style={{ color: textColor }}
+            >
                 You usually connect {intervalText.toLowerCase()}. Last weave: {timeAgoText}
             </Text>
         </TouchableOpacity>
     );
 };
-
-const styles = StyleSheet.create({
-    badge: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 4,
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-        borderRadius: 8,
-    },
-    badgeText: {
-        fontFamily: 'Inter_500Medium',
-        fontSize: 11,
-    },
-});

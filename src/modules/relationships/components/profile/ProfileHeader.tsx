@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import Animated, { SharedValue, useAnimatedStyle } from 'react-native-reanimated';
 import { ArrowLeft, Edit, Trash2, Calendar } from 'lucide-react-native';
 import { FriendListRow, FriendListRowContent } from '@/modules/relationships';
@@ -37,31 +37,31 @@ export function ProfileHeader({
 
     return (
         <View>
-            <View style={[styles.header, { borderColor: colors.border }]}>
-                <TouchableOpacity onPress={onBack} style={styles.backButton}>
+            <View className="flex-row justify-between items-center px-5 py-3 border-b" style={{ borderColor: colors.border }}>
+                <TouchableOpacity onPress={onBack} className="flex-row items-center gap-2">
                     <ArrowLeft size={20} color={colors['muted-foreground']} />
                     <Text style={{ color: colors.foreground }}>Back</Text>
                 </TouchableOpacity>
-                <View style={styles.headerActions}>
-                    <TouchableOpacity onPress={onGlobalCalendar} style={{ padding: 8 }}>
+                <View className="flex-row items-center gap-2">
+                    <TouchableOpacity onPress={onGlobalCalendar} className="p-2">
                         <Calendar size={20} color={colors['muted-foreground']} />
                     </TouchableOpacity>
-                    <TouchableOpacity onPress={onEdit} style={{ padding: 8 }}>
+                    <TouchableOpacity onPress={onEdit} className="p-2">
                         <Edit size={20} color={colors['muted-foreground']} />
                     </TouchableOpacity>
-                    <TouchableOpacity onPress={onDelete} style={{ padding: 8 }}>
+                    <TouchableOpacity onPress={onDelete} className="p-2">
                         <Trash2 size={20} color={colors.destructive} />
                     </TouchableOpacity>
                 </View>
             </View>
 
-            <View style={styles.contentContainer}>
+            <View className="px-5 pt-3 pb-2 gap-3">
                 <Animated.View style={headerAnimatedStyle}>
                     <TouchableOpacity
                         activeOpacity={0.95}
                         onLongPress={onShowBadgePopup}
                     >
-                        <View style={{ flex: 1 }}>
+                        <View className="flex-1">
                             <FriendListRowContent friend={friend} variant="full" />
                         </View>
                     </TouchableOpacity>
@@ -77,10 +77,3 @@ export function ProfileHeader({
         </View>
     );
 }
-
-const styles = StyleSheet.create({
-    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 12, borderBottomWidth: 1 },
-    backButton: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-    headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-    contentContainer: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8, gap: 12 },
-});

@@ -1,9 +1,9 @@
 import React from 'react';
-import { useUIStore } from '@/shared/stores/uiStore';
+import { useGlobalUI } from '@/shared/context/GlobalUIContext';
 import { ToastNotification } from './toast_notification';
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
-  const { toastData, hideToast } = useUIStore();
+  const { toastData, hideToast } = useGlobalUI();
 
   return (
     <>

@@ -1,5 +1,6 @@
-import { Model } from '@nozbe/watermelondb';
+import { Model, Query } from '@nozbe/watermelondb';
 import { field, text, date, children, readonly } from '@nozbe/watermelondb/decorators';
+import GroupMember from './GroupMember';
 
 export default class Group extends Model {
     static table = 'groups';
@@ -13,14 +14,14 @@ export default class Group extends Model {
     @field('smart_confidence') smartConfidence?: number;
     @text('photo_url') photoUrl?: string;
 
-    @children('group_members') members!: any;
+    @children('group_members') members!: Query<GroupMember>;
 
     @readonly @date('created_at') createdAt!: Date;
     @readonly @date('updated_at') updatedAt!: Date;
 
     async prepareDestroyWithChildren() {
         const members = await this.members.fetch();
-        const membersToDelete = members.map((member: any) => member.prepareDestroyPermanently());
+        const membersToDelete = members.map((member: GroupMember) => member.prepareDestroyPermanently());
         await this.batch(...membersToDelete);
         return this.prepareDestroyPermanently();
     }

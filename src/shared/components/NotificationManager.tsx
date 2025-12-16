@@ -10,7 +10,7 @@ import { useNotificationPermissions } from '@/modules/notifications';
 import { setupIntelligenceListeners } from '@/modules/intelligence';
 import { setupGamificationListeners } from '@/modules/gamification';
 import { NotificationPermissionModal } from '@/modules/notifications';
-import { useTutorialStore } from '@/shared/stores/tutorialStore';
+import { useTutorial } from '@/shared/context/TutorialContext';
 import { useDatabaseReady } from '@/shared/hooks/useDatabaseReady';
 import { BackgroundTaskManager } from '@/shared/services/background-task-manager';
 
@@ -18,7 +18,7 @@ const NOTIFICATION_PERMISSION_ASKED_KEY = '@weave:notification_permission_asked'
 
 export function NotificationManager() {
     const [showNotificationPermissionModal, setShowNotificationPermissionModal] = useState(false);
-    const hasCompletedOnboarding = useTutorialStore((state) => state.hasCompletedOnboarding);
+    const { hasCompletedOnboarding } = useTutorial();
 
     // Need to check database/data readiness indirectly or assume it's guarded by parent
     // But here we can use the hook just to be safe if we need 'dataLoaded' signal. 

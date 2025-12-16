@@ -1,124 +1,17 @@
-import { create } from 'zustand';
 import { database } from '@/db';
 import { Q } from '@nozbe/watermelondb';
-import { Subscription } from 'rxjs';
 import Interaction from '@/db/models/Interaction';
 import FriendModel from '@/db/models/Friend';
 import Intention from '@/db/models/Intention';
 import IntentionFriend from '@/db/models/IntentionFriend';
 import InteractionFriend from '@/db/models/InteractionFriend';
 import { InteractionFormData, StructuredReflection } from '../types';
-import * as WeaveLoggingService from '../services/weave-logging.service';
-import * as PlanService from '../services/plan.service';
-import * as CalendarService from '../services/calendar.service';
+import * as CalendarService from './calendar.service';
 import { InteractionCategory, Vibe, Duration } from '@/shared/types/common';
-import { recalculateScoreOnDelete, processWeaveScoring, recalculateScoreOnEdit } from '@/modules/intelligence/services/orchestrator.service';
+import { recalculateScoreOnDelete, processWeaveScoring, recalculateScoreOnEdit } from '@/modules/intelligence';
 
-// --- State and Store Definition ---
-
-interface InteractionsStore {
-    interactions: Interaction[];
-    intentions: Intention[];
-    isLoading: boolean;
-    observeInteractions: () => void;
-    unobserveInteractions: () => void;
-    observeIntentions: () => void;
-    unobserveIntentions: () => void;
-    subscriberCount: number;
-
-    // Interaction Actions (calling services)
-    logWeave: (data: InteractionFormData) => Promise<Interaction>;
-    planWeave: (data: InteractionFormData) => Promise<Interaction>;
-    deleteWeave: (id: string) => Promise<void>;
-
-    // Plan Actions (calling services)
-    completePlan: (id: string, data?: { vibe?: string; note?: string }) => Promise<void>;
-    cancelPlan: (id: string) => Promise<void>;
-
-    // Calendar Actions (calling services)
-    syncCalendar: () => Promise<CalendarService.CalendarSyncResult>;
-
-    // Direct DB Updates (for granular changes)
-    updateInteraction: (interactionId: string, updates: Partial<Interaction> & { friendIds?: string[] }) => Promise<void>;
-    updateReflection: (interactionId: string, reflection: StructuredReflection) => Promise<void>;
-    updateInteractionCategory: (interactionId: string, category: InteractionCategory) => Promise<void>;
-    updateInteractionVibeAndNotes: (interactionId: string, vibe?: Vibe | null, notes?: string) => Promise<void>;
-
-    // Intention Actions
-    createIntention: (friendIds: string[], description?: string, category?: InteractionCategory) => Promise<void>;
-    dismissIntention: (intentionId: string) => Promise<void>;
-    getActiveIntentions: () => Promise<Intention[]>;
-}
-
-let interactionSubscription: Subscription | null = null;
-let intentionSubscription: Subscription | null = null;
-let isInitializing = false;
-
-export const useInteractionsStore = create<InteractionsStore>((set, get) => ({
-    interactions: [],
-    intentions: [],
-    isLoading: true,
-
-    subscriberCount: 0,
-
-    observeInteractions: () => {
-        const currentCount = get().subscriberCount;
-        set({ subscriberCount: currentCount + 1 });
-
-        if (interactionSubscription || isInitializing) return;
-
-        isInitializing = true;
-        set({ isLoading: true });
-        try {
-            interactionSubscription = database.get<Interaction>('interactions')
-                .query(Q.sortBy('interaction_date', Q.desc))
-                .observe()
-                .subscribe(interactions => {
-                    set({ interactions, isLoading: false });
-                });
-        } finally {
-            isInitializing = false;
-        }
-    },
-
-    unobserveInteractions: () => {
-        const currentCount = get().subscriberCount;
-        const newCount = Math.max(0, currentCount - 1);
-        set({ subscriberCount: newCount });
-
-        if (newCount === 0) {
-            interactionSubscription?.unsubscribe();
-            interactionSubscription = null;
-        }
-    },
-
-    observeIntentions: () => {
-        if (intentionSubscription) return;
-        intentionSubscription = database.get<Intention>('intentions')
-            .query(Q.where('status', 'active'))
-            .observe()
-            .subscribe(intentions => {
-                set({ intentions });
-            });
-    },
-
-    unobserveIntentions: () => {
-        intentionSubscription?.unsubscribe();
-        intentionSubscription = null;
-    },
-
-    logWeave: async (data) => WeaveLoggingService.logWeave(data),
-    planWeave: async (data) => WeaveLoggingService.planWeave(data),
-    deleteWeave: async (id) => WeaveLoggingService.deleteWeave(id),
-    completePlan: async (id, data) => PlanService.completePlan(id, data),
-    cancelPlan: async (id) => PlanService.cancelPlan(id),
-    syncCalendar: async () => CalendarService.syncCalendarChanges(),
-
-
-
-    // ... (existing imports)
-
-    updateInteraction: async (interactionId, updates) => {
+export const InteractionActions = {
+    updateInteraction: async (interactionId: string, updates: Partial<Interaction> & { friendIds?: string[] }): Promise<void> => {
         // 1. Fetch current interaction state
         const interaction = await database.get<Interaction>('interactions').find(interactionId);
 
@@ -282,15 +175,17 @@ export const useInteractionsStore = create<InteractionsStore>((set, get) => ({
                     .catch(err => console.warn('Failed to update calendar event:', err));
             }
         }
-    }, updateReflection: async (interactionId, reflection) => {
-        await get().updateInteraction(interactionId, { reflectionJSON: JSON.stringify(reflection) });
     },
 
-    updateInteractionCategory: async (interactionId, category) => {
-        get().updateInteraction(interactionId, { interactionCategory: category, activity: category });
+    updateReflection: async (interactionId: string, reflection: StructuredReflection): Promise<void> => {
+        await InteractionActions.updateInteraction(interactionId, { reflectionJSON: JSON.stringify(reflection) });
     },
 
-    updateInteractionVibeAndNotes: async (interactionId, vibe, notes) => {
+    updateInteractionCategory: async (interactionId: string, category: InteractionCategory): Promise<void> => {
+        await InteractionActions.updateInteraction(interactionId, { interactionCategory: category, activity: category });
+    },
+
+    updateInteractionVibeAndNotes: async (interactionId: string, vibe: Vibe | null, notes?: string): Promise<void> => {
         const updates: Partial<Interaction> = { vibe: vibe || undefined, note: notes };
         // Also set reflectionJSON so that FocusPlanItem can detect the reflection
         if (vibe || notes) {
@@ -300,10 +195,10 @@ export const useInteractionsStore = create<InteractionsStore>((set, get) => ({
                 timestamp: Date.now()
             });
         }
-        get().updateInteraction(interactionId, updates);
+        await InteractionActions.updateInteraction(interactionId, updates);
     },
 
-    createIntention: async (friendIds, description, category) => {
+    createIntention: async (friendIds: string[], description?: string, category?: InteractionCategory): Promise<void> => {
         // Fetch friends first to ensure they exist and to set relations correctly
         const friends = await database.get<FriendModel>('friends').query(Q.where('id', Q.oneOf(friendIds))).fetch();
 
@@ -334,14 +229,14 @@ export const useInteractionsStore = create<InteractionsStore>((set, get) => ({
         });
     },
 
-    dismissIntention: async (intentionId) => {
+    dismissIntention: async (intentionId: string): Promise<void> => {
         await database.write(async () => {
             const intention = await database.get<Intention>('intentions').find(intentionId);
             await intention.update(i => { i.status = 'dismissed' });
         });
     },
 
-    getActiveIntentions: async () => {
+    getActiveIntentions: async (): Promise<Intention[]> => {
         return database.get<Intention>('intentions').query(Q.where('status', 'active')).fetch();
     }
-}));
+};

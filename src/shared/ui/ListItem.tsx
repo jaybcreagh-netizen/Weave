@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { ChevronRight } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
 
@@ -24,48 +24,48 @@ export const ListItem: React.FC<ListItemProps> = ({
     showDivider = true,
     compact = false,
 }) => {
-    const { tokens, typography, spacing } = useTheme();
+    const { tokens, typography } = useTheme();
 
     const content = (
-        <View style={[
-            styles.container,
-            { paddingVertical: compact ? spacing[2] : spacing[3] },
-            showDivider && { borderBottomWidth: 1, borderBottomColor: tokens.borderSubtle },
-        ]}>
+        <View
+            className={`flex-row items-center ${compact ? 'py-2' : 'py-3'}`}
+            style={[
+                showDivider && { borderBottomWidth: 1, borderBottomColor: tokens.borderSubtle },
+            ]}
+        >
             {leading && (
-                <View style={styles.leading}>
+                <View className="w-10 items-center justify-center mr-3">
                     {leading}
                 </View>
             )}
 
-            <View style={styles.content}>
-                <Text style={[
-                    {
+            <View className="flex-1">
+                <Text
+                    className="font-inter-regular"
+                    style={{
                         color: tokens.foreground,
                         fontSize: compact ? typography.scale.bodySmall.fontSize : typography.scale.body.fontSize,
                         lineHeight: compact ? typography.scale.bodySmall.lineHeight : typography.scale.body.lineHeight,
-                        fontFamily: typography.fonts.sans,
-                    }
-                ]}>
+                    }}
+                >
                     {title}
                 </Text>
                 {subtitle && (
-                    <Text style={[
-                        {
+                    <Text
+                        className="mt-0.5 font-inter-regular"
+                        style={{
                             color: tokens.foregroundMuted,
                             fontSize: compact ? typography.scale.caption.fontSize : typography.scale.bodySmall.fontSize,
                             lineHeight: compact ? typography.scale.caption.lineHeight : typography.scale.bodySmall.lineHeight,
-                            fontFamily: typography.fonts.sans,
-                            marginTop: spacing[0.5],
-                        }
-                    ]}>
+                        }}
+                    >
                         {subtitle}
                     </Text>
                 )}
             </View>
 
             {(trailing || showChevron) && (
-                <View style={styles.trailing}>
+                <View className="flex-row items-center ml-3">
                     {trailing}
                     {showChevron && <ChevronRight size={20} color={tokens.foregroundSubtle} />}
                 </View>
@@ -84,23 +84,3 @@ export const ListItem: React.FC<ListItemProps> = ({
     return content;
 };
 
-const styles = StyleSheet.create({
-    container: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    leading: {
-        width: 40,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginRight: 12,
-    },
-    content: {
-        flex: 1,
-    },
-    trailing: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginLeft: 12,
-    },
-});

@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, View, Text, ScrollView } from 'react-native';
+import { View, Text } from 'react-native';
 import {
     Calendar, Sparkles, CheckCircle2, Lightbulb,
     AlertTriangle, RefreshCw, Zap, Heart, Clock, Star,
@@ -130,14 +130,23 @@ export const FocusDetailSheet: React.FC<FocusDetailSheetProps> = ({
             <View>
                 {/* Reflection Prompt */}
                 {prompt && (
-                    <View style={[styles.promptContainer, { backgroundColor: tokens.primary + '10', borderColor: tokens.primary + '20' }]}>
-                        <View style={styles.promptHeader}>
+                    <View
+                        className="p-4 rounded-xl mb-6 border"
+                        style={{ backgroundColor: tokens.primary + '10', borderColor: tokens.primary + '20' }}
+                    >
+                        <View className="flex-row items-center mb-2 gap-1.5">
                             <Lightbulb size={16} color={tokens.primary} />
-                            <Text style={[styles.promptLabel, { color: tokens.primary, fontFamily: typography.fonts.sansSemiBold }]}>
+                            <Text
+                                className="text-xs tracking-wider uppercase"
+                                style={{ color: tokens.primary, fontFamily: typography.fonts.sansSemiBold }}
+                            >
                                 REFLECTION
                             </Text>
                         </View>
-                        <Text style={[styles.promptText, { color: tokens.foreground, fontFamily: typography.fonts.serif }]}>
+                        <Text
+                            className="text-base leading-6"
+                            style={{ color: tokens.foreground, fontFamily: typography.fonts.serif }}
+                        >
                             {prompt.prompt}
                         </Text>
                     </View>
@@ -145,7 +154,7 @@ export const FocusDetailSheet: React.FC<FocusDetailSheetProps> = ({
 
                 {/* Upcoming Plans Section */}
                 {upcomingPlans.length > 0 && (
-                    <View style={styles.section}>
+                    <View className="mb-6">
                         <WidgetHeader title="Upcoming" icon={<Calendar size={20} color={tokens.primaryMuted} />} />
                         <Card padding="none">
                             {upcomingPlans.map((plan, index) => {
@@ -155,20 +164,20 @@ export const FocusDetailSheet: React.FC<FocusDetailSheetProps> = ({
                                 const subtitle = `${friendName ? `with ${friendName} • ` : ''}${format(new Date(plan.interactionDate), 'h:mm a')}`;
 
                                 return (
-                                    <View key={plan.id} style={{ paddingHorizontal: 16 }}>
+                                    <View key={plan.id} className="px-4">
                                         <ListItem
                                             title={plan.title || `${getCategoryLabel(plan.interactionCategory as any)}${friendName ? ` with ${friendName}` : ''}`}
                                             subtitle={subtitle}
                                             showDivider={index < upcomingPlans.length - 1}
                                             compact
                                             trailing={
-                                                <View style={styles.actions}>
+                                                <View className="flex-row">
                                                     <Button
                                                         label="Reschedule"
                                                         size="sm"
                                                         variant="secondary"
                                                         onPress={() => onReschedulePlan(plan)}
-                                                        style={compactButtonStyle}
+                                                        className="py-1 px-2.5 h-8 min-w-[80px]"
                                                     />
                                                 </View>
                                             }
@@ -182,7 +191,7 @@ export const FocusDetailSheet: React.FC<FocusDetailSheetProps> = ({
 
                 {/* Completed Plans Section */}
                 {completedPlans.length > 0 && (
-                    <View style={styles.section}>
+                    <View className="mb-6">
                         <WidgetHeader title="Completed Today" icon={<CheckCircle2 size={20} color={tokens.success} />} />
                         <Card padding="none">
                             {completedPlans.map((plan, index) => {
@@ -192,16 +201,16 @@ export const FocusDetailSheet: React.FC<FocusDetailSheetProps> = ({
                                 const subtitle = `${friendName ? `with ${friendName} • ` : ''}${format(new Date(plan.interactionDate), 'h:mm a')}`;
 
                                 return (
-                                    <View key={plan.id} style={{ paddingHorizontal: 16 }}>
+                                    <View key={plan.id} className="px-4">
                                         <ListItem
                                             title={plan.title || `${getCategoryLabel(plan.interactionCategory as any)}${friendName ? ` with ${friendName}` : ''}`}
                                             subtitle={subtitle}
                                             showDivider={index < completedPlans.length - 1}
                                             compact
                                             trailing={
-                                                <View style={styles.actions}>
+                                                <View className="flex-row">
                                                     {plan.reflectionJSON || plan.reflection ? (
-                                                        <View style={{ flexDirection: 'row', alignItems: 'center', opacity: 0.7 }}>
+                                                        <View className="flex-row items-center opacity-70">
                                                             <CheckCircle2 size={16} color={tokens.success} style={{ marginRight: 4 }} />
                                                             <Text style={{
                                                                 color: tokens.success,
@@ -216,7 +225,7 @@ export const FocusDetailSheet: React.FC<FocusDetailSheetProps> = ({
                                                             label="Deepen"
                                                             size="sm"
                                                             onPress={() => onConfirmPlan(plan.id)}
-                                                            style={compactButtonStyle}
+                                                            className="py-1 px-2.5 h-8 min-w-[80px]"
                                                         />
                                                     )}
                                                 </View>
@@ -231,13 +240,13 @@ export const FocusDetailSheet: React.FC<FocusDetailSheetProps> = ({
 
                 {/* Suggestions Section */}
                 {suggestions.length > 0 && (
-                    <View style={styles.section}>
+                    <View className="mb-6">
                         <WidgetHeader title="Suggestions" icon={<Sparkles size={20} color={tokens.primaryMuted} />} />
                         <Card padding="none">
                             {suggestions.map((suggestion, index) => {
                                 const friend = friends.find(f => f.id === suggestion.friendId);
                                 return (
-                                    <View key={suggestion.id} style={{ paddingHorizontal: 16 }}>
+                                    <View key={suggestion.id} className="px-4">
                                         <ListItem
                                             leading={renderSuggestionIcon(suggestion.icon, suggestion.category)}
                                             title={suggestion.title}
@@ -249,7 +258,7 @@ export const FocusDetailSheet: React.FC<FocusDetailSheetProps> = ({
                                                     label={suggestion.actionLabel || "View"}
                                                     variant="secondary"
                                                     size="sm"
-                                                    style={compactButtonStyle}
+                                                    className="py-1 px-2.5 h-8 min-w-[80px]"
                                                     onPress={() => onSuggestionAction(suggestion)}
                                                 />
                                             }
@@ -263,11 +272,11 @@ export const FocusDetailSheet: React.FC<FocusDetailSheetProps> = ({
 
                 {/* Upcoming Events Section */}
                 {upcomingDates.length > 0 && (
-                    <View style={styles.section}>
+                    <View className="mb-6">
                         <WidgetHeader title="Upcoming" icon={<Calendar size={20} color={tokens.primaryMuted} />} />
                         <Card padding="none">
                             {upcomingDates.map((event, index) => (
-                                <View key={`${event.friend.id}-${event.type}`} style={{ paddingHorizontal: 16 }}>
+                                <View key={`${event.friend.id}-${event.type}`} className="px-4">
                                     <ListItem
                                         title={event.friend.name}
                                         subtitle={`${event.type === 'birthday' ? 'Birthday' : event.title} • ${event.daysUntil === 0 ? 'Today' : event.daysUntil === 1 ? 'Tomorrow' : `In ${event.daysUntil} days`}`}
@@ -281,12 +290,18 @@ export const FocusDetailSheet: React.FC<FocusDetailSheetProps> = ({
                 )}
 
                 {upcomingPlans.length === 0 && completedPlans.length === 0 && suggestions.length === 0 && upcomingDates.length === 0 && (
-                    <View style={styles.emptyState}>
+                    <View className="items-center justify-center py-16 gap-4">
                         <CheckCircle2 size={48} color={tokens.success} />
-                        <Text style={[styles.emptyTitle, { color: tokens.foreground, fontFamily: typography.fonts.serifBold }]}>
+                        <Text
+                            className="text-xl"
+                            style={{ color: tokens.foreground, fontFamily: typography.fonts.serifBold }}
+                        >
                             All Caught Up
                         </Text>
-                        <Text style={[styles.emptyText, { color: tokens.foregroundMuted, fontFamily: typography.fonts.sans }]}>
+                        <Text
+                            className="text-base text-center"
+                            style={{ color: tokens.foregroundMuted, fontFamily: typography.fonts.sans }}
+                        >
                             You've handled everything for now. Enjoy your day!
                         </Text>
                     </View>
@@ -296,79 +311,3 @@ export const FocusDetailSheet: React.FC<FocusDetailSheetProps> = ({
     );
 };
 
-const styles = StyleSheet.create({
-    overlay: {
-        flex: 1,
-        justifyContent: 'flex-end',
-    },
-    sheet: {
-        borderTopLeftRadius: 24,
-        borderTopRightRadius: 24,
-        height: '85%',
-        paddingTop: 20,
-    },
-    header: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingHorizontal: 20,
-        marginBottom: 20,
-    },
-    title: {
-        fontSize: 24,
-    },
-    closeButton: {
-        padding: 4,
-    },
-    content: {
-        paddingHorizontal: 20,
-        paddingBottom: 40,
-    },
-    section: {
-        marginBottom: 24,
-    },
-    actions: {
-        flexDirection: 'row',
-    },
-    emptyState: {
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingVertical: 60,
-        gap: 16,
-    },
-    emptyTitle: {
-        fontSize: 20,
-    },
-    emptyText: {
-        fontSize: 16,
-        textAlign: 'center',
-    },
-    promptContainer: {
-        padding: 16,
-        borderRadius: 16,
-        marginBottom: 24,
-        borderWidth: 1,
-    },
-    promptHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 8,
-        gap: 6,
-    },
-    promptLabel: {
-        fontSize: 12,
-        letterSpacing: 0.5,
-        textTransform: 'uppercase',
-    },
-    promptText: {
-        fontSize: 16,
-        lineHeight: 24,
-    },
-});
-
-const compactButtonStyle = {
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    height: 32,
-    minWidth: 80, // Standardized width
-};

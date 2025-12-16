@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { Calendar, MapPin, Heart, MessageCircle, Sparkles, Edit3, Trash2, Share2 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/shared/hooks/useTheme';
@@ -196,23 +196,31 @@ export function InteractionDetailModal({
       height="form"
       onCloseComplete={handleCloseComplete}
     >
-      <View style={styles.header}>
-        <View style={styles.headerTitleContainer}>
-          <Text style={styles.headerIcon}>{displayIcon}</Text>
+      <View className="flex-row justify-between items-start px-6 pt-2">
+        <View className="flex-1 flex-row items-center gap-3 mb-2">
+          <Text className="text-3xl">{displayIcon}</Text>
           <View>
-            <Text style={[styles.headerTitle, { color: colors.foreground }]}>{displayLabel}</Text>
-            <Text style={[styles.headerSubtitle, { color: colors['muted-foreground'] }]}>
+            <Text
+              className="text-2xl font-semibold"
+              style={{ color: colors.foreground }}
+            >
+              {displayLabel}
+            </Text>
+            <Text
+              className="text-sm capitalize"
+              style={{ color: colors['muted-foreground'] }}
+            >
               {activeInteraction.mode?.replace('-', ' ')} • {activeInteraction.interactionType}
             </Text>
           </View>
         </View>
 
         {/* Action buttons */}
-        <View style={styles.headerActions}>
+        <View className="flex-row items-center gap-1">
           {isPlanned && (
             <TouchableOpacity
               onPress={handleShare}
-              style={styles.actionButton}
+              className="p-2"
             >
               <Share2 color={colors.primary} size={20} />
             </TouchableOpacity>
@@ -220,7 +228,7 @@ export function InteractionDetailModal({
           {onEdit && (
             <TouchableOpacity
               onPress={handleEditPress}
-              style={styles.actionButton}
+              className="p-2"
             >
               <Edit3 color={colors.primary} size={20} />
             </TouchableOpacity>
@@ -228,7 +236,7 @@ export function InteractionDetailModal({
           {onDelete && (
             <TouchableOpacity
               onPress={handleDeletePress}
-              style={styles.actionButton}
+              className="p-2"
             >
               <Trash2 color={colors.destructive} size={20} />
             </TouchableOpacity>
@@ -236,9 +244,19 @@ export function InteractionDetailModal({
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollViewContent}>
-        <View style={[styles.statusBadge, activeInteraction.status === 'completed' ? styles.statusCompleted : styles.statusPlanned]}>
-          <Text style={[styles.statusBadgeText, activeInteraction.status === 'completed' ? styles.statusCompletedText : styles.statusPlannedText]}>
+      <ScrollView contentContainerStyle={{ padding: 24, gap: 24 }}>
+        <View
+          className="self-start px-3 py-1.5 rounded-full"
+          style={{
+            backgroundColor: activeInteraction.status === 'completed' ? '#dcfce7' : '#fef9c3'
+          }}
+        >
+          <Text
+            className="text-xs font-medium"
+            style={{
+              color: activeInteraction.status === 'completed' ? '#166534' : '#854d0e'
+            }}
+          >
             {activeInteraction.status === 'completed' ? '✓ Completed' : '⏳ Planned'}
           </Text>
         </View>
@@ -252,20 +270,28 @@ export function InteractionDetailModal({
             colors={colors}
           />
         )}
-        {isPast && moonIcon && <InfoRow icon={<Text style={{ fontSize: 24 }}>{moonIcon}</Text>} title={(activeInteraction.vibe || '').replace(/([A-Z])/g, ' $1').trim()} subtitle="Moon phase" colors={colors} />}
+        {isPast && moonIcon && <InfoRow icon={<Text className="text-2xl">{moonIcon}</Text>} title={(activeInteraction.vibe || '').replace(/([A-Z])/g, ' $1').trim()} subtitle="Moon phase" colors={colors} />}
         {activeInteraction.location && <InfoRow icon={<MapPin color={colors['muted-foreground']} size={20} />} title={activeInteraction.location} subtitle="Location" colors={colors} />}
 
         {/* Reflection chips display */}
         {activeInteraction.reflection && (activeInteraction.reflection.chips?.length || activeInteraction.reflection.customNotes) && (
-          <View style={[styles.reflectionSection, { backgroundColor: colors.muted + '80' }]}>
-            <View style={styles.reflectionHeader}>
+          <View
+            className="p-4 rounded-2xl gap-3"
+            style={{ backgroundColor: colors.muted + '80' }}
+          >
+            <View className="flex-row items-center gap-2 mb-1">
               <Sparkles color={colors.primary} size={16} />
-              <Text style={[styles.reflectionHeaderText, { color: colors.foreground }]}>Reflection</Text>
+              <Text
+                className="text-sm font-semibold"
+                style={{ color: colors.foreground }}
+              >
+                Reflection
+              </Text>
             </View>
 
             {/* Story chips */}
             {activeInteraction.reflection.chips && activeInteraction.reflection.chips.length > 0 && (
-              <View style={styles.reflectionChips}>
+              <View className="flex-row flex-wrap gap-2">
                 {activeInteraction.reflection.chips.map((chip, index) => {
                   const storyChip = STORY_CHIPS.find(s => s.id === chip.chipId);
                   if (!storyChip) return null;
@@ -280,8 +306,20 @@ export function InteractionDetailModal({
                   }
 
                   return (
-                    <View key={index} style={[styles.reflectionChip, { backgroundColor: colors.primary + '20', borderColor: colors.primary + '40' }]}>
-                      <Text style={[styles.reflectionChipText, { color: colors.foreground }]}>{text}</Text>
+                    <View
+                      key={index}
+                      className="border rounded-2xl px-3 py-1.5"
+                      style={{
+                        backgroundColor: colors.primary + '20',
+                        borderColor: colors.primary + '40'
+                      }}
+                    >
+                      <Text
+                        className="text-[13px] font-medium"
+                        style={{ color: colors.foreground }}
+                      >
+                        {text}
+                      </Text>
                     </View>
                   );
                 })}
@@ -290,7 +328,10 @@ export function InteractionDetailModal({
 
             {/* Custom notes */}
             {activeInteraction.reflection.customNotes && (
-              <Text style={[styles.reflectionCustomNotes, { color: colors.foreground }]}>
+              <Text
+                className="text-sm leading-5 italic"
+                style={{ color: colors.foreground }}
+              >
                 {activeInteraction.reflection.customNotes}
               </Text>
             )}
@@ -302,13 +343,30 @@ export function InteractionDetailModal({
 
       {/* Deepen Weave / Edit Reflection Button - Only for past interactions */}
       {onEditReflection && isPast && (
-        <View style={[styles.footer, { paddingBottom: insets.bottom + 16, borderTopColor: colors.border }]}>
+        <View
+          className="px-6 pt-4 border-t"
+          style={{
+            paddingBottom: insets.bottom + 16,
+            borderTopColor: colors.border
+          }}
+        >
           <TouchableOpacity
-            style={[styles.deepenButton, { backgroundColor: colors.primary }]}
+            className="flex-row items-center justify-center gap-2 p-4 rounded-xl shadow-sm"
+            style={{
+              backgroundColor: colors.primary,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.1,
+              shadowRadius: 12,
+              elevation: 8,
+            }}
             onPress={handleEditReflectionPress}
           >
             <Sparkles color={colors['primary-foreground']} size={20} />
-            <Text style={[styles.deepenButtonText, { color: colors['primary-foreground'] }]}>
+            <Text
+              className="text-base font-semibold"
+              style={{ color: colors['primary-foreground'] }}
+            >
               {activeInteraction.reflection?.chips?.length ? 'Edit Reflection' : 'Deepen this weave'}
             </Text>
           </TouchableOpacity>
@@ -319,171 +377,31 @@ export function InteractionDetailModal({
 }
 
 const InfoRow = ({ icon, title, subtitle, colors }: { icon: React.ReactNode, title: string, subtitle: string, colors: any }) => (
-  <View style={[styles.infoRow, { backgroundColor: colors.muted + '80' }]}>
-    <View style={{ width: 24, alignItems: 'center' }}>{icon}</View>
-    <View style={{ flex: 1 }}>
-      <Text style={[styles.infoSubtitle, { color: colors['muted-foreground'] }]}>{subtitle}</Text>
-      <Text style={[styles.infoTitle, { color: colors.foreground }]}>{title}</Text>
+  <View
+    className="flex-row items-start gap-3 p-4 rounded-2xl shadow-sm"
+    style={{
+      backgroundColor: colors.muted + '80',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.05,
+      shadowRadius: 8,
+      elevation: 4,
+    }}
+  >
+    <View className="w-6 items-center">{icon}</View>
+    <View className="flex-1">
+      <Text
+        className="text-sm"
+        style={{ color: colors['muted-foreground'] }}
+      >
+        {subtitle}
+      </Text>
+      <Text
+        className="font-medium"
+        style={{ color: colors.foreground }}
+      >
+        {title}
+      </Text>
     </View>
   </View>
 );
-
-const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  modalContainer: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -10 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 20,
-    height: '75%',
-  },
-  handleBarContainer: {
-    padding: 16,
-    alignItems: 'center',
-  },
-  handleBar: {
-    width: 48,
-    height: 6,
-    borderRadius: 3,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    paddingHorizontal: 24,
-    paddingTop: 8,
-  },
-  headerTitleContainer: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 8,
-  },
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  actionButton: {
-    padding: 8,
-  },
-  headerIcon: {
-    fontSize: 32,
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: '600',
-  },
-  headerSubtitle: {
-    fontSize: 14,
-    textTransform: 'capitalize',
-  },
-  scrollViewContent: {
-    padding: 24,
-    gap: 24,
-  },
-  statusBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 999,
-    alignSelf: 'flex-start',
-  },
-  statusCompleted: {
-    backgroundColor: '#dcfce7',
-  },
-  statusPlanned: {
-    backgroundColor: '#fef9c3',
-  },
-  statusBadgeText: {
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  statusCompletedText: {
-    color: '#166534',
-  },
-  statusPlannedText: {
-    color: '#854d0e',
-  },
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 12,
-    padding: 16,
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  infoSubtitle: {
-    fontSize: 14,
-  },
-  infoTitle: {
-    fontWeight: '500',
-  },
-  reflectionSection: {
-    padding: 16,
-    borderRadius: 16,
-    gap: 12,
-  },
-  reflectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 4,
-  },
-  reflectionHeaderText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  reflectionChips: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  reflectionChip: {
-    borderWidth: 1,
-    borderRadius: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  reflectionChipText: {
-    fontSize: 13,
-    fontWeight: '500',
-  },
-  reflectionCustomNotes: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontStyle: 'italic',
-  },
-  footer: {
-    paddingHorizontal: 24,
-    paddingTop: 16,
-    borderTopWidth: 1,
-  },
-  deepenButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    padding: 16,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  deepenButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-});

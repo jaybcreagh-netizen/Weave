@@ -13,7 +13,7 @@ import {
     ChevronRight
 } from 'lucide-react-native';
 import { SettingsItem } from './SettingsItem';
-import { useUIStore } from '@/shared/stores/uiStore';
+import { useGlobalUI } from '@/shared/context/GlobalUIContext';
 import { DiagnosticService } from '@/shared/services/diagnostic.service';
 import { EveningDigestChannel } from '@/modules/notifications';
 import { generateStressTestData, clearStressTestData, getDataStats } from '@/db/seeds/stress-test-seed-data';
@@ -24,7 +24,7 @@ interface TestingSettingsProps {
 
 export const TestingSettings: React.FC<TestingSettingsProps> = ({ onClose }) => {
     const { colors } = useTheme();
-    const { openWeeklyReflection, openReflectionPrompt } = useUIStore();
+    const { openWeeklyReflection, openReflectionPrompt, queueBadgeUnlocks } = useGlobalUI();
     const [isScanning, setIsScanning] = useState(false);
 
     const handleGenerateStressTest = () => {
@@ -170,7 +170,7 @@ export const TestingSettings: React.FC<TestingSettingsProps> = ({ onClose }) => 
                 title="Test Badge Popup"
                 subtitle="Trigger a fake badge unlock"
                 onPress={() => {
-                    useUIStore.getState().queueBadgeUnlocks([{
+                    queueBadgeUnlocks([{
                         badge: {
                             id: 'test_badge',
                             name: 'Test Badge',

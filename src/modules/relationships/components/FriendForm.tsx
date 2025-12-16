@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useDebounceCallback } from '@/shared/hooks/useDebounceCallback';
-import { View, Text, TouchableOpacity, TextInput, ScrollView, Image, StyleSheet, Modal, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput, ScrollView, Image, Modal, Alert, ActivityIndicator } from 'react-native';
 import { ArrowLeft, Camera, X, Users, AlertCircle, RotateCw } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as Contacts from 'expo-contacts';
@@ -18,7 +18,7 @@ import { MonthDayPicker } from '@/shared/components/MonthDayPicker';
 import { getTierCapacity, getTierDisplayName, isTierAtCapacity } from '@/shared/constants/constants';
 import { normalizeContactImageUri } from '../utils/image.utils';
 import { SimpleTutorialTooltip } from '@/shared/components/SimpleTutorialTooltip';
-import { useTutorialStore } from '@/shared/stores/tutorialStore';
+import { useTutorial } from '@/shared/context/TutorialContext';
 import { validateMMDDFormat } from '@/shared/utils/validation-helpers';
 import { processAndStoreImage, getRelativePath, resolveImageUri, rotateImage } from '../services/image.service';
 
@@ -36,8 +36,7 @@ export function FriendForm({ onSave, friend, initialTier, fromOnboarding, onSkip
   const { colors } = useTheme(); // Use the hook
 
   // Tutorial state - simple approach
-  const hasAddedFirstFriend = useTutorialStore((state) => state.hasAddedFirstFriend);
-  const markFirstFriendAdded = useTutorialStore((state) => state.markFirstFriendAdded);
+  const { hasAddedFirstFriend, markFirstFriendAdded } = useTutorial();
   const [currentTutorialStep, setCurrentTutorialStep] = useState(0);
 
   // Tutorial handlers
@@ -363,37 +362,40 @@ export function FriendForm({ onSave, friend, initialTier, fromOnboarding, onSkip
   }, [friend?.id]);
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
-      <View style={[styles.header, { borderColor: colors.border }]}>
+    <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
+      <View className="flex-row justify-between items-center p-5 border-b" style={{ borderColor: colors.border }}>
         {fromOnboarding ? (
-          <TouchableOpacity onPress={onSkip} style={styles.backButton}>
-            <Text style={[styles.backButtonText, { color: colors['muted-foreground'] }]}>Skip</Text>
+          <TouchableOpacity onPress={onSkip} className="flex-row items-center gap-2">
+            <Text style={{ color: colors['muted-foreground'] }}>Skip</Text>
           </TouchableOpacity>
         ) : (
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <TouchableOpacity onPress={() => router.back()} className="flex-row items-center gap-2">
             <ArrowLeft size={20} color={colors['muted-foreground']} />
-            <Text style={[styles.backButtonText, { color: colors['muted-foreground'] }]}>Back</Text>
+            <Text style={{ color: colors['muted-foreground'] }}>Back</Text>
           </TouchableOpacity>
         )}
-        <Text style={[styles.headerTitle, { color: colors.foreground }]}>
+        <Text className="text-xl font-lora-bold font-semibold" style={{ color: colors.foreground }}>
           {friend ? "Edit Friend" : "Add Friend"}
         </Text>
         <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollViewContent}>
-        <View style={{ gap: 24 }}>
+      <ScrollView contentContainerStyle={{ padding: 20 }}>
+        <View className="gap-6">
           <View>
-            <Text style={[styles.label, { color: colors.foreground }]}>Portrait</Text>
-            <View style={styles.imagePickerContainer}>
+            <Text className="text-base mb-3 font-lora-regular" style={{ color: colors.foreground }}>Portrait</Text>
+            <View className="flex-row items-center gap-4">
               <TouchableOpacity onPress={pickImage} disabled={imageProcessing}>
-                <View style={[styles.avatarContainer, { backgroundColor: colors.muted, borderColor: colors.border }]}>
+                <View
+                  className="w-20 h-20 rounded-full border-2 border-dashed items-center justify-center overflow-hidden"
+                  style={{ backgroundColor: colors.muted, borderColor: colors.border }}
+                >
                   {imageProcessing ? (
                     <ActivityIndicator size="large" color={colors.primary} />
                   ) : formData.photoUrl && !imageError ? (
                     <Image
                       source={{ uri: normalizeContactImageUri(formData.photoUrl) }}
-                      style={styles.avatarImage}
+                      className="w-full h-full"
                       resizeMode="cover"
                       onError={() => setImageError(true)}
                     />
@@ -404,23 +406,25 @@ export function FriendForm({ onSave, friend, initialTier, fromOnboarding, onSkip
               </TouchableOpacity>
               {formData.photoUrl && (
                 <>
-                  <TouchableOpacity onPress={removePhoto} style={styles.removeImageButton}>
+                  <TouchableOpacity onPress={removePhoto} className="absolute -top-2 left-[68px] w-6 h-6 bg-red-500 rounded-full items-center justify-center">
                     <X size={12} color="white" />
                   </TouchableOpacity>
                   <TouchableOpacity
                     onPress={handleRotate}
-                    style={[styles.rotateImageButton, { backgroundColor: colors.muted, borderColor: colors.border }]}
+                    className="absolute -bottom-2 left-[68px] w-6 h-6 rounded-full border items-center justify-center z-10"
+                    style={{ backgroundColor: colors.muted, borderColor: colors.border }}
                     disabled={imageProcessing}
                   >
                     <RotateCw size={14} color={colors.foreground} />
                   </TouchableOpacity>
                 </>
               )}
-              <View style={{ flex: 1, gap: 8 }}>
+              <View className="flex-1 gap-2">
                 <TouchableOpacity
                   onPress={pickImage}
                   disabled={imageProcessing}
-                  style={[styles.addPhotoButton, { borderColor: colors.border, opacity: imageProcessing ? 0.5 : 1 }]}
+                  className="w-full h-12 rounded-xl border items-center justify-center"
+                  style={{ borderColor: colors.border, opacity: imageProcessing ? 0.5 : 1 }}
                 >
                   <Text style={{ color: colors.foreground }}>
                     {imageProcessing ? "Processing..." : formData.photoUrl ? "Change Photo" : "Add Photo"}
@@ -428,7 +432,8 @@ export function FriendForm({ onSave, friend, initialTier, fromOnboarding, onSkip
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={() => setShowContactPicker(true)}
-                  style={[styles.importContactsButton, { borderColor: colors.border, backgroundColor: colors.muted }]}
+                  className="flex-row items-center justify-center gap-2 h-10 rounded-xl border"
+                  style={{ borderColor: colors.border, backgroundColor: colors.muted }}
                 >
                   <Users size={16} color={colors.foreground} />
                   <Text style={{ color: colors.foreground, fontSize: 14 }}>Import from Contacts</Text>
@@ -438,19 +443,20 @@ export function FriendForm({ onSave, friend, initialTier, fromOnboarding, onSkip
           </View>
 
           <View>
-            <Text style={[styles.label, { color: colors.foreground }]}>Name</Text>
+            <Text className="text-base mb-3 font-lora-regular" style={{ color: colors.foreground }}>Name</Text>
             <TextInput
               value={formData.name}
               onChangeText={(name) => setFormData({ ...formData, name })}
-              style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
+              className="border rounded-xl h-14 text-lg px-4"
+              style={{ backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }}
               placeholder="Enter friend's name"
               placeholderTextColor={colors['muted-foreground']}
             />
           </View>
 
           <View>
-            <Text style={[styles.label, { color: colors.foreground }]}>Connection Tier</Text>
-            <View style={styles.tierSelectorContainer}>
+            <Text className="text-base mb-3 font-lora-regular" style={{ color: colors.foreground }}>Connection Tier</Text>
+            <View className="flex-row gap-2">
               {[
                 { id: "inner", label: "Inner" },
                 { id: "close", label: "Close" },
@@ -459,30 +465,31 @@ export function FriendForm({ onSave, friend, initialTier, fromOnboarding, onSkip
                 <TouchableOpacity
                   key={tier.id}
                   onPress={() => setFormData({ ...formData, tier: tier.id })}
+                  className="flex-1 p-4 rounded-xl border items-center"
                   style={[
-                    styles.tierButton,
                     { backgroundColor: colors.card, borderColor: colors.border },
-                    formData.tier === tier.id && [styles.tierButtonSelected, { borderColor: colors.primary, backgroundColor: colors.primary + '20' }]
+                    formData.tier === tier.id && { borderColor: colors.primary, backgroundColor: colors.primary + '20' }
                   ]}
                 >
-                  <Text style={[
-                    styles.tierButtonText,
-                    { color: colors.foreground },
-                    formData.tier === tier.id && [styles.tierButtonTextSelected, { color: colors.primary }]
-                  ]}>{tier.label}</Text>
+                  <Text
+                    className="font-medium"
+                    style={[
+                      { color: colors.foreground },
+                      formData.tier === tier.id && { color: colors.primary }
+                    ]}>{tier.label}</Text>
                 </TouchableOpacity>
               ))}
             </View>
           </View>
 
           <View>
-            <Text style={[styles.label, { color: colors.foreground }]}>Archetype</Text>
-            <Text style={[styles.helperText, { color: colors['muted-foreground'] }]}>
+            <Text className="text-base mb-3 font-lora-regular" style={{ color: colors.foreground }}>Archetype</Text>
+            <Text className="text-xs leading-[18px] mt-1 mb-2" style={{ color: colors['muted-foreground'] }}>
               Tap to select • Long-press to learn more
             </Text>
-            <View style={styles.archetypeGrid}>
+            <View className="flex-row flex-wrap gap-3 mt-2">
               {(['Emperor', 'Empress', 'HighPriestess', 'Fool', 'Sun', 'Hermit', 'Magician', 'Lovers'] as Archetype[]).map((archetype) => (
-                <View key={archetype} style={styles.archetypeCardWrapper}>
+                <View key={archetype} className="w-[48%]">
                   <ArchetypeCard
                     archetype={archetype}
                     isSelected={formData.archetype === archetype}
@@ -494,8 +501,8 @@ export function FriendForm({ onSave, friend, initialTier, fromOnboarding, onSkip
           </View>
 
           <View>
-            <Text style={[styles.label, { color: colors.foreground }]}>Relationship Type (Optional)</Text>
-            <View style={styles.relationshipTypeContainer}>
+            <Text className="text-base mb-3 font-lora-regular" style={{ color: colors.foreground }}>Relationship Type (Optional)</Text>
+            <View className="flex-row flex-wrap gap-2">
               {[
                 { id: "friend", label: "Friend", icon: "🤝" },
                 { id: "family", label: "Family", icon: "👨‍👩‍👧‍👦" },
@@ -508,24 +515,25 @@ export function FriendForm({ onSave, friend, initialTier, fromOnboarding, onSkip
                 <TouchableOpacity
                   key={type.id}
                   onPress={() => setFormData({ ...formData, relationshipType: type.id as RelationshipType })}
+                  className="py-3 px-4 rounded-full border-2 min-w-[100px] items-center"
                   style={[
-                    styles.relationshipTypeButton,
                     { backgroundColor: colors.card, borderColor: colors.border },
-                    formData.relationshipType === type.id && [styles.relationshipTypeButtonSelected, { borderColor: colors.primary, backgroundColor: colors.primary + '20' }]
+                    formData.relationshipType === type.id && { borderColor: colors.primary, backgroundColor: colors.primary + '20' }
                   ]}
                 >
-                  <Text style={[
-                    styles.relationshipTypeButtonText,
-                    { color: colors.foreground },
-                    formData.relationshipType === type.id && { color: colors.primary }
-                  ]}>{type.icon} {type.label}</Text>
+                  <Text
+                    className="text-sm font-semibold text-center"
+                    style={[
+                      { color: colors.foreground },
+                      formData.relationshipType === type.id && { color: colors.primary }
+                    ]}>{type.icon} {type.label}</Text>
                 </TouchableOpacity>
               ))}
             </View>
           </View>
 
           <View>
-            <Text style={[styles.label, { color: colors.foreground }]}>Birthday (Optional)</Text>
+            <Text className="text-base mb-3 font-lora-regular" style={{ color: colors.foreground }}>Birthday (Optional)</Text>
             <MonthDayPicker
               value={formData.birthday}
               onChange={(birthday) => setFormData({ ...formData, birthday })}
@@ -536,8 +544,8 @@ export function FriendForm({ onSave, friend, initialTier, fromOnboarding, onSkip
           {/* Only show anniversary field for partners */}
           {formData.relationshipType === 'partner' && (
             <View>
-              <Text style={[styles.label, { color: colors.foreground }]}>Anniversary (Optional)</Text>
-              <Text style={[styles.helperText, { color: colors['muted-foreground'] }]}>Romantic relationship anniversary</Text>
+              <Text className="text-base mb-3 font-lora-regular" style={{ color: colors.foreground }}>Anniversary (Optional)</Text>
+              <Text className="text-xs leading-[18px] mt-1 mb-2" style={{ color: colors['muted-foreground'] }}>Romantic relationship anniversary</Text>
               <MonthDayPicker
                 value={formData.anniversary}
                 onChange={(anniversary) => setFormData({ ...formData, anniversary })}
@@ -547,11 +555,12 @@ export function FriendForm({ onSave, friend, initialTier, fromOnboarding, onSkip
           )}
 
           <View>
-            <Text style={[styles.label, { color: colors.foreground }]}>Notes (Optional)</Text>
+            <Text className="text-base mb-3 font-lora-regular" style={{ color: colors.foreground }}>Notes (Optional)</Text>
             <TextInput
               value={formData.notes}
               onChangeText={(notes) => setFormData({ ...formData, notes })}
-              style={[styles.input, { height: 96, paddingTop: 16, backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
+              className="h-24 pt-4 border rounded-xl px-4 text-lg"
+              style={{ backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }}
               placeholder="Any special notes about this person..."
               placeholderTextColor={colors['muted-foreground']}
               multiline
@@ -561,9 +570,10 @@ export function FriendForm({ onSave, friend, initialTier, fromOnboarding, onSkip
           <TouchableOpacity
             onPress={handleSave}
             disabled={!formData.name.trim()}
-            style={[styles.saveButton, { backgroundColor: colors.primary }, !formData.name.trim() && { opacity: 0.5 }]}
+            className="w-full py-4 rounded-2xl items-center"
+            style={[{ backgroundColor: colors.primary }, !formData.name.trim() && { opacity: 0.5 }]}
           >
-            <Text style={[styles.saveButtonText, { color: colors['primary-foreground'] }]}>
+            <Text className="text-lg font-medium" style={{ color: colors['primary-foreground'] }}>
               {friend ? "Save Changes" : "Add Friend"}
             </Text>
           </TouchableOpacity>
@@ -580,11 +590,11 @@ export function FriendForm({ onSave, friend, initialTier, fromOnboarding, onSkip
         presentationStyle="pageSheet"
         onRequestClose={() => setShowContactPicker(false)}
       >
-        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
-          <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
-            <Text style={[styles.modalTitle, { color: colors.foreground }]}>Import from Contacts</Text>
+        <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
+          <View className="flex-row justify-between items-center px-5 py-4 border-b" style={{ borderBottomColor: colors.border }}>
+            <Text className="text-lg font-lora-bold font-semibold" style={{ color: colors.foreground }}>Import from Contacts</Text>
             <TouchableOpacity onPress={() => setShowContactPicker(false)}>
-              <Text style={{ color: colors.primary, fontSize: 16, fontWeight: '600' }}>Done</Text>
+              <Text className="text-base font-semibold" style={{ color: colors.primary }}>Done</Text>
             </TouchableOpacity>
           </View>
           <ContactPickerGrid
@@ -603,25 +613,25 @@ export function FriendForm({ onSave, friend, initialTier, fromOnboarding, onSkip
         transparent={true}
         onRequestClose={() => setShowCapacityWarning(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.capacityWarningContainer, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <View className="flex-1 justify-center items-center px-6" style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}>
+          <View className="w-full max-w-[400px] rounded-3xl p-6 border gap-4" style={{ backgroundColor: colors.card, borderColor: colors.border }}>
             {/* Warning Icon */}
-            <View style={[styles.warningIconContainer, { backgroundColor: '#F59E0B20' }]}>
+            <View className="w-16 h-16 rounded-full items-center justify-center self-center" style={{ backgroundColor: '#F59E0B20' }}>
               <AlertCircle size={32} color="#F59E0B" />
             </View>
 
             {/* Title */}
-            <Text style={[styles.warningTitle, { color: colors.foreground }]}>
+            <Text className="text-2xl font-lora-bold font-semibold text-center" style={{ color: colors.foreground }}>
               {getTierDisplayName(formData.tier)} is at Capacity
             </Text>
 
             {/* Description */}
-            <Text style={[styles.warningDescription, { color: colors['muted-foreground'] }]}>
+            <Text className="text-[15px] leading-[22px] text-center" style={{ color: colors['muted-foreground'] }}>
               Your {getTierDisplayName(formData.tier)} is designed for about {getTierCapacity(formData.tier)} {formData.tier === 'inner' ? 'closest' : formData.tier === 'close' ? 'important' : ''} relationships.
               You currently have {tierCounts[formData.tier as 'inner' | 'close' | 'community']}/{getTierCapacity(formData.tier)}.
             </Text>
 
-            <Text style={[styles.warningDescription, { color: colors['muted-foreground'] }]}>
+            <Text className="text-[15px] leading-[22px] text-center" style={{ color: colors['muted-foreground'] }}>
               {formData.tier === 'inner'
                 ? 'Adding more than 5 friends to your Inner Circle may make it harder to maintain these closest bonds. Consider if this friend might fit better in Close Friends, or if another friend should be moved.'
                 : formData.tier === 'close'
@@ -630,21 +640,23 @@ export function FriendForm({ onSave, friend, initialTier, fromOnboarding, onSkip
             </Text>
 
             {/* Action Buttons */}
-            <View style={styles.warningButtonContainer}>
+            <View className="flex-row gap-3 mt-2">
               <TouchableOpacity
                 onPress={() => setShowCapacityWarning(false)}
-                style={[styles.warningButtonSecondary, { borderColor: colors.border, backgroundColor: colors.muted }]}
+                className="flex-1 py-3.5 rounded-xl items-center border"
+                style={{ borderColor: colors.border, backgroundColor: colors.muted }}
               >
-                <Text style={[styles.warningButtonSecondaryText, { color: colors.foreground }]}>
+                <Text className="text-[15px] font-medium" style={{ color: colors.foreground }}>
                   Let me reconsider
                 </Text>
               </TouchableOpacity>
 
               <TouchableOpacity
                 onPress={proceedWithSave}
-                style={[styles.warningButtonPrimary, { backgroundColor: colors.primary }]}
+                className="flex-1 py-3.5 rounded-xl items-center"
+                style={{ backgroundColor: colors.primary }}
               >
-                <Text style={[styles.warningButtonPrimaryText, { color: colors['primary-foreground'] }]}>
+                <Text className="text-[15px] font-semibold" style={{ color: colors['primary-foreground'] }}>
                   Proceed anyway
                 </Text>
               </TouchableOpacity>
@@ -680,247 +692,3 @@ export function FriendForm({ onSave, friend, initialTier, fromOnboarding, onSkip
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-    borderBottomWidth: 1,
-  },
-  backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  backButtonText: {},
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    fontFamily: 'Lora_700Bold',
-  },
-  scrollViewContent: {
-    padding: 20,
-  },
-  label: {
-    fontSize: 16,
-    marginBottom: 12,
-    fontFamily: 'Lora_400Regular',
-  },
-  imagePickerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-  },
-  avatarContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    borderWidth: 2,
-    borderStyle: 'dashed',
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  avatarImage: {
-    width: '100%',
-    height: '100%',
-  },
-  removeImageButton: {
-    position: 'absolute',
-    top: -8,
-    left: 68, // Position at top-right corner of 80px avatar (80 - 12)
-    width: 24,
-    height: 24,
-    backgroundColor: '#ef4444',
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  rotateImageButton: {
-    position: 'absolute',
-    bottom: -8,
-    left: 68,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 10,
-  },
-  addPhotoButton: {
-    width: '100%',
-    height: 48,
-    borderRadius: 12,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  input: {
-    borderWidth: 1,
-    borderRadius: 12,
-    height: 56,
-    fontSize: 18,
-    paddingHorizontal: 16,
-  },
-  tierSelectorContainer: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  tierButton: {
-    flex: 1,
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    alignItems: 'center',
-  },
-  tierButtonSelected: {},
-  tierButtonText: {
-    fontWeight: '500',
-  },
-  tierButtonTextSelected: {},
-  archetypeGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-    marginTop: 8,
-  },
-  archetypeCardWrapper: {
-    width: '48%',
-  },
-  helperText: {
-    fontSize: 13,
-    lineHeight: 18,
-    marginTop: 4,
-    marginBottom: 8,
-  },
-  relationshipTypeContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-    rowGap: 10,
-  },
-  relationshipTypeButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 18,
-    borderRadius: 24,
-    borderWidth: 1.5,
-    minWidth: 100,
-    alignItems: 'center',
-  },
-  relationshipTypeButtonSelected: {},
-  relationshipTypeButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  dateButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 16,
-  },
-  dateButtonText: {
-    flex: 1,
-    fontSize: 16,
-  },
-  saveButton: {
-    width: '100%',
-    paddingVertical: 16,
-    borderRadius: 16,
-    alignItems: 'center',
-  },
-  saveButtonText: {
-    fontSize: 18,
-    fontWeight: '500',
-  },
-  importContactsButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    height: 40,
-    borderRadius: 12,
-    borderWidth: 1,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    fontFamily: 'Lora_700Bold',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-  },
-  capacityWarningContainer: {
-    width: '100%',
-    maxWidth: 400,
-    borderRadius: 20,
-    padding: 24,
-    borderWidth: 1,
-    gap: 16,
-  },
-  warningIconContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-    alignSelf: 'center',
-  },
-  warningTitle: {
-    fontSize: 22,
-    fontWeight: '600',
-    fontFamily: 'Lora_700Bold',
-    textAlign: 'center',
-  },
-  warningDescription: {
-    fontSize: 15,
-    lineHeight: 22,
-    textAlign: 'center',
-  },
-  warningButtonContainer: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 8,
-  },
-  warningButtonSecondary: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: 'center',
-    borderWidth: 1,
-  },
-  warningButtonSecondaryText: {
-    fontSize: 15,
-    fontWeight: '500',
-  },
-  warningButtonPrimary: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  warningButtonPrimaryText: {
-    fontSize: 15,
-    fontWeight: '600',
-  },
-});

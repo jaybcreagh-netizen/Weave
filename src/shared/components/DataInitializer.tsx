@@ -21,9 +21,9 @@ import { initializeDataMigrations, initializeUserProfile, initializeUserProgress
 import { LoadingScreen } from '@/shared/components/LoadingScreen';
 import { useDatabaseReady } from '@/shared/hooks/useDatabaseReady';
 import { useAppStateChange } from '@/shared/hooks/useAppState';
-import { useTutorialStore } from '@/shared/stores/tutorialStore';
+import { useTutorial } from '@/shared/context/TutorialContext';
 import { AutoBackupService } from '@/modules/backup';
-import { useBackgroundSyncStore } from '@/modules/auth';
+
 import { PlanService } from '@/modules/interactions';
 import { NotificationOrchestrator } from '@/modules/notifications';
 
@@ -47,7 +47,7 @@ interface DataInitializerProps {
 export function DataInitializer({ children }: DataInitializerProps) {
     const posthog = usePostHog();
     const [analyticsInitialized, setAnalyticsInitialized] = useState(false);
-    const hasCompletedOnboarding = useTutorialStore((state) => state.hasCompletedOnboarding);
+    const { hasCompletedOnboarding } = useTutorial();
     const pathname = usePathname();
 
     const [fontsLoaded, fontError] = useFonts({
@@ -129,8 +129,8 @@ export function DataInitializer({ children }: DataInitializerProps) {
                 await initializeAnalytics();
 
                 // Sync calendar changes on app launch (non-blocking)
-                import('@/modules/interactions').then(({ useInteractionsStore }) => {
-                    useInteractionsStore.getState().syncCalendar().catch((error) => {
+                import('@/modules/interactions/services/calendar.service').then(({ syncCalendarChanges }) => {
+                    syncCalendarChanges().catch((error) => {
                         console.error('[App] Error syncing calendar on launch:', error);
                     });
                 });
@@ -161,17 +161,7 @@ export function DataInitializer({ children }: DataInitializerProps) {
         initializeData();
     }, []);
 
-    // Initialize background sync
-    useEffect(() => {
-        const initBackgroundSync = async () => {
-            try {
-                await useBackgroundSyncStore.getState().loadSettings();
-            } catch (error) {
-                console.error('[App] Failed to initialize background sync:', error);
-            }
-        };
-        initBackgroundSync();
-    }, []);
+
 
     // Fade in content when UI is mounted
     useEffect(() => {
@@ -198,8 +188,8 @@ export function DataInitializer({ children }: DataInitializerProps) {
             });
 
             // Sync calendar changes when app becomes active
-            import('@/modules/interactions').then(({ useInteractionsStore }) => {
-                useInteractionsStore.getState().syncCalendar().catch((error) => {
+            import('@/modules/interactions/services/calendar.service').then(({ syncCalendarChanges }) => {
+                syncCalendarChanges().catch((error) => {
                     console.error('[App] Error syncing calendar on foreground:', error);
                 });
             });

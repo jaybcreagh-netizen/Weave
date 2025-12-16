@@ -1,12 +1,12 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { differenceInDays, format, isSameDay, addDays } from 'date-fns';
 import { Check, Clock, ChevronRight, Sparkles, Calendar, CheckCircle2 } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { HomeWidgetBase, HomeWidgetConfig } from '../HomeWidgetBase';
 import { useSuggestions, useInteractions, usePlans } from '@/modules/interactions';
-import { useUIStore } from '@/shared/stores/uiStore';
+import { useGlobalUI } from '@/shared/context/GlobalUIContext';
 import { database } from '@/db';
 import LifeEvent from '@/db/models/LifeEvent';
 import { Q } from '@nozbe/watermelondb';
@@ -49,7 +49,7 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = ({ friends })
     const { suggestions } = useSuggestions();
     const { allInteractions: interactions } = useInteractions();
     const { completePlan } = usePlans();
-    const { openPostWeaveRating, openWeeklyReflection } = useUIStore();
+    const { openPostWeaveRating, openWeeklyReflection, showMicroReflectionSheet } = useGlobalUI();
 
     const [showDetailSheet, setShowDetailSheet] = useState(false);
     const [upcomingDates, setUpcomingDates] = useState<UpcomingDate[]>([]);
@@ -148,7 +148,7 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = ({ friends })
         loadLifeEvents();
     }, [friends]);
 
-    const { showMicroReflectionSheet } = useUIStore();
+
 
     const handleConfirmPlan = async (interactionId: string) => {
         // Just open the rating modal for this plan
@@ -290,8 +290,13 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = ({ friends })
                     <View>
                         {/* Only show header if there are other sections to differentiate from */}
                         {(hasCompleted) && (
-                            <View style={styles.sectionHeader}>
-                                <Text style={[styles.sectionTitle, { color: tokens.foregroundMuted }]}>Upcoming</Text>
+                            <View className="px-4 py-2 pt-4">
+                                <Text
+                                    className="text-xs uppercase tracking-wider font-sans-semibold"
+                                    style={{ color: tokens.foregroundMuted }}
+                                >
+                                    Upcoming
+                                </Text>
                             </View>
                         )}
                         {todaysUpcoming.map((plan, index) => {
@@ -311,8 +316,13 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = ({ friends })
                 {/* Completed Plans Section */}
                 {hasCompleted && (
                     <View style={{ marginTop: hasUpcoming ? 8 : 0 }}>
-                        <View style={styles.sectionHeader}>
-                            <Text style={[styles.sectionTitle, { color: tokens.foregroundMuted }]}>Completed Today</Text>
+                        <View className="px-4 py-2 pt-4">
+                            <Text
+                                className="text-xs uppercase tracking-wider font-sans-semibold"
+                                style={{ color: tokens.foregroundMuted }}
+                            >
+                                Completed Today
+                            </Text>
                         </View>
                         {todaysCompleted.slice(0, 3).map((plan, index) => {
                             return (
@@ -345,8 +355,13 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = ({ friends })
                 {/* Tomorrow's Plans Section */}
                 {hasTomorrow && (
                     <View style={{ marginTop: (hasUpcoming || hasCompleted) ? 8 : 0 }}>
-                        <View style={styles.sectionHeader}>
-                            <Text style={[styles.sectionTitle, { color: tokens.foregroundMuted }]}>Tomorrow</Text>
+                        <View className="px-4 py-2 pt-4">
+                            <Text
+                                className="text-xs uppercase tracking-wider font-sans-semibold"
+                                style={{ color: tokens.foregroundMuted }}
+                            >
+                                Tomorrow
+                            </Text>
                         </View>
                         {tomorrowsPlans.map((plan, index) => {
                             return (
@@ -363,14 +378,14 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = ({ friends })
                 )}
 
                 {isAllClear ? (
-                    <View style={styles.emptyState}>
+                    <View className="p-6 items-center justify-center gap-3">
                         <CheckCircle2 size={32} color={tokens.success} />
-                        <Text style={[styles.emptyText, {
+                        <Text style={{
                             color: tokens.foregroundMuted,
                             fontFamily: typography.fonts.sans,
                             fontSize: typography.scale.body.fontSize,
                             lineHeight: typography.scale.body.lineHeight
-                        }]}>
+                        }}>
                             You're all caught up
                         </Text>
                     </View>
@@ -384,15 +399,23 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = ({ friends })
 
                 {hasSuggestions && (
                     <TouchableOpacity onPress={() => setShowDetailSheet(true)}>
-                        <View style={[styles.summaryRow, (hasUpcoming || hasCompleted || hasTomorrow || hasUpcomingDates) && { borderTopWidth: 1, borderTopColor: tokens.borderSubtle }]}>
-                            <View style={styles.summaryContent}>
+                        <View
+                            className="flex-row items-center justify-between p-4"
+                            style={[
+                                (hasUpcoming || hasCompleted || hasTomorrow || hasUpcomingDates) && { borderTopWidth: 1, borderTopColor: tokens.borderSubtle }
+                            ]}
+                        >
+                            <View className="flex-1 flex-row items-center mr-2">
                                 <Sparkles size={16} color={tokens.primaryMuted} style={{ marginRight: 8 }} />
-                                <Text style={[styles.summaryText, {
-                                    color: tokens.foreground,
-                                    fontFamily: typography.fonts.sans,
-                                    fontSize: typography.scale.body.fontSize,
-                                    lineHeight: typography.scale.body.lineHeight
-                                }]}>
+                                <Text
+                                    className="flex-1"
+                                    style={{
+                                        color: tokens.foreground,
+                                        fontFamily: typography.fonts.sans,
+                                        fontSize: typography.scale.body.fontSize,
+                                        lineHeight: typography.scale.body.lineHeight
+                                    }}
+                                >
                                     {suggestions.length} suggestion{suggestions.length !== 1 ? 's' : ''}
                                 </Text>
                             </View>
@@ -403,15 +426,23 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = ({ friends })
 
                 {hasUpcomingDates && (
                     <TouchableOpacity onPress={() => setShowDetailSheet(true)}>
-                        <View style={[styles.summaryRow, (hasUpcoming || hasCompleted || hasTomorrow || hasSuggestions) && { borderTopWidth: 1, borderTopColor: tokens.borderSubtle }]}>
-                            <View style={styles.summaryContent}>
+                        <View
+                            className="flex-row items-center justify-between p-4"
+                            style={[
+                                (hasUpcoming || hasCompleted || hasTomorrow || hasSuggestions) && { borderTopWidth: 1, borderTopColor: tokens.borderSubtle }
+                            ]}
+                        >
+                            <View className="flex-1 flex-row items-center mr-2">
                                 <Calendar size={16} color={tokens.primaryMuted} style={{ marginRight: 8 }} />
-                                <Text style={[styles.summaryText, {
-                                    color: tokens.foreground,
-                                    fontFamily: typography.fonts.sans,
-                                    fontSize: typography.scale.body.fontSize,
-                                    lineHeight: typography.scale.body.lineHeight
-                                }]}>
+                                <Text
+                                    className="flex-1"
+                                    style={{
+                                        color: tokens.foreground,
+                                        fontFamily: typography.fonts.sans,
+                                        fontSize: typography.scale.body.fontSize,
+                                        lineHeight: typography.scale.body.lineHeight
+                                    }}
+                                >
                                     {upcomingDates[0].friend.name}'s {upcomingDates[0].type === 'birthday' ? 'birthday' : 'event'} {upcomingDates[0].daysUntil === 0 ? 'today' : upcomingDates[0].daysUntil === 1 ? 'tomorrow' : `in ${upcomingDates[0].daysUntil} days`}
                                     {upcomingDates.length > 1 && ` +${upcomingDates.length - 1} more`}
                                 </Text>
@@ -459,51 +490,3 @@ const enhance = withObservables([], () => ({
 
 export const TodaysFocusWidgetV2 = enhance(TodaysFocusWidgetContent);
 
-const styles = StyleSheet.create({
-    actions: {
-        flexDirection: 'row',
-    },
-    iconBtn: {
-        width: 32,
-        height: 32,
-        borderRadius: 16,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    summaryRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: 16,
-    },
-    summaryContent: {
-        flex: 1,
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginRight: 8,
-    },
-    summaryText: {
-        flex: 1,
-        // Font size handled by typography.scale.body in component
-    },
-    emptyState: {
-        padding: 24,
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 12,
-    },
-    emptyText: {
-        // Font size handled by typography.scale.body in component
-    },
-    sectionHeader: {
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-        paddingTop: 16,
-    },
-    sectionTitle: {
-        fontSize: 12,
-        fontFamily: 'Inter_600SemiBold',
-        textTransform: 'uppercase',
-        letterSpacing: 0.5,
-    },
-});

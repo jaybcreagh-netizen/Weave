@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Pressable, StyleProp, ViewStyle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
-import { useUIStore } from '@/shared/stores/uiStore';
+import { useGlobalUI } from '@/shared/context/GlobalUIContext';
 import { type Archetype } from '@/shared/types/common';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { archetypeData, ARCHETYPE_GRADIENTS } from '@/shared/constants/constants';
@@ -26,7 +26,7 @@ export function ArchetypeCard({
   style,
   className,
 }: ArchetypeCardProps) {
-  const { setArchetypeModal } = useUIStore();
+  const { setArchetypeModal } = useGlobalUI();
   const { colors } = useTheme();
   const data = archetypeData[archetype];
 

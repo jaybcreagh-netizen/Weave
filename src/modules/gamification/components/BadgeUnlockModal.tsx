@@ -19,7 +19,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { useUIStore } from '@/shared/stores/uiStore';
+import { useGlobalUI } from '@/shared/context/GlobalUIContext';
 import { markBadgeAsCelebrated } from '@/modules/gamification';
 import { markAchievementAsCelebrated } from '@/modules/gamification';
 import { BlurView } from 'expo-blur';
@@ -29,10 +29,11 @@ import { Text } from '@/shared/ui/Text';
 const { width } = Dimensions.get('window');
 
 export function BadgeUnlockModal() {
-  const badgeQueue = useUIStore((state) => state.badgeUnlockQueue);
-  const achievementQueue = useUIStore((state) => state.achievementUnlockQueue);
-  const dismissBadge = useUIStore((state) => state.dismissBadgeUnlock);
-  const dismissAchievement = useUIStore((state) => state.dismissAchievementUnlock);
+  const { badgeUnlockQueue, achievementUnlockQueue, dismissBadgeUnlock, dismissAchievementUnlock } = useGlobalUI();
+  const badgeQueue = badgeUnlockQueue;
+  const achievementQueue = achievementUnlockQueue;
+  const dismissBadge = dismissBadgeUnlock;
+  const dismissAchievement = dismissAchievementUnlock;
   const insets = useSafeAreaInsets();
   const { isDarkMode, colors } = useTheme();
 

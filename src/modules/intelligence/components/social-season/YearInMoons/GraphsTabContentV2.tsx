@@ -10,7 +10,7 @@
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, ScrollView } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { database } from '@/db';
@@ -356,8 +356,11 @@ export function GraphsTabContent({ year = new Date().getFullYear() }: GraphsTabC
 
   if (isLoading) {
     return (
-      <View style={styles.loadingContainer}>
-        <Text style={[styles.loadingText, { color: tokens.foregroundMuted }]}>
+      <View className="flex-1 items-center justify-center pt-15">
+        <Text
+          className="text-sm font-inter-regular"
+          style={{ color: tokens.foregroundMuted }}
+        >
           Loading...
         </Text>
       </View>
@@ -366,11 +369,17 @@ export function GraphsTabContent({ year = new Date().getFullYear() }: GraphsTabC
 
   if (error) {
     return (
-      <View style={styles.loadingContainer}>
-        <Text style={[styles.loadingText, { color: tokens.destructive }]}>
+      <View className="flex-1 items-center justify-center pt-15">
+        <Text
+          className="text-sm font-inter-regular"
+          style={{ color: tokens.destructive }}
+        >
           Error: {error}
         </Text>
-        <Text style={{ color: tokens.foregroundMuted, marginTop: 8, textAlign: 'center' }}>
+        <Text
+          className="mt-2 text-center"
+          style={{ color: tokens.foregroundMuted }}
+        >
           Check console for details.
         </Text>
       </View>
@@ -379,18 +388,16 @@ export function GraphsTabContent({ year = new Date().getFullYear() }: GraphsTabC
 
   if (!data) {
     return (
-      <View style={styles.loadingContainer}>
+      <View className="flex-1 items-center justify-center pt-15">
         <Text style={{ color: tokens.foregroundMuted }}>No data available</Text>
       </View>
     );
   }
 
   return (
-    <View
-      style={[styles.container, { padding: 16 }]}
-    >
+    <View className="p-4">
       {/* Period Toggle */}
-      <View style={styles.toggleContainer}>
+      <View className="items-center mb-5">
         <PeriodToggle value={period} onChange={setPeriod} />
       </View>
 
@@ -418,21 +425,30 @@ export function GraphsTabContent({ year = new Date().getFullYear() }: GraphsTabC
             />
           </View>
 
-          <View style={[styles.statsRow, { marginTop: spacing[4] }]}>
-            <Text style={[styles.statText, { color: tokens.foregroundMuted }]}>
-              <Text style={{ color: tokens.success, fontFamily: 'Inter_600SemiBold' }}>
+          <View className="flex-row items-center justify-center mt-4">
+            <Text
+              className="text-xs font-inter-regular"
+              style={{ color: tokens.foregroundMuted }}
+            >
+              <Text className="font-inter-semibold" style={{ color: tokens.success }}>
                 {data.thrivingCount}
               </Text> thriving
             </Text>
-            <Text style={[styles.statDivider, { color: tokens.borderSubtle }]}>·</Text>
-            <Text style={[styles.statText, { color: tokens.foregroundMuted }]}>
-              <Text style={{ color: tokens.foreground, fontFamily: 'Inter_600SemiBold' }}>
+            <Text className="mx-2 text-xs" style={{ color: tokens.borderSubtle }}>·</Text>
+            <Text
+              className="text-xs font-inter-regular"
+              style={{ color: tokens.foregroundMuted }}
+            >
+              <Text className="font-inter-semibold" style={{ color: tokens.foreground }}>
                 {data.stableCount}
               </Text> stable
             </Text>
-            <Text style={[styles.statDivider, { color: tokens.borderSubtle }]}>·</Text>
-            <Text style={[styles.statText, { color: tokens.foregroundMuted }]}>
-              <Text style={{ color: tokens.warning, fontFamily: 'Inter_600SemiBold' }}>
+            <Text className="mx-2 text-xs" style={{ color: tokens.borderSubtle }}>·</Text>
+            <Text
+              className="text-xs font-inter-regular"
+              style={{ color: tokens.foregroundMuted }}
+            >
+              <Text className="font-inter-semibold" style={{ color: tokens.warning }}>
                 {data.driftingCount}
               </Text> drifting
             </Text>
@@ -466,27 +482,42 @@ export function GraphsTabContent({ year = new Date().getFullYear() }: GraphsTabC
 
           {/* Insight sentence */}
           {data.peakDay && data.avgEnergy > 0 && (
-            <Text style={[styles.insightSentence, { color: tokens.foreground }]}>
+            <Text
+              className="text-base font-inter-medium leading-5"
+              style={{ color: tokens.foreground }}
+            >
               You connect more on high-energy days
             </Text>
           )}
 
           {/* Simple stats */}
-          <View style={[styles.energyStats, { marginTop: spacing[3] }]}>
-            <View style={styles.energyStat}>
-              <Text style={[styles.energyStatValue, { color: tokens.primary }]}>
+          <View className="flex-row items-center mt-3">
+            <View className="flex-1 items-center">
+              <Text
+                className="text-2xl font-lora-bold"
+                style={{ color: tokens.primary }}
+              >
                 {data.avgEnergy.toFixed(1)}
               </Text>
-              <Text style={[styles.energyStatLabel, { color: tokens.foregroundMuted }]}>
+              <Text
+                className="text-xs font-inter-regular mt-0.5"
+                style={{ color: tokens.foregroundMuted }}
+              >
                 avg energy
               </Text>
             </View>
-            <View style={[styles.energyStatDivider, { backgroundColor: tokens.borderSubtle }]} />
-            <View style={styles.energyStat}>
-              <Text style={[styles.energyStatValue, { color: tokens.success }]}>
+            <View className="w-px h-8 mx-4" style={{ backgroundColor: tokens.borderSubtle }} />
+            <View className="flex-1 items-center">
+              <Text
+                className="text-2xl font-lora-bold"
+                style={{ color: tokens.success }}
+              >
                 {data.avgWeavesPerDay.toFixed(1)}
               </Text>
-              <Text style={[styles.energyStatLabel, { color: tokens.foregroundMuted }]}>
+              <Text
+                className="text-xs font-inter-regular mt-0.5"
+                style={{ color: tokens.foregroundMuted }}
+              >
                 weaves/day
               </Text>
             </View>
@@ -506,9 +537,15 @@ export function GraphsTabContent({ year = new Date().getFullYear() }: GraphsTabC
 
           {/* Peak day callout */}
           {data.peakDay && (
-            <View style={[styles.peakDay, { backgroundColor: tokens.backgroundSubtle, marginTop: spacing[4] }]}>
-              <Text style={[styles.peakDayText, { color: tokens.foregroundMuted }]}>
-                Peak: <Text style={{ color: tokens.foreground, fontFamily: 'Inter_600SemiBold' }}>
+            <View
+              className="py-2.5 px-3 rounded-lg mt-4"
+              style={{ backgroundColor: tokens.backgroundSubtle }}
+            >
+              <Text
+                className="text-xs font-inter-regular text-center"
+                style={{ color: tokens.foregroundMuted }}
+              >
+                Peak: <Text className="font-inter-semibold" style={{ color: tokens.foreground }}>
                   {data.peakDay.day}
                 </Text> ({data.peakDay.energy.toFixed(1)} energy, {data.peakDay.weaves} weaves)
               </Text>
@@ -547,78 +584,7 @@ export function GraphsTabContent({ year = new Date().getFullYear() }: GraphsTabC
       </View>
 
       {/* Bottom spacing */}
-      <View style={{ height: spacing[8] }} />
+      <View className="h-8" />
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    // Removed flex: 1 to allow parent ScrollView to handle scrolling
-  },
-  content: {},
-  loadingContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingTop: 60,
-  },
-  loadingText: {
-    fontSize: 14,
-    fontFamily: 'Inter_400Regular',
-  },
-  toggleContainer: {
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  statsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  statText: {
-    fontSize: 13,
-    fontFamily: 'Inter_400Regular',
-  },
-  statDivider: {
-    marginHorizontal: 8,
-    fontSize: 13,
-  },
-  insightSentence: {
-    fontSize: 15,
-    fontFamily: 'Inter_500Medium',
-    lineHeight: 22,
-  },
-  energyStats: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  energyStat: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  energyStatValue: {
-    fontSize: 24,
-    fontFamily: 'Lora_700Bold',
-  },
-  energyStatLabel: {
-    fontSize: 12,
-    fontFamily: 'Inter_400Regular',
-    marginTop: 2,
-  },
-  energyStatDivider: {
-    width: 1,
-    height: 32,
-    marginHorizontal: 16,
-  },
-  peakDay: {
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-  },
-  peakDayText: {
-    fontSize: 13,
-    fontFamily: 'Inter_400Regular',
-    textAlign: 'center',
-  },
-});

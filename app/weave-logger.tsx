@@ -2,6 +2,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { WeaveLoggerScreen } from '@/modules/interactions';
 import { InteractionCategory } from '@/shared/types/legacy-types';
 
+// Route wrapper for Weave Logger
 export default function WeaveLoggerRoute() {
   const router = useRouter();
   const { friendId, date, category, notes, title } = useLocalSearchParams<{

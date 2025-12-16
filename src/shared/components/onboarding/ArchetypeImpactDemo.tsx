@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text } from 'react-native';
 import Animated, {
   FadeInDown,
   useSharedValue,
@@ -8,7 +8,7 @@ import Animated, {
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
-import { theme } from '@/shared/theme/theme';
+import { useTheme } from '@/shared/hooks/useTheme';
 import { ArchetypeIcon } from '@/modules/intelligence';
 
 interface ScoreBarProps {
@@ -20,6 +20,7 @@ interface ScoreBarProps {
 }
 
 function ScoreBar({ score, multiplier, label, color, delay }: ScoreBarProps) {
+  const { colors } = useTheme();
   const width = useSharedValue(0);
   const opacity = useSharedValue(0);
 
@@ -41,56 +42,83 @@ function ScoreBar({ score, multiplier, label, color, delay }: ScoreBarProps) {
 
   return (
     <Animated.View
-      style={styles.scoreBarContainer}
+      className="gap-2"
       entering={FadeInDown.delay(delay - 100).duration(400)}
     >
-      <View style={styles.scoreBarHeader}>
-        <Text style={styles.scoreBarLabel}>{label}</Text>
-        <View style={styles.multiplierBadge}>
-          <Text style={styles.multiplierText}>{multiplier}</Text>
+      <View className="flex-row justify-between items-center">
+        <Text className="text-[15px] font-medium" style={{ color: colors.foreground }}>{label}</Text>
+        <View className="bg-muted px-2 py-1 rounded-md">
+          <Text className="text-[11px] font-semibold" style={{ color: colors['muted-foreground'] }}>{multiplier}</Text>
         </View>
       </View>
-      <View style={styles.barBackground}>
+      <View className="h-3 bg-muted rounded-full overflow-hidden">
         <Animated.View
+          className="h-full rounded-full"
           style={[
-            styles.barFill,
             { backgroundColor: color },
             animatedBarStyle,
           ]}
         />
       </View>
-      <Text style={styles.scoreText}>+{score} points</Text>
+      <Text className="text-base font-bold text-right" style={{ color: colors.foreground }}>+{score} points</Text>
     </Animated.View>
   );
 }
 
 export function ArchetypeImpactDemo() {
+  const { colors } = useTheme();
+
   return (
-    <View style={styles.container}>
+    <View className="flex-1 items-center px-5 pt-5">
       <Animated.View entering={FadeInDown.duration(500)}>
-        <Text style={styles.title}>Why archetypes matter</Text>
-        <Text style={styles.subtitle}>
+        <Text
+          className="text-[28px] font-lora-bold text-center mb-2"
+          style={{ color: colors.foreground }}
+        >
+          Why archetypes matter
+        </Text>
+        <Text
+          className="text-base text-center mb-8 leading-6"
+          style={{ color: colors['muted-foreground'] }}
+        >
           Same friend. Different activities. Different impact.
         </Text>
       </Animated.View>
 
-      <View style={styles.demoCard}>
-        <View style={styles.friendHeader}>
-          <View style={styles.archetypeIcon}>
-            <ArchetypeIcon archetype="Emperor" size={24} color={theme.colors.primary} />
+      <View
+        className="w-full rounded-2xl p-5 border shadow-sm"
+        style={{
+          backgroundColor: colors.card,
+          borderColor: colors.border,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.08,
+          shadowRadius: 12,
+          elevation: 4,
+        }}
+      >
+        <View
+          className="flex-row items-center gap-3 mb-6 pb-4 border-b"
+          style={{ borderBottomColor: colors.border }}
+        >
+          <View
+            className="w-12 h-12 rounded-full items-center justify-center"
+            style={{ backgroundColor: colors.primary + '15' }}
+          >
+            <ArchetypeIcon archetype="Emperor" size={24} color={colors.primary} />
           </View>
           <View>
-            <Text style={styles.friendName}>Alex (The Emperor)</Text>
-            <Text style={styles.friendSubtext}>Values structure & achievement</Text>
+            <Text className="text-lg font-semibold" style={{ color: colors.foreground }}>Alex (The Emperor)</Text>
+            <Text className="text-xs mt-0.5" style={{ color: colors['muted-foreground'] }}>Values structure & achievement</Text>
           </View>
         </View>
 
-        <View style={styles.comparisonContainer}>
+        <View className="gap-5">
           <ScoreBar
             score={38}
             multiplier="2.0× multiplier"
             label="🎊 Milestone celebration"
-            color={theme.colors.primary}
+            color={colors.primary}
             delay={600}
           />
 
@@ -98,27 +126,33 @@ export function ArchetypeImpactDemo() {
             score={6}
             multiplier="0.6× multiplier"
             label="💬 Quick text"
-            color={theme.colors['muted-foreground']}
+            color={colors['muted-foreground']}
             delay={1000}
           />
         </View>
       </View>
 
       <Animated.View
-        style={styles.explanation}
+        className="mt-6 px-4"
         entering={FadeInDown.delay(1400).duration(400)}
       >
-        <Text style={styles.explanationText}>
-          Archetypes help Weave suggest the <Text style={styles.bold}>right</Text> ways to connect,{'\n'}
-          not just <Text style={styles.bold}>any</Text> ways.
+        <Text
+          className="text-base text-center leading-6"
+          style={{ color: colors.foreground }}
+        >
+          Archetypes help Weave suggest the <Text className="font-bold">right</Text> ways to connect,{'\n'}
+          not just <Text className="font-bold">any</Text> ways.
         </Text>
       </Animated.View>
 
       <Animated.View
-        style={styles.reassurance}
+        className="mt-4 px-4"
         entering={FadeInDown.delay(1600).duration(400)}
       >
-        <Text style={styles.reassuranceText}>
+        <Text
+          className="text-sm text-center italic"
+          style={{ color: colors['muted-foreground'] }}
+        >
           Don't worry—you can always change archetypes later as you learn.
         </Text>
       </Animated.View>
@@ -126,131 +160,3 @@ export function ArchetypeImpactDemo() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 20,
-  },
-  title: {
-    fontSize: 28,
-    fontFamily: 'Lora_700Bold',
-    textAlign: 'center',
-    color: theme.colors.foreground,
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    textAlign: 'center',
-    color: theme.colors['muted-foreground'],
-    marginBottom: 32,
-    lineHeight: 24,
-  },
-  demoCard: {
-    width: '100%',
-    backgroundColor: theme.colors.card,
-    borderRadius: 16,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
-  },
-  friendHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 24,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
-  },
-  archetypeIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: `${theme.colors.primary}15`,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  friendName: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: theme.colors.foreground,
-  },
-  friendSubtext: {
-    fontSize: 13,
-    color: theme.colors['muted-foreground'],
-    marginTop: 2,
-  },
-  comparisonContainer: {
-    gap: 20,
-  },
-  scoreBarContainer: {
-    gap: 8,
-  },
-  scoreBarHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  scoreBarLabel: {
-    fontSize: 15,
-    color: theme.colors.foreground,
-    fontWeight: '500',
-  },
-  multiplierBadge: {
-    backgroundColor: theme.colors.muted,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  multiplierText: {
-    fontSize: 11,
-    color: theme.colors['muted-foreground'],
-    fontWeight: '600',
-  },
-  barBackground: {
-    height: 12,
-    backgroundColor: theme.colors.muted,
-    borderRadius: 6,
-    overflow: 'hidden',
-  },
-  barFill: {
-    height: '100%',
-    borderRadius: 6,
-  },
-  scoreText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: theme.colors.foreground,
-    textAlign: 'right',
-  },
-  explanation: {
-    marginTop: 24,
-    paddingHorizontal: 16,
-  },
-  explanationText: {
-    fontSize: 16,
-    textAlign: 'center',
-    color: theme.colors.foreground,
-    lineHeight: 24,
-  },
-  bold: {
-    fontWeight: '700',
-  },
-  reassurance: {
-    marginTop: 16,
-    paddingHorizontal: 16,
-  },
-  reassuranceText: {
-    fontSize: 14,
-    textAlign: 'center',
-    color: theme.colors['muted-foreground'],
-    fontStyle: 'italic',
-  },
-});

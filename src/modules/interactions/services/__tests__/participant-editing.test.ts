@@ -1,6 +1,6 @@
 
-import { useInteractionsStore } from '../../store/interaction.store';
-import { recalculateScoreOnDelete, processWeaveScoring, recalculateScoreOnEdit } from '@/modules/intelligence/services/orchestrator.service';
+import { InteractionActions } from '../interaction.actions';
+import { recalculateScoreOnDelete, processWeaveScoring, recalculateScoreOnEdit } from '@/modules/intelligence';
 import { database } from '@/db';
 
 // 1. Setup Mocks
@@ -83,9 +83,8 @@ describe('Edit Weave Participants', () => {
     });
 
     it('should call recalculateScoreOnDelete when a friend is removed', async () => {
-        const store = useInteractionsStore.getState();
         // Remove A, Add C
-        await store.updateInteraction('interaction-1', {
+        await InteractionActions.updateInteraction('interaction-1', {
             friendIds: ['friend-b', 'friend-c']
         });
 
@@ -93,9 +92,8 @@ describe('Edit Weave Participants', () => {
     });
 
     it('should call processWeaveScoring when a friend is added', async () => {
-        const store = useInteractionsStore.getState();
         // Remove A, Add C
-        await store.updateInteraction('interaction-1', {
+        await InteractionActions.updateInteraction('interaction-1', {
             friendIds: ['friend-b', 'friend-c']
         });
 
@@ -104,8 +102,7 @@ describe('Edit Weave Participants', () => {
 
     it('should call recalculateScoreOnEdit for remaining friends', async () => {
         // Mock recalculateScoreOnEdit to verify calls
-        const store = useInteractionsStore.getState();
-        await store.updateInteraction('interaction-1', {
+        await InteractionActions.updateInteraction('interaction-1', {
             friendIds: ['friend-b', 'friend-c'],
             vibe: 'NewMoon'
         });

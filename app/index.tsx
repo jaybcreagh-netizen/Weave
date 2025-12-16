@@ -1,20 +1,12 @@
 import { Redirect } from 'expo-router';
-import React, { useEffect, useState } from 'react';
-import { useTutorialStore } from '@/shared/stores/tutorialStore';
+import React from 'react';
+import { useTutorial } from '@/shared/context/TutorialContext';
 
 export default function StartPage() {
-  const [isLoading, setIsLoading] = useState(true);
-  const hasCompletedOnboarding = useTutorialStore(state => state.hasCompletedOnboarding);
-  const loadTutorialState = useTutorialStore(state => state.loadTutorialState);
+  const { hasCompletedOnboarding, isLoaded } = useTutorial();
 
-  useEffect(() => {
-    // Load tutorial state from AsyncStorage on mount
-    loadTutorialState().then(() => {
-      setIsLoading(false);
-    });
-  }, []);
-
-  if (isLoading) {
+  // Wait for tutorial state to load from AsyncStorage
+  if (!isLoaded) {
     return null; // Or a loading screen
   }
 

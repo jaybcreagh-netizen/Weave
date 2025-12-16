@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text } from 'react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { type Vibe } from '@/shared/types/common';
 import Animated, { FadeIn, FadeOut, useSharedValue, useAnimatedStyle, withTiming, withSequence, runOnJS } from 'react-native-reanimated';
@@ -125,33 +125,48 @@ export function MoonPhaseSelector({ onSelect, selectedVibe }: MoonPhaseSelectorP
   }));
 
   return (
-    <View style={styles.container}>
+    <View className="items-center w-full gap-6 py-3">
       {/* Icon Display */}
-      <View style={styles.iconContainer}>
-        <Animated.View style={[
-          styles.iconWrapper,
-          iconAnimatedStyle,
-          {
-            shadowColor: colors.primary,
-            backgroundColor: colors.background
-          }
-        ]}>
+      <View className="items-center justify-start h-[200px] gap-4 w-full">
+        <Animated.View
+          className="items-center justify-center h-20 w-20 rounded-full"
+          style={[
+            iconAnimatedStyle,
+            {
+              shadowColor: colors.primary,
+              backgroundColor: colors.background,
+              shadowOffset: { width: 0, height: 0 },
+              shadowOpacity: 0.3,
+              shadowRadius: 10,
+              elevation: 5,
+            }
+          ]}
+        >
           <MoonIcon width={64} height={64} color={colors.primary} fill={colors.primary} />
         </Animated.View>
 
-        <View style={styles.textContainer}>
+        <View className="items-center w-full px-5 gap-2">
           <Animated.View style={textAnimatedStyle}>
-            <Text style={[styles.label, { color: colors.foreground }]}>{phaseInfo.title}</Text>
+            <Text
+              className="text-xl font-lora-bold text-center"
+              style={{ color: colors.foreground }}
+            >
+              {phaseInfo.title}
+            </Text>
           </Animated.View>
 
-          <View style={styles.descriptionWrapper}>
-            <Animated.Text style={[styles.description, textAnimatedStyle, { color: colors['muted-foreground'] }]}>
+          <View className="items-center gap-0.5">
+            <Animated.Text
+              className="text-sm font-inter-regular text-center leading-5"
+              style={[textAnimatedStyle, { color: colors['muted-foreground'] }]}
+            >
               {phaseInfo.description.split('\n')[0]}
             </Animated.Text>
 
             {phaseInfo.description.split('\n')[1] && (
               <Animated.Text
-                style={[styles.description, textAnimatedStyle, { marginTop: 4, opacity: 0.8, color: colors['muted-foreground'] }]}
+                className="text-sm font-inter-regular text-center leading-5 mt-1 opacity-80"
+                style={[textAnimatedStyle, { color: colors['muted-foreground'] }]}
               >
                 {phaseInfo.description.split('\n')[1]}
               </Animated.Text>
@@ -161,7 +176,7 @@ export function MoonPhaseSelector({ onSelect, selectedVibe }: MoonPhaseSelectorP
       </View>
 
       {/* Slider */}
-      <View style={styles.sliderContainer}>
+      <View className="w-full px-4">
         <Slider
           style={{ width: '100%', height: 40 }}
           minimumValue={1}
@@ -177,66 +192,4 @@ export function MoonPhaseSelector({ onSelect, selectedVibe }: MoonPhaseSelectorP
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    alignItems: 'center',
-    width: '100%',
-    gap: 24,
-    paddingVertical: 12,
-  },
-  iconContainer: {
-    alignItems: 'center',
-    justifyContent: 'flex-start',
-    height: 200, // Fixed height to prevent slider jumping
-    gap: 16,
-    width: '100%',
-  },
-  iconWrapper: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    elevation: 5,
-    height: 80,
-    width: 80,
-    borderRadius: 40,
-  },
-  textContainer: {
-    alignItems: 'center',
-    width: '100%',
-    paddingHorizontal: 20,
-    gap: 8,
-  },
-  descriptionWrapper: {
-    alignItems: 'center',
-    gap: 2,
-  },
-  label: {
-    fontSize: 20,
-    fontFamily: 'Lora-Bold',
-    textAlign: 'center',
-  },
-  description: {
-    fontSize: 14,
-    fontFamily: 'Inter-Regular',
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  sliderContainer: {
-    width: '100%',
-    paddingHorizontal: 16,
-  },
-  sliderLabels: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 4,
-    marginTop: 4,
-  },
-  sliderLabelText: {
-    fontSize: 12,
-    fontFamily: 'Inter-Regular',
-  },
-});
 

@@ -36,39 +36,23 @@ export function InsightsFAB({ isVisible, hasSuggestions, hasCritical, onClick }:
 
   if (!isVisible) return null;
 
-  // Match the styling of the main + FAB
-  const fabStyle = {
-    ...styles.container,
-    bottom: insets.bottom + 24,
-    backgroundColor: isDarkMode ? colors.accent : colors.primary + '33',
-    shadowColor: isDarkMode ? colors.accent : '#000',
-  };
-
   return (
-    <TouchableOpacity onPress={onClick} style={fabStyle}>
+    <TouchableOpacity
+      onPress={onClick}
+      className="absolute w-16 h-16 rounded-full items-center justify-center z-50 left-6 shadow-lg"
+      style={{
+        bottom: insets.bottom + 24,
+        backgroundColor: isDarkMode ? colors.accent : colors.primary + '33',
+        shadowColor: isDarkMode ? colors.accent : '#000',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.25,
+        shadowRadius: 8,
+        elevation: 12,
+      }}
+    >
       <Animated.View style={iconStyle}>
         <WeaveIcon size={28} color={colors.foreground} />
       </Animated.View>
     </TouchableOpacity>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    position: 'absolute',
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 50,
-    left: 24, // Opposite side from add friend FAB
-  },
-  icon: {
-    fontSize: 28,
-  },
-});

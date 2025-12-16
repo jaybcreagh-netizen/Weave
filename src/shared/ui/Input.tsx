@@ -1,5 +1,5 @@
 import React from 'react';
-import { TextInput, TextInputProps, View, StyleSheet } from 'react-native';
+import { TextInput, TextInputProps, View } from 'react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { Text } from './Text';
 
@@ -14,7 +14,7 @@ export function Input({
     label,
     error,
     containerClassName = '',
-    // inputClassName is unused in styles but could be passed if needed, removing for now to avoid confusion or keep if intended for future
+    inputClassName = '',
     style,
     ...props
 }: InputProps) {
@@ -29,8 +29,8 @@ export function Input({
             )}
 
             <TextInput
+                className={`h-12 rounded-xl px-4 border text-base font-inter-regular ${inputClassName}`}
                 style={[
-                    styles.input,
                     {
                         backgroundColor: tokens?.input.background || colors['input-background'] || colors.card,
                         borderColor: error ? colors.destructive : colors.border,
@@ -51,13 +51,3 @@ export function Input({
     );
 }
 
-const styles = StyleSheet.create({
-    input: {
-        height: 48,
-        borderRadius: 12,
-        paddingHorizontal: 16,
-        borderWidth: 1,
-        fontSize: 16,
-        fontFamily: 'Inter_400Regular',
-    },
-});

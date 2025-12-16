@@ -3,7 +3,8 @@
  * Easy-to-use React hook for checking feature access and limits
  */
 
-import { useAuthStore } from '../store/auth.store';
+import { useSubscription } from './useSubscription';
+import { useUsage } from './useUsage';
 import {
   hasFeatureAccess,
   isAtLimit,
@@ -36,8 +37,8 @@ interface FeatureGateResult {
 export function useFeatureGate(
   feature: keyof typeof TIER_LIMITS.free
 ): FeatureGateResult {
-  const tier = useAuthStore(state => state.getTier());
-  const usage = useAuthStore(state => state.usage);
+  const { data: subscription } = useSubscription();
+  const tier = subscription?.tier ?? 'free';
 
   const access = hasFeatureAccess(tier, feature);
 
@@ -78,9 +79,10 @@ export function useFeatureGate(
 export function useQuotaGate(
   feature: 'maxFriends' | 'maxWeavesPerMonth' | 'maxPhotosPerFriend' | 'maxDevices'
 ): FeatureGateResult {
-  const tier = useAuthStore(state => state.getTier());
-  const usage = useAuthStore(state => state.usage);
+  const { data: subscription } = useSubscription();
+  const { data: usage } = useUsage();
 
+  const tier = subscription?.tier ?? 'free';
   const limit = TIER_LIMITS[tier][feature];
   let currentUsage = 0;
 
@@ -137,7 +139,9 @@ export function useCanPerformAction(
   reason?: string;
   showBlocker: () => void;
 } {
-  const tier = useAuthStore(state => state.getTier());
+  const { data: subscription } = useSubscription();
+  const tier = subscription?.tier ?? 'free';
+
   const friendsGate = useQuotaGate('maxFriends');
   const weavesGate = useQuotaGate('maxWeavesPerMonth');
   const journalAccess = useFeatureGate('canAccessJournal');
@@ -202,8 +206,8 @@ export function useCanPerformAction(
  * Hook to get current tier display info
  */
 export function useTierInfo() {
-  const tier = useAuthStore(state => state.getTier());
-  const subscription = useAuthStore(state => state.subscription);
+  const { data: subscription } = useSubscription();
+  const tier = subscription?.tier ?? 'free';
 
   const tierDisplay = {
     free: { name: 'Free', color: '#6B7280', icon: '🌱' },

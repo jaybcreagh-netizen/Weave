@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useUIStore } from '@/shared/stores/uiStore';
+import { useGlobalUI } from '@/shared/context/GlobalUIContext';
 import {
   getTokens,
   createLegacyTheme,
@@ -10,12 +10,8 @@ import {
   shadows
 } from '@/shared/theme/tokens';
 
-/**
- * Custom hook to access the current theme based on dark mode state
- * @returns Object with theme, colors, and isDarkMode
- */
 export function useTheme() {
-  const isDarkMode = useUIStore((state) => state.isDarkMode);
+  const { isDarkMode } = useGlobalUI();
 
   return useMemo(() => ({
     // Legacy API (backward compatible)
@@ -31,5 +27,6 @@ export function useTheme() {
 
     // State
     isDarkMode,
+    isDark: isDarkMode
   }), [isDarkMode]);
 }

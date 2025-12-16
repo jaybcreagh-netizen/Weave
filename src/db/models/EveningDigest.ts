@@ -1,6 +1,15 @@
 import { Model } from '@nozbe/watermelondb';
 import { field, date, readonly } from '@nozbe/watermelondb/decorators';
 
+export interface DigestItem {
+    id: string;
+    type: 'interaction' | 'suggestion' | 'insight' | 'plan' | 'confirmation' | 'birthday' | 'anniversary' | 'life_event' | 'memory';
+    priority: number;
+    title: string;
+    description?: string;
+    data?: Record<string, any>;
+}
+
 export default class EveningDigest extends Model {
     static table = 'evening_digests';
 
@@ -12,7 +21,7 @@ export default class EveningDigest extends Model {
     @readonly @date('created_at') createdAt!: Date;
 
     // Helper to parse the JSON items
-    get items(): any[] {
+    get items(): DigestItem[] {
         try {
             return JSON.parse(this.itemsJson);
         } catch {

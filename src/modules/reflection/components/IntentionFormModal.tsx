@@ -1,13 +1,39 @@
 import React, { useState } from 'react';
-import { View, TouchableOpacity, } from 'react-native';
+import { View, TouchableOpacity, TextInput } from 'react-native';
 import * as Haptics from 'expo-haptics';
+
+import {
+  Phone,
+  Utensils,
+  Users,
+  MessageCircle,
+  Palette,
+  PartyPopper,
+  HeartHandshake,
+  Star,
+} from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { StandardBottomSheet } from '@/shared/ui/Sheet';
 import { Text } from '@/shared/ui/Text';
-import { Input } from '@/shared/ui/Input';
 import { Button } from '@/shared/ui/Button';
 import { InteractionCategory } from '@/shared/types/common';
-import { getCategoryMetadata, INTERACTION_CATEGORIES } from '@/shared/constants/interaction-categories';
+
+// Category definitions with Lucide icons
+const INTENTION_CATEGORIES: Array<{
+  value: InteractionCategory;
+  label: string;
+  icon: React.ElementType;
+  description: string;
+}> = [
+    { value: 'text-call', label: 'Chat', icon: Phone, description: 'Call or video chat' },
+    { value: 'meal-drink', label: 'Meal', icon: Utensils, description: 'Coffee, lunch, or dinner' },
+    { value: 'hangout', label: 'Hangout', icon: Users, description: 'Casual time together' },
+    { value: 'deep-talk', label: 'Deep Talk', icon: MessageCircle, description: 'Meaningful conversation' },
+    { value: 'activity-hobby', label: 'Activity', icon: Palette, description: 'Sport, hobby, or adventure' },
+    { value: 'event-party', label: 'Event', icon: PartyPopper, description: 'Party or social gathering' },
+    { value: 'favor-support', label: 'Support', icon: HeartHandshake, description: 'Help or emotional support' },
+    { value: 'celebration', label: 'Celebration', icon: Star, description: 'Special occasion' },
+  ];
 
 interface IntentionFormModalProps {
   isOpen: boolean;
@@ -57,7 +83,7 @@ export function IntentionFormModal({
     <StandardBottomSheet
       visible={isOpen}
       onClose={handleClose}
-      snapPoints={['95%']}
+      snapPoints={['90%']}
       title={`Set an Intention with ${friendName}`}
       scrollable
       footerComponent={
@@ -74,51 +100,97 @@ export function IntentionFormModal({
       <View className="flex-1 px-5 pb-10 gap-8">
         {/* Description Section */}
         <View>
-          <Text variant="label" className="mb-1" style={{ color: colors.foreground }}>
-            What's the idea? (optional)
+          <Text className="font-lora-bold text-lg mb-1" style={{ color: colors.foreground }}>
+            What's the idea?
           </Text>
-          <Text variant="caption" className="mb-3" style={{ color: colors['muted-foreground'] }}>
-            Can be vague or specific - whatever feels right
+          <Text className="font-inter-regular text-sm mb-4" style={{ color: colors['muted-foreground'] }}>
+            Optional - can be vague or specific
           </Text>
-          <Input
+          <TextInput
             placeholder="e.g., grab coffee, catch up, go hiking..."
+            placeholderTextColor={colors['muted-foreground']}
             value={description}
             onChangeText={setDescription}
             multiline
             numberOfLines={3}
-            style={{ minHeight: 100, textAlignVertical: 'top', paddingTop: 12 }}
+            className="p-4 rounded-xl font-inter-regular text-base"
+            style={{
+              backgroundColor: colors.card,
+              borderWidth: 1,
+              borderColor: colors.border,
+              color: colors.foreground,
+              minHeight: 100,
+              textAlignVertical: 'top',
+            }}
           />
         </View>
 
         {/* Category Section */}
         <View>
-          <Text variant="label" className="mb-3" style={{ color: colors.foreground }}>
-            Activity type (optional)
+          <Text className="font-lora-bold text-lg mb-1" style={{ color: colors.foreground }}>
+            Activity type
+          </Text>
+          <Text className="font-inter-regular text-sm mb-4" style={{ color: colors['muted-foreground'] }}>
+            Optional - what kind of connection?
           </Text>
           <View className="flex-row flex-wrap gap-3">
-            {INTERACTION_CATEGORIES.map(category => {
-              const metadata = getCategoryMetadata(category);
-              const isSelected = selectedCategory === category;
+            {INTENTION_CATEGORIES.map((category) => {
+              const isSelected = selectedCategory === category.value;
+              const IconComponent = category.icon;
 
               return (
-                <TouchableOpacity
-                  key={category}
-                  onPress={() => {
-                    setSelectedCategory(isSelected ? undefined : category);
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  }}
-                  activeOpacity={0.7}
-                  className={`flex-row items-center gap-2 px-4 py-3 rounded-xl border ${isSelected ? 'border-primary bg-primary' : 'border-border bg-card'}`}
-                  style={isSelected ? { borderColor: colors.primary } : { borderColor: colors.border, backgroundColor: colors.card }}
+                <View
+                  key={category.value}
+                  style={{ width: '48%' }}
                 >
-                  <Text className="text-xl">{metadata.icon}</Text>
-                  <Text
-                    variant="button"
-                    style={{ color: isSelected ? colors['primary-foreground'] : colors.foreground }}
+                  <TouchableOpacity
+                    onPress={() => {
+                      setSelectedCategory(isSelected ? undefined : category.value);
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    }}
+                    activeOpacity={0.7}
+                    className="p-4 rounded-2xl items-center justify-center"
+                    style={{
+                      backgroundColor: isSelected ? colors.primary : colors.card,
+                      borderWidth: isSelected ? 2 : 1,
+                      borderColor: isSelected ? colors.primary : colors.border,
+                      shadowColor: '#000',
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: 0.05,
+                      shadowRadius: 8,
+                      elevation: 2,
+                      minHeight: 100,
+                    }}
                   >
-                    {metadata.label}
-                  </Text>
-                </TouchableOpacity>
+                    <View
+                      className="w-10 h-10 rounded-full items-center justify-center mb-2"
+                      style={{
+                        backgroundColor: isSelected ? 'rgba(255,255,255,0.2)' : colors.background
+                      }}
+                    >
+                      <IconComponent
+                        size={20}
+                        color={isSelected ? colors['primary-foreground'] : colors.primary}
+                      />
+                    </View>
+                    <Text
+                      className="font-inter-semibold text-sm text-center"
+                      style={{ color: isSelected ? colors['primary-foreground'] : colors.foreground }}
+                    >
+                      {category.label}
+                    </Text>
+                    <Text
+                      className="font-inter-regular text-xs text-center mt-1"
+                      style={{
+                        color: isSelected
+                          ? 'rgba(255,255,255,0.7)'
+                          : colors['muted-foreground']
+                      }}
+                    >
+                      {category.description}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               );
             })}
           </View>

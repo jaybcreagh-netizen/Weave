@@ -83,14 +83,14 @@ export function GratitudePrompt({ summary, storyChipSuggestions, onComplete }: G
             <Sparkles size={32} color={colors.primary} />
           </View>
           <Text
-            className="text-2xl font-bold text-center mb-2"
-            style={{ color: colors.foreground, fontFamily: 'Lora_700Bold' }}
+            className="text-2xl font-bold font-lora-bold text-center mb-2"
+            style={{ color: colors.foreground }}
           >
             Moment of Gratitude
           </Text>
           <Text
-            className="text-sm text-center leading-5 px-6"
-            style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
+            className="text-sm text-center leading-5 px-6 font-inter-regular"
+            style={{ color: colors['muted-foreground'] }}
           >
             Take a moment to reflect on the connections that nourished you.
           </Text>
@@ -99,21 +99,24 @@ export function GratitudePrompt({ summary, storyChipSuggestions, onComplete }: G
         {/* Prompt Card */}
         <Animated.View
           entering={FadeIn.delay(100)}
-          className="mb-6 p-6 rounded-2xl"
-          style={{ backgroundColor: colors.secondary + '15', borderColor: colors.secondary + '30', borderWidth: 1 }}
+          className="mb-6 p-6 rounded-2xl border"
+          style={{
+            backgroundColor: colors.secondary + '15',
+            borderColor: colors.secondary + '30'
+          }}
         >
           <View className="flex-row items-start mb-2">
             <Lightbulb size={16} color={colors.secondary} style={{ marginTop: 2, marginRight: 8 }} />
             <Text
-              className="text-xs font-medium flex-1"
-              style={{ color: colors.secondary, fontFamily: 'Inter_500Medium' }}
+              className="text-xs font-medium font-inter-medium flex-1"
+              style={{ color: colors.secondary }}
             >
               {contextualPrompt.context}
             </Text>
           </View>
           <Text
-            className="text-base leading-6 italic"
-            style={{ color: colors.foreground, fontFamily: 'Lora_400Regular' }}
+            className="text-base leading-6 italic font-lora-regular"
+            style={{ color: colors.foreground }}
           >
             "{contextualPrompt.prompt}"
           </Text>
@@ -123,8 +126,8 @@ export function GratitudePrompt({ summary, storyChipSuggestions, onComplete }: G
         {displayChips.length > 0 && (
           <Animated.View entering={FadeIn.delay(150)} className="mb-6">
             <Text
-              className="text-sm font-medium mb-3"
-              style={{ color: colors.foreground, fontFamily: 'Inter_500Medium' }}
+              className="text-sm font-medium font-inter-medium mb-3"
+              style={{ color: colors.foreground }}
             >
               What stood out this week?
             </Text>
@@ -137,18 +140,16 @@ export function GratitudePrompt({ summary, storyChipSuggestions, onComplete }: G
                   <TouchableOpacity
                     key={chip.id}
                     onPress={() => toggleChip(chip.id)}
-                    className="px-4 py-2 rounded-full"
+                    className="px-4 py-2 rounded-full border-[1.5px]"
                     style={{
                       backgroundColor: isSelected ? colors.primary + '20' : colors.muted,
-                      borderWidth: isSelected ? 1.5 : 0,
                       borderColor: isSelected ? colors.primary : 'transparent',
                     }}
                   >
                     <Text
-                      className="text-sm"
+                      className="text-sm font-inter-regular"
                       style={{
                         color: isSelected ? colors.primary : colors['muted-foreground'],
-                        fontFamily: 'Inter_400Regular',
                       }}
                     >
                       {chip.plainText}
@@ -162,13 +163,12 @@ export function GratitudePrompt({ summary, storyChipSuggestions, onComplete }: G
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                     setShowAllChips(true);
                   }}
-                  className="px-4 py-2 rounded-full flex-row items-center"
-                  style={{ backgroundColor: colors.muted }}
+                  className="px-4 py-2 rounded-full flex-row items-center bg-muted"
                 >
                   <Plus size={14} color={colors['muted-foreground']} style={{ marginRight: 4 }} />
                   <Text
-                    className="text-sm"
-                    style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
+                    className="text-sm font-inter-regular"
+                    style={{ color: colors['muted-foreground'] }}
                   >
                     More
                   </Text>
@@ -176,8 +176,8 @@ export function GratitudePrompt({ summary, storyChipSuggestions, onComplete }: G
               )}
             </View>
             <Text
-              className="text-xs mt-2 px-1"
-              style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
+              className="text-xs mt-2 px-1 font-inter-regular"
+              style={{ color: colors['muted-foreground'] }}
             >
               {storyChipSuggestions.length > 0
                 ? 'Based on your reflections this week • Tap to add or remove'
@@ -199,18 +199,16 @@ export function GratitudePrompt({ summary, storyChipSuggestions, onComplete }: G
             multiline
             numberOfLines={8}
             textAlignVertical="top"
-            className="p-4 rounded-xl text-base min-h-[160px]"
+            className="p-4 rounded-xl text-base min-h-[160px] border font-inter-regular"
             style={{
               backgroundColor: colors.card,
               borderColor: colors.border,
-              borderWidth: 1,
               color: colors.foreground,
-              fontFamily: 'Inter_400Regular',
             }}
           />
           <Text
-            className="text-xs mt-2 px-1"
-            style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
+            className="text-xs mt-2 px-1 font-inter-regular"
+            style={{ color: colors['muted-foreground'] }}
           >
             Optional • Your reflections are private
           </Text>
@@ -219,18 +217,17 @@ export function GratitudePrompt({ summary, storyChipSuggestions, onComplete }: G
         {/* Benefits Card */}
         <Animated.View
           entering={FadeIn.delay(300)}
-          className="mb-6 p-4 rounded-xl"
-          style={{ backgroundColor: colors.muted }}
+          className="mb-6 p-4 rounded-xl bg-muted"
         >
           <Text
-            className="text-xs font-semibold mb-2"
-            style={{ color: colors['muted-foreground'], fontFamily: 'Inter_600SemiBold' }}
+            className="text-xs font-semibold font-inter-semibold mb-2"
+            style={{ color: colors['muted-foreground'] }}
           >
             💡 WHY GRATITUDE MATTERS
           </Text>
           <Text
-            className="text-xs leading-5"
-            style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
+            className="text-xs leading-5 font-inter-regular"
+            style={{ color: colors['muted-foreground'] }}
           >
             Reflecting on positive moments strengthens your relationships and increases your sense of connection. Regular gratitude practice has been shown to improve emotional well-being and relationship satisfaction.
           </Text>
@@ -250,8 +247,8 @@ export function GratitudePrompt({ summary, storyChipSuggestions, onComplete }: G
         >
           <Check size={20} color={colors['primary-foreground']} />
           <Text
-            className="text-base font-semibold ml-2"
-            style={{ color: colors['primary-foreground'], fontFamily: 'Inter_600SemiBold' }}
+            className="text-base font-semibold font-inter-semibold ml-2"
+            style={{ color: colors['primary-foreground'] }}
           >
             {gratitudeText.trim().length > 0 ? 'Complete Reflection' : 'Complete Without Writing'}
           </Text>

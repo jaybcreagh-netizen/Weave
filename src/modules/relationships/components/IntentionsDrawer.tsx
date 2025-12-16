@@ -1,13 +1,35 @@
-import React, { useEffect, useState } from 'react';
-import { Modal, View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
-import Animated, { useSharedValue, useAnimatedStyle, withTiming, withSpring, runOnJS } from 'react-native-reanimated';
-import { BlurView } from 'expo-blur';
-import { X } from 'lucide-react-native';
+import React from 'react';
+import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import { StandardBottomSheet } from '@/shared/ui/Sheet';
+import {
+  Sparkles,
+  Phone,
+  Utensils,
+  Users,
+  MessageCircle,
+  Palette,
+  PartyPopper,
+  HeartHandshake,
+  Star,
+  Mic,
+} from 'lucide-react-native';
 import { formatDistanceToNow } from 'date-fns';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '@/shared/hooks/useTheme';
-import { getCategoryMetadata } from '@/shared/constants/interaction-categories';
 import { Intention, InteractionCategory } from '@/shared/types/legacy-types';
+
+// Map category IDs to Lucide icons (Partial because not all categories may have icons)
+const CATEGORY_ICONS: Partial<Record<InteractionCategory, React.ElementType>> = {
+  'text-call': Phone,
+  'meal-drink': Utensils,
+  'hangout': Users,
+  'deep-talk': MessageCircle,
+  'activity-hobby': Palette,
+  'event-party': PartyPopper,
+  'favor-support': HeartHandshake,
+  'celebration': Star,
+  'voice-note': Mic,
+};
 
 interface IntentionsDrawerProps {
   intentions: Intention[];
@@ -15,8 +37,6 @@ interface IntentionsDrawerProps {
   onClose: () => void;
   onIntentionPress: (intention: Intention) => void;
 }
-
-const DRAWER_HEIGHT = 400;
 
 /**
  * Drawer that slides up from bottom showing all intentions for a friend
@@ -28,223 +48,111 @@ export function IntentionsDrawer({
   onClose,
   onIntentionPress,
 }: IntentionsDrawerProps) {
-  const { colors, isDarkMode } = useTheme();
-  const backdropOpacity = useSharedValue(0);
-  const drawerTranslateY = useSharedValue(DRAWER_HEIGHT);
-
-  useEffect(() => {
-    if (isOpen) {
-      backdropOpacity.value = withTiming(1, { duration: 200 });
-      drawerTranslateY.value = withSpring(0, { damping: 50, stiffness: 400 });
-    }
-  }, [isOpen]);
-
-  const animateOut = (callback: () => void) => {
-    backdropOpacity.value = withTiming(0, { duration: 150 });
-    drawerTranslateY.value = withTiming(DRAWER_HEIGHT, { duration: 200 }, (finished) => {
-      if (finished) {
-        runOnJS(callback)();
-      }
-    });
-  };
+  const { colors } = useTheme();
 
   const handleIntentionPress = (intention: Intention) => {
-    animateOut(() => {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      onIntentionPress(intention);
-    });
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    onIntentionPress(intention);
+    // Note: StandardBottomSheet should be closed by parent if desired, or we can close it here
+    onClose();
   };
 
-  const backdropStyle = useAnimatedStyle(() => ({
-    opacity: backdropOpacity.value,
-  }));
-
-  const drawerStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: drawerTranslateY.value }],
-  }));
-
-  if (!isOpen) return null;
-
   return (
-    <Modal transparent visible={isOpen} onRequestClose={() => animateOut(onClose)}>
-      <View style={StyleSheet.absoluteFill}>
-        <TouchableOpacity
-          style={StyleSheet.absoluteFill}
-          activeOpacity={1}
-          onPress={() => animateOut(onClose)}
-        >
-          <Animated.View
-            style={[
-              StyleSheet.absoluteFill,
-              backdropStyle,
-              { backgroundColor: isDarkMode ? 'rgba(0, 0, 0, 0.6)' : 'rgba(0, 0, 0, 0.4)' }
-            ]}
+    <StandardBottomSheet
+      visible={isOpen}
+      onClose={onClose}
+      snapPoints={['60%', '90%']}
+      title="Connection Intentions"
+      enableSwipeClose={true}
+    >
+      <ScrollView
+        className="flex-1"
+        contentContainerStyle={{ padding: 20, gap: 12, paddingBottom: 40 }}
+        showsVerticalScrollIndicator={false}
+      >
+        <View className="mb-4 flex-row items-center gap-2">
+          <View
+            className="w-10 h-10 rounded-full items-center justify-center"
+            style={{ backgroundColor: colors.primary + '20' }}
           >
-            <BlurView intensity={isDarkMode ? 20 : 10} tint={isDarkMode ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
-          </Animated.View>
-        </TouchableOpacity>
-
-        <Animated.View
-          style={[
-            styles.drawer,
-            { backgroundColor: colors.muted },
-            drawerStyle,
-          ]}
-        >
-          <View style={[styles.header, { borderBottomColor: colors.border }]}>
-            <View style={styles.headerContent}>
-              <Text style={styles.headerIcon}>💫</Text>
-              <Text style={[styles.title, { color: colors.foreground }]}>
-                Connection Intentions
-              </Text>
-            </View>
-            <TouchableOpacity onPress={() => animateOut(onClose)} style={styles.closeButton}>
-              <X color={colors['muted-foreground']} size={24} />
-            </TouchableOpacity>
+            <Sparkles size={20} color={colors.primary} />
           </View>
+          <Text className="text-xl font-lora-bold font-semibold" style={{ color: colors.foreground }}>
+            Your Intentions
+          </Text>
+        </View>
 
-          <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-            {intentions.length === 0 ? (
-              <View style={styles.emptyContainer}>
-                <Text style={styles.emptyIcon}>✨</Text>
-                <Text style={[styles.emptyText, { color: colors['muted-foreground'] }]}>
-                  No intentions set yet
-                </Text>
-              </View>
-            ) : (
-              intentions.map((intention) => {
-                const category = intention.interactionCategory
-                  ? getCategoryMetadata(intention.interactionCategory as InteractionCategory)
-                  : null;
-                const timeAgo = formatDistanceToNow(intention.createdAt, { addSuffix: true });
+        {intentions.length === 0 ? (
+          <View className="items-center justify-center py-[60px]">
+            <View
+              className="w-16 h-16 rounded-full items-center justify-center mb-4"
+              style={{ backgroundColor: colors.muted }}
+            >
+              <Sparkles size={28} color={colors['muted-foreground']} />
+            </View>
+            <Text className="text-base text-center" style={{ color: colors['muted-foreground'] }}>
+              No intentions set for this friend yet.
+            </Text>
+            <Text className="text-sm text-center mt-2 opacity-70" style={{ color: colors['muted-foreground'] }}>
+              Add one to remember how you want to connect!
+            </Text>
+          </View>
+        ) : (
+          intentions.map((intention) => {
+            const categoryKey = intention.interactionCategory as InteractionCategory;
+            const IconComponent = categoryKey ? CATEGORY_ICONS[categoryKey] : null;
 
-                return (
-                  <TouchableOpacity
-                    key={intention.id}
-                    style={[styles.intentionCard, { backgroundColor: colors.background, borderColor: colors.border }]}
-                    onPress={() => handleIntentionPress(intention)}
-                    activeOpacity={0.7}
-                  >
-                    <View style={styles.cardHeader}>
-                      {category && (
-                        <View style={[styles.categoryBadge, { backgroundColor: colors.muted }]}>
-                          <Text style={styles.categoryIcon}>{category.icon}</Text>
-                        </View>
-                      )}
-                      <Text style={[styles.timeAgo, { color: colors['muted-foreground'] }]}>
-                        {timeAgo}
-                      </Text>
-                    </View>
+            // Safety: createdAt might be a timestamp number from WatermelonDB
+            let timeAgo = 'Recently';
+            try {
+              const createdDate = typeof intention.createdAt === 'number'
+                ? new Date(intention.createdAt)
+                : intention.createdAt;
+              if (createdDate && !isNaN(createdDate.getTime())) {
+                timeAgo = formatDistanceToNow(createdDate, { addSuffix: true });
+              }
+            } catch (e) {
+              // Fallback if date parsing fails
+            }
 
-                    {intention.description ? (
-                      <Text style={[styles.description, { color: colors.foreground }]}>
-                        {intention.description}
-                      </Text>
-                    ) : (
-                      <Text style={[styles.description, styles.descriptionPlaceholder, { color: colors['muted-foreground'] }]}>
-                        Connect soon
-                      </Text>
+            return (
+              <TouchableOpacity
+                key={intention.id}
+                className="p-4 rounded-xl border gap-2"
+                style={{ backgroundColor: colors.background, borderColor: colors.border }}
+                onPress={() => handleIntentionPress(intention)}
+                activeOpacity={0.7}
+              >
+                <View className="flex-row items-center justify-between">
+                  <View className="flex-row items-center gap-2">
+                    {IconComponent && (
+                      <View
+                        className="w-8 h-8 rounded-full items-center justify-center"
+                        style={{ backgroundColor: colors.primary + '20' }}
+                      >
+                        <IconComponent size={16} color={colors.primary} />
+                      </View>
                     )}
-                  </TouchableOpacity>
-                );
-              })
-            )}
-          </ScrollView>
-        </Animated.View>
-      </View>
-    </Modal>
+                    <Text className="text-xs font-medium" style={{ color: colors['muted-foreground'] }}>
+                      {timeAgo}
+                    </Text>
+                  </View>
+                </View>
+
+                {intention.description ? (
+                  <Text className="text-base leading-[22px]" style={{ color: colors.foreground }}>
+                    {intention.description}
+                  </Text>
+                ) : (
+                  <Text className="text-base leading-[22px] italic" style={{ color: colors['muted-foreground'] }}>
+                    Connect soon
+                  </Text>
+                )}
+              </TouchableOpacity>
+            );
+          })
+        )}
+      </ScrollView>
+    </StandardBottomSheet>
   );
 }
-
-const styles = StyleSheet.create({
-  drawer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: DRAWER_HEIGHT,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 16,
-    elevation: 16,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 20,
-    borderBottomWidth: 1,
-  },
-  headerContent: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  headerIcon: {
-    fontSize: 28,
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: '600',
-    fontFamily: 'Lora_700Bold',
-  },
-  closeButton: {
-    padding: 4,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    padding: 20,
-    gap: 12,
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 60,
-  },
-  emptyIcon: {
-    fontSize: 48,
-    marginBottom: 16,
-    opacity: 0.5,
-  },
-  emptyText: {
-    fontSize: 16,
-    textAlign: 'center',
-  },
-  intentionCard: {
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    gap: 8,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  categoryBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
-  categoryIcon: {
-    fontSize: 18,
-  },
-  timeAgo: {
-    fontSize: 13,
-    fontWeight: '500',
-  },
-  description: {
-    fontSize: 16,
-    lineHeight: 22,
-  },
-  descriptionPlaceholder: {
-    fontStyle: 'italic',
-  },
-});

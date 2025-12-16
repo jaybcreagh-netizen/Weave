@@ -1,8 +1,7 @@
 // src/modules/insights/components/TierFitCard.tsx
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { AlertTriangle } from 'lucide-react-native';
-import { useTheme } from '@/shared/hooks/useTheme';
 import { useTierFit } from '../hooks/useTierFit';
 
 interface TierFitCardProps {
@@ -15,7 +14,6 @@ interface TierFitCardProps {
  * Only appears when the deviation is critical (>300% or <33% of expected interval).
  */
 export function TierFitCard({ friendId, onPress }: TierFitCardProps) {
-  const { colors } = useTheme();
   const { analysis, isLoading } = useTierFit(friendId);
 
   // Don't render if loading or no analysis
@@ -40,36 +38,17 @@ export function TierFitCard({ friendId, onPress }: TierFitCardProps) {
 
   return (
     <TouchableOpacity
-      style={[styles.container, { backgroundColor: '#F59E0B15' }]}
+      className="mx-1 mt-2 rounded-lg py-2.5 px-3"
+      style={{ backgroundColor: '#F59E0B15' }}
       onPress={onPress}
       activeOpacity={0.7}
     >
-      <View style={styles.content}>
+      <View className="flex-row items-center justify-center gap-2">
         <AlertTriangle size={16} color="#F59E0B" />
-        <Text style={[styles.warningText, { color: '#B45309' }]}>
-          Connection rhythm is off track. <Text style={{ fontWeight: '600' }}>Review Status</Text>
+        <Text className="text-[13px] font-medium" style={{ color: '#B45309' }}>
+          Connection rhythm is off track. <Text className="font-semibold">Review Status</Text>
         </Text>
       </View>
     </TouchableOpacity>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    marginHorizontal: 4,
-    marginTop: 8,
-    borderRadius: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-  },
-  content: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  warningText: {
-    fontSize: 13,
-    fontWeight: '500',
-  },
-});

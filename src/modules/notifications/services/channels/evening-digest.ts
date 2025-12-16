@@ -10,7 +10,7 @@ import EveningDigest from '@/db/models/EveningDigest';
 import { Q } from '@nozbe/watermelondb';
 
 export interface DigestItem {
-    type: 'plan' | 'confirmation' | 'suggestion' | 'birthday' | 'anniversary' | 'life_event' | 'memory';
+    type: 'plan' | 'confirmation' | 'suggestion' | 'birthday' | 'anniversary' | 'life_event' | 'memory' | 'interaction' | 'insight';
     priority: number;
     title: string;
     subtitle?: string;
@@ -195,7 +195,7 @@ export const EveningDigestChannel: NotificationChannel & {
     },
 
     handleTap: async (data: any, router: any) => {
-        const { useUIStore } = require('@/shared/stores/uiStore');
+        const { UIEventBus } = await import('@/shared/services/ui-event-bus');
 
         // Navigate first to ensure stable route where GlobalModals is mounted
         if (router.canGoBack()) router.dismissAll();
@@ -207,7 +207,7 @@ export const EveningDigestChannel: NotificationChannel & {
 
             // Open the sheet after navigation settles
             setTimeout(() => {
-                useUIStore.getState().openDigestSheet(content.items);
+                UIEventBus.emit({ type: 'OPEN_DIGEST_SHEET', items: content.items });
                 notificationAnalytics.trackActionCompleted('evening-digest', 'open_sheet');
             }, 500);
 
@@ -220,7 +220,7 @@ export const EveningDigestChannel: NotificationChannel & {
             Logger.error('[EveningDigest] Error generating content on tap:', error);
             // Still try to open the sheet with empty state
             setTimeout(() => {
-                useUIStore.getState().openDigestSheet([]);
+                UIEventBus.emit({ type: 'OPEN_DIGEST_SHEET', items: [] });
             }, 500);
         }
     }

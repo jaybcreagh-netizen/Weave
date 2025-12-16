@@ -147,12 +147,7 @@ export function DuplicateResolverModal({ isVisible, conflicts, onResolve, onCanc
                             </TouchableOpacity>
                         </View>
 
-                        <TouchableOpacity
-                            className="items-center"
-                            onPress={onCancel}
-                        >
-                            <Text color="muted" weight="medium" className="underline">Cancel Import</Text>
-                        </TouchableOpacity>
+
 
                     </View>
                 </KeyboardAvoidingView>

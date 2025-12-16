@@ -1,5 +1,5 @@
 import React, { ReactNode } from 'react';
-import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Text, ActivityIndicator } from 'react-native';
 import withObservables from '@nozbe/with-observables';
 import { database } from '@/db';
 import FriendModel from '@/db/models/Friend';
@@ -12,8 +12,8 @@ interface ReactiveFriendProfileProps {
 const ReactiveFriendProfileContent = ({ friend, children }: ReactiveFriendProfileProps) => {
     if (!friend) {
         return (
-            <View style={styles.center}>
-                <Text style={styles.errorText}>Friend not found</Text>
+            <View className="flex-1 justify-center items-center">
+                <Text className="text-base text-red-500">Friend not found</Text>
             </View>
         );
     }
@@ -26,15 +26,3 @@ const enhance = withObservables(['friendId'], ({ friendId }: { friendId: string 
 }));
 
 export const ReactiveFriendProfile = enhance(ReactiveFriendProfileContent);
-
-const styles = StyleSheet.create({
-    center: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    errorText: {
-        fontSize: 16,
-        color: '#EF4444', // Red-500
-    },
-});

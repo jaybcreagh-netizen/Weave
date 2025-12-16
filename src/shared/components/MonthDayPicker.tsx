@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, Modal, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, Modal, ScrollView } from 'react-native';
 import { X, Calendar } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
 
@@ -90,14 +90,57 @@ export function MonthDayPicker({ value, onChange, label = 'Set birthday', displa
     }
   }, [selectedMonth, daysInMonth, selectedDay]);
 
+  const PickerColumn = ({
+    type,
+    items,
+    selectedValue,
+    onSelect
+  }: {
+    type: 'Month' | 'Day',
+    items: { value: string, label: string }[],
+    selectedValue: string,
+    onSelect: (val: string) => void
+  }) => (
+    <View className="flex-1 px-3 pt-4">
+      <Text className="text-sm font-semibold text-center mb-3" style={{ color: colors['muted-foreground'] }}>{type}</Text>
+      <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+        {items.map((item) => {
+          const isSelected = selectedValue === item.value;
+          return (
+            <TouchableOpacity
+              key={item.value}
+              onPress={() => onSelect(item.value)}
+              className={`
+                        py-3.5 px-4 rounded-lg mb-2 border
+                        ${isSelected ? 'border-primary bg-primary/20' : 'border-transparent'}
+                    `}
+              style={isSelected ? { backgroundColor: colors.primary + '20', borderColor: colors.primary } : {}}
+            >
+              <Text
+                className={`text-base text-center ${isSelected ? 'font-semibold' : ''}`}
+                style={{ color: isSelected ? colors.primary : colors.foreground }}
+              >
+                {item.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
+    </View>
+  );
+
   return (
     <>
       <TouchableOpacity
         onPress={() => setShowPicker(true)}
-        style={[styles.dateButton, { backgroundColor: colors.card, borderColor: colors.border }]}
+        className="flex-row items-center gap-3 border rounded-xl p-4"
+        style={{ backgroundColor: colors.card, borderColor: colors.border }}
       >
         <Calendar size={20} color={colors['muted-foreground']} />
-        <Text style={[styles.dateButtonText, { color: value ? colors.foreground : colors['muted-foreground'] }]}>
+        <Text
+          className="flex-1 text-base"
+          style={{ color: value ? colors.foreground : colors['muted-foreground'] }}
+        >
           {formatDisplay(value)}
         </Text>
         {value && (
@@ -116,171 +159,60 @@ export function MonthDayPicker({ value, onChange, label = 'Set birthday', displa
         transparent={true}
         onRequestClose={() => setShowPicker(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.pickerContainer, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <View className="flex-1 bg-black/50 justify-end">
+          <View
+            className="rounded-t-3xl border h-[500px]"
+            style={{ backgroundColor: colors.card, borderColor: colors.border }}
+          >
             {/* Header */}
-            <View style={[styles.header, { borderBottomColor: colors.border }]}>
-              <Text style={[styles.headerTitle, { color: colors.foreground }]}>{getModalTitle()}</Text>
+            <View
+              className="flex-row justify-between items-center p-5 border-b"
+              style={{ borderBottomColor: colors.border }}
+            >
+              <Text
+                className="text-xl font-semibold font-lora-bold"
+                style={{ color: colors.foreground }}
+              >
+                {getModalTitle()}
+              </Text>
               <TouchableOpacity onPress={() => setShowPicker(false)}>
                 <X size={24} color={colors['muted-foreground']} />
               </TouchableOpacity>
             </View>
 
             {/* Picker Content */}
-            <View style={styles.pickersRow}>
-              {/* Show Day first for DD-MM, Month first for MM-DD */}
+            <View className="flex-row flex-1">
               {displayFormat === 'DD-MM' ? (
                 <>
-                  {/* Day Picker */}
-                  <View style={styles.pickerColumn}>
-                    <Text style={[styles.columnLabel, { color: colors['muted-foreground'] }]}>Day</Text>
-                    <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-                      {days.map((dayItem) => (
-                        <TouchableOpacity
-                          key={dayItem.value}
-                          onPress={() => setSelectedDay(dayItem.value)}
-                          style={[
-                            styles.pickerItem,
-                            selectedDay === dayItem.value && [
-                              styles.pickerItemSelected,
-                              { backgroundColor: colors.primary + '20', borderColor: colors.primary }
-                            ]
-                          ]}
-                        >
-                          <Text
-                            style={[
-                              styles.pickerItemText,
-                              { color: colors.foreground },
-                              selectedDay === dayItem.value && [
-                                styles.pickerItemTextSelected,
-                                { color: colors.primary }
-                              ]
-                            ]}
-                          >
-                            {dayItem.label}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
-                    </ScrollView>
-                  </View>
-
-                  {/* Month Picker */}
-                  <View style={styles.pickerColumn}>
-                    <Text style={[styles.columnLabel, { color: colors['muted-foreground'] }]}>Month</Text>
-                    <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-                      {MONTHS.map((monthItem) => (
-                        <TouchableOpacity
-                          key={monthItem.value}
-                          onPress={() => setSelectedMonth(monthItem.value)}
-                          style={[
-                            styles.pickerItem,
-                            selectedMonth === monthItem.value && [
-                              styles.pickerItemSelected,
-                              { backgroundColor: colors.primary + '20', borderColor: colors.primary }
-                            ]
-                          ]}
-                        >
-                          <Text
-                            style={[
-                              styles.pickerItemText,
-                              { color: colors.foreground },
-                              selectedMonth === monthItem.value && [
-                                styles.pickerItemTextSelected,
-                                { color: colors.primary }
-                              ]
-                            ]}
-                          >
-                            {monthItem.label}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
-                    </ScrollView>
-                  </View>
+                  <PickerColumn type="Day" items={days} selectedValue={selectedDay} onSelect={setSelectedDay} />
+                  <PickerColumn type="Month" items={MONTHS} selectedValue={selectedMonth} onSelect={setSelectedMonth} />
                 </>
               ) : (
                 <>
-                  {/* Month Picker */}
-                  <View style={styles.pickerColumn}>
-                    <Text style={[styles.columnLabel, { color: colors['muted-foreground'] }]}>Month</Text>
-                    <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-                      {MONTHS.map((monthItem) => (
-                        <TouchableOpacity
-                          key={monthItem.value}
-                          onPress={() => setSelectedMonth(monthItem.value)}
-                          style={[
-                            styles.pickerItem,
-                            selectedMonth === monthItem.value && [
-                              styles.pickerItemSelected,
-                              { backgroundColor: colors.primary + '20', borderColor: colors.primary }
-                            ]
-                          ]}
-                        >
-                          <Text
-                            style={[
-                              styles.pickerItemText,
-                              { color: colors.foreground },
-                              selectedMonth === monthItem.value && [
-                                styles.pickerItemTextSelected,
-                                { color: colors.primary }
-                              ]
-                            ]}
-                          >
-                            {monthItem.label}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
-                    </ScrollView>
-                  </View>
-
-                  {/* Day Picker */}
-                  <View style={styles.pickerColumn}>
-                    <Text style={[styles.columnLabel, { color: colors['muted-foreground'] }]}>Day</Text>
-                    <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-                      {days.map((dayItem) => (
-                        <TouchableOpacity
-                          key={dayItem.value}
-                          onPress={() => setSelectedDay(dayItem.value)}
-                          style={[
-                            styles.pickerItem,
-                            selectedDay === dayItem.value && [
-                              styles.pickerItemSelected,
-                              { backgroundColor: colors.primary + '20', borderColor: colors.primary }
-                            ]
-                          ]}
-                        >
-                          <Text
-                            style={[
-                              styles.pickerItemText,
-                              { color: colors.foreground },
-                              selectedDay === dayItem.value && [
-                                styles.pickerItemTextSelected,
-                                { color: colors.primary }
-                              ]
-                            ]}
-                          >
-                            {dayItem.label}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
-                    </ScrollView>
-                  </View>
+                  <PickerColumn type="Month" items={MONTHS} selectedValue={selectedMonth} onSelect={setSelectedMonth} />
+                  <PickerColumn type="Day" items={days} selectedValue={selectedDay} onSelect={setSelectedDay} />
                 </>
               )}
             </View>
 
             {/* Footer Buttons */}
-            <View style={styles.footer}>
+            <View
+              className="flex-row p-5 gap-3 border-t"
+              style={{ borderTopColor: colors.border }}
+            >
               <TouchableOpacity
                 onPress={() => setShowPicker(false)}
-                style={[styles.button, styles.cancelButton, { borderColor: colors.border, backgroundColor: colors.muted }]}
+                className="flex-1 py-3.5 rounded-xl items-center border"
+                style={{ borderColor: colors.border, backgroundColor: colors.muted }}
               >
-                <Text style={[styles.buttonText, { color: colors.foreground }]}>Cancel</Text>
+                <Text className="text-base font-semibold" style={{ color: colors.foreground }}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={handleSave}
-                style={[styles.button, styles.saveButton, { backgroundColor: colors.primary }]}
+                className="flex-1 py-3.5 rounded-xl items-center"
+                style={{ backgroundColor: colors.primary }}
               >
-                <Text style={[styles.buttonText, { color: colors['primary-foreground'] }]}>Save</Text>
+                <Text className="text-base font-semibold" style={{ color: colors['primary-foreground'] }}>Save</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -290,97 +222,3 @@ export function MonthDayPicker({ value, onChange, label = 'Set birthday', displa
   );
 }
 
-const styles = StyleSheet.create({
-  dateButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 16,
-  },
-  dateButtonText: {
-    flex: 1,
-    fontSize: 16,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  pickerContainer: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    borderWidth: 1,
-    height: 500, // Fixed height to ensure pickers are visible
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-    borderBottomWidth: 1,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    fontFamily: 'Lora_700Bold',
-  },
-  pickersRow: {
-    flexDirection: 'row',
-    flex: 1,
-  },
-  pickerColumn: {
-    flex: 1,
-    paddingHorizontal: 12,
-    paddingTop: 16,
-  },
-  columnLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    textAlign: 'center',
-    marginBottom: 12,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  pickerItem: {
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: 10,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: 'transparent',
-  },
-  pickerItemSelected: {
-    borderWidth: 1,
-  },
-  pickerItemText: {
-    fontSize: 16,
-    textAlign: 'center',
-  },
-  pickerItemTextSelected: {
-    fontWeight: '600',
-  },
-  footer: {
-    flexDirection: 'row',
-    padding: 20,
-    gap: 12,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(0,0,0,0.1)',
-  },
-  button: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  cancelButton: {
-    borderWidth: 1,
-  },
-  saveButton: {},
-  buttonText: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-});

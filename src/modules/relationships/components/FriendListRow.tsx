@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, Image, Pressable, ScrollView } from 'react-native';
+import { View, Text, Image, Pressable } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
@@ -7,13 +7,12 @@ import Animated, {
   useAnimatedStyle,
   withSequence,
   withTiming,
-  withSpring,
   Easing,
   interpolate,
 } from 'react-native-reanimated';
 
-import { useUIStore } from '@/shared/stores/uiStore';
-import { type Archetype, type RelationshipType, type Friend } from '@/shared/types/legacy-types';
+import { UIEventBus } from '@/shared/services/ui-event-bus';
+import { type Archetype, type RelationshipType } from '@/shared/types/legacy-types';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { ArchetypeIcon } from '@/modules/intelligence';
 import { archetypeData } from '@/shared/constants/constants';
@@ -29,6 +28,7 @@ import { HydratedFriend } from '@/types/hydrated';
 import { ArchetypeCard } from '@/modules/intelligence';
 import { StandardBottomSheet } from '@/shared/ui/Sheet/StandardBottomSheet';
 import { database } from '@/db';
+import withObservables from '@nozbe/with-observables';
 
 const ATTENTION_THRESHOLD = 35;
 const STABLE_THRESHOLD = 65;
@@ -50,8 +50,6 @@ interface FriendListRowProps {
   variant?: 'default' | 'full';
 }
 
-import withObservables from '@nozbe/with-observables';
-
 export const FriendListRowContent = ({ friend, animatedRef, variant = 'default' }: FriendListRowProps) => {
   if (!friend) return null;
 
@@ -64,7 +62,7 @@ export const FriendListRowContent = ({ friend, animatedRef, variant = 'default' 
   const [showDetailSheet, setShowDetailSheet] = useState(false);
   const [showArchetypePicker, setShowArchetypePicker] = useState(false);
   const { colors, isDarkMode } = useTheme();
-  const { setArchetypeModal, justNurturedFriendId, setJustNurturedFriendId } = useUIStore();
+  // useGlobalUI removed to prevent re-renders
   const { activeCardId, pendingCardId } = useCardGesture();
 
   // Calculate current score with decay - memoized by ID to avoid recalculation
@@ -92,8 +90,6 @@ export const FriendListRowContent = ({ friend, animatedRef, variant = 'default' 
   }, [weaveScore]);
 
   const glowProgress = useSharedValue(0);
-  const pressScale = useSharedValue(1);
-  const pressOpacity = useSharedValue(gradientOpacity);
 
   // Reset image error state when photoUrl changes
   useEffect(() => {
@@ -152,16 +148,18 @@ export const FriendListRowContent = ({ friend, animatedRef, variant = 'default' 
     return () => clearTimeout(timeoutId);
   }, [friend.id, friend.lastUpdated.getTime(), friend.weaveScore, archetype]);
 
-  // "Just Nurtured" glow effect
+  // "Just Nurtured" glow effect via EventBus (no context re-renders)
   useEffect(() => {
-    if (justNurturedFriendId === id) {
-      glowProgress.value = withSequence(
-        withTiming(1, { duration: 400, easing: Easing.out(Easing.quad) }),
-        withTiming(0, { duration: 1000, easing: Easing.in(Easing.quad) })
-      );
-      setJustNurturedFriendId(null);
-    }
-  }, [justNurturedFriendId, id]);
+    const unsubscribe = UIEventBus.subscribe((event) => {
+      if (event.type === 'FRIEND_NURTURED' && event.friendId === id) {
+        glowProgress.value = withSequence(
+          withTiming(1, { duration: 400, easing: Easing.out(Easing.quad) }),
+          withTiming(0, { duration: 1000, easing: Easing.in(Easing.quad) })
+        );
+      }
+    });
+    return unsubscribe;
+  }, [id]);
 
   const handleCardLongPress = () => {
     // Only allow long press on friend profile page (variant='full'), not on dashboard
@@ -211,7 +209,7 @@ export const FriendListRowContent = ({ friend, animatedRef, variant = 'default' 
     return {
       transform: [{
         scale: withTiming(targetScale, {
-          duration: isPending ? 260 : 150, // Match long-press duration for pending, quick return otherwise
+          duration: isPending ? 120 : 150, // Match remaining time (150ms total - 30ms delay = 120ms)
           easing: Easing.out(Easing.quad)
         })
       }],
@@ -231,7 +229,7 @@ export const FriendListRowContent = ({ friend, animatedRef, variant = 'default' 
 
     return {
       opacity: withTiming(targetOpacity, {
-        duration: (isGestureActive || isPending) ? 260 : 150,
+        duration: (isGestureActive || isPending) ? 120 : 150,
         easing: Easing.out(Easing.quad)
       }),
     };
@@ -264,6 +262,9 @@ export const FriendListRowContent = ({ friend, animatedRef, variant = 'default' 
   };
 
   const statusColor = getStatusColor();
+
+  // Border Radius for the card container
+  const CONTAINER_RADIUS = 16;
 
   return (
     <Animated.View ref={animatedRef} style={rowStyle}>
@@ -308,8 +309,8 @@ export const FriendListRowContent = ({ friend, animatedRef, variant = 'default' 
         {/* Content */}
         <Pressable
           onPress={handleCardPress}
-          onLongPress={handleCardLongPress}
-          delayLongPress={500}
+          onLongPress={variant === 'full' ? handleCardLongPress : undefined}
+          delayLongPress={variant === 'full' ? 500 : undefined}
           className="flex-row items-center p-3 gap-3"
         >
           {/* Avatar */}
@@ -331,7 +332,7 @@ export const FriendListRowContent = ({ friend, animatedRef, variant = 'default' 
               />
             ) : (
               <Text
-                className="text-lg font-semibold"
+                className="text-lg font-inter-semibold"
                 style={{ color: colors.foreground }}
               >
                 {name.charAt(0).toUpperCase()}
@@ -343,12 +344,9 @@ export const FriendListRowContent = ({ friend, animatedRef, variant = 'default' 
           <View className="flex-1">
             <View className="flex-row items-center gap-1.5">
               <Text
-                className="font-semibold"
+                className="font-lora-bold text-[17px] leading-5 font-bold"
                 style={{
-                  fontSize: 17,
-                  lineHeight: 20,
                   color: colors.foreground,
-                  fontFamily: 'Lora_700Bold',
                 }}
                 numberOfLines={1}
               >
@@ -366,7 +364,7 @@ export const FriendListRowContent = ({ friend, animatedRef, variant = 'default' 
                 <Text style={{ fontSize: 12 }}>{statusLine.icon}</Text>
               )}
               <Text
-                className="text-status"
+                className="text-xs"
                 style={{
                   color: statusColor,
                   opacity: statusLine.variant === 'default' ? 0.7 : 0.9,
@@ -399,10 +397,9 @@ export const FriendListRowContent = ({ friend, animatedRef, variant = 'default' 
             {/* Unknown Archetype Indicator */}
             {archetype === 'Unknown' && (
               <View
-                className="absolute -top-1 -right-1 w-4 h-4 rounded-full items-center justify-center"
+                className="absolute -top-1 -right-1 w-4 h-4 rounded-full items-center justify-center border-2 border-white dark:border-black"
                 style={{
                   backgroundColor: '#f59e0b',
-                  borderWidth: 1.5,
                   borderColor: colors.card,
                 }}
               >

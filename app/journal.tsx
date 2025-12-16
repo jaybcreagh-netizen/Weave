@@ -133,13 +133,13 @@ export default function JournalScreen() {
                     onMemoryAction={async (memory) => {
                         // Fetch full data needed for the modal
                         const { getMemoryForNotification } = require('@/modules/journal/services/journal-context-engine');
-                        const { useUIStore } = require('@/shared/stores/uiStore');
+                        const { UIEventBus } = await import('@/shared/services/ui-event-bus');
 
                         const type = memory.id.includes('reflection') ? 'reflection' : 'journal';
                         const data = await getMemoryForNotification(memory.relatedEntryId!, type);
 
                         if (data) {
-                            useUIStore.getState().openMemoryMoment(data);
+                            UIEventBus.emit({ type: 'OPEN_MEMORY_MOMENT', data });
                         }
                     }}
                 />

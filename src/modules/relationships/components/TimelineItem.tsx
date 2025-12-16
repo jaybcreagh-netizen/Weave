@@ -25,7 +25,7 @@ import { getCategoryMetadata, CATEGORY_METADATA } from '@/shared/constants/inter
 import { type Interaction, type InteractionCategory } from '@/shared/types/legacy-types';
 import { calculateDeepeningLevel, getDeepeningVisuals } from '@/modules/intelligence';
 import { usePausableAnimation } from '@/shared/hooks/usePausableAnimation';
-import { useUIStore } from '@/shared/stores/uiStore';
+import { useGlobalUI } from '@/shared/context/GlobalUIContext';
 
 interface TimelineItemProps {
   interaction: Interaction;
@@ -44,7 +44,7 @@ interface TimelineItemProps {
 
 export const TimelineItem = React.memo(({ interaction, isFuture, onPress, index, scrollY, itemY = 0, showKnot = true, sectionLabel, isFirstInSection = false, isLastItem = false }: TimelineItemProps) => {
   const { colors, isDarkMode } = useTheme();
-  const { justLoggedInteractionId, setJustLoggedInteractionId } = useUIStore();
+  const { justLoggedInteractionId, setJustLoggedInteractionId } = useGlobalUI();
 
   // Memoize date parsing
   const date = useMemo(() =>

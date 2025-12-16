@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Keyboard, TextInput } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput, Keyboard } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { type Vibe, type InteractionCategory } from '@/shared/types/common';
 
@@ -99,30 +99,31 @@ export function MicroReflectionSheet({
       scrollable
     >
       {/* Header */}
-      <View style={styles.header}>
-        <Text style={[styles.activityText, { color: colors['muted-foreground'] }]}>
+      <View className="items-center mb-4">
+        <Text className="text-sm font-medium mb-2" style={{ color: colors['muted-foreground'] }}>
           Logged
         </Text>
         <TextInput
-          style={[styles.titleInput, { color: colors.foreground }]}
+          className="text-2xl font-bold font-lora-bold text-center mb-1 min-w-[200px]"
+          style={{ color: colors.foreground }}
           value={title}
           onChangeText={setTitle}
           placeholder="Interaction Title"
           placeholderTextColor={colors['muted-foreground'] + '80'}
           returnKeyType="done"
         />
-        <Text style={[styles.friendNameText, { color: colors.foreground }]}>
+        <Text className="text-base font-semibold font-inter-semibold opacity-80" style={{ color: colors.foreground }}>
           with {friendName}
         </Text>
       </View>
 
       {/* Prompt */}
-      <Text style={[styles.promptText, { color: colors.foreground }]}>
+      <Text className="text-lg font-semibold text-center mb-6" style={{ color: colors.foreground }}>
         {getPrompt()}
       </Text>
 
       {/* Moon Phase Selector */}
-      <View style={styles.moonContainer}>
+      <View className="w-full mb-5">
         <MoonPhaseSelector
           selectedVibe={selectedVibe}
           onSelect={handleVibeSelect}
@@ -130,49 +131,49 @@ export function MicroReflectionSheet({
       </View>
 
       {/* Optional Note */}
-      <View style={styles.noteSection}>
-        <Text style={[styles.noteLabel, { color: colors['muted-foreground'] }]}>
+      <View className="mb-6">
+        <Text className="text-[13px] font-medium mb-2" style={{ color: colors['muted-foreground'] }}>
           Optional: Add a note
         </Text>
         <TextInput
-          style={[
-            styles.noteInput,
-            {
-              backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)',
-              color: colors.foreground,
-              borderColor: colors.border,
-            },
-          ]}
+          className="border rounded-xl p-3 text-[15px] min-h-[80px] max-h-[120px]"
+          style={{
+            backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)',
+            color: colors.foreground,
+            borderColor: colors.border,
+            textAlignVertical: 'top'
+          }}
           placeholder="What happened? How are you feeling?"
           placeholderTextColor={colors['muted-foreground'] + '80'}
           value={notes}
           onChangeText={setNotes}
           multiline
           numberOfLines={3}
-          textAlignVertical="top"
           returnKeyType="done"
           blurOnSubmit
         />
       </View>
 
       {/* Actions */}
-      <View style={styles.actions}>
+      <View className="flex-row gap-3">
         <TouchableOpacity
-          style={[styles.skipButton, { borderColor: colors.border }]}
+          className="flex-1 py-4 rounded-xl border-[1.5px] items-center justify-center"
+          style={{ borderColor: colors.border }}
           onPress={handleSkip}
           activeOpacity={0.7}
         >
-          <Text style={[styles.skipButtonText, { color: colors['muted-foreground'] }]}>
+          <Text className="text-base font-semibold" style={{ color: colors['muted-foreground'] }}>
             Skip
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.saveButton, { backgroundColor: colors.primary }]}
+          className="flex-1 py-4 rounded-xl items-center justify-center shadow-sm elevation-4"
+          style={{ backgroundColor: colors.primary, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 8 }}
           onPress={handleSave}
           activeOpacity={0.8}
         >
-          <Text style={[styles.saveButtonText, { color: colors['primary-foreground'] }]}>
+          <Text className="text-base font-bold" style={{ color: colors['primary-foreground'] }}>
             Save
           </Text>
         </TouchableOpacity>
@@ -180,87 +181,3 @@ export function MicroReflectionSheet({
     </AnimatedBottomSheet>
   );
 }
-
-const styles = StyleSheet.create({
-  header: {
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  activityText: {
-    fontSize: 14,
-    fontWeight: '500',
-    marginBottom: 8,
-  },
-  titleInput: {
-    fontSize: 24,
-    fontWeight: '700',
-    fontFamily: 'Lora_700Bold',
-    textAlign: 'center',
-    marginBottom: 4,
-    minWidth: 200,
-  },
-  friendNameText: {
-    fontSize: 16,
-    fontWeight: '500',
-    fontFamily: 'Inter_600SemiBold',
-    opacity: 0.8,
-  },
-  promptText: {
-    fontSize: 18,
-    fontWeight: '600',
-    textAlign: 'center',
-    marginBottom: 24,
-  },
-  moonContainer: {
-    width: '100%',
-    marginBottom: 20,
-  },
-  noteSection: {
-    marginBottom: 24,
-  },
-  noteLabel: {
-    fontSize: 13,
-    fontWeight: '500',
-    marginBottom: 8,
-  },
-  noteInput: {
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 12,
-    fontSize: 15,
-    minHeight: 80,
-    maxHeight: 120,
-  },
-  actions: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  skipButton: {
-    flex: 1,
-    paddingVertical: 16,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  skipButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  saveButton: {
-    flex: 1,
-    paddingVertical: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  saveButtonText: {
-    fontSize: 16,
-    fontWeight: '700',
-  },
-});

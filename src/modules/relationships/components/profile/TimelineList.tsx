@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react';
-import { View, Text, SectionList, StyleSheet, NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
+import { View, Text, SectionList, NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import { WeaveLoading } from '@/shared/components/WeaveLoading';
 import Animated from 'react-native-reanimated';
 import { WeaveIcon } from '@/shared/components/WeaveIcon';
@@ -66,8 +66,11 @@ export function TimelineList({
                 ListHeaderComponent={
                     <>
                         {ListHeaderComponent}
-                        <View style={{ paddingHorizontal: 20 }}>
-                            <Text style={[styles.timelineTitle, { color: colors.foreground }]}>
+                        <View className="px-5">
+                            <Text
+                                className="text-base font-lora-bold font-semibold mb-3 mt-2"
+                                style={{ color: colors.foreground }}
+                            >
                                 Weave Timeline
                             </Text>
                         </View>
@@ -108,7 +111,3 @@ export function TimelineList({
         </View>
     );
 }
-
-const styles = StyleSheet.create({
-    timelineTitle: { fontSize: 16, fontWeight: '600', marginBottom: 12, marginTop: 8, fontFamily: 'Lora_700Bold' },
-});

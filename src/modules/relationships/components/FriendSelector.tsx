@@ -10,7 +10,7 @@ import { Q } from '@nozbe/watermelondb';
 import { StandardBottomSheet } from '@/shared/ui/Sheet';
 import { BottomSheetFlatList } from '@gorhom/bottom-sheet';
 import { groupService } from '@/modules/groups';
-import { GroupManagerModal } from '@/modules/groups/components/GroupManagerModal';
+import { GroupManagerModal } from '@/modules/groups';
 
 interface FriendSelectorProps {
     visible: boolean;
@@ -114,16 +114,8 @@ export function FriendSelector({
     const renderRelevantGroupChip = (group: Group) => (
         <TouchableOpacity
             key={group.id}
-            style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                paddingHorizontal: 12,
-                paddingVertical: 8,
-                borderRadius: 9999,
-                marginRight: 8,
-                marginBottom: 8,
-                backgroundColor: colors.secondary
-            }}
+            className="flex-row items-center px-3 py-2 rounded-full mr-2 mb-2"
+            style={{ backgroundColor: colors.secondary }}
             onPress={() => handleGroupSelect(group)}
         >
             <Users size={14} color={colors.foreground} style={{ marginRight: 6 }} />
@@ -140,14 +132,8 @@ export function FriendSelector({
 
         return (
             <TouchableOpacity
-                style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: 16,
-                    borderBottomWidth: 1,
-                    borderColor: colors.border
-                }}
+                className="flex-row items-center justify-between p-4 border-b"
+                style={{ borderColor: colors.border }}
                 onPress={() => toggleFriendSelection(item)}
                 disabled={isInitial}
             >
@@ -176,14 +162,8 @@ export function FriendSelector({
     const renderGroupItem = ({ item }: { item: Group }) => {
         return (
             <TouchableOpacity
-                style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: 16,
-                    borderBottomWidth: 1,
-                    borderColor: colors.border
-                }}
+                className="flex-row items-center justify-between p-4 border-b"
+                style={{ borderColor: colors.border }}
                 onPress={() => handleGroupSelect(item)}
                 onLongPress={() => handleEditGroup(item)}
             >
@@ -209,14 +189,13 @@ export function FriendSelector({
 
     const Content = (
         <View className="flex-1">
-            {/* Header */}
             {/* Header - Only show in modal mode */}
             {asModal && (
                 <View className="flex-row justify-between items-center p-5 border-b" style={{ borderColor: colors.border }}>
                     <Text className="font-lora-bold text-xl" style={{ color: colors.foreground }}>
                         Add Friends
                     </Text>
-                    <TouchableOpacity onPress={onClose} style={{ padding: 8, marginRight: -8 }}>
+                    <TouchableOpacity onPress={onClose} className="p-2 -mr-2">
                         <X color={colors['muted-foreground']} size={24} />
                     </TouchableOpacity>
                 </View>
@@ -225,11 +204,8 @@ export function FriendSelector({
             {/* Tabs */}
             <View className="flex-row p-2 mx-5 mt-3 rounded-xl" style={{ backgroundColor: colors.muted }}>
                 <TouchableOpacity
+                    className="flex-1 py-2 rounded-lg items-center"
                     style={{
-                        flex: 1,
-                        paddingVertical: 8,
-                        borderRadius: 8,
-                        alignItems: 'center',
                         backgroundColor: activeTab === 'friends' ? colors.card : undefined,
                         shadowColor: '#000',
                         shadowOffset: { width: 0, height: 1 },
@@ -245,11 +221,8 @@ export function FriendSelector({
                     </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
+                    className="flex-1 py-2 rounded-lg items-center"
                     style={{
-                        flex: 1,
-                        paddingVertical: 8,
-                        borderRadius: 8,
-                        alignItems: 'center',
                         backgroundColor: activeTab === 'groups' ? colors.card : undefined,
                         shadowColor: '#000',
                         shadowOffset: { width: 0, height: 1 },
@@ -330,13 +303,8 @@ export function FriendSelector({
                         showsVerticalScrollIndicator={false}
                         ListHeaderComponent={
                             <TouchableOpacity
-                                style={{
-                                    flexDirection: 'row',
-                                    alignItems: 'center',
-                                    padding: 16,
-                                    borderBottomWidth: 1,
-                                    borderColor: colors.border
-                                }}
+                                className="flex-row items-center p-4 border-b"
+                                style={{ borderColor: colors.border }}
                                 onPress={() => {
                                     setEditingGroup(undefined);
                                     setIsGroupModalVisible(true);
@@ -374,12 +342,8 @@ export function FriendSelector({
                 >
                     <TouchableOpacity
                         onPress={onClose}
-                        style={{
-                            paddingVertical: 16,
-                            borderRadius: 12,
-                            alignItems: 'center',
-                            backgroundColor: colors.primary
-                        }}
+                        className="py-4 rounded-xl items-center"
+                        style={{ backgroundColor: colors.primary }}
                     >
                         <Text className="font-inter-semibold text-base" style={{ color: colors.background }}>
                             Done ({selectedFriends.length})
@@ -417,12 +381,8 @@ export function FriendSelector({
     const footerContent = (
         <TouchableOpacity
             onPress={onClose}
-            style={{
-                paddingVertical: 16,
-                borderRadius: 12,
-                alignItems: 'center',
-                backgroundColor: colors.primary
-            }}
+            className="py-4 rounded-xl items-center"
+            style={{ backgroundColor: colors.primary }}
         >
             <Text className="font-inter-semibold text-base" style={{ color: colors.background }}>
                 Done ({selectedFriends.length})

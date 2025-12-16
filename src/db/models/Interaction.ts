@@ -77,7 +77,7 @@ export default class Interaction extends Model {
 
   async prepareDestroyWithChildren() {
     const friends = await this.interactionFriends.fetch();
-    const friendsToDelete = friends.map((friend: any) => friend.prepareDestroyPermanently());
+    const friendsToDelete = friends.map((friend: InteractionFriend) => friend.prepareDestroyPermanently());
     await this.batch(...friendsToDelete);
     return this.prepareDestroyPermanently()
   }

@@ -5,7 +5,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, Dimensions } from 'react-native';
+import { View, Dimensions } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import Animated, {
   useSharedValue,
@@ -74,8 +74,8 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({ visible }) => {
 
   return (
     <Animated.View
+      className="absolute inset-0 w-full h-full justify-center items-center z-[9999]"
       style={[
-        styles.container,
         { backgroundColor: colors.background },
         animatedContainerStyle
       ]}
@@ -97,17 +97,5 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({ visible }) => {
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    width: SCREEN_WIDTH,
-    height: SCREEN_HEIGHT,
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 9999,
-  },
-});
+// Removed StyleSheet
+

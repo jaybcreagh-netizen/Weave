@@ -18,14 +18,14 @@ import { getCategoryMetadata } from '@/shared/constants/interaction-categories';
 import { InteractionDetailModal } from '../components/InteractionDetailModal';
 import { Interaction } from '@/shared/types/legacy-types';
 import { EveningDigestChannel } from '@/modules/notifications';
-import { useUIStore } from '@/shared/stores/uiStore';
+import { useGlobalUI } from '@/shared/context/GlobalUIContext';
 
 export function GlobalCalendarScreen() {
     const router = useRouter();
     const { fromFriendId } = useLocalSearchParams<{ fromFriendId: string }>();
     const { colors } = useTheme();
     const { allInteractions } = useInteractions();
-    const openDigestSheet = useUIStore(state => state.openDigestSheet);
+    const { openDigestSheet } = useGlobalUI();
 
     const [selectedDate, setSelectedDate] = useState<Date | null>(null);
     const [selectedDateInteractions, setSelectedDateInteractions] = useState<any[]>([]);

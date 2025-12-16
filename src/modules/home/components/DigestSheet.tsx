@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, View, Text, ScrollView } from 'react-native';
+import { View, Text } from 'react-native';
 import { Calendar, Sparkles, Clock, Moon } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { AnimatedBottomSheet } from '@/shared/ui/Sheet';
@@ -7,9 +7,9 @@ import { ListItem } from '@/shared/ui/ListItem';
 import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
 import { WidgetHeader } from '@/shared/ui/WidgetHeader';
-import { DigestItem, EveningDigestChannel } from '@/modules/notifications';
+import { DigestItem } from '@/modules/notifications';
 import { useRouter } from 'expo-router';
-import { useUIStore } from '@/shared/stores/uiStore';
+import { useGlobalUI } from '@/shared/context/GlobalUIContext';
 import { format } from 'date-fns';
 
 interface DigestSheetProps {
@@ -25,7 +25,7 @@ export const DigestSheet: React.FC<DigestSheetProps> = ({
 }) => {
     const { tokens, typography, isDarkMode } = useTheme();
     const router = useRouter();
-    const { openMemoryMoment } = useUIStore();
+    const { openMemoryMoment } = useGlobalUI();
 
     const plans = items.filter(i => i.type === 'plan' || i.type === 'confirmation');
     const upcoming = items.filter(i => i.type === 'birthday' || i.type === 'life_event');
@@ -36,14 +36,6 @@ export const DigestSheet: React.FC<DigestSheetProps> = ({
     const handleAction = async (item: DigestItem) => {
         onClose();
         if (item.type === 'plan' || item.type === 'confirmation') {
-            // Navigate to where? Maybe just open focus detail sheet for confirmation?
-            // Or navigate to a specific interaction if possible.
-            // For now, let's open FocusDetailSheet by triggering Today's Focus Widget opening logic?
-            // Actually, `TodaysFocusWidgetV2` logic handles confirmation inside `FocusDetailSheet`.
-            // Ideally we confirm directly or open a dedicated view.
-            // Requirement says "navigate to plan detail or confirm flow".
-            // Since we don't have a standalone plan detail screen easily accessible,
-            // we will navigate to dashboard where Focus widget is.
             router.push('/dashboard');
         } else if (item.friendId) {
             router.push(`/friend-profile?friendId=${item.friendId}`);
@@ -55,7 +47,7 @@ export const DigestSheet: React.FC<DigestSheetProps> = ({
     };
 
     const renderItem = (item: DigestItem, index: number, total: number) => (
-        <View key={`${item.type}-${item.title}-${index}`} style={{ paddingHorizontal: 16 }}>
+        <View key={`${item.type}-${item.title}-${index}`} className="px-4">
             <ListItem
                 title={item.title}
                 subtitle={item.subtitle}
@@ -66,7 +58,7 @@ export const DigestSheet: React.FC<DigestSheetProps> = ({
                         label="View"
                         variant="secondary"
                         size="sm"
-                        style={{ height: 32, paddingVertical: 4, paddingHorizontal: 12 }}
+                        className="h-8 py-1 px-3"
                         onPress={() => handleAction(item)}
                     />
                 }
@@ -81,20 +73,26 @@ export const DigestSheet: React.FC<DigestSheetProps> = ({
             height="form"
             scrollable
         >
-            <View style={styles.header}>
+            <View className="flex-row justify-between items-start px-6 mb-6">
                 <View>
-                    <Text style={[styles.title, { color: tokens.foreground, fontFamily: typography.fonts.serifBold }]}>
+                    <Text
+                        className="text-[28px] mb-1"
+                        style={{ color: tokens.foreground, fontFamily: typography.fonts.serifBold }}
+                    >
                         Evening Check-in
                     </Text>
-                    <Text style={[styles.subtitle, { color: tokens.foregroundMuted, fontFamily: typography.fonts.sans }]}>
+                    <Text
+                        className="text-base"
+                        style={{ color: tokens.foregroundMuted, fontFamily: typography.fonts.sans }}
+                    >
                         {format(new Date(), 'EEEE, MMMM d')}
                     </Text>
                 </View>
             </View>
 
-            <View style={{ paddingHorizontal: 20 }}>
+            <View className="px-5">
                 {plans.length > 0 && (
-                    <View style={styles.section}>
+                    <View className="mb-6">
                         <WidgetHeader title="Plans" icon={<Clock size={20} color={tokens.primaryMuted} />} />
                         <Card padding="none">
                             {plans.map((item, i) => renderItem(item, i, plans.length))}
@@ -103,7 +101,7 @@ export const DigestSheet: React.FC<DigestSheetProps> = ({
                 )}
 
                 {upcoming.length > 0 && (
-                    <View style={styles.section}>
+                    <View className="mb-6">
                         <WidgetHeader title="Coming Up" icon={<Calendar size={20} color={tokens.primaryMuted} />} />
                         <Card padding="none">
                             {upcoming.map((item, i) => renderItem(item, i, upcoming.length))}
@@ -112,7 +110,7 @@ export const DigestSheet: React.FC<DigestSheetProps> = ({
                 )}
 
                 {suggestions.length > 0 && (
-                    <View style={styles.section}>
+                    <View className="mb-6">
                         <WidgetHeader title="Suggestions" icon={<Sparkles size={20} color={tokens.primaryMuted} />} />
                         <Card padding="none">
                             {suggestions.map((item, i) => renderItem(item, i, suggestions.length))}
@@ -121,12 +119,18 @@ export const DigestSheet: React.FC<DigestSheetProps> = ({
                 )}
 
                 {items.length === 0 && (
-                    <View style={styles.emptyState}>
+                    <View className="items-center justify-center py-16 gap-4">
                         <Moon size={48} color={tokens.primaryMuted} />
-                        <Text style={[styles.emptyTitle, { color: tokens.foreground, fontFamily: typography.fonts.serifBold }]}>
+                        <Text
+                            className="text-xl"
+                            style={{ color: tokens.foreground, fontFamily: typography.fonts.serifBold }}
+                        >
                             All Quiet Tonight
                         </Text>
-                        <Text style={[styles.emptyText, { color: tokens.foregroundMuted, fontFamily: typography.fonts.sans }]}>
+                        <Text
+                            className="text-base text-center"
+                            style={{ color: tokens.foregroundMuted, fontFamily: typography.fonts.sans }}
+                        >
                             No pending plans or urgent suggestions. Rest easy!
                         </Text>
                     </View>
@@ -136,53 +140,3 @@ export const DigestSheet: React.FC<DigestSheetProps> = ({
     );
 };
 
-const styles = StyleSheet.create({
-    overlay: {
-        flex: 1,
-        justifyContent: 'flex-end',
-    },
-    sheet: {
-        borderTopLeftRadius: 24,
-        borderTopRightRadius: 24,
-        height: '80%',
-        paddingTop: 24,
-    },
-    header: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'flex-start',
-        paddingHorizontal: 24,
-        marginBottom: 24,
-    },
-    title: {
-        fontSize: 28,
-        marginBottom: 4,
-    },
-    subtitle: {
-        fontSize: 16,
-    },
-    closeButton: {
-        padding: 4,
-        marginTop: 4,
-    },
-    content: {
-        paddingHorizontal: 20,
-        paddingBottom: 40,
-    },
-    section: {
-        marginBottom: 24,
-    },
-    emptyState: {
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingVertical: 60,
-        gap: 16,
-    },
-    emptyTitle: {
-        fontSize: 20,
-    },
-    emptyText: {
-        fontSize: 16,
-        textAlign: 'center',
-    },
-});

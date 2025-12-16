@@ -20,6 +20,7 @@ import {
 } from '@/modules/gamification';
 import { calculateFriendBadgeProgress, type BadgeProgress } from '@/modules/gamification';
 import { AchievementCard } from '@/modules/gamification';
+import { useTheme } from '@/shared/hooks/useTheme';
 
 interface FriendBadgeSectionProps {
   friendId: string;
@@ -27,6 +28,7 @@ interface FriendBadgeSectionProps {
 }
 
 function FriendBadgeSectionComponent({ friendId, friendName }: FriendBadgeSectionProps) {
+  const { colors } = useTheme();
   const [unlockedBadges, setUnlockedBadges] = useState<BadgeDefinition[]>([]);
   const [progressData, setProgressData] = useState<BadgeProgress[]>([]);
   const [loading, setLoading] = useState(true);
@@ -98,11 +100,11 @@ function FriendBadgeSectionComponent({ friendId, friendName }: FriendBadgeSectio
     <View className="px-4 py-3">
       {/* Header */}
       <View className="flex-row items-center justify-between mb-3">
-        <Text className="text-white font-['Lora'] text-xl font-bold">
+        <Text className="text-xl font-lora-bold font-bold" style={{ color: colors.foreground }}>
           Relationship Badges
         </Text>
-        <View className="bg-emerald-500/20 px-3 py-1 rounded-full">
-          <Text className="text-emerald-400 font-['Inter'] text-sm font-bold">
+        <View className="px-3 py-1 rounded-full" style={{ backgroundColor: '#10b98120' }}>
+          <Text className="text-sm font-inter-bold font-bold" style={{ color: '#34d399' }}>
             {unlockedBadges.length} Earned
           </Text>
         </View>
@@ -115,14 +117,15 @@ function FriendBadgeSectionComponent({ friendId, friendName }: FriendBadgeSectio
           return (
             <View
               key={cat.categoryType}
-              className="flex-1 bg-gray-800/50 border border-gray-700 rounded-xl p-3"
+              className="flex-1 rounded-xl p-3 border"
+              style={{ backgroundColor: colors.muted, borderColor: colors.border }}
             >
               <Text className="text-2xl mb-1">{emoji}</Text>
-              <Text className="text-white font-['Inter'] text-xs">
+              <Text className="text-xs font-inter-regular" style={{ color: colors.foreground }}>
                 Tier {cat.currentTier}
               </Text>
               {cat.nextBadge && (
-                <Text className="text-gray-400 font-['Inter'] text-xs">
+                <Text className="text-xs font-inter-regular" style={{ color: colors['muted-foreground'] }}>
                   {Math.round(cat.progressPercent)}% to next
                 </Text>
               )}
@@ -146,16 +149,16 @@ function FriendBadgeSectionComponent({ friendId, friendName }: FriendBadgeSectio
               }
               className="flex-row items-center justify-between py-2 mb-2"
             >
-              <Text className="text-white font-['Inter'] text-base font-semibold">
+              <Text className="text-base font-inter-semibold font-semibold" style={{ color: colors.foreground }}>
                 {label}
               </Text>
-              <Text className="text-gray-400 font-['Inter'] text-sm">
+              <Text className="text-sm font-inter-regular" style={{ color: colors['muted-foreground'] }}>
                 {isExpanded ? '▼' : '▶'}
               </Text>
             </TouchableOpacity>
 
             {isExpanded && (
-              <View className="space-y-3">
+              <View className="gap-3">
                 {/* Current Badge (if unlocked) */}
                 {catProgress.currentBadge && (
                   <AchievementCard
@@ -179,8 +182,8 @@ function FriendBadgeSectionComponent({ friendId, friendName }: FriendBadgeSectio
 
                 {/* Max Tier Reached */}
                 {!catProgress.nextBadge && catProgress.currentBadge && (
-                  <View className="bg-amber-950/30 border border-amber-700 rounded-xl p-3">
-                    <Text className="text-amber-400 font-['Inter'] text-sm text-center">
+                  <View className="rounded-xl p-3 border" style={{ backgroundColor: '#451a0330', borderColor: '#b45309' }}>
+                    <Text className="text-sm text-center font-inter-regular" style={{ color: '#fbbf24' }}>
                       🏆 Maximum tier reached!
                     </Text>
                   </View>
@@ -194,13 +197,13 @@ function FriendBadgeSectionComponent({ friendId, friendName }: FriendBadgeSectio
       {/* Special Badges Gallery */}
       {unlockedBadges.filter(b => SPECIAL_BADGES.some(sb => sb.id === b.id)).length > 0 && (
         <View className="mt-4">
-          <Text className="text-white font-['Inter'] text-base font-semibold mb-2">
+          <Text className="text-base font-inter-semibold font-semibold mb-2" style={{ color: colors.foreground }}>
             ✨ Special Moments
           </Text>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
-            className="flex-row gap-3"
+            contentContainerStyle={{ gap: 12 }}
           >
             {unlockedBadges
               .filter(b => SPECIAL_BADGES.some(sb => sb.id === b.id))
@@ -215,12 +218,12 @@ function FriendBadgeSectionComponent({ friendId, friendName }: FriendBadgeSectio
 
       {/* Empty State */}
       {unlockedBadges.length === 0 && (
-        <View className="bg-gray-800/30 border border-gray-700 rounded-xl p-6 items-center">
+        <View className="rounded-xl p-6 items-center border" style={{ backgroundColor: colors.muted, borderColor: colors.border }}>
           <Text className="text-4xl mb-3">🌱</Text>
-          <Text className="text-white font-['Lora'] text-base font-semibold mb-1 text-center">
+          <Text className="text-base font-lora-bold font-semibold mb-1 text-center" style={{ color: colors.foreground }}>
             Start Your Journey
           </Text>
-          <Text className="text-gray-400 font-['Inter'] text-sm text-center">
+          <Text className="text-sm font-inter-regular text-center" style={{ color: colors['muted-foreground'] }}>
             Log interactions with {friendName} to earn relationship badges!
           </Text>
         </View>

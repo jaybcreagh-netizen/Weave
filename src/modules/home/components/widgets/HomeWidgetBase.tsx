@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, Pressable } from 'react-native';
+import { View, Text, ActivityIndicator, Pressable } from 'react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { Card } from '@/shared/ui/Card';
 
@@ -40,25 +40,26 @@ export const HomeWidgetBase: React.FC<HomeWidgetBaseProps> = ({
     <Card
       variant={config.fullWidth ? 'default' : 'default'}
       padding={padding === 'large' ? 'lg' : padding === 'none' ? 'none' : 'md'}
-      style={[
-        styles.card,
-        {
-          minHeight: config.minHeight || 160,
-          backgroundColor: tokens.backgroundSubtle
-        },
-      ]}
+      className="justify-center"
+      style={{
+        minHeight: config.minHeight || 160,
+        backgroundColor: tokens.backgroundSubtle
+      }}
     >
       {/* Loading State */}
       {isLoading && (
-        <View style={styles.centerContainer}>
+        <View className="flex-1 justify-center items-center min-h-[120px] p-4">
           <ActivityIndicator size="large" color={tokens?.primary || colors.primary} />
         </View>
       )}
 
       {/* Error State */}
       {!isLoading && error && (
-        <View style={styles.centerContainer}>
-          <Text style={[styles.errorText, { color: tokens?.destructive || '#DC2626' }]}>
+        <View className="flex-1 justify-center items-center min-h-[120px] p-4">
+          <Text
+            className="text-sm text-center font-sans"
+            style={{ color: tokens?.destructive || '#DC2626' }}
+          >
             {error}
           </Text>
         </View>
@@ -80,21 +81,3 @@ export const HomeWidgetBase: React.FC<HomeWidgetBaseProps> = ({
   return content;
 };
 
-const styles = StyleSheet.create({
-  card: {
-    // marginBottom handled by grid gap
-    justifyContent: 'center',
-  },
-  centerContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    minHeight: 120,
-    padding: 16,
-  },
-  errorText: {
-    fontFamily: 'Inter_400Regular',
-    fontSize: 14,
-    textAlign: 'center',
-  },
-});

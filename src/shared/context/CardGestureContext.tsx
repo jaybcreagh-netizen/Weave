@@ -33,27 +33,42 @@ export function useCardGesture() {
 }
 
 function useCardGestureCoordinator(): CardGestureContextType {
-  const { handleInteractionSelection, handleOpenQuickWeave, handleTap, closeQuickWeave } = useQuickWeave();
+  const { handleInteractionSelection, handleOpenQuickWeave, handlePrepareQuickWeave, handleTap, closeQuickWeave } = useQuickWeave();
 
   // Create refs to hold the latest version of the handlers
   // This prevents the stale closure issue where the gesture (which is memoized once)
   // holds onto the *initial* version of these functions (and thus the initial activities list/state).
   const interactionSelectionRef = useRef(handleInteractionSelection);
   const openQuickWeaveRef = useRef(handleOpenQuickWeave);
+  const prepareQuickWeaveRef = useRef(handlePrepareQuickWeave);
   const tapRef = useRef(handleTap);
   const closeQuickWeaveRef = useRef(closeQuickWeave);
 
   // Always keep refs up to date
   interactionSelectionRef.current = handleInteractionSelection;
   openQuickWeaveRef.current = handleOpenQuickWeave;
+  prepareQuickWeaveRef.current = handlePrepareQuickWeave;
   tapRef.current = handleTap;
   closeQuickWeaveRef.current = closeQuickWeave;
 
-  // Stable wrappers that use the refs
+  const lastGestureTimestamp = useRef(0);
+
+  // Stable wrappers that use the refs and enforce chronological order
   const handleInteractionSelectionStable = (index: number, fId: string) => interactionSelectionRef.current(index, fId);
-  const handleOpenQuickWeaveStable = (fId: string, point: { x: number; y: number }) => openQuickWeaveRef.current(fId, point);
+  const handleOpenQuickWeaveStable = (fId: string, point: { x: number; y: number }, timestamp: number) => {
+    if (timestamp >= lastGestureTimestamp.current) {
+      lastGestureTimestamp.current = timestamp;
+      openQuickWeaveRef.current(fId, point);
+    }
+  };
+  const handlePrepareQuickWeaveStable = (fId: string) => prepareQuickWeaveRef.current(fId);
   const handleTapStable = (fId: string) => tapRef.current(fId);
-  const closeQuickWeaveStable = () => closeQuickWeaveRef.current();
+  const closeQuickWeaveStable = (timestamp: number) => {
+    if (timestamp >= lastGestureTimestamp.current) {
+      lastGestureTimestamp.current = timestamp;
+      closeQuickWeaveRef.current();
+    }
+  };
 
   const cardRefs = useSharedValue<Record<string, React.RefObject<Animated.View>>>({});
   const scrollOffset = useSharedValue(0);
@@ -73,11 +88,11 @@ function useCardGestureCoordinator(): CardGestureContextType {
     if (pendingFeedbackTimeout.current) {
       clearTimeout(pendingFeedbackTimeout.current);
     }
-    // Delay the visual feedback by 120ms so quick taps bypass it
+    // Delay the visual feedback by 30ms (balance between fast feel and tap safety)
     pendingFeedbackTimeout.current = setTimeout(() => {
       pendingCardId.value = targetId;
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }, 120);
+    }, 30);
   };
 
   const clearPendingFeedback = () => {
@@ -120,7 +135,7 @@ function useCardGestureCoordinator(): CardGestureContextType {
   // THE FIX: Wrap the entire gesture definition in useMemo to prevent re-creation on re-renders.
   const gesture = useMemo(() => {
     const tap = Gesture.Tap()
-      .maxDuration(260) // Increased for more forgiving quick taps
+      .maxDuration(150) // Balanced tap detection
       .onEnd((event, success) => {
         'worklet';
         // Clear any pending feedback timeout so quick taps don't trigger it
@@ -134,7 +149,7 @@ function useCardGestureCoordinator(): CardGestureContextType {
       });
 
     const longPressAndDrag = Gesture.LongPress()
-      .minDuration(260) // Aligned with tap maxDuration
+      .minDuration(150) // 150ms activation as requested
       .maxDistance(999999)
       .shouldCancelWhenOutside(false)
       .onBegin((event) => {
@@ -146,6 +161,8 @@ function useCardGestureCoordinator(): CardGestureContextType {
           startCoordinates.value = { x: event.x, y: event.y };
           // Delay pending feedback - only shows if user holds for 120ms+
           runOnJS(startPendingFeedback)(targetId);
+          // Prefetch Quick Weave data immediately to ensure instant open on activation
+          runOnJS(handlePrepareQuickWeaveStable)(targetId);
         }
       })
       .onStart((event) => {
@@ -163,7 +180,7 @@ function useCardGestureCoordinator(): CardGestureContextType {
             x: event.absoluteX,
             y: event.absoluteY, // Use absolute position since overlay is screen-positioned
           };
-          runOnJS(handleOpenQuickWeaveStable)(targetId, centerPoint);
+          runOnJS(handleOpenQuickWeaveStable)(targetId, centerPoint, Date.now());
         }
       })
       .onTouchesMove((event, state) => {
@@ -207,7 +224,7 @@ function useCardGestureCoordinator(): CardGestureContextType {
         'worklet';
         if (isLongPressActive.value) {
           // Close the overlay first
-          runOnJS(closeQuickWeaveStable)();
+          runOnJS(closeQuickWeaveStable)(Date.now());
 
           const distance = Math.sqrt(dragX.value ** 2 + dragY.value ** 2);
           if (distance >= SELECTION_THRESHOLD && highlightedIndex.value !== -1 && activeCardId.value) {

@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Modal, Platform, LayoutAnimation, Alert } from 'react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
+import UserProfile from '@/db/models/UserProfile';
 import { Bell, Clock, BookOpen, Moon, ChevronRight, BarChart3 } from 'lucide-react-native';
 import { ModernSwitch } from '@/shared/ui/ModernSwitch';
 import { SettingsItem } from './SettingsItem';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useUserProfileStore } from '@/modules/auth';
+import { useUserProfile, SocialBatteryService } from '@/modules/auth';
+import { database } from '@/db';
 import {
     WeeklyReflectionChannel,
     EventReminderChannel,
@@ -17,7 +19,21 @@ import { SuggestionTrackerService } from '@/modules/interactions';
 
 export const NotificationSettings = () => {
     const { colors } = useTheme();
-    const { profile, updateBatteryPreferences, updateProfile } = useUserProfileStore();
+    const { profile } = useUserProfile();
+    // Helper wrappers to match previous interface or call service directly
+    const updateBatteryPreferences = async (enabled: boolean, time?: string) => {
+        if (!profile) return;
+        await SocialBatteryService.updatePreferences(profile.id, enabled, time);
+    };
+
+    const updateProfile = async (updates: Partial<UserProfile>) => {
+        if (!profile) return;
+        await database.write(async () => {
+            await profile.update(p => {
+                Object.assign(p, updates);
+            });
+        });
+    };
 
     // Notification settings state
     const [batteryNotificationsEnabled, setBatteryNotificationsEnabled] = useState(false);

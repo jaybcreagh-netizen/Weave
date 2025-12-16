@@ -9,14 +9,13 @@
 import React, { useState, useEffect } from 'react';
 import { View, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
-import { Calendar, Check, X, Users, MapPin, ChevronRight } from 'lucide-react-native';
+import { Check, Users, MapPin, ChevronRight, X } from 'lucide-react-native'; // Cleaned up unused imports
 import { useTheme } from '@/shared/hooks/useTheme';
 import { ScannedEvent, scanRecentPastEvents } from '@/modules/interactions';
 import { ArchetypeIcon } from '@/modules/intelligence';
 import { Archetype } from '@/shared/types/legacy-types';
 import * as Haptics from 'expo-haptics';
 import { Text } from '@/shared/ui/Text';
-import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
 
 // ============================================================================
@@ -35,29 +34,6 @@ interface CalendarEventsStepProps {
 export function CalendarEventsStep({ onNext, onSkip }: CalendarEventsStepProps) {
   const { colors } = useTheme();
 
-  // NOTE: This assumes the parent component fetches and passes events, 
-  // but for now we'll fetch them here or mock them to match existing structure.
-  // The original component didn't receive events as props, it likely used a hook.
-  // However, looking at the previous file content, it seems it fetched them internally via `scanWeekForUnloggedEvents`?
-  // Actually, wait - let's verify how data flows.
-  // Ah, the parent WeeklyReflectionModal fetches events and determines if this step is shown.
-  // BUT, this component *also* seems to need the events.
-  // The original component used `useQuery` or similar to fetch.
-  // Let's assume for this refactor we'll get them via a hook or props.
-  // Wait, the original file I viewed (CalendarEventsStepComponent.tsx) had internal state/loading for events.
-  // Let's stick to the pattern of having the parent or a hook load data if possible,
-  // but if the parent is already scanning, pass them down?
-  // Re-reading `WeeklyReflectionModal`... it calls `scanWeekForUnloggedEvents` but doesn't pass the events to this component.
-  // This component likely needs to re-fetch or the modal needs to pass them.
-  // Let's update this component to accept events or fetch them.
-  // For now, let's keep the internal fetching logic if it existed, or better, use the hook.
-
-  // Actually, checking the `WeeklyReflectionModal` refactor...
-  // `const eventReview = await scanWeekForUnloggedEvents();`
-  // It handles the check.
-  // This component should responsibly fetching/displaying.
-  // Let's use `scanWeekForUnloggedEvents` again here.
-
   const [events, setEvents] = useState<ScannedEvent[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
@@ -69,8 +45,6 @@ export function CalendarEventsStep({ onNext, onSkip }: CalendarEventsStepProps) 
   const loadEvents = async () => {
     try {
       const result = await scanRecentPastEvents();
-      // Ensure we only show events that have matched friends or are highly probable
-      // For now, allow all, but sorting by confidence might be nice.
       setEvents(result.events);
 
       // Auto-select highly confident matches
@@ -120,8 +94,6 @@ export function CalendarEventsStep({ onNext, onSkip }: CalendarEventsStepProps) 
       </View>
     );
   }
-
-  const selectedCount = selectedIds.size;
 
   return (
     <View className="flex-1 justify-between">
@@ -207,20 +179,14 @@ export function CalendarEventsStep({ onNext, onSkip }: CalendarEventsStepProps) 
                     {(!event.matchedFriends || event.matchedFriends.length === 0) ? (
                       <View className="flex-row items-center gap-2 mt-3">
                         <Users size={14} color={colors.primary} />
-                        <Text
-                          className="text-sm"
-                          style={{ color: colors.primary, fontFamily: 'Inter_500Medium' }}
-                        >
+                        <Text className="text-sm font-inter-medium text-primary">
                           Tap to select friends
                         </Text>
                       </View>
                     ) : (
                       <View className="flex-row items-center gap-2 mt-3">
                         <Users size={14} color={colors['muted-foreground']} />
-                        <Text
-                          className="text-sm"
-                          style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
-                        >
+                        <Text className="text-sm font-inter-regular text-muted-foreground">
                           {friendNames}
                         </Text>
                       </View>
@@ -230,11 +196,7 @@ export function CalendarEventsStep({ onNext, onSkip }: CalendarEventsStepProps) 
                     {event.location && (
                       <View className="flex-row items-center gap-2 mt-1">
                         <MapPin size={14} color={colors['muted-foreground']} />
-                        <Text
-                          className="text-sm"
-                          style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
-                          numberOfLines={1}
-                        >
+                        <Text className="text-sm font-inter-regular text-muted-foreground" numberOfLines={1}>
                           {event.location}
                         </Text>
                       </View>
@@ -259,10 +221,9 @@ export function CalendarEventsStep({ onNext, onSkip }: CalendarEventsStepProps) 
           disabled={selectedIds.size === 0}
         >
           <Text
-            className="text-base font-semibold mr-2"
+            className="text-base font-inter-semibold mr-2"
             style={{
               color: selectedIds.size > 0 ? 'white' : colors['muted-foreground'],
-              fontFamily: 'Inter_600SemiBold',
             }}
           >
             {selectedIds.size > 0
@@ -277,10 +238,7 @@ export function CalendarEventsStep({ onNext, onSkip }: CalendarEventsStepProps) 
           onPress={onSkip}
           className="items-center py-3"
         >
-          <Text
-            className="text-sm"
-            style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
-          >
+          <Text className="text-sm font-inter-regular text-muted-foreground">
             Skip for now
           </Text>
         </TouchableOpacity>
@@ -288,5 +246,3 @@ export function CalendarEventsStep({ onNext, onSkip }: CalendarEventsStepProps) 
     </View >
   );
 }
-
-

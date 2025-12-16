@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import { View, TouchableOpacity, ScrollView } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { getChipsForType, getChipTypeLabel, type StoryChip, type ChipType } from '@/modules/reflection';
 import { type InteractionCategory, type Archetype, type Vibe, type Tier } from '@/shared/types/common';
@@ -80,7 +80,7 @@ export function ReflectionStoryChips({
   }
 
   return (
-    <View style={styles.container}>
+    <View className="gap-3">
       <Text variant="label" style={{ color: colors['muted-foreground'] }}>
         {getChipTypeLabel(chipType)}
       </Text>
@@ -88,7 +88,7 @@ export function ReflectionStoryChips({
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={{ gap: 8, paddingRight: 16 }}
       >
         {visibleChips.map((chip, index) => (
           <Animated.View
@@ -96,15 +96,15 @@ export function ReflectionStoryChips({
             entering={FadeIn.duration(300).delay(index * 50)}
           >
             <TouchableOpacity
-              style={[
-                styles.chip,
-                {
-                  backgroundColor: colors.card,
-                  borderColor: colors.border,
-                  shadowColor: tokens?.shadow.color || '#000',
-                  shadowOpacity: tokens?.shadow.opacity.sm || 0.05,
-                },
-              ]}
+              className="py-3 px-4 rounded-[20px] border-[1.5px] shadow-sm elevation-1"
+              style={{
+                backgroundColor: colors.card,
+                borderColor: colors.border,
+                shadowColor: tokens?.shadow.color || '#000',
+                shadowOpacity: tokens?.shadow.opacity.sm || 0.05,
+                shadowOffset: { width: 0, height: 1 },
+                shadowRadius: 4,
+              }}
               onPress={() => onChipSelect(chip)}
               activeOpacity={0.7}
             >
@@ -135,22 +135,3 @@ export function ReflectionStoryChips({
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    gap: 12,
-  },
-  scrollContent: {
-    gap: 8,
-    paddingRight: 16,
-  },
-  chip: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-    borderWidth: 1.5,
-    shadowOffset: { width: 0, height: 1 },
-    shadowRadius: 4,
-    elevation: 1,
-  },
-});

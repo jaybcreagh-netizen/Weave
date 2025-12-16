@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, StyleSheet, Text } from 'react-native';
+import { View, Text } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -10,7 +10,6 @@ import Animated, {
   Easing,
   runOnJS,
 } from 'react-native-reanimated';
-import { Sparkles } from 'lucide-react-native';
 
 interface CelebrationAnimationProps {
   visible: boolean;
@@ -77,11 +76,11 @@ export function CelebrationAnimation({
   if (!visible) return null;
 
   return (
-    <View style={styles.container} pointerEvents="none">
+    <View className="absolute inset-0 items-center justify-center z-[1000]" pointerEvents="none">
       {/* Center burst */}
-      <Animated.View style={[styles.centerBurst, animatedStyle]}>
-        <View style={styles.sparkleContainer}>
-          <Text style={styles.sparkleText}>✨</Text>
+      <Animated.View className="items-center justify-center" style={animatedStyle}>
+        <View className="items-center justify-center">
+          <Text className="text-[50px] text-center">✨</Text>
         </View>
       </Animated.View>
 
@@ -134,35 +133,8 @@ function Particle({ index, total, intensity }: { index: number; total: number; i
   }));
 
   return (
-    <Animated.View style={[styles.particle, particleStyle]}>
-      <Text style={styles.particleText}>✨</Text>
+    <Animated.View className="absolute" style={particleStyle}>
+      <Text className="text-xl">✨</Text>
     </Animated.View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    ...StyleSheet.absoluteFillObject,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 1000,
-  },
-  centerBurst: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  sparkleContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  sparkleText: {
-    fontSize: 50,
-    textAlign: 'center',
-  },
-  particle: {
-    position: 'absolute',
-  },
-  particleText: {
-    fontSize: 20,
-  },
-});

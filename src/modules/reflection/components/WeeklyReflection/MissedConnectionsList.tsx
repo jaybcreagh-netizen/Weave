@@ -45,14 +45,14 @@ export function MissedConnectionsList({
         <View className="items-center mb-8">
           <Text className="text-6xl mb-4">✨</Text>
           <Text
-            className="text-xl font-semibold text-center mb-3"
-            style={{ color: colors.foreground, fontFamily: 'Lora_600SemiBold' }}
+            className="text-xl font-semibold text-center mb-3 font-lora-semibold"
+            style={{ color: colors.foreground }}
           >
             All caught up!
           </Text>
           <Text
-            className="text-sm text-center leading-5 px-6"
-            style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
+            className="text-sm text-center leading-5 px-6 font-inter-regular"
+            style={{ color: colors['muted-foreground'] }}
           >
             Your important relationships are thriving. Keep up the beautiful work.
           </Text>
@@ -64,8 +64,8 @@ export function MissedConnectionsList({
           style={{ backgroundColor: colors.primary }}
         >
           <Text
-            className="text-base font-semibold"
-            style={{ color: colors['primary-foreground'], fontFamily: 'Inter_600SemiBold' }}
+            className="text-base font-semibold font-inter-semibold"
+            style={{ color: colors['primary-foreground'] }}
           >
             Continue to Reflection
           </Text>
@@ -81,15 +81,15 @@ export function MissedConnectionsList({
         <View className="flex-row items-center justify-center mb-2">
           <AlertCircle size={24} color={colors.accent} />
           <Text
-            className="text-2xl font-bold ml-2"
-            style={{ color: colors.foreground, fontFamily: 'Lora_700Bold' }}
+            className="text-2xl font-bold ml-2 font-lora-bold"
+            style={{ color: colors.foreground }}
           >
             Friends to Reconnect
           </Text>
         </View>
         <Text
-          className="text-sm text-center leading-5 px-4"
-          style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
+          className="text-sm text-center leading-5 px-4 font-inter-regular"
+          style={{ color: colors['muted-foreground'] }}
         >
           These important friends are drifting. A small gesture goes a long way.
         </Text>
@@ -112,8 +112,11 @@ export function MissedConnectionsList({
             <Animated.View
               key={missed.friend.id}
               entering={FadeInRight.delay(index * 100)}
-              className="mb-3 rounded-2xl overflow-hidden"
-              style={{ backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 }}
+              className="mb-3 rounded-2xl overflow-hidden border"
+              style={{
+                backgroundColor: colors.card,
+                borderColor: colors.border
+              }}
             >
               {/* Friend Info */}
               <View className="p-4">
@@ -133,8 +136,8 @@ export function MissedConnectionsList({
                   {/* Name and Score */}
                   <View className="flex-1">
                     <Text
-                      className="text-lg font-semibold mb-1"
-                      style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold' }}
+                      className="text-lg font-semibold mb-1 font-inter-semibold"
+                      style={{ color: colors.foreground }}
                     >
                       {missed.friend.name}
                     </Text>
@@ -144,15 +147,15 @@ export function MissedConnectionsList({
                         style={{ backgroundColor: scoreColor + '20' }}
                       >
                         <Text
-                          className="text-xs font-medium"
-                          style={{ color: scoreColor, fontFamily: 'Inter_500Medium' }}
+                          className="text-xs font-medium font-inter-medium"
+                          style={{ color: scoreColor }}
                         >
                           {Math.round(missed.weaveScore)} / 100
                         </Text>
                       </View>
                       <Text
-                        className="text-xs"
-                        style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
+                        className="text-xs font-inter-regular"
+                        style={{ color: colors['muted-foreground'] }}
                       >
                         {missed.daysSinceLastContact < 999
                           ? `${missed.daysSinceLastContact}d since last contact`
@@ -168,14 +171,14 @@ export function MissedConnectionsList({
                   style={{ backgroundColor: colors.secondary + '10' }}
                 >
                   <Text
-                    className="text-xs mb-1"
-                    style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
+                    className="text-xs mb-1 font-inter-regular"
+                    style={{ color: colors['muted-foreground'] }}
                   >
                     They value {missed.archetypeValue}. Try:
                   </Text>
                   <Text
-                    className="text-sm font-medium"
-                    style={{ color: colors.foreground, fontFamily: 'Inter_500Medium' }}
+                    className="text-sm font-medium font-inter-medium"
+                    style={{ color: colors.foreground }}
                   >
                     {missed.suggestedAction}
                   </Text>
@@ -189,8 +192,8 @@ export function MissedConnectionsList({
                 >
                   <Heart size={16} color={colors['primary-foreground']} fill={colors['primary-foreground']} />
                   <Text
-                    className="text-sm font-semibold ml-2"
-                    style={{ color: colors['primary-foreground'], fontFamily: 'Inter_600SemiBold' }}
+                    className="text-sm font-semibold ml-2 font-inter-semibold"
+                    style={{ color: colors['primary-foreground'] }}
                   >
                     Log a Weave with {missed.friend.name}
                   </Text>
@@ -210,8 +213,8 @@ export function MissedConnectionsList({
         >
           <View className="flex-row items-center">
             <Text
-              className="text-base font-semibold mr-2"
-              style={{ color: colors['primary-foreground'], fontFamily: 'Inter_600SemiBold' }}
+              className="text-base font-semibold mr-2 font-inter-semibold"
+              style={{ color: colors['primary-foreground'] }}
             >
               Continue to Reflection
             </Text>
@@ -224,8 +227,8 @@ export function MissedConnectionsList({
           className="py-3 items-center"
         >
           <Text
-            className="text-sm font-medium"
-            style={{ color: colors['muted-foreground'], fontFamily: 'Inter_500Medium' }}
+            className="text-sm font-medium font-inter-medium"
+            style={{ color: colors['muted-foreground'] }}
           >
             Skip for now
           </Text>

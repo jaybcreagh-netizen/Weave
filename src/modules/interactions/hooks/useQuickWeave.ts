@@ -1,10 +1,12 @@
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import { useDebounceCallback } from '@/shared/hooks/useDebounceCallback';
 import * as Haptics from 'expo-haptics';
+import { UIEventBus } from '@/shared/services/ui-event-bus';
 import { useRouter } from 'expo-router';
+import { useQuickWeaveStore } from '../store/quick-weave.store';
 import { database } from '@/db';
 import Friend from '@/db/models/Friend';
-import { useUIStore } from '@/shared/stores/uiStore';
+import { useGlobalUI } from '@/shared/context/GlobalUIContext';
 import { useInteractions } from './useInteractions';
 import { getTopActivities, isSmartDefaultsEnabled } from '../services/smart-defaults.service';
 import { type InteractionCategory } from '@/shared/types/legacy-types';
@@ -13,15 +15,21 @@ import { ACTIVITIES } from '../constants';
 export function useQuickWeave() {
     const router = useRouter();
     const {
-        openQuickWeave,
-        closeQuickWeave,
         showToast,
-        setJustNurturedFriendId,
         setSelectedFriendId,
         showMicroReflectionSheet,
-        quickWeaveActivities
-    } = useUIStore();
+    } = useGlobalUI();
+
+    const {
+        openQuickWeave,
+        closeQuickWeave,
+        activities: quickWeaveActivities
+    } = useQuickWeaveStore();
     const { logWeave } = useInteractions();
+
+    // Cache for pre-calculated activities to support instant opening
+    // Map of friendId -> Promise<InteractionCategory[]>
+    const prefetchCache = useRef<Record<string, Promise<InteractionCategory[]> | undefined>>({});
 
     const handleInteraction = useDebounceCallback(useCallback(async (activityId: string, activityLabel: string, friendId: string) => {
         const friend = await database.get<Friend>(Friend.table).find(friendId);
@@ -47,8 +55,8 @@ export function useQuickWeave() {
         // 2. Success haptic
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-        // 3. Show "just nurtured" glow
-        setJustNurturedFriendId(friendId);
+        // 3. Show "just nurtured" glow via EventBus
+        UIEventBus.emit({ type: 'FRIEND_NURTURED', friendId });
 
         // 4. Show toast
         showToast(activityLabel, friend.name);
@@ -64,7 +72,7 @@ export function useQuickWeave() {
                 friendArchetype: friend.archetype,
             });
         }, 200);
-    }, [logWeave, setJustNurturedFriendId, showToast, showMicroReflectionSheet]));
+    }, [logWeave, showToast, showMicroReflectionSheet]));
 
     const handleInteractionSelection = useCallback(async (selectedIndex: number, friendId: string) => {
         try {
@@ -90,20 +98,44 @@ export function useQuickWeave() {
         }
     }, [quickWeaveActivities, handleInteraction]);
 
-    const handleOpenQuickWeave = useCallback(async (friendId: string, centerPoint: { x: number; y: number }) => {
-        try {
+    const handlePrepareQuickWeave = useCallback((friendId: string) => {
+        // Start calculation immediately when user touches the card
+        // This runs in parallel with the gesture duration (260ms)
+        prefetchCache.current[friendId] = (async () => {
             // Check if smart defaults are enabled
             const smartDefaultsEnabled = await isSmartDefaultsEnabled();
 
+            if (smartDefaultsEnabled) {
+                const friend = await database.get<Friend>(Friend.table).find(friendId);
+                return getTopActivities(friend, 6);
+            } else {
+                return ACTIVITIES.map(a => a.id as InteractionCategory);
+            }
+        })();
+    }, []);
+
+    const handleOpenQuickWeave = useCallback(async (friendId: string, centerPoint: { x: number; y: number }) => {
+        try {
             let orderedActivities: InteractionCategory[];
 
-            if (smartDefaultsEnabled) {
-                // Fetch friend and calculate smart-ordered activities
-                const friend = await database.get<Friend>(Friend.table).find(friendId);
-                orderedActivities = await getTopActivities(friend, 6);
+            // Check if we have a prefetch in progress or completed
+            const prefetchPromise = prefetchCache.current[friendId];
+
+            if (prefetchPromise) {
+                // await the existing promise (likely resolved or near resolution)
+                orderedActivities = await prefetchPromise;
+                // Clear cache after use to ensure next open is fresh
+                delete prefetchCache.current[friendId];
             } else {
-                // Use fixed default ordering for muscle memory
-                orderedActivities = ACTIVITIES.map(a => a.id as InteractionCategory);
+                // Fallback to fresh calculation (shouldn't happen with correct gesture wiring)
+                const smartDefaultsEnabled = await isSmartDefaultsEnabled();
+
+                if (smartDefaultsEnabled) {
+                    const friend = await database.get<Friend>(Friend.table).find(friendId);
+                    orderedActivities = await getTopActivities(friend, 6);
+                } else {
+                    orderedActivities = ACTIVITIES.map(a => a.id as InteractionCategory);
+                }
             }
 
             // Open Quick Weave with ordered activities
@@ -125,6 +157,7 @@ export function useQuickWeave() {
     return {
         handleInteractionSelection,
         handleOpenQuickWeave,
+        handlePrepareQuickWeave,
         handleTap,
         closeQuickWeave
     };
