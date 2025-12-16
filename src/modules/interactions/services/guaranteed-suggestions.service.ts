@@ -181,9 +181,9 @@ export function generateGuaranteedSuggestions(
     }
 
     // 2. GENTLE NUDGE - Pick a healthy friend who's not already suggested
-    // Skip in resting season to reduce pressure
-    if (season !== 'resting' && !existingCategories.has('gentle-nudge')) {
-        const nudgeSuggestion = generateGentleNudge(friends, usedFriendIds);
+    // In resting season, use softer language but still provide the option
+    if (!existingCategories.has('gentle-nudge')) {
+        const nudgeSuggestion = generateGentleNudge(friends, usedFriendIds, season === 'resting');
         if (nudgeSuggestion) {
             suggestions.push(nudgeSuggestion);
             if (nudgeSuggestion.friendId) usedFriendIds.add(nudgeSuggestion.friendId);
@@ -191,19 +191,44 @@ export function generateGuaranteedSuggestions(
     }
 
     // 3. WILDCARD - Context-aware spontaneous suggestion
-    // Skip in resting season
-    if (season !== 'resting' && !existingCategories.has('wildcard')) {
-        const wildcardSuggestion = generateWildcard(friends, usedFriendIds);
+    // In resting season, prefer low-energy wildcards
+    if (!existingCategories.has('wildcard')) {
+        const wildcardSuggestion = generateWildcard(friends, usedFriendIds, season === 'resting');
         if (wildcardSuggestion) {
             suggestions.push(wildcardSuggestion);
             if (wildcardSuggestion.friendId) usedFriendIds.add(wildcardSuggestion.friendId);
         }
     }
 
-    // 4. WHY NOT REACH OUT - For slightly overdue friends (30-60% score)
-    // This provides an extra option when network is mostly healthy
-    // Skip in resting season
-    if (season !== 'resting' && suggestions.length < 3) {
+    // 4. COMMUNITY CHECK-IN - Encourage connection with community tier
+    if (!existingCategories.has('community-checkin') && suggestions.length < 3) {
+        const communityCheckIn = generateCommunityCheckIn(friends, usedFriendIds);
+        if (communityCheckIn) {
+            suggestions.push(communityCheckIn);
+            if (communityCheckIn.friendId) usedFriendIds.add(communityCheckIn.friendId);
+        }
+    }
+
+    // 5. SET INTENTION - Proactive intention-setting for healthy relationships
+    if (!existingCategories.has('set-intention') && suggestions.length < 3) {
+        const intentionSuggestion = generateSetIntention(friends, usedFriendIds);
+        if (intentionSuggestion) {
+            suggestions.push(intentionSuggestion);
+            if (intentionSuggestion.friendId) usedFriendIds.add(intentionSuggestion.friendId);
+        }
+    }
+
+    // 6. VARIETY CHECK - Encourage connecting with different people
+    if (!existingCategories.has('variety') && suggestions.length < 3) {
+        const varietySuggestion = generateVarietyCheck(friends, usedFriendIds);
+        if (varietySuggestion) {
+            suggestions.push(varietySuggestion);
+        }
+    }
+
+    // 7. WHY NOT REACH OUT - For slightly overdue friends (30-60% score)
+    // Fallback option when network is mostly healthy
+    if (suggestions.length < 3) {
         const whyNotSuggestion = generateWhyNotReachOut(friends, usedFriendIds);
         if (whyNotSuggestion) {
             suggestions.push(whyNotSuggestion);
@@ -243,22 +268,34 @@ function generateDailyReflect(): Suggestion {
     };
 }
 
+// Softer templates for resting season
+const RESTING_GENTLE_NUDGE_TEMPLATES = [
+    { prefix: "When you're ready, say hi to", suffix: "", icon: "MessageCircle" },
+    { prefix: "No rush—", suffix: "might enjoy hearing from you", icon: "Heart" },
+    { prefix: "A thought:", suffix: "came to mind", icon: "Lightbulb" },
+];
+
 /**
  * Generate a gentle nudge suggestion for a healthy friend
  * Targets friends with score 40-80 who haven't been contacted recently
  */
 function generateGentleNudge(
     friends: FriendModel[],
-    excludeFriendIds: Set<string>
+    excludeFriendIds: Set<string>,
+    isResting: boolean = false
 ): Suggestion | null {
     // Find eligible friends: healthy score, not already suggested
+    // In resting mode, expand range to include more green friends
+    const minScore = isResting ? 50 : 40;
+    const maxScore = isResting ? 90 : 80;
+
     const eligibleFriends = friends.filter(f => {
         if (f.isDormant) return false;
         if (excludeFriendIds.has(f.id)) return false;
 
         const score = calculateCurrentScore(f);
         // Target the "healthy but could use a touch" range
-        return score >= 40 && score <= 80;
+        return score >= minScore && score <= maxScore;
     });
 
     if (eligibleFriends.length === 0) return null;
@@ -272,20 +309,26 @@ function generateGentleNudge(
     const pickIndex = Math.floor(Math.random() * Math.min(sortedByScore.length, 5));
     const selectedFriend = sortedByScore[pickIndex].friend;
 
-    // Pick a random template
-    const template = GENTLE_NUDGE_TEMPLATES[Math.floor(Math.random() * GENTLE_NUDGE_TEMPLATES.length)];
+    // Pick a template based on season
+    const templates = isResting ? RESTING_GENTLE_NUDGE_TEMPLATES : GENTLE_NUDGE_TEMPLATES;
+    const template = templates[Math.floor(Math.random() * templates.length)];
+
+    // Build title based on template structure
+    const title = template.suffix.includes('came to mind') || template.suffix.includes('might enjoy')
+        ? `${template.prefix} ${selectedFriend.name} ${template.suffix}`
+        : `${template.prefix} ${selectedFriend.name}`;
 
     return {
         id: `gentle-nudge-${selectedFriend.id}-${new Date().toISOString().split('T')[0]}`,
         friendId: selectedFriend.id,
         friendName: selectedFriend.name,
         type: 'connect',
-        title: `${template.prefix} ${selectedFriend.name}`,
-        subtitle: template.suffix,
+        title,
+        subtitle: template.suffix.includes('came to mind') ? '' : template.suffix,
         icon: template.icon,
         category: 'gentle-nudge',
         urgency: 'low',
-        actionLabel: 'Reach Out',
+        actionLabel: isResting ? 'Maybe Later' : 'Reach Out',
         action: {
             type: 'log',
             prefilledCategory: 'text-call',
@@ -295,13 +338,22 @@ function generateGentleNudge(
     };
 }
 
+// Low-energy wildcards for resting season
+const RESTING_WILDCARDS: WildcardSuggestion[] = [
+    { title: "Thinking of you text", subtitle: "A simple message can mean a lot", icon: "MessageCircle", actionType: 'log', prefilledCategory: 'text-call' },
+    { title: "Quick voice note", subtitle: "Share a thought without the pressure of a call", icon: "Mic", actionType: 'log', prefilledCategory: 'voice-note' },
+    { title: "Send a memory", subtitle: "Share a photo or memory from your camera roll", icon: "Image", actionType: 'log', prefilledCategory: 'text-call' },
+    { title: "Low-key catch-up", subtitle: "No agenda, just saying hi", icon: "Coffee", actionType: 'log', prefilledCategory: 'text-call' },
+];
+
 /**
  * Generate a wildcard spontaneous suggestion
  * Now context-aware: uses time of day and day of week for relevant suggestions
  */
 function generateWildcard(
     friends: FriendModel[],
-    excludeFriendIds: Set<string>
+    excludeFriendIds: Set<string>,
+    isResting: boolean = false
 ): Suggestion | null {
     const timeOfDay = getTimeOfDay();
     const dayOfWeek = new Date().getDay();
@@ -309,8 +361,12 @@ function generateWildcard(
     // Select template with context-awareness
     let template: WildcardSuggestion;
 
+    // In resting mode, prefer low-energy wildcards
+    if (isResting) {
+        template = RESTING_WILDCARDS[Math.floor(Math.random() * RESTING_WILDCARDS.length)];
+    }
     // 60% chance to use context-aware template (if available)
-    if (Math.random() < 0.6) {
+    else if (Math.random() < 0.6) {
         // Try day-specific first (30% of context-aware)
         const dayTemplates = DAY_SPECIFIC_WILDCARDS[dayOfWeek];
         const timeTemplates = TIME_AWARE_WILDCARDS[timeOfDay];
@@ -421,6 +477,188 @@ function generateWhyNotReachOut(
         urgency: 'low',
         actionLabel: 'Reach Out',
         action: { type: 'log', prefilledCategory: 'text-call' },
+        dismissible: true,
+        createdAt: new Date(),
+    };
+}
+
+// ============================================================================
+// NEW SUGGESTION GENERATORS (for healthy networks)
+// ============================================================================
+
+/**
+ * Community check-in templates
+ */
+const COMMUNITY_CHECKIN_TEMPLATES = [
+    { prefix: "Reconnect with", suffix: "from your wider circle", icon: "Users" },
+    { prefix: "Check in on", suffix: "—community connections matter too", icon: "Heart" },
+    { prefix: "Say hi to", suffix: "—it's been a while", icon: "Hand" },
+    { prefix: "Drop a line to", suffix: "in your community", icon: "MessageCircle" },
+];
+
+/**
+ * Generate a community check-in suggestion for community tier members
+ * Targets friends in the Community tier who might be overlooked
+ */
+function generateCommunityCheckIn(
+    friends: FriendModel[],
+    excludeFriendIds: Set<string>
+): Suggestion | null {
+    // Find community tier friends
+    const communityFriends = friends.filter(f => {
+        if (f.isDormant) return false;
+        if (excludeFriendIds.has(f.id)) return false;
+        if (f.dunbarTier !== 'Community') return false;
+
+        const score = calculateCurrentScore(f);
+        // Target community members with moderate scores (could use attention)
+        return score >= 20 && score <= 70;
+    });
+
+    if (communityFriends.length === 0) return null;
+
+    // Sort by score (lower first, they need more attention)
+    const sorted = communityFriends
+        .map(f => ({ friend: f, score: calculateCurrentScore(f) }))
+        .sort((a, b) => a.score - b.score);
+
+    // Pick from the lower-scoring community members
+    const pickIndex = Math.floor(Math.random() * Math.min(sorted.length, 5));
+    const selectedFriend = sorted[pickIndex].friend;
+    const template = COMMUNITY_CHECKIN_TEMPLATES[Math.floor(Math.random() * COMMUNITY_CHECKIN_TEMPLATES.length)];
+
+    return {
+        id: `community-checkin-${selectedFriend.id}-${new Date().toISOString().split('T')[0]}`,
+        friendId: selectedFriend.id,
+        friendName: selectedFriend.name,
+        type: 'connect',
+        title: `${template.prefix} ${selectedFriend.name}`,
+        subtitle: template.suffix,
+        icon: template.icon,
+        category: 'community-checkin',
+        urgency: 'low',
+        actionLabel: 'Reach Out',
+        action: {
+            type: 'log',
+            prefilledCategory: 'text-call',
+        },
+        dismissible: true,
+        createdAt: new Date(),
+    };
+}
+
+/**
+ * Set intention templates
+ */
+const SET_INTENTION_TEMPLATES = [
+    { title: "Set an intention for", subtitle: "What would you like to do together?", icon: "Target" },
+    { title: "Plan something with", subtitle: "Intentions help turn thoughts into action", icon: "Lightbulb" },
+    { title: "Dream up something for", subtitle: "What's on your wishlist for this friendship?", icon: "Sparkles" },
+];
+
+/**
+ * Generate a set-intention suggestion for proactive relationship planning
+ * Targets healthy friends who don't have active intentions
+ */
+function generateSetIntention(
+    friends: FriendModel[],
+    excludeFriendIds: Set<string>
+): Suggestion | null {
+    // Find friends with healthy scores who might benefit from an intention
+    const eligibleFriends = friends.filter(f => {
+        if (f.isDormant) return false;
+        if (excludeFriendIds.has(f.id)) return false;
+
+        const score = calculateCurrentScore(f);
+        // Target healthy friends (good candidates for deepening)
+        return score >= 50 && f.dunbarTier !== 'Community';
+    });
+
+    if (eligibleFriends.length === 0) return null;
+
+    // Pick a random eligible friend
+    const pickIndex = Math.floor(Math.random() * eligibleFriends.length);
+    const selectedFriend = eligibleFriends[pickIndex];
+    const template = SET_INTENTION_TEMPLATES[Math.floor(Math.random() * SET_INTENTION_TEMPLATES.length)];
+
+    return {
+        id: `set-intention-${selectedFriend.id}-${new Date().toISOString().split('T')[0]}`,
+        friendId: selectedFriend.id,
+        friendName: selectedFriend.name,
+        type: 'connect',
+        title: `${template.title} ${selectedFriend.name}`,
+        subtitle: template.subtitle,
+        icon: template.icon,
+        category: 'set-intention',
+        urgency: 'low',
+        actionLabel: 'Set Intention',
+        action: {
+            type: 'intention',
+        },
+        dismissible: true,
+        createdAt: new Date(),
+    };
+}
+
+/**
+ * Variety check templates
+ */
+const VARIETY_CHECK_TEMPLATES = [
+    { title: "Mix it up", subtitle: "You've been connecting with the same people lately", icon: "Shuffle" },
+    { title: "Expand your connections", subtitle: "Consider reaching out to someone different", icon: "Users" },
+    { title: "Try a new connection", subtitle: "Variety keeps your social life fresh", icon: "Compass" },
+];
+
+/**
+ * Generate a variety check suggestion when user has been seeing the same people
+ * This encourages connecting with friends they haven't interacted with recently
+ */
+function generateVarietyCheck(
+    friends: FriendModel[],
+    excludeFriendIds: Set<string>
+): Suggestion | null {
+    // Find friends who haven't been interacted with recently
+    // (high score but long time since interaction = good candidate)
+    const neglectedFriends = friends.filter(f => {
+        if (f.isDormant) return false;
+        if (excludeFriendIds.has(f.id)) return false;
+
+        const score = calculateCurrentScore(f);
+        // Target friends with decent health but might be overlooked
+        // (score 40-75 suggests they're not in crisis but not top of mind either)
+        return score >= 40 && score <= 75;
+    });
+
+    if (neglectedFriends.length < 2) return null;
+
+    // Sort by a combination of score and randomness
+    const sorted = neglectedFriends
+        .map(f => ({
+            friend: f,
+            score: calculateCurrentScore(f),
+            // Add some randomness to avoid always picking the same person
+            sortKey: calculateCurrentScore(f) + (Math.random() * 20)
+        }))
+        .sort((a, b) => a.sortKey - b.sortKey);
+
+    // Pick from the sorted list
+    const selectedFriend = sorted[0].friend;
+    const template = VARIETY_CHECK_TEMPLATES[Math.floor(Math.random() * VARIETY_CHECK_TEMPLATES.length)];
+
+    return {
+        id: `variety-check-${new Date().toISOString().split('T')[0]}`,
+        friendId: selectedFriend.id,
+        friendName: selectedFriend.name,
+        type: 'connect',
+        title: template.title,
+        subtitle: `${template.subtitle}. How about ${selectedFriend.name}?`,
+        icon: template.icon,
+        category: 'variety',
+        urgency: 'low',
+        actionLabel: 'Connect',
+        action: {
+            type: 'plan',
+        },
         dismissible: true,
         createdAt: new Date(),
     };

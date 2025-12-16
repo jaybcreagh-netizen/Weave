@@ -1,0 +1,618 @@
+
+> weave@1.0.0 test
+> jest src/modules/interactions/services/__tests__/suggestion-wiring.test.ts
+
+  console.warn
+    [🍉] LokiJSAdapter {useIncrementalIndexedDB: false} option is now deprecated. If you rely on this feature, please file an issue
+
+      69 |     const InteractionFriend = require('@/db/models/InteractionFriend').default;
+      70 |
+    > 71 |     const adapter = new LokiJSAdapter({
+         |                     ^
+      72 |         schema,
+      73 |         migrations,
+      74 |         useWebWorker: false,
+
+      at Logger.apply [as warn] (node_modules/@nozbe/watermelondb/utils/common/logger/index.js:27:47)
+      at new warn (node_modules/@nozbe/watermelondb/adapters/lokijs/index.js:33:25)
+      at src/modules/interactions/services/__tests__/suggestion-wiring.test.ts:71:21
+      at Object.require (src/modules/interactions/services/__tests__/suggestion-wiring.test.ts:93:1)
+
+  console.log
+    [🍉] [Loki] Initializing IndexedDB
+
+      at Logger.apply [as log] (node_modules/@nozbe/watermelondb/utils/common/logger/index.js:23:46)
+
+  console.log
+    Loading manual mock for AsyncStorage
+
+      at Object.<anonymous> (__mocks__/@react-native-async-storage/async-storage.js:1:52)
+
+  console.log
+    Loading manual mock for AsyncStorage
+
+      at Object.<anonymous> (__mocks__/@react-native-async-storage/async-storage.js:1:52)
+
+  console.warn
+    Missing Supabase environment variables. Cloud sync will be disabled.
+    Add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY to .env
+
+      60 | export const supabase = (() => {
+      61 |   if (!supabaseUrl || !supabaseAnonKey) {
+    > 62 |     console.warn(
+         |             ^
+      63 |       'Missing Supabase environment variables. Cloud sync will be disabled.\n' +
+      64 |       'Add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY to .env'
+      65 |     );
+
+      at warn (src/modules/auth/services/supabase.service.ts:62:13)
+      at Object.<anonymous> (src/modules/auth/services/supabase.service.ts:103:2)
+      at Object.require (src/modules/auth/store/auth.store.ts:7:1)
+      at Object.require (src/modules/auth/hooks/useFeatureGate.ts:6:1)
+      at Object.require (src/modules/auth/index.ts:4:1)
+      at Object.require (src/modules/interactions/services/plan.service.ts:10:1)
+      at Object.require (src/modules/interactions/store/interaction.store.ts:12:1)
+      at Object.require (src/modules/interactions/store/index.ts:2:1)
+      at Object.require (src/modules/interactions/hooks/usePlans.ts:2:1)
+      at Object.require (src/modules/interactions/components/PlanWizard.tsx:24:1)
+      at Object.require (src/modules/interactions/index.ts:3:1)
+      at Object.require (src/modules/reflection/services/weekly-event-review.ts:11:1)
+      at Object.require (src/modules/reflection/index.ts:17:1)
+      at Object.require (src/modules/insights/components/YourPatternsSection.tsx:9:1)
+      at Object.require (src/modules/insights/index.ts:34:1)
+      at Object.require (src/modules/interactions/services/suggestion-engine/utils.ts:4:1)
+      at Object.require (src/modules/interactions/services/suggestion-engine/index.ts:3:1)
+      at Object.require (src/modules/interactions/services/suggestion-provider.service.ts:4:1)
+      at Object.require (src/modules/interactions/services/__tests__/suggestion-wiring.test.ts:95:1)
+
+  console.warn
+    expo-notifications: Push notifications (remote notifications) functionality provided by expo-notifications will be removed from Expo Go in SDK 53. Instead, use a development build. Read more at https://docs.expo.dev/develop/development-builds/introduction/.
+
+       5 |  */
+       6 |
+    >  7 | import * as Notifications from 'expo-notifications';
+         | ^
+       8 | import { Platform } from 'react-native';
+       9 | import Logger from '@/shared/utils/Logger';
+      10 | import { notificationStore } from './notification-store';
+
+      at warn (node_modules/expo-notifications/src/warnOfExpoGoPushUsage.ts:8:13)
+      at addPushTokenListener (node_modules/expo-notifications/src/TokenEmitter.ts:45:24)
+      at Object.<anonymous> (node_modules/expo-notifications/src/DevicePushTokenAutoRegistration.fx.ts:86:23)
+      at Object.require (node_modules/expo-notifications/src/getExpoPushTokenAsync.ts:5:1)
+      at Object.require (node_modules/expo-notifications/src/index.ts:16:1)
+      at Object.require (src/modules/notifications/services/notification-orchestrator.ts:7:1)
+      at Object.require (src/modules/notifications/index.ts:10:1)
+      at Object.require (src/modules/auth/services/background-event-sync.ts:7:1)
+      at Object.require (src/modules/auth/store/sync.store.ts:2:1)
+      at Object.require (src/modules/auth/index.ts:12:1)
+      at Object.require (src/modules/interactions/services/plan.service.ts:10:1)
+      at Object.require (src/modules/interactions/store/interaction.store.ts:12:1)
+      at Object.require (src/modules/interactions/store/index.ts:2:1)
+      at Object.require (src/modules/interactions/hooks/usePlans.ts:2:1)
+      at Object.require (src/modules/interactions/components/PlanWizard.tsx:24:1)
+      at Object.require (src/modules/interactions/index.ts:3:1)
+      at Object.require (src/modules/reflection/services/weekly-event-review.ts:11:1)
+      at Object.require (src/modules/reflection/index.ts:17:1)
+      at Object.require (src/modules/insights/components/YourPatternsSection.tsx:9:1)
+      at Object.require (src/modules/insights/index.ts:34:1)
+      at Object.require (src/modules/interactions/services/suggestion-engine/utils.ts:4:1)
+
+  console.warn
+    [CalendarExport] expo-sharing not available, using fallback Share API
+
+      36 |      */
+      37 |     warn: (tag: string, message: string, ...args: unknown[]) => {
+    > 38 |         console.warn(`[${tag}] ${message}`, ...args);
+         |                     ^
+      39 |     },
+      40 |
+      41 |     /**
+
+      at Object.apply [as warn] (src/shared/services/logger.service.ts:38:21)
+      at Object.warn (src/modules/interactions/services/calendar-export.service.ts:15:10)
+      at Object.require (src/modules/interactions/index.ts:25:1)
+      at Object.require (src/modules/reflection/services/weekly-event-review.ts:11:1)
+      at Object.require (src/modules/reflection/index.ts:17:1)
+      at Object.require (src/modules/insights/components/YourPatternsSection.tsx:9:1)
+      at Object.require (src/modules/insights/index.ts:34:1)
+      at Object.require (src/modules/interactions/services/suggestion-engine/utils.ts:4:1)
+      at Object.require (src/modules/interactions/services/suggestion-engine/index.ts:3:1)
+      at Object.require (src/modules/interactions/services/suggestion-provider.service.ts:4:1)
+      at Object.require (src/modules/interactions/services/__tests__/suggestion-wiring.test.ts:95:1)
+
+  console.log
+    [🍉] [Loki] Database loaded
+
+      at Logger.apply [as log] (node_modules/@nozbe/watermelondb/utils/common/logger/index.js:23:46)
+
+  console.log
+    [🍉] [Loki] Empty database, setting up
+
+      at Logger.apply [as log] (node_modules/@nozbe/watermelondb/utils/common/logger/index.js:23:46)
+
+  console.log
+    [🍉] [Loki] Database is now reset
+
+      at Logger.apply [as log] (node_modules/@nozbe/watermelondb/utils/common/logger/index.js:23:46)
+
+  console.log
+    [🍉] [Loki] Initializing IndexedDB
+
+      at Logger.apply [as log] (node_modules/@nozbe/watermelondb/utils/common/logger/index.js:23:46)
+
+  console.log
+    [🍉] [Loki] Database loaded
+
+      at Logger.apply [as log] (node_modules/@nozbe/watermelondb/utils/common/logger/index.js:23:46)
+
+  console.log
+    [🍉] [Loki] Setting up schema
+
+      at Logger.apply [as log] (node_modules/@nozbe/watermelondb/utils/common/logger/index.js:23:46)
+
+  console.log
+    [🍉] [Loki] Database collections set up
+
+      at Logger.apply [as log] (node_modules/@nozbe/watermelondb/utils/common/logger/index.js:23:46)
+
+  console.log
+    [🍉] [Loki] Database is now reset
+
+      at Logger.apply [as log] (node_modules/@nozbe/watermelondb/utils/common/logger/index.js:23:46)
+
+  console.log
+    [🍉] [Loki] Initializing IndexedDB
+
+      at Logger.apply [as log] (node_modules/@nozbe/watermelondb/utils/common/logger/index.js:23:46)
+
+  console.log
+    [🍉] [Loki] Database loaded
+
+      at Logger.apply [as log] (node_modules/@nozbe/watermelondb/utils/common/logger/index.js:23:46)
+
+  console.log
+    [🍉] [Loki] Setting up schema
+
+      at Logger.apply [as log] (node_modules/@nozbe/watermelondb/utils/common/logger/index.js:23:46)
+
+  console.log
+    [🍉] [Loki] Database collections set up
+
+      at Logger.apply [as log] (node_modules/@nozbe/watermelondb/utils/common/logger/index.js:23:46)
+
+  console.time
+    fetchSuggestions:batch_load: 1 ms
+
+      at timeEnd (src/modules/interactions/services/suggestion-provider.service.ts:271:13)
+
+  console.error
+    Error checking aging intentions: TypeError: Cannot read properties of null (reading 'query')
+        at IntentionGenerator.<anonymous> (/Users/DITcart/Desktop/Programs/WeaveNative/src/modules/interactions/services/suggestion-engine/generators/IntentionGenerator.ts:60:42)
+        at Generator.next (<anonymous>)
+        at asyncGeneratorStep (/Users/DITcart/Desktop/Programs/WeaveNative/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+        at _next (/Users/DITcart/Desktop/Programs/WeaveNative/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+        at /Users/DITcart/Desktop/Programs/WeaveNative/node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7
+        at new Promise (<anonymous>)
+        at IntentionGenerator.<anonymous> (/Users/DITcart/Desktop/Programs/WeaveNative/node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)
+        at IntentionGenerator.apply [as checkAgingIntention] (/Users/DITcart/Desktop/Programs/WeaveNative/src/modules/interactions/services/suggestion-engine/generators/IntentionGenerator.ts:54:38)
+        at IntentionGenerator.checkAgingIntention (/Users/DITcart/Desktop/Programs/WeaveNative/src/modules/interactions/services/suggestion-engine/generators/IntentionGenerator.ts:16:43)
+        at Generator.next (<anonymous>)
+        at asyncGeneratorStep (/Users/DITcart/Desktop/Programs/WeaveNative/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+        at _next (/Users/DITcart/Desktop/Programs/WeaveNative/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+        at /Users/DITcart/Desktop/Programs/WeaveNative/node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7
+        at new Promise (<anonymous>)
+        at IntentionGenerator.<anonymous> (/Users/DITcart/Desktop/Programs/WeaveNative/node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)
+        at IntentionGenerator.apply [as generate] (/Users/DITcart/Desktop/Programs/WeaveNative/src/modules/interactions/services/suggestion-engine/generators/IntentionGenerator.ts:13:19)
+        at SuggestionEngine.generate (/Users/DITcart/Desktop/Programs/WeaveNative/src/modules/interactions/services/suggestion-engine/index.ts:116:52)
+        at Generator.next (<anonymous>)
+        at asyncGeneratorStep (/Users/DITcart/Desktop/Programs/WeaveNative/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+        at _next (/Users/DITcart/Desktop/Programs/WeaveNative/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+      80 |             }
+      81 |         } catch (error) {
+    > 82 |             console.error('Error checking aging intentions:', error);
+         |                     ^
+      83 |         }
+      84 |
+      85 |         return null;
+
+      at IntentionGenerator.error (src/modules/interactions/services/suggestion-engine/generators/IntentionGenerator.ts:82:21)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+      at node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7
+      at IntentionGenerator.<anonymous> (node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)
+      at IntentionGenerator.apply [as checkAgingIntention] (src/modules/interactions/services/suggestion-engine/generators/IntentionGenerator.ts:54:38)
+      at IntentionGenerator.checkAgingIntention (src/modules/interactions/services/suggestion-engine/generators/IntentionGenerator.ts:16:43)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+      at node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7
+      at IntentionGenerator.<anonymous> (node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)
+      at IntentionGenerator.apply [as generate] (src/modules/interactions/services/suggestion-engine/generators/IntentionGenerator.ts:13:19)
+      at SuggestionEngine.generate (src/modules/interactions/services/suggestion-engine/index.ts:116:52)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    [🍉] [Loki] Database is now reset
+
+      at Logger.apply [as log] (node_modules/@nozbe/watermelondb/utils/common/logger/index.js:23:46)
+
+  console.log
+    [🍉] [Loki] Initializing IndexedDB
+
+      at Logger.apply [as log] (node_modules/@nozbe/watermelondb/utils/common/logger/index.js:23:46)
+
+  console.log
+    [🍉] [Loki] Database loaded
+
+      at Logger.apply [as log] (node_modules/@nozbe/watermelondb/utils/common/logger/index.js:23:46)
+
+  console.log
+    [🍉] [Loki] Setting up schema
+
+      at Logger.apply [as log] (node_modules/@nozbe/watermelondb/utils/common/logger/index.js:23:46)
+
+  console.log
+    [🍉] [Loki] Database collections set up
+
+      at Logger.apply [as log] (node_modules/@nozbe/watermelondb/utils/common/logger/index.js:23:46)
+
+  console.time
+    fetchSuggestions:batch_load: 0 ms
+
+      at timeEnd (src/modules/interactions/services/suggestion-provider.service.ts:271:13)
+
+  console.error
+    Error checking aging intentions: TypeError: Cannot read properties of null (reading 'query')
+        at IntentionGenerator.<anonymous> (/Users/DITcart/Desktop/Programs/WeaveNative/src/modules/interactions/services/suggestion-engine/generators/IntentionGenerator.ts:60:42)
+        at Generator.next (<anonymous>)
+        at asyncGeneratorStep (/Users/DITcart/Desktop/Programs/WeaveNative/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+        at _next (/Users/DITcart/Desktop/Programs/WeaveNative/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+        at /Users/DITcart/Desktop/Programs/WeaveNative/node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7
+        at new Promise (<anonymous>)
+        at IntentionGenerator.<anonymous> (/Users/DITcart/Desktop/Programs/WeaveNative/node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)
+        at IntentionGenerator.apply [as checkAgingIntention] (/Users/DITcart/Desktop/Programs/WeaveNative/src/modules/interactions/services/suggestion-engine/generators/IntentionGenerator.ts:54:38)
+        at IntentionGenerator.checkAgingIntention (/Users/DITcart/Desktop/Programs/WeaveNative/src/modules/interactions/services/suggestion-engine/generators/IntentionGenerator.ts:16:43)
+        at Generator.next (<anonymous>)
+        at asyncGeneratorStep (/Users/DITcart/Desktop/Programs/WeaveNative/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+        at _next (/Users/DITcart/Desktop/Programs/WeaveNative/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+        at /Users/DITcart/Desktop/Programs/WeaveNative/node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7
+        at new Promise (<anonymous>)
+        at IntentionGenerator.<anonymous> (/Users/DITcart/Desktop/Programs/WeaveNative/node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)
+        at IntentionGenerator.apply [as generate] (/Users/DITcart/Desktop/Programs/WeaveNative/src/modules/interactions/services/suggestion-engine/generators/IntentionGenerator.ts:13:19)
+        at SuggestionEngine.generate (/Users/DITcart/Desktop/Programs/WeaveNative/src/modules/interactions/services/suggestion-engine/index.ts:116:52)
+        at Generator.next (<anonymous>)
+        at asyncGeneratorStep (/Users/DITcart/Desktop/Programs/WeaveNative/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+        at _next (/Users/DITcart/Desktop/Programs/WeaveNative/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+      80 |             }
+      81 |         } catch (error) {
+    > 82 |             console.error('Error checking aging intentions:', error);
+         |                     ^
+      83 |         }
+      84 |
+      85 |         return null;
+
+      at IntentionGenerator.error (src/modules/interactions/services/suggestion-engine/generators/IntentionGenerator.ts:82:21)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+      at node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7
+      at IntentionGenerator.<anonymous> (node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)
+      at IntentionGenerator.apply [as checkAgingIntention] (src/modules/interactions/services/suggestion-engine/generators/IntentionGenerator.ts:54:38)
+      at IntentionGenerator.checkAgingIntention (src/modules/interactions/services/suggestion-engine/generators/IntentionGenerator.ts:16:43)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+      at node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7
+      at IntentionGenerator.<anonymous> (node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)
+      at IntentionGenerator.apply [as generate] (src/modules/interactions/services/suggestion-engine/generators/IntentionGenerator.ts:13:19)
+      at SuggestionEngine.generate (src/modules/interactions/services/suggestion-engine/index.ts:116:52)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    DEBUG SUGGESTIONS: [
+      {
+        "id": "high-drift-8O6QE59DZWz5buZl",
+        "friendId": "8O6QE59DZWz5buZl",
+        "friendName": "Drifting Day Friend",
+        "urgency": "high",
+        "category": "high-drift",
+        "title": "This connection with Drifting Day Friend could use some attention soon",
+        "subtitle": "Plan something meaningful.",
+        "actionLabel": "Plan",
+        "icon": "Wind",
+        "action": {
+          "type": "plan",
+          "prefilledCategory": "hangout"
+        },
+        "dismissible": true,
+        "createdAt": "2024-01-01T14:00:00.000Z",
+        "type": "reconnect"
+      },
+      {
+        "id": "guaranteed-wildcard",
+        "friendId": "wildcard-friend",
+        "friendName": "Wildcard Friend",
+        "urgency": "low",
+        "category": "wildcard",
+        "title": "Wildcard Suggestion",
+        "subtitle": "Should show at night",
+        "actionLabel": "View",
+        "icon": "Sparkles",
+        "action": {
+          "type": "connect"
+        },
+        "dismissible": true,
+        "createdAt": "2025-12-15T23:12:22.754Z",
+        "type": "connect"
+      }
+    ]
+
+      at Object.log (src/modules/interactions/services/__tests__/suggestion-wiring.test.ts:148:17)
+
+  console.log
+    [🍉] [Loki] Database is now reset
+
+      at Logger.apply [as log] (node_modules/@nozbe/watermelondb/utils/common/logger/index.js:23:46)
+
+  console.log
+    [🍉] [Loki] Initializing IndexedDB
+
+      at Logger.apply [as log] (node_modules/@nozbe/watermelondb/utils/common/logger/index.js:23:46)
+
+  console.log
+    [🍉] [Loki] Database loaded
+
+      at Logger.apply [as log] (node_modules/@nozbe/watermelondb/utils/common/logger/index.js:23:46)
+
+  console.log
+    [🍉] [Loki] Setting up schema
+
+      at Logger.apply [as log] (node_modules/@nozbe/watermelondb/utils/common/logger/index.js:23:46)
+
+  console.log
+    [🍉] [Loki] Database collections set up
+
+      at Logger.apply [as log] (node_modules/@nozbe/watermelondb/utils/common/logger/index.js:23:46)
+
+  console.time
+    fetchSuggestions:batch_load: 0 ms
+
+      at timeEnd (src/modules/interactions/services/suggestion-provider.service.ts:271:13)
+
+  console.error
+    Error checking aging intentions: TypeError: Cannot read properties of null (reading 'query')
+        at IntentionGenerator.<anonymous> (/Users/DITcart/Desktop/Programs/WeaveNative/src/modules/interactions/services/suggestion-engine/generators/IntentionGenerator.ts:60:42)
+        at Generator.next (<anonymous>)
+        at asyncGeneratorStep (/Users/DITcart/Desktop/Programs/WeaveNative/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+        at _next (/Users/DITcart/Desktop/Programs/WeaveNative/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+        at /Users/DITcart/Desktop/Programs/WeaveNative/node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7
+        at new Promise (<anonymous>)
+        at IntentionGenerator.<anonymous> (/Users/DITcart/Desktop/Programs/WeaveNative/node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)
+        at IntentionGenerator.apply [as checkAgingIntention] (/Users/DITcart/Desktop/Programs/WeaveNative/src/modules/interactions/services/suggestion-engine/generators/IntentionGenerator.ts:54:38)
+        at IntentionGenerator.checkAgingIntention (/Users/DITcart/Desktop/Programs/WeaveNative/src/modules/interactions/services/suggestion-engine/generators/IntentionGenerator.ts:16:43)
+        at Generator.next (<anonymous>)
+        at asyncGeneratorStep (/Users/DITcart/Desktop/Programs/WeaveNative/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+        at _next (/Users/DITcart/Desktop/Programs/WeaveNative/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+        at /Users/DITcart/Desktop/Programs/WeaveNative/node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7
+        at new Promise (<anonymous>)
+        at IntentionGenerator.<anonymous> (/Users/DITcart/Desktop/Programs/WeaveNative/node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)
+        at IntentionGenerator.apply [as generate] (/Users/DITcart/Desktop/Programs/WeaveNative/src/modules/interactions/services/suggestion-engine/generators/IntentionGenerator.ts:13:19)
+        at SuggestionEngine.generate (/Users/DITcart/Desktop/Programs/WeaveNative/src/modules/interactions/services/suggestion-engine/index.ts:116:52)
+        at Generator.next (<anonymous>)
+        at asyncGeneratorStep (/Users/DITcart/Desktop/Programs/WeaveNative/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+        at _next (/Users/DITcart/Desktop/Programs/WeaveNative/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+      80 |             }
+      81 |         } catch (error) {
+    > 82 |             console.error('Error checking aging intentions:', error);
+         |                     ^
+      83 |         }
+      84 |
+      85 |         return null;
+
+      at IntentionGenerator.error (src/modules/interactions/services/suggestion-engine/generators/IntentionGenerator.ts:82:21)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+      at node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7
+      at IntentionGenerator.<anonymous> (node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)
+      at IntentionGenerator.apply [as checkAgingIntention] (src/modules/interactions/services/suggestion-engine/generators/IntentionGenerator.ts:54:38)
+      at IntentionGenerator.checkAgingIntention (src/modules/interactions/services/suggestion-engine/generators/IntentionGenerator.ts:16:43)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+      at node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7
+      at IntentionGenerator.<anonymous> (node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)
+      at IntentionGenerator.apply [as generate] (src/modules/interactions/services/suggestion-engine/generators/IntentionGenerator.ts:13:19)
+      at SuggestionEngine.generate (src/modules/interactions/services/suggestion-engine/index.ts:116:52)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    [🍉] [Loki] Database is now reset
+
+      at Logger.apply [as log] (node_modules/@nozbe/watermelondb/utils/common/logger/index.js:23:46)
+
+  console.log
+    [🍉] [Loki] Initializing IndexedDB
+
+      at Logger.apply [as log] (node_modules/@nozbe/watermelondb/utils/common/logger/index.js:23:46)
+
+  console.log
+    [🍉] [Loki] Database loaded
+
+      at Logger.apply [as log] (node_modules/@nozbe/watermelondb/utils/common/logger/index.js:23:46)
+
+  console.log
+    [🍉] [Loki] Setting up schema
+
+      at Logger.apply [as log] (node_modules/@nozbe/watermelondb/utils/common/logger/index.js:23:46)
+
+  console.log
+    [🍉] [Loki] Database collections set up
+
+      at Logger.apply [as log] (node_modules/@nozbe/watermelondb/utils/common/logger/index.js:23:46)
+
+  console.time
+    fetchSuggestions:batch_load: 0 ms
+
+      at timeEnd (src/modules/interactions/services/suggestion-provider.service.ts:271:13)
+
+  console.error
+    Error checking aging intentions: TypeError: Cannot read properties of null (reading 'query')
+        at IntentionGenerator.<anonymous> (/Users/DITcart/Desktop/Programs/WeaveNative/src/modules/interactions/services/suggestion-engine/generators/IntentionGenerator.ts:60:42)
+        at Generator.next (<anonymous>)
+        at asyncGeneratorStep (/Users/DITcart/Desktop/Programs/WeaveNative/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+        at _next (/Users/DITcart/Desktop/Programs/WeaveNative/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+        at /Users/DITcart/Desktop/Programs/WeaveNative/node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7
+        at new Promise (<anonymous>)
+        at IntentionGenerator.<anonymous> (/Users/DITcart/Desktop/Programs/WeaveNative/node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)
+        at IntentionGenerator.apply [as checkAgingIntention] (/Users/DITcart/Desktop/Programs/WeaveNative/src/modules/interactions/services/suggestion-engine/generators/IntentionGenerator.ts:54:38)
+        at IntentionGenerator.checkAgingIntention (/Users/DITcart/Desktop/Programs/WeaveNative/src/modules/interactions/services/suggestion-engine/generators/IntentionGenerator.ts:16:43)
+        at Generator.next (<anonymous>)
+        at asyncGeneratorStep (/Users/DITcart/Desktop/Programs/WeaveNative/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+        at _next (/Users/DITcart/Desktop/Programs/WeaveNative/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+        at /Users/DITcart/Desktop/Programs/WeaveNative/node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7
+        at new Promise (<anonymous>)
+        at IntentionGenerator.<anonymous> (/Users/DITcart/Desktop/Programs/WeaveNative/node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)
+        at IntentionGenerator.apply [as generate] (/Users/DITcart/Desktop/Programs/WeaveNative/src/modules/interactions/services/suggestion-engine/generators/IntentionGenerator.ts:13:19)
+        at SuggestionEngine.generate (/Users/DITcart/Desktop/Programs/WeaveNative/src/modules/interactions/services/suggestion-engine/index.ts:116:52)
+        at Generator.next (<anonymous>)
+        at asyncGeneratorStep (/Users/DITcart/Desktop/Programs/WeaveNative/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+        at _next (/Users/DITcart/Desktop/Programs/WeaveNative/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+      80 |             }
+      81 |         } catch (error) {
+    > 82 |             console.error('Error checking aging intentions:', error);
+         |                     ^
+      83 |         }
+      84 |
+      85 |         return null;
+
+      at IntentionGenerator.error (src/modules/interactions/services/suggestion-engine/generators/IntentionGenerator.ts:82:21)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+      at node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7
+      at IntentionGenerator.<anonymous> (node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)
+      at IntentionGenerator.apply [as checkAgingIntention] (src/modules/interactions/services/suggestion-engine/generators/IntentionGenerator.ts:54:38)
+      at IntentionGenerator.checkAgingIntention (src/modules/interactions/services/suggestion-engine/generators/IntentionGenerator.ts:16:43)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+      at node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7
+      at IntentionGenerator.<anonymous> (node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)
+      at IntentionGenerator.apply [as generate] (src/modules/interactions/services/suggestion-engine/generators/IntentionGenerator.ts:13:19)
+      at SuggestionEngine.generate (src/modules/interactions/services/suggestion-engine/index.ts:116:52)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  console.log
+    [🍉] [Loki] Database is now reset
+
+      at Logger.apply [as log] (node_modules/@nozbe/watermelondb/utils/common/logger/index.js:23:46)
+
+  console.log
+    [🍉] [Loki] Initializing IndexedDB
+
+      at Logger.apply [as log] (node_modules/@nozbe/watermelondb/utils/common/logger/index.js:23:46)
+
+  console.log
+    [🍉] [Loki] Database loaded
+
+      at Logger.apply [as log] (node_modules/@nozbe/watermelondb/utils/common/logger/index.js:23:46)
+
+  console.log
+    [🍉] [Loki] Setting up schema
+
+      at Logger.apply [as log] (node_modules/@nozbe/watermelondb/utils/common/logger/index.js:23:46)
+
+  console.log
+    [🍉] [Loki] Database collections set up
+
+      at Logger.apply [as log] (node_modules/@nozbe/watermelondb/utils/common/logger/index.js:23:46)
+
+  console.time
+    fetchSuggestions:batch_load: 0 ms
+
+      at timeEnd (src/modules/interactions/services/suggestion-provider.service.ts:271:13)
+
+  console.error
+    Error checking aging intentions: TypeError: Cannot read properties of null (reading 'query')
+        at IntentionGenerator.<anonymous> (/Users/DITcart/Desktop/Programs/WeaveNative/src/modules/interactions/services/suggestion-engine/generators/IntentionGenerator.ts:60:42)
+        at Generator.next (<anonymous>)
+        at asyncGeneratorStep (/Users/DITcart/Desktop/Programs/WeaveNative/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+        at _next (/Users/DITcart/Desktop/Programs/WeaveNative/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+        at /Users/DITcart/Desktop/Programs/WeaveNative/node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7
+        at new Promise (<anonymous>)
+        at IntentionGenerator.<anonymous> (/Users/DITcart/Desktop/Programs/WeaveNative/node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)
+        at IntentionGenerator.apply [as checkAgingIntention] (/Users/DITcart/Desktop/Programs/WeaveNative/src/modules/interactions/services/suggestion-engine/generators/IntentionGenerator.ts:54:38)
+        at IntentionGenerator.checkAgingIntention (/Users/DITcart/Desktop/Programs/WeaveNative/src/modules/interactions/services/suggestion-engine/generators/IntentionGenerator.ts:16:43)
+        at Generator.next (<anonymous>)
+        at asyncGeneratorStep (/Users/DITcart/Desktop/Programs/WeaveNative/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+        at _next (/Users/DITcart/Desktop/Programs/WeaveNative/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+        at /Users/DITcart/Desktop/Programs/WeaveNative/node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7
+        at new Promise (<anonymous>)
+        at IntentionGenerator.<anonymous> (/Users/DITcart/Desktop/Programs/WeaveNative/node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)
+        at IntentionGenerator.apply [as generate] (/Users/DITcart/Desktop/Programs/WeaveNative/src/modules/interactions/services/suggestion-engine/generators/IntentionGenerator.ts:13:19)
+        at SuggestionEngine.generate (/Users/DITcart/Desktop/Programs/WeaveNative/src/modules/interactions/services/suggestion-engine/index.ts:116:52)
+        at Generator.next (<anonymous>)
+        at asyncGeneratorStep (/Users/DITcart/Desktop/Programs/WeaveNative/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+        at _next (/Users/DITcart/Desktop/Programs/WeaveNative/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+      80 |             }
+      81 |         } catch (error) {
+    > 82 |             console.error('Error checking aging intentions:', error);
+         |                     ^
+      83 |         }
+      84 |
+      85 |         return null;
+
+      at IntentionGenerator.error (src/modules/interactions/services/suggestion-engine/generators/IntentionGenerator.ts:82:21)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+      at node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7
+      at IntentionGenerator.<anonymous> (node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)
+      at IntentionGenerator.apply [as checkAgingIntention] (src/modules/interactions/services/suggestion-engine/generators/IntentionGenerator.ts:54:38)
+      at IntentionGenerator.checkAgingIntention (src/modules/interactions/services/suggestion-engine/generators/IntentionGenerator.ts:16:43)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+      at node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7
+      at IntentionGenerator.<anonymous> (node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)
+      at IntentionGenerator.apply [as generate] (src/modules/interactions/services/suggestion-engine/generators/IntentionGenerator.ts:13:19)
+      at SuggestionEngine.generate (src/modules/interactions/services/suggestion-engine/index.ts:116:52)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+FAIL src/modules/interactions/services/__tests__/suggestion-wiring.test.ts (7.479 s)
+  Suggestion Wiring & Time Filtering
+    ✕ should show High Drift suggestions during the DAY (14:00) (39 ms)
+    ✓ should show High Drift suggestions during the DAY (14:00) with Season Filter (13 ms)
+    ✓ should SHOW High Drift suggestions during NIGHT (23:00) (10 ms)
+    ✓ should SHOW Critical Drift suggestions even at NIGHT (10 ms)
+    ✓ should SHOW Guaranteed suggestions (Wildcards) at NIGHT (10 ms)
+
+  ● Suggestion Wiring & Time Filtering › should show High Drift suggestions during the DAY (14:00)
+
+    expect(received).toBeDefined()
+
+    Received: undefined
+
+      126 |         const drift = suggestions.find(s => s.category === 'drift' && s.friendName === 'Drifting Day Friend');
+      127 |
+    > 128 |         expect(drift).toBeDefined();
+          |                       ^
+      129 |         expect(drift?.urgency).toBe('high');
+      130 |     });
+      131 |
+
+      at Object.toBeDefined (src/modules/interactions/services/__tests__/suggestion-wiring.test.ts:128:23)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+Test Suites: 1 failed, 1 total
+Tests:       1 failed, 4 passed, 5 total
+Snapshots:   0 total
+Time:        7.664 s, estimated 8 s
+Ran all test suites matching /src\/modules\/interactions\/services\/__tests__\/suggestion-wiring.test.ts/i.
+Jest did not exit one second after the test run has completed.
+
+'This usually means that there are asynchronous operations that weren't stopped in your tests. Consider running Jest with `--detectOpenHandles` to troubleshoot this issue.

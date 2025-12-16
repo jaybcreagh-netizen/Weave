@@ -18,7 +18,7 @@ interface PlanWizardStep2Props {
   orderedCategories: Array<{
     value: InteractionCategory;
     label: string;
-    icon: string;
+    icon: React.ElementType;
     description: string;
   }>;
 }
@@ -118,12 +118,18 @@ export function PlanWizardStep2({
             <Text className="font-inter-semibold text-sm" style={{ color: colors.primary }}>
               💡 Suggested
             </Text>
-            {suggestion.suggestedCategory && (
-              <Text className="font-inter-semibold text-base mt-1" style={{ color: colors.foreground }}>
-                {getCategoryData(suggestion.suggestedCategory)?.icon}{' '}
-                {getCategoryData(suggestion.suggestedCategory)?.label}
-              </Text>
-            )}
+            {suggestion.suggestedCategory && (() => {
+              const categoryData = getCategoryData(suggestion.suggestedCategory);
+              const IconComponent = categoryData?.icon;
+              return (
+                <View className="flex-row items-center mt-1">
+                  {IconComponent && <IconComponent size={18} color={colors.foreground} />}
+                  <Text className="font-inter-semibold text-base ml-2" style={{ color: colors.foreground }}>
+                    {categoryData?.label}
+                  </Text>
+                </View>
+              );
+            })()}
             <Text className="font-inter-regular text-sm mt-1" style={{ color: colors['muted-foreground'] }}>
               {suggestion.reason}
             </Text>
@@ -157,7 +163,12 @@ export function PlanWizardStep2({
                   elevation: 2,
                 }}
               >
-                <Text className="text-3xl mr-3">{category.icon}</Text>
+                <View
+                  className="w-10 h-10 rounded-full items-center justify-center mr-3"
+                  style={{ backgroundColor: isSelected ? `${colors.primary}20` : colors.background }}
+                >
+                  <category.icon size={22} color={isSelected ? colors.primary : colors.foreground} />
+                </View>
                 <View className="flex-1">
                   <Text
                     className="font-inter-semibold text-base"

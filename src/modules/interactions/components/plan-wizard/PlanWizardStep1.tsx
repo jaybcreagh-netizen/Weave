@@ -209,10 +209,10 @@ export function PlanWizardStep1({ selectedDate, onDateSelect, onContinue, canCon
             </View>
             <View>
               <Text className="font-inter-semibold text-base" style={{ color: colors.foreground }}>
-                Pick a Date
+                {selectedKey === 'calendar' && selectedDate ? format(selectedDate, 'EEEE, MMM d') : 'Pick a Date'}
               </Text>
               <Text className="font-inter-regular text-sm" style={{ color: colors['muted-foreground'] }}>
-                Choose from calendar
+                {selectedKey === 'calendar' && selectedDate ? 'Tap to change' : 'Choose from calendar'}
               </Text>
             </View>
           </View>

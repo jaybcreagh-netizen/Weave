@@ -195,6 +195,31 @@ class NotificationOrchestratorService {
             await this.runStartupChecks();
         }
     }
+    /**
+     * Run checks triggered by background fetch task
+     * Safe to run without UI
+     */
+    async runBackgroundChecks(): Promise<void> {
+        Logger.info('[NotificationOrchestrator] Running background checks');
+        try {
+            // Re-evaluate smart suggestions (calculate new ones if needed)
+            await SmartSuggestionsChannel.evaluateAndSchedule();
+
+            // Ensure weekly reflection is still compliant
+            if (WeeklyReflectionChannel.ensureScheduled) {
+                await WeeklyReflectionChannel.ensureScheduled();
+            }
+
+            // Ensure evening digest
+            await EveningDigestChannel.schedule();
+
+            // Mark check time
+            this.lastCheckTime = Date.now();
+        } catch (error) {
+            Logger.error('[NotificationOrchestrator] Error during background checks:', error);
+            throw error; // Let task manager know it failed
+        }
+    }
 }
 
 export const NotificationOrchestrator = new NotificationOrchestratorService();

@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
-import { differenceInDays, format } from 'date-fns';
+import { differenceInDays, format, isSameDay, addDays } from 'date-fns';
 import { Check, Clock, ChevronRight, Sparkles, Calendar, CheckCircle2 } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { HomeWidgetBase, HomeWidgetConfig } from '../HomeWidgetBase';
@@ -224,17 +224,25 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = ({ friends })
 
     const todaysUpcoming = useMemo(() =>
         interactions.filter(i =>
-            differenceInDays(new Date(i.interactionDate), new Date()) === 0 &&
+            isSameDay(new Date(i.interactionDate), new Date()) &&
             i.status === 'planned'
         ).sort((a, b) => new Date(a.interactionDate).getTime() - new Date(b.interactionDate).getTime())
         , [interactions]);
 
     const todaysCompleted = useMemo(() =>
         interactions.filter(i =>
-            differenceInDays(new Date(i.interactionDate), new Date()) === 0 &&
+            isSameDay(new Date(i.interactionDate), new Date()) &&
             i.status === 'completed'
         ).sort((a, b) => new Date(b.interactionDate).getTime() - new Date(a.interactionDate).getTime())
         , [interactions]);
+
+    const tomorrowsPlans = useMemo(() => {
+        const tomorrow = addDays(new Date(), 1);
+        return interactions.filter(i =>
+            isSameDay(new Date(i.interactionDate), tomorrow) &&
+            i.status === 'planned'
+        ).sort((a, b) => new Date(a.interactionDate).getTime() - new Date(b.interactionDate).getTime());
+    }, [interactions]);
 
 
 
@@ -244,7 +252,7 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = ({ friends })
         let isMounted = true;
         const loadFriends = async () => {
             const newMap: Record<string, string[]> = {};
-            const allItems = [...todaysUpcoming, ...todaysCompleted];
+            const allItems = [...todaysUpcoming, ...todaysCompleted, ...tomorrowsPlans];
             for (const plan of allItems) {
                 try {
                     const iFriends = await plan.interactionFriends.fetch();
@@ -257,14 +265,15 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = ({ friends })
         };
         loadFriends();
         return () => { isMounted = false; };
-    }, [todaysUpcoming, todaysCompleted]);
+    }, [todaysUpcoming, todaysCompleted, tomorrowsPlans]);
 
     const hasUpcoming = todaysUpcoming.length > 0;
     const hasCompleted = todaysCompleted.length > 0;
+    const hasTomorrow = tomorrowsPlans.length > 0;
     const hasReviews = false; // Disabled in condensed widget
     const hasSuggestions = suggestions.length > 0;
     const hasUpcomingDates = upcomingDates.length > 0;
-    const isAllClear = !hasUpcoming && !hasCompleted && !hasSuggestions && !hasUpcomingDates;
+    const isAllClear = !hasUpcoming && !hasCompleted && !hasTomorrow && !hasSuggestions && !hasUpcomingDates;
 
     return (
         <>
@@ -333,6 +342,26 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = ({ friends })
                     </View>
                 )}
 
+                {/* Tomorrow's Plans Section */}
+                {hasTomorrow && (
+                    <View style={{ marginTop: (hasUpcoming || hasCompleted) ? 8 : 0 }}>
+                        <View style={styles.sectionHeader}>
+                            <Text style={[styles.sectionTitle, { color: tokens.foregroundMuted }]}>Tomorrow</Text>
+                        </View>
+                        {tomorrowsPlans.map((plan, index) => {
+                            return (
+                                <FocusPlanItem
+                                    key={plan.id}
+                                    interaction={plan}
+                                    friends={friends}
+                                    onReschedule={handleReschedulePlan}
+                                    isCompletedSection={false}
+                                />
+                            );
+                        })}
+                    </View>
+                )}
+
                 {isAllClear ? (
                     <View style={styles.emptyState}>
                         <CheckCircle2 size={32} color={tokens.success} />
@@ -349,13 +378,13 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = ({ friends })
 
 
 
-                {(hasUpcoming || hasCompleted) && <View style={{ height: 16 }} />}
+                {(hasUpcoming || hasCompleted || hasTomorrow) && <View style={{ height: 16 }} />}
 
                 {/* Visual Separator if needed, but spacing might be enough */}
 
                 {hasSuggestions && (
                     <TouchableOpacity onPress={() => setShowDetailSheet(true)}>
-                        <View style={[styles.summaryRow, (hasUpcoming || hasCompleted || hasUpcomingDates) && { borderTopWidth: 1, borderTopColor: tokens.borderSubtle }]}>
+                        <View style={[styles.summaryRow, (hasUpcoming || hasCompleted || hasTomorrow || hasUpcomingDates) && { borderTopWidth: 1, borderTopColor: tokens.borderSubtle }]}>
                             <View style={styles.summaryContent}>
                                 <Sparkles size={16} color={tokens.primaryMuted} style={{ marginRight: 8 }} />
                                 <Text style={[styles.summaryText, {
@@ -374,7 +403,7 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = ({ friends })
 
                 {hasUpcomingDates && (
                     <TouchableOpacity onPress={() => setShowDetailSheet(true)}>
-                        <View style={[styles.summaryRow, (hasUpcoming || hasCompleted || hasSuggestions) && { borderTopWidth: 1, borderTopColor: tokens.borderSubtle }]}>
+                        <View style={[styles.summaryRow, (hasUpcoming || hasCompleted || hasTomorrow || hasSuggestions) && { borderTopWidth: 1, borderTopColor: tokens.borderSubtle }]}>
                             <View style={styles.summaryContent}>
                                 <Calendar size={16} color={tokens.primaryMuted} style={{ marginRight: 8 }} />
                                 <Text style={[styles.summaryText, {

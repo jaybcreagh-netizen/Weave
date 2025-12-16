@@ -1,7 +1,7 @@
 import { Q } from '@nozbe/watermelondb';
 import { database } from '@/db';
 import FriendModel from '@/db/models/Friend';
-import { generateSuggestion } from './suggestion-engine.service';
+import { generateSuggestion } from './suggestion-engine';
 import { generateGuaranteedSuggestions } from './guaranteed-suggestions.service';
 import * as SuggestionStorageService from './suggestion-storage.service';
 import { Suggestion } from '@/shared/types/common';
@@ -88,7 +88,7 @@ export function selectDiverseSuggestions(
         critical: workingSuggestions.filter(s => s.urgency === 'critical'),
         reflect: workingSuggestions.filter(s => s.category === 'reflect'),
         lifeEvent: workingSuggestions.filter(s => s.category === 'life-event'),
-        drift: workingSuggestions.filter(s => s.category === 'drift'),
+        drift: workingSuggestions.filter(s => s.category === 'drift' || s.category === 'high-drift' || s.category === 'critical-drift'),
         deepen: workingSuggestions.filter(s => s.category === 'deepen' || s.category === 'celebrate'),
         maintain: workingSuggestions.filter(s => s.category === 'maintain'),
         insight: workingSuggestions.filter(s => s.category === 'insight'),
@@ -96,6 +96,9 @@ export function selectDiverseSuggestions(
         dailyReflect: workingSuggestions.filter(s => s.category === 'daily-reflect'),
         gentleNudge: workingSuggestions.filter(s => s.category === 'gentle-nudge'),
         wildcard: workingSuggestions.filter(s => s.category === 'wildcard'),
+        communityCheckin: workingSuggestions.filter(s => s.category === 'community-checkin'),
+        variety: workingSuggestions.filter(s => s.category === 'variety'),
+        setIntention: workingSuggestions.filter(s => s.category === 'set-intention'),
     };
 
     const selected: Suggestion[] = [];
@@ -108,11 +111,15 @@ export function selectDiverseSuggestions(
     }
 
     // 2. Build a diverse set from different buckets
-    // Priority order: reflect -> lifeEvent -> drift -> portfolio -> deepen -> maintain -> insight -> guaranteed types
+    // Priority order: reflect -> lifeEvent -> drift -> portfolio -> fresh/wildcards -> deepen -> maintain -> insight
     const bucketOrder: Array<keyof typeof buckets> = [
-        'reflect', 'lifeEvent', 'drift', 'portfolio', 'deepen', 'maintain', 'insight',
-        'dailyReflect', 'gentleNudge', 'wildcard'
+        'reflect', 'lifeEvent', 'drift', 'portfolio',
+        'communityCheckin', 'wildcard', 'variety', 'gentleNudge', 'setIntention', // Moved UP for freshness
+        'deepen', 'maintain', 'insight', 'dailyReflect'
     ];
+
+    // Maintain a set of IDs to prevent duplicates (e.g. critical items picked again as category items)
+    const selectedIds = new Set(selected.map(s => s.id));
 
     // Round-robin selection: pick best from each bucket
     for (const bucketName of bucketOrder) {
@@ -123,12 +130,18 @@ export function selectDiverseSuggestions(
 
         // Sort bucket by urgency, then pick the top one
         const sorted = bucket.sort((a, b) => getUrgencyScore(a.urgency) - getUrgencyScore(b.urgency));
-        selected.push(sorted[0]);
+
+        // Find the first candidate not already selected
+        const candidate = sorted.find(s => !selectedIds.has(s.id));
+
+        if (candidate) {
+            selected.push(candidate);
+            selectedIds.add(candidate.id);
+        }
     }
 
     // 3. If we still have room, fill with highest urgency remaining
     if (selected.length < maxCount) {
-        const selectedIds = new Set(selected.map(s => s.id));
         const remaining = workingSuggestions
             .filter(s => !selectedIds.has(s.id))
             .sort((a, b) => getUrgencyScore(a.urgency) - getUrgencyScore(b.urgency));
@@ -259,10 +272,20 @@ export async function fetchSuggestions(
 
 
     const dismissedMap = await SuggestionStorageService.getDismissedSuggestions();
-    const allSuggestions: Suggestion[] = [];
+    let allSuggestions: Suggestion[] = [];
     const friendStats: PortfolioAnalysisStats['friends'] = [];
 
-    for (const friend of friends) {
+    // Deduplicate friends to handle potential DB query anomalies
+    const uniqueFriendIds = new Set<string>();
+    const uniqueFriends = [];
+    for (const f of friends) {
+        if (!uniqueFriendIds.has(f.id)) {
+            uniqueFriendIds.add(f.id);
+            uniqueFriends.push(f);
+        }
+    }
+
+    for (const friend of uniqueFriends) {
         try {
             // Get interactions data from our optimized lookup map
             const friendData = interactionsByFriendId.get(friend.id);
@@ -481,12 +504,13 @@ export async function fetchSuggestions(
     // Apply season-aware filtering (caps, category restrictions, life event bypass)
     const seasonFiltered = filterSuggestionsBySeason(timeAppropriate, season);
 
-    // POST-FILTER GUARANTEED: Ensure minimum suggestions after all filters
-    // This fixes the issue where guaranteed suggestions were being filtered out
     const MIN_SUGGESTIONS = 3;
     let finalPool = seasonFiltered;
 
-    if (finalPool.length < MIN_SUGGESTIONS && friends.length > 0) {
+    // ALWAYS generate guaranteed suggestions (Wildcards, Daily Reflect, etc.)
+    // to provide variety even when the user has many reactive suggestions (like Momentum).
+    // selectDiverseSuggestions will handle the mixing and prioritization.
+    if (friends.length > 0) {
         const guaranteed = generateGuaranteedSuggestions(friends, finalPool, season);
 
         // Filter guaranteed suggestions by dismissal only (not time/season)
@@ -494,6 +518,52 @@ export async function fetchSuggestions(
         const freshGuaranteed = guaranteed.filter(s => !dismissedMap.has(s.id));
 
         finalPool = [...finalPool, ...freshGuaranteed];
+    }
+
+    // DORMANT USER STRATEGY:
+    // If the user is overwhelmed with Critical Drifts (> 5), enter "Triage Mode".
+    // 1. Limit visible Critical Drifts to top 3 (to prevent anxiety).
+    // 2. Suppress lower urgency drifts completely.
+    // 3. Ensure "Low Energy" actions are prioritized.
+    const criticalDriftsCount = finalPool.filter(s => s.urgency === 'critical' && (s.category === 'drift' || s.category === 'critical-drift')).length;
+    const isOverwhelmed = criticalDriftsCount > 5;
+
+    if (isOverwhelmed) {
+        // 1. Keep only top 3 critical drifts (already sorted by urgency/score implicit via generator order)
+        const criticals = finalPool.filter(s => s.urgency === 'critical' && (s.category === 'drift' || s.category === 'critical-drift'));
+        const others = finalPool.filter(s => !(s.urgency === 'critical' && (s.category === 'drift' || s.category === 'critical-drift')));
+
+        // Take top 3 criticals
+        const visibleCriticals = criticals.slice(0, 3);
+
+        // 2. Filter out non-critical DRIFTS to reduce noise. 
+        // Keep "Easy Wins" (maintain, celebrate) to balance the vibe.
+        const nonDriftOthers = others.filter(s =>
+            s.category !== 'drift' &&
+            s.category !== 'high-drift' &&
+            s.category !== 'community-checkin'
+        );
+
+        finalPool = [...visibleCriticals, ...nonDriftOthers];
+
+        // Add a "Welcome Back" nudger if not present
+        if (!finalPool.find(s => s.id === 'dormant-triage-info')) {
+            finalPool.unshift({
+                id: 'dormant-triage-info',
+                friendId: 'system',
+                friendName: 'Weave',
+                urgency: 'high',
+                category: 'gentle-nudge',
+                title: 'Welcome back',
+                subtitle: 'Focus on these few connections to get back into the flow.',
+                actionLabel: 'Okay',
+                icon: 'Sun',
+                action: { type: 'connect' }, // Just a message basically
+                dismissible: true,
+                createdAt: new Date(),
+                type: 'connect'
+            });
+        }
     }
 
     // Get season-appropriate limit (use season config if provided)

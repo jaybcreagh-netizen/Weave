@@ -36,6 +36,18 @@ export const ARCHETYPE_MOMENTUM_SUGGESTIONS: Record<Archetype, string> = {
   'Unknown': 'Keep nurturing this connection.',
 };
 
+export const ARCHETYPE_CELEBRATION_SUGGESTIONS: Record<Archetype, string[]> = {
+  Emperor: ['Plan a structured celebration dinner', 'Organize a milestone celebration', 'Send a thoughtful, high-quality gift'],
+  Empress: ['Host a cozy dinner party at your place', 'Bake or cook something special for them', 'Plan a comfort-focused celebration'],
+  HighPriestess: ['Schedule a deep one-on-one conversation', 'Send a heartfelt, personal message', 'Arrange intimate tea or coffee time'],
+  Fool: ['Plan a spontaneous surprise adventure', 'Throw an unexpected party', 'Organize something fun and playful'],
+  Sun: ['Throw a big, energetic celebration', 'Host a vibrant party with others', 'Organize a group gathering in their honor'],
+  Hermit: ['Schedule meaningful one-on-one quality time', 'Plan a quiet, thoughtful celebration', 'Arrange a peaceful walk or private dinner'],
+  Magician: ['Collaborate on a creative celebration project', 'Plan a unique, experiential celebration', 'Create something special together'],
+  Lovers: ['Plan a romantic or deeply connected celebration', 'create a shared memory together', 'Do something that honors your bond'],
+  Unknown: ['Reach out with a thoughtful message', 'Plan a way to celebrate together'],
+};
+
 export const ARCHETYPE_DRIFT_TITLES: Record<Archetype, (name: string) => string[]> = {
   'Sun': (name) => [
     `It's been a while since you and ${name} connected`,
@@ -241,6 +253,12 @@ export function getArchetypeDriftSuggestion(archetype: Archetype): string {
 
 export function getArchetypeMomentumSuggestion(archetype: Archetype): string {
   return ARCHETYPE_MOMENTUM_SUGGESTIONS[archetype] || 'Keep nurturing this connection.';
+}
+
+export function getArchetypeCelebrationSuggestion(archetype: Archetype): string {
+  const suggestions = ARCHETYPE_CELEBRATION_SUGGESTIONS[archetype] || ARCHETYPE_CELEBRATION_SUGGESTIONS['Unknown'];
+  const randomIndex = Math.floor(Math.random() * suggestions.length);
+  return suggestions[randomIndex];
 }
 
 function getRandomTitle(titles: string[]): string {
