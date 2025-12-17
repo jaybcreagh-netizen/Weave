@@ -40,14 +40,15 @@ function useCardGestureCoordinator(): CardGestureContextType {
   // holds onto the *initial* version of these functions (and thus the initial activities list/state).
   const interactionSelectionRef = useRef(handleInteractionSelection);
   const openQuickWeaveRef = useRef(handleOpenQuickWeave);
+  // const prepareQuickWeaveRef = useRef(handlePrepareQuickWeave);
   const tapRef = useRef(handleTap);
   const closeQuickWeaveRef = useRef(closeQuickWeave);
 
   // Always keep refs up to date
   interactionSelectionRef.current = handleInteractionSelection;
   openQuickWeaveRef.current = handleOpenQuickWeave;
+  // prepareQuickWeaveRef.current = handlePrepareQuickWeave;
   tapRef.current = handleTap;
-  closeQuickWeaveRef.current = closeQuickWeave;
   closeQuickWeaveRef.current = closeQuickWeave;
 
   const lastGestureTimestamp = useRef(0);
@@ -60,9 +61,7 @@ function useCardGestureCoordinator(): CardGestureContextType {
       openQuickWeaveRef.current(fId, point);
     }
   };
-  const handlePrepareQuickWeaveStable = () => {
-    // No-op as prep logic is removed
-  };
+  // const handlePrepareQuickWeaveStable = (fId: string) => prepareQuickWeaveRef.current(fId);
   const handleTapStable = (fId: string) => tapRef.current(fId);
   const closeQuickWeaveStable = (timestamp: number) => {
     if (timestamp >= lastGestureTimestamp.current) {
@@ -163,7 +162,7 @@ function useCardGestureCoordinator(): CardGestureContextType {
           // Delay pending feedback - only shows if user holds for 120ms+
           runOnJS(startPendingFeedback)(targetId);
           // Prefetch Quick Weave data immediately to ensure instant open on activation
-          runOnJS(handlePrepareQuickWeaveStable)();
+          // runOnJS(handlePrepareQuickWeaveStable)(targetId);
         }
       })
       .onStart((event) => {

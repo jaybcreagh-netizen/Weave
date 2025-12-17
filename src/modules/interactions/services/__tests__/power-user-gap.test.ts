@@ -121,7 +121,7 @@ describe('Power User Gap & Wildcard', () => {
             // Add a recent interaction to boost score
             await database.get<InteractionModel>('interactions').create(i => {
                 i.interactionDate = new Date(Date.now() - 14 * 86400000); // 14 days ago (well past 7 day threshold)
-                // i.type = 'log'; // Property 'type' does not exist
+                i.interactionType = 'log'; // Correctly assign type 'log' (matches strict literal type)
                 i.interactionCategory = 'hangout';
             });
         });
