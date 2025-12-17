@@ -4,8 +4,8 @@ import { HomeWidgetGrid, WidgetGridItem } from '@/modules/home/components/widget
 import { SocialSeasonWidgetV2 } from '@/modules/home/components/widgets/widgets/SocialSeasonWidgetV2';
 import { YourEnergyWidget } from '@/modules/home/components/widgets/widgets/YourEnergyWidget';
 import { TodaysFocusWidgetV2 } from '@/modules/home/components/widgets/widgets/TodaysFocusWidgetV2';
+import { JournalWidget } from '@/modules/home/components/widgets/widgets/JournalWidget';
 import { useTheme } from '@/shared/hooks/useTheme';
-import { ReflectionReadyWidget } from '@/modules/home/components/widgets/widgets/ReflectionReadyWidget';
 import { ReflectionReadyPrompt } from '@/modules/reflection/components/WeeklyReflection/ReflectionReadyPrompt';
 import { YearInMoonsModal } from '@/modules/intelligence';
 import { useUserProfileStore } from '@/modules/auth';
@@ -33,7 +33,6 @@ export default function Home() {
   const theme = useTheme();
   const colors = theme?.colors || {};
   const [showYearInMoons, setShowYearInMoons] = useState(false);
-  const [isWidgetVisible, setIsWidgetVisible] = useState(false);
 
   // Mounted state and timeout refs to prevent race conditions
   const isMountedRef = useRef(true);
@@ -146,9 +145,7 @@ export default function Home() {
       const isSunday = currentDay === 0;
       const isMonday = currentDay === 1;
 
-      // Widget Visibility: Sunday OR Monday, if due and meets grace period
-      const widgetVisible = isDue && meetsGracePeriod && (isSunday || isMonday);
-      setIsWidgetVisible(widgetVisible);
+      // Widget Visibility no longer needed - JournalWidget handles this internally
 
       // Prompt Logic: Sunday ONLY, if due and meets grace period
       if (!isDue || !meetsGracePeriod || !isSunday) return;
@@ -245,18 +242,15 @@ export default function Home() {
       visible: true,
     },
     {
-      id: 'reflection-ready',
-      component: ReflectionReadyWidget,
+      id: 'journal',
+      component: JournalWidget,
       config: {
-        id: 'reflection-ready',
-        type: 'reflection-ready',
+        id: 'journal',
+        type: 'journal',
         fullWidth: true,
       },
-      props: {
-        onPress: openReflectionPrompt, // Use global action
-      },
       position: 3,
-      visible: isWidgetVisible,
+      visible: true,
     },
   ];
 

@@ -1,7 +1,7 @@
 /**
  * YearInMoonsModal
  * Beautiful year-view calendar with moon phases representing battery levels
- * Three tabs: Moons (calendar), Graphs (visualizations), Patterns (insights)
+ * Two tabs: Moons (calendar), Patterns (insights)
  */
 
 import React, { useState, useEffect } from 'react';
@@ -14,7 +14,6 @@ import {
   Dimensions,
   Modal,
 } from 'react-native';
-import { useRouter } from 'expo-router';
 import Animated, {
   FadeInDown,
   useSharedValue,
@@ -22,7 +21,7 @@ import Animated, {
   withSpring,
   withSequence
 } from 'react-native-reanimated';
-import { X, Calendar, BarChart3, Sparkles } from 'lucide-react-native';
+import { X, Calendar, Sparkles } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '@/shared/hooks/useTheme';
 // import { StandardBottomSheet } from '@/shared/ui/Sheet';
@@ -45,9 +44,10 @@ import { logger } from '@/shared/services/logger.service';
 interface YearInMoonsModalProps {
   isOpen: boolean;
   onClose: () => void;
+  initialTab?: 'moons' | 'patterns';
 }
 
-type Tab = 'moons' | 'journal' | 'patterns';
+type Tab = 'moons' | 'patterns';
 
 const AnimatedMoon = React.memo(({
   children,
@@ -84,12 +84,12 @@ const AnimatedMoon = React.memo(({
   );
 });
 
-export function YearInMoonsModal({ isOpen, onClose }: YearInMoonsModalProps) {
+export function YearInMoonsModal({ isOpen, onClose, initialTab = 'moons' }: YearInMoonsModalProps) {
   const { tokens, isDarkMode, colors } = useTheme();
   // We can't use the hook inside the function if we want to call it conditionally, but here it's fine
   // However, submitBatteryCheckin was an action. We should use the service directly.
   const { profile } = useUserProfile();
-  const [currentTab, setCurrentTab] = useState<Tab>('moons');
+  const [currentTab, setCurrentTab] = useState<Tab>(initialTab);
   const [yearData, setYearData] = useState<MonthMoonData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedDay, setSelectedDay] = useState<DayMoonData | null>(null);
@@ -113,9 +113,10 @@ export function YearInMoonsModal({ isOpen, onClose }: YearInMoonsModalProps) {
   useEffect(() => {
     if (isOpen) {
       hasScrolledRef.current = false;
+      setCurrentTab(initialTab); // Reset to initial tab when opening
       loadYearData();
     }
-  }, [isOpen]);
+  }, [isOpen, initialTab]);
 
   const loadYearData = async (showLoader = true) => {
     if (showLoader) setIsLoading(true);
@@ -139,16 +140,9 @@ export function YearInMoonsModal({ isOpen, onClose }: YearInMoonsModalProps) {
     onClose();
   };
 
-  const router = useRouter();
-
   const handleTabChange = (tab: Tab) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    if (tab === 'journal') {
-      onClose(); // Close the modal first
-      router.push('/journal'); // Navigate to the new Journal screen
-    } else {
-      setCurrentTab(tab);
-    }
+    setCurrentTab(tab);
   };
 
   const handleMoonPress = (day: DayMoonData) => {
@@ -229,7 +223,6 @@ export function YearInMoonsModal({ isOpen, onClose }: YearInMoonsModalProps) {
 
   const tabs: { id: Tab; label: string; icon: any }[] = [
     { id: 'moons', label: 'Moons', icon: Calendar },
-    { id: 'journal', label: 'Journal', icon: BarChart3 },
     { id: 'patterns', label: 'Patterns', icon: Sparkles },
   ];
 

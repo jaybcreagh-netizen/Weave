@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, ViewProps } from 'react-native';
-
+import { useTheme } from '@/shared/hooks/useTheme';
 
 export interface CardProps extends ViewProps {
     variant?: 'default' | 'outlined' | 'ghost';
@@ -16,9 +16,11 @@ export function Card({
     children,
     ...props
 }: CardProps) {
+    const { colors } = useTheme();
+
     // Map variant to classes
     const variantClasses = {
-        default: 'bg-card', // Shadow usually handled via style/elevation or shadow-* classes. NativeWind shadow classes work on iOS.
+        default: '', // Background handled via style for dark mode support
         outlined: 'bg-transparent border border-border',
         ghost: 'bg-transparent',
     };
@@ -38,10 +40,14 @@ export function Card({
         className
     ].filter(Boolean).join(' ');
 
+    const dynamicStyle = variant === 'default'
+        ? { backgroundColor: colors.card }
+        : {};
+
     return (
         <View
             className={finalClass}
-            style={style}
+            style={[dynamicStyle, style]}
             {...props}
         >
             {children}

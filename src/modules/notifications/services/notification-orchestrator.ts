@@ -87,10 +87,18 @@ class NotificationOrchestratorService {
             await MemoryNudgeChannel.schedule();
 
             // Ensure weekly reflection is scheduled (idempotent)
-            await WeeklyReflectionChannel.schedule();
+            if (WeeklyReflectionChannel.ensureScheduled) {
+                await WeeklyReflectionChannel.ensureScheduled();
+            } else {
+                await WeeklyReflectionChannel.schedule();
+            }
 
             // Ensure evening digest is scheduled
-            await EveningDigestChannel.schedule();
+            if (EveningDigestChannel.ensureScheduled) {
+                await EveningDigestChannel.ensureScheduled();
+            } else {
+                await EveningDigestChannel.schedule();
+            }
 
             // Restore event reminders
             await EventReminderChannel.scheduleAll();
@@ -226,7 +234,11 @@ class NotificationOrchestratorService {
 
             // Ensure evening digest
             try {
-                await EveningDigestChannel.schedule();
+                if (EveningDigestChannel.ensureScheduled) {
+                    await EveningDigestChannel.ensureScheduled();
+                } else {
+                    await EveningDigestChannel.schedule();
+                }
             } catch (err) {
                 Logger.error('[NotificationOrchestrator] Background EveningDigest failed:', err);
                 errors.push(err);

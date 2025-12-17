@@ -22,6 +22,7 @@ import { Suggestion } from '@/shared/types/common';
 import { PlanWizard } from '@/modules/interactions';
 import { getCategoryLabel } from '@/modules/interactions';
 import { SeasonAnalyticsService } from '@/modules/intelligence';
+import { parseFlexibleDate } from '@/shared/utils/date-utils';
 
 const WIDGET_CONFIG: HomeWidgetConfig = {
     id: 'todays-focus',
@@ -92,56 +93,104 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = ({ friends })
         return pendingConfirmations;
     }, [pendingConfirmations]);
 
-    // Load upcoming dates (ported from V1)
+    // Load upcoming dates (ported from V1 and aligned with LifeEventGenerator)
     useEffect(() => {
         if (!friends || friends.length === 0) return;
 
         const loadLifeEvents = async () => {
             const today = new Date();
             today.setHours(0, 0, 0, 0);
-            const thirtyDaysFromNow = new Date();
-            thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
+            const sevenDaysFromNow = new Date();
+            sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
             const events: UpcomingDate[] = [];
 
-            const lifeEvents = await database
-                .get<LifeEvent>('life_events')
-                .query(
-                    Q.where('event_date', Q.gte(today.getTime())),
-                    Q.where('event_date', Q.lte(thirtyDaysFromNow.getTime()))
-                )
-                .fetch();
+            // 1. Fetch from life_events table
+            try {
+                const lifeEvents = await database
+                    .get<LifeEvent>('life_events')
+                    .query(
+                        Q.where('event_date', Q.gte(today.getTime())),
+                        Q.where('event_date', Q.lte(sevenDaysFromNow.getTime()))
+                    )
+                    .fetch();
 
-            lifeEvents.forEach(event => {
-                const friend = friends.find(f => f.id === event.friendId);
-                if (friend) {
-                    events.push({
-                        friend,
-                        type: 'life_event',
-                        daysUntil: differenceInDays(event.eventDate, today),
-                        title: event.title,
-                        importance: event.importance,
-                    });
-                }
-            });
+                lifeEvents.forEach(event => {
+                    const friend = friends.find(f => f.id === event.friendId);
+                    if (friend) {
+                        events.push({
+                            friend,
+                            type: 'life_event',
+                            daysUntil: differenceInDays(event.eventDate, today),
+                            title: event.title,
+                            importance: event.importance,
+                        });
+                    }
+                });
+            } catch (e) {
+                console.error('Error fetching life_events:', e);
+            }
 
+            // 2. Check Friends for Birthdays and Anniversaries
             friends.forEach(friend => {
                 try {
+                    // Birthday Check
                     if (friend.birthday) {
-                        const [month, day] = friend.birthday.split('-').map(n => parseInt(n, 10));
-                        const birthdayThisYear = new Date(today.getFullYear(), month - 1, day);
-                        birthdayThisYear.setHours(0, 0, 0, 0);
-                        if (birthdayThisYear < today) birthdayThisYear.setFullYear(today.getFullYear() + 1);
-                        const daysUntil = differenceInDays(birthdayThisYear, today);
-                        if (daysUntil >= 0 && daysUntil <= 7) {
-                            events.push({ friend, type: 'birthday', daysUntil });
+                        const dateParts = parseFlexibleDate(friend.birthday);
+                        if (dateParts) {
+                            const { month, day } = dateParts;
+                            const birthdayThisYear = new Date(today.getFullYear(), month - 1, day);
+                            birthdayThisYear.setHours(0, 0, 0, 0);
+
+                            if (birthdayThisYear < today) {
+                                birthdayThisYear.setFullYear(today.getFullYear() + 1);
+                            }
+
+                            const daysUntil = differenceInDays(birthdayThisYear, today);
+                            if (daysUntil >= 0 && daysUntil <= 7) { // check next 7 days
+                                events.push({
+                                    friend,
+                                    type: 'birthday',
+                                    daysUntil,
+                                    importance: daysUntil <= 7 ? 'high' : 'medium'
+                                });
+                            }
+                        }
+                    }
+
+                    // Anniversary Check
+                    if (friend.anniversary && friend.relationshipType?.toLowerCase().includes('partner')) {
+                        const dateParts = parseFlexibleDate(friend.anniversary);
+                        if (dateParts) {
+                            const { month, day } = dateParts;
+                            const anniversaryThisYear = new Date(today.getFullYear(), month - 1, day);
+                            anniversaryThisYear.setHours(0, 0, 0, 0);
+
+                            if (anniversaryThisYear < today) {
+                                anniversaryThisYear.setFullYear(today.getFullYear() + 1);
+                            }
+
+                            const daysUntil = differenceInDays(anniversaryThisYear, today);
+                            if (daysUntil >= 0 && daysUntil <= 7) {
+                                events.push({
+                                    friend,
+                                    type: 'anniversary',
+                                    daysUntil,
+                                    importance: daysUntil <= 7 ? 'medium' : 'low'
+                                });
+                            }
                         }
                     }
                 } catch (e) {
-                    // ignore
+                    console.warn(`Error parsing dates for friend ${friend.id}`, e);
                 }
             });
 
-            events.sort((a, b) => a.daysUntil - b.daysUntil);
+            // Sort by importance, then date
+            events.sort((a, b) => {
+                // Sort by date first
+                return a.daysUntil - b.daysUntil;
+            });
+
             setUpcomingDates(events);
         };
 

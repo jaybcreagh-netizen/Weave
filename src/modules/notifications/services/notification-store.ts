@@ -59,6 +59,7 @@ const DEFAULT_PREFERENCES: NotificationPreferences = {
     respectBattery: true,
     digestEnabled: true,
     digestTime: '19:00',
+    maxDailySuggestions: 10,
 };
 
 class NotificationStoreService {

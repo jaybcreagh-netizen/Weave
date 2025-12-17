@@ -125,7 +125,7 @@ export const FocusGenerator = {
     /**
      * Get suggestions with optional season-aware filtering
      */
-    async getSuggestions(limit: number = 3, season?: SocialSeason | null): Promise<Suggestion[]> {
+    async getSuggestions(limit: number = 10, season?: SocialSeason | null): Promise<Suggestion[]> {
         return fetchSuggestions(limit, season);
     },
 

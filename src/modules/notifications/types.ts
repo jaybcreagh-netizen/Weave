@@ -31,6 +31,7 @@ export interface NotificationPreferences {
     respectBattery: boolean; // Whether to reduce notifications when battery is low
     digestEnabled: boolean;
     digestTime: string; // "HH:MM"
+    maxDailySuggestions?: number; // Override for max daily suggestions in UI
 }
 
 export type NotificationChannel = {

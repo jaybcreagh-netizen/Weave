@@ -223,5 +223,22 @@ export const EveningDigestChannel: NotificationChannel & {
                 UIEventBus.emit({ type: 'OPEN_DIGEST_SHEET', items: [] });
             }, 500);
         }
+    },
+
+    ensureScheduled: async (): Promise<void> => {
+        try {
+            const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+            const digestScheduled = scheduled.find(n => n.identifier === ID_PREFIX);
+
+            if (!digestScheduled) {
+                Logger.info('[EveningDigest] Not scheduled, scheduling now...');
+                await EveningDigestChannel.schedule();
+            } else {
+                // Optional: Check if time matches? 
+                // For now, existence is enough.
+            }
+        } catch (error) {
+            Logger.error('[EveningDigest] Error in ensureScheduled:', error);
+        }
     }
 };

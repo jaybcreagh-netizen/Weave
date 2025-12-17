@@ -10,6 +10,7 @@ import * as SuggestionStorageService from '../services/suggestion-storage.servic
 import { useUserProfile } from '@/modules/auth';
 import Interaction from '@/db/models/Interaction';
 import InteractionFriend from '@/db/models/InteractionFriend';
+import { notificationStore } from '@/modules/notifications';
 
 export function useSuggestions() {
   const queryClient = useQueryClient();
@@ -21,7 +22,10 @@ export function useSuggestions() {
 
   const { data: suggestions = [] } = useQuery({
     queryKey: ['suggestions', 'all', currentSeason], // Include season in query key for proper cache invalidation
-    queryFn: () => fetchSuggestions(3, currentSeason),
+    queryFn: async () => {
+      const prefs = await notificationStore.getPreferences();
+      return fetchSuggestions(10, currentSeason, prefs.maxDailySuggestions);
+    },
     // Re-fetch when the query is invalidated or season changes
   });
 

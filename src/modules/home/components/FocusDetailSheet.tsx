@@ -273,7 +273,7 @@ export const FocusDetailSheet: React.FC<FocusDetailSheetProps> = ({
                 {/* Upcoming Events Section */}
                 {upcomingDates.length > 0 && (
                     <View className="mb-6">
-                        <WidgetHeader title="Upcoming" icon={<Calendar size={20} color={tokens.primaryMuted} />} />
+                        <WidgetHeader title="Life Events" icon={<Calendar size={20} color={tokens.primaryMuted} />} />
                         <Card padding="none">
                             {upcomingDates.map((event, index) => (
                                 <View key={`${event.friend.id}-${event.type}`} className="px-4">

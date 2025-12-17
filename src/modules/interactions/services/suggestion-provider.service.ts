@@ -54,7 +54,8 @@ function getProactiveIcon(type: string): string {
  */
 export async function fetchSuggestions(
     limit: number = 3,
-    season?: SocialSeason | null
+    season?: SocialSeason | null,
+    userCap?: number
 ): Promise<Suggestion[]> {
     console.time('fetchSuggestions:modular_pipeline');
 
@@ -256,9 +257,16 @@ export async function fetchSuggestions(
     finalPool = await TriageGenerator.apply(finalPool);
 
     // 9. Diversify
-    const effectiveLimit = season
-        ? Math.max(limit, getSeasonSuggestionConfig(season).maxDaily)
-        : limit;
+    // If userCap is set, use it. Otherwise fallback to limit.
+    // The season config usually sets a "maxDaily", but if the user explicitly asks for more/less, we respect it.
+    // However, we still consult the season config for OTHER things (like filtering categories), but not the count if userCap is present.
+
+    let effectiveLimit = limit;
+    if (userCap !== undefined) {
+        effectiveLimit = userCap;
+    } else if (season) {
+        effectiveLimit = Math.max(limit, getSeasonSuggestionConfig(season).maxDaily);
+    }
 
     const friendLookup = new Map(friends.map(f => [f.id, f]));
     const isLowEnergy = season === 'resting';

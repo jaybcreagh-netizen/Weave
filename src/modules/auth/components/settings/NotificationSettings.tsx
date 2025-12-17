@@ -50,6 +50,7 @@ export const NotificationSettings = () => {
     const [smartNotificationsEnabled, setSmartNotificationsEnabled] = useState(true);
     const [notificationFrequency, setNotificationFrequency] = useState<'light' | 'moderate' | 'proactive'>('moderate');
     const [respectBattery, setRespectBattery] = useState(true);
+    const [maxDailySuggestions, setMaxDailySuggestions] = useState(10);
 
     // Evening Digest preferences
     const [digestEnabled, setDigestEnabled] = useState(true);
@@ -100,9 +101,17 @@ export const NotificationSettings = () => {
         dDate.setHours(dHours, dMinutes, 0, 0);
         setDigestTime(dDate);
 
+        // Load max daily suggestions
+        setMaxDailySuggestions(smartPrefs.maxDailySuggestions || 10);
+
         // Load smart notifications enabled state
         const smartEnabledStr = await AsyncStorage.getItem('@weave:smart_notifications_enabled');
         setSmartNotificationsEnabled(smartEnabledStr ? JSON.parse(smartEnabledStr) : true);
+    };
+
+    const handleMaxSuggestionsChange = async (count: number) => {
+        setMaxDailySuggestions(count);
+        await notificationStore.setPreferences({ maxDailySuggestions: count });
     };
 
     const handleToggleBatteryNotifications = async (enabled: boolean) => {
@@ -492,10 +501,38 @@ export const NotificationSettings = () => {
                             ))}
                         </View>
                         <Text className="text-xs font-inter-regular mt-1" style={{ color: colors['muted-foreground'] }}>
-                            {notificationFrequency === 'light' && 'Max 1 suggestion per day'}
-                            {notificationFrequency === 'moderate' && 'Max 2 suggestions per day'}
-                            {notificationFrequency === 'proactive' && 'Max 4 suggestions per day'}
+                            {notificationFrequency === 'light' && 'Max 1 notification per day'}
+                            {notificationFrequency === 'moderate' && 'Max 2 notifications per day'}
+                            {notificationFrequency === 'proactive' && 'Max 4 notifications per day'}
                         </Text>
+                    </View>
+
+                    <View className="flex-row items-center justify-between pl-13 mt-4">
+                        <View className="flex-1 mr-4">
+                            <Text className="text-sm font-inter-medium" style={{ color: colors.foreground }}>Max Visible Suggestions</Text>
+                            <Text className="text-xs font-inter-regular" style={{ color: colors['muted-foreground'] }}>
+                                Limit items in focus & insights
+                            </Text>
+                        </View>
+                        <View className="flex-row items-center gap-3">
+                            <TouchableOpacity
+                                onPress={() => handleMaxSuggestionsChange(Math.max(3, maxDailySuggestions - 1))}
+                                className="w-8 h-8 rounded-full items-center justify-center bg-muted"
+                                style={{ backgroundColor: colors.muted }}
+                            >
+                                <Text style={{ color: colors.foreground, fontSize: 18 }}>-</Text>
+                            </TouchableOpacity>
+                            <Text style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold', width: 20, textAlign: 'center' }}>
+                                {maxDailySuggestions}
+                            </Text>
+                            <TouchableOpacity
+                                onPress={() => handleMaxSuggestionsChange(Math.min(20, maxDailySuggestions + 1))}
+                                className="w-8 h-8 rounded-full items-center justify-center bg-muted"
+                                style={{ backgroundColor: colors.muted }}
+                            >
+                                <Text style={{ color: colors.foreground, fontSize: 18 }}>+</Text>
+                            </TouchableOpacity>
+                        </View>
                     </View>
 
                     <View className="flex-row items-center justify-between pl-13 mt-3">

@@ -29,7 +29,7 @@ import {
   Plane
 } from 'lucide-react-native';
 
-import { useQuickWeaveStore } from '../store/quick-weave.store';
+import { useUIStore } from '@/shared/stores/uiStore';
 import { useCardGesture } from '@/shared/context/CardGestureContext';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { database } from '@/db';
@@ -74,13 +74,11 @@ const DEFAULT_ACTIVITIES: InteractionCategory[] = [
 ];
 
 export function QuickWeaveOverlay() {
-  const {
-    friendId: quickWeaveFriendId,
-    centerPoint: quickWeaveCenterPoint,
-    activities: quickWeaveActivities,
-    isClosing: isQuickWeaveClosing,
-    finishClosing: _finishClosingQuickWeave,
-  } = useQuickWeaveStore();
+  const quickWeaveFriendId = useUIStore(state => state.quickWeaveFriendId);
+  const quickWeaveCenterPoint = useUIStore(state => state.quickWeaveCenterPoint);
+  const quickWeaveActivities = useUIStore(state => state.quickWeaveActivities);
+  const isQuickWeaveClosing = useUIStore(state => state.isQuickWeaveClosing);
+  const _finishClosingQuickWeave = useUIStore(state => state._finishClosingQuickWeave);
   const [friend, setFriend] = React.useState<FriendModel | null>(null);
   const { dragX, dragY, highlightedIndex } = useCardGesture();
   const { colors, isDarkMode } = useTheme();

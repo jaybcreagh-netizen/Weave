@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, TouchableOpacity, Dimensions } from 'react-native';
-import { Moon, BookOpen, Zap } from 'lucide-react-native';
+import { Calendar, Sparkles, Zap } from 'lucide-react-native';
 import withObservables from '@nozbe/with-observables';
 import { Q } from '@nozbe/watermelondb';
 
@@ -38,6 +38,7 @@ const YourEnergyWidgetContent: React.FC<YourEnergyWidgetContentProps> = ({ logs 
     const { tokens, typography, colors } = useTheme();
     const router = useRouter();
     const [showModal, setShowModal] = useState(false);
+    const [initialTab, setInitialTab] = useState<'moons' | 'patterns'>('moons');
 
     const screenWidth = Dimensions.get('window').width;
     // Calculate column width to ensure 7 items fit perfectly in the row
@@ -218,32 +219,38 @@ const YourEnergyWidgetContent: React.FC<YourEnergyWidgetContentProps> = ({ logs 
 
                         <View style={{ flexDirection: 'row', gap: 6 }}>
                             <TouchableOpacity
-                                onPress={() => router.push('/journal')}
-                                style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: tokens.primary, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 6 }}
-                            >
-                                <BookOpen size={12} color={tokens.background} />
-                                <Text style={{
-                                    fontSize: typography.scale.label.fontSize,
-                                    lineHeight: typography.scale.label.lineHeight,
-                                    fontFamily: typography.fonts.sansSemiBold,
-                                    color: tokens.background
-                                }}>
-                                    Journal
-                                </Text>
-                            </TouchableOpacity>
-
-                            <TouchableOpacity
-                                onPress={() => setShowModal(true)}
+                                onPress={() => {
+                                    setInitialTab('moons');
+                                    setShowModal(true);
+                                }}
                                 style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: tokens.secondary, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 6 }}
                             >
-                                <Moon size={12} color={tokens.foreground} />
+                                <Calendar size={12} color={tokens.foreground} />
                                 <Text style={{
                                     fontSize: typography.scale.label.fontSize,
                                     lineHeight: typography.scale.label.lineHeight,
                                     fontFamily: typography.fonts.sansMedium,
                                     color: tokens.foreground
                                 }}>
-                                    See patterns
+                                    Your year
+                                </Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                onPress={() => {
+                                    setInitialTab('patterns');
+                                    setShowModal(true);
+                                }}
+                                style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: tokens.primary, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 6 }}
+                            >
+                                <Sparkles size={12} color={tokens.background} />
+                                <Text style={{
+                                    fontSize: typography.scale.label.fontSize,
+                                    lineHeight: typography.scale.label.lineHeight,
+                                    fontFamily: typography.fonts.sansSemiBold,
+                                    color: tokens.background
+                                }}>
+                                    Patterns
                                 </Text>
                             </TouchableOpacity>
                         </View>
@@ -254,6 +261,7 @@ const YourEnergyWidgetContent: React.FC<YourEnergyWidgetContentProps> = ({ logs 
             <YearInMoonsModal
                 isOpen={showModal}
                 onClose={() => setShowModal(false)}
+                initialTab={initialTab}
             />
         </>
     );
