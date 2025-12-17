@@ -27,11 +27,22 @@ interface ExportData {
     birthday: string | null;
     anniversary: string | null;
     relationshipType: string | null;
+    // NEW: Required reciprocity fields (v25+)
+    outcomeCount?: number;
+    initiationRatio?: number;
+    consecutiveUserInitiations?: number;
+    totalUserInitiations?: number;
+    totalFriendInitiations?: number;
+    // NEW: Adaptive decay fields (v21+)
+    typicalIntervalDays?: number;
+    toleranceWindowDays?: number;
+    categoryEffectiveness?: string;
   }>;
   interactions: Array<{
     id: string;
     interactionDate: string;
     interactionType: string;
+    interactionCategory?: string; // NEW: Added missing category field
     activity: string;
     status: string;
     mode: string;
@@ -249,6 +260,16 @@ export async function importData(
             friend.birthday = friendData.birthday || undefined;
             friend.anniversary = friendData.anniversary || undefined;
             friend.relationshipType = friendData.relationshipType || undefined;
+            // CRITICAL FIX: Set required reciprocity fields with defaults
+            friend.outcomeCount = friendData.outcomeCount ?? 0;
+            friend.initiationRatio = friendData.initiationRatio ?? 0.5;
+            friend.consecutiveUserInitiations = friendData.consecutiveUserInitiations ?? 0;
+            friend.totalUserInitiations = friendData.totalUserInitiations ?? 0;
+            friend.totalFriendInitiations = friendData.totalFriendInitiations ?? 0;
+            // Optional adaptive decay fields
+            friend.typicalIntervalDays = friendData.typicalIntervalDays;
+            friend.toleranceWindowDays = friendData.toleranceWindowDays;
+            friend.categoryEffectiveness = friendData.categoryEffectiveness || undefined;
           });
 
           result.friendsImported++;
@@ -276,6 +297,8 @@ export async function importData(
             interaction._raw.id = interactionData.id;
             interaction.interactionDate = new Date(interactionData.interactionDate);
             interaction.interactionType = interactionData.interactionType;
+            // CRITICAL FIX: Include interactionCategory
+            interaction.interactionCategory = interactionData.interactionCategory || undefined;
             interaction.activity = interactionData.activity || '';
             interaction.status = interactionData.status;
             interaction.mode = interactionData.mode || '';
