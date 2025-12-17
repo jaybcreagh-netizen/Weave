@@ -6,6 +6,7 @@ import { checkAndAwardFriendBadges, checkAndAwardGlobalAchievements, recordPract
 import { trackEvent, AnalyticsEvents, updateLastInteractionTimestamp } from '@/shared/services/analytics.service';
 import { analyzeAndTagLifeEvents } from '@/modules/relationships';
 import { deleteWeaveCalendarEvent } from '../calendar.service';
+import { eventBus } from '@/shared/events/event-bus';
 
 jest.mock('@react-native-async-storage/async-storage', () =>
   require('../../../../../__mocks__/async-storage-mock.js')
@@ -33,6 +34,7 @@ jest.mock('@/db', () => ({
 
 jest.mock('@/modules/intelligence', () => ({
   processWeaveScoring: jest.fn(),
+  recalculateScoreOnDelete: jest.fn(),
 }));
 
 jest.mock('@/modules/gamification', () => ({
@@ -56,6 +58,12 @@ jest.mock('@/modules/relationships', () => ({
 
 jest.mock('../calendar.service', () => ({
   deleteWeaveCalendarEvent: jest.fn().mockResolvedValue(undefined),
+}));
+
+jest.mock('@/shared/events/event-bus', () => ({
+  eventBus: {
+    emit: jest.fn().mockResolvedValue(undefined),
+  },
 }));
 
 describe('WeaveLoggingService', () => {
@@ -98,12 +106,17 @@ describe('WeaveLoggingService', () => {
     expect(database.write).toHaveBeenCalled();
     expect(database.get).toHaveBeenCalledWith('friends');
     expect(database.get).toHaveBeenCalledWith('interactions');
-    expect(processWeaveScoring).toHaveBeenCalledWith([mockFriend], formData, expect.anything());
-    expect(checkAndAwardFriendBadges).toHaveBeenCalledWith(mockFriend.id, mockFriend.name);
-    expect(checkAndAwardGlobalAchievements).toHaveBeenCalled();
+    expect(eventBus.emit).toHaveBeenCalledWith('interaction:created', expect.objectContaining({
+      interactionId: mockInteraction.id,
+      friends: [expect.objectContaining(mockFriend)],
+      data: formData
+    }));
+    // expect(processWeaveScoring).toHaveBeenCalledWith([mockFriend], formData, expect.anything()); // Now handled by event listener
+    // expect(checkAndAwardFriendBadges).toHaveBeenCalledWith(mockFriend.id, mockFriend.name); // Decoupled
+    // expect(checkAndAwardGlobalAchievements).toHaveBeenCalled(); // Decoupled
     expect(trackEvent).toHaveBeenCalledWith('INTERACTION_LOGGED', expect.any(Object));
     expect(updateLastInteractionTimestamp).toHaveBeenCalled();
-    expect(recordPractice).toHaveBeenCalledWith('log_weave', mockInteraction.id);
+    // expect(recordPractice).toHaveBeenCalledWith('log_weave', mockInteraction.id); // Decoupled
   });
 
   it('should throw validation error if data is invalid', async () => {

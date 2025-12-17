@@ -12,3 +12,4 @@ export * from './services/journal-prompts';
 
 // Components
 export { WeaveReflectPrompt, useWeaveReflectPrompt } from './components/WeaveReflectPrompt';
+export * from './components/MemoryMomentModal';

@@ -1,5 +1,6 @@
 import { tokens, typography, spacing, radius } from './src/shared/theme/tokens';
 import { type Config } from 'tailwindcss';
+import nativewindPreset from 'nativewind/preset';
 
 /**
  * Tailwind Configuration
@@ -18,7 +19,7 @@ import { type Config } from 'tailwindcss';
 const config: Config = {
   // NOTE: NativeWind v4 usually scans these paths
   content: ["./app/**/*.{js,jsx,ts,tsx}", "./src/**/*.{js,jsx,ts,tsx}"],
-  presets: [require("nativewind/preset")],
+  presets: [nativewindPreset],
   theme: {
     extend: {
       colors: {

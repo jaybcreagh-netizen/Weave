@@ -404,3 +404,9 @@ export async function syncCalendarChanges(): Promise<CalendarSyncResult> {
 
   return result;
 }
+
+export class CalendarService {
+  sync = syncCalendarChanges;
+  previewSync = async () => { /* no-op for now unless duplicate validatCalendarId logic is needed here */ return { synced: 0, deleted: 0, errors: 0, changes: [] }; };
+}
+export const calendarService = new CalendarService();

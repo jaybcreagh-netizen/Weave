@@ -12,8 +12,8 @@ import { ErrorBoundary } from '@/shared/components/ErrorBoundary';
 import { PostHogProvider, POSTHOG_API_KEY, posthogOptions } from '@/shared/services/posthog.service';
 import { useUIStore } from '@/shared/stores/uiStore';
 import { useTheme } from '@/shared/hooks/useTheme';
-import { AuthProvider } from '@/modules/auth/context/AuthContext';
-import { SyncConflictProvider } from '@/modules/auth/context/SyncConflictContext';
+import { AuthProvider } from '@/modules/auth';
+import { SyncConflictProvider } from '@/modules/auth';
 
 import { queryClient } from '@/shared/api/query-client';
 

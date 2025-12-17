@@ -7,7 +7,7 @@
 import * as BackgroundFetch from 'expo-background-fetch';
 import * as TaskManager from 'expo-task-manager';
 import Logger from '@/shared/utils/Logger';
-import { NotificationOrchestrator } from '@/modules/notifications/services/notification-orchestrator';
+import { NotificationOrchestrator } from '@/modules/notifications';
 
 // Task Names
 export const BACKGROUND_NOTIFICATION_TASK = 'BACKGROUND_NOTIFICATION_TASK';

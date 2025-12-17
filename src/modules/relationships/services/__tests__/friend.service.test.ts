@@ -81,6 +81,7 @@ jest.mock('@/shared/services/analytics.service', () => ({
 // Mock image-service
 jest.mock('@/modules/relationships/services/image.service', () => ({
   deleteImage: jest.fn(),
+  getRelativePath: jest.fn((path) => path),
 }));
 
 describe('friend.service', () => {

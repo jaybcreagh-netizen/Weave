@@ -37,6 +37,7 @@ describe('image.service', () => {
     (Image.getSize as jest.Mock).mockImplementation((uri, success) => {
       success(1000, 1000); // Default square image
     });
+    (FileSystem.readDirectoryAsync as jest.Mock).mockResolvedValue(['profilePicture_1.jpg']);
   });
 
   it('should upload a friend photo (square)', async () => {

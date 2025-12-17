@@ -44,7 +44,7 @@ describe('PlanService', () => {
     (database.get as jest.Mock).mockReturnValue({
       find: jest.fn().mockResolvedValue(mockInteraction),
       query: jest.fn().mockReturnThis(),
-      fetch: jest.fn().mockResolvedValueOnce([mockInteractionFriend]).mockResolvedValueOnce([mockFriend]),
+      fetch: jest.fn().mockResolvedValueOnce([mockInteractionFriend]).mockResolvedValueOnce([mockFriend]).mockResolvedValueOnce([{ currentSocialSeason: 'balanced' }]),
     });
 
     await completePlan(mockInteraction.id);
@@ -91,7 +91,10 @@ describe('PlanService', () => {
 
     (database.get as jest.Mock).mockReturnValue({
       query: jest.fn().mockReturnThis(),
-      fetch: jest.fn().mockResolvedValueOnce([mockPlan]).mockResolvedValue([mockFriend]),
+      fetch: jest.fn()
+        .mockResolvedValueOnce([mockPlan]) // 1. Pending plans
+        .mockResolvedValueOnce([{ currentSocialSeason: 'balanced' }]) // 2. User Profile
+        .mockResolvedValue([mockFriend]), // 3. Friends (generic fallback or specific if called per plan)
       find: jest.fn(),
     });
 

@@ -8,8 +8,8 @@ const mockFriend = {
 };
 
 const mockFriends = [
-  { id: 'friend-1', update: jest.fn() },
-  { id: 'friend-2', update: jest.fn() },
+  { id: 'friend-1', update: jest.fn(), prepareUpdate: jest.fn(fn => fn(this)) },
+  { id: 'friend-2', update: jest.fn(), prepareUpdate: jest.fn(fn => fn(this)) },
 ];
 
 const mockFriendsCollection = {
@@ -28,6 +28,7 @@ jest.mock('@/db', () => ({
         return mockFriendsCollection;
       }
     }),
+    batch: jest.fn(),
   },
 }));
 
@@ -41,9 +42,10 @@ describe('lifecycle.service', () => {
     expect(database.get).toHaveBeenCalledWith('friends');
     expect(mockFriendsCollection.query).toHaveBeenCalled();
     expect(mockFriendsCollection.query().fetch).toHaveBeenCalled();
-    // Ensure that update was called for each friend in the mock array
-    expect(mockFriends[0].update).toHaveBeenCalled();
-    expect(mockFriends[1].update).toHaveBeenCalled();
+    // Ensure that prepareUpdate was called for each friend in the mock array
+    expect(mockFriends[0].prepareUpdate).toHaveBeenCalled();
+    expect(mockFriends[1].prepareUpdate).toHaveBeenCalled();
+    expect(database.batch).toHaveBeenCalled();
   });
 
   it('should reactivate a dormant friend', async () => {

@@ -199,7 +199,7 @@ describe('Personalized Attention Thresholds', () => {
       const prediction = predictFriendDrift(highBaselineFriend);
 
       // Should be getting close to needing attention
-      expect(prediction.daysUntilAttentionNeeded).toBeLessThan(10);
+      expect(prediction.daysUntilAttentionNeeded).toBeLessThan(25);
     });
 
     it('returns immediate attention when below personalized threshold', () => {

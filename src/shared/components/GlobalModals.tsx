@@ -8,8 +8,8 @@ import { EventSuggestionModal } from '@/modules/interactions';
 import { WeeklyReflectionModal } from '@/modules/reflection';
 import { SyncConflictModal } from '@/modules/auth';
 import { PostWeaveRatingModal } from '@/modules/interactions';
-import { MemoryMomentModal } from '@/modules/journal/components/MemoryMomentModal';
-import { DigestSheet } from '@/modules/home/components/DigestSheet';
+import { MemoryMomentModal } from '@/modules/journal';
+import { DigestSheet } from '@/modules/home';
 
 export function GlobalModals() {
     const milestoneCelebrationData = useUIStore((state) => state.milestoneCelebrationData);

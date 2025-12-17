@@ -31,7 +31,7 @@ import { useUserProfile, SocialBatteryService } from '@/modules/auth';
 import { MoonPhaseIllustration } from './MoonPhaseIllustration';
 import { PatternsTabContent } from './PatternsTabContent';
 // import { ReflectionJourneyModal } from '../ReflectionJourney/ReflectionJourneyModal';
-import { SocialBatterySheet } from '@/modules/home';
+import { SocialBatterySheet } from '@/modules/home/components/widgets/SocialBatterySheet';
 import {
   getYearMoonData,
   getYearStats,
