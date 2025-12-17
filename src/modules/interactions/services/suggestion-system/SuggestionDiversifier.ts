@@ -88,11 +88,15 @@ export function selectDiverseSuggestions(
     }
 
     // 2. Build a diverse set from different buckets
-    // Priority order: reflect -> lifeEvent -> drift -> portfolio -> fresh/wildcards -> deepen -> maintain -> insight
+    // CRITICAL FIX: dailyReflect moved to TOP of non-critical buckets to ensure it's always selected
+    // as it's the one suggestion that ALWAYS generates regardless of friend state.
+    // Priority order: dailyReflect (guaranteed) -> wildcard (guaranteed) -> reflect -> lifeEvent -> drift...
     const bucketOrder: Array<keyof typeof buckets> = [
+        'dailyReflect', // Guaranteed fallback - always shows
+        'wildcard', 'gentleNudge', // Other guaranteed suggestions
         'reflect', 'lifeEvent', 'drift', 'portfolio',
-        'communityCheckin', 'wildcard', 'variety', 'gentleNudge', 'setIntention', // Moved UP for freshness
-        'deepen', 'maintain', 'insight', 'dailyReflect'
+        'communityCheckin', 'variety', 'setIntention',
+        'deepen', 'maintain', 'insight'
     ];
 
     // Maintain a set of IDs to prevent duplicates (e.g. critical items picked again as category items)
