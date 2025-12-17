@@ -232,12 +232,6 @@ export async function fetchSuggestions(
         }
     }
 
-    // 7. Guaranteed Suggestions (Wildcards, etc.)
-    // Note: We need a pool of friends for this. The 'friends' array contains our Top 50 candidates.
-    // Guaranteed suggestions often pick "random" friends. 
-    // If our candidates don't include randoms, guaranteed might suffer.
-    // However, CandidateService Priority 4 is "Stale/Random", so we should be covered.
-
     // Filter out dismissed (unless critical)
     const active = allSuggestions.filter(s => {
         if (s.urgency === 'critical') return true;
@@ -250,13 +244,14 @@ export async function fetchSuggestions(
     const MIN_SUGGESTIONS = 3;
     let finalPool = seasonFiltered;
 
-    if (friends.length > 0) {
-        const guaranteed = generateGuaranteedSuggestions(friends, finalPool, season);
-        const freshGuaranteed = guaranteed.filter(s => !dismissedMap.has(s.id));
-        finalPool = [...finalPool, ...freshGuaranteed];
-    }
+    // 7. Guaranteed Suggestions (Wildcards, etc.)
+    // CRITICAL FIX: Generate guaranteed suggestions even if friends array is empty.
+    // Non-friend-dependent suggestions (daily-reflect, generic wildcards) should always be available.
+    // This ensures users ALWAYS see at least some suggestions, even new users with no friends.
+    const guaranteed = generateGuaranteedSuggestions(friends, finalPool, season);
+    const freshGuaranteed = guaranteed.filter(s => !dismissedMap.has(s.id));
+    finalPool = [...finalPool, ...freshGuaranteed];
 
-    // 8. Dormant / Triage Logic
     // 8. Dormant / Triage Logic
     finalPool = await TriageGenerator.apply(finalPool);
 
@@ -268,10 +263,58 @@ export async function fetchSuggestions(
     const friendLookup = new Map(friends.map(f => [f.id, f]));
     const isLowEnergy = season === 'resting';
 
-    const finalSuggestions = selectDiverseSuggestions(finalPool, effectiveLimit, {
+    let finalSuggestions = selectDiverseSuggestions(finalPool, effectiveLimit, {
         isLowEnergy,
         friendLookup,
     });
+
+    // 10. EMERGENCY FALLBACK: Ensure users ALWAYS see at least one suggestion
+    // This is the last line of defense against blank suggestion screens
+    if (finalSuggestions.length === 0) {
+        console.warn('[Suggestions] Emergency fallback triggered - generating fallback suggestions');
+
+        const today = new Date().toISOString().split('T')[0];
+
+        // Emergency daily reflect - always works, no dependencies
+        const emergencyReflect: Suggestion = {
+            id: `emergency-reflect-${today}`,
+            friendId: '',
+            type: 'reflect',
+            title: 'Take a moment to reflect',
+            subtitle: 'How are your relationships feeling today?',
+            icon: 'Heart',
+            category: 'daily-reflect',
+            urgency: 'low',
+            actionLabel: 'Reflect',
+            action: { type: 'reflect' },
+            dismissible: true,
+            createdAt: new Date(),
+        };
+
+        // Emergency wildcard - generic, no friend required
+        const emergencyWildcard: Suggestion = {
+            id: `emergency-wildcard-${today}`,
+            friendId: '',
+            type: 'connect',
+            title: 'Reach out to someone',
+            subtitle: 'A simple message can brighten someone\'s day',
+            icon: 'MessageCircle',
+            category: 'wildcard',
+            urgency: 'low',
+            actionLabel: 'Connect',
+            action: { type: 'log', prefilledCategory: 'text-call' },
+            dismissible: true,
+            createdAt: new Date(),
+        };
+
+        // Only add if not dismissed
+        if (!dismissedMap.has(emergencyReflect.id)) {
+            finalSuggestions.push(emergencyReflect);
+        }
+        if (!dismissedMap.has(emergencyWildcard.id)) {
+            finalSuggestions.push(emergencyWildcard);
+        }
+    }
 
     if (finalSuggestions.length > 0) {
         SeasonAnalyticsService.trackSuggestionsShown(finalSuggestions.length).catch(e => {

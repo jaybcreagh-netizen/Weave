@@ -277,25 +277,26 @@ const RESTING_GENTLE_NUDGE_TEMPLATES = [
 
 /**
  * Generate a gentle nudge suggestion for a healthy friend
- * Targets friends with score 40-80 who haven't been contacted recently
+ * EXPANDED: Now targets ALL non-dormant friends to ensure users with healthy networks
+ * still get suggestions. Prioritizes lower-scoring friends but includes everyone.
  */
 function generateGentleNudge(
     friends: FriendModel[],
     excludeFriendIds: Set<string>,
     isResting: boolean = false
 ): Suggestion | null {
-    // Find eligible friends: healthy score, not already suggested
-    // In resting mode, expand range to include more green friends
-    const minScore = isResting ? 50 : 40;
-    const maxScore = isResting ? 90 : 80;
+    // CRITICAL FIX: Removed restrictive maxScore cap that excluded users with healthy networks.
+    // Previously capped at 80/90, but users with all friends >80 got no suggestions.
+    // Now includes ALL non-dormant friends, with bias toward lower scores.
+    const minScore = isResting ? 30 : 20; // Lowered minimum to catch more friends
 
     const eligibleFriends = friends.filter(f => {
         if (f.isDormant) return false;
         if (excludeFriendIds.has(f.id)) return false;
 
         const score = calculateCurrentScore(f);
-        // Target the "healthy but could use a touch" range
-        return score >= minScore && score <= maxScore;
+        // Accept ANY friend with score above minimum (no upper cap)
+        return score >= minScore;
     });
 
     if (eligibleFriends.length === 0) return null;
@@ -439,19 +440,20 @@ function generateWildcard(
 }
 
 /**
- * Generate a "Why not reach out to X?" suggestion for slightly overdue friends
- * Targets friends with score 30-60 (overdue but not critical)
+ * Generate a "Why not reach out to X?" suggestion for friends
+ * EXPANDED: Now targets ALL non-dormant friends to ensure users with healthy networks
+ * still get suggestions. This is a fallback when other generators fail.
  */
 function generateWhyNotReachOut(
     friends: FriendModel[],
     excludeFriendIds: Set<string>
 ): Suggestion | null {
-    // Target friends with score 30-60 (overdue but not critical)
+    // CRITICAL FIX: Removed restrictive score cap (30-60) that excluded healthy networks.
+    // Now accepts ANY non-dormant friend, prioritizes those with lower scores.
     const eligibleFriends = friends.filter(f => {
         if (f.isDormant) return false;
         if (excludeFriendIds.has(f.id)) return false;
-        const score = calculateCurrentScore(f);
-        return score >= 30 && score <= 60;
+        return true; // Accept any friend
     });
 
     if (eligibleFriends.length === 0) return null;
@@ -498,21 +500,19 @@ const COMMUNITY_CHECKIN_TEMPLATES = [
 
 /**
  * Generate a community check-in suggestion for community tier members
- * Targets friends in the Community tier who might be overlooked
+ * EXPANDED: Now targets ALL Community tier friends regardless of score.
  */
 function generateCommunityCheckIn(
     friends: FriendModel[],
     excludeFriendIds: Set<string>
 ): Suggestion | null {
-    // Find community tier friends
+    // CRITICAL FIX: Removed restrictive score cap (20-70) that excluded healthy community friends.
+    // Now accepts ANY non-dormant Community tier friend.
     const communityFriends = friends.filter(f => {
         if (f.isDormant) return false;
         if (excludeFriendIds.has(f.id)) return false;
         if (f.dunbarTier !== 'Community') return false;
-
-        const score = calculateCurrentScore(f);
-        // Target community members with moderate scores (could use attention)
-        return score >= 20 && score <= 70;
+        return true; // Accept any Community tier friend
     });
 
     if (communityFriends.length === 0) return null;
@@ -558,20 +558,18 @@ const SET_INTENTION_TEMPLATES = [
 
 /**
  * Generate a set-intention suggestion for proactive relationship planning
- * Targets healthy friends who don't have active intentions
+ * EXPANDED: Now targets ALL Inner/Close tier friends regardless of score.
  */
 function generateSetIntention(
     friends: FriendModel[],
     excludeFriendIds: Set<string>
 ): Suggestion | null {
-    // Find friends with healthy scores who might benefit from an intention
+    // CRITICAL FIX: Removed score requirement. All Inner/Close tier friends are good candidates.
     const eligibleFriends = friends.filter(f => {
         if (f.isDormant) return false;
         if (excludeFriendIds.has(f.id)) return false;
-
-        const score = calculateCurrentScore(f);
-        // Target healthy friends (good candidates for deepening)
-        return score >= 50 && f.dunbarTier !== 'Community';
+        // Target Inner Circle and Close Friends tiers (not Community)
+        return f.dunbarTier !== 'Community';
     });
 
     if (eligibleFriends.length === 0) return null;
@@ -611,22 +609,18 @@ const VARIETY_CHECK_TEMPLATES = [
 
 /**
  * Generate a variety check suggestion when user has been seeing the same people
- * This encourages connecting with friends they haven't interacted with recently
+ * EXPANDED: Now targets ALL non-dormant friends regardless of score.
  */
 function generateVarietyCheck(
     friends: FriendModel[],
     excludeFriendIds: Set<string>
 ): Suggestion | null {
-    // Find friends who haven't been interacted with recently
-    // (high score but long time since interaction = good candidate)
+    // CRITICAL FIX: Removed restrictive score cap (40-75) that excluded healthy networks.
+    // Now accepts ANY non-dormant friend, sorts by score to find "overlooked" ones.
     const neglectedFriends = friends.filter(f => {
         if (f.isDormant) return false;
         if (excludeFriendIds.has(f.id)) return false;
-
-        const score = calculateCurrentScore(f);
-        // Target friends with decent health but might be overlooked
-        // (score 40-75 suggests they're not in crisis but not top of mind either)
-        return score >= 40 && score <= 75;
+        return true; // Accept any friend
     });
 
     if (neglectedFriends.length < 2) return null;
