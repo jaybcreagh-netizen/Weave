@@ -30,11 +30,22 @@ interface ExportData {
     birthday: string | null;
     anniversary: string | null;
     relationshipType: string | null;
+    // NEW: Required reciprocity fields (v25+)
+    outcomeCount: number;
+    initiationRatio: number;
+    consecutiveUserInitiations: number;
+    totalUserInitiations: number;
+    totalFriendInitiations: number;
+    // NEW: Adaptive decay fields (v21+)
+    typicalIntervalDays: number | null;
+    toleranceWindowDays: number | null;
+    categoryEffectiveness: string | null;
   }>;
   interactions: Array<{
     id: string;
     interactionDate: string;
     interactionType: string;
+    interactionCategory: string | null; // NEW: Added missing category field
     activity: string;
     status: string;
     mode: string;
@@ -95,6 +106,16 @@ export async function exportAllData(): Promise<string> {
       birthday: f.birthday || null,
       anniversary: f.anniversary || null,
       relationshipType: f.relationshipType || null,
+      // NEW: Required reciprocity fields (v25+)
+      outcomeCount: f.outcomeCount || 0,
+      initiationRatio: f.initiationRatio || 0.5,
+      consecutiveUserInitiations: f.consecutiveUserInitiations || 0,
+      totalUserInitiations: f.totalUserInitiations || 0,
+      totalFriendInitiations: f.totalFriendInitiations || 0,
+      // NEW: Adaptive decay fields (v21+)
+      typicalIntervalDays: f.typicalIntervalDays || null,
+      toleranceWindowDays: f.toleranceWindowDays || null,
+      categoryEffectiveness: f.categoryEffectiveness || null,
     }));
 
     // Create a map of interactionId -> friendIds for O(1) lookup
@@ -114,6 +135,7 @@ export async function exportAllData(): Promise<string> {
         id: i.id,
         interactionDate: i.interactionDate.toISOString(),
         interactionType: i.interactionType,
+        interactionCategory: i.interactionCategory || null, // NEW: Include category
         activity: i.activity,
         status: i.status,
         mode: i.mode,
