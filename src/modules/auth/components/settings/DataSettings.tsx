@@ -22,6 +22,7 @@ interface DataSettingsProps {
 export const DataSettings: React.FC<DataSettingsProps> = ({ onClose }) => {
     const { colors } = useTheme();
 
+    const [isImporting, setIsImporting] = useState(false);
     const [autoBackupEnabled, setAutoBackupEnabled] = useState(false);
     const [lastBackupTime, setLastBackupTime] = useState<string | null>(null);
 
@@ -87,6 +88,8 @@ export const DataSettings: React.FC<DataSettingsProps> = ({ onClose }) => {
     };
 
     const handleImportData = async () => {
+        if (isImporting) return;
+
         try {
             // Pick a document
             const result = await DocumentPicker.getDocumentAsync({
@@ -126,9 +129,15 @@ export const DataSettings: React.FC<DataSettingsProps> = ({ onClose }) => {
                         style: 'destructive',
                         onPress: async () => {
                             try {
-                                Alert.alert('Importing...', 'Please wait while we restore your data.');
+                                setIsImporting(true);
+
+                                // Small delay to allow UI to update if we were showing a spinner locally,
+                                // but primarily to let the Alert close gracefully
+                                await new Promise(resolve => setTimeout(resolve, 500));
 
                                 const result = await importData(fileContent, true);
+
+                                setIsImporting(false);
 
                                 if (result.success) {
                                     Alert.alert(
@@ -154,6 +163,7 @@ export const DataSettings: React.FC<DataSettingsProps> = ({ onClose }) => {
                                     );
                                 }
                             } catch (error) {
+                                setIsImporting(false);
                                 console.error('Import failed:', error);
                                 Alert.alert('Import Failed', 'An error occurred while importing data.');
                             }
@@ -162,6 +172,7 @@ export const DataSettings: React.FC<DataSettingsProps> = ({ onClose }) => {
                 ]
             );
         } catch (error) {
+            setIsImporting(false);
             console.error('Failed to import data:', error);
             Alert.alert('Error', 'Failed to read the selected file.');
         }
@@ -207,17 +218,23 @@ export const DataSettings: React.FC<DataSettingsProps> = ({ onClose }) => {
                 <View className="flex-row gap-2">
                     <TouchableOpacity
                         onPress={handleExportData}
+                        disabled={isImporting}
                         className="px-3 py-2 rounded-md"
-                        style={{ backgroundColor: colors.muted }}
+                        style={{ backgroundColor: colors.muted, opacity: isImporting ? 0.5 : 1 }}
                     >
                         <Upload size={18} color={colors.foreground} />
                     </TouchableOpacity>
                     <TouchableOpacity
                         onPress={handleImportData}
+                        disabled={isImporting}
                         className="px-3 py-2 rounded-md"
-                        style={{ backgroundColor: colors.muted }}
+                        style={{ backgroundColor: colors.muted, opacity: isImporting ? 0.5 : 1 }}
                     >
-                        <Download size={18} color={colors.foreground} />
+                        {isImporting ? (
+                            <RefreshCw size={18} color={colors.foreground} className="animate-spin" />
+                        ) : (
+                            <Download size={18} color={colors.foreground} />
+                        )}
                     </TouchableOpacity>
                 </View>
             </View>

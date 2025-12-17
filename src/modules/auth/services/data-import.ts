@@ -149,7 +149,7 @@ export function validateImportData(jsonString: string): {
  * Clear all existing data from the database
  */
 export async function clearAllData(): Promise<void> {
-
+  // Use destroyPermanently instead of markAsDeleted to ensure IDs can be reused immediately
 
   await database.write(async () => {
     // Delete all interaction_friends first (foreign key constraint)
@@ -158,25 +158,25 @@ export async function clearAllData(): Promise<void> {
       .query()
       .fetch();
     for (const if_ of interactionFriends) {
-      await if_.markAsDeleted();
+      await if_.destroyPermanently();
     }
 
     // Delete all interactions
     const interactions = await database.get<InteractionModel>('interactions').query().fetch();
     for (const interaction of interactions) {
-      await interaction.markAsDeleted();
+      await interaction.destroyPermanently();
     }
 
     // Delete all friends
     const friends = await database.get<FriendModel>('friends').query().fetch();
     for (const friend of friends) {
-      await friend.markAsDeleted();
+      await friend.destroyPermanently();
     }
 
-    // Delete user progress
+    // Delete user progress - Soft delete is fine for singletons usually, but consistent behavior is better
     const userProgressRecords = await database.get<UserProgress>('user_progress').query().fetch();
     for (const record of userProgressRecords) {
-      await record.markAsDeleted();
+      await record.destroyPermanently();
     }
   });
 
@@ -246,7 +246,7 @@ export async function importData(
             friend._raw.id = friendData.id;
             friend.name = friendData.name;
             friend.dunbarTier = friendData.dunbarTier;
-            friend.archetype = friendData.archetype as any;
+            friend.archetype = friendData.archetype as any; // Cast in case of new archetypes like Lovers
             friend.photoUrl = friendData.photoUrl || '';
             friend.notes = friendData.notes || '';
             friend.weaveScore = friendData.weaveScore;
@@ -357,13 +357,15 @@ export async function importData(
       }
     });
 
-    result.success = true;
+    // Success is true only if no errors occurred
+    result.success = result.errors.length === 0;
 
   } catch (error) {
     result.errors.push(
       `Import failed: ${error instanceof Error ? error.message : 'Unknown error'}`
     );
     console.error('[DataImport] Import failed:', error);
+    result.success = false;
   }
 
   return result;
