@@ -60,7 +60,7 @@ While Dunbar's Number provides quantitative structure, our **7 Tarot Archetypes*
 - **Language**: TypeScript (strict mode)
 - **Navigation**: `expo-router` (file-based routing in `app/` directory)
 - **Database**: WatermelonDB (reactive, local-first) - **single source of truth**
-- **State Management**: React Query + WatermelonDB observables (Zustand being phased out)
+- **State Management**: WatermelonDB observables + React Query (data), Zustand (UI state)
 - **Query/Cache**: React Query (`@tanstack/react-query`) - derived data, async state
 - **Styling**: NativeWind (Tailwind CSS for React Native)
 - **Design Tokens**: `src/shared/theme/tokens.ts`
@@ -123,24 +123,60 @@ The core scoring logic. **This is the brain of the application.**
 
 ### State Management
 
-**Strategy**: React Query + WatermelonDB observables (Primary)
-**Exception**: Zustand for High-Frequency UI State (e.g., Quick Weave, Drag-and-Drop)
+**Architecture Decision**: We evaluated replacing Zustand with React Context for UI state and **rejected it**. Context does not support selective subscriptions - any state change triggers re-renders in ALL consuming components.
 
-**WatermelonDB Observables**:
-- Primary source of truth for all persistent data
+#### Data Layer (WatermelonDB + React Query)
+
+**WatermelonDB Observables** - Primary source of truth for persistent data:
 - Use `.observe()` for reactive UI updates
 - Components subscribe directly to model observables
+- Use `observable-hooks` package for cleaner integration (e.g., `useObservableState`)
 
-**React Query**:
+**React Query** - Derived and async data:
 - Derived/computed data from WatermelonDB
 - Async operations and caching
 - Complex aggregations that don't fit the observable pattern
 
-**Zustand** (Strictly for Transient UI State):
-- Use for high-frequency, transient UI state where React Context causes excessive re-renders
-- Example: `QuickWeaveStore` (gesture coordinates, active hover state, animation values)
-- **Do NOT** use for persistent data or business logic
-- Existing legacy stores in `src/modules/*/store/` should still be migrated UNLESS they fit this specific "high-perf UI" criteria
+#### UI State Layer (Zustand)
+
+**Why Zustand over Context**: Zustand's selector pattern enables granular subscriptions:
+```typescript
+// GOOD: Only re-renders when `isQuickWeaveOpen` changes
+const isOpen = useUIStore(state => state.isQuickWeaveOpen);
+
+// BAD (Context pattern): Re-renders on ANY of 37 state changes
+const { isQuickWeaveOpen } = useGlobalUI(); // Don't do this
+```
+
+**Core UI Stores**:
+- `src/shared/stores/uiStore.ts` - Modal states, toast queue, quick weave, theme, celebrations
+- `src/shared/stores/tutorialStore.ts` - Onboarding flags, tutorial completion state
+
+**Auth Module Stores** (`src/modules/auth/store/`):
+- `auth.store.ts` - Authentication state
+- `user-profile.store.ts` - User profile with battery check-in, reflection settings
+- `sync.store.ts` - Sync status and conflict tracking
+
+#### UIEventBus (Imperative Triggers)
+
+For triggering UI actions from non-React code (notification handlers, background tasks):
+
+```typescript
+import { UIEventBus } from '@/shared/services/ui-event-bus';
+
+// From a notification handler or background service:
+UIEventBus.emit({ type: 'OPEN_DIGEST_SHEET', items: digestItems });
+UIEventBus.emit({ type: 'SHOW_TOAST', message: 'Friend nurtured!' });
+UIEventBus.emit({ type: 'FRIEND_NURTURED', friendId: '123' });
+```
+
+#### Auth Module Context (Focused, OK)
+
+Small, focused contexts are acceptable when they change infrequently:
+- `AuthContext` - User session, authentication state (changes rarely)
+- `SyncConflictContext` - Conflict resolution state (changes rarely)
+
+These are wrapped in `AppProviders.tsx` and don't suffer from the "37 useState" problem.
 
 ### Navigation Structure (`app/`)
 
@@ -218,7 +254,8 @@ npm start -- --clear
 - **Feature Logic**: All feature logic belongs in `src/modules/`
 - **Shared Helpers**: Generic helpers belong in `src/shared/`
 - **Services**: Put business logic in `services/`. Services should be pure functions or stateless classes where possible
-- **State**: Use React Query + WatermelonDB observables (not Zustand)
+- **Persistent State**: Use WatermelonDB observables + React Query for data
+- **UI State**: Use Zustand stores with selectors for modal/toast/animation state
 - **Components**: Module-specific components stay within the module
 
 ### Working with WatermelonDB
@@ -271,14 +308,25 @@ See `docs/REFACTORING_ROADMAP.md` for the full plan.
 2. Modal components (EditInteractionModal, etc.)
 3. Remaining `StyleSheet.create` files (87 total)
 
-### State Management Migration (Planned)
+### State Management (Decision Made)
 
-**Goal:** Remove Zustand dependency, use React Query + WatermelonDB observables only.
+**Decision:** Keep Zustand for UI state management. React Context was evaluated and rejected.
 
-**Current Zustand Usage** (to migrate):
-- `src/modules/auth/store/` (auth, sync, user-profile stores)
-- `src/modules/interactions/store/` (interaction, event-suggestion stores)
-- `src/stores/` (tutorialStore, uiStore)
+**Why Context Failed:**
+- A monolithic `GlobalUIContext` with 37 `useState` calls would cause all 15+ consuming components to re-render on ANY state change
+- Zustand's selector pattern (`useUIStore(state => state.specificField)`) only re-renders when that specific field changes
+- Performance difference is significant for high-frequency UI state (modals, toasts, gestures)
+
+**Current Architecture:**
+- `src/shared/stores/uiStore.ts` - Core UI state (modals, toasts, quick weave, theme)
+- `src/shared/stores/tutorialStore.ts` - Tutorial/onboarding flags
+- `src/modules/auth/store/` - Auth, user profile, sync state
+- `src/shared/services/ui-event-bus.ts` - Imperative triggers from non-React code
+
+**New Auth Hooks** (use alongside stores):
+- `useUserProfile()` - WatermelonDB observable-based profile access
+- `useSocialBatteryStats()` - Battery statistics
+- `useAuth()` - From AuthContext for session info
 
 ---
 
