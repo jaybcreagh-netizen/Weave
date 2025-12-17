@@ -129,8 +129,8 @@ export function DataInitializer({ children }: DataInitializerProps) {
                 await initializeAnalytics();
 
                 // Sync calendar changes on app launch (non-blocking)
-                import('@/modules/interactions').then(({ useInteractionsStore }) => {
-                    useInteractionsStore.getState().syncCalendar().catch((error) => {
+                import('@/modules/interactions').then(({ CalendarService }) => {
+                    CalendarService.syncCalendarChanges().catch((error: unknown) => {
                         console.error('[App] Error syncing calendar on launch:', error);
                     });
                 });
@@ -198,8 +198,8 @@ export function DataInitializer({ children }: DataInitializerProps) {
             });
 
             // Sync calendar changes when app becomes active
-            import('@/modules/interactions').then(({ useInteractionsStore }) => {
-                useInteractionsStore.getState().syncCalendar().catch((error) => {
+            import('@/modules/interactions').then(({ CalendarService }) => {
+                CalendarService.syncCalendarChanges().catch((error: unknown) => {
                     console.error('[App] Error syncing calendar on foreground:', error);
                 });
             });

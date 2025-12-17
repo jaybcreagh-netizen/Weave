@@ -33,21 +33,21 @@ export function useCardGesture() {
 }
 
 function useCardGestureCoordinator(): CardGestureContextType {
-  const { handleInteractionSelection, handleOpenQuickWeave, handlePrepareQuickWeave, handleTap, closeQuickWeave } = useQuickWeave();
+  const { handleInteractionSelection, handleOpenQuickWeave, handleTap, closeQuickWeave } = useQuickWeave();
 
   // Create refs to hold the latest version of the handlers
   // This prevents the stale closure issue where the gesture (which is memoized once)
   // holds onto the *initial* version of these functions (and thus the initial activities list/state).
   const interactionSelectionRef = useRef(handleInteractionSelection);
   const openQuickWeaveRef = useRef(handleOpenQuickWeave);
-  const prepareQuickWeaveRef = useRef(handlePrepareQuickWeave);
+  // const prepareQuickWeaveRef = useRef(handlePrepareQuickWeave);
   const tapRef = useRef(handleTap);
   const closeQuickWeaveRef = useRef(closeQuickWeave);
 
   // Always keep refs up to date
   interactionSelectionRef.current = handleInteractionSelection;
   openQuickWeaveRef.current = handleOpenQuickWeave;
-  prepareQuickWeaveRef.current = handlePrepareQuickWeave;
+  // prepareQuickWeaveRef.current = handlePrepareQuickWeave;
   tapRef.current = handleTap;
   closeQuickWeaveRef.current = closeQuickWeave;
 
@@ -61,7 +61,7 @@ function useCardGestureCoordinator(): CardGestureContextType {
       openQuickWeaveRef.current(fId, point);
     }
   };
-  const handlePrepareQuickWeaveStable = (fId: string) => prepareQuickWeaveRef.current(fId);
+  // const handlePrepareQuickWeaveStable = (fId: string) => prepareQuickWeaveRef.current(fId);
   const handleTapStable = (fId: string) => tapRef.current(fId);
   const closeQuickWeaveStable = (timestamp: number) => {
     if (timestamp >= lastGestureTimestamp.current) {
@@ -162,7 +162,7 @@ function useCardGestureCoordinator(): CardGestureContextType {
           // Delay pending feedback - only shows if user holds for 120ms+
           runOnJS(startPendingFeedback)(targetId);
           // Prefetch Quick Weave data immediately to ensure instant open on activation
-          runOnJS(handlePrepareQuickWeaveStable)(targetId);
+          // runOnJS(handlePrepareQuickWeaveStable)(targetId);
         }
       })
       .onStart((event) => {
