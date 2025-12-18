@@ -7,6 +7,10 @@ import SocialBatteryLog from '@/db/models/SocialBatteryLog';
 import JournalEntry from '@/db/models/JournalEntry';
 import JournalEntryFriend from '@/db/models/JournalEntryFriend';
 import WeeklyReflection from '@/db/models/WeeklyReflection';
+import LifeEvent from '@/db/models/LifeEvent';
+import Intention from '@/db/models/Intention';
+import IntentionFriend from '@/db/models/IntentionFriend';
+import PortfolioSnapshot from '@/db/models/PortfolioSnapshot';
 import { Q } from '@nozbe/watermelondb';
 
 interface ExportData {
@@ -92,6 +96,47 @@ interface ExportData {
     promptContext: string | null;
     storyChips: string | null;
     completedAt: number;
+    createdAt: number;
+  }>;
+  // NEW: Import additional models
+  lifeEvents?: Array<{
+    id: string;
+    friendId: string;
+    eventType: string;
+    eventDate: number;
+    title: string;
+    notes: string | null;
+    importance: string;
+    source: string;
+    isRecurring: boolean;
+    reminded: boolean;
+    createdAt: number;
+  }>;
+  intentions?: Array<{
+    id: string;
+    description: string | null;
+    interactionCategory: string | null;
+    status: string;
+    createdAt: number;
+    updatedAt: number;
+  }>;
+  intentionFriends?: Array<{
+    intentionId: string;
+    friendId: string;
+  }>;
+  portfolioSnapshots?: Array<{
+    id: string;
+    snapshotDate: number;
+    overallHealthScore: number;
+    totalFriends: number;
+    activeFriends: number;
+    driftingFriends: number;
+    thrivingFriends: number;
+    innerCircleAvg: number;
+    closeFriendsAvg: number;
+    communityAvg: number;
+    interactionsPerWeek: number;
+    diversityScore: number;
     createdAt: number;
   }>;
   userProgress: {
@@ -269,6 +314,10 @@ export async function importData(
       const journalEntriesCollection = database.get<JournalEntry>('journal_entries');
       const journalEntryFriendsCollection = database.get<JournalEntryFriend>('journal_entry_friends');
       const weeklyReflectionsCollection = database.get<WeeklyReflection>('weekly_reflections');
+      const lifeEventsCollection = database.get<LifeEvent>('life_events');
+      const intentionsCollection = database.get<Intention>('intentions');
+      const intentionFriendsCollection = database.get<IntentionFriend>('intention_friends');
+      const portfolioSnapshotsCollection = database.get<PortfolioSnapshot>('portfolio_snapshots');
 
       // Import social battery logs
       if (data.socialBatteryLogs && Array.isArray(data.socialBatteryLogs)) {
@@ -351,6 +400,90 @@ export async function importData(
             });
           } catch (error) {
             console.warn('[DataImport] Failed to import weekly reflection:', error);
+          }
+        }
+      }
+
+      // Import life events
+      if (data.lifeEvents && Array.isArray(data.lifeEvents)) {
+        for (const eventData of data.lifeEvents) {
+          try {
+            await lifeEventsCollection.create(evt => {
+              evt._raw.id = eventData.id;
+              evt.friendId = eventData.friendId;
+              evt.eventType = eventData.eventType as any;
+              evt.eventDate = new Date(eventData.eventDate);
+              evt.title = eventData.title;
+              evt.notes = eventData.notes || undefined;
+              evt.importance = eventData.importance as any;
+              evt.source = eventData.source as any;
+              evt.isRecurring = eventData.isRecurring;
+              evt.reminded = eventData.reminded;
+              // @ts-ignore
+              evt._raw.created_at = eventData.createdAt;
+            });
+          } catch (error) {
+            console.warn('[DataImport] Failed to import life event:', error);
+          }
+        }
+      }
+
+      // Import intentions
+      if (data.intentions && Array.isArray(data.intentions)) {
+        for (const intData of data.intentions) {
+          try {
+            await intentionsCollection.create(int => {
+              int._raw.id = intData.id;
+              int.description = intData.description || undefined;
+              int.interactionCategory = intData.interactionCategory || undefined;
+              int.status = intData.status as any;
+              // @ts-ignore
+              int._raw.created_at = intData.createdAt;
+              // @ts-ignore
+              int._raw.updated_at = intData.updatedAt;
+            });
+          } catch (error) {
+            console.warn('[DataImport] Failed to import intention:', error);
+          }
+        }
+      }
+
+      // Import intention friends
+      if (data.intentionFriends && Array.isArray(data.intentionFriends)) {
+        for (const intF of data.intentionFriends) {
+          try {
+            await intentionFriendsCollection.create(rel => {
+              rel.intentionId = intF.intentionId;
+              rel.friendId = intF.friendId;
+            });
+          } catch (error) {
+            console.warn('[DataImport] Failed to import intention friend:', error);
+          }
+        }
+      }
+
+      // Import portfolio snapshots
+      if (data.portfolioSnapshots && Array.isArray(data.portfolioSnapshots)) {
+        for (const snapData of data.portfolioSnapshots) {
+          try {
+            await portfolioSnapshotsCollection.create(snap => {
+              snap._raw.id = snapData.id;
+              snap.snapshotDate = new Date(snapData.snapshotDate);
+              snap.overallHealthScore = snapData.overallHealthScore;
+              snap.totalFriends = snapData.totalFriends;
+              snap.activeFriends = snapData.activeFriends;
+              snap.driftingFriends = snapData.driftingFriends;
+              snap.thrivingFriends = snapData.thrivingFriends;
+              snap.innerCircleAvg = snapData.innerCircleAvg;
+              snap.closeFriendsAvg = snapData.closeFriendsAvg;
+              snap.communityAvg = snapData.communityAvg;
+              snap.interactionsPerWeek = snapData.interactionsPerWeek;
+              snap.diversityScore = snapData.diversityScore;
+              // @ts-ignore
+              snap._raw.created_at = snapData.createdAt;
+            });
+          } catch (error) {
+            console.warn('[DataImport] Failed to import portfolio snapshot:', error);
           }
         }
       }

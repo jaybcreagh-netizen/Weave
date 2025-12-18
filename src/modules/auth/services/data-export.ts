@@ -7,6 +7,10 @@ import SocialBatteryLog from '@/db/models/SocialBatteryLog';
 import JournalEntry from '@/db/models/JournalEntry';
 import JournalEntryFriend from '@/db/models/JournalEntryFriend';
 import WeeklyReflection from '@/db/models/WeeklyReflection';
+import LifeEvent from '@/db/models/LifeEvent';
+import Intention from '@/db/models/Intention';
+import IntentionFriend from '@/db/models/IntentionFriend';
+import PortfolioSnapshot from '@/db/models/PortfolioSnapshot';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform, Alert, Share } from 'react-native';
 import * as FileSystem from 'expo-file-system';
@@ -108,6 +112,47 @@ interface ExportData {
     plannedInteractions: number;
     averageWeaveScore: number;
   };
+  // NEW: Backing up additional models (v33+)
+  lifeEvents?: Array<{
+    id: string;
+    friendId: string;
+    eventType: string;
+    eventDate: number; // exported as timestamp
+    title: string;
+    notes: string | null;
+    importance: string;
+    source: string;
+    isRecurring: boolean;
+    reminded: boolean;
+    createdAt: number;
+  }>;
+  intentions?: Array<{
+    id: string;
+    description: string | null;
+    interactionCategory: string | null;
+    status: string;
+    createdAt: number;
+    updatedAt: number;
+  }>;
+  intentionFriends?: Array<{
+    intentionId: string;
+    friendId: string;
+  }>;
+  portfolioSnapshots?: Array<{
+    id: string;
+    snapshotDate: number;
+    overallHealthScore: number;
+    totalFriends: number;
+    activeFriends: number;
+    driftingFriends: number;
+    thrivingFriends: number;
+    innerCircleAvg: number;
+    closeFriendsAvg: number;
+    communityAvg: number;
+    interactionsPerWeek: number;
+    diversityScore: number;
+    createdAt: number;
+  }>;
 }
 
 /**
@@ -211,7 +256,7 @@ export async function exportAllData(): Promise<string> {
       interactions: interactionsData,
       // NEW: Add new tables
       socialBatteryLogs: batteryLogs.map(l => ({
-        userId: l.userId, // This might be missing in older logs, strictly typed optional?
+        userId: l.userId,
         value: l.value,
         timestamp: l.timestamp,
       })),
@@ -221,10 +266,9 @@ export async function exportAllData(): Promise<string> {
         title: j.title || null,
         content: j.content,
         storyChips: j.storyChipsRaw || null,
-        friendIds: j.linkedWeaveId || null, // Assuming this is how it was used or check linked friends
+        friendIds: j.linkedWeaveId || null,
         createdAt: j.createdAt.getTime(),
         updatedAt: j.updatedAt.getTime(),
-        // Note: Linked friends are in journal_entry_friends table
       })),
       journalEntryFriends: journalEntryFriends.map(jef => ({
         journalEntryId: jef.journalEntryId,
@@ -245,6 +289,48 @@ export async function exportAllData(): Promise<string> {
         storyChips: w.storyChipsRaw || null,
         completedAt: w.completedAt.getTime(),
         createdAt: w.createdAt.getTime(),
+      })),
+
+      // NEW: Export additional models
+      lifeEvents: (await database.get<LifeEvent>('life_events').query().fetch()).map(e => ({
+        id: e.id,
+        friendId: e.friendId,
+        eventType: e.eventType,
+        eventDate: e.eventDate.getTime(),
+        title: e.title,
+        notes: e.notes || null,
+        importance: e.importance,
+        source: e.source,
+        isRecurring: e.isRecurring,
+        reminded: e.reminded,
+        createdAt: e.createdAt.getTime(),
+      })),
+      intentions: (await database.get<Intention>('intentions').query().fetch()).map(i => ({
+        id: i.id,
+        description: i.description || null,
+        interactionCategory: i.interactionCategory || null,
+        status: i.status,
+        createdAt: i.createdAt.getTime(),
+        updatedAt: i.updatedAt.getTime(),
+      })),
+      intentionFriends: (await database.get<IntentionFriend>('intention_friends').query().fetch()).map(if_ => ({
+        intentionId: if_.intentionId,
+        friendId: if_.friendId,
+      })),
+      portfolioSnapshots: (await database.get<PortfolioSnapshot>('portfolio_snapshots').query().fetch()).map(s => ({
+        id: s.id,
+        snapshotDate: s.snapshotDate.getTime(),
+        overallHealthScore: s.overallHealthScore,
+        totalFriends: s.totalFriends,
+        activeFriends: s.activeFriends,
+        driftingFriends: s.driftingFriends,
+        thrivingFriends: s.thrivingFriends,
+        innerCircleAvg: s.innerCircleAvg,
+        closeFriendsAvg: s.closeFriendsAvg,
+        communityAvg: s.communityAvg,
+        interactionsPerWeek: s.interactionsPerWeek,
+        diversityScore: s.diversityScore,
+        createdAt: s.createdAt.getTime(),
       })),
 
       userProgress: userProgressRecords[0]

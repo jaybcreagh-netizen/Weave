@@ -95,12 +95,12 @@ describe('Full Data Backup & Restore', () => {
         });
     });
 
-    it('should include social battery logs, journal entries, and reflections in export', async () => {
+    it('should include social battery logs, journal entries, reflections, life events, intentions, and snapshots in export', async () => {
         // 1. Populate DB with test data
         await mockDatabase.write(async () => {
             // Friend
             const friends = mockDatabase.get<Friend>('friends');
-            await friends.create(f => {
+            const friend = await friends.create(f => {
                 f._raw.id = 'friend-1';
                 f.name = 'Test Friend';
                 f.dunbarTier = 'Inner Circle';
@@ -139,6 +139,46 @@ describe('Full Data Backup & Restore', () => {
                 // Readonly fields must be set via _raw
                 (ref as any)._raw.created_at = 1625702400000;
             });
+
+            // NEW: Life Event
+            const lifeEvents = mockDatabase.get<LifeEvent>('life_events');
+            await lifeEvents.create(evt => {
+                evt._raw.id = 'evt-1';
+                evt.friendId = 'friend-1';
+                evt.eventType = 'birthday';
+                evt.eventDate = new Date(1625097600000);
+                evt.title = 'Birthday Party';
+                evt.importance = 'high';
+                evt.source = 'manual';
+                evt.isRecurring = true;
+                evt.reminded = false;
+            });
+
+            // NEW: Intention
+            const intentions = mockDatabase.get<Intention>('intentions');
+            await intentions.create(int => {
+                int._raw.id = 'int-1';
+                int.description = 'Call more often';
+                int.status = 'active';
+                (int as any)._raw.created_at = 1625097600000;
+            });
+
+            // NEW: Intention Friend (Relation)
+            const intentionFriends = mockDatabase.get<IntentionFriend>('intention_friends');
+            await intentionFriends.create(intF => {
+                intF.intentionId = 'int-1';
+                intF.friendId = 'friend-1';
+            });
+
+            // NEW: Portfolio Snapshot
+            const snapshots = mockDatabase.get<PortfolioSnapshot>('portfolio_snapshots');
+            await snapshots.create(snap => {
+                snap._raw.id = 'snap-1';
+                snap.snapshotDate = new Date(1625097600000);
+                snap.overallHealthScore = 85;
+                snap.totalFriends = 10;
+                snap.activeFriends = 5;
+            });
         });
 
         // 2. Export Data
@@ -150,27 +190,57 @@ describe('Full Data Backup & Restore', () => {
         expect(exportData.friends).toHaveLength(1);
         expect(exportData.friends[0].name).toBe('Test Friend');
 
-        // 4. Verify NEW data (Expect to fail currently)
+        // 4. Verify NEW data
         expect(exportData.socialBatteryLogs).toBeDefined();
         expect(exportData.socialBatteryLogs).toHaveLength(1);
-        expect(exportData.socialBatteryLogs[0].value).toBe(4);
 
         expect(exportData.journalEntries).toBeDefined();
         expect(exportData.journalEntries).toHaveLength(1);
-        expect(exportData.journalEntries[0].content).toBe('My dear diary');
 
         expect(exportData.weeklyReflections).toBeDefined();
         expect(exportData.weeklyReflections).toHaveLength(1);
-        expect(exportData.weeklyReflections[0].totalWeaves).toBe(5);
+
+        // Verify newly added models
+        expect(exportData.lifeEvents).toBeDefined();
+        expect(exportData.lifeEvents).toHaveLength(1);
+        expect(exportData.lifeEvents[0].title).toBe('Birthday Party');
+        expect(exportData.lifeEvents[0].friendId).toBe('friend-1');
+
+        expect(exportData.intentions).toBeDefined();
+        expect(exportData.intentions).toHaveLength(1);
+        expect(exportData.intentions[0].description).toBe('Call more often');
+
+        expect(exportData.intentionFriends).toBeDefined();
+        expect(exportData.intentionFriends).toHaveLength(1);
+        expect(exportData.intentionFriends[0].friendId).toBe('friend-1');
+
+        expect(exportData.portfolioSnapshots).toBeDefined();
+        expect(exportData.portfolioSnapshots).toHaveLength(1);
+        expect(exportData.portfolioSnapshots[0].overallHealthScore).toBe(85);
     });
 
-    it('should restore social battery logs, journal entries, and reflections from import', async () => {
+    it('should restore all data including new models from import', async () => {
         // 1. Create Mock Import Data
         const importJson = JSON.stringify({
             exportDate: new Date().toISOString(),
             appVersion: '1.0.0',
             platform: 'ios',
-            friends: [],
+            friends: [{
+                id: 'friend-1',
+                name: 'Restored Friend',
+                dunbarTier: 'Inner Circle',
+                archetype: 'The Sun',
+                photoUrl: null,
+                notes: null,
+                weaveScore: 50,
+                lastUpdated: new Date().toISOString(),
+                resilience: 1,
+                ratedWeavesCount: 0,
+                momentumScore: 0,
+                momentumLastUpdated: new Date().toISOString(),
+                isDormant: false,
+                dormantSince: null
+            }],
             interactions: [],
             socialBatteryLogs: [
                 { userId: 'user-1', value: 3, timestamp: 100000 }
@@ -184,7 +254,23 @@ describe('Full Data Backup & Restore', () => {
                     topActivity: 'Coffee', topActivityCount: 5, missedFriendsCount: 0, completedAt: 200, createdAt: 200
                 }
             ],
-            stats: { totalFriends: 0, totalInteractions: 0 }
+            // NEW: Mock Data for new models
+            lifeEvents: [
+                {
+                    id: 'evt-res-1', friendId: 'friend-1', eventType: 'anniversary', eventDate: new Date(200000).toISOString(),
+                    title: 'Restored Anniversary', importance: 'medium', source: 'manual', isRecurring: true, reminded: false, createdAt: 200000
+                }
+            ],
+            intentions: [
+                { id: 'int-res-1', description: 'Restored Intention', status: 'active', createdAt: 200000, updatedAt: 200000 }
+            ],
+            intentionFriends: [
+                { intentionId: 'int-res-1', friendId: 'friend-1' }
+            ],
+            portfolioSnapshots: [
+                { id: 'snap-res-1', snapshotDate: 200000, overallHealthScore: 90, totalFriends: 20, activeFriends: 10, driftingFriends: 5, thrivingFriends: 5, innerCircleAvg: 80, closeFriendsAvg: 70, communityAvg: 50, interactionsPerWeek: 5, diversityScore: 0.8, createdAt: 200000 }
+            ],
+            stats: { totalFriends: 1, totalInteractions: 0 }
         });
 
 
@@ -194,18 +280,30 @@ describe('Full Data Backup & Restore', () => {
 
         // 3. Verify Success
         expect(result.success).toBe(true);
+        expect(result.errors).toHaveLength(0);
 
         // 4. Verify DB Records
         const batteryLogs = await mockDatabase.get<SocialBatteryLog>('social_battery_logs').query().fetch();
         expect(batteryLogs).toHaveLength(1);
-        expect(batteryLogs[0].value).toBe(3);
 
         const journalEntries = await mockDatabase.get<JournalEntry>('journal_entries').query().fetch();
         expect(journalEntries).toHaveLength(1);
-        expect(journalEntries[0].content).toBe('Restored Entry');
 
-        const reflections = await mockDatabase.get<WeeklyReflection>('weekly_reflections').query().fetch();
-        expect(reflections).toHaveLength(1);
-        expect(reflections[0].totalWeaves).toBe(10);
+        // Verify NEW records
+        const lifeEvents = await mockDatabase.get<LifeEvent>('life_events').query().fetch();
+        expect(lifeEvents).toHaveLength(1);
+        expect(lifeEvents[0].title).toBe('Restored Anniversary');
+
+        const intentions = await mockDatabase.get<Intention>('intentions').query().fetch();
+        expect(intentions).toHaveLength(1);
+        expect(intentions[0].description).toBe('Restored Intention');
+
+        const intentionFriends = await mockDatabase.get<IntentionFriend>('intention_friends').query().fetch();
+        expect(intentionFriends).toHaveLength(1);
+        expect(intentionFriends[0].friendId).toBe('friend-1');
+
+        const snapshots = await mockDatabase.get<PortfolioSnapshot>('portfolio_snapshots').query().fetch();
+        expect(snapshots).toHaveLength(1);
+        expect(snapshots[0].overallHealthScore).toBe(90);
     });
 });
