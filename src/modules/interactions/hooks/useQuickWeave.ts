@@ -50,10 +50,7 @@ export function useQuickWeave() {
         // 3. Show "just nurtured" glow
         setJustNurturedFriendId(friendId);
 
-        // 4. Show toast
-        showToast(activityLabel, friend.name);
-
-        // 5. Trigger micro-reflection after short delay
+        // 4. Trigger micro-reflection after short delay
         setTimeout(() => {
             showMicroReflectionSheet({
                 friendId,
@@ -64,7 +61,7 @@ export function useQuickWeave() {
                 friendArchetype: friend.archetype,
             });
         }, 200);
-    }, [logWeave, setJustNurturedFriendId, showToast, showMicroReflectionSheet]));
+    }, [logWeave, setJustNurturedFriendId, showMicroReflectionSheet]));
 
     const handleInteractionSelection = useCallback(async (selectedIndex: number, friendId: string) => {
         try {

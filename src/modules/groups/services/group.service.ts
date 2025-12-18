@@ -12,6 +12,7 @@ export const groupService = {
      */
     async createGroup(name: string, friendIds: string[], photoUrl?: string): Promise<Group> {
         return await database.write(async () => {
+            // 1. Create the group
             const group = await database.get<Group>('groups').create(g => {
                 g.name = name;
                 g.type = 'manual';
@@ -20,15 +21,17 @@ export const groupService = {
                 }
             });
 
+            // 2. Prepare member creation
             const memberCollection = database.get<GroupMember>('group_members');
-            await Promise.all(
-                friendIds.map(friendId =>
-                    memberCollection.create(m => {
-                        m.groupId = group.id;
-                        m.friendId = friendId;
-                    })
-                )
+            const membersToCreate = friendIds.map(friendId =>
+                memberCollection.prepareCreate(m => {
+                    m.groupId = group.id;
+                    m.friendId = friendId;
+                })
             );
+
+            // 3. Batch execute
+            await database.batch(...membersToCreate);
 
             return group;
         });
@@ -41,29 +44,32 @@ export const groupService = {
         await database.write(async () => {
             const group = await database.get<Group>('groups').find(groupId);
 
-            // Update name and photo
-            if (group.name !== name || group.photoUrl !== photoUrl) {
-                await group.update(g => {
-                    g.name = name;
-                    if (photoUrl !== undefined) {
-                        g.photoUrl = photoUrl;
-                    }
-                });
-            }
+            // prepare changes for group itself
+            const groupUpdate = group.prepareUpdate(g => {
+                g.name = name;
+                if (photoUrl !== undefined) {
+                    g.photoUrl = photoUrl;
+                }
+            });
 
-            // Update members (delete old, add new)
-            // Note: A more efficient diffing could be done here, but full replace is safer for now
+            // Prepare deletion of old members
             const currentMembers = await group.members.fetch();
-            await Promise.all(currentMembers.map((m: GroupMember) => m.destroyPermanently()));
+            const deletions = currentMembers.map((m: GroupMember) => m.prepareDestroyPermanently());
 
+            // Prepare creation of new members
             const memberCollection = database.get<GroupMember>('group_members');
-            await Promise.all(
-                friendIds.map(friendId =>
-                    memberCollection.create(m => {
-                        m.groupId = group.id;
-                        m.friendId = friendId;
-                    })
-                )
+            const additions = friendIds.map(friendId =>
+                memberCollection.prepareCreate(m => {
+                    m.groupId = group.id;
+                    m.friendId = friendId;
+                })
+            );
+
+            // Batch all operations
+            await database.batch(
+                groupUpdate,
+                ...deletions,
+                ...additions
             );
         });
     },
@@ -95,6 +101,9 @@ export const groupService = {
     /**
      * Get groups that a specific friend belongs to
      */
+    /**
+     * Get groups that a specific friend belongs to
+     */
     async getGroupsForFriend(friendId: string): Promise<Group[]> {
         const memberships = await database.get<GroupMember>('group_members')
             .query(Q.where('friend_id', friendId))
@@ -107,6 +116,36 @@ export const groupService = {
         return await database.get<Group>('groups')
             .query(Q.where('id', Q.oneOf(groupIds)))
             .fetch();
+    },
+
+    /**
+     * Add a single member to a group
+     */
+    async addMember(groupId: string, friendId: string): Promise<void> {
+        await database.write(async () => {
+            await database.get<GroupMember>('group_members').create(m => {
+                m.groupId = groupId;
+                m.friendId = friendId;
+            });
+        });
+    },
+
+    /**
+     * Remove a single member from a group
+     */
+    async removeMember(groupId: string, friendId: string): Promise<void> {
+        await database.write(async () => {
+            const members = await database.get<GroupMember>('group_members')
+                .query(
+                    Q.where('group_id', groupId),
+                    Q.where('friend_id', friendId)
+                )
+                .fetch();
+
+            if (members.length > 0) {
+                await members[0].destroyPermanently();
+            }
+        });
     },
 
     /**

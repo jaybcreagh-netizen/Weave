@@ -81,14 +81,14 @@ export function ReflectionStoryChips({
 
   return (
     <View className="gap-3">
-      <Text variant="label" style={{ color: colors['muted-foreground'] }}>
+      <Text className="font-inter-medium text-xs ml-1" style={{ color: colors['muted-foreground'] }}>
         {getChipTypeLabel(chipType)}
       </Text>
 
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ gap: 8, paddingRight: 16 }}
+        contentContainerStyle={{ gap: 6, paddingRight: 16 }}
       >
         {visibleChips.map((chip, index) => (
           <Animated.View
@@ -96,19 +96,19 @@ export function ReflectionStoryChips({
             entering={FadeIn.duration(300).delay(index * 50)}
           >
             <TouchableOpacity
-              className="py-3 px-4 rounded-[20px] border-[1.5px] shadow-sm elevation-1"
+              className="py-2 px-3 rounded-[16px] border shadow-sm"
               style={{
                 backgroundColor: colors.card,
                 borderColor: colors.border,
                 shadowColor: tokens?.shadow.color || '#000',
                 shadowOpacity: tokens?.shadow.opacity.sm || 0.05,
                 shadowOffset: { width: 0, height: 1 },
-                shadowRadius: 4,
+                shadowRadius: 3,
               }}
               onPress={() => onChipSelect(chip)}
               activeOpacity={0.7}
             >
-              <Text style={{ color: colors.foreground }}>
+              <Text style={{ color: colors.foreground, fontSize: 13 }}>
                 {chip.plainText}
               </Text>
             </TouchableOpacity>

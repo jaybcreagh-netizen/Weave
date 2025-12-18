@@ -79,13 +79,44 @@ export function GroupManagerModal({
         }
     }, [groupToEdit, initialData, visible]);
 
-    const toggleFriend = (friendId: string) => {
-        if (selectedFriendIds.includes(friendId)) {
+    const toggleFriend = async (friendId: string) => {
+        // 1. Optimistic Update
+        const isSelected = selectedFriendIds.includes(friendId);
+
+        if (isSelected) {
             setSelectedFriendIds(prev => prev.filter(id => id !== friendId));
         } else {
             setSelectedFriendIds(prev => [...prev, friendId]);
         }
+
+        // 2. Auto-save if editing an existing group
+        if (groupToEdit) {
+            try {
+                if (isSelected) {
+                    await groupService.removeMember(groupToEdit.id, friendId);
+                } else {
+                    await groupService.addMember(groupToEdit.id, friendId);
+                }
+
+                // Refresh list in parent if needed (optional, but good for consistency)
+                // onGroupSaved(); // Maybe too heavy to reload list on every tap? 
+                // Let's decide: user just wants data saved. List refresh can happen on close.
+            } catch (error) {
+                console.error('Error auto-saving member:', error);
+                // Revert on error
+                if (isSelected) {
+                    setSelectedFriendIds(prev => [...prev, friendId]);
+                } else {
+                    setSelectedFriendIds(prev => prev.filter(id => id !== friendId));
+                }
+                Alert.alert('Error', 'Failed to update group member.');
+            }
+        }
     };
+
+    // ... (rest of code)
+
+
 
     const pickImage = async (useCamera: boolean) => {
         try {
@@ -260,6 +291,7 @@ export function GroupManagerModal({
             title={groupToEdit ? 'Edit Group' : 'New Group'}
             snapPoints={['90%']}
             scrollable={false} // Using FlatList for custom scrolling
+            disableContentPanning={true} // Prevent sheet from dragging when scrolling the list
         >
             <View className="flex-1 px-4">
                 {/* Photo Picker */}
@@ -331,7 +363,7 @@ export function GroupManagerModal({
                         variant="primary"
                         disabled={isSaving}
                         className="flex-1"
-                        label={isSaving ? 'Saving...' : 'Save Group'}
+                        label={isSaving ? 'Saving...' : (groupToEdit ? 'Done' : 'Save Group')}
                     />
                 </View>
             </View>

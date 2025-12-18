@@ -17,8 +17,9 @@ export function CustomCalendar({
   onDateSelect,
   minDate,
   plannedDates = [],
-  completedDates = []
-}: CustomCalendarProps) {
+  completedDates = [],
+  maxDate
+}: CustomCalendarProps & { maxDate?: Date }) {
   const { colors, isDarkMode } = useTheme();
 
   // Track the currently visible month
@@ -95,6 +96,7 @@ export function CustomCalendar({
           setCurrentMonth(month.dateString);
         }}
         minDate={minDate ? format(minDate, 'yyyy-MM-dd') : undefined}
+        maxDate={maxDate ? format(maxDate, 'yyyy-MM-dd') : undefined}
         onDayPress={handleDayPress}
         markedDates={markedDates}
         markingType="multi-dot"

@@ -1,16 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, TextInput, ScrollView, Keyboard, TouchableWithoutFeedback, Vibration, Alert, Modal } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput, ScrollView, Keyboard, TouchableWithoutFeedback, Vibration, Alert, Modal, Platform } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { Stack } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInUp, useSharedValue, withSpring } from 'react-native-reanimated';
 import { CelebrationAnimation } from '@/modules/gamification';
 import { calculateDeepeningLevel } from '@/modules/intelligence';
+import { useUIStore } from '@/shared/stores/uiStore';
 
 import { useInteractions, type StructuredReflection } from '@/modules/interactions';
 import { WeaveReflectPrompt, useWeaveReflectPrompt } from '@/modules/journal';
 import { useDebounceCallback } from '@/shared/hooks/useDebounceCallback';
-import { Calendar as CalendarIcon, X, Sparkles, Users, ChevronLeft } from 'lucide-react-native';
+import { Calendar as CalendarIcon, X, Sparkles, Users, ChevronLeft, Clock } from 'lucide-react-native';
 import { CustomCalendar } from '@/shared/components/CustomCalendar';
 import { MoonPhaseSelector } from '@/modules/intelligence';
 import { ContextualReflectionInput } from '@/modules/reflection';
@@ -23,6 +24,7 @@ import Interaction from '@/db/models/Interaction';
 import { Q } from '@nozbe/watermelondb';
 import FriendModel from '@/db/models/Friend';
 import { FriendSelector, ReciprocitySelector, InitiatorType } from '@/modules/relationships';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 import { STORY_CHIPS } from '@/modules/reflection';
 import { ErrorBoundary } from '@/shared/components/ErrorBoundary';
@@ -65,9 +67,11 @@ export function WeaveLoggerScreen({
 }: WeaveLoggerScreenProps) {
     const { logWeave } = useInteractions();
     const { colors, isDarkMode } = useTheme();
+    const { showToast } = useUIStore();
 
     const [selectedFriends, setSelectedFriends] = useState<FriendModel[]>([]);
     const [showCalendar, setShowCalendar] = useState(false);
+    const [showTimePicker, setShowTimePicker] = useState(false);
     const [showFriendSelector, setShowFriendSelector] = useState(false);
     const [selectedCategory, setSelectedCategory] = useState<InteractionCategory | null>(null);
     const [selectedDate, setSelectedDate] = useState<Date>(startOfDay(new Date()));
@@ -218,9 +222,30 @@ export function WeaveLoggerScreen({
     };
 
     const handleQuickDateSelect = (date: Date) => {
+        // Preserve time from current selection if we're picking "Today", 
+        // otherwise reset to end of day or similar? actually user probably expects "Yesterday" to be yesterday but maybe preserve time?
+        // Simpler: Just set the date part, keep time? Or standard startOfDay? 
+        // Existing logic was startOfDay. Let's start with startOfDay but maybe if they picked a time before...
+        // Recommendation: If they pick date text, reset to default time unless they edit it.
+        // Actually, let's stick to startOfDay for "Yesterday" etc to be safe, but "Today" could be now?
+        // Let's stick to startOfDay logic which was there, they can add time if they want.
         setSelectedDate(startOfDay(date));
         Vibration.vibrate(50);
     };
+
+    const handleTimeChange = (event: any, selectedTime?: Date) => {
+        if (Platform.OS === 'android') {
+            setShowTimePicker(false);
+        }
+        if (selectedTime) {
+            // Merge time into selectedDate
+            const newDate = new Date(selectedDate);
+            newDate.setHours(selectedTime.getHours());
+            newDate.setMinutes(selectedTime.getMinutes());
+            setSelectedDate(newDate);
+        }
+    };
+
 
     const handleSave = useDebounceCallback(async () => {
         if (!selectedCategory || selectedFriends.length === 0 || !selectedDate || isSubmitting) return;
@@ -277,6 +302,9 @@ export function WeaveLoggerScreen({
             // Show celebration animation
             setShowCelebration(true);
             Vibration.vibrate();
+
+            // Show sparkles popup
+            showToast("Weave logged", selectedFriends.length === 1 ? selectedFriends[0].name : (selectedFriends.length > 1 ? 'Friends' : 'Friend'));
 
             const shouldShow = await checkAndShowPrompt(interactionData as any, selectedFriends);
 
@@ -377,6 +405,7 @@ export function WeaveLoggerScreen({
                                         selectedDate={selectedDate}
                                         onDateSelect={handleDateSelect}
                                         minDate={undefined}
+                                        maxDate={new Date()}
                                         plannedDates={calendarDates.planned}
                                         completedDates={calendarDates.completed}
                                     />
@@ -393,69 +422,119 @@ export function WeaveLoggerScreen({
                         contentContainerStyle={{ paddingBottom: 120, paddingHorizontal: 20 }}
                     >
                         {/* Date Selection */}
-                        <View className="mb-8">
-                            <Text className="font-lora-bold text-xl mb-4" style={{ color: colors.foreground }}>
-                                When did this happen?
+                        <View className="mb-5">
+                            <Text className="font-lora-bold text-lg mb-2" style={{ color: colors.foreground }}>
+                                When?
                             </Text>
-                            <View className="flex-row gap-3 mb-3">
+                            <ScrollView
+                                horizontal
+                                showsHorizontalScrollIndicator={false}
+                                contentContainerStyle={{ gap: 10, paddingRight: 20 }}
+                            >
                                 {dateOptions.map((opt, index) => {
                                     const date = opt.getDate();
                                     const isSelected = isSameDay(selectedDate, date);
                                     return (
                                         <Animated.View
                                             key={opt.id}
-                                            className="flex-1"
                                             entering={FadeInUp.duration(500).delay(index * 50)}
                                         >
                                             <TouchableOpacity
-                                                className="p-4 rounded-2xl items-center justify-center"
+                                                className="px-4 py-3 rounded-full flex-row items-center justify-center border"
                                                 style={{
-                                                    backgroundColor: colors.card,
-                                                    borderWidth: isSelected ? 2 : 1,
+                                                    backgroundColor: isSelected ? colors.primary + '20' : colors.card,
                                                     borderColor: isSelected ? colors.primary : colors.border,
-                                                    shadowColor: '#000',
-                                                    shadowOffset: { width: 0, height: 2 },
-                                                    shadowOpacity: 0.05,
-                                                    shadowRadius: 8,
-                                                    elevation: 2,
-                                                    minHeight: 90,
                                                 }}
                                                 onPress={() => handleQuickDateSelect(date)}
                                             >
-                                                <Text className="text-3xl mb-2">{opt.icon}</Text>
-                                                <Text className="font-inter-semibold text-sm" style={{ color: colors.foreground }}>
+                                                <Text className="text-base mr-2">{opt.icon}</Text>
+                                                <Text
+                                                    className={`font-inter-medium text-sm ${isSelected ? 'text-primary' : ''}`}
+                                                    style={{ color: isSelected ? colors.primary : colors.foreground }}
+                                                >
                                                     {opt.label}
                                                 </Text>
                                             </TouchableOpacity>
                                         </Animated.View>
                                     );
                                 })}
-                                <Animated.View className="flex-1" entering={FadeInUp.duration(500).delay(100)}>
+                                <Animated.View entering={FadeInUp.duration(500).delay(100)}>
                                     <TouchableOpacity
-                                        className="p-4 rounded-2xl items-center justify-center"
+                                        className="px-4 py-3 rounded-full flex-row items-center justify-center border"
                                         style={{
                                             backgroundColor: colors.card,
-                                            borderWidth: 1,
                                             borderColor: colors.border,
-                                            shadowColor: '#000',
-                                            shadowOffset: { width: 0, height: 2 },
-                                            shadowOpacity: 0.05,
-                                            shadowRadius: 8,
-                                            elevation: 2,
-                                            minHeight: 90,
                                         }}
                                         onPress={() => setShowCalendar(true)}
                                     >
-                                        <CalendarIcon size={28} color={colors.primary} style={{ marginBottom: 8 }} />
-                                        <Text className="font-inter-semibold text-sm" style={{ color: colors.foreground }}>
-                                            Pick Date
+                                        <CalendarIcon size={16} color={colors.primary} style={{ marginRight: 6 }} />
+                                        <Text className="font-inter-medium text-sm" style={{ color: colors.foreground }}>
+                                            {format(selectedDate, 'MMM d')}
                                         </Text>
                                     </TouchableOpacity>
                                 </Animated.View>
-                            </View>
-                            <Text className="font-inter-regular text-sm text-center" style={{ color: colors['muted-foreground'] }}>
-                                {format(selectedDate, 'EEEE, MMMM d, yyyy')}
-                            </Text>
+                            </ScrollView>
+
+                            {/* Time Display / Picker */}
+                            <ScrollView
+                                horizontal
+                                showsHorizontalScrollIndicator={false}
+                                contentContainerStyle={{ paddingHorizontal: 0, marginTop: 8 }}
+                            >
+                                <TouchableOpacity
+                                    className="px-3 py-2 rounded-full flex-row items-center justify-center border mr-2"
+                                    style={{
+                                        backgroundColor: colors.card,
+                                        borderColor: colors.border,
+                                    }}
+                                    onPress={() => setShowTimePicker(true)}
+                                >
+                                    <Clock size={14} color={colors['muted-foreground']} style={{ marginRight: 6 }} />
+                                    <Text className="font-inter-medium text-xs" style={{ color: colors.foreground }}>
+                                        {format(selectedDate, 'h:mm a')}
+                                    </Text>
+                                </TouchableOpacity>
+                            </ScrollView>
+
+                            {/* Hidden Time Picker (iOS Modal / Android Dialog) */}
+                            {showTimePicker && (
+                                Platform.OS === 'ios' ? (
+                                    <Modal
+                                        transparent
+                                        animationType="fade"
+                                        visible={showTimePicker}
+                                        onRequestClose={() => setShowTimePicker(false)}
+                                    >
+                                        <View className="flex-1 justify-end bg-black/50">
+                                            <View className="bg-white dark:bg-gray-900 pb-safe">
+                                                <View className="flex-row justify-between items-center p-4 border-b border-gray-200 dark:border-gray-800">
+                                                    <TouchableOpacity onPress={() => setShowTimePicker(false)}>
+                                                        <Text className="text-gray-500 font-inter-medium">Cancel</Text>
+                                                    </TouchableOpacity>
+                                                    <Text className="font-lora-bold text-lg dark:text-white">Set Time</Text>
+                                                    <TouchableOpacity onPress={() => setShowTimePicker(false)}>
+                                                        <Text className="text-primary font-inter-bold">Done</Text>
+                                                    </TouchableOpacity>
+                                                </View>
+                                                <DateTimePicker
+                                                    value={selectedDate}
+                                                    mode="time"
+                                                    display="spinner"
+                                                    onChange={handleTimeChange}
+                                                    textColor={isDarkMode ? '#fff' : '#000'}
+                                                />
+                                            </View>
+                                        </View>
+                                    </Modal>
+                                ) : (
+                                    <DateTimePicker
+                                        value={selectedDate}
+                                        mode="time"
+                                        display="default"
+                                        onChange={handleTimeChange}
+                                    />
+                                )
+                            )}
                         </View>
 
                         {/* Friend Selection */}
@@ -509,38 +588,34 @@ export function WeaveLoggerScreen({
                         </View>
 
                         {/* Category Selection */}
-                        <View className="mb-8">
-                            <Text className="font-lora-bold text-xl mb-4" style={{ color: colors.foreground }}>
-                                How did you connect?
+                        <View className="mb-5">
+                            <Text className="font-lora-bold text-lg mb-2" style={{ color: colors.foreground }}>
+                                Context
                             </Text>
-                            <View className="flex-row flex-wrap gap-3">
+                            <View className="flex-row flex-wrap gap-2">
                                 {categories.map((cat, index) => (
                                     <Animated.View
                                         key={cat.id}
-                                        style={{ width: '48%' }}
-                                        entering={FadeInUp.duration(500).delay(index * 50)}
+                                        style={{ width: '31%' }}
+                                        entering={FadeInUp.duration(500).delay(index * 30)}
                                     >
                                         <TouchableOpacity
-                                            className="p-3 rounded-2xl items-center justify-center"
+                                            className="p-2 rounded-xl items-center justify-center"
                                             style={{
                                                 backgroundColor: colors.card,
                                                 borderWidth: selectedCategory === cat.id ? 2 : 1,
                                                 borderColor: selectedCategory === cat.id ? colors.primary : colors.border,
-                                                shadowColor: '#000',
-                                                shadowOffset: { width: 0, height: 2 },
-                                                shadowOpacity: 0.05,
-                                                shadowRadius: 8,
-                                                elevation: 2,
-                                                minHeight: 120,
+                                                height: 90,
                                             }}
                                             onPress={() => handleCategorySelect(cat.id)}
                                         >
                                             <Text className="text-2xl mb-1">{cat.icon}</Text>
-                                            <Text className="font-inter-semibold text-sm text-center mb-1" style={{ color: colors.foreground }}>
+                                            <Text
+                                                className="font-inter-medium text-xs text-center leading-tight"
+                                                style={{ color: colors.foreground }}
+                                                numberOfLines={2}
+                                            >
                                                 {cat.label}
-                                            </Text>
-                                            <Text className="font-inter-regular text-xs text-center" style={{ color: colors['muted-foreground'] }}>
-                                                {cat.description}
                                             </Text>
                                         </TouchableOpacity>
                                     </Animated.View>
@@ -558,15 +633,15 @@ export function WeaveLoggerScreen({
                                 }}
                             >
                                 {/* Title Field */}
-                                <View className="mb-8">
-                                    <Text className="font-lora-bold text-xl mb-2" style={{ color: colors.foreground }}>
+                                <View className="mb-5">
+                                    <Text className="font-lora-bold text-xl mb-1" style={{ color: colors.foreground }}>
                                         Name this moment
                                     </Text>
-                                    <Text className="font-inter-regular text-sm mb-3" style={{ color: colors['muted-foreground'] }}>
+                                    <Text className="font-inter-regular text-sm mb-2" style={{ color: colors['muted-foreground'] }}>
                                         Optional - give it a memorable name
                                     </Text>
                                     <TextInput
-                                        className="p-4 rounded-xl font-inter-regular text-base"
+                                        className="p-3.5 rounded-xl font-inter-regular text-base"
                                         style={{
                                             backgroundColor: colors.card,
                                             borderWidth: 1,
@@ -581,8 +656,8 @@ export function WeaveLoggerScreen({
                                 </View>
 
                                 {/* Reciprocity Section */}
-                                <View className="mb-8">
-                                    <Text className="font-lora-bold text-xl mb-4" style={{ color: colors.foreground }}>
+                                <View className="mb-5">
+                                    <Text className="font-lora-bold text-xl mb-2" style={{ color: colors.foreground }}>
                                         Who initiated?
                                     </Text>
                                     <ReciprocitySelector
@@ -593,15 +668,23 @@ export function WeaveLoggerScreen({
                                     />
                                 </View>
 
+                                {/* Vibe Section */}
+                                <View className="mb-5">
+                                    <Text className="font-lora-bold text-xl mb-2" style={{ color: colors.foreground }}>
+                                        How did it feel? 🌙
+                                    </Text>
+                                    <MoonPhaseSelector onSelect={setSelectedVibe} selectedVibe={selectedVibe} />
+                                </View>
+
                                 {/* Reflection Section */}
-                                <View className="mb-8">
-                                    <View className="flex-row items-center gap-2 mb-2">
+                                <View className="mb-5">
+                                    <View className="flex-row items-center gap-2 mb-1">
                                         <Sparkles size={20} color={colors.primary} />
                                         <Text className="font-lora-bold text-xl" style={{ color: colors.foreground }}>
                                             Tell the story
                                         </Text>
                                     </View>
-                                    <Text className="font-inter-regular text-sm mb-4" style={{ color: colors['muted-foreground'] }}>
+                                    <Text className="font-inter-regular text-sm mb-2" style={{ color: colors['muted-foreground'] }}>
                                         Capture what made this weave meaningful
                                     </Text>
                                     <ContextualReflectionInput
@@ -611,14 +694,6 @@ export function WeaveLoggerScreen({
                                         value={reflection}
                                         onChange={setReflection}
                                     />
-                                </View>
-
-                                {/* Vibe Section */}
-                                <View className="mb-8">
-                                    <Text className="font-lora-bold text-xl mb-4" style={{ color: colors.foreground }}>
-                                        How did it feel? 🌙
-                                    </Text>
-                                    <MoonPhaseSelector onSelect={setSelectedVibe} selectedVibe={selectedVibe} />
                                 </View>
                             </Animated.View>
                         )}
@@ -658,7 +733,7 @@ export function WeaveLoggerScreen({
                     initialFriendId={friendId}
                     selectedFriends={selectedFriends}
                     onSelectionChange={setSelectedFriends}
-                    asModal={true}
+                    asModal={false}
                 />
 
                 <WeaveReflectPrompt

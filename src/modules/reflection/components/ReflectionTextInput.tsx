@@ -83,7 +83,7 @@ export function ReflectionTextInput({
     <View>
       {/* Combined container - chip bubbles + text input together */}
       <View
-        className="border-[1.5px] rounded-2xl p-4 min-h-[120px] shadow-sm elevation-2"
+        className="border-[1.5px] rounded-2xl p-3 min-h-[80px] shadow-sm elevation-2"
         style={{
           backgroundColor: colors.card,
           borderColor: colors.border,
@@ -101,7 +101,7 @@ export function ReflectionTextInput({
             <Animated.View
               key={chipIndex}
               entering={FadeIn.duration(300)}
-              className="flex-row items-center py-2.5 pl-3.5 pr-2.5 rounded-2xl border mb-3"
+              className="flex-row items-center py-1.5 pl-2.5 pr-1.5 rounded-xl border mb-2"
               style={{
                 backgroundColor: colors.muted,
                 borderColor: colors.border,
@@ -109,7 +109,7 @@ export function ReflectionTextInput({
             >
               {/* Chip text with tappable components */}
               <View className="flex-1">
-                <Text className="text-[15px] leading-[22px]" style={{ color: colors.foreground }}>
+                <Text className="text-[14px] leading-[20px]" style={{ color: colors.foreground }}>
                   {chipParts.map((part, partIndex) => {
                     if (part.type === 'text') {
                       return (
@@ -137,11 +137,11 @@ export function ReflectionTextInput({
 
               {/* Remove chip button */}
               <TouchableOpacity
-                className="p-1 ml-2"
+                className="p-1 ml-1"
                 onPress={() => onRemoveChip(chipIndex)}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
-                <X size={16} color={colors['muted-foreground']} />
+                <X size={14} color={colors['muted-foreground']} />
               </TouchableOpacity>
             </Animated.View>
           );
@@ -149,7 +149,7 @@ export function ReflectionTextInput({
 
         {/* Text input for additional notes */}
         <InputComponent
-          className="text-base leading-6 min-h-[40px] p-0"
+          className="text-[15px] leading-6 min-h-[40px] p-0"
           style={{
             color: colors.foreground,
             textAlignVertical: 'top'

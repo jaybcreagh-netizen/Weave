@@ -125,60 +125,50 @@ export function MoonPhaseSelector({ onSelect, selectedVibe }: MoonPhaseSelectorP
   }));
 
   return (
-    <View className="items-center w-full gap-6 py-3">
-      {/* Icon Display */}
-      <View className="items-center justify-start h-[200px] gap-4 w-full">
+    <View className="w-full py-2 bg-card rounded-2xl border border-border px-3 mb-2">
+      <View className="flex-row items-center gap-4 mb-2">
         <Animated.View
-          className="items-center justify-center h-20 w-20 rounded-full"
+          className="items-center justify-center h-12 w-12 rounded-full bg-background shadow-sm"
           style={[
             iconAnimatedStyle,
             {
               shadowColor: colors.primary,
-              backgroundColor: colors.background,
               shadowOffset: { width: 0, height: 0 },
-              shadowOpacity: 0.3,
-              shadowRadius: 10,
-              elevation: 5,
+              shadowOpacity: 0.2,
+              shadowRadius: 8,
+              elevation: 3,
             }
           ]}
         >
-          <MoonIcon width={64} height={64} color={colors.primary} fill={colors.primary} />
+          <MoonIcon width={36} height={36} color={colors.primary} fill={colors.primary} />
         </Animated.View>
 
-        <View className="items-center w-full px-5 gap-2">
+        <View className="flex-1 justify-center">
           <Animated.View style={textAnimatedStyle}>
             <Text
-              className="text-xl font-lora-bold text-center"
+              className="text-base font-lora-bold text-left mb-0.5"
               style={{ color: colors.foreground }}
             >
               {phaseInfo.title}
             </Text>
           </Animated.View>
 
-          <View className="items-center gap-0.5">
+          <View className="gap-0.5">
             <Animated.Text
-              className="text-sm font-inter-regular text-center leading-5"
+              className="text-xs font-inter-regular text-left leading-4"
               style={[textAnimatedStyle, { color: colors['muted-foreground'] }]}
+              numberOfLines={1}
             >
-              {phaseInfo.description.split('\n')[0]}
+              {phaseInfo.description.replace(/\n/g, ' ')}
             </Animated.Text>
-
-            {phaseInfo.description.split('\n')[1] && (
-              <Animated.Text
-                className="text-sm font-inter-regular text-center leading-5 mt-1 opacity-80"
-                style={[textAnimatedStyle, { color: colors['muted-foreground'] }]}
-              >
-                {phaseInfo.description.split('\n')[1]}
-              </Animated.Text>
-            )}
           </View>
         </View>
       </View>
 
       {/* Slider */}
-      <View className="w-full px-4">
+      <View className="w-full px-1">
         <Slider
-          style={{ width: '100%', height: 40 }}
+          style={{ width: '100%', height: 30 }}
           minimumValue={1}
           maximumValue={5}
           step={1}

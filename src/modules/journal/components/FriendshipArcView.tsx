@@ -16,6 +16,7 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
@@ -38,6 +39,8 @@ import {
   FriendshipArc,
   FriendshipArcEntry,
 } from '@/modules/journal';
+import { resolveImageUri } from '@/modules/relationships/services/image.service';
+import { normalizeContactImageUri } from '@/modules/relationships/utils/image.utils';
 import * as Haptics from 'expo-haptics';
 
 // ============================================================================
@@ -76,11 +79,24 @@ export function FriendshipArcView({
   const [loading, setLoading] = useState(true);
   const [arc, setArc] = useState<FriendshipArc | null>(null);
   const [groupedEntries, setGroupedEntries] = useState<GroupedEntries[]>([]);
+  const [resolvedPhotoUrl, setResolvedPhotoUrl] = useState<string | null>(null);
+  const [imageError, setImageError] = useState(false);
 
   // Load friendship arc
   useEffect(() => {
     loadArc();
   }, [friendId]);
+
+  // Resolve profile photo
+  useEffect(() => {
+    if (arc?.friend?.photoUrl) {
+      resolveImageUri(arc.friend.photoUrl).then(uri => {
+        if (uri) setResolvedPhotoUrl(uri);
+      });
+    } else {
+      setResolvedPhotoUrl(null);
+    }
+  }, [arc?.friend?.photoUrl]);
 
   const loadArc = async () => {
     setLoading(true);
@@ -263,15 +279,24 @@ export function FriendshipArcView({
             <View className="flex-row items-center gap-4 mb-4">
               {/* Avatar */}
               <View
-                className="w-16 h-16 rounded-full items-center justify-center"
+                className="w-16 h-16 rounded-full items-center justify-center overflow-hidden"
                 style={{ backgroundColor: colors.primary + '20' }}
               >
-                <Text
-                  className="text-2xl"
-                  style={{ color: colors.primary, fontFamily: 'Inter_700Bold' }}
-                >
-                  {arc.friend.name.charAt(0).toUpperCase()}
-                </Text>
+                {resolvedPhotoUrl && !imageError ? (
+                  <Image
+                    source={{ uri: normalizeContactImageUri(resolvedPhotoUrl) }}
+                    className="w-full h-full"
+                    resizeMode="cover"
+                    onError={() => setImageError(true)}
+                  />
+                ) : (
+                  <Text
+                    className="text-2xl"
+                    style={{ color: colors.primary, fontFamily: 'Inter_700Bold' }}
+                  >
+                    {arc.friend.name.charAt(0).toUpperCase()}
+                  </Text>
+                )}
               </View>
 
               {/* Name & Duration */}
