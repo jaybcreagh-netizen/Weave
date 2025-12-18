@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
-import Animated, { SharedValue, useAnimatedStyle } from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
 import { Plus } from 'lucide-react-native';
 import { differenceInDays } from 'date-fns';
 import { useTheme } from '@/shared/hooks/useTheme';
@@ -8,26 +8,20 @@ import { LifeEvent } from '@/shared/types/legacy-types';
 
 interface LifeEventsSectionProps {
     lifeEvents: LifeEvent[];
-    buttonsOpacity: SharedValue<number>;
     onAdd: () => void;
     onEdit: (event: LifeEvent) => void;
 }
 
 export function LifeEventsSection({
     lifeEvents,
-    buttonsOpacity,
     onAdd,
     onEdit,
 }: LifeEventsSectionProps) {
     const { colors } = useTheme();
 
-    const buttonsAnimatedStyle = useAnimatedStyle(() => ({
-        opacity: buttonsOpacity.value,
-    }));
-
     return (
         <View className="px-5">
-            <Animated.View className="mt-2 mb-2" style={buttonsAnimatedStyle}>
+            <Animated.View className="mt-2 mb-2">
                 <View className="flex-row justify-between items-center mb-2">
                     <Text className="font-lora-bold text-[15px]" style={{ color: colors.foreground }}>
                         Life Events

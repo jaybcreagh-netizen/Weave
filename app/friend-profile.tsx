@@ -54,42 +54,20 @@ export default function FriendProfile() {
 
   const scrollY = useSharedValue(0);
 
-  // Page entrance animations
+  // Page entrance  // Animation States
   const pageOpacity = useSharedValue(0);
-  const headerOpacity = useSharedValue(0);
-  const buttonsOpacity = useSharedValue(0);
 
+  // Initial load animation
   useEffect(() => {
     // Only animate when data is loaded
     if (isDataLoaded) {
-      // Page container fades in first
       pageOpacity.value = withTiming(1, {
         duration: 400,
         easing: Easing.out(Easing.quad),
       });
-
-      // Friend card and header elements - sync with timeline base delay
-      headerOpacity.value = withDelay(
-        100,
-        withTiming(1, {
-          duration: 600,
-          easing: Easing.out(Easing.quad),
-        })
-      );
-
-      // Buttons fade in just before timeline starts (timeline starts at 200ms)
-      buttonsOpacity.value = withDelay(
-        150,
-        withTiming(1, {
-          duration: 600,
-          easing: Easing.out(Easing.quad),
-        })
-      );
     } else {
-      // Reset animations when loading new friend
+      // Reset animations
       pageOpacity.value = 0;
-      headerOpacity.value = 0;
-      buttonsOpacity.value = 0;
     }
   }, [isDataLoaded]);
 
@@ -211,6 +189,15 @@ export default function FriendProfile() {
     );
   }
 
+  // Debug: Log render state
+  console.log('[FriendProfile] Render:', {
+    isDataLoaded,
+    hasFriendModel: !!friendModel,
+    friendId: friendModel?.id,
+    friendName: friendModel?.name,
+    interactionsCount: interactions?.length
+  });
+
   return (
     <ErrorBoundary>
       <SafeAreaView
@@ -228,10 +215,9 @@ export default function FriendProfile() {
             onDeleteInteraction={handleDeleteInteraction}
             onEditInteraction={handleEditInteractionWrapper}
             ListHeaderComponent={
-              <View>
+              <View onLayout={(e) => console.warn('[FriendProfile] Header Height:', e.nativeEvent.layout.height)}>
                 <ProfileHeader
                   friend={friendModel}
-                  headerOpacity={headerOpacity}
                   onBack={() => {
                     if (router.canGoBack()) {
                       router.back();
@@ -245,7 +231,6 @@ export default function FriendProfile() {
                 />
 
                 <ActionButtons
-                  buttonsOpacity={buttonsOpacity}
                   onLogWeave={() => router.push({ pathname: '/weave-logger', params: { friendId: friend.id } })}
                   onPlanWeave={() => modals.setShowPlanChoice(true)}
                   onJournal={() => router.push({ pathname: '/journal', params: { mode: 'friend-arc', friendId: friend.id } })}
@@ -253,7 +238,6 @@ export default function FriendProfile() {
 
                 <LifeEventsSection
                   lifeEvents={activeLifeEvents}
-                  buttonsOpacity={buttonsOpacity}
                   onAdd={() => {
                     modals.setEditingLifeEvent(null);
                     modals.setShowLifeEventModal(true);

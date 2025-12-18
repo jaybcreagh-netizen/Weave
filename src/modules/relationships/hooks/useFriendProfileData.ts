@@ -64,30 +64,47 @@ export function useFriendProfileData(friendId: string | undefined) {
     useEffect(() => {
         if (!friendId || typeof friendId !== 'string') return;
 
-        // Create the query
-        const query = database.get<InteractionModel>('interactions')
-            .query(
-                Q.on('interaction_friends', 'friend_id', friendId),
-                Q.sortBy('interaction_date', Q.desc),
-                Q.take(interactionsLimit)
-            );
-
-        const subscription = query.observe()
+        // Manual many-to-many query to avoid Q.on issues with WatermelonDB
+        // Step 1: Observe the join table for this friend
+        const subscription = database.get('interaction_friends')
+            .query(Q.where('friend_id', friendId))
+            .observe()
             .pipe(
+                switchMap(interactionFriends => {
+                    // Step 2: Extract IDs
+                    // @ts-ignore - raw access if needed, but the model should have interactionId
+                    const interactionIds = interactionFriends.map(join => join.interactionId);
+
+                    if (interactionIds.length === 0) {
+                        return of([]);
+                    }
+
+                    // Step 3: Query the actual interactions with those IDs
+                    return database.get<InteractionModel>('interactions')
+                        .query(
+                            Q.where('id', Q.oneOf(interactionIds)),
+                            Q.sortBy('interaction_date', Q.desc),
+                            Q.take(interactionsLimit)
+                        )
+                        .observe();
+                }),
                 switchMap(interactions => {
                     if (interactions.length === 0) {
                         return of([]);
                     }
                     // Observe each interaction model for changes individually
-                    // This ensures that if a property of an interaction changes (like activity type), we get an update
                     return combineLatest(interactions.map(i => i.observe()));
                 })
             )
-            .subscribe(interactions => {
-                setInteractionsModels(interactions);
-                // Simple check for "has more": if we got as many as the limit, assume there might be more.
-                // A perfect check would require a count query, but this is a reasonable heuristic for now.
-                setHasMoreInteractions(interactions.length >= interactionsLimit);
+            .subscribe({
+                next: (interactions) => {
+                    setInteractionsModels(interactions);
+                    setHasMoreInteractions(interactions.length >= interactionsLimit);
+                },
+                error: (err) => {
+                    logger.error('FriendProfileData', 'Error observing interactions:', err);
+                    setError(err instanceof Error ? err : new Error('Unknown error observing interactions'));
+                }
             });
 
         return () => subscription.unsubscribe();

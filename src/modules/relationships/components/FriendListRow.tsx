@@ -53,6 +53,7 @@ interface FriendListRowProps {
 import withObservables from '@nozbe/with-observables';
 
 export const FriendListRowContent = ({ friend, animatedRef, variant = 'default' }: FriendListRowProps) => {
+  console.warn('[FriendListRowContent] Render:', { friendId: friend?.id, variant, hasFriend: !!friend });
   if (!friend) return null;
 
   const { id, name, archetype, isDormant = false, photoUrl, relationshipType } = friend;

@@ -1,28 +1,22 @@
 import React from 'react';
 import { View, TouchableOpacity } from 'react-native';
-import Animated, { SharedValue, useAnimatedStyle } from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { Text } from '@/shared/ui';
 
 interface ActionButtonsProps {
-    buttonsOpacity: SharedValue<number>;
     onLogWeave: () => void;
     onPlanWeave: () => void;
     onJournal: () => void;
 }
 
 export function ActionButtons({
-    buttonsOpacity,
     onLogWeave,
     onPlanWeave,
     onJournal,
 }: ActionButtonsProps) {
     const { colors } = useTheme();
-
-    const buttonsAnimatedStyle = useAnimatedStyle(() => ({
-        opacity: buttonsOpacity.value,
-    }));
 
     const shadowStyle = {
         shadowColor: '#000',
@@ -37,7 +31,6 @@ export function ActionButtons({
             <Animated.View
                 style={[
                     { flexDirection: 'row', gap: 12 },
-                    buttonsAnimatedStyle
                 ]}
             >
                 {/* Log Weave Button */}

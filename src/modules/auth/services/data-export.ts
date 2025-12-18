@@ -3,6 +3,10 @@ import FriendModel from '@/db/models/Friend';
 import InteractionModel from '@/db/models/Interaction';
 import InteractionFriend from '@/db/models/InteractionFriend';
 import UserProgress from '@/db/models/UserProgress';
+import SocialBatteryLog from '@/db/models/SocialBatteryLog';
+import JournalEntry from '@/db/models/JournalEntry';
+import JournalEntryFriend from '@/db/models/JournalEntryFriend';
+import WeeklyReflection from '@/db/models/WeeklyReflection';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform, Alert, Share } from 'react-native';
 import * as FileSystem from 'expo-file-system';
@@ -57,6 +61,41 @@ interface ExportData {
     eventImportance: string | null;
     initiator: string | null;
     friendIds: string[];
+  }>;
+  socialBatteryLogs: Array<{
+    userId: string | undefined;
+    value: number;
+    timestamp: number;
+  }>;
+  journalEntries: Array<{
+    id: string;
+    entryDate: number;
+    title: string | null;
+    content: string;
+    storyChips: string | null;
+    friendIds: string | null;
+    createdAt: number;
+    updatedAt: number;
+  }>;
+  journalEntryFriends: Array<{
+    journalEntryId: string;
+    friendId: string;
+  }>;
+  weeklyReflections: Array<{
+    id: string;
+    weekStartDate: number;
+    weekEndDate: number;
+    totalWeaves: number;
+    friendsContacted: number;
+    topActivity: string;
+    topActivityCount: number;
+    missedFriendsCount: number;
+    gratitudeText: string | null;
+    gratitudePrompt: string | null;
+    promptContext: string | null;
+    storyChips: string | null;
+    completedAt: number;
+    createdAt: number;
   }>;
   userProgress: {
     totalWeaves: number;
@@ -158,12 +197,56 @@ export async function exportAllData(): Promise<string> {
         ? friends.reduce((sum, f) => sum + f.weaveScore, 0) / friends.length
         : 0;
 
+    // Fetch new tables
+    const batteryLogs = await database.get<SocialBatteryLog>('social_battery_logs').query().fetch();
+    const journalEntries = await database.get<JournalEntry>('journal_entries').query().fetch();
+    const journalEntryFriends = await database.get<JournalEntryFriend>('journal_entry_friends').query().fetch();
+    const weeklyReflections = await database.get<WeeklyReflection>('weekly_reflections').query().fetch();
+
     const exportData: ExportData = {
       exportDate: new Date().toISOString(),
       appVersion: Application.nativeApplicationVersion || '1.0.0',
       platform: Platform.OS,
       friends: friendsData,
       interactions: interactionsData,
+      // NEW: Add new tables
+      socialBatteryLogs: batteryLogs.map(l => ({
+        userId: l.userId, // This might be missing in older logs, strictly typed optional?
+        value: l.value,
+        timestamp: l.timestamp,
+      })),
+      journalEntries: journalEntries.map(j => ({
+        id: j.id,
+        entryDate: j.entryDate,
+        title: j.title || null,
+        content: j.content,
+        storyChips: j.storyChipsRaw || null,
+        friendIds: j.linkedWeaveId || null, // Assuming this is how it was used or check linked friends
+        createdAt: j.createdAt.getTime(),
+        updatedAt: j.updatedAt.getTime(),
+        // Note: Linked friends are in journal_entry_friends table
+      })),
+      journalEntryFriends: journalEntryFriends.map(jef => ({
+        journalEntryId: jef.journalEntryId,
+        friendId: jef.friendId,
+      })),
+      weeklyReflections: weeklyReflections.map(w => ({
+        id: w.id,
+        weekStartDate: w.weekStartDate,
+        weekEndDate: w.weekEndDate,
+        totalWeaves: w.totalWeaves,
+        friendsContacted: w.friendsContacted,
+        topActivity: w.topActivity,
+        topActivityCount: w.topActivityCount,
+        missedFriendsCount: w.missedFriendsCount,
+        gratitudeText: w.gratitudeText || null,
+        gratitudePrompt: w.gratitudePrompt || null,
+        promptContext: w.promptContext || null,
+        storyChips: w.storyChipsRaw || null,
+        completedAt: w.completedAt.getTime(),
+        createdAt: w.createdAt.getTime(),
+      })),
+
       userProgress: userProgressRecords[0]
         ? {
           totalWeaves: userProgressRecords[0].totalWeaves,

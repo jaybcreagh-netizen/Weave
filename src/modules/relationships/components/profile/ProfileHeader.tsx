@@ -10,18 +10,16 @@ import FriendModel from '@/db/models/Friend';
 
 interface ProfileHeaderProps {
     friend: FriendModel;
-    headerOpacity: SharedValue<number>;
     onBack: () => void;
-    onEdit: () => void;
-    onDelete: () => void;
-    onGlobalCalendar: () => void;
-    onShowBadgePopup: () => void;
-    onShowTierFit: () => void;
+    onEdit?: () => void;
+    onDelete?: () => void;
+    onGlobalCalendar?: () => void;
+    onShowBadgePopup?: () => void;
+    onShowTierFit?: () => void;
 }
 
 export function ProfileHeader({
     friend,
-    headerOpacity,
     onBack,
     onEdit,
     onDelete,
@@ -30,10 +28,6 @@ export function ProfileHeader({
     onShowTierFit,
 }: ProfileHeaderProps) {
     const { colors } = useTheme();
-
-    const headerAnimatedStyle = useAnimatedStyle(() => ({
-        opacity: headerOpacity.value,
-    }));
 
     return (
         <View>
@@ -56,7 +50,7 @@ export function ProfileHeader({
             </View>
 
             <View className="px-5 pt-3 pb-2 gap-3">
-                <Animated.View style={headerAnimatedStyle}>
+                <View>
                     <TouchableOpacity
                         activeOpacity={0.95}
                         onLongPress={onShowBadgePopup}
@@ -72,7 +66,7 @@ export function ProfileHeader({
                         friendId={friend.id}
                         onPress={onShowTierFit}
                     />
-                </Animated.View>
+                </View>
             </View>
         </View>
     );

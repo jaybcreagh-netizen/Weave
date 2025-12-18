@@ -3,6 +3,10 @@ import FriendModel from '@/db/models/Friend';
 import InteractionModel from '@/db/models/Interaction';
 import InteractionFriend from '@/db/models/InteractionFriend';
 import UserProgress from '@/db/models/UserProgress';
+import SocialBatteryLog from '@/db/models/SocialBatteryLog';
+import JournalEntry from '@/db/models/JournalEntry';
+import JournalEntryFriend from '@/db/models/JournalEntryFriend';
+import WeeklyReflection from '@/db/models/WeeklyReflection';
 import { Q } from '@nozbe/watermelondb';
 
 interface ExportData {
@@ -54,6 +58,41 @@ interface ExportData {
     eventImportance: string | null;
     initiator: string | null;
     friendIds: string[];
+  }>;
+  socialBatteryLogs?: Array<{
+    userId: string | undefined;
+    value: number;
+    timestamp: number;
+  }>;
+  journalEntries?: Array<{
+    id: string;
+    entryDate: number;
+    title: string | null;
+    content: string;
+    storyChips: string | null;
+    friendIds: string | null;
+    createdAt: number;
+    updatedAt: number;
+  }>;
+  journalEntryFriends?: Array<{
+    journalEntryId: string;
+    friendId: string;
+  }>;
+  weeklyReflections?: Array<{
+    id: string;
+    weekStartDate: number;
+    weekEndDate: number;
+    totalWeaves: number;
+    friendsContacted: number;
+    topActivity: string;
+    topActivityCount: number;
+    missedFriendsCount: number;
+    gratitudeText: string | null;
+    gratitudePrompt: string | null;
+    promptContext: string | null;
+    storyChips: string | null;
+    completedAt: number;
+    createdAt: number;
   }>;
   userProgress: {
     totalWeaves: number;
@@ -145,42 +184,40 @@ export function validateImportData(jsonString: string): {
   }
 }
 
+import schema from '@/db/schema';
+
 /**
  * Clear all existing data from the database
  */
 export async function clearAllData(): Promise<void> {
-  // Use destroyPermanently instead of markAsDeleted to ensure IDs can be reused immediately
-
   await database.write(async () => {
-    // Delete all interaction_friends first (foreign key constraint)
-    const interactionFriends = await database
-      .get<InteractionFriend>('interaction_friends')
-      .query()
-      .fetch();
-    for (const if_ of interactionFriends) {
-      await if_.destroyPermanently();
-    }
+    // 1. Iterate over all tables in the schema
+    const tableNames = Object.keys(schema.tables);
 
-    // Delete all interactions
-    const interactions = await database.get<InteractionModel>('interactions').query().fetch();
-    for (const interaction of interactions) {
-      await interaction.destroyPermanently();
-    }
+    for (const tableName of tableNames) {
+      const collection = database.get(tableName);
 
-    // Delete all friends
-    const friends = await database.get<FriendModel>('friends').query().fetch();
-    for (const friend of friends) {
-      await friend.destroyPermanently();
-    }
+      // A. Destroy all visible (active) records
+      const allRecords = await collection.query().fetch();
+      for (const record of allRecords) {
+        await record.destroyPermanently();
+      }
 
-    // Delete user progress - Soft delete is fine for singletons usually, but consistent behavior is better
-    const userProgressRecords = await database.get<UserProgress>('user_progress').query().fetch();
-    for (const record of userProgressRecords) {
-      await record.destroyPermanently();
+      // B. Destroy all soft-deleted records (ghosts)
+      // This is crucial to avoid "UNIQUE constraint failed" errors when re-importing same IDs
+      try {
+        // @ts-ignore - adapter is strictly typed but we know these methods exist on SQLiteAdapter
+        const deletedResult = await database.adapter.getDeletedRecords(tableName);
+
+        if (Array.isArray(deletedResult) && deletedResult.length > 0) {
+          // @ts-ignore
+          await database.adapter.destroyDeletedRecords(tableName, deletedResult);
+        }
+      } catch (error) {
+        console.warn(`[DataImport] Failed to clear deleted records for table ${tableName}:`, error);
+      }
     }
   });
-
-
 }
 
 /**
@@ -228,6 +265,95 @@ export async function importData(
       const interactionsCollection = database.get<InteractionModel>('interactions');
       const interactionFriendsCollection = database.get<InteractionFriend>('interaction_friends');
       const userProgressCollection = database.get<UserProgress>('user_progress');
+      const batteryLogsCollection = database.get<SocialBatteryLog>('social_battery_logs');
+      const journalEntriesCollection = database.get<JournalEntry>('journal_entries');
+      const journalEntryFriendsCollection = database.get<JournalEntryFriend>('journal_entry_friends');
+      const weeklyReflectionsCollection = database.get<WeeklyReflection>('weekly_reflections');
+
+      // Import social battery logs
+      if (data.socialBatteryLogs && Array.isArray(data.socialBatteryLogs)) {
+        for (const logData of data.socialBatteryLogs) {
+          try {
+            await batteryLogsCollection.create(log => {
+              log.userId = logData.userId || 'user'; // Fallback
+              log.value = logData.value;
+              log.timestamp = logData.timestamp;
+            });
+          } catch (error) {
+            console.warn('[DataImport] Failed to import battery log:', error);
+          }
+        }
+      }
+
+      // Import journal entries
+      if (data.journalEntries && Array.isArray(data.journalEntries)) {
+        for (const entryData of data.journalEntries) {
+          try {
+            await journalEntriesCollection.create(entry => {
+              entry._raw.id = entryData.id;
+              entry.entryDate = entryData.entryDate;
+              entry.title = entryData.title || undefined;
+              entry.content = entryData.content;
+              entry.storyChipsRaw = entryData.storyChips || undefined;
+              entry.linkedWeaveId = entryData.friendIds || undefined; // Mapping friendIds to linkedWeaveId based on usage in export
+              // Note: createdAt/updatedAt are readonly/managed, but we can set them via _raw if needed or let them trigger?
+              // Models usually override these on save. But for restore we want original dates.
+              // _raw manipulation is safer for timestamps.
+              entry._raw._status = 'created';
+              // Set timestamps via _raw if model ignores setter
+              // @ts-ignore
+              entry._raw.created_at = entryData.createdAt;
+              // @ts-ignore
+              entry._raw.updated_at = entryData.updatedAt;
+            });
+          } catch (error) {
+            console.warn('[DataImport] Failed to import journal entry:', error);
+          }
+        }
+      }
+
+      // Import journal entry friends relationships
+      if (data.journalEntryFriends && Array.isArray(data.journalEntryFriends)) {
+        for (const relation of data.journalEntryFriends) {
+          try {
+            await journalEntryFriendsCollection.create(jef => {
+              jef.journalEntryId = relation.journalEntryId;
+              jef.friendId = relation.friendId;
+            });
+          } catch (error) {
+            console.warn('[DataImport] Failed to import journal entry friend:', error);
+          }
+        }
+      }
+
+      // Import weekly reflections
+      if (data.weeklyReflections && Array.isArray(data.weeklyReflections)) {
+        for (const reflectionData of data.weeklyReflections) {
+          try {
+            await weeklyReflectionsCollection.create(ref => {
+              ref._raw.id = reflectionData.id;
+              ref.weekStartDate = reflectionData.weekStartDate;
+              ref.weekEndDate = reflectionData.weekEndDate;
+              ref.totalWeaves = reflectionData.totalWeaves;
+              ref.friendsContacted = reflectionData.friendsContacted;
+              ref.topActivity = reflectionData.topActivity;
+              ref.topActivityCount = reflectionData.topActivityCount;
+              ref.missedFriendsCount = reflectionData.missedFriendsCount;
+              ref.gratitudeText = reflectionData.gratitudeText || undefined;
+              ref.gratitudePrompt = reflectionData.gratitudePrompt || undefined;
+              ref.promptContext = reflectionData.promptContext || undefined;
+              ref.storyChipsRaw = reflectionData.storyChips || undefined;
+              // Set timestamps
+              // @ts-ignore
+              ref._raw.completed_at = reflectionData.completedAt;
+              // @ts-ignore
+              ref._raw.created_at = reflectionData.createdAt;
+            });
+          } catch (error) {
+            console.warn('[DataImport] Failed to import weekly reflection:', error);
+          }
+        }
+      }
 
       // Import friends
 
