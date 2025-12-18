@@ -189,15 +189,6 @@ export default function FriendProfile() {
     );
   }
 
-  // Debug: Log render state
-  console.log('[FriendProfile] Render:', {
-    isDataLoaded,
-    hasFriendModel: !!friendModel,
-    friendId: friendModel?.id,
-    friendName: friendModel?.name,
-    interactionsCount: interactions?.length
-  });
-
   return (
     <ErrorBoundary>
       <SafeAreaView
@@ -215,7 +206,7 @@ export default function FriendProfile() {
             onDeleteInteraction={handleDeleteInteraction}
             onEditInteraction={handleEditInteractionWrapper}
             ListHeaderComponent={
-              <View onLayout={(e) => console.warn('[FriendProfile] Header Height:', e.nativeEvent.layout.height)}>
+              <View>
                 <ProfileHeader
                   friend={friendModel}
                   onBack={() => {

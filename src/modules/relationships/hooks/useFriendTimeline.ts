@@ -5,9 +5,12 @@ import { type Interaction } from '@/shared/types/legacy-types';
 export function useFriendTimeline(interactions: Interaction[] | undefined) {
     const sortedInteractions = useMemo(() =>
         [...(interactions || [])].sort((a, b) => {
-            const dateA = typeof a.interactionDate === 'string' ? new Date(a.interactionDate) : a.interactionDate;
-            const dateB = typeof b.interactionDate === 'string' ? new Date(b.interactionDate) : b.interactionDate;
-            return dateB.getTime() - dateA.getTime();
+            const dateA = new Date(a.interactionDate).getTime();
+            const dateB = new Date(b.interactionDate).getTime();
+            // Handle invalid dates by pushing them to the end
+            if (isNaN(dateA)) return 1;
+            if (isNaN(dateB)) return -1;
+            return dateB - dateA;
         }), [interactions]);
 
     const timelineSections = useMemo(() => {

@@ -55,13 +55,14 @@ export function ProfileHeader({
                 </View>
             </View>
 
-            <View className="px-5 pt-3 pb-2 gap-3">
+            <View style={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8, gap: 12 }}>
                 <Animated.View style={headerAnimatedStyle}>
                     <TouchableOpacity
                         activeOpacity={0.95}
                         onLongPress={onShowBadgePopup}
                     >
-                        <View className="flex-1">
+                        {/* Wrapper View to ensure flex behavior */}
+                        <View>
                             <FriendListRowContent friend={friend} variant="full" />
                         </View>
                     </TouchableOpacity>
