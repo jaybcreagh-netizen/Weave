@@ -7,8 +7,8 @@ import IntentionModel from '@/db/models/Intention';
 import { LifeEventRepository } from '@/modules/relationships/repositories/life-event.repository';
 import LifeEventModel from '@/db/models/LifeEvent';
 import { Friend, Interaction, LifeEvent, Intention } from '@/shared/types/legacy-types';
-import { switchMap } from 'rxjs/operators';
-import { of, combineLatest } from 'rxjs';
+import { switchMap, scan, startWith, map } from 'rxjs/operators';
+import { of, merge } from 'rxjs';
 import IntentionFriend from '@/db/models/IntentionFriend';
 import FriendModel from '@/db/models/Friend';
 import InteractionModel from '@/db/models/Interaction';
@@ -76,11 +76,30 @@ export function useFriendProfileData(friendId: string | undefined) {
             .pipe(
                 switchMap(interactions => {
                     if (interactions.length === 0) {
-                        return of([]);
+                        return of([] as InteractionModel[]);
                     }
-                    // Observe each interaction model for changes individually
-                    // This ensures that if a property of an interaction changes (like activity type), we get an update
-                    return combineLatest(interactions.map(i => i.observe()));
+                    // Observe each interaction model for changes individually.
+                    // Using merge + scan instead of combineLatest to avoid the race condition
+                    // where combineLatest waits for ALL observables to emit, causing flickering.
+                    // This pattern:
+                    // 1. startWith emits the initial list immediately (no waiting)
+                    // 2. merge(...observables) emits whenever ANY interaction updates
+                    // 3. scan collects updated models into a map, then rebuilds the list
+                    const interactionMap = new Map(interactions.map(i => [i.id, i]));
+
+                    return merge(
+                        ...interactions.map(i => i.observe())
+                    ).pipe(
+                        scan((acc, updated) => {
+                            // Update the map with the changed interaction
+                            const newMap = new Map(acc);
+                            newMap.set(updated.id, updated);
+                            return newMap;
+                        }, interactionMap),
+                        startWith(interactionMap),
+                        // Convert map back to array, preserving query order
+                        map(m => Array.from(m.values()))
+                    );
                 })
             )
             .subscribe(interactions => {
