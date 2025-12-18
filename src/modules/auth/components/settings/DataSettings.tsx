@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Alert } from 'react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
-import { Database, Upload, Download, RefreshCw } from 'lucide-react-native';
+import { Database, Upload, Download, RefreshCw, Bug, Wrench } from 'lucide-react-native';
 import { ModernSwitch } from '@/shared/ui/ModernSwitch';
 import { SettingsItem } from './SettingsItem';
 import { AutoBackupService } from '@/modules/backup';
@@ -12,6 +12,7 @@ import {
     getImportPreview,
     importData,
 } from '@/modules/auth';
+import { SuggestionDebugService } from '@/modules/interactions/services/suggestion-debug.service';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
 
@@ -177,6 +178,50 @@ export const DataSettings: React.FC<DataSettingsProps> = ({ onClose }) => {
         }
     };
 
+    const handleRunDiagnostics = async () => {
+        try {
+            const result = await SuggestionDebugService.runDiagnostics();
+            Alert.alert(
+                'Diagnostics Complete',
+                `Found ${result.result.count} suggestions (Limit: 3).\n\n` +
+                `Context: ${result.context.candidates} candidates from ${result.context.friends} friends.\n\n` +
+                `Types: ${result.result.types.join(', ')}\n` +
+                `Categories: ${JSON.stringify(result.result.categories)}`,
+                [{ text: 'OK' }]
+            );
+            console.log('Diagnostics:', JSON.stringify(result, null, 2));
+        } catch (error) {
+            Alert.alert('Error', 'Diagnostics failed');
+            console.error(error);
+        }
+    };
+
+    const handleClearDismissed = async () => {
+        await SuggestionDebugService.clearDismissed();
+        Alert.alert('Success', 'Dismissed suggestions history cleared. New suggestions will be generated on next refresh.');
+    };
+
+    const handleFixData = async () => {
+        Alert.alert(
+            'Recalculate Scores',
+            'This will recalculate weave scores for all friends and update the database. This ensures candidates are correctly identified.',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Run Fix',
+                    onPress: async () => {
+                        try {
+                            const res = await SuggestionDebugService.fixDataIntegrity();
+                            Alert.alert('Complete', `Scanned ${res.processed} friends.\nUpdated ${res.updated} stale scores.`);
+                        } catch (e) {
+                            Alert.alert('Error', 'Fix failed');
+                        }
+                    }
+                }
+            ]
+        );
+    };
+
     const handleResetDatabase = () => {
         Alert.alert(
             "Erase All Data",
@@ -250,6 +295,32 @@ export const DataSettings: React.FC<DataSettingsProps> = ({ onClose }) => {
                     value={autoBackupEnabled}
                     onValueChange={handleToggleAutoBackup}
                 />
+            </View>
+
+            <View className="border-t border-border" style={{ borderColor: colors.border }} />
+
+            {/* Debug Tools */}
+            <View className="flex-row items-center justify-between">
+                <View className="flex-row items-center gap-3">
+                    <View className="w-10 h-10 rounded-lg items-center justify-center" style={{ backgroundColor: colors.primary + '1A' }}>
+                        <Bug color={colors.primary} size={20} />
+                    </View>
+                    <View>
+                        <Text className="text-base font-inter-medium" style={{ color: colors.foreground }}>Suggestion Diagnostics</Text>
+                        <Text className="text-sm font-inter-regular" style={{ color: colors['muted-foreground'] }}>Fix missing suggestions/insights</Text>
+                    </View>
+                </View>
+                <View className="flex-row gap-2">
+                    <TouchableOpacity onPress={handleFixData} className="px-3 py-2 rounded-md" style={{ backgroundColor: colors.muted }}>
+                        <Wrench size={18} color={colors.foreground} />
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={handleClearDismissed} className="px-3 py-2 rounded-md" style={{ backgroundColor: colors.muted }}>
+                        <RefreshCw size={18} color={colors.foreground} />
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={handleRunDiagnostics} className="px-3 py-2 rounded-md" style={{ backgroundColor: colors.muted }}>
+                        <Bug size={18} color={colors.foreground} />
+                    </TouchableOpacity>
+                </View>
             </View>
 
             <View className="border-t border-border" style={{ borderColor: colors.border }} />

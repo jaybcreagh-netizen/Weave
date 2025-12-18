@@ -66,3 +66,12 @@ export async function setLastShownTimestamp(timestamp: number): Promise<void> {
     console.error('Failed to set last shown timestamp:', error);
   }
 }
+
+export async function clearAllDismissed(): Promise<void> {
+  try {
+    await AsyncStorage.removeItem(DISMISSED_KEY);
+    console.log('Cleared all dismissed suggestions');
+  } catch (error) {
+    console.error('Failed to clear dismissed suggestions:', error);
+  }
+}

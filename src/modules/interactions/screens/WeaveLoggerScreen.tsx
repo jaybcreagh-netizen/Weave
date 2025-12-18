@@ -23,7 +23,7 @@ import { database } from '@/db';
 import Interaction from '@/db/models/Interaction';
 import { Q } from '@nozbe/watermelondb';
 import FriendModel from '@/db/models/Friend';
-import { FriendSelector, ReciprocitySelector, InitiatorType } from '@/modules/relationships';
+import { ReciprocitySelector, InitiatorType, FriendPickerSheet } from '@/modules/relationships';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
 import { STORY_CHIPS } from '@/modules/reflection';
@@ -72,7 +72,7 @@ export function WeaveLoggerScreen({
     const [selectedFriends, setSelectedFriends] = useState<FriendModel[]>([]);
     const [showCalendar, setShowCalendar] = useState(false);
     const [showTimePicker, setShowTimePicker] = useState(false);
-    const [showFriendSelector, setShowFriendSelector] = useState(false);
+    const [showFriendPicker, setShowFriendPicker] = useState(false);
     const [selectedCategory, setSelectedCategory] = useState<InteractionCategory | null>(null);
     const [selectedDate, setSelectedDate] = useState<Date>(startOfDay(new Date()));
     const [selectedVibe, setSelectedVibe] = useState<Vibe | null>(null);
@@ -569,7 +569,7 @@ export function WeaveLoggerScreen({
                                         borderWidth: 1,
                                         borderColor: colors.border,
                                     }}
-                                    onPress={() => setShowFriendSelector(true)}
+                                    onPress={() => setShowFriendPicker(true)}
                                 >
                                     <Users size={16} color={colors.primary} />
                                     <Text className="font-inter-medium text-sm ml-2" style={{ color: colors.primary }}>
@@ -721,14 +721,13 @@ export function WeaveLoggerScreen({
                     </View>
                 )}
 
-                {/* Friend Selector Modal */}
-                <FriendSelector
-                    visible={showFriendSelector}
-                    onClose={() => setShowFriendSelector(false)}
-                    initialFriendId={friendId}
-                    selectedFriends={selectedFriends}
-                    onSelectionChange={setSelectedFriends}
-                    asModal={false}
+                {/* Friend Picker Sheet */}
+                <FriendPickerSheet
+                    visible={showFriendPicker}
+                    onClose={() => setShowFriendPicker(false)}
+                    onSelectFriend={(friend) => setSelectedFriends(prev => [...prev, friend])}
+                    title="Add to Weave"
+                    disabledIds={selectedFriends.map(f => f.id)}
                 />
 
                 <WeaveReflectPrompt

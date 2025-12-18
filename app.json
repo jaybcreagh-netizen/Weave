@@ -3,6 +3,11 @@
     "name": "Weave",
     "slug": "weave",
     "version": "1.0.1",
+    "updates": {
+      "enabled": true,
+      "fallbackToCacheTimeout": 0
+    },
+    "runtimeVersion": "1.0.1",
     "icon": "./assets/icon.png",
     "notification": {
       "icon": "./assets/icon.png",

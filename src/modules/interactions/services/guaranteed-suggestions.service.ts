@@ -63,7 +63,7 @@ const WILDCARD_SUGGESTIONS: WildcardSuggestion[] = [
     { title: "Group spark", subtitle: "Plan a casual hangout with two friends who'd enjoy meeting", icon: "Users", actionType: 'plan', prefilledCategory: 'hangout' },
     { title: "Deep dive", subtitle: "Schedule a heart-to-heart with someone you haven't caught up with properly", icon: "Coffee", actionType: 'plan', prefilledCategory: 'deep-talk' },
     { title: "Celebration seed", subtitle: "Plan ahead for an upcoming friend milestone you can celebrate", icon: "PartyPopper", actionType: 'plan', prefilledCategory: 'celebration' },
-    { title: "Walk & talk", subtitle: "Invite someone for a walk—connections flow easier in motion", icon: "Footprints", actionType: 'plan', prefilledCategory: 'activity-hobby' },
+    { title: "Walk & talk", subtitle: "Invite someone for a walk. Connections flow easier in motion.", icon: "Footprints", actionType: 'plan', prefilledCategory: 'activity-hobby' },
 ];
 
 // ============================================================================
@@ -79,10 +79,10 @@ const TIME_AWARE_WILDCARDS: Partial<Record<TimeOfDay, WildcardSuggestion[]>> = {
         { title: "Coffee date?", subtitle: "Invite someone for a quick coffee chat", icon: "Coffee", actionType: 'plan', prefilledCategory: 'meal-drink' },
     ],
     midday: [
-        { title: "Lunch hangout", subtitle: "Make midday more meaningful—invite someone to join", icon: "UtensilsCrossed", actionType: 'plan', prefilledCategory: 'meal-drink' },
+        { title: "Lunch hangout", subtitle: "Make midday more meaningful. Invite someone to join.", icon: "UtensilsCrossed", actionType: 'plan', prefilledCategory: 'meal-drink' },
     ],
     afternoon: [
-        { title: "Afternoon walk", subtitle: "Fresh air and good company—invite a friend for a walk", icon: "Footprints", actionType: 'plan', prefilledCategory: 'activity-hobby' },
+        { title: "Afternoon walk", subtitle: "Fresh air and good company. Invite a friend for a walk.", icon: "Footprints", actionType: 'plan', prefilledCategory: 'activity-hobby' },
         { title: "Weekend plans?", subtitle: "Start thinking about who to see this weekend", icon: "Calendar", actionType: 'plan', prefilledCategory: 'hangout' },
     ],
     evening: [
@@ -98,12 +98,12 @@ const TIME_AWARE_WILDCARDS: Partial<Record<TimeOfDay, WildcardSuggestion[]>> = {
 
 const DAY_SPECIFIC_WILDCARDS: Partial<Record<number, WildcardSuggestion[]>> = {
     0: [ // Sunday
-        { title: "Sunday coffee", subtitle: "It's Sunday—grab a coffee with someone special", icon: "Coffee", actionType: 'plan', prefilledCategory: 'meal-drink' },
-        { title: "Slow Sunday", subtitle: "Sundays are for catching up—who's on your mind?", icon: "Heart", actionType: 'log', prefilledCategory: 'text-call' },
+        { title: "Sunday coffee", subtitle: "It's Sunday. Grab a coffee with someone special.", icon: "Coffee", actionType: 'plan', prefilledCategory: 'meal-drink' },
+        { title: "Slow Sunday", subtitle: "Sundays are for catching up. Who's on your mind?", icon: "Heart", actionType: 'log', prefilledCategory: 'text-call' },
     ],
     5: [ // Friday
-        { title: "Friday plans?", subtitle: "The weekend is coming—who do you want to see?", icon: "PartyPopper", actionType: 'plan', prefilledCategory: 'hangout' },
-        { title: "Weekend kick-off", subtitle: "Start the weekend right—reach out to a friend", icon: "Sparkles", actionType: 'log', prefilledCategory: 'text-call' },
+        { title: "Friday plans?", subtitle: "The weekend is coming. Who do you want to see?", icon: "PartyPopper", actionType: 'plan', prefilledCategory: 'hangout' },
+        { title: "Weekend kick-off", subtitle: "Start the weekend right. Reach out to a friend.", icon: "Sparkles", actionType: 'log', prefilledCategory: 'text-call' },
     ],
     6: [ // Saturday
         { title: "Saturday adventure", subtitle: "Try something new with a friend today", icon: "Compass", actionType: 'plan', prefilledCategory: 'activity-hobby' },
@@ -118,7 +118,7 @@ const DAY_SPECIFIC_WILDCARDS: Partial<Record<number, WildcardSuggestion[]>> = {
 
 const WHY_NOT_REACH_OUT_TEMPLATES = [
     { prefix: "Why not reach out to", suffix: "?", icon: "MessageCircle" },
-    { prefix: "Hey, it's been a while—say hi to", suffix: "", icon: "Hand" },
+    { prefix: "Hey, it's been a while. Say hi to", suffix: "", icon: "Hand" },
     { prefix: "Thinking of", suffix: "? Drop them a line!", icon: "Heart" },
     { prefix: "Missing", suffix: "? A quick hello goes a long way", icon: "Send" },
 ];
@@ -141,9 +141,9 @@ function getTimeOfDay(): TimeOfDay {
 // ============================================================================
 
 const GENTLE_NUDGE_TEMPLATES = [
-    { prefix: "Check in with", suffix: "—it's been a bit!", icon: "MessageCircle" },
-    { prefix: "Say hi to", suffix: "—small gestures matter", icon: "Hand" },
-    { prefix: "Drop a line to", suffix: "—keep the warmth alive", icon: "Send" },
+    { prefix: "Check in with", suffix: ". It's been a bit!", icon: "MessageCircle" },
+    { prefix: "Say hi to", suffix: ". Small gestures matter.", icon: "Hand" },
+    { prefix: "Drop a line to", suffix: ". Keep the warmth alive.", icon: "Send" },
     { prefix: "Think of", suffix: "?—a quick hello goes far", icon: "Heart" },
 ];
 
@@ -271,7 +271,7 @@ function generateDailyReflect(): Suggestion {
 // Softer templates for resting season
 const RESTING_GENTLE_NUDGE_TEMPLATES = [
     { prefix: "When you're ready, say hi to", suffix: "", icon: "MessageCircle" },
-    { prefix: "No rush—", suffix: "might enjoy hearing from you", icon: "Heart" },
+    { prefix: "No rush, but", suffix: "might enjoy hearing from you", icon: "Heart" },
     { prefix: "A thought:", suffix: "came to mind", icon: "Lightbulb" },
 ];
 
@@ -493,8 +493,8 @@ function generateWhyNotReachOut(
  */
 const COMMUNITY_CHECKIN_TEMPLATES = [
     { prefix: "Reconnect with", suffix: "from your wider circle", icon: "Users" },
-    { prefix: "Check in on", suffix: "—community connections matter too", icon: "Heart" },
-    { prefix: "Say hi to", suffix: "—it's been a while", icon: "Hand" },
+    { prefix: "Check in on", suffix: ". Community connections matter too.", icon: "Heart" },
+    { prefix: "Say hi to", suffix: ". It's been a while.", icon: "Hand" },
     { prefix: "Drop a line to", suffix: "in your community", icon: "MessageCircle" },
 ];
 

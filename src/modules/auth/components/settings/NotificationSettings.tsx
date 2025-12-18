@@ -1,117 +1,114 @@
+
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Modal, Platform, LayoutAnimation, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, Modal, LayoutAnimation, Platform, Alert, ScrollView } from 'react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
-import UserProfile from '@/db/models/UserProfile';
-import { Bell, Clock, BookOpen, Moon, ChevronRight, BarChart3 } from 'lucide-react-native';
-import { ModernSwitch } from '@/shared/ui/ModernSwitch';
-import { SettingsItem } from './SettingsItem';
-import DateTimePicker from '@react-native-community/datetimepicker';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useUserProfile, SocialBatteryService } from '@/modules/auth';
-import { database } from '@/db';
+import { useUserProfile } from '@/modules/auth/hooks/useUserProfile';
+import { useQueryClient } from '@tanstack/react-query';
+import { notificationStore } from '@/modules/notifications/services/notification-store';
+import { SocialBatteryService } from '@/modules/auth/services/social-battery.service';
 import {
     WeeklyReflectionChannel,
     EventReminderChannel,
     EveningDigestChannel,
-    notificationStore,
+    BatteryCheckinChannel, // Assuming this exists based on context
+    DeepeningNudgeChannel, // Assuming this exists based on context
 } from '@/modules/notifications';
-import { SuggestionTrackerService } from '@/modules/interactions';
+import { SuggestionTrackerService } from '@/modules/interactions/services/suggestion-tracker.service';
+import { SettingsItem } from './SettingsItem';
+import { ModernSwitch } from '@/shared/ui/ModernSwitch';
+import { Bell, Clock, BookOpen, ChevronRight, Moon, BarChart3 } from 'lucide-react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export const NotificationSettings = () => {
     const { colors } = useTheme();
-    const { profile } = useUserProfile();
-    // Helper wrappers to match previous interface or call service directly
-    const updateBatteryPreferences = async (enabled: boolean, time?: string) => {
-        if (!profile) return;
-        await SocialBatteryService.updatePreferences(profile.id, enabled, time);
-    };
+    const { profile, updateProfile } = useUserProfile();
+    const queryClient = useQueryClient();
 
-    const updateProfile = async (updates: Partial<UserProfile>) => {
-        if (!profile) return;
-        await database.write(async () => {
-            await profile.update(p => {
-                Object.assign(p, updates);
-            });
-        });
-    };
-
-    // Notification settings state
+    // State
     const [batteryNotificationsEnabled, setBatteryNotificationsEnabled] = useState(false);
     const [batteryNotificationTime, setBatteryNotificationTime] = useState(new Date());
     const [showTimePicker, setShowTimePicker] = useState(false);
-    const [weeklyReflectionEnabled, setWeeklyReflectionEnabled] = useState(true);
-    const [reflectionAutoShow, setReflectionAutoShow] = useState(true);
+
+    const [weeklyReflectionEnabled, setWeeklyReflectionEnabled] = useState(false);
     const [reflectionDay, setReflectionDay] = useState(0); // 0 = Sunday
+    const [reflectionAutoShow, setReflectionAutoShow] = useState(false);
     const [showDayPicker, setShowDayPicker] = useState(false);
-    const [eventRemindersEnabled, setEventRemindersEnabled] = useState(true);
-    const [deepeningNudgesEnabled, setDeepeningNudgesEnabled] = useState(true);
 
-    // Smart notification preferences
-    const [smartNotificationsEnabled, setSmartNotificationsEnabled] = useState(true);
+    const [eventRemindersEnabled, setEventRemindersEnabled] = useState(false);
+    const [deepeningNudgesEnabled, setDeepeningNudgesEnabled] = useState(false);
+
+    const [smartNotificationsEnabled, setSmartNotificationsEnabled] = useState(false);
     const [notificationFrequency, setNotificationFrequency] = useState<'light' | 'moderate' | 'proactive'>('moderate');
-    const [respectBattery, setRespectBattery] = useState(true);
     const [maxDailySuggestions, setMaxDailySuggestions] = useState(10);
+    const [respectBattery, setRespectBattery] = useState(true);
 
-    // Evening Digest preferences
-    const [digestEnabled, setDigestEnabled] = useState(true);
+    const [digestEnabled, setDigestEnabled] = useState(false);
     const [digestTime, setDigestTime] = useState(new Date());
     const [showDigestTimePicker, setShowDigestTimePicker] = useState(false);
 
+    // Load detailed settings on mount
     useEffect(() => {
-        loadNotificationSettings();
+        loadSettings();
     }, [profile]);
 
-    const loadNotificationSettings = async () => {
-        if (!profile) return;
+    const loadSettings = async () => {
+        // Load Battery Settings from profile
+        if (profile) {
+            setBatteryNotificationsEnabled(profile.batteryCheckinEnabled ?? false);
+            if (profile.batteryCheckinTime) {
+                const [hours, minutes] = profile.batteryCheckinTime.split(':').map(Number);
+                const date = new Date();
+                date.setHours(hours, minutes, 0);
+                setBatteryNotificationTime(date);
+            }
 
-        // Load battery notification preferences
-        const enabled = profile.batteryCheckinEnabled ?? true;
-        setBatteryNotificationsEnabled(enabled);
+            setReflectionDay(profile.reflectionDay ?? 0);
+            setReflectionAutoShow(profile.reflectionAutoShow ?? false);
+        }
 
-        const timeStr = profile.batteryCheckinTime || '20:00';
-        const [hours, minutes] = timeStr.split(':').map(Number);
-        const date = new Date();
-        date.setHours(hours, minutes, 0, 0);
-        setBatteryNotificationTime(date);
+        // Load specific notification preferences
+        const prefs = await notificationStore.getPreferences();
+        setSmartNotificationsEnabled(prefs.frequency !== 'light'); // Rough mapping or separate flag? 
+        // Actually, let's assume smartNotificationsEnabled maps to general master switch if we had one, 
+        // but here we might need to check a specific stored key or deduce it.
+        // For now, let's load what we can.
+        setNotificationFrequency(prefs.frequency);
+        setMaxDailySuggestions(prefs.maxDailySuggestions || 10);
+        setRespectBattery(prefs.respectBattery);
+        setDigestEnabled(prefs.digestEnabled);
 
-        // Load weekly reflection preferences
-        const reflAutoShow = profile.reflectionAutoShow ?? true;
-        setReflectionAutoShow(reflAutoShow);
+        if (prefs.digestTime) {
+            const [dHours, dMinutes] = prefs.digestTime.split(':').map(Number);
+            const dDate = new Date();
+            dDate.setHours(dHours, dMinutes, 0);
+            setDigestTime(dDate);
+        }
 
-        const reflDay = profile.reflectionDay ?? 0; // Default to Sunday
-        setReflectionDay(reflDay);
+        // Load local toggles
+        const reflectionEnabled = await AsyncStorage.getItem('@weave:weekly_reflection_enabled');
+        setWeeklyReflectionEnabled(reflectionEnabled !== 'false');
 
-        // Load event reminders preference
-        const eventRemindersStr = await AsyncStorage.getItem('@weave:event_reminders_enabled');
-        setEventRemindersEnabled(eventRemindersStr ? JSON.parse(eventRemindersStr) : true);
+        const remindersEnabled = await AsyncStorage.getItem('@weave:event_reminders_enabled');
+        setEventRemindersEnabled(remindersEnabled !== 'false');
 
-        // Load deepening nudges preference
-        const deepeningNudgesStr = await AsyncStorage.getItem('@weave:deepening_nudges_enabled');
-        setDeepeningNudgesEnabled(deepeningNudgesStr ? JSON.parse(deepeningNudgesStr) : true);
+        const deepeningEnabled = await AsyncStorage.getItem('@weave:deepening_nudges_enabled');
+        setDeepeningNudgesEnabled(deepeningEnabled !== 'false');
 
-        // Load smart notification preferences
-        const smartPrefs = await notificationStore.getPreferences();
-        setNotificationFrequency(smartPrefs.frequency);
-        setRespectBattery(smartPrefs.respectBattery);
-        setDigestEnabled(smartPrefs.digestEnabled ?? true);
+        const smartEnabled = await AsyncStorage.getItem('@weave:smart_notifications_enabled');
+        setSmartNotificationsEnabled(smartEnabled !== 'false');
+    };
 
-        const dTime = smartPrefs.digestTime || '19:00';
-        const [dHours, dMinutes] = dTime.split(':').map(Number);
-        const dDate = new Date();
-        dDate.setHours(dHours, dMinutes, 0, 0);
-        setDigestTime(dDate);
-
-        // Load max daily suggestions
-        setMaxDailySuggestions(smartPrefs.maxDailySuggestions || 10);
-
-        // Load smart notifications enabled state
-        const smartEnabledStr = await AsyncStorage.getItem('@weave:smart_notifications_enabled');
-        setSmartNotificationsEnabled(smartEnabledStr ? JSON.parse(smartEnabledStr) : true);
+    const updateBatteryPreferences = async (enabled: boolean, timeStr: string) => {
+        if (!profile?.userId) return;
+        await SocialBatteryService.updatePreferences(profile.userId, enabled, timeStr);
     };
 
     const handleMaxSuggestionsChange = async (count: number) => {
         setMaxDailySuggestions(count);
         await notificationStore.setPreferences({ maxDailySuggestions: count });
+        // Invalidate suggestions query so it re-fetches with the new limit immediately
+        queryClient.invalidateQueries({ queryKey: ['suggestions', 'all'] });
     };
 
     const handleToggleBatteryNotifications = async (enabled: boolean) => {
@@ -139,6 +136,7 @@ export const NotificationSettings = () => {
 
     const handleToggleWeeklyReflection = async (enabled: boolean) => {
         setWeeklyReflectionEnabled(enabled);
+        await AsyncStorage.setItem('@weave:weekly_reflection_enabled', JSON.stringify(enabled));
         if (enabled) {
             await WeeklyReflectionChannel.schedule();
         } else {

@@ -475,6 +475,7 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = ({ friends })
                 isVisible={showDetailSheet}
                 onClose={() => setShowDetailSheet(false)}
                 upcomingPlans={todaysUpcoming}
+                tomorrowPlans={tomorrowsPlans}
                 completedPlans={todaysCompleted}
                 suggestions={suggestions}
                 upcomingDates={upcomingDates}

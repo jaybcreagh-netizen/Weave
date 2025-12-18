@@ -476,40 +476,115 @@ async function checkConnectionHealth(friend: HydratedFriend | Friend): Promise<S
 /**
  * PRIORITY 3: Upcoming plans
  */
+/**
+ * PRIORITY 3: Upcoming plans
+ */
 async function checkUpcomingPlans(friend: HydratedFriend | Friend): Promise<StatusLine | null> {
   try {
-    const today = startOfDay(new Date());
+    const now = Date.now();
 
+    // FETCH: Get all planned interactions strictly in the future
+    // We fetch a bit more (limit 15) to ensure we capture the full "nearest day" context
+    // sorting by date ASC so we get the soonest ones first
     const futureInteractions = await database
       .get<Interaction>('interactions')
       .query(
         Q.where('status', 'planned'),
-        Q.where('interaction_date', Q.gte(today.getTime())),
-        Q.sortBy('interaction_date', Q.asc)
+        Q.where('interaction_date', Q.gt(now)),
+        Q.sortBy('interaction_date', Q.asc),
+        Q.take(15)
       )
       .fetch();
 
-    // Find the nearest upcoming interaction with this friend
+    // Filter to interactions with THIS friend
+    const friendInteractions: Interaction[] = [];
+
+    // We need to resolve the many-to-many relationship
+    // Optimization: Parallel fetch could be better but sticking to sequential for safety/simplicity in this loop
+    // or we could optimize by querying interaction_friends first if performance triggers issues,
+    // but typically futureInteractions list is small.
     for (const interaction of futureInteractions) {
       const interactionFriends = await interaction.interactionFriends.fetch();
       if (interactionFriends.some((jf: InteractionFriend) => jf.friendId === friend.id)) {
-        // Use startOfDay on both dates for accurate calendar-day comparison
-        const daysUntil = differenceInDays(startOfDay(interaction.interactionDate), today);
-        const categoryLabel = getCategoryLabel(interaction.interactionCategory);
-
-        if (daysUntil === 0) {
-          return { text: `${capitalize(categoryLabel)} planned for today!`, icon: '🗓️', variant: 'accent' };
-        } else if (daysUntil === 1) {
-          return { text: `${capitalize(categoryLabel)} planned for tomorrow`, icon: '🗓️', variant: 'accent' };
-        } else if (daysUntil <= 7) {
-          const dayName = format(interaction.interactionDate, 'EEEE');
-          return { text: `${capitalize(categoryLabel)} planned for ${dayName}`, icon: '🗓️', variant: 'default' };
-        } else if (daysUntil <= 30) {
-          return { text: `${capitalize(categoryLabel)} planned in ${daysUntil} days`, icon: '🗓️', variant: 'default' };
-        }
-        // If plan is >30 days away, don't show it (falls through to archetype nudge)
+        friendInteractions.push(interaction);
       }
     }
+
+    if (friendInteractions.length === 0) return null;
+
+    // FIND NEAREST DAY: We only want to show prompts for the *nearest* day that has plans
+    // (e.g. if we have plans tomorrow AND next week, we only care about tomorrow's plans for the prompt)
+    const firstPlan = friendInteractions[0];
+    const firstPlanDate = startOfDay(firstPlan.interactionDate);
+
+    const nearestDayPlans = friendInteractions.filter(i =>
+      startOfDay(i.interactionDate).getTime() === firstPlanDate.getTime()
+    );
+
+    // PRIORITIZE: Sort nearest day plans by importance/category
+    // 1. Special/High Effort (Parties, Travel, Life Events)
+    // 2. High Quality (Meals, Activities, Deep Talks)
+    // 3. Standard (Hangouts, Favors)
+    // 4. Low Effort (Calls, Texts)
+    const getPriorityScore = (category?: string | null) => {
+      const cat = category || '';
+      switch (cat) {
+        case 'celebration':
+        case 'travel':
+        case 'event-party':
+        case 'life_event':
+          return 4;
+        case 'meal-drink':
+        case 'activity-hobby':
+        case 'deep-talk':
+          return 3;
+        case 'hangout':
+        case 'favor-support':
+          return 2;
+        case 'text-call':
+        default:
+          return 1;
+      }
+    };
+
+    // Sort descending by score
+    nearestDayPlans.sort((a, b) => {
+      const scoreA = getPriorityScore(a.interactionCategory);
+      const scoreB = getPriorityScore(b.interactionCategory);
+      return scoreB - scoreA;
+    });
+
+    const topPlan = nearestDayPlans[0];
+
+    // FORMAT PROMPT based on the top priority plan
+    const today = startOfDay(new Date());
+    const daysUntil = differenceInDays(startOfDay(topPlan.interactionDate), today);
+    const categoryLabel = getCategoryLabel(topPlan.interactionCategory);
+
+    // Use specific icons if available, else calendar
+    const planIcons: Record<string, string> = {
+      'celebration': '🎉',
+      'travel': '✈️',
+      'meal-drink': '🍽️',
+      'activity-hobby': '🎨',
+      'text-call': '📞'
+    };
+    const icon = planIcons[topPlan.interactionCategory || ''] || '🗓️';
+
+    if (daysUntil === 0) {
+      // Double check time - if it's today but the time has passed? 
+      // The query filtered Q.gt(now), so it must be later today.
+      return { text: `${capitalize(categoryLabel)} later today`, icon, variant: 'accent' };
+    } else if (daysUntil === 1) {
+      return { text: `${capitalize(categoryLabel)} planned for tomorrow`, icon, variant: 'accent' };
+    } else if (daysUntil <= 7) {
+      const dayName = format(topPlan.interactionDate, 'EEEE');
+      return { text: `${capitalize(categoryLabel)} planned for ${dayName}`, icon: '🗓️', variant: 'default' };
+    } else if (daysUntil <= 30) {
+      return { text: `${capitalize(categoryLabel)} planned in ${daysUntil} days`, icon: '🗓️', variant: 'default' };
+    }
+
+    // If > 30 days, we ignore it
   } catch (error) {
     console.error('Error checking upcoming plans:', error);
   }

@@ -31,6 +31,7 @@ interface FocusDetailSheetProps {
     isVisible: boolean;
     onClose: () => void;
     upcomingPlans: Interaction[];
+    tomorrowPlans?: Interaction[];
     completedPlans: Interaction[];
     suggestions: Suggestion[];
     upcomingDates: UpcomingDate[];
@@ -44,6 +45,7 @@ export const FocusDetailSheet: React.FC<FocusDetailSheetProps> = ({
     isVisible,
     onClose,
     upcomingPlans,
+    tomorrowPlans = [],
     completedPlans,
     suggestions,
     upcomingDates,
@@ -60,7 +62,7 @@ export const FocusDetailSheet: React.FC<FocusDetailSheetProps> = ({
         let isMounted = true;
         const loadFriends = async () => {
             const newMap: Record<string, string[]> = {};
-            const allPlans = [...upcomingPlans, ...completedPlans];
+            const allPlans = [...upcomingPlans, ...tomorrowPlans, ...completedPlans];
             for (const plan of allPlans) {
                 try {
                     const iFriends = await plan.interactionFriends.fetch();
@@ -73,7 +75,7 @@ export const FocusDetailSheet: React.FC<FocusDetailSheetProps> = ({
         };
         loadFriends();
         return () => { isMounted = false; };
-    }, [upcomingPlans, completedPlans]);
+    }, [upcomingPlans, tomorrowPlans, completedPlans]);
 
     React.useEffect(() => {
         let isMounted = true;
@@ -169,6 +171,43 @@ export const FocusDetailSheet: React.FC<FocusDetailSheetProps> = ({
                                             title={plan.title || `${getCategoryLabel(plan.interactionCategory as any)}${friendName ? ` with ${friendName}` : ''}`}
                                             subtitle={subtitle}
                                             showDivider={index < upcomingPlans.length - 1}
+                                            compact
+                                            trailing={
+                                                <View className="flex-row">
+                                                    <Button
+                                                        label="Reschedule"
+                                                        size="sm"
+                                                        variant="secondary"
+                                                        onPress={() => onReschedulePlan(plan)}
+                                                        className="py-1 px-2.5 h-8 min-w-[80px]"
+                                                    />
+                                                </View>
+                                            }
+                                        />
+                                    </View>
+                                );
+                            })}
+                        </Card>
+                    </View>
+                )}
+
+                {/* Tomorrow's Plans Section */}
+                {tomorrowPlans.length > 0 && (
+                    <View className="mb-6">
+                        <WidgetHeader title="Tomorrow" icon={<Clock size={20} color={tokens.primaryMuted} />} />
+                        <Card padding="none">
+                            {tomorrowPlans.map((plan, index) => {
+                                const friendIds = planFriendIds[plan.id] || [];
+                                const planFriends = friends.filter(f => friendIds.includes(f.id));
+                                const friendName = planFriends.length > 0 ? planFriends[0].name : '';
+                                const subtitle = `${friendName ? `with ${friendName} • ` : ''}${format(new Date(plan.interactionDate), 'h:mm a')}`;
+
+                                return (
+                                    <View key={plan.id} className="px-4">
+                                        <ListItem
+                                            title={plan.title || `${getCategoryLabel(plan.interactionCategory as any)}${friendName ? ` with ${friendName}` : ''}`}
+                                            subtitle={subtitle}
+                                            showDivider={index < tomorrowPlans.length - 1}
                                             compact
                                             trailing={
                                                 <View className="flex-row">

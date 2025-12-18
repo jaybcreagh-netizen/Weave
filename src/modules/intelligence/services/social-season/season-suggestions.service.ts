@@ -62,7 +62,7 @@ export interface SeasonSuggestionConfig {
  */
 const SEASON_SUGGESTION_CONFIGS: Record<SocialSeason, SeasonSuggestionConfig> = {
     resting: {
-        maxDaily: 5, // Increased from 3 to ensure users always have options
+        maxDaily: 3, // Default to 3 per user request
         allowedCategories: [
             'critical-drift',
             'life-event',       // Always include life events
@@ -78,7 +78,7 @@ const SEASON_SUGGESTION_CONFIGS: Record<SocialSeason, SeasonSuggestionConfig> = 
         priorityMultiplier: 0.7, // Less pressure overall
     },
     balanced: {
-        maxDaily: 8,
+        maxDaily: 3, // Default to 3 per user request
         allowedCategories: [
             'critical-drift',
             'high-drift',
@@ -103,7 +103,7 @@ const SEASON_SUGGESTION_CONFIGS: Record<SocialSeason, SeasonSuggestionConfig> = 
         priorityMultiplier: 1.0,
     },
     blooming: {
-        maxDaily: 12,
+        maxDaily: 3, // Default to 3 per user request
         allowedCategories: [
             'critical-drift',
             'high-drift',

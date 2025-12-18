@@ -40,6 +40,6 @@ export async function sync() {
                 throw new Error(error.message)
             }
         },
-        migrationsEnabledAtVersion: 1,
+        migrationsEnabledAtVersion: 8,
     })
 }

@@ -1,10 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { View, TouchableOpacity, Image } from 'react-native';
-import { ChevronRight } from 'lucide-react-native';
+import { View } from 'react-native';
 import { Q } from '@nozbe/watermelondb';
 import { BottomSheetFlatList } from '@gorhom/bottom-sheet';
 import * as Haptics from 'expo-haptics';
-import * as FileSystem from 'expo-file-system';
 
 import { useTheme } from '@/shared/hooks/useTheme';
 import { StandardBottomSheet } from '@/shared/ui/Sheet';
@@ -12,7 +10,6 @@ import { Text } from '@/shared/ui';
 import { database } from '@/db';
 import FriendModel from '@/db/models/Friend';
 import { FriendListRow } from './FriendListRow';
-import { normalizeContactImageUri } from '../utils/image.utils';
 import { FriendSearchBar, SearchFilters, SortOption } from './FriendSearchBar';
 import { calculateCurrentScore } from '@/modules/intelligence';
 import { Archetype } from '../types';
@@ -36,6 +33,7 @@ interface FriendPickerSheetProps {
   onSelectFriend: (friend: FriendModel) => void;
   title?: string;
   subtitle?: string;
+  disabledIds?: string[];
 }
 
 export function FriendPickerSheet({
@@ -44,6 +42,7 @@ export function FriendPickerSheet({
   onSelectFriend,
   title = 'Choose a Friend',
   subtitle,
+  disabledIds = [],
 }: FriendPickerSheetProps) {
   const { colors } = useTheme();
   const [friends, setFriends] = useState<FriendModel[]>([]);
@@ -143,15 +142,18 @@ export function FriendPickerSheet({
 
   const renderFriendItem = useCallback(
     ({ item }: { item: FriendModel }) => {
+      const isDisabled = disabledIds.includes(item.id);
       return (
-        <FriendListRow
-          friend={item}
-          variant="compact"
-          onPress={handleSelectFriend}
-        />
+        <View style={{ opacity: isDisabled ? 0.5 : 1 }}>
+          <FriendListRow
+            friend={item}
+            variant="compact"
+            onPress={isDisabled ? undefined : handleSelectFriend}
+          />
+        </View>
       );
     },
-    [handleSelectFriend]
+    [handleSelectFriend, disabledIds]
   );
 
   const renderScrollContent = useCallback(() => {
