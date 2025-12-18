@@ -46,6 +46,7 @@ export { IntentionsList } from './components/IntentionsList';
 export { TierInfo } from './components/TierInfo';
 export { TierSegmentedControl } from './components/TierSegmentedControl';
 export { AddFriendMenu } from './components/AddFriendMenu';
+export { FriendPickerSheet } from './components/FriendPickerSheet';
 export { DuplicateResolverModal } from './components/DuplicateResolverModal';
 export { ProfileHeader } from './components/profile/ProfileHeader';
 export { ActionButtons } from './components/profile/ActionButtons';
