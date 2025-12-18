@@ -144,8 +144,7 @@ export const DataSettings: React.FC<DataSettingsProps> = ({ onClose }) => {
                                         'Import Successful!',
                                         `Your data has been restored:\n\n` +
                                         `${result.friendsImported} friends imported\n` +
-                                        `${result.interactionsImported} interactions imported\n\n` +
-                                        `Please restart the app to see your restored data.`,
+                                        `Your data has been restored.`,
                                         [
                                             {
                                                 text: 'OK',

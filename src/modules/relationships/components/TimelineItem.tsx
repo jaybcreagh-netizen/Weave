@@ -22,6 +22,8 @@ import { useTheme } from '@/shared/hooks/useTheme';
 import { formatPoeticDate, calculateWeaveWarmth, getThreadColors } from '@/shared/utils/timeline-utils';
 import { modeIcons } from '@/shared/constants/constants';
 import { getCategoryMetadata, CATEGORY_METADATA } from '@/shared/constants/interaction-categories';
+import type { LucideIcon } from 'lucide-react-native';
+import { Sparkles } from 'lucide-react-native';
 import { type Interaction, type InteractionCategory } from '@/shared/types/legacy-types';
 import { calculateDeepeningLevel, getDeepeningVisuals } from '@/modules/intelligence';
 import { usePausableAnimation } from '@/shared/hooks/usePausableAnimation';
@@ -187,7 +189,7 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, index,
   const cardTintColor = useMemo(() => getVibeColorTint(0.05), [isFuture, interaction.vibe, colors, deepeningMetrics]);
 
   // Get friendly label and icon for category (memoized)
-  const { displayLabel, displayIcon } = useMemo(() => {
+  const { displayLabel, displayIcon, IconComponent } = useMemo(() => {
     // Check if the activity is a known category ID (e.g., 'hangout', 'meal-drink')
     // Old logic only checked for hyphens, missing 'hangout' and 'celebration'
     const isCategory = interaction.activity && (interaction.activity in CATEGORY_METADATA);
@@ -195,7 +197,7 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, index,
     if (isCategory) {
       const categoryData = getCategoryMetadata(interaction.activity as InteractionCategory);
       if (categoryData) {
-        return { displayLabel: categoryData.label, displayIcon: categoryData.icon };
+        return { displayLabel: categoryData.label, displayIcon: null, IconComponent: categoryData.iconComponent };
       }
     }
 
@@ -207,13 +209,14 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, index,
     if (categoryFromReflection) {
       const categoryData = getCategoryMetadata(categoryFromReflection as InteractionCategory);
       if (categoryData) {
-        return { displayLabel: categoryData.label, displayIcon: categoryData.icon };
+        return { displayLabel: categoryData.label, displayIcon: null, IconComponent: categoryData.iconComponent };
       }
     }
 
     return {
       displayLabel: interaction.activity || 'Interaction', // Fallback label
-      displayIcon: modeIcons[interaction.mode as keyof typeof modeIcons] || '✨'
+      displayIcon: modeIcons[interaction.mode as keyof typeof modeIcons] || '✨',
+      IconComponent: Sparkles as LucideIcon
     };
   }, [interaction.activity, interaction.mode, interaction.interactionCategory, interaction.reflection]);
 
@@ -701,12 +704,20 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, index,
             <View className="p-4 flex-row items-start gap-3 z-[1]">
               {/* Icon with deepened indicator */}
               <View>
-                <Text
-                  className="text-[26px] opacity-90"
-                  style={{ transform: [{ rotate: `${iconRotation}deg` }] }}
-                >
-                  {displayIcon}
-                </Text>
+                {IconComponent ? (
+                  <IconComponent
+                    size={26}
+                    color={colors.primary}
+                    style={{ opacity: 0.9, transform: [{ rotate: `${iconRotation}deg` }] }}
+                  />
+                ) : (
+                  <Text
+                    className="text-[26px] opacity-90"
+                    style={{ transform: [{ rotate: `${iconRotation}deg` }] }}
+                  >
+                    {displayIcon}
+                  </Text>
+                )}
                 {/* Deepened weave indicator - scale-based sparkles */}
                 {deepeningMetrics.level !== 'none' && (
                   <View className="absolute -top-1 -right-1">

@@ -42,12 +42,27 @@ export const SuggestionCandidateService = {
         // 2. Recent Interactions (Active Friends)
         // Strict cap at ACTIVE_LIMIT, but we must be careful with duplicates from step 1.
         // We fetch more to account for overlap, but stop adding once we hit the quota or run out.
+        // NOTE: Using manual two-step query to avoid Q.on issues on physical devices (per project memory)
         const oneWeekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-        const recentInteractionFriends = await database.get<InteractionFriend>('interaction_friends')
+
+        // Step A: Get recent interaction IDs
+        const recentInteractions = await database.get<Interaction>('interactions')
             .query(
-                Q.on('interactions', 'interaction_date', Q.gte(oneWeekAgo)),
-                Q.take(100) // Fetch plenty to filter through
+                Q.where('interaction_date', Q.gte(oneWeekAgo)),
+                Q.where('status', 'completed'),
+                Q.sortBy('interaction_date', Q.desc),
+                Q.take(200) // Fetch more to cover multiple friends
             ).fetch();
+
+        const recentInteractionIds = recentInteractions.map(i => i.id);
+
+        // Step B: Get friend links for those interactions
+        let recentInteractionFriends: InteractionFriend[] = [];
+        if (recentInteractionIds.length > 0) {
+            recentInteractionFriends = await database.get<InteractionFriend>('interaction_friends')
+                .query(Q.where('interaction_id', Q.oneOf(recentInteractionIds)))
+                .fetch();
+        }
 
         let activeAddedCount = 0;
         for (const link of recentInteractionFriends) {

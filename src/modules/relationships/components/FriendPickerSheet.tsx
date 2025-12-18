@@ -1,17 +1,34 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, TouchableOpacity, TextInput, Image } from 'react-native';
-import { Search, X, ChevronRight } from 'lucide-react-native';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { View, TouchableOpacity, Image } from 'react-native';
+import { ChevronRight } from 'lucide-react-native';
 import { Q } from '@nozbe/watermelondb';
 import { BottomSheetFlatList } from '@gorhom/bottom-sheet';
 import * as Haptics from 'expo-haptics';
+import * as FileSystem from 'expo-file-system';
 
 import { useTheme } from '@/shared/hooks/useTheme';
 import { StandardBottomSheet } from '@/shared/ui/Sheet';
 import { Text } from '@/shared/ui';
 import { database } from '@/db';
 import FriendModel from '@/db/models/Friend';
+import { FriendListRow } from './FriendListRow';
 import { normalizeContactImageUri } from '../utils/image.utils';
-import { resolveImageUri } from '../services/image.service';
+import { FriendSearchBar, SearchFilters, SortOption } from './FriendSearchBar';
+import { calculateCurrentScore } from '@/modules/intelligence';
+import { Archetype } from '../types';
+
+// Reuse health status logic from FriendSearchResults
+type HealthStatus = 'thriving' | 'stable' | 'attention' | 'drifting';
+const THRIVING_THRESHOLD = 70;
+const ATTENTION_THRESHOLD = 35;
+const DRIFTING_THRESHOLD = 20;
+
+const getHealthStatus = (score: number): HealthStatus => {
+  if (score >= THRIVING_THRESHOLD) return 'thriving';
+  if (score >= ATTENTION_THRESHOLD) return 'stable';
+  if (score >= DRIFTING_THRESHOLD) return 'attention';
+  return 'drifting';
+};
 
 interface FriendPickerSheetProps {
   visible: boolean;
@@ -30,11 +47,21 @@ export function FriendPickerSheet({
 }: FriendPickerSheetProps) {
   const { colors } = useTheme();
   const [friends, setFriends] = useState<FriendModel[]>([]);
+
+  // Search & Filter State
   const [searchQuery, setSearchQuery] = useState('');
+  const [filters, setFilters] = useState<SearchFilters>({
+    healthStatus: [],
+    archetypes: [],
+  });
+  const [sortOption, setSortOption] = useState<SortOption>('default');
 
   useEffect(() => {
     if (!visible) {
+      // Reset state on close
       setSearchQuery('');
+      setFilters({ healthStatus: [], archetypes: [] });
+      setSortOption('default');
       return;
     }
 
@@ -47,9 +74,52 @@ export function FriendPickerSheet({
     return () => subscription.unsubscribe();
   }, [visible]);
 
-  const filteredFriends = friends.filter((friend) =>
-    friend.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Filter and Sort Logic
+  const filteredFriends = useMemo(() => {
+    let results = [...friends];
+
+    // Text search
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      results = results.filter(friend =>
+        friend.name.toLowerCase().includes(query)
+      );
+    }
+
+    // Health status filter
+    if (filters.healthStatus.length > 0) {
+      results = results.filter(friend => {
+        const currentScore = calculateCurrentScore(friend);
+        const status = getHealthStatus(currentScore);
+        return filters.healthStatus.includes(status);
+      });
+    }
+
+    // Archetype filter
+    if (filters.archetypes.length > 0) {
+      results = results.filter(friend =>
+        filters.archetypes.includes(friend.archetype as Archetype)
+      );
+    }
+
+    // Apply sorting
+    switch (sortOption) {
+      case 'needs-attention':
+        return results.sort((a, b) => calculateCurrentScore(a) - calculateCurrentScore(b));
+      case 'thriving-first':
+        return results.sort((a, b) => calculateCurrentScore(b) - calculateCurrentScore(a));
+      case 'recently-connected':
+        return results.sort((a, b) => (b.lastUpdated?.getTime() || 0) - (a.lastUpdated?.getTime() || 0));
+      case 'longest-since':
+        return results.sort((a, b) => (a.lastUpdated?.getTime() || 0) - (b.lastUpdated?.getTime() || 0));
+      case 'alphabetical':
+        return results.sort((a, b) => a.name.localeCompare(b.name));
+      case 'default':
+      default:
+        // Default alphabetical for picker usually makes sense, but let's keep it consistent
+        return results.sort((a, b) => a.name.localeCompare(b.name));
+    }
+  }, [friends, searchQuery, filters, sortOption]);
 
   const handleSelectFriend = useCallback(
     (friend: FriendModel) => {
@@ -60,127 +130,91 @@ export function FriendPickerSheet({
     [onSelectFriend, onClose]
   );
 
+  const handleClearFilters = useCallback(() => {
+    setSearchQuery('');
+    setFilters({ healthStatus: [], archetypes: [] });
+    setSortOption('default');
+  }, []);
+
+  const isSearchActive = searchQuery.trim().length > 0 ||
+    filters.healthStatus.length > 0 ||
+    filters.archetypes.length > 0 ||
+    sortOption !== 'default';
+
   const renderFriendItem = useCallback(
     ({ item }: { item: FriendModel }) => {
-      const photoUrl = item.photoUrl ? resolveImageUri(item.photoUrl) : null;
-
       return (
-        <TouchableOpacity
-          className="flex-row items-center px-5 py-3"
-          style={{ borderBottomWidth: 1, borderBottomColor: colors.border }}
-          onPress={() => handleSelectFriend(item)}
-          activeOpacity={0.7}
-        >
-          <View
-            className="w-11 h-11 rounded-full overflow-hidden items-center justify-center"
-            style={{
-              backgroundColor: colors.muted,
-              borderWidth: 0.5,
-              borderColor: colors.border,
-            }}
-          >
-            {photoUrl ? (
-              <Image
-                source={{ uri: normalizeContactImageUri(photoUrl) }}
-                className="w-full h-full"
-                resizeMode="cover"
-              />
-            ) : (
-              <Text
-                className="text-lg font-semibold"
-                style={{ color: colors.foreground }}
-              >
-                {item.name.charAt(0).toUpperCase()}
-              </Text>
-            )}
-          </View>
-          <View className="flex-1 ml-3">
-            <Text
-              className="text-base font-semibold"
-              style={{ color: colors.foreground }}
-            >
-              {item.name}
-            </Text>
-            {item.archetype && item.archetype !== 'Unknown' && (
-              <Text
-                className="text-sm mt-0.5"
-                style={{ color: colors['muted-foreground'] }}
-              >
-                {item.archetype}
-              </Text>
-            )}
-          </View>
-          <ChevronRight size={20} color={colors['muted-foreground']} />
-        </TouchableOpacity>
+        <FriendListRow
+          friend={item}
+          variant="compact"
+          onPress={handleSelectFriend}
+        />
       );
     },
-    [colors, handleSelectFriend]
+    [handleSelectFriend]
   );
 
-  const ListHeader = (
-    <View className="px-5 py-3">
-      {subtitle && (
-        <Text
-          className="text-sm mb-3 text-center"
-          style={{ color: colors['muted-foreground'] }}
-        >
-          {subtitle}
-        </Text>
-      )}
-      <View
-        className="flex-row items-center px-4 py-3 rounded-xl"
-        style={{ backgroundColor: colors.muted }}
-      >
-        <Search size={18} color={colors['muted-foreground']} />
-        <TextInput
-          className="flex-1 ml-3 text-base"
-          style={{ color: colors.foreground }}
-          placeholder="Search friends..."
-          placeholderTextColor={colors['muted-foreground']}
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          autoCorrect={false}
+  const renderScrollContent = useCallback(() => {
+    return (
+      <View style={{ flex: 1 }}>
+        <View style={{ paddingBottom: 8 }}>
+          {subtitle && (
+            <Text
+              className="text-sm px-5 text-center mb-2"
+              style={{ color: colors['muted-foreground'] }}
+            >
+              {subtitle}
+            </Text>
+          )}
+          <FriendSearchBar
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            filters={filters}
+            onFiltersChange={setFilters}
+            sortOption={sortOption}
+            onSortChange={setSortOption}
+            isActive={isSearchActive}
+            onClear={handleClearFilters}
+          />
+        </View>
+        <BottomSheetFlatList
+          data={filteredFriends}
+          renderItem={renderFriendItem}
+          keyExtractor={(item) => item.id}
+          ListEmptyComponent={
+            <View className="items-center py-12 px-8">
+              <Text
+                className="text-center text-base"
+                style={{ color: colors['muted-foreground'] }}
+              >
+                {isSearchActive
+                  ? 'No friends match your search'
+                  : 'No friends added yet'}
+              </Text>
+            </View>
+          }
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: 40 }}
+          keyboardShouldPersistTaps="handled"
         />
-        {searchQuery.length > 0 && (
-          <TouchableOpacity onPress={() => setSearchQuery('')}>
-            <X size={16} color={colors['muted-foreground']} />
-          </TouchableOpacity>
-        )}
       </View>
-    </View>
-  );
-
-  const ListEmpty = (
-    <View className="items-center py-12 px-8">
-      <Text
-        className="text-center text-base"
-        style={{ color: colors['muted-foreground'] }}
-      >
-        {searchQuery
-          ? `No friends matching "${searchQuery}"`
-          : 'No friends added yet'}
-      </Text>
-    </View>
-  );
+    );
+  }, [
+    subtitle, colors, searchQuery, filters, sortOption, isSearchActive,
+    handleClearFilters, filteredFriends, renderFriendItem
+  ]);
 
   return (
     <StandardBottomSheet
       visible={visible}
       onClose={onClose}
-      height="large"
+      height="full"
       title={title}
       disableContentPanning
+      renderScrollContent={renderScrollContent}
     >
-      <BottomSheetFlatList
-        data={filteredFriends}
-        renderItem={renderFriendItem}
-        keyExtractor={(item) => item.id}
-        ListHeaderComponent={ListHeader}
-        ListEmptyComponent={ListEmpty}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 40 }}
-        keyboardShouldPersistTaps="handled"
-      />
+      {/* Children are ignored when renderScrollContent is used */}
+      <View />
     </StandardBottomSheet>
   );
 }

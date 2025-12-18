@@ -12,6 +12,7 @@ import Intention from '@/db/models/Intention';
 import IntentionFriend from '@/db/models/IntentionFriend';
 import PortfolioSnapshot from '@/db/models/PortfolioSnapshot';
 import { Q } from '@nozbe/watermelondb';
+import { eventBus } from '@/shared/events/event-bus';
 
 interface ExportData {
   exportDate: string;
@@ -618,6 +619,15 @@ export async function importData(
 
     // Success is true only if no errors occurred
     result.success = result.errors.length === 0;
+
+    // Notify app that data has been imported to trigger UI refresh
+    if (result.success) {
+      eventBus.emit('dataImported', {
+        friendsImported: result.friendsImported,
+        interactionsImported: result.interactionsImported,
+      });
+      console.log('[DataImport] Published dataImported event');
+    }
 
   } catch (error) {
     result.errors.push(

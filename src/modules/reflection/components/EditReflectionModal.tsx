@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, TouchableOpacity } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { ContextualReflectionInput } from './ContextualReflectionInput';
-import { CelebrationAnimation } from '@/modules/gamification';
+
 import { useTheme } from '@/shared/hooks/useTheme';
 import { StandardBottomSheet } from '@/shared/ui/Sheet';
 import { type Interaction } from '@/modules/interactions';
@@ -32,7 +32,6 @@ export function EditReflectionModal({
   const [reflection, setReflection] = useState<StructuredReflection>(interaction?.reflection || {});
   const [selectedVibe, setSelectedVibe] = useState<Vibe | null>(interaction?.vibe as Vibe | null);
   const [isSaving, setIsSaving] = useState(false);
-  const [showCelebration, setShowCelebration] = useState(false);
 
   // Update reflection when interaction changes
   React.useEffect(() => {
@@ -49,14 +48,10 @@ export function EditReflectionModal({
     try {
       await onSave(interaction.id, reflection, selectedVibe);
 
-      // Show celebration animation
-      setShowCelebration(true);
-
-      // Close modal after animation
+      // Close modal after save
       setTimeout(() => {
         onClose();
-        setShowCelebration(false);
-      }, 900);
+      }, 300);
     } catch (error) {
       console.error('Error saving reflection:', error);
       setIsSaving(false);
@@ -86,12 +81,7 @@ export function EditReflectionModal({
         />
       }
     >
-      {/* Celebration animation */}
-      <CelebrationAnimation
-        visible={showCelebration}
-        intensity={deepeningMetrics.level === 'none' ? 'light' : deepeningMetrics.level}
-        onComplete={() => setShowCelebration(false)}
-      />
+
 
       <Animated.View entering={FadeIn.duration(300)} className="px-5 pb-5">
         <View className="mb-6">

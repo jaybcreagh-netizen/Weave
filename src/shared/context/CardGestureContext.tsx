@@ -26,9 +26,12 @@ export function CardGestureProvider({ children }: { children: React.ReactNode })
   return <CardGestureContext.Provider value={gestureCoordinator}>{children}</CardGestureContext.Provider>;
 }
 
-export function useCardGesture() {
+export function useCardGesture(options?: { optional?: boolean }) {
   const context = useContext(CardGestureContext);
-  if (!context) throw new Error('useCardGesture must be used within a CardGestureProvider');
+  if (!context) {
+    if (options?.optional) return null;
+    throw new Error('useCardGesture must be used within a CardGestureProvider');
+  }
   return context;
 }
 

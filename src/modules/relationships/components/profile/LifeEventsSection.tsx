@@ -1,10 +1,28 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import Animated from 'react-native-reanimated';
-import { Plus } from 'lucide-react-native';
+import {
+    Plus, Briefcase, Package, Church, Baby, Feather, Hospital,
+    GraduationCap, PartyPopper, Cake, Heart, Sparkles, type LucideIcon
+} from 'lucide-react-native';
 import { differenceInDays } from 'date-fns';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { LifeEvent } from '@/shared/types/legacy-types';
+
+// Life event icon mapping
+const LIFE_EVENT_ICONS: Record<string, LucideIcon> = {
+    new_job: Briefcase,
+    moving: Package,
+    wedding: Church,
+    baby: Baby,
+    loss: Feather,
+    health_event: Hospital,
+    graduation: GraduationCap,
+    celebration: PartyPopper,
+    birthday: Cake,
+    anniversary: Heart,
+    other: Sparkles,
+};
 
 interface LifeEventsSectionProps {
     lifeEvents: LifeEvent[];
@@ -42,12 +60,7 @@ export function LifeEventsSection({
                             const daysUntil = differenceInDays(event.date, new Date());
                             const isPastEvent = daysUntil < 0;
                             const isUpcoming = daysUntil >= 0 && daysUntil <= 30;
-
-                            const eventIcons: Record<string, string> = {
-                                new_job: '💼', moving: '📦', wedding: '💒', baby: '👶',
-                                loss: '🕊️', health_event: '🏥', graduation: '🎓',
-                                celebration: '🎉', birthday: '🎂', anniversary: '💝', other: '✨'
-                            };
+                            const IconComponent = LIFE_EVENT_ICONS[event.eventType] || Sparkles;
 
                             return (
                                 <TouchableOpacity
@@ -60,7 +73,7 @@ export function LifeEventsSection({
                                         borderWidth: isUpcoming ? 1.5 : 1,
                                     }}
                                 >
-                                    <Text className="text-xl">{eventIcons[event.eventType]}</Text>
+                                    <IconComponent size={20} color={colors.primary} />
                                     <View className="flex-1">
                                         <Text
                                             className="font-inter-semibold text-[13px] mb-0.5"

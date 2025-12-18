@@ -4,14 +4,14 @@ import { BlurView } from 'expo-blur';
 import { Stack } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInUp, useSharedValue, withSpring } from 'react-native-reanimated';
-import { CelebrationAnimation } from '@/modules/gamification';
+
 import { calculateDeepeningLevel } from '@/modules/intelligence';
 import { useUIStore } from '@/shared/stores/uiStore';
 
 import { useInteractions, type StructuredReflection } from '@/modules/interactions';
 import { WeaveReflectPrompt, useWeaveReflectPrompt } from '@/modules/journal';
 import { useDebounceCallback } from '@/shared/hooks/useDebounceCallback';
-import { Calendar as CalendarIcon, X, Sparkles, Users, ChevronLeft, Clock } from 'lucide-react-native';
+import { Calendar as CalendarIcon, X, Sparkles, Users, ChevronLeft, Clock, Sun, Moon, LucideIcon } from 'lucide-react-native';
 import { CustomCalendar } from '@/shared/components/CustomCalendar';
 import { MoonPhaseSelector } from '@/modules/intelligence';
 import { ContextualReflectionInput } from '@/modules/reflection';
@@ -31,9 +31,9 @@ import { ErrorBoundary } from '@/shared/components/ErrorBoundary';
 
 const categories: CategoryMetadata[] = getAllCategories().map(getCategoryMetadata);
 
-const dateOptions = [
-    { id: 'today', icon: '☀️', label: 'Today', getDate: () => startOfDay(new Date()) },
-    { id: 'yesterday', icon: '🌙', label: 'Yesterday', getDate: () => startOfDay(subDays(new Date(), 1)) },
+const dateOptions: { id: string; icon: LucideIcon; label: string; getDate: () => Date }[] = [
+    { id: 'today', icon: Sun, label: 'Today', getDate: () => startOfDay(new Date()) },
+    { id: 'yesterday', icon: Moon, label: 'Yesterday', getDate: () => startOfDay(subDays(new Date(), 1)) },
 ];
 
 interface WeaveLoggerScreenProps {
@@ -78,7 +78,6 @@ export function WeaveLoggerScreen({
     const [selectedVibe, setSelectedVibe] = useState<Vibe | null>(null);
     const [reflection, setReflection] = useState<StructuredReflection>({});
     const [friendArchetype, setFriendArchetype] = useState<Archetype | undefined>(undefined);
-    const [showCelebration, setShowCelebration] = useState(false);
     const [title, setTitle] = useState<string>('');
     const [initiator, setInitiator] = useState<InitiatorType | undefined>(undefined);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -299,8 +298,6 @@ export function WeaveLoggerScreen({
                 notes: legacyNotes,
             };
 
-            // Show celebration animation
-            setShowCelebration(true);
             Vibration.vibrate();
 
             // Show sparkles popup
@@ -357,12 +354,7 @@ export function WeaveLoggerScreen({
                     <View className="w-8" />
                 </View>
 
-                {/* Celebration animation */}
-                <CelebrationAnimation
-                    visible={showCelebration}
-                    intensity={deepeningMetrics.level === 'none' ? 'light' : deepeningMetrics.level}
-                    onComplete={() => setShowCelebration(false)}
-                />
+
 
                 {/* Calendar Modal (centered popup, matching Plan Weave style) */}
                 {showCalendar && (
@@ -447,7 +439,7 @@ export function WeaveLoggerScreen({
                                                 }}
                                                 onPress={() => handleQuickDateSelect(date)}
                                             >
-                                                <Text className="text-base mr-2">{opt.icon}</Text>
+                                                <opt.icon size={18} color={colors.primary} style={{ marginRight: 8 }} />
                                                 <Text
                                                     className={`font-inter-medium text-sm ${isSelected ? 'text-primary' : ''}`}
                                                     style={{ color: isSelected ? colors.primary : colors.foreground }}
@@ -609,7 +601,7 @@ export function WeaveLoggerScreen({
                                             }}
                                             onPress={() => handleCategorySelect(cat.id)}
                                         >
-                                            <Text className="text-2xl mb-1">{cat.icon}</Text>
+                                            <cat.iconComponent size={28} color={colors.primary} style={{ marginBottom: 4 }} />
                                             <Text
                                                 className="font-inter-medium text-xs text-center leading-tight"
                                                 style={{ color: colors.foreground }}
@@ -670,9 +662,12 @@ export function WeaveLoggerScreen({
 
                                 {/* Vibe Section */}
                                 <View className="mb-5">
-                                    <Text className="font-lora-bold text-xl mb-2" style={{ color: colors.foreground }}>
-                                        How did it feel? 🌙
-                                    </Text>
+                                    <View className="flex-row items-center gap-2 mb-2">
+                                        <Moon size={20} color={colors.primary} />
+                                        <Text className="font-lora-bold text-xl" style={{ color: colors.foreground }}>
+                                            How did it feel?
+                                        </Text>
+                                    </View>
                                     <MoonPhaseSelector onSelect={setSelectedVibe} selectedVibe={selectedVibe} />
                                 </View>
 

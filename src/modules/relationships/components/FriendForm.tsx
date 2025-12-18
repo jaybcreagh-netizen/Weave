@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useDebounceCallback } from '@/shared/hooks/useDebounceCallback';
 import { View, Text, TouchableOpacity, TextInput, ScrollView, Image, StyleSheet, Modal, Alert, ActivityIndicator } from 'react-native';
-import { ArrowLeft, Camera, X, Users, AlertCircle, RotateCw } from 'lucide-react-native';
+import { ArrowLeft, Camera, X, Users, AlertCircle, RotateCw, Handshake, Heart, Briefcase, Home, GraduationCap, Palette, type LucideIcon } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as Contacts from 'expo-contacts';
 import { useRouter } from 'expo-router';
@@ -496,15 +496,15 @@ export function FriendForm({ onSave, friend, initialTier, fromOnboarding, onSkip
           <View>
             <Text style={[styles.label, { color: colors.foreground }]}>Relationship Type (Optional)</Text>
             <View style={styles.relationshipTypeContainer}>
-              {[
-                { id: "friend", label: "Friend", icon: "🤝" },
-                { id: "family", label: "Family", icon: "👨‍👩‍👧‍👦" },
-                { id: "partner", label: "Partner", icon: "❤️" },
-                { id: "colleague", label: "Colleague", icon: "💼" },
-                { id: "neighbor", label: "Neighbor", icon: "🏘️" },
-                { id: "mentor", label: "Mentor", icon: "🎓" },
-                { id: "creative", label: "Creative", icon: "🎨" }
-              ].map((type) => (
+              {([
+                { id: "friend", label: "Friend", Icon: Handshake },
+                { id: "family", label: "Family", Icon: Users },
+                { id: "partner", label: "Partner", Icon: Heart },
+                { id: "colleague", label: "Colleague", Icon: Briefcase },
+                { id: "neighbor", label: "Neighbor", Icon: Home },
+                { id: "mentor", label: "Mentor", Icon: GraduationCap },
+                { id: "creative", label: "Creative", Icon: Palette }
+              ] as Array<{ id: string; label: string; Icon: LucideIcon }>).map((type) => (
                 <TouchableOpacity
                   key={type.id}
                   onPress={() => setFormData({ ...formData, relationshipType: type.id as RelationshipType })}
@@ -514,11 +514,14 @@ export function FriendForm({ onSave, friend, initialTier, fromOnboarding, onSkip
                     formData.relationshipType === type.id && [styles.relationshipTypeButtonSelected, { borderColor: colors.primary, backgroundColor: colors.primary + '20' }]
                   ]}
                 >
-                  <Text style={[
-                    styles.relationshipTypeButtonText,
-                    { color: colors.foreground },
-                    formData.relationshipType === type.id && { color: colors.primary }
-                  ]}>{type.icon} {type.label}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <type.Icon size={16} color={formData.relationshipType === type.id ? colors.primary : colors.foreground} />
+                    <Text style={[
+                      styles.relationshipTypeButtonText,
+                      { color: colors.foreground },
+                      formData.relationshipType === type.id && { color: colors.primary }
+                    ]}>{type.label}</Text>
+                  </View>
                 </TouchableOpacity>
               ))}
             </View>

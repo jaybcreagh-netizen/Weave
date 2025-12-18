@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Modal, TextInput, ScrollView, Alert } from 'react-native';
 import { BlurView } from 'expo-blur';
-import { X, Calendar } from 'lucide-react-native';
+import {
+  X, Calendar, Briefcase, Package, Church, Baby, Feather, Hospital,
+  GraduationCap, PartyPopper, Sparkles, type LucideIcon
+} from 'lucide-react-native';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { database } from '@/db';
@@ -20,16 +23,16 @@ interface LifeEventModalProps {
   existingEvent?: LifeEvent | null;
 }
 
-const EVENT_TYPES: Array<{ value: LifeEventType; label: string; icon: string }> = [
-  { value: 'new_job', label: 'New Job', icon: '💼' },
-  { value: 'moving', label: 'Moving/Relocating', icon: '📦' },
-  { value: 'wedding', label: 'Wedding', icon: '💒' },
-  { value: 'baby', label: 'New Baby/Pregnancy', icon: '👶' },
-  { value: 'loss', label: 'Loss/Grief', icon: '🕊️' },
-  { value: 'health_event', label: 'Health Event', icon: '🏥' },
-  { value: 'graduation', label: 'Graduation', icon: '🎓' },
-  { value: 'celebration', label: 'Milestone/Achievement', icon: '🎉' },
-  { value: 'other', label: 'Other', icon: '✨' },
+const EVENT_TYPES: Array<{ value: LifeEventType; label: string; icon: LucideIcon }> = [
+  { value: 'new_job', label: 'New Job', icon: Briefcase },
+  { value: 'moving', label: 'Moving/Relocating', icon: Package },
+  { value: 'wedding', label: 'Wedding', icon: Church },
+  { value: 'baby', label: 'New Baby/Pregnancy', icon: Baby },
+  { value: 'loss', label: 'Loss/Grief', icon: Feather },
+  { value: 'health_event', label: 'Health Event', icon: Hospital },
+  { value: 'graduation', label: 'Graduation', icon: GraduationCap },
+  { value: 'celebration', label: 'Milestone/Achievement', icon: PartyPopper },
+  { value: 'other', label: 'Other', icon: Sparkles },
 ];
 
 const IMPORTANCE_LEVELS: Array<{ value: LifeEventImportance; label: string; description: string }> = [
@@ -201,7 +204,7 @@ export const LifeEventModal: React.FC<LifeEventModalProps> = ({
                     borderColor: colors.primary,
                   }}
                 >
-                  <Text className="text-lg">{type.icon}</Text>
+                  <type.icon size={18} color={eventType === type.value ? colors.primary : colors.foreground} />
                   <Text
                     className="font-inter-medium text-sm"
                     style={{ color: eventType === type.value ? colors.primary : colors.foreground }}

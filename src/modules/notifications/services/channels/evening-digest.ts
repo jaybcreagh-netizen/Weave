@@ -4,9 +4,11 @@ import { notificationAnalytics } from '../notification-analytics';
 import { NotificationChannel } from '@/modules/notifications';
 import { FocusGenerator, FocusData } from '@/modules/intelligence';
 import { notificationStore } from '../notification-store';
-import { differenceInDays, startOfDay } from 'date-fns';
+import { differenceInDays, startOfDay, isSameDay, addDays } from 'date-fns';
 import { database } from '@/db';
 import EveningDigest from '@/db/models/EveningDigest';
+import SocialBatteryLog from '@/db/models/SocialBatteryLog';
+import Interaction from '@/db/models/Interaction';
 import { Q } from '@nozbe/watermelondb';
 
 export interface DigestItem {
@@ -27,10 +29,35 @@ export interface DigestContent {
     shouldSend: boolean;
 }
 
+/**
+ * New structured content for the mindful Evening Check-in
+ * Limits items to prevent overwhelm and focuses on engagement
+ */
+export interface EveningCheckinContent {
+    /** Whether user has checked in battery today */
+    hasBatteryCheckinToday: boolean;
+
+    /** Today's weaves - max 3 each */
+    todaysWeaves: {
+        completed: DigestItem[];
+        unconfirmed: DigestItem[];
+    };
+
+    /** Tomorrow only - max 2 items (plans, birthdays) */
+    tomorrow: DigestItem[];
+
+    /** Single highest-priority suggestion (nullable) */
+    topSuggestion: DigestItem | null;
+
+    /** True if no content at all (show "All Quiet" state) */
+    isEmpty: boolean;
+}
+
 const ID_PREFIX = 'evening-digest';
 
 export const EveningDigestChannel: NotificationChannel & {
     generateContent: () => Promise<DigestContent>,
+    generateEveningCheckinContent: () => Promise<EveningCheckinContent>,
     generateAndSave: () => Promise<DigestContent>,
     loadDigestForDate: (date: Date) => Promise<EveningDigest | null>,
     cancel: () => Promise<void>
@@ -129,6 +156,161 @@ export const EveningDigestChannel: NotificationChannel & {
             notificationTitle: "Your evening brief 🌙",
             notificationBody: "Tap to view summary",
             shouldSend
+        };
+    },
+
+    /**
+     * Generate structured content for the mindful Evening Check-in
+     * Limits items to prevent overwhelm and focuses on engagement
+     */
+    generateEveningCheckinContent: async (): Promise<EveningCheckinContent> => {
+        const today = new Date();
+        const todayStart = startOfDay(today);
+        const tomorrow = addDays(todayStart, 1);
+        const tomorrowEnd = addDays(todayStart, 2);
+
+        // 1. Check if user has battery check-in today
+        let hasBatteryCheckinToday = false;
+        try {
+            const todayLogs = await database
+                .get<SocialBatteryLog>('social_battery_logs')
+                .query(
+                    Q.where('timestamp', Q.gte(todayStart.getTime())),
+                    Q.where('timestamp', Q.lt(tomorrow.getTime()))
+                )
+                .fetchCount();
+            hasBatteryCheckinToday = todayLogs > 0;
+        } catch (error) {
+            Logger.warn('[EveningCheckin] Error checking battery logs:', error);
+        }
+
+        // 2. Get today's weaves (completed and unconfirmed)
+        const todaysCompleted: DigestItem[] = [];
+        const todaysUnconfirmed: DigestItem[] = [];
+
+        try {
+            const todaysInteractions = await database
+                .get<Interaction>('interactions')
+                .query(
+                    Q.where('interaction_date', Q.gte(todayStart.getTime())),
+                    Q.where('interaction_date', Q.lt(tomorrow.getTime()))
+                )
+                .fetch();
+
+            todaysInteractions.forEach(interaction => {
+                const item: DigestItem = {
+                    type: interaction.status === 'completed' ? 'interaction' : 'plan',
+                    priority: interaction.status === 'completed' ? 80 : 90,
+                    title: interaction.title || 'Untitled Weave',
+                    subtitle: interaction.status === 'completed' ? 'Completed today' : 'Needs confirmation',
+                    interactionId: interaction.id,
+                    data: { status: interaction.status }
+                };
+
+                if (interaction.status === 'completed') {
+                    todaysCompleted.push(item);
+                } else if (interaction.status === 'planned') {
+                    todaysUnconfirmed.push(item);
+                }
+            });
+        } catch (error) {
+            Logger.warn('[EveningCheckin] Error fetching today\'s interactions:', error);
+        }
+
+        // 3. Get tomorrow's items (plans + birthdays)
+        const tomorrowItems: DigestItem[] = [];
+
+        try {
+            // Tomorrow's planned interactions
+            const tomorrowInteractions = await database
+                .get<Interaction>('interactions')
+                .query(
+                    Q.where('interaction_date', Q.gte(tomorrow.getTime())),
+                    Q.where('interaction_date', Q.lt(tomorrowEnd.getTime())),
+                    Q.where('status', 'planned')
+                )
+                .fetch();
+
+            tomorrowInteractions.slice(0, 2).forEach(interaction => {
+                tomorrowItems.push({
+                    type: 'plan',
+                    priority: 85,
+                    title: interaction.title || 'Planned Weave',
+                    subtitle: 'Tomorrow',
+                    interactionId: interaction.id,
+                });
+            });
+        } catch (error) {
+            Logger.warn('[EveningCheckin] Error fetching tomorrow\'s plans:', error);
+        }
+
+        // Also add tomorrow's birthdays from focus data
+        try {
+            const focusData = await FocusGenerator.generateFocusData();
+            const tomorrowBirthdays = focusData.upcomingDates.filter(
+                d => d.daysUntil === 1 && (d.type === 'birthday' || d.type === 'anniversary')
+            );
+
+            tomorrowBirthdays.slice(0, 2 - tomorrowItems.length).forEach(d => {
+                tomorrowItems.push({
+                    type: d.type,
+                    priority: 95,
+                    title: d.type === 'birthday'
+                        ? `${d.friend.name}'s Birthday`
+                        : `Anniversary with ${d.friend.name}`,
+                    subtitle: 'Tomorrow',
+                    friendId: d.friend.id,
+                    friendName: d.friend.name,
+                });
+            });
+        } catch (error) {
+            Logger.warn('[EveningCheckin] Error fetching tomorrow\'s dates:', error);
+        }
+
+        // 4. Get single top suggestion
+        let topSuggestion: DigestItem | null = null;
+
+        try {
+            const focusData = await FocusGenerator.generateFocusData();
+            if (focusData.suggestions.length > 0) {
+                // Sort by urgency and take the top one
+                const sorted = [...focusData.suggestions].sort((a, b) => {
+                    const urgencyOrder = { critical: 4, high: 3, medium: 2, low: 1 };
+                    return (urgencyOrder[b.urgency || 'low'] || 1) - (urgencyOrder[a.urgency || 'low'] || 1);
+                });
+
+                const top = sorted[0];
+                topSuggestion = {
+                    type: 'suggestion',
+                    priority: top.urgency === 'critical' ? 60 : (top.urgency === 'high' ? 50 : 40),
+                    title: top.title,
+                    subtitle: top.subtitle,
+                    friendId: top.friendId,
+                    data: { suggestionId: top.id }
+                };
+            }
+        } catch (error) {
+            Logger.warn('[EveningCheckin] Error fetching suggestions:', error);
+        }
+
+        // Calculate isEmpty
+        const totalItems =
+            todaysCompleted.length +
+            todaysUnconfirmed.length +
+            tomorrowItems.length +
+            (topSuggestion ? 1 : 0);
+
+        const isEmpty = totalItems === 0 && hasBatteryCheckinToday;
+
+        return {
+            hasBatteryCheckinToday,
+            todaysWeaves: {
+                completed: todaysCompleted.slice(0, 3), // Max 3
+                unconfirmed: todaysUnconfirmed.slice(0, 3), // Max 3
+            },
+            tomorrow: tomorrowItems.slice(0, 2), // Max 2
+            topSuggestion,
+            isEmpty,
         };
     },
 

@@ -36,6 +36,5 @@ export { AchievementCard } from './components/AchievementCard'; // Note: Achieve
 export { TrophyCabinetModal } from './components/TrophyCabinetModal';
 export { AchievementsModal } from './components/AchievementsModal';
 export { BadgeUnlockModal } from './components/BadgeUnlockModal';
-export { CelebrationAnimation } from './components/CelebrationAnimation';
 export { MilestoneCelebration } from './components/MilestoneCelebration';
 export { PatternBadge } from './components/PatternBadge';

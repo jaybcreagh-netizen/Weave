@@ -80,6 +80,7 @@ export function MultiActionFAB({ onAction }: MultiActionFABProps) {
   // Action items container animation
   const actionsContainerStyle = useAnimatedStyle(() => ({
     opacity: interpolate(expanded.value, [0, 0.5, 1], [0, 0, 1]),
+    pointerEvents: expanded.value > 0.5 ? 'auto' : 'none',
     transform: [
       {
         translateY: interpolate(

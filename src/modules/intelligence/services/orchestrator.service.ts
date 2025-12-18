@@ -16,6 +16,7 @@ import Logger from '@/shared/utils/Logger';
 import { eventBus } from '@/shared/events/event-bus';
 
 import Interaction from '@/db/models/Interaction';
+import InteractionFriend from '@/db/models/InteractionFriend';
 
 /**
  * Helper to convert InteractionFormData to the weaveData format expected by calculatePointsForWeave.
@@ -111,15 +112,27 @@ export async function recalculateScoreOnDelete(
 
     if (isLatest) {
       // Find the most recent completed interaction that ISN'T this one
-      // We query interactions directly, joining on interaction_friends
-      const latestInteractions = await database.get<Interaction>('interactions').query(
-        Q.experimentalJoinTables(['interaction_friends']),
-        Q.on('interaction_friends', Q.where('friend_id', friend.id)),
-        Q.where('status', 'completed'),
-        Q.where('id', Q.notEq(interaction.id)),
-        Q.sortBy('interaction_date', Q.desc),
-        Q.take(1)
-      ).fetch();
+      // NOTE: Using manual two-step query to avoid Q.on issues on physical devices (per project memory)
+
+      // Step A: Get interaction IDs for this friend
+      const friendLinks = await database.get<InteractionFriend>('interaction_friends')
+        .query(Q.where('friend_id', friend.id))
+        .fetch();
+      const friendInteractionIds = friendLinks
+        .map(l => l.interactionId)
+        .filter(id => id !== interaction.id); // Exclude the one being deleted
+
+      // Step B: Find the most recent completed interaction
+      let latestInteractions: Interaction[] = [];
+      if (friendInteractionIds.length > 0) {
+        latestInteractions = await database.get<Interaction>('interactions')
+          .query(
+            Q.where('id', Q.oneOf(friendInteractionIds)),
+            Q.where('status', 'completed'),
+            Q.sortBy('interaction_date', Q.desc),
+            Q.take(1)
+          ).fetch();
+      }
 
       if (latestInteractions.length > 0) {
         const latest = latestInteractions[0];

@@ -29,30 +29,33 @@ import { HydratedFriend } from '@/types/hydrated';
 import { ArchetypeCard } from '@/modules/intelligence';
 import { StandardBottomSheet } from '@/shared/ui/Sheet/StandardBottomSheet';
 import { database } from '@/db';
+import { StatusLineIcon } from '@/shared/components/StatusLineIcon';
+import { Sparkles, Handshake, Users, Heart, Briefcase, Home, GraduationCap, Palette, type LucideIcon } from 'lucide-react-native';
 
 const ATTENTION_THRESHOLD = 35;
 const STABLE_THRESHOLD = 65;
 
 // Relationship type icon mapping
-const RELATIONSHIP_ICONS: Record<RelationshipType, string> = {
-  friend: '🤝',
-  family: '👨‍👩‍👧‍👦',
-  partner: '❤️',
-  colleague: '💼',
-  neighbor: '🏘️',
-  mentor: '🎓',
-  creative: '🎨',
+const RELATIONSHIP_ICONS: Record<RelationshipType, LucideIcon> = {
+  friend: Handshake,
+  family: Users,
+  partner: Heart,
+  colleague: Briefcase,
+  neighbor: Home,
+  mentor: GraduationCap,
+  creative: Palette,
 };
 
 interface FriendListRowProps {
   friend: FriendModel;
   animatedRef?: React.RefObject<Animated.View>;
-  variant?: 'default' | 'full';
+  variant?: 'default' | 'full' | 'compact';
+  onPress?: (friend: FriendModel) => void;
 }
 
 import withObservables from '@nozbe/with-observables';
 
-export const FriendListRowContent = ({ friend, animatedRef, variant = 'default' }: FriendListRowProps) => {
+export const FriendListRowContent = ({ friend, animatedRef, variant = 'default', onPress }: FriendListRowProps) => {
 
   if (!friend) return null;
 
@@ -68,7 +71,9 @@ export const FriendListRowContent = ({ friend, animatedRef, variant = 'default' 
   const setArchetypeModal = useUIStore(state => state.setArchetypeModal);
   const justNurturedFriendId = useUIStore(state => state.justNurturedFriendId);
   const setJustNurturedFriendId = useUIStore(state => state.setJustNurturedFriendId);
-  const { activeCardId, pendingCardId } = useCardGesture();
+  const gestureContext = useCardGesture({ optional: true });
+  const activeCardId = gestureContext?.activeCardId;
+  const pendingCardId = gestureContext?.pendingCardId;
 
   // Calculate current score with decay - memoized by ID to avoid recalculation
   const weaveScore = useMemo(
@@ -199,8 +204,8 @@ export const FriendListRowContent = ({ friend, animatedRef, variant = 'default' 
 
   // Animated styles for gesture feedback
   const rowStyle = useAnimatedStyle(() => {
-    const isGestureActive = activeCardId.value === id;
-    const isPending = pendingCardId.value === id;
+    const isGestureActive = activeCardId?.value === id;
+    const isPending = pendingCardId?.value === id;
 
     // During pending: smooth continuous growth, during active: slightly larger
     let targetScale = 1;
@@ -223,8 +228,8 @@ export const FriendListRowContent = ({ friend, animatedRef, variant = 'default' 
   });
 
   const gradientStyle = useAnimatedStyle(() => {
-    const isGestureActive = activeCardId.value === id;
-    const isPending = pendingCardId.value === id;
+    const isGestureActive = activeCardId?.value === id;
+    const isPending = pendingCardId?.value === id;
 
     // Gradient grows smoothly more visible during pending/active states
     let targetOpacity = gradientOpacity;
@@ -268,10 +273,18 @@ export const FriendListRowContent = ({ friend, animatedRef, variant = 'default' 
 
   const statusColor = getStatusColor();
 
+  // Determine card height/padding based on variant
+  const isCompact = variant === 'compact';
+  const containerPadding = isCompact ? 'p-2' : 'p-3';
+  const containerMargin = isCompact ? 'mb-2' : 'mb-3';
+  const avatarSize = isCompact ? 'w-10 h-10' : 'w-12 h-12';
+  const nameSize = isCompact ? 15 : 17;
+  const showStatusIcon = !isCompact; // Hide status icon in compact mode to save space? Or keep it? Users like info. Let's keep it but maybe smaller text.
+
   return (
     <Animated.View ref={animatedRef} style={rowStyle}>
       <View
-        className={`mb-3 rounded-2xl overflow-hidden ${variant === 'full' ? '' : 'mx-4'}`}
+        className={`${containerMargin} rounded-2xl overflow-hidden ${variant === 'full' ? '' : 'mx-4'}`}
         style={{
           borderWidth: 0.5,
           borderColor,
@@ -310,14 +323,14 @@ export const FriendListRowContent = ({ friend, animatedRef, variant = 'default' 
 
         {/* Content */}
         <Pressable
-          onPress={handleCardPress}
+          onPress={onPress ? () => onPress(friend) : handleCardPress}
           onLongPress={handleCardLongPress}
           delayLongPress={500}
-          className="flex-row items-center p-3 gap-3"
+          className={`flex-row items-center ${containerPadding} gap-3`}
         >
           {/* Avatar */}
           <View
-            className="w-12 h-12 rounded-full overflow-hidden items-center justify-center"
+            className={`rounded-full overflow-hidden items-center justify-center ${avatarSize}`}
             style={{
               backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.08)',
               borderWidth: 0.5,
@@ -334,8 +347,8 @@ export const FriendListRowContent = ({ friend, animatedRef, variant = 'default' 
               />
             ) : (
               <Text
-                className="text-lg font-semibold"
-                style={{ color: colors.foreground }}
+                className="font-semibold"
+                style={{ color: colors.foreground, fontSize: isCompact ? 16 : 18 }}
               >
                 {name.charAt(0).toUpperCase()}
               </Text>
@@ -348,8 +361,8 @@ export const FriendListRowContent = ({ friend, animatedRef, variant = 'default' 
               <Text
                 className="font-semibold"
                 style={{
-                  fontSize: 17,
-                  lineHeight: 20,
+                  fontSize: nameSize,
+                  lineHeight: nameSize + 4,
                   color: colors.foreground,
                   fontFamily: 'Lora_700Bold',
                 }}
@@ -358,22 +371,24 @@ export const FriendListRowContent = ({ friend, animatedRef, variant = 'default' 
                 {name}
               </Text>
               {variant === 'full' && relationshipType && (
-                <Text style={{ fontSize: 14 }}>
-                  {RELATIONSHIP_ICONS[relationshipType as RelationshipType]}
-                </Text>
+                (() => {
+                  const RelIcon = RELATIONSHIP_ICONS[relationshipType as RelationshipType];
+                  return RelIcon ? <RelIcon size={14} color={colors.primary} /> : null;
+                })()
               )}
             </View>
 
             <View className="flex-row items-center gap-1.5 mt-0.5">
-              {statusLine.icon && (
-                <Text style={{ fontSize: 12 }}>{statusLine.icon}</Text>
+              {statusLine.icon && showStatusIcon && (
+                <StatusLineIcon icon={statusLine.icon} size={12} color={colors.primary} />
               )}
               <Text
                 className="text-status"
                 style={{
                   color: statusColor,
                   opacity: statusLine.variant === 'default' ? 0.7 : 0.9,
-                  fontWeight: statusLine.variant !== 'default' ? '500' : '400'
+                  fontWeight: statusLine.variant !== 'default' ? '500' : '400',
+                  fontSize: 12
                 }}
                 numberOfLines={1}
                 ellipsizeMode="tail"
@@ -391,6 +406,7 @@ export const FriendListRowContent = ({ friend, animatedRef, variant = 'default' 
                 backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)',
                 borderWidth: 0.5,
                 borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)',
+                transform: [{ scale: isCompact ? 0.9 : 1 }]
               }}
             >
               <ArchetypeIcon

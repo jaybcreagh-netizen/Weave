@@ -1,4 +1,5 @@
 import { InteractionCategory, ActivityType } from '../types/common';
+import { LucideIcon, MessageCircle, Mic, Utensils, Home, MessageSquareHeart, PartyPopper, Palette, Heart, Cake } from 'lucide-react-native';
 
 export const INTERACTION_CATEGORIES: InteractionCategory[] = [
   'text-call',
@@ -15,7 +16,8 @@ export const INTERACTION_CATEGORIES: InteractionCategory[] = [
 export interface CategoryMetadata {
   id: InteractionCategory;
   label: string;
-  icon: string;
+  icon: string; // Legacy emoji, kept for backward compatibility
+  iconComponent: LucideIcon; // Lucide icon component
   description: string;
   color: string; // Tailwind class or hex
   defaultDuration: 'Quick' | 'Standard' | 'Extended';
@@ -27,6 +29,7 @@ export const CATEGORY_METADATA: Record<InteractionCategory, CategoryMetadata> = 
     id: 'text-call',
     label: 'Chat',
     icon: '💬',
+    iconComponent: MessageCircle,
     description: 'Text, call, or quick check-in',
     color: 'bg-blue-100 text-blue-700',
     defaultDuration: 'Quick',
@@ -36,6 +39,7 @@ export const CATEGORY_METADATA: Record<InteractionCategory, CategoryMetadata> = 
     id: 'voice-note',
     label: 'Voice Note',
     icon: '🎤',
+    iconComponent: Mic,
     description: 'Audio message or update',
     color: 'bg-indigo-100 text-indigo-700',
     defaultDuration: 'Quick',
@@ -45,6 +49,7 @@ export const CATEGORY_METADATA: Record<InteractionCategory, CategoryMetadata> = 
     id: 'meal-drink',
     label: 'Meal/Drink',
     icon: '🍽️',
+    iconComponent: Utensils,
     description: 'Coffee, lunch, dinner, or drinks',
     color: 'bg-orange-100 text-orange-700',
     defaultDuration: 'Standard',
@@ -54,6 +59,7 @@ export const CATEGORY_METADATA: Record<InteractionCategory, CategoryMetadata> = 
     id: 'hangout',
     label: 'Hangout',
     icon: '🏠',
+    iconComponent: Home,
     description: 'Casual time together at home',
     color: 'bg-green-100 text-green-700',
     defaultDuration: 'Extended',
@@ -63,6 +69,7 @@ export const CATEGORY_METADATA: Record<InteractionCategory, CategoryMetadata> = 
     id: 'deep-talk',
     label: 'Deep Talk',
     icon: '💭',
+    iconComponent: MessageSquareHeart,
     description: 'Meaningful conversation or catch-up',
     color: 'bg-purple-100 text-purple-700',
     defaultDuration: 'Standard',
@@ -72,6 +79,7 @@ export const CATEGORY_METADATA: Record<InteractionCategory, CategoryMetadata> = 
     id: 'event-party',
     label: 'Event/Party',
     icon: '🎉',
+    iconComponent: PartyPopper,
     description: 'Social gathering, party, or show',
     color: 'bg-pink-100 text-pink-700',
     defaultDuration: 'Extended',
@@ -81,6 +89,7 @@ export const CATEGORY_METADATA: Record<InteractionCategory, CategoryMetadata> = 
     id: 'activity-hobby',
     label: 'Activity',
     icon: '🎨',
+    iconComponent: Palette,
     description: 'Sport, hobby, game, or adventure',
     color: 'bg-yellow-100 text-yellow-700',
     defaultDuration: 'Extended',
@@ -90,6 +99,7 @@ export const CATEGORY_METADATA: Record<InteractionCategory, CategoryMetadata> = 
     id: 'favor-support',
     label: 'Support',
     icon: '🤝',
+    iconComponent: Heart,
     description: 'Helping out or emotional support',
     color: 'bg-teal-100 text-teal-700',
     defaultDuration: 'Standard',
@@ -99,6 +109,7 @@ export const CATEGORY_METADATA: Record<InteractionCategory, CategoryMetadata> = 
     id: 'celebration',
     label: 'Celebration',
     icon: '🎂',
+    iconComponent: Cake,
     description: 'Birthday, milestone, or holiday',
     color: 'bg-red-100 text-red-700',
     defaultDuration: 'Extended',

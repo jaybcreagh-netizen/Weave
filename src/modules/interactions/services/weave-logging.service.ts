@@ -154,6 +154,18 @@ export async function planWeave(data: InteractionFormData): Promise<Interaction>
             data
         }).catch(err => Logger.error('Error emitting interaction:created for plan:', err));
 
+        // Show confirmation toast
+        import('@/shared/stores/uiStore').then(({ useUIStore }) => {
+            const friendNames = friends.map(f => f.name);
+            let message = 'Weave planned!';
+            if (friendNames.length === 1) {
+                message = `Planned with ${friendNames[0]}!`;
+            } else if (friendNames.length > 1) {
+                message = `Planned with ${friendNames[0]} + ${friendNames.length - 1} others!`;
+            }
+            useUIStore.getState().showToast(message, friendNames[0] || '');
+        }).catch(err => Logger.error('Error triggering toast:', err));
+
         return newInteraction;
     });
 

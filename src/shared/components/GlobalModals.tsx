@@ -1,17 +1,74 @@
-import React from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { router } from 'expo-router';
 import { useUIStore } from '@/shared/stores/uiStore';
+import { UIEventBus } from '@/shared/services/ui-event-bus';
 
 import { MilestoneCelebration } from '@/modules/gamification';
 import { TrophyCabinetModal } from '@/modules/gamification';
 import { EventSuggestionModal } from '@/modules/interactions';
 import { WeeklyReflectionModal } from '@/modules/reflection';
-import { SyncConflictModal } from '@/modules/auth';
+import { SyncConflictModal, useAuth, SocialBatteryService } from '@/modules/auth';
 import { PostWeaveRatingModal } from '@/modules/interactions';
 import { MemoryMomentModal } from '@/modules/journal';
-import { DigestSheet } from '@/modules/home';
+import { EveningCheckinSheet } from '@/modules/home';
+import { EveningDigestChannel, EveningCheckinContent } from '@/modules/notifications';
 
 export function GlobalModals() {
+    const { user } = useAuth();
+    const [eveningCheckinContent, setEveningCheckinContent] = useState<EveningCheckinContent | null>(null);
+
+    // Subscribe to UIEventBus to handle events from non-React code (notifications, etc.)
+    useEffect(() => {
+        const unsubscribe = UIEventBus.subscribe((event) => {
+            switch (event.type) {
+                case 'OPEN_DIGEST_SHEET':
+                    // Generate new content when opening
+                    EveningDigestChannel.generateEveningCheckinContent()
+                        .then(content => {
+                            setEveningCheckinContent(content);
+                            useUIStore.getState().openDigestSheet(event.items);
+                        })
+                        .catch(err => {
+                            console.error('Error generating evening checkin content:', err);
+                            useUIStore.getState().openDigestSheet(event.items);
+                        });
+                    break;
+                case 'OPEN_WEEKLY_REFLECTION':
+                    useUIStore.getState().openWeeklyReflection();
+                    break;
+                case 'OPEN_SOCIAL_BATTERY_SHEET':
+                    useUIStore.getState().openSocialBatterySheet();
+                    break;
+                case 'OPEN_MEMORY_MOMENT':
+                    useUIStore.getState().openMemoryMoment(event.data);
+                    break;
+                case 'SHOW_TOAST':
+                    useUIStore.getState().showToast(event.message, event.friendName ?? '');
+                    break;
+                case 'FRIEND_NURTURED':
+                    useUIStore.getState().setJustNurturedFriendId(event.friendId);
+                    break;
+            }
+        });
+
+        return unsubscribe;
+    }, []);
+
+    // Battery submit handler
+    const handleBatterySubmit = useCallback(async (value: number, note?: string) => {
+        if (user) {
+            await SocialBatteryService.submitCheckin(user.id, value, note);
+            // Refresh content to show battery completed
+            const newContent = await EveningDigestChannel.generateEveningCheckinContent();
+            setEveningCheckinContent(newContent);
+        }
+    }, [user]);
+
+    const handleCloseEveningCheckin = useCallback(() => {
+        useUIStore.getState().closeDigestSheet();
+        setEveningCheckinContent(null);
+    }, []);
+
     const milestoneCelebrationData = useUIStore((state) => state.milestoneCelebrationData);
     const hideMilestoneCelebration = useUIStore((state) => state.hideMilestoneCelebration);
     const isTrophyCabinetOpen = useUIStore((state) => state.isTrophyCabinetOpen);
@@ -92,12 +149,15 @@ export function GlobalModals() {
                 }}
             />
 
-            {/* Evening Digest Sheet */}
-            <DigestSheet
-                isVisible={digestSheetVisible}
-                onClose={() => useUIStore.getState().closeDigestSheet()}
-                items={digestItems}
-            />
+            {/* Evening Check-in Sheet */}
+            {eveningCheckinContent && (
+                <EveningCheckinSheet
+                    isVisible={digestSheetVisible}
+                    onClose={handleCloseEveningCheckin}
+                    content={eveningCheckinContent}
+                    onBatterySubmit={handleBatterySubmit}
+                />
+            )}
         </>
     );
 }
