@@ -7,10 +7,10 @@ import * as Haptics from 'expo-haptics';
 import { Q } from '@nozbe/watermelondb';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { FAB } from '@/shared/components/fab';
+import { MultiActionFAB, type FABAction } from '@/shared/components/MultiActionFAB';
 import { InsightsFAB, InsightsSheet } from '@/modules/insights';
 import { useUIStore } from '@/shared/stores/uiStore';
-import { usePlans, PlanService, getSuggestionCooldownDays } from '@/modules/interactions';
+import { usePlans, PlanService, getSuggestionCooldownDays, PlanWizard } from '@/modules/interactions';
 import { useSuggestions } from '@/modules/interactions';
 import { Suggestion } from '@/shared/types/common';
 import { useTheme } from '@/shared/hooks/useTheme';
@@ -31,6 +31,7 @@ import { FriendManagementModal } from '../components/FriendManagementModal';
 import { TierInfo } from '../components/TierInfo';
 import { TierSegmentedControl } from '../components/TierSegmentedControl';
 import { AddFriendMenu } from '../components/AddFriendMenu';
+import { FriendPickerSheet } from '../components/FriendPickerSheet';
 import { IntentionActionSheet } from '../components/IntentionActionSheet';
 import FriendBadgePopup from '../components/FriendBadgePopup';
 import { Tier } from '../types';
@@ -50,6 +51,8 @@ export function FriendsDashboardScreen() {
     const [insightsSheetVisible, setInsightsSheetVisible] = useState(false);
     const [selectedIntention, setSelectedIntention] = useState<Intention | null>(null);
     const [addFriendMenuVisible, setAddFriendMenuVisible] = useState(false);
+    const [friendPickerVisible, setFriendPickerVisible] = useState(false);
+    const [planWizardFriend, setPlanWizardFriend] = useState<FriendModel | null>(null);
 
     // Search state
     const [searchQuery, setSearchQuery] = useState('');
@@ -181,7 +184,23 @@ export function FriendsDashboardScreen() {
         setShowCircleTutorial(false);
     }, [markQuickWeaveIntroSeen]);
 
-    const onAddFriend = () => setAddFriendMenuVisible(true);
+    const handleFABAction = useCallback((action: FABAction) => {
+        switch (action) {
+            case 'log-weave':
+                router.push('/weave-logger');
+                break;
+            case 'plan-weave':
+                setFriendPickerVisible(true);
+                break;
+            case 'add-friend':
+                setAddFriendMenuVisible(true);
+                break;
+        }
+    }, [router]);
+
+    const handleFriendSelectedForPlan = useCallback((friend: FriendModel) => {
+        setPlanWizardFriend(friend);
+    }, []);
 
     const handleAddSingle = () => {
         router.push(`/add-friend?tier=${activeTier}`);
@@ -323,7 +342,7 @@ export function FriendsDashboardScreen() {
                 </Animated.View>
             )}
 
-            <FAB onClick={onAddFriend} />
+            <MultiActionFAB onAction={handleFABAction} />
 
             <InsightsFAB
                 isVisible={suggestionCount > 0 || intentions.length > 0}
@@ -368,6 +387,22 @@ export function FriendsDashboardScreen() {
                 onAddSingle={handleAddSingle}
                 onAddBatch={handleAddBatch}
             />
+
+            <FriendPickerSheet
+                visible={friendPickerVisible}
+                onClose={() => setFriendPickerVisible(false)}
+                onSelectFriend={handleFriendSelectedForPlan}
+                title="Plan a Weave"
+                subtitle="Who would you like to plan time with?"
+            />
+
+            {planWizardFriend && (
+                <PlanWizard
+                    visible={true}
+                    onClose={() => setPlanWizardFriend(null)}
+                    initialFriend={planWizardFriend}
+                />
+            )}
 
             {showCircleTutorial && circleTutorialStep === 0 && (
                 <SimpleTutorialTooltip
