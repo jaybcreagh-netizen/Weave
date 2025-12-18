@@ -53,7 +53,7 @@ interface FriendListRowProps {
 import withObservables from '@nozbe/with-observables';
 
 export const FriendListRowContent = ({ friend, animatedRef, variant = 'default' }: FriendListRowProps) => {
-  console.warn('[FriendListRowContent] Render:', { friendId: friend?.id, variant, hasFriend: !!friend });
+
   if (!friend) return null;
 
   const { id, name, archetype, isDormant = false, photoUrl, relationshipType } = friend;
@@ -65,7 +65,9 @@ export const FriendListRowContent = ({ friend, animatedRef, variant = 'default' 
   const [showDetailSheet, setShowDetailSheet] = useState(false);
   const [showArchetypePicker, setShowArchetypePicker] = useState(false);
   const { colors, isDarkMode } = useTheme();
-  const { setArchetypeModal, justNurturedFriendId, setJustNurturedFriendId } = useUIStore();
+  const setArchetypeModal = useUIStore(state => state.setArchetypeModal);
+  const justNurturedFriendId = useUIStore(state => state.justNurturedFriendId);
+  const setJustNurturedFriendId = useUIStore(state => state.setJustNurturedFriendId);
   const { activeCardId, pendingCardId } = useCardGesture();
 
   // Calculate current score with decay - memoized by ID to avoid recalculation

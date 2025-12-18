@@ -41,7 +41,7 @@ export function FriendsDashboardScreen() {
     const router = useRouter();
     const { colors } = useTheme();
     const { isQuickWeaveOpen, showMicroReflectionSheet } = useUIStore();
-    const { gesture, animatedScrollHandler, activeCardId } = useCardGesture();
+    const { gesture, animatedScrollHandler, activeCardId, pendingCardId } = useCardGesture();
     const { suggestions, dismissSuggestion } = useSuggestions();
 
     const suggestionCount = suggestions.length;
@@ -123,14 +123,18 @@ export function FriendsDashboardScreen() {
     useFocusEffect(
         React.useCallback(() => {
             activeCardId.value = null;
+            pendingCardId.value = null;
             let isFocused = true;
             return () => {
                 isFocused = false;
                 if (activeCardId.value !== null) {
                     activeCardId.value = null;
                 }
+                if (pendingCardId.value !== null) {
+                    pendingCardId.value = null;
+                }
             };
-        }, [activeCardId])
+        }, [activeCardId, pendingCardId])
     );
 
     // Show Circle dashboard tutorial when user has added first friend but hasn't seen intro

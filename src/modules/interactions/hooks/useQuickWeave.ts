@@ -17,7 +17,7 @@ export function useQuickWeave() {
         closeQuickWeave,
         showToast,
         setJustNurturedFriendId,
-        setSelectedFriendId,
+
         showMicroReflectionSheet,
         quickWeaveActivities
     } = useUIStore();
@@ -116,11 +116,10 @@ export function useQuickWeave() {
         }
     }, [openQuickWeave]);
 
-    const handleTap = useDebounceCallback(useCallback((friendId: string) => {
-        // Navigate immediately for snappy feel - friend profile handles unknown archetypes
-        setSelectedFriendId(friendId);
+    const handleTap = useCallback((friendId: string) => {
+        // Navigate immediately for snappy feel
         router.push(`/friend-profile?friendId=${friendId}`);
-    }, [router, setSelectedFriendId]));
+    }, [router]);
 
     return {
         handleInteractionSelection,

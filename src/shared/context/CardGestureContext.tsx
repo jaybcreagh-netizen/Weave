@@ -88,11 +88,11 @@ function useCardGestureCoordinator(): CardGestureContextType {
     if (pendingFeedbackTimeout.current) {
       clearTimeout(pendingFeedbackTimeout.current);
     }
-    // Delay the visual feedback by 30ms (balance between fast feel and tap safety)
+    // Delay the visual feedback by 130ms (balance between fast feel and tap safety)
     pendingFeedbackTimeout.current = setTimeout(() => {
       pendingCardId.value = targetId;
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }, 30);
+    }, 130);
   };
 
   const clearPendingFeedback = () => {
