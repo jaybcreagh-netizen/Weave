@@ -25,7 +25,7 @@ export function SuggestionCard({ suggestion, onAct, onLater, index = 0 }: Sugges
     critical: colors.celebrate,
     high: colors.accent,
     medium: colors.primary,
-    low: colors['muted-foreground'],
+    low: colors.primary, // Changed from muted-foreground to primary to avoid grey UI
   };
 
   const urgencyColor: string = urgencyColors[suggestion.urgency || 'low'];
@@ -40,64 +40,64 @@ export function SuggestionCard({ suggestion, onAct, onLater, index = 0 }: Sugges
       entering={FadeInDown.delay(index * 100).springify().damping(12)}
       exiting={FadeOutLeft.springify().damping(12)}
       layout={LinearTransition.springify().damping(12)}
-      className="mb-4 rounded-3xl border overflow-hidden shadow-sm"
+      className="mb-4 rounded-3xl border overflow-hidden"
       style={{
         backgroundColor: colors.card,
         borderColor: colors.border,
-        shadowColor: tokens.shadow?.color ?? '#000', // Keep shadow color dynamic/token-based
-        // Native shadow props don't map perfectly to tailwind classes without custom config
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.06,
-        shadowRadius: 12,
-        elevation: 3,
+        shadowColor: tokens.shadow?.color ?? '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.04,
+        shadowRadius: 8,
+        elevation: 2,
       }}
     >
       <View className="p-5">
-        <View
-          className="flex-row items-center pb-4 border-b"
-          style={{ borderBottomColor: tokens.borderSubtle }}
-        >
+        <View className="flex-row items-start gap-4">
           <View
-            className="w-10 h-10 rounded-xl items-center justify-center mr-4"
-            style={{ backgroundColor: tokens.backgroundSubtle }}
+            className="w-12 h-12 rounded-full items-center justify-center shrink-0"
+            style={{ backgroundColor: suggestion.urgency === 'critical' ? tokens.celebrateSubtle : tokens.backgroundSubtle }}
           >
-            <Icon name={iconName} size={20} color={urgencyColor} />
+            <Icon name={iconName} size={24} color={urgencyColor} />
           </View>
-          <View className="flex-1 justify-center gap-1">
-            <Text variant="h3" weight="bold" style={{ color: colors.foreground }}>
-              {suggestion.title}
-            </Text>
-            {suggestion.urgency === 'critical' && (
-              <View
-                className="self-start px-2 py-0.5 rounded-md"
-                style={{ backgroundColor: tokens.celebrateSubtle }}
-              >
-                <Text variant="caption" style={{ color: colors.celebrate }}>Special</Text>
+
+          <View className="flex-1">
+            <View className="flex-row justify-between items-start mb-1">
+              <View className="flex-1 mr-2">
+                {suggestion.urgency === 'critical' && (
+                  <View
+                    className="self-start px-2 py-0.5 rounded-full mb-1"
+                    style={{ backgroundColor: tokens.celebrateSubtle }}
+                  >
+                    <Text variant="caption" style={{ color: colors.celebrate, fontSize: 10, fontWeight: '700' }}>SPECIAL</Text>
+                  </View>
+                )}
+                <Text variant="h3" weight="bold" style={{ color: colors.foreground }}>
+                  {suggestion.title}
+                </Text>
               </View>
-            )}
-          </View>
-        </View>
 
-        <Text variant="body" color="muted" style={{ marginTop: 12, marginBottom: 16, lineHeight: 22 }}>
-          {suggestion.subtitle}
-        </Text>
+              {suggestion.dismissible && (
+                <Pressable
+                  onPress={onLater}
+                  hitSlop={8}
+                  className="opacity-60 active:opacity-100"
+                >
+                  <Icon name="X" size={18} color={colors['muted-foreground']} />
+                </Pressable>
+              )}
+            </View>
 
-        <View className="flex-row items-center justify-end">
-          {suggestion.dismissible && (
+            <Text variant="body" style={{ color: colors.foreground, marginTop: 4, marginBottom: 16, lineHeight: 22 }}>
+              {suggestion.subtitle}
+            </Text>
+
             <Button
-              variant="ghost"
-              onPress={onLater}
-              className="flex-1 mr-3"
-              label="Later"
+              onPress={onAct}
+              className="w-full"
+              style={{ backgroundColor: urgencyColor }}
+              label={suggestion.actionLabel}
             />
-          )}
-
-          <Button
-            onPress={onAct}
-            className="flex-1"
-            style={{ backgroundColor: urgencyColor }}
-            label={suggestion.actionLabel}
-          />
+          </View>
         </View>
       </View>
     </Animated.View>

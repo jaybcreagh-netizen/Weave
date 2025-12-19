@@ -4,7 +4,8 @@ import {
     Calendar, Sparkles, CheckCircle2, Lightbulb,
     AlertTriangle, RefreshCw, Zap, Heart, Clock, Star,
     Gift, Briefcase, Home, GraduationCap, PartyPopper,
-    HeartCrack, Activity, Target, History, Egg
+    HeartCrack, Activity, Target, History, Egg, Book,
+    MessageCircle, Hand, Send, Users, Mic, Image, Coffee
 } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { AnimatedBottomSheet } from '@/shared/ui/Sheet';
@@ -117,6 +118,16 @@ export const FocusDetailSheet: React.FC<FocusDetailSheetProps> = ({
             case 'Target': return <Target size={size} color={tokens.primary} />;
             case 'Egg': return <Egg size={size} color={tokens.primary} />;
             case 'Star': return <Star size={size} color="#F59E0B" />;
+            case 'Star': return <Star size={size} color="#F59E0B" />;
+            case 'Book': return <Book size={size} color={tokens.primary} />;
+            case 'MessageCircle': return <MessageCircle size={size} color={tokens.primary} />;
+            case 'Hand': return <Hand size={size} color={tokens.primary} />;
+            case 'Send': return <Send size={size} color={tokens.primary} />;
+            case 'Users': return <Users size={size} color={tokens.primary} />;
+            case 'Mic': return <Mic size={size} color={tokens.primary} />;
+            case 'Image': return <Image size={size} color={tokens.primary} />;
+            case 'Coffee': return <Coffee size={size} color={tokens.primary} />;
+            case 'Lightbulb': return <Lightbulb size={size} color={tokens.primary} />;
             default: return <Sparkles size={size} color={tokens.primary} />;
         }
     };

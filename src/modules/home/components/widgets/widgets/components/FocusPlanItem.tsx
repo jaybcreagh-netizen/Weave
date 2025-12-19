@@ -3,7 +3,7 @@ import React from 'react';
 import { View, TouchableOpacity } from 'react-native';
 import { withObservables } from '@nozbe/watermelondb/react';
 import { format } from 'date-fns';
-import { Check, Sparkles, Clock } from 'lucide-react-native';
+import { Check, Sparkles, Clock, Phone, Mic, Utensils, Users, MessageSquare, PartyPopper, Heart, Activity } from 'lucide-react-native';
 import { map } from 'rxjs/operators';
 
 import Interaction from '@/db/models/Interaction';
@@ -12,6 +12,22 @@ import { useTheme } from '@/shared/hooks/useTheme';
 import { ListItem } from '@/shared/ui/ListItem';
 import { getCategoryLabel } from '@/modules/interactions';
 import { groupService } from '@/modules/groups';
+
+const getCategoryIcon = (category: string | null | undefined, size: number, color: string) => {
+    switch (category) {
+        case 'text-call': return <Phone size={size} color={color} />;
+        case 'voice-note': return <Mic size={size} color={color} />;
+        case 'meal-drink': return <Utensils size={size} color={color} />;
+        case 'hangout': return <Users size={size} color={color} />;
+        case 'deep-talk': return <MessageSquare size={size} color={color} />;
+        case 'event-party': return <PartyPopper size={size} color={color} />;
+        case 'celebration': return <PartyPopper size={size} color={color} />;
+        case 'activity-hobby': return <Activity size={size} color={color} />;
+        case 'favor-support': return <Heart size={size} color={color} />;
+        default: return <Sparkles size={size} color={color} />;
+    }
+};
+
 interface FocusPlanItemProps {
     interaction: Interaction;
     friends: FriendModel[];
@@ -128,7 +144,7 @@ const PlanItemView: React.FC<{
                                 {isReflected ? (
                                     <Check size={18} color={tokens.success} />
                                 ) : (
-                                    <Sparkles size={18} color={tokens.primary} />
+                                    getCategoryIcon(interaction.interactionCategory, 18, tokens.primary)
                                 )}
                             </TouchableOpacity>
                         ) : (

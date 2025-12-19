@@ -225,22 +225,44 @@ export function FriendsDashboardScreen() {
         if (suggestion.category === 'portfolio') return;
 
         if (suggestion.action.type === 'reflect') {
-            const friend = await database.get<FriendModel>('friends').find(suggestion.friendId);
-            if (friend && suggestion.action.interactionId) {
-                const activityLabel = suggestion.subtitle.match(/your (.*?) with/)?.[1] || 'time together';
-                showMicroReflectionSheet({
-                    friendId: suggestion.friendId,
-                    friendName: suggestion.friendName || '',
-                    activityId: '',
-                    activityLabel,
-                    interactionId: suggestion.action.interactionId,
-                    friendArchetype: friend.archetype,
+            // Check if this is a friend-specific reflection (micro-reflection) linked to an interaction
+            if (suggestion.friendId && suggestion.action.interactionId) {
+                const friend = await database.get<FriendModel>('friends').find(suggestion.friendId);
+                if (friend) {
+                    const activityLabel = suggestion.subtitle.match(/your (.*?) with/)?.[1] || 'time together';
+                    showMicroReflectionSheet({
+                        friendId: suggestion.friendId,
+                        friendName: suggestion.friendName || '',
+                        activityId: '',
+                        activityLabel,
+                        interactionId: suggestion.action.interactionId,
+                        friendArchetype: friend.archetype,
+                    });
+                }
+            } else {
+                // General or Daily Reflection - route to Journal
+                // Pass the subtitle as a prompt
+                router.push({
+                    pathname: '/journal',
+                    params: {
+                        mode: 'guided',
+                        prefilledText: suggestion.subtitle
+                    }
                 });
             }
         } else if (suggestion.action.type === 'log') {
-            router.push(`/weave-logger?friendId=${suggestion.friendId}`);
+            if (suggestion.friendId) {
+                router.push(`/weave-logger?friendId=${suggestion.friendId}`);
+            } else {
+                router.push('/weave-logger');
+            }
         } else if (suggestion.action.type === 'plan') {
-            router.push(`/friend-profile?friendId=${suggestion.friendId}`);
+            if (suggestion.friendId) {
+                router.push(`/friend-profile?friendId=${suggestion.friendId}`);
+            } else {
+                // If no specific friend suggested, open the friend picker
+                setFriendPickerVisible(true);
+            }
         }
     };
 

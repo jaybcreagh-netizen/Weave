@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Logger from '@/shared/utils/Logger';
 
 const DISMISSED_KEY = 'weave:suggestions:dismissed';
 const LAST_SHOWN_KEY = 'weave:suggestions:lastShown';
@@ -28,7 +29,7 @@ export async function getDismissedSuggestions(): Promise<Map<string, DismissedSu
 
     return new Map(active.map(d => [d.id, d]));
   } catch (error) {
-    console.error('Failed to get dismissed suggestions:', error);
+    Logger.error('Failed to get dismissed suggestions', error);
     return new Map();
   }
 }
@@ -45,7 +46,7 @@ export async function dismissSuggestion(id: string, cooldownDays: number): Promi
     const array = Array.from(dismissed.values());
     await AsyncStorage.setItem(DISMISSED_KEY, JSON.stringify(array));
   } catch (error) {
-    console.error('Failed to dismiss suggestion:', error);
+    Logger.error('Failed to dismiss suggestion', error);
   }
 }
 
@@ -54,7 +55,7 @@ export async function getLastShownTimestamp(): Promise<number> {
     const value = await AsyncStorage.getItem(LAST_SHOWN_KEY);
     return value ? parseInt(value, 10) : 0;
   } catch (error) {
-    console.error('Failed to get last shown timestamp:', error);
+    Logger.error('Failed to get last shown timestamp', error);
     return 0;
   }
 }
@@ -63,15 +64,15 @@ export async function setLastShownTimestamp(timestamp: number): Promise<void> {
   try {
     await AsyncStorage.setItem(LAST_SHOWN_KEY, timestamp.toString());
   } catch (error) {
-    console.error('Failed to set last shown timestamp:', error);
+    Logger.error('Failed to set last shown timestamp', error);
   }
 }
 
 export async function clearAllDismissed(): Promise<void> {
   try {
     await AsyncStorage.removeItem(DISMISSED_KEY);
-    console.log('Cleared all dismissed suggestions');
+    Logger.info('Cleared all dismissed suggestions');
   } catch (error) {
-    console.error('Failed to clear dismissed suggestions:', error);
+    Logger.error('Failed to clear dismissed suggestions', error);
   }
 }

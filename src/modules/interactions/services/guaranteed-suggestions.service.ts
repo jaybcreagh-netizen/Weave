@@ -28,19 +28,19 @@ interface ReflectPrompt {
 
 const DAILY_REFLECT_PROMPTS: ReflectPrompt[] = [
     // Sunday - Gratitude
-    { title: "Gratitude moment", subtitle: "Which friendship brought you unexpected joy this week?", icon: "Heart" },
+    { title: "Gratitude moment", subtitle: "Which friendship brought you unexpected joy this week?", icon: "Book" },
     // Monday - New week intentions
-    { title: "Weekly intention", subtitle: "Who would you love to connect with this week?", icon: "Target" },
+    { title: "Weekly intention", subtitle: "Who would you love to connect with this week?", icon: "Book" },
     // Tuesday - Appreciation
-    { title: "Appreciation note", subtitle: "Who deserves a thank-you that you haven't sent yet?", icon: "Send" },
+    { title: "Appreciation note", subtitle: "Who deserves a thank-you that you haven't sent yet?", icon: "Book" },
     // Wednesday - Midweek check-in
-    { title: "Connection pulse", subtitle: "How are you feeling about your social energy today?", icon: "Activity" },
+    { title: "Connection pulse", subtitle: "How are you feeling about your social energy today?", icon: "Book" },
     // Thursday - Memory
-    { title: "Memory lane", subtitle: "What's a favorite memory with a friend you'd like to revisit?", icon: "Camera" },
+    { title: "Memory lane", subtitle: "What's a favorite memory with a friend you'd like to revisit?", icon: "Book" },
     // Friday - Weekend planning
-    { title: "Weekend spark", subtitle: "Who would make your weekend more meaningful?", icon: "Sun" },
+    { title: "Weekend spark", subtitle: "Who would make your weekend more meaningful?", icon: "Book" },
     // Saturday - Reflection
-    { title: "Meaningful moment", subtitle: "What connection this week lit you up the most?", icon: "Sparkles" },
+    { title: "Meaningful moment", subtitle: "What connection this week lit you up the most?", icon: "Book" },
 ];
 
 // ============================================================================
@@ -141,10 +141,10 @@ function getTimeOfDay(): TimeOfDay {
 // ============================================================================
 
 const GENTLE_NUDGE_TEMPLATES = [
-    { prefix: "Check in with", suffix: ". It's been a bit!", icon: "MessageCircle" },
-    { prefix: "Say hi to", suffix: ". Small gestures matter.", icon: "Hand" },
-    { prefix: "Drop a line to", suffix: ". Keep the warmth alive.", icon: "Send" },
-    { prefix: "Think of", suffix: "?—a quick hello goes far", icon: "Heart" },
+    { prefix: "Check in with", suffix: "", subtitle: "It's been a bit since you connected.", icon: "MessageCircle" },
+    { prefix: "Say hi to", suffix: "", subtitle: "Small gestures matter.", icon: "Hand" },
+    { prefix: "Drop a line to", suffix: "", subtitle: "Keep the warmth alive.", icon: "Send" },
+    { prefix: "Thinking of", suffix: "?", subtitle: "A quick hello goes a long way.", icon: "Heart" },
 ];
 
 // ============================================================================
@@ -310,14 +310,30 @@ function generateGentleNudge(
     const pickIndex = Math.floor(Math.random() * Math.min(sortedByScore.length, 5));
     const selectedFriend = sortedByScore[pickIndex].friend;
 
+
     // Pick a template based on season
     const templates = isResting ? RESTING_GENTLE_NUDGE_TEMPLATES : GENTLE_NUDGE_TEMPLATES;
+    // Map RESTING_GENTLE_NUDGE_TEMPLATES (which are simpler) to have a subtitle if they don't
+
     const template = templates[Math.floor(Math.random() * templates.length)];
+    const nudgeTemplate = template as any; // Cast to access subtitle if present
 
     // Build title based on template structure
-    const title = template.suffix.includes('came to mind') || template.suffix.includes('might enjoy')
-        ? `${template.prefix} ${selectedFriend.name} ${template.suffix}`
-        : `${template.prefix} ${selectedFriend.name}`;
+    let title = `${nudgeTemplate.prefix} ${selectedFriend.name}`;
+    if (nudgeTemplate.suffix) {
+        title += nudgeTemplate.suffix;
+    }
+
+    // Determine subtitle
+    let subtitle = "Reconnect and share a moment.";
+    if (nudgeTemplate.subtitle) {
+        subtitle = nudgeTemplate.subtitle;
+    } else if (nudgeTemplate.suffix && (nudgeTemplate.suffix.includes('came to mind') || nudgeTemplate.suffix.includes('might enjoy'))) {
+        // Fallback for RESTING templates that used suffix as message
+        // Actually, let's just clean those up too, but for now preserve behavior if needed
+        subtitle = "";
+        title = `${nudgeTemplate.prefix} ${selectedFriend.name} ${nudgeTemplate.suffix}`;
+    }
 
     return {
         id: `gentle-nudge-${selectedFriend.id}-${new Date().toISOString().split('T')[0]}`,
@@ -325,7 +341,7 @@ function generateGentleNudge(
         friendName: selectedFriend.name,
         type: 'connect',
         title,
-        subtitle: template.suffix.includes('came to mind') ? '' : template.suffix,
+        subtitle,
         icon: template.icon,
         category: 'gentle-nudge',
         urgency: 'low',
@@ -492,10 +508,10 @@ function generateWhyNotReachOut(
  * Community check-in templates
  */
 const COMMUNITY_CHECKIN_TEMPLATES = [
-    { prefix: "Reconnect with", suffix: "from your wider circle", icon: "Users" },
-    { prefix: "Check in on", suffix: ". Community connections matter too.", icon: "Heart" },
-    { prefix: "Say hi to", suffix: ". It's been a while.", icon: "Hand" },
-    { prefix: "Drop a line to", suffix: "in your community", icon: "MessageCircle" },
+    { prefix: "Reconnect with", suffix: "", subtitle: "Reconnect with your wider circle.", icon: "Users" },
+    { prefix: "Check in on", suffix: "", subtitle: "Community connections matter too.", icon: "Heart" },
+    { prefix: "Say hi to", suffix: "", subtitle: "It's been a while.", icon: "Hand" },
+    { prefix: "Drop a line to", suffix: "", subtitle: "Reach out to your community.", icon: "MessageCircle" },
 ];
 
 /**
@@ -526,14 +542,15 @@ function generateCommunityCheckIn(
     const pickIndex = Math.floor(Math.random() * Math.min(sorted.length, 5));
     const selectedFriend = sorted[pickIndex].friend;
     const template = COMMUNITY_CHECKIN_TEMPLATES[Math.floor(Math.random() * COMMUNITY_CHECKIN_TEMPLATES.length)];
+    const checkinTemplate = template as any;
 
     return {
         id: `community-checkin-${selectedFriend.id}-${new Date().toISOString().split('T')[0]}`,
         friendId: selectedFriend.id,
         friendName: selectedFriend.name,
         type: 'connect',
-        title: `${template.prefix} ${selectedFriend.name}`,
-        subtitle: template.suffix,
+        title: `${template.prefix} ${selectedFriend.name}${template.suffix || ''}`,
+        subtitle: checkinTemplate.subtitle || "Keep in touch with your community.",
         icon: template.icon,
         category: 'community-checkin',
         urgency: 'low',

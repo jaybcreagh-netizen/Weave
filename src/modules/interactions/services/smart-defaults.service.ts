@@ -5,6 +5,7 @@ import FriendModel from '@/db/models/Friend';
 import { Q } from '@nozbe/watermelondb';
 import { type InteractionCategory } from '@/shared/types/legacy-types';
 import { getArchetypePreferredCategory } from '@/shared/constants/archetype-content';
+import Logger from '@/shared/utils/Logger';
 
 /**
  * Smart Defaults Engine
@@ -31,7 +32,7 @@ export async function isSmartDefaultsEnabled(): Promise<boolean> {
     const value = await AsyncStorage.getItem('@weave:smart_defaults_enabled');
     return value ? JSON.parse(value) : true; // Default to enabled
   } catch (error) {
-    console.error('Error checking smart defaults setting:', error);
+    Logger.error('Error checking smart defaults setting', error);
     return true; // Default to enabled on error
   }
 }
@@ -158,7 +159,7 @@ function getHistoricalScore(
 
     return 1.0; // No pattern
   } catch (error) {
-    console.error('Error calculating historical score:', error);
+    Logger.error('Error calculating historical score', error);
     return 1.0;
   }
 }
@@ -186,18 +187,29 @@ export async function calculateActivityPriorities(
     'celebration',
   ];
 
-  // Fetch history ONCE
+  // Fetch history ONCE using manual two-step query
+  // NOTE: Q.on fails on physical devices (per project memory), use manual pattern instead
   const sixtyDaysAgo = Date.now() - 60 * 24 * 60 * 60 * 1000;
-  // Optimized query using Q.on to filter by friend_id at the DB level
-  const friendInteractions = await database
-    .get<Interaction>('interactions')
-    .query(
-      Q.on('interaction_friends', Q.where('friend_id', friend.id)),
-      Q.where('status', 'completed'),
-      Q.where('interaction_date', Q.gte(sixtyDaysAgo)),
-      Q.sortBy('interaction_date', Q.desc)
-    )
+
+  // Step 1: Get interaction IDs linked to this friend
+  const links = await database
+    .get('interaction_friends')
+    .query(Q.where('friend_id', friend.id))
     .fetch();
+  const interactionIds = links.map((l: any) => l.interactionId);
+
+  // Step 2: Fetch actual interactions using those IDs
+  const friendInteractions = interactionIds.length > 0
+    ? await database
+      .get<Interaction>('interactions')
+      .query(
+        Q.where('id', Q.oneOf(interactionIds)),
+        Q.where('status', 'completed'),
+        Q.where('interaction_date', Q.gte(sixtyDaysAgo)),
+        Q.sortBy('interaction_date', Q.desc)
+      )
+      .fetch()
+    : [];
 
   // Calculate scores for each category
   const priorities: ActivityPriority[] = await Promise.all(

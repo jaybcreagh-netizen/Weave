@@ -6,6 +6,7 @@ import { differenceInDays, startOfDay } from 'date-fns';
 import { Q } from '@nozbe/watermelondb';
 import { parseFlexibleDate } from '@/shared/utils/date-utils';
 import { getDaysText } from '../utils';
+import Logger from '@/shared/utils/Logger';
 
 import {
     getArchetypeCelebrationSuggestion
@@ -188,7 +189,7 @@ export class LifeEventGenerator implements SuggestionGenerator {
                 };
             }
         } catch (error) {
-            console.error('Error checking life events:', error);
+            Logger.error('Error checking life events', error);
         }
 
         // Fallback: Birthday

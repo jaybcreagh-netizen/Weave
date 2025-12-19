@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Target } from 'lucide-react-native';
 import { logger } from '@/shared/services/logger.service';
 import { View, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { formatDistanceToNow } from 'date-fns';
@@ -157,10 +158,12 @@ export function IntentionsList({ intentions, onIntentionPress }: IntentionsListP
             ? getCategoryMetadata(intention.interactionCategory as InteractionCategory)
             : null;
 
+          const IconComponent = category?.iconComponent || Target;
+
           return (
             <TouchableOpacity
               key={intention.id}
-              className="w-40 p-3 rounded-2xl border shadow-sm elevation-2"
+              className="w-52 p-4 rounded-2xl border shadow-sm"
               style={{
                 backgroundColor: colors.card,
                 borderColor: colors.border,
@@ -172,25 +175,32 @@ export function IntentionsList({ intentions, onIntentionPress }: IntentionsListP
               onPress={() => onIntentionPress(intention)}
               activeOpacity={0.7}
             >
-              <View className="flex-row justify-between items-start">
-                <View className="w-8 h-8 rounded-full items-center justify-center" style={{ backgroundColor: colors.secondary }}>
-                  <Text style={{ fontSize: 16 }}>{category?.icon || '🎯'}</Text>
+              <View className="flex-row justify-between items-start mb-3 gap-2">
+                <View className="w-10 h-10 rounded-full items-center justify-center border shrink-0" style={{ backgroundColor: colors.background, borderColor: tokens.borderSubtle }}>
+                  <IconComponent size={20} color={colors.primary} />
                 </View>
-                <Text variant="caption" style={{ color: colors['muted-foreground'] }}>
-                  {formatDistanceToNow(intention.createdAt, { addSuffix: true })}
-                </Text>
+                <View className="flex-1 items-end">
+                  <Text
+                    variant="caption"
+                    className="text-right"
+                    numberOfLines={2}
+                    style={{ color: colors['muted-foreground'], fontSize: 11, lineHeight: 14 }}
+                  >
+                    {formatDistanceToNow(intention.createdAt, { addSuffix: true })}
+                  </Text>
+                </View>
               </View>
 
-              <Text variant="body" weight="bold" style={{ color: colors.foreground, marginTop: 8 }} numberOfLines={1}>
+              <Text variant="body" weight="bold" numberOfLines={1} style={{ marginBottom: 4, lineHeight: 22 }}>
                 {friend.name}
               </Text>
 
               {intention.description ? (
-                <Text variant="caption" style={{ color: colors['muted-foreground'], marginTop: 4 }} numberOfLines={2}>
+                <Text variant="body" style={{ color: colors.foreground, fontSize: 13, lineHeight: 18 }} numberOfLines={3}>
                   {intention.description}
                 </Text>
               ) : (
-                <Text variant="caption" style={{ color: colors['muted-foreground'], marginTop: 4, fontStyle: 'italic' }}>
+                <Text variant="caption" style={{ color: colors['muted-foreground'], fontStyle: 'italic', lineHeight: 16 }}>
                   No specifics set
                 </Text>
               )}

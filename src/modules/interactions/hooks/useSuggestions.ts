@@ -11,6 +11,7 @@ import { useUserProfile } from '@/modules/auth';
 import Interaction from '@/db/models/Interaction';
 import InteractionFriend from '@/db/models/InteractionFriend';
 import { notificationStore } from '@/modules/notifications';
+import Logger from '@/shared/utils/Logger';
 
 export function useSuggestions() {
   const queryClient = useQueryClient();
@@ -23,8 +24,20 @@ export function useSuggestions() {
   const { data: suggestions = [] } = useQuery({
     queryKey: ['suggestions', 'all', currentSeason], // Include season in query key for proper cache invalidation
     queryFn: async () => {
+      Logger.warn(`[useSuggestions] Query starting - season: ${currentSeason}`);
       const prefs = await notificationStore.getPreferences();
-      return fetchSuggestions(10, currentSeason, prefs.maxDailySuggestions);
+      Logger.warn(`[useSuggestions] Prefs loaded - maxDaily: ${prefs.maxDailySuggestions}`);
+
+      try {
+        Logger.warn(`[useSuggestions] About to call fetchSuggestions`);
+        const result = await fetchSuggestions(10, currentSeason, prefs.maxDailySuggestions);
+        Logger.warn(`[useSuggestions] Query complete - got ${result.length} suggestions`);
+        return result;
+      } catch (error) {
+        Logger.error(`[useSuggestions] fetchSuggestions FAILED`, error);
+        // Return empty array on error so UI doesn't break
+        return [];
+      }
     },
     // Re-fetch when the query is invalidated or season changes
   });

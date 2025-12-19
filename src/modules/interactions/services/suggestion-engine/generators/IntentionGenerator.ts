@@ -5,6 +5,7 @@ import { database } from '@/db';
 import Intention from '@/db/models/Intention';
 import { Q } from '@nozbe/watermelondb';
 import { differenceInDays } from 'date-fns';
+import Logger from '@/shared/utils/Logger';
 
 export class IntentionGenerator implements SuggestionGenerator {
     name = 'IntentionGenerator';
@@ -79,7 +80,7 @@ export class IntentionGenerator implements SuggestionGenerator {
                 return agingIntentions[0];
             }
         } catch (error) {
-            console.error('Error checking aging intentions:', error);
+            Logger.error('Error checking aging intentions', error);
         }
 
         return null;

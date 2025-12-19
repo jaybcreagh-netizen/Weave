@@ -1,5 +1,6 @@
 
 import { Q } from '@nozbe/watermelondb';
+import Logger from '@/shared/utils/Logger';
 import { database } from '@/db';
 import FriendModel from '@/db/models/Friend';
 import { generateSuggestion } from './suggestion-engine';
@@ -57,280 +58,310 @@ export async function fetchSuggestions(
     season?: SocialSeason | null,
     userCap?: number
 ): Promise<Suggestion[]> {
-    console.time('fetchSuggestions:modular_pipeline');
+    try {
+        // IMMEDIATE SYNC LOG - this should appear even if Logger.warn is rate-limited
+        Logger.warn('[Suggestions] Function ENTERED - this is the very first line');
 
-    // 1. Candidate Selection: Identify WHO needs suggestions (limit to Top 50 candidates)
-    // This prevents loading all 1000+ friends into memory.
-    const candidateIds = await SuggestionCandidateService.getCandidates(50);
+        // DIAGNOSTIC: Log pipeline start
+        Logger.warn(`[Suggestions] Pipeline starting - limit: ${limit}, season: ${season}, userCap: ${userCap}`);
 
-    // 2. Data Loading: Fetch Context (Friend + Interactions) only for candidates
-    const contextMap = await SuggestionDataLoader.loadContextForCandidates(candidateIds);
-    const friends = Array.from(contextMap.values()).map(c => c.friend);
+        // 1. Candidate Selection: Identify WHO needs suggestions (limit to Top 50 candidates)
+        // This prevents loading all 1000+ friends into memory.
+        const candidateIds = await SuggestionCandidateService.getCandidates(50);
 
-    console.timeEnd('fetchSuggestions:modular_pipeline');
+        // DIAGNOSTIC: Log candidate count
+        Logger.warn(`[Suggestions] Checkpoint 1 - Candidates: ${candidateIds.length}`);
 
-    const dismissedMap = await SuggestionStorageService.getDismissedSuggestions();
-    let allSuggestions: Suggestion[] = [];
-    const friendStats: PortfolioAnalysisStats['friends'] = [];
+        // 2. Data Loading: Fetch Context (Friend + Interactions) only for candidates
+        const contextMap = await SuggestionDataLoader.loadContextForCandidates(candidateIds);
+        const friends = Array.from(contextMap.values()).map(c => c.friend);
 
-    // 3. Generation Loop
-    for (const friend of friends) {
-        try {
-            const context = contextMap.get(friend.id);
-            if (!context) continue;
+        // DIAGNOSTIC: Log friends loaded
+        Logger.warn(`[Suggestions] Checkpoint 2 - Friends loaded: ${friends.length}`);
 
-            const currentScore = calculateCurrentScore(friend);
+        const dismissedMap = await SuggestionStorageService.getDismissedSuggestions();
 
-            // Calculate current momentum score
-            const momentumLastUpdatedTime = friend.momentumLastUpdated instanceof Date ? friend.momentumLastUpdated.getTime() : new Date(friend.momentumLastUpdated || Date.now()).getTime();
-            const daysSinceMomentumUpdate = (Date.now() - momentumLastUpdatedTime) / 86400000;
-            const momentumScore = Math.max(0, friend.momentumScore - daysSinceMomentumUpdate);
+        // DIAGNOSTIC: Log dismissed count
+        Logger.warn(`[Suggestions] Checkpoint 3 - Dismissed suggestions: ${dismissedMap.size}`);
 
-            // Calculate days since last interaction
-            let daysSinceInteraction = 999;
-            if (context.lastDate) {
-                daysSinceInteraction = (Date.now() - context.lastDate) / 86400000;
-            }
+        let allSuggestions: Suggestion[] = [];
+        const friendStats: PortfolioAnalysisStats['friends'] = [];
 
-            // Collect stats for portfolio analysis
-            friendStats.push({
-                id: friend.id,
-                name: friend.name,
-                tier: friend.dunbarTier as any,
-                archetype: friend.archetype,
-                score: currentScore,
-                daysSinceInteraction: Math.round(daysSinceInteraction),
-            });
+        // 3. Generation Loop
+        for (const friend of friends) {
+            try {
+                const context = contextMap.get(friend.id);
+                if (!context) continue;
 
-            // Generate "Engine" Suggestion
-            const suggestion = await generateSuggestion({
-                friend: {
+                const currentScore = calculateCurrentScore(friend);
+
+                // Calculate current momentum score
+                const momentumLastUpdatedTime = friend.momentumLastUpdated instanceof Date ? friend.momentumLastUpdated.getTime() : new Date(friend.momentumLastUpdated || Date.now()).getTime();
+                const daysSinceMomentumUpdate = (Date.now() - momentumLastUpdatedTime) / 86400000;
+                const momentumScore = Math.max(0, friend.momentumScore - daysSinceMomentumUpdate);
+
+                // Calculate days since last interaction
+                let daysSinceInteraction = 999;
+                if (context.lastDate) {
+                    daysSinceInteraction = (Date.now() - context.lastDate) / 86400000;
+                }
+
+                // Collect stats for portfolio analysis
+                friendStats.push({
                     id: friend.id,
                     name: friend.name,
+                    tier: friend.dunbarTier as any,
                     archetype: friend.archetype,
-                    dunbarTier: friend.dunbarTier,
-                    createdAt: friend.createdAt,
-                    birthday: friend.birthday,
-                    anniversary: friend.anniversary,
-                    relationshipType: friend.relationshipType,
-                } as any,
-                currentScore,
-                lastInteractionDate: context.interactions[0]?.interactionDate, // Data Loader sorts this
-                interactionCount: context.count,
-                momentumScore,
-                recentInteractions: context.interactions.map(i => ({
-                    id: i.id,
-                    category: i.interactionCategory as any,
-                    interactionDate: i.interactionDate,
-                    vibe: i.vibe,
-                    notes: i.note,
-                } as any)),
-                plannedInteractions: context.plannedInteractions,
-            });
-
-            if (suggestion) {
-                allSuggestions.push(suggestion);
-            }
-        } catch (error) {
-            console.error(`Error generating suggestion for friend ${friend.id}:`, error);
-        }
-    }
-
-    // 4. Proactive Suggestions (Pattern Analysis)
-    const proactiveSuggestions: Suggestion[] = [];
-    const MAX_PROACTIVE = 2; // Cap proactive suggestions per session
-
-    for (const friend of friends) {
-        if (proactiveSuggestions.length >= MAX_PROACTIVE) break;
-
-        const context = contextMap.get(friend.id);
-        const interactions = context?.interactions || [];
-
-        // Analyze pattern for this friend
-        const pattern = analyzeInteractionPattern(
-            interactions.map(i => ({
-                id: i.id,
-                interactionDate: i.interactionDate,
-                status: 'completed',
-                category: i.interactionCategory,
-            }))
-        );
-
-        if (!isPatternReliable(pattern)) continue;
-
-        try {
-            const proactive = generateProactiveSuggestions(friend, pattern, {
-                includeReciprocity: true,
-                includeSmartScheduling: false,
-            });
-
-            for (const p of proactive) {
-                if (proactiveSuggestions.length >= MAX_PROACTIVE) break;
-
-                proactiveSuggestions.push({
-                    id: `proactive-${p.type}-${p.friendId}`,
-                    friendId: p.friendId,
-                    friendName: p.friendName,
-                    urgency: p.urgency as 'low' | 'medium' | 'high' | 'critical',
-                    category: p.type === 'reciprocity-imbalance' ? 'insight' : 'maintain',
-                    title: p.title,
-                    subtitle: p.message,
-                    actionLabel: p.type.includes('reciprocity') ? 'Consider' : 'Plan',
-                    icon: getProactiveIcon(p.type),
-                    action: { type: 'plan' as const },
-                    dismissible: true,
-                    createdAt: new Date(),
-                    type: p.type.includes('momentum') ? 'deepen' : 'connect',
+                    score: currentScore,
+                    daysSinceInteraction: Math.round(daysSinceInteraction),
                 });
+
+                // Generate "Engine" Suggestion
+                const suggestion = await generateSuggestion({
+                    friend: {
+                        id: friend.id,
+                        name: friend.name,
+                        archetype: friend.archetype,
+                        dunbarTier: friend.dunbarTier,
+                        createdAt: friend.createdAt,
+                        birthday: friend.birthday,
+                        anniversary: friend.anniversary,
+                        relationshipType: friend.relationshipType,
+                    } as any,
+                    currentScore,
+                    lastInteractionDate: context.interactions[0]?.interactionDate, // Data Loader sorts this
+                    interactionCount: context.count,
+                    momentumScore,
+                    recentInteractions: context.interactions.map(i => ({
+                        id: i.id,
+                        category: i.interactionCategory as any,
+                        interactionDate: i.interactionDate,
+                        vibe: i.vibe,
+                        notes: i.note,
+                    } as any)),
+                    plannedInteractions: context.plannedInteractions,
+                });
+
+                if (suggestion) {
+                    allSuggestions.push(suggestion);
+                }
+            } catch (error) {
+                Logger.error(`Error generating suggestion for friend ${friend.id}`, error);
             }
-        } catch (error) {
-            console.error(`Error generating proactive suggestions for friend ${friend.id}:`, error);
         }
-    }
-    allSuggestions.push(...proactiveSuggestions);
 
-    // 5. Sunday Reflection
-    const weeklyReflection = await WeeklyReflectionGenerator.generate();
-    if (weeklyReflection) {
-        allSuggestions.push(weeklyReflection);
-    }
+        // DIAGNOSTIC: Log suggestions after generation loop
+        Logger.warn(`[Suggestions] Checkpoint 4 - After generation loop: ${allSuggestions.length}`);
 
-    // 6. Portfolio Insights
-    const uniqueFriendStats = Array.from(new Map(friendStats.map(f => [f.id, f])).values());
-    if (uniqueFriendStats.length >= 3) {
-        // ... (Existing Portfolio Calculation Logic can remain essentially same, but operating on candidates)
-        // Limitation: Portfolio stats are now only drawn from "Candidates", not ALL friends.
-        // This is a trade-off for performance. Ideally Portfolio Analysis should have its own dedicated "Stats Loader" 
-        // that aggregates efficiently without loading models, but for now working on the active set is acceptable 
-        // or we accept it catches drift among the "active/drifting" population we just queried.
+        // 4. Proactive Suggestions (Pattern Analysis)
+        const proactiveSuggestions: Suggestion[] = [];
+        const MAX_PROACTIVE = 2; // Cap proactive suggestions per session
 
-        const tierScores = {
-            inner: {
-                avg: uniqueFriendStats.filter(f => f.tier === 'InnerCircle').reduce((sum, f, _, arr) => sum + f.score / arr.length, 0) || 0,
-                count: uniqueFriendStats.filter(f => f.tier === 'InnerCircle').length,
-                drifting: uniqueFriendStats.filter(f => f.tier === 'InnerCircle' && f.score < 50).length,
-            },
-            close: {
-                avg: uniqueFriendStats.filter(f => f.tier === 'CloseFriends').reduce((sum, f, _, arr) => sum + f.score / arr.length, 0) || 0,
-                count: uniqueFriendStats.filter(f => f.tier === 'CloseFriends').length,
-                drifting: uniqueFriendStats.filter(f => f.tier === 'CloseFriends' && f.score < 40).length,
-            },
-            community: {
-                avg: uniqueFriendStats.filter(f => f.tier === 'Community').reduce((sum, f, _, arr) => sum + f.score / arr.length, 0) || 0,
-                count: uniqueFriendStats.filter(f => f.tier === 'Community').length,
-                drifting: uniqueFriendStats.filter(f => f.tier === 'Community' && f.score < 30).length,
-            },
-        };
+        for (const friend of friends) {
+            if (proactiveSuggestions.length >= MAX_PROACTIVE) break;
 
-        const portfolioInsight = generatePortfolioInsights({
-            friends: uniqueFriendStats,
-            tierScores,
-            archetypeBalance: analyzeArchetypeBalance(uniqueFriendStats),
+            const context = contextMap.get(friend.id);
+            const interactions = context?.interactions || [];
+
+            // Analyze pattern for this friend
+            const pattern = analyzeInteractionPattern(
+                interactions.map(i => ({
+                    id: i.id,
+                    interactionDate: i.interactionDate,
+                    status: 'completed',
+                    category: i.interactionCategory,
+                }))
+            );
+
+            if (!isPatternReliable(pattern)) continue;
+
+            try {
+                const proactive = generateProactiveSuggestions(friend, pattern, {
+                    includeReciprocity: true,
+                    includeSmartScheduling: false,
+                });
+
+                for (const p of proactive) {
+                    if (proactiveSuggestions.length >= MAX_PROACTIVE) break;
+
+                    proactiveSuggestions.push({
+                        id: `proactive-${p.type}-${p.friendId}`,
+                        friendId: p.friendId,
+                        friendName: p.friendName,
+                        urgency: p.urgency as 'low' | 'medium' | 'high' | 'critical',
+                        category: p.type === 'reciprocity-imbalance' ? 'insight' : 'maintain',
+                        title: p.title,
+                        subtitle: p.message,
+                        actionLabel: p.type.includes('reciprocity') ? 'Consider' : 'Plan',
+                        icon: getProactiveIcon(p.type),
+                        action: { type: 'plan' as const },
+                        dismissible: true,
+                        createdAt: new Date(),
+                        type: p.type.includes('momentum') ? 'deepen' : 'connect',
+                    });
+                }
+            } catch (error) {
+                Logger.error(`Error generating proactive suggestions for friend ${friend.id}`, error);
+            }
+        }
+        allSuggestions.push(...proactiveSuggestions);
+
+        // 5. Sunday Reflection
+        const weeklyReflection = await WeeklyReflectionGenerator.generate();
+        if (weeklyReflection) {
+            allSuggestions.push(weeklyReflection);
+        }
+
+        // 6. Portfolio Insights
+        const uniqueFriendStats = Array.from(new Map(friendStats.map(f => [f.id, f])).values());
+        if (uniqueFriendStats.length >= 3) {
+            // ... (Existing Portfolio Calculation Logic can remain essentially same, but operating on candidates)
+            // Limitation: Portfolio stats are now only drawn from "Candidates", not ALL friends.
+            // This is a trade-off for performance. Ideally Portfolio Analysis should have its own dedicated "Stats Loader" 
+            // that aggregates efficiently without loading models, but for now working on the active set is acceptable 
+            // or we accept it catches drift among the "active/drifting" population we just queried.
+
+            const tierScores = {
+                inner: {
+                    avg: uniqueFriendStats.filter(f => f.tier === 'InnerCircle').reduce((sum, f, _, arr) => sum + f.score / arr.length, 0) || 0,
+                    count: uniqueFriendStats.filter(f => f.tier === 'InnerCircle').length,
+                    drifting: uniqueFriendStats.filter(f => f.tier === 'InnerCircle' && f.score < 50).length,
+                },
+                close: {
+                    avg: uniqueFriendStats.filter(f => f.tier === 'CloseFriends').reduce((sum, f, _, arr) => sum + f.score / arr.length, 0) || 0,
+                    count: uniqueFriendStats.filter(f => f.tier === 'CloseFriends').length,
+                    drifting: uniqueFriendStats.filter(f => f.tier === 'CloseFriends' && f.score < 40).length,
+                },
+                community: {
+                    avg: uniqueFriendStats.filter(f => f.tier === 'Community').reduce((sum, f, _, arr) => sum + f.score / arr.length, 0) || 0,
+                    count: uniqueFriendStats.filter(f => f.tier === 'Community').length,
+                    drifting: uniqueFriendStats.filter(f => f.tier === 'Community' && f.score < 30).length,
+                },
+            };
+
+            const portfolioInsight = generatePortfolioInsights({
+                friends: uniqueFriendStats,
+                tierScores,
+                archetypeBalance: analyzeArchetypeBalance(uniqueFriendStats),
+            });
+
+            if (portfolioInsight) {
+                allSuggestions.push(portfolioInsight);
+            }
+        }
+
+        // Filter out dismissed (unless critical)
+        const active = allSuggestions.filter(s => {
+            if (s.urgency === 'critical') return true;
+            return !dismissedMap.has(s.id);
         });
 
-        if (portfolioInsight) {
-            allSuggestions.push(portfolioInsight);
+        const timeAppropriate = filterSuggestionsByTime(active);
+        const seasonFiltered = filterSuggestionsBySeason(timeAppropriate, season);
+
+        // DIAGNOSTIC: Log filter results
+        Logger.warn(`[Suggestions] Checkpoint 5 - Active: ${active.length}, Time: ${timeAppropriate.length}, Season: ${seasonFiltered.length}`);
+
+        const MIN_SUGGESTIONS = 3;
+        let finalPool = seasonFiltered;
+
+        // 7. Guaranteed Suggestions (Wildcards, etc.)
+        // CRITICAL FIX: Generate guaranteed suggestions even if friends array is empty.
+        // Non-friend-dependent suggestions (daily-reflect, generic wildcards) should always be available.
+        // This ensures users ALWAYS see at least some suggestions, even new users with no friends.
+        const guaranteed = generateGuaranteedSuggestions(friends, finalPool, season);
+        const freshGuaranteed = guaranteed.filter(s => !dismissedMap.has(s.id));
+        finalPool = [...finalPool, ...freshGuaranteed];
+
+        // DIAGNOSTIC: Log guaranteed suggestions
+        Logger.warn(`[Suggestions] Checkpoint 6 - Guaranteed raw: ${guaranteed.length}, fresh: ${freshGuaranteed.length}, pool: ${finalPool.length}`);
+
+        // 8. Dormant / Triage Logic
+        finalPool = await TriageGenerator.apply(finalPool);
+
+        // 9. Diversify
+        // If userCap is set, use it. Otherwise fallback to limit.
+        // The season config usually sets a "maxDaily", but if the user explicitly asks for more/less, we respect it.
+        // However, we still consult the season config for OTHER things (like filtering categories), but not the count if userCap is present.
+
+        let effectiveLimit = limit;
+        if (userCap !== undefined) {
+            effectiveLimit = userCap;
+        } else if (season) {
+            effectiveLimit = Math.max(limit, getSeasonSuggestionConfig(season).maxDaily);
         }
-    }
 
-    // Filter out dismissed (unless critical)
-    const active = allSuggestions.filter(s => {
-        if (s.urgency === 'critical') return true;
-        return !dismissedMap.has(s.id);
-    });
+        const friendLookup = new Map(friends.map(f => [f.id, f]));
+        const isLowEnergy = season === 'resting';
 
-    const timeAppropriate = filterSuggestionsByTime(active);
-    const seasonFiltered = filterSuggestionsBySeason(timeAppropriate, season);
-
-    const MIN_SUGGESTIONS = 3;
-    let finalPool = seasonFiltered;
-
-    // 7. Guaranteed Suggestions (Wildcards, etc.)
-    // CRITICAL FIX: Generate guaranteed suggestions even if friends array is empty.
-    // Non-friend-dependent suggestions (daily-reflect, generic wildcards) should always be available.
-    // This ensures users ALWAYS see at least some suggestions, even new users with no friends.
-    const guaranteed = generateGuaranteedSuggestions(friends, finalPool, season);
-    const freshGuaranteed = guaranteed.filter(s => !dismissedMap.has(s.id));
-    finalPool = [...finalPool, ...freshGuaranteed];
-
-    // 8. Dormant / Triage Logic
-    finalPool = await TriageGenerator.apply(finalPool);
-
-    // 9. Diversify
-    // If userCap is set, use it. Otherwise fallback to limit.
-    // The season config usually sets a "maxDaily", but if the user explicitly asks for more/less, we respect it.
-    // However, we still consult the season config for OTHER things (like filtering categories), but not the count if userCap is present.
-
-    let effectiveLimit = limit;
-    if (userCap !== undefined) {
-        effectiveLimit = userCap;
-    } else if (season) {
-        effectiveLimit = Math.max(limit, getSeasonSuggestionConfig(season).maxDaily);
-    }
-
-    const friendLookup = new Map(friends.map(f => [f.id, f]));
-    const isLowEnergy = season === 'resting';
-
-    let finalSuggestions = selectDiverseSuggestions(finalPool, effectiveLimit, {
-        isLowEnergy,
-        friendLookup,
-    });
-
-    // 10. EMERGENCY FALLBACK: Ensure users ALWAYS see at least one suggestion
-    // This is the last line of defense against blank suggestion screens
-    if (finalSuggestions.length === 0) {
-        console.warn('[Suggestions] Emergency fallback triggered - generating fallback suggestions');
-
-        const today = new Date().toISOString().split('T')[0];
-
-        // Emergency daily reflect - always works, no dependencies
-        const emergencyReflect: Suggestion = {
-            id: `emergency-reflect-${today}`,
-            friendId: '',
-            type: 'reflect',
-            title: 'Take a moment to reflect',
-            subtitle: 'How are your relationships feeling today?',
-            icon: 'Heart',
-            category: 'daily-reflect',
-            urgency: 'low',
-            actionLabel: 'Reflect',
-            action: { type: 'reflect' },
-            dismissible: true,
-            createdAt: new Date(),
-        };
-
-        // Emergency wildcard - generic, no friend required
-        const emergencyWildcard: Suggestion = {
-            id: `emergency-wildcard-${today}`,
-            friendId: '',
-            type: 'connect',
-            title: 'Reach out to someone',
-            subtitle: 'A simple message can brighten someone\'s day',
-            icon: 'MessageCircle',
-            category: 'wildcard',
-            urgency: 'low',
-            actionLabel: 'Connect',
-            action: { type: 'log', prefilledCategory: 'text-call' },
-            dismissible: true,
-            createdAt: new Date(),
-        };
-
-        // Only add if not dismissed
-        if (!dismissedMap.has(emergencyReflect.id)) {
-            finalSuggestions.push(emergencyReflect);
-        }
-        if (!dismissedMap.has(emergencyWildcard.id)) {
-            finalSuggestions.push(emergencyWildcard);
-        }
-    }
-
-    if (finalSuggestions.length > 0) {
-        SeasonAnalyticsService.trackSuggestionsShown(finalSuggestions.length).catch(e => {
-            console.error('[Analytics] Failed to track suggestions shown:', e);
+        let finalSuggestions = selectDiverseSuggestions(finalPool, effectiveLimit, {
+            isLowEnergy,
+            friendLookup,
         });
-    }
 
-    return finalSuggestions;
+        // DIAGNOSTIC: Log final selection
+        Logger.warn(`[Suggestions] Checkpoint 7 - After diversify: ${finalSuggestions.length}, effectiveLimit: ${effectiveLimit}`);
+
+        // 10. EMERGENCY FALLBACK: Ensure users ALWAYS see at least one suggestion
+        // This is the last line of defense against blank suggestion screens
+        if (finalSuggestions.length === 0) {
+            Logger.warn('[Suggestions] Emergency fallback triggered - generating fallback suggestions');
+
+            const today = new Date().toISOString().split('T')[0];
+
+            // Emergency daily reflect - always works, no dependencies
+            const emergencyReflect: Suggestion = {
+                id: `emergency-reflect-${today}`,
+                friendId: '',
+                type: 'reflect',
+                title: 'Take a moment to reflect',
+                subtitle: 'How are your relationships feeling today?',
+                icon: 'Heart',
+                category: 'daily-reflect',
+                urgency: 'low',
+                actionLabel: 'Reflect',
+                action: { type: 'reflect' },
+                dismissible: true,
+                createdAt: new Date(),
+            };
+
+            // Emergency wildcard - generic, no friend required
+            const emergencyWildcard: Suggestion = {
+                id: `emergency-wildcard-${today}`,
+                friendId: '',
+                type: 'connect',
+                title: 'Reach out to someone',
+                subtitle: 'A simple message can brighten someone\'s day',
+                icon: 'MessageCircle',
+                category: 'wildcard',
+                urgency: 'low',
+                actionLabel: 'Connect',
+                action: { type: 'log', prefilledCategory: 'text-call' },
+                dismissible: true,
+                createdAt: new Date(),
+            };
+
+            // Only add if not dismissed
+            if (!dismissedMap.has(emergencyReflect.id)) {
+                finalSuggestions.push(emergencyReflect);
+            }
+            if (!dismissedMap.has(emergencyWildcard.id)) {
+                finalSuggestions.push(emergencyWildcard);
+            }
+        }
+
+        if (finalSuggestions.length > 0) {
+            SeasonAnalyticsService.trackSuggestionsShown(finalSuggestions.length).catch(e => {
+                Logger.error('[Analytics] Failed to track suggestions shown', e);
+            });
+        }
+
+        return finalSuggestions;
+    } catch (error) {
+        // GLOBAL CATCH: This should catch ANY error in the entire pipeline
+        Logger.error(`[Suggestions] FATAL ERROR in fetchSuggestions pipeline`, error);
+        return []; // Return empty array so UI doesn't break
+    }
 }
 
 

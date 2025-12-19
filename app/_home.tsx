@@ -9,8 +9,7 @@ import { useTheme } from '@/shared/hooks/useTheme';
 import { ReflectionReadyPrompt } from '@/modules/reflection/components/WeeklyReflection/ReflectionReadyPrompt';
 import { YearInMoonsModal } from '@/modules/intelligence';
 import { useUserProfileStore } from '@/modules/auth';
-import { notificationStore } from '@/modules/notifications';
-import { getUserAccountAge } from '@/modules/notifications';
+import { notificationStore, shouldSendWeeklyReflectionNotification, shouldSendSocialBatteryNotification } from '@/modules/notifications';
 import { useTutorialStore } from '@/shared/stores/tutorialStore';
 import { useUIStore } from '@/shared/stores/uiStore';
 import { isSameWeek } from 'date-fns';
@@ -77,9 +76,9 @@ export default function Home() {
     const checkEligibility = async () => {
       if (hasPerformedQuickWeave) return true;
 
-      // Fallback for existing users: check account age
-      const age = await getUserAccountAge();
-      return age !== null && age >= 3;
+      // Fallback for existing users: check interaction count via grace period service
+      const { shouldSend } = await shouldSendSocialBatteryNotification();
+      return shouldSend;
     };
 
     checkEligibility().then(isEligible => {
@@ -135,9 +134,8 @@ export default function Home() {
       // Due if no last date, or if last date is NOT in the same week (Sunday start)
       const isDue = !lastDate || !isSameWeek(lastDate, new Date(), { weekStartsOn: 0 });
 
-      // Check grace period: only show widget after 3+ days of app usage
-      const accountAge = await getUserAccountAge();
-      const meetsGracePeriod = accountAge !== null && accountAge >= 3;
+      // Check grace period: only show widget if interactions met
+      const { shouldSend: meetsGracePeriod } = await shouldSendWeeklyReflectionNotification();
 
       // Check days
       const today = new Date();

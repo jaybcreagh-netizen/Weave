@@ -1,6 +1,7 @@
 import { Suggestion } from '@/shared/types/common';
 import { SuggestionInput, SuggestionContext, SuggestionGenerator } from './types';
 import { COOLDOWN_DAYS } from './utils';
+import Logger from '@/shared/utils/Logger';
 
 import { PlannedWeaveGenerator } from './generators/PlannedWeaveGenerator';
 import { LifeEventGenerator } from './generators/LifeEventGenerator';
@@ -118,7 +119,7 @@ class SuggestionEngine {
                     return suggestion;
                 }
             } catch (error) {
-                console.error(`Error in generator ${generator.name}:`, error);
+                Logger.error(`Error in generator ${generator.name}`, error);
                 // Continue to next generator on error
             }
         }
