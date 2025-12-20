@@ -191,7 +191,12 @@ export const LifeEventModal: React.FC<LifeEventModalProps> = ({
           <Text className="font-inter-semibold text-sm mb-2" style={{ color: colors.foreground }}>
             Event Type
           </Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-4">
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            className="mb-4"
+          >
             <View className="flex-row gap-2">
               {EVENT_TYPES.map((type) => (
                 <TouchableOpacity

@@ -3,19 +3,20 @@
  * Create or edit ad-hoc journal entries
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
-  ScrollView,
   TextInput,
   Platform,
   Alert,
+  Keyboard,
 } from 'react-native';
 import { Calendar, Sparkles } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { StandardBottomSheet } from '@/shared/ui/Sheet';
+import { KeyboardScrollView } from '@/shared/ui';
 import { database } from '@/db';
 import JournalEntry from '@/db/models/JournalEntry';
 import FriendModel from '@/db/models/Friend';
@@ -37,6 +38,7 @@ interface JournalEntryModalProps {
 export function JournalEntryModal({ isOpen, onClose, entry, onSave }: JournalEntryModalProps) {
   const { colors } = useTheme();
   const isEditMode = !!entry;
+  const contentInputRef = useRef<TextInput>(null);
 
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -66,6 +68,10 @@ export function JournalEntryModal({ isOpen, onClose, entry, onSave }: JournalEnt
           })
           .catch(err => logger.error('JournalEntry', 'Error fetching linked friends:', err));
 
+        // Focus content input after a delay to allow sheet animation
+        setTimeout(() => {
+          contentInputRef.current?.focus();
+        }, 400);
       } else {
         // Reset for new entry
         setTitle('');
@@ -73,6 +79,11 @@ export function JournalEntryModal({ isOpen, onClose, entry, onSave }: JournalEnt
         setEntryDate(new Date());
         setSelectedFriendIds(new Set());
         setSelectedChips(new Set());
+
+        // Focus content input for new entry
+        setTimeout(() => {
+          contentInputRef.current?.focus();
+        }, 400);
       }
     }
   }, [isOpen, entry]);
@@ -163,6 +174,7 @@ export function JournalEntryModal({ isOpen, onClose, entry, onSave }: JournalEnt
             text: 'Discard',
             style: 'destructive',
             onPress: () => {
+              Keyboard.dismiss();
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               onClose();
             },
@@ -170,6 +182,7 @@ export function JournalEntryModal({ isOpen, onClose, entry, onSave }: JournalEnt
         ]
       );
     } else {
+      Keyboard.dismiss();
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       onClose();
     }
@@ -226,7 +239,7 @@ export function JournalEntryModal({ isOpen, onClose, entry, onSave }: JournalEnt
         </TouchableOpacity>
       </View>
 
-      <ScrollView className="flex-1 px-5 py-4" showsVerticalScrollIndicator={false}>
+      <KeyboardScrollView className="flex-1 px-5 py-4">
         {/* Date Selector */}
         <View className="mb-4">
           <Text
@@ -303,6 +316,7 @@ export function JournalEntryModal({ isOpen, onClose, entry, onSave }: JournalEnt
             What's on your mind?
           </Text>
           <TextInput
+            ref={contentInputRef}
             value={content}
             onChangeText={setContent}
             placeholder="Write your thoughts..."
@@ -328,9 +342,8 @@ export function JournalEntryModal({ isOpen, onClose, entry, onSave }: JournalEnt
           >
             Tag Friends
           </Text>
-          <ScrollView
+          <KeyboardScrollView
             horizontal
-            showsHorizontalScrollIndicator={false}
             className="flex-row gap-2 mb-2"
           >
             {allFriends.map(friend => {
@@ -356,7 +369,7 @@ export function JournalEntryModal({ isOpen, onClose, entry, onSave }: JournalEnt
                 </TouchableOpacity>
               );
             })}
-          </ScrollView>
+          </KeyboardScrollView>
           {selectedFriendIds.size === 0 && (
             <Text
               className="text-xs"
@@ -448,7 +461,7 @@ export function JournalEntryModal({ isOpen, onClose, entry, onSave }: JournalEnt
             </View>
           )}
         </View>
-      </ScrollView>
+      </KeyboardScrollView>
     </StandardBottomSheet>
   );
 }

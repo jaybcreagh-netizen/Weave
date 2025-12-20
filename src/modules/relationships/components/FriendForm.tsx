@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useDebounceCallback } from '@/shared/hooks/useDebounceCallback';
-import { View, Text, TouchableOpacity, TextInput, ScrollView, Image, StyleSheet, Modal, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput, ScrollView, Image, StyleSheet, Modal, Alert, ActivityIndicator, Keyboard } from 'react-native';
 import { ArrowLeft, Camera, X, Users, AlertCircle, RotateCw, Handshake, Heart, Briefcase, Home, GraduationCap, Palette, type LucideIcon } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as Contacts from 'expo-contacts';
@@ -381,7 +381,11 @@ export function FriendForm({ onSave, friend, initialTier, fromOnboarding, onSkip
         <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollViewContent}>
+      <ScrollView
+        contentContainerStyle={styles.scrollViewContent}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+      >
         <View style={{ gap: 24 }}>
           <View>
             <Text style={[styles.label, { color: colors.foreground }]}>Portrait</Text>

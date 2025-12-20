@@ -9,3 +9,4 @@ export * from './ModernSwitch';
 export * from './ProgressBar';
 export * from './Stat';
 export * from './WidgetHeader';
+export * from './KeyboardScrollView';
