@@ -1,27 +1,34 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, RefreshControl, Alert } from 'react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { database } from '@/db';
 import JournalEntry from '@/db/models/JournalEntry';
 import WeeklyReflection from '@/db/models/WeeklyReflection';
 import { Q } from '@nozbe/watermelondb';
 import { format } from 'date-fns';
-import { BookOpen, Edit3, Clock } from 'lucide-react-native';
+import { BookOpen, Edit3, Clock, CheckCircle2, Circle, Trash2, X } from 'lucide-react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
+import { logger } from '@/shared/services/logger.service';
 
 // Shared types (can come from a types file, but defining here for now for independence)
 interface JournalFeedProps {
     onEntryPress: (entry: JournalEntry | WeeklyReflection) => void;
+    onEntriesDeleted?: () => void; // Called after entries are deleted
 }
 
-export function JournalFeed({ onEntryPress }: JournalFeedProps) {
+export function JournalFeed({ onEntryPress, onEntriesDeleted }: JournalFeedProps) {
     const { colors } = useTheme();
     const [entries, setEntries] = useState<(JournalEntry | WeeklyReflection)[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [hasMoreEntries, setHasMoreEntries] = useState(true);
     const [loadingMore, setLoadingMore] = useState(false);
+
+    // Multi-select state
+    const [isSelectMode, setIsSelectMode] = useState(false);
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+    const [isDeleting, setIsDeleting] = useState(false);
 
     const ENTRIES_PAGE_SIZE = 50;
 
@@ -95,6 +102,85 @@ export function JournalFeed({ onEntryPress }: JournalFeedProps) {
         setRefreshing(false);
     };
 
+    const toggleSelectMode = () => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        if (isSelectMode) {
+            // Exit select mode
+            setSelectedIds(new Set());
+        }
+        setIsSelectMode(!isSelectMode);
+    };
+
+    const toggleSelection = (id: string) => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        const newSet = new Set(selectedIds);
+        if (newSet.has(id)) {
+            newSet.delete(id);
+        } else {
+            newSet.add(id);
+        }
+        setSelectedIds(newSet);
+    };
+
+    const selectAll = () => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        // Only select journal entries, not weekly reflections (which can't be deleted from here)
+        const journalEntryIds = entries
+            .filter(e => !isWeeklyReflection(e))
+            .map(e => e.id);
+        setSelectedIds(new Set(journalEntryIds));
+    };
+
+    const handleDeleteSelected = () => {
+        if (selectedIds.size === 0) return;
+
+        // Filter to only include journal entries (WeeklyReflections handled separately)
+        const entriesToDelete = entries.filter(
+            e => selectedIds.has(e.id) && !isWeeklyReflection(e)
+        ) as JournalEntry[];
+
+        if (entriesToDelete.length === 0) {
+            Alert.alert('Cannot Delete', 'Weekly reflections cannot be deleted from here.');
+            return;
+        }
+
+        const count = entriesToDelete.length;
+        Alert.alert(
+            `Delete ${count} ${count === 1 ? 'Entry' : 'Entries'}?`,
+            'These journal entries will be permanently deleted. This action cannot be undone.',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Delete',
+                    style: 'destructive',
+                    onPress: async () => {
+                        setIsDeleting(true);
+                        try {
+                            await database.write(async () => {
+                                const deleteOps = await Promise.all(
+                                    entriesToDelete.map(entry => entry.prepareDestroyWithChildren())
+                                );
+                                await database.batch(...deleteOps);
+                            });
+
+                            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                            setSelectedIds(new Set());
+                            setIsSelectMode(false);
+                            onEntriesDeleted?.();
+                            // Refresh the list
+                            await loadEntries(true);
+                        } catch (error) {
+                            logger.error('JournalFeed', 'Error deleting entries:', error);
+                            Alert.alert('Error', 'Failed to delete entries. Please try again.');
+                        } finally {
+                            setIsDeleting(false);
+                        }
+                    },
+                },
+            ]
+        );
+    };
+
     const formatDate = (date: Date) => {
         return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
     };
@@ -106,6 +192,25 @@ export function JournalFeed({ onEntryPress }: JournalFeedProps) {
         const date = isReflection
             ? new Date(entry.weekStartDate)
             : new Date(entry.entryDate);
+        const isSelected = selectedIds.has(entry.id);
+        const canSelect = !isReflection; // Only journal entries can be selected for deletion
+
+        const handlePress = () => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            if (isSelectMode && canSelect) {
+                toggleSelection(entry.id);
+            } else {
+                onEntryPress(entry);
+            }
+        };
+
+        const handleLongPress = () => {
+            if (!isSelectMode && canSelect) {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                setIsSelectMode(true);
+                setSelectedIds(new Set([entry.id]));
+            }
+        };
 
         return (
             <Animated.View
@@ -113,19 +218,32 @@ export function JournalFeed({ onEntryPress }: JournalFeedProps) {
                 entering={FadeInDown.delay(index * 30).duration(300)}
             >
                 <TouchableOpacity
-                    onPress={() => {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        onEntryPress(entry);
-                    }}
+                    onPress={handlePress}
+                    onLongPress={handleLongPress}
                     className="mb-3 p-4 rounded-2xl"
                     style={{
                         backgroundColor: colors.card,
-                        borderWidth: 1,
-                        borderColor: colors.border,
+                        borderWidth: isSelected ? 2 : 1,
+                        borderColor: isSelected ? colors.primary : colors.border,
                     }}
                     activeOpacity={0.7}
                 >
                     <View className="flex-row items-center gap-2 mb-2">
+                        {/* Selection checkbox */}
+                        {isSelectMode && (
+                            <View className="mr-1">
+                                {canSelect ? (
+                                    isSelected ? (
+                                        <CheckCircle2 size={20} color={colors.primary} />
+                                    ) : (
+                                        <Circle size={20} color={colors['muted-foreground']} />
+                                    )
+                                ) : (
+                                    <View style={{ width: 20 }} />
+                                )}
+                            </View>
+                        )}
+
                         {isReflection ? (
                             <Clock size={14} color={colors.primary} />
                         ) : (
@@ -201,15 +319,101 @@ export function JournalFeed({ onEntryPress }: JournalFeedProps) {
         );
     }
 
+    // Count of selectable entries (journal entries only)
+    const selectableCount = entries.filter(e => !isWeeklyReflection(e)).length;
+
     return (
-        <ScrollView
-            className="flex-1 px-5"
-            showsVerticalScrollIndicator={false}
-            refreshControl={
-                <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.primary} />
-            }
-        >
-            {entries.map((entry, index) => renderEntryCard(entry, index))}
+        <View className="flex-1">
+            {/* Selection Toolbar */}
+            {entries.length > 0 && (
+                <View className="flex-row items-center justify-between px-5 py-2 mb-2">
+                    {isSelectMode ? (
+                        <>
+                            <View className="flex-row items-center gap-3">
+                                <TouchableOpacity
+                                    onPress={toggleSelectMode}
+                                    className="p-2 rounded-full"
+                                    style={{ backgroundColor: colors.muted }}
+                                >
+                                    <X size={18} color={colors.foreground} />
+                                </TouchableOpacity>
+                                <Text
+                                    className="text-sm"
+                                    style={{ color: colors.foreground, fontFamily: 'Inter_500Medium' }}
+                                >
+                                    {selectedIds.size} selected
+                                </Text>
+                            </View>
+                            <View className="flex-row items-center gap-2">
+                                {selectedIds.size < selectableCount && (
+                                    <TouchableOpacity
+                                        onPress={selectAll}
+                                        className="px-3 py-1.5 rounded-lg"
+                                        style={{ backgroundColor: colors.muted }}
+                                    >
+                                        <Text
+                                            className="text-xs"
+                                            style={{ color: colors.foreground, fontFamily: 'Inter_500Medium' }}
+                                        >
+                                            Select All
+                                        </Text>
+                                    </TouchableOpacity>
+                                )}
+                                <TouchableOpacity
+                                    onPress={handleDeleteSelected}
+                                    disabled={selectedIds.size === 0 || isDeleting}
+                                    className="flex-row items-center gap-1.5 px-3 py-1.5 rounded-lg"
+                                    style={{
+                                        backgroundColor: selectedIds.size > 0 ? colors.destructive : colors.muted,
+                                        opacity: selectedIds.size === 0 || isDeleting ? 0.5 : 1,
+                                    }}
+                                >
+                                    {isDeleting ? (
+                                        <ActivityIndicator size="small" color={colors['primary-foreground']} />
+                                    ) : (
+                                        <>
+                                            <Trash2 size={14} color={selectedIds.size > 0 ? '#fff' : colors['muted-foreground']} />
+                                            <Text
+                                                className="text-xs"
+                                                style={{
+                                                    color: selectedIds.size > 0 ? '#fff' : colors['muted-foreground'],
+                                                    fontFamily: 'Inter_500Medium',
+                                                }}
+                                            >
+                                                Delete
+                                            </Text>
+                                        </>
+                                    )}
+                                </TouchableOpacity>
+                            </View>
+                        </>
+                    ) : (
+                        <View className="flex-1 flex-row justify-end">
+                            <TouchableOpacity
+                                onPress={toggleSelectMode}
+                                className="px-3 py-1.5 rounded-lg"
+                                style={{ backgroundColor: colors.muted }}
+                            >
+                                <Text
+                                    className="text-xs"
+                                    style={{ color: colors['muted-foreground'], fontFamily: 'Inter_500Medium' }}
+                                >
+                                    Select
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+                    )}
+                </View>
+            )}
+
+            <ScrollView
+                className="flex-1 px-5"
+                showsVerticalScrollIndicator={false}
+                refreshControl={
+                    <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.primary} />
+                }
+            >
+                {entries.map((entry, index) => renderEntryCard(entry, index))}
 
             {hasMoreEntries && (
                 <View className="py-4">
@@ -237,6 +441,7 @@ export function JournalFeed({ onEntryPress }: JournalFeedProps) {
             )}
 
             <View className="h-24" />
-        </ScrollView>
+            </ScrollView>
+        </View>
     );
 }
