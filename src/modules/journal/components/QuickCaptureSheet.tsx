@@ -15,13 +15,13 @@ import {
   TextInput,
   TouchableOpacity,
   Keyboard,
-  ScrollView,
   Modal,
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
   Alert,
 } from 'react-native';
+import { KeyboardScrollView } from '@/shared/ui';
 import Animated, {
   FadeIn,
   FadeOut,
@@ -579,11 +579,7 @@ function FriendPickerModal({
           </View>
 
           {/* Friend List */}
-          <ScrollView
-            className="px-5 pb-8"
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-          >
+          <KeyboardScrollView className="px-5 pb-8">
             {filteredFriends.map((friend) => {
               const isSelected = selectedFriendIds.includes(friend.id);
 
@@ -649,7 +645,7 @@ function FriendPickerModal({
                 </Text>
               </View>
             )}
-          </ScrollView>
+          </KeyboardScrollView>
         </Animated.View>
       </View>
     </Modal>

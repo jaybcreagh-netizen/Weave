@@ -25,6 +25,7 @@ import {
   StyleSheet,
   Alert,
 } from 'react-native';
+import { KeyboardScrollView } from '@/shared/ui';
 import Animated, {
   FadeInDown,
   SlideInRight,
@@ -897,10 +898,8 @@ export function GuidedReflectionModal({
                       Need inspiration?
                     </Text>
                   </View>
-                  <ScrollView
+                  <KeyboardScrollView
                     horizontal
-                    showsHorizontalScrollIndicator={false}
-                    keyboardShouldPersistTaps="handled"
                     className="-mx-5 px-5"
                   >
                     <View className="flex-row gap-3">
@@ -927,7 +926,7 @@ export function GuidedReflectionModal({
                         </TouchableOpacity>
                       ))}
                     </View>
-                  </ScrollView>
+                  </KeyboardScrollView>
                 </Animated.View>
               )
             )}
@@ -1388,11 +1387,7 @@ function FriendPickerModal({
           </View>
 
           {/* Friend List */}
-          <ScrollView
-            className="px-5 pb-8"
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-          >
+          <KeyboardScrollView className="px-5 pb-8">
             {filteredFriends.map((friend) => {
               const isSelected = selectedFriendIds.includes(friend.id);
 
@@ -1458,7 +1453,7 @@ function FriendPickerModal({
                 </Text>
               </View>
             )}
-          </ScrollView>
+          </KeyboardScrollView>
         </Animated.View>
       </View>
     </Modal>

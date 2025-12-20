@@ -8,7 +8,6 @@ import {
   View,
   Text,
   TouchableOpacity,
-  ScrollView,
   TextInput,
   Platform,
   Alert,
@@ -17,6 +16,7 @@ import {
 import { Calendar, Sparkles } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { StandardBottomSheet } from '@/shared/ui/Sheet';
+import { KeyboardScrollView } from '@/shared/ui';
 import { database } from '@/db';
 import JournalEntry from '@/db/models/JournalEntry';
 import FriendModel from '@/db/models/Friend';
@@ -239,12 +239,7 @@ export function JournalEntryModal({ isOpen, onClose, entry, onSave }: JournalEnt
         </TouchableOpacity>
       </View>
 
-      <ScrollView
-        className="flex-1 px-5 py-4"
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="interactive"
-      >
+      <KeyboardScrollView className="flex-1 px-5 py-4">
         {/* Date Selector */}
         <View className="mb-4">
           <Text
@@ -347,10 +342,8 @@ export function JournalEntryModal({ isOpen, onClose, entry, onSave }: JournalEnt
           >
             Tag Friends
           </Text>
-          <ScrollView
+          <KeyboardScrollView
             horizontal
-            showsHorizontalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
             className="flex-row gap-2 mb-2"
           >
             {allFriends.map(friend => {
@@ -376,7 +369,7 @@ export function JournalEntryModal({ isOpen, onClose, entry, onSave }: JournalEnt
                 </TouchableOpacity>
               );
             })}
-          </ScrollView>
+          </KeyboardScrollView>
           {selectedFriendIds.size === 0 && (
             <Text
               className="text-xs"
@@ -468,7 +461,7 @@ export function JournalEntryModal({ isOpen, onClose, entry, onSave }: JournalEnt
             </View>
           )}
         </View>
-      </ScrollView>
+      </KeyboardScrollView>
     </StandardBottomSheet>
   );
 }
