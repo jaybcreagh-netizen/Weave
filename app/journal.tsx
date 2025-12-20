@@ -184,6 +184,10 @@ export default function JournalScreen() {
                     // Refresh data if needed, or just close
                     setSelectedEntry(null);
                 }}
+                onDelete={() => {
+                    // Entry was deleted, clear selection
+                    setSelectedEntry(null);
+                }}
             />
 
             <WeeklyReflectionDetailModal

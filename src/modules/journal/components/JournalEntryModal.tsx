@@ -13,7 +13,7 @@ import {
   Alert,
   Keyboard,
 } from 'react-native';
-import { Calendar, Sparkles } from 'lucide-react-native';
+import { Calendar, Sparkles, Trash2 } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { StandardBottomSheet } from '@/shared/ui/Sheet';
 import { KeyboardScrollView } from '@/shared/ui';
@@ -33,9 +33,10 @@ interface JournalEntryModalProps {
   onClose: () => void;
   entry?: JournalEntry | null; // If provided, edit mode
   onSave: () => void;
+  onDelete?: () => void; // Called after successful deletion
 }
 
-export function JournalEntryModal({ isOpen, onClose, entry, onSave }: JournalEntryModalProps) {
+export function JournalEntryModal({ isOpen, onClose, entry, onSave, onDelete }: JournalEntryModalProps) {
   const { colors } = useTheme();
   const isEditMode = !!entry;
   const contentInputRef = useRef<TextInput>(null);
@@ -188,6 +189,38 @@ export function JournalEntryModal({ isOpen, onClose, entry, onSave }: JournalEnt
     }
   };
 
+  const handleDelete = () => {
+    if (!entry) return;
+
+    Alert.alert(
+      'Delete Entry?',
+      'This journal entry will be permanently deleted. This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await database.write(async () => {
+                // Use the cascading delete method to remove entry and friend links
+                const deleteOp = await entry.prepareDestroyWithChildren();
+                await database.batch(deleteOp);
+              });
+
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              onDelete?.();
+              onClose();
+            } catch (error) {
+              logger.error('JournalEntry', 'Error deleting journal entry:', error);
+              Alert.alert('Error', 'Failed to delete entry. Please try again.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const toggleFriend = (friendId: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const newSet = new Set(selectedFriendIds);
@@ -217,8 +250,22 @@ export function JournalEntryModal({ isOpen, onClose, entry, onSave }: JournalEnt
       height="full"
       title={isEditMode ? 'Edit Entry' : 'New Journal Entry'}
     >
-      {/* Save Button in Header Area */}
-      <View className="flex-row justify-end px-5 pb-3" style={{ borderBottomWidth: 1, borderBottomColor: colors.border }}>
+      {/* Header Actions */}
+      <View className="flex-row justify-between items-center px-5 pb-3" style={{ borderBottomWidth: 1, borderBottomColor: colors.border }}>
+        {/* Delete Button (only in edit mode) */}
+        {isEditMode ? (
+          <TouchableOpacity
+            onPress={handleDelete}
+            className="p-2 rounded-lg"
+            style={{ backgroundColor: colors.destructive + '15' }}
+          >
+            <Trash2 size={20} color={colors.destructive} />
+          </TouchableOpacity>
+        ) : (
+          <View />
+        )}
+
+        {/* Save Button */}
         <TouchableOpacity
           onPress={handleSave}
           disabled={!content.trim()}
