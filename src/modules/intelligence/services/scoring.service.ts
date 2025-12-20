@@ -11,6 +11,10 @@ import {
   MAX_INTERACTION_SCORE,
   GROUP_DILUTION_RATE,
   GROUP_DILUTION_FLOOR,
+  OLIVE_BRANCH_BONUS,
+  OLIVE_BRANCH_ELIGIBLE_STATES,
+  TierDriftingThresholds,
+  GROUP_IMMUNE_ARCHETYPES,
 } from '../constants';
 import { daysSince } from '@/shared/utils/date-utils';
 import { getLearnedEffectiveness } from '@/modules/insights';
@@ -141,7 +145,12 @@ export function calculatePointsForWeave(
   const vibeMultiplier = VibeMultipliers[weaveData.vibe || 'WaxingCrescent'];
 
   // NEW: Calculate group dilution based on interaction size
-  const groupDilutionFactor = calculateGroupDilution(weaveData.groupSize || 1);
+  // Sun, Lovers, and Magician are immune to group dilution (they thrive in crowds)
+  let groupDilutionFactor = calculateGroupDilution(weaveData.groupSize || 1);
+
+  if (GROUP_IMMUNE_ARCHETYPES.includes(friend.archetype as Archetype)) {
+    groupDilutionFactor = 1.0;
+  }
 
   // NEW: Calculate event multiplier for special occasions
   const eventMultiplier = calculateEventMultiplier(weaveData.category, weaveData.eventImportance);
@@ -207,7 +216,46 @@ export function calculatePointsForWeave(
     finalPoints = adaptivePoints * 1.15;
   }
 
+  // NEW: Olive Branch Bonus
+  // Flat bonus for reconnecting with Drifting or Dormant friends
+  // This is additive to the calculated score
+  const currentState = getFriendScoringState(friend);
+  const { OLIVE_BRANCH_ELIGIBLE_STATES, OLIVE_BRANCH_BONUS } = require('../constants'); // Import constants
+
+  if (OLIVE_BRANCH_ELIGIBLE_STATES.includes(currentState)) {
+    // Bonus applied!
+    finalPoints += OLIVE_BRANCH_BONUS;
+
+    // NOTE: We deliberately allow this bonus to exceed the standard interaction max slightly
+    // to make re-connection feel powerful. But we still want a sanity cap.
+    // If standard max is 50, and bonus is 30, a perfect interaction could be 50+30=80.
+    // We'll return here to strict capping, but modify the cap logic below if needed.
+    // User request: "New score: 103" implies friend score, not interaction score.
+    // User scenario B: "Total points earned: 75".
+    // So we need to let it break the 50 cap.
+    return Math.min(finalPoints, MAX_INTERACTION_SCORE + OLIVE_BRANCH_BONUS);
+  }
+
   // Apply score capping to prevent extreme outliers
   // This ensures that even with perfect conditions, scores remain balanced
   return Math.min(finalPoints, MAX_INTERACTION_SCORE);
+}
+
+/**
+ * Determines the current scoring state of a friend for bonus eligibility.
+ * @param friend - The friend to check.
+ * @returns 'Thriving' | 'Drifting' | 'Dormant'
+ */
+export function getFriendScoringState(friend: FriendModel): 'Thriving' | 'Drifting' | 'Dormant' {
+  // 1. Check Dormant (Global threshold from Decay Zones)
+  // Zone 3 covers 0-14, so < 15 is dormant/lowest zone
+  if (friend.weaveScore < 15) return 'Dormant';
+
+  // 2. Check Drifting (Tier-specific thresholds)
+  const tier = (friend.dunbarTier || 'Community') as keyof typeof TierDriftingThresholds;
+  const driftThreshold = TierDriftingThresholds[tier] || 20;
+
+  if (friend.weaveScore < driftThreshold) return 'Drifting';
+
+  return 'Thriving';
 }

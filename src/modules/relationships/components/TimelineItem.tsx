@@ -21,11 +21,12 @@ const AnimatedLine = Animated.createAnimatedComponent(Line);
 import { useTheme } from '@/shared/hooks/useTheme';
 import { formatPoeticDate, calculateWeaveWarmth, getThreadColors } from '@/shared/utils/timeline-utils';
 import { modeIcons } from '@/shared/constants/constants';
-import { getCategoryMetadata, CATEGORY_METADATA } from '@/shared/constants/interaction-categories';
+import { getCategoryMetadata, CATEGORY_METADATA, ACTIVITY_TO_CATEGORY_MAP } from '@/shared/constants/interaction-categories';
 import type { LucideIcon } from 'lucide-react-native';
 import { Sparkles } from 'lucide-react-native';
-import { type Interaction, type InteractionCategory } from '@/shared/types/legacy-types';
+import { type Interaction, type InteractionCategory, type Archetype, type ActivityType } from '@/shared/types/legacy-types';
 import { calculateDeepeningLevel, getDeepeningVisuals } from '@/modules/intelligence';
+import { CategoryArchetypeMatrix } from '@/modules/intelligence/constants';
 import { usePausableAnimation } from '@/shared/hooks/usePausableAnimation';
 import { useUIStore } from '@/shared/stores/uiStore';
 
@@ -42,9 +43,10 @@ interface TimelineItemProps {
   isLastItem?: boolean; // Is this the last item in the entire timeline?
   onDelete?: (id: string) => void;
   onEdit?: (id: string) => void;
+  archetype?: string;
 }
 
-export const TimelineItem = React.memo(({ interaction, isFuture, onPress, index, scrollY, itemY = 0, showKnot = true, sectionLabel, isFirstInSection = false, isLastItem = false }: TimelineItemProps) => {
+export const TimelineItem = React.memo(({ interaction, isFuture, onPress, index, scrollY, itemY = 0, showKnot = true, sectionLabel, isFirstInSection = false, isLastItem = false, archetype }: TimelineItemProps) => {
   const { colors, isDarkMode } = useTheme();
   const { justLoggedInteractionId, setJustLoggedInteractionId } = useUIStore();
 
@@ -164,11 +166,100 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, index,
     return Math.round(opacity * 255).toString(16).padStart(2, '0');
   };
 
+  // Get friendly label and icon for category (memoized)
+  const { displayLabel, displayIcon, IconComponent, determinedCategory } = useMemo(() => {
+    // 1. Direct Category Match (New Data)
+    // Check if the activity acts as a category ID directly (e.g., 'hangout', 'meal-drink')
+    const isDirectCategory = interaction.activity && (interaction.activity in CATEGORY_METADATA);
+
+    if (isDirectCategory) {
+      const categoryData = getCategoryMetadata(interaction.activity as InteractionCategory);
+      return {
+        displayLabel: categoryData.label,
+        displayIcon: null,
+        IconComponent: categoryData.iconComponent,
+        determinedCategory: interaction.activity as InteractionCategory
+      };
+    }
+
+    // 2. Legacy Activity Mapping
+    // Check if activity is a legacy string (e.g. 'Coffee') that maps to a category
+    const legacyCategory = interaction.activity && (interaction.activity in ACTIVITY_TO_CATEGORY_MAP)
+      ? ACTIVITY_TO_CATEGORY_MAP[interaction.activity as ActivityType]
+      : null;
+
+    if (legacyCategory) {
+      const categoryData = getCategoryMetadata(legacyCategory);
+      return {
+        // Keep original activity name as label if possible, else category label
+        displayLabel: interaction.activity || categoryData.label,
+        displayIcon: null,
+        IconComponent: categoryData.iconComponent,
+        determinedCategory: legacyCategory
+      };
+    }
+
+    // 3. Fallback: Reflection Category (Deepened Logs)
+    // If activity didn't match, check if we stored a category on the interaction model
+    const categoryFromReflection = interaction.interactionCategory;
+
+    if (categoryFromReflection && (categoryFromReflection in CATEGORY_METADATA)) {
+      const categoryData = getCategoryMetadata(categoryFromReflection as InteractionCategory);
+      return {
+        displayLabel: categoryData.label,
+        displayIcon: null,
+        IconComponent: categoryData.iconComponent,
+        determinedCategory: categoryFromReflection as InteractionCategory
+      };
+    }
+
+    // 4. Default Fallback
+    return {
+      displayLabel: interaction.activity || 'Interaction',
+      displayIcon: modeIcons[interaction.mode as keyof typeof modeIcons] || '✨',
+      IconComponent: Sparkles as LucideIcon,
+      determinedCategory: null
+    };
+  }, [interaction.activity, interaction.mode, interaction.interactionCategory]);
+
+  // Check archetype alignment
+  const isArchetypeAligned = useMemo(() => {
+    // Check if the interaction aligns with the archetype
+    let multiplier = 0;
+    let aligned = false;
+
+    if (archetype && determinedCategory && archetype !== 'Unknown') {
+      const affinities = CategoryArchetypeMatrix[archetype as Archetype];
+      if (affinities) {
+        multiplier = affinities[determinedCategory] || 0;
+        aligned = multiplier >= 1.5;
+      }
+    }
+
+    return aligned;
+  }, [archetype, determinedCategory, interaction.id, interaction.activity]);
+
   // Get vibe-based color tint with opacity - progressive based on reflection depth
   const getVibeColorTint = (baseOpacity: number = 0.05) => {
+    // Debug final color decision
+    // if (isArchetypeAligned) {
+    //   console.log(`[TimelineTint] Color Decision for ${interaction.id}:`, { isFuture, isDarkMode, baseOpacity });
+    // }
+
     if (isFuture) return 'transparent';
 
-    // Increase opacity for reflected weaves based on depth
+    // Special tint for archetype-aligned weaves
+    if (isArchetypeAligned) {
+      // Use a subtle but distinct tint - warm gold/amber for alignment
+      // or match the affinity vibe. For now, a warm highlight.
+      // In dark mode: stronger tint.
+      const tint = isDarkMode
+        ? '#D4AF37' + '40' // Gold with 25% opacity
+        : '#F59E0B' + '25'; // Amber with 15% opacity
+      return tint;
+    }
+
+    // Increase opacity for reflected weaves based on depth relative to base
     const reflectionBoost = deepeningMetrics.level !== 'none' ? deepeningMetrics.intensity * 0.08 : 0;
     const finalOpacity = baseOpacity + reflectionBoost;
 
@@ -186,39 +277,7 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, index,
     }
   };
 
-  const cardTintColor = useMemo(() => getVibeColorTint(0.05), [isFuture, interaction.vibe, colors, deepeningMetrics]);
-
-  // Get friendly label and icon for category (memoized)
-  const { displayLabel, displayIcon, IconComponent } = useMemo(() => {
-    // Check if the activity is a known category ID (e.g., 'hangout', 'meal-drink')
-    // Old logic only checked for hyphens, missing 'hangout' and 'celebration'
-    const isCategory = interaction.activity && (interaction.activity in CATEGORY_METADATA);
-
-    if (isCategory) {
-      const categoryData = getCategoryMetadata(interaction.activity as InteractionCategory);
-      if (categoryData) {
-        return { displayLabel: categoryData.label, displayIcon: null, IconComponent: categoryData.iconComponent };
-      }
-    }
-
-    // Old format - use mode icon and activity name
-    // BUT: If this is a deepened quick log, try to extract category from reflection
-    const hasReflection = interaction.reflection && (interaction.reflection.chips?.length || interaction.reflection.customNotes);
-    const categoryFromReflection = hasReflection && interaction.interactionCategory;
-
-    if (categoryFromReflection) {
-      const categoryData = getCategoryMetadata(categoryFromReflection as InteractionCategory);
-      if (categoryData) {
-        return { displayLabel: categoryData.label, displayIcon: null, IconComponent: categoryData.iconComponent };
-      }
-    }
-
-    return {
-      displayLabel: interaction.activity || 'Interaction', // Fallback label
-      displayIcon: modeIcons[interaction.mode as keyof typeof modeIcons] || '✨',
-      IconComponent: Sparkles as LucideIcon
-    };
-  }, [interaction.activity, interaction.mode, interaction.interactionCategory, interaction.reflection]);
+  const cardTintColor = useMemo(() => getVibeColorTint(0.05), [isFuture, interaction.vibe, colors, deepeningMetrics, isArchetypeAligned, isDarkMode]);
 
   // Memoize dynamic styles
   const dynamicStyles = useMemo(() => ({
@@ -251,7 +310,7 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, index,
     cardSubtitle: {
       color: colors['muted-foreground'],
     },
-  }), [colors, warmth, isDarkMode]);
+  }), [colors, warmth, isDarkMode, isArchetypeAligned]);
 
   // Animation values
   const pulseAnimation = useSharedValue(0);
@@ -756,17 +815,10 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, index,
     prevProps.interaction.updatedAt === nextProps.interaction.updatedAt &&
     prevProps.isFuture === nextProps.isFuture &&
     prevProps.index === nextProps.index &&
-    prevProps.isLastItem === nextProps.isLastItem
+    prevProps.isLastItem === nextProps.isLastItem &&
+    prevProps.archetype === nextProps.archetype
   );
 });
-
-// NativeWind classes used throughout TimelineItem:
-// Section Chip: flex-row items-center pl-[98px] pb-2 pt-3 gap-1.5
-// Section Accent: w-0.5 h-3 rounded-[1px] opacity-60
-// Section Label: text-[10px] font-semibold uppercase tracking-widest
-// Swipe Container: relative
-// Edit/Delete Backgrounds: absolute with specific positioning, gap-2
-// Item Container: flex-row items-center gap-4 pb-6
 // Knot Container: absolute w-full h-10 top-2 left-5 z-10
 // Connector Line: absolute h-[1.5px] top-5
 // Knot: absolute w-2 h-2 top-4 rounded-full border-[1.5px] shadow-sm elevation-3

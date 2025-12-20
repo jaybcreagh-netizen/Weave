@@ -561,6 +561,51 @@ export function FriendForm({ onSave, friend, initialTier, fromOnboarding, onSkip
             />
           </View>
 
+          {/* Debug: Reset Score Feature */}
+          {friend && (
+            <TouchableOpacity
+              onPress={() => {
+                Alert.alert(
+                  'Reset Score',
+                  'Are you sure you want to reset this friend\'s score to 50?',
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                      text: 'Reset',
+                      style: 'destructive',
+                      onPress: async () => {
+                        try {
+                          await database.write(async () => {
+                            await friend.update(f => {
+                              f.weaveScore = 50;
+                            });
+                          });
+                          Alert.alert('Success', 'Score reset to 50.');
+                        } catch (error) {
+                          console.error('Failed to reset score:', error);
+                          Alert.alert('Error', 'Failed to reset score.');
+                        }
+                      }
+                    }
+                  ]
+                );
+              }}
+              style={{
+                marginTop: 8,
+                marginBottom: 8,
+                paddingVertical: 12,
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderWidth: 1,
+                borderColor: colors.destructive,
+                borderRadius: 12,
+                backgroundColor: 'transparent',
+              }}
+            >
+              <Text style={{ color: colors.destructive, fontSize: 16, fontWeight: '500' }}>Reset Score to 50</Text>
+            </TouchableOpacity>
+          )}
+
           <TouchableOpacity
             onPress={handleSave}
             disabled={!formData.name.trim()}

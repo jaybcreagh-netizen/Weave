@@ -97,25 +97,7 @@ export function ArchetypeCard({
             paddingTop: 0 // ArchetypeIcon might need adjustment
           }}
         >
-          {/* Note: ArchetypeIcon takes size, but SVGs inside might be sized differently.
-              The original used width 80 height 120. ArchetypeIcon takes 'size' (square).
-              But SVGs like EmperorSvg usually scale. Let's try size={80}.
-              However, card aspect ratio is 2:3. 
-              If ArchetypeIcon renders a square SVG, it might look odd if we want 2:3.
-              Let's check ArchetypeIcon implementation again.
-              It sets width={size} height={size}.
-              The original code passed width=80 height=120 to createElement default.
-              So I should probably NOT use ArchetypeIcon if I want non-square?
-              OR I update ArchetypeIcon to accept width/height.
-              Let's check ArchetypeIcon.tsx again.
-              It uses `width: size, height: size`.
-              I will pass `size={100}` and let it conform to container?
-              Or I'll stick to the previous map logic if preserving 2:3 ratio is critical.
-              The tarot cards are definitely rectangular.
-              I'll just reuse the SVG map logic within ArchetypeCard for now to avoid breaking the aspect ratio,
-              OR I can update ArchetypeIcon to accept width/height props.
-              Refactoring ArchetypeIcon seems better.
-          */}
+
           <ArchetypeIcon archetype={archetype} width={80} height={120} color={colors.foreground} />
         </View>
 

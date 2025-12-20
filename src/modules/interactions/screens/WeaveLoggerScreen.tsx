@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, TextInput, ScrollView, Keyboard, TouchableWithoutFeedback, Vibration, Alert, Modal, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput, ScrollView, Keyboard, TouchableWithoutFeedback, Vibration, Alert, Modal, Platform, KeyboardAvoidingView } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { Stack } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -333,416 +333,422 @@ export function WeaveLoggerScreen({
     return (
         <ErrorBoundary>
             <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
-                <Stack.Screen options={{ title: screenTitle }} />
+                <KeyboardAvoidingView
+                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                    style={{ flex: 1 }}
+                    keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 0}
+                >
+                    <Stack.Screen options={{ title: screenTitle }} />
 
-                {/* Custom Header with Back Button */}
-                <View className="flex-row items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-800" style={{ borderBottomColor: colors.border }}>
-                    <TouchableOpacity
-                        onPress={onBack}
-                        className="p-2 -ml-2 rounded-full"
-                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                    >
-                        <ChevronLeft size={24} color={colors.foreground} />
-                    </TouchableOpacity>
-                    <Text
-                        className="flex-1 text-center font-lora-bold text-lg mx-2"
-                        style={{ color: colors.foreground }}
-                        numberOfLines={1}
-                    >
-                        {screenTitle}
-                    </Text>
-                    <View className="w-8" />
-                </View>
+                    {/* Custom Header with Back Button */}
+                    <View className="flex-row items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-800" style={{ borderBottomColor: colors.border }}>
+                        <TouchableOpacity
+                            onPress={onBack}
+                            className="p-2 -ml-2 rounded-full"
+                            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                        >
+                            <ChevronLeft size={24} color={colors.foreground} />
+                        </TouchableOpacity>
+                        <Text
+                            className="flex-1 text-center font-lora-bold text-lg mx-2"
+                            style={{ color: colors.foreground }}
+                            numberOfLines={1}
+                        >
+                            {screenTitle}
+                        </Text>
+                        <View className="w-8" />
+                    </View>
 
 
 
-                {/* Calendar Modal (centered popup, matching Plan Weave style) */}
-                {showCalendar && (
-                    <Modal
-                        visible={true}
-                        transparent
-                        animationType="none"
-                        onRequestClose={() => setShowCalendar(false)}
-                    >
-                        <BlurView intensity={isDarkMode ? 20 : 40} tint={isDarkMode ? 'dark' : 'light'} className="flex-1">
-                            <TouchableOpacity
-                                className="flex-1 justify-center items-center px-5"
-                                activeOpacity={1}
-                                onPress={() => setShowCalendar(false)}
-                            >
-                                <Animated.View
-                                    entering={FadeInUp.duration(200).springify()}
-                                    className="w-full max-w-md rounded-3xl p-6"
-                                    style={{
-                                        backgroundColor: colors.background,
-                                        shadowColor: '#000',
-                                        shadowOffset: { width: 0, height: 20 },
-                                        shadowOpacity: 0.25,
-                                        shadowRadius: 30,
-                                        elevation: 20,
-                                    }}
-                                    onStartShouldSetResponder={() => true}
-                                >
-                                    {/* Header */}
-                                    <View className="flex-row justify-between items-center mb-4">
-                                        <Text className="font-lora-bold text-xl" style={{ color: colors.foreground }}>
-                                            Pick a Date
-                                        </Text>
-                                        <TouchableOpacity onPress={() => setShowCalendar(false)} className="p-2 -mr-2">
-                                            <X color={colors['muted-foreground']} size={22} />
-                                        </TouchableOpacity>
-                                    </View>
-
-                                    <CustomCalendar
-                                        selectedDate={selectedDate}
-                                        onDateSelect={handleDateSelect}
-                                        minDate={undefined}
-                                        maxDate={new Date()}
-                                        plannedDates={calendarDates.planned}
-                                        completedDates={calendarDates.completed}
-                                    />
-                                </Animated.View>
-                            </TouchableOpacity>
-                        </BlurView>
-                    </Modal>
-                )}
-
-                <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-                    <ScrollView
-                        ref={scrollViewRef}
-                        className="flex-1"
-                        contentContainerStyle={{ paddingBottom: 120, paddingHorizontal: 20 }}
-                    >
-                        {/* Date Selection */}
-                        <View className="mb-5">
-                            <Text className="font-lora-bold text-lg mb-2" style={{ color: colors.foreground }}>
-                                When?
-                            </Text>
-                            <ScrollView
-                                horizontal
-                                showsHorizontalScrollIndicator={false}
-                                contentContainerStyle={{ gap: 10, paddingRight: 20 }}
-                            >
-                                {dateOptions.map((opt, index) => {
-                                    const date = opt.getDate();
-                                    const isSelected = isSameDay(selectedDate, date);
-                                    return (
-                                        <Animated.View
-                                            key={opt.id}
-                                            entering={FadeInUp.duration(500).delay(index * 50)}
-                                        >
-                                            <TouchableOpacity
-                                                className="px-4 py-3 rounded-full flex-row items-center justify-center border"
-                                                style={{
-                                                    backgroundColor: isSelected ? colors.primary + '20' : colors.card,
-                                                    borderColor: isSelected ? colors.primary : colors.border,
-                                                }}
-                                                onPress={() => handleQuickDateSelect(date)}
-                                            >
-                                                <opt.icon size={18} color={colors.primary} style={{ marginRight: 8 }} />
-                                                <Text
-                                                    className={`font-inter-medium text-sm ${isSelected ? 'text-primary' : ''}`}
-                                                    style={{ color: isSelected ? colors.primary : colors.foreground }}
-                                                >
-                                                    {opt.label}
-                                                </Text>
-                                            </TouchableOpacity>
-                                        </Animated.View>
-                                    );
-                                })}
-                                <Animated.View entering={FadeInUp.duration(500).delay(100)}>
-                                    <TouchableOpacity
-                                        className="px-4 py-3 rounded-full flex-row items-center justify-center border"
-                                        style={{
-                                            backgroundColor: colors.card,
-                                            borderColor: colors.border,
-                                        }}
-                                        onPress={() => setShowCalendar(true)}
-                                    >
-                                        <CalendarIcon size={16} color={colors.primary} style={{ marginRight: 6 }} />
-                                        <Text className="font-inter-medium text-sm" style={{ color: colors.foreground }}>
-                                            {format(selectedDate, 'MMM d')}
-                                        </Text>
-                                    </TouchableOpacity>
-                                </Animated.View>
-                            </ScrollView>
-
-                            {/* Time Display / Picker */}
-                            <ScrollView
-                                horizontal
-                                showsHorizontalScrollIndicator={false}
-                                contentContainerStyle={{ paddingHorizontal: 0, marginTop: 8 }}
-                            >
+                    {/* Calendar Modal (centered popup, matching Plan Weave style) */}
+                    {showCalendar && (
+                        <Modal
+                            visible={true}
+                            transparent
+                            animationType="none"
+                            onRequestClose={() => setShowCalendar(false)}
+                        >
+                            <BlurView intensity={isDarkMode ? 20 : 40} tint={isDarkMode ? 'dark' : 'light'} className="flex-1">
                                 <TouchableOpacity
-                                    className="px-3 py-2 rounded-full flex-row items-center justify-center border mr-2"
-                                    style={{
-                                        backgroundColor: colors.card,
-                                        borderColor: colors.border,
-                                    }}
-                                    onPress={() => setShowTimePicker(true)}
+                                    className="flex-1 justify-center items-center px-5"
+                                    activeOpacity={1}
+                                    onPress={() => setShowCalendar(false)}
                                 >
-                                    <Clock size={14} color={colors['muted-foreground']} style={{ marginRight: 6 }} />
-                                    <Text className="font-inter-medium text-xs" style={{ color: colors.foreground }}>
-                                        {format(selectedDate, 'h:mm a')}
-                                    </Text>
-                                </TouchableOpacity>
-                            </ScrollView>
-
-                            {/* Hidden Time Picker (iOS Modal / Android Dialog) */}
-                            {showTimePicker && (
-                                Platform.OS === 'ios' ? (
-                                    <Modal
-                                        transparent
-                                        animationType="fade"
-                                        visible={showTimePicker}
-                                        onRequestClose={() => setShowTimePicker(false)}
-                                    >
-                                        <View className="flex-1 justify-end bg-black/50">
-                                            <View className="bg-white dark:bg-gray-900 pb-safe">
-                                                <View className="flex-row justify-between items-center p-4 border-b border-gray-200 dark:border-gray-800">
-                                                    <TouchableOpacity onPress={() => setShowTimePicker(false)}>
-                                                        <Text className="text-gray-500 font-inter-medium">Cancel</Text>
-                                                    </TouchableOpacity>
-                                                    <Text className="font-lora-bold text-lg dark:text-white">Set Time</Text>
-                                                    <TouchableOpacity onPress={() => setShowTimePicker(false)}>
-                                                        <Text className="text-primary font-inter-bold">Done</Text>
-                                                    </TouchableOpacity>
-                                                </View>
-                                                <DateTimePicker
-                                                    value={selectedDate}
-                                                    mode="time"
-                                                    display="spinner"
-                                                    onChange={handleTimeChange}
-                                                    textColor={isDarkMode ? '#fff' : '#000'}
-                                                />
-                                            </View>
-                                        </View>
-                                    </Modal>
-                                ) : (
-                                    <DateTimePicker
-                                        value={selectedDate}
-                                        mode="time"
-                                        display="default"
-                                        onChange={handleTimeChange}
-                                    />
-                                )
-                            )}
-                        </View>
-
-                        {/* Friend Selection */}
-                        <View className="mb-8">
-                            <Text className="font-lora-bold text-xl mb-4" style={{ color: colors.foreground }}>
-                                Who was there?
-                            </Text>
-
-                            {/* Selected friends display */}
-                            <View className="flex-row flex-wrap gap-2 mb-3">
-                                {selectedFriends.map((friend, index) => (
-                                    <View
-                                        key={friend.id}
-                                        className="flex-row items-center px-3 py-2 rounded-full"
-                                        style={{
-                                            backgroundColor: colors.primary + '20',
-                                            borderWidth: 1,
-                                            borderColor: colors.primary + '40',
-                                        }}
-                                    >
-                                        <Text className="font-inter-medium text-sm" style={{ color: colors.foreground }}>
-                                            {friend.name}
-                                        </Text>
-                                        {index !== 0 && selectedFriends.length > 1 && (
-                                            <TouchableOpacity
-                                                className="ml-2"
-                                                onPress={() => setSelectedFriends(selectedFriends.filter(f => f.id !== friend.id))}
-                                            >
-                                                <X size={14} color={colors.foreground} />
-                                            </TouchableOpacity>
-                                        )}
-                                    </View>
-                                ))}
-
-                                {/* Add Friend Button */}
-                                <TouchableOpacity
-                                    className="flex-row items-center px-3 py-2 rounded-full"
-                                    style={{
-                                        backgroundColor: colors.card,
-                                        borderWidth: 1,
-                                        borderColor: colors.border,
-                                    }}
-                                    onPress={() => setShowFriendPicker(true)}
-                                >
-                                    <Users size={16} color={colors.primary} />
-                                    <Text className="font-inter-medium text-sm ml-2" style={{ color: colors.primary }}>
-                                        Add Friend
-                                    </Text>
-                                </TouchableOpacity>
-                            </View>
-                        </View>
-
-                        {/* Category Selection */}
-                        <View className="mb-5">
-                            <Text className="font-lora-bold text-lg mb-2" style={{ color: colors.foreground }}>
-                                Context
-                            </Text>
-                            <View className="flex-row flex-wrap gap-2">
-                                {categories.map((cat, index) => (
                                     <Animated.View
-                                        key={cat.id}
-                                        style={{ width: '31%' }}
-                                        entering={FadeInUp.duration(500).delay(index * 30)}
+                                        entering={FadeInUp.duration(200).springify()}
+                                        className="w-full max-w-md rounded-3xl p-6"
+                                        style={{
+                                            backgroundColor: colors.background,
+                                            shadowColor: '#000',
+                                            shadowOffset: { width: 0, height: 20 },
+                                            shadowOpacity: 0.25,
+                                            shadowRadius: 30,
+                                            elevation: 20,
+                                        }}
+                                        onStartShouldSetResponder={() => true}
                                     >
+                                        {/* Header */}
+                                        <View className="flex-row justify-between items-center mb-4">
+                                            <Text className="font-lora-bold text-xl" style={{ color: colors.foreground }}>
+                                                Pick a Date
+                                            </Text>
+                                            <TouchableOpacity onPress={() => setShowCalendar(false)} className="p-2 -mr-2">
+                                                <X color={colors['muted-foreground']} size={22} />
+                                            </TouchableOpacity>
+                                        </View>
+
+                                        <CustomCalendar
+                                            selectedDate={selectedDate}
+                                            onDateSelect={handleDateSelect}
+                                            minDate={undefined}
+                                            maxDate={new Date()}
+                                            plannedDates={calendarDates.planned}
+                                            completedDates={calendarDates.completed}
+                                        />
+                                    </Animated.View>
+                                </TouchableOpacity>
+                            </BlurView>
+                        </Modal>
+                    )}
+
+                    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+                        <ScrollView
+                            ref={scrollViewRef}
+                            className="flex-1"
+                            contentContainerStyle={{ paddingBottom: 120, paddingHorizontal: 20 }}
+                        >
+                            {/* Date Selection */}
+                            <View className="mb-5">
+                                <Text className="font-lora-bold text-lg mb-2" style={{ color: colors.foreground }}>
+                                    When?
+                                </Text>
+                                <ScrollView
+                                    horizontal
+                                    showsHorizontalScrollIndicator={false}
+                                    contentContainerStyle={{ gap: 10, paddingRight: 20 }}
+                                >
+                                    {dateOptions.map((opt, index) => {
+                                        const date = opt.getDate();
+                                        const isSelected = isSameDay(selectedDate, date);
+                                        return (
+                                            <Animated.View
+                                                key={opt.id}
+                                                entering={FadeInUp.duration(500).delay(index * 50)}
+                                            >
+                                                <TouchableOpacity
+                                                    className="px-4 py-3 rounded-full flex-row items-center justify-center border"
+                                                    style={{
+                                                        backgroundColor: isSelected ? colors.primary + '20' : colors.card,
+                                                        borderColor: isSelected ? colors.primary : colors.border,
+                                                    }}
+                                                    onPress={() => handleQuickDateSelect(date)}
+                                                >
+                                                    <opt.icon size={18} color={colors.primary} style={{ marginRight: 8 }} />
+                                                    <Text
+                                                        className={`font-inter-medium text-sm ${isSelected ? 'text-primary' : ''}`}
+                                                        style={{ color: isSelected ? colors.primary : colors.foreground }}
+                                                    >
+                                                        {opt.label}
+                                                    </Text>
+                                                </TouchableOpacity>
+                                            </Animated.View>
+                                        );
+                                    })}
+                                    <Animated.View entering={FadeInUp.duration(500).delay(100)}>
                                         <TouchableOpacity
-                                            className="p-2 rounded-xl items-center justify-center"
+                                            className="px-4 py-3 rounded-full flex-row items-center justify-center border"
                                             style={{
                                                 backgroundColor: colors.card,
-                                                borderWidth: selectedCategory === cat.id ? 2 : 1,
-                                                borderColor: selectedCategory === cat.id ? colors.primary : colors.border,
-                                                height: 90,
+                                                borderColor: colors.border,
                                             }}
-                                            onPress={() => handleCategorySelect(cat.id)}
+                                            onPress={() => setShowCalendar(true)}
                                         >
-                                            <cat.iconComponent size={28} color={colors.primary} style={{ marginBottom: 4 }} />
-                                            <Text
-                                                className="font-inter-medium text-xs text-center leading-tight"
-                                                style={{ color: colors.foreground }}
-                                                numberOfLines={2}
-                                            >
-                                                {cat.label}
+                                            <CalendarIcon size={16} color={colors.primary} style={{ marginRight: 6 }} />
+                                            <Text className="font-inter-medium text-sm" style={{ color: colors.foreground }}>
+                                                {format(selectedDate, 'MMM d')}
                                             </Text>
                                         </TouchableOpacity>
                                     </Animated.View>
-                                ))}
-                            </View>
-                        </View>
+                                </ScrollView>
 
-                        {/* Details Section - Only shows after category selected */}
-                        {!!selectedCategory && (
-                            <Animated.View
-                                entering={FadeInUp.duration(500)}
-                                onLayout={(event) => {
-                                    const { y } = event.nativeEvent.layout;
-                                    setDetailsSectionY(y);
-                                }}
-                            >
-                                {/* Title Field */}
-                                <View className="mb-5">
-                                    <Text className="font-lora-bold text-xl mb-1" style={{ color: colors.foreground }}>
-                                        Name this moment
-                                    </Text>
-                                    <Text className="font-inter-regular text-sm mb-2" style={{ color: colors['muted-foreground'] }}>
-                                        Optional - give it a memorable name
-                                    </Text>
-                                    <TextInput
-                                        className="p-3.5 rounded-xl font-inter-regular text-base"
+                                {/* Time Display / Picker */}
+                                <ScrollView
+                                    horizontal
+                                    showsHorizontalScrollIndicator={false}
+                                    contentContainerStyle={{ paddingHorizontal: 0, marginTop: 8 }}
+                                >
+                                    <TouchableOpacity
+                                        className="px-3 py-2 rounded-full flex-row items-center justify-center border mr-2"
+                                        style={{
+                                            backgroundColor: colors.card,
+                                            borderColor: colors.border,
+                                        }}
+                                        onPress={() => setShowTimePicker(true)}
+                                    >
+                                        <Clock size={14} color={colors['muted-foreground']} style={{ marginRight: 6 }} />
+                                        <Text className="font-inter-medium text-xs" style={{ color: colors.foreground }}>
+                                            {format(selectedDate, 'h:mm a')}
+                                        </Text>
+                                    </TouchableOpacity>
+                                </ScrollView>
+
+                                {/* Hidden Time Picker (iOS Modal / Android Dialog) */}
+                                {showTimePicker && (
+                                    Platform.OS === 'ios' ? (
+                                        <Modal
+                                            transparent
+                                            animationType="fade"
+                                            visible={showTimePicker}
+                                            onRequestClose={() => setShowTimePicker(false)}
+                                        >
+                                            <View className="flex-1 justify-end bg-black/50">
+                                                <View className="bg-white dark:bg-gray-900 pb-safe">
+                                                    <View className="flex-row justify-between items-center p-4 border-b border-gray-200 dark:border-gray-800">
+                                                        <TouchableOpacity onPress={() => setShowTimePicker(false)}>
+                                                            <Text className="text-gray-500 font-inter-medium">Cancel</Text>
+                                                        </TouchableOpacity>
+                                                        <Text className="font-lora-bold text-lg dark:text-white">Set Time</Text>
+                                                        <TouchableOpacity onPress={() => setShowTimePicker(false)}>
+                                                            <Text className="text-primary font-inter-bold">Done</Text>
+                                                        </TouchableOpacity>
+                                                    </View>
+                                                    <DateTimePicker
+                                                        value={selectedDate}
+                                                        mode="time"
+                                                        display="spinner"
+                                                        onChange={handleTimeChange}
+                                                        textColor={isDarkMode ? '#fff' : '#000'}
+                                                    />
+                                                </View>
+                                            </View>
+                                        </Modal>
+                                    ) : (
+                                        <DateTimePicker
+                                            value={selectedDate}
+                                            mode="time"
+                                            display="default"
+                                            onChange={handleTimeChange}
+                                        />
+                                    )
+                                )}
+                            </View>
+
+                            {/* Friend Selection */}
+                            <View className="mb-8">
+                                <Text className="font-lora-bold text-xl mb-4" style={{ color: colors.foreground }}>
+                                    Who was there?
+                                </Text>
+
+                                {/* Selected friends display */}
+                                <View className="flex-row flex-wrap gap-2 mb-3">
+                                    {selectedFriends.map((friend, index) => (
+                                        <View
+                                            key={friend.id}
+                                            className="flex-row items-center px-3 py-2 rounded-full"
+                                            style={{
+                                                backgroundColor: colors.primary + '20',
+                                                borderWidth: 1,
+                                                borderColor: colors.primary + '40',
+                                            }}
+                                        >
+                                            <Text className="font-inter-medium text-sm" style={{ color: colors.foreground }}>
+                                                {friend.name}
+                                            </Text>
+                                            {index !== 0 && selectedFriends.length > 1 && (
+                                                <TouchableOpacity
+                                                    className="ml-2"
+                                                    onPress={() => setSelectedFriends(selectedFriends.filter(f => f.id !== friend.id))}
+                                                >
+                                                    <X size={14} color={colors.foreground} />
+                                                </TouchableOpacity>
+                                            )}
+                                        </View>
+                                    ))}
+
+                                    {/* Add Friend Button */}
+                                    <TouchableOpacity
+                                        className="flex-row items-center px-3 py-2 rounded-full"
                                         style={{
                                             backgroundColor: colors.card,
                                             borderWidth: 1,
                                             borderColor: colors.border,
-                                            color: colors.foreground,
                                         }}
-                                        placeholder='e.g., "Coffee at Blue Bottle"'
-                                        placeholderTextColor={colors['muted-foreground']}
-                                        value={title}
-                                        onChangeText={setTitle}
-                                    />
-                                </View>
-
-                                {/* Reciprocity Section */}
-                                <View className="mb-5">
-                                    <Text className="font-lora-bold text-xl mb-2" style={{ color: colors.foreground }}>
-                                        Who initiated?
-                                    </Text>
-                                    <ReciprocitySelector
-                                        value={initiator}
-                                        onChange={setInitiator}
-                                        friendName={selectedFriends.length === 1 ? selectedFriends[0].name : 'Them'}
-                                        hideLabel
-                                    />
-                                </View>
-
-                                {/* Vibe Section */}
-                                <View className="mb-5">
-                                    <View className="flex-row items-center gap-2 mb-2">
-                                        <Moon size={20} color={colors.primary} />
-                                        <Text className="font-lora-bold text-xl" style={{ color: colors.foreground }}>
-                                            How did it feel?
+                                        onPress={() => setShowFriendPicker(true)}
+                                    >
+                                        <Users size={16} color={colors.primary} />
+                                        <Text className="font-inter-medium text-sm ml-2" style={{ color: colors.primary }}>
+                                            Add Friend
                                         </Text>
-                                    </View>
-                                    <MoonPhaseSelector onSelect={setSelectedVibe} selectedVibe={selectedVibe} />
+                                    </TouchableOpacity>
                                 </View>
+                            </View>
 
-                                {/* Reflection Section */}
-                                <View className="mb-5">
-                                    <View className="flex-row items-center gap-2 mb-1">
-                                        <Sparkles size={20} color={colors.primary} />
-                                        <Text className="font-lora-bold text-xl" style={{ color: colors.foreground }}>
-                                            Tell the story
+                            {/* Category Selection */}
+                            <View className="mb-5">
+                                <Text className="font-lora-bold text-lg mb-2" style={{ color: colors.foreground }}>
+                                    Context
+                                </Text>
+                                <View className="flex-row flex-wrap gap-2">
+                                    {categories.map((cat, index) => (
+                                        <Animated.View
+                                            key={cat.id}
+                                            style={{ width: '31%' }}
+                                            entering={FadeInUp.duration(500).delay(index * 30)}
+                                        >
+                                            <TouchableOpacity
+                                                className="p-2 rounded-xl items-center justify-center"
+                                                style={{
+                                                    backgroundColor: colors.card,
+                                                    borderWidth: selectedCategory === cat.id ? 2 : 1,
+                                                    borderColor: selectedCategory === cat.id ? colors.primary : colors.border,
+                                                    height: 90,
+                                                }}
+                                                onPress={() => handleCategorySelect(cat.id)}
+                                            >
+                                                <cat.iconComponent size={28} color={colors.primary} style={{ marginBottom: 4 }} />
+                                                <Text
+                                                    className="font-inter-medium text-xs text-center leading-tight"
+                                                    style={{ color: colors.foreground }}
+                                                    numberOfLines={2}
+                                                >
+                                                    {cat.label}
+                                                </Text>
+                                            </TouchableOpacity>
+                                        </Animated.View>
+                                    ))}
+                                </View>
+                            </View>
+
+                            {/* Details Section - Only shows after category selected */}
+                            {!!selectedCategory && (
+                                <Animated.View
+                                    entering={FadeInUp.duration(500)}
+                                    onLayout={(event) => {
+                                        const { y } = event.nativeEvent.layout;
+                                        setDetailsSectionY(y);
+                                    }}
+                                >
+                                    {/* Title Field */}
+                                    <View className="mb-5">
+                                        <Text className="font-lora-bold text-xl mb-1" style={{ color: colors.foreground }}>
+                                            Name this moment
                                         </Text>
+                                        <Text className="font-inter-regular text-sm mb-2" style={{ color: colors['muted-foreground'] }}>
+                                            Optional - give it a memorable name
+                                        </Text>
+                                        <TextInput
+                                            className="p-3.5 rounded-xl font-inter-regular text-base"
+                                            style={{
+                                                backgroundColor: colors.card,
+                                                borderWidth: 1,
+                                                borderColor: colors.border,
+                                                color: colors.foreground,
+                                            }}
+                                            placeholder='e.g., "Coffee at Blue Bottle"'
+                                            placeholderTextColor={colors['muted-foreground']}
+                                            value={title}
+                                            onChangeText={setTitle}
+                                        />
                                     </View>
-                                    <Text className="font-inter-regular text-sm mb-2" style={{ color: colors['muted-foreground'] }}>
-                                        Capture what made this weave meaningful
-                                    </Text>
-                                    <ContextualReflectionInput
-                                        category={selectedCategory}
-                                        archetype={friendArchetype}
-                                        vibe={selectedVibe}
-                                        value={reflection}
-                                        onChange={setReflection}
-                                    />
-                                </View>
-                            </Animated.View>
-                        )}
-                    </ScrollView>
-                </TouchableWithoutFeedback>
 
-                {/* Save Button */}
-                {selectedCategory && (
-                    <View
-                        className="absolute bottom-0 left-0 right-0 p-5"
-                        style={{ backgroundColor: colors.background, borderTopWidth: 1, borderColor: colors.border }}
-                    >
-                        <TouchableOpacity
-                            className="p-4 rounded-xl items-center"
-                            style={{
-                                backgroundColor: isSubmitting ? colors.muted : colors.primary,
-                                shadowColor: '#000',
-                                shadowOffset: { width: 0, height: 4 },
-                                shadowOpacity: 0.1,
-                                shadowRadius: 12,
-                                elevation: 8,
-                            }}
-                            onPress={handleSave}
-                            disabled={isSubmitting}
+                                    {/* Reciprocity Section */}
+                                    <View className="mb-5">
+                                        <Text className="font-lora-bold text-xl mb-2" style={{ color: colors.foreground }}>
+                                            Who initiated?
+                                        </Text>
+                                        <ReciprocitySelector
+                                            value={initiator}
+                                            onChange={setInitiator}
+                                            friendName={selectedFriends.length === 1 ? selectedFriends[0].name : 'Them'}
+                                            hideLabel
+                                        />
+                                    </View>
+
+                                    {/* Vibe Section */}
+                                    <View className="mb-5">
+                                        <View className="flex-row items-center gap-2 mb-2">
+                                            <Moon size={20} color={colors.foreground} />
+                                            <Text className="font-lora-bold text-xl" style={{ color: colors.foreground }}>
+                                                How did it feel?
+                                            </Text>
+                                        </View>
+                                        <MoonPhaseSelector onSelect={setSelectedVibe} selectedVibe={selectedVibe} />
+                                    </View>
+
+                                    {/* Reflection Section */}
+                                    <View className="mb-5">
+                                        <View className="flex-row items-center gap-2 mb-1">
+                                            <Sparkles size={20} color={colors.primary} />
+                                            <Text className="font-lora-bold text-xl" style={{ color: colors.foreground }}>
+                                                Tell the story
+                                            </Text>
+                                        </View>
+                                        <Text className="font-inter-regular text-sm mb-2" style={{ color: colors['muted-foreground'] }}>
+                                            Capture what made this weave meaningful
+                                        </Text>
+                                        <ContextualReflectionInput
+                                            category={selectedCategory}
+                                            archetype={friendArchetype}
+                                            vibe={selectedVibe}
+                                            value={reflection}
+                                            onChange={setReflection}
+                                        />
+                                    </View>
+                                </Animated.View>
+                            )}
+                        </ScrollView>
+                    </TouchableWithoutFeedback>
+
+                    {/* Save Button */}
+                    {selectedCategory && (
+                        <View
+                            className="absolute bottom-0 left-0 right-0 p-5"
+                            style={{ backgroundColor: colors.background, borderTopWidth: 1, borderColor: colors.border }}
                         >
-                            <Text className="font-inter-semibold text-base" style={{ color: isSubmitting ? colors['muted-foreground'] : colors['primary-foreground'] }}>
-                                {isSubmitting ? 'Saving...' : 'Save Weave'}
-                            </Text>
-                        </TouchableOpacity>
-                    </View>
-                )}
+                            <TouchableOpacity
+                                className="p-4 rounded-xl items-center"
+                                style={{
+                                    backgroundColor: isSubmitting ? colors.muted : colors.primary,
+                                    shadowColor: '#000',
+                                    shadowOffset: { width: 0, height: 4 },
+                                    shadowOpacity: 0.1,
+                                    shadowRadius: 12,
+                                    elevation: 8,
+                                }}
+                                onPress={handleSave}
+                                disabled={isSubmitting}
+                            >
+                                <Text className="font-inter-semibold text-base" style={{ color: isSubmitting ? colors['muted-foreground'] : colors['primary-foreground'] }}>
+                                    {isSubmitting ? 'Saving...' : 'Save Weave'}
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+                    )}
 
-                {/* Friend Picker Sheet */}
-                <FriendPickerSheet
-                    visible={showFriendPicker}
-                    onClose={() => setShowFriendPicker(false)}
-                    onSelectFriend={(friend) => setSelectedFriends(prev => [...prev, friend])}
-                    title="Add to Weave"
-                    disabledIds={selectedFriends.map(f => f.id)}
-                />
+                    {/* Friend Picker Sheet */}
+                    <FriendPickerSheet
+                        visible={showFriendPicker}
+                        onClose={() => setShowFriendPicker(false)}
+                        onSelectFriend={(friend) => setSelectedFriends(prev => [...prev, friend])}
+                        title="Add to Weave"
+                        disabledIds={selectedFriends.map(f => f.id)}
+                    />
 
-                <WeaveReflectPrompt
-                    visible={showPrompt}
-                    interaction={promptInteraction}
-                    friends={promptFriends}
-                    onReflect={() => {
-                        hidePrompt();
-                        onNavigateToJournal(promptInteraction?.id);
-                    }}
-                    onDismiss={() => {
-                        hidePrompt();
-                        onBack();
-                    }}
-                />
+                    <WeaveReflectPrompt
+                        visible={showPrompt}
+                        interaction={promptInteraction}
+                        friends={promptFriends}
+                        onReflect={() => {
+                            hidePrompt();
+                            onNavigateToJournal(promptInteraction?.id);
+                        }}
+                        onDismiss={() => {
+                            hidePrompt();
+                            onBack();
+                        }}
+                    />
+                </KeyboardAvoidingView>
             </SafeAreaView>
         </ErrorBoundary>
     );

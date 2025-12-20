@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, TextInput, Modal } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput, Modal, Pressable } from 'react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { X } from 'lucide-react-native';
 import { STORY_CHIPS, type StoryChip } from '@/modules/reflection';
@@ -32,6 +32,7 @@ export function ReflectionTextInput({
 }: ReflectionTextInputProps) {
   const { colors } = useTheme();
   const [editingChip, setEditingChip] = useState<{ chipIndex: number; componentId: string } | null>(null);
+  const inputRef = React.useRef<TextInput>(null);
 
   // Parse a chip's template to find tappable components
   const parseChipParts = (chip: ReflectionChip) => {
@@ -82,7 +83,8 @@ export function ReflectionTextInput({
   return (
     <View>
       {/* Combined container - chip bubbles + text input together */}
-      <View
+      <Pressable
+        onPress={() => inputRef.current?.focus()}
         className="border-[1.5px] rounded-2xl p-3 min-h-[80px] shadow-sm elevation-2"
         style={{
           backgroundColor: colors.card,
@@ -149,6 +151,7 @@ export function ReflectionTextInput({
 
         {/* Text input for additional notes */}
         <InputComponent
+          ref={inputRef as any}
           className="text-[15px] leading-6 min-h-[40px] p-0"
           style={{
             color: colors.foreground,
@@ -160,7 +163,7 @@ export function ReflectionTextInput({
           onChangeText={onCustomTextChange}
           multiline
         />
-      </View>
+      </Pressable>
 
       {/* Component editor modal */}
       {editingChip && (

@@ -18,6 +18,7 @@ interface TimelineListProps {
     onDeleteInteraction: (id: string) => void;
     onEditInteraction: (id: string) => void;
     ListHeaderComponent?: React.ReactElement;
+    archetype?: string;
 }
 
 export function TimelineList({
@@ -28,7 +29,8 @@ export function TimelineList({
     onInteractionPress,
     onDeleteInteraction,
     onEditInteraction,
-    ListHeaderComponent
+    ListHeaderComponent,
+    archetype
 }: TimelineListProps) {
     const { colors } = useTheme();
 
@@ -52,10 +54,11 @@ export function TimelineList({
                     sectionLabel={section.title}
                     isFirstInSection={isFirstInSection}
                     isLastItem={isLastItem}
+                    archetype={archetype}
                 />
             </View>
         );
-    }, [onInteractionPress, onDeleteInteraction, onEditInteraction, sections]);
+    }, [onInteractionPress, onDeleteInteraction, onEditInteraction, sections, archetype]);
 
     return (
         <View className="flex-1 relative">

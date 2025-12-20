@@ -1,53 +1,13 @@
-import { Tier, Archetype } from '@/shared/types/common';
-import { InteractionCategory } from '@/shared/types/common';
-import { calculateCurrentScore } from '@/modules/intelligence';
-import FriendModel from '@/db/models/Friend';
-import { capturePortfolioSnapshot } from './trend.service';
-import { FriendshipPortfolio, PortfolioImbalance } from '../types';
-import { Suggestion } from '@/shared/types/common';
+import { TierDecayRates, TierDriftingThresholds } from '@/modules/intelligence/constants';
 
-// Types for analysis
-export interface PortfolioAnalysisInput {
-  friends: FriendModel[];
-  recentInteractions: Array<{
-    interactionDate: Date;
-    category?: InteractionCategory | string | null;
-    friendIds: string[];
-  }>;
-}
-
-/**
- * Analyzes the entire friendship portfolio to provide network-level insights
- */
-export function analyzePortfolio(input: PortfolioAnalysisInput): FriendshipPortfolio {
-  const { friends, recentInteractions } = input;
-
-  // Calculate current scores for all friends
-  // NOTE: Intelligence module's calculateCurrentScore is async, but here we are mapping synchronously.
-  // However, calculateCurrentScore in intelligence module MIGHT be async.
-  // Let's check if calculateCurrentScore takes a FriendModel directly and returns a number.
-  // In legacy lib/portfolio-analyzer.ts, it imported from orchestrator.service which was async in Phase 2 spec?
-  // Wait, I need to check calculateCurrentScore signature.
-  // Assuming for now we can get the score. Ideally we should fetch scores async.
-  // But let's stick to the structure. If calculateCurrentScore is async, we need to make this function async.
-  // I will assume it accepts FriendModel and returns number or Promise<number>.
-  // Checking lib/portfolio-analyzer.ts, it imported `calculateCurrentScore` from `orchestrator.service`.
-  // Let's assume synchronous for now or I'll fix it if I see an error.
-  // Wait, `calculateCurrentScore` usually triggers a DB calc.
-  // But `FriendModel` usually has `weave_score` property.
-  // Let's use the `weave_score` property directly from the model for sync analysis if possible,
-  // or make this function async. Making it async is safer.
-
-  // REVISION: I'll make `analyzePortfolio` async to be safe.
-  throw new Error("analyzePortfolio should be async. Please use analyzePortfolioAsync");
-}
+// ... (existing imports)
 
 export async function analyzePortfolioAsync(input: PortfolioAnalysisInput): Promise<FriendshipPortfolio> {
   const { friends, recentInteractions } = input;
 
   // Calculate current scores for all friends
   const friendsWithScores = await Promise.all(friends.map(async friend => {
-    const score = calculateCurrentScore(friend);
+    const score = await calculateCurrentScore(friend); // Ensure we await if it's async, though types say number
     return {
       friend,
       currentScore: isNaN(score) ? 0 : score,
@@ -72,9 +32,15 @@ export async function analyzePortfolioAsync(input: PortfolioAnalysisInput): Prom
 
   const overallHealthScore = weightTotal > 0 ? Math.round(weightedSum / weightTotal) : 0;
 
-  // Friend status counts
+  // Friend status counts - NOW TIER AWARE
   const activeFriends = friendsWithScores.filter(f => f.currentScore > 30).length;
-  const driftingFriends = friendsWithScores.filter(f => f.currentScore < 40).length;
+
+  const driftingFriends = friendsWithScores.filter(f => {
+    const tier = f.friend.dunbarTier as Tier;
+    const threshold = TierDriftingThresholds[tier] || 20;
+    return f.currentScore < threshold;
+  }).length;
+
   const thrivingFriends = friendsWithScores.filter(f => f.currentScore > 80).length;
 
   // Tier distribution
@@ -82,10 +48,14 @@ export async function analyzePortfolioAsync(input: PortfolioAnalysisInput): Prom
   const tierDistribution = Object.entries(tierGroups).map(([tier, group]) => {
     const avgScore = group.reduce((sum, f) => sum + (isNaN(f.currentScore) ? 0 : f.currentScore), 0) / (group.length || 1);
     const safeAvgScore = isNaN(avgScore) ? 0 : avgScore;
-    const needsAttention = safeAvgScore < 50 || (tier === 'InnerCircle' && safeAvgScore < 60);
+
+    // Needs attention if below drift threshold + buffer
+    const tierKey = tier as Tier;
+    const driftThreshold = TierDriftingThresholds[tierKey] || 30;
+    const needsAttention = safeAvgScore < (driftThreshold + 10);
 
     return {
-      tier: tier as Tier,
+      tier: tierKey,
       count: group.length,
       percentage: Math.round((group.length / friends.length) * 100) || 0,
       avgScore: Math.round(safeAvgScore),
@@ -215,7 +185,9 @@ function detectImbalances(context: {
 
   // Check for Inner Circle drift (CRITICAL)
   const innerCircle = context.tierDistribution.find(t => t.tier === 'InnerCircle');
-  if (innerCircle && innerCircle.avgScore < 50) {
+  const innerDriftThreshold = TierDriftingThresholds.InnerCircle;
+
+  if (innerCircle && innerCircle.avgScore < innerDriftThreshold) {
     imbalances.push({
       type: 'inner-circle-drift',
       severity: 'critical',
@@ -224,7 +196,7 @@ function detectImbalances(context: {
       affectedTier: 'InnerCircle',
       recommendedAction: 'Prioritize quality time with your Inner Circle this week',
     });
-  } else if (innerCircle && innerCircle.avgScore < 65) {
+  } else if (innerCircle && innerCircle.avgScore < (innerDriftThreshold + 15)) {
     imbalances.push({
       type: 'inner-circle-drift',
       severity: 'high',
@@ -238,9 +210,10 @@ function detectImbalances(context: {
   // Check for tier neglect
   context.tierDistribution.forEach(tier => {
     if (tier.needsAttention && tier.tier !== 'InnerCircle') {
+      const tierThreshold = TierDriftingThresholds[tier.tier as Tier];
       imbalances.push({
         type: 'tier-neglect',
-        severity: tier.avgScore < 40 ? 'high' : 'medium',
+        severity: tier.avgScore < tierThreshold ? 'high' : 'medium',
         title: `${tier.tier} needs attention`,
         description: `Your ${tier.tier} tier is drifting (avg score: ${tier.avgScore}).`,
         affectedTier: tier.tier,

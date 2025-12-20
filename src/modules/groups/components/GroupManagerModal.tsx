@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, TouchableOpacity, Alert, FlatList, Image, ActionSheetIOS, Platform } from 'react-native';
+import { View, TouchableOpacity, Alert, Image, ActionSheetIOS, Platform } from 'react-native';
 import { Check, Trash2, Users, Camera } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useTheme } from '@/shared/hooks/useTheme';
@@ -11,6 +11,7 @@ import { Card } from '@/shared/ui/Card';
 import FriendModel from '@/db/models/Friend';
 import { database } from '@/db';
 import { Q } from '@nozbe/watermelondb';
+import { BottomSheetFlatList } from '@gorhom/bottom-sheet';
 import { groupService } from '@/modules/groups';
 import Group from '@/db/models/Group';
 import { uploadGroupPhoto } from '@/modules/relationships';
@@ -263,7 +264,7 @@ export function GroupManagerModal({
         );
     };
 
-    const renderFriendItem = ({ item }: { item: FriendModel }) => {
+    const renderFriendItem = React.useCallback(({ item }: { item: FriendModel }) => {
         const isSelected = selectedFriendIds.includes(item.id);
         return (
             <TouchableOpacity
@@ -271,18 +272,107 @@ export function GroupManagerModal({
                 activeOpacity={0.7}
             >
                 <Card
-                    className={`flex-row items-center justify-between p-4 mb-2 border ${isSelected ? 'border-primary bg-primary/5' : 'border-transparent'}`}
+                    className="flex-row items-center justify-between p-4 mb-2"
+                    style={{
+                        backgroundColor: isSelected ? `${colors.primary}0D` : colors.card, // 5% opacity
+                        borderColor: isSelected ? colors.primary : 'transparent',
+                        borderWidth: isSelected ? 1 : 0
+                    }}
                 >
-                    <Text variant="body" className={`font-medium ${isSelected ? 'text-primary' : 'text-foreground'}`}>
+                    <Text
+                        variant="body"
+                        className="font-medium"
+                        style={{ color: isSelected ? colors.primary : colors.foreground }}
+                    >
                         {item.name}
                     </Text>
                     {isSelected && <Check size={20} color={colors.primary} />}
                 </Card>
             </TouchableOpacity>
         );
-    };
+    }, [colors, selectedFriendIds, toggleFriend]);
 
     const displayPhoto = pendingPhotoUri || photoUri;
+
+    const renderHeader = React.useCallback(() => (
+        <View>
+            {/* Photo Picker */}
+            <View className="items-center mb-4">
+                <TouchableOpacity
+                    onPress={showImagePicker}
+                    activeOpacity={0.7}
+                    className="w-24 h-24 rounded-full items-center justify-center overflow-hidden"
+                    style={{ backgroundColor: colors.muted }}
+                >
+                    {displayPhoto ? (
+                        <Image
+                            source={{ uri: displayPhoto }}
+                            className="w-full h-full"
+                            resizeMode="cover"
+                        />
+                    ) : (
+                        <View className="items-center justify-center">
+                            <Users size={32} color={colors['muted-foreground']} />
+                            <Camera size={16} color={colors['muted-foreground']} style={{ position: 'absolute', bottom: -2, right: -2 }} />
+                        </View>
+                    )}
+                </TouchableOpacity>
+                <Text variant="caption" className="mt-2" style={{ color: colors['muted-foreground'] }}>
+                    Tap to add photo
+                </Text>
+            </View>
+
+            {/* Form */}
+            <View className="mb-6">
+                <Input
+                    label="Group Name"
+                    placeholder="e.g., Girl Group, Family"
+                    value={name}
+                    onChangeText={setName}
+                    autoCapitalize="words"
+                />
+            </View>
+
+            <View className="mb-2">
+                <Text variant="h4" className="mb-2 font-medium" style={{ color: colors['muted-foreground'] }}>
+                    Select Members ({selectedFriendIds.length})
+                </Text>
+            </View>
+        </View>
+    ), [displayPhoto, colors, name, setName, selectedFriendIds.length, showImagePicker]);
+
+    const renderFooter = React.useCallback(() => (
+        <View className="flex-row gap-3">
+            {groupToEdit && (
+                <Button
+                    onPress={handleDelete}
+                    variant="destructive"
+                    className="px-4"
+                >
+                    <Trash2 size={20} color={colors['destructive-foreground']} />
+                </Button>
+            )}
+
+            <Button
+                onPress={handleSave}
+                variant="primary"
+                disabled={isSaving}
+                className="flex-1"
+                label={isSaving ? 'Saving...' : (groupToEdit ? 'Done' : 'Save Group')}
+            />
+        </View>
+    ), [groupToEdit, isSaving, handleDelete, handleSave, colors]);
+
+    const renderContent = React.useCallback(() => (
+        <BottomSheetFlatList
+            data={allFriends}
+            keyExtractor={item => item.id}
+            renderItem={renderFriendItem}
+            ListHeaderComponent={renderHeader}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }}
+        />
+    ), [allFriends, renderFriendItem, renderHeader]);
 
     return (
         <StandardBottomSheet
@@ -290,83 +380,13 @@ export function GroupManagerModal({
             onClose={onClose}
             title={groupToEdit ? 'Edit Group' : 'New Group'}
             snapPoints={['90%']}
-            scrollable={false} // Using FlatList for custom scrolling
-            disableContentPanning={true} // Prevent sheet from dragging when scrolling the list
+            disableContentPanning={true}
+            renderScrollContent={renderContent}
+            footerComponent={renderFooter()}
         >
-            <View className="flex-1 px-4">
-                {/* Photo Picker */}
-                <View className="items-center mb-4">
-                    <TouchableOpacity
-                        onPress={showImagePicker}
-                        activeOpacity={0.7}
-                        className="w-24 h-24 rounded-full items-center justify-center overflow-hidden"
-                        style={{ backgroundColor: colors.muted }}
-                    >
-                        {displayPhoto ? (
-                            <Image
-                                source={{ uri: displayPhoto }}
-                                className="w-full h-full"
-                                resizeMode="cover"
-                            />
-                        ) : (
-                            <View className="items-center justify-center">
-                                <Users size={32} color={colors['muted-foreground']} />
-                                <Camera size={16} color={colors['muted-foreground']} style={{ position: 'absolute', bottom: -2, right: -2 }} />
-                            </View>
-                        )}
-                    </TouchableOpacity>
-                    <Text variant="caption" className="mt-2 text-muted-foreground">
-                        Tap to add photo
-                    </Text>
-                </View>
-
-                {/* Form */}
-                <View className="mb-6">
-                    <Input
-                        label="Group Name"
-                        placeholder="e.g., Girl Group, Family"
-                        value={name}
-                        onChangeText={setName}
-                        autoCapitalize="words"
-                    />
-                </View>
-
-                <View className="flex-1 mb-2">
-                    <Text variant="h4" className="mb-2 text-muted-foreground font-medium">
-                        Select Members ({selectedFriendIds.length})
-                    </Text>
-
-                    <FlatList
-                        data={allFriends}
-                        keyExtractor={item => item.id}
-                        renderItem={renderFriendItem}
-                        showsVerticalScrollIndicator={false}
-                        contentContainerStyle={{ paddingBottom: 120 }}
-                        nestedScrollEnabled={true}
-                    />
-                </View>
-
-                {/* Footer Actions */}
-                <View className="absolute bottom-0 left-0 right-0 p-4 border-t border-border bg-background flex-row gap-3">
-                    {groupToEdit && (
-                        <Button
-                            onPress={handleDelete}
-                            variant="destructive"
-                            className="px-4"
-                        >
-                            <Trash2 size={20} color={colors['destructive-foreground']} />
-                        </Button>
-                    )}
-
-                    <Button
-                        onPress={handleSave}
-                        variant="primary"
-                        disabled={isSaving}
-                        className="flex-1"
-                        label={isSaving ? 'Saving...' : (groupToEdit ? 'Done' : 'Save Group')}
-                    />
-                </View>
-            </View>
+            <></>
         </StandardBottomSheet>
     );
 }
+
+

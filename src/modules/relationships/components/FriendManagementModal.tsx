@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Alert, FlatList, TouchableOpacity } from 'react-native';
+import { BottomSheetFlatList } from '@gorhom/bottom-sheet';
 import { Trash2, Check, Users } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { StandardBottomSheet } from '@/shared/ui/Sheet';
@@ -97,7 +98,24 @@ export function FriendManagementModal({ visible, onClose }: FriendManagementModa
 
   const sortedFriends = friends ? [...friends].sort((a, b) => a.name.localeCompare(b.name)) : [];
 
-  const renderItem = ({ item: friend }: { item: FriendModel }) => {
+  const renderHeader = React.useCallback(() => (
+    <View className="flex-row gap-3 mb-4">
+      <Button
+        onPress={selectAll}
+        variant="secondary"
+        className="flex-1"
+        label="Select All"
+      />
+      <Button
+        onPress={deselectAll}
+        variant="secondary"
+        className="flex-1"
+        label="Deselect All"
+      />
+    </View>
+  ), [selectAll, deselectAll]);
+
+  const renderItem = React.useCallback(({ item: friend }: { item: FriendModel }) => {
     const isSelected = selectedIds.has(friend.id);
     const currentScore = calculateCurrentScore(friend);
 
@@ -136,7 +154,37 @@ export function FriendManagementModal({ visible, onClose }: FriendManagementModa
         </Card>
       </TouchableOpacity>
     );
-  };
+  }, [colors, selectedIds, toggleSelection]);
+
+  const renderEmpty = React.useCallback(() => (
+    <View className="items-center py-10">
+      <Text variant="body" className="text-center" style={{ color: colors['muted-foreground'] }}>
+        No friends to manage
+      </Text>
+    </View>
+  ), [colors]);
+
+  const renderFooter = React.useCallback(() => (
+    <Button
+      onPress={handleDelete}
+      variant="destructive"
+      disabled={selectedIds.size === 0 || isDeleting}
+      className="w-full"
+      label={isDeleting ? 'Deleting...' : `Delete ${selectedIds.size} Friend${selectedIds.size !== 1 ? 's' : ''}`}
+    />
+  ), [handleDelete, selectedIds.size, isDeleting]);
+
+  const renderContent = React.useCallback(() => (
+    <BottomSheetFlatList
+      data={sortedFriends}
+      keyExtractor={item => item.id}
+      renderItem={renderItem}
+      contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }}
+      ListHeaderComponent={renderHeader}
+      ListEmptyComponent={renderEmpty}
+      showsVerticalScrollIndicator={false}
+    />
+  ), [sortedFriends, renderItem, renderHeader, renderEmpty]);
 
   return (
     <StandardBottomSheet
@@ -144,51 +192,11 @@ export function FriendManagementModal({ visible, onClose }: FriendManagementModa
       onClose={onClose}
       title="Manage Friends"
       snapPoints={['90%']}
-      disableContentPanning
+      disableContentPanning={true}
+      renderScrollContent={renderContent}
+      footerComponent={renderFooter()}
     >
-      <View className="flex-1 px-4">
-        {/* Selection Controls */}
-        <View className="flex-row gap-3 mb-4">
-          <Button
-            onPress={selectAll}
-            variant="secondary"
-            className="flex-1"
-            label="Select All"
-          />
-          <Button
-            onPress={deselectAll}
-            variant="secondary"
-            className="flex-1"
-            label="Deselect All"
-          />
-        </View>
-
-        {/* Friend List */}
-        <FlatList
-          data={sortedFriends}
-          keyExtractor={item => item.id}
-          renderItem={renderItem}
-          contentContainerStyle={{ paddingBottom: 120 }}
-          ListEmptyComponent={
-            <View className="items-center py-10">
-              <Text variant="body" className="text-center" style={{ color: colors['muted-foreground'] }}>
-                No friends to manage
-              </Text>
-            </View>
-          }
-        />
-
-        {/* Footer */}
-        <View className="absolute bottom-0 left-0 right-0 p-4 border-t" style={{ borderColor: colors.border, backgroundColor: colors.background }}>
-          <Button
-            onPress={handleDelete}
-            variant="destructive"
-            disabled={selectedIds.size === 0 || isDeleting}
-            className="w-full"
-            label={isDeleting ? 'Deleting...' : `Delete ${selectedIds.size} Friend${selectedIds.size !== 1 ? 's' : ''}`}
-          />
-        </View>
-      </View>
+      <></>
     </StandardBottomSheet>
   );
 }

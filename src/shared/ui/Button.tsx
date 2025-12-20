@@ -56,18 +56,18 @@ export function Button({
 
     // Determine text color based on variant
     // We pass this as className to the Text component to override default color
-    const getTextColorClass = () => {
+    const getTextColorStyle = () => {
         switch (variant) {
-            case 'primary': return 'text-primary-foreground';
-            case 'secondary': return 'text-secondary-foreground';
-            case 'destructive': return 'text-destructive-foreground';
+            case 'primary': return { color: colors['primary-foreground'] };
+            case 'secondary': return { color: colors['secondary-foreground'] };
+            case 'destructive': return { color: colors['destructive-foreground'] };
             case 'outline':
             case 'ghost':
-            default: return 'text-foreground';
+            default: return { color: colors.foreground };
         }
     };
 
-    const textClass = getTextColorClass();
+    const textStyle = getTextColorStyle();
 
     return (
         <TouchableOpacity
@@ -88,11 +88,7 @@ export function Button({
                     {label ? (
                         <Text
                             variant="button"
-                            className={textClass}
-                        // We don't use 'color' prop here, we assume className handles it.
-                        // However, Text component default 'color="default"' adds 'text-foreground'.
-                        // If we pass className 'text-primary-foreground', it should win via cascade or order.
-                        // In my Text implementation, className is last, so it should win.
+                            style={textStyle}
                         >
                             {label}
                         </Text>

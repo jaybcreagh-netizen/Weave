@@ -191,7 +191,7 @@ export function IntentionsList({ intentions, onIntentionPress }: IntentionsListP
                 </View>
               </View>
 
-              <Text variant="body" weight="bold" numberOfLines={1} style={{ marginBottom: 4, lineHeight: 22 }}>
+              <Text variant="body" weight="bold" numberOfLines={1} style={{ marginBottom: 4, lineHeight: 22, color: colors.foreground }}>
                 {friend.name}
               </Text>
 

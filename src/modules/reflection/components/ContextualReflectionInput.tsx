@@ -50,15 +50,27 @@ export function ContextualReflectionInput({
   const { colors } = useTheme();
   const [nextChipType, setNextChipType] = useState<ChipType | null>('activity');
   const [patternInsights, setPatternInsights] = useState<PatternInsight[]>([]);
+  const [debouncedCustomNotes, setDebouncedCustomNotes] = useState(value.customNotes || '');
+
+  // Debounce custom notes to prevent heavy analysis on every keystroke
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedCustomNotes(value.customNotes || '');
+    }, 400);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value.customNotes]);
 
   // Generate contextual prompt based on user's text
   const contextualPrompt = useMemo(() => {
-    if (!value.customNotes || value.customNotes.trim().length === 0) {
+    if (!debouncedCustomNotes || debouncedCustomNotes.trim().length === 0) {
       return null;
     }
-    const themes = analyzeText(value.customNotes);
+    const themes = analyzeText(debouncedCustomNotes);
     return generateContextualPrompt(themes);
-  }, [value.customNotes]);
+  }, [debouncedCustomNotes]);
 
   // Calculate reflection quality
   const reflectionQuality = useMemo(() => {
@@ -70,7 +82,7 @@ export function ContextualReflectionInput({
       }).filter(Boolean)
     ).size;
 
-    const customNotesLength = (value.customNotes || '').trim().length;
+    const customNotesLength = (debouncedCustomNotes || '').trim().length;
 
     // Check for vulnerability chips (deep, personal, struggles themes)
     const vulnerabilityChipIds = [
@@ -87,7 +99,7 @@ export function ContextualReflectionInput({
       vulnerabilityChipIds.includes(chip.chipId)
     );
 
-    const themes = customNotesLength > 0 ? analyzeText(value.customNotes || '') : { sentiment: 'neutral' as const };
+    const themes = customNotesLength > 0 ? analyzeText(debouncedCustomNotes || '') : { sentiment: 'neutral' as const };
 
     return calculateReflectionQuality(
       chipCount,
@@ -96,7 +108,7 @@ export function ContextualReflectionInput({
       hasVulnerabilityChips,
       themes.sentiment
     );
-  }, [value.chips, value.customNotes]);
+  }, [value.chips, debouncedCustomNotes]);
 
   // Update next chip type when chips change
   useEffect(() => {
@@ -225,7 +237,9 @@ export function ContextualReflectionInput({
           tier={tier}
           interactionCount={interactionCount}
           daysSinceLastInteraction={daysSinceLastInteraction}
-          userText={value.customNotes}
+          interactionCount={interactionCount}
+          daysSinceLastInteraction={daysSinceLastInteraction}
+          userText={debouncedCustomNotes}
           onChipSelect={handleChipSelect}
         />
       )}

@@ -185,11 +185,11 @@ export function FriendSelector({
         );
     };
 
-    const ListComponent = (asModal ? FlatList : BottomSheetFlatList) as unknown as typeof FlatList;
+    // --- RENDER HELPERS ---
 
-    const Content = (
-        <View className="flex-1">
-            {/* Header - Only show in modal mode */}
+    const renderHeader = () => (
+        <View className="bg-background">
+            {/* Header - Only for Modal (Sheet has its own title) */}
             {asModal && (
                 <View className="flex-row justify-between items-center p-5 border-b" style={{ borderColor: colors.border }}>
                     <Text className="font-lora-bold text-xl" style={{ color: colors.foreground }}>
@@ -239,9 +239,9 @@ export function FriendSelector({
                 </TouchableOpacity>
             </View>
 
-            {activeTab === 'friends' ? (
+            {/* Friends Tab Header Content */}
+            {activeTab === 'friends' && (
                 <>
-                    {/* Search Bar */}
                     <View className="px-5 py-3">
                         <View
                             className="flex-row items-center px-4 py-3 rounded-xl"
@@ -264,7 +264,6 @@ export function FriendSelector({
                         </View>
                     </View>
 
-                    {/* Relevant Groups (Quick Select) */}
                     {relevantGroups.length > 0 && (
                         <View className="px-5 pb-2">
                             <Text className="font-inter-medium text-xs mb-2" style={{ color: colors['muted-foreground'] }}>
@@ -275,110 +274,31 @@ export function FriendSelector({
                             </View>
                         </View>
                     )}
-
-                    {/* Friends List */}
-                    <ListComponent
-                        style={{ flex: 1 }}
-                        data={filteredFriends}
-                        renderItem={renderFriendItem}
-                        keyExtractor={(item: { id: any; }) => item.id}
-                        contentContainerStyle={{ paddingBottom: 100 }}
-                        showsVerticalScrollIndicator={false}
-                        ListEmptyComponent={
-                            <View className="items-center py-12">
-                                <Text style={{ color: colors['muted-foreground'] }}>No friends found</Text>
-                            </View>
-                        }
-                    />
-                </>
-            ) : (
-                <>
-                    {/* Groups List */}
-                    <ListComponent
-                        style={{ flex: 1 }}
-                        data={groups}
-                        renderItem={renderGroupItem}
-                        keyExtractor={(item: { id: any; }) => item.id}
-                        contentContainerStyle={{ paddingBottom: 100 }}
-                        showsVerticalScrollIndicator={false}
-                        ListHeaderComponent={
-                            <TouchableOpacity
-                                className="flex-row items-center p-4 border-b"
-                                style={{ borderColor: colors.border }}
-                                onPress={() => {
-                                    setEditingGroup(undefined);
-                                    setIsGroupModalVisible(true);
-                                }}
-                            >
-                                <View className="w-10 h-10 rounded-full items-center justify-center mr-3" style={{ backgroundColor: colors.primary }}>
-                                    <Plus size={20} color={colors.background} />
-                                </View>
-                                <Text className="font-inter-medium text-base" style={{ color: colors.primary }}>
-                                    Create New Group
-                                </Text>
-                            </TouchableOpacity>
-                        }
-                        ListEmptyComponent={
-                            <View className="items-center py-12 px-10">
-                                <Text className="text-center mb-2" style={{ color: colors.foreground }}>No groups yet</Text>
-                                <Text className="text-center text-sm" style={{ color: colors['muted-foreground'] }}>
-                                    Create a group to easily select multiple friends at once (e.g., "Family", "Girl Group").
-                                </Text>
-                            </View>
-                        }
-                    />
                 </>
             )}
 
-            {/* Done Button - Only in modal mode (StandardBottomSheet uses footerComponent) */}
-            {asModal && (
-                <View
-                    className="absolute bottom-0 left-0 right-0 p-5 border-t"
-                    style={{
-                        backgroundColor: colors.background,
-                        borderColor: colors.border,
-                        paddingBottom: 30 // Safe area padding
+            {/* Groups Tab Header Content */}
+            {activeTab === 'groups' && (
+                <TouchableOpacity
+                    className="flex-row items-center p-4 border-b border-t"
+                    style={{ borderColor: colors.border }}
+                    onPress={() => {
+                        setEditingGroup(undefined);
+                        setIsGroupModalVisible(true);
                     }}
                 >
-                    <TouchableOpacity
-                        onPress={onClose}
-                        className="py-4 rounded-xl items-center"
-                        style={{ backgroundColor: colors.primary }}
-                    >
-                        <Text className="font-inter-semibold text-base" style={{ color: colors.background }}>
-                            Done ({selectedFriends.length})
-                        </Text>
-                    </TouchableOpacity>
-                </View>
-            )}
-
-            {isGroupModalVisible && (
-                <GroupManagerModal
-                    visible={isGroupModalVisible}
-                    onClose={() => setIsGroupModalVisible(false)}
-                    groupToEdit={editingGroup}
-                    onGroupSaved={loadGroups}
-                />
+                    <View className="w-10 h-10 rounded-full items-center justify-center mr-3" style={{ backgroundColor: colors.primary }}>
+                        <Plus size={20} color={colors.background} />
+                    </View>
+                    <Text className="font-inter-medium text-base" style={{ color: colors.primary }}>
+                        Create New Group
+                    </Text>
+                </TouchableOpacity>
             )}
         </View>
     );
 
-    if (asModal) {
-        return (
-            <Modal
-                visible={visible}
-                animationType="slide"
-                presentationStyle="pageSheet"
-                onRequestClose={onClose}
-            >
-                <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
-                    {Content}
-                </SafeAreaView>
-            </Modal>
-        );
-    }
-
-    const footerContent = (
+    const renderFooter = () => (
         <TouchableOpacity
             onPress={onClose}
             className="py-4 rounded-xl items-center"
@@ -389,16 +309,99 @@ export function FriendSelector({
             </Text>
         </TouchableOpacity>
     );
+
+    const renderEmpty = () => (
+        <View className="items-center py-12 px-10">
+            {activeTab === 'friends' ? (
+                <Text style={{ color: colors['muted-foreground'] }}>No friends found</Text>
+            ) : (
+                <>
+                    <Text className="text-center mb-2" style={{ color: colors.foreground }}>No groups yet</Text>
+                    <Text className="text-center text-sm" style={{ color: colors['muted-foreground'] }}>
+                        Create a group to easily select multiple friends at once (e.g., "Family", "Girl Group").
+                    </Text>
+                </>
+            )}
+        </View>
+    );
+
+    // --- MODAL RENDER ---
+    if (asModal) {
+        return (
+            <Modal
+                visible={visible}
+                animationType="slide"
+                presentationStyle="pageSheet"
+                onRequestClose={onClose}
+            >
+                <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
+                    <View className="flex-1">
+                        <FlatList
+                            data={activeTab === 'friends' ? filteredFriends : groups}
+                            renderItem={activeTab === 'friends' ? renderFriendItem : renderGroupItem as any}
+                            keyExtractor={(item: any) => item.id}
+                            ListHeaderComponent={renderHeader}
+                            ListEmptyComponent={renderEmpty}
+                            contentContainerStyle={{ paddingBottom: 100 }}
+                            showsVerticalScrollIndicator={false}
+                        />
+                        <View
+                            className="absolute bottom-0 left-0 right-0 p-5 border-t"
+                            style={{
+                                backgroundColor: colors.background,
+                                borderColor: colors.border,
+                                paddingBottom: 30
+                            }}
+                        >
+                            {renderFooter()}
+                        </View>
+                        {isGroupModalVisible && (
+                            <GroupManagerModal
+                                visible={isGroupModalVisible}
+                                onClose={() => setIsGroupModalVisible(false)}
+                                groupToEdit={editingGroup}
+                                onGroupSaved={loadGroups}
+                            />
+                        )}
+                    </View>
+                </SafeAreaView>
+            </Modal>
+        );
+    }
+
+    // --- SHEET RENDER ---
+    const renderSheetContent = () => (
+        <BottomSheetFlatList
+            data={activeTab === 'friends' ? filteredFriends : groups}
+            renderItem={activeTab === 'friends' ? renderFriendItem : renderGroupItem as any}
+            keyExtractor={(item: any) => item.id}
+            ListHeaderComponent={renderHeader}
+            ListEmptyComponent={renderEmpty}
+            contentContainerStyle={{ paddingBottom: 24 }}
+            showsVerticalScrollIndicator={false}
+        />
+    );
+
     return (
         <StandardBottomSheet
             visible={visible}
             onClose={onClose}
             height="full"
             title="Add Friends"
-            footerComponent={footerContent}
+            renderScrollContent={renderSheetContent}
+            footerComponent={renderFooter()}
             disableContentPanning
         >
-            {Content}
+            {/* Children required by type but not used when renderScrollContent is present */}
+            <></>
+            {isGroupModalVisible && (
+                <GroupManagerModal
+                    visible={isGroupModalVisible}
+                    onClose={() => setIsGroupModalVisible(false)}
+                    groupToEdit={editingGroup}
+                    onGroupSaved={loadGroups}
+                />
+            )}
         </StandardBottomSheet>
     );
 }

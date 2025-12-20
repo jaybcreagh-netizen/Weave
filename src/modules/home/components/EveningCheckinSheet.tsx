@@ -6,6 +6,7 @@ import * as Haptics from 'expo-haptics';
 import { format } from 'date-fns';
 
 import { useTheme } from '@/shared/hooks/useTheme';
+import { getTokens } from '@/shared/theme/tokens';
 import { AnimatedBottomSheet } from '@/shared/ui/Sheet';
 import { Card } from '@/shared/ui/Card';
 import { Button } from '@/shared/ui/Button';
@@ -24,14 +25,7 @@ interface EveningCheckinSheetProps {
     onDismissSuggestion?: (suggestionId: string) => void;
 }
 
-// Battery level states with moon phases
-const BATTERY_STATES = [
-    { value: 1, label: 'Depleted', color: '#F87171', desc: 'Need complete solitude' },
-    { value: 2, label: 'Low', color: '#FBBF24', desc: 'Prefer quiet time' },
-    { value: 3, label: 'Balanced', color: '#FCD34D', desc: 'Open to connection' },
-    { value: 4, label: 'Good', color: '#6EE7B7', desc: 'Seeking connection' },
-    { value: 5, label: 'High', color: '#34D399', desc: 'Craving interaction' },
-];
+// Battery levels definition moved inside component to access theme colors
 
 export const EveningCheckinSheet: React.FC<EveningCheckinSheetProps> = ({
     isVisible,
@@ -41,7 +35,11 @@ export const EveningCheckinSheet: React.FC<EveningCheckinSheetProps> = ({
     onConfirmPlan,
     onDismissSuggestion,
 }) => {
-    const { colors, typography } = useTheme();
+    const { isDarkMode } = useTheme();
+    const tokens = getTokens(isDarkMode);
+    // Backward compatibility for existing code using 'colors' from legacy theme
+    // We want to use 'tokens' for new semantic colors like warning/success
+    const colors = tokens;
     const router = useRouter();
 
     // Battery state
@@ -55,6 +53,17 @@ export const EveningCheckinSheet: React.FC<EveningCheckinSheetProps> = ({
             setBatterySubmitted(content.hasBatteryCheckinToday);
         }
     }, [isVisible, content.hasBatteryCheckinToday]);
+
+    // Battery level states with moon phases - Dynamic based on theme
+    const batteryStates = React.useMemo(() => [
+        { value: 1, label: 'Depleted', color: tokens.destructive, desc: 'Need complete solitude' },
+        { value: 2, label: 'Low', color: tokens.warning, desc: 'Prefer quiet time' },
+        { value: 3, label: 'Balanced', color: tokens.primary, desc: 'Open to connection' },
+        { value: 4, label: 'Good', color: tokens.success, desc: 'Seeking connection' },
+        { value: 5, label: 'High', color: tokens.celebrate, desc: 'Craving interaction' },
+    ], [tokens]);
+
+    const currentBatteryState = batteryStates.find(s => s.value === batteryLevel) || batteryStates[2];
 
     const handleSliderChange = (value: number) => {
         const rounded = Math.round(value);
@@ -84,8 +93,6 @@ export const EveningCheckinSheet: React.FC<EveningCheckinSheetProps> = ({
         }
     };
 
-    const currentBatteryState = BATTERY_STATES.find(s => s.value === batteryLevel) || BATTERY_STATES[2];
-
     const hasTodaysWeaves = content.todaysWeaves.completed.length > 0 || content.todaysWeaves.unconfirmed.length > 0;
     const hasTomorrow = content.tomorrow.length > 0;
 
@@ -109,7 +116,7 @@ export const EveningCheckinSheet: React.FC<EveningCheckinSheetProps> = ({
                 </Text>
                 <Text
                     className="text-base font-inter"
-                    style={{ color: colors['muted-foreground'] }}
+                    style={{ color: colors.foregroundMuted }}
                 >
                     {format(new Date(), 'EEEE, MMMM d')}
                 </Text>
@@ -140,7 +147,7 @@ export const EveningCheckinSheet: React.FC<EveningCheckinSheetProps> = ({
                             </Text>
                             <Text
                                 className="text-sm font-inter"
-                                style={{ color: colors['muted-foreground'] }}
+                                style={{ color: colors.foregroundMuted }}
                             >
                                 {currentBatteryState.desc}
                             </Text>
@@ -160,10 +167,10 @@ export const EveningCheckinSheet: React.FC<EveningCheckinSheetProps> = ({
                                 thumbTintColor={currentBatteryState.color}
                             />
                             <View className="flex-row justify-between px-1">
-                                <Text className="text-xs font-inter" style={{ color: colors['muted-foreground'] }}>
+                                <Text className="text-xs font-inter" style={{ color: colors.foregroundMuted }}>
                                     Depleted
                                 </Text>
-                                <Text className="text-xs font-inter" style={{ color: colors['muted-foreground'] }}>
+                                <Text className="text-xs font-inter" style={{ color: colors.foregroundMuted }}>
                                     High
                                 </Text>
                             </View>
@@ -209,7 +216,7 @@ export const EveningCheckinSheet: React.FC<EveningCheckinSheetProps> = ({
                                     compact
                                     showDivider={i < content.todaysWeaves.completed.length - 1 || content.todaysWeaves.unconfirmed.length > 0}
                                     trailing={
-                                        <ChevronRight size={18} color={colors['muted-foreground']} />
+                                        <ChevronRight size={18} color={colors.foregroundMuted} />
                                     }
                                     onPress={() => handleItemAction(item)}
                                 />
@@ -230,7 +237,7 @@ export const EveningCheckinSheet: React.FC<EveningCheckinSheetProps> = ({
                                             className="px-3 py-1.5 rounded-lg"
                                             style={{ backgroundColor: colors.primary }}
                                         >
-                                            <Text className="text-xs font-inter-semibold" style={{ color: colors['primary-foreground'] }}>
+                                            <Text className="text-xs font-inter-semibold" style={{ color: colors.primaryForeground }}>
                                                 Confirm
                                             </Text>
                                         </TouchableOpacity>
@@ -258,7 +265,7 @@ export const EveningCheckinSheet: React.FC<EveningCheckinSheetProps> = ({
                                     compact
                                     showDivider={i < content.tomorrow.length - 1}
                                     trailing={
-                                        <ChevronRight size={18} color={colors['muted-foreground']} />
+                                        <ChevronRight size={18} color={colors.foregroundMuted} />
                                     }
                                     onPress={() => handleItemAction(item)}
                                 />
@@ -284,7 +291,7 @@ export const EveningCheckinSheet: React.FC<EveningCheckinSheetProps> = ({
                         </Text>
                         <Text
                             className="text-sm font-inter mb-4"
-                            style={{ color: colors['muted-foreground'] }}
+                            style={{ color: colors.foregroundMuted }}
                         >
                             {content.topSuggestion.subtitle}
                         </Text>
@@ -320,7 +327,7 @@ export const EveningCheckinSheet: React.FC<EveningCheckinSheetProps> = ({
                     </Text>
                     <Text
                         className="text-base font-inter text-center px-8"
-                        style={{ color: colors['muted-foreground'] }}
+                        style={{ color: colors.foregroundMuted }}
                     >
                         No pending plans or suggestions. Rest easy!
                     </Text>

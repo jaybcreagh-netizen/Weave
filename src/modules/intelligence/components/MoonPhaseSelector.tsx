@@ -175,7 +175,7 @@ export function MoonPhaseSelector({ onSelect, selectedVibe }: MoonPhaseSelectorP
           value={sliderValue}
           onValueChange={handleSliderChange}
           minimumTrackTintColor={colors.primary}
-          maximumTrackTintColor={colors.border}
+          maximumTrackTintColor={colors['muted-foreground']} // Improved visibility in dark mode
           thumbTintColor={colors.primary}
         />
       </View>

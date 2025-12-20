@@ -9,6 +9,7 @@ import { database } from '@/db';
 import EveningDigest from '@/db/models/EveningDigest';
 import SocialBatteryLog from '@/db/models/SocialBatteryLog';
 import Interaction from '@/db/models/Interaction';
+import Friend from '@/db/models/Friend';
 import { Q } from '@nozbe/watermelondb';
 
 export interface DigestItem {
@@ -197,11 +198,33 @@ export const EveningDigestChannel: NotificationChannel & {
                 )
                 .fetch();
 
-            todaysInteractions.forEach(interaction => {
+            await Promise.all(todaysInteractions.map(async (interaction) => {
+                let title = interaction.title;
+
+                if (!title) {
+                    try {
+                        const joinRecords = await interaction.interactionFriends.fetch();
+                        const friendIds = joinRecords.map(r => r.friendId);
+
+                        let friendNames = '';
+                        if (friendIds.length > 0) {
+                            const friends = await database.get<Friend>('friends').query(Q.where('id', Q.oneOf(friendIds))).fetch();
+                            friendNames = friends.map(f => f.name).join(', ');
+                        }
+
+                        const type = (interaction.interactionType || 'weave').replace(/_/g, ' ');
+                        const capitalizedType = type.charAt(0).toUpperCase() + type.slice(1);
+
+                        title = friendNames ? `${capitalizedType} with ${friendNames}` : capitalizedType;
+                    } catch (e) {
+                        title = 'Untitled Weave';
+                    }
+                }
+
                 const item: DigestItem = {
                     type: interaction.status === 'completed' ? 'interaction' : 'plan',
                     priority: interaction.status === 'completed' ? 80 : 90,
-                    title: interaction.title || 'Untitled Weave',
+                    title: title,
                     subtitle: interaction.status === 'completed' ? 'Completed today' : 'Needs confirmation',
                     interactionId: interaction.id,
                     data: { status: interaction.status }
@@ -212,7 +235,7 @@ export const EveningDigestChannel: NotificationChannel & {
                 } else if (interaction.status === 'planned') {
                     todaysUnconfirmed.push(item);
                 }
-            });
+            }));
         } catch (error) {
             Logger.warn('[EveningCheckin] Error fetching today\'s interactions:', error);
         }
@@ -231,15 +254,37 @@ export const EveningDigestChannel: NotificationChannel & {
                 )
                 .fetch();
 
-            tomorrowInteractions.slice(0, 2).forEach(interaction => {
+            await Promise.all(tomorrowInteractions.slice(0, 2).map(async (interaction) => {
+                let title = interaction.title;
+
+                if (!title) {
+                    try {
+                        const joinRecords = await interaction.interactionFriends.fetch();
+                        const friendIds = joinRecords.map(r => r.friendId);
+
+                        let friendNames = '';
+                        if (friendIds.length > 0) {
+                            const friends = await database.get<Friend>('friends').query(Q.where('id', Q.oneOf(friendIds))).fetch();
+                            friendNames = friends.map(f => f.name).join(', ');
+                        }
+
+                        const type = (interaction.interactionType || 'weave').replace(/_/g, ' ');
+                        const capitalizedType = type.charAt(0).toUpperCase() + type.slice(1);
+
+                        title = friendNames ? `${capitalizedType} with ${friendNames}` : capitalizedType;
+                    } catch (e) {
+                        title = 'Planned Weave';
+                    }
+                }
+
                 tomorrowItems.push({
                     type: 'plan',
                     priority: 85,
-                    title: interaction.title || 'Planned Weave',
+                    title: title,
                     subtitle: 'Tomorrow',
                     interactionId: interaction.id,
                 });
-            });
+            }));
         } catch (error) {
             Logger.warn('[EveningCheckin] Error fetching tomorrow\'s plans:', error);
         }

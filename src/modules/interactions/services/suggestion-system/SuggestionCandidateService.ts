@@ -31,12 +31,29 @@ export const SuggestionCandidateService = {
 
         // 1. Drifting Friends (Low Score)
         // Strict cap at DRIFT_LIMIT
-        const driftingFriends = await database.get<FriendModel>('friends')
+        // 1. Drifting Friends (Low Score)
+        // Strict cap at DRIFT_LIMIT
+        // Tier-aware drifting:
+        // InnerCircle < 50
+        // CloseFriends < 30
+        // Community < 20
+        // We fetch candidates with score < 50 (max threshold) and filter in memory for precision
+        const potentialDrifters = await database.get<FriendModel>('friends')
             .query(
                 Q.where('weave_score', Q.lt(50)),
                 Q.sortBy('weave_score', Q.asc), // Lowest score first
-                Q.take(DRIFT_LIMIT)
+                Q.take(50) // Fetch more than limit to allow for filtering
             ).fetch();
+
+        const driftingFriends = potentialDrifters.filter(f => {
+            const tier = (f.dunbarTier || 'Community') as keyof typeof threshold;
+            const threshold = {
+                InnerCircle: 50,
+                CloseFriends: 30,
+                Community: 20
+            };
+            return f.weaveScore < (threshold[tier] || 20);
+        }).slice(0, DRIFT_LIMIT);
 
         // DIAGNOSTIC: Log drifting friends count
         Logger.warn(`[Candidates] Drifting friends found: ${driftingFriends.length}`);

@@ -48,17 +48,21 @@ const DAILY_REFLECT_PROMPTS: ReflectPrompt[] = [
 // Spontaneous ideas for exploration and serendipity
 // ============================================================================
 
+
 interface WildcardSuggestion {
     title: string;
     subtitle: string;
     icon: string;
     actionType: 'log' | 'plan';
     prefilledCategory?: string;
+    requiresFriend?: boolean;
+    friendCriteria?: 'any' | 'inner-circle' | 'overdue';
 }
 
+
 const WILDCARD_SUGGESTIONS: WildcardSuggestion[] = [
-    { title: "Voice note surprise", subtitle: "Send a quick voice note to say you're thinking of them", icon: "Mic", actionType: 'log', prefilledCategory: 'voice-note' },
-    { title: "Try something new", subtitle: "Invite a friend to an activity you've never done together", icon: "Compass", actionType: 'plan', prefilledCategory: 'activity-hobby' },
+    { title: "Voice note surprise", subtitle: "Send a quick voice note to say you're thinking of them", icon: "Mic", actionType: 'log', prefilledCategory: 'voice-note', requiresFriend: true, friendCriteria: 'any' },
+    { title: "Try something new", subtitle: "Invite a friend to an activity you've never done together", icon: "Compass", actionType: 'plan', prefilledCategory: 'activity-hobby', requiresFriend: true, friendCriteria: 'inner-circle' },
     { title: "Spontaneous check-in", subtitle: "Send a 'just thinking of you' text to brighten their day", icon: "MessageCircle", actionType: 'log', prefilledCategory: 'text-call' },
     { title: "Group spark", subtitle: "Plan a casual hangout with two friends who'd enjoy meeting", icon: "Users", actionType: 'plan', prefilledCategory: 'hangout' },
     { title: "Deep dive", subtitle: "Schedule a heart-to-heart with someone you haven't caught up with properly", icon: "Coffee", actionType: 'plan', prefilledCategory: 'deep-talk' },
@@ -401,32 +405,52 @@ function generateWildcard(
         template = WILDCARD_SUGGESTIONS[Math.floor(Math.random() * WILDCARD_SUGGESTIONS.length)];
     }
 
-    // Some wildcards work better with a specific friend
+    // Some wildcards work better with a specific friend (legacy list, now largely superseded by properties)
     const friendOrientedWildcards = [
         'Voice note surprise', 'Spontaneous check-in', 'Deep dive',
         'Morning check-in', 'Evening catch-up', 'Slow Sunday'
     ];
-    const needsFriend = friendOrientedWildcards.some(w => template.title.includes(w));
+
+    // Check if template REQUIRES a friend (new property) or is in the legacy list
+    const needsFriend = template.requiresFriend || friendOrientedWildcards.some(w => template.title.includes(w));
 
     let targetFriend: FriendModel | null = null;
 
     if (needsFriend) {
-        // Find an eligible friend, prefer those with lower scores (slightly overdue)
-        const eligibleFriends = friends.filter(f => {
-            if (f.isDormant) return false;
-            if (excludeFriendIds.has(f.id)) return false;
-            return true;
-        });
+        // Start with all non-dormant, non-excluded friends
+        let possibleFriends = friends.filter(f => !f.isDormant && !excludeFriendIds.has(f.id));
 
-        if (eligibleFriends.length > 0) {
-            // Bias toward friends with lower scores (30-70 range)
-            const sortedByScore = eligibleFriends
-                .map(f => ({ friend: f, score: calculateCurrentScore(f) }))
-                .sort((a, b) => a.score - b.score);
+        // Apply criteria if present
+        if (template.friendCriteria === 'inner-circle') {
+            // For Inner Circle, we want active connections (regularly connecting)
+            // So we prioritize Inner Circle tier
+            const innerCircle = possibleFriends.filter(f => f.dunbarTier === 'InnerCircle');
+            if (innerCircle.length > 0) {
+                possibleFriends = innerCircle;
+            }
+            // If no Inner Circle friends available, we fall back to 'any' (remaining in possibleFriends)
+        }
 
-            // Pick from bottom half preferentially
-            const pickIndex = Math.floor(Math.random() * Math.min(sortedByScore.length, Math.ceil(sortedByScore.length / 2) + 2));
-            targetFriend = sortedByScore[pickIndex].friend;
+        if (possibleFriends.length > 0) {
+            let sortedByScore = possibleFriends
+                .map(f => ({ friend: f, score: calculateCurrentScore(f) }));
+
+            if (template.friendCriteria === 'inner-circle') {
+                // For Inner Circle tasks like "Try Something New", we want people we ALREADY see often
+                // So we prioritize HIGHER scores (top 50%)
+                sortedByScore.sort((a, b) => b.score - a.score); // Descending
+
+                // Pick from top 3 to keep it relevant but slightly random
+                const pickIndex = Math.floor(Math.random() * Math.min(sortedByScore.length, 3));
+                targetFriend = sortedByScore[pickIndex].friend;
+            } else {
+                // Default / Overdue behavior: bias toward LOWER scores (reconnection)
+                sortedByScore.sort((a, b) => a.score - b.score); // Ascending
+
+                // Pick from bottom half (slightly overdue)
+                const pickIndex = Math.floor(Math.random() * Math.min(sortedByScore.length, Math.ceil(sortedByScore.length / 2) + 2));
+                targetFriend = sortedByScore[pickIndex].friend;
+            }
         }
     }
 

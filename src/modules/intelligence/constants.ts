@@ -3,8 +3,91 @@ import { Tier, InteractionType, InteractionCategory, Duration, Vibe, Archetype }
 export const TierDecayRates: Record<Tier, number> = {
   InnerCircle: 2.5,
   CloseFriends: 1.5,
-  Community: 0.5,
+  Community: 0.3, // Was 0.5 - lowered to make maintenance meaningful
 };
+
+export const TierDriftingThresholds: Record<Tier, number> = {
+  InnerCircle: 50,
+  CloseFriends: 30,
+  Community: 20,
+};
+
+// --- Archetype Decay Configuration ---
+
+export interface ArchetypeDecayConfig {
+  /** Multiplier on base tier decay rate (0.5 - 1.0, never above 1.0) */
+  modifier: number;
+  /** Days after last interaction before decay begins */
+  graceDays: number;
+}
+
+export const ArchetypeDecayConfigs: Record<Archetype, ArchetypeDecayConfig> = {
+  Hermit: { modifier: 0.5, graceDays: 21 },
+  HighPriestess: { modifier: 0.7, graceDays: 14 },
+  Magician: { modifier: 0.8, graceDays: 10 },
+  Fool: { modifier: 0.8, graceDays: 14 },
+  Empress: { modifier: 0.9, graceDays: 7 },
+  Emperor: { modifier: 1.0, graceDays: 5 },
+  Lovers: { modifier: 1.0, graceDays: 5 },
+  Sun: { modifier: 1.0, graceDays: 5 },
+  Unknown: { modifier: 1.0, graceDays: 7 },
+};
+
+// --- Decay Zones ---
+
+export interface DecayZone {
+  /** Score must be >= this threshold to be in this zone */
+  threshold: number;
+  /** Multiplier applied to decay rate in this zone */
+  modifier: number;
+}
+
+export const DecayZones: DecayZone[] = [
+  { threshold: 50, modifier: 1.0 },   // 50+: Full decay (coasting territory)
+  { threshold: 30, modifier: 0.7 },   // 30-49: 70% decay (slowing down)
+  { threshold: 15, modifier: 0.4 },   // 15-29: 40% decay (crawling)
+  { threshold: 0, modifier: 0.15 },  // 0-14: 15% decay (nearly stopped, dormant)
+];
+
+/**
+ * Get the decay zone modifier for a given score.
+ * Zones are checked in order - first matching zone wins.
+ */
+export function getDecayZoneModifier(currentScore: number): number {
+  for (const zone of DecayZones) {
+    if (currentScore >= zone.threshold) {
+      return zone.modifier;
+    }
+  }
+  return 0.15; // Fallback to minimum decay
+}
+
+export const SCORE_OVERRIDE_VALUES = {
+  Healthy: 85,
+  Stable: 50,
+  Attention: 20,
+};
+
+// --- Olive Branch Configuration ---
+
+export const OLIVE_BRANCH_BONUS = 30;
+
+/**
+ * States that qualify for the olive branch bonus.
+ * Friend must be in one of these states when the interaction is logged.
+ */
+export type FriendScoringState = 'Thriving' | 'Drifting' | 'Dormant';
+
+export const OLIVE_BRANCH_ELIGIBLE_STATES: FriendScoringState[] = [
+  'Drifting',
+  'Dormant',
+];
+
+/**
+ * Archetypes that are immune to group dilution.
+ * These archetypes thrive in social settings and gain full energy from groups.
+ */
+export const GROUP_IMMUNE_ARCHETYPES: Archetype[] = ['Sun', 'Lovers', 'Magician'];
 
 /**
  * Maximum points that can be earned from a single interaction.
@@ -258,10 +341,10 @@ export const CategoryArchetypeMatrix: Record<Archetype, Record<InteractionCatego
     'favor-support': 2.0,    // Loves being useful
     'meal-drink': 1.5,       // Traditional bonding
     'text-call': 1.2,        // Keeping in touch
-    'activity-hobby': 1.0,
-    'event-party': 0.8,      // Can be overwhelming
+    'activity-hobby': 1.8,   // Shared activities
+    'event-party': 1.8,      // Commanding social presence
     'hangout': 1.2,
-    'deep-talk': 1.0,
+    'deep-talk': 0.8,        // Action over words
     'celebration': 1.0,
     'voice-note': 0.8,
   },
@@ -270,7 +353,7 @@ export const CategoryArchetypeMatrix: Record<Archetype, Record<InteractionCatego
     'favor-support': 2.0,    // Acts of service
     'deep-talk': 1.6,        // Emotional connection
     'text-call': 1.2,
-    'hangout': 1.5,
+    'hangout': 1.8,          // Presence
     'activity-hobby': 1.0,
     'event-party': 1.2,      // Hosting energy
     'celebration': 1.5,
@@ -278,7 +361,7 @@ export const CategoryArchetypeMatrix: Record<Archetype, Record<InteractionCatego
   },
   HighPriestess: {
     'deep-talk': 2.2,        // Soul connection
-    'voice-note': 1.5,       // Intuitive sharing
+    'voice-note': 1.8,       // Intuitive sharing
     'text-call': 1.0,
     'meal-drink': 1.2,
     'hangout': 1.2,          // Quiet presence
@@ -310,15 +393,15 @@ export const CategoryArchetypeMatrix: Record<Archetype, Record<InteractionCatego
     'voice-note': 1.5,
   },
   Hermit: {
-    'deep-talk': 2.0,        // One-on-one depth
+    'deep-talk': 1.2,        // Less talk, more being
     'text-call': 0.8,        // Disturbance
     'meal-drink': 1.2,       // Quiet coffee
     'hangout': 1.5,          // Parallel play
-    'activity-hobby': 1.2,   // Shared interest, low talk
+    'activity-hobby': 2.0,   // Shared interest/parallel play
     'event-party': 0.2,      // Nightmare
     'favor-support': 1.0,
     'celebration': 0.5,
-    'voice-note': 1.0,
+    'voice-note': 0.6,       // Async disconnect
   },
   Magician: {
     'activity-hobby': 2.2,   // Creating together
@@ -332,15 +415,15 @@ export const CategoryArchetypeMatrix: Record<Archetype, Record<InteractionCatego
     'voice-note': 1.8,
   },
   Lovers: {
-    'deep-talk': 2.0,
-    'meal-drink': 1.8,
-    'hangout': 1.8,
-    'text-call': 1.5,
-    'voice-note': 1.5,
-    'event-party': 1.2,
-    'activity-hobby': 1.5,
-    'favor-support': 1.8,
-    'celebration': 1.8,
+    'deep-talk': 2.2,        // Deep connection
+    'celebration': 2.2,      // Shared joy
+    'meal-drink': 1.5,
+    'hangout': 1.5,
+    'favor-support': 1.5,
+    'activity-hobby': 1.2,
+    'voice-note': 1.2,
+    'event-party': 1.0,
+    'text-call': 1.0,
   },
   Unknown: {
     'text-call': 1.0,

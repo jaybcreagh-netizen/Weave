@@ -173,16 +173,28 @@ export const FriendListRowContent = ({ friend, animatedRef, variant = 'default',
 
   const handleCardLongPress = () => {
     // Only allow long press on friend profile page (variant='full'), not on dashboard
-    if (variant !== 'full') return;
+    // if (variant !== 'full') return;
 
-    setShowDetailSheet(true);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    // We moved the Detail Sheet to onPress for 'full' variant.
+    // So we don't do anything here, potentially allowing bubbling?
+    // actually, if we want to bubble we should probably not have this handler or return false?
+    // For now, let's just disabling the local action.
+    return;
+
+    // OLD BEHAVIOR:
+    // setShowDetailSheet(true);
+    // Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
   };
 
   // Handle tap to assign archetype for Unknown archetypes
+  // AND open detail sheet for Full variant
   const handleCardPress = () => {
     if (archetype === 'Unknown') {
       setShowArchetypePicker(true);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } else if (variant === 'full') {
+      // New behavior: Open detail sheet on tap
+      setShowDetailSheet(true);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
   };
@@ -324,7 +336,7 @@ export const FriendListRowContent = ({ friend, animatedRef, variant = 'default',
         {/* Content */}
         <Pressable
           onPress={onPress ? () => onPress(friend) : handleCardPress}
-          onLongPress={handleCardLongPress}
+          onLongPress={variant === 'full' ? undefined : handleCardLongPress}
           delayLongPress={500}
           className={`flex-row items-center ${containerPadding} gap-3`}
         >

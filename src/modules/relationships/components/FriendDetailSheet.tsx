@@ -59,7 +59,7 @@ const FriendDetailSheetContent: React.FC<FriendDetailSheetProps> = ({
   friend,
   interactions,
 }) => {
-  const { colors, isDarkMode } = useTheme();
+  const { colors, tokens, isDarkMode } = useTheme();
   // const { activeFriendInteractions } = useRelationshipsStore(); // Removed
   const [shouldRender, setShouldRender] = useState(false);
   const [milestones, setMilestones] = useState<Milestone[]>([]);
@@ -113,6 +113,29 @@ const FriendDetailSheetContent: React.FC<FriendDetailSheetProps> = ({
     if (level === 'peak') return '#10b981'; // Green
     if (level === 'high') return '#3b82f6'; // Blue
     return '#8b5cf6'; // Purple
+  };
+
+  // Score Override Logic
+  const handleScoreOverride = async (state: 'Healthy' | 'Stable' | 'Attention') => {
+    try {
+      let targetScore: number;
+      switch (state) {
+        case 'Healthy': targetScore = 85; break;
+        case 'Stable': targetScore = 50; break;
+        case 'Attention': targetScore = 20; break;
+      }
+
+      await database.write(async () => {
+        await friend.update(f => {
+          f.weaveScore = targetScore;
+          // Optionally touch lastUpdated to ensure sync?
+          // f.lastUpdated = new Date();
+        });
+      });
+      // runOnJS(onClose)(); // Optional: close sheet on selection vs stay open to see update
+    } catch (error) {
+      console.error('Error overriding score:', error);
+    }
   };
 
   return (
@@ -219,6 +242,72 @@ const FriendDetailSheetContent: React.FC<FriendDetailSheetProps> = ({
               No dates set
             </Text>
           )}
+        </View>
+
+        {/* Relationship Status Override */}
+        <View className="mb-6">
+          <Text
+            style={{ color: colors['muted-foreground'] }}
+            className="mb-3 font-inter-medium text-xs uppercase tracking-wider"
+          >
+            Correction
+          </Text>
+          <View className="flex-row gap-2">
+            <TouchableOpacity
+              onPress={() => handleScoreOverride('Healthy')}
+              className="flex-1 items-center justify-center rounded-xl p-3 border"
+              style={{
+                backgroundColor: weaveScore >= 65 ? `${tokens.success}15` : colors.card,
+                borderColor: weaveScore >= 65 ? tokens.success : colors.border,
+              }}
+            >
+              <Heart size={20} color={weaveScore >= 65 ? tokens.success : colors['muted-foreground']} fill={weaveScore >= 65 ? tokens.success : 'transparent'} />
+              <Text
+                className="mt-1 font-inter-medium text-xs"
+                style={{ color: weaveScore >= 65 ? tokens.success : colors['muted-foreground'] }}
+              >
+                Healthy
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => handleScoreOverride('Stable')}
+              className="flex-1 items-center justify-center rounded-xl p-3 border"
+              style={{
+                backgroundColor: (weaveScore >= 35 && weaveScore < 65) ? `${tokens.warning}15` : colors.card,
+                borderColor: (weaveScore >= 35 && weaveScore < 65) ? tokens.warning : colors.border,
+              }}
+            >
+              <View style={{ transform: [{ rotate: '-45deg' }] }}>
+                <Sparkles size={20} color={(weaveScore >= 35 && weaveScore < 65) ? tokens.warning : colors['muted-foreground']} />
+              </View>
+              <Text
+                className="mt-1 font-inter-medium text-xs"
+                style={{ color: (weaveScore >= 35 && weaveScore < 65) ? tokens.warning : colors['muted-foreground'] }}
+              >
+                Stable
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => handleScoreOverride('Attention')}
+              className="flex-1 items-center justify-center rounded-xl p-3 border"
+              style={{
+                backgroundColor: weaveScore < 35 ? `${tokens.destructive}15` : colors.card,
+                borderColor: weaveScore < 35 ? tokens.destructive : colors.border,
+              }}
+            >
+              <View className="items-center justify-center" style={{ width: 20, height: 20 }}>
+                <Text style={{ fontSize: 16 }}>🌤️</Text>
+              </View>
+              <Text
+                className="mt-1 font-inter-medium text-xs"
+                style={{ color: weaveScore < 35 ? tokens.destructive : colors['muted-foreground'] }}
+              >
+                Drifting
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Archetype Info */}
@@ -362,7 +451,7 @@ const FriendDetailSheetContent: React.FC<FriendDetailSheetProps> = ({
           </View>
         </View>
       </Animated.View>
-    </Modal>
+    </Modal >
   );
 };
 
