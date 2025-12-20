@@ -579,7 +579,11 @@ function FriendPickerModal({
           </View>
 
           {/* Friend List */}
-          <ScrollView className="px-5 pb-8" showsVerticalScrollIndicator={false}>
+          <ScrollView
+            className="px-5 pb-8"
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
             {filteredFriends.map((friend) => {
               const isSelected = selectedFriendIds.includes(friend.id);
 
