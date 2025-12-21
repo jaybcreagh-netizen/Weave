@@ -10,7 +10,21 @@ export class DriftGenerator implements SuggestionGenerator {
     priority = 20; // Priorities 3, 4, 9
 
     async generate(context: SuggestionContext): Promise<Suggestion | null> {
-        const { friend, currentScore, recentInteractions, now } = context;
+        const { friend, currentScore, recentInteractions, now, plannedInteractions } = context;
+
+        // EARLY EXIT: Skip friends with planned weaves in the next 7 days
+        // No point suggesting "catch up" if they already have plans
+        if (plannedInteractions && plannedInteractions.length > 0) {
+            const nowTime = now.getTime();
+            const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+            const hasSoonPlan = plannedInteractions.some(p => {
+                const planTime = p.interactionDate instanceof Date
+                    ? p.interactionDate.getTime()
+                    : new Date(p.interactionDate || 0).getTime();
+                return planTime > nowTime && planTime < nowTime + sevenDaysMs;
+            });
+            if (hasSoonPlan) return null;
+        }
 
         const pattern = analyzeInteractionPattern(
             recentInteractions.map(i => ({

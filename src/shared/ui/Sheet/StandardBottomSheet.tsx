@@ -18,6 +18,7 @@ import {
   SHEET_BORDER_RADIUS,
 } from './constants';
 import { StandardBottomSheetProps } from './types';
+import { BottomSheetProps } from '@gorhom/bottom-sheet';
 
 /**
  * StandardBottomSheet - Unified bottom sheet component for consistent modal interactions
@@ -46,10 +47,13 @@ export function StandardBottomSheet({
   renderScrollContent,
   hasUnsavedChanges = false,
   confirmCloseMessage = 'Discard Changes? You have unsaved changes. Are you sure you want to discard them?',
-}: StandardBottomSheetProps) {
+  keyboardBehavior = 'interactive',
+  keyboardBlurBehavior = 'restore',
+}: StandardBottomSheetProps & { keyboardBehavior?: BottomSheetProps['keyboardBehavior'], keyboardBlurBehavior?: BottomSheetProps['keyboardBlurBehavior'] }) {
   const { colors, isDarkMode } = useTheme();
   const bottomSheetRef = useRef<BottomSheet>(null);
   const insets = useSafeAreaInsets();
+  const [isFullyClosed, setIsFullyClosed] = React.useState(!visible);
 
   const isDynamic = height === 'auto';
 
@@ -68,7 +72,10 @@ export function StandardBottomSheet({
   const handleSheetChanges = useCallback(
     (index: number) => {
       if (index === -1) {
+        setIsFullyClosed(true);
         onClose();
+      } else {
+        setIsFullyClosed(false);
       }
     },
     [onClose]
@@ -126,6 +133,7 @@ export function StandardBottomSheet({
   // Sync visibility with sheet state
   useEffect(() => {
     if (visible) {
+      setIsFullyClosed(false);
       bottomSheetRef.current?.snapToIndex(initialSnapIndex);
     } else {
       bottomSheetRef.current?.close();
@@ -151,16 +159,13 @@ export function StandardBottomSheet({
     [footerComponent, colors.card, colors.border, insets.bottom]
   );
 
-  // Don't render anything if not visible
-  if (!visible) return null;
-
   const ContentWrapper = scrollable ? BottomSheetScrollView : BottomSheetView;
 
   return (
     <Portal>
       <BottomSheet
         ref={bottomSheetRef}
-        index={initialSnapIndex}
+        index={visible ? initialSnapIndex : -1}
         snapPoints={snapPoints}
         enableDynamicSizing={isDynamic}
         onChange={handleSheetChanges}
@@ -184,15 +189,15 @@ export function StandardBottomSheet({
           damping: SHEET_SPRING_CONFIG.damping,
           stiffness: SHEET_SPRING_CONFIG.stiffness,
         }}
-        keyboardBehavior="interactive"
-        keyboardBlurBehavior="restore"
+        keyboardBehavior={keyboardBehavior}
+        keyboardBlurBehavior={keyboardBlurBehavior}
         android_keyboardInputMode="adjustResize"
         style={{
           shadowColor: '#000',
           shadowOffset: { width: 0, height: -4 },
-          shadowOpacity: 0.15,
+          shadowOpacity: isFullyClosed ? 0 : 0.15,
           shadowRadius: 16,
-          elevation: 16,
+          elevation: isFullyClosed ? 0 : 16,
           zIndex: 1000,
         }}
       >

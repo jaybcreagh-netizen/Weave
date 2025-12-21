@@ -59,30 +59,24 @@ export async function fetchSuggestions(
     userCap?: number
 ): Promise<Suggestion[]> {
     try {
-        // IMMEDIATE SYNC LOG - this should appear even if Logger.warn is rate-limited
-        Logger.warn('[Suggestions] Function ENTERED - this is the very first line');
-
         // DIAGNOSTIC: Log pipeline start
-        Logger.warn(`[Suggestions] Pipeline starting - limit: ${limit}, season: ${season}, userCap: ${userCap}`);
+        Logger.debug(`[Suggestions] Pipeline starting - limit: ${limit}, season: ${season}, userCap: ${userCap}`);
 
         // 1. Candidate Selection: Identify WHO needs suggestions (limit to Top 50 candidates)
         // This prevents loading all 1000+ friends into memory.
         const candidateIds = await SuggestionCandidateService.getCandidates(50);
 
-        // DIAGNOSTIC: Log candidate count
-        Logger.warn(`[Suggestions] Checkpoint 1 - Candidates: ${candidateIds.length}`);
+        Logger.debug(`[Suggestions] Checkpoint 1 - Candidates: ${candidateIds.length}`);
 
         // 2. Data Loading: Fetch Context (Friend + Interactions) only for candidates
         const contextMap = await SuggestionDataLoader.loadContextForCandidates(candidateIds);
         const friends = Array.from(contextMap.values()).map(c => c.friend);
 
-        // DIAGNOSTIC: Log friends loaded
-        Logger.warn(`[Suggestions] Checkpoint 2 - Friends loaded: ${friends.length}`);
+        Logger.debug(`[Suggestions] Checkpoint 2 - Friends loaded: ${friends.length}`);
 
         const dismissedMap = await SuggestionStorageService.getDismissedSuggestions();
 
-        // DIAGNOSTIC: Log dismissed count
-        Logger.warn(`[Suggestions] Checkpoint 3 - Dismissed suggestions: ${dismissedMap.size}`);
+        Logger.debug(`[Suggestions] Checkpoint 3 - Dismissed: ${dismissedMap.size}`);
 
         let allSuggestions: Suggestion[] = [];
         const friendStats: PortfolioAnalysisStats['friends'] = [];
@@ -150,8 +144,7 @@ export async function fetchSuggestions(
             }
         }
 
-        // DIAGNOSTIC: Log suggestions after generation loop
-        Logger.warn(`[Suggestions] Checkpoint 4 - After generation loop: ${allSuggestions.length}`);
+        Logger.debug(`[Suggestions] Checkpoint 4 - After generation: ${allSuggestions.length}`);
 
         // 4. Proactive Suggestions (Pattern Analysis)
         const proactiveSuggestions: Suggestion[] = [];
@@ -259,8 +252,7 @@ export async function fetchSuggestions(
         const timeAppropriate = filterSuggestionsByTime(active);
         const seasonFiltered = filterSuggestionsBySeason(timeAppropriate, season);
 
-        // DIAGNOSTIC: Log filter results
-        Logger.warn(`[Suggestions] Checkpoint 5 - Active: ${active.length}, Time: ${timeAppropriate.length}, Season: ${seasonFiltered.length}`);
+        Logger.debug(`[Suggestions] Checkpoint 5 - Active: ${active.length}, Time: ${timeAppropriate.length}, Season: ${seasonFiltered.length}`);
 
         const MIN_SUGGESTIONS = 3;
         let finalPool = seasonFiltered;
@@ -273,8 +265,7 @@ export async function fetchSuggestions(
         const freshGuaranteed = guaranteed.filter(s => !dismissedMap.has(s.id));
         finalPool = [...finalPool, ...freshGuaranteed];
 
-        // DIAGNOSTIC: Log guaranteed suggestions
-        Logger.warn(`[Suggestions] Checkpoint 6 - Guaranteed raw: ${guaranteed.length}, fresh: ${freshGuaranteed.length}, pool: ${finalPool.length}`);
+        Logger.debug(`[Suggestions] Checkpoint 6 - Guaranteed: ${freshGuaranteed.length}, pool: ${finalPool.length}`);
 
         // 8. Dormant / Triage Logic
         finalPool = await TriageGenerator.apply(finalPool);
@@ -299,8 +290,7 @@ export async function fetchSuggestions(
             friendLookup,
         });
 
-        // DIAGNOSTIC: Log final selection
-        Logger.warn(`[Suggestions] Checkpoint 7 - After diversify: ${finalSuggestions.length}, effectiveLimit: ${effectiveLimit}`);
+        Logger.debug(`[Suggestions] Checkpoint 7 - Final: ${finalSuggestions.length}, limit: ${effectiveLimit}`);
 
         // 10. EMERGENCY FALLBACK: Ensure users ALWAYS see at least one suggestion
         // This is the last line of defense against blank suggestion screens

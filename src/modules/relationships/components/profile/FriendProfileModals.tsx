@@ -91,6 +91,7 @@ export function FriendProfileModals({
                     await deleteWeave(id);
                     setSelectedInteraction(null);
                 }}
+                onUpdate={updateInteraction}
             />
 
             <EditReflectionModal

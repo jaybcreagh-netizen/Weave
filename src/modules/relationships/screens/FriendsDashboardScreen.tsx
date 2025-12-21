@@ -59,6 +59,7 @@ export function FriendsDashboardScreen() {
     const [searchFilters, setSearchFilters] = useState<SearchFilters>({
         healthStatus: [],
         archetypes: [],
+        tiers: [],
     });
     const [sortOption, setSortOption] = useState<SortOption>('default');
 
@@ -82,6 +83,7 @@ export function FriendsDashboardScreen() {
         return searchQuery.trim().length > 0 ||
             searchFilters.healthStatus.length > 0 ||
             searchFilters.archetypes.length > 0 ||
+            searchFilters.tiers.length > 0 ||
             sortOption !== 'default';
     }, [searchQuery, searchFilters, sortOption]);
 
@@ -293,7 +295,7 @@ export function FriendsDashboardScreen() {
 
     const handleClearSearch = useCallback(() => {
         setSearchQuery('');
-        setSearchFilters({ healthStatus: [], archetypes: [] });
+        setSearchFilters({ healthStatus: [], archetypes: [], tiers: [] });
         handleSortChange('default');
     }, [handleSortChange]);
 

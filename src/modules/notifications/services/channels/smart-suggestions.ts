@@ -21,18 +21,26 @@ import { calculateCurrentScore } from '@/modules/intelligence';
 import { HydratedFriend } from '@/types/hydrated';
 import { Suggestion } from '@/shared/types/common';
 import { applySeasonLimit, shouldSendNotification } from '../season-notifications.service';
+import { NOTIFICATION_CONFIG, NotificationConfigItem } from '../../notification.config';
 
 const ID_PREFIX = 'smart-suggestion';
 const MIN_HOURS_BETWEEN_NOTIFICATIONS = 2;
 
 // Helper to check quiet hours
-function isQuietHours(prefs: NotificationPreferences): boolean {
-    const now = new Date();
-    const currentHour = now.getHours();
-    if (prefs.quietHoursStart > prefs.quietHoursEnd) {
-        return currentHour >= prefs.quietHoursStart || currentHour < prefs.quietHoursEnd;
+// Helper to check quiet hours
+function isQuietHours(date: Date, prefs: NotificationPreferences): boolean {
+    const hour = date.getHours();
+    const start = prefs.quietHoursStart;
+    const end = prefs.quietHoursEnd;
+
+    // e.g. Start 23, End 7. 
+    // 23, 0...6 are quiet.
+    if (start > end) {
+        return hour >= start || hour < end;
     }
-    return currentHour >= prefs.quietHoursStart && currentHour < prefs.quietHoursEnd;
+    // e.g. Start 1, End 5.
+    // 1...4 are quiet.
+    return hour >= start && hour < end;
 }
 
 // Helper to determine if we should respect battery
@@ -49,61 +57,62 @@ function shouldRespectBattery(
     return true;
 }
 
-// Helper to calculate spreads
+// Helper to calculate spreads with STRICT quiet hours
 function calculateSpreadDelays(count: number, prefs: NotificationPreferences): number[] {
-    const now = new Date();
-    const currentHour = now.getHours();
-    const currentMinute = now.getMinutes();
+    const delays: number[] = [];
+    const minGapMs = MIN_HOURS_BETWEEN_NOTIFICATIONS * 60 * 60 * 1000;
 
-    const timeSlots: number[] = [];
+    let simulatedTime = Date.now();
 
-    // Morning (9-11)
-    if (currentHour < 9) timeSlots.push(9 - currentHour);
-    // Midday (12-2)
-    if (currentHour < 12) {
-        const hours = 12 - currentHour;
-        if (hours >= MIN_HOURS_BETWEEN_NOTIFICATIONS) timeSlots.push(hours);
-    }
-    // Afternoon (3-5)
-    if (currentHour < 15) {
-        const hours = 15 - currentHour;
-        if (hours >= MIN_HOURS_BETWEEN_NOTIFICATIONS) timeSlots.push(hours);
-    }
-    // Evening (6-8)
-    if (currentHour < 18 && prefs.quietHoursStart > 18) {
-        const hours = 18 - currentHour;
-        if (hours >= MIN_HOURS_BETWEEN_NOTIFICATIONS) timeSlots.push(hours);
-    }
+    for (let i = 0; i < count; i++) {
+        // Find next valid slot
+        let attempts = 0;
+        // Start looking from MIN_GAP after last scheduled (or now)
+        // Ensure first one is at least a bit in future? 
+        // Existing logic said "remaining time". 
+        // Let's just step forward.
 
-    // Fallback: spread across remaining time
-    if (timeSlots.length === 0) {
-        const hoursUntilQuiet = prefs.quietHoursStart - currentHour;
-        if (hoursUntilQuiet > MIN_HOURS_BETWEEN_NOTIFICATIONS) {
-            for (let i = 1; i <= count && i * MIN_HOURS_BETWEEN_NOTIFICATIONS < hoursUntilQuiet; i++) {
-                timeSlots.push(i * MIN_HOURS_BETWEEN_NOTIFICATIONS);
-            }
+        simulatedTime += minGapMs;
+
+        // If falls in quiet hours, push to end of quiet hours
+        while (isQuietHours(new Date(simulatedTime), prefs) && attempts < 24) {
+            // Advance by 1 hour until out of quiet zone
+            simulatedTime += 60 * 60 * 1000;
+            attempts++;
         }
+
+        // Add random noise (minus 15 to plus 15 mins)
+        const noise = (Math.floor(Math.random() * 30) - 15) * 60 * 1000;
+        const targetTime = simulatedTime + noise;
+
+        const delayMs = targetTime - Date.now();
+        // Ensure positive delay
+        delays.push(Math.max(1, Math.round(delayMs / 60000)));
     }
 
-    // Convert to minutes with noise
-    return timeSlots.slice(0, count).map(hours => {
-        const base = hours * 60 - currentMinute;
-        const noise = Math.floor(Math.random() * 30) - 15;
-        return Math.max(MIN_HOURS_BETWEEN_NOTIFICATIONS * 60 + 1, base + noise); // Ensure at least min gap
-    });
+    return delays;
 }
 
 export const SmartSuggestionsChannel: NotificationChannel & {
-    evaluateAndSchedule: () => Promise<void>
+    evaluateAndSchedule: (config?: NotificationConfigItem) => Promise<void>
 } = {
     schedule: async (): Promise<void> => {
         // This method might be used for manual single scheduling, 
         // but the main logic is in evaluateAndSchedule.
-        await SmartSuggestionsChannel.evaluateAndSchedule();
+        const suggestionsConfig = NOTIFICATION_CONFIG['smart-suggestions'];
+        await SmartSuggestionsChannel.evaluateAndSchedule(suggestionsConfig);
     },
 
-    evaluateAndSchedule: async (): Promise<void> => {
+    evaluateAndSchedule: async (injectedConfig?: NotificationConfigItem): Promise<void> => {
         Logger.info('[SmartSuggestions] Evaluating...');
+
+        // Use injected effective config (from Orchestrator) or fall back to raw
+        const config = injectedConfig || NOTIFICATION_CONFIG['smart-suggestions'];
+
+        if (!config.enabled) {
+            Logger.debug('[SmartSuggestions] Disabled in config');
+            return;
+        }
 
         // 0. Check if this type is suppressed (ignored 3+ times)
         if (await notificationStore.isTypeSuppressed('friend-suggestion')) {
@@ -112,8 +121,10 @@ export const SmartSuggestionsChannel: NotificationChannel & {
         }
 
         // 1. Check global daily budget
+        // Use config cost
+        const cost = config.limits.dailyBudgetCost;
         const budget = await notificationStore.getDailyBudget();
-        if (budget.used >= budget.limit) {
+        if (cost > 0 && budget.used + cost > budget.limit) {
             Logger.info('[SmartSuggestions] Daily budget exhausted');
             return;
         }
@@ -122,15 +133,22 @@ export const SmartSuggestionsChannel: NotificationChannel & {
         const lastTime = await notificationStore.getLastSmartNotificationTime();
         if (lastTime) {
             const hoursSince = (Date.now() - lastTime) / (1000 * 60 * 60);
-            if (hoursSince < MIN_HOURS_BETWEEN_NOTIFICATIONS) {
-                Logger.debug('[SmartSuggestions] Cooldown active, skipping');
+
+            // Use schedule.hours (frequency) as the primary cooldown if available (handling overrides), 
+            // fallback to limits.cooldownHours or default constant.
+            // This ensures "Every 4 hours" override actually works.
+            const frequency = config.schedule?.hours;
+            const cooldown = frequency || config.limits.cooldownHours || MIN_HOURS_BETWEEN_NOTIFICATIONS;
+
+            if (hoursSince < cooldown) {
+                Logger.debug(`[SmartSuggestions] Cooldown active (${hoursSince.toFixed(1)}h < ${cooldown}h), skipping`);
                 return;
             }
         }
 
         // 2. Preferences & Limits
         const prefs = await notificationStore.getPreferences();
-        if (isQuietHours(prefs)) {
+        if (isQuietHours(new Date(), prefs)) {
             Logger.debug('[SmartSuggestions] Quiet hours, skipping');
             return;
         }
@@ -179,9 +197,25 @@ export const SmartSuggestionsChannel: NotificationChannel & {
                 recentInteractions = sorted.slice(0, 5);
             }
 
-            // Dedupe: 24h
+            // Dedupe: 24h cooldown for recent interactions
             if (lastInteractionDate && (Date.now() - lastInteractionDate.getTime()) < 24 * 60 * 60 * 1000) {
                 continue;
+            }
+
+            // Skip friends with planned weaves in the next 7 days
+            if (iIds.length > 0) {
+                const now = Date.now();
+                const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+                const plannedWeaves = await database.get<Interaction>('interactions')
+                    .query(
+                        Q.where('id', Q.oneOf(iIds)),
+                        Q.where('status', 'planned'),
+                        Q.where('interaction_date', Q.gt(now)),
+                        Q.where('interaction_date', Q.lt(now + sevenDaysMs))
+                    ).fetch();
+                if (plannedWeaves.length > 0) {
+                    continue;
+                }
             }
 
             const currentScore = calculateCurrentScore(friend);
@@ -225,11 +259,15 @@ export const SmartSuggestionsChannel: NotificationChannel & {
             const id = `${ID_PREFIX}-${s.id}`;
             const trigger = new Date(Date.now() + delay * 60000);
 
+            // Use Config Templates
+            const title = config.templates.default.title.replace('{{title}}', s.title);
+            const body = config.templates.default.body.replace('{{subtitle}}', s.subtitle || '');
+
             await Notifications.scheduleNotificationAsync({
                 identifier: id,
                 content: {
-                    title: s.title,
-                    body: s.subtitle,
+                    title,
+                    body,
                     data: {
                         type: 'friend-suggestion',
                         friendId: s.friendId,
@@ -250,7 +288,9 @@ export const SmartSuggestionsChannel: NotificationChannel & {
             });
 
             // Increment global daily budget
-            await notificationStore.checkAndIncrementBudget();
+            if (cost > 0) {
+                await notificationStore.checkAndIncrementBudget();
+            }
 
             scheduledIds.push(id);
             todayCount++;

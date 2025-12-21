@@ -13,7 +13,9 @@ import { Icon } from '@/shared/ui/Icon';
 import InteractionModel from '@/db/models/Interaction';
 import InteractionFriend from '@/db/models/InteractionFriend';
 import FriendModel from '@/db/models/Friend';
-import { type InteractionCategory, type Vibe, type StructuredReflection } from '../types';
+import { type InteractionCategory, type Vibe, type StructuredReflection, type Interaction } from '../types';
+import { database } from '@/db';
+import { Q } from '@nozbe/watermelondb';
 import { getAllCategories, getCategoryMetadata, type CategoryMetadata } from '@/shared/constants/interaction-categories';
 import { MoonPhaseSelector } from '@/modules/intelligence';
 import { FriendSelector } from '@/modules/relationships';
@@ -23,7 +25,7 @@ import { BlurView } from 'expo-blur';
 import { ReciprocitySelector, InitiatorType } from '@/modules/relationships';
 
 interface EditInteractionModalProps {
-  interaction: InteractionModel | null;
+  interaction: InteractionModel | Interaction | null;
   isOpen: boolean;
   onClose: () => void;
   onSave: (interactionId: string, updates: {
@@ -84,7 +86,11 @@ export function EditInteractionModal({
       const fetchParticipants = async () => {
         setIsLoadingFriends(true);
         try {
-          const interactionFriends = await interaction.interactionFriends.fetch() as unknown as InteractionFriend[];
+          // Robust fetch that works for both Models and DTOs by querying the DB directly
+          const interactionFriends = await database.get('interaction_friends')
+            .query(Q.where('interaction_id', interaction.id))
+            .fetch() as unknown as InteractionFriend[];
+
           const friendModels = await Promise.all(interactionFriends.map(join => join.friend.fetch()));
           const ids = friendModels.map(f => f.id);
           setInitialFriendIds(ids);
@@ -132,7 +138,11 @@ export function EditInteractionModal({
         updates.note = customNotes;
       }
 
-      if (selectedDate && selectedDate.getTime() !== interaction.interactionDate.getTime()) {
+      const currentInteractionTime = interaction.interactionDate instanceof Date
+        ? interaction.interactionDate.getTime()
+        : new Date(interaction.interactionDate).getTime();
+
+      if (selectedDate && selectedDate.getTime() !== currentInteractionTime) {
         updates.interactionDate = selectedDate;
       }
 
@@ -171,6 +181,7 @@ export function EditInteractionModal({
     const initialVibe = interaction.vibe || null;
     const initialNotes = interaction.reflection?.customNotes || interaction.note || '';
     const initialLocation = interaction.location || '';
+    // Handle potential string dates if data isn't perfectly typed at runtime, though types say Date.
     // Handle potential string dates if data isn't perfectly typed at runtime, though types say Date.
     const initialDate = interaction.interactionDate instanceof Date ? interaction.interactionDate.getTime() : new Date(interaction.interactionDate).getTime();
     const initialInitiator = interaction.initiator as InitiatorType | undefined;

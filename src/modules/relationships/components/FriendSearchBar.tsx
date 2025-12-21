@@ -6,7 +6,7 @@ import * as Haptics from 'expo-haptics';
 
 import { useTheme } from '@/shared/hooks/useTheme';
 import { ArchetypeIcon } from '@/modules/intelligence';
-import { Archetype } from '../types';
+import { Archetype, Tier } from '../types';
 
 // Health status based on weave score thresholds
 export type HealthStatus = 'thriving' | 'stable' | 'attention' | 'drifting';
@@ -23,6 +23,7 @@ export type SortOption =
 export interface SearchFilters {
   healthStatus: HealthStatus[];
   archetypes: Archetype[];
+  tiers: Tier[];
 }
 
 interface FriendSearchBarProps {
@@ -53,6 +54,12 @@ const ARCHETYPES: { key: Archetype; label: string }[] = [
   { key: 'Hermit', label: 'Hermit' },
   { key: 'Magician', label: 'Magician' },
   { key: 'Lovers', label: 'Lovers' },
+];
+
+const TIERS: { key: Tier; label: string; color: string }[] = [
+  { key: 'InnerCircle', label: 'Inner Circle', color: '#8B5CF6' },
+  { key: 'CloseFriends', label: 'Close Friends', color: '#3B82F6' },
+  { key: 'Community', label: 'Community', color: '#6B7280' },
 ];
 
 const SORT_OPTIONS: { key: SortOption; label: string; shortLabel: string }[] = [
@@ -93,8 +100,8 @@ export function FriendSearchBar({
     setLocalQuery(searchQuery);
   }, [searchQuery]);
 
-  const hasActiveFilters = filters.healthStatus.length > 0 || filters.archetypes.length > 0;
-  const activeFilterCount = filters.healthStatus.length + filters.archetypes.length;
+  const hasActiveFilters = filters.healthStatus.length > 0 || filters.archetypes.length > 0 || filters.tiers.length > 0;
+  const activeFilterCount = filters.healthStatus.length + filters.archetypes.length + filters.tiers.length;
   const hasNonDefaultSort = sortOption !== 'default';
 
   const toggleHealthStatus = useCallback((status: HealthStatus) => {
@@ -113,6 +120,14 @@ export function FriendSearchBar({
     onFiltersChange({ ...filters, archetypes: newArchetypes });
   }, [filters, onFiltersChange]);
 
+  const toggleTier = useCallback((tier: Tier) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const newTiers = filters.tiers.includes(tier)
+      ? filters.tiers.filter(t => t !== tier)
+      : [...filters.tiers, tier];
+    onFiltersChange({ ...filters, tiers: newTiers });
+  }, [filters, onFiltersChange]);
+
   const handleSortChange = useCallback((sort: SortOption) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     onSortChange(sort);
@@ -123,7 +138,7 @@ export function FriendSearchBar({
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setLocalQuery('');
     onSearchChange('');
-    onFiltersChange({ healthStatus: [], archetypes: [] });
+    onFiltersChange({ healthStatus: [], archetypes: [], tiers: [] });
     onSortChange('default');
     setShowFilters(false);
     setShowSortOptions(false);
@@ -313,6 +328,52 @@ export function FriendSearchBar({
                       }}
                     >
                       {status.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </ScrollView>
+
+          {/* Tier Filters */}
+          <Text
+            className="font-inter-medium text-xs mb-2 ml-1"
+            style={{ color: colors['muted-foreground'] }}
+          >
+            Dunbar Tier
+          </Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            className="mb-3"
+          >
+            <View className="flex-row gap-2">
+              {TIERS.map((tier) => {
+                const isSelected = filters.tiers.includes(tier.key);
+                return (
+                  <TouchableOpacity
+                    key={tier.key}
+                    onPress={() => toggleTier(tier.key)}
+                    className="px-3 py-2 rounded-full flex-row items-center"
+                    style={{
+                      backgroundColor: isSelected
+                        ? tier.color + '20'
+                        : isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
+                      borderWidth: isSelected ? 1 : 0,
+                      borderColor: tier.color,
+                    }}
+                  >
+                    <View
+                      className="w-2 h-2 rounded-full mr-2"
+                      style={{ backgroundColor: tier.color }}
+                    />
+                    <Text
+                      className="font-inter-medium text-sm"
+                      style={{
+                        color: isSelected ? tier.color : colors.foreground
+                      }}
+                    >
+                      {tier.label}
                     </Text>
                   </TouchableOpacity>
                 );

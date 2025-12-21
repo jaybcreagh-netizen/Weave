@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { StandardBottomSheet } from '@/shared/ui/Sheet';
 import {
   Sparkles,
@@ -64,12 +64,9 @@ export function IntentionsDrawer({
       snapPoints={['60%', '90%']}
       title="Connection Intentions"
       enableSwipeClose={true}
+      scrollable
     >
-      <ScrollView
-        className="flex-1"
-        contentContainerStyle={{ padding: 20, gap: 12, paddingBottom: 40 }}
-        showsVerticalScrollIndicator={false}
-      >
+      <View className="flex-1 px-1 gap-3">
         <View className="mb-4 flex-row items-center gap-2">
           <View
             className="w-10 h-10 rounded-full items-center justify-center"
@@ -152,7 +149,7 @@ export function IntentionsDrawer({
             );
           })
         )}
-      </ScrollView>
+      </View>
     </StandardBottomSheet>
   );
 }

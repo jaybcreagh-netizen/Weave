@@ -31,6 +31,7 @@ import { JournalIcon } from 'assets/icons/JournalIcon';
 import { isSameWeek, differenceInDays } from 'date-fns';
 
 import { useTheme } from '@/shared/hooks/useTheme';
+import { UIEventBus } from '@/shared/services/ui-event-bus';
 import { HomeWidgetBase, HomeWidgetConfig } from '../HomeWidgetBase';
 import { database } from '@/db';
 import { Q } from '@nozbe/watermelondb';
@@ -60,6 +61,7 @@ const WIDGET_CONFIG: HomeWidgetConfig = {
 
 type WidgetState =
     | { type: 'weekly-reflection' }
+    | { type: 'weekly-reflection-completed' }
     | { type: 'post-weave'; weave: MeaningfulWeave; prompt: JournalPrompt }
     | { type: 'memory'; memory: Memory }
     | { type: 'nudge'; daysSinceLastEntry: number }
@@ -231,6 +233,8 @@ export function JournalWidget() {
 
             if (!hasReflectedThisWeek) {
                 return { type: 'weekly-reflection' };
+            } else {
+                return { type: 'weekly-reflection-completed' };
             }
         }
 
@@ -338,7 +342,12 @@ export function JournalWidget() {
     // Handle widget tap
     const handlePress = () => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        router.push('/journal');
+
+        if (widgetState?.type === 'weekly-reflection') {
+            UIEventBus.emit({ type: 'OPEN_WEEKLY_REFLECTION' });
+        } else {
+            router.push('/journal');
+        }
     };
 
     // Handle refresh prompt - show a random general prompt, bypassing priority system
@@ -355,6 +364,8 @@ export function JournalWidget() {
         switch (widgetState.type) {
             case 'weekly-reflection':
                 return 'Your weekly reflection is ready';
+            case 'weekly-reflection-completed':
+                return 'Weekly reflection completed';
             case 'post-weave':
                 return widgetState.prompt.question;
             case 'memory':
@@ -376,6 +387,8 @@ export function JournalWidget() {
         switch (widgetState.type) {
             case 'weekly-reflection':
                 return 'Tap to reflect on this week\'s connections';
+            case 'weekly-reflection-completed':
+                return "You're all caught up for the week!";
             case 'post-weave':
                 return widgetState.prompt.context;
             case 'memory':
@@ -389,23 +402,33 @@ export function JournalWidget() {
 
     const promptText = getPromptText();
     const subtext = getSubtext();
+    const isReflectionState = widgetState?.type === 'weekly-reflection' || widgetState?.type === 'weekly-reflection-completed';
 
     return (
         <HomeWidgetBase config={WIDGET_CONFIG} isLoading={isLoading}>
-            <TouchableOpacity
-                onPress={handlePress}
-                activeOpacity={0.7}
-            >
-                {/* Increased fixed height to accommodate larger header */}
-                <View style={{ height: 200, justifyContent: 'space-between' }}>
-                    <View>
+            {/* Increased fixed height to accommodate layout */}
+            <View style={{ height: 200, justifyContent: 'space-between' }}>
+                <View className="flex-1">
+                    <TouchableOpacity
+                        activeOpacity={0.7}
+                        onPress={() => {
+                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                            router.push('/journal');
+                        }}
+                    >
                         {/* Large Header matching Social Season style */}
                         <View className="flex-row items-center gap-4 mb-4">
                             <View
                                 className="w-16 h-16 rounded-full items-center justify-center"
                                 style={{ backgroundColor: tokens.primary + '15' }}
                             >
-                                <JournalIcon size={48} color={tokens.primary} />
+                                {widgetState?.type === 'weekly-reflection-completed' ? (
+                                    <View className="bg-primary w-full h-full rounded-full items-center justify-center">
+                                        <Sparkles size={32} color="#FFFFFF" />
+                                    </View>
+                                ) : (
+                                    <JournalIcon size={48} color={tokens.primary} />
+                                )}
                             </View>
                             <View>
                                 <Text
@@ -433,27 +456,21 @@ export function JournalWidget() {
                         </View>
 
                         {/* Prompt text - Fixed height container */}
-                        <View style={{ height: 80, justifyContent: 'center' }}>
+                        <View style={{ height: 60, justifyContent: 'center' }}>
                             <Text
-                                numberOfLines={3}
+                                numberOfLines={isReflectionState ? 2 : 3}
                                 style={{
                                     color: tokens.foreground,
-                                    fontFamily: widgetState?.type === 'weekly-reflection'
-                                        ? typography.fonts.serifBold
-                                        : typography.fonts.serif,
-                                    fontSize: widgetState?.type === 'weekly-reflection'
-                                        ? typography.scale.h3.fontSize
-                                        : typography.scale.body.fontSize,
-                                    lineHeight: widgetState?.type === 'weekly-reflection'
-                                        ? typography.scale.h3.lineHeight
-                                        : typography.scale.body.lineHeight,
+                                    fontFamily: isReflectionState ? typography.fonts.serifBold : typography.fonts.serif,
+                                    fontSize: isReflectionState ? typography.scale.h3.fontSize : typography.scale.body.fontSize,
+                                    lineHeight: isReflectionState ? typography.scale.h3.lineHeight : typography.scale.body.lineHeight,
                                 }}
                             >
                                 {promptText}
                             </Text>
 
                             {/* Subtext (if any) */}
-                            {subtext && (
+                            {subtext && !isReflectionState && (
                                 <Text
                                     className="mt-1"
                                     style={{
@@ -467,47 +484,129 @@ export function JournalWidget() {
                                 </Text>
                             )}
                         </View>
-                    </View>
+                    </TouchableOpacity>
 
-                    {/* Footer: Stat + Refresh button */}
-                    <View
-                        className="pt-3 border-t flex-row items-center justify-between"
-                        style={{ borderTopColor: tokens.borderSubtle }}
-                    >
-                        {/* Cycling stat with Rolling Animation */}
-                        <View className="flex-1 overflow-hidden h-6 justify-center">
-                            <Animated.View
-                                key={statIndex}
-                                entering={FadeInDown.springify().damping(12)}
-                                exiting={FadeOutUp.springify().damping(12)}
-                                className="flex-row items-center gap-2 absolute top-0 left-0 bottom-0"
-                            >
-                                <StatIcon size={14} color={tokens.foregroundMuted} />
-                                <Text
-                                    style={{
-                                        color: tokens.foregroundMuted,
-                                        fontFamily: typography.fonts.sans,
-                                        fontSize: typography.scale.caption.fontSize,
-                                    }}
-                                >
-                                    {currentStatValue !== null ? currentStat.formatLabel(currentStatValue) : '...'}
-                                </Text>
-                            </Animated.View>
+                    {/* Action Buttons for Reflection States */}
+                    {isReflectionState && (
+                        <View className="mt-3 flex-row gap-3">
+                            {widgetState?.type === 'weekly-reflection' ? (
+                                <>
+                                    <TouchableOpacity
+                                        onPress={() => {
+                                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                                            UIEventBus.emit({ type: 'OPEN_WEEKLY_REFLECTION' });
+                                        }}
+                                        className="bg-primary px-4 py-2.5 rounded-full flex-row items-center gap-2 flex-1 justify-center"
+                                        style={{ backgroundColor: tokens.primary }}
+                                    >
+                                        <Sparkles size={16} color="#FFFFFF" />
+                                        <Text
+                                            className="text-white font-semibold text-sm"
+                                            style={{ fontFamily: typography.fonts.sansSemiBold }}
+                                        >
+                                            Reflect
+                                        </Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                        onPress={() => {
+                                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                            router.push('/journal');
+                                        }}
+                                        className="px-4 py-2.5 rounded-full flex-row items-center gap-2 flex-1 justify-center border"
+                                        style={{ borderColor: tokens.border }}
+                                    >
+                                        <BookOpen size={16} color={tokens.foreground} />
+                                        <Text
+                                            className="font-medium text-sm"
+                                            style={{
+                                                color: tokens.foreground,
+                                                fontFamily: typography.fonts.sansSemiBold
+                                            }}
+                                        >
+                                            Journal
+                                        </Text>
+                                    </TouchableOpacity>
+                                </>
+                            ) : (
+                                <>
+                                    <View
+                                        className="px-4 py-2.5 rounded-full flex-row items-center gap-2 flex-1 justify-center opacity-70"
+                                        style={{ backgroundColor: tokens.muted }}
+                                    >
+                                        <Sparkles size={16} color={tokens.foregroundMuted} />
+                                        <Text
+                                            className="font-medium text-sm"
+                                            style={{
+                                                color: tokens.foregroundMuted,
+                                                fontFamily: typography.fonts.sansSemiBold
+                                            }}
+                                        >
+                                            Completed
+                                        </Text>
+                                    </View>
+                                    <TouchableOpacity
+                                        onPress={() => {
+                                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                            router.push('/journal');
+                                        }}
+                                        className="px-4 py-2.5 rounded-full flex-row items-center gap-2 flex-1 justify-center border"
+                                        style={{ borderColor: tokens.border }}
+                                    >
+                                        <BookOpen size={16} color={tokens.foreground} />
+                                        <Text
+                                            className="font-medium text-sm"
+                                            style={{
+                                                color: tokens.foreground,
+                                                fontFamily: typography.fonts.sansSemiBold
+                                            }}
+                                        >
+                                            Journal
+                                        </Text>
+                                    </TouchableOpacity>
+                                </>
+                            )}
                         </View>
-
-                        {/* Refresh button (only for non-weekly-reflection states) */}
-                        {widgetState?.type !== 'weekly-reflection' && (
-                            <TouchableOpacity
-                                onPress={handleRefresh}
-                                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                                className="p-1"
-                            >
-                                <RefreshCw size={16} color={tokens.primary} />
-                            </TouchableOpacity>
-                        )}
-                    </View>
+                    )}
                 </View>
-            </TouchableOpacity>
+
+                {/* Footer: Stat + Refresh button */}
+                <View
+                    className="pt-3 border-t flex-row items-center justify-between pointer-events-none"
+                    style={{ borderTopColor: tokens.borderSubtle, display: isReflectionState ? 'none' : 'flex' }}
+                >
+                    {/* Cycling stat with Rolling Animation */}
+                    <View className="flex-1 overflow-hidden h-6 justify-center">
+                        <Animated.View
+                            key={statIndex}
+                            entering={FadeInDown.springify().damping(12)}
+                            exiting={FadeOutUp.springify().damping(12)}
+                            className="flex-row items-center gap-2 absolute top-0 left-0 bottom-0"
+                        >
+                            <StatIcon size={14} color={tokens.foregroundMuted} />
+                            <Text
+                                style={{
+                                    color: tokens.foregroundMuted,
+                                    fontFamily: typography.fonts.sans,
+                                    fontSize: typography.scale.caption.fontSize,
+                                }}
+                            >
+                                {currentStatValue !== null ? currentStat.formatLabel(currentStatValue) : '...'}
+                            </Text>
+                        </Animated.View>
+                    </View>
+
+                    {/* Refresh button (only for non-weekly-reflection states) */}
+                    {!isReflectionState && (
+                        <TouchableOpacity
+                            onPress={handleRefresh}
+                            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                            className="p-1"
+                        >
+                            <RefreshCw size={16} color={tokens.primary} />
+                        </TouchableOpacity>
+                    )}
+                </View>
+            </View>
         </HomeWidgetBase>
     );
 }

@@ -10,7 +10,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { View, TouchableOpacity } from 'react-native';
+import { View, TouchableOpacity, Keyboard } from 'react-native';
 import { WeaveLoading } from '@/shared/components/WeaveLoading';
 import { ChevronLeft } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
@@ -198,6 +198,7 @@ export function WeeklyReflectionModal({ isOpen, onClose }: WeeklyReflectionModal
     if (!summary || !prompt) return;
 
     try {
+      Keyboard.dismiss();
       const eventsToLog = events || selectedEvents;
 
       // Batch log selected calendar events if any

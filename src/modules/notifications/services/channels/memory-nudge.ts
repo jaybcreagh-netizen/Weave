@@ -13,12 +13,19 @@ import { getAnniversaryMemories, getMemoryForNotification } from '@/modules/jour
 import { database } from '@/db';
 import UserProfile from '@/db/models/UserProfile';
 import { shouldSendNotification } from '../season-notifications.service';
+import { NOTIFICATION_CONFIG } from '../../notification.config';
 
 const ID_PREFIX = 'memory-nudge-';
 
 export const MemoryNudgeChannel: NotificationChannel = {
     schedule: async (): Promise<void> => {
         try {
+            const config = NOTIFICATION_CONFIG['memory-nudge'];
+            if (!config.enabled) {
+                Logger.info('[MemoryNudge] Disabled in config');
+                return;
+            }
+
             // Get memories for roughly "today" (logic inside handles window)
             const memories = await getAnniversaryMemories();
 
@@ -31,7 +38,7 @@ export const MemoryNudgeChannel: NotificationChannel = {
 
             // Check global daily budget
             const budget = await notificationStore.getDailyBudget();
-            if (budget.used >= budget.limit) {
+            if (config.limits.dailyBudgetCost > 0 && budget.used + config.limits.dailyBudgetCost > budget.limit) {
                 Logger.info('[MemoryNudge] Daily budget exhausted');
                 await MemoryNudgeChannel.cancel(ID_PREFIX);
                 return;
@@ -60,23 +67,35 @@ export const MemoryNudgeChannel: NotificationChannel = {
 
             const id = `${ID_PREFIX}${bestMemory.relatedEntryId}`;
 
-            // Schedule for 9:00 AM tomorrow if it's late, or maybe just schedule for a reasonable time?
-            // "Nudges" should be gentle. Let's schedule for 9 AM tomorrow to ensure it's seen fresh.
-            // Or if debugging, maybe sooner. Let's stick to the standard "morning update".
-            // Schedule for 9:00 AM tomorrow if it's late, or maybe just schedule for a reasonable time?
-            // "Nudges" should be gentle. Let's schedule for 9 AM tomorrow to ensure it's seen fresh.
-            // Or if debugging, maybe sooner. Let's stick to the standard "morning update".
+            // Schedule based on config
             const tomorrow = new Date();
             tomorrow.setDate(tomorrow.getDate() + 1);
-            tomorrow.setHours(9, 0, 0, 0);
+            if (config.schedule.type === 'daily' && config.schedule.hour !== undefined) {
+                tomorrow.setHours(config.schedule.hour, config.schedule.minute || 0, 0, 0);
+            } else {
+                // Fallback default
+                tomorrow.setHours(9, 0, 0, 0);
+            }
 
             const trigger = tomorrow.getTime();
+
+            // Resolve template (simple internal interpolation replacement)
+            // Note: The config template uses {{title}} and {{description}}
+            // We replace them with actual values.
+            let title = config.templates.default.title
+                .replace('{{title}}', bestMemory.title);
+            let body = config.templates.default.body
+                .replace('{{description}}', bestMemory.description);
+
+            // Fallback if template resulted in empty string (e.g. if config was just {{title}} and title was empty)
+            if (!title) title = bestMemory.title;
+            if (!body) body = bestMemory.description;
 
             await Notifications.scheduleNotificationAsync({
                 identifier: id,
                 content: {
-                    title: bestMemory.title,
-                    body: bestMemory.description,
+                    title: title,
+                    body: body,
                     data: {
                         type: 'memory-nudge',
                         entryId: bestMemory.relatedEntryId,
@@ -96,7 +115,9 @@ export const MemoryNudgeChannel: NotificationChannel = {
             });
 
             // Increment global daily budget
-            await notificationStore.checkAndIncrementBudget();
+            if (config.limits.dailyBudgetCost > 0) {
+                await notificationStore.checkAndIncrementBudget();
+            }
 
         } catch (error) {
             Logger.error('[MemoryNudge] Error:', error);

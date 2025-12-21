@@ -12,7 +12,7 @@ import FriendModel from '@/db/models/Friend';
 import { FriendListRow } from './FriendListRow';
 import { FriendSearchBar, SearchFilters, SortOption } from './FriendSearchBar';
 import { calculateCurrentScore } from '@/modules/intelligence';
-import { Archetype } from '../types';
+import { Archetype, Tier } from '../types';
 
 // Reuse health status logic from FriendSearchResults
 type HealthStatus = 'thriving' | 'stable' | 'attention' | 'drifting';
@@ -52,6 +52,7 @@ export function FriendPickerSheet({
   const [filters, setFilters] = useState<SearchFilters>({
     healthStatus: [],
     archetypes: [],
+    tiers: [],
   });
   const [sortOption, setSortOption] = useState<SortOption>('default');
 
@@ -59,7 +60,7 @@ export function FriendPickerSheet({
     if (!visible) {
       // Reset state on close
       setSearchQuery('');
-      setFilters({ healthStatus: [], archetypes: [] });
+      setFilters({ healthStatus: [], archetypes: [], tiers: [] });
       setSortOption('default');
       return;
     }
@@ -101,6 +102,13 @@ export function FriendPickerSheet({
       );
     }
 
+    // Tier filter
+    if (filters.tiers.length > 0) {
+      results = results.filter(friend =>
+        filters.tiers.includes(friend.dunbarTier as Tier)
+      );
+    }
+
     // Apply sorting
     switch (sortOption) {
       case 'needs-attention':
@@ -131,13 +139,14 @@ export function FriendPickerSheet({
 
   const handleClearFilters = useCallback(() => {
     setSearchQuery('');
-    setFilters({ healthStatus: [], archetypes: [] });
+    setFilters({ healthStatus: [], archetypes: [], tiers: [] });
     setSortOption('default');
   }, []);
 
   const isSearchActive = searchQuery.trim().length > 0 ||
     filters.healthStatus.length > 0 ||
     filters.archetypes.length > 0 ||
+    filters.tiers.length > 0 ||
     sortOption !== 'default';
 
   const renderFriendItem = useCallback(

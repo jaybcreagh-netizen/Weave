@@ -12,39 +12,101 @@ import { notificationAnalytics } from '../notification-analytics';
 import { shouldSendWeeklyReflectionNotification } from '../notification-grace-periods';
 import { NotificationChannel } from '@/modules/notifications';
 import { notificationStore } from '../notification-store';
+import { NOTIFICATION_CONFIG } from '../../notification.config';
 
 const ID = 'weekly-reflection';
 
 export const WeeklyReflectionChannel: NotificationChannel = {
     schedule: async (): Promise<void> => {
         try {
+            const config = NOTIFICATION_CONFIG['weekly-reflection'];
+            if (!config.enabled) {
+                Logger.info('[WeeklyReflection] Disabled in config');
+                return;
+            }
+
             await Notifications.cancelScheduledNotificationAsync(ID);
 
             const grace = await shouldSendWeeklyReflectionNotification();
             if (!grace.shouldSend) return;
 
-            const profiles = await database.get<UserProfile>('user_profile').query().fetch();
-            const profile = profiles[0];
-            const reflectionDayIndex = profile?.reflectionDay ?? 0; // 0 = Sunday
-            const expoWeekday = reflectionDayIndex + 1; // 1 = Sunday
+            // Smart Schedule: Check if reflection is already done for this week
+            const { hasCompletedReflectionForCurrentWeek } = await import('@/modules/reflection/services/weekly-reflection.service');
+            const isReflected = await hasCompletedReflectionForCurrentWeek();
+
+            const weekday = config.schedule.weekday ?? 1; // 1 = Sunday
+            const hour = config.schedule.hour ?? 19;
+            const minute = config.schedule.minute ?? 0;
+
+            const now = new Date();
+            const isTodayScheduleDay = now.getDay() === (weekday === 1 ? 0 : weekday - 1); // Expo uses 1=Sun, JS uses 0=Sun. Wait.
+            // Notifications.CalendarTriggerInput uses 1=Sunday. Date.getDay() uses 0=Sunday.
+            // If config.weekday is 1 (Sunday), then we check if Date.getDay() is 0.
+            const isSunday = now.getDay() === 0;
+
+            // If reflected AND today is Sunday, we suppress the standard notification
+            // But we must ensure next week is covered.
+            if (isReflected && isSunday) {
+                Logger.info('[WeeklyReflection] Reflection completed for this week. Cancelling clear/schedule normal, scheduling backup for next week.');
+
+                // 1. Cancel standard recurring
+                await Notifications.cancelScheduledNotificationAsync(ID);
+
+                // 2. Schedule BACKUP recurring for NEXT Sunday
+                // We use a different ID so we can distinguish them
+                const BACKUP_ID = `${ID}-backup`;
+
+                // Check if backup is already there
+                const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+                const hasBackup = scheduled.some(n => n.identifier === BACKUP_ID);
+
+                if (!hasBackup) {
+                    await Notifications.scheduleNotificationAsync({
+                        identifier: BACKUP_ID,
+                        content: {
+                            title: config.templates.default.title,
+                            body: config.templates.default.body,
+                            data: { type: 'weekly-reflection' },
+                        },
+                        trigger: {
+                            weekday: weekday, // Sunday
+                            hour: hour,
+                            minute: minute,
+                            repeats: true,
+                        } as any,
+                    });
+                    Logger.info('[WeeklyReflection] Scheduled backup recurring notification for next week');
+                }
+                return;
+            }
+
+            // Normal Case: specific reflection NOT done OR it's not Sunday (re-syncing)
+            // Ensure Backup is cancelled
+            await Notifications.cancelScheduledNotificationAsync(`${ID}-backup`);
+
+            // Schedule Standard Recur check
+            // We already cancelled ID above (line 28), so just schedule it.
+
+            const title = config.templates.default.title;
+            const body = config.templates.default.body;
 
             await Notifications.scheduleNotificationAsync({
                 identifier: ID,
                 content: {
-                    title: "Time to reflect on your weave 🕸️",
-                    body: "How did your friendships feel this week?",
+                    title,
+                    body,
                     data: { type: 'weekly-reflection' },
                 },
                 trigger: {
-                    weekday: expoWeekday,
-                    hour: 19,
-                    minute: 0,
+                    weekday,
+                    hour,
+                    minute,
                     repeats: true,
                 } as any,
             });
 
             await notificationAnalytics.trackScheduled('weekly-reflection', ID, {
-                dayOfWeek: expoWeekday
+                dayOfWeek: weekday
             });
         } catch (error) {
             Logger.error('[WeeklyReflection] Error scheduling:', error);

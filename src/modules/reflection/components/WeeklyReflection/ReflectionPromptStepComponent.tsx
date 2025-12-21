@@ -6,8 +6,9 @@
  * Writing is optional but encouraged. Chips are detected from text.
  */
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { View, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Keyboard } from 'react-native';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { View, TouchableOpacity, TouchableWithoutFeedback, TextInput, Keyboard } from 'react-native';
+import { BottomSheetTextInput } from '@gorhom/bottom-sheet';
 import { Edit3, Sparkles } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { Text } from '@/shared/ui/Text';
@@ -27,6 +28,8 @@ interface ReflectionPromptStepProps {
 
 export function ReflectionPromptStep({ prompt, onNext }: ReflectionPromptStepProps) {
   const { colors } = useTheme();
+  // Using any for ref because BottomSheetTextInput type definition is complex and doesn't match standard TextInput exactly in this context
+  const inputRef = useRef<any>(null);
 
   const [text, setText] = useState('');
   const [selectedChipIds, setSelectedChipIds] = useState<Set<string>>(new Set());
@@ -88,108 +91,112 @@ export function ReflectionPromptStep({ prompt, onNext }: ReflectionPromptStepPro
   const hasContent = text.trim().length > 0;
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      className="flex-1"
-      keyboardVerticalOffset={100}
-    >
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <View className="flex-1 justify-between">
-          {/* Top Section - Prompt */}
-          <View className="flex-1 justify-center px-2">
-            {/* Icon */}
-            <View className="items-center mb-6">
-              <View
-                className="w-14 h-14 rounded-full items-center justify-center bg-primary/10"
-                style={{ backgroundColor: colors.primary + '15' }}
-              >
-                <Edit3 size={24} color={colors.primary} />
-              </View>
+    <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
+      <View className="flex-1 justify-between">
+        {/* Top Section - Prompt */}
+        <View className="flex-1 justify-center px-2">
+          {/* Icon */}
+          <View className="items-center mb-6">
+            <View
+              className="w-14 h-14 rounded-full items-center justify-center bg-primary/10"
+              style={{ backgroundColor: colors.primary + '15' }}
+            >
+              <Edit3 size={24} color={colors.primary} />
             </View>
-
-            {/* Prompt Question */}
-            <View>
-              <Text variant="h3" className="text-center leading-7 mb-8 px-4 font-lora-medium">
-                {prompt.question}
-              </Text>
-            </View>
-
-            {/* Text Input */}
-            <View>
-              <TextInput
-                value={text}
-                onChangeText={setText}
-                placeholder="Write something... (optional)"
-                placeholderTextColor={colors['muted-foreground']}
-                multiline
-                numberOfLines={4}
-                textAlignVertical="top"
-                className="px-4 py-4 rounded-2xl text-base bg-card border border-border font-inter-regular min-h-[120px] max-h-[200px]"
-                style={{
-                  color: colors.foreground
-                }}
-              />
-            </View>
-
-            {/* Detected/Suggested Chips */}
-            {displayChips.length > 0 && (
-              <View className="mt-4">
-                <View className="flex-row items-center gap-2 mb-3">
-                  <Sparkles size={14} color={colors['muted-foreground']} />
-                  <Text variant="caption" className="text-muted-foreground">
-                    {detectedChips.length > 0 ? 'Add a theme?' : 'Suggested themes'}
-                  </Text>
-                </View>
-
-                <View className="flex-row flex-wrap gap-2">
-                  {displayChips.map((chip) => {
-                    const isSelected = selectedChipIds.has(chip.id);
-
-                    return (
-                      <TouchableOpacity
-                        key={chip.id}
-                        onPress={() => toggleChip(chip.id)}
-                        className={`px-4 py-2.5 rounded-full border ${isSelected ? 'bg-primary/20 border-primary' : 'bg-muted border-transparent'}`}
-                        style={{
-                          backgroundColor: isSelected ? colors.primary + '20' : colors.muted,
-                          borderColor: isSelected ? colors.primary : 'transparent',
-                        }}
-                        activeOpacity={0.7}
-                      >
-                        <Text
-                          variant="body"
-                          className={isSelected ? 'text-primary font-medium' : 'text-foreground font-medium'}
-                          style={{
-                            color: isSelected ? colors.primary : colors.foreground
-                          }}
-                        >
-                          {chip.plainText}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              </View>
-            )}
           </View>
 
-          {/* Bottom Section - Continue Button */}
-          <View className="pt-4 pb-2">
-            <Button
-              onPress={handleContinue}
-              variant="primary"
-              className="w-full"
-              label={hasContent ? 'Continue' : 'Skip writing'}
+          {/* Prompt Question */}
+          <View>
+            <Text variant="h3" className="text-center leading-7 mb-8 px-4 font-lora-medium">
+              {prompt.question}
+            </Text>
+          </View>
+
+          {/* Text Input */}
+          <View>
+            <BottomSheetTextInput
+              ref={inputRef}
+              value={text}
+              onChangeText={setText}
+              placeholder="Write something... (optional)"
+              placeholderTextColor={colors['muted-foreground']}
+              multiline
+              autoFocus={true}
+              style={{
+                color: colors.foreground,
+                backgroundColor: colors.card,
+                borderColor: colors.border,
+                borderWidth: 1,
+                borderRadius: 16,
+                paddingHorizontal: 16,
+                paddingVertical: 16,
+                minHeight: 120,
+                maxHeight: 200,
+                textAlignVertical: 'top',
+                fontSize: 16,
+                fontFamily: 'Inter_400Regular'
+              }}
             />
-
-            {!hasContent && (
-              <Text variant="caption" className="text-center mt-3 text-muted-foreground">
-                You can always add a reflection later
-              </Text>
-            )}
           </View>
+
+          {/* Detected/Suggested Chips */}
+          {displayChips.length > 0 && (
+            <View className="mt-4">
+              <View className="flex-row items-center gap-2 mb-3">
+                <Sparkles size={14} color={colors['muted-foreground']} />
+                <Text variant="caption" className="text-muted-foreground">
+                  {detectedChips.length > 0 ? 'Add a theme?' : 'Suggested themes'}
+                </Text>
+              </View>
+
+              <View className="flex-row flex-wrap gap-2">
+                {displayChips.map((chip) => {
+                  const isSelected = selectedChipIds.has(chip.id);
+
+                  return (
+                    <TouchableOpacity
+                      key={chip.id}
+                      onPress={() => toggleChip(chip.id)}
+                      className={`px-4 py-2.5 rounded-full border ${isSelected ? 'bg-primary/20 border-primary' : 'bg-muted border-transparent'}`}
+                      style={{
+                        backgroundColor: isSelected ? colors.primary + '20' : colors.muted,
+                        borderColor: isSelected ? colors.primary : 'transparent',
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <Text
+                        variant="body"
+                        className={isSelected ? 'text-primary font-medium' : 'text-foreground font-medium'}
+                        style={{
+                          color: isSelected ? colors.primary : colors.foreground
+                        }}
+                      >
+                        {chip.plainText}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+          )}
         </View>
-      </TouchableWithoutFeedback>
-    </KeyboardAvoidingView>
+
+        {/* Bottom Section - Continue Button */}
+        <View className="pt-4 pb-2">
+          <Button
+            onPress={handleContinue}
+            variant="primary"
+            className="w-full"
+            label={hasContent ? 'Continue' : 'Skip writing'}
+          />
+
+          {!hasContent && (
+            <Text variant="caption" className="text-center mt-3 text-muted-foreground">
+              You can always add a reflection later
+            </Text>
+          )}
+        </View>
+      </View>
+    </TouchableWithoutFeedback>
   );
 }

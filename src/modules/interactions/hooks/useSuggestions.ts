@@ -24,14 +24,14 @@ export function useSuggestions() {
   const { data: suggestions = [] } = useQuery({
     queryKey: ['suggestions', 'all', currentSeason], // Include season in query key for proper cache invalidation
     queryFn: async () => {
-      Logger.warn(`[useSuggestions] Query starting - season: ${currentSeason}`);
+      Logger.debug(`[useSuggestions] Query starting - season: ${currentSeason}`);
       const prefs = await notificationStore.getPreferences();
-      Logger.warn(`[useSuggestions] Prefs loaded - maxDaily: ${prefs.maxDailySuggestions}`);
+      Logger.debug(`[useSuggestions] Prefs loaded - maxDaily: ${prefs.maxDailySuggestions}`);
 
       try {
-        Logger.warn(`[useSuggestions] About to call fetchSuggestions`);
+        Logger.debug(`[useSuggestions] Calling fetchSuggestions`);
         const result = await fetchSuggestions(10, currentSeason, prefs.maxDailySuggestions);
-        Logger.warn(`[useSuggestions] Query complete - got ${result.length} suggestions`);
+        Logger.debug(`[useSuggestions] Complete - ${result.length} suggestions`);
         return result;
       } catch (error) {
         Logger.error(`[useSuggestions] fetchSuggestions FAILED`, error);

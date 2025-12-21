@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, FlatList, Modal, TextInput, SafeAreaView } from 'react-native';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { View, Text, TouchableOpacity, FlatList, Modal, TextInput, SafeAreaView, TextInput as RNTextInput } from 'react-native';
 
 import { CheckCircle, Circle, Search, X, Users, Plus } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
@@ -39,6 +39,7 @@ export function FriendSelector({
     const [relevantGroups, setRelevantGroups] = useState<Group[]>([]);
     const [isGroupModalVisible, setIsGroupModalVisible] = useState(false);
     const [editingGroup, setEditingGroup] = useState<Group | undefined>(undefined);
+    const searchInputRef = useRef<RNTextInput>(null);
 
     useEffect(() => {
         const subscription = database
@@ -67,10 +68,17 @@ export function FriendSelector({
         }
     }, [visible, initialFriendId]);
 
-    // Filter friends based on search query
-    const filteredFriends = (allFriends || []).filter(friend =>
-        friend.name.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    // Filter friends based on search query - memoized to prevent unnecessary recalculations
+    const filteredFriends = useMemo(() =>
+        (allFriends || []).filter(friend =>
+            friend.name.toLowerCase().includes(searchQuery.toLowerCase())
+        )
+        , [allFriends, searchQuery]);
+
+    // Memoized handler to prevent re-renders
+    const handleSearchChange = useCallback((text: string) => {
+        setSearchQuery(text);
+    }, []);
 
     const toggleFriendSelection = (friend: FriendModel) => {
         const isSelected = selectedFriends.some(f => f.id === friend.id);
@@ -249,12 +257,15 @@ export function FriendSelector({
                         >
                             <Search size={18} color={colors['muted-foreground']} />
                             <TextInput
+                                ref={searchInputRef}
                                 className="flex-1 ml-3 font-inter-regular text-base"
                                 style={{ color: colors.foreground }}
                                 placeholder="Search friends..."
                                 placeholderTextColor={colors['muted-foreground']}
                                 value={searchQuery}
-                                onChangeText={setSearchQuery}
+                                onChangeText={handleSearchChange}
+                                autoCorrect={false}
+                                autoCapitalize="none"
                             />
                             {searchQuery.length > 0 && (
                                 <TouchableOpacity onPress={() => setSearchQuery('')}>
@@ -344,6 +355,8 @@ export function FriendSelector({
                             ListEmptyComponent={renderEmpty}
                             contentContainerStyle={{ paddingBottom: 100 }}
                             showsVerticalScrollIndicator={false}
+                            keyboardShouldPersistTaps="handled"
+                            keyboardDismissMode="none"
                         />
                         <View
                             className="absolute bottom-0 left-0 right-0 p-5 border-t"
@@ -379,6 +392,8 @@ export function FriendSelector({
             ListEmptyComponent={renderEmpty}
             contentContainerStyle={{ paddingBottom: 24 }}
             showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="none"
         />
     );
 

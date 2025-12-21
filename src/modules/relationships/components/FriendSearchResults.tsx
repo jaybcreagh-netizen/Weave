@@ -13,7 +13,7 @@ import { useTheme } from '@/shared/hooks/useTheme';
 import { WeaveIcon } from '@/shared/components/WeaveIcon';
 import { calculateCurrentScore } from '@/modules/intelligence';
 import { SearchFilters, HealthStatus, SortOption } from './FriendSearchBar';
-import { Archetype } from '../types';
+import { Archetype, Tier } from '../types';
 
 const { width: screenWidth } = Dimensions.get('window');
 const AnimatedFlashList = Animated.createAnimatedComponent(FlashList);
@@ -115,6 +115,13 @@ const FriendSearchResultsContent = ({
       );
     }
 
+    // Tier filter
+    if (filters.tiers.length > 0) {
+      results = results.filter(friend =>
+        filters.tiers.includes(friend.dunbarTier as Tier)
+      );
+    }
+
     // Apply sorting
     switch (sortOption) {
       case 'needs-attention':
@@ -168,7 +175,8 @@ const FriendSearchResultsContent = ({
 
   const hasActiveSearch = searchQuery.trim().length > 0 ||
     filters.healthStatus.length > 0 ||
-    filters.archetypes.length > 0;
+    filters.archetypes.length > 0 ||
+    filters.tiers.length > 0;
 
   // Empty state
   if (filteredFriends.length === 0) {

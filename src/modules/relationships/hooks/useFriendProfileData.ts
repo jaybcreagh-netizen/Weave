@@ -270,6 +270,7 @@ export function useFriendProfileData(friendId: string | undefined) {
         friend,
         friendModel, // Expose the raw model for reactive components
         interactions,
+        interactionsModels, // Expose models for modals that need them
         friendIntentions,
         activeLifeEvents,
         isDataLoaded,

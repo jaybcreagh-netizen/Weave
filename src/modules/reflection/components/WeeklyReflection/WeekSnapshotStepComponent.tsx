@@ -22,6 +22,7 @@ import * as Haptics from 'expo-haptics';
 import { Text } from '@/shared/ui/Text';
 import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
+import { StatsDetailSheet, StatType } from './StatsDetailSheet';
 
 // ============================================================================
 // TYPES
@@ -99,6 +100,8 @@ export function WeekSnapshotStep({ summary, insight, onComplete }: WeekSnapshotS
   const [intentionModalOpen, setIntentionModalOpen] = useState(false);
   const [selectedFriend, setSelectedFriend] = useState<AttentionFriend['friend'] | null>(null);
   const [intentionSetFor, setIntentionSetFor] = useState<Set<string>>(new Set());
+  const [statsSheetOpen, setStatsSheetOpen] = useState(false);
+  const [statsSheetType, setStatsSheetType] = useState<StatType>('weaves');
 
   // Get top 3 friends needing attention
   const attentionFriends = useMemo(() => {
@@ -109,6 +112,12 @@ export function WeekSnapshotStep({ summary, insight, onComplete }: WeekSnapshotS
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSelectedFriend(friend);
     setIntentionModalOpen(true);
+  };
+
+  const handleStatPress = (type: StatType) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setStatsSheetType(type);
+    setStatsSheetOpen(true);
   };
 
   const handleSaveIntention = async (description: string | undefined, category?: InteractionCategory) => {
@@ -164,57 +173,76 @@ export function WeekSnapshotStep({ summary, insight, onComplete }: WeekSnapshotS
         {/* Stats Card */}
         <Animated.View
           entering={FadeIn.duration(400)}
-          className="mb-4"
+          className="mb-6"
         >
-          <Card className="p-5">
+          <Card className="p-6">
             {/* Stats Row */}
-            <View className="flex-row items-center justify-center mb-4">
-              <View className="items-center px-4">
-                <Text variant="h2" className="font-lora-bold">
+            <View className="flex-row items-center justify-around mb-5">
+              <TouchableOpacity
+                onPress={() => handleStatPress('weaves')}
+                activeOpacity={0.7}
+                className="items-center px-4 py-2"
+              >
+                <Text variant="h1" className="font-lora-bold text-4xl">
                   {summary.totalWeaves}
                 </Text>
-                <Text variant="caption" className="text-muted-foreground mt-1">
+                <Text variant="caption" className="text-muted-foreground mt-1 uppercase tracking-wide text-xs">
                   weaves
                 </Text>
-              </View>
+              </TouchableOpacity>
 
               <View
-                className="w-px h-10 mx-2 bg-border"
+                className="w-px h-12 bg-border/60"
               />
 
-              <View className="items-center px-4">
-                <Text variant="h2" className="font-lora-bold">
+              <TouchableOpacity
+                onPress={() => handleStatPress('friends')}
+                activeOpacity={0.7}
+                className="items-center px-4 py-2"
+              >
+                <Text variant="h1" className="font-lora-bold text-4xl">
                   {summary.friendsContacted}
                 </Text>
-                <Text variant="caption" className="text-muted-foreground mt-1">
+                <Text variant="caption" className="text-muted-foreground mt-1 uppercase tracking-wide text-xs">
                   friends
                 </Text>
-              </View>
+              </TouchableOpacity>
 
               {summary.topActivity && (
                 <>
                   <View
-                    className="w-px h-10 mx-2 bg-border"
+                    className="w-px h-12 bg-border/60"
                   />
 
-                  <View className="items-center px-4">
-                    <Text variant="h3" className="font-inter-semibold">
-                      {summary.topActivity}
-                    </Text>
-                    <Text variant="caption" className="text-muted-foreground mt-1">
+                  <TouchableOpacity
+                    onPress={() => {
+                      console.log('[WeekSnapshotStep] Activity pressed');
+                      handleStatPress('activity');
+                    }}
+                    activeOpacity={0.7}
+                    className="items-center px-4 py-2"
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  >
+                    <Text variant="h2" className="font-lora-bold">
                       {summary.topActivityCount}×
                     </Text>
-                  </View>
+                    <Text variant="caption" className="text-muted-foreground mt-1 text-xs text-center" numberOfLines={2}>
+                      {summary.topActivity}
+                    </Text>
+                  </TouchableOpacity>
                 </>
               )}
             </View>
 
             {/* Insight Line */}
-            <View className="flex-row items-center justify-center">
-              <Sparkles size={14} color={insightColor} className="mr-1.5" />
+            <View
+              className="flex-row items-center justify-center px-4 py-3 rounded-xl"
+              style={{ backgroundColor: `${insightColor}10` }}
+            >
+              <Sparkles size={14} color={insightColor} />
               <Text
                 variant="body"
-                className="text-center font-medium"
+                className="text-center font-medium ml-2"
                 style={{ color: insightColor }}
               >
                 {insight.text}
@@ -240,62 +268,54 @@ export function WeekSnapshotStep({ summary, insight, onComplete }: WeekSnapshotS
                   className="mb-3"
                 >
                   <Card
-                    className={`p-4 border ${hasIntention ? 'border-primary/40' : 'border-border'}`}
+                    className={`p-4 ${hasIntention ? 'border border-primary/30' : ''}`}
                   >
-                    <View className="flex-row items-center justify-between">
-                      {/* Friend Info */}
-                      <View className="flex-row items-center flex-1">
-                        {/* Archetype Icon */}
-                        <View
-                          className="w-10 h-10 rounded-full items-center justify-center mr-3 bg-muted"
-                        >
-                          <ArchetypeIcon
-                            archetype={af.friend.archetype as Archetype}
-                            size={20}
-                            color={colors.foreground}
-                          />
-                        </View>
+                    <View className="flex-row items-center">
+                      {/* Archetype Icon */}
+                      <View
+                        className="w-12 h-12 rounded-full items-center justify-center mr-4 bg-muted"
+                      >
+                        <ArchetypeIcon
+                          archetype={af.friend.archetype as Archetype}
+                          size={24}
+                          color={colors.foreground}
+                        />
+                      </View>
 
-                        <View className="flex-1">
-                          <Text variant="h4" className="font-semibold">
-                            {af.friend.name}
+                      {/* Friend Info - stacked vertically */}
+                      <View className="flex-1">
+                        <Text variant="h4" className="font-semibold text-base" numberOfLines={1}>
+                          {af.friend.name}
+                        </Text>
+                        <Text variant="caption" className="text-muted-foreground mt-0.5">
+                          {af.tierLabel}
+                        </Text>
+                        <View className="flex-row items-center mt-1">
+                          <Clock size={11} color={colors['muted-foreground']} />
+                          <Text variant="caption" className="text-muted-foreground ml-1 text-xs">
+                            {formatDaysSince(af.daysSinceContact)}
                           </Text>
-                          <View className="flex-row items-center gap-2 mt-0.5">
-                            <Text variant="caption" className="text-muted-foreground">
-                              {af.tierLabel}
-                            </Text>
-                            <View
-                              className="w-1 h-1 rounded-full bg-muted-foreground"
-                            />
-                            <View className="flex-row items-center">
-                              <Clock size={10} color={colors['muted-foreground']} className="mr-[3px]" />
-                              <Text variant="caption" className="text-muted-foreground">
-                                {formatDaysSince(af.daysSinceContact)}
-                              </Text>
-                            </View>
-                          </View>
                         </View>
                       </View>
 
                       {/* Action Button */}
                       {hasIntention ? (
                         <View
-                          className="px-3 py-2 rounded-lg bg-primary/15"
+                          className="px-3 py-2.5 rounded-xl bg-primary/10"
                         >
-                          <Text variant="caption" className="font-medium text-primary">
-                            💫 Intention set
+                          <Text variant="caption" className="font-semibold text-primary text-xs">
+                            ✓ Set
                           </Text>
                         </View>
                       ) : (
                         <TouchableOpacity
                           onPress={() => handleSetIntention(af.friend)}
-                          className="px-3 py-2 rounded-lg flex-row items-center bg-muted"
+                          className="px-4 py-2.5 rounded-xl bg-primary/10"
                           activeOpacity={0.7}
                         >
-                          <Text variant="caption" className="font-medium mr-1 text-foreground">
-                            Set intention
+                          <Text variant="caption" className="font-semibold text-primary text-xs">
+                            Intention
                           </Text>
-                          <Text className="text-xs">💫</Text>
                         </TouchableOpacity>
                       )}
                     </View>
@@ -351,6 +371,13 @@ export function WeekSnapshotStep({ summary, insight, onComplete }: WeekSnapshotS
           onSave={handleSaveIntention}
         />
       )}
+
+      {/* Stats Detail Sheet */}
+      <StatsDetailSheet
+        isOpen={statsSheetOpen}
+        onClose={() => setStatsSheetOpen(false)}
+        statType={statsSheetType}
+      />
     </>
   );
 }

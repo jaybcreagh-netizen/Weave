@@ -11,6 +11,7 @@ import SocialBatteryLog from '@/db/models/SocialBatteryLog';
 import Interaction from '@/db/models/Interaction';
 import Friend from '@/db/models/Friend';
 import { Q } from '@nozbe/watermelondb';
+import { NOTIFICATION_CONFIG } from '../../notification.config';
 
 export interface DigestItem {
     type: 'plan' | 'confirmation' | 'suggestion' | 'birthday' | 'anniversary' | 'life_event' | 'memory' | 'interaction' | 'insight';
@@ -63,37 +64,56 @@ export const EveningDigestChannel: NotificationChannel & {
     loadDigestForDate: (date: Date) => Promise<EveningDigest | null>,
     cancel: () => Promise<void>
 } = {
-    schedule: async (time: string = '19:00'): Promise<void> => {
+    schedule: async (time?: string): Promise<void> => {
         try {
-            await EveningDigestChannel.cancel();
-
-            // Parse time
-            const [hourStr, minuteStr] = time.split(':');
-            const hour = parseInt(hourStr, 10);
-            const minute = parseInt(minuteStr, 10);
-
-            if (isNaN(hour) || isNaN(minute)) {
-                Logger.error('[EveningDigest] Invalid time:', time);
+            const config = NOTIFICATION_CONFIG['evening-digest'];
+            if (!config.enabled) {
+                Logger.info('[EveningDigest] Disabled in config');
                 return;
             }
+
+            await EveningDigestChannel.cancel();
+
+            let targetHour = config.schedule.hour ?? 19;
+            let targetMinute = config.schedule.minute ?? 0;
+
+            // Allow override if explicitly passed (e.g. from user prefs which currently passes '19:00')
+            // However, the config should ideally drive this. 
+            // If we want to strictly follow config, we ignore the passed param if config says otherwise,
+            // OR we treat the passed param as a dynamic override.
+            // For now, let's respect the user pref override if it was part of the original logic,
+            // but default to config.
+            if (time) {
+                const [hourStr, minuteStr] = time.split(':');
+                const hour = parseInt(hourStr, 10);
+                const minute = parseInt(minuteStr, 10);
+                if (!isNaN(hour) && !isNaN(minute)) {
+                    targetHour = hour;
+                    targetMinute = minute;
+                }
+            }
+
+            const title = config.templates.default.title;
+            const body = config.templates.default.body;
 
             await Notifications.scheduleNotificationAsync({
                 identifier: ID_PREFIX,
                 content: {
-                    title: "Your evening brief 🌙",
-                    body: "Take a moment to review today's connections and plans.",
+                    title,
+                    body,
                     data: { type: 'evening-digest' },
                     sound: true,
                 },
                 trigger: {
-                    hour,
-                    minute,
+                    hour: targetHour,
+                    minute: targetMinute,
                     repeats: true,
                 } as any,
             });
 
-            await notificationAnalytics.trackScheduled('evening-digest', ID_PREFIX, { time });
-            Logger.info(`[EveningDigest] Scheduled for ${time}`);
+            const timeStr = `${targetHour.toString().padStart(2, '0')}:${targetMinute.toString().padStart(2, '0')}`;
+            await notificationAnalytics.trackScheduled('evening-digest', ID_PREFIX, { time: timeStr });
+            Logger.info(`[EveningDigest] Scheduled for ${timeStr}`);
 
         } catch (error) {
             Logger.error('[EveningDigest] Error scheduling:', error);
@@ -457,12 +477,33 @@ export const EveningDigestChannel: NotificationChannel & {
             const scheduled = await Notifications.getAllScheduledNotificationsAsync();
             const digestScheduled = scheduled.find(n => n.identifier === ID_PREFIX);
 
+            // Get user's preferred time (default 19:00)
+            const prefs = await notificationStore.getPreferences();
+            const userTime = prefs.digestTime || '19:00';
+            const [prefHour, prefMinute] = userTime.split(':').map(Number);
+
             if (!digestScheduled) {
                 Logger.info('[EveningDigest] Not scheduled, scheduling now...');
-                await EveningDigestChannel.schedule();
+                await EveningDigestChannel.schedule(userTime);
             } else {
-                // Optional: Check if time matches? 
-                // For now, existence is enough.
+                // Check if scheduled time matches user preference
+                const trigger = digestScheduled.trigger as { hour?: number; minute?: number } | undefined;
+
+                // Also check for "ghosts" - notifications with same title but different ID
+                const ghosts = scheduled.filter(n =>
+                    n.content.title === "Your evening brief 🌙" &&
+                    n.identifier !== ID_PREFIX
+                );
+
+                if (ghosts.length > 0) {
+                    Logger.warn(`[EveningDigest] Found ${ghosts.length} ghost notifications. Cancelling...`);
+                    await Promise.all(ghosts.map(g => Notifications.cancelScheduledNotificationAsync(g.identifier)));
+                }
+
+                if (trigger && (trigger.hour !== prefHour || trigger.minute !== prefMinute)) {
+                    Logger.info(`[EveningDigest] Time mismatch (scheduled: ${trigger.hour}:${trigger.minute}, preferred: ${userTime}), rescheduling...`);
+                    await EveningDigestChannel.schedule(userTime);
+                }
             }
         } catch (error) {
             Logger.error('[EveningDigest] Error in ensureScheduled:', error);

@@ -10,8 +10,10 @@ import {
     Shield,
     RefreshCw,
     Moon,
-    ChevronRight
+    ChevronRight,
+    Bell
 } from 'lucide-react-native';
+import { NotificationOrchestrator } from '@/modules/notifications';
 import { SettingsItem } from './SettingsItem';
 import { useUIStore } from '@/shared/stores/uiStore';
 import { DiagnosticService } from '@/shared/services/diagnostic.service';
@@ -145,6 +147,30 @@ export const TestingSettings: React.FC<TestingSettingsProps> = ({ onClose }) => 
         }
     };
 
+    const handleResetScheduler = async () => {
+        Alert.alert(
+            'Reset Scheduler',
+            'This will cancel ALL scheduled notifications and re-run startup checks. Continue?',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Reset',
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            await NotificationOrchestrator.cancelAll();
+                            await NotificationOrchestrator.runStartupChecks();
+                            Alert.alert('Success', 'Notification scheduler reset complete.');
+                        } catch (error) {
+                            console.error('Failed to reset scheduler:', error);
+                            Alert.alert('Error', 'Failed to reset scheduler.');
+                        }
+                    }
+                }
+            ]
+        );
+    };
+
     return (
         <View className="gap-4">
             {/* Debug Section Title */}
@@ -153,6 +179,7 @@ export const TestingSettings: React.FC<TestingSettingsProps> = ({ onClose }) => 
             </Text>
 
             {/* Test Actions */}
+
             <SettingsItem
                 icon={Sparkles}
                 title="Test Weekly Reflection"
@@ -161,6 +188,15 @@ export const TestingSettings: React.FC<TestingSettingsProps> = ({ onClose }) => 
                     onClose();
                     setTimeout(() => openWeeklyReflection(), 300);
                 }}
+            />
+
+            <View className="border-t border-border" style={{ borderColor: colors.border }} />
+
+            <SettingsItem
+                icon={Bell}
+                title="Reset Scheduler"
+                subtitle="Nuke and rebuild notifications"
+                onPress={handleResetScheduler}
             />
 
             <View className="border-t border-border" style={{ borderColor: colors.border }} />

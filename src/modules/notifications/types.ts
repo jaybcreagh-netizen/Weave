@@ -38,7 +38,7 @@ export type NotificationChannel = {
     /** Schedule a specific notification */
     schedule: (...args: any[]) => Promise<any>;
     /** Cancel a specific notification or all for this channel */
-    cancel: (id: string) => Promise<void>;
+    cancel: (id?: string) => Promise<void>;
     /** Handle tap action */
     handleTap: (data: any, router: any) => void;
     /** Ensure notification is scheduled (idempotent/repair) - Optional */

@@ -5,6 +5,9 @@
  * Use this instead of raw ScrollView whenever the scroll content contains
  * TextInputs or other interactive elements.
  *
+ * ⚠️ WARNING: Do NOT use this inside a Bottom Sheet. Use `BottomSheetScrollView` from `@gorhom/bottom-sheet` instead.
+ *
+ *
  * Default behaviors:
  * - keyboardShouldPersistTaps="handled" - Taps on buttons work while keyboard is open
  * - keyboardDismissMode="interactive" - Keyboard dismisses smoothly on scroll (iOS)

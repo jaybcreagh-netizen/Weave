@@ -11,12 +11,19 @@ import Logger from '@/shared/utils/Logger';
 import { notificationAnalytics } from '../notification-analytics';
 import { shouldSendSocialBatteryNotification } from '../notification-grace-periods';
 import { NotificationChannel } from '@/modules/notifications';
+import { NOTIFICATION_CONFIG } from '../../notification.config';
 
 const ID_PREFIX = 'daily-battery-checkin';
 
 export const BatteryCheckinChannel = {
-    schedule: async (time: string = '20:00', startDate?: Date): Promise<void> => {
+    schedule: async (time?: string, startDate?: Date): Promise<void> => {
         try {
+            const config = NOTIFICATION_CONFIG['daily-battery-checkin'];
+            if (!config.enabled) {
+                Logger.info('[BatteryCheckin] Disabled in config');
+                return;
+            }
+
             // Cancel existing to ensure clean slate
             await BatteryCheckinChannel.cancel(ID_PREFIX);
 
@@ -26,13 +33,18 @@ export const BatteryCheckinChannel = {
                 return;
             }
 
-            const [hourStr, minuteStr] = time.split(':');
-            const hour = parseInt(hourStr, 10);
-            const minute = parseInt(minuteStr, 10);
+            let targetHour = config.schedule.hour ?? 20;
+            let targetMinute = config.schedule.minute ?? 0;
 
-            if (isNaN(hour) || isNaN(minute)) {
-                Logger.error('[BatteryCheckin] Invalid time format:', undefined, time);
-                return;
+            // Allow legacy override if provided/needed, but prefer config
+            if (time) {
+                const [hourStr, minuteStr] = time.split(':');
+                const h = parseInt(hourStr, 10);
+                const m = parseInt(minuteStr, 10);
+                if (!isNaN(h) && !isNaN(m)) {
+                    targetHour = h;
+                    targetMinute = m;
+                }
             }
 
             // Safety Net: Schedule 14 days
@@ -42,7 +54,7 @@ export const BatteryCheckinChannel = {
             for (let i = 0; i < BATCH_DAYS; i++) {
                 const target = new Date();
                 target.setDate(target.getDate() + i);
-                target.setHours(hour, minute, 0, 0);
+                target.setHours(targetHour, targetMinute, 0, 0);
 
                 // Skip past
                 if (target <= new Date()) continue;
@@ -52,11 +64,14 @@ export const BatteryCheckinChannel = {
 
                 const id = `${ID_PREFIX}-${target.toDateString()}`;
 
+                const title = config.templates.default.title;
+                const body = config.templates.default.body;
+
                 await Notifications.scheduleNotificationAsync({
                     identifier: id,
                     content: {
-                        title: "How's your energy today? 🌙",
-                        body: "Take 10 seconds to check in with your social battery.",
+                        title,
+                        body,
                         data: { type: 'battery-checkin' },
                     },
                     trigger: {
@@ -71,7 +86,7 @@ export const BatteryCheckinChannel = {
                 });
             }
 
-            Logger.info(`[BatteryCheckin] Scheduled batch starting ${start.toDateString()}`);
+            Logger.info(`[BatteryCheckin] Scheduled batch starting ${start.toDateString()} at ${targetHour}:${targetMinute}`);
         } catch (error) {
             Logger.error('[BatteryCheckin] Error scheduling:', error);
         }

@@ -25,6 +25,8 @@ import { EveningDigestChannel } from './channels/evening-digest';
 import { eventBus } from '@/shared/events/event-bus';
 import { database } from '@/db';
 import Interaction from '@/db/models/Interaction';
+import UserProfile from '@/db/models/UserProfile';
+import { GLOBAL_NOTIFICATION_SETTINGS, NOTIFICATION_CONFIG, NotificationConfigItem } from '../notification.config';
 
 class NotificationOrchestratorService {
     private isInitialized = false;
@@ -70,6 +72,51 @@ class NotificationOrchestratorService {
         }
     }
 
+    private async getCurrentSeason(): Promise<string> {
+        try {
+            const profile = await database.get<UserProfile>('user_profile').query().fetch();
+            if (profile && profile.length > 0) {
+                return profile[0].currentSocialSeason || 'balanced';
+            }
+        } catch (e) {
+            Logger.error('[NotificationOrchestrator] Failed to get season', e);
+        }
+        return 'balanced';
+    }
+
+    private getEffectiveConfig(key: string, season: string): NotificationConfigItem {
+        const base = NOTIFICATION_CONFIG[key];
+        if (!base) return base;
+
+        // Use Global Profile
+        const profile = GLOBAL_NOTIFICATION_SETTINGS.seasonProfiles?.[season as keyof typeof GLOBAL_NOTIFICATION_SETTINGS.seasonProfiles];
+
+        let enabled = base.enabled;
+        let schedule = { ...base.schedule };
+
+        if (profile) {
+            // Check if disabled globally for this season
+            if (profile.disabledChannels?.includes(key)) {
+                enabled = false;
+            }
+
+            // Check for interval override
+            if (base.schedule.type === 'interval' && profile.intervalOverrides?.[key]) {
+                const override = profile.intervalOverrides[key];
+                schedule.hours = override.hours;
+                if (override.startHour !== undefined) {
+                    schedule.startHour = override.startHour;
+                }
+            }
+        }
+
+        return {
+            ...base,
+            enabled,
+            schedule
+        };
+    }
+
     /**
      * Run checks that should happen on app launch or significant foregrounding
      */
@@ -78,26 +125,79 @@ class NotificationOrchestratorService {
         this.lastCheckTime = Date.now();
 
         try {
-            // Check if battery batch needs extending
-            // This checks if we're running low on scheduled notifications and adds more if needed
-            await BatteryCheckinChannel.checkAndExtendBatch();
+            const season = await this.getCurrentSeason();
+            Logger.info(`[NotificationOrchestrator] Applying profile for season: ${season}`);
 
-            // Refresh memory nudges (they change daily)
-            // This ensures if we open the app on a new day, we schedule the new nudge
-            await MemoryNudgeChannel.schedule();
+            const qh = GLOBAL_NOTIFICATION_SETTINGS.quietHours;
 
-            // Ensure weekly reflection is scheduled (idempotent)
-            if (WeeklyReflectionChannel.ensureScheduled) {
-                await WeeklyReflectionChannel.ensureScheduled();
+            // Helper to check if now is quiet hour
+            const isQuietHourNow = () => {
+                if (!qh?.enabled) return false;
+                const h = new Date().getHours();
+                if (qh.startHour < qh.endHour) {
+                    return h >= qh.startHour && h < qh.endHour;
+                } else {
+                    return h >= qh.startHour || h < qh.endHour;
+                }
+            };
+
+            // 1. Memory Nudge
+            const nudgesConfig = this.getEffectiveConfig('memory-nudge', season);
+            if (nudgesConfig.enabled) {
+                await MemoryNudgeChannel.schedule();
             } else {
-                await WeeklyReflectionChannel.schedule();
+                // If disabled by profile, ensure cancelled
+                await MemoryNudgeChannel.cancel();
             }
 
-            // Ensure evening digest is scheduled
-            if (EveningDigestChannel.ensureScheduled) {
-                await EveningDigestChannel.ensureScheduled();
+            // 2. Evening Digest
+            const digestConfig = this.getEffectiveConfig('evening-digest', season);
+            if (digestConfig.enabled) {
+                // Use default logic for daily
+                if (EveningDigestChannel.ensureScheduled) {
+                    await EveningDigestChannel.ensureScheduled();
+                } else {
+                    await EveningDigestChannel.schedule();
+                }
             } else {
-                await EveningDigestChannel.schedule();
+                await EveningDigestChannel.cancel();
+            }
+
+            // 3. Smart Suggestions (Interval)
+            const suggestionsConfig = this.getEffectiveConfig('smart-suggestions', season);
+            if (suggestionsConfig.enabled) {
+                // Check Quiet Hours for Interval
+                // If we are strictly in quiet hours, maybe we skip *evaluating* now?
+                // Or if the *interval* would land us in quiet hours.
+                // For now, if it's an interval driven check like "extend batch", we just run it.
+                // But if it triggers immediate notifications, we should block.
+
+                if (isQuietHourNow()) {
+                    Logger.info('[NotificationOrchestrator] Quiet Hours active, skipping interval checks');
+                } else {
+                    // The channel itself handles the 4hr interval scheduling. 
+                    // We might need to pass the config down or just let it run if enabled.
+                    // IMPORTANT: The channel class might read raw config. merging logic should ideally be passed.
+                    // For this MVP, we toggle 'enabled'. 
+                    // If enabled, we proceed.
+                    await SmartSuggestionsChannel.evaluateAndSchedule(suggestionsConfig);
+                }
+            }
+
+            // 4. Battery Checkin
+            const batteryConfig = this.getEffectiveConfig('daily-battery-checkin', season);
+            if (batteryConfig.enabled) {
+                await BatteryCheckinChannel.checkAndExtendBatch();
+            }
+
+            // 5. Weekly Reflection
+            const reflectionConfig = this.getEffectiveConfig('weekly-reflection', season);
+            if (reflectionConfig.enabled) {
+                if (WeeklyReflectionChannel.ensureScheduled) {
+                    await WeeklyReflectionChannel.ensureScheduled();
+                } else {
+                    await WeeklyReflectionChannel.schedule();
+                }
             }
 
             // Restore event reminders
@@ -107,6 +207,9 @@ class NotificationOrchestratorService {
             Logger.error('[NotificationOrchestrator] Error during startup checks:', error);
         }
     }
+
+
+
 
     private setupEventListeners() {
         // Listen for new interactions to schedule reminders
@@ -139,6 +242,17 @@ class NotificationOrchestratorService {
                 }
             } catch (error) {
                 Logger.error('[NotificationOrchestrator] Failed to handle interaction:updated:', error);
+            }
+        });
+
+        // Listen for interaction deletion
+        eventBus.on('interaction:deleted', async (payload: any) => {
+            try {
+                if (!payload?.interactionId) return;
+                await EventReminderChannel.cancel(payload.interactionId);
+                Logger.info(`[NotificationOrchestrator] Cancelled notifications for deleted interaction: ${payload.interactionId}`);
+            } catch (error) {
+                Logger.error('[NotificationOrchestrator] Failed to handle interaction:deleted:', error);
             }
         });
     }

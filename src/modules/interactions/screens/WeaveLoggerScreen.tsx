@@ -107,6 +107,26 @@ export function WeaveLoggerScreen({
         };
     }, []);
 
+    // Scroll to reflection section when keyboard opens
+    useEffect(() => {
+        const keyboardShowEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+        const subscription = Keyboard.addListener(keyboardShowEvent, () => {
+            // Only scroll if we have a details section rendered (category selected)
+            if (detailsSectionY > 0 && selectedCategory) {
+                // Scroll to show the reflection section with some context above
+                // Add offset to keep vibe selector visible above the text input
+                setTimeout(() => {
+                    scrollViewRef.current?.scrollTo({
+                        y: detailsSectionY + 350, // Position text box just above keyboard
+                        animated: true
+                    });
+                }, 100);
+            }
+        });
+
+        return () => subscription.remove();
+    }, [detailsSectionY, selectedCategory]);
+
     // Fetch friend's data and set as initial selected friend
     useEffect(() => {
         if (friendId) {
@@ -416,7 +436,9 @@ export function WeaveLoggerScreen({
                         <ScrollView
                             ref={scrollViewRef}
                             className="flex-1"
-                            contentContainerStyle={{ paddingBottom: 120, paddingHorizontal: 20 }}
+                            contentContainerStyle={{ paddingBottom: 180, paddingHorizontal: 20 }}
+                            keyboardShouldPersistTaps="handled"
+                            keyboardDismissMode="interactive"
                         >
                             {/* Date Selection */}
                             <View className="mb-5">
@@ -695,36 +717,33 @@ export function WeaveLoggerScreen({
                                             onChange={setReflection}
                                         />
                                     </View>
+
+                                    {/* Save Button - Inside scroll area */}
+                                    <View className="mt-6 mb-4">
+                                        <TouchableOpacity
+                                            className="p-4 rounded-xl items-center"
+                                            style={{
+                                                backgroundColor: isSubmitting ? colors.muted : colors.primary,
+                                                shadowColor: '#000',
+                                                shadowOffset: { width: 0, height: 4 },
+                                                shadowOpacity: 0.1,
+                                                shadowRadius: 12,
+                                                elevation: 8,
+                                            }}
+                                            onPress={handleSave}
+                                            disabled={isSubmitting}
+                                        >
+                                            <Text className="font-inter-semibold text-base" style={{ color: isSubmitting ? colors['muted-foreground'] : colors['primary-foreground'] }}>
+                                                {isSubmitting ? 'Saving...' : 'Save Weave'}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    </View>
                                 </Animated.View>
                             )}
                         </ScrollView>
                     </TouchableWithoutFeedback>
 
-                    {/* Save Button */}
-                    {selectedCategory && (
-                        <View
-                            className="absolute bottom-0 left-0 right-0 p-5"
-                            style={{ backgroundColor: colors.background, borderTopWidth: 1, borderColor: colors.border }}
-                        >
-                            <TouchableOpacity
-                                className="p-4 rounded-xl items-center"
-                                style={{
-                                    backgroundColor: isSubmitting ? colors.muted : colors.primary,
-                                    shadowColor: '#000',
-                                    shadowOffset: { width: 0, height: 4 },
-                                    shadowOpacity: 0.1,
-                                    shadowRadius: 12,
-                                    elevation: 8,
-                                }}
-                                onPress={handleSave}
-                                disabled={isSubmitting}
-                            >
-                                <Text className="font-inter-semibold text-base" style={{ color: isSubmitting ? colors['muted-foreground'] : colors['primary-foreground'] }}>
-                                    {isSubmitting ? 'Saving...' : 'Save Weave'}
-                                </Text>
-                            </TouchableOpacity>
-                        </View>
-                    )}
+
 
                     {/* Friend Picker Sheet */}
                     <FriendPickerSheet

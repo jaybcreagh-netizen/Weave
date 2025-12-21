@@ -13,10 +13,11 @@ import {
   Alert,
   Keyboard,
 } from 'react-native';
+import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { Calendar, Sparkles, Trash2 } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { StandardBottomSheet } from '@/shared/ui/Sheet';
-import { KeyboardScrollView } from '@/shared/ui';
+
 import { database } from '@/db';
 import JournalEntry from '@/db/models/JournalEntry';
 import FriendModel from '@/db/models/Friend';
@@ -248,6 +249,7 @@ export function JournalEntryModal({ isOpen, onClose, entry, onSave, onDelete }: 
       visible={isOpen}
       onClose={handleClose}
       height="full"
+      disableContentPanning
       title={isEditMode ? 'Edit Entry' : 'New Journal Entry'}
     >
       {/* Header Actions */}
@@ -286,7 +288,11 @@ export function JournalEntryModal({ isOpen, onClose, entry, onSave, onDelete }: 
         </TouchableOpacity>
       </View>
 
-      <KeyboardScrollView className="flex-1 px-5 py-4">
+      <BottomSheetScrollView
+        className="flex-1 px-5 py-4"
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+      >
         {/* Date Selector */}
         <View className="mb-4">
           <Text
@@ -389,7 +395,7 @@ export function JournalEntryModal({ isOpen, onClose, entry, onSave, onDelete }: 
           >
             Tag Friends
           </Text>
-          <KeyboardScrollView
+          <BottomSheetScrollView
             horizontal
             className="flex-row gap-2 mb-2"
           >
@@ -416,7 +422,7 @@ export function JournalEntryModal({ isOpen, onClose, entry, onSave, onDelete }: 
                 </TouchableOpacity>
               );
             })}
-          </KeyboardScrollView>
+          </BottomSheetScrollView>
           {selectedFriendIds.size === 0 && (
             <Text
               className="text-xs"
@@ -508,7 +514,7 @@ export function JournalEntryModal({ isOpen, onClose, entry, onSave, onDelete }: 
             </View>
           )}
         </View>
-      </KeyboardScrollView>
+      </BottomSheetScrollView>
     </StandardBottomSheet>
   );
 }

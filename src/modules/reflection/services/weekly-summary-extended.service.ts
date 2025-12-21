@@ -16,6 +16,7 @@ import InteractionFriend from '@/db/models/InteractionFriend';
 import FriendModel from '@/db/models/Friend';
 import WeeklyReflection from '@/db/models/WeeklyReflection';
 import { getAverageWeeklyWeaves } from './prompt-engine';
+import { getCurrentWeekBounds } from './weekly-reflection.service';
 
 // ============================================================================
 // TYPES
@@ -72,23 +73,7 @@ import { MissedFriend } from './weekly-stats.service';
 // HELPER FUNCTIONS
 // ============================================================================
 
-/**
- * Get the start and end of the current week (Sunday to Saturday)
- */
-function getCurrentWeekBounds(): { weekStart: Date; weekEnd: Date } {
-  const now = new Date();
-  const dayOfWeek = now.getDay(); // 0 = Sunday
 
-  const weekStart = new Date(now);
-  weekStart.setDate(now.getDate() - dayOfWeek);
-  weekStart.setHours(0, 0, 0, 0);
-
-  const weekEnd = new Date(weekStart);
-  weekEnd.setDate(weekStart.getDate() + 6);
-  weekEnd.setHours(23, 59, 59, 999);
-
-  return { weekStart, weekEnd };
-}
 
 /**
  * Calculate friend activity for the week
@@ -764,5 +749,107 @@ export async function extendWeeklySummary(
     friendActivity,
     reconnections,
     weekStreak,
+  };
+}
+
+// ============================================================================
+// DRILL-DOWN DATA LOADERS
+// ============================================================================
+
+export interface WeaveItem {
+  id: string;
+  date: Date;
+  friendNames: string[];
+  category: string;
+  title?: string;
+}
+
+export interface CategoryBreakdown {
+  category: string;
+  count: number;
+  percentage: number;
+}
+
+export interface WeeklyBreakdown {
+  weaves: WeaveItem[];
+  friends: FriendActivityItem[];
+  categories: CategoryBreakdown[];
+}
+
+/**
+ * Get detailed breakdown data for the drill-down views
+ */
+export async function getWeeklyBreakdown(): Promise<WeeklyBreakdown> {
+  const { weekStart, weekEnd } = getCurrentWeekBounds();
+
+  // Get all completed interactions this week
+  const interactions = await database
+    .get<InteractionModel>('interactions')
+    .query(
+      Q.where('interaction_date', Q.between(weekStart.getTime(), weekEnd.getTime())),
+      Q.where('status', 'completed'),
+      Q.sortBy('interaction_date', Q.desc)
+    )
+    .fetch();
+
+  if (interactions.length === 0) {
+    return { weaves: [], friends: [], categories: [] };
+  }
+
+  // Get all interaction-friend links
+  const interactionIds = interactions.map(i => i.id);
+  const interactionFriends = await database
+    .get<InteractionFriend>('interaction_friends')
+    .query(Q.where('interaction_id', Q.oneOf(interactionIds)))
+    .fetch();
+
+  // Get all friend IDs and fetch friend models
+  const friendIds = Array.from(new Set(interactionFriends.map(link => link.friendId)));
+  const friends = await database
+    .get<FriendModel>('friends')
+    .query(Q.where('id', Q.oneOf(friendIds)))
+    .fetch();
+
+  const friendMap = new Map(friends.map(f => [f.id, f]));
+
+  // Build weaves list
+  const weaves: WeaveItem[] = interactions.map(interaction => {
+    const linkedFriends = interactionFriends
+      .filter(link => link.interactionId === interaction.id)
+      .map(link => friendMap.get(link.friendId)?.name || 'Unknown')
+      .filter(Boolean);
+
+    return {
+      id: interaction.id,
+      date: new Date(interaction.interactionDate),
+      friendNames: linkedFriends,
+      category: interaction.interactionCategory || interaction.activity || 'Connection',
+      title: interaction.title,
+    };
+  });
+
+  // Build friends list (reuse existing function logic)
+  const friendActivity = await calculateFriendActivity(weekStart, weekEnd);
+
+  // Build category breakdown
+  const categoryCounts = new Map<string, number>();
+  for (const interaction of interactions) {
+    const category = interaction.interactionCategory || interaction.activity || 'Connection';
+    categoryCounts.set(category, (categoryCounts.get(category) || 0) + 1);
+  }
+
+  const totalWeaves = interactions.length;
+  const categories: CategoryBreakdown[] = Array.from(categoryCounts.entries())
+    .map(([category, count]) => ({
+      category,
+      count,
+      percentage: Math.round((count / totalWeaves) * 100),
+    }))
+    .sort((a, b) => b.count - a.count);
+
+  return {
+    weaves,
+    friends: friendActivity,
+    categories,
   };
 }

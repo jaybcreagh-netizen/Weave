@@ -19,7 +19,6 @@ import { FocusDetailSheet } from '@/modules/home/components/FocusDetailSheet';
 import { FocusPlanItem } from './components/FocusPlanItem';
 import FriendModel from '@/db/models/Friend';
 import { Suggestion } from '@/shared/types/common';
-import { PlanWizard } from '@/modules/interactions';
 import { getCategoryLabel } from '@/modules/interactions';
 import { SeasonAnalyticsService } from '@/modules/intelligence';
 import { parseFlexibleDate } from '@/shared/utils/date-utils';
@@ -55,12 +54,6 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = ({ friends })
     const [showDetailSheet, setShowDetailSheet] = useState(false);
     const [upcomingDates, setUpcomingDates] = useState<UpcomingDate[]>([]);
     const [confirmingIds, setConfirmingIds] = useState<Set<string>>(new Set());
-
-    // Rescheduling state
-    const [isPlanWizardOpen, setIsPlanWizardOpen] = useState(false);
-    const [wizardFriend, setWizardFriend] = useState<FriendModel | null>(null);
-    const [wizardPrefill, setWizardPrefill] = useState<any>(null);
-    const [replaceInteractionId, setReplaceInteractionId] = useState<string | undefined>(undefined);
 
     // Logic ported from V1
     const pendingConfirmations = useMemo(() => {
@@ -213,18 +206,16 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = ({ friends })
             const friend = friends.find(f => f.id === friendId);
 
             if (friend) {
-                setWizardFriend(friend);
-                setWizardPrefill({
-                    date: new Date(plan.interactionDate),
-                    category: plan.interactionCategory,
-                    title: plan.title,
-                    location: plan.location,
-                    time: new Date(plan.interactionDate), // Ensure time is passed too if needed by wizard
-                    notes: plan.note,
+                // Navigate to friend profile with reschedule action
+                router.push({
+                    pathname: '/friend-profile',
+                    params: {
+                        friendId: friend.id,
+                        action: 'reschedule',
+                        interactionId: plan.id
+                    }
                 });
-                setReplaceInteractionId(plan.id);
-                setIsPlanWizardOpen(true);
-                setShowDetailSheet(false); // Close sheet if open
+                setShowDetailSheet(false);
             }
         } catch (e) {
             console.error('Error preparing reschedule:', e);
@@ -484,21 +475,6 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = ({ friends })
                 onReschedulePlan={handleReschedulePlan}
                 onSuggestionAction={handleSuggestionAction}
             />
-
-            {wizardFriend && (
-                <PlanWizard
-                    visible={isPlanWizardOpen}
-                    onClose={() => {
-                        setIsPlanWizardOpen(false);
-                        setWizardFriend(null);
-                        setWizardPrefill(null);
-                        setReplaceInteractionId(undefined);
-                    }}
-                    initialFriend={wizardFriend}
-                    prefillData={wizardPrefill}
-                    replaceInteractionId={replaceInteractionId}
-                />
-            )}
         </>
     );
 };

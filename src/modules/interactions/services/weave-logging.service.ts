@@ -198,4 +198,7 @@ export async function deleteWeave(id: string): Promise<void> {
     }
 
     trackEvent(AnalyticsEvents.INTERACTION_DELETED);
+
+    // Emit deletion event so other modules (like notifications) can clean up
+    eventBus.emit('interaction:deleted', { interactionId: id });
 }

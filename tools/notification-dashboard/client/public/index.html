@@ -1,0 +1,1224 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weave Notification Studio</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0b0f19;
+            --surface: #1b2230;
+            --surface-hover: #232d3f;
+            --accent: #8b5cf6;
+            --accent-glow: rgba(139, 92, 246, 0.4);
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --border: #334155;
+            --success: #10b981;
+            --danger: #ef4444;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text-primary);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .sidebar {
+            width: 320px;
+            background: var(--surface);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-header {
+            padding: 24px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .sidebar-header h1 {
+            font-size: 18px;
+            font-weight: 600;
+            margin: 0;
+            background: linear-gradient(to right, #8b5cf6, #c084fc);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .channel-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .channel-card {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .channel-card:hover {
+            border-color: var(--accent);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .channel-card.active {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 1px var(--accent), 0 4px 16px var(--accent-glow);
+        }
+
+        .channel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+
+        .channel-name {
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--border);
+        }
+
+        .status-dot.enabled {
+            background: var(--success);
+            box-shadow: 0 0 8px rgba(16, 185, 129, 0.4);
+        }
+
+        .channel-desc {
+            font-size: 12px;
+            color: var(--text-secondary);
+            line-height: 1.4;
+        }
+
+        .main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: var(--bg);
+            position: relative;
+        }
+
+        .toolbar {
+            height: 60px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            background: rgba(11, 15, 25, 0.8);
+            backdrop-filter: blur(10px);
+            position: sticky;
+            top: 0;
+            z-index: 20;
+        }
+
+        .save-btn {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 8px;
+            font-weight: 500;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .save-btn:hover {
+            background: #7c3aed;
+            box-shadow: 0 0 15px var(--accent-glow);
+        }
+
+        .workspace {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+
+        .editor-panel {
+            width: 350px;
+            background: var(--surface);
+            border-left: 1px solid var(--border);
+            padding: 24px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .section-title {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-secondary);
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+
+        .form-row {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        label {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        input,
+        select,
+        textarea {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            padding: 10px 12px;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+
+        input:focus,
+        select:focus,
+        textarea:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .time-inputs {
+            display: flex;
+            gap: 12px;
+        }
+
+        .time-inputs input {
+            width: 60px;
+            text-align: center;
+        }
+
+        .timeline-container {
+            flex: 1;
+            padding: 40px;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .timeline {
+            position: relative;
+            max-width: 600px;
+            margin: 0 auto;
+            padding-left: 60px;
+        }
+
+        .time-slot {
+            height: 60px;
+            border-top: 1px solid rgba(51, 65, 85, 0.3);
+            position: relative;
+        }
+
+        .time-label {
+            position: absolute;
+            left: -60px;
+            top: -10px;
+            font-size: 12px;
+            color: var(--text-secondary);
+            width: 40px;
+            text-align: right;
+        }
+
+        .event-chip {
+            position: absolute;
+            left: 20px;
+            right: 0;
+            height: 40px;
+            background: rgba(139, 92, 246, 0.15);
+            border-left: 3px solid var(--accent);
+            border-radius: 4px;
+            padding: 0 12px;
+            display: flex;
+            align-items: center;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-primary);
+            cursor: pointer;
+            transition: all 0.2s;
+            top: 0;
+        }
+
+        .event-chip:hover {
+            background: rgba(139, 92, 246, 0.25);
+            transform: translateX(4px);
+        }
+
+        .event-chip.interval {
+            background: rgba(16, 185, 129, 0.1);
+            border-color: var(--success);
+            border-style: dashed;
+        }
+
+        .event-chip.quiet {
+            opacity: 0.4;
+            border-style: dotted;
+            background: rgba(100, 100, 100, 0.1);
+            border-color: var(--text-secondary);
+        }
+
+        .event-chip.disabled {
+            opacity: 0.25;
+            text-decoration: line-through;
+            pointer-events: none;
+        }
+
+        .season-selector {
+            display: flex;
+            gap: 8px;
+        }
+
+        .season-btn {
+            padding: 6px 14px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--text-secondary);
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .season-btn:hover {
+            border-color: var(--accent);
+            color: var(--text-primary);
+        }
+
+        .season-btn.active {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: white;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <h1>Weave Notification Studio</h1>
+        </div>
+        <div class="channel-list" id="channelList"></div>
+    </div>
+
+    <div class="main">
+        <div class="toolbar">
+            <div style="display: flex; align-items: center; gap: 20px;">
+                <h2 id="pageTitle" style="font-size: 16px; margin: 0;">Timeline Overview</h2>
+                <div class="season-selector">
+                    <button class="season-btn active" id="btn-balanced"
+                        onclick="selectSeason('balanced')">Balanced</button>
+                    <button class="season-btn" id="btn-resting" onclick="selectSeason('resting')">Resting</button>
+                    <button class="season-btn" id="btn-blooming" onclick="selectSeason('blooming')">Blooming</button>
+                </div>
+            </div>
+            <button class="save-btn" onclick="saveChanges()">Save Configuration</button>
+        </div>
+
+        <div class="workspace">
+            <div class="timeline-container">
+                <div class="timeline" id="timeline">
+                </div>
+            </div>
+
+            <div class="editor-panel" id="editorPanel" style="display:none;">
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentConfig = {};
+        let selectedKey = null;
+        let currentSeason = 'balanced';
+        const API_URL = '/api/config';
+
+        function selectSeason(season) {
+            currentSeason = season;
+            // Update button states
+            document.querySelectorAll('.season-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById('btn-' + season).classList.add('active');
+            renderTimeline();
+        }
+
+        loadConfig();
+
+        async function loadConfig() {
+            try {
+                const res = await fetch(API_URL);
+                currentConfig = await res.json();
+                console.log("Config loaded:", currentConfig);
+                renderSidebar();
+                renderTimeline();
+            } catch (e) {
+                console.error("Load failed", e);
+            }
+        }
+
+        function renderSidebar() {
+            const list = document.getElementById('channelList');
+            list.innerHTML = '';
+
+            // Global Settings Card
+            const qh = currentConfig.global?.quietHours;
+            const globalCard = document.createElement('div');
+            globalCard.className = `channel-card ${selectedKey === 'global' ? 'active' : ''}`;
+            globalCard.id = 'globalSettingsCard';
+            globalCard.onclick = () => selectGlobalSettings();
+            globalCard.innerHTML = `
+                <div class="channel-header">
+                    <span class="channel-name">Global Settings</span>
+                </div>
+                <div class="channel-desc" id="quietHoursDesc">${qh?.enabled ? `Quiet: ${qh.startHour}:00 - ${qh.endHour}:00` : 'Quiet Hours Disabled'}</div>
+            `;
+            list.appendChild(globalCard);
+
+            // Channel Cards
+            Object.keys(currentConfig.channels || {}).forEach(key => {
+                const item = currentConfig.channels[key];
+                const card = document.createElement('div');
+                card.className = `channel-card ${selectedKey === key ? 'active' : ''}`;
+                card.onclick = () => selectChannel(key);
+
+                card.innerHTML = `
+                    <div class="channel-header">
+                        <span class="channel-name">${item.name}</span>
+                        <div class="status-dot ${item.enabled ? 'enabled' : ''}"></div>
+                    </div>
+                    <div class="channel-desc">${item.description || item.id}</div>
+                `;
+                list.appendChild(card);
+            });
+        }
+
+        let globalTab = 'quietHours';
+
+        function selectGlobalSettings() {
+            if (selectedKey && selectedKey !== 'global') updateModelFromForm();
+            selectedKey = 'global';
+            renderSidebar();
+
+            const panel = document.getElementById('editorPanel');
+            panel.style.display = 'flex';
+
+            if (!currentConfig.global) currentConfig.global = {};
+            const qh = currentConfig.global.quietHours || { enabled: false, startHour: 23, endHour: 7 };
+            currentConfig.global.quietHours = qh;
+
+            if (!currentConfig.global.seasonProfiles) currentConfig.global.seasonProfiles = {
+                resting: { disabledChannels: [], intervalOverrides: {} },
+                balanced: { disabledChannels: [], intervalOverrides: {} },
+                blooming: { disabledChannels: [], intervalOverrides: {} }
+            };
+
+            const tabs = [
+                { id: 'quietHours', label: 'Quiet Hours' },
+                { id: 'resting', label: 'Resting' },
+                { id: 'balanced', label: 'Balanced' },
+                { id: 'blooming', label: 'Blooming' }
+            ];
+
+            let html = `
+                <div style="display:flex; gap:10px; margin-bottom:20px; border-bottom:1px solid var(--border); padding-bottom:10px;">
+                    ${tabs.map(t => `
+                        <div 
+                            onclick="switchGlobalTab('${t.id}')"
+                            style="
+                                padding: 6px 12px; 
+                                cursor:pointer; 
+                                border-radius:6px; 
+                                font-size:13px; 
+                                font-weight:500;
+                                background: ${globalTab === t.id ? 'var(--accent)' : 'transparent'};
+                                color: ${globalTab === t.id ? 'white' : 'var(--text-secondary)'};
+                            "
+                        >${t.label}</div>
+                    `).join('')}
+                </div>
+            `;
+
+            if (globalTab === 'quietHours') {
+                html += `
+                    <div>
+                        <div class="section-title">Quiet Hours</div>
+                        <div class="form-row">
+                            <label>Enabled</label>
+                            <select id="qhEnabled" onchange="updateGlobalModel()">
+                                <option value="true">Enabled</option>
+                                <option value="false">Disabled</option>
+                            </select>
+                        </div>
+                        <div class="form-row">
+                            <label>Start Hour (24h)</label>
+                            <input type="number" id="qhStart" min="0" max="23" onchange="updateGlobalModel()">
+                        </div>
+                        <div class="form-row">
+                            <label>End Hour (24h)</label>
+                            <input type="number" id="qhEnd" min="0" max="23" onchange="updateGlobalModel()">
+                        </div>
+                         <div class="form-row" style="margin-top: 20px; font-size: 13px; color: var(--text-secondary);">
+                            <p>During these hours, NO notifications will be sent.</p>
+                        </div>
+                    </div>
+                `;
+            } else {
+                const season = globalTab;
+                const profile = currentConfig.global.seasonProfiles[season] || { disabledChannels: [], intervalOverrides: {} };
+
+                html += `
+                    <div>
+                        <div class="section-title">Channel Overrides for ${season.toUpperCase()}</div>
+                        <div class="form-row" style="gap:12px;">
+                            ${Object.keys(currentConfig.channels || {}).map(key => {
+                    const ch = currentConfig.channels[key];
+                    const isDisabled = profile.disabledChannels?.includes(key);
+                    const overrideInterval = profile.intervalOverrides?.[key] || {};
+                    const isInterval = ch.schedule.type === 'interval';
+
+                    return `
+                                    <div style="background:var(--bg); padding:10px; border-radius:8px; border:1px solid var(--border);">
+                                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                                            <span style="font-size:13px; font-weight:600;">${ch.name}</span>
+                                            <label style="display:flex; align-items:center; gap:6px; font-size:12px;">
+                                                <input type="checkbox" ${isDisabled ? 'checked' : ''} onchange="toggleChannelDisabled('${season}', '${key}', this.checked)">
+                                                Disable
+                                            </label>
+                                        </div>
+                                        ${isInterval ? `
+                                            <div style="margin-top:8px; display:flex; flex-direction:column; gap:8px;">
+                                                <div style="display:flex; align-items:center; gap:8px;">
+                                                    <label style="font-size:11px; width:100px;">Every (h):</label>
+                                                    <input type="number" style="width:50px; padding:4px;" value="${overrideInterval.hours || ''}" placeholder="${ch.schedule.hours}" onchange="updateIntervalOverride('${season}', '${key}', 'hours', this.value)">
+                                                </div>
+                                                <div style="display:flex; align-items:center; gap:8px;">
+                                                    <label style="font-size:11px; width:100px;">Start Hour:</label>
+                                                    <input type="number" style="width:50px; padding:4px;" value="${overrideInterval.startHour ?? ''}" placeholder="${ch.schedule.startHour || 0}" onchange="updateIntervalOverride('${season}', '${key}', 'startHour', this.value)">
+                                                </div>
+                                            </div>
+                                        ` : ''}
+                                    </div>
+                                `;
+                }).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            panel.innerHTML = html;
+
+            if (globalTab === 'quietHours') {
+                document.getElementById('qhEnabled').value = qh.enabled.toString();
+                document.getElementById('qhStart').value = qh.startHour;
+                document.getElementById('qhEnd').value = qh.endHour;
+            }
+        }
+
+        window.switchGlobalTab = function (tab) {
+            globalTab = tab;
+            selectGlobalSettings();
+        }
+
+        window.toggleChannelDisabled = function (season, key, disabled) {
+            const profile = currentConfig.global.seasonProfiles[season];
+            if (!profile.disabledChannels) profile.disabledChannels = [];
+
+            if (disabled) {
+                if (!profile.disabledChannels.includes(key)) profile.disabledChannels.push(key);
+            } else {
+                profile.disabledChannels = profile.disabledChannels.filter(k => k !== key);
+            }
+            updateGlobalModel();
+        }
+
+        window.updateIntervalOverride = function (season, key, field, value) {
+            const profile = currentConfig.global.seasonProfiles[season];
+            if (!profile.intervalOverrides) profile.intervalOverrides = {};
+
+            if (!profile.intervalOverrides[key]) {
+                profile.intervalOverrides[key] = { hours: 4 }; // Default fallback if creating new
+            }
+
+            const override = profile.intervalOverrides[key];
+
+            if (value === '') {
+                if (field === 'startHour') delete override.startHour;
+                // If clearing hours, we might want to remove the whole override if startHour is also empty?
+                // For now let's keep it simple.
+            } else {
+                override[field] = parseInt(value);
+            }
+
+            updateGlobalModel();
+        }
+
+        function updateGlobalModel() {
+            if (globalTab === 'quietHours' && document.getElementById('qhEnabled')) {
+                const qh = currentConfig.global.quietHours;
+                qh.enabled = document.getElementById('qhEnabled').value === 'true';
+                qh.startHour = parseInt(document.getElementById('qhStart').value) || 0;
+                qh.endHour = parseInt(document.getElementById('qhEnd').value) || 0;
+            }
+            renderSidebar();
+            renderTimeline();
+        }
+
+        let editorTab = 'settings'; // 'settings' | 'templates'
+
+        function selectChannel(key) {
+            if (selectedKey === 'global') {
+                // no-op
+            } else if (selectedKey) {
+                updateModelFromForm();
+            }
+
+            selectedKey = key;
+            renderSidebar();
+            renderChannelEditor();
+        }
+
+        window.switchEditorTab = function (tab) {
+            updateModelFromForm(); // Save current tab state before switching
+            editorTab = tab;
+            renderChannelEditor();
+        }
+
+        function renderChannelEditor() {
+            if (!selectedKey || selectedKey === 'global') return;
+
+            const key = selectedKey;
+            const item = currentConfig.channels[key];
+            const panel = document.getElementById('editorPanel');
+            panel.style.display = 'flex';
+
+            // Season Override Logic (Keep existing logic if in season mode)
+            if (currentSeason !== 'balanced') {
+                // ... (Existing logic for season overrides - see previous implementation, 
+                // but strictly speaking, templates are usually shared across seasons unless we add override support there too.
+                // For now, let's keep season overrides focused on schedule as per request/plan)
+                renderSeasonOverrideEditor(key, item, panel);
+                return;
+            }
+
+            // Tabs Header
+            const tabsHtml = `
+                <div style="display:flex; gap:10px; margin-bottom:20px; border-bottom:1px solid var(--border); padding-bottom:10px;">
+                    <div onclick="switchEditorTab('settings')" 
+                         style="padding:6px 12px; cursor:pointer; border-radius:6px; font-size:13px; font-weight:500; 
+                         background:${editorTab === 'settings' ? 'var(--accent)' : 'transparent'}; 
+                         color:${editorTab === 'settings' ? 'white' : 'var(--text-secondary)'}">
+                        Settings
+                    </div>
+                    <div onclick="switchEditorTab('templates')" 
+                         style="padding:6px 12px; cursor:pointer; border-radius:6px; font-size:13px; font-weight:500; 
+                         background:${editorTab === 'templates' ? 'var(--accent)' : 'transparent'}; 
+                         color:${editorTab === 'templates' ? 'white' : 'var(--text-secondary)'}">
+                        Templates
+                    </div>
+                </div>
+            `;
+
+            if (editorTab === 'settings') {
+                panel.innerHTML = `
+                    ${tabsHtml}
+                    <div>
+                        <div class="section-title">General</div>
+                        <div class="form-row">
+                            <label>Enabled</label>
+                            <select id="editEnabled">
+                                <option value="true">Active</option>
+                                <option value="false">Disabled</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="section-title">Schedule</div>
+                        <div class="form-row">
+                            <label>Type</label>
+                            <select id="editType" onchange="updateFormFields()">
+                                <option value="daily">Daily</option>
+                                <option value="weekly">Weekly</option>
+                                <option value="interval">Interval</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-row" id="weekdayGroup" style="display:none;">
+                            <label>Day of Week</label>
+                            <select id="editWeekday">
+                                <option value="1">Sunday</option>
+                                <option value="2">Monday</option>
+                                <option value="3">Tuesday</option>
+                                <option value="4">Wednesday</option>
+                                <option value="5">Thursday</option>
+                                <option value="6">Friday</option>
+                                <option value="7">Saturday</option>
+                            </select>
+                        </div>
+
+                        <div class="form-row" id="timeGroup">
+                            <label>Time</label>
+                            <div class="time-inputs">
+                                <input type="number" id="editHour" min="0" max="23" placeholder="HH">
+                                <span style="align-self:center">:</span>
+                                <input type="number" id="editMinute" min="0" max="59" placeholder="MM">
+                            </div>
+                        </div>
+
+                        <div class="form-row" id="intervalGroup" style="display:none;">
+                            <label>Every (Hours)</label>
+                            <input type="number" id="editInterval" min="1" placeholder="4">
+                        </div>
+
+                        <div class="form-row" id="intervalStartGroup" style="display:none;">
+                            <label>Start Hour (0-23)</label>
+                            <input type="number" id="editStartHour" min="0" max="23" placeholder="9">
+                            <span style="font-size: 11px; color: var(--text-secondary);">e.g., 9 means cycle starts at 9:00</span>
+                        </div>
+                    </div>
+                `;
+
+                // Populate Fields
+                document.getElementById('editEnabled').value = item.enabled.toString();
+                document.getElementById('editType').value = item.schedule.type;
+                document.getElementById('editHour').value = item.schedule.hour ?? '';
+                document.getElementById('editMinute').value = item.schedule.minute ?? '';
+                document.getElementById('editInterval').value = item.schedule.hours ?? '';
+                document.getElementById('editStartHour').value = item.schedule.startHour ?? '';
+                document.getElementById('editWeekday').value = item.schedule.weekday ?? 1;
+
+                updateFormFields();
+
+            } else {
+                // Templates Tab
+                const vars = item.availableVariables || {};
+                const varsHtml = Object.keys(vars).length > 0 ? `
+                    <div style="margin-top:20px; padding:12px; background:var(--bg-secondary); border-radius:8px; border:1px solid var(--border);">
+                        <div style="font-size:12px; font-weight:600; margin-bottom:8px; color:var(--text-secondary);">Available Variables</div>
+                        <div style="display:grid; grid-template-columns: auto 1fr; gap:8px; font-size:12px;">
+                            ${Object.entries(vars).map(([k, v]) => `
+                                <code style="background:rgba(0,0,0,0.1); padding:2px 4px; border-radius:4px; color:var(--accent);">{{${k}}}</code>
+                                <span style="color:var(--text-secondary);">${v}</span>
+                            `).join('')}
+                        </div>
+                    </div>
+                ` : '';
+
+                panel.innerHTML = `
+                    ${tabsHtml}
+                    <div>
+                        <div class="section-title">Default Template</div>
+                        <div class="form-row">
+                            <label>Title</label>
+                            <input type="text" id="editTitle" value="${item.templates.default.title || ''}">
+                        </div>
+                        <div class="form-row">
+                            <label>Body</label>
+                            <textarea id="editBody" rows="3">${item.templates.default.body || ''}</textarea>
+                        </div>
+                         
+                        ${varsHtml}
+                    </div>
+                `;
+            }
+        }
+
+        // Extracted helper for season overrides to keep renderChannelEditor clean
+        function renderSeasonOverrideEditor(key, item, panel) {
+            const profile = currentConfig.global.seasonProfiles?.[currentSeason] || { disabledChannels: [], intervalOverrides: {} };
+            const isDisabled = profile.disabledChannels?.includes(key);
+            const override = profile.intervalOverrides?.[key] || {};
+            const overrideHours = typeof override === 'number' ? override : override.hours;
+            const overrideStart = typeof override === 'number' ? undefined : override.startHour;
+
+            const isInterval = item.schedule.type === 'interval';
+
+            panel.innerHTML = `
+                    <div style="background:var(--bg); padding:16px; border-radius:8px; border:1px solid var(--accent); margin-bottom:20px;">
+                        <h3 style="margin:0 0 12px 0; color:var(--accent);">Editing ${currentSeason.toUpperCase()} Profile</h3>
+                        <p style="margin:0; font-size:13px; color:var(--text-secondary);">
+                            You are overriding settings for the <strong>${currentSeason}</strong> season. 
+                            Base settings from 'Balanced' will be used unless overridden here.
+                        </p>
+                    </div>
+
+                    <div>
+                        <div class="section-title">Status</div>
+                        <div class="form-row">
+                            <label>Enabled in ${currentSeason}</label>
+                            <select id="editOverrideEnabled">
+                                <option value="true" ${!isDisabled ? 'selected' : ''}>Active</option>
+                                <option value="false" ${isDisabled ? 'selected' : ''}>Disabled</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    ${isInterval ? `
+                    <div>
+                        <div class="section-title">Interval Schedule Override</div>
+                        <div class="form-row">
+                            <label>Every (Hours)</label>
+                            <input type="number" id="editOverrideInterval" min="1" placeholder="Base: ${item.schedule.hours}" value="${overrideHours || ''}">
+                        </div>
+                        <div class="form-row">
+                            <label>Start Hour (0-23)</label>
+                            <input type="number" id="editOverrideStartHour" min="0" max="23" placeholder="Base: ${item.schedule.startHour || 0}" value="${overrideStart ?? ''}">
+                        </div>
+                    </div>
+                    ` : `
+                    <div style="margin-top:20px; padding:12px; background:rgba(255,255,0,0.1); border-radius:6px; font-size:13px;">
+                        Note: Schedule overrides are currently only supported for Interval-type notifications. 
+                        For Daily/Weekly notifications, you can only enable/disable them for this season.
+                    </div>
+                    `}
+                `;
+        }
+
+        window.updateFormFields = function () {
+            const type = document.getElementById('editType').value;
+            const timeGroup = document.getElementById('timeGroup');
+            const intervalGroup = document.getElementById('intervalGroup');
+            const weekdayGroup = document.getElementById('weekdayGroup');
+
+            timeGroup.style.display = 'none';
+            intervalGroup.style.display = 'none';
+            weekdayGroup.style.display = 'none';
+            document.getElementById('intervalStartGroup').style.display = 'none';
+
+            if (type === 'daily') {
+                timeGroup.style.display = 'flex';
+            } else if (type === 'weekly') {
+                timeGroup.style.display = 'flex';
+                weekdayGroup.style.display = 'flex';
+            } else if (type === 'interval') {
+                intervalGroup.style.display = 'flex';
+                document.getElementById('intervalStartGroup').style.display = 'flex';
+            }
+        }
+
+        function updateModelFromForm() {
+            if (!selectedKey || selectedKey === 'global') return;
+            const item = currentConfig.channels[selectedKey];
+
+            // If editing season override
+            if (currentSeason !== 'balanced') {
+                const profile = currentConfig.global.seasonProfiles[currentSeason];
+                if (!profile.disabledChannels) profile.disabledChannels = [];
+                if (!profile.intervalOverrides) profile.intervalOverrides = {};
+
+                // Handle Enabled/Disabled
+                const shouldBeEnabled = document.getElementById('editOverrideEnabled').value === 'true';
+                if (!shouldBeEnabled) {
+                    if (!profile.disabledChannels.includes(selectedKey)) profile.disabledChannels.push(selectedKey);
+                } else {
+                    profile.disabledChannels = profile.disabledChannels.filter(k => k !== selectedKey);
+                }
+
+                // Handle Interval Overrides
+                if (item.schedule.type === 'interval') {
+                    const hoursVal = document.getElementById('editOverrideInterval').value;
+                    const startHourVal = document.getElementById('editOverrideStartHour').value;
+
+                    if (!hoursVal && !startHourVal) {
+                        delete profile.intervalOverrides[selectedKey];
+                    } else {
+                        profile.intervalOverrides[selectedKey] = {
+                            hours: hoursVal ? parseInt(hoursVal) : item.schedule.hours,
+                            startHour: startHourVal !== '' ? parseInt(startHourVal) : undefined
+                        };
+                    }
+                }
+
+                renderTimeline();
+                return;
+            }
+
+            // Standard Base Update (Balanced)
+            if (editorTab === 'settings') {
+                if (document.getElementById('editEnabled')) {
+                    item.enabled = document.getElementById('editEnabled').value === 'true';
+                }
+
+                if (document.getElementById('editType')) {
+                    const type = document.getElementById('editType').value;
+                    item.schedule.type = type;
+
+                    if (type === 'interval') {
+                        item.schedule.hours = parseInt(document.getElementById('editInterval').value) || 4;
+                        const startHourVal = document.getElementById('editStartHour').value;
+                        item.schedule.startHour = startHourVal !== '' ? parseInt(startHourVal) : 0;
+                    } else {
+                        item.schedule.hour = parseInt(document.getElementById('editHour').value) || 0;
+                        item.schedule.minute = parseInt(document.getElementById('editMinute').value) || 0;
+                        if (type === 'weekly') {
+                            item.schedule.weekday = parseInt(document.getElementById('editWeekday').value) || 1;
+                        }
+                    }
+                }
+            } else if (editorTab === 'templates') {
+                if (document.getElementById('editTitle')) {
+                    item.templates.default.title = document.getElementById('editTitle').value;
+                }
+                if (document.getElementById('editBody')) {
+                    item.templates.default.body = document.getElementById('editBody').value;
+                }
+            }
+
+            renderTimeline();
+        }
+
+        function renderTimeline() {
+            const container = document.getElementById('timeline');
+            container.innerHTML = '';
+
+            const slotHeight = 60;
+
+            for (let i = 0; i < 24; i++) {
+                const slot = document.createElement('div');
+                slot.className = 'time-slot';
+                const label = document.createElement('div');
+                label.className = 'time-label';
+                label.innerText = `${i}:00`;
+                slot.appendChild(label);
+                container.appendChild(slot);
+            }
+
+            const qh = currentConfig.global?.quietHours;
+            if (qh && qh.enabled) {
+                const start = qh.startHour;
+                const end = qh.endHour;
+                if (start < end) {
+                    drawQuietZone(container, start, end, slotHeight);
+                } else {
+                    drawQuietZone(container, start, 24, slotHeight);
+                    drawQuietZone(container, 0, end, slotHeight);
+                }
+            }
+
+            // Get current season profile
+            const profile = currentConfig.global?.seasonProfiles?.[currentSeason] || { disabledChannels: [], intervalOverrides: {} };
+            const disabledChannels = profile.disabledChannels || [];
+
+            let eventInstances = [];
+
+            Object.keys(currentConfig.channels || {}).forEach(key => {
+                const item = currentConfig.channels[key];
+                if (!item.enabled) return;
+
+                // Check if disabled for this season
+                const isDisabledForSeason = disabledChannels.includes(key);
+
+                // Check for interval override
+                let effectiveHours = item.schedule.hours;
+                let effectiveStartHour = item.schedule.startHour || 0;
+
+                if (item.schedule.type === 'interval' && profile.intervalOverrides?.[key]) {
+                    const override = profile.intervalOverrides[key];
+                    // Handle both old (number) and new (object) format for backward compatibility/safety
+                    if (typeof override === 'number') {
+                        effectiveHours = override;
+                    } else {
+                        effectiveHours = override.hours;
+                        if (override.startHour !== undefined) effectiveStartHour = override.startHour;
+                    }
+                }
+
+                if (item.schedule.type === 'interval') {
+                    const freq = effectiveHours || 4;
+                    const startHour = effectiveStartHour;
+                    for (let h = startHour; h < 24; h += freq) {
+                        eventInstances.push({
+                            key,
+                            item,
+                            hour: h,
+                            minute: 0,
+                            durationMin: 45,
+                            isInterval: true,
+                            isDisabledForSeason
+                        });
+                    }
+                } else {
+                    const h = item.schedule.hour || 0;
+                    const m = item.schedule.minute || 0;
+                    eventInstances.push({
+                        key,
+                        item,
+                        hour: h,
+                        minute: m,
+                        durationMin: 60,
+                        isInterval: false,
+                        isDisabledForSeason
+                    });
+                }
+            });
+
+            eventInstances.sort((a, b) => {
+                const timeA = a.hour * 60 + a.minute;
+                const timeB = b.hour * 60 + b.minute;
+                return timeA - timeB;
+            });
+
+            let groups = [];
+            if (eventInstances.length > 0) {
+                let currentGroup = [eventInstances[0]];
+                let groupEndTime = getEndTime(eventInstances[0]);
+
+                for (let i = 1; i < eventInstances.length; i++) {
+                    const evt = eventInstances[i];
+                    const startTime = evt.hour * 60 + evt.minute;
+
+                    if (startTime < groupEndTime - 5) {
+                        currentGroup.push(evt);
+                        groupEndTime = Math.max(groupEndTime, getEndTime(evt));
+                    } else {
+                        groups.push(currentGroup);
+                        currentGroup = [evt];
+                        groupEndTime = getEndTime(evt);
+                    }
+                }
+                groups.push(currentGroup);
+            }
+
+            groups.forEach(group => {
+                const count = group.length;
+                group.forEach((evt, index) => {
+                    const widthPercent = 100 / count;
+                    const leftPercent = index * widthPercent;
+                    createEventChip(evt, leftPercent, widthPercent);
+                });
+            });
+        }
+
+        function getEndTime(evt) {
+            return (evt.hour * 60 + evt.minute) + evt.durationMin;
+        }
+
+        let isDragging = false;
+        let dragType = null; // 'start', 'end', 'move'
+        let dragStartY = 0;
+        let initialHours = { start: 0, end: 0 };
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            handleDrag(e);
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (isDragging) {
+                isDragging = false;
+                document.body.style.cursor = 'default';
+                renderSidebar(); // Update global config UI to match new timeline
+            }
+        });
+
+        function handleDrag(e) {
+            const container = document.getElementById('timeline');
+            const rect = container.getBoundingClientRect();
+            const relativeY = e.clientY - rect.top;
+            const slotHeight = 60;
+            const hour = Math.min(Math.max(Math.round(relativeY / slotHeight), 0), 24);
+
+            const qh = currentConfig.global.quietHours;
+
+            if (dragType === 'start') {
+                if (hour !== qh.startHour && hour !== qh.endHour) {
+                    qh.startHour = hour;
+                    renderTimeline();
+                }
+            } else if (dragType === 'end') {
+                if (hour !== qh.endHour && hour !== qh.startHour) {
+                    qh.endHour = hour;
+                    renderTimeline();
+                }
+            }
+        }
+
+        function drawQuietZone(container, startH, endH, slotHeight) {
+            const div = document.createElement('div');
+            div.style.position = 'absolute';
+            div.style.left = '0';
+            div.style.right = '0';
+            div.style.top = `${startH * slotHeight}px`;
+            div.style.height = `${(endH - startH) * slotHeight}px`;
+            div.style.background = `repeating-linear-gradient(
+                45deg,
+                rgba(239, 68, 68, 0.05),
+                rgba(239, 68, 68, 0.05) 10px,
+                rgba(239, 68, 68, 0.1) 10px,
+                rgba(239, 68, 68, 0.1) 20px
+            )`;
+            div.style.borderTop = '1px dashed var(--danger)';
+            div.style.borderBottom = '1px dashed var(--danger)';
+            div.style.pointerEvents = 'all'; // Enable interaction
+            div.style.zIndex = '0';
+
+            // Drag Handles
+            const createHandle = (type) => {
+                const handle = document.createElement('div');
+                handle.style.position = 'absolute';
+                handle.style.left = '50%';
+                handle.style.transform = 'translateX(-50%)';
+                handle.style.width = '40px';
+                handle.style.height = '10px';
+                handle.style.background = 'var(--danger)';
+                handle.style.borderRadius = '4px';
+                handle.style.cursor = 'ns-resize';
+                handle.style.zIndex = '1';
+                handle.style.opacity = '0.5';
+
+                if (type === 'start') {
+                    handle.style.top = '-5px';
+                    handle.onmousedown = (e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        isDragging = true;
+                        dragType = type === 'start' && startH === 0 && currentConfig.global.quietHours.startHour !== 0 ? 'Ignored' : 'start';
+                        // Correct logic: If we are drawing a split zone (e.g. 0-7), the top of this block is 0. 
+                        // But the REAL start hour is 23. We only want to drag the REAL start handle.
+                        // If this block starts at 0, it means it's the second part of a split zone (midnight to end).
+                        // So the "top" of this block is actually fixed at 0 constraint, not movable independently unless we change logic.
+                        // Simplification: Only allow dragging the 'true' edges.
+                        // If startH == 0 and endH == qh.endHour (and qh.start > qh.end), then top is fixed (midnight), bottom is qh.endHour.
+                        // If startH == qh.startHour and endH == 24, top is qh.startHour, bottom is fixed (midnight).
+
+                        // Let's deduce real type
+                        const qh = currentConfig.global.quietHours;
+                        if (startH === qh.startHour) dragType = 'start';
+                        else dragType = null; // Top edge of midnight block is not draggable start
+                    };
+                } else {
+                    handle.style.bottom = '-5px';
+                    handle.onmousedown = (e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        isDragging = true;
+
+                        const qh = currentConfig.global.quietHours;
+                        if (endH === qh.endHour) dragType = 'end';
+                        else dragType = null; // Bottom edge of pre-midnight block is not draggable end
+                    };
+                }
+                return handle;
+            };
+
+            const qh = currentConfig.global.quietHours;
+            // Only add handles for the true start/end edges
+            if (startH === qh.startHour) div.appendChild(createHandle('start'));
+            if (endH === qh.endHour) div.appendChild(createHandle('end'));
+
+            container.appendChild(div);
+        }
+
+        function createEventChip(evt, leftPercent, widthPercent) {
+            const { key, item, hour, minute, isInterval, isDisabledForSeason } = evt;
+            const container = document.getElementById('timeline');
+            const slotHeight = 60;
+            const top = (hour * slotHeight) + ((minute / 60) * slotHeight);
+
+            // Check if in quiet hours
+            const qh = currentConfig.global?.quietHours;
+            let isInQuietHours = false;
+            if (qh && qh.enabled) {
+                const start = qh.startHour;
+                const end = qh.endHour;
+                if (start < end) {
+                    isInQuietHours = hour >= start && hour < end;
+                } else {
+                    // Overnight quiet hours (e.g., 23:00 - 07:00)
+                    isInQuietHours = hour >= start || hour < end;
+                }
+            }
+
+            const chip = document.createElement('div');
+            let classes = 'event-chip';
+            if (isInterval) classes += ' interval';
+            if (isDisabledForSeason) classes += ' disabled';
+            if (isInQuietHours) classes += ' quiet';
+            chip.className = classes;
+
+            chip.style.top = `${top}px`;
+            chip.style.right = 'auto';
+            chip.style.left = `calc(20px + ${leftPercent}%)`;
+            chip.style.width = `calc(${widthPercent}% - 30px)`;
+
+            let label = item.name;
+            if (item.schedule.type === 'weekly') {
+                const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                const d = (item.schedule.weekday || 1) - 1;
+                label += ` (${days[d]})`;
+            }
+            if (isDisabledForSeason) {
+                label += ' [OFF]';
+            }
+
+            chip.innerText = `${label}\n${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+            chip.style.fontSize = '11px';
+            chip.style.lineHeight = '1.2';
+            chip.style.flexDirection = 'column';
+            chip.style.alignItems = 'flex-start';
+
+            if (!isDisabledForSeason) {
+                chip.onclick = (e) => {
+                    e.stopPropagation();
+                    selectChannel(key);
+                };
+            }
+
+            container.appendChild(chip);
+        }
+
+        async function saveChanges() {
+            if (selectedKey && selectedKey !== 'global') updateModelFromForm();
+            try {
+                const res = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(currentConfig)
+                });
+                if (res.ok) {
+                    const btn = document.querySelector('.save-btn');
+                    const oldText = btn.innerText;
+                    btn.innerText = 'Saved!';
+                    btn.style.background = 'var(--success)';
+                    setTimeout(() => {
+                        btn.innerText = oldText;
+                        btn.style.background = '';
+                    }, 2000);
+                }
+            } catch (e) {
+                alert('Save failed');
+            }
+        }
+    </script>
+</body>
+
+</html>

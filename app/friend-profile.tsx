@@ -136,6 +136,25 @@ export default function FriendProfile() {
     }
   }, [deleteWeave]);
 
+
+
+  // Handle reschedule deep link
+  const { action, interactionId: paramInteractionId } = useLocalSearchParams();
+
+  useEffect(() => {
+    if (action === 'reschedule' && paramInteractionId && interactions && isDataLoaded) {
+      const interaction = interactions.find(i => i.id === paramInteractionId);
+      if (interaction) {
+        // Slight delay to allow profile to load and render
+        setTimeout(() => {
+          modals.handleEditInteraction(interaction);
+          // clear the params from the URL 
+          router.setParams({ action: '', interactionId: '' });
+        }, 500);
+      }
+    }
+  }, [action, paramInteractionId, interactions, isDataLoaded, modals.handleEditInteraction]);
+
   const handleEditInteractionWrapper = useCallback((interactionId: string) => {
     const interaction = interactions?.find(i => i.id === interactionId);
     if (interaction) {

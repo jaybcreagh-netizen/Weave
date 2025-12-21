@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, Modal, ScrollView, SafeAreaView, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, Modal, ScrollView, SafeAreaView, Alert, Keyboard, KeyboardAvoidingView, Platform } from 'react-native';
 import Animated, { SlideInLeft, SlideInRight, SlideOutLeft, SlideOutRight } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
 import {
@@ -95,6 +95,20 @@ export function PlanWizard({ visible, onClose, initialFriend, prefillData, repla
   const [plannedDates, setPlannedDates] = useState<Date[]>([]);
   const [mostCommonDay, setMostCommonDay] = useState<{ day: number; name: string; date: Date } | null>(null);
   const [orderedCategories, setOrderedCategories] = useState(CATEGORIES);
+  const scrollViewRef = useRef<ScrollView>(null);
+
+  // Scroll to bottom when keyboard opens (for notes input)
+  useEffect(() => {
+    const keyboardShowEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const subscription = Keyboard.addListener(keyboardShowEvent, () => {
+      // Scroll to show the input above keyboard
+      setTimeout(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    });
+
+    return () => subscription.remove();
+  }, []);
 
   // Fetch all data once on mount
   useEffect(() => {
@@ -380,62 +394,74 @@ export function PlanWizard({ visible, onClose, initialFriend, prefillData, repla
         </View>
 
         {/* Step content with animations */}
-        <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 20 }}>
-          {currentStep === 1 && (
-            <Animated.View
-              key="step1"
-              entering={hasTransitioned.current ? (direction === 'forward' ? SlideInRight.duration(300) : SlideInLeft.duration(300)) : undefined}
-              exiting={direction === 'forward' ? SlideOutLeft.duration(300) : SlideOutRight.duration(300)}
-            >
-              <PlanWizardStep1
-                selectedDate={formData.date}
-                onDateSelect={date => updateFormData({ date })}
-                onContinue={goToNextStep}
-                canContinue={canProceedFromStep1}
-                friend={initialFriend}
-                plannedDates={plannedDates}
-                mostCommonDay={mostCommonDay}
-              />
-            </Animated.View>
-          )}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1 }}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 0}
+        >
+          <ScrollView
+            ref={scrollViewRef}
+            className="flex-1"
+            contentContainerStyle={{ paddingBottom: 40 }}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="interactive"
+          >
+            {currentStep === 1 && (
+              <Animated.View
+                key="step1"
+                entering={hasTransitioned.current ? (direction === 'forward' ? SlideInRight.duration(300) : SlideInLeft.duration(300)) : undefined}
+                exiting={direction === 'forward' ? SlideOutLeft.duration(300) : SlideOutRight.duration(300)}
+              >
+                <PlanWizardStep1
+                  selectedDate={formData.date}
+                  onDateSelect={date => updateFormData({ date })}
+                  onContinue={goToNextStep}
+                  canContinue={canProceedFromStep1}
+                  friend={initialFriend}
+                  plannedDates={plannedDates}
+                  mostCommonDay={mostCommonDay}
+                />
+              </Animated.View>
+            )}
 
-          {currentStep === 2 && (
-            <Animated.View
-              key="step2"
-              entering={hasTransitioned.current ? (direction === 'forward' ? SlideInRight.duration(300) : SlideInLeft.duration(300)) : undefined}
-              exiting={direction === 'forward' ? SlideOutLeft.duration(300) : SlideOutRight.duration(300)}
-            >
-              <PlanWizardStep2
-                selectedCategory={formData.category}
-                onCategorySelect={handleCategorySelect}
-                onContinue={goToNextStep}
-                canContinue={canProceedFromStep2}
-                friend={initialFriend}
-                suggestion={suggestion}
-                orderedCategories={orderedCategories}
-              />
-            </Animated.View>
-          )}
+            {currentStep === 2 && (
+              <Animated.View
+                key="step2"
+                entering={hasTransitioned.current ? (direction === 'forward' ? SlideInRight.duration(300) : SlideInLeft.duration(300)) : undefined}
+                exiting={direction === 'forward' ? SlideOutLeft.duration(300) : SlideOutRight.duration(300)}
+              >
+                <PlanWizardStep2
+                  selectedCategory={formData.category}
+                  onCategorySelect={handleCategorySelect}
+                  onContinue={goToNextStep}
+                  canContinue={canProceedFromStep2}
+                  friend={initialFriend}
+                  suggestion={suggestion}
+                  orderedCategories={orderedCategories}
+                />
+              </Animated.View>
+            )}
 
-          {currentStep === 3 && (
-            <Animated.View
-              key="step3"
-              entering={hasTransitioned.current ? (direction === 'forward' ? SlideInRight.duration(300) : SlideInLeft.duration(300)) : undefined}
-              exiting={direction === 'forward' ? SlideOutLeft.duration(300) : SlideOutRight.duration(300)}
-            >
-              <PlanWizardStep3
-                formData={formData}
-                onUpdate={updateFormData}
-                onSubmit={handleSubmit}
-                isSubmitting={isSubmitting}
-                friend={initialFriend}
-                suggestion={suggestion}
-                selectedFriends={selectedFriends}
-                onFriendsSelect={setSelectedFriends}
-              />
-            </Animated.View>
-          )}
-        </ScrollView>
+            {currentStep === 3 && (
+              <Animated.View
+                key="step3"
+                entering={hasTransitioned.current ? (direction === 'forward' ? SlideInRight.duration(300) : SlideInLeft.duration(300)) : undefined}
+                exiting={direction === 'forward' ? SlideOutLeft.duration(300) : SlideOutRight.duration(300)}
+              >
+                <PlanWizardStep3
+                  formData={formData}
+                  onUpdate={updateFormData}
+                  onSubmit={handleSubmit}
+                  isSubmitting={isSubmitting}
+                  friend={initialFriend}
+                  suggestion={suggestion}
+                  selectedFriends={selectedFriends}
+                  onFriendsSelect={setSelectedFriends}
+                />
+              </Animated.View>
+            )}
+          </ScrollView>
+        </KeyboardAvoidingView>
       </SafeAreaView>
     </Modal>
   );

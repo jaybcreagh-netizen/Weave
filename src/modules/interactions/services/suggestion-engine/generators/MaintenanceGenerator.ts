@@ -9,7 +9,21 @@ export class MaintenanceGenerator implements SuggestionGenerator {
     priority = 35; // Priority 7 and 4b (First Weave)
 
     async generate(context: SuggestionContext): Promise<Suggestion | null> {
-        const { friend, interactionCount, currentScore, lastInteractionDate, recentInteractions, now } = context;
+        const { friend, interactionCount, currentScore, lastInteractionDate, recentInteractions, now, plannedInteractions } = context;
+
+        // EARLY EXIT: Skip friends with planned weaves in the next 7 days
+        // No point suggesting "keep in touch" if they already have plans
+        if (plannedInteractions && plannedInteractions.length > 0) {
+            const nowTime = now.getTime();
+            const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+            const hasSoonPlan = plannedInteractions.some(p => {
+                const planTime = p.interactionDate instanceof Date
+                    ? p.interactionDate.getTime()
+                    : new Date(p.interactionDate || 0).getTime();
+                return planTime > nowTime && planTime < nowTime + sevenDaysMs;
+            });
+            if (hasSoonPlan) return null;
+        }
 
         // PRIORITY 4(b): First weave (new friend)
         // Handled here or in dedicated FirstWeave generator. 

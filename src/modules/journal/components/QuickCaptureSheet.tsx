@@ -16,15 +16,13 @@ import {
   TouchableOpacity,
   Keyboard,
   Modal,
-  KeyboardAvoidingView,
   Platform,
-  StyleSheet,
   Alert,
+  KeyboardAvoidingView,
+  ScrollView,
 } from 'react-native';
-import { KeyboardScrollView } from '@/shared/ui';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
-  FadeIn,
-  FadeOut,
   SlideInDown,
   SlideOutDown,
 } from 'react-native-reanimated';
@@ -38,6 +36,7 @@ import * as Haptics from 'expo-haptics';
 import JournalEntryFriend from '@/db/models/JournalEntryFriend';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { format, isToday, isYesterday, startOfDay } from 'date-fns';
+import { KeyboardScrollView } from '@/shared/ui';
 
 // ============================================================================
 // TYPES
@@ -68,6 +67,7 @@ export function QuickCaptureSheet({
   prefilledText,
 }: QuickCaptureSheetProps) {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const inputRef = useRef<TextInput>(null);
 
   // State
@@ -104,10 +104,11 @@ export function QuickCaptureSheet({
   // Focus input when sheet opens
   useEffect(() => {
     if (visible) {
-      // Small delay to allow sheet animation to start/finish
-      setTimeout(() => {
+      // Small delay to allow sheet animation to complete
+      const timer = setTimeout(() => {
         inputRef.current?.focus();
-      }, 500);
+      }, 300);
+      return () => clearTimeout(timer);
     }
   }, [visible]);
 
@@ -199,9 +200,12 @@ export function QuickCaptureSheet({
             style: 'destructive',
             onPress: () => {
               Keyboard.dismiss();
-              setText('');
-              setSelectedFriends([]);
-              onClose();
+              // Small delay to allow keyboard to dismiss before unmounting
+              setTimeout(() => {
+                setText('');
+                setSelectedFriends([]);
+                onClose();
+              }, 100);
             },
           },
         ]
@@ -216,176 +220,157 @@ export function QuickCaptureSheet({
 
   const hasContent = text.trim().length > 0;
 
-  // Footer component for StandardBottomSheet
-  const renderFooter = (
-    <View className="gap-4">
-      <TouchableOpacity
-        onPress={handleSave}
-        disabled={!hasContent || saving}
-        className="py-4 rounded-2xl items-center"
-        style={{
-          backgroundColor: hasContent ? colors.primary : colors.muted,
-          opacity: saving ? 0.7 : 1,
-        }}
-        activeOpacity={0.8}
-      >
-        <Text
-          className="text-base"
-          style={{
-            color: hasContent ? colors['primary-foreground'] : colors['muted-foreground'],
-            fontFamily: 'Inter_600SemiBold',
-          }}
-        >
-          {saving ? 'Saving...' : 'Save note'}
-        </Text>
-      </TouchableOpacity>
-
-      {/* Expand to full */}
-      {hasContent && (
-        <TouchableOpacity
-          onPress={handleExpandToFull}
-          className="flex-row items-center justify-center gap-2"
-        >
-          <Sparkles size={16} color={colors.primary} />
-          <Text
-            className="text-sm"
-            style={{ color: colors.primary, fontFamily: 'Inter_500Medium' }}
-          >
-            Expand into full reflection
-          </Text>
-          <ChevronRight size={16} color={colors.primary} />
-        </TouchableOpacity>
-      )}
-    </View>
-  );
+  if (!visible) return null;
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={handleClose}
-      statusBarTranslucent
-    >
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={{ flex: 1 }}
+    <>
+      <Modal
+        visible={visible}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={handleClose}
       >
-        {/* Backdrop */}
-        <TouchableOpacity
-          style={{
-            ...StyleSheet.absoluteFillObject,
-            backgroundColor: 'rgba(0,0,0,0.5)',
-          }}
-          activeOpacity={1}
-          onPress={handleClose}
-        />
-
-        {/* Content Container */}
-        <View className="flex-1 justify-end">
+        <View style={{ flex: 1, backgroundColor: colors.background }}>
+          {/* Header */}
           <View
+            className="flex-row items-center justify-between px-5 py-4"
             style={{
-              backgroundColor: colors.background,
-              borderTopLeftRadius: 24,
-              borderTopRightRadius: 24,
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: -4 },
-              shadowOpacity: 0.15,
-              shadowRadius: 12,
-              elevation: 10,
-              paddingBottom: 24, // Initial padding
+              paddingTop: insets.top > 0 ? insets.top : 16,
+              borderBottomWidth: 1,
+              borderBottomColor: colors.border,
             }}
           >
-            {/* Handle */}
-            <View className="items-center pt-3 pb-2">
-              <View
-                className="w-10 h-1 rounded-full"
-                style={{ backgroundColor: colors.border }}
-              />
-            </View>
+            <TouchableOpacity onPress={handleClose} className="p-2 -ml-2">
+              <X size={24} color={colors.foreground} />
+            </TouchableOpacity>
 
-            {/* Header */}
-            <View className="flex-row items-center justify-between px-5 pb-3">
+            <Text
+              className="text-lg"
+              style={{ color: colors.foreground, fontFamily: 'Lora_600SemiBold' }}
+            >
+              Quick Note
+            </Text>
+
+            <TouchableOpacity
+              onPress={handleSave}
+              disabled={!hasContent || saving}
+              className="px-4 py-2 rounded-lg"
+              style={{
+                backgroundColor: hasContent ? colors.primary : colors.muted,
+              }}
+            >
               <Text
-                className="text-lg"
-                style={{ color: colors.foreground, fontFamily: 'Lora_600SemiBold' }}
-              >
-                Quick Note
-              </Text>
-              <TouchableOpacity
-                onPress={handleClose}
-                className="w-8 h-8 items-center justify-center rounded-full"
-                style={{ backgroundColor: colors.muted }}
-              >
-                <X size={18} color={colors['muted-foreground']} />
-              </TouchableOpacity>
-            </View>
-
-            {/* Date Selector */}
-            <View className="px-5 pb-3">
-              <TouchableOpacity
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setShowDatePicker(true);
-                }}
-                className="flex-row items-center gap-2 px-3 py-2 rounded-full self-start"
+                className="text-sm font-semibold"
                 style={{
-                  backgroundColor: colors.muted,
-                  borderWidth: 1,
-                  borderColor: colors.border,
+                  color: hasContent ? colors['primary-foreground'] : colors['muted-foreground'],
+                  fontFamily: 'Inter_600SemiBold',
                 }}
               >
-                <Calendar size={14} color={colors['muted-foreground']} />
+                {saving ? 'Saving...' : 'Save'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={{ flex: 1 }}
+            keyboardVerticalOffset={0}
+          >
+            <ScrollView
+              className="flex-1 px-5 py-4"
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="interactive"
+              contentContainerStyle={{ paddingBottom: 40 }}
+            >
+              {/* Date Selector */}
+              <View className="mb-4">
+                <TouchableOpacity
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setShowDatePicker(true);
+                  }}
+                  className="flex-row items-center gap-2 px-3 py-2 rounded-full self-start"
+                  style={{
+                    backgroundColor: colors.muted,
+                    borderWidth: 1,
+                    borderColor: colors.border,
+                  }}
+                >
+                  <Calendar size={14} color={colors['muted-foreground']} />
+                  <Text
+                    className="text-sm"
+                    style={{ color: colors['muted-foreground'], fontFamily: 'Inter_500Medium' }}
+                  >
+                    {isToday(entryDate)
+                      ? 'Today'
+                      : isYesterday(entryDate)
+                        ? 'Yesterday'
+                        : format(entryDate, 'MMM d')}
+                  </Text>
+                </TouchableOpacity>
+
+                {showDatePicker && (
+                  <DateTimePicker
+                    value={entryDate}
+                    mode="date"
+                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                    maximumDate={new Date()}
+                    onChange={(event, selectedDate) => {
+                      setShowDatePicker(Platform.OS === 'ios');
+                      if (selectedDate) {
+                        setEntryDate(selectedDate);
+                      }
+                    }}
+                  />
+                )}
+              </View>
+
+              {/* Content */}
+              <View className="mb-4">
                 <Text
-                  className="text-sm"
+                  className="text-sm font-medium mb-2"
                   style={{ color: colors['muted-foreground'], fontFamily: 'Inter_500Medium' }}
                 >
-                  {isToday(entryDate)
-                    ? 'Today'
-                    : isYesterday(entryDate)
-                      ? 'Yesterday'
-                      : format(entryDate, 'MMM d')}
+                  What happened?
                 </Text>
-              </TouchableOpacity>
-
-              {showDatePicker && (
-                <DateTimePicker
-                  value={entryDate}
-                  mode="date"
-                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                  maximumDate={new Date()}
-                  onChange={(event, selectedDate) => {
-                    setShowDatePicker(Platform.OS === 'ios');
-                    if (selectedDate) {
-                      setEntryDate(selectedDate);
-                    }
+                <TextInput
+                  ref={inputRef}
+                  value={text}
+                  onChangeText={setText}
+                  placeholder="Write your thoughts..."
+                  placeholderTextColor={colors['muted-foreground']}
+                  multiline
+                  numberOfLines={6}
+                  textAlignVertical="top"
+                  className="px-4 py-3 rounded-xl text-base"
+                  style={{
+                    backgroundColor: colors.muted,
+                    color: colors.foreground,
+                    fontFamily: 'Inter_400Regular',
+                    minHeight: 150,
                   }}
                 />
-              )}
-            </View>
+              </View>
 
-            {/* Content */}
-            <View className="px-5">
-              <TextInput
-                ref={inputRef}
-                value={text}
-                onChangeText={setText}
-                placeholder="What happened?"
-                placeholderTextColor={colors['muted-foreground']}
-                multiline
-                numberOfLines={4}
-                textAlignVertical="top"
-                className="text-base"
-                style={{
-                  color: colors.foreground,
-                  fontFamily: 'Inter_400Regular',
-                  minHeight: 100,
-                  maxHeight: 200,
-                }}
-              />
+              {/* Expand to full */}
+              {hasContent && (
+                <TouchableOpacity
+                  onPress={handleExpandToFull}
+                  className="flex-row items-center justify-center gap-2 py-3 mb-4"
+                >
+                  <Sparkles size={16} color={colors.primary} />
+                  <Text
+                    className="text-sm"
+                    style={{ color: colors.primary, fontFamily: 'Inter_500Medium' }}
+                  >
+                    Expand into full reflection
+                  </Text>
+                  <ChevronRight size={16} color={colors.primary} />
+                </TouchableOpacity>
+              )}
 
               {/* Friend Selector */}
-              <View className="mt-4">
+              <View className="mt-2">
                 <Text
                   className="text-xs mb-2"
                   style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
@@ -438,50 +423,10 @@ export function QuickCaptureSheet({
                   </TouchableOpacity>
                 </View>
               </View>
-            </View>
-
-            {/* Footer Actions */}
-            <View className="px-5 pt-6">
-              <TouchableOpacity
-                onPress={handleSave}
-                disabled={!hasContent || saving}
-                className="py-4 rounded-2xl items-center"
-                style={{
-                  backgroundColor: hasContent ? colors.primary : colors.muted,
-                  opacity: saving ? 0.7 : 1,
-                }}
-                activeOpacity={0.8}
-              >
-                <Text
-                  className="text-base"
-                  style={{
-                    color: hasContent ? colors['primary-foreground'] : colors['muted-foreground'],
-                    fontFamily: 'Inter_600SemiBold',
-                  }}
-                >
-                  {saving ? 'Saving...' : 'Save note'}
-                </Text>
-              </TouchableOpacity>
-
-              {hasContent && (
-                <TouchableOpacity
-                  onPress={handleExpandToFull}
-                  className="flex-row items-center justify-center gap-2 mt-4"
-                >
-                  <Sparkles size={16} color={colors.primary} />
-                  <Text
-                    className="text-sm"
-                    style={{ color: colors.primary, fontFamily: 'Inter_500Medium' }}
-                  >
-                    Expand into full reflection
-                  </Text>
-                  <ChevronRight size={16} color={colors.primary} />
-                </TouchableOpacity>
-              )}
-            </View>
-          </View>
+            </ScrollView>
+          </KeyboardAvoidingView>
         </View>
-      </KeyboardAvoidingView>
+      </Modal>
 
       {/* Friend Picker Modal */}
       <FriendPickerModal
@@ -492,7 +437,7 @@ export function QuickCaptureSheet({
         onToggleFriend={toggleFriend}
         colors={colors}
       />
-    </Modal>
+    </>
   );
 }
 
