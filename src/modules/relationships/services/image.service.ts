@@ -510,7 +510,7 @@ export async function resolveImageUri(path: string): Promise<string> {
     }
 
     Logger.warn('[ImageService] Image file missing:', path);
-    return path; // Return original as fail-safe (or could return empty)
+    return ''; // Return empty string instead of broken path to prevent hangs
   }
 
   // Case 2: Relative path (New way)
@@ -686,4 +686,60 @@ export async function deleteGroupPhoto(groupId: string): Promise<void> {
     imageId: groupId,
     type: 'groupPicture',
   });
+}
+
+/**
+ * Verify and cleanup friend images
+ * Scans all friends with photos and checks if the file actually exists.
+ * If not, removes the reference from the database.
+ */
+export async function verifyAndCleanupFriendImages(): Promise<void> {
+  try {
+    const { database } = await import('@/db');
+    const friendsCollection = database.get('friends');
+
+    // Get all friends with a photo_url
+    const friendsWithPhotos = await friendsCollection.query().fetch(); // Fetch all first, then filter js-side or use raw query if needed
+    // Note: WatermelonDB query for non-null/non-empty string can be tricky, so let's check JS side for safety
+
+    let cleanedCount = 0;
+
+    await database.write(async () => {
+      for (const friend of friendsWithPhotos) {
+        // @ts-ignore
+        if (friend.photoUrl && friend.photoUrl.length > 0) {
+          // @ts-ignore
+          const path = friend.photoUrl;
+
+          // Check if file exists
+          let exists = false;
+
+          if (path.startsWith('file://') || path.startsWith('/')) {
+            const info = await FileSystem.getInfoAsync(path);
+            exists = info.exists;
+          } else {
+            // Relative path
+            const fullPath = (FileSystem.documentDirectory as string) + path.replace(/^\//, '');
+            const info = await FileSystem.getInfoAsync(fullPath);
+            exists = info.exists;
+          }
+
+          if (!exists) {
+            Logger.warn('[ImageService] Found friend with missing photo file, cleaning up:', { id: friend.id, path });
+            // @ts-ignore
+            await friend.update(f => {
+              f.photoUrl = null;
+            });
+            cleanedCount++;
+          }
+        }
+      }
+    });
+
+    if (cleanedCount > 0) {
+      Logger.info(`[ImageService] Cleanup complete. Removed ${cleanedCount} broken image references.`);
+    }
+  } catch (error) {
+    Logger.error('[ImageService] Error during image cleanup:', error);
+  }
 }

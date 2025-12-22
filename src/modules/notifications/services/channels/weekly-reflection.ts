@@ -139,6 +139,19 @@ export const WeeklyReflectionChannel: NotificationChannel = {
             const scheduled = await Notifications.getAllScheduledNotificationsAsync();
             const reflectionScheduled = scheduled.find(n => n.identifier === ID);
 
+            // Cleanup ghosts (any notification with type 'weekly-reflection' that isn't the main ID, backup ID, or current catchup ID)
+            const ghosts = scheduled.filter(n =>
+                n.content.data?.type === 'weekly-reflection' &&
+                n.identifier !== ID &&
+                n.identifier !== `${ID}-backup` &&
+                n.identifier !== `${ID}-catchup`
+            );
+
+            if (ghosts.length > 0) {
+                Logger.warn(`[WeeklyReflection] Found ${ghosts.length} ghost notifications. Cancelling...`);
+                await Promise.all(ghosts.map(g => Notifications.cancelScheduledNotificationAsync(g.identifier)));
+            }
+
             if (!reflectionScheduled) {
                 Logger.info('[WeeklyReflection] Not scheduled, scheduling now...');
                 await WeeklyReflectionChannel.schedule();

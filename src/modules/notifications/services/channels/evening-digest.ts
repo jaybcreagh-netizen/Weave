@@ -489,9 +489,9 @@ export const EveningDigestChannel: NotificationChannel & {
                 // Check if scheduled time matches user preference
                 const trigger = digestScheduled.trigger as { hour?: number; minute?: number } | undefined;
 
-                // Also check for "ghosts" - notifications with same title but different ID
+                // Also check for "ghosts" - notifications with same type but different ID
                 const ghosts = scheduled.filter(n =>
-                    n.content.title === "Your evening brief 🌙" &&
+                    (n.content.data?.type === 'evening-digest' || n.content.title === "Your evening brief 🌙") &&
                     n.identifier !== ID_PREFIX
                 );
 

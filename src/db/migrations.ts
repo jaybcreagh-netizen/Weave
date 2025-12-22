@@ -957,6 +957,18 @@ export default schemaMigrations({
         }),
       ],
     },
+    {
+      // Migration from schema v44 to v45
+      // Optimize Friend Tier queries
+      // Adds an index to dunbar_tier to speed up dashboard loading
+      toVersion: 45,
+      steps: [
+        unsafeExecuteSql(`
+          CREATE INDEX IF NOT EXISTS friends_dunbar_tier
+          ON friends (dunbar_tier);
+        `),
+      ],
+    },
   ],
 });
 

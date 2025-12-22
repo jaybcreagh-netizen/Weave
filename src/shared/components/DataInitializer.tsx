@@ -114,7 +114,7 @@ export function DataInitializer({ children }: DataInitializerProps) {
         // Enforce minimum display time for the splash animation
         const timer = setTimeout(() => {
             setIsSplashAnimationComplete(true);
-        }, 1500);
+        }, 800);
 
         return () => clearTimeout(timer);
     }, []);
@@ -122,11 +122,33 @@ export function DataInitializer({ children }: DataInitializerProps) {
     // Initialize Data
     useEffect(() => {
         const initializeData = async () => {
+            const startTime = Date.now();
+            console.log('[Startup] Starting initialization...');
+
             try {
+                // Measure Data Migrations
+                const migrationStart = Date.now();
                 await initializeDataMigrations();
-                await initializeUserProfile();
-                await initializeUserProgress();
-                await initializeAnalytics();
+                console.log(`[Startup] Data migrations took ${Date.now() - migrationStart}ms`);
+
+                // Run independent initializations in parallel
+                const parallelStart = Date.now();
+
+                // Pre-warm friend cache to prevent empty flash on dashboard
+                const initializeFriendCache = async () => {
+                    const { database } = await import('@/db');
+                    // Just fetching the count is enough to initialize the collection and adapter
+                    await database.get('friends').query().fetchCount();
+                    console.log(`[Startup] Friend cache pre-warmed`);
+                };
+
+                await Promise.all([
+                    initializeUserProfile().then(() => console.log(`[Startup] User profile init complete`)),
+                    initializeUserProgress().then(() => console.log(`[Startup] User progress init complete`)),
+                    initializeAnalytics().then(() => console.log(`[Startup] Analytics init complete`)),
+                    initializeFriendCache()
+                ]);
+                console.log(`[Startup] Parallel init tasks took ${Date.now() - parallelStart}ms`);
 
                 // Sync calendar changes on app launch (non-blocking)
                 import('@/modules/interactions').then(({ CalendarService }) => {
@@ -145,12 +167,23 @@ export function DataInitializer({ children }: DataInitializerProps) {
                     });
                 });
 
+                // Run image cleanup (non-blocking)
+                const imageCleanupStart = Date.now();
+                import('@/modules/relationships/services/image.service').then(({ verifyAndCleanupFriendImages }) => {
+                    verifyAndCleanupFriendImages().then(() => {
+                        console.log(`[Startup] Image cleanup took ${Date.now() - imageCleanupStart}ms`);
+                    }).catch(err => {
+                        console.error('[App] Error during image verification:', err);
+                    });
+                });
+
                 // Check for pending plans
                 PlanService.checkPendingPlans().catch(err => {
                     console.error('[App] Error checking pending plans on launch:', err);
                 });
 
                 setDataLoaded(true);
+                console.log(`[Startup] Total initialization took ${Date.now() - startTime}ms`);
             } catch (error) {
                 console.error('Failed to initialize app data:', error);
                 Sentry.captureException(error);

@@ -49,7 +49,7 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({ visible }) => {
 
       // Start animation
       strokeDashoffset.value = withSequence(
-        withTiming(0, { duration: 1500, easing: Easing.inOut(Easing.ease) }),
+        withTiming(0, { duration: 800, easing: Easing.inOut(Easing.ease) }),
         withDelay(300, withTiming(0, { duration: 0 }))
       );
     } else {

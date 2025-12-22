@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb'
 
 export default appSchema({
-  version: 44, // UPDATED: Added photo_url to groups table
+  version: 45, // UPDATED: Added index to dunbar_tier
   tables: [
     tableSchema({
       name: 'oracle_insights',
@@ -26,7 +26,7 @@ export default appSchema({
       name: 'friends',
       columns: [
         { name: 'name', type: 'string' },
-        { name: 'dunbar_tier', type: 'string' },
+        { name: 'dunbar_tier', type: 'string', isIndexed: true },
         { name: 'archetype', type: 'string' },
         { name: 'weave_score', type: 'number' },
         { name: 'last_updated', type: 'number' },

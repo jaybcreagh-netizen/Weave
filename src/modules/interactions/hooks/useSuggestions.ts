@@ -21,9 +21,17 @@ export function useSuggestions() {
   const { profile } = useUserProfile();
   const currentSeason = profile?.currentSocialSeason || null;
 
+  // Wait for profile to load to avoid double-fetching (once with null season, once with real season)
+  // Profile is usually loaded very quickly, so this just prevents the initial race condition
+  const isProfileLoaded = !!profile;
+
   const { data: suggestions = [] } = useQuery({
     queryKey: ['suggestions', 'all', currentSeason], // Include season in query key for proper cache invalidation
+    enabled: isProfileLoaded, // Only run query when we know the season
     queryFn: async () => {
+      // Return empty if profile somehow isn't loaded yet (safeguard)
+      if (!isProfileLoaded) return [];
+
       Logger.debug(`[useSuggestions] Query starting - season: ${currentSeason}`);
       const prefs = await notificationStore.getPreferences();
       Logger.debug(`[useSuggestions] Prefs loaded - maxDaily: ${prefs.maxDailySuggestions}`);
