@@ -32,8 +32,8 @@ export { TierFitCard } from './components/TierFitCard';
 export { TierFitBottomSheet } from './components/TierFitBottomSheet';
 export { TierSuggestionAlert } from './components/TierSuggestionAlert';
 export { YourPatternsSection } from './components/YourPatternsSection';
-export { InsightsFAB } from './components/InsightsFAB';
-export { InsightsSheet } from './components/InsightsSheet';
+export { NudgesFAB } from './components/NudgesFAB';
+export { NudgesSheet } from './components/NudgesSheet';
 
 // Types
 export * from './types';

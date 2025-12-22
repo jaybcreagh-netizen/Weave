@@ -21,7 +21,7 @@ import Animated, {
   withSpring,
   withSequence
 } from 'react-native-reanimated';
-import { X, Calendar, Sparkles } from 'lucide-react-native';
+import { X, Calendar, Sparkles, ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '@/shared/hooks/useTheme';
 // import { StandardBottomSheet } from '@/shared/ui/Sheet';
@@ -107,23 +107,32 @@ export function YearInMoonsModal({ isOpen, onClose, initialTab = 'moons' }: Year
 
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth(); // 0-11
+  const [selectedYear, setSelectedYear] = useState(currentYear);
   const screenWidth = Dimensions.get('window').width;
-  const moonSize = Math.floor((screenWidth - 80) / 7); // 7 moons per row with padding
+  const containerWidth = screenWidth - 40; // px-5 = 20px padding each side
+  const moonSize = Math.floor(containerWidth / 7) - 2; // Slightly smaller for compactness
 
   useEffect(() => {
     if (isOpen) {
       hasScrolledRef.current = false;
       setCurrentTab(initialTab); // Reset to initial tab when opening
-      loadYearData();
+      setSelectedYear(currentYear); // Reset to current year when opening
+      loadYearData(currentYear);
     }
   }, [isOpen, initialTab]);
 
-  const loadYearData = async (showLoader = true) => {
+  useEffect(() => {
+    if (isOpen) {
+      loadYearData(selectedYear);
+    }
+  }, [selectedYear]);
+
+  const loadYearData = async (year: number, showLoader = true) => {
     if (showLoader) setIsLoading(true);
     try {
       const [data, stats] = await Promise.all([
-        getYearMoonData(currentYear),
-        getYearStats(currentYear),
+        getYearMoonData(year),
+        getYearStats(year),
       ]);
       setYearData(data);
       setYearStats(stats);
@@ -131,6 +140,20 @@ export function YearInMoonsModal({ isOpen, onClose, initialTab = 'moons' }: Year
       logger.error('YearInMoons', 'Error loading year moon data:', error);
     } finally {
       if (showLoader) setIsLoading(false);
+    }
+  };
+
+  const handlePreviousYear = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setSelectedYear(prev => prev - 1);
+    scrollViewRef.current?.scrollTo({ y: 0, animated: false });
+  };
+
+  const handleNextYear = () => {
+    if (selectedYear < currentYear) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      setSelectedYear(prev => prev + 1);
+      scrollViewRef.current?.scrollTo({ y: 0, animated: false });
     }
   };
 
@@ -211,7 +234,7 @@ export function YearInMoonsModal({ isOpen, onClose, initialTab = 'moons' }: Year
       // We still re-fetch to ensure consistency, but user sees the change already
       // No delay needed for the UI, just for the data consistency check
       setTimeout(async () => {
-        await loadYearData(false);
+        await loadYearData(selectedYear, false);
       }, 500);
     }
   };
@@ -238,12 +261,33 @@ export function YearInMoonsModal({ isOpen, onClose, initialTab = 'moons' }: Year
         {/* Header */}
         <View className="flex-row items-center justify-between px-5 pt-5 pb-3 border-b"
           style={{ borderBottomColor: isDarkMode ? '#2A2E3F' : '#E5E7EB', backgroundColor: colors.background }}>
-          <Text
-            className="text-lg font-bold"
-            style={{ color: colors.foreground, fontFamily: 'Lora_700Bold' }}
-          >
-            Year in Moons · {currentYear}
-          </Text>
+          <View className="flex-row items-center gap-3">
+            <TouchableOpacity
+              onPress={handlePreviousYear}
+              className="p-2 -ml-2"
+            >
+              <ChevronLeft size={22} color={colors['muted-foreground']} />
+            </TouchableOpacity>
+            <Text
+              className="text-lg font-bold"
+              style={{ color: colors.foreground, fontFamily: 'Lora_700Bold' }}
+            >
+              Year in Moons · {selectedYear}
+            </Text>
+            <TouchableOpacity
+              onPress={handleNextYear}
+              className="p-2"
+              disabled={selectedYear >= currentYear}
+            >
+              <ChevronRight
+                size={22}
+                color={selectedYear >= currentYear
+                  ? (isDarkMode ? '#3A3E4F' : '#D1D5DB')
+                  : colors['muted-foreground']
+                }
+              />
+            </TouchableOpacity>
+          </View>
           <TouchableOpacity
             onPress={handleClose}
             className="p-2 -mr-2"
@@ -383,7 +427,7 @@ export function YearInMoonsModal({ isOpen, onClose, initialTab = 'moons' }: Year
                     </Text>
 
                     {/* Week Day Labels */}
-                    <View className="flex-row mb-2">
+                    <View className="flex-row mb-2 justify-center">
                       {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, i) => (
                         <View
                           key={i}
@@ -401,7 +445,7 @@ export function YearInMoonsModal({ isOpen, onClose, initialTab = 'moons' }: Year
                     </View>
 
                     {/* Moon Grid */}
-                    <View className="flex-row flex-wrap">
+                    <View className="flex-row flex-wrap justify-center">
                       {/* Padding for first day of month */}
                       {Array.from({ length: monthData.days[0].date.getDay() }).map((_, i) => (
                         <View key={`pad-${i}`} style={{ width: moonSize, height: moonSize }} />
@@ -448,8 +492,22 @@ export function YearInMoonsModal({ isOpen, onClose, initialTab = 'moons' }: Year
                   </Animated.View>
                 ))}
 
-                {/* End of year spacer */}
-                <View className="h-8" />
+                {/* End of year message */}
+                <View className="items-center py-6 mb-4">
+                  <Text
+                    className="text-sm text-center px-6"
+                    style={{
+                      color: isDarkMode ? '#8A8F9E' : '#6C7589',
+                      fontFamily: 'Inter_400Regular',
+                      lineHeight: 20
+                    }}
+                  >
+                    {selectedYear < currentYear
+                      ? `✨ A year of moments captured. Use the arrows above to explore other years.`
+                      : `🌙 Your journey continues... Check in daily to watch your moon cycle grow.`
+                    }
+                  </Text>
+                </View>
               </View>
             )}
 

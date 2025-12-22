@@ -8,7 +8,7 @@ import { Q } from '@nozbe/watermelondb';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MultiActionFAB, type FABAction } from '@/shared/components/MultiActionFAB';
-import { InsightsFAB, InsightsSheet } from '@/modules/insights';
+import { NudgesFAB, NudgesSheet } from '@/modules/insights';
 import { useUIStore } from '@/shared/stores/uiStore';
 import { usePlans, PlanService, getSuggestionCooldownDays, PlanWizard } from '@/modules/interactions';
 import { useSuggestions } from '@/modules/interactions';
@@ -48,7 +48,7 @@ export function FriendsDashboardScreen() {
     const suggestionCount = suggestions.length;
     const hasCritical = suggestions.some(s => s.priority === 'high');
     const { dismissIntention, intentions } = usePlans();
-    const [insightsSheetVisible, setInsightsSheetVisible] = useState(false);
+    const [nudgesSheetVisible, setNudgesSheetVisible] = useState(false);
     const [selectedIntention, setSelectedIntention] = useState<Intention | null>(null);
     const [addFriendMenuVisible, setAddFriendMenuVisible] = useState(false);
     const [friendPickerVisible, setFriendPickerVisible] = useState(false);
@@ -220,7 +220,7 @@ export function FriendsDashboardScreen() {
     };
 
     const handleActOnSuggestion = async (suggestion: Suggestion) => {
-        setInsightsSheetVisible(false);
+        setNudgesSheetVisible(false);
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         await SuggestionTrackerService.trackSuggestionActed(suggestion.id);
 
@@ -368,25 +368,25 @@ export function FriendsDashboardScreen() {
 
             <MultiActionFAB onAction={handleFABAction} />
 
-            <InsightsFAB
+            <NudgesFAB
                 isVisible={suggestionCount > 0 || intentions.length > 0}
                 hasSuggestions={suggestionCount > 0}
                 hasCritical={hasCritical}
-                onClick={() => setInsightsSheetVisible(true)}
+                onClick={() => setNudgesSheetVisible(true)}
             />
 
             {/* MicroReflectionSheet is handled globally by QuickWeaveProvider in _layout.tsx */}
 
-            <InsightsSheet
-                isVisible={insightsSheetVisible}
+            <NudgesSheet
+                isVisible={nudgesSheetVisible}
                 suggestions={suggestions}
                 intentions={intentions}
-                onClose={() => setInsightsSheetVisible(false)}
+                onClose={() => setNudgesSheetVisible(false)}
                 onAct={handleActOnSuggestion}
                 onLater={handleDismissSuggestion}
                 onIntentionPress={(intention) => {
                     setSelectedIntention(intention);
-                    setInsightsSheetVisible(false);
+                    setNudgesSheetVisible(false);
                 }}
             />
 

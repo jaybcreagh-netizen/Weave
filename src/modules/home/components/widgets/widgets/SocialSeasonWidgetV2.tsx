@@ -24,7 +24,7 @@ import FriendModel from '@/db/models/Friend';
 import { Q } from '@nozbe/watermelondb';
 import withObservables from '@nozbe/with-observables';
 import { startOfDay, subDays, format } from 'date-fns';
-import { SeasonIcon, SocialSeasonDetailSheet, SeasonOverrideModal } from '@/modules/intelligence';
+import { SeasonIcon, PulseSheet, SeasonOverrideModal } from '@/modules/intelligence';
 
 const WIDGET_CONFIG: HomeWidgetConfig = {
     id: 'social-season',
@@ -265,14 +265,14 @@ const SocialSeasonWidgetContent: React.FC<SocialSeasonWidgetProps> = ({ friends 
                                 fontFamily: typography.fonts.sansMedium,
                                 fontSize: typography.scale.label.fontSize,
                             }}>
-                                See insights
+                                View pulse
                             </Text>
                         </View>
                     </View>
                 </TouchableOpacity >
             </HomeWidgetBase >
 
-            <SocialSeasonDetailSheet
+            <PulseSheet
                 isVisible={showDetailSheet}
                 onClose={() => setShowDetailSheet(false)}
                 season={season}

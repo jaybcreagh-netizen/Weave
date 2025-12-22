@@ -51,7 +51,7 @@ export { SeasonEffectsPanel } from './components/social-season/SeasonEffectsPane
 export { SeasonExplanationModal } from './components/social-season/SeasonExplanationModal';
 export { SeasonIcon } from './components/social-season/SeasonIcon';
 export { SeasonOverrideModal } from './components/social-season/SeasonOverrideModal';
-export { SocialSeasonDetailSheet } from './components/social-season/SocialSeasonDetailSheet';
+export { PulseSheet } from './components/social-season/PulseSheet';
 export { MoonPhaseSelector } from './components/MoonPhaseSelector';
 export { YearInMoonsModal } from './components/social-season/YearInMoons/YearInMoonsModal';
 export { MoonPhaseIllustration } from './components/social-season/YearInMoons/MoonPhaseIllustration';

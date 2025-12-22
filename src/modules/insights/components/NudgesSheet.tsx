@@ -11,7 +11,7 @@ import { StandardBottomSheet } from '@/shared/ui/Sheet';
 import { WeaveIcon } from '@/shared/components/WeaveIcon';
 import { Text } from '@/shared/ui/Text';
 
-interface InsightsSheetProps {
+interface NudgesSheetProps {
   isVisible: boolean;
   suggestions: Suggestion[];
   intentions: Intention[];
@@ -21,7 +21,7 @@ interface InsightsSheetProps {
   onIntentionPress: (intention: Intention) => void;
 }
 
-export function InsightsSheet({
+export function NudgesSheet({
   isVisible,
   suggestions,
   intentions,
@@ -29,7 +29,7 @@ export function InsightsSheet({
   onAct,
   onLater,
   onIntentionPress,
-}: InsightsSheetProps) {
+}: NudgesSheetProps) {
   const { colors } = useTheme();
 
   // Debug: Switch to BottomSheetFlatList to verify renderScrollContent works
@@ -42,7 +42,7 @@ export function InsightsSheet({
       <WeaveIcon size={28} color={colors.primary} />
       <View>
         <Text variant="h2" style={{ color: colors.foreground, fontFamily: 'Lora_700Bold' }}>
-          Insights
+          Nudges
         </Text>
         <Text variant="caption" style={{ color: colors['muted-foreground'] }}>
           Nurture your connections

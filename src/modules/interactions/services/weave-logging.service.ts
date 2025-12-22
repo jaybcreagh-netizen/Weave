@@ -181,7 +181,7 @@ export async function deleteWeave(id: string): Promise<void> {
 
         // RECALCULATE SCORING before deleting
         const friendIds = joinRecords.map(r => r.friendId);
-        if (friendIds.length > 0) {
+        if (friendIds.length > 0 && interaction.status === 'completed') {
             const friends = await database.get<FriendModel>('friends').query(Q.where('id', Q.oneOf(friendIds))).fetch();
             await recalculateScoreOnDelete(interaction, friends, database);
         }

@@ -95,7 +95,8 @@ export const GROUP_IMMUNE_ARCHETYPES: Archetype[] = ['Sun', 'Lovers', 'Magician'
  * Even with perfect conditions (FullMoon vibe, Extended duration, archetype alignment,
  * event multiplier, momentum, etc.), scores are capped to maintain balance.
  */
-export const MAX_INTERACTION_SCORE = 50;
+export const MAX_INTERACTION_SCORE = 50; // Cap for a single interaction
+export const SCORE_BUFFER_CAP = 150; // Buffered cap for storage (allows for deletion headroom)
 
 /**
  * Group dilution curve parameters.
@@ -366,7 +367,7 @@ export const CategoryArchetypeMatrix: Record<Archetype, Record<InteractionCatego
     'meal-drink': 1.2,
     'hangout': 1.2,          // Quiet presence
     'activity-hobby': 0.8,
-    'event-party': 0.5,      // Draining
+    'event-party': 0.7,      // Draining
     'favor-support': 1.5,    // Emotional support
     'celebration': 0.8,
   },
@@ -394,13 +395,13 @@ export const CategoryArchetypeMatrix: Record<Archetype, Record<InteractionCatego
   },
   Hermit: {
     'deep-talk': 1.2,        // Less talk, more being
-    'text-call': 0.8,        // Disturbance
+    'text-call': 1.0,        // Easy Communication
     'meal-drink': 1.2,       // Quiet coffee
     'hangout': 1.5,          // Parallel play
     'activity-hobby': 2.0,   // Shared interest/parallel play
-    'event-party': 0.2,      // Nightmare
+    'event-party': 0.5,      // Nightmare
     'favor-support': 1.0,
-    'celebration': 0.5,
+    'celebration': 0.7,
     'voice-note': 0.6,       // Async disconnect
   },
   Magician: {

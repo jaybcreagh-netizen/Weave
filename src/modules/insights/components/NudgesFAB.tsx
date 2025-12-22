@@ -5,14 +5,14 @@ import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming, Eas
 import { useTheme } from '@/shared/hooks/useTheme';
 import { WeaveIcon } from '@/shared/components/WeaveIcon';
 
-interface InsightsFABProps {
+interface NudgesFABProps {
   isVisible: boolean;
   hasSuggestions: boolean;
   hasCritical: boolean;
   onClick: () => void;
 }
 
-export function InsightsFAB({ isVisible, hasSuggestions, hasCritical, onClick }: InsightsFABProps) {
+export function NudgesFAB({ isVisible, hasSuggestions, hasCritical, onClick }: NudgesFABProps) {
   const insets = useSafeAreaInsets();
   const { colors, isDarkMode } = useTheme();
   const pulseScale = useSharedValue(1);

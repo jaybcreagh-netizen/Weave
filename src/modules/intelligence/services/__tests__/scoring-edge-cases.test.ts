@@ -173,4 +173,101 @@ describe('Scoring Edge Cases', () => {
         // A normal interaction gives ~15-20 points.
         expect(finalScore).toBeGreaterThan(10);
     });
+
+    // EDGE CASE 3: Plan Deletion Safety
+    // Plans should NOT add score when created, and should NOT remove score when deleted.
+    it('should not affect score when creating or deleting planned weaves', async () => {
+        // 1. Establish baseline score (0)
+        let friendState = await database.get<FriendModel>('friends').find(friend.id);
+        const initialScore = friendState.weaveScore;
+        expect(initialScore).toBe(0);
+
+        // 2. Create a Plan
+        // "planWeave" is not imported, let's just log a weave but with type='plan' and status='planned'
+        // effectively mimicking what planWeave does (it calls eventBus, which we're mocking or integrating?)
+        // Wait, we are testing the full integration here.
+        // Let's mimic what planWeave does: create interaction, emit event.
+        // Or simpler: use logWeave but force the params to look like a plan?
+        // logWeave forces status='completed'. We should use the DB directly or import planWeave.
+
+        // Let's try to import planWeave from the module if we can, or just mock the DB creation.
+        // Since we can't easily change imports in this replace block without touching the top of the file,
+        // and we already imported WeaveLoggingService, let's check if planWeave is on it.
+        // The file imported: `import { WeaveLoggingService } from '@/modules/interactions';`
+        // `const { logWeave, deleteWeave } = WeaveLoggingService;`
+        // We can just use WeaveLoggingService.planWeave if it's there.
+
+        // But to be safe and avoided type errors if I can't see the import list fully right now:
+        // I'll manually create the interaction in the DB with status='planned'.
+        // AND I'll manually trigger the scoring process (processWeaveScoring) with status='planned'
+        // to verify it acts correctly (i.e., does nothing).
+
+        const planData = { ...baseInteractionData, type: 'plan' as const, status: 'planned', notes: 'My Plan' };
+
+        // 2a. Manually create plan in DB
+        const plan = await database.write(async () => {
+            return await database.get<Interaction>('interactions').create(i => {
+                i.activity = 'Coffee';
+                i.status = 'planned';
+                i.interactionType = 'plan';
+                i.interactionDate = new Date(); // Future?
+            });
+        });
+
+        // 2b. Attempt to score it (simulating the listener)
+        // This is the CRITICAL check: does processWeaveScoring add points if we force it?
+        // Wait, the LISTENER protects processWeaveScoring. processWeaveScoring itself might not check status?
+        // Let's check processWeaveScoring implementation again.
+        // It filters validInteractions by `Q.where('status', 'completed')` for HISTORY counts.
+        // But for the CURRENT interaction, it processes `interactionData`.
+        // If I pass data with type='plan', does "calculatePointsForWeave" return > 0?
+        // "toWeaveData" takes the data.
+        // "calculatePointsForWeave" calculates based on fields.
+
+        // THE LISTENER is the guard.
+        // So verifying the listener logic is key.
+        // But here I'm verifying the DELETE logic.
+
+        // Let's assumes a plan exists and somehow (maybe erroneously) or correctly didn't add score.
+        // If I delete it, `recalculateScoreOnDelete` should NOT run.
+
+        await deleteWeave(plan.id);
+
+        // If `recalculateScoreOnDelete` ran, it would try to subtract points.
+        // Since initial score is 0, it would stay 0 (min 0).
+        // To strictly prove it doesn't subtract, verify it doesn't log "Score Revert".
+        // Or, set initial score to 50, create plan, delete plan, ensure score is still 50.
+
+        // 3. Robust Test:
+        // A. Set score to 50.
+        await database.write(async () => {
+            await friend.update(f => { f.weaveScore = 50; });
+        });
+
+        // B. Create Plan (status='planned') via DB
+        const plan2 = await database.write(async () => {
+            return await database.get<Interaction>('interactions').create(i => {
+                i.activity = 'Coffee';
+                i.status = 'planned';
+                i.interactionType = 'plan';
+                i.interactionDate = new Date();
+            });
+            // Create link
+        });
+        await database.write(async () => {
+            await database.get('interaction_friends').create((_l: any) => {
+                const l = _l as InteractionFriend;
+                l.interaction.set(plan2);
+                l.friend.set(friend);
+            });
+        });
+
+        // C. Delete Plan
+        // This calls `deleteWeave`, which has our new check.
+        await deleteWeave(plan2.id);
+
+        // D. Verify Score is still 50
+        friendState = await database.get<FriendModel>('friends').find(friend.id);
+        expect(friendState.weaveScore).toBe(50);
+    });
 });

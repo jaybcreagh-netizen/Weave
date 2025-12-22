@@ -1,6 +1,20 @@
 import { TierDecayRates, TierDriftingThresholds } from '@/modules/intelligence/constants';
+import { Tier, Archetype, InteractionCategory } from '@/shared/types/common';
+import { Suggestion } from '@/shared/types/common';
+import FriendModel from '@/db/models/Friend';
+import { calculateCurrentScore } from '@/modules/intelligence';
+import { capturePortfolioSnapshot } from './trend.service';
+import { FriendshipPortfolio, PortfolioImbalance } from '../types';
 
-// ... (existing imports)
+// Input type for the portfolio analysis function
+interface PortfolioAnalysisInput {
+  friends: FriendModel[];
+  recentInteractions: Array<{
+    interactionDate: Date;
+    friendIds: string[];
+    category?: InteractionCategory;
+  }>;
+}
 
 export async function analyzePortfolioAsync(input: PortfolioAnalysisInput): Promise<FriendshipPortfolio> {
   const { friends, recentInteractions } = input;

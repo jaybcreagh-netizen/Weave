@@ -287,6 +287,8 @@ PODS:
     - Yoga
   - ExpoSecureStore (14.0.1):
     - ExpoModulesCore
+  - ExpoSharing (13.0.1):
+    - ExpoModulesCore
   - ExpoSymbols (0.2.2):
     - ExpoModulesCore
   - ExpoWebBrowser (14.0.2):
@@ -2168,6 +2170,7 @@ DEPENDENCIES:
   - ExpoLocalization (from `../node_modules/expo-localization/ios`)
   - ExpoModulesCore (from `../node_modules/expo-modules-core`)
   - ExpoSecureStore (from `../node_modules/expo-secure-store/ios`)
+  - ExpoSharing (from `../node_modules/expo-sharing/ios`)
   - ExpoSymbols (from `../node_modules/expo-symbols/ios`)
   - ExpoWebBrowser (from `../node_modules/expo-web-browser/ios`)
   - EXStructuredHeaders (from `../node_modules/expo-structured-headers/ios`)
@@ -2332,6 +2335,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/expo-modules-core"
   ExpoSecureStore:
     :path: "../node_modules/expo-secure-store/ios"
+  ExpoSharing:
+    :path: "../node_modules/expo-sharing/ios"
   ExpoSymbols:
     :path: "../node_modules/expo-symbols/ios"
   ExpoWebBrowser:
@@ -2535,6 +2540,7 @@ SPEC CHECKSUMS:
   ExpoLocalization: e36b911e04d371c6c6624ef818e56229bf51c498
   ExpoModulesCore: c2eeb11b2fc321dfc21b892be14c124dcac0a1e8
   ExpoSecureStore: d006eea5e316283099d46f80a6b10055b89a6008
+  ExpoSharing: c4540ef2e6615a92e05d2bddf019e1f58f27119e
   ExpoSymbols: b9f255ce49868d46a73f30e12859efeb8117bcad
   ExpoWebBrowser: 6890a769e6c9d83da938dceb9a03e764afc3ec9c
   EXStructuredHeaders: 09c70347b282e3d2507e25fb4c747b1b885f87f6

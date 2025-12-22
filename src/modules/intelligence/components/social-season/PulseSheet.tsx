@@ -25,7 +25,7 @@ import { WidgetHeader } from '@/shared/ui/WidgetHeader';
 import { Stat } from '@/shared/ui/Stat';
 import Friend from '@/db/models/Friend';
 
-interface SocialSeasonDetailSheetProps {
+interface PulseSheetProps {
     isVisible: boolean;
     onClose: () => void;
     season: SocialSeason;
@@ -37,7 +37,7 @@ interface SocialSeasonDetailSheetProps {
 
 type Tab = 'pulse' | 'alignment' | 'insights';
 
-export function SocialSeasonDetailSheet({
+export function PulseSheet({
     isVisible,
     onClose,
     season,
@@ -45,7 +45,7 @@ export function SocialSeasonDetailSheet({
     weeklyWeaves,
     currentStreak,
     networkHealth,
-}: SocialSeasonDetailSheetProps) {
+}: PulseSheetProps) {
     const { tokens, typography, spacing, isDarkMode } = useTheme();
     const [currentTab, setCurrentTab] = useState<Tab>('pulse');
 

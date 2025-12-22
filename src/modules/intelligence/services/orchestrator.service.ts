@@ -1,3 +1,4 @@
+import { MAX_INTERACTION_SCORE, SCORE_BUFFER_CAP } from '../constants';
 import { Database, Q } from '@nozbe/watermelondb';
 import FriendModel from '@/db/models/Friend';
 import { type InteractionFormData } from '@/shared/types/scoring.types';
@@ -63,7 +64,9 @@ export async function recalculateScoreOnEdit(
   if (delta !== 0) {
     await database.write(async () => {
       await friend.update(f => {
-        f.weaveScore = Math.min(100, Math.max(0, f.weaveScore + delta));
+        // Use SCORE_BUFFER_CAP for storage to allow deletion headroom,
+        // but still prevent infinite accumulation.
+        f.weaveScore = Math.min(SCORE_BUFFER_CAP, Math.max(0, f.weaveScore + delta));
         // We don't update lastUpdated here as the interaction date itself might not have changed,
         // or if it did, the decay service handles date-based updates. 
         // This is purely a value adjustment.
@@ -150,7 +153,8 @@ export async function recalculateScoreOnDelete(
     Logger.info(`[Score Revert] Friend ${friend.name}: Removed ${pointsToRemove.toFixed(1)} pts`);
 
     return friend.prepareUpdate(f => {
-      f.weaveScore = Math.min(100, Math.max(0, f.weaveScore - pointsToRemove));
+      // Allow score to drop, capped by buffer (though usually we just care about min 0)
+      f.weaveScore = Math.min(SCORE_BUFFER_CAP, Math.max(0, f.weaveScore - pointsToRemove));
       if (isLatest && newLastUpdated) {
         f.lastUpdated = newLastUpdated;
       }
@@ -301,7 +305,8 @@ export async function processWeaveScoring(
         newScore = rawScore + effectivePoints;
       }
 
-      const scoreAfterRaw = Math.min(100, newScore);
+      // Use SCORE_BUFFER_CAP for detailed record keeping
+      const scoreAfterRaw = Math.min(SCORE_BUFFER_CAP, newScore);
 
       // 4. Get updates for momentum and resilience (only if moving timeline forward)
       let momentumScore: number | undefined;
@@ -333,8 +338,8 @@ export async function processWeaveScoring(
         }
       }));
 
-      // For the UI return value, we estimate the impact on the current viewed score
-      const scoreAfter = Math.min(100, scoreBefore + effectivePoints);
+      // For the UI return value, we show the EFFECTIVE display score (capped at 100)
+      const scoreAfter = Math.min(100, Math.max(0, scoreBefore + effectivePoints));
 
       scoreUpdates.push({
         friendId: friend.id,
@@ -366,8 +371,8 @@ export function calculateCurrentScore(
   season?: SocialSeason | null
 ): number {
   const score = applyDecay(friend, 'balanced', true, season);
-  // Ensure we never return NaN
-  return isNaN(score) ? 0 : score;
+  // Ensure we never return NaN, and CAP at 100 for display/logic consumption
+  return Math.min(100, isNaN(score) ? 0 : score);
 }
 
 /**
