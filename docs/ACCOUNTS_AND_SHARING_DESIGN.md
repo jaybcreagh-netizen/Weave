@@ -1,7 +1,7 @@
 # Accounts & Sharing System - Design Document
 
 > **Status**: Draft
-> **Version**: 1.1
+> **Version**: 1.2
 > **Last Updated**: December 2024
 
 ---
@@ -97,6 +97,108 @@ If Rachel uses Weave:
 | Solo User (no linked friends) | Cloud backup, multi-device, archetype quiz |
 | Partially Linked | Reduced data entry for linked friends, verified data |
 | Fully Networked | Near-zero friction, verified reciprocity, shared planning |
+
+### Why Accounts? The Philosophical Shift
+
+Accounts aren't just a technical feature—they represent a fundamental evolution in Weave's philosophy.
+
+#### From Personal Tracker → Shared Relationship Garden
+
+**Current Model (Local-Only):**
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  Hannah's Weave                    Rachel's Weave              │
+│  ┌─────────────────────┐          ┌─────────────────────┐      │
+│  │ Rachel: 72 points   │          │ Hannah: 65 points   │      │
+│  │ Tier: Close Friend  │          │ Tier: Inner Circle  │      │
+│  │ Last saw: 2 weeks   │          │ Last saw: 3 weeks   │      │
+│  │ I initiate: 60%     │          │ I initiate: 40%     │      │
+│  └─────────────────────┘          └─────────────────────┘      │
+│                                                                 │
+│  Two separate views of the SAME relationship                   │
+│  Neither knows how the other perceives it                       │
+│  Both guessing at reciprocity                                   │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**With Accounts (Linked):**
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                 Hannah ←→ Rachel Relationship                    │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │              SHARED REALITY                              │    │
+│  │  Last weave: Coffee @ Blue Bottle (both confirmed)      │    │
+│  │  Total weaves together: 24 this year                    │    │
+│  │  Initiation: Hannah 55% / Rachel 45% (verified)         │    │
+│  │  Upcoming: Rachel wants to plan something               │    │
+│  └─────────────────────────────────────────────────────────┘    │
+│        │                                    │                    │
+│        ▼                                    ▼                    │
+│  ┌──────────────┐                  ┌──────────────┐             │
+│  │ Hannah's     │                  │ Rachel's     │             │
+│  │ Private View │                  │ Private View │             │
+│  │ Tier: Close  │                  │ Tier: Inner  │             │
+│  │ Notes: ...   │                  │ Notes: ...   │             │
+│  │ Score: 72    │                  │ Score: 65    │             │
+│  └──────────────┘                  └──────────────┘             │
+│                                                                 │
+│  Shared facts + private perceptions = complete picture          │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+#### The Core Insight: Relationships Are Inherently Mutual
+
+A friendship isn't something one person owns—it's a shared bond that both people nurture. The local-only model treats relationships as **one-sided perceptions**. Accounts enable Weave to model relationships as they actually exist: **mutual investments**.
+
+This unlocks:
+
+| Capability | Why It Matters |
+|-----------|----------------|
+| **Verified Reciprocity** | Stop guessing who initiates. Know for certain. |
+| **Mutual Intent Signals** | "Rachel wants to hang out" becomes visible to Hannah |
+| **Shared Memory** | Both people contribute to the relationship's story |
+| **Reduced Cognitive Load** | Log once, both benefit. The network does the work. |
+| **Relationship as Shared Responsibility** | Both parties can invest, not just one |
+
+#### Growth Through Philosophy, Not Gimmicks
+
+The network effect isn't a growth hack—it's philosophically aligned with how relationships work:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    NATURAL GROWTH LOOP                           │
+│                                                                 │
+│  1. Hannah logs coffee with Rachel                              │
+│     └─► Rachel receives: "Hannah logged a weave with you"       │
+│                                                                 │
+│  2. Rachel thinks: "Oh, Hannah is tracking our friendship"      │
+│     └─► Rachel is curious, downloads Weave                      │
+│                                                                 │
+│  3. Rachel creates account, links with Hannah                   │
+│     └─► Hannah sees: "Rachel is now on Weave!"                  │
+│                                                                 │
+│  4. Now both benefit:                                           │
+│     └─► Neither has to manually log their hangouts              │
+│     └─► Both see verified reciprocity                           │
+│     └─► Both can express intent ("I want to hang out")          │
+│                                                                 │
+│  5. Rachel invites Tom, Sarah, Mike...                          │
+│     └─► The network grows organically                           │
+│                                                                 │
+│  THIS IS NOT SPAM. This is modeling how friendships actually    │
+│  spread—through genuine connection, not marketing.              │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+#### What Accounts Unlock for the Philosophy
+
+| Weave Principle | How Accounts Enhance It |
+|----------------|------------------------|
+| **Mindful Connection** | Shared weaves create moments of mutual acknowledgment |
+| **Reducing Social Guilt** | "They're tracking too" normalizes intentional friendship |
+| **Quality Over Quantity** | Verified data reveals true relationship patterns |
+| **Social Health as Priority** | Both parties actively investing = healthier relationships |
+| **Combating Loneliness** | Seeing a friend cares (they logged you!) reduces isolation |
 
 ---
 
@@ -2027,31 +2129,154 @@ async function handleAccountDeleted(): Promise<void> {
 
 ## 20. Future Possibilities
 
-Once the foundation is built, many doors open:
+Once the foundation is built, accounts unlock an entirely new category of features that would be impossible with local-only data.
+
+### What Only Accounts Can Enable
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    ACCOUNTS UNLOCK                               │
+│                                                                 │
+│  LOCAL-ONLY                          WITH ACCOUNTS              │
+│  ───────────                          ────────────              │
+│  "I think I initiate more"     →     "You initiate 62%"        │
+│  "We should hang out"          →     "Rachel wants to see you" │
+│  "When did we last meet?"      →     "Nov 23 (both confirmed)" │
+│  "I hope they had fun"         →     "Rachel rated it 🌟🌟🌟🌟" │
+│  "Is this friendship balanced?"→     "Mutual investment: 8/10" │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
 
 ### Near-term (1-3 months post-launch)
 
 | Feature | Description | Value |
 |---------|-------------|-------|
-| Multi-device sync | Same account on phone + tablet | Flexibility |
-| Shared photo memories | Attach photos to shared weaves | Richer memories |
-| Group weave invites | Plan weaves with multiple friends | Easier coordination |
+| **Multi-device sync** | Same account on phone + tablet | Flexibility |
+| **Shared photo memories** | Attach photos to shared weaves | Richer memories |
+| **Group weave invites** | Plan weaves with multiple friends | Easier coordination |
+| **Birthday from profile** | Auto-populate from linked friend's profile | Never forget |
+| **"On Weave" indicator** | Badge on friends who use Weave | Encourage linking |
 
 ### Medium-term (3-6 months post-launch)
 
 | Feature | Description | Value |
 |---------|-------------|-------|
-| Weave suggestions from friends | "Rachel wants to grab coffee this week" | Mutual intent |
-| Availability sharing | "I'm free Thursday evening" | Easier scheduling |
-| Reciprocity insights | Verified "you always initiate" | Relationship awareness |
+| **Mutual Intent** | "Rachel wants to grab coffee this week" | Both parties express desire to connect |
+| **Availability hints** | "I'm free Thursday evening" (opt-in) | Easier scheduling |
+| **Verified Reciprocity** | "You initiate 65% of weaves with Rachel" | Stop guessing, know for certain |
+| **Weave streaks** | "You and Rachel have hung out 4 weeks in a row" | Gamified mutual investment |
+| **Relationship milestones** | "1 year since your first logged weave together" | Celebrate the relationship |
 
 ### Long-term (6+ months post-launch)
 
 | Feature | Description | Value |
 |---------|-------------|-------|
-| Friendship health reports | Mutual view of relationship | Shared growth |
-| Joint reflections | "How was your last hangout?" to both | Deeper insight |
-| Friend recommendations | "You both know Sarah, maybe..." | Network weaving |
+| **Friendship Health Score** | Mutual view: "Your relationship is thriving" | Shared awareness |
+| **Joint Reflections** | Both answer: "How was your last hangout?" | Deeper mutual insight |
+| **Friend Introductions** | "You both know Sarah. Maybe a group hangout?" | Network weaving |
+| **Social Circle Overlap** | "Your Inner Circles share 3 people" | Understand social topology |
+| **Relationship Coaching** | AI insights based on both perspectives | Premium feature |
+
+### Transformative Concepts (Vision)
+
+These require significant network adoption but represent the ultimate vision:
+
+#### 1. Mutual Nurturing Dashboard
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│             Hannah ←→ Rachel: Relationship Dashboard             │
+│                                                                 │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │  Relationship Health: ████████░░ 82%                    │   │
+│  │  You've connected 24 times this year                    │   │
+│  │  Initiation balance: 55% Hannah / 45% Rachel ✓          │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│                                                                 │
+│  Recent Weaves (shared view):                                   │
+│  • Dec 14: Coffee @ Blue Bottle (both gave 4/5 vibe)           │
+│  • Nov 28: Thanksgiving dinner (Rachel's idea)                  │
+│  • Nov 12: Walk in the park (Hannah's idea)                     │
+│                                                                 │
+│  Mutual Intent:                                                 │
+│  🟢 Rachel wants to plan something                              │
+│  🟡 Hannah hasn't expressed intent yet                          │
+│                                                                 │
+│  [Plan Together]              [View Full History]               │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+#### 2. Friend Group Coordination
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│              "Coffee Crew" Group (4 people on Weave)            │
+│                                                                 │
+│  Recent Activity:                                               │
+│  • Hannah & Rachel: Coffee last week                            │
+│  • Tom & Sarah: Lunch yesterday                                 │
+│  • Group hasn't all met in: 3 weeks                            │
+│                                                                 │
+│  Mutual Intent:                                                 │
+│  🟢 Hannah: "I want to see everyone"                            │
+│  🟢 Rachel: "Let's do something"                                │
+│  🟡 Tom: No recent intent                                       │
+│  🟡 Sarah: No recent intent                                     │
+│                                                                 │
+│  [Suggest Group Weave]         [View Group Insights]            │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+#### 3. Relationship Investment Parity
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    Investment Parity Alert                       │
+│                                                                 │
+│  ⚠️ Imbalance detected with Tom                                 │
+│                                                                 │
+│  You've initiated the last 5 weaves in a row.                  │
+│  Tom hasn't expressed any intent to connect.                    │
+│                                                                 │
+│  This doesn't mean Tom doesn't care! Life gets busy.           │
+│  But it might be worth:                                         │
+│  • Waiting for Tom to reach out                                │
+│  • Checking in with a simple message                           │
+│  • Reflecting on the relationship                              │
+│                                                                 │
+│  [Mute these alerts for Tom]   [Adjust my expectations]        │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Network Effects at Scale
+
+As adoption grows, entirely new categories emerge:
+
+| Adoption Level | Unlocks |
+|---------------|---------|
+| **5 linked friends** | Personal network starts self-documenting |
+| **15 linked friends** | Close Friends tier becomes effortless |
+| **50+ linked friends** | Community tier nearly automated |
+| **Most friends linked** | Weave becomes relationship operating system |
+
+### The Ultimate Vision
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                                                                 │
+│  Today: You manually track relationships                        │
+│  Tomorrow: Your relationships track themselves                  │
+│                                                                 │
+│  The more friends on Weave, the less YOU have to do.           │
+│  The network does the work.                                     │
+│  You just show up and connect.                                  │
+│                                                                 │
+│  Weave becomes invisible—the way good infrastructure should be. │
+│  You stop logging and start living.                             │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
@@ -2075,10 +2300,10 @@ Once the foundation is built, many doors open:
    - Opportunity: Natural referral mechanism
    - **Recommendation**: Defer to Phase 3+. Focus on linking existing users first.
 
-2. **Shared weave limits**: Should there be limits on pending shared weaves?
-   - Concern: Someone could spam you with weave shares
-   - Mitigation: Easy mute/block, rate limiting
-   - **Recommendation**: Implement rate limiting (max 20 pending shares per friend per week)
+2. ~~**Shared weave limits**~~: **RESOLVED - No limits**
+   - Limiting shares contradicts core philosophy (network effect reduces data entry)
+   - If someone shares excessively, the recipient can mute/unlink that specific friend
+   - The more shares flowing through the network, the more value everyone gets
 
 3. **Quiz design**: Who designs the archetype discovery quiz?
    - **Decision**: User will design the quiz. Technical infrastructure documented in [Section 7](#7-archetype-discovery-quiz).
