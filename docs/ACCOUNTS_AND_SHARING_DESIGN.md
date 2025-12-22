@@ -1,7 +1,7 @@
 # Accounts & Sharing System - Design Document
 
 > **Status**: Draft
-> **Version**: 1.0
+> **Version**: 1.1
 > **Last Updated**: December 2024
 
 ---
@@ -11,18 +11,24 @@
 1. [Executive Summary](#1-executive-summary)
 2. [Problem Statement](#2-problem-statement)
 3. [Core Value Proposition](#3-core-value-proposition)
-4. [User Account System](#4-user-account-system)
-5. [Self-Sovereign Profile](#5-self-sovereign-profile)
-6. [Archetype Discovery Quiz](#6-archetype-discovery-quiz)
-7. [Friend Linking System](#7-friend-linking-system)
-8. [Shared Weaves (Token Model)](#8-shared-weaves-token-model)
-9. [Data Models](#9-data-models)
-10. [Technical Architecture](#10-technical-architecture)
-11. [Privacy & Security](#11-privacy--security)
-12. [Migration Strategy](#12-migration-strategy)
-13. [Phased Rollout](#13-phased-rollout)
-14. [Future Possibilities](#14-future-possibilities)
-15. [Open Questions](#15-open-questions)
+4. [Subscription Model](#4-subscription-model)
+5. [User Account System](#5-user-account-system)
+6. [Self-Sovereign Profile](#6-self-sovereign-profile)
+7. [Archetype Discovery Quiz](#7-archetype-discovery-quiz)
+8. [Friend Linking System](#8-friend-linking-system)
+9. [Shared Weaves (Token Model)](#9-shared-weaves-token-model)
+10. [Duplicate Detection (Fuzzy Matching)](#10-duplicate-detection-fuzzy-matching)
+11. [Offline-First Sharing Architecture](#11-offline-first-sharing-architecture)
+12. [Photo Storage](#12-photo-storage)
+13. [Data Models](#13-data-models)
+14. [Technical Architecture](#14-technical-architecture)
+15. [Leveraging Existing Infrastructure](#15-leveraging-existing-infrastructure)
+16. [Privacy & Security](#16-privacy--security)
+17. [Account Deletion & Unlinking](#17-account-deletion--unlinking)
+18. [Migration Strategy](#18-migration-strategy)
+19. [Phased Rollout](#19-phased-rollout)
+20. [Future Possibilities](#20-future-possibilities)
+21. [Open Questions](#21-open-questions)
 
 ---
 
@@ -94,7 +100,89 @@ If Rachel uses Weave:
 
 ---
 
-## 4. User Account System
+## 4. Subscription Model
+
+### Decision: Free Core, Premium Intelligence
+
+The subscription model is designed to maximize network effect growth while monetizing advanced features.
+
+### Tier Breakdown
+
+| Tier | Price | Features |
+|------|-------|----------|
+| **Free** | $0 | Core weave logging, tier management, all 7 archetypes, basic suggestions, friend linking, shared weaves, cloud backup |
+| **Plus** | $4.99/mo | Advanced insights, portfolio analysis, relationship health trends, priority support |
+| **Premium** | $9.99/mo | Everything in Plus + AI-powered features, smart suggestions, conversation starters, relationship coaching |
+
+### Free Tier (Core Experience)
+
+**Included:**
+- ✅ Unlimited friends and weave logging
+- ✅ Dunbar tier management (Inner Circle, Close Friends, Community)
+- ✅ All 7 tarot archetypes with decay modifiers
+- ✅ Basic suggestions ("You haven't seen Rachel in 2 weeks")
+- ✅ Friend linking and shared weaves
+- ✅ Cloud backup and multi-device sync
+- ✅ Archetype discovery quiz
+- ✅ Birthday and life event tracking
+- ✅ Basic reciprocity tracking (self-reported)
+
+**Rationale:** The free tier must be compelling enough to drive adoption and network effects. Linking and sharing are free because they become more valuable as more people use them.
+
+### Plus Tier (Advanced Insights)
+
+**Includes Free +:**
+- ✅ Portfolio analysis (tier distribution, balance scores)
+- ✅ Effectiveness scoring per friend
+- ✅ Relationship health trends over time
+- ✅ Social season insights (Resting/Balanced/Blooming)
+- ✅ Verified reciprocity metrics (with linked friends)
+- ✅ Weekly reflection prompts with personalized insights
+- ✅ Export data to CSV/JSON
+
+### Premium Tier (AI-Powered)
+
+**Includes Plus +:**
+- ✅ AI-generated conversation starters
+- ✅ Smart activity suggestions based on archetype
+- ✅ Relationship coaching insights
+- ✅ Conflict pattern detection
+- ✅ Natural language weave logging ("Had coffee with Rachel yesterday")
+- ✅ AI-summarized relationship history
+- ✅ Future: Voice-based logging
+
+### Mapping to Existing Infrastructure
+
+The codebase already has subscription infrastructure:
+
+```typescript
+// Existing in auth.store.ts
+type SubscriptionTier = 'free' | 'plus' | 'premium';
+
+// Existing in user_subscriptions table
+tier: 'free' | 'plus' | 'premium'
+status: 'active' | 'canceled' | 'past_due' | 'trialing'
+```
+
+**Implementation:** Use existing `useFeatureGate()` hook (currently stubbed) to gate features:
+
+```typescript
+// In useFeatureGate.ts - implement actual gating
+const FEATURE_TIERS: Record<string, SubscriptionTier[]> = {
+  'basic-logging': ['free', 'plus', 'premium'],
+  'friend-linking': ['free', 'plus', 'premium'],
+  'shared-weaves': ['free', 'plus', 'premium'],
+  'portfolio-analysis': ['plus', 'premium'],
+  'effectiveness-scoring': ['plus', 'premium'],
+  'ai-suggestions': ['premium'],
+  'ai-coaching': ['premium'],
+  'voice-logging': ['premium'],
+};
+```
+
+---
+
+## 5. User Account System
 
 ### Authentication Methods
 
@@ -677,7 +765,397 @@ When the creator edits shared details, participants see updates:
 
 ---
 
-## 9. Data Models
+## 10. Duplicate Detection (Fuzzy Matching)
+
+### The Problem
+
+When both Hannah and Rachel log the same coffee meetup separately, the system needs to detect this and avoid double-counting while preserving each user's private data.
+
+### Fuzzy Matching Algorithm
+
+```typescript
+interface WeaveSignature {
+  date: Date;
+  participantIds: string[];  // Linked user IDs
+  location?: string;
+  activity?: string;
+}
+
+interface MatchScore {
+  score: number;          // 0-100
+  confidence: 'high' | 'medium' | 'low';
+  matchedFields: string[];
+}
+
+function calculateMatchScore(weave1: WeaveSignature, weave2: WeaveSignature): MatchScore {
+  let score = 0;
+  const matchedFields: string[] = [];
+
+  // Date proximity (max 40 points)
+  const hoursDiff = Math.abs(weave1.date - weave2.date) / (1000 * 60 * 60);
+  if (hoursDiff <= 2) {
+    score += 40;
+    matchedFields.push('date_exact');
+  } else if (hoursDiff <= 6) {
+    score += 30;
+    matchedFields.push('date_close');
+  } else if (hoursDiff <= 24) {
+    score += 15;
+    matchedFields.push('date_same_day');
+  }
+
+  // Participant overlap (max 35 points)
+  const overlap = intersect(weave1.participantIds, weave2.participantIds);
+  const overlapRatio = overlap.length / Math.max(weave1.participantIds.length, weave2.participantIds.length);
+  score += Math.round(overlapRatio * 35);
+  if (overlapRatio > 0.8) matchedFields.push('participants_match');
+
+  // Location similarity (max 15 points)
+  if (weave1.location && weave2.location) {
+    const locationSimilarity = fuzzyStringMatch(weave1.location, weave2.location);
+    score += Math.round(locationSimilarity * 15);
+    if (locationSimilarity > 0.7) matchedFields.push('location_match');
+  }
+
+  // Activity match (max 10 points)
+  if (weave1.activity === weave2.activity) {
+    score += 10;
+    matchedFields.push('activity_match');
+  }
+
+  return {
+    score,
+    confidence: score >= 70 ? 'high' : score >= 50 ? 'medium' : 'low',
+    matchedFields,
+  };
+}
+```
+
+### Match Thresholds
+
+| Score | Confidence | Action |
+|-------|------------|--------|
+| 70-100 | High | Auto-merge (link weaves silently) |
+| 50-69 | Medium | Suggest merge to user |
+| 0-49 | Low | Treat as separate events |
+
+### Merge Behavior
+
+When duplicates are detected:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  Hannah logs: "Coffee with Rachel @ Blue Bottle, 2pm"           │
+│                          │                                      │
+│                          ▼                                      │
+│  Server checks: Any weaves from Rachel with Hannah in last 24h? │
+│                          │                                      │
+│                          ▼ (Found: Rachel logged "Coffee with   │
+│                              Hannah @ Blue Bottle, 2:30pm")     │
+│                          │                                      │
+│                          ▼ Match score: 85 (High confidence)    │
+│                          │                                      │
+│                          ▼                                      │
+│  Auto-link: Both weaves reference same shared_weave_id          │
+│  Each keeps their private data (vibe, reflection, points)       │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Data Model for Linked Duplicates
+
+```sql
+-- Add to shared_weaves table
+ALTER TABLE shared_weaves ADD COLUMN
+  merge_source VARCHAR(20) DEFAULT 'manual';  -- 'manual' | 'auto_detected' | 'user_confirmed'
+
+ALTER TABLE shared_weaves ADD COLUMN
+  match_score INTEGER;  -- Score when auto-detected
+
+-- Track merge decisions for ML improvement
+CREATE TABLE merge_feedback (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  shared_weave_id UUID REFERENCES shared_weaves(id),
+  user_id UUID REFERENCES user_profiles(id),
+  feedback VARCHAR(20) NOT NULL,  -- 'correct' | 'incorrect' | 'unsure'
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+### Edge Cases
+
+| Scenario | Resolution |
+|----------|------------|
+| Group weave, partial logging | Match if 70%+ participants overlap |
+| Same day, different activities | Keep separate (low score) |
+| Multi-day trip | Match by date range, not single point |
+| Recurring meetup (e.g., weekly coffee) | Use date precision; same week = different events |
+
+---
+
+## 11. Offline-First Sharing Architecture
+
+### Design Principle
+
+Weaves are stored locally first, then synced when online. The existing `SyncEngine` provides the foundation.
+
+### Offline Share Flow
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     OFFLINE SHARING FLOW                         │
+│                                                                 │
+│  1. User logs weave with linked friend (offline)                │
+│     └─► Interaction created locally (WatermelonDB)              │
+│     └─► SharedWeaveRef created with status='pending_upload'     │
+│                                                                 │
+│  2. Device comes online                                         │
+│     └─► SyncEngine detects pending SharedWeaveRefs              │
+│     └─► Creates shared_weave on server                          │
+│     └─► Notifies linked friend                                  │
+│     └─► Updates local status='synced'                           │
+│                                                                 │
+│  3. Linked friend receives (may be offline)                     │
+│     └─► Push notification queued                                │
+│     └─► When online: shared_weave_participants row created      │
+│     └─► Friend's device pulls on next sync                      │
+│     └─► Local SharedWeaveRef created with status='pending_accept'│
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Local Tracking Model
+
+Extends existing WatermelonDB schema:
+
+```typescript
+// New table: shared_weave_refs (local tracking)
+tableSchema({
+  name: 'shared_weave_refs',
+  columns: [
+    { name: 'shared_weave_id', type: 'string', isIndexed: true },  // Server ID (null until synced)
+    { name: 'local_interaction_id', type: 'string', isIndexed: true },
+    { name: 'direction', type: 'string' },  // 'outgoing' | 'incoming'
+    { name: 'status', type: 'string' },     // See status enum below
+    { name: 'linked_friend_ids', type: 'string' },  // JSON array of linked user IDs
+    { name: 'queued_at', type: 'number' },  // When share was initiated
+    { name: 'synced_at', type: 'number' },  // When successfully synced
+    { name: 'error_message', type: 'string' },  // If sync failed
+    { name: 'retry_count', type: 'number' },
+    { name: 'created_at', type: 'number' },
+    { name: 'updated_at', type: 'number' },
+  ]
+})
+
+type SharedWeaveStatus =
+  | 'pending_upload'    // Created offline, waiting to sync
+  | 'uploading'         // Currently syncing
+  | 'synced'            // Successfully on server
+  | 'pending_accept'    // Incoming, user hasn't responded
+  | 'accepted'          // User accepted incoming share
+  | 'declined'          // User declined incoming share
+  | 'failed'            // Sync failed after retries
+  | 'expired';          // Server-side expiration
+```
+
+### Integration with Existing SyncEngine
+
+```typescript
+// Add to sync-engine.ts SYNCED_TABLES array
+const SYNCED_TABLES = [
+  // ... existing tables
+  'shared_weave_refs',  // New
+];
+
+// Extend pushChanges to handle shared weaves
+async function pushSharedWeaves(userId: string): Promise<void> {
+  const pendingShares = await database
+    .get<SharedWeaveRef>('shared_weave_refs')
+    .query(Q.where('status', 'pending_upload'))
+    .fetch();
+
+  for (const share of pendingShares) {
+    try {
+      // Mark uploading
+      await share.update(r => { r.status = 'uploading'; });
+
+      // Create on server
+      const { data, error } = await supabase
+        .from('shared_weaves')
+        .insert({
+          created_by: userId,
+          weave_date: share.interaction.interactionDate,
+          // ... map other fields
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Update local ref
+      await share.update(r => {
+        r.sharedWeaveId = data.id;
+        r.status = 'synced';
+        r.syncedAt = Date.now();
+      });
+    } catch (error) {
+      await share.update(r => {
+        r.status = r.retryCount >= 3 ? 'failed' : 'pending_upload';
+        r.retryCount = (r.retryCount || 0) + 1;
+        r.errorMessage = error.message;
+      });
+    }
+  }
+}
+```
+
+### Conflict Resolution
+
+Uses existing `SyncConflictStore` pattern:
+
+| Conflict Type | Resolution |
+|---------------|------------|
+| Both log same event | Fuzzy match → auto-link or suggest merge |
+| Edit while offline | Last-write-wins on shared fields, both keep private data |
+| Accept while creator cancels | Creator's cancel wins, acceptor notified |
+| Network failure during share | Retry with exponential backoff (3 attempts) |
+
+---
+
+## 12. Photo Storage
+
+### Supabase Storage Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    SUPABASE STORAGE BUCKETS                      │
+│                                                                 │
+│  weave-profiles/                                                │
+│  └── {user_id}/                                                 │
+│      └── avatar.jpg                 ← User profile photo        │
+│      └── avatar_thumb.jpg           ← 200x200 thumbnail         │
+│                                                                 │
+│  weave-friends/                                                 │
+│  └── {user_id}/                                                 │
+│      └── {friend_id}/                                           │
+│          └── photo.jpg              ← Friend photo              │
+│          └── photo_thumb.jpg        ← Thumbnail                 │
+│                                                                 │
+│  weave-shared/                      ← For shared weave photos   │
+│  └── {shared_weave_id}/                                         │
+│      └── memory_1.jpg                                           │
+│      └── memory_2.jpg                                           │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Bucket Policies
+
+```sql
+-- Profile photos: Owner can upload, linked friends can view
+CREATE POLICY "Users can upload own avatar"
+  ON storage.objects FOR INSERT
+  WITH CHECK (
+    bucket_id = 'weave-profiles' AND
+    (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+CREATE POLICY "Linked friends can view profile photos"
+  ON storage.objects FOR SELECT
+  USING (
+    bucket_id = 'weave-profiles' AND
+    (
+      (storage.foldername(name))[1] = auth.uid()::text  -- Own photos
+      OR
+      (storage.foldername(name))[1] IN (                -- Linked friends' photos
+        SELECT user_b_id::text FROM friend_links WHERE user_a_id = auth.uid() AND status = 'active'
+        UNION
+        SELECT user_a_id::text FROM friend_links WHERE user_b_id = auth.uid() AND status = 'active'
+      )
+    )
+  );
+
+-- Friend photos: Only owner can access (private)
+CREATE POLICY "Users can manage own friend photos"
+  ON storage.objects FOR ALL
+  USING (
+    bucket_id = 'weave-friends' AND
+    (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+-- Shared weave photos: Participants only
+CREATE POLICY "Participants can view shared weave photos"
+  ON storage.objects FOR SELECT
+  USING (
+    bucket_id = 'weave-shared' AND
+    (storage.foldername(name))[1] IN (
+      SELECT id::text FROM shared_weaves WHERE created_by = auth.uid()
+      UNION
+      SELECT shared_weave_id::text FROM shared_weave_participants WHERE user_id = auth.uid()
+    )
+  );
+```
+
+### Image Processing
+
+```typescript
+// image.service.ts - Extend existing service
+import * as ImageManipulator from 'expo-image-manipulator';
+
+interface UploadResult {
+  url: string;
+  thumbnailUrl: string;
+}
+
+async function uploadProfilePhoto(userId: string, uri: string): Promise<UploadResult> {
+  // Compress and resize
+  const processed = await ImageManipulator.manipulateAsync(
+    uri,
+    [{ resize: { width: 800 } }],
+    { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG }
+  );
+
+  const thumbnail = await ImageManipulator.manipulateAsync(
+    uri,
+    [{ resize: { width: 200, height: 200 } }],
+    { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
+  );
+
+  // Upload to Supabase Storage
+  const mainPath = `${userId}/avatar.jpg`;
+  const thumbPath = `${userId}/avatar_thumb.jpg`;
+
+  await Promise.all([
+    supabase.storage.from('weave-profiles').upload(mainPath, processed.uri, { upsert: true }),
+    supabase.storage.from('weave-profiles').upload(thumbPath, thumbnail.uri, { upsert: true }),
+  ]);
+
+  return {
+    url: supabase.storage.from('weave-profiles').getPublicUrl(mainPath).data.publicUrl,
+    thumbnailUrl: supabase.storage.from('weave-profiles').getPublicUrl(thumbPath).data.publicUrl,
+  };
+}
+```
+
+### Caching Strategy
+
+```typescript
+// Use React Query for image caching
+function useProfilePhoto(userId: string) {
+  return useQuery({
+    queryKey: ['profile-photo', userId],
+    queryFn: async () => {
+      const { data } = supabase.storage
+        .from('weave-profiles')
+        .getPublicUrl(`${userId}/avatar_thumb.jpg`);
+      return data.publicUrl;
+    },
+    staleTime: 1000 * 60 * 60,  // 1 hour
+    cacheTime: 1000 * 60 * 60 * 24,  // 24 hours
+  });
+}
+```
+
+---
+
+## 13. Data Models
 
 ### Supabase Tables (Server)
 
@@ -830,7 +1308,7 @@ tableSchema({
 
 ---
 
-## 10. Technical Architecture
+## 14. Technical Architecture
 
 ### System Overview
 
@@ -942,7 +1420,142 @@ supabase
 
 ---
 
-## 11. Privacy & Security
+## 15. Leveraging Existing Infrastructure
+
+### What Already Exists
+
+The codebase has significant infrastructure that can be leveraged for the accounts and sharing system:
+
+#### Authentication & Sync
+
+| Component | Location | Status | Notes |
+|-----------|----------|--------|-------|
+| Supabase Client | `src/modules/auth/services/supabase.service.ts` | ✅ Ready | OAuth configured, secure token storage |
+| SyncEngine | `src/modules/auth/services/sync-engine.ts` | ✅ Ready | Bidirectional delta sync, conflict detection |
+| AuthStore | `src/modules/auth/store/auth.store.ts` | ✅ Ready | Session, subscription tier tracking |
+| Conflict Resolution | `src/modules/auth/store/sync-conflict.store.ts` | ✅ Ready | Modal-based user resolution |
+| Background Sync | `src/modules/auth/services/background-event-sync.ts` | ✅ Ready | Expo task manager integration |
+
+#### Data Layer
+
+| Component | Location | Status | Notes |
+|-----------|----------|--------|-------|
+| User isolation (`user_id`) | All main models | ✅ Ready | Added in schema v31 |
+| Sync status tracking | All main models | ✅ Ready | `sync_status`, `synced_at`, `server_updated_at` |
+| Subscription tiers | `user_subscriptions` table | ✅ Ready | Free/Plus/Premium structure |
+| Usage tracking | `usage_tracking` table | ✅ Ready | Friends count, weaves count |
+
+#### Missing (To Build)
+
+| Component | Priority | Notes |
+|-----------|----------|-------|
+| `user_profiles` table | P0 | Username, display name, archetype |
+| `friend_links` table | P0 | User-to-user connections |
+| `shared_weaves` table | P1 | Shared weave storage |
+| Feature gating logic | P0 | `useFeatureGate()` is stubbed |
+| Profile photo storage | P1 | Supabase Storage buckets |
+| Archetype quiz UI | P1 | User will design |
+
+### Reuse Patterns
+
+#### 1. Sync Fields Pattern
+
+All new tables should follow the existing pattern:
+
+```typescript
+// Existing pattern in schema.ts
+{ name: 'user_id', type: 'string', isIndexed: true },
+{ name: 'synced_at', type: 'number' },
+{ name: 'sync_status', type: 'string' },  // 'pending' | 'synced' | 'conflict'
+{ name: 'server_updated_at', type: 'number' },
+```
+
+#### 2. Store Pattern (Zustand)
+
+Follow existing auth module stores:
+
+```typescript
+// Pattern from auth.store.ts
+interface SharingState {
+  linkedFriends: LinkedFriend[];
+  pendingRequests: LinkRequest[];
+
+  // Actions
+  fetchLinkedFriends: () => Promise<void>;
+  sendLinkRequest: (username: string) => Promise<void>;
+  acceptLinkRequest: (requestId: string) => Promise<void>;
+}
+
+export const useSharingStore = create<SharingState>((set, get) => ({
+  // Implementation follows existing patterns
+}));
+```
+
+#### 3. Service Pattern
+
+Business logic in services, not components:
+
+```typescript
+// src/modules/sharing/services/link.service.ts
+export class LinkService {
+  async sendLinkRequest(targetUsername: string): Promise<LinkRequest> {
+    // Use existing supabase client
+    const { data, error } = await supabase
+      .from('friend_links')
+      .insert({ /* ... */ });
+    // ...
+  }
+}
+```
+
+#### 4. Hook Pattern
+
+Expose via hooks for components:
+
+```typescript
+// src/modules/sharing/hooks/useLinkedFriends.ts
+export function useLinkedFriends(friendId: string) {
+  const linkedUserId = useFriendLinkedUserId(friendId);  // From Friend model
+
+  return useQuery({
+    queryKey: ['linked-profile', linkedUserId],
+    queryFn: () => fetchLinkedProfile(linkedUserId),
+    enabled: !!linkedUserId,
+  });
+}
+```
+
+### Module Structure (Proposed)
+
+```
+src/modules/sharing/
+├── components/
+│   ├── LinkFriendModal.tsx
+│   ├── SharedWeaveCard.tsx
+│   ├── LinkRequestNotification.tsx
+│   └── QRCodeScanner.tsx
+├── screens/
+│   ├── LinkedFriendsScreen.tsx
+│   └── ShareWeaveScreen.tsx
+├── services/
+│   ├── link.service.ts
+│   ├── shared-weave.service.ts
+│   ├── duplicate-detection.service.ts
+│   └── profile-sync.service.ts
+├── store/
+│   └── sharing.store.ts
+├── hooks/
+│   ├── useLinkedFriends.ts
+│   ├── useSharedWeaves.ts
+│   └── useLinkRequests.ts
+├── types/
+│   └── index.ts
+└── index.ts
+```
+
+---
+
+## 16. Privacy & Security
 
 ### Core Principles
 
@@ -1037,7 +1650,174 @@ CREATE POLICY "Participants can view shared weaves"
 
 ---
 
-## 12. Migration Strategy
+## 17. Account Deletion & Unlinking
+
+### Design Decision: Linked Friend → Offline Friend
+
+When a linked friend deletes their account or unlinks, the friend record is preserved but reverts to "offline" status.
+
+### Unlinking Flow
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                       UNLINKING SCENARIOS                        │
+│                                                                 │
+│  1. User A explicitly unlinks User B                            │
+│     └─► A's local Friend record: linkedUserId = null            │
+│     └─► B's local Friend record: linkedUserId = null            │
+│     └─► friend_links row: status = 'unlinked'                   │
+│     └─► Both keep all local data (weaves, notes, scores)        │
+│                                                                 │
+│  2. User A deletes their Weave account                          │
+│     └─► All of A's friend_links: status = 'deleted'             │
+│     └─► All linked friends' local records: linkedUserId = null  │
+│     └─► Friends keep their Friend record as "offline friend"    │
+│     └─► A's server data: deleted (GDPR compliant)               │
+│     └─► A's local data: preserved (their choice to keep/delete) │
+│                                                                 │
+│  3. User A blocks User B                                        │
+│     └─► friend_links row: status = 'blocked', blocked_by = A    │
+│     └─► B cannot see A exists (searches return nothing)         │
+│     └─► B's Friend record preserved as offline                  │
+│     └─► Shared weaves: preserved but no new sharing allowed     │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Data Preservation Guarantees
+
+| Scenario | Your Friend Record | Your Weave History | Their Profile Data |
+|----------|-------------------|-------------------|-------------------|
+| They unlink you | ✅ Kept | ✅ Kept | ❌ Cleared (name reverts to original) |
+| You unlink them | ✅ Kept | ✅ Kept | ❌ Cleared |
+| They delete account | ✅ Kept | ✅ Kept | ❌ Cleared |
+| You delete account | ✅ Kept locally | ✅ Kept locally | N/A |
+| They block you | ✅ Kept | ✅ Kept | ❌ Cleared |
+
+### Implementation
+
+```typescript
+// On receiving unlink/deletion notification
+async function handleFriendUnlinked(friendId: string): Promise<void> {
+  const friend = await database.get<Friend>('friends').find(friendId);
+
+  await database.write(async () => {
+    await friend.update(f => {
+      // Clear linked data but preserve the friend
+      f.linkedUserId = null;
+      f.linkedAt = null;
+      f.profileSyncedAt = null;
+
+      // Optionally preserve last-known profile data
+      // or revert to user's original entries
+    });
+  });
+
+  // Update local shared_weave_refs
+  const sharedRefs = await database
+    .get<SharedWeaveRef>('shared_weave_refs')
+    .query(Q.where('linked_friend_ids', Q.like(`%${linkedUserId}%`)))
+    .fetch();
+
+  await database.write(async () => {
+    for (const ref of sharedRefs) {
+      await ref.update(r => {
+        r.status = 'orphaned';  // Keep history but mark as no longer linked
+      });
+    }
+  });
+}
+```
+
+### Shared Weave History After Unlinking
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│              SHARED WEAVE HISTORY PRESERVATION                   │
+│                                                                 │
+│  Before unlink:                                                 │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │ Coffee @ Blue Bottle (Dec 14)                           │   │
+│  │ 🔗 Shared with Rachel (@rachelmiller)                   │   │
+│  │ ✓ Both confirmed                                        │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│                                                                 │
+│  After unlink:                                                  │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │ Coffee @ Blue Bottle (Dec 14)                           │   │
+│  │ 📤 Was shared with Rachel                               │   │
+│  │ ─ Link no longer active                                 │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│                                                                 │
+│  The weave exists in your history. The share metadata shows     │
+│  it was previously shared but the link is no longer active.     │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Account Deletion (Full)
+
+When a user deletes their account:
+
+```sql
+-- Server-side deletion (Edge Function)
+CREATE OR REPLACE FUNCTION delete_user_account(user_id UUID)
+RETURNS void AS $$
+BEGIN
+  -- 1. Mark all friend links as deleted
+  UPDATE friend_links
+  SET status = 'deleted', updated_at = NOW()
+  WHERE user_a_id = user_id OR user_b_id = user_id;
+
+  -- 2. Delete shared weave participation (but not the weaves themselves)
+  DELETE FROM shared_weave_participants
+  WHERE user_id = user_id;
+
+  -- 3. Delete user's created shared weaves (after notifying participants)
+  -- Note: Participants keep their local interaction copies
+  DELETE FROM shared_weaves
+  WHERE created_by = user_id;
+
+  -- 4. Delete profile data
+  DELETE FROM user_profiles WHERE id = user_id;
+  DELETE FROM quiz_results WHERE user_id = user_id;
+  DELETE FROM contact_hashes WHERE user_id = user_id;
+  DELETE FROM link_codes WHERE user_id = user_id;
+
+  -- 5. Delete from Supabase Auth (triggers storage cleanup)
+  -- This is handled by Supabase admin API
+
+  -- 6. Delete from storage buckets
+  -- Handled by storage policies + cleanup job
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+```
+
+### Client-Side After Account Deletion
+
+```typescript
+async function handleAccountDeleted(): Promise<void> {
+  // Local data is preserved by default
+  // User can choose to wipe local data too
+
+  const shouldWipeLocal = await showConfirmation(
+    "Delete local data too?",
+    "Your weave history is still on this device. Delete it as well?"
+  );
+
+  if (shouldWipeLocal) {
+    await database.write(async () => {
+      await database.unsafeResetDatabase();
+    });
+  } else {
+    // Clear sync metadata but keep data
+    await AsyncStorage.removeItem('weave:sync:lastTimestamp:*');
+    await AsyncStorage.removeItem('weave:auth:session');
+  }
+}
+```
+
+---
+
+## 18. Migration Strategy
 
 ### For Existing Local-Only Users
 
@@ -1098,7 +1878,7 @@ CREATE POLICY "Participants can view shared weaves"
 
 ---
 
-## 13. Phased Rollout
+## 19. Phased Rollout
 
 ### Phase 1: Foundation (Account System)
 
@@ -1245,7 +2025,7 @@ CREATE POLICY "Participants can view shared weaves"
 
 ---
 
-## 14. Future Possibilities
+## 20. Future Possibilities
 
 Once the foundation is built, many doors open:
 
@@ -1275,49 +2055,57 @@ Once the foundation is built, many doors open:
 
 ---
 
-## 15. Open Questions
+## 21. Open Questions
 
-### Product Questions
+### Resolved Decisions ✅
 
-1. **Subscription tier**: Should sharing be a premium feature, or free for all?
-   - Option A: Free for all (network effect growth)
-   - Option B: Premium only (monetization lever)
-   - Option C: Free basic, premium for advanced (contact matching, etc.)
+| Question | Decision | Section |
+|----------|----------|---------|
+| **Subscription tier** | Free core (logging, linking, sharing), Premium for insights + AI | [Section 4](#4-subscription-model) |
+| **Offline sharing** | Queue locally, sync when online | [Section 11](#11-offline-first-sharing-architecture) |
+| **Duplicate detection** | Fuzzy matching with auto-merge for high confidence | [Section 10](#10-duplicate-detection-fuzzy-matching) |
+| **Photo storage** | Supabase Storage with bucket policies | [Section 12](#12-photo-storage) |
+| **Account deletion** | Friend becomes offline friend, data preserved | [Section 17](#17-account-deletion--unlinking) |
+| **Block behavior** | History preserved, no new sharing | [Section 17](#17-account-deletion--unlinking) |
 
-2. **Non-user invites**: Should users be able to invite non-Weave friends via the app?
+### Remaining Product Questions
+
+1. **Non-user invites**: Should users be able to invite non-Weave friends via the app?
    - Risk: Feels spammy, growth-hacky
    - Opportunity: Natural referral mechanism
+   - **Recommendation**: Defer to Phase 3+. Focus on linking existing users first.
 
-3. **Shared weave limits**: Should there be limits on pending shared weaves?
+2. **Shared weave limits**: Should there be limits on pending shared weaves?
    - Concern: Someone could spam you with weave shares
    - Mitigation: Easy mute/block, rate limiting
+   - **Recommendation**: Implement rate limiting (max 20 pending shares per friend per week)
 
-### Technical Questions
+3. **Quiz design**: Who designs the archetype discovery quiz?
+   - **Decision**: User will design the quiz. Technical infrastructure documented in [Section 7](#7-archetype-discovery-quiz).
 
-1. **Offline shared weaves**: How to handle sharing when offline?
-   - Option A: Queue locally, sync when online
-   - Option B: Require online for sharing
+### Remaining Technical Questions
 
-2. **Conflict resolution**: What if both people log the same event separately?
-   - Option A: Smart merge suggestion
-   - Option B: Keep both, show duplicate indicator
-   - Option C: First-to-share wins
-
-3. **Data retention**: How long to keep expired/declined shared weaves?
+1. **Data retention**: How long to keep expired/declined shared weaves?
    - For analytics: Keep 90 days
    - For user: Delete immediately or after 30 days?
+   - **Recommendation**: Keep 30 days for user, 90 days server-side for analytics
 
-### Privacy Questions
+2. **Group weave edge case**: How to handle group weaves where some are linked and some aren't?
+   - **Recommendation**: Share with linked friends only; unlinked friends remain local-only
+
+3. **Profile update propagation**: When a user updates their profile, how quickly should linked friends see it?
+   - **Recommendation**: Real-time via Supabase Realtime for online users; next sync for offline
+
+### Remaining Privacy Questions
 
 1. **Profile visibility**: Should unlinked users see anything when searched?
    - Option A: Just username + photo (current design)
    - Option B: Nothing until linked
    - Option C: User chooses
+   - **Recommendation**: Option C (user chooses), default to Option A
 
-2. **Block behavior**: What happens to shared weave history when blocked?
-   - Option A: History preserved but no new sharing
-   - Option B: History hidden
-   - Option C: User chooses
+2. **Contact discovery opt-in**: How prominently to offer contact matching?
+   - **Recommendation**: Secondary option, not default. Privacy-conscious users may be put off.
 
 ---
 
