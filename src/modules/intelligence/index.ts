@@ -35,6 +35,9 @@ export * from './services/social-season/season-suggestions.service';
 export * from './services/social-season/season-scoring.service';
 export * from './services/social-season/season-manager.service';
 export * from './services/social-season/season-analytics.service';
+
+// Calendar Season Services (Holidays & Seasonal Prompts)
+export * from './services/calendar-season';
 export * from './services/intelligent-status-line';
 export * from './services/status-line-cache';
 
