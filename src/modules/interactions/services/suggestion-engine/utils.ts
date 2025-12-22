@@ -2,6 +2,37 @@ import { HydratedFriend } from '@/types/hydrated';
 import FriendModel from '@/db/models/Friend';
 import { getArchetypePreferredCategory } from '@/shared/constants/archetype-content';
 import { getAllLearnedEffectiveness } from '@/modules/insights';
+import { RelationshipType, InteractionCategory } from '@/shared/types/common';
+
+/**
+ * Preferred interaction categories by relationship type.
+ * These influence the pre-filled category when suggesting interactions.
+ * Order matters - first category is most preferred.
+ */
+export const RelationshipTypePreferredCategories: Record<RelationshipType, InteractionCategory[]> = {
+    partner: ['deep-talk', 'hangout', 'meal-drink', 'activity-hobby'],
+    family: ['text-call', 'meal-drink', 'celebration', 'favor-support'],
+    colleague: ['meal-drink', 'activity-hobby', 'event-party', 'hangout'],
+    mentor: ['deep-talk', 'meal-drink', 'text-call'],
+    neighbor: ['hangout', 'favor-support', 'text-call'],
+    creative: ['activity-hobby', 'deep-talk', 'hangout'],
+    friend: [], // Empty - defer to archetype
+};
+
+/**
+ * Gets the preferred category for a relationship type.
+ * Returns undefined if no preference (should fall through to archetype).
+ */
+function getRelationshipTypePreferredCategory(
+    relationshipType: RelationshipType | undefined
+): InteractionCategory | undefined {
+    if (!relationshipType || relationshipType === 'friend') {
+        return undefined;
+    }
+
+    const preferences = RelationshipTypePreferredCategories[relationshipType];
+    return preferences?.[0];
+}
 
 export const CATEGORY_LABELS: Record<string, string> = {
     'text-call': 'chat',
@@ -27,35 +58,51 @@ export function getDaysText(days: number | undefined): string {
 
 /**
  * Gets smart category recommendation based on learned effectiveness data.
- * Falls back to archetype preference if not enough data or no clear winner.
+ * Falls back to relationship type preference, then archetype preference.
+ *
+ * Priority order:
+ * 1. Learned effectiveness (if enough data and clear winner)
+ * 2. Relationship type preference (partner → deep-talk, colleague → meal-drink, etc.)
+ * 3. Archetype preference (fallback)
  */
 export function getSmartCategory(
     friend: HydratedFriend,
     minOutcomes: number = 3
-): { category: string; isLearned: boolean } {
+): { category: string; isLearned: boolean; source: 'learned' | 'relationship' | 'archetype' } {
     const archetypePref = getArchetypePreferredCategory(friend.archetype);
+    const relationshipType = friend.relationshipType as RelationshipType | undefined;
+    const relationshipPref = getRelationshipTypePreferredCategory(relationshipType);
 
     // Need minimum outcomes to trust learned data
     const friendModel = friend as unknown as FriendModel;
-    if ((friendModel.outcomeCount || 0) < minOutcomes) {
-        return { category: archetypePref, isLearned: false };
+    if ((friendModel.outcomeCount || 0) >= minOutcomes) {
+        const effectiveness = getAllLearnedEffectiveness(friendModel);
+
+        // Find most effective category (must be 15%+ better than average)
+        const sorted = Object.entries(effectiveness)
+            .filter(([_, ratio]) => ratio > 1.15)
+            .sort(([, a], [, b]) => b - a);
+
+        if (sorted.length > 0) {
+            return {
+                category: sorted[0][0],
+                isLearned: true,
+                source: 'learned',
+            };
+        }
     }
 
-    const effectiveness = getAllLearnedEffectiveness(friendModel);
-
-    // Find most effective category (must be 15%+ better than average)
-    const sorted = Object.entries(effectiveness)
-        .filter(([_, ratio]) => ratio > 1.15)
-        .sort(([, a], [, b]) => b - a);
-
-    if (sorted.length > 0) {
+    // Fall back to relationship type preference if available
+    if (relationshipPref) {
         return {
-            category: sorted[0][0],
-            isLearned: true
+            category: relationshipPref,
+            isLearned: false,
+            source: 'relationship',
         };
     }
 
-    return { category: archetypePref, isLearned: false };
+    // Final fallback to archetype preference
+    return { category: archetypePref, isLearned: false, source: 'archetype' };
 }
 
 export const COOLDOWN_DAYS = {
