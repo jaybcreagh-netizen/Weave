@@ -2122,7 +2122,7 @@ PODS:
     - Yoga
   - RNSVG (15.8.0):
     - React-Core
-  - SDWebImage/Core (5.21.3)
+  - SDWebImage/Core (5.21.5)
   - SDWebImageWebPCoder (0.15.0):
     - libwebp (~> 1.0)
     - SDWebImage/Core (~> 5.17)
@@ -2622,7 +2622,7 @@ SPEC CHECKSUMS:
   RNScreens: 02c4adf5b4820807807b1d7d4f8bc27eeaed8e11
   RNSentry: 04c096f6931bb1eb46eb5bfb132e9dc67687fad1
   RNSVG: 8b1a777d54096b8c2a0fd38fc9d5a454332bbb4d
-  SDWebImage: 16309af6d214ba3f77a7c6f6fdda888cb313a50a
+  SDWebImage: e9c98383c7572d713c1a0d7dd2783b10599b9838
   SDWebImageWebPCoder: 0e06e365080397465cc73a7a9b472d8a3bd0f377
   Sentry: 1ca8405451040482877dcd344dfa3ef80b646631
   simdjson: 7bb9e33d87737cec966e7b427773c67baa4458fe
@@ -2631,6 +2631,6 @@ SPEC CHECKSUMS:
   WatermelonDB: 8dafe8b8a23dc6d8e033e1086449b8e2638d9453
   Yoga: feb4910aba9742cfedc059e2b2902e22ffe9954a
 
-PODFILE CHECKSUM: c53a03a774d40336f1fc37a0cf7e056d7a0663cb
+PODFILE CHECKSUM: c6223e674b9c625bd3b11b09fc863498f9051539
 
 COCOAPODS: 1.16.2

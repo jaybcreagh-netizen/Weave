@@ -28,7 +28,7 @@ import {
     type LucideIcon
 } from 'lucide-react-native';
 import { JournalIcon } from 'assets/icons/JournalIcon';
-import { isSameWeek, differenceInDays } from 'date-fns';
+import { differenceInDays } from 'date-fns';
 
 import { useTheme } from '@/shared/hooks/useTheme';
 import { UIEventBus } from '@/shared/services/ui-event-bus';
@@ -217,25 +217,22 @@ export function JournalWidget() {
             return getRandomGeneralPrompt();
         }
 
-        // 1. Check Weekly Reflection (Sunday or Monday, not yet completed this week)
+        // 1. Check Weekly Reflection (Sunday or Monday, not yet completed for target week)
         const today = new Date();
         const dayOfWeek = today.getDay();
         const isSundayOrMonday = dayOfWeek === 0 || dayOfWeek === 1;
 
         if (isSundayOrMonday) {
-            const reflections = await database
-                .get<WeeklyReflection>('weekly_reflections')
-                .query(Q.sortBy('created_at', 'desc'), Q.take(1))
-                .fetch();
+            // Use the centralized check which correctly handles week bounds
+            // (Sunday/Monday = reflecting on PREVIOUS week, not current)
+            const { hasCompletedReflectionForCurrentWeek } = await import('@/modules/reflection/services/weekly-reflection.service');
+            const hasReflectedThisWeek = await hasCompletedReflectionForCurrentWeek();
 
-            const hasReflectedThisWeek = reflections.length > 0 &&
-                isSameWeek(reflections[0].createdAt, today, { weekStartsOn: 0 });
-
+            // Only show reflection prompt if not yet completed - otherwise fall through to other prompts
             if (!hasReflectedThisWeek) {
                 return { type: 'weekly-reflection' };
-            } else {
-                return { type: 'weekly-reflection-completed' };
             }
+            // If completed, continue to check other states (post-weave, memory, nudge, default)
         }
 
         // 2. Check for meaningful weave in last 48h

@@ -32,6 +32,8 @@ interface StatsDetailSheetProps {
     isOpen: boolean;
     onClose: () => void;
     statType: StatType;
+    weekStartDate?: Date;
+    weekEndDate?: Date;
 }
 
 // ============================================================================
@@ -59,7 +61,7 @@ function getCategoryConfig(category: string) {
 // COMPONENT
 // ============================================================================
 
-export function StatsDetailSheet({ isOpen, onClose, statType }: StatsDetailSheetProps) {
+export function StatsDetailSheet({ isOpen, onClose, statType, weekStartDate, weekEndDate }: StatsDetailSheetProps) {
     const { colors } = useTheme();
     const [loading, setLoading] = useState(true);
     const [weaves, setWeaves] = useState<WeaveItem[]>([]);
@@ -75,7 +77,7 @@ export function StatsDetailSheet({ isOpen, onClose, statType }: StatsDetailSheet
     const loadData = async () => {
         setLoading(true);
         try {
-            const breakdown = await getWeeklyBreakdown();
+            const breakdown = await getWeeklyBreakdown(weekStartDate, weekEndDate);
             setWeaves(breakdown.weaves);
             setFriends(breakdown.friends);
             setCategories(breakdown.categories);

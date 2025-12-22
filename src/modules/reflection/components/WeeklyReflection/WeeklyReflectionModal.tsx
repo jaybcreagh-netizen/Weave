@@ -236,6 +236,11 @@ export function WeeklyReflectionModal({ isOpen, onClose }: WeeklyReflectionModal
       await WeeklyReflectionChannel.cancel('weekly-reflection');
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+      // Show celebratory toast
+      const { useUIStore } = await import('@/shared/stores/uiStore');
+      useUIStore.getState().showToast('Weekly reflection complete! ✨', '');
+
       onClose();
 
     } catch (error) {
@@ -284,6 +289,7 @@ export function WeeklyReflectionModal({ isOpen, onClose }: WeeklyReflectionModal
       onClose={handleClose}
       height="full"
       title={stepTitles[currentStep]}
+      keyboardBlurBehavior="none"
     >
       {/* Back Button */}
       {currentStep !== 'prompt' && (

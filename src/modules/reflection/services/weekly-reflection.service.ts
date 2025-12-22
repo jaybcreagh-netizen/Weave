@@ -15,16 +15,19 @@ export function getWeekRange(weeklyReflection: WeeklyReflection): string {
 }
 
 /**
- * Get the start and end of the current week (Sunday to Saturday)
- * If today is Sunday, we assume the user is reflecting on the PREVIOUS week.
+ * Get the start and end of the week being reflected on (Sunday to Saturday).
+ * If today is Sunday or Monday, we assume the user is reflecting on the PREVIOUS week
+ * (the one that ended on Saturday). This gives a 2-day grace period to complete reflections.
  */
 export function getCurrentWeekBounds(): { weekStart: Date; weekEnd: Date } {
   const now = new Date();
-  const dayOfWeek = now.getDay(); // 0 = Sunday
+  const dayOfWeek = now.getDay(); // 0 = Sunday, 1 = Monday
 
-  // If it's Sunday (0), assume we are reflecting on the PREVIOUS week (the one that just ended yesterday).
+  // If it's Sunday (0) or Monday (1), assume we are reflecting on the PREVIOUS week.
+  // Sunday: previous week ended yesterday (Saturday)
+  // Monday: previous week ended 2 days ago (Saturday)
   // Otherwise, we look at the current week (starting last Sunday).
-  const adjustDays = dayOfWeek === 0 ? 7 : 0;
+  const adjustDays = (dayOfWeek === 0 || dayOfWeek === 1) ? 7 : 0;
 
   const weekStart = new Date(now);
   weekStart.setDate(now.getDate() - dayOfWeek - adjustDays);

@@ -1,6 +1,7 @@
+# Add CocoaPods CDN source for simdjson (WatermelonDB dependency)
+source 'https://cdn.cocoapods.org/'
+
 require File.join(File.dirname(`node --print "require.resolve('expo/package.json')"`), "scripts/autolinking")
-# Force Hermes to build from source to generate dSYMs
-ENV['HERMES_COMMIT'] = "9e868dc7be781364296d6ee2f56d0c1a9ef0bb11"
 require File.join(File.dirname(`node --print "require.resolve('react-native/package.json')"`), "scripts/react_native_pods")
 
 require 'json'
@@ -16,8 +17,10 @@ install! 'cocoapods',
 prepare_react_native_project!
 
 target 'Weave' do
-  pod 'simdjson', path: '../node_modules/@nozbe/simdjson'
   use_expo_modules!
+  
+  # WatermelonDB 0.28+ requires simdjson to be added explicitly from @nozbe/simdjson
+  pod 'simdjson', path: '../node_modules/@nozbe/simdjson'
 
   if ENV['EXPO_USE_COMMUNITY_AUTOLINKING'] == '1'
     config_command = ['node', '-e', "process.argv=['', '', 'config'];require('@react-native-community/cli').run()"];

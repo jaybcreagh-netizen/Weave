@@ -778,9 +778,15 @@ export interface WeeklyBreakdown {
 
 /**
  * Get detailed breakdown data for the drill-down views
+ * If weekStartDate/weekEndDate are not provided, uses current week bounds
  */
-export async function getWeeklyBreakdown(): Promise<WeeklyBreakdown> {
-  const { weekStart, weekEnd } = getCurrentWeekBounds();
+export async function getWeeklyBreakdown(
+  weekStartDate?: Date,
+  weekEndDate?: Date
+): Promise<WeeklyBreakdown> {
+  const { weekStart, weekEnd } = weekStartDate && weekEndDate
+    ? { weekStart: weekStartDate, weekEnd: weekEndDate }
+    : getCurrentWeekBounds();
 
   // Get all completed interactions this week
   const interactions = await database
