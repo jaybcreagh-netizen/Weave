@@ -5,6 +5,7 @@ import Logger from '@/shared/utils/Logger';
 
 import { PlannedWeaveGenerator } from './generators/PlannedWeaveGenerator';
 import { LifeEventGenerator } from './generators/LifeEventGenerator';
+import { HolidaySeasonGenerator } from './generators/HolidaySeasonGenerator';
 import { IntentionGenerator } from './generators/IntentionGenerator';
 import { ReflectionGenerator } from './generators/ReflectionGenerator';
 import { DriftGenerator } from './generators/DriftGenerator'; // Critical, High, Community
@@ -33,6 +34,9 @@ class SuggestionEngine {
 
         // 2. Life Events (Urgent - Priority 2)
         this.generators.push(new LifeEventGenerator());
+
+        // 2.3. Holiday/Seasonal Suggestions (Priority varies: 2.5 today, 4 tomorrow, 8 otherwise)
+        this.generators.push(new HolidaySeasonGenerator());
 
         // 3. Intentions (Priority 2.5)
         this.generators.push(new IntentionGenerator());

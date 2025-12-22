@@ -110,6 +110,7 @@ export const COOLDOWN_DAYS = {
     'high-drift': 2,
     'first-weave': 2,
     'life-event': 1,
+    'holiday': 1, // Holiday suggestions - short cooldown since they're time-sensitive
     'intention-reminder': 2,
     'archetype-mismatch': 3,
     'momentum': 7,
