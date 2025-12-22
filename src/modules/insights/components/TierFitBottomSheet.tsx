@@ -43,7 +43,7 @@ export function TierFitBottomSheet({
 
   const scrollRef = React.useRef<ScrollView>(null);
 
-  const isMismatch = analysis.fitCategory === 'mismatch';
+  const isMismatch = analysis.fitCategory === 'over_investing' || analysis.fitCategory === 'under_investing';
   const hasSuggestion = analysis.suggestedTier !== undefined;
   const isMovingDown = hasSuggestion &&
     (analysis.currentTier === 'InnerCircle' && analysis.suggestedTier === 'CloseFriends') ||

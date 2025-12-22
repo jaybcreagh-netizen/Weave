@@ -138,7 +138,7 @@ export interface EffectivenessInsights {
 // Tier Intelligence Types (v36)
 export type FlexibilityMode = 'strict' | 'balanced' | 'flexible';
 
-export type TierFitCategory = 'great' | 'good' | 'mismatch' | 'insufficient_data';
+export type TierFitCategory = 'aligned' | 'over_investing' | 'under_investing' | 'learning';
 
 export interface TierFitAnalysis {
   friendId: string;
@@ -163,9 +163,8 @@ export interface TierFitAnalysis {
 
 export interface TierHealth {
   total: number;
-  great: number;
-  good: number;
-  mismatch: number;
+  aligned: number;
+  misaligned: number;  // Covers both over_investing and under_investing
 }
 
 export interface NetworkTierHealth {

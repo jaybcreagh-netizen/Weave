@@ -18,7 +18,7 @@ export function TierFitCard({ friendId, onPress }: TierFitCardProps) {
 
   // Don't render if loading or no analysis
   console.warn('[TierFitCard] Render:', { isLoading, hasAnalysis: !!analysis, fitCategory: analysis?.fitCategory });
-  if (isLoading || !analysis || analysis.fitCategory !== 'mismatch') {
+  if (isLoading || !analysis || (analysis.fitCategory !== 'over_investing' && analysis.fitCategory !== 'under_investing')) {
     return null;
   }
 

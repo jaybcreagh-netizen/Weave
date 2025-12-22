@@ -136,7 +136,7 @@ export const TierBalanceContent: React.FC = () => {
                     // Get ALL friends in this tier
                     const tierFriends = networkHealth.allAnalyses.filter((a) => a.currentTier === tier);
 
-                    const tierMismatches = tierFriends.filter((a) => a.fitCategory === 'mismatch');
+                    const tierMismatches = tierFriends.filter((a) => a.fitCategory === 'over_investing' || a.fitCategory === 'under_investing');
                     const hasIssues = tierMismatches.length > 0;
 
                     return (
@@ -183,17 +183,17 @@ export const TierBalanceContent: React.FC = () => {
                                     {tierHealth.total > 0 && (
                                         <View style={styles.tierSummary}>
                                             <Text style={[styles.tierSummaryText, { color: colors['muted-foreground'] }]}>
-                                                {tierHealth.great} great fit • {tierHealth.good} good fit • {tierHealth.mismatch} mismatch
+                                                {tierHealth.aligned} aligned • {tierHealth.misaligned} misaligned
                                             </Text>
                                         </View>
                                     )}
 
                                     {/* Friend List */}
                                     {tierFriends.map((analysis) => {
-                                        const isMismatch = analysis.fitCategory === 'mismatch';
-                                        const isLearning = analysis.fitCategory === 'insufficient_data';
+                                        const isMismatch = analysis.fitCategory === 'over_investing' || analysis.fitCategory === 'under_investing';
+                                        const isLearning = analysis.fitCategory === 'learning';
                                         const isPreliminary = !!analysis.isPreliminary && !isLearning;
-                                        const isGood = analysis.fitCategory === 'great' || analysis.fitCategory === 'good';
+                                        const isGood = analysis.fitCategory === 'aligned';
 
                                         return (
                                             <TouchableOpacity

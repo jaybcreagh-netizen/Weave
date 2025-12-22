@@ -57,7 +57,7 @@ export function setupIntelligenceListeners() {
 
                     const analysis = await analyzeTierFit(updatedFriend);
 
-                    if (analysis.fitCategory !== 'insufficient_data' && analysis.actualIntervalDays > 0) {
+                    if (analysis.fitCategory !== 'learning' && analysis.actualIntervalDays > 0) {
                         await updateTierFit(
                             updatedFriend.id,
                             analysis.fitScore,
@@ -67,8 +67,7 @@ export function setupIntelligenceListeners() {
 
                         if (analysis.suggestedTier) {
                             const suggestion = await checkTierSuggestionAfterInteraction(
-                                updatedFriend.id,
-                                wasFirstInteraction
+                                updatedFriend.id
                             );
                             if (suggestion) {
                                 Logger.info(`[Intelligence] Tier suggestion for ${updatedFriend.name}: ${analysis.currentTier} → ${analysis.suggestedTier} `);

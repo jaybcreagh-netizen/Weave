@@ -29,7 +29,7 @@ export function TierSuggestionAlert({
 }: TierSuggestionAlertProps) {
   const { colors } = useTheme();
 
-  const { analysis, urgency, message, trigger } = suggestion;
+  const { analysis, urgency, message, direction } = suggestion;
 
   const bgColor = urgency === 'high' ? '#F59E0B20' : '#3B82F620';
   const textColor = urgency === 'high' ? '#F59E0B' : '#3B82F6';
@@ -41,11 +41,11 @@ export function TierSuggestionAlert({
       friend_name: analysis.friendName,
       current_tier: analysis.currentTier,
       suggested_tier: analysis.suggestedTier,
-      trigger,
+      direction,
       urgency,
       confidence: analysis.confidence,
     });
-  }, [analysis.friendId, analysis.currentTier, analysis.suggestedTier, trigger, urgency, analysis.confidence, analysis.friendName]);
+  }, [analysis.friendId, analysis.currentTier, analysis.suggestedTier, direction, urgency, analysis.confidence, analysis.friendName]);
 
   return (
     <View

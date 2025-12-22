@@ -87,7 +87,7 @@ async function fetchInteractionsForPattern(friendId: string): Promise<PatternInt
 
 /**
  * Analyze how well a friend's actual interaction pattern matches their tier.
- * Now calculates patterns on-the-fly if typicalIntervalDays is not cached.
+ * Uses simple interval comparison for clear, actionable results.
  *
  * @param friend - The friend to analyze
  * @returns Tier fit analysis with suggestions
@@ -122,7 +122,7 @@ export async function analyzeTierFit(friend: Friend): Promise<TierFitAnalysis> {
     }
   }
 
-  // Still no valid interval? Return insufficient data
+  // Still no valid interval? Return learning state
   if (!actualInterval || actualInterval === 0 || interactionCount < MINIMUM_SAMPLE_SIZE) {
     return {
       friendId: friend.id,
@@ -132,86 +132,75 @@ export async function analyzeTierFit(friend: Friend): Promise<TierFitAnalysis> {
       expectedIntervalDays: expectedInterval,
       interactionCount: interactionCount,
       fitScore: 0,
-      fitCategory: 'insufficient_data',
+      fitCategory: 'learning',
       confidence: 0,
-      reason: 'Not enough interaction history yet (need at least 2 interactions)',
+      reason: 'Keep weaving to learn your rhythm (need at least 2 interactions)',
       isPreliminary: true
     };
   }
 
   const isPreliminary = interactionCount < CONFIDENT_SAMPLE_SIZE;
 
-  // Calculate deviation ratio
+  // Simple interval comparison
   const deviationRatio = actualInterval / expectedInterval;
 
-  // Score fit (inverse of deviation, clamped)
-  let fitScore: number;
   let fitCategory: TierFitCategory;
-
-  if (deviationRatio >= 0.7 && deviationRatio <= 1.3) {
-    // Within 30% - great fit
-    fitScore = 1.0;
-    fitCategory = 'great';
-  } else if (deviationRatio >= 0.5 && deviationRatio <= 2.0) {
-    // Within 2x - good fit
-    fitScore = 0.7;
-    fitCategory = 'good';
-  } else {
-    // Beyond 2x - mismatch
-
-    // EXCEPTION: For Inner Circle, being "too frequent" is actually good!
-    // If you see your best friend every day (ratio ~0.14), that's a GREAT fit, not a mismatch.
-    if (friend.dunbarTier === 'InnerCircle' && deviationRatio < 0.5) {
-      fitScore = 1.0;
-      fitCategory = 'great';
-    } else {
-      fitScore = Math.max(0, 1 - Math.abs(Math.log2(deviationRatio)) / 2);
-      fitCategory = 'mismatch';
-    }
-  }
-
-  // Generate suggestion if mismatch
   let suggestedTier: Tier | undefined;
   let reason = '';
 
-  if (fitCategory === 'mismatch') {
-    if (deviationRatio > 2.0) {
-      // Too infrequent for current tier - suggest move down
-      if (friend.dunbarTier === 'InnerCircle') {
-        suggestedTier = 'CloseFriends';
-        reason = `You connect every ${Math.round(actualInterval)} days, but Inner Circle expects weekly contact (~7 days). Close Friends (bi-weekly, ~14 days) would be a better fit and reduce stress.`;
-      } else if (friend.dunbarTier === 'CloseFriends') {
-        suggestedTier = 'Community';
-        reason = `You connect every ${Math.round(actualInterval)} days, but Close Friends expects bi-weekly contact (~14 days). Community (monthly, ~28 days) would be a better fit.`;
-      }
-      // Community has nowhere to move down
-    } else if (deviationRatio < 0.5) {
-      // Too frequent for current tier - suggest move up
-      if (friend.dunbarTier === 'Community') {
-        suggestedTier = 'CloseFriends';
-        reason = `You're connecting every ${Math.round(actualInterval)} days—more frequently than Community expects (~28 days)! This friendship might belong in Close Friends.`;
-      } else if (friend.dunbarTier === 'CloseFriends') {
-        suggestedTier = 'InnerCircle';
-        reason = `You're connecting every ${Math.round(actualInterval)} days—weekly or more! This is Inner Circle frequency. Consider promoting this friendship.`;
-      }
-      // Inner Circle has nowhere to move up
-    }
-  } else if (fitCategory === 'great') {
-    if (friend.dunbarTier === 'InnerCircle' && deviationRatio < 0.5) {
-      reason = `Strong bond! You're connecting every ${Math.round(actualInterval)} days, which is even more frequent than the weekly expectation.`;
+  // Simple thresholds:
+  // - Under 0.5x = connecting much MORE than expected (promote candidate)
+  // - 0.5x to 1.5x = aligned (within reasonable range)
+  // - Over 2.0x = connecting much LESS than expected (demote candidate)
+  // - 1.5x to 2.0x = slightly off but not actionable
+
+  if (deviationRatio < 0.5) {
+    // Connecting MORE than tier expects
+    fitCategory = 'over_investing';
+
+    // Suggest promotion (except Inner Circle - can't go higher)
+    if (friend.dunbarTier === 'Community') {
+      suggestedTier = 'CloseFriends';
+      reason = `You connect every ${Math.round(actualInterval)} days—more frequently than Community expects (~${expectedInterval} days). This looks like Close Friends frequency!`;
+    } else if (friend.dunbarTier === 'CloseFriends') {
+      suggestedTier = 'InnerCircle';
+      reason = `You connect every ${Math.round(actualInterval)} days—weekly or more! This is Inner Circle frequency. Consider promoting this friendship.`;
     } else {
-      reason = `Perfect fit! Your rhythm (every ${Math.round(actualInterval)} days) matches ${friend.dunbarTier} expectations well.`;
+      // Inner Circle - can't promote, but that's great
+      fitCategory = 'aligned';
+      reason = `Strong bond! You connect every ${Math.round(actualInterval)} days, even more than Inner Circle expects.`;
+    }
+  } else if (deviationRatio > 2.0) {
+    // Connecting LESS than tier expects
+    fitCategory = 'under_investing';
+
+    // Suggest demotion (except Community - can't go lower)
+    if (friend.dunbarTier === 'InnerCircle') {
+      suggestedTier = 'CloseFriends';
+      reason = `You connect every ${Math.round(actualInterval)} days, but Inner Circle expects weekly (~${expectedInterval} days). Close Friends might be a better fit.`;
+    } else if (friend.dunbarTier === 'CloseFriends') {
+      suggestedTier = 'Community';
+      reason = `You connect every ${Math.round(actualInterval)} days, but Close Friends expects bi-weekly (~${expectedInterval} days). Community might feel more natural.`;
+    } else {
+      // Community with very low contact - still flag it
+      reason = `You connect every ${Math.round(actualInterval)} days. Even for Community that's quite infrequent.`;
     }
   } else {
-    reason = `Good fit. Your rhythm (every ${Math.round(actualInterval)} days) is close to ${friend.dunbarTier} expectations (~${expectedInterval} days).`;
+    // Within reasonable range (0.5x to 2.0x) - aligned
+    fitCategory = 'aligned';
+    reason = `Your rhythm (every ${Math.round(actualInterval)} days) matches ${friend.dunbarTier} expectations (~${expectedInterval} days).`;
   }
 
-  // Confidence based on sample size and consistency
-  // More interactions = higher confidence
+  // Confidence based on sample size (keep this logic)
   const confidence = Math.min(
     0.95,
     0.5 + (interactionCount / 20) * 0.45
   );
+
+  // Simple fit score: 1.0 if aligned, lower based on deviation
+  const fitScore = fitCategory === 'aligned'
+    ? 1.0
+    : Math.max(0.2, 1 - Math.abs(deviationRatio - 1) / 3);
 
   return {
     friendId: friend.id,
@@ -246,9 +235,9 @@ export async function analyzeNetworkTierHealth(): Promise<NetworkTierHealth> {
 
   // Initialize tier health buckets
   const tierHealth: NetworkTierHealth['tierHealth'] = {
-    InnerCircle: { total: 0, great: 0, good: 0, mismatch: 0 },
-    CloseFriends: { total: 0, great: 0, good: 0, mismatch: 0 },
-    Community: { total: 0, great: 0, good: 0, mismatch: 0 }
+    InnerCircle: { total: 0, aligned: 0, misaligned: 0 },
+    CloseFriends: { total: 0, aligned: 0, misaligned: 0 },
+    Community: { total: 0, aligned: 0, misaligned: 0 }
   };
 
   // Categorize each friend
@@ -258,14 +247,13 @@ export async function analyzeNetworkTierHealth(): Promise<NetworkTierHealth> {
     // Always count towards total in tier
     tierHealth[tier].total++;
 
-    if (analysis.fitCategory === 'insufficient_data') return;
+    if (analysis.fitCategory === 'learning') return;
 
-    if (analysis.fitCategory === 'great') {
-      tierHealth[tier].great++;
-    } else if (analysis.fitCategory === 'good') {
-      tierHealth[tier].good++;
+    if (analysis.fitCategory === 'aligned') {
+      tierHealth[tier].aligned++;
     } else {
-      tierHealth[tier].mismatch++;
+      // over_investing or under_investing
+      tierHealth[tier].misaligned++;
     }
   });
 
@@ -273,18 +261,18 @@ export async function analyzeNetworkTierHealth(): Promise<NetworkTierHealth> {
   // We include insufficient_data friends in the denominator to represent "potential"
   const totalFriends = analyses.length;
 
-  const totalMismatches =
-    tierHealth.InnerCircle.mismatch +
-    tierHealth.CloseFriends.mismatch +
-    tierHealth.Community.mismatch;
+  const totalMisaligned =
+    tierHealth.InnerCircle.misaligned +
+    tierHealth.CloseFriends.misaligned +
+    tierHealth.Community.misaligned;
 
-  // Health score penalizes mismatches against the TOTAL network size
+  // Health score penalizes misaligned friends against the TOTAL network size
   const healthScore = totalFriends > 0
-    ? Math.round(((totalFriends - totalMismatches) / totalFriends) * 10)
+    ? Math.round(((totalFriends - totalMisaligned) / totalFriends) * 10)
     : 10;
 
-  // Extract mismatches and suggestions
-  const mismatches = analyses.filter(a => a.fitCategory === 'mismatch');
+  // Extract misaligned friends and suggestions
+  const mismatches = analyses.filter(a => a.fitCategory === 'over_investing' || a.fitCategory === 'under_investing');
   const suggestions = analyses
     .filter(a => a.suggestedTier !== undefined)
     .sort((a, b) => {
@@ -332,24 +320,18 @@ export function shouldShowTierSuggestion(
  * Get a human-readable tier fit summary
  */
 export function getTierFitSummary(analysis: TierFitAnalysis): string {
-  if (analysis.fitCategory === 'insufficient_data') {
+  if (analysis.fitCategory === 'learning') {
     return 'Keep weaving to learn your rhythm';
   }
 
-  const deviation = analysis.actualIntervalDays / analysis.expectedIntervalDays;
-
-  if (analysis.fitCategory === 'great') {
+  if (analysis.fitCategory === 'aligned') {
     return '✓ Tier matches your rhythm';
   }
 
-  if (analysis.fitCategory === 'good') {
-    return '~ Close to tier expectations';
-  }
-
-  // Mismatch
-  if (deviation > 2.0) {
-    return '⚠️ Connecting less than tier expects';
-  } else {
+  if (analysis.fitCategory === 'over_investing') {
     return '⬆️ Connecting more than tier expects';
   }
+
+  // under_investing
+  return '⚠️ Connecting less than tier expects';
 }

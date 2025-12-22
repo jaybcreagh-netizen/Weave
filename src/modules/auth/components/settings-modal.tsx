@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
-import { Battery, Trophy, BookOpen, Users } from 'lucide-react-native';
+import { View, Text } from 'react-native';
+import { Battery, Trophy, BookOpen, Users, Palette, Bell, Database, Wrench } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { StandardBottomSheet } from '@/shared/ui/Sheet';
+import { CollapsibleSection } from '@/shared/ui/CollapsibleSection';
 
 // Components
 import { SettingsItem } from './settings/SettingsItem';
@@ -47,53 +48,64 @@ export function SettingsModal({
       title="Settings"
     >
       <View style={{ paddingBottom: 40 }}>
-        <View className="gap-4">
+        <View className="gap-2">
 
-          {/* Appearance (Theme) */}
-          <AppearanceSettings />
+          {/* ═══════════════════════════════════════════════════════════════
+              ESSENTIALS - Expanded by default
+              Core features every user needs access to
+          ═══════════════════════════════════════════════════════════════ */}
+          <CollapsibleSection
+            title="Essentials"
+            icon={Palette}
+            defaultExpanded={true}
+          >
+            {/* Theme Toggle */}
+            <AppearanceSettings />
 
-          <View className="border-t border-border" style={{ borderColor: colors.border }} />
+            <View className="border-t border-border" style={{ borderColor: colors.border }} />
 
-          {/* Vital Features (Archetype, Friends, Trophy, Battery) */}
-          <SettingsItem
-            icon={BookOpen}
-            title="Archetype Library"
-            subtitle="Explore connection archetypes"
-            onPress={() => setShowArchetypeLibrary(true)}
-          />
+            {/* Archetype Library */}
+            <SettingsItem
+              icon={BookOpen}
+              title="Archetype Library"
+              subtitle="Explore connection archetypes"
+              onPress={() => setShowArchetypeLibrary(true)}
+            />
 
-          <View className="border-t border-border" style={{ borderColor: colors.border }} />
+            <View className="border-t border-border" style={{ borderColor: colors.border }} />
 
-          <SettingsItem
-            icon={Users}
-            title="Manage Friends"
-            subtitle="Batch remove friends"
-            onPress={() => setShowManageFriends(true)}
-          />
+            {/* Manage Friends */}
+            <SettingsItem
+              icon={Users}
+              title="Manage Friends"
+              subtitle="Batch remove friends"
+              onPress={() => setShowManageFriends(true)}
+            />
 
-          <View className="border-t border-border" style={{ borderColor: colors.border }} />
+            <View className="border-t border-border" style={{ borderColor: colors.border }} />
 
-          <SettingsItem
-            icon={Users}
-            title="Manage Groups"
-            subtitle="Create and edit friend groups"
-            onPress={() => setShowGroupList(true)}
-          />
+            {/* Manage Groups */}
+            <SettingsItem
+              icon={Users}
+              title="Manage Groups"
+              subtitle="Create and edit friend groups"
+              onPress={() => setShowGroupList(true)}
+            />
 
-          <View className="border-t border-border" style={{ borderColor: colors.border }} />
+            <View className="border-t border-border" style={{ borderColor: colors.border }} />
 
-          <SettingsItem
-            icon={Trophy}
-            title="Trophy Cabinet"
-            subtitle="View your achievements"
-            onPress={() => setShowTrophyCabinet(true)}
-          />
+            {/* Trophy Cabinet */}
+            <SettingsItem
+              icon={Trophy}
+              title="Trophy Cabinet"
+              subtitle="View your achievements"
+              onPress={() => setShowTrophyCabinet(true)}
+            />
 
-          <View className="border-t border-border" style={{ borderColor: colors.border }} />
+            <View className="border-t border-border" style={{ borderColor: colors.border }} />
 
-          {/* Social Battery Check-in */}
-          {onOpenBatteryCheckIn && (
-            <>
+            {/* Social Battery Check-in */}
+            {onOpenBatteryCheckIn && (
               <SettingsItem
                 icon={Battery}
                 title="Social Battery Check-in"
@@ -103,34 +115,64 @@ export function SettingsModal({
                   setTimeout(() => onOpenBatteryCheckIn(), 300);
                 }}
               />
-              <View className="border-t border-border" style={{ borderColor: colors.border }} />
-            </>
-          )}
+            )}
 
-          {/* Testing / Debug Loop */}
-          <TestingSettings onClose={onClose} />
+            <View className="border-t border-border" style={{ borderColor: colors.border }} />
 
-          <View className="border-t border-border" style={{ borderColor: colors.border }} />
-
-          {/* General (Groups, Feedback, Smart Defaults, Legal) */}
-          <GeneralSettings
-            onClose={onClose}
-          />
+            {/* General Settings (Smart Ordering, Feedback, Legal) */}
+            <GeneralSettings onClose={onClose} />
+          </CollapsibleSection>
 
           <View className="border-t border-border" style={{ borderColor: colors.border }} />
 
-          {/* Calendar */}
-          <CalendarSettings />
+          {/* ═══════════════════════════════════════════════════════════════
+              NOTIFICATIONS & SYNC - Collapsed by default
+              Notification preferences and calendar sync
+          ═══════════════════════════════════════════════════════════════ */}
+          <CollapsibleSection
+            title="Notifications & Sync"
+            subtitle="Reminders, calendar, and alerts"
+            icon={Bell}
+            defaultExpanded={false}
+          >
+            {/* Calendar Integration */}
+            <CalendarSettings />
+
+            <View className="border-t border-border" style={{ borderColor: colors.border }} />
+
+            {/* All Notification Settings */}
+            <NotificationSettings />
+          </CollapsibleSection>
 
           <View className="border-t border-border" style={{ borderColor: colors.border }} />
 
-          {/* Data (Backup, Restore, Export, Import) */}
-          <DataSettings onClose={onClose} />
+          {/* ═══════════════════════════════════════════════════════════════
+              DATA & BACKUP - Collapsed by default
+              Backup, restore, and data management
+          ═══════════════════════════════════════════════════════════════ */}
+          <CollapsibleSection
+            title="Data & Backup"
+            subtitle="Export, import, and sync"
+            icon={Database}
+            defaultExpanded={false}
+          >
+            <DataSettings onClose={onClose} />
+          </CollapsibleSection>
 
           <View className="border-t border-border" style={{ borderColor: colors.border }} />
 
-          {/* Notifications (Battery, Reflection, Digest, etc) */}
-          <NotificationSettings />
+          {/* ═══════════════════════════════════════════════════════════════
+              DEVELOPER TOOLS - Collapsed by default
+              Debug and testing features
+          ═══════════════════════════════════════════════════════════════ */}
+          <CollapsibleSection
+            title="Developer Tools"
+            subtitle="Testing and diagnostics"
+            icon={Wrench}
+            defaultExpanded={false}
+          >
+            <TestingSettings onClose={onClose} />
+          </CollapsibleSection>
 
         </View>
       </View>

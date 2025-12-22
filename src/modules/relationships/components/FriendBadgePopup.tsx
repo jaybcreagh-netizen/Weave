@@ -289,7 +289,7 @@ export default function FriendBadgePopup({
                   )}
 
                   {/* Connection Health Section */}
-                  {stats.tierFit && stats.tierFit.fitCategory !== 'insufficient_data' && (
+                  {stats.tierFit && stats.tierFit.fitCategory !== 'learning' && (
                     <View className="px-5 py-3">
                       <Text className="text-base font-inter-bold font-bold mb-3" style={{ color: colors.foreground }}>
                         Connection Health
@@ -298,10 +298,10 @@ export default function FriendBadgePopup({
                         <View className="flex-row items-center gap-2">
                           <View
                             className="w-2 h-2 rounded-full"
-                            style={{ backgroundColor: stats.tierFit.fitCategory === 'mismatch' ? '#F59E0B' : '#10B981' }}
+                            style={{ backgroundColor: (stats.tierFit.fitCategory === 'over_investing' || stats.tierFit.fitCategory === 'under_investing') ? '#F59E0B' : '#10B981' }}
                           />
                           <Text className="text-base font-inter-semibold font-semibold" style={{ color: colors.foreground }}>
-                            {stats.tierFit.fitCategory === 'mismatch' ? 'Needs Attention' : 'On Track'}
+                            {(stats.tierFit.fitCategory === 'over_investing' || stats.tierFit.fitCategory === 'under_investing') ? 'Needs Attention' : 'On Track'}
                           </Text>
                         </View>
                         <Text className="text-sm font-inter-regular leading-5" style={{ color: colors['muted-foreground'] }}>

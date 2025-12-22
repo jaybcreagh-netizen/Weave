@@ -123,7 +123,8 @@ const lightTokens = {
   background: palette.cream[50],
   backgroundElevated: palette.cream[100],
   backgroundSubtle: palette.cream[100],
-  backgroundMuted: palette.amber[50],
+  // iOS-style grey for muted backgrounds (was amber[50])
+  backgroundMuted: palette.stone[100],
 
   // Foregrounds
   foreground: palette.stone[900],

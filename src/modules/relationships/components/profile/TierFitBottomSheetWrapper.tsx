@@ -20,7 +20,7 @@ export function TierFitBottomSheetWrapper({
 }: TierFitBottomSheetWrapperProps) {
     const { analysis } = useTierFit(friendId);
 
-    if (!analysis || analysis.fitCategory === 'insufficient_data') {
+    if (!analysis || analysis.fitCategory === 'learning') {
         return null;
     }
 

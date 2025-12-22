@@ -19,6 +19,7 @@ import FriendModel from '@/db/models/Friend';
 import InteractionModel from '@/db/models/Interaction';
 import SocialBatteryLog from '@/db/models/SocialBatteryLog';
 import { usePortfolio } from '@/modules/insights';
+import { calculateCurrentScore } from '@/modules/intelligence';
 import { Card } from '@/shared/ui/Card';
 import { WidgetHeader } from '@/shared/ui/WidgetHeader';
 import { ProgressBar } from '@/shared/ui/ProgressBar';
@@ -221,7 +222,8 @@ export function GraphsTabContent({ year = new Date().getFullYear() }: GraphsTabC
       friends.forEach(friend => {
         const tier = friend.dunbarTier || 'Community';
         if (tierData[tier]) {
-          tierData[tier].total += friend.weaveScore || 0;
+          // Use calculateCurrentScore to get the properly capped score (0-100)
+          tierData[tier].total += calculateCurrentScore(friend);
           tierData[tier].count += 1;
         }
       });
@@ -277,8 +279,8 @@ export function GraphsTabContent({ year = new Date().getFullYear() }: GraphsTabC
       // For previous health, we'd need historical data — for now, simulate small change
       const previousHealthScore = healthScore - (Math.random() * 10 - 5);
 
-      const thrivingCount = friends.filter(f => (f.weaveScore || 0) >= 70).length;
-      const driftingCount = friends.filter(f => (f.weaveScore || 0) < 40).length;
+      const thrivingCount = friends.filter(f => calculateCurrentScore(f) >= 70).length;
+      const driftingCount = friends.filter(f => calculateCurrentScore(f) < 40).length;
       const stableCount = friends.length - thrivingCount - driftingCount;
 
       setData({

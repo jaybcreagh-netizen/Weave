@@ -652,15 +652,12 @@ export function WeaveLoggerScreen({
                                     }}
                                 >
                                     {/* Title Field */}
-                                    <View className="mb-5">
-                                        <Text className="font-lora-bold text-xl mb-1" style={{ color: colors.foreground }}>
+                                    <View className="mb-3">
+                                        <Text className="text-xs font-inter-semibold text-muted-foreground mb-1.5 uppercase tracking-wider" style={{ color: colors['muted-foreground'] }}>
                                             Name this moment
                                         </Text>
-                                        <Text className="font-inter-regular text-sm mb-2" style={{ color: colors['muted-foreground'] }}>
-                                            Optional - give it a memorable name
-                                        </Text>
                                         <TextInput
-                                            className="p-3.5 rounded-xl font-inter-regular text-base"
+                                            className="p-3 rounded-xl font-inter-medium text-sm"
                                             style={{
                                                 backgroundColor: colors.card,
                                                 borderWidth: 1,
@@ -675,9 +672,9 @@ export function WeaveLoggerScreen({
                                     </View>
 
                                     {/* Reciprocity Section */}
-                                    <View className="mb-5">
-                                        <Text className="font-lora-bold text-xl mb-2" style={{ color: colors.foreground }}>
-                                            Who initiated?
+                                    <View className="mb-3">
+                                        <Text className="text-xs font-inter-semibold text-muted-foreground mb-1.5 uppercase tracking-wider" style={{ color: colors['muted-foreground'] }}>
+                                            Initiated By
                                         </Text>
                                         <ReciprocitySelector
                                             value={initiator}
@@ -688,26 +685,17 @@ export function WeaveLoggerScreen({
                                     </View>
 
                                     {/* Vibe Section */}
-                                    <View className="mb-5">
-                                        <View className="flex-row items-center gap-2 mb-2">
-                                            <Moon size={20} color={colors.foreground} />
-                                            <Text className="font-lora-bold text-xl" style={{ color: colors.foreground }}>
-                                                How did it feel?
-                                            </Text>
-                                        </View>
+                                    <View className="mb-3">
+                                        <Text className="text-xs font-inter-semibold text-muted-foreground mb-1.5 uppercase tracking-wider" style={{ color: colors['muted-foreground'] }}>
+                                            Vibe
+                                        </Text>
                                         <MoonPhaseSelector onSelect={setSelectedVibe} selectedVibe={selectedVibe} />
                                     </View>
 
                                     {/* Reflection Section */}
-                                    <View className="mb-5">
-                                        <View className="flex-row items-center gap-2 mb-1">
-                                            <Sparkles size={20} color={colors.primary} />
-                                            <Text className="font-lora-bold text-xl" style={{ color: colors.foreground }}>
-                                                Tell the story
-                                            </Text>
-                                        </View>
-                                        <Text className="font-inter-regular text-sm mb-2" style={{ color: colors['muted-foreground'] }}>
-                                            Capture what made this weave meaningful
+                                    <View className="mb-4">
+                                        <Text className="text-xs font-inter-semibold text-muted-foreground mb-1.5 uppercase tracking-wider" style={{ color: colors['muted-foreground'] }}>
+                                            Notes
                                         </Text>
                                         <ContextualReflectionInput
                                             category={selectedCategory}
