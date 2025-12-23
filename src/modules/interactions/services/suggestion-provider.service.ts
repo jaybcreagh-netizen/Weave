@@ -137,6 +137,11 @@ export async function fetchSuggestions(
                 });
 
                 if (suggestion) {
+                    // Attach pre-computed tracking context to avoid duplicate queries in useSuggestions
+                    suggestion.trackingContext = {
+                        friendScore: currentScore,
+                        daysSinceLastInteraction: Math.round(daysSinceInteraction),
+                    };
                     allSuggestions.push(suggestion);
                 }
             } catch (error) {
@@ -174,6 +179,12 @@ export async function fetchSuggestions(
                     includeSmartScheduling: false,
                 });
 
+                // Calculate tracking context for proactive suggestions
+                const proactiveScore = calculateCurrentScore(friend);
+                const proactiveDaysSince = context?.lastDate
+                    ? Math.round((Date.now() - context.lastDate) / 86400000)
+                    : 999;
+
                 for (const p of proactive) {
                     if (proactiveSuggestions.length >= MAX_PROACTIVE) break;
 
@@ -191,6 +202,10 @@ export async function fetchSuggestions(
                         dismissible: true,
                         createdAt: new Date(),
                         type: p.type.includes('momentum') ? 'deepen' : 'connect',
+                        trackingContext: {
+                            friendScore: proactiveScore,
+                            daysSinceLastInteraction: proactiveDaysSince,
+                        },
                     });
                 }
             } catch (error) {

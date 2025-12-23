@@ -64,6 +64,12 @@ export interface StructuredReflection {
   customNotes?: string;
 }
 
+/** Pre-computed context for suggestion tracking (avoids duplicate DB queries) */
+export interface SuggestionTrackingContext {
+  friendScore: number;
+  daysSinceLastInteraction: number;
+}
+
 export interface Suggestion {
   id: string;
   type: 'connect' | 'deepen' | 'reconnect' | 'celebrate' | 'reflect';
@@ -87,4 +93,6 @@ export interface Suggestion {
   actionLabel?: string;
   dismissible?: boolean;
   createdAt?: Date;
+  /** Pre-computed tracking context - populated during generation to avoid duplicate queries */
+  trackingContext?: SuggestionTrackingContext;
 }
