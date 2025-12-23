@@ -32,7 +32,7 @@ class AppStateManager {
 
       if (shouldBeIdle !== this.isCurrentlyIdle) {
         this.isCurrentlyIdle = shouldBeIdle;
-        logger.debug('AppState', 'Idle state changed:', shouldBeIdle);
+
 
         // Notify idle listeners
         this.idleListeners.forEach(listener => {
@@ -66,7 +66,7 @@ class AppStateManager {
   }
 
   private handleAppStateChange = (nextState: AppStateStatus) => {
-    logger.debug('AppState', 'Changed from', this.currentState, 'to', nextState);
+
 
     this.currentState = nextState;
 

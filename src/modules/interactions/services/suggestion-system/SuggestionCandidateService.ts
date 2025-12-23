@@ -3,7 +3,6 @@ import { database } from '@/db';
 import FriendModel from '@/db/models/Friend';
 import InteractionFriend from '@/db/models/InteractionFriend';
 import Interaction from '@/db/models/Interaction';
-import Logger from '@/shared/utils/Logger';
 
 export interface CandidateResult {
     friendIds: string[];
@@ -55,8 +54,7 @@ export const SuggestionCandidateService = {
             return f.weaveScore < (threshold[tier] || 20);
         }).slice(0, DRIFT_LIMIT);
 
-        // DIAGNOSTIC: Log drifting friends count
-        Logger.warn(`[Candidates] Drifting friends found: ${driftingFriends.length}`);
+
 
         driftingFriends.forEach(f => candidateIds.add(f.id));
 

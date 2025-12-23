@@ -122,33 +122,25 @@ export function DataInitializer({ children }: DataInitializerProps) {
     // Initialize Data
     useEffect(() => {
         const initializeData = async () => {
-            const startTime = Date.now();
-            console.log('[Startup] Starting initialization...');
-
             try {
-                // Measure Data Migrations
-                const migrationStart = Date.now();
-                await initializeDataMigrations();
-                console.log(`[Startup] Data migrations took ${Date.now() - migrationStart}ms`);
-
-                // Run independent initializations in parallel
-                const parallelStart = Date.now();
-
                 // Pre-warm friend cache to prevent empty flash on dashboard
                 const initializeFriendCache = async () => {
                     const { database } = await import('@/db');
                     // Just fetching the count is enough to initialize the collection and adapter
                     await database.get('friends').query().fetchCount();
-                    console.log(`[Startup] Friend cache pre-warmed`);
+
                 };
 
+                // Run all initializations in parallel
+                // Note: initializeDataMigrations now has a fast-path version check,
+                // so it's safe to parallelize (returns immediately on subsequent boots)
                 await Promise.all([
-                    initializeUserProfile().then(() => console.log(`[Startup] User profile init complete`)),
-                    initializeUserProgress().then(() => console.log(`[Startup] User progress init complete`)),
-                    initializeAnalytics().then(() => console.log(`[Startup] Analytics init complete`)),
+                    initializeDataMigrations(),
+                    initializeUserProfile(),
+                    initializeUserProgress(),
+                    initializeAnalytics(),
                     initializeFriendCache()
                 ]);
-                console.log(`[Startup] Parallel init tasks took ${Date.now() - parallelStart}ms`);
 
                 // Sync calendar changes on app launch (non-blocking)
                 import('@/modules/interactions').then(({ CalendarService }) => {
@@ -157,7 +149,6 @@ export function DataInitializer({ children }: DataInitializerProps) {
                     });
                 });
 
-                // Scan for event suggestions on app launch (non-blocking)
                 // Scan for event suggestions on app launch (non-blocking)
                 import('@/modules/interactions/hooks/useEventSuggestions').then(({ prefetchEventSuggestions }) => {
                     import('@/shared/api/query-client').then(({ queryClient }) => {
@@ -168,12 +159,16 @@ export function DataInitializer({ children }: DataInitializerProps) {
                 });
 
                 // Run image cleanup (non-blocking)
-                const imageCleanupStart = Date.now();
                 import('@/modules/relationships/services/image.service').then(({ verifyAndCleanupFriendImages }) => {
-                    verifyAndCleanupFriendImages().then(() => {
-                        console.log(`[Startup] Image cleanup took ${Date.now() - imageCleanupStart}ms`);
-                    }).catch(err => {
+                    verifyAndCleanupFriendImages().catch(err => {
                         console.error('[App] Error during image verification:', err);
+                    });
+                });
+
+                // Run tier integrity repair (non-blocking, only runs once per device)
+                import('@/shared/services/integrity.service').then(({ integrityService }) => {
+                    integrityService.repairTiers().catch(err => {
+                        console.error('[App] Error during tier integrity repair:', err);
                     });
                 });
 
@@ -183,7 +178,7 @@ export function DataInitializer({ children }: DataInitializerProps) {
                 });
 
                 setDataLoaded(true);
-                console.log(`[Startup] Total initialization took ${Date.now() - startTime}ms`);
+
             } catch (error) {
                 console.error('Failed to initialize app data:', error);
                 Sentry.captureException(error);

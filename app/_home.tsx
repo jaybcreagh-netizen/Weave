@@ -9,7 +9,7 @@ import { useTheme } from '@/shared/hooks/useTheme';
 import { ReflectionReadyPrompt } from '@/modules/reflection/components/WeeklyReflection/ReflectionReadyPrompt';
 import { YearInMoonsModal } from '@/modules/intelligence';
 import { useUserProfileStore } from '@/modules/auth';
-import { notificationStore, shouldSendWeeklyReflectionNotification, shouldSendSocialBatteryNotification } from '@/modules/notifications';
+import { notificationStore, shouldSendWeeklyReflectionNotification } from '@/modules/notifications';
 import { useTutorialStore } from '@/shared/stores/tutorialStore';
 import { useUIStore } from '@/shared/stores/uiStore';
 import { isSameWeek } from 'date-fns';
@@ -20,7 +20,7 @@ import { isSameWeek } from 'date-fns';
  * @returns {React.ReactElement} The rendered home screen.
  */
 export default function Home() {
-  const { observeProfile, profile, submitBatteryCheckin, updateProfile } = useUserProfileStore();
+  const { profile, updateProfile } = useUserProfileStore();
   const {
     openWeeklyReflection,
     isReflectionPromptOpen,
@@ -35,7 +35,6 @@ export default function Home() {
 
   // Mounted state and timeout refs to prevent race conditions
   const isMountedRef = useRef(true);
-  const batteryTimerRef = useRef<NodeJS.Timeout | null>(null);
   const reflectionPromptTimerRef = useRef<NodeJS.Timeout | null>(null);
   const moonsTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -43,87 +42,16 @@ export default function Home() {
   const hasPerformedQuickWeave = useTutorialStore((state) => state.hasPerformedQuickWeave);
 
   // Cleanup timeouts on unmount to prevent setState on unmounted component
+  // Cleanup timeouts on unmount to prevent setState on unmounted component
   useEffect(() => {
     return () => {
       isMountedRef.current = false;
-      if (batteryTimerRef.current) clearTimeout(batteryTimerRef.current);
       if (reflectionPromptTimerRef.current) clearTimeout(reflectionPromptTimerRef.current);
       if (moonsTimerRef.current) clearTimeout(moonsTimerRef.current);
     };
   }, []);
 
-  // Initialize user profile observable on mount
-  useEffect(() => {
-    try {
-      const cleanup = observeProfile();
-      return cleanup;
-    } catch (error) {
-      console.error('[Home] Failed to observe profile:', error);
-      // Optionally show error toast to user
-    }
-  }, []);
 
-  // Check if user should be prompted for battery check-in
-  // Wait until QuickWeave tutorial is complete before showing (avoid conflicts)
-  useEffect(() => {
-    // Default to enabled if not explicitly set
-    if (!profile) return;
-    const isEnabled = profile.batteryCheckinEnabled ?? true;
-    if (!isEnabled) return;
-
-    // Don't show battery sheet during onboarding flow
-    // Wait until user has completed their first QuickWeave OR has been using the app for a while
-    const checkEligibility = async () => {
-      if (hasPerformedQuickWeave) return true;
-
-      // Fallback for existing users: check interaction count via grace period service
-      const { shouldSend } = await shouldSendSocialBatteryNotification();
-      return shouldSend;
-    };
-
-    checkEligibility().then(isEligible => {
-      if (!isEligible) return;
-
-      const lastCheckin = profile.socialBatteryLastCheckin;
-      if (!lastCheckin) {
-        console.log('[Home] No last check-in found, showing battery sheet');
-        // Never checked in - show after brief delay
-        batteryTimerRef.current = setTimeout(() => {
-          if (isMountedRef.current) {
-            openSocialBatterySheet();
-          }
-        }, 2500);
-        return () => {
-          if (batteryTimerRef.current) {
-            clearTimeout(batteryTimerRef.current);
-          }
-        };
-      }
-
-      // Check if last check-in was today
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const lastCheckinDate = new Date(lastCheckin);
-      lastCheckinDate.setHours(0, 0, 0, 0);
-
-      const needsCheckin = lastCheckinDate < today;
-      console.log(`[Home] Battery Check-in Status: Last=${lastCheckinDate.toDateString()}, Today=${today.toDateString()}, Needs=${needsCheckin}`);
-
-      if (needsCheckin) {
-        // Last check-in was before today - show after brief delay
-        batteryTimerRef.current = setTimeout(() => {
-          if (isMountedRef.current) {
-            openSocialBatterySheet();
-          }
-        }, 2500);
-        return () => {
-          if (batteryTimerRef.current) {
-            clearTimeout(batteryTimerRef.current);
-          }
-        };
-      }
-    });
-  }, [profile, hasPerformedQuickWeave]);
 
   // Check if weekly reflection should be shown
   useEffect(() => {

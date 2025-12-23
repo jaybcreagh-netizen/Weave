@@ -20,8 +20,9 @@ interface CacheKey {
 
 class StatusLineCache {
   private cache = new Map<string, StatusLineEntry>();
-  private maxSize = 100; // Keep last 100 status lines
-  private ttl = 5 * 60 * 1000; // 5 minutes TTL
+  private maxSize = 200; // Increased from 100 - keep more status lines cached
+  private ttl = 15 * 60 * 1000; // Increased from 5 to 15 minutes TTL
+
 
   private generateKey(key: CacheKey): string {
     // Round lastUpdated to nearest second to reduce cache misses

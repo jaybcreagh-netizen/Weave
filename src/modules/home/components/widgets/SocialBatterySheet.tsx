@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import Slider from '@react-native-community/slider';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { AnimatedBottomSheet } from '@/shared/ui/Sheet';
 import { MoonPhaseIllustration } from '@/modules/intelligence';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 
 interface SocialBatterySheetProps {
   isVisible: boolean;
@@ -74,6 +75,15 @@ export const SocialBatterySheet: React.FC<SocialBatterySheetProps> = ({
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
+  // Reset state when sheet opens to ensure slider starts at center
+  useEffect(() => {
+    if (isVisible) {
+      setBatteryLevel(3);
+      setNote('');
+      setShowNoteInput(false);
+    }
+  }, [isVisible]);
+
   const handleSubmit = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     onSubmit(batteryLevel, note || undefined);
@@ -99,19 +109,29 @@ export const SocialBatterySheet: React.FC<SocialBatterySheetProps> = ({
       onCloseComplete={resetState}
       height="form"
       scrollable
+      springConfig={{
+        damping: 18,
+        stiffness: 120,
+      }}
     >
       {/* Header */}
-      <View className="mb-6 items-center">
+      <Animated.View
+        entering={FadeInDown.delay(100).duration(600).springify()}
+        className="mb-6 items-center"
+      >
         <Text
           style={{ color: colors.foreground }}
           className="text-center font-lora text-[22px] font-bold"
         >
           Check in with your social energy
         </Text>
-      </View>
+      </Animated.View>
 
       {/* Current State Display */}
-      <View className="mb-6 items-center">
+      <Animated.View
+        entering={FadeInDown.delay(200).duration(600).springify()}
+        className="mb-6 items-center"
+      >
         <View className="mb-3">
           <MoonPhaseIllustration
             phase={0}
@@ -133,10 +153,13 @@ export const SocialBatterySheet: React.FC<SocialBatterySheetProps> = ({
         >
           {currentState.description}
         </Text>
-      </View>
+      </Animated.View>
 
       {/* Slider */}
-      <View className="mb-6">
+      <Animated.View
+        entering={FadeInDown.delay(300).duration(600).springify()}
+        className="mb-6"
+      >
         <Slider
           style={{ width: '100%', height: 40 }}
           minimumValue={1}
@@ -162,7 +185,7 @@ export const SocialBatterySheet: React.FC<SocialBatterySheetProps> = ({
             High
           </Text>
         </View>
-      </View>
+      </Animated.View>
 
       {/* Optional Note */}
       {!showNoteInput ? (
@@ -197,7 +220,10 @@ export const SocialBatterySheet: React.FC<SocialBatterySheetProps> = ({
       )}
 
       {/* Actions */}
-      <View className="flex-row gap-3">
+      <Animated.View
+        entering={FadeInDown.delay(400).duration(600).springify()}
+        className="flex-row gap-3"
+      >
         <TouchableOpacity
           onPress={handleDismiss}
           style={{ backgroundColor: colors.muted }}
@@ -223,7 +249,7 @@ export const SocialBatterySheet: React.FC<SocialBatterySheetProps> = ({
             Check In
           </Text>
         </TouchableOpacity>
-      </View>
+      </Animated.View>
     </AnimatedBottomSheet>
   );
 };

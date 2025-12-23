@@ -170,10 +170,16 @@ const SocialSeasonWidgetContent: React.FC<SocialSeasonWidgetProps> = ({ friends 
         }
     };
 
+    // Debounce expensive calculations to prevent UI jank during rapid data changes
     useEffect(() => {
-        calculateActivityStats();
-        calculateAndUpdateSeason();
-    }, [allInteractions, friends, profile]);
+        const timeout = setTimeout(() => {
+            calculateActivityStats();
+            calculateAndUpdateSeason();
+        }, 1000); // 1 second debounce - prevents recalc spam during batch updates
+
+        return () => clearTimeout(timeout);
+    }, [allInteractions.length, friends.length, profile?.id]);
+
 
     const context = calculateSeasonContext({
         weavesLast7Days: 0,

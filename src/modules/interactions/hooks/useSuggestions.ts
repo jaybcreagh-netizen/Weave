@@ -8,7 +8,9 @@ import { SuggestionTrackerService } from '../services/suggestion-tracker.service
 import * as SuggestionStorageService from '../services/suggestion-storage.service';
 import { useUserProfile } from '@/modules/auth';
 import { notificationStore } from '@/modules/notifications';
+import { useUIStore } from '@/shared/stores/uiStore';
 import Logger from '@/shared/utils/Logger';
+
 
 export function useSuggestions() {
   const queryClient = useQueryClient();
@@ -29,14 +31,14 @@ export function useSuggestions() {
       // Return empty if profile somehow isn't loaded yet (safeguard)
       if (!isProfileLoaded) return [];
 
-      Logger.debug(`[useSuggestions] Query starting - season: ${currentSeason}`);
+
       const prefs = await notificationStore.getPreferences();
-      Logger.debug(`[useSuggestions] Prefs loaded - maxDaily: ${prefs.maxDailySuggestions}`);
+
 
       try {
-        Logger.debug(`[useSuggestions] Calling fetchSuggestions`);
+
         const result = await fetchSuggestions(10, currentSeason, prefs.maxDailySuggestions);
-        Logger.debug(`[useSuggestions] Complete - ${result.length} suggestions`);
+
         return result;
       } catch (error) {
         Logger.error(`[useSuggestions] fetchSuggestions FAILED`, error);
@@ -47,30 +49,48 @@ export function useSuggestions() {
     // Re-fetch when the query is invalidated or season changes
   });
 
-  // Observe friends table for changes
+  // Observe friends table for changes (debounced to prevent thrashing during bulk updates)
   useEffect(() => {
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+
     const subscription = database
       .get<FriendModel>('friends')
       .query()
       .observe()
       .subscribe(() => {
-        queryClient.invalidateQueries({ queryKey: ['suggestions', 'all'] });
+        // Debounce: coalesce rapid changes into a single invalidation
+        if (debounceTimer) clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => {
+          queryClient.invalidateQueries({ queryKey: ['suggestions', 'all'] });
+        }, 500);
       });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      subscription.unsubscribe();
+    };
   }, [queryClient]);
 
-  // Observe interactions table for changes to trigger suggestion regeneration
+  // Observe interactions table for changes (debounced to prevent thrashing during bulk updates)
   useEffect(() => {
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+
     const subscription = database
       .get<Interaction>('interactions')
       .query()
       .observe()
       .subscribe(() => {
-        queryClient.invalidateQueries({ queryKey: ['suggestions', 'all'] });
+        // Debounce: coalesce rapid changes into a single invalidation
+        if (debounceTimer) clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => {
+          queryClient.invalidateQueries({ queryKey: ['suggestions', 'all'] });
+        }, 500);
       });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      subscription.unsubscribe();
+    };
   }, [queryClient]);
 
   // Track when suggestions are shown (only track each suggestion once)
@@ -105,6 +125,21 @@ export function useSuggestions() {
       isMounted = false;
     };
   }, [suggestions]);
+
+  // Sync suggestion stats to UIStore for components that just need the count
+  // Use suggestions.length as dependency to avoid reference equality issues
+  // Also guard against unnecessary updates to prevent feedback loops
+  useEffect(() => {
+    const hasCritical = suggestions.some(s => s.urgency === 'critical');
+    const store = useUIStore.getState();
+
+    // Only update if values actually changed
+    if (store.suggestionCount !== suggestions.length || store.hasCriticalSuggestion !== hasCritical) {
+      store.setSuggestionStats(suggestions.length, hasCritical);
+    }
+  }, [suggestions.length]); // Use primitive value as dependency
+
+
 
   const invalidateSuggestions = () => {
     queryClient.invalidateQueries({ queryKey: ['suggestions', 'all'] });

@@ -12,6 +12,7 @@ import LifeEvent from '@/db/models/LifeEvent';
 import { Q } from '@nozbe/watermelondb';
 import withObservables from '@nozbe/with-observables';
 import Interaction from '@/db/models/Interaction';
+import InteractionFriend from '@/db/models/InteractionFriend';
 import { Card } from '@/shared/ui/Card';
 import { WidgetHeader } from '@/shared/ui/WidgetHeader';
 import { ListItem } from '@/shared/ui/ListItem';
@@ -288,20 +289,37 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = ({ friends })
 
     const [planFriendIds, setPlanFriendIds] = useState<Record<string, string[]>>({});
 
+    // Batch fetch all interaction-friend links instead of N+1 pattern
     useEffect(() => {
         let isMounted = true;
         const loadFriends = async () => {
-            const newMap: Record<string, string[]> = {};
             const allItems = [...todaysUpcoming, ...todaysCompleted, ...tomorrowsPlans];
-            for (const plan of allItems) {
-                try {
-                    const iFriends = await plan.interactionFriends.fetch();
-                    newMap[plan.id] = iFriends.map((f: any) => f.friendId);
-                } catch (e) {
-                    console.error('Error loading plan friends:', e);
-                }
+            if (allItems.length === 0) {
+                setPlanFriendIds({});
+                return;
             }
-            if (isMounted) setPlanFriendIds(newMap);
+
+            const interactionIds = allItems.map(p => p.id);
+
+            try {
+                // Single batch query instead of N queries
+                const links = await database.get<InteractionFriend>('interaction_friends')
+                    .query(Q.where('interaction_id', Q.oneOf(interactionIds)))
+                    .fetch();
+
+                // Build map in memory
+                const newMap: Record<string, string[]> = {};
+                for (const link of links) {
+                    if (!newMap[link.interactionId]) {
+                        newMap[link.interactionId] = [];
+                    }
+                    newMap[link.interactionId].push(link.friendId);
+                }
+
+                if (isMounted) setPlanFriendIds(newMap);
+            } catch (e) {
+                console.error('Error batch loading plan friends:', e);
+            }
         };
         loadFriends();
         return () => { isMounted = false; };

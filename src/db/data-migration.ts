@@ -1,8 +1,12 @@
 import { Database, Q } from '@nozbe/watermelondb';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { InteractionCategory, ActivityType } from '@/shared/types/legacy-types';
 import { logger } from '@/shared/services/logger.service';
 // import { migrateActivityToCategory } from '@/shared/constants/interaction-categories';
 
+// Version tracking for data migrations - bump when adding new migrations
+const MIGRATION_VERSION_KEY = 'DATA_MIGRATION_VERSION';
+const CURRENT_MIGRATION_VERSION = 2;
 
 // Helper to migrate old activity types to new categories
 function migrateActivityToCategory(activity: string): InteractionCategory {
@@ -18,6 +22,7 @@ function migrateActivityToCategory(activity: string): InteractionCategory {
   };
   return map[activity] || 'text-call';
 }
+
 
 /**
  * Migrate existing interactions to use the new category system
@@ -247,19 +252,38 @@ export async function ensureUserProgressColumns(database: Database): Promise<voi
 
 /**
  * Run data migration if needed
- * Safe to call multiple times - will only run once
+ * Uses AsyncStorage version tracking to skip redundant checks on subsequent boots
+ * Safe to call multiple times - will only run once per version
  */
 export async function runDataMigrationIfNeeded(database: Database): Promise<void> {
+  // Fast path: Check if migrations already complete for current version
+  try {
+    const appliedVersion = await AsyncStorage.getItem(MIGRATION_VERSION_KEY);
+    if (appliedVersion && parseInt(appliedVersion, 10) >= CURRENT_MIGRATION_VERSION) {
+      logger.info('DataMigration', 'Migrations already applied (v' + appliedVersion + '), skipping');
+      return;
+    }
+  } catch (error) {
+    // If AsyncStorage fails, continue with migration check
+    logger.warn('DataMigration', 'Failed to check migration version, proceeding with checks', error);
+  }
+
   // Run interaction category migration
   const isComplete = await isDataMigrationComplete(database);
 
   if (!isComplete) {
-
     await migrateInteractionsToCategories(database);
-  } else {
-
   }
 
   // Ensure user_progress has v30 columns
   await ensureUserProgressColumns(database);
+
+  // Mark migrations as complete
+  try {
+    await AsyncStorage.setItem(MIGRATION_VERSION_KEY, CURRENT_MIGRATION_VERSION.toString());
+    logger.info('DataMigration', 'Marked migrations complete (v' + CURRENT_MIGRATION_VERSION + ')');
+  } catch (error) {
+    logger.warn('DataMigration', 'Failed to save migration version', error);
+  }
 }
+

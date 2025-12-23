@@ -120,6 +120,11 @@ interface UIStore {
   openDigestSheet: (items: DigestItem[]) => void;
   closeDigestSheet: () => void;
 
+  // Shared suggestion count (to avoid duplicate useSuggestions() subscriptions)
+  suggestionCount: number;
+  hasCriticalSuggestion: boolean;
+  setSuggestionStats: (count: number, hasCritical: boolean) => void;
+
   // Popup Coordinator
   activePopup: 'social-battery' | 'weekly-reflection' | null;
   popupQueue: ('social-battery' | 'weekly-reflection')[];
@@ -366,4 +371,9 @@ export const useUIStore = create<UIStore>((set, get) => ({
   digestItems: [],
   openDigestSheet: (items) => set({ digestSheetVisible: true, digestItems: items }),
   closeDigestSheet: () => set({ digestSheetVisible: false, digestItems: [] }),
+
+  // Shared suggestion stats
+  suggestionCount: 0,
+  hasCriticalSuggestion: false,
+  setSuggestionStats: (count, hasCritical) => set({ suggestionCount: count, hasCriticalSuggestion: hasCritical }),
 }));

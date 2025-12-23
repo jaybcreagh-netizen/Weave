@@ -59,24 +59,23 @@ export async function fetchSuggestions(
     userCap?: number
 ): Promise<Suggestion[]> {
     try {
-        // DIAGNOSTIC: Log pipeline start
-        Logger.debug(`[Suggestions] Pipeline starting - limit: ${limit}, season: ${season}, userCap: ${userCap}`);
+
 
         // 1. Candidate Selection: Identify WHO needs suggestions (limit to Top 50 candidates)
         // This prevents loading all 1000+ friends into memory.
         const candidateIds = await SuggestionCandidateService.getCandidates(50);
 
-        Logger.debug(`[Suggestions] Checkpoint 1 - Candidates: ${candidateIds.length}`);
+
 
         // 2. Data Loading: Fetch Context (Friend + Interactions) only for candidates
         const contextMap = await SuggestionDataLoader.loadContextForCandidates(candidateIds);
         const friends = Array.from(contextMap.values()).map(c => c.friend);
 
-        Logger.debug(`[Suggestions] Checkpoint 2 - Friends loaded: ${friends.length}`);
+
 
         const dismissedMap = await SuggestionStorageService.getDismissedSuggestions();
 
-        Logger.debug(`[Suggestions] Checkpoint 3 - Dismissed: ${dismissedMap.size}`);
+
 
         let allSuggestions: Suggestion[] = [];
         const friendStats: PortfolioAnalysisStats['friends'] = [];
@@ -149,7 +148,7 @@ export async function fetchSuggestions(
             }
         }
 
-        Logger.debug(`[Suggestions] Checkpoint 4 - After generation: ${allSuggestions.length}`);
+
 
         // 4. Proactive Suggestions (Pattern Analysis)
         const proactiveSuggestions: Suggestion[] = [];
@@ -267,7 +266,7 @@ export async function fetchSuggestions(
         const timeAppropriate = filterSuggestionsByTime(active);
         const seasonFiltered = filterSuggestionsBySeason(timeAppropriate, season);
 
-        Logger.debug(`[Suggestions] Checkpoint 5 - Active: ${active.length}, Time: ${timeAppropriate.length}, Season: ${seasonFiltered.length}`);
+
 
         const MIN_SUGGESTIONS = 3;
         let finalPool = seasonFiltered;
@@ -280,7 +279,7 @@ export async function fetchSuggestions(
         const freshGuaranteed = guaranteed.filter(s => !dismissedMap.has(s.id));
         finalPool = [...finalPool, ...freshGuaranteed];
 
-        Logger.debug(`[Suggestions] Checkpoint 6 - Guaranteed: ${freshGuaranteed.length}, pool: ${finalPool.length}`);
+
 
         // 8. Dormant / Triage Logic
         finalPool = await TriageGenerator.apply(finalPool);
@@ -305,7 +304,7 @@ export async function fetchSuggestions(
             friendLookup,
         });
 
-        Logger.debug(`[Suggestions] Checkpoint 7 - Final: ${finalSuggestions.length}, limit: ${effectiveLimit}`);
+
 
         // 10. EMERGENCY FALLBACK: Ensure users ALWAYS see at least one suggestion
         // This is the last line of defense against blank suggestion screens

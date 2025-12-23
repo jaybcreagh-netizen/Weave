@@ -1,5 +1,5 @@
-import React, { useState, useRef } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Dimensions, ScrollView, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
+import React, { useState, useRef, useEffect } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Sparkles, Users, Settings } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
@@ -8,12 +8,11 @@ import { SocialBatterySheet } from '@/modules/home/components/widgets/SocialBatt
 import { BadgeUnlockModal } from '@/modules/gamification';
 import { useUserProfileStore } from '@/modules/auth';
 import { useUIStore } from '@/shared/stores/uiStore';
-import { useSuggestions } from '@/modules/interactions';
 import HomeScreen from './_home';
 import FriendsScreen from './_friends';
-import { integrityService } from '@/shared/services/integrity.service';
+import { useTutorialStore } from '@/shared/stores/tutorialStore';
+import { shouldSendSocialBatteryNotification } from '@/modules/notifications';
 
-const { width: screenWidth } = Dimensions.get('window');
 
 export default function Dashboard() {
     const theme = useTheme();
@@ -23,31 +22,105 @@ export default function Dashboard() {
     const {
         isSocialBatterySheetOpen,
         openSocialBatterySheet,
-        closeSocialBatterySheet
+        closeSocialBatterySheet,
+        suggestionCount, // Use shared state from UIStore (populated by useSuggestions in FriendsDashboardScreen)
     } = useUIStore();
-    const { submitBatteryCheckin } = useUserProfileStore();
-    const { suggestions } = useSuggestions();
-    const suggestionCount = suggestions.length;
-    const scrollViewRef = useRef<ScrollView>(null);
+    const { submitBatteryCheckin, profile, observeProfile } = useUserProfileStore();
+    // Tutorial state - check if QuickWeave tutorial is done
+    const hasPerformedQuickWeave = useTutorialStore((state) => state.hasPerformedQuickWeave);
+
+
+    // Mounted state and timeout refs to prevent race conditions
+    const isMountedRef = useRef(true);
+    const batteryTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+    // Cleanup timeouts on unmount
+    useEffect(() => {
+        return () => {
+            isMountedRef.current = false;
+            if (batteryTimerRef.current) clearTimeout(batteryTimerRef.current);
+        };
+    }, []);
+
+    // Initialize user profile observable on mount
+    useEffect(() => {
+        try {
+            const cleanup = observeProfile();
+            return cleanup;
+        } catch (error) {
+            console.error('[Dashboard] Failed to observe profile:', error);
+        }
+    }, []);
+
+    // Check if user should be prompted for battery check-in
+    // Wait until QuickWeave tutorial is complete before showing (avoid conflicts)
+    useEffect(() => {
+        // Default to enabled if not explicitly set
+        if (!profile) return;
+        const isEnabled = profile.batteryCheckinEnabled ?? true;
+        if (!isEnabled) return;
+
+        // Skip if timer is already scheduled (prevents race condition on profile updates)
+        if (batteryTimerRef.current) return;
+
+        // Don't show battery sheet during onboarding flow
+        // Wait until user has completed their first QuickWeave OR has been using the app for a while
+        const checkEligibility = async () => {
+            if (hasPerformedQuickWeave) return true;
+
+            // Fallback for existing users: check interaction count via grace period service
+            const { shouldSend } = await shouldSendSocialBatteryNotification();
+            return shouldSend;
+        };
+
+        checkEligibility().then(isEligible => {
+            if (!isEligible) return;
+
+            const lastCheckin = profile.socialBatteryLastCheckin;
+            if (!lastCheckin) {
+                console.log('[Dashboard] No last check-in found, showing battery sheet');
+                // Never checked in - show after brief delay
+                batteryTimerRef.current = setTimeout(() => {
+                    if (isMountedRef.current) {
+                        openSocialBatterySheet();
+                    }
+                }, 3000);
+                return;
+            }
+
+            // Check if last check-in was today
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const lastCheckinDate = new Date(lastCheckin);
+            lastCheckinDate.setHours(0, 0, 0, 0);
+
+            const needsCheckin = lastCheckinDate < today;
+            console.log(`[Dashboard] Battery Check-in Status: Last=${lastCheckinDate.toDateString()}, Today=${today.toDateString()}, Needs=${needsCheckin}`);
+
+            if (needsCheckin) {
+                // Last check-in was before today - show after brief delay
+                batteryTimerRef.current = setTimeout(() => {
+                    if (isMountedRef.current) {
+                        openSocialBatterySheet();
+                    }
+                }, 3000);
+            }
+        });
+
+        // Only cleanup on unmount (not on profile changes)
+        return () => {
+            if (batteryTimerRef.current) {
+                clearTimeout(batteryTimerRef.current);
+                batteryTimerRef.current = null;
+            }
+        };
+    }, [profile, hasPerformedQuickWeave]);
 
     const handleTabPress = (tab: 'insights' | 'circle') => {
         setActiveTab(tab);
-        const index = tab === 'insights' ? 0 : 1;
-        scrollViewRef.current?.scrollTo({ x: index * screenWidth, animated: true });
     };
 
-    const onScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-        const slide = Math.round(event.nativeEvent.contentOffset.x / screenWidth);
-        const newTab = slide === 0 ? 'insights' : 'circle';
-        if (newTab !== activeTab) {
-            setActiveTab(newTab);
-        }
-    };
-
-    // Auto-repair specific logic for broken tiers (one-time check on mount)
-    React.useEffect(() => {
-        integrityService.repairTiers();
-    }, []);
+    // Note: repairTiers() is now called once in DataInitializer, not on every Dashboard mount
 
     return (
         <View style={{ flex: 1, backgroundColor: colors.background }}>
@@ -90,23 +163,10 @@ export default function Dashboard() {
                     </TouchableOpacity>
                 </View>
 
-                <ScrollView
-                    ref={scrollViewRef}
-                    horizontal
-                    pagingEnabled
-                    showsHorizontalScrollIndicator={false}
-                    onMomentumScrollEnd={onScroll}
-                    scrollEventThrottle={16}
-                    style={styles.scrollView}
-                    contentOffset={{ x: screenWidth, y: 0 }}
-                >
-                    <View style={{ width: screenWidth, flex: 1 }}>
-                        <HomeScreen />
-                    </View>
-                    <View style={{ width: screenWidth, flex: 1 }}>
-                        <FriendsScreen />
-                    </View>
-                </ScrollView>
+                {/* Lazy Tab Rendering - only mount active screen */}
+                <View style={styles.tabContent}>
+                    {activeTab === 'insights' ? <HomeScreen /> : <FriendsScreen />}
+                </View>
 
                 <SettingsModal
                     isOpen={showSettings}
@@ -144,6 +204,7 @@ export default function Dashboard() {
 
 const styles = StyleSheet.create({
     container: { flex: 1 },
+    tabContent: { flex: 1 },
     tabBar: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -163,7 +224,6 @@ const styles = StyleSheet.create({
     activeTab: { borderBottomWidth: 2, borderBottomColor: 'transparent' },
     tabLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 16 },
     settingsButton: { padding: 12 },
-    scrollView: { flex: 1 },
     tabIconContainer: { position: 'relative' },
     notificationBadge: {
         position: 'absolute',

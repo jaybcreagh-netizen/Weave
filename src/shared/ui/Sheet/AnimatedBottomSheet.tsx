@@ -16,6 +16,7 @@ import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withSpring,
+  WithSpringConfig,
   withTiming,
   runOnJS,
 } from 'react-native-reanimated';
@@ -119,6 +120,11 @@ interface AnimatedBottomSheetProps {
    * @default "Discard Changes? You have unsaved changes. Are you sure you want to discard them?"
    */
   confirmCloseMessage?: string;
+
+  /**
+   * Custom spring animation config
+   */
+  springConfig?: WithSpringConfig;
 }
 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -141,6 +147,7 @@ export const AnimatedBottomSheet = forwardRef<AnimatedBottomSheetRef, AnimatedBo
   footerComponent,
   hasUnsavedChanges = false,
   confirmCloseMessage = 'Discard Changes? You have unsaved changes. Are you sure you want to discard them?',
+  springConfig,
 }, ref) => {
   const { colors, isDarkMode } = useTheme();
   const insets = useSafeAreaInsets();
@@ -160,9 +167,9 @@ export const AnimatedBottomSheet = forwardRef<AnimatedBottomSheetRef, AnimatedBo
       backdropOpacity.value = withTiming(BACKDROP_OPACITY.visible, {
         duration: SHEET_TIMING.backdropFade,
       });
-      sheetTranslateY.value = withSpring(0, SHEET_SPRING_CONFIG);
+      sheetTranslateY.value = withSpring(0, springConfig || SHEET_SPRING_CONFIG);
     }
-  }, [visible]);
+  }, [visible, springConfig]);
 
   // Animated styles
   const backdropStyle = useAnimatedStyle(() => ({
