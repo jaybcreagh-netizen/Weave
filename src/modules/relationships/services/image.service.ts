@@ -728,7 +728,7 @@ export async function verifyAndCleanupFriendImages(): Promise<void> {
             Logger.warn('[ImageService] Found friend with missing photo file, cleaning up:', { id: friend.id, path });
             // @ts-ignore
             await friend.update(f => {
-              f.photoUrl = null;
+              (f as any).photoUrl = null;
             });
             cleanedCount++;
           }

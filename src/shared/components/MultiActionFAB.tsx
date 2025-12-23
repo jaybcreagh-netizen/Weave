@@ -151,7 +151,7 @@ interface ActionButtonProps {
   index: number;
   expanded: Animated.SharedValue<number>;
   onPress: () => void;
-  colors: Record<string, string>;
+  colors: Record<string, any>;
   isDarkMode: boolean;
 }
 

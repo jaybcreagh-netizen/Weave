@@ -92,7 +92,8 @@ export const EventReminderChannel: NotificationChannel & { scheduleAll: () => Pr
         }
     },
 
-    cancel: async (interactionId: string): Promise<void> => {
+    cancel: async (interactionId?: string): Promise<void> => {
+        if (!interactionId) return;
         const id = `${ID_PREFIX}${interactionId}`;
         await Notifications.cancelScheduledNotificationAsync(id);
         notificationAnalytics.trackCancelled('event-reminder', 'interaction_changed');

@@ -12,7 +12,7 @@ interface CardGestureContextType {
   animatedScrollHandler: any;
   activeCardId: Animated.SharedValue<string | null>;
   pendingCardId: Animated.SharedValue<string | null>; // Card being held (before long-press activates)
-  registerRef: (id: string, ref: React.RefObject<Animated.View>) => void;
+  registerRef: (id: string, ref: React.RefObject<any>) => void;
   unregisterRef: (id: string) => void;
   dragX: Animated.SharedValue<number>;
   dragY: Animated.SharedValue<number>;
@@ -26,7 +26,9 @@ export function CardGestureProvider({ children }: { children: React.ReactNode })
   return <CardGestureContext.Provider value={gestureCoordinator}>{children}</CardGestureContext.Provider>;
 }
 
-export function useCardGesture(options?: { optional?: boolean }) {
+export function useCardGesture(options: { optional: true }): CardGestureContextType | null;
+export function useCardGesture(options?: { optional?: false }): CardGestureContextType;
+export function useCardGesture(options?: { optional?: boolean }): CardGestureContextType | null {
   const context = useContext(CardGestureContext);
   if (!context) {
     if (options?.optional) return null;

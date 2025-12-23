@@ -78,8 +78,10 @@ export const EventSuggestionChannel: NotificationChannel & {
         }
     },
 
-    cancel: async (id: string): Promise<void> => {
-        await Notifications.cancelScheduledNotificationAsync(id);
+    cancel: async (id?: string): Promise<void> => {
+        if (id) {
+            await Notifications.cancelScheduledNotificationAsync(id);
+        }
     },
 
     handleTap: (data, router) => {

@@ -528,7 +528,7 @@ export function JournalWidget() {
                                 <>
                                     <View
                                         className="px-4 py-2.5 rounded-full flex-row items-center gap-2 flex-1 justify-center opacity-70"
-                                        style={{ backgroundColor: tokens.muted }}
+                                        style={{ backgroundColor: tokens.backgroundMuted }}
                                     >
                                         <Sparkles size={16} color={tokens.foregroundMuted} />
                                         <Text

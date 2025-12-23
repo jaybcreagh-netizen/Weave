@@ -498,6 +498,11 @@ export const createLegacyTheme = (isDarkMode: boolean) => {
       'weave-neutral': t.weave.stable,
       'weave-fading': t.weave.fading,
 
+      // Semantic (New additions for compatibility)
+      success: t.success,
+      warning: t.warning,
+      info: t.info,
+
       // Ring colors (for visualizations)
       'ring-warm': t.tier.inner,
       'ring-neutral': t.foregroundMuted,

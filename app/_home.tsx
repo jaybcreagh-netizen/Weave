@@ -92,7 +92,7 @@ export default function Home() {
           if (isMountedRef.current) {
             openSocialBatterySheet();
           }
-        }, 600);
+        }, 2500);
         return () => {
           if (batteryTimerRef.current) {
             clearTimeout(batteryTimerRef.current);
@@ -115,7 +115,7 @@ export default function Home() {
           if (isMountedRef.current) {
             openSocialBatterySheet();
           }
-        }, 600);
+        }, 2500);
         return () => {
           if (batteryTimerRef.current) {
             clearTimeout(batteryTimerRef.current);

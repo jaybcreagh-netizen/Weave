@@ -76,7 +76,7 @@ export function usePortfolio() {
 
           return {
             interactionDate: interaction.interactionDate,
-            category: interaction.interactionCategory,
+            category: interaction.interactionCategory as any,
             friendIds,
           };
         });

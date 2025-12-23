@@ -237,8 +237,6 @@ export function ContextualReflectionInput({
           tier={tier}
           interactionCount={interactionCount}
           daysSinceLastInteraction={daysSinceLastInteraction}
-          interactionCount={interactionCount}
-          daysSinceLastInteraction={daysSinceLastInteraction}
           userText={debouncedCustomNotes}
           onChipSelect={handleChipSelect}
         />
