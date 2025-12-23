@@ -15,6 +15,7 @@ import { notificationStore } from '../notification-store';
 import { NotificationChannel } from '@/modules/notifications';
 import UserProfile from '@/db/models/UserProfile';
 import { shouldSendNotification } from '../season-notifications.service';
+import { NOTIFICATION_TIMING } from '../../notification.config';
 
 const ID_PREFIX = 'deepening-nudge-';
 
@@ -49,19 +50,20 @@ export const DeepeningNudgeChannel: NotificationChannel = {
             const now = new Date();
             const hoursSince = (now.getTime() - interactionDate.getTime()) / (60 * 60 * 1000);
 
-            // Don't modify if > 24h passed
-            if (hoursSince > 24) return;
+            // Don't nudge if > 24h passed
+            if (hoursSince > NOTIFICATION_TIMING.deepeningNudge.maxHoursAfterInteraction) return;
 
-            // Limit to 2 per day
+            // Limit nudges per day
             const existingNudges = await notificationStore.getDeepeningNudges();
             const startOfDay = new Date(now);
             startOfDay.setHours(0, 0, 0, 0);
-            const todayNudges = existingNudges.filter((n: any) => n.scheduledAt >= startOfDay.getTime());
+            const todayNudges = existingNudges.filter(n => n.scheduledAt >= startOfDay.getTime());
 
-            if (todayNudges.length >= 2) return;
+            if (todayNudges.length >= NOTIFICATION_TIMING.deepeningNudge.maxPerDay) return;
 
-            // Random delay 3-6 hours
-            const delayHours = 3 + Math.random() * 3;
+            // Random delay based on config
+            const { minDelayHours, maxDelayHours } = NOTIFICATION_TIMING.deepeningNudge;
+            const delayHours = minDelayHours + Math.random() * (maxDelayHours - minDelayHours);
             const delayMs = delayHours * 60 * 60 * 1000;
             const nudgeTime = new Date(now.getTime() + delayMs);
 

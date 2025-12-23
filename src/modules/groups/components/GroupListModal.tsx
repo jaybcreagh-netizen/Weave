@@ -1,9 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { View, TouchableOpacity, Alert, FlatList } from 'react-native';
-import { BottomSheetFlatList } from '@gorhom/bottom-sheet';
-import { Plus, Users, ChevronRight, Trash2, Sparkles } from 'lucide-react-native';
+import { View, TouchableOpacity, Alert, FlatList, Modal, SafeAreaView } from 'react-native';
+import { Plus, Users, ChevronRight, Trash2, Sparkles, X } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
-import { StandardBottomSheet } from '@/shared/ui/Sheet';
 import { Text } from '@/shared/ui/Text';
 import { Card } from '@/shared/ui/Card';
 import { Button } from '@/shared/ui/Button';
@@ -206,28 +204,37 @@ export function GroupListModal({ visible, onClose }: GroupListModalProps) {
         ) : null
     ), [colors, groups.length, suggestions.length]);
 
-    const renderContent = React.useCallback(() => (
-        <BottomSheetFlatList
-            data={groups}
-            keyExtractor={item => item.id}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 100 }}
-            ListHeaderComponent={renderHeader}
-            ListEmptyComponent={renderEmpty}
-            renderItem={renderItem}
-        />
-    ), [groups, renderHeader, renderEmpty, renderItem]);
-
     return (
-        <StandardBottomSheet
-            visible={visible}
-            onClose={onClose}
-            title="Manage Groups"
-            snapPoints={['90%']}
-            disableContentPanning={true}
-            renderScrollContent={renderContent}
-        >
-            <></>
+        <>
+            <Modal
+                visible={visible}
+                animationType="slide"
+                presentationStyle="pageSheet"
+                onRequestClose={onClose}
+            >
+                <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
+                    {/* Header */}
+                    <View className="flex-row justify-between items-center p-5 border-b" style={{ borderColor: colors.border }}>
+                        <Text className="font-lora-bold text-xl" style={{ color: colors.foreground }}>
+                            Manage Groups
+                        </Text>
+                        <TouchableOpacity onPress={onClose} className="p-2 -mr-2">
+                            <X color={colors['muted-foreground']} size={24} />
+                        </TouchableOpacity>
+                    </View>
+
+                    {/* Content */}
+                    <FlatList
+                        data={groups}
+                        keyExtractor={(item: Group) => item.id}
+                        showsVerticalScrollIndicator={false}
+                        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24, paddingTop: 16 }}
+                        ListHeaderComponent={renderHeader}
+                        ListEmptyComponent={renderEmpty}
+                        renderItem={renderItem}
+                    />
+                </SafeAreaView>
+            </Modal>
             <GroupManagerModal
                 visible={isManagerVisible}
                 onClose={() => setIsManagerVisible(false)}
@@ -235,6 +242,6 @@ export function GroupListModal({ visible, onClose }: GroupListModalProps) {
                 initialData={initialData}
                 onGroupSaved={loadGroups}
             />
-        </StandardBottomSheet>
+        </>
     );
 }

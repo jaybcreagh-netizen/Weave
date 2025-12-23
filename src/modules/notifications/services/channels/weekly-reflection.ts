@@ -34,25 +34,32 @@ export const WeeklyReflectionChannel: NotificationChannel = {
             const { hasCompletedReflectionForCurrentWeek } = await import('@/modules/reflection/services/weekly-reflection.service');
             const isReflected = await hasCompletedReflectionForCurrentWeek();
 
-            const weekday = config.schedule.weekday ?? 1; // 1 = Sunday
+            // Fetch user's preferred reflection day from profile
+            const profiles = await database.get<UserProfile>('user_profile').query().fetch();
+            const profile = profiles[0];
+
+            // UserProfile.reflectionDay uses JS convention: 0=Sunday, 6=Saturday
+            // Expo CalendarTriggerInput uses: 1=Sunday, 7=Saturday
+            // Convert: expoWeekday = jsDay + 1
+            const userReflectionDay = profile?.reflectionDay ?? 0; // Default Sunday
+            const weekday = userReflectionDay + 1; // Convert JS→Expo
+
             const hour = config.schedule.hour ?? 19;
             const minute = config.schedule.minute ?? 0;
 
             const now = new Date();
-            const isTodayScheduleDay = now.getDay() === (weekday === 1 ? 0 : weekday - 1); // Expo uses 1=Sun, JS uses 0=Sun. Wait.
-            // Notifications.CalendarTriggerInput uses 1=Sunday. Date.getDay() uses 0=Sunday.
-            // If config.weekday is 1 (Sunday), then we check if Date.getDay() is 0.
-            const isSunday = now.getDay() === 0;
+            // Check if today matches user's preferred day
+            const isTodayScheduleDay = now.getDay() === userReflectionDay;
 
-            // If reflected AND today is Sunday, we suppress the standard notification
-            // But we must ensure next week is covered.
-            if (isReflected && isSunday) {
-                Logger.info('[WeeklyReflection] Reflection completed for this week. Cancelling clear/schedule normal, scheduling backup for next week.');
+            // If reflection completed AND today is user's preferred day, suppress standard notification
+            // But ensure next week is covered.
+            if (isReflected && isTodayScheduleDay) {
+                Logger.info('[WeeklyReflection] Reflection completed for this week. Scheduling backup for next week.');
 
                 // 1. Cancel standard recurring
                 await Notifications.cancelScheduledNotificationAsync(ID);
 
-                // 2. Schedule BACKUP recurring for NEXT Sunday
+                // 2. Schedule BACKUP recurring for next preferred day
                 // We use a different ID so we can distinguish them
                 const BACKUP_ID = `${ID}-backup`;
 
@@ -69,7 +76,7 @@ export const WeeklyReflectionChannel: NotificationChannel = {
                             data: { type: 'weekly-reflection' },
                         },
                         trigger: {
-                            weekday: weekday, // Sunday
+                            weekday: weekday, // User's preferred day
                             hour: hour,
                             minute: minute,
                             repeats: true,

@@ -15,6 +15,7 @@ import { ArchetypeCard } from '@/modules/intelligence';
 import { ArchetypeDetailModal } from '@/modules/intelligence';
 import { ContactPickerGrid } from '@/shared/components/onboarding/ContactPickerGrid';
 import { MonthDayPicker } from '@/shared/components/MonthDayPicker';
+import { NotesInputField } from '@/shared/components/NotesInputField';
 import { getTierCapacity, getTierDisplayName, isTierAtCapacity } from '@/shared/constants/constants';
 import { normalizeContactImageUri } from '../utils/image.utils';
 import { SimpleTutorialTooltip } from '@/shared/components/SimpleTutorialTooltip';
@@ -553,17 +554,12 @@ export function FriendForm({ onSave, friend, initialTier, fromOnboarding, onSkip
             </View>
           )}
 
-          <View>
-            <Text style={[styles.label, { color: colors.foreground }]}>Notes (Optional)</Text>
-            <TextInput
-              value={formData.notes}
-              onChangeText={(notes) => setFormData({ ...formData, notes })}
-              style={[styles.input, { height: 96, paddingTop: 16, backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
-              placeholder="Any special notes about this person..."
-              placeholderTextColor={colors['muted-foreground']}
-              multiline
-            />
-          </View>
+          <NotesInputField
+            value={formData.notes || ''}
+            onChangeText={(notes) => setFormData({ ...formData, notes })}
+            label="Notes (Optional)"
+            placeholder="Any special notes about this person..."
+          />
 
           {/* Debug: Reset Score Feature */}
           {friend && (

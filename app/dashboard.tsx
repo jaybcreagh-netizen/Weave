@@ -163,9 +163,14 @@ export default function Dashboard() {
                     </TouchableOpacity>
                 </View>
 
-                {/* Lazy Tab Rendering - only mount active screen */}
+                {/* Keep both tabs mounted for instant switching - hide inactive with display:none */}
                 <View style={styles.tabContent}>
-                    {activeTab === 'insights' ? <HomeScreen /> : <FriendsScreen />}
+                    <View style={[styles.screenContainer, activeTab !== 'insights' && styles.hidden]}>
+                        <HomeScreen />
+                    </View>
+                    <View style={[styles.screenContainer, activeTab !== 'circle' && styles.hidden]}>
+                        <FriendsScreen />
+                    </View>
                 </View>
 
                 <SettingsModal
@@ -205,6 +210,8 @@ export default function Dashboard() {
 const styles = StyleSheet.create({
     container: { flex: 1 },
     tabContent: { flex: 1 },
+    screenContainer: { flex: 1 },
+    hidden: { display: 'none' },
     tabBar: {
         flexDirection: 'row',
         alignItems: 'center',

@@ -165,55 +165,64 @@ export function FriendPickerSheet({
     [handleSelectFriend, disabledIds]
   );
 
+  // Memoized header component to prevent TextInput re-mounting
+  // Note: searchQuery is intentionally excluded because FriendSearchBar manages its own localQuery state
+  // and syncs with searchQuery via internal useEffect. Including it would cause re-mounts on each keystroke.
+  const HeaderComponent = useMemo(() => (
+    <View style={{ paddingBottom: 8 }}>
+      {subtitle && (
+        <Text
+          className="text-sm px-5 text-center mb-2"
+          style={{ color: colors['muted-foreground'] }}
+        >
+          {subtitle}
+        </Text>
+      )}
+      <FriendSearchBar
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        filters={filters}
+        onFiltersChange={setFilters}
+        sortOption={sortOption}
+        onSortChange={setSortOption}
+        isActive={isSearchActive}
+        onClear={handleClearFilters}
+      />
+    </View>
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  ), [subtitle, colors, filters, sortOption, isSearchActive, handleClearFilters]);
+
+  // Memoized empty component
+  const EmptyComponent = useMemo(() => (
+    <View className="items-center py-12 px-8">
+      <Text
+        className="text-center text-base"
+        style={{ color: colors['muted-foreground'] }}
+      >
+        {isSearchActive
+          ? 'No friends match your search'
+          : 'No friends added yet'}
+      </Text>
+    </View>
+  ), [colors, isSearchActive]);
+
   const renderScrollContent = useCallback(() => {
     return (
       <View style={{ flex: 1 }}>
-        <View style={{ paddingBottom: 8 }}>
-          {subtitle && (
-            <Text
-              className="text-sm px-5 text-center mb-2"
-              style={{ color: colors['muted-foreground'] }}
-            >
-              {subtitle}
-            </Text>
-          )}
-          <FriendSearchBar
-            searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
-            filters={filters}
-            onFiltersChange={setFilters}
-            sortOption={sortOption}
-            onSortChange={setSortOption}
-            isActive={isSearchActive}
-            onClear={handleClearFilters}
-          />
-        </View>
+        {HeaderComponent}
         <BottomSheetFlatList
           data={filteredFriends}
           renderItem={renderFriendItem}
           keyExtractor={(item) => item.id}
-          ListEmptyComponent={
-            <View className="items-center py-12 px-8">
-              <Text
-                className="text-center text-base"
-                style={{ color: colors['muted-foreground'] }}
-              >
-                {isSearchActive
-                  ? 'No friends match your search'
-                  : 'No friends added yet'}
-              </Text>
-            </View>
-          }
+          ListEmptyComponent={EmptyComponent}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 40 }}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="none"
         />
       </View>
     );
-  }, [
-    subtitle, colors, searchQuery, filters, sortOption, isSearchActive,
-    handleClearFilters, filteredFriends, renderFriendItem
-  ]);
+  }, [HeaderComponent, EmptyComponent, filteredFriends, renderFriendItem]);
 
   return (
     <StandardBottomSheet

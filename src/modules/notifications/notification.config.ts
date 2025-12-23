@@ -41,11 +41,9 @@ export const NOTIFICATION_CONFIG: Record<string, NotificationConfigItem> = {
         description: "Morning reflection on past journals and moments",
         enabled: true,
         schedule: {
-            type: "weekly",
-            hours: 10,
-            hour: 11,
-            minute: 15,
-            weekday: 6
+            type: "daily",
+            hour: 9,
+            minute: 0
         },
         templates: {
             default: {
@@ -198,3 +196,41 @@ export const GLOBAL_NOTIFICATION_SETTINGS: GlobalNotificationSettings = {
         }
     }
 };
+
+/**
+ * Centralized timing constants for notification scheduling.
+ * These were previously hardcoded in individual channel files.
+ */
+export const NOTIFICATION_TIMING = {
+    /** Deepening nudge delay range in hours */
+    deepeningNudge: {
+        minDelayHours: 3,
+        maxDelayHours: 6,
+        maxPerDay: 2,
+        maxHoursAfterInteraction: 24,
+    },
+
+    /** Event reminder lead time */
+    eventReminder: {
+        leadTimeMs: 60 * 60 * 1000, // 1 hour before
+    },
+
+    /** Smart suggestions timing */
+    smartSuggestions: {
+        minHoursBetween: 2,
+        recentInteractionCooldownMs: 24 * 60 * 60 * 1000, // 24 hours
+        plannedWeaveWindowMs: 7 * 24 * 60 * 60 * 1000, // 7 days
+    },
+
+    /** Battery check-in batch settings */
+    batteryCheckin: {
+        batchSizeDays: 14,
+        minDaysRemainingForExtend: 2,
+    },
+
+    /** General timing */
+    general: {
+        spreadIntervalMinutesMin: 30,
+        spreadIntervalMinutesMax: 120,
+    },
+} as const;

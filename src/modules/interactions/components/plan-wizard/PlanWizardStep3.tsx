@@ -8,6 +8,7 @@ import { PlanFormData } from '../PlanWizard';
 import FriendModel from '@/db/models/Friend';
 import { usePlanSuggestion, PlanSuggestion } from '../../hooks/usePlanSuggestion';
 import { FriendSelector, ReciprocitySelector } from '@/modules/relationships';
+import { NotesInputField } from '@/shared/components/NotesInputField';
 
 interface PlanWizardStep3Props {
   formData: Partial<PlanFormData>;
@@ -223,22 +224,11 @@ export function PlanWizardStep3({
           />
 
           {/* Notes */}
-          <Text className="font-inter-semibold text-sm mb-2" style={{ color: colors.foreground }}>
-            Notes
-          </Text>
-          <TextInput
-            value={formData.notes}
+          <NotesInputField
+            value={formData.notes || ''}
             onChangeText={notes => onUpdate({ notes })}
+            label="Notes"
             placeholder="e.g., Discuss her new job, Bring birthday gift"
-            placeholderTextColor={colors['muted-foreground']}
-            multiline
-            numberOfLines={3}
-            className="p-4 rounded-xl font-inter-regular text-base"
-            style={{
-              backgroundColor: colors.muted,
-              color: colors.foreground,
-              textAlignVertical: 'top',
-            }}
           />
 
 

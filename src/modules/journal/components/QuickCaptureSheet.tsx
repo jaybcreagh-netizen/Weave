@@ -22,10 +22,6 @@ import {
   ScrollView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Animated, {
-  SlideInDown,
-  SlideOutDown,
-} from 'react-native-reanimated';
 import { X, User, ChevronRight, Sparkles, Calendar } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { database } from '@/db';
@@ -37,6 +33,8 @@ import JournalEntryFriend from '@/db/models/JournalEntryFriend';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { format, isToday, isYesterday, startOfDay } from 'date-fns';
 import { KeyboardScrollView } from '@/shared/ui';
+import { BufferedTextInput } from '@/shared/ui/BufferedTextInput';
+import { FriendSelector } from '@/modules/relationships';
 
 // ============================================================================
 // TYPES
@@ -50,10 +48,7 @@ interface QuickCaptureSheetProps {
   prefilledText?: string;      // Pre-fill from weave notes
 }
 
-interface FriendChip {
-  id: string;
-  name: string;
-}
+// Using FriendModel[] directly instead of FriendChip
 
 // ============================================================================
 // COMPONENT
@@ -72,12 +67,13 @@ export function QuickCaptureSheet({
 
   // State
   const [text, setText] = useState(prefilledText || '');
-  const [selectedFriends, setSelectedFriends] = useState<FriendChip[]>([]);
+  const [selectedFriends, setSelectedFriends] = useState<FriendModel[]>([]);
   const [showFriendPicker, setShowFriendPicker] = useState(false);
   const [friends, setFriends] = useState<FriendModel[]>([]);
   const [saving, setSaving] = useState(false);
   const [entryDate, setEntryDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
+
 
   // Load friends on mount
   useEffect(() => {
@@ -89,7 +85,7 @@ export function QuickCaptureSheet({
     if (prefilledFriendId && friends.length > 0) {
       const friend = friends.find(f => f.id === prefilledFriendId);
       if (friend && !selectedFriends.some(sf => sf.id === friend.id)) {
-        setSelectedFriends([{ id: friend.id, name: friend.name }]);
+        setSelectedFriends([friend]);
       }
     }
   }, [prefilledFriendId, friends]);
@@ -127,17 +123,9 @@ export function QuickCaptureSheet({
     }
   };
 
-  const toggleFriend = useCallback((friend: FriendModel) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-
-    setSelectedFriends(prev => {
-      const exists = prev.some(f => f.id === friend.id);
-      if (exists) {
-        return prev.filter(f => f.id !== friend.id);
-      } else {
-        return [...prev, { id: friend.id, name: friend.name }];
-      }
-    });
+  // Handler for FriendSelector selection changes
+  const handleFriendSelectionChange = useCallback((friends: FriendModel[]) => {
+    setSelectedFriends(friends);
   }, []);
 
   const handleSave = async () => {
@@ -157,10 +145,10 @@ export function QuickCaptureSheet({
 
         // Link friends manually for M:N relation
         if (selectedFriends.length > 0) {
-          for (const friendChip of selectedFriends) {
+          for (const friend of selectedFriends) {
             await database.get<JournalEntryFriend>('journal_entry_friends').create(link => {
               link.journalEntry.set(newEntry);
-              link.friendId = friendChip.id;
+              link.friendId = friend.id;
             });
           }
         }
@@ -186,6 +174,11 @@ export function QuickCaptureSheet({
     setText('');
     setSelectedFriends([]);
   };
+
+  // Remove a friend from selection (for chip X button)
+  const removeFriend = useCallback((friendId: string) => {
+    setSelectedFriends(prev => prev.filter(f => f.id !== friendId));
+  }, []);
 
   const handleClose = () => {
     // Check for unsaved changes
@@ -325,38 +318,92 @@ export function QuickCaptureSheet({
                 )}
               </View>
 
-              {/* Content */}
-              <View className="mb-4">
-                <Text
-                  className="text-sm font-medium mb-2"
-                  style={{ color: colors['muted-foreground'], fontFamily: 'Inter_500Medium' }}
-                >
-                  What happened?
-                </Text>
-                <TextInput
+              {/* Prompt Label - Outside the box */}
+              <Text
+                className="text-sm font-medium mb-3 px-1"
+                style={{ color: colors['muted-foreground'], fontFamily: 'Inter_500Medium' }}
+              >
+                What happened?
+              </Text>
+
+              {/* Text Input - The "Grey Box" */}
+              <View
+                className="rounded-2xl p-4 mb-4"
+                style={{ backgroundColor: colors.muted }}
+              >
+                <BufferedTextInput
                   ref={inputRef}
                   value={text}
                   onChangeText={setText}
                   placeholder="Write your thoughts..."
-                  placeholderTextColor={colors['muted-foreground']}
+                  placeholderTextColor={colors['muted-foreground'] + '80'}
                   multiline
                   numberOfLines={6}
                   textAlignVertical="top"
-                  className="px-4 py-3 rounded-xl text-base"
+                  // Remove internal padding/styling since container handles it
+                  containerClassName="w-full"
+                  inputClassName="p-0 text-base leading-6"
                   style={{
-                    backgroundColor: colors.muted,
+                    backgroundColor: 'transparent', // Input itself is transparent
                     color: colors.foreground,
                     fontFamily: 'Inter_400Regular',
-                    minHeight: 150,
+                    minHeight: 120, // height controlled here
+                    borderWidth: 0, // no border on internal input
                   }}
                 />
+              </View>
+
+              {/* Friend Selector - Distinct separate pill */}
+              <View className="flex-row flex-wrap gap-2 mb-4">
+                {selectedFriends.map((friend) => (
+                  <TouchableOpacity
+                    key={friend.id}
+                    onPress={() => removeFriend(friend.id)}
+                    className="flex-row items-center gap-2 px-4 py-2.5 rounded-full"
+                    style={{
+                      backgroundColor: colors.primary + '15',
+                      borderWidth: 1,
+                      borderColor: colors.primary,
+                    }}
+                  >
+                    <User size={15} color={colors.primary} />
+                    <Text
+                      className="text-sm font-medium"
+                      style={{ color: colors.primary, fontFamily: 'Inter_500Medium' }}
+                    >
+                      {friend.name}
+                    </Text>
+                    <X size={12} color={colors.primary} />
+                  </TouchableOpacity>
+                ))}
+
+                <TouchableOpacity
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setShowFriendPicker(true);
+                  }}
+                  className="flex-row items-center gap-2 px-4 py-2.5 rounded-full"
+                  style={{
+                    backgroundColor: colors.muted,
+                    borderWidth: 1,
+                    borderColor: colors.border,
+                  }}
+                >
+                  <User size={15} color={colors['muted-foreground']} />
+                  <Text
+                    className="text-sm font-medium"
+                    style={{ color: colors['muted-foreground'], fontFamily: 'Inter_500Medium' }}
+                  >
+                    {selectedFriends.length > 0 ? 'Add friend' : 'Tag friend'}
+                  </Text>
+                </TouchableOpacity>
               </View>
 
               {/* Expand to full */}
               {hasContent && (
                 <TouchableOpacity
                   onPress={handleExpandToFull}
-                  className="flex-row items-center justify-center gap-2 py-3 mb-4"
+                  className="flex-row items-center justify-center gap-2 py-3"
                 >
                   <Sparkles size={16} color={colors.primary} />
                   <Text
@@ -368,232 +415,20 @@ export function QuickCaptureSheet({
                   <ChevronRight size={16} color={colors.primary} />
                 </TouchableOpacity>
               )}
-
-              {/* Friend Selector */}
-              <View className="mt-2">
-                <Text
-                  className="text-xs mb-2"
-                  style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
-                >
-                  Who was involved? (optional)
-                </Text>
-
-                <View className="flex-row flex-wrap gap-2">
-                  {selectedFriends.map((friend) => (
-                    <TouchableOpacity
-                      key={friend.id}
-                      onPress={() => {
-                        const fullFriend = friends.find(f => f.id === friend.id);
-                        if (fullFriend) toggleFriend(fullFriend);
-                      }}
-                      className="flex-row items-center gap-1.5 px-3 py-2 rounded-full"
-                      style={{
-                        backgroundColor: colors.primary + '20',
-                        borderWidth: 1,
-                        borderColor: colors.primary,
-                      }}
-                    >
-                      <User size={14} color={colors.primary} />
-                      <Text
-                        className="text-sm"
-                        style={{ color: colors.primary, fontFamily: 'Inter_500Medium' }}
-                      >
-                        {friend.name}
-                      </Text>
-                      <X size={12} color={colors.primary} />
-                    </TouchableOpacity>
-                  ))}
-
-                  <TouchableOpacity
-                    onPress={() => setShowFriendPicker(true)}
-                    className="flex-row items-center gap-1.5 px-3 py-2 rounded-full"
-                    style={{
-                      backgroundColor: colors.muted,
-                      borderWidth: 1,
-                      borderColor: colors.border,
-                    }}
-                  >
-                    <User size={14} color={colors['muted-foreground']} />
-                    <Text
-                      className="text-sm"
-                      style={{ color: colors['muted-foreground'], fontFamily: 'Inter_500Medium' }}
-                    >
-                      {selectedFriends.length > 0 ? 'Add' : 'Tag friend'}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
             </ScrollView>
           </KeyboardAvoidingView>
         </View>
       </Modal>
 
-      {/* Friend Picker Modal */}
-      <FriendPickerModal
+      {/* Friend Selector - Using standard component */}
+      <FriendSelector
         visible={showFriendPicker}
         onClose={() => setShowFriendPicker(false)}
-        friends={friends}
-        selectedFriendIds={selectedFriends.map(f => f.id)}
-        onToggleFriend={toggleFriend}
-        colors={colors}
+        selectedFriends={selectedFriends}
+        onSelectionChange={handleFriendSelectionChange}
+        asModal={true}
       />
     </>
-  );
-}
-
-// ============================================================================
-// FRIEND PICKER MODAL
-// ============================================================================
-
-interface FriendPickerModalProps {
-  visible: boolean;
-  onClose: () => void;
-  friends: FriendModel[];
-  selectedFriendIds: string[];
-  onToggleFriend: (friend: FriendModel) => void;
-  colors: any;
-}
-
-function FriendPickerModal({
-  visible,
-  onClose,
-  friends,
-  selectedFriendIds,
-  onToggleFriend,
-  colors,
-}: FriendPickerModalProps) {
-  const [search, setSearch] = useState('');
-
-  const filteredFriends = search
-    ? friends.filter(f => f.name.toLowerCase().includes(search.toLowerCase()))
-    : friends;
-
-  if (!visible) return null;
-
-  return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={onClose}
-    >
-      <View className="flex-1 justify-end bg-black/50">
-        <TouchableOpacity className="flex-1" onPress={onClose} activeOpacity={1} />
-
-        <Animated.View
-          entering={SlideInDown.springify().damping(20)}
-          exiting={SlideOutDown.springify().damping(20)}
-          className="rounded-t-3xl"
-          style={{
-            backgroundColor: colors.background,
-            maxHeight: '70%',
-          }}
-        >
-          {/* Header */}
-          <View className="flex-row items-center justify-between px-5 py-4 border-b" style={{ borderColor: colors.border }}>
-            <Text
-              className="text-lg"
-              style={{ color: colors.foreground, fontFamily: 'Lora_600SemiBold' }}
-            >
-              Tag Friends
-            </Text>
-            <TouchableOpacity onPress={onClose}>
-              <Text
-                className="text-base"
-                style={{ color: colors.primary, fontFamily: 'Inter_600SemiBold' }}
-              >
-                Done
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Search */}
-          <View className="px-5 py-3">
-            <TextInput
-              value={search}
-              onChangeText={setSearch}
-              placeholder="Search friends..."
-              placeholderTextColor={colors['muted-foreground']}
-              className="px-4 py-3 rounded-xl text-base"
-              style={{
-                backgroundColor: colors.muted,
-                color: colors.foreground,
-                fontFamily: 'Inter_400Regular',
-              }}
-            />
-          </View>
-
-          {/* Friend List */}
-          <KeyboardScrollView className="px-5 pb-8">
-            {filteredFriends.map((friend) => {
-              const isSelected = selectedFriendIds.includes(friend.id);
-
-              return (
-                <TouchableOpacity
-                  key={friend.id}
-                  onPress={() => onToggleFriend(friend)}
-                  className="flex-row items-center justify-between py-3.5 border-b"
-                  style={{ borderColor: colors.border }}
-                  activeOpacity={0.7}
-                >
-                  <View className="flex-row items-center gap-3">
-                    <View
-                      className="w-10 h-10 rounded-full items-center justify-center"
-                      style={{ backgroundColor: colors.muted }}
-                    >
-                      <Text
-                        className="text-base"
-                        style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold' }}
-                      >
-                        {friend.name.charAt(0).toUpperCase()}
-                      </Text>
-                    </View>
-                    <View>
-                      <Text
-                        className="text-base"
-                        style={{ color: colors.foreground, fontFamily: 'Inter_500Medium' }}
-                      >
-                        {friend.name}
-                      </Text>
-                      <Text
-                        className="text-xs"
-                        style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
-                      >
-                        {friend.dunbarTier}
-                      </Text>
-                    </View>
-                  </View>
-
-                  <View
-                    className="w-6 h-6 rounded-full items-center justify-center"
-                    style={{
-                      backgroundColor: isSelected ? colors.primary : 'transparent',
-                      borderWidth: isSelected ? 0 : 2,
-                      borderColor: colors.border,
-                    }}
-                  >
-                    {isSelected && (
-                      <Text style={{ color: colors['primary-foreground'], fontSize: 14 }}>✓</Text>
-                    )}
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
-
-            {filteredFriends.length === 0 && (
-              <View className="py-8 items-center">
-                <Text
-                  className="text-sm"
-                  style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
-                >
-                  No friends found
-                </Text>
-              </View>
-            )}
-          </KeyboardScrollView>
-        </Animated.View>
-      </View>
-    </Modal>
   );
 }
 

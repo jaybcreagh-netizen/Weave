@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, TextInput, Keyboard } from 'react-native';
+import { View, Text, TouchableOpacity, Keyboard } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { type Vibe, type InteractionCategory } from '@/shared/types/common';
 
 import { useTheme } from '@/shared/hooks/useTheme';
 import { getCategoryMetadata } from '@/shared/constants/interaction-categories';
 import { AnimatedBottomSheet } from '@/shared/ui/Sheet';
+import { BottomSheetInput } from '@/shared/ui/BottomSheetInput';
+import { NotesInputField } from '@/shared/components/NotesInputField';
 import { MoonPhaseSelector } from '@/modules/intelligence';
 
 interface MicroReflectionSheetProps {
@@ -31,6 +33,7 @@ export function MicroReflectionSheet({
   const [selectedVibe, setSelectedVibe] = useState<Vibe | null>(null);
   const [notes, setNotes] = useState('');
   const [title, setTitle] = useState(activityLabel);
+
 
 
   // Set title from activityLabel when opening
@@ -103,8 +106,8 @@ export function MicroReflectionSheet({
         <Text className="text-sm font-medium mb-2" style={{ color: colors['muted-foreground'] }}>
           Logged
         </Text>
-        <TextInput
-          className="text-2xl font-bold font-lora-bold text-center mb-1 min-w-[200px]"
+        <BottomSheetInput
+          inputClassName="text-2xl font-bold font-lora-bold text-center mb-1 min-w-[200px]"
           style={{ color: colors.foreground }}
           value={title}
           onChangeText={setTitle}
@@ -135,8 +138,8 @@ export function MicroReflectionSheet({
         <Text className="text-[13px] font-medium mb-2" style={{ color: colors['muted-foreground'] }}>
           Optional: Add a note
         </Text>
-        <TextInput
-          className="border rounded-xl p-3 text-[15px] min-h-[80px] max-h-[120px]"
+        <BottomSheetInput
+          inputClassName="border rounded-xl p-3 text-[15px] min-h-[80px] max-h-[120px]"
           style={{
             backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)',
             color: colors.foreground,

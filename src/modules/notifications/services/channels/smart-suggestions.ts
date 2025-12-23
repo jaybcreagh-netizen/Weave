@@ -21,12 +21,10 @@ import { calculateCurrentScore } from '@/modules/intelligence';
 import { HydratedFriend } from '@/types/hydrated';
 import { Suggestion } from '@/shared/types/common';
 import { applySeasonLimit, shouldSendNotification } from '../season-notifications.service';
-import { NOTIFICATION_CONFIG, NotificationConfigItem } from '../../notification.config';
+import { NOTIFICATION_CONFIG, NOTIFICATION_TIMING, NotificationConfigItem } from '../../notification.config';
 
 const ID_PREFIX = 'smart-suggestion';
-const MIN_HOURS_BETWEEN_NOTIFICATIONS = 2;
 
-// Helper to check quiet hours
 // Helper to check quiet hours
 function isQuietHours(date: Date, prefs: NotificationPreferences): boolean {
     const hour = date.getHours();
@@ -60,7 +58,7 @@ function shouldRespectBattery(
 // Helper to calculate spreads with STRICT quiet hours
 function calculateSpreadDelays(count: number, prefs: NotificationPreferences): number[] {
     const delays: number[] = [];
-    const minGapMs = MIN_HOURS_BETWEEN_NOTIFICATIONS * 60 * 60 * 1000;
+    const minGapMs = NOTIFICATION_TIMING.smartSuggestions.minHoursBetween * 60 * 60 * 1000;
 
     let simulatedTime = Date.now();
 
@@ -138,7 +136,7 @@ export const SmartSuggestionsChannel: NotificationChannel & {
             // fallback to limits.cooldownHours or default constant.
             // This ensures "Every 4 hours" override actually works.
             const frequency = config.schedule?.hours;
-            const cooldown = frequency || config.limits.cooldownHours || MIN_HOURS_BETWEEN_NOTIFICATIONS;
+            const cooldown = frequency || config.limits.cooldownHours || NOTIFICATION_TIMING.smartSuggestions.minHoursBetween;
 
             if (hoursSince < cooldown) {
                 Logger.debug(`[SmartSuggestions] Cooldown active (${hoursSince.toFixed(1)}h < ${cooldown}h), skipping`);
@@ -176,46 +174,79 @@ export const SmartSuggestionsChannel: NotificationChannel & {
 
         if (remainingSlots <= 0) return;
 
-        // 4. Generate Suggestions
+        // 4. Batch fetch all data upfront to avoid N+1 queries
         const suggestions: Suggestion[] = [];
         const friends = await database.get<Friend>('friends').query().fetch();
 
-        for (const friend of friends) {
-            // Junction check
-            const interactionFriends = await database.get<InteractionFriend>('interaction_friends').query(Q.where('friend_id', friend.id)).fetch();
-            const iIds = interactionFriends.map(ifriend => ifriend.interactionId);
+        // Batch fetch ALL interaction_friends
+        const allInteractionFriends = await database
+            .get<InteractionFriend>('interaction_friends')
+            .query()
+            .fetch();
 
-            let lastInteractionDate;
-            let interactionCount = 0;
-            let recentInteractions: Interaction[] = [];
+        // Build friend -> interaction IDs map
+        const friendInteractionIdsMap = new Map<string, string[]>();
+        for (const ifr of allInteractionFriends) {
+            const existing = friendInteractionIdsMap.get(ifr.friendId) || [];
+            existing.push(ifr.interactionId);
+            friendInteractionIdsMap.set(ifr.friendId, existing);
+        }
 
-            if (iIds.length > 0) {
-                const ints = await database.get<Interaction>('interactions').query(Q.where('id', Q.oneOf(iIds)), Q.where('status', 'completed')).fetch();
-                const sorted = ints.filter(i => i.interactionDate).sort((a, b) => b.interactionDate.getTime() - a.interactionDate.getTime());
-                lastInteractionDate = sorted[0]?.interactionDate;
-                interactionCount = sorted.length;
-                recentInteractions = sorted.slice(0, 5);
+        // Get unique interaction IDs
+        const allInteractionIds = [...new Set(allInteractionFriends.map(i => i.interactionId))];
+
+        // Batch fetch ALL completed interactions
+        const allCompletedInteractions = allInteractionIds.length > 0
+            ? await database.get<Interaction>('interactions')
+                .query(Q.where('id', Q.oneOf(allInteractionIds)), Q.where('status', 'completed'))
+                .fetch()
+            : [];
+        const completedInteractionMap = new Map(allCompletedInteractions.map(i => [i.id, i]));
+
+        // Batch fetch ALL planned interactions for the next 7 days
+        const now = Date.now();
+        const plannedWeaveWindowMs = NOTIFICATION_TIMING.smartSuggestions.plannedWeaveWindowMs;
+        const allPlannedInteractions = allInteractionIds.length > 0
+            ? await database.get<Interaction>('interactions')
+                .query(
+                    Q.where('id', Q.oneOf(allInteractionIds)),
+                    Q.where('status', 'planned'),
+                    Q.where('interaction_date', Q.gt(now)),
+                    Q.where('interaction_date', Q.lt(now + plannedWeaveWindowMs))
+                )
+                .fetch()
+            : [];
+
+        // Build set of friend IDs that have planned weaves
+        const friendsWithPlannedWeaves = new Set<string>();
+        for (const ifr of allInteractionFriends) {
+            if (allPlannedInteractions.some(p => p.id === ifr.interactionId)) {
+                friendsWithPlannedWeaves.add(ifr.friendId);
             }
+        }
 
-            // Dedupe: 24h cooldown for recent interactions
-            if (lastInteractionDate && (Date.now() - lastInteractionDate.getTime()) < 24 * 60 * 60 * 1000) {
+        // Process each friend using in-memory data
+        for (const friend of friends) {
+            const interactionIds = friendInteractionIdsMap.get(friend.id) || [];
+
+            // Get friend's completed interactions from map
+            const friendCompletedInteractions = interactionIds
+                .map(id => completedInteractionMap.get(id))
+                .filter((i): i is Interaction => !!i && i.interactionDate != null)
+                .sort((a, b) => b.interactionDate.getTime() - a.interactionDate.getTime());
+
+            const lastInteractionDate = friendCompletedInteractions[0]?.interactionDate;
+            const interactionCount = friendCompletedInteractions.length;
+            const recentInteractions = friendCompletedInteractions.slice(0, 5);
+
+            // Dedupe: cooldown for recent interactions
+            if (lastInteractionDate && (Date.now() - lastInteractionDate.getTime()) < NOTIFICATION_TIMING.smartSuggestions.recentInteractionCooldownMs) {
                 continue;
             }
 
-            // Skip friends with planned weaves in the next 7 days
-            if (iIds.length > 0) {
-                const now = Date.now();
-                const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
-                const plannedWeaves = await database.get<Interaction>('interactions')
-                    .query(
-                        Q.where('id', Q.oneOf(iIds)),
-                        Q.where('status', 'planned'),
-                        Q.where('interaction_date', Q.gt(now)),
-                        Q.where('interaction_date', Q.lt(now + sevenDaysMs))
-                    ).fetch();
-                if (plannedWeaves.length > 0) {
-                    continue;
-                }
+            // Skip friends with planned weaves in the next 7 days (using pre-computed set)
+            if (friendsWithPlannedWeaves.has(friend.id)) {
+                continue;
             }
 
             const currentScore = calculateCurrentScore(friend);

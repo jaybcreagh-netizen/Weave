@@ -195,7 +195,10 @@ export function FriendSelector({
 
     // --- RENDER HELPERS ---
 
-    const renderHeader = () => (
+    // Memoized header component to prevent TextInput re-mounting on each keystroke
+    // Note: searchQuery is intentionally excluded because including it would cause re-mounts.
+    // The TextInput manages its own internal value via the ref.
+    const HeaderComponent = useMemo(() => (
         <View className="bg-background">
             {/* Header - Only for Modal (Sheet has its own title) */}
             {asModal && (
@@ -262,13 +265,16 @@ export function FriendSelector({
                                 style={{ color: colors.foreground }}
                                 placeholder="Search friends..."
                                 placeholderTextColor={colors['muted-foreground']}
-                                value={searchQuery}
+                                defaultValue={searchQuery}
                                 onChangeText={handleSearchChange}
                                 autoCorrect={false}
                                 autoCapitalize="none"
                             />
                             {searchQuery.length > 0 && (
-                                <TouchableOpacity onPress={() => setSearchQuery('')}>
+                                <TouchableOpacity onPress={() => {
+                                    setSearchQuery('');
+                                    searchInputRef.current?.clear();
+                                }}>
                                     <X size={16} color={colors['muted-foreground']} />
                                 </TouchableOpacity>
                             )}
@@ -307,7 +313,8 @@ export function FriendSelector({
                 </TouchableOpacity>
             )}
         </View>
-    );
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    ), [asModal, colors, activeTab, relevantGroups, handleSearchChange, onClose, renderRelevantGroupChip]);
 
     const renderFooter = () => (
         <TouchableOpacity
@@ -351,12 +358,13 @@ export function FriendSelector({
                             data={activeTab === 'friends' ? filteredFriends : groups}
                             renderItem={activeTab === 'friends' ? renderFriendItem : renderGroupItem as any}
                             keyExtractor={(item: any) => item.id}
-                            ListHeaderComponent={renderHeader}
+                            ListHeaderComponent={HeaderComponent}
                             ListEmptyComponent={renderEmpty}
                             contentContainerStyle={{ paddingBottom: 100 }}
                             showsVerticalScrollIndicator={false}
-                            keyboardShouldPersistTaps="handled"
+                            keyboardShouldPersistTaps="always"
                             keyboardDismissMode="none"
+                            removeClippedSubviews={false}
                         />
                         <View
                             className="absolute bottom-0 left-0 right-0 p-5 border-t"
@@ -388,7 +396,7 @@ export function FriendSelector({
             data={activeTab === 'friends' ? filteredFriends : groups}
             renderItem={activeTab === 'friends' ? renderFriendItem : renderGroupItem as any}
             keyExtractor={(item: any) => item.id}
-            ListHeaderComponent={renderHeader}
+            ListHeaderComponent={HeaderComponent}
             ListEmptyComponent={renderEmpty}
             contentContainerStyle={{ paddingBottom: 24 }}
             showsVerticalScrollIndicator={false}
@@ -398,17 +406,19 @@ export function FriendSelector({
     );
 
     return (
-        <StandardBottomSheet
-            visible={visible}
-            onClose={onClose}
-            height="full"
-            title="Add Friends"
-            renderScrollContent={renderSheetContent}
-            footerComponent={renderFooter()}
-            disableContentPanning
-        >
-            {/* Children required by type but not used when renderScrollContent is present */}
-            <></>
+        <>
+            <StandardBottomSheet
+                visible={visible}
+                onClose={onClose}
+                height="full"
+                title="Add Friends"
+                renderScrollContent={renderSheetContent}
+                footerComponent={renderFooter()}
+                disableContentPanning
+            >
+                {/* Children required by type but not used when renderScrollContent is present */}
+                <></>
+            </StandardBottomSheet>
             {isGroupModalVisible && (
                 <GroupManagerModal
                     visible={isGroupModalVisible}
@@ -417,6 +427,6 @@ export function FriendSelector({
                     onGroupSaved={loadGroups}
                 />
             )}
-        </StandardBottomSheet>
+        </>
     );
 }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { View, Text, TouchableOpacity, Image, TextInput, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput, ActivityIndicator } from 'react-native';
 import { WeaveLoading } from '@/shared/components/WeaveLoading';
 import * as Contacts from 'expo-contacts';
 import { CheckCircle2, Users, Plus, Search, X } from 'lucide-react-native';
@@ -7,6 +7,7 @@ import Animated, { FadeIn } from 'react-native-reanimated';
 import { FlashList } from '@shopify/flash-list';
 import { normalizeContactImageUri } from '@/modules/relationships';
 import { useTheme } from '@/shared/hooks/useTheme';
+import { CachedImage } from '@/shared/ui';
 
 // Consts for layout to prevent jumping
 const NUM_COLUMNS = 3;
@@ -105,12 +106,11 @@ const ContactItem = React.memo(({
 
           {/* Render image on top if available. It will cover initials when loaded. */}
           {shouldShowImage && (
-            <Image
+            <CachedImage
               source={{ uri: normalizeContactImageUri(item.image?.uri || '') }}
-              className="w-full h-full"
-              resizeMode="cover"
+              style={{ width: '100%', height: '100%' }}
+              contentFit="cover"
               onError={() => setImageError(true)}
-              fadeDuration={200}
             />
           )}
         </View>

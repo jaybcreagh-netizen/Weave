@@ -6,7 +6,14 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Logger from '@/shared/utils/Logger';
-import { NotificationPreferences } from '../types';
+import {
+    NotificationPreferences,
+    StoredDeepeningNudge,
+    StoredPendingEvent,
+    SmartNotificationStats,
+    ScheduledSmartNotifications,
+    PendingEventsData,
+} from '../types';
 
 // Storage Keys
 const KEYS = {
@@ -110,14 +117,17 @@ class NotificationStoreService {
     // Deepening Nudges
     // ==============================================================================
 
-    async getDeepeningNudges(): Promise<any[]> {
+    async getDeepeningNudges(): Promise<StoredDeepeningNudge[]> {
         try {
             const val = await AsyncStorage.getItem(KEYS.DEEPENING_NUDGES);
             return val ? JSON.parse(val) : [];
-        } catch (e) { return []; }
+        } catch (e) {
+            Logger.warn('[NotificationStore] Error reading deepening nudges:', e);
+            return [];
+        }
     }
 
-    async setDeepeningNudges(nudges: any[]): Promise<void> {
+    async setDeepeningNudges(nudges: StoredDeepeningNudge[]): Promise<void> {
         await AsyncStorage.setItem(KEYS.DEEPENING_NUDGES, JSON.stringify(nudges));
     }
 
@@ -148,22 +158,28 @@ class NotificationStoreService {
         await AsyncStorage.setItem(KEYS.LAST_SMART_NOTIFICATION, timestamp.toString());
     }
 
-    async getSmartNotificationCount(): Promise<{ date: string; count: number } | null> {
+    async getSmartNotificationCount(): Promise<SmartNotificationStats | null> {
         try {
             const val = await AsyncStorage.getItem(KEYS.SMART_NOTIFICATION_COUNT);
             return val ? JSON.parse(val) : null;
-        } catch (e) { return null; }
+        } catch (e) {
+            Logger.warn('[NotificationStore] Error reading smart notification count:', e);
+            return null;
+        }
     }
 
     async setSmartNotificationCount(date: string, count: number): Promise<void> {
         await AsyncStorage.setItem(KEYS.SMART_NOTIFICATION_COUNT, JSON.stringify({ date, count }));
     }
 
-    async getScheduledSmartNotifications(): Promise<{ date: string; ids: string[] } | null> {
+    async getScheduledSmartNotifications(): Promise<ScheduledSmartNotifications | null> {
         try {
             const val = await AsyncStorage.getItem(KEYS.SCHEDULED_SMART_NOTIFICATIONS);
             return val ? JSON.parse(val) : null;
-        } catch (e) { return null; }
+        } catch (e) {
+            Logger.warn('[NotificationStore] Error reading scheduled smart notifications:', e);
+            return null;
+        }
     }
 
     async setScheduledSmartNotifications(date: string, ids: string[]): Promise<void> {
@@ -304,32 +320,27 @@ class NotificationStoreService {
     /**
      * Get pending events to show in the evening digest.
      */
-    async getPendingEvents(): Promise<any[]> {
+    async getPendingEvents(): Promise<StoredPendingEvent[]> {
         try {
             const val = await AsyncStorage.getItem(KEYS.PENDING_EVENTS);
             if (val) {
-                const data = JSON.parse(val);
+                const data: PendingEventsData = JSON.parse(val);
                 // Only return events from today
                 const today = new Date().toDateString();
                 if (data.date === today) {
                     return data.events || [];
                 }
             }
-        } catch (e) { /* ignore */ }
+        } catch (e) {
+            Logger.warn('[NotificationStore] Error reading pending events:', e);
+        }
         return [];
     }
 
     /**
      * Add a pending event to be shown in the evening digest.
      */
-    async addPendingEvent(event: {
-        eventId: string;
-        title: string;
-        friendNames: string;
-        eventDate: string;
-        friendIds: string[];
-        suggestedCategory?: string;
-    }): Promise<void> {
+    async addPendingEvent(event: StoredPendingEvent): Promise<void> {
         try {
             const today = new Date().toDateString();
             const existing = await this.getPendingEvents();

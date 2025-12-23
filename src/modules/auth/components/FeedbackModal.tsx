@@ -8,6 +8,7 @@ import { trackEvent, AnalyticsEvents } from '@/shared/services/analytics.service
 import { StandardBottomSheet } from '@/shared/ui/Sheet';
 import { Text } from '@/shared/ui/Text';
 import { Input } from '@/shared/ui/Input';
+import { BottomSheetInput } from '@/shared/ui/BottomSheetInput';
 import { Button } from '@/shared/ui/Button';
 
 interface FeedbackModalProps {
@@ -19,6 +20,7 @@ export function FeedbackModal({ visible, onClose }: FeedbackModalProps) {
   const { colors } = useTheme();
   const [feedback, setFeedback] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
 
   const handleSubmit = async () => {
     if (!feedback.trim()) {
@@ -112,7 +114,7 @@ export function FeedbackModal({ visible, onClose }: FeedbackModalProps) {
         </Text>
 
         {/* Feedback Input */}
-        <Input
+        <BottomSheetInput
           value={feedback}
           onChangeText={setFeedback}
           placeholder="What happened? Any suggestions?"

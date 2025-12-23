@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '@/shared/hooks/useTheme';
@@ -25,6 +25,7 @@ import { Q } from '@nozbe/watermelondb';
 import withObservables from '@nozbe/with-observables';
 import { startOfDay, subDays, format } from 'date-fns';
 import { SeasonIcon, PulseSheet, SeasonOverrideModal } from '@/modules/intelligence';
+import { useDashboardCacheStore } from '@/shared/stores/dashboardCacheStore';
 
 const WIDGET_CONFIG: HomeWidgetConfig = {
     id: 'social-season',
@@ -44,14 +45,23 @@ const SocialSeasonWidgetContent: React.FC<SocialSeasonWidgetProps> = ({ friends 
     const { data: batteryStats = { average: 50, trend: 'stable' } } = useSocialBatteryStats();
     const { allInteractions } = useInteractions();
 
+    // Get cached values from Zustand store
+    const cache = useDashboardCacheStore((state) => state.socialSeasonCache);
+    const isCacheStale = useDashboardCacheStore((state) => state.isSocialSeasonStale);
+    const setCache = useDashboardCacheStore((state) => state.setSocialSeasonCache);
+
+    // Initialize state from cache (instant display, no loading flicker)
     const [isCalculating, setIsCalculating] = useState(false);
-    const [season, setSeason] = useState<SocialSeason>('balanced');
-    const [seasonData, setSeasonData] = useState<SeasonExplanationData | null>(null);
+    const [season, setSeason] = useState<SocialSeason>(cache.season);
+    const [seasonData, setSeasonData] = useState<SeasonExplanationData | null>(cache.seasonData);
     const [showDetailSheet, setShowDetailSheet] = useState(false);
     const [showOverrideModal, setShowOverrideModal] = useState(false);
-    const [weeklyWeaves, setWeeklyWeaves] = useState(0);
-    const [currentStreak, setCurrentStreak] = useState(0);
-    const [networkHealth, setNetworkHealth] = useState(0);
+    const [weeklyWeaves, setWeeklyWeaves] = useState(cache.weeklyWeaves);
+    const [currentStreak, setCurrentStreak] = useState(cache.currentStreak);
+    const [networkHealth, setNetworkHealth] = useState(cache.networkHealth);
+
+    // Track previous dependency values to detect significant changes
+    const prevDepsRef = useRef({ interactionCount: 0, friendCount: 0 });
 
     // Logic ported from V1
     const calculateActivityStats = async () => {
@@ -170,15 +180,49 @@ const SocialSeasonWidgetContent: React.FC<SocialSeasonWidgetProps> = ({ friends 
         }
     };
 
-    // Debounce expensive calculations to prevent UI jank during rapid data changes
+    // Smart caching: skip recalculation if cache is fresh and data hasn't changed significantly
     useEffect(() => {
-        const timeout = setTimeout(() => {
-            calculateActivityStats();
-            calculateAndUpdateSeason();
-        }, 1000); // 1 second debounce - prevents recalc spam during batch updates
+        const currentInteractionCount = allInteractions.length;
+        const currentFriendCount = friends.length;
+        const prevDeps = prevDepsRef.current;
+
+        // Detect if data has changed significantly (new weave logged, friend added, etc.)
+        const hasSignificantChange =
+            currentInteractionCount !== prevDeps.interactionCount ||
+            currentFriendCount !== prevDeps.friendCount;
+
+        // Update ref for next comparison
+        prevDepsRef.current = {
+            interactionCount: currentInteractionCount,
+            friendCount: currentFriendCount,
+        };
+
+        // Skip recalculation if cache is fresh AND no significant data changes
+        if (!isCacheStale() && !hasSignificantChange && cache.lastCalculated) {
+            return;
+        }
+
+        // Debounce expensive calculations
+        const timeout = setTimeout(async () => {
+            await calculateActivityStats();
+            await calculateAndUpdateSeason();
+        }, 1000);
 
         return () => clearTimeout(timeout);
     }, [allInteractions.length, friends.length, profile?.id]);
+
+    // Sync state to cache after calculations complete (when isCalculating goes false)
+    useEffect(() => {
+        if (!isCalculating && season && networkHealth > 0) {
+            setCache({
+                season,
+                seasonData,
+                weeklyWeaves,
+                currentStreak,
+                networkHealth,
+            });
+        }
+    }, [isCalculating, season, seasonData, weeklyWeaves, currentStreak, networkHealth]);
 
 
     const context = calculateSeasonContext({

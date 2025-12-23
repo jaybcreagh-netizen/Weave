@@ -5,7 +5,7 @@
  */
 
 import * as Notifications from 'expo-notifications';
-import { useRouter } from 'expo-router';
+import { useRouter, Router } from 'expo-router';
 import Logger from '@/shared/utils/Logger';
 import { notificationAnalytics } from './notification-analytics';
 import { notificationStore } from './notification-store';
@@ -20,6 +20,28 @@ import { MemoryNudgeChannel } from './channels/memory-nudge';
 import { SmartSuggestionsChannel } from './channels/smart-suggestions';
 import { EventSuggestionChannel } from './channels/event-suggestion';
 import { EveningDigestChannel } from './channels/evening-digest';
+
+/**
+ * Safely execute a channel's handleTap with error isolation.
+ * If a channel fails, falls back to dashboard navigation.
+ */
+const safeChannelHandleTap = async (
+  channelName: string,
+  handler: () => void | Promise<void>,
+  router: Router
+): Promise<void> => {
+  try {
+    await handler();
+  } catch (error) {
+    Logger.error(`[NotificationHandler] ${channelName} handleTap failed:`, error);
+    // Fallback to dashboard on channel error
+    try {
+      router.replace('/dashboard');
+    } catch (navError) {
+      Logger.error('[NotificationHandler] Navigation fallback also failed:', navError);
+    }
+  }
+};
 
 export const useNotificationResponseHandler = () => {
   const router = useRouter();
@@ -48,31 +70,31 @@ export const useNotificationResponseHandler = () => {
         return;
       }
 
-      // Route to channel
+      // Route to channel with error isolation
       switch (type) {
         case 'battery-checkin':
-          BatteryCheckinChannel.handleTap(data, router);
+          await safeChannelHandleTap('BatteryCheckin', () => BatteryCheckinChannel.handleTap(data, router), router);
           break;
         case 'weekly-reflection':
-          WeeklyReflectionChannel.handleTap(data, router);
+          await safeChannelHandleTap('WeeklyReflection', () => WeeklyReflectionChannel.handleTap(data, router), router);
           break;
         case 'event-reminder':
-          EventReminderChannel.handleTap(data, router);
+          await safeChannelHandleTap('EventReminder', () => EventReminderChannel.handleTap(data, router), router);
           break;
         case 'deepening-nudge':
-          DeepeningNudgeChannel.handleTap(data, router);
+          await safeChannelHandleTap('DeepeningNudge', () => DeepeningNudgeChannel.handleTap(data, router), router);
           break;
         case 'memory-nudge':
-          MemoryNudgeChannel.handleTap(data, router);
+          await safeChannelHandleTap('MemoryNudge', () => MemoryNudgeChannel.handleTap(data, router), router);
           break;
         case 'friend-suggestion':
-          SmartSuggestionsChannel.handleTap(data, router);
+          await safeChannelHandleTap('SmartSuggestions', () => SmartSuggestionsChannel.handleTap(data, router), router);
           break;
         case 'event-suggestion':
-          EventSuggestionChannel.handleTap(data, router);
+          await safeChannelHandleTap('EventSuggestion', () => EventSuggestionChannel.handleTap(data, router), router);
           break;
         case 'evening-digest':
-          EveningDigestChannel.handleTap(data, router);
+          await safeChannelHandleTap('EveningDigest', () => EveningDigestChannel.handleTap(data, router), router);
           break;
 
         default:
@@ -85,7 +107,11 @@ export const useNotificationResponseHandler = () => {
     } catch (error) {
       Logger.error('[NotificationHandler] Error handling response:', error);
       // Fallback to dashboard on error
-      router.replace('/dashboard');
+      try {
+        router.replace('/dashboard');
+      } catch (navError) {
+        Logger.error('[NotificationHandler] Navigation fallback failed:', navError);
+      }
     }
   };
 

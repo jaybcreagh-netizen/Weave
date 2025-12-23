@@ -33,13 +33,23 @@ export function EditReflectionModal({
   const [selectedVibe, setSelectedVibe] = useState<Vibe | null>(interaction?.vibe as Vibe | null);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Update reflection when interaction changes
+  // Track which interaction we've initialized to prevent resetting state on re-renders
+  const [initializedForId, setInitializedForId] = React.useState<string | null>(null);
+
+  // Update reflection when interaction changes - only initialize once per modal open
   React.useEffect(() => {
-    if (interaction) {
+    // Only initialize when modal opens with a new interaction
+    if (interaction && isOpen && initializedForId !== interaction.id) {
+      setInitializedForId(interaction.id);
       setReflection(interaction.reflection || {});
       setSelectedVibe(interaction.vibe as Vibe | null);
     }
-  }, [interaction]);
+
+    // Reset initialization tracking when modal closes
+    if (!isOpen) {
+      setInitializedForId(null);
+    }
+  }, [interaction, isOpen, initializedForId]);
 
   const handleSave = async () => {
     if (!interaction) return;

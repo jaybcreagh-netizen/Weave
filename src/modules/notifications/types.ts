@@ -44,3 +44,68 @@ export type NotificationChannel = {
     /** Ensure notification is scheduled (idempotent/repair) - Optional */
     ensureScheduled?: () => Promise<void>;
 };
+
+// =============================================================================
+// Stored Data Types
+// These interfaces define the shape of data persisted in AsyncStorage
+// =============================================================================
+
+/**
+ * Deepening nudge stored for tracking scheduled nudges
+ */
+export interface StoredDeepeningNudge {
+    interactionId: string;
+    scheduledAt: number;
+    notificationId: string;
+}
+
+/**
+ * Pending event stored for evening digest batching
+ */
+export interface StoredPendingEvent {
+    eventId: string;
+    title: string;
+    friendNames: string;
+    eventDate: string;
+    friendIds: string[];
+    suggestedCategory?: string;
+}
+
+/**
+ * Daily budget tracking
+ */
+export interface DailyBudgetData {
+    date: string;
+    used: number;
+}
+
+/**
+ * Smart notification count per day
+ */
+export interface SmartNotificationStats {
+    date: string;
+    count: number;
+}
+
+/**
+ * Scheduled smart notification IDs per day
+ */
+export interface ScheduledSmartNotifications {
+    date: string;
+    ids: string[];
+}
+
+/**
+ * Ignore counts per notification type
+ */
+export interface IgnoreCounts {
+    [type: string]: number;
+}
+
+/**
+ * Pending events wrapper with date
+ */
+export interface PendingEventsData {
+    date: string;
+    events: StoredPendingEvent[];
+}

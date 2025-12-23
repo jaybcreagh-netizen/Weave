@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useBufferedInput } from '@/shared/hooks/useBufferedInput';
 import { View, Text, TouchableOpacity, Modal, TextInput, ScrollView, Alert } from 'react-native';
 import { BlurView } from 'expo-blur';
 import {
@@ -56,6 +57,10 @@ export const LifeEventModal: React.FC<LifeEventModalProps> = ({
   const [importance, setImportance] = useState<LifeEventImportance>(existingEvent?.importance || 'medium');
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+
+  // Buffered inputs to prevent typing flickering
+  const titleInput = useBufferedInput(title, setTitle);
+  const notesInput = useBufferedInput(notes, setNotes);
 
   useEffect(() => {
     if (visible) {
@@ -226,8 +231,7 @@ export const LifeEventModal: React.FC<LifeEventModalProps> = ({
             Title (Optional)
           </Text>
           <TextInput
-            value={title}
-            onChangeText={setTitle}
+            {...titleInput}
             placeholder="e.g., Starting at Tech Co (optional, defaults to event type)"
             placeholderTextColor={colors['muted-foreground']}
             className="p-4 rounded-xl mb-4 font-inter-regular text-base"
@@ -287,8 +291,7 @@ export const LifeEventModal: React.FC<LifeEventModalProps> = ({
             Notes (Optional)
           </Text>
           <TextInput
-            value={notes}
-            onChangeText={setNotes}
+            {...notesInput}
             placeholder="Add any additional details..."
             placeholderTextColor={colors['muted-foreground']}
             multiline

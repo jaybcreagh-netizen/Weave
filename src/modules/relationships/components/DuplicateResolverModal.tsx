@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { View, Modal, TouchableOpacity, Image, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Modal, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { Check, X, AlertCircle } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
 import * as Contacts from 'expo-contacts';
 import { Text } from '@/shared/ui/Text';
 import { Input } from '@/shared/ui/Input';
+import { CachedImage } from '@/shared/ui';
 
 interface DuplicateResolverModalProps {
     isVisible: boolean;
@@ -99,9 +100,10 @@ export function DuplicateResolverModal({ isVisible, conflicts, onResolve, onCanc
                         >
                             <View className="w-14 h-14">
                                 {currentConflict.contact.imageAvailable && currentConflict.contact.image ? (
-                                    <Image
+                                    <CachedImage
                                         source={{ uri: currentConflict.contact.image.uri }}
-                                        className="w-full h-full rounded-full"
+                                        style={{ width: '100%', height: '100%', borderRadius: 9999 }}
+                                        contentFit="cover"
                                     />
                                 ) : (
                                     <View

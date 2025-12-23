@@ -11,12 +11,19 @@ import Logger from '@/shared/utils/Logger';
 import { notificationAnalytics } from '../notification-analytics';
 import { shouldSendSocialBatteryNotification } from '../notification-grace-periods';
 import { NotificationChannel } from '@/modules/notifications';
-import { NOTIFICATION_CONFIG } from '../../notification.config';
+import { NOTIFICATION_CONFIG, NOTIFICATION_TIMING } from '../../notification.config';
 
 const ID_PREFIX = 'daily-battery-checkin';
 
-export const BatteryCheckinChannel = {
-    schedule: async (time?: string, startDate?: Date): Promise<void> => {
+export const BatteryCheckinChannel: NotificationChannel & {
+    rescheduleForTomorrow: () => Promise<void>;
+    checkAndExtendBatch: () => Promise<void>;
+} = {
+    /**
+     * Schedule battery check-in notifications for the next batch period.
+     * Uses config-driven timing from NOTIFICATION_CONFIG.
+     */
+    schedule: async (startDate?: Date): Promise<void> => {
         try {
             const config = NOTIFICATION_CONFIG['daily-battery-checkin'];
             if (!config.enabled) {
@@ -33,22 +40,24 @@ export const BatteryCheckinChannel = {
                 return;
             }
 
-            let targetHour = config.schedule.hour ?? 20;
+            // Fetch user's preferred time from profile
+            const profiles = await database.get<UserProfile>('user_profile').query().fetch();
+            const profile = profiles[0];
+
+            let targetHour = config.schedule.hour ?? 8;
             let targetMinute = config.schedule.minute ?? 0;
 
-            // Allow legacy override if provided/needed, but prefer config
-            if (time) {
-                const [hourStr, minuteStr] = time.split(':');
-                const h = parseInt(hourStr, 10);
-                const m = parseInt(minuteStr, 10);
+            // Use user's preference if set
+            if (profile?.batteryCheckinTime) {
+                const [h, m] = profile.batteryCheckinTime.split(':').map(Number);
                 if (!isNaN(h) && !isNaN(m)) {
                     targetHour = h;
                     targetMinute = m;
                 }
             }
 
-            // Safety Net: Schedule 14 days
-            const BATCH_DAYS = 14;
+            // Schedule batch for configured number of days
+            const BATCH_DAYS = NOTIFICATION_TIMING.batteryCheckin.batchSizeDays;
             const start = startDate || new Date();
 
             for (let i = 0; i < BATCH_DAYS; i++) {
@@ -122,42 +131,40 @@ export const BatteryCheckinChannel = {
     // Specific methods for this channel
 
     /**
-     * Reschedule starting tomorrow (skip today)
+     * Reschedule starting tomorrow (skip today).
+     * Uses config timing.
      */
-    rescheduleForTomorrow: async (time: string = '20:00'): Promise<void> => {
+    rescheduleForTomorrow: async (): Promise<void> => {
         const tomorrow = new Date();
         tomorrow.setDate(tomorrow.getDate() + 1);
         tomorrow.setHours(0, 0, 0, 0);
 
-        // Cancel just today's instance?
-        // Or cancel all and restart from tomorrow? Restarting is safer.
+        // Cancel just today's instance
         const todayStr = new Date().toDateString();
         await Notifications.cancelScheduledNotificationAsync(`${ID_PREFIX}-${todayStr}`);
 
-        await BatteryCheckinChannel.schedule(time, tomorrow);
+        await BatteryCheckinChannel.schedule(tomorrow);
     },
 
     /**
-     * Check if batch needs extending (when app opens)
+     * Check if batch needs extending (when app opens).
+     * Uses NOTIFICATION_TIMING for minimum days threshold.
      */
     checkAndExtendBatch: async (): Promise<void> => {
         // Check pending notifications
         const scheduled = await Notifications.getAllScheduledNotificationsAsync();
         const batteryNotifs = scheduled.filter(n => n.identifier.startsWith(ID_PREFIX));
 
-        // If fewer than 2 days remaining, extend
-        if (batteryNotifs.length < 2) {
+        // If fewer than minimum days remaining, extend
+        const minDays = NOTIFICATION_TIMING.batteryCheckin.minDaysRemainingForExtend;
+        if (batteryNotifs.length < minDays) {
             Logger.info('[BatteryCheckin] Batch running low, extending...');
             const profiles = await database.get<UserProfile>('user_profile').query().fetch();
             const profile = profiles[0];
             if (profile?.batteryCheckinEnabled) {
-                // Find the last scheduled date to start after? 
-                // Or just call schedule() which handles overlaps by logic (but we need to be careful not to double up)
-                // Our schedule() logic overwrites because of `cancelExisting`. 
-                // Actually `schedule` calls `cancel` first. So calling `schedule` refreshes the whole batch. Correct.
-                const time = profile.batteryCheckinTime || '20:00';
-                await BatteryCheckinChannel.schedule(time);
+                await BatteryCheckinChannel.schedule();
             }
         }
     }
 };
+

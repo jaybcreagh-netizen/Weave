@@ -1,17 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { View, TouchableOpacity, Alert, Image, ActionSheetIOS, Platform } from 'react-native';
-import { Check, Trash2, Users, Camera } from 'lucide-react-native';
+import { View, TouchableOpacity, Alert, Image, ActionSheetIOS, Platform, Modal, SafeAreaView, FlatList, TextInput } from 'react-native';
+import { Check, Trash2, Users, Camera, X } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useTheme } from '@/shared/hooks/useTheme';
-import { StandardBottomSheet } from '@/shared/ui/Sheet';
 import { Text } from '@/shared/ui/Text';
 import { Button } from '@/shared/ui/Button';
-import { Input } from '@/shared/ui/Input';
 import { Card } from '@/shared/ui/Card';
 import FriendModel from '@/db/models/Friend';
 import { database } from '@/db';
 import { Q } from '@nozbe/watermelondb';
-import { BottomSheetFlatList } from '@gorhom/bottom-sheet';
 import { groupService } from '@/modules/groups';
 import Group from '@/db/models/Group';
 import { uploadGroupPhoto } from '@/modules/relationships';
@@ -39,6 +36,7 @@ export function GroupManagerModal({
     const [isSaving, setIsSaving] = useState(false);
     const [photoUri, setPhotoUri] = useState<string | null>(null);
     const [pendingPhotoUri, setPendingPhotoUri] = useState<string | null>(null); // New photo to upload
+
 
     useEffect(() => {
         const subscription = database
@@ -324,12 +322,20 @@ export function GroupManagerModal({
 
             {/* Form */}
             <View className="mb-6">
-                <Input
-                    label="Group Name"
+                <Text variant="caption" className="mb-2" style={{ color: colors['muted-foreground'] }}>
+                    Group Name
+                </Text>
+                <TextInput
                     placeholder="e.g., Girl Group, Family"
+                    placeholderTextColor={colors['muted-foreground']}
                     value={name}
                     onChangeText={setName}
                     autoCapitalize="words"
+                    className="p-4 rounded-xl font-inter-regular text-base"
+                    style={{
+                        backgroundColor: colors.muted,
+                        color: colors.foreground
+                    }}
                 />
             </View>
 
@@ -363,29 +369,48 @@ export function GroupManagerModal({
         </View>
     ), [groupToEdit, isSaving, handleDelete, handleSave, colors]);
 
-    const renderContent = React.useCallback(() => (
-        <BottomSheetFlatList
-            data={allFriends}
-            keyExtractor={item => item.id}
-            renderItem={renderFriendItem}
-            ListHeaderComponent={renderHeader}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }}
-        />
-    ), [allFriends, renderFriendItem, renderHeader]);
-
     return (
-        <StandardBottomSheet
+        <Modal
             visible={visible}
-            onClose={onClose}
-            title={groupToEdit ? 'Edit Group' : 'New Group'}
-            snapPoints={['90%']}
-            disableContentPanning={true}
-            renderScrollContent={renderContent}
-            footerComponent={renderFooter()}
+            animationType="slide"
+            presentationStyle="pageSheet"
+            onRequestClose={onClose}
         >
-            <></>
-        </StandardBottomSheet>
+            <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
+                {/* Header */}
+                <View className="flex-row justify-between items-center p-5 border-b" style={{ borderColor: colors.border }}>
+                    <Text className="font-lora-bold text-xl" style={{ color: colors.foreground }}>
+                        {groupToEdit ? 'Edit Group' : 'New Group'}
+                    </Text>
+                    <TouchableOpacity onPress={onClose} className="p-2 -mr-2">
+                        <X color={colors['muted-foreground']} size={24} />
+                    </TouchableOpacity>
+                </View>
+
+                {/* Content */}
+                <FlatList
+                    data={allFriends}
+                    keyExtractor={(item: FriendModel) => item.id}
+                    renderItem={renderFriendItem}
+                    ListHeaderComponent={renderHeader}
+                    showsVerticalScrollIndicator={false}
+                    contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 100 }}
+                    keyboardShouldPersistTaps="handled"
+                />
+
+                {/* Footer */}
+                <View
+                    className="absolute bottom-0 left-0 right-0 p-5 border-t"
+                    style={{
+                        backgroundColor: colors.background,
+                        borderColor: colors.border,
+                        paddingBottom: 30
+                    }}
+                >
+                    {renderFooter()}
+                </View>
+            </SafeAreaView>
+        </Modal>
     );
 }
 

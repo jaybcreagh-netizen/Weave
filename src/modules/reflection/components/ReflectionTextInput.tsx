@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, TouchableOpacity, TextInput, Modal, Pressable } from 'react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { X } from 'lucide-react-native';
@@ -20,6 +20,9 @@ interface ReflectionTextInputProps {
 /**
  * Text input that displays multiple sentence chips as inline bubble cards
  * User can tap colored words to customize, and type after chips
+ * 
+ * Uses local state buffering to prevent re-render flickering during typing.
+ * Syncs to parent on blur or after debounce.
  */
 export function ReflectionTextInput({
   chips,
@@ -32,7 +35,48 @@ export function ReflectionTextInput({
 }: ReflectionTextInputProps) {
   const { colors } = useTheme();
   const [editingChip, setEditingChip] = useState<{ chipIndex: number; componentId: string } | null>(null);
-  const inputRef = React.useRef<TextInput>(null);
+  const inputRef = useRef<TextInput>(null);
+
+  // Local state buffer for text input - prevents parent re-renders on every keystroke
+  const [localText, setLocalText] = useState(customText);
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Sync local state from prop when it changes externally (e.g., initial load)
+  useEffect(() => {
+    setLocalText(customText);
+  }, [customText]);
+
+  // Handle text changes locally, then debounce sync to parent
+  const handleTextChange = useCallback((text: string) => {
+    setLocalText(text);
+
+    // Clear existing timer
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    // Debounce the parent update to reduce re-renders
+    debounceTimerRef.current = setTimeout(() => {
+      onCustomTextChange(text);
+    }, 300);
+  }, [onCustomTextChange]);
+
+  // Sync immediately on blur
+  const handleBlur = useCallback(() => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+    onCustomTextChange(localText);
+  }, [localText, onCustomTextChange]);
+
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, []);
 
   // Parse a chip's template to find tappable components
   const parseChipParts = (chip: ReflectionChip) => {
@@ -159,8 +203,9 @@ export function ReflectionTextInput({
           }}
           placeholder={chips.length > 0 ? 'Add more details...' : placeholder}
           placeholderTextColor={colors['muted-foreground']}
-          value={customText}
-          onChangeText={onCustomTextChange}
+          value={localText}
+          onChangeText={handleTextChange}
+          onBlur={handleBlur}
           multiline
         />
       </Pressable>

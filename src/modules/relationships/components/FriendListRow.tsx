@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, Image, Pressable, ScrollView } from 'react-native';
+import { View, Text, Pressable, ScrollView } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
@@ -28,6 +28,7 @@ import { FriendDetailSheet } from './FriendDetailSheet';
 import { HydratedFriend } from '@/types/hydrated';
 import { ArchetypeCard } from '@/modules/intelligence';
 import { StandardBottomSheet } from '@/shared/ui/Sheet/StandardBottomSheet';
+import { CachedImage } from '@/shared/ui';
 import { database } from '@/db';
 import { StatusLineIcon } from '@/shared/components/StatusLineIcon';
 import { Sparkles, Handshake, Users, Heart, Briefcase, Home, GraduationCap, Palette, type LucideIcon } from 'lucide-react-native';
@@ -350,12 +351,11 @@ export const FriendListRowContent = ({ friend, animatedRef, variant = 'default',
             }}
           >
             {resolvedPhotoUrl && !imageError ? (
-              <Image
+              <CachedImage
                 source={{ uri: normalizeContactImageUri(resolvedPhotoUrl) }}
-                className="w-full h-full"
-                resizeMode="cover"
+                style={{ width: '100%', height: '100%' }}
+                contentFit="cover"
                 onError={() => setImageError(true)}
-                fadeDuration={0}
               />
             ) : (
               <Text

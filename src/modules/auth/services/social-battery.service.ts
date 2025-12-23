@@ -61,8 +61,7 @@ export const SocialBatteryService = {
             const { SmartSuggestionsChannel, BatteryCheckinChannel } = await import('@/modules/notifications');
 
             // 1. Reschedule "Social Battery" notification (Safety Net)
-            const batteryTime = profile.batteryCheckinTime || '20:00';
-            await BatteryCheckinChannel.rescheduleForTomorrow(batteryTime);
+            await BatteryCheckinChannel.rescheduleForTomorrow();
 
             // 2. Evaluate other smart notifications
             await SmartSuggestionsChannel.evaluateAndSchedule();
@@ -92,7 +91,7 @@ export const SocialBatteryService = {
         // Update notification schedule
         const { BatteryCheckinChannel } = await import('@/modules/notifications');
         if (enabled) {
-            await BatteryCheckinChannel.schedule(time || '20:00');
+            await BatteryCheckinChannel.schedule();
         } else {
             await BatteryCheckinChannel.cancel();
         }

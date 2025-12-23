@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
+import { useBufferedInput } from '@/shared/hooks/useBufferedInput';
 import {
   View,
   Text,
@@ -51,9 +52,22 @@ export function JournalEntryModal({ isOpen, onClose, entry, onSave, onDelete }: 
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showChipSelector, setShowChipSelector] = useState(false);
 
+  // Track which entry we've initialized to prevent resetting state on re-renders
+  const [initializedForId, setInitializedForId] = useState<string | null>(null);
+
+  // Buffered inputs to prevent typing flickering
+  const titleInput = useBufferedInput(title, setTitle);
+  const contentInput = useBufferedInput(content, setContent);
+
   useEffect(() => {
-    if (isOpen) {
+    // Determine the key for tracking initialization (entry.id for edit mode, 'new' for new entry)
+    const entryKey = entry?.id ?? 'new';
+
+    // Only initialize when modal opens with a new/different entry
+    if (isOpen && initializedForId !== entryKey) {
+      setInitializedForId(entryKey);
       loadFriends();
+
       if (entry) {
         // Load existing entry data
         setTitle(entry.title || '');
@@ -88,7 +102,12 @@ export function JournalEntryModal({ isOpen, onClose, entry, onSave, onDelete }: 
         }, 400);
       }
     }
-  }, [isOpen, entry]);
+
+    // Reset initialization tracking when modal closes
+    if (!isOpen) {
+      setInitializedForId(null);
+    }
+  }, [isOpen, entry, initializedForId]);
 
   const loadFriends = async () => {
     try {
@@ -347,8 +366,7 @@ export function JournalEntryModal({ isOpen, onClose, entry, onSave, onDelete }: 
             Title (optional)
           </Text>
           <TextInput
-            value={title}
-            onChangeText={setTitle}
+            {...titleInput}
             placeholder="Give this entry a title..."
             placeholderTextColor={colors['muted-foreground']}
             className="px-4 py-3 rounded-xl text-base"
@@ -370,8 +388,7 @@ export function JournalEntryModal({ isOpen, onClose, entry, onSave, onDelete }: 
           </Text>
           <TextInput
             ref={contentInputRef}
-            value={content}
-            onChangeText={setContent}
+            {...contentInput}
             placeholder="Write your thoughts..."
             placeholderTextColor={colors['muted-foreground']}
             multiline

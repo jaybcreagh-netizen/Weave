@@ -305,28 +305,51 @@ Phase 4 after Phase 2 (depends on clean architecture) and ideally after some ana
 
 Files to Reference
 When executing prompts, these are the key files:
-Notifications:
 
-src/modules/notifications/services/notification-manager-enhanced.ts
-src/modules/notifications/services/smart-notification-scheduler.ts
-src/modules/notifications/services/notification-response-handler.ts
-src/modules/notifications/services/permission.service.ts
-src/modules/notifications/services/event-notifications.ts
-src/modules/notifications/services/notification-grace-periods.ts
+### Notification System (Current Architecture)
+
+**Core Services:**
+- `src/modules/notifications/services/notification-orchestrator.ts` - Central coordinator
+- `src/modules/notifications/services/notification-store.ts` - AsyncStorage management
+- `src/modules/notifications/services/notification-analytics.ts` - Event tracking
+- `src/modules/notifications/services/notification-response-handler.ts` - Tap routing
+- `src/modules/notifications/services/permission.service.ts` - Native permissions
+- `src/modules/notifications/services/notification-grace-periods.ts` - New user protection
+- `src/modules/notifications/services/season-notifications.service.ts` - Social season awareness
+
+**Channels:**
+- `src/modules/notifications/services/channels/smart-suggestions.ts` - AI friend outreach
+- `src/modules/notifications/services/channels/evening-digest.ts` - Daily summary
+- `src/modules/notifications/services/channels/battery-checkin.ts` - Social battery check-ins
+- `src/modules/notifications/services/channels/weekly-reflection.ts` - Weekly reflection
+- `src/modules/notifications/services/channels/memory-nudge.ts` - Anniversary memories
+- `src/modules/notifications/services/channels/deepening-nudge.ts` - Post-interaction reflection
+- `src/modules/notifications/services/channels/event-reminder.ts` - Planned event reminders
+- `src/modules/notifications/services/channels/event-suggestion.ts` - Calendar event batching
+
+**Configuration:**
+- `src/modules/notifications/notification.config.ts` - Centralized config and timing
+- `src/modules/notifications/types.ts` - Type definitions and stored data interfaces
+
+### Improvements Completed (Dec 2024)
+
+1. **Race Condition Fix**: `notification-orchestrator.ts` now uses promise guard pattern
+2. **Type Safety**: Added 7 interfaces for stored data types to replace `any`
+3. **N+1 Query Fix**: `smart-suggestions.ts` batch fetches all data upfront
+4. **Navigation Error Handling**: `notification-response-handler.ts` has safe wrappers
+5. **Centralized Timing**: `NOTIFICATION_TIMING` constants in config
 
 Journal (for Phase 3):
 
-src/components/Journal/JournalHome.tsx
-src/components/Journal/FriendshipArcView.tsx
-src/modules/journal/services/journal-context-engine.ts
+src/modules/journal/ - Journal module
 src/db/models/JournalEntry.ts
 src/db/models/WeeklyReflection.ts
 
 Today's Focus (for Phase 4):
 
-src/components/home/widgets/TodaysFocusWidgetV2.tsx
-src/components/FocusDetailSheet.tsx
+src/modules/home/components/widgets/ - Home widgets
+src/modules/home/components/widgets/TodaysFocusWidgetV2.tsx
 
 Components:
 
-src/components/NotificationPermissionModal.tsx
+src/modules/notifications/components/NotificationPermissionModal.tsx

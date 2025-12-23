@@ -153,6 +153,10 @@ export const NotificationSettings = () => {
         setReflectionDay(day);
         await updateProfile({ reflectionDay: day });
         setShowDayPicker(false);
+        // Reschedule notification with new day preference
+        if (weeklyReflectionEnabled) {
+            await WeeklyReflectionChannel.schedule();
+        }
     };
 
     const handleToggleEventReminders = async (enabled: boolean) => {

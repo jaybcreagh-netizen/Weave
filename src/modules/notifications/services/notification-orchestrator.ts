@@ -31,10 +31,29 @@ import { GLOBAL_NOTIFICATION_SETTINGS, NOTIFICATION_CONFIG, NotificationConfigIt
 class NotificationOrchestratorService {
     private isInitialized = false;
     private lastCheckTime: number = 0;
+    private initPromise: Promise<void> | null = null;
 
+    /**
+     * Initialize the notification system.
+     * Uses a promise guard to prevent concurrent initialization.
+     */
     async init(): Promise<void> {
+        // If already initialized, return immediately
         if (this.isInitialized) return;
 
+        // If initialization is in progress, return the existing promise
+        if (this.initPromise) return this.initPromise;
+
+        // Start initialization and store the promise
+        this.initPromise = this._doInit();
+        return this.initPromise;
+    }
+
+    /**
+     * Internal initialization logic.
+     * Separated from init() to support the promise guard pattern.
+     */
+    private async _doInit(): Promise<void> {
         try {
             // 1. Configure handler for foreground notifications
             Notifications.setNotificationHandler({
@@ -68,6 +87,8 @@ class NotificationOrchestratorService {
             this.isInitialized = true;
             Logger.info('[NotificationOrchestrator] Initialized');
         } catch (error) {
+            // Reset promise on failure to allow retry
+            this.initPromise = null;
             Logger.error('[NotificationOrchestrator] Init failed:', error);
         }
     }

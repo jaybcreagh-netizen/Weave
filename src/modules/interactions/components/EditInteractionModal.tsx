@@ -6,7 +6,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { StandardBottomSheet } from '@/shared/ui/Sheet';
 import { Text } from '@/shared/ui/Text';
-import { Input } from '@/shared/ui/Input';
+import { BottomSheetInput } from '@/shared/ui/BottomSheetInput';
 import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
 import { Icon } from '@/shared/ui/Icon';
@@ -19,6 +19,7 @@ import { Q } from '@nozbe/watermelondb';
 import { getAllCategories, getCategoryMetadata, type CategoryMetadata } from '@/shared/constants/interaction-categories';
 import { MoonPhaseSelector } from '@/modules/intelligence';
 import { FriendSelector } from '@/modules/relationships';
+import { NotesInputField } from '@/shared/components/NotesInputField';
 import { CustomCalendar } from '@/shared/components/CustomCalendar';
 import { format } from 'date-fns';
 import { BlurView } from 'expo-blur';
@@ -71,9 +72,16 @@ export function EditInteractionModal({
   const [initialFriendIds, setInitialFriendIds] = useState<string[]>([]);
   const [isLoadingFriends, setIsLoadingFriends] = useState(false);
 
-  // Update state when interaction changes
+  // Track which interaction we've initialized to prevent resetting state on re-renders
+  const [initializedForId, setInitializedForId] = React.useState<string | null>(null);
+
+
+
+  // Update state when interaction changes - only initialize once per modal open
   React.useEffect(() => {
-    if (interaction) {
+    // Only initialize when modal opens with a new interaction
+    if (interaction && isOpen && initializedForId !== interaction.id) {
+      setInitializedForId(interaction.id);
       setTitle(interaction.title || '');
       setSelectedCategory((interaction.interactionCategory || interaction.activity) as InteractionCategory);
       setSelectedVibe((interaction.vibe as Vibe) || null);
@@ -104,7 +112,12 @@ export function EditInteractionModal({
 
       fetchParticipants();
     }
-  }, [interaction]);
+
+    // Reset initialization tracking when modal closes
+    if (!isOpen) {
+      setInitializedForId(null);
+    }
+  }, [interaction, isOpen, initializedForId]);
 
   const handleSave = async () => {
     if (!interaction) return;
@@ -254,9 +267,9 @@ export function EditInteractionModal({
           />
         </View>
 
-        {/* Title Input */}
+        {/* Title BottomSheetInput */}
         <View>
-          <Input
+          <BottomSheetInput
             label="Title"
             placeholder='e.g., "Coffee at Blue Bottle"'
             value={title}
@@ -264,9 +277,9 @@ export function EditInteractionModal({
           />
         </View>
 
-        {/* Location Input */}
+        {/* Location BottomSheetInput */}
         <View>
-          <Input
+          <BottomSheetInput
             label="Location"
             placeholder='e.g., "Blue Bottle Coffee, Hayes Valley"'
             value={location}
@@ -387,7 +400,9 @@ export function EditInteractionModal({
                       elevation: 2,
                     }}
                   >
-                    <Text className="text-3xl mb-2">{cat.icon}</Text>
+                    <View className="w-10 h-10 items-center justify-center mb-2">
+                      <cat.iconComponent size={28} color={isSelected ? colors.primary : colors['muted-foreground']} />
+                    </View>
                     <Text variant="body" weight="semibold" className="text-center mb-1">
                       {cat.label}
                     </Text>
@@ -421,18 +436,13 @@ export function EditInteractionModal({
           />
         </View>
 
-        {/* Notes */}
-        <View>
-          <Input
-            label="Notes"
-            placeholder="Add notes about this moment..."
-            value={customNotes}
-            onChangeText={setCustomNotes}
-            multiline
-            numberOfLines={4}
-            style={{ minHeight: 120, textAlignVertical: 'top', paddingTop: 12 }}
-          />
-        </View>
+        {/* Notes - Opens modal for focused editing */}
+        <NotesInputField
+          value={customNotes}
+          onChangeText={setCustomNotes}
+          label="Notes"
+          placeholder="Add a note about this moment..."
+        />
       </View>
 
       {/* Calendar Modal - Keeping legacy simple modal for date picker to avoid nesting sheets complexities, but styled with NativeWind */}
