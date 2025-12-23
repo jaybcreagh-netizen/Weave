@@ -1,0 +1,40 @@
+src/modules/auth/components/settings/NotificationSettings.tsx(14,5): error TS2305: Module '"@/modules/notifications"' has no exported member 'DeepeningNudgeChannel'.
+src/modules/groups/components/GroupListModal.tsx(131,81): error TS2339: Property 'success' does not exist on type '{ primary: "#92400E" | "#D4A855"; secondary: "#E7E5E4" | "#392E4D"; background: "#FDFCFA" | "#14101F"; foreground: "#1C1917" | "#F5F2ED"; muted: "#F5F5F4" | "#241C33"; 'muted-foreground': "#78716C" | "#9D8CB0"; ... 21 more ...; 'ring-cool': "#A8A29E" | "#6B5A8A"; }'.
+src/modules/groups/components/GroupListModal.tsx(133,128): error TS2339: Property 'success' does not exist on type '{ primary: "#92400E" | "#D4A855"; secondary: "#E7E5E4" | "#392E4D"; background: "#FDFCFA" | "#14101F"; foreground: "#1C1917" | "#F5F2ED"; muted: "#F5F5F4" | "#241C33"; 'muted-foreground': "#78716C" | "#9D8CB0"; ... 21 more ...; 'ring-cool': "#A8A29E" | "#6B5A8A"; }'.
+src/modules/home/components/widgets/widgets/JournalWidget.tsx(531,74): error TS2339: Property 'muted' does not exist on type '{ readonly background: "#FDFCFA"; readonly backgroundElevated: "#F7F5F2"; readonly backgroundSubtle: "#F7F5F2"; readonly backgroundMuted: "#F5F5F4"; readonly foreground: "#1C1917"; ... 34 more ...; readonly mystic: { ...; }; } | { ...; }'.
+  Property 'muted' does not exist on type '{ readonly background: "#FDFCFA"; readonly backgroundElevated: "#F7F5F2"; readonly backgroundSubtle: "#F7F5F2"; readonly backgroundMuted: "#F5F5F4"; readonly foreground: "#1C1917"; ... 34 more ...; readonly mystic: { ...; }; }'.
+src/modules/insights/hooks/usePortfolio.ts(87,11): error TS2322: Type '{ interactionDate: Date; category: string | undefined; friendIds: string[]; }[]' is not assignable to type '{ interactionDate: Date; friendIds: string[]; category?: InteractionCategory | undefined; }[]'.
+  Type '{ interactionDate: Date; category: string | undefined; friendIds: string[]; }' is not assignable to type '{ interactionDate: Date; friendIds: string[]; category?: InteractionCategory | undefined; }'.
+    Types of property 'category' are incompatible.
+      Type 'string | undefined' is not assignable to type 'InteractionCategory | undefined'.
+        Type 'string' is not assignable to type 'InteractionCategory | undefined'.
+src/modules/interactions/components/QuickWeaveOverlay.tsx(83,11): error TS2339: Property 'dragX' does not exist on type 'CardGestureContextType | null'.
+src/modules/interactions/components/QuickWeaveOverlay.tsx(83,18): error TS2339: Property 'dragY' does not exist on type 'CardGestureContextType | null'.
+src/modules/interactions/components/QuickWeaveOverlay.tsx(83,25): error TS2339: Property 'highlightedIndex' does not exist on type 'CardGestureContextType | null'.
+src/modules/notifications/services/channels/deepening-nudge.ts(129,5): error TS2322: Type '(id: string) => Promise<void>' is not assignable to type '(id?: string | undefined) => Promise<void>'.
+  Types of parameters 'id' and 'id' are incompatible.
+    Type 'string | undefined' is not assignable to type 'string'.
+      Type 'undefined' is not assignable to type 'string'.
+src/modules/notifications/services/channels/event-reminder.ts(95,5): error TS2322: Type '(interactionId: string) => Promise<void>' is not assignable to type '(id?: string | undefined) => Promise<void>'.
+  Types of parameters 'interactionId' and 'id' are incompatible.
+    Type 'string | undefined' is not assignable to type 'string'.
+      Type 'undefined' is not assignable to type 'string'.
+src/modules/notifications/services/channels/event-suggestion.ts(81,5): error TS2322: Type '(id: string) => Promise<void>' is not assignable to type '(id?: string | undefined) => Promise<void>'.
+  Types of parameters 'id' and 'id' are incompatible.
+    Type 'string | undefined' is not assignable to type 'string'.
+      Type 'undefined' is not assignable to type 'string'.
+src/modules/reflection/components/ContextualReflectionInput.tsx(240,11): error TS17001: JSX elements cannot have multiple attributes with the same name.
+src/modules/relationships/components/FriendSearchResults.tsx(52,11): error TS2339: Property 'registerRef' does not exist on type 'CardGestureContextType | null'.
+src/modules/relationships/components/FriendSearchResults.tsx(52,24): error TS2339: Property 'unregisterRef' does not exist on type 'CardGestureContextType | null'.
+src/modules/relationships/components/FriendTierList.tsx(39,13): error TS2339: Property 'registerRef' does not exist on type 'CardGestureContextType | null'.
+src/modules/relationships/components/FriendTierList.tsx(39,26): error TS2339: Property 'unregisterRef' does not exist on type 'CardGestureContextType | null'.
+src/modules/relationships/screens/FriendsDashboardScreen.tsx(45,13): error TS2339: Property 'gesture' does not exist on type 'CardGestureContextType | null'.
+src/modules/relationships/screens/FriendsDashboardScreen.tsx(45,22): error TS2339: Property 'animatedScrollHandler' does not exist on type 'CardGestureContextType | null'.
+src/modules/relationships/screens/FriendsDashboardScreen.tsx(45,45): error TS2339: Property 'activeCardId' does not exist on type 'CardGestureContextType | null'.
+src/modules/relationships/screens/FriendsDashboardScreen.tsx(45,59): error TS2339: Property 'pendingCardId' does not exist on type 'CardGestureContextType | null'.
+src/modules/relationships/services/image.service.ts(731,17): error TS2339: Property 'photoUrl' does not exist on type 'Model'.
+src/shared/components/MultiActionFAB.tsx(122,13): error TS2322: Type '{ primary: "#92400E" | "#D4A855"; secondary: "#E7E5E4" | "#392E4D"; background: "#FDFCFA" | "#14101F"; foreground: "#1C1917" | "#F5F2ED"; muted: "#F5F5F4" | "#241C33"; 'muted-foreground': "#78716C" | "#9D8CB0"; ... 21 more ...; 'ring-cool': "#A8A29E" | "#6B5A8A"; }' is not assignable to type 'Record<string, string>'.
+  Property 'tier' is incompatible with index signature.
+    Type '{ readonly inner: "#EAB308"; readonly close: "#9CA3AF"; readonly community: "#CD7F32"; } | { readonly inner: "#EAB308"; readonly close: "#9CA3AF"; readonly community: "#CD7F32"; }' is not assignable to type 'string'.
+      Type '{ readonly inner: "#EAB308"; readonly close: "#9CA3AF"; readonly community: "#CD7F32"; }' is not assignable to type 'string'.
+tailwind.config.ts(3,30): error TS2306: File '/app/node_modules/nativewind/dist/tailwind/index.d.ts' is not a module.

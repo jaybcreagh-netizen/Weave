@@ -323,7 +323,7 @@ export function getContextualSuggestion(
     }
 
     // Fallback to relationship type + tier appropriate suggestions
-    let baseSuggestion: string;
+    let baseSuggestion: string | null = null;
 
     // Relationship-type-specific fallbacks (when no pattern/category data)
     const relationshipFallbacks: Record<RelationshipType, string[]> = {
