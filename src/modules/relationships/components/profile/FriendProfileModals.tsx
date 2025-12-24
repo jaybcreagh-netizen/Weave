@@ -7,7 +7,8 @@ import { InteractionDetailModal } from '@/modules/interactions';
 import { EditReflectionModal } from '@/modules/reflection';
 import { EditInteractionModal } from '@/modules/interactions';
 import { PlanChoiceModal } from '@/modules/interactions';
-import { PlanWizard, PlanService } from '@/modules/interactions';
+import { PlanWizard, PlanService, PlannedWeaveDetailSheet } from '@/modules/interactions';
+import InteractionModel from '@/db/models/Interaction';
 import { IntentionFormModal } from '@/modules/reflection';
 import { IntentionsDrawer } from '@/modules/relationships/components/IntentionsDrawer';
 import { IntentionActionSheet } from '@/modules/relationships/components/IntentionActionSheet';
@@ -112,10 +113,21 @@ export function FriendProfileModals({
 
             <EditInteractionModal
                 interaction={editingInteraction as any}
-                isOpen={editingInteraction !== null && !showPlanWizard}
+                isOpen={editingInteraction !== null && !showPlanWizard && !isFuture(new Date(editingInteraction?.interactionDate || 0))}
                 onClose={() => setEditingInteraction(null)}
                 onSave={updateInteraction as any}
             />
+
+            {/* PlannedWeaveDetailSheet - for editing future weaves */}
+            {editingInteraction && isFuture(new Date(editingInteraction.interactionDate)) && (
+                <PlannedWeaveDetailSheet
+                    visible={editingInteraction !== null && isFuture(new Date(editingInteraction.interactionDate))}
+                    onClose={() => setEditingInteraction(null)}
+                    interaction={editingInteraction as unknown as InteractionModel}
+                    onDelete={deleteWeave}
+                    onUpdate={updateInteraction}
+                />
+            )}
 
             <PlanChoiceModal
                 isOpen={showPlanChoice}
@@ -138,20 +150,12 @@ export function FriendProfileModals({
 
             {friend && (
                 <PlanWizard
-                    visible={showPlanWizard}
+                    visible={showPlanWizard && !editingInteraction}
                     onClose={() => {
                         setShowPlanWizard(false);
                         setEditingInteraction(null);
                     }}
                     initialFriend={friend as any}
-                    prefillData={editingInteraction && isFuture(new Date(editingInteraction.interactionDate)) ? {
-                        date: new Date(editingInteraction.interactionDate),
-                        category: (editingInteraction.interactionCategory || editingInteraction.activity) as InteractionCategory,
-                        title: editingInteraction.title,
-                        location: editingInteraction.location,
-                    } : undefined}
-                    replaceInteractionId={editingInteraction && isFuture(new Date(editingInteraction.interactionDate)) ? editingInteraction.id : undefined}
-                    initialStep={editingInteraction && isFuture(new Date(editingInteraction.interactionDate)) ? 3 : 1}
                 />
             )}
 

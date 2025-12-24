@@ -121,7 +121,21 @@ export const EveningDigestChannel: NotificationChannel & {
     },
 
     cancel: async (): Promise<void> => {
-        await Notifications.cancelScheduledNotificationAsync(ID_PREFIX);
+        // Nuclear cleanup: cancel ALL evening digest related notifications
+        const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+        const toCancel = scheduled.filter(n =>
+            n.identifier === ID_PREFIX ||
+            n.identifier.startsWith('evening-digest') ||
+            n.content.data?.type === 'evening-digest' ||
+            n.content.title === "Your evening brief 🌙"
+        );
+
+        if (toCancel.length > 0) {
+            Logger.info(`[EveningDigest] Cancelling ${toCancel.length} notification(s)`);
+            await Promise.all(
+                toCancel.map(n => Notifications.cancelScheduledNotificationAsync(n.identifier))
+            );
+        }
     },
 
     generateContent: async (): Promise<DigestContent> => {

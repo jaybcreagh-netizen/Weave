@@ -9,6 +9,7 @@ export { InteractionDetailModal } from './components/InteractionDetailModal';
 export { PlanChoiceModal } from './components/PlanChoiceModal';
 export { SuggestionCard } from './components/SuggestionCard';
 export { EventSuggestionModal } from './components/EventSuggestionModal';
+export { PlannedWeaveDetailSheet } from './components/PlannedWeaveDetailSheet';
 
 // Hooks
 export { useInteractions } from './hooks/useInteractions';

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, Alert, Modal, ScrollView } from 'react-native';
 import { router } from 'expo-router';
 import { useTheme } from '@/shared/hooks/useTheme';
 import {
@@ -11,7 +11,11 @@ import {
     RefreshCw,
     Moon,
     ChevronRight,
-    Bell
+    Bell,
+    Calendar,
+    Clock,
+    X,
+    Repeat
 } from 'lucide-react-native';
 import { NotificationOrchestrator } from '@/modules/notifications';
 import { SettingsItem } from './SettingsItem';
@@ -19,6 +23,7 @@ import { useUIStore } from '@/shared/stores/uiStore';
 import { DiagnosticService } from '@/shared/services/diagnostic.service';
 import { EveningDigestChannel } from '@/modules/notifications';
 import { generateStressTestData, clearStressTestData, getDataStats } from '@/db/seeds/stress-test-seed-data';
+import * as Notifications from 'expo-notifications';
 
 interface TestingSettingsProps {
     onClose: () => void;
@@ -28,6 +33,8 @@ export const TestingSettings: React.FC<TestingSettingsProps> = ({ onClose }) => 
     const { colors } = useTheme();
     const { openWeeklyReflection, openReflectionPrompt } = useUIStore();
     const [isScanning, setIsScanning] = useState(false);
+    const [showNotificationViewer, setShowNotificationViewer] = useState(false);
+    const [scheduledNotifications, setScheduledNotifications] = useState<Notifications.NotificationRequest[]>([]);
 
     const handleGenerateStressTest = () => {
         Alert.alert(
@@ -160,7 +167,16 @@ export const TestingSettings: React.FC<TestingSettingsProps> = ({ onClose }) => 
                         try {
                             await NotificationOrchestrator.cancelAll();
                             await NotificationOrchestrator.runStartupChecks();
-                            Alert.alert('Success', 'Notification scheduler reset complete.');
+
+                            // Force schedule critical notifications directly
+                            // (in case runStartupChecks has issues)
+                            const { WeeklyReflectionChannel } = await import('@/modules/notifications/services/channels/weekly-reflection');
+                            const { EveningDigestChannel } = await import('@/modules/notifications/services/channels/evening-digest');
+
+                            await WeeklyReflectionChannel.schedule();
+                            await EveningDigestChannel.schedule();
+
+                            Alert.alert('Success', 'Notification scheduler reset complete. Weekly Reflection & Evening Digest scheduled.');
                         } catch (error) {
                             console.error('Failed to reset scheduler:', error);
                             Alert.alert('Error', 'Failed to reset scheduler.');
@@ -169,6 +185,129 @@ export const TestingSettings: React.FC<TestingSettingsProps> = ({ onClose }) => 
                 }
             ]
         );
+    };
+
+    const handleViewScheduledNotifications = async () => {
+        try {
+            const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+            setScheduledNotifications(scheduled);
+            setShowNotificationViewer(true);
+        } catch (error) {
+            console.error('Failed to get scheduled notifications:', error);
+            Alert.alert('Error', 'Failed to retrieve scheduled notifications.');
+        }
+    };
+
+    // Helper functions for the notification viewer
+    const getNotificationIcon = (type: string) => {
+        switch (type) {
+            case 'weekly-reflection': return '🪞';
+            case 'evening-digest': return '🌙';
+            case 'memory-nudge': return '💭';
+            case 'smart-suggestions': return '💡';
+            case 'daily-battery-checkin': return '🔋';
+            case 'deepening-nudge': return '🌱';
+            case 'event-reminder': return '📅';
+            default: return '🔔';
+        }
+    };
+
+    const formatTriggerInfo = (trigger: any): { schedule: string; isRepeating: boolean } => {
+        if (!trigger) return { schedule: 'No trigger', isRepeating: false };
+
+        try {
+            // expo-notifications triggers have different structures based on type
+            const triggerType = trigger.type;
+
+            // Weekly/Calendar trigger (type: 'calendar' or has weekday)
+            if (triggerType === 'calendar' || trigger.weekday !== undefined) {
+                const dateComponents = trigger.dateComponents || trigger;
+                const days = ['', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                const weekday = dateComponents.weekday;
+                const hour = dateComponents.hour;
+                const minute = dateComponents.minute ?? 0;
+
+                if (weekday !== undefined && hour !== undefined) {
+                    const day = days[weekday] || `Day ${weekday}`;
+                    return {
+                        schedule: `${day} at ${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`,
+                        isRepeating: trigger.repeats ?? dateComponents.repeats ?? false
+                    };
+                }
+
+                // Daily at specific time
+                if (hour !== undefined) {
+                    return {
+                        schedule: `Daily at ${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`,
+                        isRepeating: trigger.repeats ?? dateComponents.repeats ?? false
+                    };
+                }
+            }
+
+            // Date-based trigger (type: 'date' or has date/value)
+            if (triggerType === 'date' || trigger.date || trigger.value) {
+                const timestamp = trigger.value || trigger.date;
+                if (timestamp) {
+                    const date = new Date(timestamp);
+                    if (!isNaN(date.getTime())) {
+                        return {
+                            schedule: date.toLocaleString('en-US', {
+                                weekday: 'short',
+                                month: 'short',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                            }),
+                            isRepeating: false
+                        };
+                    }
+                }
+            }
+
+            // Interval/seconds-based trigger
+            if (trigger.seconds !== undefined) {
+                const hours = Math.floor(trigger.seconds / 3600);
+                const mins = Math.floor((trigger.seconds % 3600) / 60);
+                if (hours > 0) {
+                    return {
+                        schedule: `Every ${hours}h${mins > 0 ? ` ${mins}m` : ''}`,
+                        isRepeating: trigger.repeats ?? true
+                    };
+                }
+                return {
+                    schedule: `Every ${mins}m`,
+                    isRepeating: trigger.repeats ?? true
+                };
+            }
+
+            // Direct hour/minute (legacy format)
+            if (trigger.hour !== undefined) {
+                const hour = trigger.hour.toString().padStart(2, '0');
+                const minute = (trigger.minute ?? 0).toString().padStart(2, '0');
+                return {
+                    schedule: `Daily at ${hour}:${minute}`,
+                    isRepeating: trigger.repeats ?? false
+                };
+            }
+
+            // Fallback: show raw trigger info for debugging
+            const keys = Object.keys(trigger).filter(k => trigger[k] !== undefined && trigger[k] !== null);
+            if (keys.length > 0) {
+                const preview = keys.slice(0, 3).map(k => `${k}: ${trigger[k]}`).join(', ');
+                return { schedule: preview, isRepeating: trigger.repeats ?? false };
+            }
+
+            return { schedule: 'Unknown', isRepeating: false };
+        } catch (e) {
+            return { schedule: 'Parse error', isRepeating: false };
+        }
+    };
+
+    const getTypeLabel = (type: string): string => {
+        return type
+            .split('-')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(' ');
     };
 
     return (
@@ -197,6 +336,15 @@ export const TestingSettings: React.FC<TestingSettingsProps> = ({ onClose }) => 
                 title="Reset Scheduler"
                 subtitle="Nuke and rebuild notifications"
                 onPress={handleResetScheduler}
+            />
+
+            <View className="border-t border-border" style={{ borderColor: colors.border }} />
+
+            <SettingsItem
+                icon={Calendar}
+                title="View Scheduled Notifications"
+                subtitle="See all pending notifications"
+                onPress={handleViewScheduledNotifications}
             />
 
             <View className="border-t border-border" style={{ borderColor: colors.border }} />
@@ -276,6 +424,133 @@ export const TestingSettings: React.FC<TestingSettingsProps> = ({ onClose }) => 
                 subtitle="Trigger digest sheet immediately"
                 onPress={handleTestEveningDigest}
             />
+
+            {/* Notification Viewer Modal */}
+            <Modal
+                visible={showNotificationViewer}
+                animationType="slide"
+                presentationStyle="pageSheet"
+                onRequestClose={() => setShowNotificationViewer(false)}
+            >
+                <View className="flex-1" style={{ backgroundColor: colors.background }}>
+                    {/* Header */}
+                    <View
+                        className="flex-row items-center justify-between px-5 py-4 border-b"
+                        style={{ borderBottomColor: colors.border }}
+                    >
+                        <View>
+                            <Text className="text-xl font-inter-bold" style={{ color: colors.foreground }}>
+                                Scheduled Notifications
+                            </Text>
+                            <Text className="text-sm font-inter-regular mt-1" style={{ color: colors['muted-foreground'] }}>
+                                {scheduledNotifications.length} notification{scheduledNotifications.length !== 1 ? 's' : ''} pending
+                            </Text>
+                        </View>
+                        <TouchableOpacity
+                            onPress={() => setShowNotificationViewer(false)}
+                            className="w-10 h-10 items-center justify-center rounded-full"
+                            style={{ backgroundColor: colors.muted }}
+                        >
+                            <X size={20} color={colors.foreground} />
+                        </TouchableOpacity>
+                    </View>
+
+                    {/* Content */}
+                    <ScrollView className="flex-1 px-4 py-4">
+                        {scheduledNotifications.length === 0 ? (
+                            <View className="items-center justify-center py-12">
+                                <Bell size={48} color={colors['muted-foreground']} />
+                                <Text
+                                    className="text-lg font-inter-medium mt-4"
+                                    style={{ color: colors['muted-foreground'] }}
+                                >
+                                    No notifications scheduled
+                                </Text>
+                                <Text
+                                    className="text-sm font-inter-regular mt-1 text-center px-8"
+                                    style={{ color: colors['muted-foreground'] }}
+                                >
+                                    Use "Reset Scheduler" to reschedule all notifications
+                                </Text>
+                            </View>
+                        ) : (
+                            <View className="gap-3">
+                                {scheduledNotifications.map((notification) => {
+                                    const type = (notification.content.data?.type as string) || 'unknown';
+                                    const { schedule, isRepeating } = formatTriggerInfo(notification.trigger);
+                                    const icon = getNotificationIcon(type);
+
+                                    return (
+                                        <View
+                                            key={notification.identifier}
+                                            className="rounded-2xl p-4"
+                                            style={{ backgroundColor: colors.card }}
+                                        >
+                                            <View className="flex-row items-start gap-3">
+                                                {/* Icon */}
+                                                <View
+                                                    className="w-12 h-12 rounded-xl items-center justify-center"
+                                                    style={{ backgroundColor: colors.muted }}
+                                                >
+                                                    <Text className="text-2xl">{icon}</Text>
+                                                </View>
+
+                                                {/* Content */}
+                                                <View className="flex-1">
+                                                    <View className="flex-row items-center gap-2">
+                                                        <Text
+                                                            className="text-base font-inter-semibold flex-1"
+                                                            style={{ color: colors.foreground }}
+                                                        >
+                                                            {getTypeLabel(type)}
+                                                        </Text>
+                                                        {isRepeating && (
+                                                            <View
+                                                                className="flex-row items-center gap-1 px-2 py-1 rounded-full"
+                                                                style={{ backgroundColor: colors.primary + '20' }}
+                                                            >
+                                                                <Repeat size={12} color={colors.primary} />
+                                                                <Text
+                                                                    className="text-xs font-inter-medium"
+                                                                    style={{ color: colors.primary }}
+                                                                >
+                                                                    Repeating
+                                                                </Text>
+                                                            </View>
+                                                        )}
+                                                    </View>
+
+                                                    {/* Time - More Prominent */}
+                                                    <View
+                                                        className="flex-row items-center gap-2 mt-2 px-3 py-2 rounded-lg"
+                                                        style={{ backgroundColor: colors.muted }}
+                                                    >
+                                                        <Clock size={18} color={colors.foreground} />
+                                                        <Text
+                                                            className="text-base font-inter-semibold"
+                                                            style={{ color: colors.foreground }}
+                                                        >
+                                                            {schedule}
+                                                        </Text>
+                                                    </View>
+
+                                                    <Text
+                                                        className="text-xs font-inter-regular mt-2 font-mono"
+                                                        style={{ color: colors['muted-foreground'], opacity: 0.7 }}
+                                                        numberOfLines={1}
+                                                    >
+                                                        ID: {notification.identifier}
+                                                    </Text>
+                                                </View>
+                                            </View>
+                                        </View>
+                                    );
+                                })}
+                            </View>
+                        )}
+                    </ScrollView>
+                </View>
+            </Modal>
         </View>
     );
 };
