@@ -204,7 +204,7 @@ export class LifeEventGenerator implements SuggestionGenerator {
                     birthdayThisYear.setFullYear(today.getFullYear() + 1);
                 }
 
-                const daysUntil = differenceInDays(birthdayThisYear, today);
+                const daysUntil = differenceInDays(startOfDay(birthdayThisYear), startOfDay(today));
                 if (daysUntil >= 0 && daysUntil <= 7) {
                     return { id: `birthday - ${friend.id} `, type: 'birthday', daysUntil, importance: 'high' };
                 }
@@ -223,7 +223,7 @@ export class LifeEventGenerator implements SuggestionGenerator {
                     anniversaryThisYear.setFullYear(today.getFullYear() + 1);
                 }
 
-                const daysUntil = differenceInDays(anniversaryThisYear, today);
+                const daysUntil = differenceInDays(startOfDay(anniversaryThisYear), startOfDay(today));
                 if (daysUntil >= 0 && daysUntil <= 14) {
                     return { id: `anniversary - ${friend.id} `, type: 'anniversary', daysUntil, importance: 'medium' };
                 }

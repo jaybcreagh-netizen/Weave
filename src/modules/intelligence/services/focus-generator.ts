@@ -6,7 +6,7 @@ import FriendModel from '@/db/models/Friend';
 import { Suggestion } from '@/shared/types/common';
 import { fetchSuggestions } from '@/modules/interactions';
 import type { SocialSeason } from '@/db/models/UserProfile';
-import { differenceInDays, isSameDay } from 'date-fns';
+import { differenceInDays, isSameDay, startOfDay } from 'date-fns';
 
 export interface UpcomingDate {
     friend: FriendModel;
@@ -93,7 +93,7 @@ export const FocusGenerator = {
                 events.push({
                     friend,
                     type: 'life_event',
-                    daysUntil: differenceInDays(event.eventDate, today),
+                    daysUntil: differenceInDays(startOfDay(event.eventDate), startOfDay(today)),
                     title: event.title,
                     importance: event.importance,
                 });
@@ -108,7 +108,7 @@ export const FocusGenerator = {
                     const birthdayThisYear = new Date(today.getFullYear(), month - 1, day);
                     birthdayThisYear.setHours(0, 0, 0, 0);
                     if (birthdayThisYear < today) birthdayThisYear.setFullYear(today.getFullYear() + 1);
-                    const daysUntil = differenceInDays(birthdayThisYear, today);
+                    const daysUntil = differenceInDays(startOfDay(birthdayThisYear), startOfDay(today));
                     if (daysUntil >= 0 && daysUntil <= 7) {
                         events.push({ friend, type: 'birthday', daysUntil });
                     }

@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -57,36 +57,48 @@ export function ToastNotification({ message, friendName, onDismiss }: ToastNotif
 
   return (
     <Portal>
-      <View style={styles.container} pointerEvents="box-none">
-        <Animated.View style={[styles.wrapper, animatedStyle]}>
+      <View className="absolute inset-0 justify-center items-center z-[9999]" pointerEvents="box-none">
+        <Animated.View style={[{
+          borderRadius: 24,
+          overflow: 'hidden',
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: 8 },
+          shadowOpacity: 0.15,
+          shadowRadius: 20,
+          elevation: 12,
+        }, animatedStyle]}>
           {/* Glassmorphic Background */}
-          <View style={styles.blurContainer}>
+          <View className="absolute inset-0">
             <BlurView
               intensity={isDarkMode ? 40 : 60}
               tint={isDarkMode ? 'dark' : 'light'}
-              style={StyleSheet.absoluteFill}
+              className="absolute inset-0"
             />
             {/* Subtle background overlay for better visibility */}
             <View
-              style={[
-                StyleSheet.absoluteFill,
-                { backgroundColor: isDarkMode ? 'rgba(0,0,0,0.4)' : 'rgba(255,255,255,0.6)' }
-              ]}
+              className="absolute inset-0"
+              style={{ backgroundColor: isDarkMode ? 'rgba(0,0,0,0.4)' : 'rgba(255,255,255,0.6)' }}
             />
           </View>
 
           {/* Content */}
-          <View style={styles.content}>
-            <View style={[styles.iconContainer, { backgroundColor: colors.primary }]}>
+          <View className="flex-row items-center p-5 pr-7 min-w-[260px] max-w-[85%] gap-4">
+            <View className="w-12 h-12 rounded-full justify-center items-center" style={[{ backgroundColor: colors.primary }, {
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.2,
+              shadowRadius: 4,
+              elevation: 4,
+            }]}>
               <Sparkles size={24} color="#FFFFFF" strokeWidth={2.5} />
             </View>
 
-            <View style={styles.textContainer}>
-              <Text style={[styles.message, { color: colors.foreground }]}>
+            <View className="flex-1 justify-center">
+              <Text className="text-[17px] mb-0.5 tracking-tight" style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold' }}>
                 {message}
               </Text>
               {friendName && (
-                <Text style={[styles.friendName, { color: colors['muted-foreground'] }]}>
+                <Text className="text-[15px]" style={{ color: colors['muted-foreground'], fontFamily: 'Inter_500Medium' }}>
                   with <Text style={{ color: colors.primary, fontFamily: 'Lora_700Bold' }}>{friendName}</Text>
                 </Text>
               )}
@@ -97,65 +109,3 @@ export function ToastNotification({ message, friendName, onDismiss }: ToastNotif
     </Portal>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 9999,
-  },
-  wrapper: {
-    borderRadius: 24,
-    overflow: 'hidden',
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 8,
-    },
-    shadowOpacity: 0.15,
-    shadowRadius: 20,
-    elevation: 12,
-  },
-  blurContainer: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  content: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 20,
-    paddingRight: 28,
-    minWidth: 260,
-    maxWidth: '85%',
-    gap: 16,
-  },
-  iconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 4,
-  },
-  textContainer: {
-    flex: 1,
-    justifyContent: 'center',
-  },
-  message: {
-    fontSize: 17,
-    fontFamily: 'Inter_600SemiBold',
-    marginBottom: 2,
-    letterSpacing: -0.3,
-  },
-  friendName: {
-    fontSize: 15,
-    fontFamily: 'Inter_500Medium',
-  }
-});

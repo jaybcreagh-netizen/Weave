@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
-import { differenceInDays, format, isSameDay, addDays } from 'date-fns';
+import { differenceInDays, format, isSameDay, addDays, startOfDay } from 'date-fns';
 import { Check, Clock, ChevronRight, Sparkles, Calendar, CheckCircle2 } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { HomeWidgetBase, HomeWidgetConfig } from '../HomeWidgetBase';
@@ -114,7 +114,7 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = ({ friends })
                         events.push({
                             friend,
                             type: 'life_event',
-                            daysUntil: differenceInDays(event.eventDate, today),
+                            daysUntil: differenceInDays(startOfDay(event.eventDate), startOfDay(today)),
                             title: event.title,
                             importance: event.importance,
                         });
@@ -139,7 +139,7 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = ({ friends })
                                 birthdayThisYear.setFullYear(today.getFullYear() + 1);
                             }
 
-                            const daysUntil = differenceInDays(birthdayThisYear, today);
+                            const daysUntil = differenceInDays(startOfDay(birthdayThisYear), startOfDay(today));
                             if (daysUntil >= 0 && daysUntil <= 7) { // check next 7 days
                                 events.push({
                                     friend,
@@ -163,7 +163,7 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = ({ friends })
                                 anniversaryThisYear.setFullYear(today.getFullYear() + 1);
                             }
 
-                            const daysUntil = differenceInDays(anniversaryThisYear, today);
+                            const daysUntil = differenceInDays(startOfDay(anniversaryThisYear), startOfDay(today));
                             if (daysUntil >= 0 && daysUntil <= 7) {
                                 events.push({
                                     friend,

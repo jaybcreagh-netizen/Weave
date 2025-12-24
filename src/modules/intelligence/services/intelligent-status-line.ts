@@ -114,7 +114,7 @@ async function checkLifeEventStatus(friend: HydratedFriend | Friend): Promise<St
 
     if (sortedEvents.length > 0) {
       const topEvent = sortedEvents[0];
-      const daysUntil = differenceInDays(topEvent.eventDate, today);
+      const daysUntil = differenceInDays(startOfDay(topEvent.eventDate), startOfDay(today));
       const icon = LIFE_EVENT_ICONS[topEvent.eventType] || '✨';
 
       if (daysUntil === 0) {
@@ -154,7 +154,7 @@ async function checkLifeEventStatus(friend: HydratedFriend | Friend): Promise<St
             birthdayThisYear.setFullYear(today.getFullYear() + 1);
           }
 
-          const daysUntil = differenceInDays(birthdayThisYear, today);
+          const daysUntil = differenceInDays(startOfDay(birthdayThisYear), startOfDay(today));
           if (daysUntil >= 0 && daysUntil <= 7) {
             if (daysUntil === 0) return { text: 'Birthday is today!', icon: '🎂', variant: 'accent' };
             if (daysUntil === 1) return { text: 'Birthday is tomorrow', icon: '🎂', variant: 'accent' };
@@ -186,7 +186,7 @@ async function checkLifeEventStatus(friend: HydratedFriend | Friend): Promise<St
             anniversaryThisYear.setFullYear(today.getFullYear() + 1);
           }
 
-          const daysUntil = differenceInDays(anniversaryThisYear, today);
+          const daysUntil = differenceInDays(startOfDay(anniversaryThisYear), startOfDay(today));
           if (daysUntil >= 0 && daysUntil <= 7) {
             if (daysUntil === 0) return { text: 'Friendship anniversary today!', icon: '💝', variant: 'accent' };
             if (daysUntil === 1) return { text: 'Friendship anniversary tomorrow', icon: '💝', variant: 'accent' };
