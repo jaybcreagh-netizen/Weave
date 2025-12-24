@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
-import { View, Dimensions, StyleSheet, ScrollView } from 'react-native';
+import { View, Dimensions, ScrollView } from 'react-native';
 import Animated, { FadeIn, FadeOut, useSharedValue, useAnimatedScrollHandler } from 'react-native-reanimated';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
@@ -300,7 +300,7 @@ export function FriendsDashboardScreen() {
     }, [handleSortChange]);
 
     return (
-        <View style={[styles.safeArea, { backgroundColor: colors.background }]}>
+        <View className="flex-1" style={{ backgroundColor: colors.background }}>
             {/* Search Bar - Always visible */}
             <FriendSearchBar
                 searchQuery={searchQuery}
@@ -453,7 +453,3 @@ export function FriendsDashboardScreen() {
         </View>
     );
 }
-
-const styles = StyleSheet.create({
-    safeArea: { flex: 1 },
-});

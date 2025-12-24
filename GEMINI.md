@@ -40,7 +40,7 @@ This structure informs the entire intelligence engine, tailoring insights and re
 
 ### Tarot Archetypes (The Intuitive Soul)
 
-While Dunbar's Number provides quantitative structure, our **7 Tarot Archetypes** provide the qualitative, intuitive soul. This symbolic language defines the unique energetic dynamic of each friendship, allowing the intelligence layer to offer emotionally intelligent insights.
+While Dunbar's Number provides quantitative structure, our **8 Tarot Archetypes** provide the qualitative, intuitive soul. This symbolic language defines the unique energetic dynamic of each friendship, allowing the intelligence layer to offer emotionally intelligent insights.
 
 | Archetype | Energy | Affinity |
 |-----------|--------|----------|
@@ -51,6 +51,7 @@ While Dunbar's Number provides quantitative structure, our **7 Tarot Archetypes*
 | **The Empress** | Nurturing, care | Acts of support, thoughtful gestures |
 | **The Magician** | Creativity, collaboration | Projects, brainstorming |
 | **The High Priestess** | Depth, intuition | Meaningful conversation, emotional support |
+| **The Lovers** | Deep bond, mutual devotion | Intimate connection, shared values |
 
 ---
 
@@ -82,13 +83,18 @@ Each module contains its own components, services, stores, and utilities. Cross-
 **Key Modules:**
 - `relationships`: Friend management, profiles, image handling
 - `interactions`: Weave logging, planning, suggestions
-- `intelligence`: Scoring logic, decay, resilience, social season (pure business logic)
+- `intelligence`: Scoring logic, decay, resilience, social season, orchestration (pure business logic)
 - `gamification`: Badges, achievements, streaks
 - `insights`: Analytics, portfolio analysis, effectiveness scoring
 - `auth`: User profile, settings, background sync
 - `reflection`: Weekly reflection, contextual prompts
-- `notifications`: Push notifications, reminders
+- `notifications`: Push notifications, reminders, channels
 - `groups`: Group weave management
+- `home`: Dashboard widgets, digest sheet
+- `journal`: Quick capture, journal entries
+- `backup`: Data export/import
+- `data-management`: Data integrity, cleanup
+- `onboarding`: First-run experience
 
 **Shared Code (`src/shared/`):**
 - `components`: Generic UI components
@@ -106,6 +112,14 @@ Each module contains its own components, services, stores, and utilities. Cross-
 - `InteractionFriend`: Many-to-many join table
 - `LifeEvent`: Significant events for friends
 - `Intention`: User intentions/goals for relationships
+- `Group`, `GroupMember`: Group weave management
+- `JournalEntry`, `JournalEntryFriend`: Journal/quick capture
+- `UserProfile`, `UserProgress`: User settings and gamification progress
+- `WeeklyReflection`: Weekly reflection responses
+- `SuggestionEvent`, `EventSuggestionFeedback`: Event suggestions
+- `EveningDigest`, `OracleInsight`: Notification/insight content
+- `CustomChip`, `ChipUsage`: Activity chip customization
+- `SocialSeasonLog`, `SocialBatteryLog`, `NetworkHealthLog`, `PortfolioSnapshot`: Analytics snapshots
 
 **Schema** (`src/db/schema.ts`):
 - Snake_case column names in schema, camelCase in models
@@ -120,6 +134,13 @@ The core scoring logic. **This is the brain of the application.**
 - `DecayService`: Applies time-based decay to weave scores based on tier and resilience
 - `ResilienceService`: Adjusts decay resistance based on interaction quality
 - `SocialSeasonService`: Determines the user's social phase (Resting, Balanced, Blooming)
+- `OrchestratorService`: Coordinates scoring, decay, and momentum updates on interaction CRUD
+- `MomentumService`: Tracks interaction frequency momentum bonuses
+- `QualityService`: Computes interaction quality scores
+- `FlexibleDecayService`: Advanced decay with social season awareness
+- `DeepeningService`: Identifies relationships ready for deeper connection
+- `FocusGenerator`: Generates "Today's Focus" suggestions
+- `IntelligentStatusLine`: Dynamic friend status text generation
 
 ### State Management
 
@@ -148,14 +169,16 @@ const isOpen = useUIStore(state => state.isQuickWeaveOpen);
 const { isQuickWeaveOpen } = useGlobalUI(); // Don't do this
 ```
 
-**Core UI Stores**:
-- `src/shared/stores/uiStore.ts` - Modal states, toast queue, quick weave, theme, celebrations
-- `src/shared/stores/tutorialStore.ts` - Onboarding flags, tutorial completion state
+**Core UI Stores** (`src/shared/stores/`):
+- `uiStore.ts` - Modal states, toast queue, quick weave, theme, celebrations
+- `tutorialStore.ts` - Onboarding flags, tutorial completion state
+- `dashboardCacheStore.ts` - Dashboard data caching
 
 **Auth Module Stores** (`src/modules/auth/store/`):
 - `auth.store.ts` - Authentication state
 - `user-profile.store.ts` - User profile with battery check-in, reflection settings
 - `sync.store.ts` - Sync status and conflict tracking
+- `sync-conflict.store.ts` - Sync conflict resolution state
 
 #### UIEventBus (Imperative Triggers)
 
@@ -185,16 +208,31 @@ File-based routing via expo-router:
 - `friend-profile.tsx`: Individual friend detail view
 - `weave-logger.tsx`: Log interaction flow
 - `global-calendar.tsx`: Calendar view
+- `journal.tsx`: Journal/quick capture view
+- `tier-balance.tsx`: Tier balance management
+- `batch-add-friends.tsx`: Bulk friend import
+- `onboarding.tsx`: First-run onboarding flow
+- `permissions.tsx`: Permission request screen
+- `privacy-policy.tsx`, `terms-of-service.tsx`: Legal pages
 - `_layout.tsx`: Root layout with providers
 
 ### Design System (`src/shared/ui/` & `src/shared/theme/`)
 
-**Shared UI Components:**
+**Shared UI Components** (`src/shared/ui/`):
 - `Text`: Typography component with variant support
 - `Button`: Primary interaction element (solid, outline, ghost variants)
 - `Card`: Container component
 - `Icon`: Lucide icon wrapper
 - `Input`: Form input component
+- `CachedImage`: expo-image wrapper with disk caching
+- `BufferedTextInput`, `BottomSheetInput`: Optimized text inputs
+- `CollapsibleSection`: Expandable content sections
+- `Divider`, `ProgressBar`, `Stat`: Visual elements
+- `ListItem`: Standardized list row component
+- `ModernSwitch`: Styled toggle component
+- `KeyboardScrollView`: Keyboard-aware scrolling
+- `WidgetHeader`: Widget title/action header
+- `Sheet/`: Bottom sheet primitives (StandardBottomSheet, etc.)
 
 **Design Tokens** (`src/shared/theme/tokens.ts`):
 - Color palette (light/dark themes defined)
@@ -211,8 +249,8 @@ File-based routing via expo-router:
 - This hybrid approach exists because pure Tailwind dark mode isn't fully configured
 
 **Technical Debt:**
-- 87 files still use `StyleSheet.create`
-- 2400+ inline `style={}` usages across codebase
+- ~11 files still use `StyleSheet.create` (down from 87)
+- Many inline `style={}` usages remain across codebase
 - Dark mode in Tailwind config needs CSS variables or NativeWind dark strategy
 
 ---
@@ -306,7 +344,7 @@ See `docs/REFACTORING_ROADMAP.md` for the full plan.
 **Migration Priority:**
 1. High-usage components (SuggestionCard, ArchetypeCard)
 2. Modal components (EditInteractionModal, etc.)
-3. Remaining `StyleSheet.create` files (87 total)
+3. Remaining `StyleSheet.create` files (~11 remaining)
 
 ### State Management (Decision Made)
 
@@ -320,6 +358,7 @@ See `docs/REFACTORING_ROADMAP.md` for the full plan.
 **Current Architecture:**
 - `src/shared/stores/uiStore.ts` - Core UI state (modals, toasts, quick weave, theme)
 - `src/shared/stores/tutorialStore.ts` - Tutorial/onboarding flags
+- `src/shared/stores/dashboardCacheStore.ts` - Dashboard data caching
 - `src/modules/auth/store/` - Auth, user profile, sync state
 - `src/shared/services/ui-event-bus.ts` - Imperative triggers from non-React code
 
@@ -393,6 +432,7 @@ See `docs/REFACTORING_ROADMAP.md` for the full plan.
 - **NativeWind**: Ensure `className` is passed correctly; some RN components don't support it natively
 - **Bottom Sheets**: Use `@gorhom/bottom-sheet` components, not raw modals, for slide-up panels.
 - **Scrollable Lists in Sheets**: If a complex list (like `FriendSelector`) has scrolling issues ("springing back") inside a bottom sheet, prefer using a full-screen Native Modal (`asModal={true}`) instead. Gesture conflicts between the sheet and the list are common and hard to perfect; native modals offer a more robust scrolling experience for deep lists.
+- **WatermelonDB Q.on Queries**: The standard `Q.on()` pattern for many-to-many relationships often fails with diagnostic errors. Use a manual two-step query instead: first fetch IDs from the join table (e.g., `interaction_friends`), then fetch target models using those IDs.
 
 ## 10. Strict Architectural Rules
 

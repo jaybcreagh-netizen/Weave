@@ -51,12 +51,10 @@ export async function recalculateScoreOnEdit(
   if (!friend) return;
 
   // Calculate old and new points using the scoring service directly.
-  // Quality is calculated internally by calculatePointsForWeave.
-  // enough to affect the tier multiplier for this single calculation.
-  const oldPoints = calculatePointsForWeave(friend, { ...toWeaveData(oldData, 0), ignoreMomentum: true }); // Ignore momentum on OLD data too to be safe? Or should match logic.
-  // Actually, for EDIT, we want delta. If we ignore momentum on OLD, we should ignore on NEW?
-  // If we don't, we are changing the basis.
-  // Best to ignore momentum on BOTH for edits to isolate value change.
+  // We ignore momentum on BOTH to isolate the pure value-delta of the edit.
+  // Edits change content, not timing—momentum reflects when interactions happened,
+  // so including it would create an inconsistent basis for comparison.
+  const oldPoints = calculatePointsForWeave(friend, { ...toWeaveData(oldData, 0), ignoreMomentum: true });
   const newPoints = calculatePointsForWeave(friend, { ...toWeaveData(newData, 0), ignoreMomentum: true });
 
   const delta = newPoints - oldPoints;

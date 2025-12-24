@@ -2,15 +2,19 @@
 
 ## Overview
 
-This document outlines a three-phase improvement plan for Weave's notification system, covering analytics instrumentation, architecture consolidation, and memory nudge UX refinement.
+This document outlines a four-phase improvement plan for Weave's notification system, covering analytics instrumentation, architecture consolidation, memory nudge UX, and evening digest.
 
-**Current State:** Semi-smart notification system with grace periods, battery-aware throttling, and deduplication. Offline-first with PostHog available for analytics.
+**Current State (Dec 2024):** Mature notification system with centralized architecture, channel-based design, analytics instrumentation, memory nudge UX, and evening digest. Most phases complete.
 
-**Target State:** Measurable, maintainable notification system with emotionally resonant memory surfacing tied to the journal experience.
+**Phase Status:**
+- ✅ Phase 1: Analytics Foundation - Complete
+- ✅ Phase 2: Architecture Consolidation - Complete  
+- ✅ Phase 3: Memory Nudge UX - Complete
+- ✅ Phase 4: Evening Digest - Complete
 
 ---
 
-## Phase 1: Analytics Foundation
+## Phase 1: Analytics Foundation ✅
 
 ### Goal
 Instrument notifications so you can answer: "Which notifications drive engagement vs. annoyance?"
@@ -47,7 +51,7 @@ Instrument notifications so you can answer: "Which notifications drive engagemen
 
 ---
 
-## Phase 2: Architecture Consolidation
+## Phase 2: Architecture Consolidation ✅
 
 ### Goal
 Unify scattered notification logic into a maintainable structure before adding features.
@@ -136,26 +140,30 @@ Each notification type becomes its own file with:
 
 ---
 
-## Phase 3: Memory Nudge UX
+## Phase 3: Memory Nudge UX ✅
 
 ### Goal
 Transform memory nudges from "opens weekly reflection modal" into a dedicated, emotionally resonant experience tied to the journal.
 
-### Current Flow (Broken)
+### Implementation Status: Complete
+
+**Current Flow (Implemented):**
 ```
-Memory nudge notification → handleMemoryNudgeNotification() → opens WeeklyReflectionModal
-                                                            → TODO comment: "Pass memory specific data"
+Memory nudge notification → MemoryNudgeChannel.handleTap()
+                         → getMemoryForNotification() fetches entry + friend context
+                         → UIEventBus.emit('OPEN_MEMORY_MOMENT')
+                         → GlobalModals renders MemoryMomentModal
+                         → User actions: "Read Entry" / "Write About This"
 ```
 
-### Target Flow
-```
-Memory nudge notification → opens MemoryMomentModal
-                         → shows original entry content
-                         → offers actions: "Read full entry" / "Write about this now"
-                         → tracks engagement via analytics
-```
+**Key Files:**
+- `channels/memory-nudge.ts` - Scheduling + handleTap with full data passing
+- `journal-context-engine.ts` - `getMemoryForNotification()` fetches entry, friend context
+- `ui-event-bus.ts` - `OPEN_MEMORY_MOMENT` event with `MemoryMomentData` type
+- `GlobalModals.tsx` - Subscribes to UIEventBus, renders MemoryMomentModal
+- `MemoryMomentModal.tsx` - Dedicated modal with Read/Write actions
 
-### Design Spec
+### Design Spec (Reference)
 
 #### MemoryMomentModal
 A dedicated modal that surfaces when user taps a memory nudge or when `JournalHome` detects a surfaceable memory.
@@ -245,62 +253,35 @@ Body: "Your first journal entry about this friendship"
 
 ---
 
-Phase 4: Evening Digest
-Goal
+## Phase 4: Evening Digest ✅
+
+### Goal
 Consolidate scattered notifications into a single, user-timed daily summary that mirrors the Today's Focus widget.
-Core Concept
-Instead of multiple notifications throughout the day, one evening check-in at user's chosen time (default 7pm):
-┌─────────────────────────────────────┐
-│  Your evening check-in              │
-│                                     │
-│  🎂 Sarah's birthday tomorrow       │
-│  🕸️ Coffee with Marcus not logged   │
-│  ✨ A memory from last December     │
-│                                     │
-│  Tap to see details →               │
-└─────────────────────────────────────┘
-Key Features
 
-Reuses Today's Focus logic - same priority hierarchy, same content sources
-Smart suppression - skips if nothing meaningful, same as yesterday, or user recently opened app
-Respects user patterns - reduces frequency if ignored 3x in a row
-Opens dedicated sheet - not just the app, but a focused digest view
+### Implementation Status: Complete
 
-Content Priority
+**Key Files:**
+- `channels/evening-digest.ts` - Scheduling, content generation, handleTap
+- `EveningCheckinSheet.tsx` - Dedicated digest UI component
+- `GlobalModals.tsx` - Subscribes to `OPEN_DIGEST_SHEET` events
 
-Unconfirmed today's plans
-Birthdays today/tomorrow
-Critical life events this week
-Pending past confirmations
-Memory nudges
-High-urgency suggestions
-Upcoming birthdays (3-7 days)
+**Features Implemented:**
+- User-configured digest time (default 7pm)
+- Smart suppression (skips if nothing meaningful)
+- Respects ignore patterns (reduces frequency after 3x ignored)
+- Opens dedicated `EveningCheckinSheet` with battery check-in integration
+- Content priority: birthdays, life events, memories, suggestions
 
-Implementation
+---
 
-Extract generateFocusItems() from TodaysFocusWidgetV2 for shared use
-Create DigestSheet component (similar to FocusDetailSheet)
-Add digest settings to user preferences
-Track engagement to tune suppression
+## Execution Summary
 
-Success Criteria
-
-Users who enable digest have higher week-over-week retention
-Tap-through rate >30% (because we only send when meaningful)
-Users report feeling "informed but not nagged"
-
-
-Execution Order
-Phase 1 (Analytics)     ████░░░░░░░░░░░░░░░░  ~3-4 hours
-Phase 2 (Architecture)  ░░░░████████░░░░░░░░  ~6-8 hours  
-Phase 3 (Memory UX)     ░░░░░░░░░░░░████░░░░  ~4-5 hours
-Phase 4 (Digest)        ░░░░░░░░░░░░░░░░████  ~4-5 hours
-Recommended:
-
-Complete Phase 1 first, launch beta, collect data
-Phase 2 while collecting data (architecture cleanup)
-Phase 3 can happen in parallel with Phase 2 (new component)
-Phase 4 after Phase 2 (depends on clean architecture) and ideally after some analytics data shows what content users engage with
+| Phase | Status | Completed |
+|-------|--------|----------|
+| Phase 1 (Analytics) | ✅ Complete | Dec 2024 |
+| Phase 2 (Architecture) | ✅ Complete | Dec 2024 |
+| Phase 3 (Memory UX) | ✅ Complete | Dec 2024 |
+| Phase 4 (Digest) | ✅ Complete | Dec 2024 |
 
 
 Files to Reference
