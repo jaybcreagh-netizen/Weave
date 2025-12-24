@@ -258,8 +258,17 @@ export function PlanWizard({ visible, onClose, initialFriend, prefillData, repla
   };
 
   const handleSubmit = useDebounceCallback(async () => {
-    if (!formData.date || !formData.category) {
-      console.error('Missing required fields');
+    // Validate required fields with user feedback
+    if (!formData.category) {
+      Alert.alert('Select Activity Type', 'Please choose an activity type before scheduling.');
+      setDirection('backward');
+      setCurrentStep(2);
+      return;
+    }
+    if (!formData.date) {
+      Alert.alert('Select Date', 'Please choose a date before scheduling.');
+      setDirection('backward');
+      setCurrentStep(1);
       return;
     }
 

@@ -3,13 +3,11 @@
  * Create or edit ad-hoc journal entries
  */
 
-import React, { useState, useEffect, useRef } from 'react';
-import { useBufferedInput } from '@/shared/hooks/useBufferedInput';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
-  TextInput,
   Platform,
   Alert,
   Keyboard,
@@ -18,6 +16,7 @@ import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { Calendar, Sparkles, Trash2 } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { StandardBottomSheet } from '@/shared/ui/Sheet';
+import { BottomSheetInput } from '@/shared/ui';
 
 import { database } from '@/db';
 import JournalEntry from '@/db/models/JournalEntry';
@@ -41,7 +40,6 @@ interface JournalEntryModalProps {
 export function JournalEntryModal({ isOpen, onClose, entry, onSave, onDelete }: JournalEntryModalProps) {
   const { colors } = useTheme();
   const isEditMode = !!entry;
-  const contentInputRef = useRef<TextInput>(null);
 
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -55,9 +53,7 @@ export function JournalEntryModal({ isOpen, onClose, entry, onSave, onDelete }: 
   // Track which entry we've initialized to prevent resetting state on re-renders
   const [initializedForId, setInitializedForId] = useState<string | null>(null);
 
-  // Buffered inputs to prevent typing flickering
-  const titleInput = useBufferedInput(title, setTitle);
-  const contentInput = useBufferedInput(content, setContent);
+
 
   useEffect(() => {
     // Determine the key for tracking initialization (entry.id for edit mode, 'new' for new entry)
@@ -83,11 +79,6 @@ export function JournalEntryModal({ isOpen, onClose, entry, onSave, onDelete }: 
             setSelectedFriendIds(new Set(links.map(link => link.friendId)));
           })
           .catch(err => logger.error('JournalEntry', 'Error fetching linked friends:', err));
-
-        // Focus content input after a delay to allow sheet animation
-        setTimeout(() => {
-          contentInputRef.current?.focus();
-        }, 400);
       } else {
         // Reset for new entry
         setTitle('');
@@ -95,11 +86,6 @@ export function JournalEntryModal({ isOpen, onClose, entry, onSave, onDelete }: 
         setEntryDate(new Date());
         setSelectedFriendIds(new Set());
         setSelectedChips(new Set());
-
-        // Focus content input for new entry
-        setTimeout(() => {
-          contentInputRef.current?.focus();
-        }, 400);
       }
     }
 
@@ -365,16 +351,10 @@ export function JournalEntryModal({ isOpen, onClose, entry, onSave, onDelete }: 
           >
             Title (optional)
           </Text>
-          <TextInput
-            {...titleInput}
+          <BottomSheetInput
+            value={title}
+            onChangeText={setTitle}
             placeholder="Give this entry a title..."
-            placeholderTextColor={colors['muted-foreground']}
-            className="px-4 py-3 rounded-xl text-base"
-            style={{
-              backgroundColor: colors.muted,
-              color: colors.foreground,
-              fontFamily: 'Inter_400Regular',
-            }}
           />
         </View>
 
@@ -386,21 +366,12 @@ export function JournalEntryModal({ isOpen, onClose, entry, onSave, onDelete }: 
           >
             What's on your mind?
           </Text>
-          <TextInput
-            ref={contentInputRef}
-            {...contentInput}
+          <BottomSheetInput
+            value={content}
+            onChangeText={setContent}
             placeholder="Write your thoughts..."
-            placeholderTextColor={colors['muted-foreground']}
             multiline
             numberOfLines={8}
-            textAlignVertical="top"
-            className="px-4 py-3 rounded-xl text-base"
-            style={{
-              backgroundColor: colors.muted,
-              color: colors.foreground,
-              fontFamily: 'Inter_400Regular',
-              minHeight: 150,
-            }}
           />
         </View>
 
