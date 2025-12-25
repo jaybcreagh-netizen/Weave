@@ -67,4 +67,10 @@ export default class Friend extends Model {
   @text('suggested_tier') suggestedTier?: string // AI-suggested tier based on patterns
   @field('tier_suggestion_dismissed_at') tierSuggestionDismissedAt?: number // When user dismissed suggestion
 
+  // Messaging app integration (v46)
+  @text('phone_number') phoneNumber?: string // E.164 format preferred
+  @text('email') email?: string
+  @text('contact_id') contactId?: string // Device contact ID for re-sync
+  @text('preferred_messaging_app') preferredMessagingApp?: 'whatsapp' | 'telegram' | 'sms' | 'email'
+
 }

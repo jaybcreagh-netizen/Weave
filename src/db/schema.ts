@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb'
 
 export default appSchema({
-  version: 45, // UPDATED: Added index to dunbar_tier
+  version: 46, // UPDATED: Messaging app integration - contact linking
   tables: [
     tableSchema({
       name: 'oracle_insights',
@@ -65,6 +65,11 @@ export default appSchema({
         { name: 'tier_fit_last_calculated', type: 'number', isOptional: true }, // When tier fit was last calculated
         { name: 'suggested_tier', type: 'string', isOptional: true }, // AI-suggested tier based on patterns
         { name: 'tier_suggestion_dismissed_at', type: 'number', isOptional: true }, // When user dismissed tier suggestion
+        // NEW v46: Messaging app integration - contact linking
+        { name: 'phone_number', type: 'string', isOptional: true },
+        { name: 'email', type: 'string', isOptional: true },
+        { name: 'contact_id', type: 'string', isOptional: true }, // Device contact ID for re-sync
+        { name: 'preferred_messaging_app', type: 'string', isOptional: true }, // whatsapp, telegram, sms, email
 
       ]
     }),
@@ -193,6 +198,9 @@ export default appSchema({
         // NEW v36: Tier Intelligence Settings
         { name: 'tier_flexibility_mode', type: 'string', isOptional: true }, // 'strict' | 'balanced' | 'flexible' - how much decay adapts to patterns
         { name: 'tier_intelligence_enabled', type: 'boolean', isOptional: true }, // Whether to show tier fit indicators and suggestions
+
+        // NEW v46: Messaging preferences
+        { name: 'default_messaging_app', type: 'string', isOptional: true }, // User's preferred messaging app (whatsapp, telegram, sms, email)
 
         // Metadata
         { name: 'created_at', type: 'number' },

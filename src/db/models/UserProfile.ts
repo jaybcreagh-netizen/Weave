@@ -44,6 +44,9 @@ export default class UserProfile extends Model {
   @text('tier_flexibility_mode') tierFlexibilityMode?: 'strict' | 'balanced' | 'flexible'; // How much decay adapts
   @field('tier_intelligence_enabled') tierIntelligenceEnabled?: boolean; // Show tier fit indicators
 
+  // Messaging preferences (v46)
+  @text('default_messaging_app') defaultMessagingApp?: 'whatsapp' | 'telegram' | 'sms' | 'email';
+
   @text('social_battery_history') socialBatteryHistoryJSON?: string;
 
   get socialBatteryHistory(): BatteryHistoryEntry[] {
