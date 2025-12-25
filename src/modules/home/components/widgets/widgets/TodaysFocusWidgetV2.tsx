@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { differenceInDays, format, isSameDay, addDays, startOfDay } from 'date-fns';
 import { Check, Clock, ChevronRight, Sparkles, Calendar, CheckCircle2 } from 'lucide-react-native';
+import * as Haptics from 'expo-haptics';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { HomeWidgetBase, HomeWidgetConfig } from '../HomeWidgetBase';
 import { useSuggestions, useInteractions, usePlans } from '@/modules/interactions';
@@ -23,6 +24,7 @@ import { Suggestion } from '@/shared/types/common';
 import { getCategoryLabel } from '@/modules/interactions';
 import { SeasonAnalyticsService } from '@/modules/intelligence';
 import { parseFlexibleDate } from '@/shared/utils/date-utils';
+import { useReachOut, ContactLinker } from '@/modules/messaging';
 
 const WIDGET_CONFIG: HomeWidgetConfig = {
     id: 'todays-focus',
@@ -51,10 +53,13 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = ({ friends })
     const { allInteractions: interactions } = useInteractions();
     const { completePlan } = usePlans();
     const { openPostWeaveRating, openWeeklyReflection } = useUIStore();
+    const { reachOut } = useReachOut();
 
     const [showDetailSheet, setShowDetailSheet] = useState(false);
     const [upcomingDates, setUpcomingDates] = useState<UpcomingDate[]>([]);
     const [confirmingIds, setConfirmingIds] = useState<Set<string>>(new Set());
+    const [reachOutFriend, setReachOutFriend] = useState<FriendModel | null>(null);
+    const [showContactLinker, setShowContactLinker] = useState(false);
 
     // Logic ported from V1
     const pendingConfirmations = useMemo(() => {
@@ -244,7 +249,7 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = ({ friends })
         openPostWeaveRating(id); // Pass ID if available, otherwise opens queue
     };
 
-    const handleSuggestionAction = (suggestion: Suggestion) => {
+    const handleSuggestionAction = async (suggestion: Suggestion) => {
         if (suggestion.id === 'weekly-reflection-sunday') {
             setShowDetailSheet(false);
             setTimeout(() => {
@@ -254,12 +259,40 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = ({ friends })
         }
 
         const friend = friends.find(f => f.id === suggestion.friendId);
-        if (friend) {
-            router.push(`/friend-profile?friendId=${friend.id}`);
-
-            // ANALYTICS: Track acceptance
-            SeasonAnalyticsService.trackSuggestionAccepted().catch(console.error);
+        if (!friend) {
+            setShowDetailSheet(false);
+            return;
         }
+
+        // Handle reach-out action type
+        if (suggestion.action?.type === 'reach-out') {
+            const hasContactInfo = friend.phoneNumber || friend.email;
+
+            if (!hasContactInfo) {
+                // Show contact linker
+                setReachOutFriend(friend);
+                setShowContactLinker(true);
+                setShowDetailSheet(false);
+                return;
+            }
+
+            // Reach out directly
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            const result = await reachOut(friend, suggestion.subtitle);
+
+            if (result.success) {
+                // ANALYTICS: Track acceptance
+                SeasonAnalyticsService.trackSuggestionAccepted().catch(console.error);
+            }
+            setShowDetailSheet(false);
+            return;
+        }
+
+        // Default: navigate to friend profile
+        router.push(`/friend-profile?friendId=${friend.id}`);
+
+        // ANALYTICS: Track acceptance
+        SeasonAnalyticsService.trackSuggestionAccepted().catch(console.error);
         setShowDetailSheet(false);
     };
 
@@ -493,6 +526,27 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = ({ friends })
                 onReschedulePlan={handleReschedulePlan}
                 onSuggestionAction={handleSuggestionAction}
             />
+
+            {/* Contact Linker for reach-out suggestions */}
+            {reachOutFriend && (
+                <ContactLinker
+                    visible={showContactLinker}
+                    onClose={() => {
+                        setShowContactLinker(false);
+                        setReachOutFriend(null);
+                    }}
+                    friend={reachOutFriend}
+                    onLinked={async () => {
+                        setShowContactLinker(false);
+                        // After linking, try to reach out
+                        if (reachOutFriend) {
+                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                            await reachOut(reachOutFriend);
+                        }
+                        setReachOutFriend(null);
+                    }}
+                />
+            )}
         </>
     );
 };

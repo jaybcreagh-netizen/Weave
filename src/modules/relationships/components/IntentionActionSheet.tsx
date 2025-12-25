@@ -114,6 +114,11 @@ export function IntentionActionSheet({
     ? getCategoryMetadata(intention.interactionCategory as InteractionCategory)
     : null;
 
+  // Only show "Reach Out" for messaging-appropriate categories
+  const showReachOut = ['text-call', 'voice-note'].includes(
+    intention.interactionCategory || ''
+  );
+
   return (
     <AnimatedBottomSheet
       visible={isOpen}
@@ -146,17 +151,19 @@ export function IntentionActionSheet({
           </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
-          className="flex-row items-center justify-center gap-3 py-4 rounded-xl shadow-sm elevation-4"
-          style={{ backgroundColor: colors.accent || colors.secondary, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 8 }}
-          onPress={handleReachOut}
-          activeOpacity={0.8}
-        >
-          <MessageCircle color={colors['accent-foreground'] || colors['secondary-foreground']} size={20} />
-          <Text className="text-base font-semibold" style={{ color: colors['accent-foreground'] || colors['secondary-foreground'] }}>
-            Reach Out
-          </Text>
-        </TouchableOpacity>
+        {showReachOut && (
+          <TouchableOpacity
+            className="flex-row items-center justify-center gap-3 py-4 rounded-xl shadow-sm elevation-4"
+            style={{ backgroundColor: colors.accent || colors.secondary, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 8 }}
+            onPress={handleReachOut}
+            activeOpacity={0.8}
+          >
+            <MessageCircle color={colors['accent-foreground'] || colors['secondary-foreground']} size={20} />
+            <Text className="text-base font-semibold" style={{ color: colors['accent-foreground'] || colors['secondary-foreground'] }}>
+              Reach Out
+            </Text>
+          </TouchableOpacity>
+        )}
 
         <TouchableOpacity
           className="flex-row items-center justify-center gap-3 py-4 rounded-xl shadow-sm elevation-4 border"
