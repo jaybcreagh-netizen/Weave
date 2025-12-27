@@ -16,22 +16,28 @@ export const AutoBackupService = {
     init: async (): Promise<boolean> => {
         // Cloud backup is currently iOS-only (iCloud)
         if (Platform.OS === 'android') {
+            Logger.info('AutoBackup: init() - Android not supported');
             return false;
         }
 
         try {
+            Logger.info('AutoBackup: init() - Checking iCloud access...');
             let exists = false;
             try {
                 exists = await CloudStorage.exists(`/${BACKUP_FOLDER}`);
+                Logger.info(`AutoBackup: init() - Backup folder exists: ${exists}`);
             } catch (e) {
                 // If exists() throws, it likely means the directory doesn't exist
                 // We'll treat this as false and attempt to create it
+                Logger.info('AutoBackup: init() - exists() threw, assuming folder does not exist');
                 exists = false;
             }
 
             if (!exists) {
                 try {
+                    Logger.info('AutoBackup: init() - Creating backup folder...');
                     await CloudStorage.mkdir(`/${BACKUP_FOLDER}`);
+                    Logger.info('AutoBackup: init() - Backup folder created successfully');
                 } catch (mkdirError: any) {
                     // Ignore error if folder was created by a parallel process
                     let checkAgain = false;
@@ -45,8 +51,10 @@ export const AutoBackupService = {
                     if (!checkAgain) {
                         throw mkdirError;
                     }
+                    Logger.info('AutoBackup: init() - Folder already exists (parallel creation)');
                 }
             }
+            Logger.info('AutoBackup: init() - Initialization successful');
             return true;
         } catch (error) {
             Logger.error('AutoBackup: Failed to initialize (Code: INIT_FAIL):', error);
@@ -84,11 +92,14 @@ export const AutoBackupService = {
      */
     performBackup: async () => {
         try {
+            Logger.info('AutoBackup: Starting backup...');
 
             const jsonString = await exportAllData();
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
             const filename = `weave-backup-${timestamp}.json`;
             const path = `/${BACKUP_FOLDER}/${filename}`;
+
+            Logger.info(`AutoBackup: Exporting to ${path} (${Math.round(jsonString.length / 1024)}KB)`);
 
             // Ensure directory exists
             const initSuccess = await AutoBackupService.init();
@@ -99,7 +110,7 @@ export const AutoBackupService = {
             await CloudStorage.writeFile(path, jsonString);
             await AsyncStorage.setItem(LAST_BACKUP_KEY, new Date().toISOString());
 
-
+            Logger.info(`AutoBackup: Backup completed successfully: ${filename}`);
 
             // Prune old backups
             await AutoBackupService.pruneBackups();
@@ -153,13 +164,20 @@ export const AutoBackupService = {
      */
     getAvailableBackups: async (): Promise<string[]> => {
         try {
+            Logger.info('AutoBackup: getAvailableBackups() - Checking for backups...');
             const exists = await CloudStorage.exists(`/${BACKUP_FOLDER}`);
-            if (!exists) return [];
+            if (!exists) {
+                Logger.info('AutoBackup: getAvailableBackups() - Backup folder does not exist');
+                return [];
+            }
 
             const files = await CloudStorage.readdir(`/${BACKUP_FOLDER}`);
-            return files
+            const backupFiles = files
                 .filter(f => f.startsWith('weave-backup-') && f.endsWith('.json'))
                 .sort((a, b) => b.localeCompare(a)); // Newest first
+
+            Logger.info(`AutoBackup: getAvailableBackups() - Found ${backupFiles.length} backups: ${backupFiles.join(', ')}`);
+            return backupFiles;
         } catch (error) {
             Logger.error('AutoBackup: Failed to list backups:', error);
             return [];
@@ -185,8 +203,19 @@ export const AutoBackupService = {
      */
     checkAndBackup: async () => {
         try {
+            Logger.info('AutoBackup: checkAndBackup triggered');
+
             const enabled = await AutoBackupService.isEnabled();
-            if (!enabled) return;
+            if (!enabled) {
+                Logger.info('AutoBackup: Skipping - auto-backup is disabled');
+                return;
+            }
+
+            // Check platform
+            if (Platform.OS === 'android') {
+                Logger.info('AutoBackup: Skipping - Android not supported');
+                return;
+            }
 
             const lastBackup = await AutoBackupService.getLastBackupTime();
             const now = new Date();
@@ -197,9 +226,11 @@ export const AutoBackupService = {
 
                 // Backup at most once every 24 hours
                 if (diffHours < 24) {
-
+                    Logger.info(`AutoBackup: Skipping - last backup was ${diffHours.toFixed(1)} hours ago (need 24+)`);
                     return;
                 }
+            } else {
+                Logger.info('AutoBackup: No previous backup found, will create first backup');
             }
 
             await AutoBackupService.performBackup();
