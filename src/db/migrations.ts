@@ -984,6 +984,31 @@ export default schemaMigrations({
         }),
       ],
     },
+    {
+      // Migration from schema v46 to v47
+      // Messaging App Integration - Contact linking for "Reach Out" feature
+      // Enables users to tap suggestions/intentions and open messaging apps
+      toVersion: 47,
+      steps: [
+        // Add contact linking fields to friends table
+        addColumns({
+          table: 'friends',
+          columns: [
+            { name: 'phone_number', type: 'string', isOptional: true },
+            { name: 'email', type: 'string', isOptional: true },
+            { name: 'contact_id', type: 'string', isOptional: true }, // Device contact ID for re-sync
+            { name: 'preferred_messaging_app', type: 'string', isOptional: true }, // whatsapp, telegram, sms, email
+          ],
+        }),
+        // Add default messaging app preference to user_profile
+        addColumns({
+          table: 'user_profile',
+          columns: [
+            { name: 'default_messaging_app', type: 'string', isOptional: true },
+          ],
+        }),
+      ],
+    },
   ],
 });
 

@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb'
 
 export default appSchema({
-  version: 46, // UPDATED: Friend Linking - linked_user_id, link_status, linked_at
+  version: 47, // UPDATED: v46 Friend Linking + v47 Messaging app integration
   tables: [
     tableSchema({
       name: 'oracle_insights',
@@ -69,6 +69,11 @@ export default appSchema({
         { name: 'linked_user_id', type: 'string', isOptional: true, isIndexed: true }, // Supabase user_profiles.id
         { name: 'link_status', type: 'string', isOptional: true }, // 'pending_sent' | 'pending_received' | 'linked' | 'declined'
         { name: 'linked_at', type: 'number', isOptional: true }, // When link was established
+        // NEW v47: Messaging app integration - contact linking
+        { name: 'phone_number', type: 'string', isOptional: true },
+        { name: 'email', type: 'string', isOptional: true },
+        { name: 'contact_id', type: 'string', isOptional: true }, // Device contact ID for re-sync
+        { name: 'preferred_messaging_app', type: 'string', isOptional: true }, // whatsapp, telegram, sms, email
       ]
     }),
     tableSchema({
@@ -196,6 +201,9 @@ export default appSchema({
         // NEW v36: Tier Intelligence Settings
         { name: 'tier_flexibility_mode', type: 'string', isOptional: true }, // 'strict' | 'balanced' | 'flexible' - how much decay adapts to patterns
         { name: 'tier_intelligence_enabled', type: 'boolean', isOptional: true }, // Whether to show tier fit indicators and suggestions
+
+        // NEW v47: Messaging preferences
+        { name: 'default_messaging_app', type: 'string', isOptional: true }, // User's preferred messaging app (whatsapp, telegram, sms, email)
 
         // Metadata
         { name: 'created_at', type: 'number' },

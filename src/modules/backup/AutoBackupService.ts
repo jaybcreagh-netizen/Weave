@@ -122,8 +122,12 @@ export const AutoBackupService = {
             if (backupFiles.length > MAX_BACKUPS) {
                 const toDelete = backupFiles.slice(0, backupFiles.length - MAX_BACKUPS);
                 for (const file of toDelete) {
-                    await CloudStorage.unlink(`/${BACKUP_FOLDER}/${file}`);
-
+                    try {
+                        await CloudStorage.unlink(`/${BACKUP_FOLDER}/${file}`);
+                    } catch (deleteError) {
+                        // Soft-fail: iCloud may have sync issues, will retry next backup
+                        Logger.warn(`AutoBackup: Could not prune ${file}, will retry next time`);
+                    }
                 }
             }
         } catch (error) {

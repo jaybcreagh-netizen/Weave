@@ -81,7 +81,7 @@ export interface Suggestion {
   reason?: string;
   priority?: 'high' | 'medium' | 'low';
   action: {
-    type: 'plan' | 'log' | 'reflect' | 'connect' | 'intention' | 'tier-review';
+    type: 'plan' | 'log' | 'reflect' | 'connect' | 'intention' | 'tier-review' | 'reach-out';
     interactionId?: string;
     prefilledCategory?: string;
     prefilledMode?: 'plan' | 'log' | 'reflect' | 'connect' | 'detailed';

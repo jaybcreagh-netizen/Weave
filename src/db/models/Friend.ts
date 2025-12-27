@@ -72,4 +72,10 @@ export default class Friend extends Model {
   @text('link_status') linkStatus?: 'pending_sent' | 'pending_received' | 'linked' | 'declined'
   @field('linked_at') linkedAt?: number // When link was established
 
+  // Messaging app integration (v47)
+  @text('phone_number') phoneNumber?: string // E.164 format preferred
+  @text('email') email?: string
+  @text('contact_id') contactId?: string // Device contact ID for re-sync
+  @text('preferred_messaging_app') preferredMessagingApp?: 'whatsapp' | 'telegram' | 'sms' | 'email'
+
 }
