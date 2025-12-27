@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
-import { Calendar } from 'lucide-react-native';
+import { Calendar, MessageCircle } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { Q } from '@nozbe/watermelondb';
 import { useTheme } from '@/shared/hooks/useTheme';
@@ -10,6 +10,7 @@ import FriendModel from '@/db/models/Friend';
 import { InteractionCategory } from '@/shared/types/legacy-types';
 import { database } from '@/db';
 import { AnimatedBottomSheet } from '@/shared/ui/Sheet';
+import { useReachOut, ContactLinker } from '@/modules/messaging';
 
 interface IntentionActionSheetProps {
   intention: Intention | null;
@@ -32,6 +33,8 @@ export function IntentionActionSheet({
 }: IntentionActionSheetProps) {
   const { colors } = useTheme();
   const [friend, setFriend] = useState<FriendModel | null>(null);
+  const [showContactLinker, setShowContactLinker] = useState(false);
+  const { reachOut } = useReachOut();
 
   // Track the pending action to execute after close animation
   const pendingActionRef = useRef<'schedule' | 'dismiss' | 'close' | null>(null);
@@ -64,6 +67,28 @@ export function IntentionActionSheet({
     onClose();
   };
 
+  const handleReachOut = async () => {
+    if (!friend) return;
+
+    // Check if friend has contact info
+    const hasContactInfo = friend.phoneNumber || friend.email;
+
+    if (!hasContactInfo) {
+      // Show contact linker
+      setShowContactLinker(true);
+      return;
+    }
+
+    // Reach out directly
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const result = await reachOut(friend, intention?.description);
+
+    if (result.success) {
+      // Close the sheet after successful reach out
+      onClose();
+    }
+  };
+
   const handleClose = () => {
     pendingActionRef.current = 'close';
     onClose();
@@ -88,6 +113,11 @@ export function IntentionActionSheet({
   const category = intention.interactionCategory
     ? getCategoryMetadata(intention.interactionCategory as InteractionCategory)
     : null;
+
+  // Only show "Reach Out" for messaging-appropriate categories
+  const showReachOut = ['text-call', 'voice-note'].includes(
+    intention.interactionCategory || ''
+  );
 
   return (
     <AnimatedBottomSheet
@@ -121,6 +151,20 @@ export function IntentionActionSheet({
           </Text>
         </TouchableOpacity>
 
+        {showReachOut && (
+          <TouchableOpacity
+            className="flex-row items-center justify-center gap-3 py-4 rounded-xl shadow-sm elevation-4"
+            style={{ backgroundColor: colors.accent || colors.secondary, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 8 }}
+            onPress={handleReachOut}
+            activeOpacity={0.8}
+          >
+            <MessageCircle color={colors['accent-foreground'] || colors['secondary-foreground']} size={20} />
+            <Text className="text-base font-semibold" style={{ color: colors['accent-foreground'] || colors['secondary-foreground'] }}>
+              Reach Out
+            </Text>
+          </TouchableOpacity>
+        )}
+
         <TouchableOpacity
           className="flex-row items-center justify-center gap-3 py-4 rounded-xl shadow-sm elevation-4 border"
           style={{ backgroundColor: colors.muted, borderColor: colors.border, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 8 }}
@@ -132,6 +176,20 @@ export function IntentionActionSheet({
           </Text>
         </TouchableOpacity>
       </View>
+
+      {/* Contact Linker Sheet */}
+      {friend && (
+        <ContactLinker
+          visible={showContactLinker}
+          onClose={() => setShowContactLinker(false)}
+          friend={friend}
+          onLinked={() => {
+            setShowContactLinker(false);
+            // After linking, try to reach out
+            handleReachOut();
+          }}
+        />
+      )}
     </AnimatedBottomSheet>
   );
 }

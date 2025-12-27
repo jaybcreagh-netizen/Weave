@@ -23,6 +23,11 @@
         "NSRemindersUsageDescription": "Weave can set reminders for your planned interactions.",
         "UIBackgroundModes": [
           "fetch"
+        ],
+        "LSApplicationQueriesSchemes": [
+          "whatsapp",
+          "tg",
+          "telegram"
         ]
       },
       "entitlements": {
