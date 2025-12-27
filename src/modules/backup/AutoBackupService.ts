@@ -108,12 +108,29 @@ export const AutoBackupService = {
             }
 
             await CloudStorage.writeFile(path, jsonString);
+
+            // Verify the file was actually written
+            const fileExists = await CloudStorage.exists(path);
+            if (!fileExists) {
+                Logger.error(`AutoBackup: File was not created! Path: ${path}`);
+                throw new Error('Backup file was not created');
+            }
+            Logger.info(`AutoBackup: Verified file exists: ${path}`);
+
             await AsyncStorage.setItem(LAST_BACKUP_KEY, new Date().toISOString());
 
             Logger.info(`AutoBackup: Backup completed successfully: ${filename}`);
 
+            // List all files before pruning
+            const filesBeforePrune = await CloudStorage.readdir(`/${BACKUP_FOLDER}`);
+            Logger.info(`AutoBackup: Files before prune: ${filesBeforePrune.join(', ')}`);
+
             // Prune old backups
             await AutoBackupService.pruneBackups();
+
+            // List all files after pruning
+            const filesAfterPrune = await CloudStorage.readdir(`/${BACKUP_FOLDER}`);
+            Logger.info(`AutoBackup: Files after prune: ${filesAfterPrune.join(', ')}`);
         } catch (error) {
             Logger.error('AutoBackup: Backup failed:', error);
             throw error;
@@ -126,16 +143,23 @@ export const AutoBackupService = {
     pruneBackups: async () => {
         try {
             const files = await CloudStorage.readdir(`/${BACKUP_FOLDER}`);
+            Logger.info(`AutoBackup: pruneBackups() - Found ${files.length} files in folder: ${files.join(', ')}`);
+
             const backupFiles = files
                 .filter(f => f.startsWith('weave-backup-'))
                 .sort((a, b) => a.localeCompare(b)); // Oldest first
 
+            Logger.info(`AutoBackup: pruneBackups() - ${backupFiles.length} backup files, MAX_BACKUPS=${MAX_BACKUPS}`);
+
             if (backupFiles.length > MAX_BACKUPS) {
                 const toDelete = backupFiles.slice(0, backupFiles.length - MAX_BACKUPS);
+                Logger.info(`AutoBackup: pruneBackups() - Deleting ${toDelete.length} old backups: ${toDelete.join(', ')}`);
                 for (const file of toDelete) {
                     await CloudStorage.unlink(`/${BACKUP_FOLDER}/${file}`);
-
+                    Logger.info(`AutoBackup: pruneBackups() - Deleted: ${file}`);
                 }
+            } else {
+                Logger.info('AutoBackup: pruneBackups() - No pruning needed');
             }
         } catch (error) {
             Logger.error('AutoBackup: Pruning failed:', error);
@@ -147,13 +171,20 @@ export const AutoBackupService = {
      */
     deleteAllBackups: async () => {
         try {
+            Logger.warn('AutoBackup: deleteAllBackups() - DELETING ALL BACKUPS');
             const exists = await CloudStorage.exists(`/${BACKUP_FOLDER}`);
-            if (!exists) return;
+            if (!exists) {
+                Logger.info('AutoBackup: deleteAllBackups() - Folder does not exist, nothing to delete');
+                return;
+            }
 
             const files = await CloudStorage.readdir(`/${BACKUP_FOLDER}`);
+            Logger.warn(`AutoBackup: deleteAllBackups() - Deleting ${files.length} files: ${files.join(', ')}`);
             for (const file of files) {
                 await CloudStorage.unlink(`/${BACKUP_FOLDER}/${file}`);
+                Logger.info(`AutoBackup: deleteAllBackups() - Deleted: ${file}`);
             }
+            Logger.warn('AutoBackup: deleteAllBackups() - All backups deleted');
         } catch (error) {
             Logger.error('AutoBackup: Failed to delete all backups:', error);
         }
