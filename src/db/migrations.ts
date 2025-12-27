@@ -969,6 +969,21 @@ export default schemaMigrations({
         `),
       ],
     },
+    {
+      // Migration from schema v45 to v46
+      // Friend Linking - Connect local friends to Weave user accounts
+      toVersion: 46,
+      steps: [
+        addColumns({
+          table: 'friends',
+          columns: [
+            { name: 'linked_user_id', type: 'string', isOptional: true, isIndexed: true },
+            { name: 'link_status', type: 'string', isOptional: true }, // 'pending_sent' | 'pending_received' | 'linked' | 'declined'
+            { name: 'linked_at', type: 'number', isOptional: true },
+          ],
+        }),
+      ],
+    },
   ],
 });
 

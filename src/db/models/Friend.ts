@@ -67,4 +67,9 @@ export default class Friend extends Model {
   @text('suggested_tier') suggestedTier?: string // AI-suggested tier based on patterns
   @field('tier_suggestion_dismissed_at') tierSuggestionDismissedAt?: number // When user dismissed suggestion
 
+  // Friend Linking (v46) - Connect to Weave user accounts
+  @text('linked_user_id') linkedUserId?: string // Supabase user_profiles.id
+  @text('link_status') linkStatus?: 'pending_sent' | 'pending_received' | 'linked' | 'declined'
+  @field('linked_at') linkedAt?: number // When link was established
+
 }

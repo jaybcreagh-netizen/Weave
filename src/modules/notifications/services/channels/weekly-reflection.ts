@@ -12,6 +12,7 @@
  */
 
 import * as Notifications from 'expo-notifications';
+import { SchedulableTriggerInputTypes } from 'expo-notifications';
 import { database } from '@/db';
 import UserProfile from '@/db/models/UserProfile';
 import Logger from '@/shared/utils/Logger';
@@ -91,11 +92,11 @@ export const WeeklyReflectionChannel: NotificationChannel = {
                     data: { type: 'weekly-reflection' },
                 },
                 trigger: {
+                    type: SchedulableTriggerInputTypes.WEEKLY,
                     weekday,
                     hour,
                     minute,
-                    repeats: true,
-                } as any,
+                },
             });
 
             await notificationAnalytics.trackScheduled('weekly-reflection', ID, {

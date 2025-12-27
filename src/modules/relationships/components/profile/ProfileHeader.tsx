@@ -7,6 +7,7 @@ import { PatternBadge } from '@/modules/gamification';
 import { TierFitCard } from '@/modules/insights';
 import { useTheme } from '@/shared/hooks/useTheme';
 import FriendModel from '@/db/models/Friend';
+import { LinkStatusBadge } from '../LinkStatusBadge';
 
 interface ProfileHeaderProps {
     friend: FriendModel;
@@ -17,6 +18,7 @@ interface ProfileHeaderProps {
     onGlobalCalendar?: () => void;
     onShowBadgePopup?: () => void;
     onShowTierFit?: () => void;
+    onLinkToWeaveUser?: () => void;
 }
 
 export function ProfileHeader({
@@ -28,6 +30,7 @@ export function ProfileHeader({
     onGlobalCalendar,
     onShowBadgePopup,
     onShowTierFit,
+    onLinkToWeaveUser,
 }: ProfileHeaderProps) {
     const { colors } = useTheme();
 
@@ -68,6 +71,14 @@ export function ProfileHeader({
                     </TouchableOpacity>
                     <PatternBadge friend={friend as any} style={{ marginTop: 4, marginLeft: 4 }} />
 
+                    {/* Link Status Badge */}
+                    <View style={{ marginTop: 8 }}>
+                        <LinkStatusBadge
+                            friend={friend}
+                            onLinkPress={onLinkToWeaveUser}
+                        />
+                    </View>
+
                     {/* Tier Fit Card */}
                     <TierFitCard
                         friendId={friend.id}
@@ -78,3 +89,4 @@ export function ProfileHeader({
         </View>
     );
 }
+

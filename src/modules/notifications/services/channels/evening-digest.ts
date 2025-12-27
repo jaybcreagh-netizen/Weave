@@ -1,4 +1,5 @@
 import * as Notifications from 'expo-notifications';
+import { SchedulableTriggerInputTypes } from 'expo-notifications';
 import Logger from '@/shared/utils/Logger';
 import { notificationAnalytics } from '../notification-analytics';
 import { NotificationChannel } from '@/modules/notifications';
@@ -105,10 +106,10 @@ export const EveningDigestChannel: NotificationChannel & {
                     sound: true,
                 },
                 trigger: {
+                    type: SchedulableTriggerInputTypes.DAILY,
                     hour: targetHour,
                     minute: targetMinute,
-                    repeats: true,
-                } as any,
+                },
             });
 
             const timeStr = `${targetHour.toString().padStart(2, '0')}:${targetMinute.toString().padStart(2, '0')}`;

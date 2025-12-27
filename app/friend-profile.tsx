@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback } from 'react';
+import React, { useEffect, useCallback, useState } from 'react';
 import { View, Text, Alert, StyleSheet, ActivityIndicator } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, withDelay, Easing, useAnimatedScrollHandler, runOnJS } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
@@ -9,7 +9,6 @@ import { useTheme } from '@/shared/hooks/useTheme';
 import { useFriendProfileData, useFriendTimeline } from '@/modules/relationships';
 import { useFriendProfileModals } from '@/modules/relationships';
 
-// Components
 import {
   ProfileHeader,
   ActionButtons,
@@ -19,6 +18,7 @@ import {
   IntentionsFAB
 } from '@/modules/relationships';
 import { ErrorBoundary } from '@/shared/components/ErrorBoundary';
+import { LinkFriendSheet } from '@/modules/relationships/components/LinkFriendSheet';
 
 export default function FriendProfile() {
   const router = useRouter();
@@ -51,6 +51,9 @@ export default function FriendProfile() {
 
   // Use the new hook for modal state
   const modals = useFriendProfileModals();
+
+  // Link to Weave User state
+  const [showLinkSheet, setShowLinkSheet] = useState(false);
 
   const scrollY = useSharedValue(0);
 
@@ -238,6 +241,7 @@ export default function FriendProfile() {
                   onGlobalCalendar={() => router.push(`/global-calendar?fromFriendId=${friend.id}`)}
                   onShowBadgePopup={() => modals.setShowBadgePopup(true)}
                   onShowTierFit={() => modals.setShowTierFitSheet(true)}
+                  onLinkToWeaveUser={() => setShowLinkSheet(true)}
                 />
 
                 <ActionButtons
@@ -279,6 +283,17 @@ export default function FriendProfile() {
           <IntentionsFAB
             count={friendIntentions?.length || 0}
             onClick={() => modals.setShowIntentionsDrawer(true)}
+          />
+
+          <LinkFriendSheet
+            visible={showLinkSheet}
+            friendId={friend.id}
+            friendName={friend.name}
+            onClose={() => setShowLinkSheet(false)}
+            onLinked={() => {
+              // Friend model will auto-update via WatermelonDB observables
+              setShowLinkSheet(false);
+            }}
           />
 
         </Animated.View>

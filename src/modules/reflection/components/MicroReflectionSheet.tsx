@@ -6,8 +6,7 @@ import { type Vibe, type InteractionCategory } from '@/shared/types/common';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { getCategoryMetadata } from '@/shared/constants/interaction-categories';
 import { AnimatedBottomSheet } from '@/shared/ui/Sheet';
-import { BottomSheetInput } from '@/shared/ui/BottomSheetInput';
-import { NotesInputField } from '@/shared/components/NotesInputField';
+import { BufferedTextInput } from '@/shared/ui/BufferedTextInput';
 import { MoonPhaseSelector } from '@/modules/intelligence';
 
 interface MicroReflectionSheetProps {
@@ -106,7 +105,7 @@ export function MicroReflectionSheet({
         <Text className="text-sm font-medium mb-2" style={{ color: colors['muted-foreground'] }}>
           Logged
         </Text>
-        <BottomSheetInput
+        <BufferedTextInput
           inputClassName="text-2xl font-bold font-lora-bold text-center mb-1 min-w-[200px]"
           style={{ color: colors.foreground }}
           value={title}
@@ -138,7 +137,7 @@ export function MicroReflectionSheet({
         <Text className="text-[13px] font-medium mb-2" style={{ color: colors['muted-foreground'] }}>
           Optional: Add a note
         </Text>
-        <BottomSheetInput
+        <BufferedTextInput
           inputClassName="border rounded-xl p-3 text-[15px] min-h-[80px] max-h-[120px]"
           style={{
             backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)',

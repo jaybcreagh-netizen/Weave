@@ -279,7 +279,7 @@ A beautiful onboarding moment that helps users discover their social archetype -
 
 ### Quiz Design
 
-**Format**: 7 questions, visual/emotional rather than analytical
+**Format**: 8 questions, visual/emotional rather than analytical (one per archetype)
 
 **Duration**: 2-3 minutes
 
@@ -336,6 +336,7 @@ interface QuizAnswer {
     empress: number;
     magician: number;
     highPriestess: number;
+    lovers: number;
   };
 }
 
@@ -1332,6 +1333,7 @@ Once the foundation is built, many doors open:
 | **The Empress** | Nurturing, care | Support, thoughtful gestures | Caring, attentive |
 | **The Magician** | Creativity, collaboration | Projects, brainstorming | Creative, idea-oriented |
 | **The High Priestess** | Depth, intuition | Meaningful conversation, emotional support | Intuitive, emotionally intelligent |
+| **The Lovers** | Deep bond, mutual devotion | Quality time, intimate connection, shared values | Harmonious, aligned, reflective |
 
 ---
 

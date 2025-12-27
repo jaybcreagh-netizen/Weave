@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Sparkles, Users, Settings } from 'lucide-react-native';
+import { Sparkles, Users, Settings, Bell } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { SettingsModal } from '@/modules/auth/components/settings-modal';
 import { SocialBatterySheet } from '@/modules/home/components/widgets/SocialBatterySheet';
@@ -12,6 +12,9 @@ import HomeScreen from './_home';
 import FriendsScreen from './_friends';
 import { useTutorialStore } from '@/shared/stores/tutorialStore';
 import { shouldSendSocialBatteryNotification } from '@/modules/notifications';
+import { getPendingRequestCount } from '@/modules/relationships/services/friend-linking.service';
+import { PendingRequestsSheet } from '@/modules/relationships/components/PendingRequestsSheet';
+import { FeatureFlags } from '@/shared/config/feature-flags';
 
 
 export default function Dashboard() {
@@ -28,6 +31,10 @@ export default function Dashboard() {
     const { submitBatteryCheckin, profile, observeProfile } = useUserProfileStore();
     // Tutorial state - check if QuickWeave tutorial is done
     const hasPerformedQuickWeave = useTutorialStore((state) => state.hasPerformedQuickWeave);
+
+    // Pending link request state
+    const [pendingRequestCount, setPendingRequestCount] = useState(0);
+    const [showPendingRequests, setShowPendingRequests] = useState(false);
 
 
     // Mounted state and timeout refs to prevent race conditions
@@ -50,6 +57,21 @@ export default function Dashboard() {
         } catch (error) {
             console.error('[Dashboard] Failed to observe profile:', error);
         }
+    }, []);
+
+    // Load pending request count (only if accounts enabled)
+    useEffect(() => {
+        if (!FeatureFlags.ACCOUNTS_ENABLED) return;
+
+        const loadCount = async () => {
+            const count = await getPendingRequestCount();
+            setPendingRequestCount(count);
+        };
+
+        loadCount();
+        // Refresh every 30 seconds
+        const interval = setInterval(loadCount, 30000);
+        return () => clearInterval(interval);
     }, []);
 
     // Check if user should be prompted for battery check-in
@@ -158,6 +180,23 @@ export default function Dashboard() {
                         </TouchableOpacity>
                     </View>
 
+                    {/* Pending Link Requests Badge */}
+                    {FeatureFlags.ACCOUNTS_ENABLED && (
+                        <TouchableOpacity
+                            onPress={() => setShowPendingRequests(true)}
+                            style={styles.settingsButton}
+                        >
+                            <View style={styles.tabIconContainer}>
+                                <Bell size={22} color={colors['muted-foreground']} />
+                                {pendingRequestCount > 0 && (
+                                    <View style={[styles.notificationBadge, { backgroundColor: colors.primary }]}>
+                                        <Text style={styles.notificationText}>{pendingRequestCount}</Text>
+                                    </View>
+                                )}
+                            </View>
+                        </TouchableOpacity>
+                    )}
+
                     <TouchableOpacity onPress={() => setShowSettings(true)} style={styles.settingsButton}>
                         <Settings size={24} color={colors['muted-foreground']} />
                     </TouchableOpacity>
@@ -202,6 +241,15 @@ export default function Dashboard() {
                     onDismiss={() => closeSocialBatterySheet()}
                 />
             </SafeAreaView>
+
+            <PendingRequestsSheet
+                visible={showPendingRequests}
+                onClose={() => setShowPendingRequests(false)}
+                onRequestHandled={() => {
+                    // Refresh count after accepting/declining
+                    getPendingRequestCount().then(setPendingRequestCount);
+                }}
+            />
             <BadgeUnlockModal />
         </View>
     );

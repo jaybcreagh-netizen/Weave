@@ -34,6 +34,7 @@ import { AddFriendMenu } from '../components/AddFriendMenu';
 import { FriendPickerSheet } from '../components/FriendPickerSheet';
 import { IntentionActionSheet } from '../components/IntentionActionSheet';
 import FriendBadgePopup from '../components/FriendBadgePopup';
+import { UsernameSearchSheet } from '../components/UsernameSearchSheet';
 import { Tier } from '../types';
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -53,6 +54,7 @@ export function FriendsDashboardScreen() {
     const [addFriendMenuVisible, setAddFriendMenuVisible] = useState(false);
     const [friendPickerVisible, setFriendPickerVisible] = useState(false);
     const [planWizardFriend, setPlanWizardFriend] = useState<FriendModel | null>(null);
+    const [weaveUserSearchVisible, setWeaveUserSearchVisible] = useState(false);
 
     // Search state
     const [searchQuery, setSearchQuery] = useState('');
@@ -205,11 +207,20 @@ export function FriendsDashboardScreen() {
     }, []);
 
     const handleAddSingle = () => {
+        // Opens search-first sheet
+        setWeaveUserSearchVisible(true);
+    };
+
+    const handleAddManually = () => {
         router.push(`/add-friend?tier=${activeTier}`);
     };
 
     const handleAddBatch = () => {
         router.push(`/batch-add-friends?tier=${activeTier}`);
+    };
+
+    const handleWeaveUserAdded = (friendId: string) => {
+        router.push(`/friend-profile?friendId=${friendId}`);
     };
 
     const onScroll = (event: any) => {
@@ -410,6 +421,13 @@ export function FriendsDashboardScreen() {
                 onClose={() => setAddFriendMenuVisible(false)}
                 onAddSingle={handleAddSingle}
                 onAddBatch={handleAddBatch}
+            />
+
+            <UsernameSearchSheet
+                visible={weaveUserSearchVisible}
+                onClose={() => setWeaveUserSearchVisible(false)}
+                onFriendCreated={handleWeaveUserAdded}
+                onAddManually={handleAddManually}
             />
 
             <FriendPickerSheet

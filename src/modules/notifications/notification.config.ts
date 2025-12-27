@@ -150,6 +150,33 @@ export const NOTIFICATION_CONFIG: Record<string, NotificationConfigItem> = {
         limits: {
             dailyBudgetCost: 0
         }
+    },
+    "link-request": {
+        id: "link-request",
+        name: "Friend Link Requests",
+        description: "Notifications for incoming friend link requests",
+        enabled: true,
+        schedule: {
+            type: "interval",
+            hours: 1,
+            startHour: 9
+        },
+        templates: {
+            default: {
+                title: "{{name}} wants to connect 🔗",
+                body: "Accept their link request to share weaves together."
+            },
+            accepted: {
+                title: "You're now linked with {{name}}! 🎉",
+                body: "You can now share weaves and see each other's updates."
+            }
+        },
+        availableVariables: {
+            "name": "The display name of the requester"
+        },
+        limits: {
+            dailyBudgetCost: 0
+        }
     }
 };
 

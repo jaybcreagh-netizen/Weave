@@ -19,7 +19,7 @@ export function AddFriendMenu({
   onAddSingle,
   onAddBatch,
 }: AddFriendMenuProps) {
-  const { colors, isDarkMode } = useTheme();
+  const { colors } = useTheme();
 
   const handleAddSingle = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -41,6 +41,7 @@ export function AddFriendMenu({
       height="action"
     >
       <View className="p-6 gap-3">
+        {/* Add Single Friend - Opens search-first sheet */}
         <TouchableOpacity
           className="flex-row items-center gap-3 py-3.5 px-4 rounded-xl"
           style={{ backgroundColor: colors.primary }}
@@ -53,11 +54,12 @@ export function AddFriendMenu({
               Add Single Friend
             </Text>
             <Text className="text-xs mt-0.5" style={{ color: colors['primary-foreground'], opacity: 0.8 }}>
-              Full profile with all details
+              Search Weave or add manually
             </Text>
           </View>
         </TouchableOpacity>
 
+        {/* Batch Add from Contacts */}
         <TouchableOpacity
           className="flex-row items-center gap-3 py-3.5 px-4 rounded-xl border"
           style={{

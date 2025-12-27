@@ -10,11 +10,17 @@ import {
     MessageSquare,
     Shield,
     FileText,
-    Sparkles
+    Sparkles,
+    User,
+    LogOut,
 } from 'lucide-react-native';
 
 // Modals
 import { FeedbackModal } from '../FeedbackModal';
+
+// Feature flags and auth
+import { isFeatureEnabled } from '@/shared/config/feature-flags';
+import { getCurrentSession, signOut } from '@/modules/auth/services/supabase-auth.service';
 
 interface GeneralSettingsProps {
     onClose: () => void;
@@ -25,9 +31,12 @@ export const GeneralSettings: React.FC<GeneralSettingsProps> = ({ onClose }) => 
 
     const [showFeedbackModal, setShowFeedbackModal] = useState(false);
     const [smartDefaultsEnabled, setSmartDefaultsEnabled] = useState(true);
+    const [isSignedIn, setIsSignedIn] = useState(false);
+    const [userEmail, setUserEmail] = useState<string | undefined>();
 
     useEffect(() => {
         loadSettings();
+        checkAuthStatus();
     }, []);
 
     const loadSettings = async () => {
@@ -35,13 +44,70 @@ export const GeneralSettings: React.FC<GeneralSettingsProps> = ({ onClose }) => 
         setSmartDefaultsEnabled(smartDefaultsStr ? JSON.parse(smartDefaultsStr) : true);
     };
 
+    const checkAuthStatus = async () => {
+        if (!isFeatureEnabled('ACCOUNT_UI_ENABLED')) return;
+        const session = await getCurrentSession();
+        console.log('[Settings] Auth status:', session ? 'signed in' : 'signed out', session?.email);
+        setIsSignedIn(session !== null);
+        setUserEmail(session?.email);
+    };
+
     const handleToggleSmartDefaults = async (enabled: boolean) => {
         setSmartDefaultsEnabled(enabled);
         await AsyncStorage.setItem('@weave:smart_defaults_enabled', JSON.stringify(enabled));
     };
 
+    const handleSignOut = async () => {
+        console.log('[Settings] Signing out...');
+        const result = await signOut();
+        console.log('[Settings] Sign out result:', result);
+        setIsSignedIn(false);
+        setUserEmail(undefined);
+    };
+
     return (
         <View className="gap-4">
+            {/* Account Section - Only show if feature is enabled */}
+            {isFeatureEnabled('ACCOUNT_UI_ENABLED') && (
+                <>
+                    <Text className="text-xs font-inter-semibold uppercase tracking-wide mb-2" style={{ color: colors['muted-foreground'] }}>
+                        Account
+                    </Text>
+
+                    {isSignedIn ? (
+                        <>
+                            <SettingsItem
+                                icon={User}
+                                title="Your Profile"
+                                subtitle={userEmail || 'Edit username and display name'}
+                                onPress={() => {
+                                    onClose();
+                                    router.push('/profile');
+                                }}
+                            />
+                            <SettingsItem
+                                icon={LogOut}
+                                title="Sign Out"
+                                subtitle="Sign out of your account"
+                                onPress={handleSignOut}
+                            />
+                        </>
+                    ) : (
+                        <SettingsItem
+                            icon={User}
+                            title="Sign In"
+                            subtitle="Create an account to share weaves"
+                            onPress={() => {
+                                onClose();
+                                router.push('/auth');
+                            }}
+                        />
+                    )}
+
+                    <View className="border-t border-border" style={{ borderColor: colors.border }} />
+                </>
+            )}
+
             {/* Community / Management */}
             <SettingsItem
                 icon={Sparkles}
@@ -103,3 +169,4 @@ export const GeneralSettings: React.FC<GeneralSettingsProps> = ({ onClose }) => 
         </View>
     );
 };
+

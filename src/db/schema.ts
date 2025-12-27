@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb'
 
 export default appSchema({
-  version: 45, // UPDATED: Added index to dunbar_tier
+  version: 46, // UPDATED: Friend Linking - linked_user_id, link_status, linked_at
   tables: [
     tableSchema({
       name: 'oracle_insights',
@@ -65,7 +65,10 @@ export default appSchema({
         { name: 'tier_fit_last_calculated', type: 'number', isOptional: true }, // When tier fit was last calculated
         { name: 'suggested_tier', type: 'string', isOptional: true }, // AI-suggested tier based on patterns
         { name: 'tier_suggestion_dismissed_at', type: 'number', isOptional: true }, // When user dismissed tier suggestion
-
+        // NEW v46: Friend Linking - Connect local friends to Weave user accounts
+        { name: 'linked_user_id', type: 'string', isOptional: true, isIndexed: true }, // Supabase user_profiles.id
+        { name: 'link_status', type: 'string', isOptional: true }, // 'pending_sent' | 'pending_received' | 'linked' | 'declined'
+        { name: 'linked_at', type: 'number', isOptional: true }, // When link was established
       ]
     }),
     tableSchema({
