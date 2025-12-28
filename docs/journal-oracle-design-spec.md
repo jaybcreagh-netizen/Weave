@@ -26,7 +26,8 @@ This document specifies the evolution of Weave's journal system from a text-base
 9. [System Prompts](#9-system-prompts)
 10. [Implementation Roadmap](#10-implementation-roadmap)
 11. [Success Metrics](#11-success-metrics)
-12. [Appendix: Competitive Analysis](#appendix-competitive-analysis)
+12. [Context Optimization & Storage Architecture](#12-context-optimization--storage-architecture)
+13. [Appendix: Competitive Analysis](#appendix-competitive-analysis)
 
 ---
 
@@ -1366,7 +1367,7 @@ RULES:
 
 ---
 
-## Appendix: Competitive Analysis
+## 13. Appendix: Competitive Analysis
 
 ### Apple Journal (v3.0) Comparison
 
@@ -1406,11 +1407,385 @@ RULES:
 
 ---
 
+## 12. Context Optimization & Storage Architecture
+
+This section defines how to efficiently gather, structure, and cache context data for LLM consumption.
+
+### 12.1 Tiered Context Architecture
+
+The Oracle requires **layered context** at different granularities. Not all requests need full context—use the minimum required to reduce token costs and improve response latency.
+
+#### Tier 1: Essential Context (Always Include)
+
+| Data | Source | Purpose |
+|------|--------|---------|
+| Friend archetypes | `Friend.archetype` | Tailor tone (Hermit = depth, Sun = celebration) |
+| Dunbar tiers | `Friend.dunbarTier` | Different expectations per tier |
+| Weave scores | `Friend.weaveScore` | Current health of relationships |
+| Days since last interaction | Computed from `Interaction.interactionDate` | Drift detection |
+| Social season | `UserProfile.currentSocialSeason` | Adjusts advice intensity |
+| Social battery | `UserProfile.socialBatteryCurrent` | Energy-aware suggestions |
+
+**Estimated tokens:** ~200-400
+
+#### Tier 2: Pattern Context (Include for Insights/Consultations)
+
+| Data | Source | Purpose |
+|------|--------|---------|
+| Recent interaction vibes | `Interaction.vibe` (last 5-10) | Trend detection |
+| Story chips frequency | `Interaction.reflection.chips` | Theme identification |
+| Initiation ratio | `Friend.initiationRatio` | Reciprocity insights |
+| Category effectiveness | `Friend.categoryEffectiveness` | What works for this friend |
+| Typical interval days | `Friend.typicalIntervalDays` | Natural rhythm of relationship |
+
+**Estimated tokens:** ~400-800 additional
+
+#### Tier 3: Rich Context (Include for Deep Consultations/Dialogue)
+
+| Data | Source | Purpose |
+|------|--------|---------|
+| Journal entry content (summarized) | `JournalEntry.content` | Emotional context |
+| Life events | `LifeEvent` table | Anniversary/birthday awareness |
+| Weekly reflection gratitude | `WeeklyReflection.gratitudeText` | What user values |
+| Tier fit indicators | `Friend.tierFitScore` + `suggestedTier` | Relationship evolution |
+| Detected themes | `Friend.detectedThemesRaw` | Recurring patterns |
+
+**Estimated tokens:** ~800-1500 additional
+
+### 12.2 Context Payload Schema
+
+```typescript
+// src/modules/reflection/services/oracle/context-types.ts
+
+export interface OracleContextPayload {
+  // Meta
+  tokensEstimate: number;
+  contextTier: 'essential' | 'pattern' | 'rich';
+  generatedAt: number;
+  validUntil: number;
+
+  // User State (always included)
+  userState: {
+    socialSeason: 'Resting' | 'Balanced' | 'Blooming';
+    batteryLevel: 1 | 2 | 3 | 4 | 5;
+    weeklyWeaveCount: number;
+    currentStreak: number;
+    lastReflectionDate?: number;
+  };
+
+  // Friends (anonymized but identifiable within session)
+  friends: FriendContext[];
+
+  // Pre-computed insights (reduce LLM reasoning burden)
+  computedInsights: {
+    driftingFriends: string[];       // Friend IDs needing attention
+    thrivingRelationships: string[]; // Friend IDs doing well
+    dominantThemes: string[];        // Most frequent story chips (top 5)
+    reciprocityImbalances: string[]; // Friends with skewed initiation
+    tierMismatches: string[];        // Friends whose patterns don't match tier
+  };
+
+  // Recent activity (sliding window) - Tier 2+
+  recentActivity?: {
+    interactions: InteractionSummary[]; // Last 7-14 days
+    journalSnippets?: JournalSnippet[]; // Last 3-5 entries (Tier 3 only)
+  };
+}
+
+export interface FriendContext {
+  id: string;                    // Use ID, not name (privacy)
+  archetype: Archetype;
+  tier: Tier;
+  weaveScore: number;
+  healthStatus: 'thriving' | 'stable' | 'needs-attention' | 'drifting';
+  daysSinceContact: number;
+  momentum: 'rising' | 'stable' | 'declining';
+  themes: string[];              // Top 3 story chip themes for this friend
+  effectiveCategories?: string[];// What works with them (Tier 2+)
+  journalSentiment?: number;     // Last journal sentiment (Tier 3)
+  needsAttention?: boolean;      // Flagged for attention (Tier 3)
+}
+
+export interface InteractionSummary {
+  friendId: string;
+  category: string;
+  vibe: string;
+  daysSinceNow: number;
+  hadReflection: boolean;
+  chipHighlights: string[];      // Top 2-3 chips
+}
+
+export interface JournalSnippet {
+  entryDate: number;
+  contentPreview: string;        // First 150 chars
+  friendIds: string[];
+  sentiment?: number;
+  themes: string[];
+}
+```
+
+### 12.3 Context Presentation Principles
+
+1. **Pre-compute patterns** — Don't make the LLM do arithmetic. Calculate derived values before sending:
+   - `daysSinceContact` instead of raw dates
+   - `healthStatus: 'needs-attention'` instead of just `weaveScore: 32`
+   - `momentum: 'declining'` based on score trajectory
+
+2. **Use semantic labels** — Alongside numeric values, include human-readable classifications:
+   ```typescript
+   {
+     weaveScore: 67,
+     healthStatus: 'stable',  // Derived from score thresholds
+     momentum: 'rising'       // Derived from score delta over 14 days
+   }
+   ```
+
+3. **Structured grounding data** — Oracle responses must cite specific data:
+   ```typescript
+   interface GroundedInsight {
+     claim: string;
+     grounding: GroundingCitation[];
+   }
+
+   interface GroundingCitation {
+     type: 'stat' | 'friend' | 'pattern' | 'entry';
+     description: string;    // Human-readable
+     data: unknown;          // Raw data for verification
+   }
+   ```
+
+4. **Progressive context loading** — Start minimal, expand as needed:
+   - Proactive insights → Tier 1 only
+   - Single-turn consultation → Tier 1 + Tier 2
+   - Guided dialogue → All tiers
+
+5. **Privacy-preserving but relational** — Use friend IDs (not names) but maintain consistency within a session so the Oracle can reference "Friend A" coherently.
+
+### 12.4 Required Schema Additions
+
+#### New Tables
+
+```typescript
+// Add to src/db/schema.ts
+
+// 1. Cache precomputed context (saves LLM costs, improves latency)
+tableSchema({
+  name: 'oracle_context_cache',
+  columns: [
+    { name: 'context_type', type: 'string' },        // 'weekly' | 'friend' | 'full'
+    { name: 'friend_id', type: 'string', isOptional: true, isIndexed: true },
+    { name: 'payload_json', type: 'string' },        // Serialized OracleContextPayload
+    { name: 'tokens_estimate', type: 'number' },
+    { name: 'valid_until', type: 'number', isIndexed: true },
+    { name: 'created_at', type: 'number' },
+  ]
+}),
+
+// 2. Store extracted signals from journal entries (Intelligence Feedback Loop)
+tableSchema({
+  name: 'journal_signals',
+  columns: [
+    { name: 'journal_entry_id', type: 'string', isIndexed: true },
+    { name: 'sentiment', type: 'number' },           // -2 to +2
+    { name: 'sentiment_label', type: 'string' },     // tense|concerned|neutral|positive|grateful
+    { name: 'core_themes_json', type: 'string' },    // JSON array of CoreTheme
+    { name: 'emergent_themes_json', type: 'string' },// JSON array of freeform themes
+    { name: 'dynamics_json', type: 'string' },       // JSON: reciprocity, depth, tension, etc.
+    { name: 'confidence', type: 'number' },          // 0-1
+    { name: 'extracted_at', type: 'number' },
+    { name: 'extractor_version', type: 'string' },   // Track prompt version for reprocessing
+  ]
+}),
+
+// 3. Store Oracle consultations (enables history, "Save to Journal")
+tableSchema({
+  name: 'oracle_consultations',
+  columns: [
+    { name: 'question', type: 'string' },
+    { name: 'response', type: 'string' },
+    { name: 'grounding_data_json', type: 'string' }, // JSON array of GroundingCitation
+    { name: 'context_tier_used', type: 'string' },   // Which tier was used
+    { name: 'tokens_used', type: 'number' },
+    { name: 'saved_to_journal', type: 'boolean' },
+    { name: 'journal_entry_id', type: 'string', isOptional: true },
+    { name: 'created_at', type: 'number', isIndexed: true },
+  ]
+}),
+```
+
+#### New Friend Model Fields
+
+Add these fields to the `friends` table schema (migration required):
+
+```typescript
+// Intelligence feedback from journal entries
+{ name: 'detected_themes_raw', type: 'string', isOptional: true },      // JSON array of detected themes
+{ name: 'last_journal_sentiment', type: 'number', isOptional: true },   // -2 to +2
+{ name: 'journal_mention_count', type: 'number', isOptional: true },    // Total mentions in journal
+{ name: 'reflection_activity_score', type: 'number', isOptional: true },// Computed engagement score
+{ name: 'needs_attention', type: 'boolean', isOptional: true },         // Flagged for dashboard
+```
+
+### 12.5 Context Builder Service (Enhanced)
+
+```typescript
+// src/modules/reflection/services/oracle/enhanced-context-builder.ts
+
+export class EnhancedContextBuilder {
+  constructor(private database: Database) {}
+
+  /**
+   * Build context at the specified tier level
+   * Checks cache first, rebuilds if stale
+   */
+  async buildContext(
+    tier: 'essential' | 'pattern' | 'rich',
+    friendId?: string
+  ): Promise<OracleContextPayload> {
+    // 1. Check cache
+    const cached = await this.getCachedContext(tier, friendId);
+    if (cached && cached.validUntil > Date.now()) {
+      return cached;
+    }
+
+    // 2. Build fresh context
+    const context = await this.buildFreshContext(tier, friendId);
+
+    // 3. Cache for future use
+    await this.cacheContext(context, tier, friendId);
+
+    return context;
+  }
+
+  /**
+   * Invalidate cache when data changes
+   * Call after: interaction logged, journal saved, friend updated
+   */
+  async invalidateCache(scope: 'all' | 'friend', friendId?: string): Promise<void> {
+    // Delete relevant cache entries
+  }
+
+  private async buildFreshContext(
+    tier: 'essential' | 'pattern' | 'rich',
+    friendId?: string
+  ): Promise<OracleContextPayload> {
+    const userState = await this.buildUserState();
+    const friends = await this.buildFriendContexts(tier, friendId);
+    const computedInsights = this.computeInsights(friends);
+
+    const payload: OracleContextPayload = {
+      tokensEstimate: this.estimateTokens(tier),
+      contextTier: tier,
+      generatedAt: Date.now(),
+      validUntil: Date.now() + this.getTTL(tier),
+      userState,
+      friends,
+      computedInsights,
+    };
+
+    // Add Tier 2+ data
+    if (tier !== 'essential') {
+      payload.recentActivity = await this.buildRecentActivity(tier === 'rich');
+    }
+
+    return payload;
+  }
+
+  private getTTL(tier: 'essential' | 'pattern' | 'rich'): number {
+    // Essential context can be cached longer (less volatile)
+    switch (tier) {
+      case 'essential': return 30 * 60 * 1000;  // 30 minutes
+      case 'pattern':   return 15 * 60 * 1000;  // 15 minutes
+      case 'rich':      return 5 * 60 * 1000;   // 5 minutes
+    }
+  }
+
+  private estimateTokens(tier: 'essential' | 'pattern' | 'rich'): number {
+    switch (tier) {
+      case 'essential': return 400;
+      case 'pattern':   return 1000;
+      case 'rich':      return 2000;
+    }
+  }
+
+  private computeInsights(friends: FriendContext[]): OracleContextPayload['computedInsights'] {
+    return {
+      driftingFriends: friends
+        .filter(f => f.healthStatus === 'drifting')
+        .map(f => f.id),
+      thrivingRelationships: friends
+        .filter(f => f.healthStatus === 'thriving')
+        .map(f => f.id),
+      dominantThemes: this.aggregateThemes(friends),
+      reciprocityImbalances: friends
+        .filter(f => /* initiation ratio < 0.3 or > 0.7 */)
+        .map(f => f.id),
+      tierMismatches: friends
+        .filter(f => f.tierFitScore && f.tierFitScore < 0.5)
+        .map(f => f.id),
+    };
+  }
+}
+```
+
+### 12.6 Cache Invalidation Strategy
+
+| Event | Invalidation Scope |
+|-------|-------------------|
+| Interaction logged | `all` (affects stats, patterns) |
+| Journal entry saved | `all` (affects themes, sentiment) |
+| Friend updated (score, tier) | `friend` (specific friend) |
+| Weekly reflection completed | `all` (affects insights) |
+| Social battery check-in | `all` (affects user state) |
+
+Implement via event bus or direct calls after database writes:
+
+```typescript
+// After logging an interaction
+await database.write(async () => {
+  await interaction.update(...);
+});
+await EnhancedContextBuilder.invalidateCache('all');
+```
+
+### 12.7 Implementation Checklist
+
+**Phase 1: Schema & Models**
+- [ ] Add `oracle_context_cache` table to schema
+- [ ] Add `journal_signals` table to schema
+- [ ] Add `oracle_consultations` table to schema
+- [ ] Add Friend intelligence fields via migration
+- [ ] Create corresponding WatermelonDB models
+- [ ] Update Friend model with getters for `detectedThemes`
+
+**Phase 2: Context Builder**
+- [ ] Create `OracleContextPayload` type definitions
+- [ ] Implement `EnhancedContextBuilder` service
+- [ ] Add cache read/write/invalidate methods
+- [ ] Integrate cache invalidation into existing write paths
+- [ ] Add token estimation logic
+
+**Phase 3: Signal Extraction**
+- [ ] Create `JournalIntelligenceService`
+- [ ] Implement LLM-based signal extraction
+- [ ] Implement rule-based fallback extraction
+- [ ] Connect to journal save flow (async, non-blocking)
+- [ ] Update Friend intelligence fields from extracted signals
+
+**Phase 4: Integration**
+- [ ] Update `OracleService` to use `EnhancedContextBuilder`
+- [ ] Add context tier selection based on request type
+- [ ] Implement grounding citation generation
+- [ ] Add observability (latency, cache hit rate, token usage)
+
+---
+
 ## Document History
 
 | Version | Date | Changes |
 |---------|------|---------|
 | 1.0 | Dec 2024 | Initial specification |
+| 1.1 | Dec 2024 | Added Section 12: Context Optimization & Storage Architecture |
 
 ---
 
