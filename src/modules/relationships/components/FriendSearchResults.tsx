@@ -1,6 +1,6 @@
 import React, { useMemo, useEffect } from 'react';
 import { View, Text, Dimensions } from 'react-native';
-import Animated, { useAnimatedRef, runOnUI } from 'react-native-reanimated';
+import Animated, { useAnimatedRef } from 'react-native-reanimated';
 import { FlashList } from '@shopify/flash-list';
 import withObservables from '@nozbe/with-observables';
 import { Q } from '@nozbe/watermelondb';
@@ -53,9 +53,10 @@ const AnimatedSearchResultItem = React.memo(({
   const animatedRef = useAnimatedRef<Animated.View>();
 
   useEffect(() => {
-    runOnUI(registerRef)(item.id, animatedRef);
+    // Register refs on JS thread (not UI thread) to preserve animated ref identity
+    registerRef(item.id, animatedRef);
     return () => {
-      runOnUI(unregisterRef)(item.id);
+      unregisterRef(item.id);
     };
   }, [item.id, animatedRef, registerRef, unregisterRef]);
 

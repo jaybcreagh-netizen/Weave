@@ -1,6 +1,6 @@
-import React, { createContext, useContext, useMemo, useRef, useEffect } from 'react';
+import React, { createContext, useContext, useMemo, useRef, useEffect, useCallback } from 'react';
 import { View, AppState, AppStateStatus } from 'react-native';
-import Animated, { useSharedValue, useAnimatedScrollHandler, runOnJS, measure } from 'react-native-reanimated';
+import Animated, { useSharedValue, useAnimatedScrollHandler, runOnJS, measure, type AnimatedRef } from 'react-native-reanimated';
 import { Gesture } from 'react-native-gesture-handler';
 import * as Haptics from 'expo-haptics';
 
@@ -12,7 +12,7 @@ interface CardGestureContextType {
   animatedScrollHandler: any;
   activeCardId: Animated.SharedValue<string | null>;
   pendingCardId: Animated.SharedValue<string | null>; // Card being held (before long-press activates)
-  registerRef: (id: string, ref: React.RefObject<any>) => void;
+  registerRef: (id: string, ref: AnimatedRef<Animated.View>) => void;
   unregisterRef: (id: string) => void;
   dragX: Animated.SharedValue<number>;
   dragY: Animated.SharedValue<number>;
@@ -75,7 +75,9 @@ function useCardGestureCoordinator(): CardGestureContextType {
     }
   };
 
-  const cardRefs = useSharedValue<Record<string, React.RefObject<Animated.View>>>({});
+  // Store animated refs in a regular JS object (not shared value) to preserve their special properties
+  // Animated refs lose their identity when stored in shared values
+  const cardRefs = useRef<Record<string, AnimatedRef<Animated.View>>>({});
   const scrollOffset = useSharedValue(0);
   const activeCardId = useSharedValue<string | null>(null);
   const pendingCardId = useSharedValue<string | null>(null); // Track which card is being held before activation
@@ -127,27 +129,29 @@ function useCardGestureCoordinator(): CardGestureContextType {
     }
   };
 
-  const registerRef = (id: string, ref: React.RefObject<Animated.View>) => {
-    'worklet';
-    cardRefs.value[id] = ref;
-  };
+  // Register/unregister refs on the JS thread (not worklets) to preserve animated ref identity
+  const registerRef = useCallback((id: string, ref: AnimatedRef<Animated.View>) => {
+    cardRefs.current[id] = ref;
+  }, []);
 
-  const unregisterRef = (id: string) => {
-    'worklet';
-    delete cardRefs.value[id];
-  };
+  const unregisterRef = useCallback((id: string) => {
+    delete cardRefs.current[id];
+  }, []);
 
   const animatedScrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => { 'worklet'; scrollOffset.value = event.contentOffset.y; },
   });
 
+  // Find target card at given coordinates - runs on UI thread via worklet
+  // Uses measure() with animated refs to get layout measurements
   const findTargetCardId = (absoluteX: number, absoluteY: number) => {
     'worklet';
-    const cardIds = Object.keys(cardRefs.value);
+    const cardIds = Object.keys(cardRefs.current);
     for (const id of cardIds) {
-      const ref = cardRefs.value[id];
-      // Cast to any to satisfy Reanimated's measure type requirement, assuming ref is valid
-      const measurement = measure(ref as any);
+      const ref = cardRefs.current[id];
+      if (!ref) continue;
+      // measure() from Reanimated works with animated refs in worklets
+      const measurement = measure(ref);
       if (measurement === null) continue;
       const { pageX: x, pageY: y, width, height } = measurement;
       if (absoluteX >= x && absoluteX <= x + width && absoluteY >= y && absoluteY <= y + height) {
