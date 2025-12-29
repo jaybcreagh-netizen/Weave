@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb'
 
 export default appSchema({
-  version: 51, // v51 Offline Push Queue
+  version: 52, // v52 Server Link ID for offline link sync
   tables: [
     tableSchema({
       name: 'oracle_insights',
@@ -67,8 +67,10 @@ export default appSchema({
         { name: 'tier_suggestion_dismissed_at', type: 'number', isOptional: true }, // When user dismissed tier suggestion
         // NEW v46: Friend Linking - Connect local friends to Weave user accounts
         { name: 'linked_user_id', type: 'string', isOptional: true, isIndexed: true }, // Supabase user_profiles.id
-        { name: 'link_status', type: 'string', isOptional: true }, // 'pending_sent' | 'pending_received' | 'linked' | 'declined'
+        { name: 'link_status', type: 'string', isOptional: true }, // 'pending_sync' | 'pending_sent' | 'pending_received' | 'linked' | 'declined'
         { name: 'linked_at', type: 'number', isOptional: true }, // When link was established
+        // NEW v52: Server link ID for offline sync
+        { name: 'server_link_id', type: 'string', isOptional: true }, // Server-side friend_links.id
         // NEW v47: Messaging app integration - contact linking
         { name: 'phone_number', type: 'string', isOptional: true },
         { name: 'email', type: 'string', isOptional: true },

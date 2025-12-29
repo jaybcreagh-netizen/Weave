@@ -4,7 +4,7 @@
  * Public API for sync functionality.
  */
 
-// Services
+// Action Queue Service (offline operation queue)
 export {
     enqueueOperation,
     startProcessing,
@@ -12,12 +12,24 @@ export {
     getQueueStats,
     retryFailed,
     clearOldCompleted,
-} from './services/sync-engine.service';
+} from './services/action-queue.service';
+
+// Data Replication Service (moved from auth module)
+export {
+    DataReplicationService,
+    SyncEngine, // Legacy alias
+    createDataReplicationService,
+    createSyncEngine, // Legacy alias
+    triggerAutoSync,
+} from './services/data-replication.service';
 
 export {
     executeShareWeave,
     executeAcceptWeave,
     executeDeclineWeave,
+    executeSendLinkRequest,
+    executeAcceptLinkRequest,
+    executeDeclineLinkRequest,
 } from './services/sync-operations';
 
 export {
@@ -25,6 +37,8 @@ export {
     unsubscribeFromRealtime,
     onIncomingWeave,
     onIncomingLink,
+    getRealtimeStatus,
+    forceReconnect,
 } from './services/realtime.service';
 
 export {

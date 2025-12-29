@@ -124,15 +124,18 @@ export const InteractionActions = {
                 reflection: updates.reflectionJSON ? JSON.parse(updates.reflectionJSON) : oldData.reflection,
             };
 
-            // Fetch associated friends
+            // Fetch associated friends for score recalculation
             const interactionFriends = await interaction.interactionFriends.fetch();
 
-            // Recalculate for each friend, SKIPPING those we just added OR removed
-            for (const iFriend of interactionFriends) {
-                if (addedFriendIds.includes(iFriend.friendId)) continue;
-                if (removedFriendIds.includes(iFriend.friendId)) continue;
-                await recalculateScoreOnEdit(iFriend.friendId, oldData, newData, database);
-            }
+            // Recalculate scores in parallel for remaining friends (SKIP added/removed)
+            const recalcPromises = interactionFriends
+                .filter((iFriend: InteractionFriend) =>
+                    !addedFriendIds.includes(iFriend.friendId) &&
+                    !removedFriendIds.includes(iFriend.friendId)
+                )
+                .map((iFriend: InteractionFriend) => recalculateScoreOnEdit(iFriend.friendId, oldData, newData, database));
+
+            await Promise.all(recalcPromises);
         }
 
         // 3. Update Interaction Record
@@ -200,7 +203,7 @@ export const InteractionActions = {
 
 
                 if (shouldSync) {
-                    const { enqueueOperation } = await import('@/modules/sync/services/sync-engine.service');
+                    const { enqueueOperation } = await import('@/modules/sync/services/action-queue.service');
                     await enqueueOperation('update_shared_weave', syncPayload);
                 }
             }

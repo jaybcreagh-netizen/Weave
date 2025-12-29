@@ -27,9 +27,25 @@ GoogleSignin.configure({
 // TYPES
 // ═══════════════════════════════════════════════════════════════════
 
+/**
+ * Error codes for auth operations
+ * Used for programmatic error handling in UI
+ */
+export type AuthErrorCode =
+    | 'CANCELLED'           // User cancelled the flow
+    | 'RATE_LIMITED'        // Too many attempts
+    | 'INVALID_PHONE'       // Phone number format invalid
+    | 'INVALID_OTP'         // OTP code incorrect or expired
+    | 'NETWORK_ERROR'       // Network connectivity issue
+    | 'NOT_CONFIGURED'      // Supabase not configured
+    | 'NOT_AUTHENTICATED'   // User not logged in
+    | 'ALREADY_EXISTS'      // Account already exists
+    | 'UNKNOWN';            // Unknown error
+
 export interface AuthResult {
     success: boolean;
     error?: string;
+    errorCode?: AuthErrorCode;
     userId?: string;
 }
 
@@ -37,6 +53,68 @@ export interface UserSession {
     userId: string;
     email?: string;
     displayName?: string;
+}
+
+/**
+ * Classify a Supabase error into a specific error code
+ */
+function classifyAuthError(error: any): { code: AuthErrorCode; message: string } {
+    const msg = error?.message?.toLowerCase() || '';
+    const errorCode = error?.code || error?.status || '';
+
+    // Rate limiting
+    if (msg.includes('rate limit') || msg.includes('too many') || errorCode === 429) {
+        return {
+            code: 'RATE_LIMITED',
+            message: 'Too many attempts. Please wait a few minutes and try again.',
+        };
+    }
+
+    // Invalid phone format
+    if (msg.includes('invalid') && (msg.includes('phone') || msg.includes('number'))) {
+        return {
+            code: 'INVALID_PHONE',
+            message: 'Please enter a valid phone number with country code (e.g., +1234567890).',
+        };
+    }
+
+    // OTP errors
+    if (msg.includes('otp') || msg.includes('token') || msg.includes('code')) {
+        if (msg.includes('expired')) {
+            return {
+                code: 'INVALID_OTP',
+                message: 'Code expired. Please request a new one.',
+            };
+        }
+        if (msg.includes('invalid') || msg.includes('incorrect')) {
+            return {
+                code: 'INVALID_OTP',
+                message: 'Invalid code. Please check and try again.',
+            };
+        }
+    }
+
+    // Network errors
+    if (msg.includes('network') || msg.includes('fetch') || msg.includes('connection') || msg.includes('offline')) {
+        return {
+            code: 'NETWORK_ERROR',
+            message: 'Please check your internet connection and try again.',
+        };
+    }
+
+    // Account exists
+    if (msg.includes('already') || msg.includes('exists') || msg.includes('duplicate')) {
+        return {
+            code: 'ALREADY_EXISTS',
+            message: 'An account with this phone number already exists.',
+        };
+    }
+
+    // Unknown error
+    return {
+        code: 'UNKNOWN',
+        message: error?.message || 'An unexpected error occurred. Please try again.',
+    };
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -195,17 +273,33 @@ export async function signInWithGoogle(): Promise<AuthResult> {
  */
 export async function signInWithPhone(phone: string): Promise<AuthResult> {
     const client = getSupabaseClient();
-    if (!client) return { success: false, error: 'Supabase not available' };
+    if (!client) {
+        return { success: false, error: 'Supabase not available', errorCode: 'NOT_CONFIGURED' };
+    }
+
+    // Basic phone format validation
+    if (!phone || phone.length < 10 || !phone.startsWith('+')) {
+        return {
+            success: false,
+            error: 'Please enter a valid phone number with country code (e.g., +1234567890).',
+            errorCode: 'INVALID_PHONE',
+        };
+    }
 
     try {
         const { error } = await client.auth.signInWithOtp({
             phone,
         });
 
-        if (error) throw error;
+        if (error) {
+            const classified = classifyAuthError(error);
+            return { success: false, error: classified.message, errorCode: classified.code };
+        }
+
         return { success: true };
     } catch (error: any) {
-        return { success: false, error: error.message };
+        const classified = classifyAuthError(error);
+        return { success: false, error: classified.message, errorCode: classified.code };
     }
 }
 
@@ -214,7 +308,9 @@ export async function signInWithPhone(phone: string): Promise<AuthResult> {
  */
 export async function verifyPhoneOtp(phone: string, token: string): Promise<AuthResult> {
     const client = getSupabaseClient();
-    if (!client) return { success: false, error: 'Supabase not available' };
+    if (!client) {
+        return { success: false, error: 'Supabase not available', errorCode: 'NOT_CONFIGURED' };
+    }
 
     try {
         const { data, error } = await client.auth.verifyOtp({
@@ -223,7 +319,10 @@ export async function verifyPhoneOtp(phone: string, token: string): Promise<Auth
             type: 'sms',
         });
 
-        if (error) throw error;
+        if (error) {
+            const classified = classifyAuthError(error);
+            return { success: false, error: classified.message, errorCode: classified.code };
+        }
 
         // Ensure profile exists
         if (data.user) {
@@ -240,7 +339,8 @@ export async function verifyPhoneOtp(phone: string, token: string): Promise<Auth
 
         return { success: true, userId: data.user?.id };
     } catch (error: any) {
-        return { success: false, error: error.message };
+        const classified = classifyAuthError(error);
+        return { success: false, error: classified.message, errorCode: classified.code };
     }
 }
 

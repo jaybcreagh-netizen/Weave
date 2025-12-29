@@ -5,10 +5,11 @@
  */
 
 import { database } from '@/db';
+import { Q } from '@nozbe/watermelondb';
 import Interaction from '@/db/models/Interaction';
 import SharedWeaveRef from '@/db/models/SharedWeaveRef';
 import Friend from '@/db/models/Friend';
-import { enqueueOperation } from './sync-engine.service';
+import { enqueueOperation } from './action-queue.service';
 import { getSupabaseClient } from '@/shared/services/supabase-client';
 import { logger } from '@/shared/services/logger.service';
 
@@ -28,15 +29,11 @@ export async function shareWeave({ interactionId, linkedFriendIds }: ShareWeaveO
             throw new Error('Interaction not found');
         }
 
-        // Get linked friends to get their Supabase user IDs
-        const friendsCollection = database.get<Friend>('friends');
-        const linkedFriends = await Promise.all(
-            linkedFriendIds.map(id => friendsCollection.find(id))
-        );
+        // Get linked friends using the optimized helper
+        const linkedFriends = await getLinkedFriendsFromIds(linkedFriendIds);
 
-        // Filter to only friends with linked user IDs
+        // Filter to only friends with linked user IDs (helper already does this, but keeping map for safety/types)
         const participantUserIds = linkedFriends
-            .filter(f => f.linkedUserId)
             .map(f => f.linkedUserId as string);
 
         if (participantUserIds.length === 0) {
@@ -119,18 +116,18 @@ export async function getShareStatus(interactionId: string): Promise<{
  * Get linked friends from a list of friend IDs
  */
 export async function getLinkedFriendsFromIds(friendIds: string[]): Promise<Friend[]> {
-    const friendsCollection = database.get<Friend>('friends');
-    const friends = await Promise.all(
-        friendIds.map(async id => {
-            try {
-                return await friendsCollection.find(id);
-            } catch {
-                return null;
-            }
-        })
-    );
+    if (!friendIds || friendIds.length === 0) {
+        return [];
+    }
 
-    return friends.filter((f): f is Friend =>
-        f !== null && f.linkStatus === 'linked' && !!f.linkedUserId
+    const friendsCollection = database.get<Friend>('friends');
+
+    // Use a single batched query instead of N+1 individual lookups
+    const friends = await friendsCollection
+        .query(Q.where('id', Q.oneOf(friendIds)))
+        .fetch();
+
+    return friends.filter(f =>
+        f.linkStatus === 'linked' && !!f.linkedUserId
     );
 }

@@ -37,7 +37,7 @@ export function ArchetypeCompatibilityBadge({
             case 'high':
                 return colors.primary + '20';
             case 'medium':
-                return '#8b5cf6' + '20';
+                return '#8b5cf6' + '20'; // Keep violet for medium to distinguish from primary/low
             case 'low':
                 return colors['muted-foreground'] + '20';
         }

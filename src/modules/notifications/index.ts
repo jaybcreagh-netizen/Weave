@@ -30,6 +30,7 @@ export * from './services/channels/deepening-nudge';
 // Re-export Permissions Service for compat if needed, 
 // but try to use the hook or Orchestrator methods.
 export * from './services/permission.service';
+export * from './services/push-token.service';
 export * from './services/notification-grace-periods';
 
 // Components

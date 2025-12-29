@@ -12,6 +12,17 @@ export {
   batchAddFriends,
 } from './services/friend.service';
 export {
+  searchUsersByUsername,
+  sendLinkRequest,
+  createLinkedFriend,
+  getPendingIncomingRequests,
+  acceptLinkRequest,
+  declineLinkRequest,
+  unlinkFriend,
+  type WeaveUserSearchResult,
+  type LinkRequest,
+} from './services/friend-linking.service';
+export {
   checkAndApplyDormancy,
   reactivateFriend,
 } from './services/lifecycle.service';

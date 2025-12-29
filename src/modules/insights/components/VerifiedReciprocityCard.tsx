@@ -49,12 +49,12 @@ export function VerifiedReciprocityCard({ analysis, friendName }: VerifiedRecipr
     const getBalanceColor = () => {
         switch (analysis.balance) {
             case 'balanced':
-                return '#22c55e';
+                return '#22c55e'; // Success green - keep standard unless theme has specific token
             case 'slightly-imbalanced':
-                return '#eab308';
+                return '#eab308'; // Warning yellow
             case 'very-imbalanced':
             case 'one-sided':
-                return '#ef4444';
+                return colors.destructive;
             default:
                 return colors['muted-foreground'];
         }

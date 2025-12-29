@@ -6,7 +6,7 @@
 import { create } from 'zustand';
 import { supabase } from '../services/supabase.service';
 import type { User, Session } from '@supabase/supabase-js';
-import type { SubscriptionTier } from '../services/subscription-tiers';
+import { hasFeatureAccess, isAtLimit, TIER_LIMITS, type SubscriptionTier } from '../services/subscription-tiers';
 
 interface UserSubscription {
   tier: SubscriptionTier;
@@ -251,12 +251,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 /**
  * Hook to check feature access
  * Returns true if user has access to the feature
+ * Fails secure: unknown features or inactive subscriptions default to restricted
  */
-export function useFeatureAccess(feature: string): boolean {
+export function useFeatureAccess(feature: keyof typeof TIER_LIMITS.free): boolean {
   const tier = useAuthStore(state => state.getTier());
-  // Import and use hasFeatureAccess from subscription-tiers.ts
-  // This is a placeholder - implement based on your feature gating logic
-  return true;
+  const isActive = useAuthStore(state => state.isSubscriptionActive());
+
+  // If subscription is canceled/past_due, treat as free tier
+  const effectiveTier = isActive ? tier : 'free';
+
+  return hasFeatureAccess(effectiveTier, feature);
 }
 
 /**
@@ -267,15 +271,21 @@ export function useUsageStats() {
 }
 
 /**
- * Hook to check if at limit
+ * Hook to check if at limit for friends or weaves
  */
 export function useIsAtLimit(feature: 'friends' | 'weaves'): boolean {
   const tier = useAuthStore(state => state.getTier());
+  const isActive = useAuthStore(state => state.isSubscriptionActive());
   const usage = useAuthStore(state => state.usage);
 
   if (!usage) return false;
 
-  // Implement limit checking based on tier and usage
-  // This is a placeholder
-  return false;
+  // If subscription is not active, use free tier limits
+  const effectiveTier = isActive ? tier : 'free';
+
+  if (feature === 'friends') {
+    return isAtLimit(effectiveTier, 'maxFriends', usage.friendsCount);
+  } else {
+    return isAtLimit(effectiveTier, 'maxWeavesPerMonth', usage.weavesThisMonth);
+  }
 }

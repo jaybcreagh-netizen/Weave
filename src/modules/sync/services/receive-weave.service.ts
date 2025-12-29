@@ -9,7 +9,7 @@ import Interaction from '@/db/models/Interaction';
 import InteractionFriend from '@/db/models/InteractionFriend';
 import SharedWeaveRef from '@/db/models/SharedWeaveRef';
 import Friend from '@/db/models/Friend';
-import { enqueueOperation } from './sync-engine.service';
+import { enqueueOperation } from './action-queue.service';
 import { getSupabaseClient } from '@/shared/services/supabase-client';
 import { logger } from '@/shared/services/logger.service';
 import { Q } from '@nozbe/watermelondb';

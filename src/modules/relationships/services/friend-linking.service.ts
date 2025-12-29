@@ -374,3 +374,69 @@ export async function getPendingRequestCount(): Promise<number> {
         return 0;
     }
 }
+
+/**
+ * Unlink a friend (remove cloud connection, keep local friend record)
+ * 
+ * This allows users to disconnect from a linked friend while maintaining
+ * their local relationship data (notes, history, etc.).
+ * 
+ * @param localFriendId - The local WatermelonDB friend ID
+ * @returns true if successful, false otherwise
+ */
+export async function unlinkFriend(localFriendId: string): Promise<boolean> {
+    const client = getSupabaseClient();
+    if (!client) {
+        console.error('[FriendLinking] No Supabase client');
+        return false;
+    }
+
+    const session = await getCurrentSession();
+    if (!session) {
+        console.error('[FriendLinking] Not authenticated');
+        return false;
+    }
+
+    try {
+        // Get friend to check if linked
+        const friend = await database.get<Friend>('friends').find(localFriendId);
+
+        if (!friend.linkedUserId) {
+            console.log('[FriendLinking] Friend is not linked, nothing to unlink');
+            return true; // Already unlinked
+        }
+
+        // Update server link to unlinked status
+        const { error: serverError } = await client
+            .from('friend_links')
+            .update({
+                status: 'unlinked',
+                unlinked_at: new Date().toISOString(),
+            })
+            .or(`user_a_id.eq.${session.userId},user_b_id.eq.${session.userId}`)
+            .or(`user_a_id.eq.${friend.linkedUserId},user_b_id.eq.${friend.linkedUserId}`)
+            .in('status', ['pending', 'accepted']);
+
+        if (serverError) {
+            console.warn('[FriendLinking] Server unlink failed (continuing with local):', serverError);
+            // Continue anyway - local unlink is more important for UX
+        }
+
+        // Update local friend to remove linking
+        await database.write(async () => {
+            await friend.update(f => {
+                f.linkedUserId = undefined;
+                f.linkStatus = undefined;
+                f.linkedAt = undefined;
+                f.serverLinkId = undefined;
+            });
+        });
+
+        console.log('[FriendLinking] Friend unlinked successfully', { friendId: localFriendId });
+        return true;
+    } catch (error) {
+        console.error('[FriendLinking] Exception unlinking friend:', error);
+        return false;
+    }
+}
+

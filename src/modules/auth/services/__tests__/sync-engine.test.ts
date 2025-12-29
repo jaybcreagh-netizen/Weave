@@ -1,4 +1,4 @@
-import { SyncEngine } from '../sync-engine';
+import { SyncEngine } from '@/modules/sync/services/data-replication.service';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Mock dependencies
@@ -14,7 +14,7 @@ jest.mock('@/db', () => ({
     },
 }));
 
-jest.mock('../supabase.service', () => ({
+jest.mock('@/modules/auth/services/supabase.service', () => ({
     supabase: {
         from: jest.fn(),
     },

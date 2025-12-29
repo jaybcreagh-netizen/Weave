@@ -78,6 +78,17 @@ export const AnalyticsEvents = {
 
   // Errors
   ERROR_OCCURRED: 'error_occurred',
+
+  // Shared Weaves (Phase 4)
+  SHARED_WEAVE_CREATED: 'shared_weave_created',
+  SHARED_WEAVE_ACCEPTED: 'shared_weave_accepted',
+  SHARED_WEAVE_DECLINED: 'shared_weave_declined',
+  SHARED_WEAVE_FAILED: 'shared_weave_failed',
+
+  // Friend Linking
+  FRIEND_LINK_SENT: 'friend_link_sent',
+  FRIEND_LINK_ACCEPTED: 'friend_link_accepted',
+  FRIEND_LINK_DECLINED: 'friend_link_declined',
 } as const;
 
 export type AnalyticsEvent = typeof AnalyticsEvents[keyof typeof AnalyticsEvents];

@@ -24,9 +24,17 @@ export * from './hooks/useSyncSettings';
 
 // Services
 export * from './services/supabase.service';
+export * from './services/supabase-auth.service';
 export * from './services/social-battery.service';
 
-export * from './services/sync-engine';
+// Data Replication (re-exported from sync module for backwards compatibility)
+export {
+    DataReplicationService,
+    SyncEngine, // Legacy alias
+    createDataReplicationService,
+    createSyncEngine, // Legacy alias
+    triggerAutoSync,
+} from '@/modules/sync';
 export * from './services/background-event-sync';
 export * from './services/data-export';
 export * from './services/data-import';

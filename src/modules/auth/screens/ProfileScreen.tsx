@@ -8,7 +8,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, Alert, ScrollView, KeyboardAvoidingView, Platform, TouchableOpacity, ActivityIndicator, Modal } from 'react-native';
+import { View, Alert, ScrollView, KeyboardAvoidingView, Platform, TouchableOpacity, ActivityIndicator, Modal } from 'react-native';
 import { router } from 'expo-router';
 import { User, AtSign, Edit3, Check, X, ChevronLeft, Camera, Cake, Sparkles, ChevronRight, Eye, LogOut } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
@@ -20,11 +20,11 @@ import { Button } from '@/shared/ui/Button';
 import { Input } from '@/shared/ui/Input';
 import { CachedImage } from '@/shared/ui/CachedImage';
 import { useTheme } from '@/shared/hooks/useTheme';
-import { getCurrentSession, getUserProfile } from '@/modules/auth/services/supabase-auth.service';
+import { getCurrentSession, getUserProfile } from '@/modules/auth';
 import { getSupabaseClient } from '@/shared/services/supabase-client';
-import { ArchetypeCarouselPicker } from '@/modules/intelligence/components/archetypes/ArchetypeCarouselPicker';
+import { ArchetypeCarouselPicker } from '@/modules/intelligence';
 import { archetypeData } from '@/shared/constants/constants';
-import { unregisterPushToken } from '@/modules/notifications/services/push-token.service';
+import { unregisterPushToken } from '@/modules/notifications';
 import type { Archetype } from '@/shared/types/common';
 
 export function ProfileScreen() {
@@ -62,13 +62,6 @@ export function ProfileScreen() {
             setShowArchetypePicker(false);
         };
     }, []);
-
-    // Debug: Track when archetype picker is shown
-    useEffect(() => {
-        if (showArchetypePicker) {
-            console.log('[ProfileScreen] showArchetypePicker became true, stack:', new Error().stack);
-        }
-    }, [showArchetypePicker]);
 
     useEffect(() => {
         loadProfile();
@@ -321,7 +314,7 @@ export function ProfileScreen() {
 
     if (loading) {
         return (
-            <View style={[styles.container, { backgroundColor: colors.background }]}>
+            <View className="flex-1 items-center justify-center" style={{ backgroundColor: colors.background }}>
                 <ActivityIndicator size="large" color={colors.primary} />
             </View>
         );
@@ -329,71 +322,74 @@ export function ProfileScreen() {
 
     return (
         <KeyboardAvoidingView
-            style={[styles.container, { backgroundColor: colors.background }]}
+            className="flex-1"
+            style={{ backgroundColor: colors.background }}
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
             {/* Header */}
-            <View style={[styles.header, { borderBottomColor: colors.border }]}>
+            <View className="flex-row items-center justify-between px-2 pt-14 pb-4 border-b" style={{ borderColor: colors.border }}>
                 <Button
                     variant="ghost"
                     onPress={() => router.back()}
                     icon={<ChevronLeft size={24} color={colors.foreground} />}
                 />
-                <Text variant="h2" style={styles.headerTitle}>Edit Profile</Text>
+                <Text variant="h2" className="flex-1 text-center">Edit Profile</Text>
                 <View style={{ width: 44 }} />
             </View>
 
             <ScrollView
-                style={styles.content}
-                contentContainerStyle={styles.contentContainer}
+                className="flex-1"
+                contentContainerStyle={{ padding: 20, paddingBottom: 40 }}
                 showsVerticalScrollIndicator={false}
             >
                 {/* Photo Section */}
-                <View style={styles.photoSection}>
+                <View className="items-center mb-8">
                     <TouchableOpacity
                         onPress={handlePickPhoto}
                         disabled={uploadingPhoto}
-                        style={[styles.photoContainer, { borderColor: colors.border }]}
+                        className="w-32 h-32 rounded-full border-4 overflow-hidden relative"
+                        style={{ borderColor: colors.border }}
                     >
                         {photoUrl ? (
-                            <CachedImage source={{ uri: photoUrl }} style={styles.photo} />
+                            <CachedImage source={{ uri: photoUrl }} className="w-full h-full" />
                         ) : (
-                            <View style={[styles.photoPlaceholder, { backgroundColor: colors.muted }]}>
+                            <View className="w-full h-full items-center justify-center" style={{ backgroundColor: colors.muted }}>
                                 <User size={48} color={colors['muted-foreground']} />
                             </View>
                         )}
                         {uploadingPhoto && (
-                            <View style={styles.uploadingOverlay}>
+                            <View className="absolute inset-0 bg-black/50 items-center justify-center">
                                 <ActivityIndicator color="#FFFFFF" />
                             </View>
                         )}
-                        <View style={[styles.cameraIcon, { backgroundColor: colors.primary }]}>
+                        <View className="absolute bottom-0 right-0 w-9 h-9 rounded-full items-center justify-center" style={{ backgroundColor: colors.primary }}>
                             <Camera size={16} color="#FFFFFF" />
                         </View>
                     </TouchableOpacity>
                 </View>
 
                 {/* Identity Section */}
-                <View style={styles.section}>
-                    <Text variant="caption" style={[styles.sectionTitle, { color: colors['muted-foreground'] }]}>
+                <View className="mb-6">
+                    <Text variant="caption" className="text-xs font-semibold tracking-widest mb-2 ml-1" style={{ color: colors['muted-foreground'] }}>
                         IDENTITY
                     </Text>
 
-                    <View style={[styles.sectionCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                    <View className="rounded-xl border overflow-hidden" style={{ backgroundColor: colors.card, borderColor: colors.border }}>
                         {/* Username */}
-                        <View style={styles.fieldRow}>
-                            <View style={styles.fieldLabel}>
+                        <View className="flex-row items-center justify-between py-3.5 px-4">
+                            <View className="flex-row items-center gap-2.5">
                                 <AtSign size={18} color={colors['muted-foreground']} />
                                 <Text style={{ color: colors['muted-foreground'] }}>Username</Text>
                             </View>
-                            <View style={styles.fieldValue}>
+                            <View className="flex-row items-center gap-2 flex-1 justify-end">
                                 <Input
                                     value={username}
                                     onChangeText={handleUsernameChange}
                                     placeholder="username"
                                     autoCapitalize="none"
                                     autoCorrect={false}
-                                    style={[styles.inlineInput, { color: colors.foreground }]}
+                                    className="flex-1 text-right border-0 bg-transparent p-0"
+                                    style={{ color: colors.foreground }}
                                 />
                                 {checkingUsername && (
                                     <ActivityIndicator size="small" color={colors['muted-foreground']} />
@@ -407,20 +403,21 @@ export function ProfileScreen() {
                             </View>
                         </View>
 
-                        <View style={[styles.divider, { backgroundColor: colors.border }]} />
+                        <View className="h-px ml-11" style={{ backgroundColor: colors.border }} />
 
                         {/* Display Name */}
-                        <View style={styles.fieldRow}>
-                            <View style={styles.fieldLabel}>
+                        <View className="flex-row items-center justify-between py-3.5 px-4">
+                            <View className="flex-row items-center gap-2.5">
                                 <Edit3 size={18} color={colors['muted-foreground']} />
                                 <Text style={{ color: colors['muted-foreground'] }}>Display Name</Text>
                             </View>
-                            <View style={styles.fieldValue}>
+                            <View className="flex-row items-center gap-2 flex-1 justify-end">
                                 <Input
                                     value={displayName}
                                     onChangeText={setDisplayName}
                                     placeholder="Your Name"
-                                    style={[styles.inlineInput, { color: colors.foreground }]}
+                                    className="flex-1 text-right border-0 bg-transparent p-0"
+                                    style={{ color: colors.foreground }}
                                 />
                             </View>
                         </View>
@@ -428,22 +425,22 @@ export function ProfileScreen() {
                 </View>
 
                 {/* Personal Section */}
-                <View style={styles.section}>
-                    <Text variant="caption" style={[styles.sectionTitle, { color: colors['muted-foreground'] }]}>
+                <View className="mb-6">
+                    <Text variant="caption" className="text-xs font-semibold tracking-widest mb-2 ml-1" style={{ color: colors['muted-foreground'] }}>
                         PERSONAL
                     </Text>
 
-                    <View style={[styles.sectionCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                    <View className="rounded-xl border overflow-hidden" style={{ backgroundColor: colors.card, borderColor: colors.border }}>
                         {/* Birthday */}
                         <TouchableOpacity
-                            style={styles.fieldRow}
+                            className="flex-row items-center justify-between py-3.5 px-4"
                             onPress={() => setShowDatePicker(true)}
                         >
-                            <View style={styles.fieldLabel}>
+                            <View className="flex-row items-center gap-2.5">
                                 <Cake size={18} color={colors['muted-foreground']} />
                                 <Text style={{ color: colors['muted-foreground'] }}>Birthday</Text>
                             </View>
-                            <View style={styles.fieldValue}>
+                            <View className="flex-row items-center gap-2 flex-1 justify-end">
                                 <Text style={{ color: birthday ? colors.foreground : colors['muted-foreground'] }}>
                                     {formatBirthday(birthday)}
                                 </Text>
@@ -451,18 +448,18 @@ export function ProfileScreen() {
                             </View>
                         </TouchableOpacity>
 
-                        <View style={[styles.divider, { backgroundColor: colors.border }]} />
+                        <View className="h-px ml-11" style={{ backgroundColor: colors.border }} />
 
                         {/* Archetype */}
                         <TouchableOpacity
-                            style={styles.fieldRow}
+                            className="flex-row items-center justify-between py-3.5 px-4"
                             onPress={() => setShowArchetypePicker(true)}
                         >
-                            <View style={styles.fieldLabel}>
+                            <View className="flex-row items-center gap-2.5">
                                 <Sparkles size={18} color={colors['muted-foreground']} />
                                 <Text style={{ color: colors['muted-foreground'] }}>Archetype</Text>
                             </View>
-                            <View style={styles.fieldValue}>
+                            <View className="flex-row items-center gap-2 flex-1 justify-end">
                                 <Text style={{ color: archetype ? colors.foreground : colors['muted-foreground'] }}>
                                     {archetype ? archetypeData[archetype]?.name || archetype : 'Not set'}
                                 </Text>
@@ -470,20 +467,20 @@ export function ProfileScreen() {
                             </View>
                         </TouchableOpacity>
 
-                        <View style={[styles.divider, { backgroundColor: colors.border }]} />
+                        <View className="h-px ml-11" style={{ backgroundColor: colors.border }} />
 
                         {/* Take Quiz */}
                         <TouchableOpacity
-                            style={styles.fieldRow}
+                            className="flex-row items-center justify-between py-3.5 px-4"
                             onPress={() => router.push('/archetype-quiz')}
                         >
-                            <View style={styles.fieldLabel}>
+                            <View className="flex-row items-center gap-2.5">
                                 <Sparkles size={18} color={colors.primary} />
                                 <Text style={{ color: colors.primary, fontWeight: '500' }}>
                                     {archetype ? 'Retake Quiz' : 'Take the Quiz'}
                                 </Text>
                             </View>
-                            <View style={styles.fieldValue}>
+                            <View className="flex-row items-center gap-2 flex-1 justify-end">
                                 <Text variant="caption" style={{ color: colors['muted-foreground'] }}>
                                     60 seconds
                                 </Text>
@@ -499,34 +496,31 @@ export function ProfileScreen() {
                     label={saving ? 'Saving...' : 'Save Changes'}
                     onPress={handleSave}
                     disabled={!hasChanges || saving || usernameAvailable === false}
-                    style={styles.saveButton}
+                    className="mt-2"
                 />
 
                 {/* Account Section */}
-                <View style={[styles.section, { marginTop: 24 }]}>
-                    <Text style={[styles.sectionTitle, { color: colors['muted-foreground'] }]}>
+                <View className="mt-6 mb-6">
+                    <Text className="text-xs font-semibold tracking-widest mb-2 ml-1" style={{ color: colors['muted-foreground'] }}>
                         ACCOUNT
                     </Text>
 
-                    <View style={{
+                    <View className="rounded-xl border overflow-hidden" style={{
                         backgroundColor: colors.card,
                         borderColor: colors.border,
-                        borderWidth: 1,
-                        borderRadius: 12,
-                        overflow: 'hidden',
                     }}>
                         {/* Profile Visibility */}
                         <TouchableOpacity
-                            style={styles.fieldRow}
+                            className="flex-row items-center justify-between py-3.5 px-4"
                             onPress={() => router.push('/visibility-settings')}
                         >
-                            <View style={styles.fieldLabel}>
+                            <View className="flex-row items-center gap-2">
                                 <Eye size={20} color={colors.primary} style={{ marginRight: 8 }} />
                                 <Text style={{ color: colors.foreground }}>
                                     Profile Visibility
                                 </Text>
                             </View>
-                            <View style={styles.fieldValue}>
+                            <View className="flex-row items-center gap-2 flex-1 justify-end">
                                 <Text variant="caption" style={{ color: colors['muted-foreground'] }}>
                                     Control what friends see
                                 </Text>
@@ -534,20 +528,20 @@ export function ProfileScreen() {
                             </View>
                         </TouchableOpacity>
 
-                        <View style={[styles.divider, { backgroundColor: colors.border }]} />
+                        <View className="h-px ml-11" style={{ backgroundColor: colors.border }} />
 
                         {/* Sign Out */}
                         <TouchableOpacity
-                            style={styles.fieldRow}
+                            className="flex-row items-center justify-between py-3.5 px-4"
                             onPress={handleSignOut}
                         >
-                            <View style={styles.fieldLabel}>
+                            <View className="flex-row items-center gap-2">
                                 <LogOut size={20} color={colors.destructive} style={{ marginRight: 8 }} />
                                 <Text style={{ color: colors.destructive }}>
                                     Sign Out
                                 </Text>
                             </View>
-                            <View style={styles.fieldValue}>
+                            <View className="flex-row items-center gap-2 flex-1 justify-end">
                                 <Text variant="caption" style={{ color: colors['muted-foreground'] }}>
                                     Data stays on device
                                 </Text>
@@ -566,9 +560,9 @@ export function ProfileScreen() {
                     visible={showDatePicker}
                     onRequestClose={() => setShowDatePicker(false)}
                 >
-                    <View style={styles.modalOverlay}>
-                        <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
-                            <View style={styles.modalHeader}>
+                    <View className="flex-1 justify-end bg-black/50">
+                        <View className="rounded-t-3xl p-5 pb-10" style={{ backgroundColor: colors.card }}>
+                            <View className="flex-row justify-between items-center mb-4">
                                 <Text variant="h3">Select Birthday</Text>
                                 <Button
                                     variant="primary"
@@ -596,8 +590,8 @@ export function ProfileScreen() {
                 presentationStyle="pageSheet"
                 onRequestClose={() => setShowArchetypePicker(false)}
             >
-                <View style={[styles.archetypeModal, { backgroundColor: colors.background }]}>
-                    <View style={styles.archetypeModalHeader}>
+                <View className="flex-1 pt-14" style={{ backgroundColor: colors.background }}>
+                    <View className="flex-row justify-between items-center px-5 mb-5">
                         <Text variant="h2">Choose Your Archetype</Text>
                         <Button
                             variant="ghost"
@@ -617,145 +611,5 @@ export function ProfileScreen() {
         </KeyboardAvoidingView>
     );
 }
-
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-    },
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingHorizontal: 8,
-        paddingTop: 60,
-        paddingBottom: 16,
-        borderBottomWidth: 1,
-    },
-    headerTitle: {
-        flex: 1,
-        textAlign: 'center',
-    },
-    content: {
-        flex: 1,
-    },
-    contentContainer: {
-        padding: 20,
-        paddingBottom: 40,
-    },
-    photoSection: {
-        alignItems: 'center',
-        marginBottom: 32,
-    },
-    photoContainer: {
-        width: 120,
-        height: 120,
-        borderRadius: 60,
-        borderWidth: 3,
-        overflow: 'hidden',
-    },
-    photo: {
-        width: '100%',
-        height: '100%',
-    },
-    photoPlaceholder: {
-        width: '100%',
-        height: '100%',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    uploadingOverlay: {
-        ...StyleSheet.absoluteFillObject,
-        backgroundColor: 'rgba(0,0,0,0.5)',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    cameraIcon: {
-        position: 'absolute',
-        bottom: 0,
-        right: 0,
-        width: 36,
-        height: 36,
-        borderRadius: 18,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    section: {
-        marginBottom: 24,
-    },
-    sectionTitle: {
-        fontSize: 12,
-        fontWeight: '600',
-        letterSpacing: 1,
-        marginBottom: 8,
-        marginLeft: 4,
-    },
-    sectionCard: {
-        borderRadius: 12,
-        borderWidth: 1,
-        overflow: 'hidden',
-    },
-    fieldRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingVertical: 14,
-        paddingHorizontal: 16,
-    },
-    fieldLabel: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 10,
-    },
-    fieldValue: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
-        flex: 1,
-        justifyContent: 'flex-end',
-    },
-    inlineInput: {
-        flex: 1,
-        textAlign: 'right',
-        borderWidth: 0,
-        backgroundColor: 'transparent',
-        paddingVertical: 0,
-        paddingHorizontal: 0,
-    },
-    divider: {
-        height: 1,
-        marginLeft: 44,
-    },
-    saveButton: {
-        marginTop: 8,
-    },
-    modalOverlay: {
-        flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.5)',
-        justifyContent: 'flex-end',
-    },
-    modalContent: {
-        borderTopLeftRadius: 20,
-        borderTopRightRadius: 20,
-        padding: 20,
-        paddingBottom: 40,
-    },
-    modalHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 16,
-    },
-    archetypeModal: {
-        flex: 1,
-        paddingTop: 60,
-    },
-    archetypeModalHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingHorizontal: 20,
-        marginBottom: 20,
-    },
-});
 
 export default ProfileScreen;

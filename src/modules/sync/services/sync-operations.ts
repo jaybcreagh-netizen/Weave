@@ -7,8 +7,10 @@
 import { getSupabaseClient } from '@/shared/services/supabase-client';
 import { database } from '@/db';
 import SharedWeaveRef from '@/db/models/SharedWeaveRef';
+import Friend from '@/db/models/Friend';
 import { logger } from '@/shared/services/logger.service';
 import { PushQueueService } from '@/modules/notifications/services/push-queue.service';
+import { trackEvent, AnalyticsEvents } from '@/shared/services/analytics.service';
 
 // =============================================================================
 // SHARE WEAVE
@@ -91,6 +93,14 @@ export async function executeShareWeave(payload: Record<string, unknown>): Promi
     });
 
     logger.info('SyncOps', 'Shared weave created', { serverWeaveId: sharedWeave.id });
+
+    // Track analytics for observability
+    trackEvent(AnalyticsEvents.SHARED_WEAVE_CREATED, {
+        participant_count: data.participantUserIds.length,
+        has_title: !!data.title,
+        has_location: !!data.location,
+        category: data.category,
+    });
 
     // Send Push Notifications (Phase 4)
     // Using PushQueueService for reliable delivery (handles offline/retries)
@@ -253,6 +263,9 @@ export async function executeAcceptWeave(payload: Record<string, unknown>): Prom
 
     logger.info('SyncOps', 'Accepted shared weave', { sharedWeaveId: data.sharedWeaveId });
 
+    // Track analytics for observability
+    trackEvent(AnalyticsEvents.SHARED_WEAVE_ACCEPTED);
+
     // Notify Creator (Phase 4)
     try {
         const { data: weave } = await client
@@ -325,4 +338,226 @@ export async function executeDeclineWeave(payload: Record<string, unknown>): Pro
     }
 
     logger.info('SyncOps', 'Declined shared weave', { sharedWeaveId: data.sharedWeaveId });
+
+    // Track analytics for observability
+    trackEvent(AnalyticsEvents.SHARED_WEAVE_DECLINED);
+}
+
+// =============================================================================
+// SEND LINK REQUEST
+// =============================================================================
+
+interface SendLinkRequestPayload {
+    localFriendId: string;
+    targetUserId: string;
+    requesterId: string;
+}
+
+/**
+ * Execute a friend link request on the server
+ * Idempotent: Checks for existing pending request before creating
+ */
+export async function executeSendLinkRequest(payload: Record<string, unknown>): Promise<void> {
+    const data = payload as unknown as SendLinkRequestPayload;
+    const client = getSupabaseClient();
+    if (!client) throw new Error('No Supabase client');
+
+    // Idempotency: Check if request already exists
+    const { data: existing } = await client
+        .from('friend_links')
+        .select('id, status')
+        .eq('user_a_id', data.requesterId)
+        .eq('user_b_id', data.targetUserId)
+        .in('status', ['pending', 'accepted'])
+        .maybeSingle();
+
+    if (existing) {
+        logger.info('SyncOps', 'Link request already exists', {
+            existingId: existing.id,
+            status: existing.status
+        });
+        // Update local friend with server link status
+        await updateLocalFriendLinkStatus(
+            data.localFriendId,
+            existing.status === 'accepted' ? 'linked' : 'pending_sent',
+            existing.id
+        );
+        return;
+    }
+
+    // Create new link request
+    const { data: linkData, error } = await client
+        .from('friend_links')
+        .insert({
+            user_a_id: data.requesterId,
+            user_b_id: data.targetUserId,
+            user_a_friend_id: data.localFriendId,
+            initiated_by: data.requesterId,
+            status: 'pending',
+        })
+        .select('id')
+        .single();
+
+    if (error) {
+        // Handle specific errors
+        if (error.code === '23505') {  // Unique violation (race condition)
+            logger.warn('SyncOps', 'Duplicate link request (race condition)', error);
+            return;  // Treat as success
+        }
+        throw new Error(`Failed to create link request: ${error.message}`);
+    }
+
+    // Update local friend with server link ID
+    await updateLocalFriendLinkStatus(data.localFriendId, 'pending_sent', linkData.id);
+
+    logger.info('SyncOps', 'Link request created', { linkId: linkData.id });
+    trackEvent(AnalyticsEvents.FRIEND_LINK_SENT);
+}
+
+// =============================================================================
+// ACCEPT LINK REQUEST
+// =============================================================================
+
+interface AcceptLinkRequestPayload {
+    linkId: string;
+    localFriendId?: string;  // Optional: existing local friend to update
+    requesterUserId: string;
+    tier: 'InnerCircle' | 'CloseFriends' | 'Community';
+    requesterProfile: {
+        displayName: string;
+        photoUrl?: string;
+        archetype?: string;
+        birthday?: string;
+    };
+}
+
+/**
+ * Accept an incoming link request
+ */
+export async function executeAcceptLinkRequest(payload: Record<string, unknown>): Promise<void> {
+    const data = payload as unknown as AcceptLinkRequestPayload;
+    const client = getSupabaseClient();
+    if (!client) throw new Error('No Supabase client');
+
+    const { data: { user } } = await client.auth.getUser();
+    if (!user) throw new Error('Not authenticated');
+
+    // Update link status to accepted
+    const { error } = await client
+        .from('friend_links')
+        .update({
+            status: 'accepted',
+            linked_at: new Date().toISOString(),
+            user_b_friend_id: data.localFriendId,
+        })
+        .eq('id', data.linkId);
+
+    if (error) {
+        throw new Error(`Failed to accept link request: ${error.message}`);
+    }
+
+    // Update/create local friend
+    await database.write(async () => {
+        if (data.localFriendId) {
+            try {
+                const friend = await database.get<Friend>('friends').find(data.localFriendId);
+                await friend.update(f => {
+                    f.linkedUserId = data.requesterUserId;
+                    f.linkStatus = 'linked';
+                    f.linkedAt = Date.now();
+                    if (data.requesterProfile.photoUrl && !f.photoUrl) {
+                        f.photoUrl = data.requesterProfile.photoUrl;
+                    }
+                    if (data.requesterProfile.birthday && !f.birthday) {
+                        f.birthday = data.requesterProfile.birthday;
+                    }
+                });
+            } catch {
+                logger.warn('SyncOps', 'Local friend not found for accept', { friendId: data.localFriendId });
+            }
+        } else {
+            // Create new friend from linked user
+            await database.get<Friend>('friends').create(friend => {
+                friend.name = data.requesterProfile.displayName;
+                friend.dunbarTier = data.tier;
+                friend.archetype = (data.requesterProfile.archetype as any) || 'Hermit';
+                friend.weaveScore = 50;
+                friend.photoUrl = data.requesterProfile.photoUrl;
+                friend.birthday = data.requesterProfile.birthday;
+                friend.lastUpdated = new Date();
+                friend.resilience = 0;
+                friend.ratedWeavesCount = 0;
+                friend.momentumScore = 0;
+                friend.momentumLastUpdated = new Date();
+                friend.isDormant = false;
+                friend.outcomeCount = 0;
+                friend.initiationRatio = 0.5;
+                friend.consecutiveUserInitiations = 0;
+                friend.totalUserInitiations = 0;
+                friend.totalFriendInitiations = 0;
+                friend.linkedUserId = data.requesterUserId;
+                friend.linkStatus = 'linked';
+                friend.linkedAt = Date.now();
+            });
+        }
+    });
+
+    logger.info('SyncOps', 'Accepted link request', { linkId: data.linkId });
+    trackEvent(AnalyticsEvents.FRIEND_LINK_ACCEPTED);
+}
+
+// =============================================================================
+// DECLINE LINK REQUEST
+// =============================================================================
+
+interface DeclineLinkRequestPayload {
+    linkId: string;
+}
+
+/**
+ * Decline an incoming link request
+ */
+export async function executeDeclineLinkRequest(payload: Record<string, unknown>): Promise<void> {
+    const data = payload as unknown as DeclineLinkRequestPayload;
+    const client = getSupabaseClient();
+    if (!client) throw new Error('No Supabase client');
+
+    const { error } = await client
+        .from('friend_links')
+        .update({ status: 'declined' })
+        .eq('id', data.linkId);
+
+    if (error) {
+        throw new Error(`Failed to decline link request: ${error.message}`);
+    }
+
+    logger.info('SyncOps', 'Declined link request', { linkId: data.linkId });
+    trackEvent(AnalyticsEvents.FRIEND_LINK_DECLINED);
+}
+
+// =============================================================================
+// HELPER: Update Local Friend Link Status
+// =============================================================================
+
+/**
+ * Helper to update local friend link status after sync
+ */
+async function updateLocalFriendLinkStatus(
+    friendId: string,
+    status: string,
+    serverLinkId?: string
+): Promise<void> {
+    await database.write(async () => {
+        try {
+            const friend = await database.get<Friend>('friends').find(friendId);
+            await friend.update(f => {
+                f.linkStatus = status as any;
+                if (serverLinkId) {
+                    f.serverLinkId = serverLinkId;
+                }
+            });
+        } catch {
+            logger.warn('SyncOps', 'Friend not found for status update', { friendId });
+        }
+    });
 }

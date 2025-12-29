@@ -69,8 +69,9 @@ export default class Friend extends Model {
 
   // Friend Linking (v46) - Connect to Weave user accounts
   @text('linked_user_id') linkedUserId?: string // Supabase user_profiles.id
-  @text('link_status') linkStatus?: 'pending_sent' | 'pending_received' | 'linked' | 'declined'
+  @text('link_status') linkStatus?: 'pending_sync' | 'pending_sent' | 'pending_received' | 'linked' | 'declined'
   @field('linked_at') linkedAt?: number // When link was established
+  @text('server_link_id') serverLinkId?: string // Server-side friend_links.id for updates
 
   // Messaging app integration (v47)
   @text('phone_number') phoneNumber?: string // E.164 format preferred

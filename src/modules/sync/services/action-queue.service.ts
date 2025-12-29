@@ -1,8 +1,12 @@
 /**
- * Sync Engine Service
+ * Action Queue Service
  * 
- * Offline-first sync engine that processes queued operations when online.
+ * Offline-first queue for sync operations (share/accept/decline weave).
  * Handles retry logic with exponential backoff.
+ * 
+ * NOTE: Renamed from sync-engine.service.ts for clarity.
+ * This service handles the OFFLINE ACTION QUEUE for specific operations.
+ * For full data replication of tables, see data-replication.service.ts
  */
 
 import { database } from '@/db';
@@ -10,6 +14,7 @@ import SyncQueueItem, { SyncOperationType, SyncStatus } from '@/db/models/SyncQu
 import { Q } from '@nozbe/watermelondb';
 import { getSupabaseClient } from '@/shared/services/supabase-client';
 import { logger } from '@/shared/services/logger.service';
+import { trackEvent, AnalyticsEvents } from '@/shared/services/analytics.service';
 import * as Network from 'expo-network';
 
 // Configuration
@@ -51,7 +56,7 @@ export async function enqueueOperation(
         itemId = item.id;
     });
 
-    logger.info('SyncEngine', `Enqueued operation: ${operationType}`, { itemId });
+    logger.info('ActionQueue', `Enqueued operation: ${operationType}`, { itemId });
 
     // Trigger processing in background
     startProcessing();
@@ -70,7 +75,7 @@ export function startProcessing(): void {
 
     // Fire and forget
     processQueue().catch(error => {
-        logger.error('SyncEngine', 'Queue processing failed:', error);
+        logger.error('ActionQueue', 'Queue processing failed:', error);
     });
 }
 
@@ -84,39 +89,51 @@ export async function processQueue(): Promise<void> {
     }
 
     isProcessing = true;
+    const BATCH_SIZE = 50;
 
     processingPromise = (async () => {
         try {
             // Check network connectivity
             const netState = await Network.getNetworkStateAsync();
             if (!netState.isConnected) {
-                logger.info('SyncEngine', 'Offline - skipping queue processing');
+                logger.info('ActionQueue', 'Offline - skipping queue processing');
                 return;
             }
 
             // Check if Supabase client is available
             const client = getSupabaseClient();
             if (!client) {
-                logger.warn('SyncEngine', 'No Supabase client - skipping queue processing');
+                logger.warn('ActionQueue', 'No Supabase client - skipping queue processing');
                 return;
             }
 
-            // Fetch pending items
             const queueCollection = database.get<SyncQueueItem>('sync_queue');
-            const pendingItems = await queueCollection
-                .query(Q.where('status', 'pending'), Q.sortBy('queued_at', Q.asc))
-                .fetch();
+            let hasMore = true;
 
-            if (pendingItems.length === 0) {
-                logger.debug('SyncEngine', 'No pending items to process');
-                return;
-            }
+            // Process in batches to prevent OOM on large queues
+            while (hasMore) {
+                const pendingItems = await queueCollection
+                    .query(
+                        Q.where('status', 'pending'),
+                        Q.sortBy('queued_at', Q.asc),
+                        Q.take(BATCH_SIZE)
+                    )
+                    .fetch();
 
-            logger.info('SyncEngine', `Processing ${pendingItems.length} pending items`);
+                if (pendingItems.length === 0) {
+                    logger.debug('ActionQueue', 'No pending items to process');
+                    break;
+                }
 
-            // Process each item
-            for (const item of pendingItems) {
-                await processItem(item);
+                logger.info('ActionQueue', `Processing batch of ${pendingItems.length} pending items`);
+
+                // Process each item in the batch
+                for (const item of pendingItems) {
+                    await processItem(item);
+                }
+
+                // Continue if we got a full batch (more items may exist)
+                hasMore = pendingItems.length === BATCH_SIZE;
             }
 
         } finally {
@@ -138,7 +155,7 @@ async function processItem(item: SyncQueueItem): Promise<void> {
         const timeSinceLastAttempt = Date.now() - (item.processedAt || item.queuedAt);
 
         if (timeSinceLastAttempt < delay) {
-            logger.debug('SyncEngine', `Skipping ${item.id} - backoff not elapsed`);
+            logger.debug('ActionQueue', `Skipping ${item.id} - backoff not elapsed`);
             return;
         }
     }
@@ -162,13 +179,13 @@ async function processItem(item: SyncQueueItem): Promise<void> {
             });
         });
 
-        logger.info('SyncEngine', `Completed: ${item.operationType}`, { itemId: item.id });
+        logger.info('ActionQueue', `Completed: ${item.operationType}`, { itemId: item.id });
 
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         const newRetryCount = item.retryCount + 1;
 
-        logger.warn('SyncEngine', `Failed: ${item.operationType}`, {
+        logger.warn('ActionQueue', `Failed: ${item.operationType}`, {
             itemId: item.id,
             retryCount: newRetryCount,
             error: errorMessage
@@ -184,6 +201,13 @@ async function processItem(item: SyncQueueItem): Promise<void> {
                 // Permanent failure if max retries exceeded
                 if (newRetryCount >= MAX_RETRIES) {
                     record.status = 'failed';
+                    // Track shared weave failures for observability
+                    if (['share_weave', 'accept_weave', 'decline_weave', 'update_shared_weave'].includes(item.operationType)) {
+                        trackEvent(AnalyticsEvents.SHARED_WEAVE_FAILED, {
+                            operation: item.operationType,
+                            error: errorMessage,
+                        });
+                    }
                 } else {
                     record.status = 'pending'; // Back to pending for retry
                 }
@@ -199,7 +223,15 @@ async function executeOperation(
     operationType: SyncOperationType,
     payload: Record<string, unknown>
 ): Promise<void> {
-    const { executeShareWeave, executeAcceptWeave, executeDeclineWeave, executeUpdateSharedWeave } = await import('./sync-operations');
+    const {
+        executeShareWeave,
+        executeAcceptWeave,
+        executeDeclineWeave,
+        executeUpdateSharedWeave,
+        executeSendLinkRequest,
+        executeAcceptLinkRequest,
+        executeDeclineLinkRequest,
+    } = await import('./sync-operations');
 
     switch (operationType) {
         case 'share_weave':
@@ -215,10 +247,13 @@ async function executeOperation(
             await executeUpdateSharedWeave(payload);
             break;
         case 'send_link_request':
+            await executeSendLinkRequest(payload);
+            break;
         case 'accept_link_request':
+            await executeAcceptLinkRequest(payload);
+            break;
         case 'decline_link_request':
-            // These are handled by friend-linking.service.ts directly for now
-            logger.warn('SyncEngine', `Operation ${operationType} should be handled by friend-linking service`);
+            await executeDeclineLinkRequest(payload);
             break;
         default:
             throw new Error(`Unknown operation type: ${operationType}`);
@@ -270,7 +305,7 @@ export async function retryFailed(): Promise<void> {
         await database.batch(...updates);
     });
 
-    logger.info('SyncEngine', `Reset ${failedItems.length} failed items for retry`);
+    logger.info('ActionQueue', `Reset ${failedItems.length} failed items for retry`);
 
     startProcessing();
 }
@@ -298,5 +333,5 @@ export async function clearOldCompleted(maxAgeMs: number = 7 * 24 * 60 * 60 * 10
         await database.batch(...deletes);
     });
 
-    logger.info('SyncEngine', `Cleared ${oldItems.length} old completed items`);
+    logger.info('ActionQueue', `Cleared ${oldItems.length} old completed items`);
 }

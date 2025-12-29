@@ -1091,5 +1091,18 @@ export default schemaMigrations({
         }),
       ],
     },
+    {
+      // Migration from schema v51 to v52
+      // Add server_link_id to friends for offline link sync
+      toVersion: 52,
+      steps: [
+        addColumns({
+          table: 'friends',
+          columns: [
+            { name: 'server_link_id', type: 'string', isOptional: true },
+          ],
+        }),
+      ],
+    },
   ],
 });

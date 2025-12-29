@@ -52,21 +52,31 @@ export function PendingRequestsSheet({
 
     const handleAccept = async (request: LinkRequest) => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        setProcessingId(request.id);
 
-        // For now, create new friend with Community tier
-        // Could prompt for tier selection
-        const success = await acceptLinkRequest(request.id, undefined, 'Community');
+        const processAccept = async (tier: 'InnerCircle' | 'CloseFriends' | 'Community') => {
+            setProcessingId(request.id);
+            const success = await acceptLinkRequest(request.id, undefined, tier);
 
-        if (success) {
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            setRequests(prev => prev.filter(r => r.id !== request.id));
-            onRequestHandled?.();
-        } else {
-            Alert.alert('Error', 'Failed to accept request. Please try again.');
-        }
+            if (success) {
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                setRequests(prev => prev.filter(r => r.id !== request.id));
+                onRequestHandled?.();
+            } else {
+                Alert.alert('Error', 'Failed to accept request. Please try again.');
+            }
+            setProcessingId(null);
+        };
 
-        setProcessingId(null);
+        Alert.alert(
+            'Add Friend',
+            `Which circle does ${request.displayName} belong to?`,
+            [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Community', onPress: () => processAccept('Community') },
+                { text: 'Close Friends', onPress: () => processAccept('CloseFriends') },
+                { text: 'Inner Circle', onPress: () => processAccept('InnerCircle') },
+            ]
+        );
     };
 
     const handleDecline = async (request: LinkRequest) => {

@@ -6,20 +6,20 @@
  */
 
 import React, { useState, useCallback, useEffect } from 'react';
-import { View, TouchableOpacity, ActivityIndicator, FlatList } from 'react-native';
-import { Search, Link, Check } from 'lucide-react-native';
+import { View } from 'react-native';
+import { Search, Link } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 
 import { StandardBottomSheet } from '@/shared/ui/Sheet/StandardBottomSheet';
-import { Text, Input } from '@/shared/ui';
-import { CachedImage } from '@/shared/ui/CachedImage';
+import { Input } from '@/shared/ui';
 import { useTheme } from '@/shared/hooks/useTheme';
 import {
     searchUsersByUsername,
     WeaveUserSearchResult,
     sendLinkRequest
-} from '@/modules/relationships/services/friend-linking.service';
+} from '@/modules/relationships';
 import debounce from 'lodash/debounce';
+import { UserSearchList } from './UserSearchList';
 
 interface LinkFriendSheetProps {
     visible: boolean;
@@ -87,66 +87,6 @@ export function LinkFriendSheet({
         }
     };
 
-    const renderUserItem = ({ item }: { item: WeaveUserSearchResult }) => {
-        const isLinking = linkingUserId === item.id;
-
-        return (
-            <View
-                className="flex-row items-center p-3 rounded-xl mb-2"
-                style={{ backgroundColor: colors.card }}
-            >
-                {/* Profile Photo */}
-                {item.photoUrl ? (
-                    <CachedImage
-                        source={{ uri: item.photoUrl }}
-                        style={{ width: 48, height: 48, borderRadius: 24 }}
-                    />
-                ) : (
-                    <View
-                        className="w-12 h-12 rounded-full items-center justify-center"
-                        style={{ backgroundColor: colors.muted }}
-                    >
-                        <Text className="text-lg font-bold" style={{ color: colors['muted-foreground'] }}>
-                            {item.displayName.charAt(0).toUpperCase()}
-                        </Text>
-                    </View>
-                )}
-
-                {/* User Info */}
-                <View className="flex-1 ml-3">
-                    <Text className="font-semibold" style={{ color: colors.foreground }}>
-                        {item.displayName}
-                    </Text>
-                    <Text className="text-sm" style={{ color: colors['muted-foreground'] }}>
-                        @{item.username}
-                    </Text>
-                </View>
-
-                {/* Link Button */}
-                <TouchableOpacity
-                    className="px-4 py-2 rounded-lg flex-row items-center gap-2"
-                    style={{
-                        backgroundColor: colors.primary,
-                        opacity: isLinking ? 0.5 : 1
-                    }}
-                    onPress={() => handleLink(item)}
-                    disabled={isLinking}
-                >
-                    {isLinking ? (
-                        <ActivityIndicator size="small" color={colors['primary-foreground']} />
-                    ) : (
-                        <>
-                            <Link size={16} color={colors['primary-foreground']} />
-                            <Text className="font-medium" style={{ color: colors['primary-foreground'] }}>
-                                Link
-                            </Text>
-                        </>
-                    )}
-                </TouchableOpacity>
-            </View>
-        );
-    };
-
     return (
         <StandardBottomSheet
             visible={visible}
@@ -172,35 +112,17 @@ export function LinkFriendSheet({
                 </View>
 
                 {/* Results */}
-                {loading ? (
-                    <View className="flex-1 items-center justify-center">
-                        <ActivityIndicator size="large" color={colors.primary} />
-                    </View>
-                ) : results.length > 0 ? (
-                    <FlatList
-                        data={results}
-                        keyExtractor={item => item.id}
-                        renderItem={renderUserItem}
-                        showsVerticalScrollIndicator={false}
-                    />
-                ) : query.length >= 2 ? (
-                    <View className="flex-1 items-center justify-center">
-                        <Link size={40} color={colors['muted-foreground']} />
-                        <Text className="text-center mt-3" style={{ color: colors['muted-foreground'] }}>
-                            No users found matching "{query}"
-                        </Text>
-                    </View>
-                ) : (
-                    <View className="flex-1 items-center justify-center">
-                        <Search size={40} color={colors['muted-foreground']} />
-                        <Text className="text-center mt-3" style={{ color: colors['muted-foreground'] }}>
-                            Search for {friendName}'s Weave account
-                        </Text>
-                        <Text className="text-center text-sm mt-1" style={{ color: colors['muted-foreground'] }}>
-                            They'll get a link request to connect
-                        </Text>
-                    </View>
-                )}
+                <UserSearchList
+                    results={results}
+                    loading={loading}
+                    searchQuery={query}
+                    actionLabel="Link"
+                    onAction={handleLink}
+                    isActionLoading={(id) => linkingUserId === id}
+                    renderActionIcon={(color) => <Link size={16} color={color} />}
+                    emptyStateTitle={`Search for ${friendName}'s Weave account`}
+                    emptyStateSubtitle="They'll get a link request to connect"
+                />
             </View>
         </StandardBottomSheet>
     );
