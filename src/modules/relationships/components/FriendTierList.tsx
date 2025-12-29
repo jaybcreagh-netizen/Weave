@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, Dimensions } from 'react-native';
-import Animated, { useSharedValue, useAnimatedStyle, withDelay, withTiming, useAnimatedRef, runOnUI } from 'react-native-reanimated';
+import Animated, { useSharedValue, useAnimatedStyle, withDelay, withTiming, useAnimatedRef } from 'react-native-reanimated';
 import { FlashList } from '@shopify/flash-list';
 import withObservables from '@nozbe/with-observables';
 
@@ -44,9 +44,10 @@ const AnimatedFriendCardItem = React.memo(({
     const translateY = useSharedValue(hasAnimated.current ? 0 : 25);
 
     useEffect(() => {
-        runOnUI(registerRef)(item.id, animatedRef);
+        // Register refs on JS thread (not UI thread) to preserve animated ref identity
+        registerRef(item.id, animatedRef);
         return () => {
-            runOnUI(unregisterRef)(item.id);
+            unregisterRef(item.id);
         };
     }, [item.id, animatedRef, registerRef, unregisterRef]);
 

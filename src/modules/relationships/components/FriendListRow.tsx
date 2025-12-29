@@ -10,6 +10,7 @@ import Animated, {
   withSpring,
   Easing,
   interpolate,
+  type AnimatedRef,
 } from 'react-native-reanimated';
 
 import { useUIStore } from '@/shared/stores/uiStore';
@@ -49,7 +50,7 @@ const RELATIONSHIP_ICONS: Record<RelationshipType, LucideIcon> = {
 
 interface FriendListRowProps {
   friend: FriendModel;
-  animatedRef?: React.RefObject<Animated.View>;
+  animatedRef?: AnimatedRef<Animated.View>;
   variant?: 'default' | 'full' | 'compact';
   onPress?: (friend: FriendModel) => void;
 }
