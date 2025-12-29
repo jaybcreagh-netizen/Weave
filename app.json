@@ -2,12 +2,12 @@
   "expo": {
     "name": "Weave",
     "slug": "weave",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "updates": {
       "enabled": true,
       "fallbackToCacheTimeout": 0
     },
-    "runtimeVersion": "1.0.1",
+    "runtimeVersion": "1.0.2",
     "icon": "./assets/icon.png",
     "notification": {
       "icon": "./assets/icon.png",
@@ -17,6 +17,13 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.jaycreagh.WeaveNative",
       "infoPlist": {
+        "CFBundleURLTypes": [
+          {
+            "CFBundleURLSchemes": [
+              "com.googleusercontent.apps.969321521100-h5bor0gqkojmc8crq1ee72g4h87lig03"
+            ]
+          }
+        ],
         "ITSAppUsesNonExemptEncryption": false,
         "NSContactsUsageDescription": "Weave uses your contacts to help you select friends to add to your circles.",
         "NSCalendarsUsageDescription": "Weave adds your planned interactions to your calendar so you never miss a connection.",
@@ -74,7 +81,14 @@
     },
     "scheme": "weave",
     "newArchEnabled": false,
-    "extra": {},
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "d9a7a1fe-db3f-4bb8-818a-2b13c5efc6f2"
+      }
+    },
     "plugins": [
       "expo-router",
       "expo-font",
@@ -86,6 +100,7 @@
           "organization": "jay-creagh"
         }
       ]
-    ]
+    ],
+    "owner": "jaycreagh"
   }
 }

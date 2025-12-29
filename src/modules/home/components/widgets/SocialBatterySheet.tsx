@@ -10,7 +10,7 @@ import Slider from '@react-native-community/slider';
 
 import { useTheme } from '@/shared/hooks/useTheme';
 import { AnimatedBottomSheet } from '@/shared/ui/Sheet';
-import { MoonPhaseIllustration } from '@/modules/intelligence';
+import { MoonPhaseIllustration } from '@/modules/intelligence/components/social-season/YearInMoons/MoonPhaseIllustration';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
 interface SocialBatterySheetProps {

@@ -68,36 +68,29 @@ export async function logWeave(data: InteractionFormData): Promise<Interaction> 
         return { interaction: newInteraction };
     });
 
-
     // 2. Run Side Effects (Decoupled via Event Bus)
-    // We emit the event and let subscribers handle scoring, gamification, analytics, etc.
-    // This resolves circular dependencies.
-    try {
-        await eventBus.emit('interaction:created', {
-            interactionId: interaction.id,
-            friends,
-            data
-        });
+    // OPTIMIZATION: Fire-and-forget - the interaction is saved, scoring/gamification can run in background
+    // This gives immediate UI feedback to the user
+    eventBus.emit('interaction:created', {
+        interactionId: interaction.id,
+        friends,
+        data
+    }).catch(error => {
+        Logger.error('[WeaveLogging] Background: Error in event handlers:', error);
+    });
 
-        // Analytics - We keep this here as it's a cross-cutting concern often tied to the action itself,
-        // but it could also be moved to a listener if desired. For now, we leave it to match the plan.
-        trackEvent(AnalyticsEvents.INTERACTION_LOGGED, {
-            activity: data.activity,
-            category: data.category,
-            duration: data.duration,
-            vibe: data.vibe,
-            friends_count: friends.length,
-            has_notes: !!data.notes,
-            has_reflection: !!data.reflection,
-            initiator: data.initiator,
-        });
-        updateLastInteractionTimestamp();
-
-    } catch (error) {
-        Logger.error('Error emitting interaction event:', error);
-        // We do NOT throw here, because the interaction was successfully created.
-    }
-
+    // Analytics - quick and non-blocking
+    trackEvent(AnalyticsEvents.INTERACTION_LOGGED, {
+        activity: data.activity,
+        category: data.category,
+        duration: data.duration,
+        vibe: data.vibe,
+        friends_count: friends.length,
+        has_notes: !!data.notes,
+        has_reflection: !!data.reflection,
+        initiator: data.initiator,
+    });
+    updateLastInteractionTimestamp();
 
     return interaction;
 }

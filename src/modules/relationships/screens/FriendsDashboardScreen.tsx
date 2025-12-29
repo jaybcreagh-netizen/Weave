@@ -35,6 +35,7 @@ import { FriendPickerSheet } from '../components/FriendPickerSheet';
 import { IntentionActionSheet } from '../components/IntentionActionSheet';
 import FriendBadgePopup from '../components/FriendBadgePopup';
 import { UsernameSearchSheet } from '../components/UsernameSearchSheet';
+import { ContactDiscoverySheet } from '../components/ContactDiscoverySheet';
 import { Tier } from '../types';
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -55,6 +56,7 @@ export function FriendsDashboardScreen() {
     const [friendPickerVisible, setFriendPickerVisible] = useState(false);
     const [planWizardFriend, setPlanWizardFriend] = useState<FriendModel | null>(null);
     const [weaveUserSearchVisible, setWeaveUserSearchVisible] = useState(false);
+    const [contactDiscoveryVisible, setContactDiscoveryVisible] = useState(false);
 
     // Search state
     const [searchQuery, setSearchQuery] = useState('');
@@ -421,6 +423,7 @@ export function FriendsDashboardScreen() {
                 onClose={() => setAddFriendMenuVisible(false)}
                 onAddSingle={handleAddSingle}
                 onAddBatch={handleAddBatch}
+                onFindContacts={() => setContactDiscoveryVisible(true)}
             />
 
             <UsernameSearchSheet
@@ -428,6 +431,11 @@ export function FriendsDashboardScreen() {
                 onClose={() => setWeaveUserSearchVisible(false)}
                 onFriendCreated={handleWeaveUserAdded}
                 onAddManually={handleAddManually}
+            />
+
+            <ContactDiscoverySheet
+                visible={contactDiscoveryVisible}
+                onClose={() => setContactDiscoveryVisible(false)}
             />
 
             <FriendPickerSheet

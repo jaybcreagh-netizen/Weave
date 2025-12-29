@@ -6,7 +6,7 @@ import withObservables from '@nozbe/with-observables';
 
 import FriendModel from '@/db/models/Friend';
 import { friendRepository } from '../repositories/friend.repository';
-import { FriendListRow } from '@/modules/relationships';
+import { FriendListRow } from './FriendListRow';
 import { useCardGesture } from '@/shared/context/CardGestureContext';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { WeaveIcon } from '@/shared/components/WeaveIcon';

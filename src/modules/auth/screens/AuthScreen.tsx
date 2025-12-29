@@ -5,10 +5,12 @@
  * Only rendered when ACCOUNTS_ENABLED feature flag is true.
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, Alert, Platform } from 'react-native';
 import * as AppleAuthentication from 'expo-apple-authentication';
+import { GoogleSigninButton } from '@react-native-google-signin/google-signin';
 import { router } from 'expo-router';
+import { Phone } from 'lucide-react-native';
 
 import { Text } from '@/shared/ui/Text';
 import { Button } from '@/shared/ui/Button';
@@ -17,6 +19,7 @@ import { useTheme } from '@/shared/hooks/useTheme';
 import {
     signInWithApple,
     signInWithEmail,
+    signInWithGoogle,
     signUpWithEmail,
     isAppleSignInAvailable,
 } from '@/modules/auth/services/supabase-auth.service';
@@ -32,7 +35,7 @@ export function AuthScreen() {
     const [loading, setLoading] = useState(false);
     const [appleAvailable, setAppleAvailable] = useState(false);
 
-    React.useEffect(() => {
+    useEffect(() => {
         isAppleSignInAvailable().then(setAppleAvailable);
     }, []);
 
@@ -42,7 +45,18 @@ export function AuthScreen() {
         setLoading(false);
 
         if (result.success) {
-            // Navigate to main app or profile setup
+            router.replace('/dashboard');
+        } else if (result.error !== 'cancelled') {
+            Alert.alert('Sign In Failed', result.error);
+        }
+    };
+
+    const handleGoogleSignIn = async () => {
+        setLoading(true);
+        const result = await signInWithGoogle();
+        setLoading(false);
+
+        if (result.success) {
             router.replace('/dashboard');
         } else if (result.error !== 'cancelled') {
             Alert.alert('Sign In Failed', result.error);
@@ -83,20 +97,42 @@ export function AuthScreen() {
                 </Text>
             </View>
 
-            {/* Apple Sign-In Button */}
-            {appleAvailable && Platform.OS === 'ios' && (
-                <AppleAuthentication.AppleAuthenticationButton
-                    buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
-                    buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
-                    cornerRadius={12}
-                    style={styles.appleButton}
-                    onPress={handleAppleSignIn}
+            {/* Primary: Phone Auth */}
+            <Button
+                variant="primary"
+                label="Continue with Phone"
+                icon={<Phone size={20} color={colors['primary-foreground']} />}
+                onPress={() => router.push('/phone-auth')}
+                style={styles.phoneButton}
+            />
+
+            <View style={styles.socialButtons}>
+                {/* Apple Sign-In */}
+                {appleAvailable && Platform.OS === 'ios' && (
+                    <AppleAuthentication.AppleAuthenticationButton
+                        buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+                        buttonStyle={colors.background === '#000000'
+                            ? AppleAuthentication.AppleAuthenticationButtonStyle.WHITE
+                            : AppleAuthentication.AppleAuthenticationButtonStyle.BLACK
+                        }
+                        cornerRadius={12}
+                        style={styles.appleButton}
+                        onPress={handleAppleSignIn}
+                    />
+                )}
+
+                {/* Google Sign-In */}
+                <GoogleSigninButton
+                    size={GoogleSigninButton.Size.Wide}
+                    color={GoogleSigninButton.Color.Dark}
+                    onPress={handleGoogleSignIn}
+                    style={styles.googleButton}
                 />
-            )}
+            </View>
 
             <View style={styles.divider}>
                 <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
-                <Text variant="caption" style={styles.dividerText}>or</Text>
+                <Text variant="caption" style={styles.dividerText}>or continue with email</Text>
                 <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
             </View>
 
@@ -120,10 +156,10 @@ export function AuthScreen() {
                 {mode === 'signup' && (
                     <View style={styles.inputContainer}>
                         <Text variant="caption">Display Name</Text>
-                        <View style={[styles.input, { borderColor: colors.border }]}>
+                        <View style={[styles.inputWrapper, { borderColor: colors.border }]}>
                             <Text
                                 style={{ color: colors.foreground }}
-                                // @ts-expect-error - using Text as placeholder for now
+                                // @ts-ignore
                                 editable
                                 onChangeText={setDisplayName}
                                 value={displayName}
@@ -136,7 +172,7 @@ export function AuthScreen() {
 
                 <View style={styles.inputContainer}>
                     <Text variant="caption">Email</Text>
-                    <View style={[styles.input, { borderColor: colors.border }]}>
+                    <View style={[styles.inputWrapper, { borderColor: colors.border }]}>
                         <Text style={{ color: colors.foreground }}>
                             {email || 'Enter email address'}
                         </Text>
@@ -145,7 +181,7 @@ export function AuthScreen() {
 
                 <View style={styles.inputContainer}>
                     <Text variant="caption">Password</Text>
-                    <View style={[styles.input, { borderColor: colors.border }]}>
+                    <View style={[styles.inputWrapper, { borderColor: colors.border }]}>
                         <Text style={{ color: colors.foreground }}>
                             {'•'.repeat(password.length) || 'Enter password'}
                         </Text>
@@ -189,7 +225,18 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         opacity: 0.7,
     },
+    phoneButton: {
+        marginBottom: 16,
+    },
+    socialButtons: {
+        gap: 12,
+        marginBottom: 24,
+    },
     appleButton: {
+        width: '100%',
+        height: 50,
+    },
+    googleButton: {
         width: '100%',
         height: 50,
     },
@@ -220,7 +267,7 @@ const styles = StyleSheet.create({
     inputContainer: {
         marginBottom: 16,
     },
-    input: {
+    inputWrapper: {
         borderWidth: 1,
         borderRadius: 8,
         padding: 12,

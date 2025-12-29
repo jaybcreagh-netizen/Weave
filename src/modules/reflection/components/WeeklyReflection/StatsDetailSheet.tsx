@@ -20,7 +20,7 @@ import {
     WeaveItem,
     FriendActivityItem,
     CategoryBreakdown,
-} from '@/modules/reflection';
+} from '../../services/weekly-summary-extended.service';
 
 // ============================================================================
 // TYPES

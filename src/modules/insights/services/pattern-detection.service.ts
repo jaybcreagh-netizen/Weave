@@ -11,7 +11,7 @@ import InteractionFriend from '@/db/models/InteractionFriend';
 import FriendModel from '@/db/models/Friend';
 import WeeklyReflection from '@/db/models/WeeklyReflection';
 import { Q } from '@nozbe/watermelondb';
-import { calculateInteractionQuality } from '@/modules/intelligence';
+import { calculateInteractionQuality } from '@/modules/intelligence/services/quality.service';
 import { STORY_CHIPS, ChipType } from '@/modules/reflection';
 
 export interface Pattern {

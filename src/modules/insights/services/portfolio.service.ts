@@ -2,7 +2,7 @@ import { TierDecayRates, TierDriftingThresholds } from '@/modules/intelligence/c
 import { Tier, Archetype, InteractionCategory } from '@/shared/types/common';
 import { Suggestion } from '@/shared/types/common';
 import FriendModel from '@/db/models/Friend';
-import { calculateCurrentScore } from '@/modules/intelligence';
+import { calculateCurrentScore } from '@/modules/intelligence/services/orchestrator.service';
 import { capturePortfolioSnapshot } from './trend.service';
 import { FriendshipPortfolio, PortfolioImbalance } from '../types';
 

@@ -1,11 +1,11 @@
-import React, { createContext, useContext, useMemo, useRef } from 'react';
-import { View } from 'react-native';
+import React, { createContext, useContext, useMemo, useRef, useEffect } from 'react';
+import { View, AppState, AppStateStatus } from 'react-native';
 import Animated, { useSharedValue, useAnimatedScrollHandler, runOnJS, measure } from 'react-native-reanimated';
 import { Gesture } from 'react-native-gesture-handler';
 import * as Haptics from 'expo-haptics';
 
-import { useQuickWeave } from '@/modules/interactions';
-import { itemPositions, HIGHLIGHT_THRESHOLD, SELECTION_THRESHOLD } from '@/modules/interactions';
+import { useQuickWeave } from '@/modules/interactions/hooks/useQuickWeave';
+import { itemPositions, HIGHLIGHT_THRESHOLD, SELECTION_THRESHOLD } from '@/modules/interactions/constants';
 
 interface CardGestureContextType {
   gesture: any; // Using any to avoid complex Gesture type issues
@@ -87,6 +87,26 @@ function useCardGestureCoordinator(): CardGestureContextType {
 
   // Timeout for delayed pending feedback (so quick taps don't trigger it)
   const pendingFeedbackTimeout = useRef<NodeJS.Timeout | null>(null);
+
+  // Reset all gesture state when app resumes from background
+  // This fixes gestures getting stuck if app was backgrounded mid-gesture
+  useEffect(() => {
+    const handleAppStateChange = (nextState: AppStateStatus) => {
+      if (nextState === 'active') {
+        // Reset all gesture state
+        activeCardId.value = null;
+        pendingCardId.value = null;
+        isLongPressActive.value = false;
+        dragX.value = 0;
+        dragY.value = 0;
+        highlightedIndex.value = -1;
+        clearPendingFeedback();
+      }
+    };
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    return () => subscription?.remove();
+  }, []);
 
   const startPendingFeedback = (targetId: string) => {
     // Clear any existing timeout

@@ -1,11 +1,12 @@
 import * as BackgroundFetch from 'expo-background-fetch';
 import * as TaskManager from 'expo-task-manager';
-import { scanCalendarEvents, CalendarService } from '@/modules/interactions';
+import { scanCalendarEvents } from '@/modules/interactions/services/event-scanner';
+import { CalendarService, getCalendarSettings } from '@/modules/interactions/services/calendar.service';
 import { database } from '@/db';
 import SuggestionEvent from '@/db/models/SuggestionEvent';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { sync } from '@/shared/services/sync.service';
-import { scheduleEventSuggestionNotification } from '@/modules/notifications';
+import { scheduleEventSuggestionNotification } from '@/modules/notifications/services/channels/event-suggestion';
 import Logger from '@/shared/utils/Logger';
 
 // Task identifier
@@ -102,7 +103,7 @@ TaskManager.defineTask(BACKGROUND_EVENT_SYNC_TASK, async () => {
     }
 
     // Check if calendar integration is enabled
-    const calendarSettings = await CalendarService.getCalendarSettings();
+    const calendarSettings = await getCalendarSettings();
     if (!calendarSettings.enabled || !calendarSettings.twoWaySync) {
       Logger.info('[BackgroundSync] Calendar sync disabled, skipping scan');
       return BackgroundFetch.BackgroundFetchResult.NoData;

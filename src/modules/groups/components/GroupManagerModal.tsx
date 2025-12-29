@@ -9,10 +9,10 @@ import { Card } from '@/shared/ui/Card';
 import FriendModel from '@/db/models/Friend';
 import { database } from '@/db';
 import { Q } from '@nozbe/watermelondb';
-import { groupService } from '@/modules/groups';
+import { groupService } from '../services/group.service';
 import Group from '@/db/models/Group';
-import { uploadGroupPhoto } from '@/modules/relationships';
-import { resolveImageUri } from '@/modules/relationships';
+import { uploadGroupPhoto } from '@/modules/relationships/services/image.service';
+import { resolveImageUri } from '@/modules/relationships/services/image.service';
 
 interface GroupManagerModalProps {
     visible: boolean;

@@ -43,4 +43,6 @@ export type FriendFormData = {
   birthday?: string;
   anniversary?: string;
   relationshipType?: RelationshipType;
+  phoneNumber?: string;
+  email?: string;
 };

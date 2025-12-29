@@ -1009,6 +1009,87 @@ export default schemaMigrations({
         }),
       ],
     },
+    {
+      // Migration from schema v47 to v48
+      // Sharing Schema - Local tables for shared weaves and sync queue
+      toVersion: 48,
+      steps: [
+        // Create shared_weave_refs table
+        createTable({
+          name: 'shared_weave_refs',
+          columns: [
+            { name: 'interaction_id', type: 'string', isIndexed: true },
+            { name: 'server_weave_id', type: 'string', isIndexed: true },
+            { name: 'created_by_user_id', type: 'string' },
+            { name: 'is_creator', type: 'boolean' },
+            { name: 'status', type: 'string' }, // pending, accepted, declined, expired
+            { name: 'shared_at', type: 'number' },
+            { name: 'responded_at', type: 'number', isOptional: true },
+            { name: 'created_at', type: 'number' },
+            { name: 'updated_at', type: 'number' },
+          ],
+        }),
+        // Create sync_queue table
+        createTable({
+          name: 'sync_queue',
+          columns: [
+            { name: 'operation_type', type: 'string', isIndexed: true },
+            { name: 'payload', type: 'string' },
+            { name: 'status', type: 'string', isIndexed: true }, // pending, processing, completed, failed
+            { name: 'retry_count', type: 'number' },
+            { name: 'last_error', type: 'string', isOptional: true },
+            { name: 'queued_at', type: 'number', isIndexed: true },
+            { name: 'processed_at', type: 'number', isOptional: true },
+            { name: 'created_at', type: 'number' },
+            { name: 'updated_at', type: 'number' },
+          ],
+        }),
+      ],
+    },
+    {
+      // Migration from schema v48 to v49
+      // Phase 3: Identity Columns for User Profile
+      toVersion: 49,
+      steps: [
+        addColumns({
+          table: 'user_profile',
+          columns: [
+            { name: 'phone', type: 'string', isOptional: true },
+            { name: 'email', type: 'string', isOptional: true },
+            { name: 'google_id', type: 'string', isOptional: true },
+          ],
+        }),
+      ],
+    },
+    {
+      // Migration from schema v49 to v50
+      // Phase 4: Rich Sharing (Shared notes & permissions)
+      toVersion: 50,
+      steps: [
+        addColumns({
+          table: 'shared_weave_refs',
+          columns: [
+            { name: 'role', type: 'string', isOptional: true },
+            { name: 'can_participant_edit', type: 'boolean', isOptional: true },
+          ],
+        }),
+      ],
+    },
+    {
+      // Migration from schema v50 to v51
+      // Offline Push Notification Queue
+      toVersion: 51,
+      steps: [
+        createTable({
+          name: 'pending_push_notifications',
+          columns: [
+            { name: 'recipient_user_id', type: 'string' },
+            { name: 'payload', type: 'string' },
+            { name: 'retry_count', type: 'number' },
+            { name: 'created_at', type: 'number', isIndexed: true },
+          ],
+        }),
+      ],
+    },
   ],
 });
-

@@ -7,6 +7,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 
 import { theme } from '@/shared/theme/theme';
+import { FeatureFlags } from '@/shared/config/feature-flags';
 import { AnimatedThoughtBubbles } from '@/shared/components/onboarding/AnimatedThoughtBubbles';
 import { ArchetypeImpactDemo } from '@/shared/components/onboarding/ArchetypeImpactDemo';
 import { useTutorialStore } from '@/shared/stores/tutorialStore';
@@ -35,8 +36,12 @@ export function OnboardingScreen() {
 
         if (isLastStep) {
             await completeOnboarding();
-            // Redirect to permissions screen, then to add-friend
-            router.replace('/permissions');
+            // Redirect to auth screen if accounts enabled, otherwise permissions
+            if (FeatureFlags.ACCOUNTS_ENABLED) {
+                router.replace('/onboarding-auth');
+            } else {
+                router.replace('/permissions');
+            }
         } else {
             setCurrentStep(prev => prev + 1);
         }

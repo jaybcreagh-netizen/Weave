@@ -7,8 +7,10 @@ import { useTheme } from '@/shared/hooks/useTheme';
 import { PlanFormData } from '../PlanWizard';
 import FriendModel from '@/db/models/Friend';
 import { usePlanSuggestion, PlanSuggestion } from '../../hooks/usePlanSuggestion';
-import { FriendSelector, ReciprocitySelector } from '@/modules/relationships';
+import { FriendSelector } from '@/modules/relationships/components/FriendSelector';
+import { ReciprocitySelector } from '@/modules/relationships/components/ReciprocitySelector';
 import { NotesInputField } from '@/shared/components/NotesInputField';
+import { ModernSwitch } from '@/shared/ui/ModernSwitch';
 
 interface PlanWizardStep3Props {
   formData: Partial<PlanFormData>;
@@ -232,6 +234,24 @@ export function PlanWizardStep3({
           />
 
 
+        </View>
+      )}
+
+      {/* Share / Invite Toggle (Phase 4) */}
+      {selectedFriends.some(f => !!f.linkedUserId) && (
+        <View className="flex-row items-center justify-between p-4 rounded-xl mb-6 bg-muted/50" style={{ backgroundColor: colors.muted }}>
+          <View className="flex-1 mr-4">
+            <Text className="font-inter-semibold text-base" style={{ color: colors.foreground }}>
+              Invite to Plan
+            </Text>
+            <Text className="font-inter-regular text-sm mt-1" style={{ color: colors['muted-foreground'] }}>
+              Friends will receive a push notification.
+            </Text>
+          </View>
+          <ModernSwitch
+            value={!!formData.shouldShare}
+            onValueChange={(val) => onUpdate({ shouldShare: val })}
+          />
         </View>
       )}
 

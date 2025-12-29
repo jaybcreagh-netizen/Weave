@@ -4,7 +4,7 @@ import GroupMember from '@/db/models/GroupMember';
 import Friend from '@/db/models/Friend';
 import InteractionFriend from '@/db/models/InteractionFriend';
 import { Q } from '@nozbe/watermelondb';
-import { deleteGroupPhoto } from '@/modules/relationships';
+import { deleteGroupPhoto } from '../../relationships/services/image.service';
 
 export const groupService = {
     /**

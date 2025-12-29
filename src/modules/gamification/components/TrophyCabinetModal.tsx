@@ -21,7 +21,7 @@ import {
   GLOBAL_ACHIEVEMENTS,
   HIDDEN_ACHIEVEMENTS,
   type GlobalAchievement,
-} from '@/modules/gamification';
+} from '../constants/achievement-definitions';
 import { AchievementCard } from './AchievementCard';
 
 interface TrophyCabinetModalProps {

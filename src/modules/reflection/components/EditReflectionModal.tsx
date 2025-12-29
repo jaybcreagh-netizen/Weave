@@ -7,11 +7,11 @@ import { useTheme } from '@/shared/hooks/useTheme';
 import { StandardBottomSheet } from '@/shared/ui/Sheet';
 import { type Interaction } from '@/modules/interactions';
 import { type StructuredReflection, type InteractionCategory, type Archetype, type Vibe } from '@/shared/types/legacy-types';
-import { calculateDeepeningLevel } from '@/modules/intelligence';
+import { calculateDeepeningLevel } from '@/modules/intelligence/services/deepening.service';
 import { Text } from '@/shared/ui/Text';
 import { Button } from '@/shared/ui/Button';
 
-import { MoonPhaseSelector } from '@/modules/intelligence';
+import { MoonPhaseSelector } from '@/modules/intelligence/components/MoonPhaseSelector';
 
 interface EditReflectionModalProps {
   interaction: Interaction | null;

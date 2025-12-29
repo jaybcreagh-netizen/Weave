@@ -3,13 +3,12 @@ import { View, Text } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { ReflectionStoryChips } from './ReflectionStoryChips';
 import { ReflectionTextInput } from './ReflectionTextInput';
-import { getNextChipType, STORY_CHIPS, type StoryChip, type ChipType } from '@/modules/reflection';
+import { getNextChipType, STORY_CHIPS, type StoryChip, type ChipType } from '../services/story-chips.service';
 import { type InteractionCategory, type Archetype, type Vibe, type Tier } from '@/shared/types/common';
 import { type StructuredReflection } from '@/shared/types/legacy-types';
 import { useTheme } from '@/shared/hooks/useTheme';
-import { analyzeText, generateContextualPrompt, calculateReflectionQuality } from '@/modules/reflection';
-import { STORY_CHIPS as ALL_STORY_CHIPS } from '@/modules/reflection';
-import { generatePatternInsights, type PatternInsight } from '@/modules/reflection';
+import { analyzeText, generateContextualPrompt, calculateReflectionQuality } from '../utils/text-analysis';
+import { generatePatternInsights, type PatternInsight } from '../services/adaptive-chips';
 
 interface ContextualReflectionInputProps {
   category: InteractionCategory;
@@ -77,7 +76,7 @@ export function ContextualReflectionInput({
     const chipCount = (value.chips || []).length;
     const uniqueChipTypes = new Set(
       (value.chips || []).map(chip => {
-        const storyChip = ALL_STORY_CHIPS.find(s => s.id === chip.chipId);
+        const storyChip = STORY_CHIPS.find((s: StoryChip) => s.id === chip.chipId);
         return storyChip?.type;
       }).filter(Boolean)
     ).size;

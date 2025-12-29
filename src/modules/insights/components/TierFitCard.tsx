@@ -13,11 +13,10 @@ interface TierFitCardProps {
  * Subtle warning card showing severe tier misalignment.
  * Only appears when the deviation is critical (>300% or <33% of expected interval).
  */
-export function TierFitCard({ friendId, onPress }: TierFitCardProps) {
+export const TierFitCard = React.memo(({ friendId, onPress }: TierFitCardProps) => {
   const { analysis, isLoading } = useTierFit(friendId);
 
   // Don't render if loading or no analysis
-  console.warn('[TierFitCard] Render:', { isLoading, hasAnalysis: !!analysis, fitCategory: analysis?.fitCategory });
   if (isLoading || !analysis || (analysis.fitCategory !== 'over_investing' && analysis.fitCategory !== 'under_investing')) {
     return null;
   }
@@ -52,4 +51,4 @@ export function TierFitCard({ friendId, onPress }: TierFitCardProps) {
       </View>
     </TouchableOpacity>
   );
-}
+});

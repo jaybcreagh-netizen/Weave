@@ -178,24 +178,23 @@ export async function recalculateScoreOnDelete(
  * @param database - Database instance for the transaction
  * @param season - Optional social season for season-aware scoring bonuses
  */
-export async function processWeaveScoring(
+/**
+ * Prepares scoring operations without executing them.
+ * Useful for batching multiple scoring updates (e.g., at app startup).
+ */
+export async function prepareWeaveScoringOps(
   friends: FriendModel[],
   interactionData: InteractionFormData,
   database: Database,
   season?: SocialSeason | null
-): Promise<ScoreUpdate[]> {
+): Promise<{ scoreUpdates: ScoreUpdate[], ops: any[] }> {
   const scoreUpdates: ScoreUpdate[] = [];
 
   // 1. Pre-fetch interaction history counts for all friends
-  // We do this OUTSIDE the write transaction to avoid holding the lock during reads
   const historyCounts = new Map<string, number>();
-
-  // Extract all friend IDs
   const friendIds = friends.map(f => f.id);
 
   if (friendIds.length > 0) {
-    // Step A: Fetch all link records for these friends
-    // Batching friend IDs in chunks of 900 to be safe (SQLite limit is usually 999 variables)
     const FRIEND_BATCH_SIZE = 900;
     let allLinks: any[] = [];
 
@@ -207,11 +206,7 @@ export async function processWeaveScoring(
       allLinks = allLinks.concat(links);
     }
 
-    // Step B: Extract all unique interaction IDs linked to these friends
     const allInteractionIds = Array.from(new Set(allLinks.map((r: any) => r.interactionId)));
-
-    // Step C: Fetch valid interactions (matching category & status)
-    // We also valid interaction IDs to ensure we only count completed ones of the right category
     const validInteractionIds = new Set<string>();
 
     if (allInteractionIds.length > 0) {
@@ -229,9 +224,6 @@ export async function processWeaveScoring(
       }
     }
 
-    // Step D: Aggregate counts
-    // validInteractionIds now contains only IDs of interactions that match our criteria
-    // We iterate through the links again to count valid interactions per friend
     allLinks.forEach((link: any) => {
       if (validInteractionIds.has(link.interactionId)) {
         const currentCount = historyCounts.get(link.friendId) || 0;
@@ -240,117 +232,108 @@ export async function processWeaveScoring(
     });
   }
 
-  // Use a single database transaction to ensure all updates are atomic.
-  await database.write(async () => {
-    const batchOps: any[] = [];
+  const batchOps: any[] = [];
 
-    for (const friend of friends) {
-      const scoreBefore = calculateCurrentScore(friend);
+  for (const friend of friends) {
+    const scoreBefore = calculateCurrentScore(friend);
+    const historyCount = historyCounts.get(friend.id) || 0;
 
-      // Get pre-fetched history count
-      const historyCount = historyCounts.get(friend.id) || 0;
+    let pointsEarned = calculatePointsForWeave(
+      friend,
+      toWeaveData(interactionData, historyCount)
+    );
 
-      // 2. Calculate points earned from this specific interaction.
-      // Quality is calculated internally by calculatePointsForWeave.
-      let pointsEarned = calculatePointsForWeave(
-        friend,
-        toWeaveData(interactionData, historyCount)
-      );
+    const momentumBonus = calculateMomentumBonus(friend);
+    pointsEarned *= momentumBonus;
 
-      // 3. Apply momentum bonus for recent interactions.
-      const momentumBonus = calculateMomentumBonus(friend);
-      pointsEarned *= momentumBonus;
+    if (season) {
+      pointsEarned = applySeasonScoringBonus(pointsEarned, season, interactionData.vibe as Vibe | null);
+    }
 
-      // 4. Apply season scoring bonus
-      // Resting: +20% for any interaction, Blooming: +10% for high-quality
-      if (season) {
-        pointsEarned = applySeasonScoringBonus(pointsEarned, season, interactionData.vibe as Vibe | null);
-      }
+    const rawScore = friend.weaveScore;
+    const lastUpdated = friend.lastUpdated || new Date(0);
+    const rawInteractionDate = interactionData.date ? new Date(interactionData.date) : new Date();
+    const now = new Date();
+    const interactionDate = isAfter(rawInteractionDate, now) ? now : rawInteractionDate;
 
-      // Backdating Logic: calculate score based on interaction date relative to last update
-      const rawScore = friend.weaveScore;
-      const lastUpdated = friend.lastUpdated || new Date(0);
-      const rawInteractionDate = interactionData.date ? new Date(interactionData.date) : new Date();
-      // Clamp date to now to prevent future dates from locking the timeline
-      const now = new Date();
-      const interactionDate = isAfter(rawInteractionDate, now) ? now : rawInteractionDate;
+    let newScore = rawScore;
+    let newLastUpdated = lastUpdated;
+    let effectivePoints = pointsEarned;
+    let isNewerInteraction = false;
 
-      let newScore = rawScore;
-      let newLastUpdated = lastUpdated;
-      let effectivePoints = pointsEarned;
-      let isNewerInteraction = false;
+    if (isAfter(interactionDate, lastUpdated)) {
+      const gap = differenceInDays(interactionDate, lastUpdated);
+      const decay = calculateDecayAmount(friend, gap);
+      newScore = Math.max(0, rawScore - decay) + pointsEarned;
+      newLastUpdated = interactionDate;
+      isNewerInteraction = true;
+    } else {
+      const gap = differenceInDays(lastUpdated, interactionDate);
+      const penalty = calculateDecayAmount(friend, gap);
+      effectivePoints = Math.max(0, pointsEarned - penalty);
+      newScore = rawScore + effectivePoints;
+    }
 
-      if (isAfter(interactionDate, lastUpdated)) {
-        // Case 1: Newer Interaction (Standard flow or "Fast-forward")
-        // We move the state forward to this new date.
-        // First, apply decay that occurred between lastUpdated and this new interaction.
-        const gap = differenceInDays(interactionDate, lastUpdated);
-        const decay = calculateDecayAmount(friend, gap);
+    const scoreAfterRaw = Math.min(SCORE_BUFFER_CAP, newScore);
 
-        // Then add the fresh points
-        newScore = Math.max(0, rawScore - decay) + pointsEarned;
-        newLastUpdated = interactionDate;
-        isNewerInteraction = true;
-      } else {
-        // Case 2: Older interaction (Back-filling)
-        // The state (lastUpdated) is anchored in the future relative to this event.
-        // We do NOT move lastUpdated back.
-        // Instead, we discount the points based on how much they WOULD have decayed 
-        // from the interaction date to the current lastUpdated date.
-        const gap = differenceInDays(lastUpdated, interactionDate);
-        const penalty = calculateDecayAmount(friend, gap);
-        effectivePoints = Math.max(0, pointsEarned - penalty);
-        newScore = rawScore + effectivePoints;
-      }
+    let momentumScore: number | undefined;
+    let momentumLastUpdated: Date | undefined;
+    let newResilience: number | null | undefined;
 
-      // Use SCORE_BUFFER_CAP for detailed record keeping
-      const scoreAfterRaw = Math.min(SCORE_BUFFER_CAP, newScore);
+    if (isNewerInteraction) {
+      const momentumResult = updateMomentum(friend);
+      momentumScore = momentumResult.momentumScore;
+      momentumLastUpdated = momentumResult.momentumLastUpdated;
+      newResilience = updateResilience(friend, interactionData.vibe as Vibe | null);
+    }
 
-      // 4. Get updates for momentum and resilience (only if moving timeline forward)
-      let momentumScore: number | undefined;
-      let momentumLastUpdated: Date | undefined;
-      let newResilience: number | null | undefined;
+    batchOps.push(friend.prepareUpdate(record => {
+      record.weaveScore = scoreAfterRaw;
+      record.lastUpdated = newLastUpdated;
 
       if (isNewerInteraction) {
-        const momentumResult = updateMomentum(friend);
-        momentumScore = momentumResult.momentumScore;
-        momentumLastUpdated = momentumResult.momentumLastUpdated;
-        newResilience = updateResilience(friend, interactionData.vibe as Vibe | null);
+        if (momentumScore !== undefined) record.momentumScore = momentumScore;
+        if (momentumLastUpdated !== undefined) record.momentumLastUpdated = momentumLastUpdated;
+        if (newResilience !== undefined && newResilience !== null) {
+          record.resilience = newResilience;
+        }
       }
 
-      // 5. Prepare update for the friend record.
-      batchOps.push(friend.prepareUpdate(record => {
-        record.weaveScore = scoreAfterRaw;
-        record.lastUpdated = newLastUpdated;
+      if (interactionData.vibe) {
+        record.ratedWeavesCount += 1;
+      }
+    }));
 
-        if (isNewerInteraction) {
-          if (momentumScore !== undefined) record.momentumScore = momentumScore;
-          if (momentumLastUpdated !== undefined) record.momentumLastUpdated = momentumLastUpdated;
-          if (newResilience !== undefined && newResilience !== null) {
-            record.resilience = newResilience;
-          }
-        }
+    const scoreAfter = Math.min(100, Math.max(0, scoreBefore + effectivePoints));
 
-        if (interactionData.vibe) {
-          record.ratedWeavesCount += 1;
-        }
-      }));
+    scoreUpdates.push({
+      friendId: friend.id,
+      scoreBefore,
+      scoreAfter,
+      pointsEarned,
+    });
+  }
 
-      // For the UI return value, we show the EFFECTIVE display score (capped at 100)
-      const scoreAfter = Math.min(100, Math.max(0, scoreBefore + effectivePoints));
+  return { scoreUpdates, ops: batchOps };
+}
 
-      scoreUpdates.push({
-        friendId: friend.id,
-        scoreBefore,
-        scoreAfter,
-        pointsEarned,
-      });
-    }
+/**
+ * Main entry point - coordinates all scoring services.
+ * Executed in a single write transaction.
+ */
+export async function processWeaveScoring(
+  friends: FriendModel[],
+  interactionData: InteractionFormData,
+  database: Database,
+  season?: SocialSeason | null
+): Promise<ScoreUpdate[]> {
+  const { scoreUpdates, ops } = await prepareWeaveScoringOps(friends, interactionData, database, season);
 
-    if (batchOps.length > 0) {
-      await database.batch(batchOps);
-    }
-  });
+  if (ops.length > 0) {
+    await database.write(async () => {
+      await database.batch(ops);
+    });
+  }
 
   return scoreUpdates;
 }

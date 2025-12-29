@@ -35,7 +35,7 @@ const SYNC_TABLES = [
   'interaction_friends',
   'intentions',
   'intention_friends',
-  'user_profile',
+  'user_profiles',
   'user_progress',
   'life_events',
   'weekly_reflections',
@@ -390,8 +390,8 @@ export function createSyncEngine(userId: string): SyncEngine {
  */
 export async function triggerAutoSync(userId: string): Promise<void> {
   // ADD THIS GUARD CLAUSE
-  const IS_LOCAL_ONLY = true; // Or read from env/constants
-  if (IS_LOCAL_ONLY) return;
+  // const IS_LOCAL_ONLY = true; // REMOVED
+  if (!userId) return;
 
   if (!userId) return;
 

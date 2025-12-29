@@ -8,7 +8,7 @@
 
 import { Suggestion } from '@/shared/types/common';
 import FriendModel from '@/db/models/Friend';
-import { calculateCurrentScore } from '@/modules/intelligence';
+import { calculateCurrentScore } from '@/modules/intelligence/services/orchestrator.service';
 import { differenceInDays } from 'date-fns';
 
 // ============================================================================
@@ -68,7 +68,8 @@ export function generateTodaysFocusIntro(context: TodaysFocusContext): string {
 // SOCIAL SEASON - Data-Driven Explanations
 // ============================================================================
 
-import { SocialSeason, SeasonExplanationData } from '@/modules/intelligence';
+import type { SocialSeason } from '@/db/models/UserProfile';
+import type { SeasonExplanationData } from '@/modules/intelligence/services/social-season/season-types';
 
 /**
  * Generates "why am I in this season" explanation with supporting data

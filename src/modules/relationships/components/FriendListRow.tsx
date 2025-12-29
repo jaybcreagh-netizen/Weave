@@ -191,6 +191,7 @@ export const FriendListRowContent = ({ friend, animatedRef, variant = 'default',
   // AND open detail sheet for Full variant
   const handleCardPress = () => {
     if (archetype === 'Unknown') {
+      console.log(`[FriendListRow] Opening archetype picker for friend: ${name} (id: ${id}), archetype: ${archetype}`);
       setShowArchetypePicker(true);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     } else if (variant === 'full') {

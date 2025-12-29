@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text } from 'react-native';
-import { Battery, Trophy, BookOpen, Users, Palette, Bell, Database, Wrench } from 'lucide-react-native';
+import { router } from 'expo-router';
+import { Battery, Trophy, BookOpen, Users, Palette, Bell, Database, Wrench, Inbox } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { StandardBottomSheet } from '@/shared/ui/Sheet';
 import { CollapsibleSection } from '@/shared/ui/CollapsibleSection';
@@ -13,10 +14,14 @@ import { CalendarSettings } from './settings/CalendarSettings';
 import { TestingSettings } from './settings/TestingSettings';
 import { DataSettings } from './settings/DataSettings';
 import { NotificationSettings } from './settings/NotificationSettings';
+import { AccountSettings } from './settings/AccountSettings';
+import { FeatureFlags } from '@/shared/config/feature-flags';
+import { ActivityInboxSheet, usePendingWeaves } from '@/modules/sync';
+import { getPendingRequestCount } from '@/modules/relationships/services/friend-linking.service';
 
 // Modals
 import { TrophyCabinetModal } from '@/modules/gamification';
-import { ArchetypeLibrary } from '@/modules/intelligence';
+import { ArchetypeLibrary } from '@/modules/intelligence/components/archetypes/ArchetypeLibrary';
 import { GroupListModal } from '@/modules/groups';
 import { FriendManagementModal } from '@/modules/relationships';
 
@@ -36,6 +41,21 @@ export function SettingsModal({
   const [showArchetypeLibrary, setShowArchetypeLibrary] = useState(false);
   const [showGroupList, setShowGroupList] = useState(false);
   const [showManageFriends, setShowManageFriends] = useState(false);
+  const [showActivityInbox, setShowActivityInbox] = useState(false);
+
+  // Pending activity counts (only fetch if accounts enabled)
+  const [pendingRequestCount, setPendingRequestCount] = useState(0);
+  const { pendingWeaves } = usePendingWeaves();
+  const pendingWeaveCount = FeatureFlags.ACCOUNTS_ENABLED
+    ? pendingWeaves.filter(w => w.status === 'pending').length
+    : 0;
+  const totalPendingCount = pendingRequestCount + pendingWeaveCount;
+
+  // Fetch pending request count
+  useEffect(() => {
+    if (!FeatureFlags.ACCOUNTS_ENABLED || !isOpen) return;
+    getPendingRequestCount().then(setPendingRequestCount);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -49,6 +69,34 @@ export function SettingsModal({
     >
       <View style={{ paddingBottom: 40 }}>
         <View className="gap-2">
+
+          {/* ═══════════════════════════════════════════════════════════════
+              ACCOUNT HEADER - Prominent profile/sign-in at top (if accounts enabled)
+          ═══════════════════════════════════════════════════════════════ */}
+          {FeatureFlags.ACCOUNTS_ENABLED && (
+            <>
+              <AccountSettings
+                onClose={onClose}
+                onOpenAuth={() => {
+                  onClose();
+                  setTimeout(() => router.push('/onboarding-auth?source=settings'), 300);
+                }}
+              />
+
+              <View className="border-t border-border my-2" style={{ borderColor: colors.border }} />
+
+              {/* Activity Inbox */}
+              <SettingsItem
+                icon={Inbox}
+                title="Activity"
+                subtitle="Link requests & shared weaves"
+                onPress={() => setShowActivityInbox(true)}
+                badge={totalPendingCount > 0 ? totalPendingCount : undefined}
+              />
+
+              <View className="border-t border-border my-2" style={{ borderColor: colors.border }} />
+            </>
+          )}
 
           {/* ═══════════════════════════════════════════════════════════════
               ESSENTIALS - Expanded by default
@@ -202,6 +250,14 @@ export function SettingsModal({
       <FriendManagementModal
         visible={showManageFriends}
         onClose={() => setShowManageFriends(false)}
+      />
+
+      <ActivityInboxSheet
+        visible={showActivityInbox}
+        onClose={() => setShowActivityInbox(false)}
+        onRequestHandled={() => {
+          getPendingRequestCount().then(setPendingRequestCount);
+        }}
       />
 
     </StandardBottomSheet>

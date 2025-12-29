@@ -18,6 +18,8 @@ export * from './services/weaving-insights.service';
 export * from './services/tier-fit.service';
 export * from './services/tier-suggestion-engine.service';
 export * from './services/tier-management.service';
+export * from './services/verified-insights.service';
+export * from './services/archetype-compatibility.service';
 
 // Hooks
 export * from './hooks/useEffectiveness';
@@ -34,6 +36,8 @@ export { TierSuggestionAlert } from './components/TierSuggestionAlert';
 export { YourPatternsSection } from './components/YourPatternsSection';
 export { NudgesFAB } from './components/NudgesFAB';
 export { NudgesSheet } from './components/NudgesSheet';
+export { VerifiedReciprocityCard } from './components/VerifiedReciprocityCard';
+export { ArchetypeCompatibilityBadge } from './components/ArchetypeCompatibilityBadge';
 
 // Types
 export * from './types';

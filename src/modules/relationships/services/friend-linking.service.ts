@@ -287,6 +287,10 @@ export async function acceptLinkRequest(
                     if (linkData.user_profiles?.photo_url && !f.photoUrl) {
                         f.photoUrl = linkData.user_profiles.photo_url;
                     }
+                    // Sync birthday from linked profile if not already set
+                    if (linkData.user_profiles?.birthday && !f.birthday) {
+                        f.birthday = linkData.user_profiles.birthday;
+                    }
                 });
             } else {
                 // Create new friend from linked user
@@ -296,6 +300,7 @@ export async function acceptLinkRequest(
                     friend.archetype = (linkData.user_profiles?.archetype as any) || 'Hermit';
                     friend.weaveScore = 50;
                     friend.photoUrl = linkData.user_profiles?.photo_url;
+                    friend.birthday = linkData.user_profiles?.birthday;
                     friend.lastUpdated = new Date();
                     friend.resilience = 0;
                     friend.ratedWeavesCount = 0;

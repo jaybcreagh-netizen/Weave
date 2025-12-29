@@ -8,8 +8,20 @@
  */
 
 import * as AppleAuthentication from 'expo-apple-authentication';
+import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 import { getSupabaseClient } from '@/shared/services/supabase-client';
 import { isFeatureEnabled } from '@/shared/config/feature-flags';
+
+// Configure Google Sign-In
+// Note: client IDs should come from env vars
+const GOOGLE_WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '';
+const GOOGLE_IOS_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || '';
+
+GoogleSignin.configure({
+    scopes: ['email', 'profile'],
+    webClientId: GOOGLE_WEB_CLIENT_ID,
+    iosClientId: GOOGLE_IOS_CLIENT_ID,
+});
 
 // ═══════════════════════════════════════════════════════════════════
 // TYPES
@@ -121,6 +133,162 @@ export async function signInWithApple(): Promise<AuthResult> {
             return { success: false, error: error.message };
         }
         return { success: false, error: 'Unknown error' };
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// GOOGLE SIGN-IN
+// ═══════════════════════════════════════════════════════════════════
+
+/**
+ * Sign in with Google
+ */
+export async function signInWithGoogle(): Promise<AuthResult> {
+    const client = getSupabaseClient();
+    if (!client) {
+        return { success: false, error: 'Supabase not available' };
+    }
+
+    try {
+        await GoogleSignin.hasPlayServices();
+        const response = await GoogleSignin.signIn();
+
+        if (response.data?.idToken) {
+            const { data, error } = await client.auth.signInWithIdToken({
+                provider: 'google',
+                token: response.data.idToken,
+            });
+
+            if (error) throw error;
+
+            // If first sign-in, update profile
+            if (data.user && response.data.user.name) {
+                await updateUserProfile(data.user.id, {
+                    displayName: response.data.user.name,
+                    photoUrl: response.data.user.photo ?? undefined,
+                    googleId: response.data.user.id,
+                });
+            }
+
+            return { success: true, userId: data.user?.id };
+        } else {
+            return { success: false, error: 'No ID token present' };
+        }
+    } catch (error: any) {
+        if (error.code === statusCodes.SIGN_IN_CANCELLED) {
+            return { success: false, error: 'cancelled' };
+        } else if (error.code === statusCodes.IN_PROGRESS) {
+            return { success: false, error: 'Sign in in progress' };
+        } else {
+            console.error('[Auth] Google Sign-in error:', error);
+            return { success: false, error: error.message || 'Google Sign-in failed' };
+        }
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// PHONE AUTH (STANDALONE & LINKING)
+// ═══════════════════════════════════════════════════════════════════
+
+/**
+ * Initiate phone sign-in (sends OTP)
+ */
+export async function signInWithPhone(phone: string): Promise<AuthResult> {
+    const client = getSupabaseClient();
+    if (!client) return { success: false, error: 'Supabase not available' };
+
+    try {
+        const { error } = await client.auth.signInWithOtp({
+            phone,
+        });
+
+        if (error) throw error;
+        return { success: true };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Verify OTP for phone sign-in
+ */
+export async function verifyPhoneOtp(phone: string, token: string): Promise<AuthResult> {
+    const client = getSupabaseClient();
+    if (!client) return { success: false, error: 'Supabase not available' };
+
+    try {
+        const { data, error } = await client.auth.verifyOtp({
+            phone,
+            token,
+            type: 'sms',
+        });
+
+        if (error) throw error;
+
+        // Ensure profile exists
+        if (data.user) {
+            // Check if profile exists, if not create basic one
+            const profile = await getUserProfile(data.user.id);
+            if (!profile) {
+                await createUserProfile(data.user.id, {
+                    displayName: 'Weave User', // Placeholder until they set it
+                });
+            }
+            // Ensure phone is set in profile
+            await updateUserProfile(data.user.id, { phone });
+        }
+
+        return { success: true, userId: data.user?.id };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Link phone number to existing user (Step 1: Send OTP)
+ * Used for Apple/Google users adding a phone number
+ */
+export async function linkPhoneToUser(phone: string): Promise<AuthResult> {
+    const client = getSupabaseClient();
+    if (!client) return { success: false, error: 'Supabase not available' };
+
+    try {
+        const { error } = await client.auth.updateUser({
+            phone,
+        });
+
+        if (error) throw error;
+        return { success: true };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Verify and link phone number (Step 2: Verify OTP)
+ * Used for Apple/Google users confirming the number
+ */
+export async function verifyAndLinkPhone(phone: string, token: string): Promise<AuthResult> {
+    const client = getSupabaseClient();
+    if (!client) return { success: false, error: 'Supabase not available' };
+
+    try {
+        const { data, error } = await client.auth.verifyOtp({
+            phone,
+            token,
+            type: 'phone_change',
+        });
+
+        if (error) throw error;
+
+        // Update profile with verified phone
+        if (data.user) {
+            await updateUserProfile(data.user.id, { phone });
+        }
+
+        return { success: true, userId: data.user?.id };
+    } catch (error: any) {
+        return { success: false, error: error.message };
     }
 }
 
@@ -295,7 +463,13 @@ async function createUserProfile(
  */
 async function updateUserProfile(
     userId: string,
-    data: { displayName?: string; username?: string; photoUrl?: string }
+    data: {
+        displayName?: string;
+        username?: string;
+        photoUrl?: string;
+        phone?: string;
+        googleId?: string;
+    }
 ): Promise<void> {
     const client = getSupabaseClient();
     if (!client) return;
@@ -305,6 +479,8 @@ async function updateUserProfile(
         if (data.displayName) updates.display_name = data.displayName;
         if (data.username) updates.username = data.username;
         if (data.photoUrl) updates.photo_url = data.photoUrl;
+        if (data.phone) updates.phone = data.phone;
+        if (data.googleId) updates.google_id = data.googleId;
 
         await client.from('user_profiles').update(updates).eq('id', userId);
     } catch (error) {
@@ -321,6 +497,7 @@ export async function getUserProfile(userId: string): Promise<{
     photoUrl?: string;
     birthday?: string;
     archetype?: string;
+    timezone?: string;
 } | null> {
     const client = getSupabaseClient();
     if (!client) return null;
@@ -346,6 +523,7 @@ export async function getUserProfile(userId: string): Promise<{
             photoUrl: data.photo_url ?? undefined,
             birthday: data.birthday ?? undefined,
             archetype: data.archetype ?? undefined,
+            timezone: undefined, // Column not yet in Supabase
         };
     } catch (e) {
         console.error('[Auth] getUserProfile exception:', e);

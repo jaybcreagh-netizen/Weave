@@ -67,4 +67,9 @@ export default class UserProfile extends Model {
   @field('synced_at') syncedAt?: number;
   @text('sync_status') customSyncStatus?: string;
   @field('server_updated_at') serverUpdatedAt?: number;
+
+  // Identity (v49)
+  @text('phone') phone?: string;
+  @text('email') email?: string;
+  @text('google_id') googleId?: string;
 }

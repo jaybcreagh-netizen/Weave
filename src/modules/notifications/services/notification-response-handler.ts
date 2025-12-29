@@ -97,6 +97,12 @@ export const useNotificationResponseHandler = () => {
           await safeChannelHandleTap('EveningDigest', () => EveningDigestChannel.handleTap(data, router), router);
           break;
 
+        case 'plan_reminder':
+          // Plan reminder - navigate to dashboard (Activity Inbox can be opened from there)
+          router.replace('/dashboard');
+          notificationAnalytics.trackActionCompleted('plan_reminder', 'view_dashboard');
+          break;
+
         default:
           // Default fallback
           Logger.warn(`[NotificationHandler] Unknown notification type: ${type}`);

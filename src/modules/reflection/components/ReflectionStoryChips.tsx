@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { View, TouchableOpacity, ScrollView } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
-import { getChipsForType, getChipTypeLabel, type StoryChip, type ChipType } from '@/modules/reflection';
+import { getChipsForType, getChipTypeLabel, type StoryChip, type ChipType } from '../services/story-chips.service';
 import { type InteractionCategory, type Archetype, type Vibe, type Tier } from '@/shared/types/common';
 import { useTheme } from '@/shared/hooks/useTheme';
-import { getChipFrequencyScores, getCustomChipsAsStoryChips } from '@/modules/reflection';
+import { getChipFrequencyScores, getCustomChipsAsStoryChips } from '../services/adaptive-chips';
 import { Text } from '@/shared/ui/Text';
 import { Button } from '@/shared/ui/Button';
 

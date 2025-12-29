@@ -20,24 +20,28 @@ import { Button } from '@/shared/ui/Button';
 import {
   scanWeekForUnloggedEvents,
   batchLogCalendarEvents,
+} from '../../services/weekly-event-review';
+import {
   ExtendedWeeklySummary,
   calculateExtendedWeeklySummary,
   extendWeeklySummary,
+} from '../../services/weekly-summary-extended.service';
+import {
   generateReflectionPrompt,
   generateInsightLine,
   ReflectionPrompt,
   InsightLine,
   PromptEngineInput,
-} from '@/modules/reflection';
-import { notificationStore } from '@/modules/notifications';
+} from '../../services/prompt-engine';
+import { notificationStore } from '@/modules/notifications/services/notification-store';
 import { ReflectionPromptStep } from './ReflectionPromptStepComponent';
 import { WeekSnapshotStep } from './WeekSnapshotStepComponent';
 import { CalendarEventsStep } from './CalendarEventsStepComponent';
 import { database } from '@/db';
 import WeeklyReflection from '@/db/models/WeeklyReflection';
-import { ScannedEvent } from '@/modules/interactions';
+import { ScannedEvent } from '@/modules/interactions/services/event-scanner';
 import * as Haptics from 'expo-haptics';
-import { WeeklyReflectionChannel } from '@/modules/notifications';
+import { WeeklyReflectionChannel } from '@/modules/notifications/services/channels/weekly-reflection';
 import { logger } from '@/shared/services/logger.service';
 
 // ============================================================================

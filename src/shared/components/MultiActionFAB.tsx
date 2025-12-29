@@ -108,7 +108,7 @@ export function MultiActionFAB({ onAction }: MultiActionFABProps) {
       <Animated.View
         style={[
           styles.actionsContainer,
-          { bottom: insets.bottom + 100 },
+          { bottom: insets.bottom + 84 },
           actionsContainerStyle,
         ]}
       >
@@ -132,14 +132,14 @@ export function MultiActionFAB({ onAction }: MultiActionFABProps) {
         style={[
           styles.fab,
           {
-            bottom: insets.bottom + 24,
+            bottom: insets.bottom + 20,
             backgroundColor: fabBackgroundColor,
             shadowColor: isDarkMode ? colors.accent : '#000',
           },
         ]}
       >
         <Animated.View style={mainFabStyle}>
-          <Plus color={fabIconColor} size={28} strokeWidth={2.5} />
+          <Plus color={fabIconColor} size={24} strokeWidth={2.5} />
         </Animated.View>
       </TouchableOpacity>
     </>
@@ -227,7 +227,7 @@ function ActionButton({
         >
           <Icon
             color={isDarkMode ? colors['accent-foreground'] : colors['primary-foreground']}
-            size={22}
+            size={18}
           />
         </View>
       </TouchableOpacity>
@@ -271,9 +271,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   actionIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
     shadowOffset: { width: 0, height: 4 },
@@ -283,16 +283,16 @@ const styles = StyleSheet.create({
   },
   fab: {
     position: 'absolute',
-    right: 24,
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    right: 20,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 50,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 12,
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.22,
+    shadowRadius: 6,
+    elevation: 10,
   },
 });

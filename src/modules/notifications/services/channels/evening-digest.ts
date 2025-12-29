@@ -2,8 +2,8 @@ import * as Notifications from 'expo-notifications';
 import { SchedulableTriggerInputTypes } from 'expo-notifications';
 import Logger from '@/shared/utils/Logger';
 import { notificationAnalytics } from '../notification-analytics';
-import { NotificationChannel } from '@/modules/notifications';
-import { FocusGenerator, FocusData } from '@/modules/intelligence';
+import { NotificationChannel } from '../../types';
+import { FocusGenerator, FocusData } from '@/modules/intelligence/services/focus-generator';
 import { notificationStore } from '../notification-store';
 import { differenceInDays, startOfDay, isSameDay, addDays } from 'date-fns';
 import { database } from '@/db';
@@ -501,8 +501,27 @@ export const EveningDigestChannel: NotificationChannel & {
                 Logger.info('[EveningDigest] Not scheduled, scheduling now...');
                 await EveningDigestChannel.schedule(userTime);
             } else {
-                // Check if scheduled time matches user preference
-                const trigger = digestScheduled.trigger as { hour?: number; minute?: number } | undefined;
+                // Extract hour/minute from trigger - handles both iOS (CalendarNotificationTrigger)
+                // and Android (DailyNotificationTrigger) structures
+                const trigger = digestScheduled.trigger as any;
+                let scheduledHour: number | undefined;
+                let scheduledMinute: number | undefined;
+
+                if (trigger) {
+                    if (trigger.type === 'calendar' && trigger.dateComponents) {
+                        // iOS: CalendarNotificationTrigger stores values in dateComponents
+                        scheduledHour = trigger.dateComponents.hour;
+                        scheduledMinute = trigger.dateComponents.minute;
+                    } else if (trigger.type === 'daily') {
+                        // Android: DailyNotificationTrigger has direct properties
+                        scheduledHour = trigger.hour;
+                        scheduledMinute = trigger.minute;
+                    } else {
+                        // Fallback: try direct access for any other structure
+                        scheduledHour = trigger.hour;
+                        scheduledMinute = trigger.minute;
+                    }
+                }
 
                 // Also check for "ghosts" - notifications with same type but different ID
                 const ghosts = scheduled.filter(n =>
@@ -515,8 +534,8 @@ export const EveningDigestChannel: NotificationChannel & {
                     await Promise.all(ghosts.map(g => Notifications.cancelScheduledNotificationAsync(g.identifier)));
                 }
 
-                if (trigger && (trigger.hour !== prefHour || trigger.minute !== prefMinute)) {
-                    Logger.info(`[EveningDigest] Time mismatch (scheduled: ${trigger.hour}:${trigger.minute}, preferred: ${userTime}), rescheduling...`);
+                if (scheduledHour !== prefHour || scheduledMinute !== prefMinute) {
+                    Logger.info(`[EveningDigest] Time mismatch (scheduled: ${scheduledHour}:${scheduledMinute}, preferred: ${userTime}), rescheduling...`);
                     await EveningDigestChannel.schedule(userTime);
                 }
             }

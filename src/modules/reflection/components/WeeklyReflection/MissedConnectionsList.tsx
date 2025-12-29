@@ -10,7 +10,7 @@ import { ChevronRight, Heart, AlertCircle } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { useRouter } from 'expo-router';
 import { MissedFriend } from '@/modules/reflection';
-import { ArchetypeIcon } from '@/modules/intelligence';
+import { ArchetypeIcon } from '@/modules/intelligence/components/archetypes/ArchetypeIcon';
 import { Archetype } from '@/shared/types/common';
 import * as Haptics from 'expo-haptics';
 

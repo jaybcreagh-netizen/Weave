@@ -20,8 +20,8 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { useUIStore } from '@/shared/stores/uiStore';
-import { markBadgeAsCelebrated } from '@/modules/gamification';
-import { markAchievementAsCelebrated } from '@/modules/gamification';
+import { markBadgeAsCelebrated } from '../services/badge.service';
+import { markAchievementAsCelebrated } from '../services/achievement.service';
 import { BlurView } from 'expo-blur';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { Text } from '@/shared/ui/Text';

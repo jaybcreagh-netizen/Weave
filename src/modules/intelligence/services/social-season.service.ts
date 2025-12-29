@@ -1,7 +1,7 @@
 import { database } from '@/db';
 import UserProfile from '@/db/models/UserProfile';
 import { SocialSeason } from '@/db/models/UserProfile';
-import { SeasonAnalyticsService } from '@/modules/intelligence';
+import { SeasonAnalyticsService } from './social-season/season-analytics.service';
 
 export const SocialSeasonService = {
     /**

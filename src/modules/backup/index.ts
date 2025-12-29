@@ -7,3 +7,4 @@
  */
 
 export * from './AutoBackupService';
+export * from './components/BackupListSheet';

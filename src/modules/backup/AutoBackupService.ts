@@ -99,10 +99,8 @@ export const AutoBackupService = {
             await CloudStorage.writeFile(path, jsonString);
             await AsyncStorage.setItem(LAST_BACKUP_KEY, new Date().toISOString());
 
-
-
-            // Prune old backups
-            await AutoBackupService.pruneBackups();
+            // Note: We no longer auto-prune old backups to keep full history
+            // User can manually delete old backups from iCloud if needed
         } catch (error) {
             Logger.error('AutoBackup: Backup failed:', error);
             throw error;

@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb'
 
 export default appSchema({
-  version: 47, // UPDATED: v46 Friend Linking + v47 Messaging app integration
+  version: 51, // v51 Offline Push Queue
   tables: [
     tableSchema({
       name: 'oracle_insights',
@@ -214,6 +214,11 @@ export default appSchema({
         { name: 'synced_at', type: 'number', isOptional: true },
         { name: 'sync_status', type: 'string', isOptional: true },
         { name: 'server_updated_at', type: 'number', isOptional: true },
+
+        // NEW v49: Identity Columns (Phase 3)
+        { name: 'phone', type: 'string', isOptional: true },
+        { name: 'email', type: 'string', isOptional: true },
+        { name: 'google_id', type: 'string', isOptional: true },
 
       ]
     }),
@@ -544,6 +549,48 @@ export default appSchema({
         { name: 'notification_body', type: 'string' },
         { name: 'item_count', type: 'number' }, // Quick count for display
         { name: 'created_at', type: 'number' },
+      ]
+    }),
+    // v48: Shared Weave References
+    tableSchema({
+      name: 'shared_weave_refs',
+      columns: [
+        { name: 'interaction_id', type: 'string', isIndexed: true },
+        { name: 'server_weave_id', type: 'string', isIndexed: true },
+        { name: 'created_by_user_id', type: 'string' },
+        { name: 'is_creator', type: 'boolean' },
+        { name: 'status', type: 'string' }, // pending, accepted, declined, expired
+        { name: 'role', type: 'string', isOptional: true }, // 'viewer', 'editor'
+        { name: 'can_participant_edit', type: 'boolean', isOptional: true },
+        { name: 'shared_at', type: 'number' },
+        { name: 'responded_at', type: 'number', isOptional: true },
+        { name: 'created_at', type: 'number' },
+        { name: 'updated_at', type: 'number' },
+      ]
+    }),
+    // v48: Sync Queue for offline operations
+    tableSchema({
+      name: 'sync_queue',
+      columns: [
+        { name: 'operation_type', type: 'string', isIndexed: true },
+        { name: 'payload', type: 'string' },
+        { name: 'status', type: 'string', isIndexed: true }, // pending, processing, completed, failed
+        { name: 'retry_count', type: 'number' },
+        { name: 'last_error', type: 'string', isOptional: true },
+        { name: 'queued_at', type: 'number', isIndexed: true },
+        { name: 'processed_at', type: 'number', isOptional: true },
+        { name: 'created_at', type: 'number' },
+        { name: 'updated_at', type: 'number' },
+      ]
+    }),
+    // v51: Offline Push Notification Queue
+    tableSchema({
+      name: 'pending_push_notifications',
+      columns: [
+        { name: 'recipient_user_id', type: 'string' },
+        { name: 'payload', type: 'string' }, // JSON
+        { name: 'retry_count', type: 'number' },
+        { name: 'created_at', type: 'number', isIndexed: true },
       ]
     })
   ]

@@ -9,8 +9,8 @@ import { type Archetype, type InteractionCategory } from '@/shared/types/common'
 import { archetypeData, CategoryArchetypeMatrix } from '@/shared/constants/constants';
 import { CATEGORY_METADATA } from '@/shared/constants/interaction-categories';
 import { useTheme } from '@/shared/hooks/useTheme';
-import { ArchetypeCard } from '@/modules/intelligence';
-import { ArchetypeIcon } from '@/modules/intelligence';
+import { ArchetypeCard } from '@/modules/intelligence/components/archetypes/ArchetypeCard';
+import { ArchetypeIcon } from '@/modules/intelligence/components/archetypes/ArchetypeIcon';
 
 const ALL_ARCHETYPES: Archetype[] = [
   'Emperor',

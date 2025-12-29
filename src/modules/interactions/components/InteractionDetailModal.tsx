@@ -13,12 +13,13 @@ import { Button } from '@/shared/ui/Button';
 import { type Interaction, type MoonPhase, type InteractionCategory } from '../types';
 import { modeIcons } from '@/shared/constants/constants';
 import { getCategoryMetadata } from '@/shared/constants/interaction-categories';
-import { STORY_CHIPS } from '@/modules/reflection';
+import { STORY_CHIPS } from '@/modules/reflection/services/story-chips.service';
 import { database } from '@/db';
 import { Q } from '@nozbe/watermelondb';
 import FriendModel from '@/db/models/Friend';
 import InteractionModel from '@/db/models/Interaction';
-import { shareInteractionAsICS } from '@/modules/interactions';
+import { shareInteractionAsICS } from '../services/calendar-export.service';
+import { ShareStatusBadge, getShareStatus } from '@/modules/sync';
 
 const moonPhaseIcons: Record<MoonPhase, string> = {
   'NewMoon': '🌑',
@@ -87,6 +88,10 @@ export function InteractionDetailModal({
   const pendingActionRef = useRef<'edit' | 'delete' | 'editReflection' | null>(null);
 
   const [participants, setParticipants] = useState<FriendModel[]>([]);
+  const [shareStatus, setShareStatus] = useState<{
+    isShared: boolean;
+    status?: 'pending' | 'accepted' | 'declined' | 'expired';
+  }>({ isShared: false });
 
   // Fetch all participants for this interaction
   useEffect(() => {
@@ -125,6 +130,15 @@ export function InteractionDetailModal({
     };
 
     fetchParticipants();
+  }, [activeInteraction]);
+
+  // Fetch share status
+  useEffect(() => {
+    if (!activeInteraction) {
+      setShareStatus({ isShared: false });
+      return;
+    }
+    getShareStatus(activeInteraction.id).then(setShareStatus);
   }, [activeInteraction]);
 
   if (!activeInteraction) return null;
@@ -259,20 +273,28 @@ export function InteractionDetailModal({
         </View>
 
         <ScrollView contentContainerStyle={{ padding: 24, gap: 24 }}>
-          <View
-            className="self-start px-3 py-1.5 rounded-full"
-            style={{
-              backgroundColor: activeInteraction.status === 'completed' ? '#dcfce7' : '#fef9c3'
-            }}
-          >
-            <Text
-              className="text-xs font-medium"
+          <View className="flex-row items-center gap-2">
+            <View
+              className="self-start px-3 py-1.5 rounded-full"
               style={{
-                color: activeInteraction.status === 'completed' ? '#166534' : '#854d0e'
+                backgroundColor: activeInteraction.status === 'completed' ? '#dcfce7' : '#fef9c3'
               }}
             >
-              {activeInteraction.status === 'completed' ? '✓ Completed' : '⏳ Planned'}
-            </Text>
+              <Text
+                className="text-xs font-medium"
+                style={{
+                  color: activeInteraction.status === 'completed' ? '#166534' : '#854d0e'
+                }}
+              >
+                {activeInteraction.status === 'completed' ? '✓ Completed' : '⏳ Planned'}
+              </Text>
+            </View>
+            {shareStatus.isShared && shareStatus.status && (
+              <View className="flex-row items-center gap-1.5 px-2 py-1 rounded-full" style={{ backgroundColor: colors.muted }}>
+                <ShareStatusBadge status={shareStatus.status} size="small" />
+                <Text className="text-xs" style={{ color: colors['muted-foreground'] }}>Shared</Text>
+              </View>
+            )}
           </View>
 
           <TouchableOpacity

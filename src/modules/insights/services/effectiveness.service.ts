@@ -3,9 +3,9 @@ import FriendModel from '@/db/models/Friend';
 import InteractionModel from '@/db/models/Interaction';
 import InteractionOutcome from '@/db/models/InteractionOutcome';
 import { Q } from '@nozbe/watermelondb';
-import { applyDecay } from '@/modules/intelligence';
+import { applyDecay } from '@/modules/intelligence/services/decay.service';
 import { InteractionCategory, Tier } from '@/shared/types/common';
-import { TierDecayRates, EffectivenessLearningConfig } from '@/modules/intelligence';
+import { TierDecayRates, EffectivenessLearningConfig } from '@/modules/intelligence/constants';
 import { EffectivenessInsights } from '../types';
 export type { EffectivenessInsights };
 

@@ -19,7 +19,8 @@ export type NotificationType =
     | 'event-suggestion'
     | 'life-event'
     | 'portfolio-insight'
-    | 'evening-digest';
+    | 'evening-digest'
+    | 'plan_reminder';
 
 export interface NotificationEventProperties {
     type: NotificationType;

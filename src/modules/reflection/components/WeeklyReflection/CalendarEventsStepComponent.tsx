@@ -11,8 +11,8 @@ import { View, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { Check, Users, MapPin, ChevronRight, X } from 'lucide-react-native'; // Cleaned up unused imports
 import { useTheme } from '@/shared/hooks/useTheme';
-import { ScannedEvent, scanRecentPastEvents } from '@/modules/interactions';
-import { ArchetypeIcon } from '@/modules/intelligence';
+import { ScannedEvent, scanRecentPastEvents } from '@/modules/interactions/services/event-scanner';
+import { ArchetypeIcon } from '@/modules/intelligence/components/archetypes/ArchetypeIcon';
 import { Archetype } from '@/shared/types/legacy-types';
 import * as Haptics from 'expo-haptics';
 import { Text } from '@/shared/ui/Text';

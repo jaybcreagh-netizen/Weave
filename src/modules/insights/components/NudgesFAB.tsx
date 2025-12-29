@@ -39,20 +39,28 @@ export function NudgesFAB({ isVisible, hasSuggestions, hasCritical, onClick }: N
   return (
     <TouchableOpacity
       onPress={onClick}
-      className="absolute w-16 h-16 rounded-full items-center justify-center z-50 left-6 shadow-lg"
       style={{
-        bottom: insets.bottom + 24,
+        position: 'absolute',
+        left: 20,
+        bottom: insets.bottom + 20,
+        width: 52,
+        height: 52,
+        borderRadius: 26,
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 50,
         backgroundColor: isDarkMode ? colors.accent : colors.primary + '33',
         shadowColor: isDarkMode ? colors.accent : '#000',
-        shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.25,
-        shadowRadius: 8,
-        elevation: 12,
+        shadowOffset: { width: 0, height: 5 },
+        shadowOpacity: 0.22,
+        shadowRadius: 6,
+        elevation: 10,
       }}
     >
       <Animated.View style={iconStyle}>
-        <WeaveIcon size={28} color={colors.foreground} />
+        <WeaveIcon size={24} color={colors.foreground} />
       </Animated.View>
     </TouchableOpacity>
   );
 }
+

@@ -4,7 +4,7 @@ import { useTheme } from '@/shared/hooks/useTheme';
 import { Database, Upload, Download, RefreshCw, Bug, Wrench } from 'lucide-react-native';
 import { ModernSwitch } from '@/shared/ui/ModernSwitch';
 import { SettingsItem } from './SettingsItem';
-import { AutoBackupService } from '@/modules/backup';
+import { AutoBackupService, BackupListSheet } from '@/modules/backup';
 import { DataWipeService } from '@/modules/data-management';
 import {
     exportAndShareData,
@@ -26,6 +26,7 @@ export const DataSettings: React.FC<DataSettingsProps> = ({ onClose }) => {
     const [isImporting, setIsImporting] = useState(false);
     const [autoBackupEnabled, setAutoBackupEnabled] = useState(false);
     const [lastBackupTime, setLastBackupTime] = useState<string | null>(null);
+    const [showBackupList, setShowBackupList] = useState(false);
 
     useEffect(() => {
         loadAutoBackupSettings();
@@ -296,6 +297,19 @@ export const DataSettings: React.FC<DataSettingsProps> = ({ onClose }) => {
                     onValueChange={handleToggleAutoBackup}
                 />
             </View>
+
+            <TouchableOpacity
+                onPress={() => setShowBackupList(true)}
+                className="flex-row items-center justify-between pl-13 py-2"
+            >
+                <Text className="text-sm font-inter-medium" style={{ color: colors.primary }}>Restore from iCloud Backup</Text>
+            </TouchableOpacity>
+
+            <BackupListSheet
+                isOpen={showBackupList}
+                onClose={() => setShowBackupList(false)}
+                onRestoreComplete={onClose}
+            />
 
             <View className="border-t border-border" style={{ borderColor: colors.border }} />
 

@@ -4,7 +4,7 @@ import { BlurView } from 'expo-blur';
 import { X } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { useUserProfile, useSocialBatteryStats, SocialBatteryService } from '@/modules/auth';
-import { generateSeasonExplanation } from '@/modules/reflection';
+import { generateSeasonExplanation } from '@/modules/reflection/services/narrative-generator.service';
 import { SeasonCalculationInput } from '@/modules/intelligence';
 
 interface SeasonExplanationModalProps {

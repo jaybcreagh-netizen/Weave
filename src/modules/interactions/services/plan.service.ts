@@ -1,4 +1,3 @@
-import { startOfDay, subDays } from 'date-fns';
 import { database } from '@/db';
 import { logger } from '@/shared/services/logger.service';
 import Interaction from '@/db/models/Interaction';
@@ -144,9 +143,11 @@ export async function convertIntentionToPlan(intentionId: string): Promise<void>
 
 /**
  * Checks for past-due planned interactions and transitions them to 'pending_confirm'.
+ * 
+ * OPTIMIZATION: Batches all plan status updates into a single database.write() call
+ * to prevent writer queue congestion at app startup.
  */
 export async function checkPendingPlans(): Promise<void> {
-  const today = startOfDay(new Date());
   const now = Date.now();
 
   const pendingPlans = await database
@@ -154,8 +155,6 @@ export async function checkPendingPlans(): Promise<void> {
     .query(
       Q.where('status', 'planned'),
       Q.where('interaction_date', Q.lt(now)),
-      // Removing the 48h limit so we catch all past plans
-      // Q.where('interaction_date', Q.gte(today.getTime() - 2 * 24 * 60 * 60 * 1000)),
       Q.or(
         Q.where('completion_prompted_at', null),
         Q.where('completion_prompted_at', Q.lt(now - 24 * 60 * 60 * 1000))
@@ -163,52 +162,77 @@ export async function checkPendingPlans(): Promise<void> {
     )
     .fetch();
 
-  if (pendingPlans.length > 0) {
-    // We iterate one by one to handle scoring for each
-    // Fetch profile from DB to get social season.
-    const profileCollection = database.get<UserProfile>('user_profile');
-    // Assuming single user profile for now, or fetch current user's profile
-    const profile = (await profileCollection.query().fetch())[0];
-    const currentSeason = profile?.currentSocialSeason || 'balanced' as any; // Cast or use valid enum string if 'Balance' is wrong. 'balanced' seems more standard.
+  if (pendingPlans.length === 0) {
+    return;
+  }
 
-    for (const plan of pendingPlans) {
-      // 1. Fetch friends for this plan (needed for scoring)
+  // Fetch profile once for all plans
+  const profileCollection = database.get<UserProfile>('user_profile');
+  const profile = (await profileCollection.query().fetch())[0];
+  const currentSeason = profile?.currentSocialSeason || 'balanced' as any;
+
+  // Track which plans were successfully scored and their operations
+  const successfullyScoredPlans: Interaction[] = [];
+  const allScoringOps: any[] = [];
+
+  // Process scoring for each plan
+  for (const plan of pendingPlans) {
+    try {
+      // Fetch friends for this plan
       const iFriends = await plan.interactionFriends.fetch();
       const friendIds = iFriends.map(f => f.friendId);
       const friends = await database.get<FriendModel>('friends').query(Q.where('id', Q.oneOf(friendIds))).fetch();
 
-      // 2. Auto-Score as Neutral (FirstQuarter)
-      // We assume it happened since it's in the past.
+      // Prepare interaction data for scoring
       const interactionData: InteractionFormData = {
         friendIds,
         activity: plan.activity,
         notes: plan.note,
         date: plan.interactionDate,
         type: 'log',
-        status: 'completed', // For scoring calc purposes
+        status: 'completed',
         mode: plan.mode,
         vibe: 'FirstQuarter', // Neutral default
-        duration: plan.duration as any, // Use planned duration if available
+        duration: plan.duration as any,
         category: plan.interactionCategory as any,
       };
 
-      try {
-        logger.info('PlanService', `Auto-scoring past plan: ${plan.id} with neutral vibe`);
-        await processWeaveScoring(friends, interactionData, database, currentSeason);
+      logger.info('PlanService', `Auto-scoring past plan: ${plan.id} with neutral vibe`);
 
-        // 3. Update status to pending_confirm so user knows to review it
-        await database.write(async () => {
-          await plan.update(p => {
-            p.status = 'pending_confirm'; // User still needs to confirm/rate details
-            p.completionPromptedAt = now;
-          });
-        });
-      } catch (err) {
-        logger.error('PlanService', `Failed to auto-score plan ${plan.id}:`, err);
-        // We do not update status so it will try again next time (or we could skip to avoid stuck loop?)
-        // Safe to leave it to retry.
+      // Prepare ops instead of executing immediately
+      // Use "prepareWeaveScoringOps" which we imported manually or via module
+      const { ops } = await import('@/modules/intelligence').then(m =>
+        m.prepareWeaveScoringOps(friends, interactionData, database, currentSeason)
+      );
+
+      if (ops.length > 0) {
+        allScoringOps.push(...ops);
       }
+
+      // Mark as successfully scored
+      successfullyScoredPlans.push(plan);
+    } catch (err) {
+      logger.error('PlanService', `Failed to auto-score plan ${plan.id}:`, err);
+      // Don't add to successfullyScoredPlans - will retry next time
     }
+  }
+
+  // Batch all status updates AND scoring updates into ONE write operation
+  if (successfullyScoredPlans.length > 0) {
+    const planUpdates = successfullyScoredPlans.map(plan =>
+      plan.prepareUpdate(p => {
+        p.status = 'pending_confirm';
+        p.completionPromptedAt = now;
+      })
+    );
+
+    const finalBatch = [...allScoringOps, ...planUpdates];
+
+    await database.write(async () => {
+      await database.batch(...finalBatch);
+    });
+
+    logger.info('PlanService', `Batched status update and scoring for ${successfullyScoredPlans.length} plans (${finalBatch.length} ops)`);
   }
 }
 

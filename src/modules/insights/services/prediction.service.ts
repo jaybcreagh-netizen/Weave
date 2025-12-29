@@ -1,6 +1,6 @@
 import FriendModel from '@/db/models/Friend';
 import { FriendshipPattern } from './pattern.service';
-import { TierDecayRates, PersonalizedThresholdConfig } from '@/modules/intelligence';
+import { TierDecayRates, PersonalizedThresholdConfig } from '@/modules/intelligence/constants';
 import { Tier } from '@/shared/types/common';
 import { differenceInDays, getDay } from 'date-fns';
 import { FriendPrediction, ProactiveSuggestion, BestDaysData } from '../types';

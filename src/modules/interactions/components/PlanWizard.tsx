@@ -73,6 +73,7 @@ export interface PlanFormData {
   time?: Date; // Optional time of day
   notes?: string;
   initiator?: InitiatorType;
+  shouldShare?: boolean;
 }
 
 export function PlanWizard({ visible, onClose, initialFriend, prefillData, replaceInteractionId, initialStep = 1 }: PlanWizardProps) {
@@ -307,50 +308,74 @@ export function PlanWizard({ visible, onClose, initialFriend, prefillData, repla
         initiator: formData.initiator,
       });
 
-      // Try to create calendar event if settings enabled
-      try {
-        const settings = await CalendarService.getCalendarSettings();
-        if (settings.enabled) {
-          const categoryMeta = getCategoryMetadata(formData.category);
-          const friendNames = selectedFriends.map(f => f.name).join(', ');
-          const eventTitle = formData.title?.trim() || `${categoryMeta?.label || formData.category} with ${friendNames}`;
+      handleClose();
 
-          const result = await CalendarService.createWeaveCalendarEventWithResult({
-            title: eventTitle,
-            friendNames: friendNames,
-            category: categoryMeta?.label || formData.category,
-            date: finalDate,
-            location: formData.location?.trim(),
-            notes: formData.notes?.trim(),
-          });
+      // Run secondary operations in background
+      (async () => {
+        // Try to create calendar event if settings enabled
+        try {
+          const settings = await CalendarService.getCalendarSettings();
+          if (settings.enabled) {
+            const categoryMeta = getCategoryMetadata(formData.category!);
+            const friendNames = selectedFriends.map(f => f.name).join(', ');
+            const eventTitle = formData.title?.trim() || `${categoryMeta?.label || formData.category} with ${friendNames}`;
 
-          if (result.success && result.eventId && newPlan.id) {
-            // Calendar event created successfully - update the interaction with the event ID
-            await database.write(async () => {
-              const interaction = await database.get<Interaction>('interactions').find(newPlan.id);
-              await interaction.update(i => {
-                i.calendarEventId = result.eventId!;
-              });
+            const result = await CalendarService.createWeaveCalendarEventWithResult({
+              title: eventTitle,
+              friendNames: friendNames,
+              category: categoryMeta?.label || formData.category!,
+              date: finalDate,
+              location: formData.location?.trim(),
+              notes: formData.notes?.trim(),
             });
-          } else if (!result.success && result.error !== 'disabled') {
-            // Show user feedback for calendar failures (but not if just disabled)
-            setTimeout(() => {
-              Alert.alert(
-                'Calendar Sync Issue',
-                result.message || 'Could not add event to your calendar. The plan was still created.',
-                [{ text: 'OK' }]
-              );
-            }, 500);
+
+            if (result.success && result.eventId && newPlan.id) {
+              // Calendar event created successfully - update the interaction with the event ID
+              await database.write(async () => {
+                const interaction = await database.get<Interaction>('interactions').find(newPlan.id);
+                await interaction.update(i => {
+                  i.calendarEventId = result.eventId!;
+                });
+              });
+            } else if (!result.success && result.error !== 'disabled') {
+              // Show toast for calendar failures
+              import('@/shared/stores/uiStore').then(({ useUIStore }) => {
+                useUIStore.getState().showToast(
+                  'Calendar sync failed',
+                  result.message || 'Could not add to calendar'
+                );
+              });
+            }
+          }
+        } catch (calendarError) {
+          console.warn('Calendar event creation failed:', calendarError);
+        }
+
+        // SHARE LOGIC (Phase 4)
+        if (formData.shouldShare && newPlan.id) {
+          try {
+            const linkedFriends = selectedFriends.filter(f => f.linkedUserId);
+            if (linkedFriends.length > 0) {
+              const { executeShareWeave } = await import('@/modules/sync/services/sync-operations');
+              await executeShareWeave({
+                interactionId: newPlan.id,
+                participantUserIds: linkedFriends.map(f => f.linkedUserId!),
+                title: formData.title,
+                weaveDate: finalDate.toISOString(),
+                location: formData.location,
+                category: formData.category!,
+                duration: null,
+                note: formData.notes,
+              });
+            }
+          } catch (shareErr) {
+            console.warn('Share failed:', shareErr);
           }
         }
-      } catch (calendarError) {
-        // Don't fail the plan creation if calendar sync fails
-        console.warn('Calendar event creation failed:', calendarError);
-      }
-
-      handleClose();
+      })();
     } catch (error) {
       console.error('Error creating plan:', error);
+      Alert.alert('Error', 'Failed to create plan. Please try again.');
     } finally {
       setIsSubmitting(false);
     }

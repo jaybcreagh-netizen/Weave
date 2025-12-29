@@ -1,25 +1,22 @@
 /**
- * Profile Screen
+ * Profile Screen - Consolidated Layout
  * 
- * Allows users to view and edit their profile:
- * - Username (unique, for friend discovery)
- * - Display name
- * - Profile photo
- * - Birthday
- * - Archetype
+ * Clean, section-based profile editing:
+ * - Photo at top
+ * - Identity section (username, display name)
+ * - Personal section (birthday, archetype)
  */
 
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, Alert, ScrollView, KeyboardAvoidingView, Platform, TouchableOpacity, ActivityIndicator, Modal } from 'react-native';
 import { router } from 'expo-router';
-import { User, AtSign, Edit3, Check, X, ChevronLeft, Camera, Cake, Sparkles } from 'lucide-react-native';
+import { User, AtSign, Edit3, Check, X, ChevronLeft, Camera, Cake, Sparkles, ChevronRight, Eye, LogOut } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { decode } from 'base64-arraybuffer';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
 import { Text } from '@/shared/ui/Text';
 import { Button } from '@/shared/ui/Button';
-import { Card } from '@/shared/ui/Card';
 import { Input } from '@/shared/ui/Input';
 import { CachedImage } from '@/shared/ui/CachedImage';
 import { useTheme } from '@/shared/hooks/useTheme';
@@ -27,6 +24,7 @@ import { getCurrentSession, getUserProfile } from '@/modules/auth/services/supab
 import { getSupabaseClient } from '@/shared/services/supabase-client';
 import { ArchetypeCarouselPicker } from '@/modules/intelligence/components/archetypes/ArchetypeCarouselPicker';
 import { archetypeData } from '@/shared/constants/constants';
+import { unregisterPushToken } from '@/modules/notifications/services/push-token.service';
 import type { Archetype } from '@/shared/types/common';
 
 export function ProfileScreen() {
@@ -57,6 +55,21 @@ export function ProfileScreen() {
     const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
     const [checkingUsername, setCheckingUsername] = useState(false);
 
+    // Cleanup modals on unmount to prevent gesture blocking
+    useEffect(() => {
+        return () => {
+            setShowDatePicker(false);
+            setShowArchetypePicker(false);
+        };
+    }, []);
+
+    // Debug: Track when archetype picker is shown
+    useEffect(() => {
+        if (showArchetypePicker) {
+            console.log('[ProfileScreen] showArchetypePicker became true, stack:', new Error().stack);
+        }
+    }, [showArchetypePicker]);
+
     useEffect(() => {
         loadProfile();
     }, []);
@@ -79,13 +92,11 @@ export function ProfileScreen() {
             setOriginalUsername(profile.username);
             setOriginalDisplayName(profile.displayName);
 
-            // Birthday
             if (profile.birthday) {
                 setBirthday(new Date(profile.birthday));
                 setOriginalBirthday(profile.birthday);
             }
 
-            // Archetype
             if (profile.archetype) {
                 setArchetype(profile.archetype as Archetype);
                 setOriginalArchetype(profile.archetype);
@@ -98,7 +109,7 @@ export function ProfileScreen() {
     const handlePickPhoto = async () => {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (status !== 'granted') {
-            Alert.alert('Permission Required', 'Please allow access to your photo library to upload a profile photo.');
+            Alert.alert('Permission Required', 'Please allow photo library access.');
             return;
         }
 
@@ -106,85 +117,54 @@ export function ProfileScreen() {
             mediaTypes: ['images'],
             allowsEditing: true,
             aspect: [1, 1],
-            quality: 1,
+            quality: 0.8,
+            base64: true,
         });
 
-        if (result.canceled || !result.assets[0]) {
-            return;
+        if (!result.canceled && result.assets[0].base64) {
+            await uploadPhoto(result.assets[0].base64, result.assets[0].mimeType || 'image/jpeg');
         }
-
-        const asset = result.assets[0];
-
-        // Import manipulator dynamically
-        const ImageManipulator = await import('expo-image-manipulator');
-
-        // Resize and compress the image
-        const manipulated = await ImageManipulator.manipulateAsync(
-            asset.uri,
-            [{ resize: { width: 400 } }],
-            { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG, base64: true }
-        );
-
-        if (!manipulated.base64) {
-            Alert.alert('Error', 'Could not process the image');
-            return;
-        }
-
-        console.log('[Profile] Image resized, size:', Math.round(manipulated.base64.length / 1024), 'KB');
-
-        await uploadPhoto(manipulated.base64, 'image/jpeg');
     };
 
     const uploadPhoto = async (base64: string, mimeType: string) => {
         if (!userId) return;
 
+        setUploadingPhoto(true);
+
         const client = getSupabaseClient();
         if (!client) {
             Alert.alert('Error', 'Could not connect to server');
+            setUploadingPhoto(false);
             return;
         }
 
-        setUploadingPhoto(true);
+        const extension = mimeType.split('/')[1] || 'jpeg';
+        const filePath = `${userId}/avatar.${extension}`;
 
-        try {
-            const ext = mimeType === 'image/png' ? 'png' : 'jpg';
-            const filePath = `${userId}/avatar.${ext}`;
+        const { error: uploadError } = await client.storage
+            .from('profile-photos')
+            .upload(filePath, decode(base64), {
+                contentType: mimeType,
+                upsert: true,
+            });
 
-            const { error: uploadError } = await client.storage
-                .from('profile-photos')
-                .upload(filePath, decode(base64), {
-                    contentType: mimeType,
-                    upsert: true,
-                });
-
-            if (uploadError) {
-                console.error('[Profile] Upload error:', uploadError);
-                Alert.alert('Upload Failed', 'Could not upload photo. Please try again.');
-                setUploadingPhoto(false);
-                return;
-            }
-
-            const { data: urlData } = client.storage
-                .from('profile-photos')
-                .getPublicUrl(filePath);
-
-            const newPhotoUrl = urlData.publicUrl + `?t=${Date.now()}`;
-
-            const { error: updateError } = await client
-                .from('user_profiles')
-                .update({ photo_url: newPhotoUrl, updated_at: new Date().toISOString() })
-                .eq('id', userId);
-
-            if (updateError) {
-                console.error('[Profile] Update error:', updateError);
-                Alert.alert('Error', 'Photo uploaded but could not update profile.');
-            } else {
-                setPhotoUrl(newPhotoUrl);
-            }
-        } catch (error) {
-            console.error('[Profile] Photo upload error:', error);
-            Alert.alert('Error', 'Something went wrong. Please try again.');
+        if (uploadError) {
+            Alert.alert('Error', 'Could not upload photo');
+            setUploadingPhoto(false);
+            return;
         }
+
+        const { data: urlData } = client.storage
+            .from('profile-photos')
+            .getPublicUrl(filePath);
+
+        const newUrl = `${urlData.publicUrl}?t=${Date.now()}`;
+        setPhotoUrl(newUrl);
+
+        await client
+            .from('user_profiles')
+            .update({ photo_url: newUrl })
+            .eq('id', userId);
 
         setUploadingPhoto(false);
     };
@@ -195,24 +175,25 @@ export function ProfileScreen() {
             return;
         }
 
-        if (newUsername.length < 3) {
+        if (newUsername.length < 3 || !/^[a-z0-9_]+$/.test(newUsername)) {
             setUsernameAvailable(null);
             return;
         }
 
         setCheckingUsername(true);
         const client = getSupabaseClient();
-
-        if (client) {
-            const { data } = await client
-                .from('user_profiles')
-                .select('id')
-                .eq('username', newUsername.toLowerCase())
-                .single();
-
-            setUsernameAvailable(!data);
+        if (!client) {
+            setCheckingUsername(false);
+            return;
         }
 
+        const { data } = await client
+            .from('user_profiles')
+            .select('username')
+            .eq('username', newUsername.toLowerCase())
+            .single();
+
+        setUsernameAvailable(!data);
         setCheckingUsername(false);
     };
 
@@ -220,10 +201,10 @@ export function ProfileScreen() {
         const sanitized = text.toLowerCase().replace(/[^a-z0-9_]/g, '');
         setUsername(sanitized);
         setUsernameAvailable(null);
-
-        if (sanitized.length >= 3) {
-            setTimeout(() => checkUsernameAvailability(sanitized), 500);
-        }
+        clearTimeout((handleUsernameChange as any).timeout);
+        (handleUsernameChange as any).timeout = setTimeout(() => {
+            checkUsernameAvailability(sanitized);
+        }, 500);
     };
 
     const handleDateChange = (_event: any, selectedDate?: Date) => {
@@ -233,6 +214,33 @@ export function ProfileScreen() {
         if (selectedDate) {
             setBirthday(selectedDate);
         }
+    };
+
+    const handleSignOut = async () => {
+        Alert.alert(
+            'Sign Out',
+            'Are you sure you want to sign out? Your data will remain on this device.',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Sign Out',
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            await unregisterPushToken();
+                            const client = getSupabaseClient();
+                            if (client) {
+                                await client.auth.signOut();
+                            }
+                            router.replace('/');
+                        } catch (error) {
+                            console.error('Sign out error:', error);
+                            Alert.alert('Error', 'Failed to sign out. Please try again.');
+                        }
+                    },
+                },
+            ]
+        );
     };
 
     const formatBirthday = (date?: Date) => {
@@ -272,21 +280,18 @@ export function ProfileScreen() {
             username: username.toLowerCase(),
             display_name: displayName.trim(),
             updated_at: new Date().toISOString(),
+            // Auto-detect timezone from device
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         };
 
-        // Only set birthday if provided
         if (birthday) {
             profileData.birthday = birthday.toISOString().split('T')[0];
         }
 
-        // Only set archetype if provided
         if (archetype) {
             profileData.archetype = archetype;
         }
 
-        console.log('[Profile] Saving profile with upsert:', profileData);
-
-        // Use upsert - creates if not exists, updates if exists
         const { error } = await client
             .from('user_profiles')
             .upsert(profileData, { onConflict: 'id' });
@@ -294,12 +299,10 @@ export function ProfileScreen() {
         setSaving(false);
 
         if (error) {
-            console.error('[Profile] Save error:', error);
             Alert.alert('Error', 'Could not save profile. Please try again.');
             return;
         }
 
-        // Update original values so hasChanges resets
         setOriginalUsername(username);
         setOriginalDisplayName(displayName);
         if (birthday) setOriginalBirthday(birthday.toISOString().split('T')[0]);
@@ -319,7 +322,7 @@ export function ProfileScreen() {
     if (loading) {
         return (
             <View style={[styles.container, { backgroundColor: colors.background }]}>
-                <Text>Loading...</Text>
+                <ActivityIndicator size="large" color={colors.primary} />
             </View>
         );
     }
@@ -330,7 +333,7 @@ export function ProfileScreen() {
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
             {/* Header */}
-            <View style={styles.header}>
+            <View style={[styles.header, { borderBottomColor: colors.border }]}>
                 <Button
                     variant="ghost"
                     onPress={() => router.back()}
@@ -340,8 +343,12 @@ export function ProfileScreen() {
                 <View style={{ width: 44 }} />
             </View>
 
-            <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
-                {/* Profile Photo */}
+            <ScrollView
+                style={styles.content}
+                contentContainerStyle={styles.contentContainer}
+                showsVerticalScrollIndicator={false}
+            >
+                {/* Photo Section */}
                 <View style={styles.photoSection}>
                     <TouchableOpacity
                         onPress={handlePickPhoto}
@@ -349,10 +356,7 @@ export function ProfileScreen() {
                         style={[styles.photoContainer, { borderColor: colors.border }]}
                     >
                         {photoUrl ? (
-                            <CachedImage
-                                source={{ uri: photoUrl }}
-                                style={styles.photo}
-                            />
+                            <CachedImage source={{ uri: photoUrl }} style={styles.photo} />
                         ) : (
                             <View style={[styles.photoPlaceholder, { backgroundColor: colors.muted }]}>
                                 <User size={48} color={colors['muted-foreground']} />
@@ -367,93 +371,127 @@ export function ProfileScreen() {
                             <Camera size={16} color="#FFFFFF" />
                         </View>
                     </TouchableOpacity>
-                    <Text variant="caption" style={{ color: colors['muted-foreground'], marginTop: 8 }}>
-                        Tap to change photo
-                    </Text>
                 </View>
 
-                {/* Username */}
-                <Card style={styles.fieldCard}>
-                    <View style={styles.fieldHeader}>
-                        <AtSign size={20} color={colors['muted-foreground']} />
-                        <Text variant="caption" style={styles.fieldLabel}>Username</Text>
-                        {checkingUsername && (
-                            <Text variant="caption" style={{ color: colors['muted-foreground'] }}>Checking...</Text>
-                        )}
-                        {usernameAvailable === true && !checkingUsername && (
-                            <Check size={16} color="#22C55E" />
-                        )}
-                        {usernameAvailable === false && !checkingUsername && (
-                            <X size={16} color="#EF4444" />
-                        )}
-                    </View>
-                    <Input
-                        value={username}
-                        onChangeText={handleUsernameChange}
-                        placeholder="your_username"
-                        autoCapitalize="none"
-                        autoCorrect={false}
-                        style={styles.input}
-                    />
-                    <Text variant="caption" style={[styles.hint, { color: colors['muted-foreground'] }]}>
-                        3+ characters. Letters, numbers, underscores only.
+                {/* Identity Section */}
+                <View style={styles.section}>
+                    <Text variant="caption" style={[styles.sectionTitle, { color: colors['muted-foreground'] }]}>
+                        IDENTITY
                     </Text>
-                </Card>
 
-                {/* Display Name */}
-                <Card style={styles.fieldCard}>
-                    <View style={styles.fieldHeader}>
-                        <Edit3 size={20} color={colors['muted-foreground']} />
-                        <Text variant="caption" style={styles.fieldLabel}>Display Name</Text>
-                    </View>
-                    <Input
-                        value={displayName}
-                        onChangeText={setDisplayName}
-                        placeholder="Your Name"
-                        style={styles.input}
-                    />
-                    <Text variant="caption" style={[styles.hint, { color: colors['muted-foreground'] }]}>
-                        How your name appears to friends.
-                    </Text>
-                </Card>
+                    <View style={[styles.sectionCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                        {/* Username */}
+                        <View style={styles.fieldRow}>
+                            <View style={styles.fieldLabel}>
+                                <AtSign size={18} color={colors['muted-foreground']} />
+                                <Text style={{ color: colors['muted-foreground'] }}>Username</Text>
+                            </View>
+                            <View style={styles.fieldValue}>
+                                <Input
+                                    value={username}
+                                    onChangeText={handleUsernameChange}
+                                    placeholder="username"
+                                    autoCapitalize="none"
+                                    autoCorrect={false}
+                                    style={[styles.inlineInput, { color: colors.foreground }]}
+                                />
+                                {checkingUsername && (
+                                    <ActivityIndicator size="small" color={colors['muted-foreground']} />
+                                )}
+                                {usernameAvailable === true && !checkingUsername && (
+                                    <Check size={18} color="#22C55E" />
+                                )}
+                                {usernameAvailable === false && !checkingUsername && (
+                                    <X size={18} color="#EF4444" />
+                                )}
+                            </View>
+                        </View>
 
-                {/* Birthday */}
-                <Card style={styles.fieldCard}>
-                    <View style={styles.fieldHeader}>
-                        <Cake size={20} color={colors['muted-foreground']} />
-                        <Text variant="caption" style={styles.fieldLabel}>Birthday</Text>
-                    </View>
-                    <TouchableOpacity
-                        onPress={() => setShowDatePicker(true)}
-                        style={[styles.selectButton, { borderColor: colors.border }]}
-                    >
-                        <Text style={{ color: birthday ? colors.foreground : colors['muted-foreground'] }}>
-                            {formatBirthday(birthday)}
-                        </Text>
-                    </TouchableOpacity>
-                    <Text variant="caption" style={[styles.hint, { color: colors['muted-foreground'] }]}>
-                        Friends will see this when you link with them.
-                    </Text>
-                </Card>
+                        <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
-                {/* Archetype */}
-                <Card style={styles.fieldCard}>
-                    <View style={styles.fieldHeader}>
-                        <Sparkles size={20} color={colors['muted-foreground']} />
-                        <Text variant="caption" style={styles.fieldLabel}>Your Archetype</Text>
+                        {/* Display Name */}
+                        <View style={styles.fieldRow}>
+                            <View style={styles.fieldLabel}>
+                                <Edit3 size={18} color={colors['muted-foreground']} />
+                                <Text style={{ color: colors['muted-foreground'] }}>Display Name</Text>
+                            </View>
+                            <View style={styles.fieldValue}>
+                                <Input
+                                    value={displayName}
+                                    onChangeText={setDisplayName}
+                                    placeholder="Your Name"
+                                    style={[styles.inlineInput, { color: colors.foreground }]}
+                                />
+                            </View>
+                        </View>
                     </View>
-                    <TouchableOpacity
-                        onPress={() => setShowArchetypePicker(true)}
-                        style={[styles.selectButton, { borderColor: colors.border }]}
-                    >
-                        <Text style={{ color: archetype ? colors.foreground : colors['muted-foreground'] }}>
-                            {archetype ? archetypeData[archetype]?.name || archetype : 'Not set'}
-                        </Text>
-                    </TouchableOpacity>
-                    <Text variant="caption" style={[styles.hint, { color: colors['muted-foreground'] }]}>
-                        How you prefer to connect with friends.
+                </View>
+
+                {/* Personal Section */}
+                <View style={styles.section}>
+                    <Text variant="caption" style={[styles.sectionTitle, { color: colors['muted-foreground'] }]}>
+                        PERSONAL
                     </Text>
-                </Card>
+
+                    <View style={[styles.sectionCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                        {/* Birthday */}
+                        <TouchableOpacity
+                            style={styles.fieldRow}
+                            onPress={() => setShowDatePicker(true)}
+                        >
+                            <View style={styles.fieldLabel}>
+                                <Cake size={18} color={colors['muted-foreground']} />
+                                <Text style={{ color: colors['muted-foreground'] }}>Birthday</Text>
+                            </View>
+                            <View style={styles.fieldValue}>
+                                <Text style={{ color: birthday ? colors.foreground : colors['muted-foreground'] }}>
+                                    {formatBirthday(birthday)}
+                                </Text>
+                                <ChevronRight size={18} color={colors['muted-foreground']} />
+                            </View>
+                        </TouchableOpacity>
+
+                        <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
+                        {/* Archetype */}
+                        <TouchableOpacity
+                            style={styles.fieldRow}
+                            onPress={() => setShowArchetypePicker(true)}
+                        >
+                            <View style={styles.fieldLabel}>
+                                <Sparkles size={18} color={colors['muted-foreground']} />
+                                <Text style={{ color: colors['muted-foreground'] }}>Archetype</Text>
+                            </View>
+                            <View style={styles.fieldValue}>
+                                <Text style={{ color: archetype ? colors.foreground : colors['muted-foreground'] }}>
+                                    {archetype ? archetypeData[archetype]?.name || archetype : 'Not set'}
+                                </Text>
+                                <ChevronRight size={18} color={colors['muted-foreground']} />
+                            </View>
+                        </TouchableOpacity>
+
+                        <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
+                        {/* Take Quiz */}
+                        <TouchableOpacity
+                            style={styles.fieldRow}
+                            onPress={() => router.push('/archetype-quiz')}
+                        >
+                            <View style={styles.fieldLabel}>
+                                <Sparkles size={18} color={colors.primary} />
+                                <Text style={{ color: colors.primary, fontWeight: '500' }}>
+                                    {archetype ? 'Retake Quiz' : 'Take the Quiz'}
+                                </Text>
+                            </View>
+                            <View style={styles.fieldValue}>
+                                <Text variant="caption" style={{ color: colors['muted-foreground'] }}>
+                                    60 seconds
+                                </Text>
+                                <ChevronRight size={18} color={colors.primary} />
+                            </View>
+                        </TouchableOpacity>
+                    </View>
+                </View>
 
                 {/* Save Button */}
                 <Button
@@ -463,6 +501,61 @@ export function ProfileScreen() {
                     disabled={!hasChanges || saving || usernameAvailable === false}
                     style={styles.saveButton}
                 />
+
+                {/* Account Section */}
+                <View style={[styles.section, { marginTop: 24 }]}>
+                    <Text style={[styles.sectionTitle, { color: colors['muted-foreground'] }]}>
+                        ACCOUNT
+                    </Text>
+
+                    <View style={{
+                        backgroundColor: colors.card,
+                        borderColor: colors.border,
+                        borderWidth: 1,
+                        borderRadius: 12,
+                        overflow: 'hidden',
+                    }}>
+                        {/* Profile Visibility */}
+                        <TouchableOpacity
+                            style={styles.fieldRow}
+                            onPress={() => router.push('/visibility-settings')}
+                        >
+                            <View style={styles.fieldLabel}>
+                                <Eye size={20} color={colors.primary} style={{ marginRight: 8 }} />
+                                <Text style={{ color: colors.foreground }}>
+                                    Profile Visibility
+                                </Text>
+                            </View>
+                            <View style={styles.fieldValue}>
+                                <Text variant="caption" style={{ color: colors['muted-foreground'] }}>
+                                    Control what friends see
+                                </Text>
+                                <ChevronRight size={18} color={colors['muted-foreground']} />
+                            </View>
+                        </TouchableOpacity>
+
+                        <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
+                        {/* Sign Out */}
+                        <TouchableOpacity
+                            style={styles.fieldRow}
+                            onPress={handleSignOut}
+                        >
+                            <View style={styles.fieldLabel}>
+                                <LogOut size={20} color={colors.destructive} style={{ marginRight: 8 }} />
+                                <Text style={{ color: colors.destructive }}>
+                                    Sign Out
+                                </Text>
+                            </View>
+                            <View style={styles.fieldValue}>
+                                <Text variant="caption" style={{ color: colors['muted-foreground'] }}>
+                                    Data stays on device
+                                </Text>
+                                <ChevronRight size={18} color={colors['muted-foreground']} />
+                            </View>
+                        </TouchableOpacity>
+                    </View>
+                </View>
             </ScrollView>
 
             {/* Date Picker Modal */}
@@ -536,6 +629,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 8,
         paddingTop: 60,
         paddingBottom: 16,
+        borderBottomWidth: 1,
     },
     headerTitle: {
         flex: 1,
@@ -545,36 +639,33 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     contentContainer: {
-        padding: 24,
-        paddingBottom: 100,
+        padding: 20,
+        paddingBottom: 40,
     },
     photoSection: {
         alignItems: 'center',
         marginBottom: 32,
     },
     photoContainer: {
-        position: 'relative',
         width: 120,
         height: 120,
         borderRadius: 60,
         borderWidth: 3,
+        overflow: 'hidden',
     },
     photo: {
         width: '100%',
         height: '100%',
-        borderRadius: 57,
     },
     photoPlaceholder: {
         width: '100%',
         height: '100%',
-        borderRadius: 57,
         alignItems: 'center',
         justifyContent: 'center',
     },
     uploadingOverlay: {
         ...StyleSheet.absoluteFillObject,
         backgroundColor: 'rgba(0,0,0,0.5)',
-        borderRadius: 57,
         alignItems: 'center',
         justifyContent: 'center',
     },
@@ -588,33 +679,54 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
     },
-    fieldCard: {
-        padding: 16,
-        marginBottom: 16,
+    section: {
+        marginBottom: 24,
     },
-    fieldHeader: {
+    sectionTitle: {
+        fontSize: 12,
+        fontWeight: '600',
+        letterSpacing: 1,
+        marginBottom: 8,
+        marginLeft: 4,
+    },
+    sectionCard: {
+        borderRadius: 12,
+        borderWidth: 1,
+        overflow: 'hidden',
+    },
+    fieldRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingVertical: 14,
+        paddingHorizontal: 16,
+    },
+    fieldLabel: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+    },
+    fieldValue: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 8,
-        marginBottom: 8,
-    },
-    fieldLabel: {
         flex: 1,
+        justifyContent: 'flex-end',
     },
-    input: {
-        marginBottom: 4,
+    inlineInput: {
+        flex: 1,
+        textAlign: 'right',
+        borderWidth: 0,
+        backgroundColor: 'transparent',
+        paddingVertical: 0,
+        paddingHorizontal: 0,
     },
-    hint: {
-        marginTop: 4,
-    },
-    selectButton: {
-        paddingVertical: 12,
-        paddingHorizontal: 16,
-        borderRadius: 8,
-        borderWidth: 1,
+    divider: {
+        height: 1,
+        marginLeft: 44,
     },
     saveButton: {
-        marginTop: 16,
+        marginTop: 8,
     },
     modalOverlay: {
         flex: 1,

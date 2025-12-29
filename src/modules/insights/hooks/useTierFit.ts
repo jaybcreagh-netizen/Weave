@@ -13,9 +13,15 @@ import type { TierFitAnalysis, NetworkTierHealth } from '../types';
  * @returns Tier fit analysis and loading state
  */
 export function useTierFit(friendId: string) {
-  const [analysis, setAnalysis] = useState<TierFitAnalysis | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [shouldShow, setShouldShow] = useState(false);
+  const [state, setState] = useState<{
+    analysis: TierFitAnalysis | null;
+    isLoading: boolean;
+    shouldShow: boolean;
+  }>({
+    analysis: null,
+    isLoading: true,
+    shouldShow: false,
+  });
 
   useEffect(() => {
     let subscription: any;
@@ -27,30 +33,33 @@ export function useTierFit(friendId: string) {
 
         // Run analysis (now async)
         const tierFitAnalysis = await analyzeTierFit(friend);
+
         if (isMounted) {
-          setAnalysis(tierFitAnalysis);
-
-          // Check if suggestion should be shown
           const show = shouldShowTierSuggestion(friend);
-          setShouldShow(show);
 
-          setIsLoading(false);
+          setState({
+            analysis: tierFitAnalysis,
+            isLoading: false,
+            shouldShow: show
+          });
         }
 
         // Subscribe to friend changes
         subscription = friend.observe().subscribe(async (updatedFriend: Friend) => {
           const updatedAnalysis = await analyzeTierFit(updatedFriend);
           if (isMounted) {
-            setAnalysis(updatedAnalysis);
-
             const updatedShow = shouldShowTierSuggestion(updatedFriend);
-            setShouldShow(updatedShow);
+            setState({
+              analysis: updatedAnalysis,
+              isLoading: false,
+              shouldShow: updatedShow
+            });
           }
         });
       } catch (error) {
         console.error('[useTierFit] Error loading tier fit analysis:', error);
         if (isMounted) {
-          setIsLoading(false);
+          setState(prev => ({ ...prev, isLoading: false }));
         }
       }
     };
@@ -65,11 +74,7 @@ export function useTierFit(friendId: string) {
     };
   }, [friendId]);
 
-  return {
-    analysis,
-    isLoading,
-    shouldShow, // Whether to show the suggestion (not recently dismissed)
-  };
+  return state;
 }
 
 /**

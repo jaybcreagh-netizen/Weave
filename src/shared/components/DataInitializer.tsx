@@ -17,7 +17,7 @@ import {
     Inter_600SemiBold,
 } from '@expo-google-fonts/inter';
 
-import { initializeDataMigrations, initializeUserProfile, initializeUserProgress } from '@/db';
+import { initializeDataMigrations, initializeAppSingletons } from '@/db';
 import { LoadingScreen } from '@/shared/components/LoadingScreen';
 import { useDatabaseReady } from '@/shared/hooks/useDatabaseReady';
 import { useAppStateChange } from '@/shared/hooks/useAppState';
@@ -128,16 +128,17 @@ export function DataInitializer({ children }: DataInitializerProps) {
                     const { database } = await import('@/db');
                     // Just fetching the count is enough to initialize the collection and adapter
                     await database.get('friends').query().fetchCount();
-
                 };
 
-                // Run all initializations in parallel
-                // Note: initializeDataMigrations now has a fast-path version check,
-                // so it's safe to parallelize (returns immediately on subsequent boots)
+                // CRITICAL WRITES: Run sequentially to prevent queue congestion
+                // 1. Data migrations must complete first (may have writes)
+                await initializeDataMigrations();
+
+                // 2. App singletons in a single batched write
+                await initializeAppSingletons();
+
+                // NON-CRITICAL: These are reads or non-blocking, can run in parallel
                 await Promise.all([
-                    initializeDataMigrations(),
-                    initializeUserProfile(),
-                    initializeUserProgress(),
                     initializeAnalytics(),
                     initializeFriendCache()
                 ]);
@@ -158,24 +159,28 @@ export function DataInitializer({ children }: DataInitializerProps) {
                     });
                 });
 
-                // Run image cleanup (non-blocking)
-                import('@/modules/relationships/services/image.service').then(({ verifyAndCleanupFriendImages }) => {
-                    verifyAndCleanupFriendImages().catch(err => {
-                        console.error('[App] Error during image verification:', err);
+                // DEFERRED: These write-heavy operations run after a delay to avoid queue congestion
+                // They will fire 3 seconds after UI is ready, giving priority to user interactions
+                setTimeout(() => {
+                    // Run image cleanup (non-blocking)
+                    import('@/modules/relationships/services/image.service').then(({ verifyAndCleanupFriendImages }) => {
+                        verifyAndCleanupFriendImages().catch(err => {
+                            console.error('[App] Error during image verification:', err);
+                        });
                     });
-                });
 
-                // Run tier integrity repair (non-blocking, only runs once per device)
-                import('@/shared/services/integrity.service').then(({ integrityService }) => {
-                    integrityService.repairTiers().catch(err => {
-                        console.error('[App] Error during tier integrity repair:', err);
+                    // Run tier integrity repair (non-blocking, only runs once per device)
+                    import('@/shared/services/integrity.service').then(({ integrityService }) => {
+                        integrityService.repairTiers().catch(err => {
+                            console.error('[App] Error during tier integrity repair:', err);
+                        });
                     });
-                });
 
-                // Check for pending plans
-                PlanService.checkPendingPlans().catch(err => {
-                    console.error('[App] Error checking pending plans on launch:', err);
-                });
+                    // Check for pending plans (has database writes)
+                    PlanService.checkPendingPlans().catch(err => {
+                        console.error('[App] Error checking pending plans on launch:', err);
+                    });
+                }, 3000);
 
                 setDataLoaded(true);
 

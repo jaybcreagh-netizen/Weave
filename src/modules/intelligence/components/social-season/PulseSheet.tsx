@@ -10,12 +10,13 @@ import { startOfMonth, endOfMonth, eachDayOfInterval, format, isSameDay, startOf
 import { Q } from '@nozbe/watermelondb';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { AnimatedBottomSheet } from '@/shared/ui/Sheet';
-import { type SocialSeason, type SeasonExplanationData } from '@/modules/intelligence';
-import { SEASON_STYLES, getSeasonDisplayName } from '@/modules/intelligence';
-import { generateSeasonExplanation } from '@/modules/reflection';
+import { type SocialSeason } from '@/db/models/UserProfile';
+import { type SeasonExplanationData } from '@/modules/intelligence/services/social-season/season-types';
+import { SEASON_STYLES, getSeasonDisplayName } from '@/modules/intelligence/services/social-season/season-content';
+import { generateSeasonExplanation } from '@/modules/reflection/services/narrative-generator.service';
 import { GraphsTabContent } from '@/modules/intelligence/components/social-season/YearInMoons/GraphsTabContentV2';
-import { TierBalanceContent } from '@/modules/relationships';
-import { SeasonEffectsPanel } from '@/modules/intelligence';
+import { TierBalanceContent } from '@/modules/relationships/components/TierBalanceContent';
+import { SeasonEffectsPanel } from '@/modules/intelligence/components/social-season/SeasonEffectsPanel';
 import { database } from '@/db';
 import Interaction from '@/db/models/Interaction';
 import WeeklyReflection from '@/db/models/WeeklyReflection';

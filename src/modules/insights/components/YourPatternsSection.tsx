@@ -6,9 +6,9 @@
 import React, { useState, useEffect } from 'react';
 import { View, ScrollView, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
-import { getMostUsedChips, analyzeCustomNotesForPatterns } from '@/modules/reflection';
-import { STORY_CHIPS, type ChipType } from '@/modules/reflection';
-import { CustomChipModal } from '@/modules/reflection';
+import { getMostUsedChips, analyzeCustomNotesForPatterns } from '@/modules/reflection/services/adaptive-chips';
+import { STORY_CHIPS, type ChipType } from '@/modules/reflection/services/story-chips.service';
+import { CustomChipModal } from '@/modules/reflection/components/CustomChipModal';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { Text } from '@/shared/ui/Text';
 import { Button } from '@/shared/ui/Button';

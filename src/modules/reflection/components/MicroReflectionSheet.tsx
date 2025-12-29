@@ -7,7 +7,7 @@ import { useTheme } from '@/shared/hooks/useTheme';
 import { getCategoryMetadata } from '@/shared/constants/interaction-categories';
 import { AnimatedBottomSheet } from '@/shared/ui/Sheet';
 import { BufferedTextInput } from '@/shared/ui/BufferedTextInput';
-import { MoonPhaseSelector } from '@/modules/intelligence';
+import { MoonPhaseSelector } from '@/modules/intelligence/components/MoonPhaseSelector';
 
 interface MicroReflectionSheetProps {
   isVisible: boolean;

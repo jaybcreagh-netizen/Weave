@@ -10,6 +10,8 @@ import Logger from '@/shared/utils/Logger';
 import { notificationStore } from './notification-store';
 import { notificationAnalytics } from './notification-analytics';
 import { checkNotificationPermissions, requestNotificationPermissions } from './permission.service';
+import { registerPushToken, handleRemotePushNotification } from './push-token.service';
+import { showSharedWeaveNotification, showLinkRequestNotification } from './shared-weave-notifications';
 
 // Channels
 import { BatteryCheckinChannel } from './channels/battery-checkin';
@@ -223,6 +225,11 @@ class NotificationOrchestratorService {
 
             // Restore event reminders
             await EventReminderChannel.scheduleAll();
+
+            // Register push token for server-sent notifications
+            registerPushToken().catch(err => {
+                Logger.error('[NotificationOrchestrator] Push token registration failed:', err);
+            });
 
         } catch (error) {
             Logger.error('[NotificationOrchestrator] Error during startup checks:', error);

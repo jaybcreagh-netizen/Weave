@@ -2,12 +2,13 @@ import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import Animated, { SharedValue, useAnimatedStyle } from 'react-native-reanimated';
 import { ArrowLeft, Edit, Trash2, Calendar } from 'lucide-react-native';
-import { FriendListRow, FriendListRowContent } from '@/modules/relationships';
+import { FriendListRow, FriendListRowContent } from '@/modules/relationships/components/FriendListRow';
 import { PatternBadge } from '@/modules/gamification';
 import { TierFitCard } from '@/modules/insights';
 import { useTheme } from '@/shared/hooks/useTheme';
 import FriendModel from '@/db/models/Friend';
 import { LinkStatusBadge } from '../LinkStatusBadge';
+import { LinkedArchetypeBadge } from '../LinkedArchetypeBadge';
 
 interface ProfileHeaderProps {
     friend: FriendModel;
@@ -77,6 +78,11 @@ export function ProfileHeader({
                             friend={friend}
                             onLinkPress={onLinkToWeaveUser}
                         />
+                    </View>
+
+                    {/* Linked Friend's Archetype (if linked) */}
+                    <View style={{ marginTop: 8 }}>
+                        <LinkedArchetypeBadge friend={friend} />
                     </View>
 
                     {/* Tier Fit Card */}

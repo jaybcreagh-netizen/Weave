@@ -56,8 +56,20 @@ export function ToastNotification({ message, friendName, onDismiss }: ToastNotif
   }));
 
   return (
-    <Portal>
-      <View className="absolute inset-0 justify-center items-center z-[9999]" pointerEvents="box-none">
+    <Portal hostName="toast_layer">
+      <View
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 9999,
+        }}
+        pointerEvents="box-none"
+      >
         <Animated.View style={[{
           borderRadius: 24,
           overflow: 'hidden',

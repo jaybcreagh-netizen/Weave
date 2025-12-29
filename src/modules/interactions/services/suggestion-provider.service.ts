@@ -7,22 +7,24 @@ import { generateSuggestion } from './suggestion-engine';
 import { generateGuaranteedSuggestions } from './guaranteed-suggestions.service';
 import * as SuggestionStorageService from './suggestion-storage.service';
 import { Suggestion } from '@/shared/types/common';
+import { calculateCurrentScore } from '@/modules/intelligence/services/orchestrator.service';
 import {
-    calculateCurrentScore,
     filterSuggestionsBySeason,
     getSeasonSuggestionConfig,
-    SeasonAnalyticsService
-} from '@/modules/intelligence';
+} from '@/modules/intelligence/services/social-season/season-suggestions.service';
+import { SeasonAnalyticsService } from '@/modules/intelligence/services/social-season/season-analytics.service';
 import type { SocialSeason } from '@/db/models/UserProfile';
 import { filterSuggestionsByTime } from '@/shared/utils/time-aware-filter';
 import {
     generatePortfolioInsights,
     analyzeArchetypeBalance,
     type PortfolioAnalysisStats,
-    generateProactiveSuggestions,
+} from '@/modules/insights/services/portfolio.service';
+import { generateProactiveSuggestions } from '@/modules/insights/services/prediction.service';
+import {
     isPatternReliable,
     analyzeInteractionPattern,
-} from '@/modules/insights';
+} from '@/modules/insights/services/pattern.service';
 
 import { SuggestionCandidateService } from './suggestion-system/SuggestionCandidateService';
 import { SuggestionDataLoader } from './suggestion-system/SuggestionDataLoader';

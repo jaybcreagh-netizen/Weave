@@ -276,7 +276,10 @@ export const useUIStore = create<UIStore>((set, get) => ({
   closeWeeklyReflection: () => get().closePopup('weekly-reflection'),
 
   setSelectedFriendId: (id) => set({ selectedFriendId: id }),
-  setArchetypeModal: (archetype) => set({ archetypeModal: archetype }),
+  setArchetypeModal: (archetype) => {
+    console.log('[UIStore] setArchetypeModal called with:', archetype, 'Stack:', new Error().stack);
+    set({ archetypeModal: archetype });
+  },
   openTimelineView: () => set({ timelineViewOpen: true }),
   closeTimelineView: () => set({ timelineViewOpen: false }),
   setTimelineInteractions: (interactions) => set({ timelineInteractions: interactions }),

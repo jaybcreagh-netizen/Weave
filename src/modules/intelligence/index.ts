@@ -8,7 +8,7 @@
  */
 
 // Services
-export { processWeaveScoring, calculateCurrentScore, calculateWeightedNetworkHealth, recalculateScoreOnEdit, recalculateScoreOnDelete, logNetworkHealth } from './services/orchestrator.service';
+export { processWeaveScoring, prepareWeaveScoringOps, calculateCurrentScore, calculateWeightedNetworkHealth, recalculateScoreOnEdit, recalculateScoreOnDelete, logNetworkHealth } from './services/orchestrator.service';
 export * as orchestrator from './services/orchestrator.service';
 export { calculateInteractionQuality } from './services/quality.service';
 export * from './services/deepening.service';

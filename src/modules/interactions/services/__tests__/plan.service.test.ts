@@ -12,6 +12,7 @@ jest.mock('@/db', () => ({
     find: jest.fn(),
     write: jest.fn(async (fn) => fn()),
     update: jest.fn(),
+    batch: jest.fn(),
   },
 }));
 
@@ -74,9 +75,11 @@ describe('PlanService', () => {
   });
 
   it('should check for pending plans and update their status', async () => {
+    const mockPreparedUpdate = {};
     const mockPlan = {
       id: 'plan1',
       update: jest.fn(),
+      prepareUpdate: jest.fn().mockReturnValue(mockPreparedUpdate),
       interactionFriends: {
         fetch: jest.fn().mockResolvedValue([{ friendId: 'friend1' }])
       },
@@ -101,7 +104,8 @@ describe('PlanService', () => {
     await checkPendingPlans();
 
     expect(database.write).toHaveBeenCalled();
-    expect(mockPlan.update).toHaveBeenCalledWith(expect.any(Function));
+    // Now uses prepareUpdate for batching instead of update
+    expect(mockPlan.prepareUpdate).toHaveBeenCalledWith(expect.any(Function));
   });
 
   it('should check for missed plans and update their status', async () => {

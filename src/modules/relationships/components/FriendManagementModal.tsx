@@ -7,7 +7,7 @@ import { StandardBottomSheet } from '@/shared/ui/Sheet';
 import { Text } from '@/shared/ui/Text';
 import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
-import { useFriendActions } from '@/modules/relationships';
+import { useFriendActions } from '../hooks/useFriendActions';
 import { calculateCurrentScore } from '@/modules/intelligence';
 import type FriendModel from '@/db/models/Friend';
 import { database } from '@/db';

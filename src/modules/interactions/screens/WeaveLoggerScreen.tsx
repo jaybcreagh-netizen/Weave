@@ -5,16 +5,17 @@ import { Stack } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInUp, useSharedValue, withSpring } from 'react-native-reanimated';
 
-import { calculateDeepeningLevel } from '@/modules/intelligence';
+import { calculateDeepeningLevel } from '@/modules/intelligence/services/deepening.service';
 import { useUIStore } from '@/shared/stores/uiStore';
 
-import { useInteractions, type StructuredReflection } from '@/modules/interactions';
+import { useInteractions } from '../hooks/useInteractions';
+import { type StructuredReflection } from '../types';
 import { WeaveReflectPrompt, useWeaveReflectPrompt } from '@/modules/journal';
 import { useDebounceCallback } from '@/shared/hooks/useDebounceCallback';
 import { Calendar as CalendarIcon, X, Sparkles, Users, ChevronLeft, Clock, Sun, Moon, LucideIcon } from 'lucide-react-native';
 import { CustomCalendar } from '@/shared/components/CustomCalendar';
-import { MoonPhaseSelector } from '@/modules/intelligence';
-import { ContextualReflectionInput } from '@/modules/reflection';
+import { MoonPhaseSelector } from '@/modules/intelligence/components/MoonPhaseSelector';
+import { ContextualReflectionInput } from '@/modules/reflection/components/ContextualReflectionInput';
 import { format, subDays, isSameDay, startOfDay } from 'date-fns';
 import { type Vibe, type InteractionCategory, type Archetype } from '@/shared/types/legacy-types';
 import { useTheme } from '@/shared/hooks/useTheme';
@@ -26,8 +27,9 @@ import FriendModel from '@/db/models/Friend';
 import { ReciprocitySelector, InitiatorType, FriendPickerSheet } from '@/modules/relationships';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
-import { STORY_CHIPS } from '@/modules/reflection';
+import { STORY_CHIPS } from '@/modules/reflection/services/story-chips.service';
 import { ErrorBoundary } from '@/shared/components/ErrorBoundary';
+import { ShareWeaveToggle, shareWeave, getLinkedFriendsFromIds } from '@/modules/sync';
 
 const categories: CategoryMetadata[] = getAllCategories().map(getCategoryMetadata);
 
@@ -82,6 +84,8 @@ export function WeaveLoggerScreen({
     const [initiator, setInitiator] = useState<InitiatorType | undefined>(undefined);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [calendarDates, setCalendarDates] = useState<{ planned: Date[]; completed: Date[] }>({ planned: [], completed: [] });
+    const [shareWithLinked, setShareWithLinked] = useState(false);
+    const [linkedFriends, setLinkedFriends] = useState<FriendModel[]>([]);
 
     const {
         showPrompt,
@@ -146,6 +150,20 @@ export function WeaveLoggerScreen({
                 });
         }
     }, [friendId, onBack]);
+
+    // Check for linked friends when selectedFriends changes
+    useEffect(() => {
+        const checkLinkedFriends = async () => {
+            if (selectedFriends.length === 0) {
+                setLinkedFriends([]);
+                setShareWithLinked(false);
+                return;
+            }
+            const linked = await getLinkedFriendsFromIds(selectedFriends.map(f => f.id));
+            setLinkedFriends(linked);
+        };
+        checkLinkedFriends();
+    }, [selectedFriends]);
 
     // Fetch interaction dates for calendar indicators
     useEffect(() => {
@@ -293,7 +311,7 @@ export function WeaveLoggerScreen({
                 .filter(Boolean)
                 .join(' ');
 
-            await logWeave({
+            const savedInteraction = await logWeave({
                 friendIds: selectedFriends.map(f => f.id),
                 category: selectedCategory,
                 activity: selectedCategory,
@@ -308,8 +326,21 @@ export function WeaveLoggerScreen({
                 initiator,
             });
 
+            // Share with linked friends if enabled
+            if (shareWithLinked && linkedFriends.length > 0) {
+                try {
+                    await shareWeave({
+                        interactionId: savedInteraction.id,
+                        linkedFriendIds: linkedFriends.map(f => f.id),
+                    });
+                } catch (shareError) {
+                    console.error('[WeaveLogger] Error sharing weave:', shareError);
+                    // Don't block navigation - share is queued for retry
+                }
+            }
+
             const interactionData = {
-                id: 'new-weave',
+                id: savedInteraction.id,
                 interactionDate: selectedDate.getTime(),
                 interactionType: 'log',
                 interactionCategory: selectedCategory,
@@ -605,6 +636,15 @@ export function WeaveLoggerScreen({
                                     </TouchableOpacity>
                                 </View>
                             </View>
+
+                            {/* Share Toggle - Shows if any selected friend is linked */}
+                            {linkedFriends.length > 0 && (
+                                <ShareWeaveToggle
+                                    linkedFriends={linkedFriends}
+                                    shareEnabled={shareWithLinked}
+                                    onShareChange={setShareWithLinked}
+                                />
+                            )}
 
                             {/* Category Selection */}
                             <View className="mb-5">

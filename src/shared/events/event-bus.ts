@@ -24,12 +24,6 @@ class EventBus {
 
   async emit(event: string, data: any) {
     const handlers = this.handlers.get(event) || [];
-    // Execute all handlers
-    // We don't await them to block the main flow if we want fire-and-forget, 
-    // but the original plan said "async emit". 
-    // Let's keep Promise.all to ensure we catch errors if needed or just wait for them.
-    // However, for side effects, best to not block if not critical. 
-    // The previous implementation used await Promise.all. I will stick to it.
     await Promise.all(handlers.map(h => h(data)));
   }
 

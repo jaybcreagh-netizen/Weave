@@ -15,6 +15,8 @@ interface TutorialState {
   hasSeenTodaysFocus: boolean;
   hasSeenSocialBattery: boolean;
   hasSeenInsightsTab: boolean;
+  hasSeenQuizPrompt: boolean;
+  hasTakenQuiz: boolean;
 
   // Helper
   persistState: (updates: Partial<TutorialState>) => Promise<void>;
@@ -31,6 +33,8 @@ interface TutorialState {
   markTodaysFocusSeen: () => Promise<void>;
   markSocialBatterySeen: () => Promise<void>;
   markInsightsTabSeen: () => Promise<void>;
+  markQuizPromptSeen: () => Promise<void>;
+  markQuizTaken: () => Promise<void>;
 
   // Utilities
   resetTutorials: () => Promise<void>;
@@ -52,6 +56,8 @@ export const useTutorialStore = create<TutorialState>((set, get) => ({
   hasSeenTodaysFocus: false,
   hasSeenSocialBattery: false,
   hasSeenInsightsTab: false,
+  hasSeenQuizPrompt: false,
+  hasTakenQuiz: false,
 
   // Helper to persist state
   persistState: async (updates: Partial<TutorialState>) => {
@@ -124,6 +130,16 @@ export const useTutorialStore = create<TutorialState>((set, get) => ({
     await persistState({ hasSeenInsightsTab: true });
   },
 
+  markQuizPromptSeen: async () => {
+    const { persistState } = get();
+    await persistState({ hasSeenQuizPrompt: true });
+  },
+
+  markQuizTaken: async () => {
+    const { persistState } = get();
+    await persistState({ hasTakenQuiz: true });
+  },
+
   resetTutorials: async () => {
     try {
       await AsyncStorage.removeItem(STORAGE_KEY);
@@ -139,6 +155,8 @@ export const useTutorialStore = create<TutorialState>((set, get) => ({
         hasSeenTodaysFocus: false,
         hasSeenSocialBattery: false,
         hasSeenInsightsTab: false,
+        hasSeenQuizPrompt: false,
+        hasTakenQuiz: false,
       });
     } catch (error) {
       console.error('Failed to reset tutorial state:', error);

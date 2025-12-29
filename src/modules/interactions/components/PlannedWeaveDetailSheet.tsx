@@ -33,7 +33,7 @@ import FriendModel from '@/db/models/Friend';
 import InteractionFriend from '@/db/models/InteractionFriend';
 import { InteractionCategory } from '@/shared/types/common';
 import { getCategoryMetadata, CATEGORY_METADATA } from '@/shared/constants/interaction-categories';
-import { FriendSelector } from '@/modules/relationships';
+import { FriendSelector } from '@/modules/relationships/components/FriendSelector';
 import { NotesInputField } from '@/shared/components/NotesInputField';
 import * as CalendarService from '../services/calendar.service';
 import * as Haptics from 'expo-haptics';

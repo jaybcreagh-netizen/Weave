@@ -1,16 +1,18 @@
 import React from 'react';
 import { View, TouchableOpacity } from 'react-native';
-import { UserPlus, Users } from 'lucide-react-native';
+import { UserPlus, Users, Sparkles } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { StandardBottomSheet } from '@/shared/ui/Sheet/StandardBottomSheet';
 import { Text } from '@/shared/ui';
+import { isFeatureEnabled } from '@/shared/config/feature-flags';
 
 interface AddFriendMenuProps {
   isOpen: boolean;
   onClose: () => void;
   onAddSingle: () => void;
   onAddBatch: () => void;
+  onFindContacts: () => void;
 }
 
 export function AddFriendMenu({
@@ -18,6 +20,7 @@ export function AddFriendMenu({
   onClose,
   onAddSingle,
   onAddBatch,
+  onFindContacts,
 }: AddFriendMenuProps) {
   const { colors } = useTheme();
 
@@ -58,6 +61,35 @@ export function AddFriendMenu({
             </Text>
           </View>
         </TouchableOpacity>
+
+        {/* Find on Weave - Contact Discovery */}
+        {isFeatureEnabled('ACCOUNTS_ENABLED') && (
+          <TouchableOpacity
+            className="flex-row items-center gap-3 py-3.5 px-4 rounded-xl"
+            style={{ backgroundColor: colors.secondary }}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              // Close menu and open scan sheet - need to lift state up ideally, but for now we can't easily.
+              // Actually, we should prob pass onFindContacts prop to this menu
+              // But let's check if we can just do it here if we render the sheet outside? 
+              // Wait, standard bottom sheet needs to be at root usually.
+              // Let's modify the props to accept onFindContacts
+              onFindContacts();
+              onClose();
+            }}
+            activeOpacity={0.8}
+          >
+            <Sparkles color={colors['secondary-foreground']} size={20} />
+            <View className="flex-1">
+              <Text className="text-base font-semibold" style={{ color: colors['secondary-foreground'] }}>
+                Find on Weave
+              </Text>
+              <Text className="text-xs mt-0.5" style={{ color: colors['secondary-foreground'], opacity: 0.8 }}>
+                See who's already here
+              </Text>
+            </View>
+          </TouchableOpacity>
+        )}
 
         {/* Batch Add from Contacts */}
         <TouchableOpacity

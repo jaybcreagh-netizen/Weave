@@ -1,6 +1,6 @@
 import { synchronize } from '@nozbe/watermelondb/sync'
 import { database } from '@/db'
-import { supabase } from '@/modules/auth';
+import { supabase } from '@/modules/auth/services/supabase.service';
 import Logger from '@/shared/utils/Logger'
 
 export async function sync() {

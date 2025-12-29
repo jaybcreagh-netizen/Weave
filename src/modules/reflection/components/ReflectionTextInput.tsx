@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, TouchableOpacity, TextInput, Modal, Pressable } from 'react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { X } from 'lucide-react-native';
-import { STORY_CHIPS, type StoryChip } from '@/modules/reflection';
+import { STORY_CHIPS, type StoryChip } from '../services/story-chips.service';
 import { type ReflectionChip } from '@/shared/types/legacy-types';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { BottomSheetTextInput } from '@gorhom/bottom-sheet';

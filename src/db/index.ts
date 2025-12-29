@@ -32,6 +32,8 @@ import OracleInsight from './models/OracleInsight';
 import OracleUsage from './models/OracleUsage';
 import NetworkHealthLog from './models/NetworkHealthLog';
 import EveningDigest from './models/EveningDigest';
+import SharedWeaveRef from './models/SharedWeaveRef';
+import SyncQueueItem from './models/SyncQueueItem';
 
 import { setGenerator } from '@nozbe/watermelondb/utils/common/randomId';
 import { v4 as uuidv4 } from 'uuid';
@@ -81,6 +83,8 @@ export const database = new Database({
     OracleUsage,
     NetworkHealthLog,
     EveningDigest,
+    SharedWeaveRef,
+    SyncQueueItem,
   ],
 });
 
@@ -150,6 +154,7 @@ export const seedDatabase = async () => {
 /**
  * Initialize user profile singleton
  * Should be called once on app startup
+ * @deprecated Use initializeAppSingletons() instead for batched writes
  */
 export const initializeUserProfile = async () => {
   const profileCollection = database.get<UserProfile>('user_profile');
@@ -168,6 +173,7 @@ export const initializeUserProfile = async () => {
 /**
  * Initialize user progress singleton
  * Should be called once on app startup
+ * @deprecated Use initializeAppSingletons() instead for batched writes
  */
 export const initializeUserProgress = async () => {
   const progressCollection = database.get<UserProgress>('user_progress');
@@ -191,6 +197,62 @@ export const initializeUserProgress = async () => {
         p.longestStreakEver = 0;
       });
     });
+  }
+};
+
+/**
+ * Initialize all app singletons in a SINGLE database.write() call
+ * This prevents queue congestion at startup by batching all first-time creates
+ * Should be called once on app startup
+ */
+export const initializeAppSingletons = async () => {
+  const profileCollection = database.get<UserProfile>('user_profile');
+  const progressCollection = database.get<UserProgress>('user_progress');
+
+  // Fetch both in parallel (reads don't queue)
+  const [profiles, progress] = await Promise.all([
+    profileCollection.query().fetch(),
+    progressCollection.query().fetch(),
+  ]);
+
+  // Collect all needed creates
+  const batchOps: any[] = [];
+
+  if (profiles.length === 0) {
+    batchOps.push(
+      profileCollection.prepareCreate(profile => {
+        profile.batteryCheckinEnabled = true;
+        profile.batteryCheckinTime = '09:00';
+      })
+    );
+  }
+
+  if (progress.length === 0) {
+    batchOps.push(
+      progressCollection.prepareCreate(p => {
+        p.currentStreak = 0;
+        p.bestStreak = 0;
+        p.totalReflections = 0;
+        p.consistencyMilestones = [];
+        p.reflectionMilestones = [];
+        p.friendshipMilestones = [];
+        // Global achievement system (v21)
+        p.totalWeaves = 0;
+        p.globalAchievements = [];
+        p.hiddenAchievements = [];
+        // Streak forgiveness mechanics (v30)
+        p.lastStreakCount = 0;
+        p.longestStreakEver = 0;
+      })
+    );
+  }
+
+  // Single write operation for all creates
+  if (batchOps.length > 0) {
+    await database.write(async () => {
+      await database.batch(...batchOps);
+    });
+    logger.info('Database', `Initialized ${batchOps.length} app singletons`);
   }
 };
 

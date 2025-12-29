@@ -29,31 +29,31 @@ export const FeatureFlags = {
      * Enable Supabase authentication flows.
      * Controls: Sign-in, sign-up, sign-out, session management.
      */
-    SUPABASE_AUTH_ENABLED: true, // ✅ ENABLED FOR TESTING
+    SUPABASE_AUTH_ENABLED: true,
 
     /**
      * Enable friend linking features.
      * Controls: Username search, link requests, QR codes.
      */
-    FRIEND_LINKING_ENABLED: false,
+    FRIEND_LINKING_ENABLED: true,
 
     /**
      * Enable shared weaves in the WeaveLogger.
      * Controls: "Share with friends" toggle, share flow.
      */
-    SHARED_WEAVES_ENABLED: false,
+    SHARED_WEAVES_ENABLED: true,
 
     /**
      * Enable push notification registration and handling.
      * Controls: Push token registration, incoming weave notifications.
      */
-    PUSH_NOTIFICATIONS_ENABLED: false,
+    PUSH_NOTIFICATIONS_ENABLED: true,
 
     /**
      * Enable the background sync engine.
      * Controls: Offline queue processing, realtime subscriptions.
      */
-    SYNC_ENGINE_ENABLED: false,
+    SYNC_ENGINE_ENABLED: true,
 
     /**
      * Enable account-related UI in settings.

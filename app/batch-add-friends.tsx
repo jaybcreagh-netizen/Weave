@@ -26,7 +26,7 @@ export default function BatchAddFriends() {
     return selectedContacts.map(c => c.id).filter(Boolean) as string[];
   }, [selectedContacts]);
 
-  const processBatchAdd = async (contactsToAdd: Array<{ name: string; photoUrl: string; contactId?: string }>) => {
+  const processBatchAdd = async (contactsToAdd: Array<{ name: string; photoUrl: string; contactId?: string; phoneNumber?: string; email?: string }>) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setIsSubmitting(true);
 
@@ -41,7 +41,12 @@ export default function BatchAddFriends() {
 
       // Use the service function to add friends (handles all defaults correctly)
       await batchAddFriends(
-        contactsToAdd.map(c => ({ name: c.name, photoUrl: c.photoUrl })),
+        contactsToAdd.map(c => ({
+          name: c.name,
+          photoUrl: c.photoUrl,
+          phoneNumber: c.phoneNumber,
+          email: c.email
+        })),
         dbTier
       );
 
@@ -59,11 +64,15 @@ export default function BatchAddFriends() {
   const handleResolveConflicts = (resolutions: Array<{ contactId: string; newName: string; skipped: boolean }>) => {
     setShowResolver(false);
 
-    const finalContacts: Array<{ name: string; photoUrl: string; contactId?: string }> = [];
+    const finalContacts: Array<{ name: string; photoUrl: string; contactId?: string; phoneNumber?: string; email?: string }> = [];
 
     // Process all selected contacts
     selectedContacts.forEach(contact => {
       const resolution = resolutions.find(r => r.contactId === contact.id);
+
+      // Extract details
+      const phoneNumber = contact.phoneNumbers && contact.phoneNumbers.length > 0 ? contact.phoneNumbers[0].number : undefined;
+      const email = contact.emails && contact.emails.length > 0 ? contact.emails[0].email : undefined;
 
       // If this contact had a resolution
       if (resolution) {
@@ -72,6 +81,8 @@ export default function BatchAddFriends() {
             name: resolution.newName || 'Unknown', // Use the new resolved name
             photoUrl: (contact.imageAvailable && contact.image ? normalizeContactImageUri(contact.image.uri) : '') || '',
             contactId: contact.id,
+            phoneNumber,
+            email,
           });
         }
       } else {
@@ -82,6 +93,8 @@ export default function BatchAddFriends() {
             name: contact.name || 'Unknown',
             photoUrl: (contact.imageAvailable && contact.image ? normalizeContactImageUri(contact.image.uri) : '') || '',
             contactId: contact.id,
+            phoneNumber,
+            email,
           });
         }
       }
@@ -134,11 +147,20 @@ export default function BatchAddFriends() {
       setShowResolver(true);
     } else {
       // No conflicts, proceed immediately
-      const contactsToAdd = selectedContacts.map(c => ({
-        name: c.name || 'Unknown',
-        photoUrl: (c.imageAvailable && c.image ? normalizeContactImageUri(c.image.uri) : '') || '',
-        contactId: c.id,
-      }));
+      // No conflicts, proceed immediately
+      const contactsToAdd = selectedContacts.map(c => {
+        // Extract phone and email
+        const phoneNumber = c.phoneNumbers && c.phoneNumbers.length > 0 ? c.phoneNumbers[0].number : undefined;
+        const email = c.emails && c.emails.length > 0 ? c.emails[0].email : undefined;
+
+        return {
+          name: c.name || 'Unknown',
+          photoUrl: (c.imageAvailable && c.image ? normalizeContactImageUri(c.image.uri) : '') || '',
+          contactId: c.id,
+          phoneNumber,
+          email
+        };
+      });
       processBatchAdd(contactsToAdd);
     }
   };

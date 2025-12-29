@@ -14,7 +14,7 @@ import { Card } from '@/shared/ui/Card';
 import WeeklyReflection from '@/db/models/WeeklyReflection';
 import { Quote, Sparkles, BarChart3 } from 'lucide-react-native';
 import { format, addDays } from 'date-fns';
-import { STORY_CHIPS } from '@/modules/reflection';
+import { STORY_CHIPS } from '../../services/story-chips.service';
 import { StatsDetailSheet, StatType } from './StatsDetailSheet';
 import * as Haptics from 'expo-haptics';
 

@@ -112,7 +112,7 @@ export async function deleteFriend(id: string): Promise<void> {
   trackEvent(AnalyticsEvents.FRIEND_DELETED);
 }
 
-export async function batchAddFriends(contacts: Array<{ name: string; photoUrl?: string }>, tier: any): Promise<Friend[]> {
+export async function batchAddFriends(contacts: Array<{ name: string; photoUrl?: string; phoneNumber?: string; email?: string }>, tier: any): Promise<Friend[]> {
   const newFriends: Friend[] = [];
   const BATCH_SIZE = 500;
 
@@ -142,6 +142,10 @@ export async function batchAddFriends(contacts: Array<{ name: string; photoUrl?:
             friend.momentumLastUpdated = new Date();
             friend.isDormant = false;
             friend.dormantSince = undefined;
+
+            // Save contact details for future matching
+            friend.phoneNumber = contact.phoneNumber;
+            friend.email = contact.email;
           });
           newFriends.push(newFriend);
           batchOps.push(newFriend);

@@ -175,6 +175,38 @@ export const InteractionActions = {
                     .catch(err => console.warn('Failed to update calendar event:', err));
             }
         }
+
+        // 5. Trigger Shared Weave Sync (Phase 4)
+        try {
+            // Check if linked to a shared weave
+            // We use raw query to avoid importing the Model class if not strictly needed, 
+            // but importing the Model is cleaner. I'll stick to dynamic import for the Service.
+            // But for Model, let's assume I added the import at the top.
+            // Actually, I can use string table name safely.
+            const sharedRefs = await database.get('shared_weave_refs')
+                .query(Q.where('interaction_id', interactionId))
+                .fetch();
+
+            if (sharedRefs.length > 0) {
+                const syncPayload: any = { interactionId };
+                let shouldSync = false;
+
+                if (updates.title !== undefined) { syncPayload.title = updates.title; shouldSync = true; }
+                if (updates.note !== undefined) { syncPayload.note = updates.note; shouldSync = true; }
+                if (updates.location !== undefined) { syncPayload.location = updates.location; shouldSync = true; }
+                if (updates.interactionDate) { syncPayload.weaveDate = updates.interactionDate.toISOString(); shouldSync = true; }
+                if (updates.activity) { syncPayload.category = updates.activity; shouldSync = true; } // Map activity to category if needed
+                if (updates.duration) { syncPayload.duration = updates.duration; shouldSync = true; }
+
+
+                if (shouldSync) {
+                    const { enqueueOperation } = await import('@/modules/sync/services/sync-engine.service');
+                    await enqueueOperation('update_shared_weave', syncPayload);
+                }
+            }
+        } catch (err) {
+            console.warn('Failed to trigger shared weave sync:', err);
+        }
     },
 
     updateReflection: async (interactionId: string, reflection: StructuredReflection): Promise<void> => {

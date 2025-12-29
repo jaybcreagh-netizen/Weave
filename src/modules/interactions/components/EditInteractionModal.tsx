@@ -17,13 +17,13 @@ import { type InteractionCategory, type Vibe, type StructuredReflection, type In
 import { database } from '@/db';
 import { Q } from '@nozbe/watermelondb';
 import { getAllCategories, getCategoryMetadata, type CategoryMetadata } from '@/shared/constants/interaction-categories';
-import { MoonPhaseSelector } from '@/modules/intelligence';
-import { FriendSelector } from '@/modules/relationships';
+import { MoonPhaseSelector } from '@/modules/intelligence/components/MoonPhaseSelector';
+import { FriendSelector } from '@/modules/relationships/components/FriendSelector';
 import { NotesInputField } from '@/shared/components/NotesInputField';
 import { CustomCalendar } from '@/shared/components/CustomCalendar';
 import { format } from 'date-fns';
 import { BlurView } from 'expo-blur';
-import { ReciprocitySelector, InitiatorType } from '@/modules/relationships';
+import { ReciprocitySelector, InitiatorType } from '@/modules/relationships/components/ReciprocitySelector';
 
 interface EditInteractionModalProps {
   interaction: InteractionModel | Interaction | null;

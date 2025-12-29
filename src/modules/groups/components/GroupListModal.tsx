@@ -6,7 +6,7 @@ import { Text } from '@/shared/ui/Text';
 import { Card } from '@/shared/ui/Card';
 import { Button } from '@/shared/ui/Button';
 import Group from '@/db/models/Group';
-import { groupService, GroupSuggestion } from '@/modules/groups';
+import { groupService, GroupSuggestion } from '../services/group.service';
 import { GroupManagerModal } from './GroupManagerModal';
 
 interface GroupListModalProps {

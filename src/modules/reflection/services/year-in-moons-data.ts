@@ -5,7 +5,7 @@
 
 import { database } from '@/db';
 import { logger } from '@/shared/services/logger.service';
-import UserProfile, { BatteryHistoryEntry } from '@/db/models/UserProfile';
+import { BatteryHistoryEntry } from '@/db/models/UserProfile';
 import SocialBatteryLog from '@/db/models/SocialBatteryLog';
 import { Q } from '@nozbe/watermelondb';
 
@@ -44,18 +44,11 @@ export function batteryToMoonPhase(batteryLevel: number | null): number {
  */
 async function fetchBatteryHistory(): Promise<BatteryHistoryEntry[]> {
   try {
-    // Get current user profile to filter logs
-    const profiles = await database.get<UserProfile>('user_profile').query().fetch();
-    const profile = profiles[0];
-
-    if (!profile) {
-      logger.warn('YearInMoons', 'No user profile found');
-      return [];
-    }
-
+    // Note: We don't filter by user_id because:
+    // 1. This is a single-user app
+    // 2. Restored backups may have logs with a different userId than the current profile
     const logs = await database.get<SocialBatteryLog>('social_battery_logs')
       .query(
-        Q.where('user_id', profile.id),
         Q.sortBy('timestamp', Q.asc)
       )
       .fetch();

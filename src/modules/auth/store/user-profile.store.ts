@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { database, initializeUserProfile } from '@/db';
 import UserProfile, { SocialSeason } from '@/db/models/UserProfile';
 import SocialBatteryLog from '@/db/models/SocialBatteryLog';
-import { SeasonAnalyticsService } from '@/modules/intelligence';
+import { SeasonAnalyticsService } from '@/modules/intelligence/services/social-season/season-analytics.service';
 // Removed service imports as logic is now inline
 
 import { Q } from '@nozbe/watermelondb';

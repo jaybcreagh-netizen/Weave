@@ -7,11 +7,11 @@ import { Q } from '@nozbe/watermelondb';
 
 import { database } from '@/db';
 import FriendModel from '@/db/models/Friend';
-import { FriendListRow } from '@/modules/relationships';
+import { FriendListRow } from './FriendListRow';
 import { useCardGesture } from '@/shared/context/CardGestureContext';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { WeaveIcon } from '@/shared/components/WeaveIcon';
-import { calculateCurrentScore } from '@/modules/intelligence';
+import { calculateCurrentScore } from '@/modules/intelligence/services/orchestrator.service';
 import { SearchFilters, HealthStatus, SortOption } from './FriendSearchBar';
 import { Archetype, Tier } from '../types';
 

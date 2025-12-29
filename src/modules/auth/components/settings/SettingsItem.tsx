@@ -10,6 +10,7 @@ interface SettingsItemProps {
     onPress?: () => void;
     rightElement?: React.ReactNode;
     destructive?: boolean;
+    badge?: number;
 }
 
 export const SettingsItem: React.FC<SettingsItemProps> = ({
@@ -19,6 +20,7 @@ export const SettingsItem: React.FC<SettingsItemProps> = ({
     onPress,
     rightElement,
     destructive = false,
+    badge,
 }) => {
     const { colors } = useTheme();
 
@@ -39,11 +41,23 @@ export const SettingsItem: React.FC<SettingsItemProps> = ({
                     )}
                 </View>
             </View>
-            {rightElement ? (
-                rightElement
-            ) : onPress ? (
-                <ChevronRight color={colors['muted-foreground']} size={20} />
-            ) : null}
+            <View className="flex-row items-center gap-2">
+                {badge !== undefined && badge > 0 && (
+                    <View
+                        className="min-w-[20px] h-5 rounded-full items-center justify-center px-1.5"
+                        style={{ backgroundColor: colors.primary }}
+                    >
+                        <Text className="text-xs font-semibold" style={{ color: colors['primary-foreground'] }}>
+                            {badge}
+                        </Text>
+                    </View>
+                )}
+                {rightElement ? (
+                    rightElement
+                ) : onPress ? (
+                    <ChevronRight color={colors['muted-foreground']} size={20} />
+                ) : null}
+            </View>
         </View>
     );
 

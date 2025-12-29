@@ -162,10 +162,10 @@ export function FriendSearchBar({
   const hasAnyActive = localQuery.length > 0 || hasActiveFilters || hasNonDefaultSort;
 
   return (
-    <View className="px-5 pt-3 pb-2">
+    <View className="px-4 pt-2 pb-1">
       {/* Search Input Row */}
       <View
-        className="flex-row items-center px-4 py-3 rounded-xl"
+        className="flex-row items-center px-3 py-2 rounded-xl"
         style={{ backgroundColor: colors.muted }}
       >
         <Search size={18} color={colors['muted-foreground']} />

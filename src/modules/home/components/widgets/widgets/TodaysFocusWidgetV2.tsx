@@ -25,6 +25,7 @@ import { getCategoryLabel } from '@/modules/interactions';
 import { SeasonAnalyticsService } from '@/modules/intelligence';
 import { parseFlexibleDate } from '@/shared/utils/date-utils';
 import { useReachOut, ContactLinker } from '@/modules/messaging';
+import { SuggestionActionSheet } from '@/modules/interactions/components/SuggestionActionSheet';
 
 const WIDGET_CONFIG: HomeWidgetConfig = {
     id: 'todays-focus',
@@ -58,8 +59,7 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = ({ friends })
     const [showDetailSheet, setShowDetailSheet] = useState(false);
     const [upcomingDates, setUpcomingDates] = useState<UpcomingDate[]>([]);
     const [confirmingIds, setConfirmingIds] = useState<Set<string>>(new Set());
-    const [reachOutFriend, setReachOutFriend] = useState<FriendModel | null>(null);
-    const [showContactLinker, setShowContactLinker] = useState(false);
+    const [selectedSuggestion, setSelectedSuggestion] = useState<Suggestion | null>(null);
 
     // Logic ported from V1
     const pendingConfirmations = useMemo(() => {
@@ -264,36 +264,34 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = ({ friends })
             return;
         }
 
-        // Handle reach-out action type
-        if (suggestion.action?.type === 'reach-out') {
-            const hasContactInfo = friend.phoneNumber || friend.email;
+        // Show choice sheet for all friend-related suggestions
+        setSelectedSuggestion(suggestion);
+        setShowDetailSheet(false);
+    };
 
-            if (!hasContactInfo) {
-                // Show contact linker
-                setReachOutFriend(friend);
-                setShowContactLinker(true);
-                setShowDetailSheet(false);
-                return;
+    const handlePlanSuggestion = (suggestion: Suggestion, friend: FriendModel) => {
+        // Navigate to weave logger (Plan mode)
+        router.push({
+            pathname: '/weave-logger',
+            params: {
+                friendId: friend.id,
+                initialCategory: suggestion.category,
+                mode: 'plan'
             }
-
-            // Reach out directly
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            const result = await reachOut(friend, suggestion.subtitle);
-
-            if (result.success) {
-                // ANALYTICS: Track acceptance
-                SeasonAnalyticsService.trackSuggestionAccepted().catch(console.error);
-            }
-            setShowDetailSheet(false);
-            return;
-        }
-
-        // Default: navigate to friend profile
-        router.push(`/friend-profile?friendId=${friend.id}`);
+        });
 
         // ANALYTICS: Track acceptance
         SeasonAnalyticsService.trackSuggestionAccepted().catch(console.error);
-        setShowDetailSheet(false);
+    };
+
+    const handleReachOutSuccess = (suggestion: Suggestion) => {
+        // ANALYTICS: Track acceptance
+        SeasonAnalyticsService.trackSuggestionAccepted().catch(console.error);
+    };
+
+    const handleSuggestionDismiss = (suggestion: Suggestion) => {
+        // In the future: call dismissal service
+        setSelectedSuggestion(null);
     };
 
     const todaysUpcoming = useMemo(() =>
@@ -527,26 +525,17 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = ({ friends })
                 onSuggestionAction={handleSuggestionAction}
             />
 
-            {/* Contact Linker for reach-out suggestions */}
-            {reachOutFriend && (
-                <ContactLinker
-                    visible={showContactLinker}
-                    onClose={() => {
-                        setShowContactLinker(false);
-                        setReachOutFriend(null);
-                    }}
-                    friend={reachOutFriend}
-                    onLinked={async () => {
-                        setShowContactLinker(false);
-                        // After linking, try to reach out
-                        if (reachOutFriend) {
-                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                            await reachOut(reachOutFriend);
-                        }
-                        setReachOutFriend(null);
-                    }}
-                />
-            )}
+
+
+            <SuggestionActionSheet
+                isOpen={!!selectedSuggestion}
+                onClose={() => setSelectedSuggestion(null)}
+                suggestion={selectedSuggestion}
+                friend={selectedSuggestion ? friends.find(f => f.id === selectedSuggestion.friendId) || null : null}
+                onPlan={handlePlanSuggestion}
+                onDismiss={handleSuggestionDismiss}
+                onReachOutSuccess={handleReachOutSuccess}
+            />
         </>
     );
 };

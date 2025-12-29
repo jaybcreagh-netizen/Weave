@@ -53,6 +53,11 @@ export function ArchetypeDetailModal() {
   const { archetypeModal, setArchetypeModal } = useUIStore();
   const { colors, isDarkMode } = useTheme();
 
+  // Debug: Log when this modal is shown
+  if (archetypeModal) {
+    console.log('[ArchetypeDetailModal] Rendering with archetype:', archetypeModal);
+  }
+
   if (!archetypeModal) {
     return null;
   }

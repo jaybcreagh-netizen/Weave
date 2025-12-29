@@ -11,11 +11,13 @@ import { Q } from '@nozbe/watermelondb';
 import {
   scanCalendarEvents,
   type ScannedEvent,
+} from '@/modules/interactions/services/event-scanner';
+import {
   shouldFilterEvent,
   isAmbiguousEvent,
   recordFeedback,
-  CalendarService
-} from '@/modules/interactions';
+} from '@/modules/interactions/services/event-suggestion-learning.service';
+import * as CalendarService from '@/modules/interactions/services/calendar.service';
 import Logger from '@/shared/utils/Logger';
 
 import InteractionFriend from '@/db/models/InteractionFriend';
