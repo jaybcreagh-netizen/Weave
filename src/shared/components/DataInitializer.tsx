@@ -114,7 +114,7 @@ export function DataInitializer({ children }: DataInitializerProps) {
         // Enforce minimum display time for the splash animation
         const timer = setTimeout(() => {
             setIsSplashAnimationComplete(true);
-        }, 800);
+        }, 300);  // Reduced from 800ms for faster startup
 
         return () => clearTimeout(timer);
     }, []);
@@ -122,6 +122,9 @@ export function DataInitializer({ children }: DataInitializerProps) {
     // Initialize Data
     useEffect(() => {
         const initializeData = async () => {
+            const startTime = Date.now();
+            console.log('[Startup] Beginning initialization...');
+
             try {
                 // Pre-warm friend cache to prevent empty flash on dashboard
                 const initializeFriendCache = async () => {
@@ -132,16 +135,22 @@ export function DataInitializer({ children }: DataInitializerProps) {
 
                 // CRITICAL WRITES: Run sequentially to prevent queue congestion
                 // 1. Data migrations must complete first (may have writes)
+                const t1 = Date.now();
                 await initializeDataMigrations();
+                console.log(`[Startup] Data migrations: ${Date.now() - t1}ms`);
 
                 // 2. App singletons in a single batched write
+                const t2 = Date.now();
                 await initializeAppSingletons();
+                console.log(`[Startup] App singletons: ${Date.now() - t2}ms`);
 
                 // NON-CRITICAL: These are reads or non-blocking, can run in parallel
+                const t3 = Date.now();
                 await Promise.all([
                     initializeAnalytics(),
                     initializeFriendCache()
                 ]);
+                console.log(`[Startup] Analytics + Friend cache: ${Date.now() - t3}ms`);
 
                 // Sync calendar changes on app launch (non-blocking)
                 import('@/modules/interactions').then(({ CalendarService }) => {
@@ -150,14 +159,9 @@ export function DataInitializer({ children }: DataInitializerProps) {
                     });
                 });
 
-                // Scan for event suggestions on app launch (non-blocking)
-                import('@/modules/interactions/hooks/useEventSuggestions').then(({ prefetchEventSuggestions }) => {
-                    import('@/shared/api/query-client').then(({ queryClient }) => {
-                        prefetchEventSuggestions(queryClient).catch((error) => {
-                            console.error('[App] Error prefetching event suggestions:', error);
-                        });
-                    });
-                });
+                // NOTE: Event suggestion prefetching removed from startup
+                // It runs on foreground via useAppStateChange and React Query's staleTime
+                // prevents excessive rescans. Running it here caused duplicate scans.
 
                 // DEFERRED: These write-heavy operations run after a delay to avoid queue congestion
                 // They will fire 3 seconds after UI is ready, giving priority to user interactions
@@ -182,6 +186,7 @@ export function DataInitializer({ children }: DataInitializerProps) {
                     });
                 }, 3000);
 
+                console.log(`[Startup] Total initialization: ${Date.now() - startTime}ms`);
                 setDataLoaded(true);
 
             } catch (error) {
@@ -210,7 +215,7 @@ export function DataInitializer({ children }: DataInitializerProps) {
     useEffect(() => {
         if (isDatabaseReady) {
             contentOpacity.value = withTiming(1, {
-                duration: 800,
+                duration: 400,  // Reduced from 800ms for faster startup
                 easing: Easing.out(Easing.ease),
             });
         }

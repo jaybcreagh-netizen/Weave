@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import Animated, { FadeIn, useSharedValue, useAnimatedStyle, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Sparkles, Users, Settings } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
@@ -13,12 +14,17 @@ import FriendsScreen from './_friends';
 import { useTutorialStore } from '@/shared/stores/tutorialStore';
 import { shouldSendSocialBatteryNotification } from '@/modules/notifications';
 import { ProfileCompletionSheet } from '@/modules/auth/components/ProfileCompletionSheet';
+import { WeaveIcon } from '@/shared/components/WeaveIcon';
 
 
 export default function Dashboard() {
     const theme = useTheme();
     const colors = theme?.colors || {};
     const [activeTab, setActiveTab] = useState<'insights' | 'circle'>('circle');
+    // Lazy tab loading: Track which tabs have been visited
+    // Tabs mount on first visit and stay mounted for instant subsequent switching
+    const [hasVisitedInsights, setHasVisitedInsights] = useState(false);
+    const [hasVisitedCircle, setHasVisitedCircle] = useState(true); // Default tab starts visited
     const [showSettings, setShowSettings] = useState(false);
     const {
         isSocialBatterySheetOpen,
@@ -29,6 +35,22 @@ export default function Dashboard() {
     const { submitBatteryCheckin, profile, observeProfile } = useUserProfileStore();
     // Tutorial state - check if QuickWeave tutorial is done
     const hasPerformedQuickWeave = useTutorialStore((state) => state.hasPerformedQuickWeave);
+
+    // Pulse animation for loading state
+    const pulseScale = useSharedValue(1);
+    useEffect(() => {
+        pulseScale.value = withRepeat(
+            withSequence(
+                withTiming(1.1, { duration: 600 }),
+                withTiming(1, { duration: 600 })
+            ),
+            -1, // infinite repeat
+            true // reverse
+        );
+    }, []);
+    const pulseAnimatedStyle = useAnimatedStyle(() => ({
+        transform: [{ scale: pulseScale.value }]
+    }));
 
 
     // Mounted state and timeout refs to prevent race conditions
@@ -123,6 +145,20 @@ export default function Dashboard() {
         setActiveTab(tab);
     };
 
+    // Mark tabs as visited after the first render of the loading state
+    // This ensures the loading indicator shows briefly before content mounts
+    useEffect(() => {
+        if (activeTab === 'insights' && !hasVisitedInsights) {
+            // Show loading indicator briefly, then mount content with fade-in
+            const timer = setTimeout(() => setHasVisitedInsights(true), 200);
+            return () => clearTimeout(timer);
+        }
+        if (activeTab === 'circle' && !hasVisitedCircle) {
+            const timer = setTimeout(() => setHasVisitedCircle(true), 50);
+            return () => clearTimeout(timer);
+        }
+    }, [activeTab, hasVisitedInsights, hasVisitedCircle]);
+
     // Note: repairTiers() is now called once in DataInitializer, not on every Dashboard mount
 
     return (
@@ -168,14 +204,43 @@ export default function Dashboard() {
                     </TouchableOpacity>
                 </View>
 
-                {/* Keep both tabs mounted for instant switching - hide inactive with display:none */}
+                {/* Lazy tab loading: Mount tabs only after first visit, then keep mounted */}
                 <View style={styles.tabContent}>
-                    <View style={[styles.screenContainer, activeTab !== 'insights' && styles.hidden]}>
-                        <HomeScreen />
-                    </View>
-                    <View style={[styles.screenContainer, activeTab !== 'circle' && styles.hidden]}>
-                        <FriendsScreen />
-                    </View>
+                    {activeTab === 'insights' && !hasVisitedInsights && (
+                        <Animated.View
+                            style={[styles.screenContainer, styles.loadingContainer]}
+                            entering={FadeIn.duration(200)}
+                        >
+                            <View style={{ alignItems: 'center', gap: 12 }}>
+                                <Animated.View style={pulseAnimatedStyle}>
+                                    <WeaveIcon size={48} color={colors.primary} />
+                                </Animated.View>
+                                <Text style={{
+                                    fontSize: 14,
+                                    color: colors['muted-foreground'],
+                                    fontFamily: 'Inter_500Medium'
+                                }}>
+                                    Gathering insights...
+                                </Text>
+                            </View>
+                        </Animated.View>
+                    )}
+                    {hasVisitedInsights && (
+                        <Animated.View
+                            style={[
+                                styles.screenContainer,
+                                activeTab !== 'insights' && styles.hidden
+                            ]}
+                            entering={FadeIn.duration(300)}
+                        >
+                            <HomeScreen />
+                        </Animated.View>
+                    )}
+                    {hasVisitedCircle && (
+                        <View style={[styles.screenContainer, activeTab !== 'circle' && styles.hidden]}>
+                            <FriendsScreen />
+                        </View>
+                    )}
                 </View>
 
                 <SettingsModal
@@ -219,6 +284,7 @@ const styles = StyleSheet.create({
     tabContent: { flex: 1 },
     screenContainer: { flex: 1 },
     hidden: { display: 'none' },
+    loadingContainer: { alignItems: 'center', justifyContent: 'center' },
     tabBar: {
         flexDirection: 'row',
         alignItems: 'center',

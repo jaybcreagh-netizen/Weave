@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, TouchableOpacity } from 'react-native';
-import { BottomSheetFlatList } from '@gorhom/bottom-sheet';
-import { Sparkles, Link2, Send, ChevronRight } from 'lucide-react-native';
+import { BottomSheetSectionList } from '@gorhom/bottom-sheet';
+import { Sparkles, Link2, Send, ChevronRight, Flame, Star, MessageCircle } from 'lucide-react-native';
 import { Suggestion } from '@/shared/types/common';
 import { SuggestionCard } from '@/modules/interactions/components/SuggestionCard';
 import { IntentionsList } from '@/modules/relationships/components/IntentionsList';
@@ -13,7 +13,6 @@ import { Text } from '@/shared/ui/Text';
 import { FeatureFlags } from '@/shared/config/feature-flags';
 import { usePendingWeaves, ActivityInboxSheet } from '@/modules/sync';
 import { getPendingRequestCount } from '@/modules/relationships/services/friend-linking.service';
-import { useReachOut, ContactLinker } from '@/modules/messaging';
 import { SuggestionActionSheet } from '@/modules/interactions/components/SuggestionActionSheet';
 import withObservables from '@nozbe/with-observables';
 import { database } from '@/db';
@@ -33,6 +32,35 @@ interface NudgesSheetProps {
   friends: FriendModel[];
 }
 
+// Urgency group configuration
+const URGENCY_GROUPS = [
+  {
+    key: 'needs-attention',
+    title: 'Needs Attention',
+    icon: Flame,
+    urgencies: ['critical', 'high'] as const,
+  },
+  {
+    key: 'worth-a-thought',
+    title: 'Worth a Thought',
+    icon: Star,
+    urgencies: ['medium'] as const,
+  },
+  {
+    key: 'nice-to-have',
+    title: 'Nice to Have',
+    icon: MessageCircle,
+    urgencies: ['low'] as const,
+  },
+] as const;
+
+interface SuggestionSection {
+  key: string;
+  title: string;
+  icon: typeof Flame;
+  data: Suggestion[];
+}
+
 const NudgesSheetComponent = function ({
   isVisible,
   suggestions,
@@ -43,68 +71,73 @@ const NudgesSheetComponent = function ({
   onIntentionPress,
   friends,
 }: NudgesSheetProps) {
-  const { colors } = useTheme();
+  const { colors, tokens } = useTheme();
   const router = useRouter();
-  const { reachOut } = useReachOut();
   const [showActivityInbox, setShowActivityInbox] = useState(false);
   const [selectedSuggestion, setSelectedSuggestion] = useState<Suggestion | null>(null);
-  const [reachOutFriend, setReachOutFriend] = useState<FriendModel | null>(null);
-  const [showContactLinker, setShowContactLinker] = useState(false);
+
+  // Group suggestions by urgency
+  const groupedSuggestions = useMemo((): SuggestionSection[] => {
+    return URGENCY_GROUPS
+      .map((group) => ({
+        key: group.key,
+        title: group.title,
+        icon: group.icon,
+        data: suggestions.filter((s) =>
+          group.urgencies.includes((s.urgency || 'low') as any)
+        ),
+      }))
+      .filter((section) => section.data.length > 0);
+  }, [suggestions]);
+
+  // Create friend lookup map for quick access
+  const friendsMap = useMemo(() => {
+    const map = new Map<string, FriendModel>();
+    friends.forEach((f) => map.set(f.id, f));
+    return map;
+  }, [friends]);
 
   // Handlers for SuggestionActionSheet
   const handleSuggestionPress = (suggestion: Suggestion) => {
-    const friend = friends.find(f => f.id === suggestion.friendId);
+    const friend = friendsMap.get(suggestion.friendId);
     if (!friend) return;
     setSelectedSuggestion(suggestion);
   };
 
   const handlePlanSuggestion = (suggestion: Suggestion, friend: FriendModel) => {
-    onClose(); // Close the sheet first
-
-    // Navigate to weave logger (Plan mode)
+    onClose();
     router.push({
       pathname: '/weave-logger',
       params: {
         friendId: friend.id,
         initialCategory: suggestion.category,
-        mode: 'plan'
-      }
+        mode: 'plan',
+      },
     });
-
-    // ANALYTICS: Track acceptance
     SeasonAnalyticsService.trackSuggestionAccepted().catch(console.error);
   };
 
   const handleReachOutSuccess = (suggestion: Suggestion) => {
     onClose();
-    // ANALYTICS: Track acceptance
     SeasonAnalyticsService.trackSuggestionAccepted().catch(console.error);
   };
 
   const handleSuggestionDismiss = (suggestion: Suggestion) => {
     setSelectedSuggestion(null);
-    // Optional: Call onLater if we want to dismiss it from the list too
-    // onLater(suggestion.id); 
   };
 
   // Pending activity counts (only if accounts enabled)
   const [pendingRequestCount, setPendingRequestCount] = useState(0);
   const { pendingWeaves } = usePendingWeaves();
   const pendingWeaveCount = FeatureFlags.ACCOUNTS_ENABLED
-    ? pendingWeaves.filter(w => w.status === 'pending').length
+    ? pendingWeaves.filter((w) => w.status === 'pending').length
     : 0;
   const totalPendingCount = pendingRequestCount + pendingWeaveCount;
 
-  // Fetch request count when sheet opens
   useEffect(() => {
     if (!FeatureFlags.ACCOUNTS_ENABLED || !isVisible) return;
     getPendingRequestCount().then(setPendingRequestCount);
   }, [isVisible]);
-
-  // Debug: Switch to BottomSheetFlatList to verify renderScrollContent works
-  const BottomSheetList = React.useMemo(() => {
-    return BottomSheetFlatList;
-  }, []);
 
   const CustomTitle = (
     <View className="flex-row items-center gap-3">
@@ -123,15 +156,58 @@ const NudgesSheetComponent = function ({
   const renderItem = ({ item, index }: { item: Suggestion; index: number }) => (
     <SuggestionCard
       suggestion={item}
+      friend={friendsMap.get(item.friendId)}
       index={index}
       onAct={() => handleSuggestionPress(item)}
       onLater={() => onLater(item.id)}
     />
   );
 
+  const renderSectionHeader = ({ section }: { section: SuggestionSection }) => {
+    const IconComponent = section.icon;
+    const isHighPriority = section.key === 'needs-attention';
+
+    return (
+      <View
+        className="flex-row items-center gap-2 py-2 px-1 mb-2"
+        style={{ marginTop: section.key === 'needs-attention' ? 0 : 8 }}
+      >
+        <View
+          className="w-6 h-6 rounded-full items-center justify-center"
+          style={{
+            backgroundColor: isHighPriority ? colors.accent + '20' : colors.secondary,
+          }}
+        >
+          <IconComponent
+            size={14}
+            color={isHighPriority ? colors.accent : colors['muted-foreground']}
+          />
+        </View>
+        <Text
+          variant="label"
+          weight="semibold"
+          style={{ color: isHighPriority ? colors.accent : colors['muted-foreground'] }}
+        >
+          {section.title}
+        </Text>
+        <View
+          className="px-1.5 py-0.5 rounded-full ml-1"
+          style={{ backgroundColor: colors.secondary }}
+        >
+          <Text
+            variant="caption"
+            style={{ color: colors['muted-foreground'], fontSize: 11 }}
+          >
+            {section.data.length}
+          </Text>
+        </View>
+      </View>
+    );
+  };
+
   const renderHeader = () => (
-    <View className="mb-6 mt-2">
-      {/* Activity Banner - only show if accounts enabled and pending items */}
+    <View className="mb-4 mt-2">
+      {/* Activity Banner */}
       {FeatureFlags.ACCOUNTS_ENABLED && totalPendingCount > 0 && (
         <TouchableOpacity
           className="flex-row items-center p-3 rounded-xl mb-4"
@@ -167,29 +243,25 @@ const NudgesSheetComponent = function ({
       )}
 
       <IntentionsList intentions={intentions} onIntentionPress={onIntentionPress} />
-
-      {suggestions.length > 0 && (
-        <View className="flex-row items-center gap-2 mb-4 px-1">
-          <Text variant="h3" style={{ color: colors.foreground }}>
-            Suggested Actions
-          </Text>
-          <View className="px-2 py-0.5 rounded-full" style={{ backgroundColor: colors.secondary }}>
-            <Text variant="label" style={{ color: colors.foreground }}>{suggestions.length}</Text>
-          </View>
-        </View>
-      )}
     </View>
   );
 
   const renderEmpty = () => (
     <View className="items-center py-[60px] mt-5">
-      <View className="w-[100px] h-[100px] rounded-full items-center justify-center mb-6" style={{ backgroundColor: colors.secondary }}>
+      <View
+        className="w-[100px] h-[100px] rounded-full items-center justify-center mb-6"
+        style={{ backgroundColor: colors.secondary }}
+      >
         <Sparkles size={48} color={colors.primary} className="opacity-80" />
       </View>
       <Text variant="h2" className="mb-3 font-lora-bold" style={{ color: colors.foreground }}>
         All caught up!
       </Text>
-      <Text variant="body" className="text-center px-10 leading-6" style={{ color: colors['muted-foreground'] }}>
+      <Text
+        variant="body"
+        className="text-center px-10 leading-6"
+        style={{ color: colors['muted-foreground'] }}
+      >
         Your weave is looking strong. Time to relax or reach out spontaneously.
       </Text>
     </View>
@@ -205,14 +277,16 @@ const NudgesSheetComponent = function ({
         disableContentPanning
         hasUnsavedChanges={false}
         renderScrollContent={() => (
-          <BottomSheetList
-            data={suggestions}
+          <BottomSheetSectionList
+            sections={groupedSuggestions}
             renderItem={renderItem}
+            renderSectionHeader={renderSectionHeader}
             keyExtractor={(item: Suggestion) => item.id}
             ListHeaderComponent={renderHeader}
             ListEmptyComponent={renderEmpty}
-            contentContainerClassName="pb-10 px-4"
+            contentContainerStyle={{ paddingBottom: 40, paddingHorizontal: 16 }}
             showsVerticalScrollIndicator={false}
+            stickySectionHeadersEnabled={false}
           />
         )}
       >
@@ -223,7 +297,11 @@ const NudgesSheetComponent = function ({
         isOpen={!!selectedSuggestion}
         onClose={() => setSelectedSuggestion(null)}
         suggestion={selectedSuggestion}
-        friend={selectedSuggestion ? friends.find(f => f.id === selectedSuggestion.friendId) || null : null}
+        friend={
+          selectedSuggestion
+            ? friendsMap.get(selectedSuggestion.friendId) || null
+            : null
+        }
         onPlan={handlePlanSuggestion}
         onDismiss={handleSuggestionDismiss}
         onReachOutSuccess={handleReachOutSuccess}
@@ -238,11 +316,10 @@ const NudgesSheetComponent = function ({
       />
     </>
   );
-}
+};
 
 const enhance = withObservables([], () => ({
   friends: database.get<FriendModel>('friends').query().observe(),
 }));
 
 export const NudgesSheet = enhance(NudgesSheetComponent);
-

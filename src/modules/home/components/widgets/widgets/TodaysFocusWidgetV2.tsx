@@ -11,7 +11,6 @@ import { useUIStore } from '@/shared/stores/uiStore';
 import { database } from '@/db';
 import LifeEvent from '@/db/models/LifeEvent';
 import { Q } from '@nozbe/watermelondb';
-import withObservables from '@nozbe/with-observables';
 import Interaction from '@/db/models/Interaction';
 import InteractionFriend from '@/db/models/InteractionFriend';
 import { Card } from '@/shared/ui/Card';
@@ -26,6 +25,7 @@ import { SeasonAnalyticsService } from '@/modules/intelligence';
 import { parseFlexibleDate } from '@/shared/utils/date-utils';
 import { useReachOut, ContactLinker } from '@/modules/messaging';
 import { SuggestionActionSheet } from '@/modules/interactions/components/SuggestionActionSheet';
+import { useFriendsObservable } from '@/shared/context/FriendsObservableContext';
 
 const WIDGET_CONFIG: HomeWidgetConfig = {
     id: 'todays-focus',
@@ -43,11 +43,10 @@ interface UpcomingDate {
     importance?: 'low' | 'medium' | 'high' | 'critical';
 }
 
-interface TodaysFocusWidgetProps {
-    friends: FriendModel[];
-}
+interface TodaysFocusWidgetProps { }
 
-const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = ({ friends }) => {
+const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = () => {
+    const { friends } = useFriendsObservable();
     const { tokens, typography, spacing } = useTheme();
     const router = useRouter();
     const { suggestions } = useSuggestions();
@@ -540,8 +539,4 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = ({ friends })
     );
 };
 
-const enhance = withObservables([], () => ({
-    friends: database.get<FriendModel>('friends').query().observe(),
-}));
-
-export const TodaysFocusWidgetV2 = enhance(TodaysFocusWidgetContent);
+export const TodaysFocusWidgetV2 = TodaysFocusWidgetContent;

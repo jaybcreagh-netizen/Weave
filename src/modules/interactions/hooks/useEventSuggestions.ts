@@ -184,13 +184,26 @@ export function useDismissSuggestion() {
 
 /**
  * Prefetch suggestions (helper for initialization)
+ * Skips scan if cached data exists and is not stale
  */
 export async function prefetchEventSuggestions(queryClient: ReturnType<typeof useQueryClient>) {
+    // Check if we already have cached, non-stale data
+    const existingData = queryClient.getQueryData<SuggestionsResult>(QUERY_KEY);
+    const queryState = queryClient.getQueryState(QUERY_KEY);
+
+    if (existingData && queryState) {
+        const dataAge = Date.now() - (queryState.dataUpdatedAt || 0);
+        const ONE_HOUR = 60 * 60 * 1000;
+
+        if (dataAge < ONE_HOUR) {
+            // Data is still fresh, skip the expensive scan
+            return;
+        }
+    }
+
     await queryClient.prefetchQuery({
         queryKey: QUERY_KEY,
         queryFn: async () => {
-            // Logic duplicated from hook for now, or we could extract a shared fetcher function
-            // For safety, let's just trigger the scan
             const dismissed = await loadDismissedSuggestions();
             const [upcomingResult, pastResult] = await Promise.all([
                 scanUpcomingEvents(),

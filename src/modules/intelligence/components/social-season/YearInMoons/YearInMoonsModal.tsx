@@ -427,7 +427,7 @@ export function YearInMoonsModal({ isOpen, onClose, initialTab = 'moons' }: Year
                     </Text>
 
                     {/* Week Day Labels */}
-                    <View className="flex-row mb-2 justify-center">
+                    <View className="flex-row mb-2 justify-start">
                       {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, i) => (
                         <View
                           key={i}
@@ -445,7 +445,7 @@ export function YearInMoonsModal({ isOpen, onClose, initialTab = 'moons' }: Year
                     </View>
 
                     {/* Moon Grid */}
-                    <View className="flex-row flex-wrap justify-center">
+                    <View className="flex-row flex-wrap justify-start">
                       {/* Padding for first day of month */}
                       {Array.from({ length: monthData.days[0].date.getDay() }).map((_, i) => (
                         <View key={`pad-${i}`} style={{ width: moonSize, height: moonSize }} />

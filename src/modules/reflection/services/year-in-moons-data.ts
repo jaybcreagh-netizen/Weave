@@ -40,35 +40,74 @@ export function batteryToMoonPhase(batteryLevel: number | null): number {
 }
 
 /**
- * Fetch battery history from SocialBatteryLog table
+ * Simple in-memory cache for battery history to prevent duplicate fetches
+ * during the same render cycle (e.g., when getYearMoonData and getYearStats are called together)
+ */
+let batteryHistoryCache: {
+  data: BatteryHistoryEntry[];
+  timestamp: number;
+} | null = null;
+
+// Pending promise to deduplicate concurrent fetches (prevents race condition)
+let pendingFetch: Promise<BatteryHistoryEntry[]> | null = null;
+
+const CACHE_TTL_MS = 60_000; // 60 seconds - covers component remounts and observable churn
+
+/**
+ * Fetch battery history from SocialBatteryLog table (cached with request deduplication)
  */
 async function fetchBatteryHistory(): Promise<BatteryHistoryEntry[]> {
-  try {
-    // Note: We don't filter by user_id because:
-    // 1. This is a single-user app
-    // 2. Restored backups may have logs with a different userId than the current profile
-    const logs = await database.get<SocialBatteryLog>('social_battery_logs')
-      .query(
-        Q.sortBy('timestamp', Q.asc)
-      )
-      .fetch();
-
-    logger.debug('YearInMoons', `Fetched ${logs.length} battery logs`);
-    if (logs.length > 0) {
-      const last = logs[logs.length - 1];
-      logger.debug('YearInMoons', `Most recent log: Value=${last.value} Time=${new Date(last.timestamp).toISOString()}`);
-    }
-
-    return logs.map(log => ({
-      value: log.value,
-      timestamp: log.timestamp,
-      // Note is not currently stored in SocialBatteryLog model based on my read, 
-      // but the interface expects it. We'll leave it undefined for now.
-    }));
-  } catch (error) {
-    logger.error('YearInMoons', 'Error fetching battery history:', error);
-    return [];
+  // Return cached data if fresh
+  if (batteryHistoryCache && Date.now() - batteryHistoryCache.timestamp < CACHE_TTL_MS) {
+    logger.debug('YearInMoons', `Cache HIT - returning ${batteryHistoryCache.data.length} cached logs`);
+    return batteryHistoryCache.data;
   }
+
+  // If a fetch is already in progress, wait for it instead of starting another
+  if (pendingFetch) {
+    logger.debug('YearInMoons', 'Request DEDUPED - awaiting pending fetch');
+    return pendingFetch;
+  }
+
+  // Start the fetch and store the promise
+  pendingFetch = (async () => {
+    try {
+      // Note: We don't filter by user_id because:
+      // 1. This is a single-user app
+      // 2. Restored backups may have logs with a different userId than the current profile
+      const logs = await database.get<SocialBatteryLog>('social_battery_logs')
+        .query(
+          Q.sortBy('timestamp', Q.asc)
+        )
+        .fetch();
+
+      logger.debug('YearInMoons', `Cache MISS - Fetched ${logs.length} battery logs from DB`);
+      if (logs.length > 0) {
+        const last = logs[logs.length - 1];
+        logger.debug('YearInMoons', `Most recent log: Value=${last.value} Time=${new Date(last.timestamp).toISOString()}`);
+      }
+
+      const result = logs.map(log => ({
+        value: log.value,
+        timestamp: log.timestamp,
+        // Note is not currently stored in SocialBatteryLog model based on my read, 
+        // but the interface expects it. We'll leave it undefined for now.
+      }));
+
+      // Cache the result
+      batteryHistoryCache = { data: result, timestamp: Date.now() };
+
+      return result;
+    } catch (error) {
+      logger.error('YearInMoons', 'Error fetching battery history:', error);
+      return [];
+    } finally {
+      // Clear pending promise after completion
+      pendingFetch = null;
+    }
+  })();
+
+  return pendingFetch;
 }
 
 /**

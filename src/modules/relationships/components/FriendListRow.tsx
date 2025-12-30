@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, Pressable, ScrollView } from 'react-native';
+import { View, Text, Pressable, ScrollView, InteractionManager } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
@@ -55,7 +55,6 @@ interface FriendListRowProps {
   onPress?: (friend: FriendModel) => void;
 }
 
-import withObservables from '@nozbe/with-observables';
 
 export const FriendListRowContent = ({ friend, animatedRef, variant = 'default', onPress }: FriendListRowProps) => {
 
@@ -145,8 +144,9 @@ export const FriendListRowContent = ({ friend, animatedRef, variant = 'default',
       return;
     }
 
-    // Generate and cache if not found
-    const timeoutId = setTimeout(() => {
+    // Generate and cache if not found - deferred to avoid blocking animations
+    // Using InteractionManager to wait for tab switch animations to complete
+    const handle = InteractionManager.runAfterInteractions(() => {
       generateIntelligentStatusLine(friend as unknown as HydratedFriend)
         .then(status => {
           statusLineCache.set(cacheKey, status);
@@ -157,9 +157,9 @@ export const FriendListRowContent = ({ friend, animatedRef, variant = 'default',
           const fallback = { text: archetypeData[archetype as Archetype]?.essence || '', variant: 'default' as const };
           setStatusLine(fallback);
         });
-    }, 300);
+    });
 
-    return () => clearTimeout(timeoutId);
+    return () => handle.cancel();
   }, [friend.id, friend.lastUpdated.getTime(), friend.weaveScore, archetype]);
 
   // "Just Nurtured" glow effect
@@ -485,6 +485,22 @@ export const FriendListRowContent = ({ friend, animatedRef, variant = 'default',
   );
 };
 
-export const FriendListRow = withObservables(['friend'], ({ friend }: { friend: FriendModel }) => ({
-  friend: friend.observe(),
-}))(FriendListRowContent);
+/**
+ * FriendListRow - Optimized for performance
+ * 
+ * Previously used withObservables which created N subscriptions for N friends.
+ * Now uses React.memo with shallow comparison - parent (FriendTierList) provides
+ * reactive friends via its own observable.
+ */
+export const FriendListRow = React.memo(FriendListRowContent, (prevProps, nextProps) => {
+  // Only re-render if friend identity or core display data changed
+  if (prevProps.friend.id !== nextProps.friend.id) return false;
+  if (prevProps.friend._raw._status !== nextProps.friend._raw._status) return false;
+  if (prevProps.variant !== nextProps.variant) return false;
+  // Compare key display fields
+  if (prevProps.friend.name !== nextProps.friend.name) return false;
+  if (prevProps.friend.archetype !== nextProps.friend.archetype) return false;
+  if (prevProps.friend.weaveScore !== nextProps.friend.weaveScore) return false;
+  if (prevProps.friend.photoUrl !== nextProps.friend.photoUrl) return false;
+  return true;
+});

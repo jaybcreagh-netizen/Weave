@@ -30,9 +30,14 @@ import Interaction from '@/db/models/Interaction';
 import UserProfile from '@/db/models/UserProfile';
 import { GLOBAL_NOTIFICATION_SETTINGS, NOTIFICATION_CONFIG, NotificationConfigItem } from '../notification.config';
 
+// Debounce constants
+const FOREGROUND_DEBOUNCE_MS = 5000; // 5 seconds - prevents double-fire on startup
+const ONE_HOUR_MS = 60 * 60 * 1000;
+
 class NotificationOrchestratorService {
     private isInitialized = false;
     private lastCheckTime: number = 0;
+    private lastForegroundTime: number = 0;
     private initPromise: Promise<void> | null = null;
 
     /**
@@ -87,6 +92,7 @@ class NotificationOrchestratorService {
             this.setupEventListeners();
 
             this.isInitialized = true;
+            this.lastForegroundTime = Date.now(); // Prevent immediate double-fire from onAppForeground
             Logger.info('[NotificationOrchestrator] Initialized');
         } catch (error) {
             // Reset promise on failure to allow retry
@@ -324,23 +330,29 @@ class NotificationOrchestratorService {
      * Checks if maintenance is needed based on time elapsed
      */
     async onAppForeground(): Promise<void> {
+        const now = Date.now();
+
+        // Debounce: Skip if we just ran init() or another foreground check
+        // This prevents double-firing when app transitions from launch -> active
+        if (now - this.lastForegroundTime < FOREGROUND_DEBOUNCE_MS) {
+            Logger.debug('[NotificationOrchestrator] Foreground debounced (recently ran)');
+            return;
+        }
+        this.lastForegroundTime = now;
+
         Logger.info('[NotificationOrchestrator] App foregrounded');
 
-        // Always evaluate smart notifications as they are context-dependent (time, location, etc)
+        // Evaluate smart notifications (context-dependent: time, location, etc)
         await this.evaluateSmartNotifications();
 
         // Throttle heavy maintenance checks
-        // If it's been more than an hour, or if the day has changed (logic simplified to time interval for now)
-        const now = Date.now();
-        const ONE_HOUR = 60 * 60 * 1000;
-
-        // Check if day changed
+        // Run if it's been more than an hour, or if the day has changed
         const lastCheckDate = new Date(this.lastCheckTime);
         const currentDate = new Date(now);
         const isDifferentDay = lastCheckDate.getDate() !== currentDate.getDate() ||
             lastCheckDate.getMonth() !== currentDate.getMonth();
 
-        if (isDifferentDay || (now - this.lastCheckTime > ONE_HOUR)) {
+        if (isDifferentDay || (now - this.lastCheckTime > ONE_HOUR_MS)) {
             Logger.info('[NotificationOrchestrator] Running maintenance checks due to time elapsed/day change');
             await this.runStartupChecks();
         }

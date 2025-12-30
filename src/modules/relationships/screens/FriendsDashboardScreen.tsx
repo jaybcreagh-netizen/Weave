@@ -21,6 +21,7 @@ import { SimpleTutorialTooltip } from '@/shared/components/SimpleTutorialTooltip
 import { useTutorialStore } from '@/shared/stores/tutorialStore';
 import { database } from '@/db';
 import FriendModel from '@/db/models/Friend';
+import { useFriendCounts } from '@/shared/context/FriendsObservableContext';
 
 // Internal Module Imports (Relative to avoid circular dependencies)
 import { checkAndApplyDormancy } from '../services/lifecycle.service';
@@ -91,8 +92,9 @@ export function FriendsDashboardScreen() {
             sortOption !== 'default';
     }, [searchQuery, searchFilters, sortOption]);
 
-    // Manual friend count for segmented control (simplified fetch)
-    const [friendCounts, setFriendCounts] = useState({ inner: 0, close: 0, community: 0 });
+    // Use centralized observable for friend counts - no duplicate subscriptions
+    const friendCounts = useFriendCounts();
+    const totalFriendsCount = friendCounts.total;
 
     // Circle dashboard tutorial state
     const hasAddedFirstFriend = useTutorialStore((state) => state.hasAddedFirstFriend);
@@ -104,30 +106,12 @@ export function FriendsDashboardScreen() {
     const [showCircleTutorial, setShowCircleTutorial] = useState(false);
     const [circleTutorialStep, setCircleTutorialStep] = useState(0);
 
-    // Use a simple observable for total friend count to trigger tutorials
-    const [totalFriendsCount, setTotalFriendsCount] = useState(0);
-
+    // Check for dormancy when total count changes (throttled via useEffect)
     useEffect(() => {
-        // Quick and dirty way to get counts for the segment control and tutorial check
-        // In a future refactor, TierSegmentedControl should observe these counts itself
-        const subscription = database.get<FriendModel>('friends').query().observe().subscribe(friends => {
-            const counts = { inner: 0, close: 0, community: 0 };
-            friends.forEach(f => {
-                if (f.dunbarTier === 'InnerCircle') counts.inner++;
-                else if (f.dunbarTier === 'CloseFriends') counts.close++;
-                else counts.community++;
-            });
-            setFriendCounts(counts);
-            setTotalFriendsCount(friends.length);
-
-            // Check for dormancy whenever friend list updates
-            if (friends.length > 0) {
-                checkAndApplyDormancy();
-            }
-        });
-
-        return () => subscription.unsubscribe();
-    }, []);
+        if (totalFriendsCount > 0) {
+            checkAndApplyDormancy();
+        }
+    }, [totalFriendsCount]);
 
     useFocusEffect(
         React.useCallback(() => {

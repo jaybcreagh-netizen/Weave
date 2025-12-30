@@ -1,8 +1,8 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, Dimensions } from 'react-native';
 import { Calendar, Sparkles, Zap } from 'lucide-react-native';
-import withObservables from '@nozbe/with-observables';
 import { Q } from '@nozbe/watermelondb';
+import { useRouter } from 'expo-router';
 
 import { useTheme } from '@/shared/hooks/useTheme';
 import { database } from '@/db';
@@ -10,7 +10,6 @@ import { HomeWidgetBase, HomeWidgetConfig } from '../HomeWidgetBase';
 import { MoonPhaseIllustration } from '@/modules/intelligence';
 import { YearInMoonsModal } from '@/modules/intelligence';
 import { WidgetHeader } from '@/shared/ui/WidgetHeader';
-import { Card } from '@/shared/ui/Card';
 import {
     getYearMoonData,
     getYearStats,
@@ -26,15 +25,36 @@ const WIDGET_CONFIG: HomeWidgetConfig = {
     fullWidth: true,
 };
 
-interface YourEnergyWidgetContentProps {
-    logs: SocialBatteryLog[];
+/**
+ * Hook to observe battery logs for the current year
+ * Replaces withObservables HOC for better performance and simpler code
+ */
+function useBatteryLogs(): SocialBatteryLog[] {
+    const [logs, setLogs] = useState<SocialBatteryLog[]>([]);
+
+    useEffect(() => {
+        const currentYear = new Date().getFullYear();
+        const startOfYear = new Date(currentYear, 0, 1).getTime();
+        const endOfYear = new Date(currentYear, 11, 31).getTime();
+
+        const subscription = database.get<SocialBatteryLog>('social_battery_logs')
+            .query(
+                Q.where('timestamp', Q.gte(startOfYear)),
+                Q.where('timestamp', Q.lte(endOfYear))
+            )
+            .observe()
+            .subscribe((fetchedLogs) => {
+                setLogs(fetchedLogs);
+            });
+
+        return () => subscription.unsubscribe();
+    }, []); // Only subscribe once on mount
+
+    return logs;
 }
 
-import { useRouter } from 'expo-router';
-
-// ... imports
-
-const YourEnergyWidgetContent: React.FC<YourEnergyWidgetContentProps> = ({ logs }) => {
+export const YourEnergyWidget: React.FC = () => {
+    const logs = useBatteryLogs();
     const { tokens, typography, colors } = useTheme();
     const router = useRouter();
     const [showModal, setShowModal] = useState(false);
@@ -69,11 +89,25 @@ const YourEnergyWidgetContent: React.FC<YourEnergyWidgetContentProps> = ({ logs 
         stats: any;
     }>({ yearData: null, stats: null });
 
-    React.useEffect(() => {
+    // Track if we've loaded initial data
+    const hasLoadedInitialData = useRef(false);
+    const lastLogCount = useRef(0);
+
+    useEffect(() => {
+        // Only refetch if:
+        // 1. We haven't loaded initial data yet, OR
+        // 2. Log count changed by more than 0 (new checkin)
+        const shouldRefetch = !hasLoadedInitialData.current ||
+            Math.abs(logs.length - lastLogCount.current) > 0;
+
+        if (!shouldRefetch) return;
+
+        lastLogCount.current = logs.length;
+        hasLoadedInitialData.current = true;
+
         let mounted = true;
         const load = async () => {
             const currentYear = new Date().getFullYear();
-            const currentMonth = new Date().getMonth();
 
             const [yearData, stats] = await Promise.all([
                 getYearMoonData(currentYear),
@@ -89,7 +123,7 @@ const YourEnergyWidgetContent: React.FC<YourEnergyWidgetContentProps> = ({ logs 
         };
         load();
         return () => { mounted = false; };
-    }, [logs]);
+    }, [logs.length]); // Only depend on logs.length, not the full array
 
     if (!asyncData.yearData) {
         return (
@@ -266,20 +300,3 @@ const YourEnergyWidgetContent: React.FC<YourEnergyWidgetContentProps> = ({ logs 
         </>
     );
 };
-
-const enhance = withObservables([], () => {
-    const currentYear = new Date().getFullYear();
-    const startOfYear = new Date(currentYear, 0, 1).getTime();
-    const endOfYear = new Date(currentYear, 11, 31).getTime();
-
-    return {
-        logs: database.get<SocialBatteryLog>('social_battery_logs')
-            .query(
-                Q.where('timestamp', Q.gte(startOfYear)),
-                Q.where('timestamp', Q.lte(endOfYear))
-            )
-            .observe(),
-    };
-});
-
-export const YourEnergyWidget = enhance(YourEnergyWidgetContent);

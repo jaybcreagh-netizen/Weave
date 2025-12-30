@@ -83,8 +83,9 @@ export function SuggestionActionSheet({
         <AnimatedBottomSheet
             visible={isOpen}
             onClose={onClose}
-            height="action"
+            height="form"
             title={`Connect with ${friend.name}`}
+            scrollable
         >
             {/* Suggestion Context */}
             <View className="mb-6 pointer-events-none">

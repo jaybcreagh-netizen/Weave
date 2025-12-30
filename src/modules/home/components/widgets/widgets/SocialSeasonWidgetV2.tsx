@@ -22,10 +22,10 @@ import { database } from '@/db';
 import Interaction from '@/db/models/Interaction';
 import FriendModel from '@/db/models/Friend';
 import { Q } from '@nozbe/watermelondb';
-import withObservables from '@nozbe/with-observables';
 import { startOfDay, subDays, format } from 'date-fns';
 import { SeasonIcon, PulseSheet, SeasonOverrideModal } from '@/modules/intelligence';
 import { useDashboardCacheStore } from '@/shared/stores/dashboardCacheStore';
+import { useFriendsObservable } from '@/shared/context/FriendsObservableContext';
 
 const WIDGET_CONFIG: HomeWidgetConfig = {
     id: 'social-season',
@@ -35,11 +35,10 @@ const WIDGET_CONFIG: HomeWidgetConfig = {
     fullWidth: true,
 };
 
-interface SocialSeasonWidgetProps {
-    friends: FriendModel[];
-}
+interface SocialSeasonWidgetProps { }
 
-const SocialSeasonWidgetContent: React.FC<SocialSeasonWidgetProps> = ({ friends }) => {
+export const SocialSeasonWidgetV2: React.FC<SocialSeasonWidgetProps> = () => {
+    const { friends } = useFriendsObservable();
     const { tokens, typography } = useTheme();
     const { profile } = useUserProfile();
     const { data: batteryStats = { average: 50, trend: 'stable' } } = useSocialBatteryStats();
@@ -341,11 +340,3 @@ const SocialSeasonWidgetContent: React.FC<SocialSeasonWidgetProps> = ({ friends 
         </>
     );
 };
-
-const enhance = withObservables([], () => ({
-    friends: database.get<FriendModel>('friends').query().observe(),
-}));
-
-export const SocialSeasonWidgetV2 = enhance(SocialSeasonWidgetContent);
-
-

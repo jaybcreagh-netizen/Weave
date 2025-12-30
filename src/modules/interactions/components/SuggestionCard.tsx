@@ -1,106 +1,229 @@
-import React from 'react';
-import { View, Pressable } from 'react-native';
-import Animated, { FadeInDown, FadeOutLeft, LinearTransition } from 'react-native-reanimated';
+import React, { useCallback } from 'react';
+import { View, Pressable, Text as RNText } from 'react-native';
+import Animated, {
+  FadeInDown,
+  FadeOutLeft,
+  LinearTransition,
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  runOnJS,
+} from 'react-native-reanimated';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import * as Haptics from 'expo-haptics';
+import { X } from 'lucide-react-native';
 import { Suggestion } from '@/shared/types/common';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { Text } from '@/shared/ui/Text';
 import { Button } from '@/shared/ui/Button';
 import { Icon } from '@/shared/ui/Icon';
+import { CachedImage } from '@/shared/ui/CachedImage';
 import { icons } from 'lucide-react-native';
+import FriendModel from '@/db/models/Friend';
 
 interface SuggestionCardProps {
   suggestion: Suggestion;
+  friend?: FriendModel | null;
   onAct: () => void;
   onLater: () => void;
   index?: number; // For staggered animation
 }
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+const DISMISS_THRESHOLD = -80;
 
-export function SuggestionCard({ suggestion, onAct, onLater, index = 0 }: SuggestionCardProps) {
+export function SuggestionCard({ suggestion, friend, onAct, onLater, index = 0 }: SuggestionCardProps) {
   const { colors, tokens } = useTheme();
+  const translateX = useSharedValue(0);
+  const isDismissing = useSharedValue(false);
 
   // Urgency colors mapping
   const urgencyColors = {
     critical: colors.celebrate,
     high: colors.accent,
     medium: colors.primary,
-    low: colors.primary, // Changed from muted-foreground to primary to avoid grey UI
+    low: colors.primary,
   };
 
   const urgencyColor: string = urgencyColors[suggestion.urgency || 'low'];
 
-  // Icon handling
+  // Icon handling for category badge
   const iconName = (suggestion.icon && icons[suggestion.icon as keyof typeof icons])
     ? (suggestion.icon as keyof typeof icons)
     : 'Star';
 
-  return (
-    <Animated.View
-      entering={FadeInDown.delay(index * 100).springify().damping(12)}
-      exiting={FadeOutLeft.springify().damping(12)}
-      layout={LinearTransition.springify().damping(12)}
-      className="mb-4 rounded-3xl border overflow-hidden"
-      style={{
-        backgroundColor: colors.card,
-        borderColor: colors.border,
-        shadowColor: tokens.shadow?.color ?? '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.04,
-        shadowRadius: 8,
-        elevation: 2,
-      }}
-    >
-      <View className="p-5">
-        <View className="flex-row items-start gap-4">
-          <View
-            className="w-12 h-12 rounded-full items-center justify-center shrink-0"
-            style={{ backgroundColor: suggestion.urgency === 'critical' ? tokens.celebrateSubtle : tokens.backgroundSubtle }}
-          >
-            <Icon name={iconName} size={24} color={urgencyColor} />
-          </View>
+  // Get initials from friend name
+  const getInitials = (name: string) => {
+    const parts = name.trim().split(/\s+/);
+    if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+    return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+  };
 
-          <View className="flex-1">
-            <View className="flex-row justify-between items-start mb-1">
-              <View className="flex-1 mr-2">
-                {suggestion.urgency === 'critical' && (
+  // Handle dismiss with haptic
+  const handleDismiss = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    onLater();
+  }, [onLater]);
+
+  // Pan gesture for swipe-to-dismiss
+  const panGesture = Gesture.Pan()
+    .activeOffsetX([-10, 10])
+    .failOffsetY([-15, 15])
+    .onUpdate((e) => {
+      // Only allow leftward swipes
+      if (e.translationX < 0) {
+        translateX.value = e.translationX;
+      }
+    })
+    .onEnd((e) => {
+      if (e.translationX < DISMISS_THRESHOLD && !isDismissing.value) {
+        isDismissing.value = true;
+        runOnJS(handleDismiss)();
+      } else {
+        translateX.value = withSpring(0, { damping: 20, stiffness: 300 });
+      }
+    });
+
+  // Animated style for card translation
+  const cardAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: translateX.value }],
+  }));
+
+  // Animated style for dismiss indicator
+  const dismissIndicatorStyle = useAnimatedStyle(() => ({
+    opacity: Math.min(Math.abs(translateX.value) / DISMISS_THRESHOLD, 1),
+  }));
+
+  return (
+    <GestureDetector gesture={panGesture}>
+      <Animated.View
+        entering={FadeInDown.delay(index * 80).springify().damping(14)}
+        exiting={FadeOutLeft.springify().damping(12)}
+        layout={LinearTransition.springify().damping(12)}
+        className="mb-3"
+      >
+        {/* Dismiss indicator behind card */}
+        <Animated.View
+          className="absolute right-2 inset-y-0 justify-center"
+          style={dismissIndicatorStyle}
+        >
+          <View
+            className="w-10 h-10 rounded-full items-center justify-center"
+            style={{ backgroundColor: colors.destructive + '20' }}
+          >
+            <X size={20} color={colors.destructive} />
+          </View>
+        </Animated.View>
+
+        {/* Main card */}
+        <Animated.View
+          className="rounded-2xl border overflow-hidden"
+          style={[
+            {
+              backgroundColor: colors.card,
+              borderColor: colors.border,
+              borderLeftWidth: 3,
+              borderLeftColor: urgencyColor,
+            },
+            cardAnimatedStyle,
+          ]}
+        >
+          <View className="p-4">
+            <View className="flex-row items-start gap-3">
+              {/* Avatar with category badge */}
+              <View className="relative shrink-0">
+                {friend?.photoUrl ? (
+                  <CachedImage
+                    source={{ uri: friend.photoUrl }}
+                    style={{
+                      width: 48,
+                      height: 48,
+                      borderRadius: 24,
+                    }}
+                    contentFit="cover"
+                  />
+                ) : (
                   <View
-                    className="self-start px-2 py-0.5 rounded-full mb-1"
-                    style={{ backgroundColor: tokens.celebrateSubtle }}
+                    className="w-12 h-12 rounded-full items-center justify-center"
+                    style={{ backgroundColor: urgencyColor + '20' }}
                   >
-                    <Text variant="caption" style={{ color: colors.celebrate, fontSize: 10, fontWeight: '700' }}>SPECIAL</Text>
+                    <RNText
+                      style={{
+                        color: urgencyColor,
+                        fontSize: 18,
+                        fontWeight: '700',
+                      }}
+                    >
+                      {friend?.name ? getInitials(friend.name) : '?'}
+                    </RNText>
                   </View>
                 )}
-                <Text variant="h3" weight="bold" style={{ color: colors.foreground }}>
-                  {suggestion.title}
-                </Text>
+                {/* Category badge */}
+                <View
+                  className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full items-center justify-center border-2"
+                  style={{
+                    backgroundColor: colors.card,
+                    borderColor: colors.card,
+                  }}
+                >
+                  <Icon name={iconName} size={12} color={urgencyColor} />
+                </View>
               </View>
 
-              {suggestion.dismissible && (
-                <Pressable
-                  onPress={onLater}
-                  hitSlop={8}
-                  className="opacity-60 active:opacity-100"
+              <View className="flex-1">
+                <View className="flex-row justify-between items-start mb-0.5">
+                  <View className="flex-1 mr-2">
+                    {suggestion.urgency === 'critical' && (
+                      <View
+                        className="self-start px-2 py-0.5 rounded-full mb-1"
+                        style={{ backgroundColor: tokens.celebrateSubtle }}
+                      >
+                        <Text variant="caption" style={{ color: colors.celebrate, fontSize: 9, fontWeight: '700' }}>
+                          SPECIAL
+                        </Text>
+                      </View>
+                    )}
+                    <Text variant="body" weight="bold" style={{ color: colors.foreground, fontSize: 15 }}>
+                      {suggestion.title}
+                    </Text>
+                  </View>
+
+                  {suggestion.dismissible && (
+                    <Pressable
+                      onPress={onLater}
+                      hitSlop={8}
+                      className="opacity-50 active:opacity-100 p-1"
+                    >
+                      <Icon name="X" size={16} color={colors['muted-foreground']} />
+                    </Pressable>
+                  )}
+                </View>
+
+                <Text
+                  variant="body"
+                  style={{
+                    color: colors['muted-foreground'],
+                    marginTop: 2,
+                    marginBottom: 12,
+                    lineHeight: 20,
+                    fontSize: 13,
+                  }}
+                  numberOfLines={2}
                 >
-                  <Icon name="X" size={18} color={colors['muted-foreground']} />
-                </Pressable>
-              )}
+                  {suggestion.subtitle}
+                </Text>
+
+                <Button
+                  onPress={onAct}
+                  className="w-full"
+                  style={{ backgroundColor: urgencyColor }}
+                  label={suggestion.actionLabel}
+                />
+              </View>
             </View>
-
-            <Text variant="body" style={{ color: colors.foreground, marginTop: 4, marginBottom: 16, lineHeight: 22 }}>
-              {suggestion.subtitle}
-            </Text>
-
-            <Button
-              onPress={onAct}
-              className="w-full"
-              style={{ backgroundColor: urgencyColor }}
-              label={suggestion.actionLabel}
-            />
           </View>
-        </View>
-      </View>
-    </Animated.View>
+        </Animated.View>
+      </Animated.View>
+    </GestureDetector>
   );
 }
-
