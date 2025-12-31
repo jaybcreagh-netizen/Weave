@@ -20,6 +20,7 @@ export * from './services/tier-suggestion-engine.service';
 export * from './services/tier-management.service';
 export * from './services/verified-insights.service';
 export * from './services/archetype-compatibility.service';
+export * from './services/drift-detection.service';
 
 // Hooks
 export * from './hooks/useEffectiveness';
@@ -38,6 +39,13 @@ export { NudgesFAB } from './components/NudgesFAB';
 export { NudgesSheet } from './components/NudgesSheet';
 export { VerifiedReciprocityCard } from './components/VerifiedReciprocityCard';
 export { ArchetypeCompatibilityBadge } from './components/ArchetypeCompatibilityBadge';
+
+// Unified Calendar
+export { UnifiedCalendar } from './components/UnifiedCalendar';
+export { SeasonHeader } from './components/UnifiedCalendar/SeasonHeader';
+export { MonthGrid } from './components/UnifiedCalendar/MonthGrid';
+export { DriftAlertsSection } from './components/UnifiedCalendar/DriftAlertsSection';
+export { DayDetailSheet } from './components/UnifiedCalendar/DayDetailSheet';
 
 // Types
 export * from './types';

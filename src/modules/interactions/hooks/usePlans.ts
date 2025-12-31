@@ -6,32 +6,21 @@ import Intention from '@/db/models/Intention';
 import { InteractionActions } from '../services/interaction.actions';
 import * as WeaveLoggingService from '../services/weave-logging.service';
 import * as PlanService from '../services/plan.service';
+import { useInteractionObservable } from '@/shared/context/InteractionObservableContext';
 
+/**
+ * Hook for accessing plans and intentions data.
+ * 
+ * OPTIMIZATION: Uses centralized InteractionObservableContext for interactions
+ * instead of creating a duplicate subscription. Intentions still use a direct
+ * observable since they change less frequently.
+ */
 export function usePlans() {
-  const [interactions, setInteractions] = useState<Interaction[]>([]);
+  const { interactions, isLoading: interactionsLoading } = useInteractionObservable();
   const [intentions, setIntentions] = useState<Intention[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [intentionsLoading, setIntentionsLoading] = useState(true);
 
-  // Observe Interactions (Only planned/pending to optimize? Or all? Store did all)
-  // Store filtered by Q.sortBy('interaction_date', Q.desc)
-  useEffect(() => {
-    const subscription = database.get<Interaction>('interactions')
-      .query(Q.sortBy('interaction_date', Q.desc))
-      .observe()
-      .subscribe({
-        next: (data) => {
-          setInteractions(data);
-          setIsLoading(false);
-        },
-        error: (err) => {
-          console.error('[usePlans] Failed to observe interactions:', err);
-          setIsLoading(false);
-        }
-      });
-    return () => subscription.unsubscribe();
-  }, []);
-
-  // Observe Intentions
+  // Observe Intentions (kept separate - low frequency, different table)
   useEffect(() => {
     const subscription = database.get<Intention>('intentions')
       .query(Q.where('status', 'active'))
@@ -39,9 +28,11 @@ export function usePlans() {
       .subscribe({
         next: (data) => {
           setIntentions(data);
+          setIntentionsLoading(false);
         },
         error: (err) => {
           console.error('[usePlans] Failed to observe intentions:', err);
+          setIntentionsLoading(false);
         }
       });
     return () => subscription.unsubscribe();
@@ -62,15 +53,18 @@ export function usePlans() {
     [plannedInteractions]
   );
 
-  const getPlanById = (id: string): Interaction | undefined => {
-    return plannedInteractions.find(p => p.id === id);
-  };
+  const getPlanById = useMemo(
+    () => (id: string): Interaction | undefined => {
+      return plannedInteractions.find(p => p.id === id);
+    },
+    [plannedInteractions]
+  );
 
   return {
     plannedInteractions,
     pendingConfirmations,
     upcomingPlans,
-    isLoading,
+    isLoading: interactionsLoading || intentionsLoading,
     getPlanById,
     intentions,
     // Service Actions
@@ -82,3 +76,4 @@ export function usePlans() {
     dismissIntention: InteractionActions.dismissIntention,
   };
 }
+

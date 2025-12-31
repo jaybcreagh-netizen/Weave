@@ -96,6 +96,7 @@ export function WeaveLoggerScreen({
     } = useWeaveReflectPrompt();
 
     const scrollViewRef = useRef<ScrollView>(null);
+    const savePromiseRef = useRef<Promise<Interaction | null> | null>(null);
     const scale = useSharedValue(1);
     const [detailsSectionY, setDetailsSectionY] = useState(0);
     const isMountedRef = useRef(true);
@@ -288,87 +289,94 @@ export function WeaveLoggerScreen({
         if (!selectedCategory || selectedFriends.length === 0 || !selectedDate || isSubmitting) return;
 
         setIsSubmitting(true);
-        try {
-            // Build legacy notes field from chips + custom notes for backward compatibility
-            const legacyNotes = [
-                ...(reflection.chips || []).map(chip => {
-                    const storyChip = STORY_CHIPS.find((s: any) => s.id === chip.chipId);
-                    if (!storyChip) return '';
+        Vibration.vibrate();
 
-                    let text = storyChip.template;
+        // 1. OPTIMISTIC FEEDBACK: Show success immediately
+        showToast("Weave logged", selectedFriends.length === 1 ? selectedFriends[0].name : (selectedFriends.length > 1 ? 'Friends' : 'Friend'));
 
-                    if (storyChip.components) {
-                        Object.entries(storyChip.components).forEach(([componentId, component]: [string, any]) => {
-                            const value = chip.componentOverrides[componentId] || component.original;
-                            text = text.replace(`{${componentId}}`, value);
-                        });
-                    }
-
-                    return text;
-                }),
-                reflection.customNotes || '',
-            ]
-                .filter(Boolean)
-                .join(' ');
-
-            const savedInteraction = await logWeave({
-                friendIds: selectedFriends.map(f => f.id),
-                category: selectedCategory,
-                activity: selectedCategory,
-                notes: legacyNotes,
-                date: selectedDate,
-                type: 'log',
-                status: 'completed',
-                mode: 'one-on-one',
-                vibe: selectedVibe,
-                reflection,
-                title: title.trim() || undefined,
-                initiator,
-            });
-
-            // Share with linked friends if enabled
-            if (shareWithLinked && linkedFriends.length > 0) {
-                try {
-                    await shareWeave({
-                        interactionId: savedInteraction.id,
-                        linkedFriendIds: linkedFriends.map(f => f.id),
+        // Prepare data for saving
+        const legacyNotes = [
+            ...(reflection.chips || []).map(chip => {
+                const storyChip = STORY_CHIPS.find((s: any) => s.id === chip.chipId);
+                if (!storyChip) return '';
+                let text = storyChip.template;
+                if (storyChip.components) {
+                    Object.entries(storyChip.components).forEach(([componentId, component]: [string, any]) => {
+                        const value = chip.componentOverrides[componentId] || component.original;
+                        text = text.replace(`{${componentId}}`, value);
                     });
-                } catch (shareError) {
-                    console.error('[WeaveLogger] Error sharing weave:', shareError);
-                    // Don't block navigation - share is queued for retry
                 }
+                return text;
+            }),
+            reflection.customNotes || '',
+        ].filter(Boolean).join(' ');
+
+        const interactionPayload = {
+            friendIds: selectedFriends.map(f => f.id),
+            category: selectedCategory,
+            activity: selectedCategory,
+            notes: legacyNotes,
+            date: selectedDate,
+            type: 'log',
+            status: 'completed',
+            mode: 'one-on-one',
+            vibe: selectedVibe,
+            reflection,
+            title: title.trim() || undefined,
+            initiator,
+        };
+
+        const interactionDataPreview = {
+            interactionDate: selectedDate.getTime(),
+            interactionType: 'log',
+            interactionCategory: selectedCategory,
+            vibe: selectedVibe,
+            duration: 'Medium',
+            notes: legacyNotes,
+        };
+
+        // 2. CHECK PROMPT (Determine if we need to keep user on screen)
+        // We do this concurrently with the save to decide navigation logic
+        const shouldShowPromptPromise = checkAndShowPrompt(interactionDataPreview as any, selectedFriends);
+
+        // 3. BACKGROUND WRITE (Fire and forget from UI thread perspective)
+        savePromiseRef.current = (async () => {
+            try {
+                const savedInteraction = await logWeave(interactionPayload as any);
+
+                // Share with linked friends if enabled
+                if (shareWithLinked && linkedFriends.length > 0) {
+                    try {
+                        await shareWeave({
+                            interactionId: savedInteraction.id,
+                            linkedFriendIds: linkedFriends.map(f => f.id),
+                        });
+                    } catch (shareError) {
+                        console.error('[WeaveLogger] Error sharing weave:', shareError);
+                    }
+                }
+                return savedInteraction;
+            } catch (error) {
+                console.error('[WeaveLogger] Error saving weave:', error);
+                // Alert user if save failed (since we might have already navigated away, use Alert)
+                Alert.alert("Error", "Failed to save weave. Please check your connection.");
+                return null;
             }
+        })();
 
-            const interactionData = {
-                id: savedInteraction.id,
-                interactionDate: selectedDate.getTime(),
-                interactionType: 'log',
-                interactionCategory: selectedCategory,
-                vibe: selectedVibe,
-                duration: 'Medium',
-                notes: legacyNotes,
-            };
-
-            Vibration.vibrate();
-
-            // Show sparkles popup
-            showToast("Weave logged", selectedFriends.length === 1 ? selectedFriends[0].name : (selectedFriends.length > 1 ? 'Friends' : 'Friend'));
-
-            const shouldShow = await checkAndShowPrompt(interactionData as any, selectedFriends);
-
+        // 4. NAVIGATION LOGIC
+        // If prompt is NOT showing, navigate back immediately.
+        // If prompt IS showing, the prompt modal will appear (managed by useWeaveReflectPrompt state)
+        // and we stay on this screen.
+        shouldShowPromptPromise.then((shouldShow) => {
             if (!shouldShow) {
+                // Delay slightly for safe unmount/toast visibility
                 navigationTimeoutRef.current = setTimeout(() => {
                     if (!isMountedRef.current) return;
                     onBack();
-                }, 900);
+                }, 100);
             }
-        } catch (error) {
-            console.error('[WeaveLogger] Error saving weave:', error);
-            navigationTimeoutRef.current = setTimeout(() => {
-                if (!isMountedRef.current) return;
-                onBack();
-            }, 100);
-        }
+        });
     });
 
     const deepeningMetrics = calculateDeepeningLevel(reflection);
@@ -786,9 +794,11 @@ export function WeaveLoggerScreen({
                         visible={showPrompt}
                         interaction={promptInteraction}
                         friends={promptFriends}
-                        onReflect={() => {
+                        onReflect={async () => {
                             hidePrompt();
-                            onNavigateToJournal(promptInteraction?.id);
+                            // Wait for the background save to complete so we have the real ID
+                            const savedInteraction = await savePromiseRef.current;
+                            onNavigateToJournal(savedInteraction?.id);
                         }}
                         onDismiss={() => {
                             hidePrompt();

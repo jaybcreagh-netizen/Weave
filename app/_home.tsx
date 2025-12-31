@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 
 import { HomeWidgetGrid, WidgetGridItem } from '@/modules/home/components/widgets/HomeWidgetGrid';
 import { SocialSeasonWidgetV2 } from '@/modules/home/components/widgets/widgets/SocialSeasonWidgetV2';
@@ -19,7 +19,11 @@ import { isSameWeek } from 'date-fns';
  * Displays a grid of widgets and handles modals for social battery check-ins and weekly reflections.
  * @returns {React.ReactElement} The rendered home screen.
  */
-export default function Home() {
+interface HomeProps {
+  onReady?: () => void;
+}
+
+export default function Home({ onReady }: HomeProps) {
   const { profile, updateProfile } = useUserProfileStore();
   const {
     openWeeklyReflection,
@@ -42,7 +46,6 @@ export default function Home() {
   const hasPerformedQuickWeave = useTutorialStore((state) => state.hasPerformedQuickWeave);
 
   // Cleanup timeouts on unmount to prevent setState on unmounted component
-  // Cleanup timeouts on unmount to prevent setState on unmounted component
   useEffect(() => {
     return () => {
       isMountedRef.current = false;
@@ -50,6 +53,17 @@ export default function Home() {
       if (moonsTimerRef.current) clearTimeout(moonsTimerRef.current);
     };
   }, []);
+
+  // Signal ready after initial render (use InteractionManager for true idle callback)
+  useEffect(() => {
+    // Small delay to ensure first paint has occurred
+    const timer = setTimeout(() => {
+      if (isMountedRef.current && onReady) {
+        onReady();
+      }
+    }, 50);
+    return () => clearTimeout(timer);
+  }, [onReady]);
 
 
 

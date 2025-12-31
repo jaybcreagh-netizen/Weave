@@ -9,6 +9,7 @@ import { InteractionFormData, StructuredReflection } from '../types';
 import * as CalendarService from './calendar.service';
 import { InteractionCategory, Vibe, Duration } from '@/shared/types/common';
 import { recalculateScoreOnDelete, processWeaveScoring, recalculateScoreOnEdit } from '@/modules/intelligence';
+import { writeScheduler } from '@/shared/services/write-scheduler';
 
 export const InteractionActions = {
     updateInteraction: async (interactionId: string, updates: Partial<Interaction> & { friendIds?: string[] }): Promise<void> => {
@@ -38,7 +39,7 @@ export const InteractionActions = {
                 await recalculateScoreOnDelete(interaction, removedFriends, database);
 
                 // Delete join records
-                await database.write(async () => {
+                await writeScheduler.important('updateInteraction:removeParticipants', async () => {
                     const recordsToDelete = currentJoinRecords.filter(r => removedIds.includes(r.friendId));
                     if (recordsToDelete.length > 0) {
                         const ops = recordsToDelete.map(r => r.prepareDestroyPermanently());
@@ -66,7 +67,7 @@ export const InteractionActions = {
                 };
 
                 // Create join records first
-                await database.write(async () => {
+                await writeScheduler.important('updateInteraction:addParticipants', async () => {
                     const batchOps: any[] = [];
                     for (const friend of addedFriends) {
                         batchOps.push(database.get('interaction_friends').prepareCreate((_ifriend: any) => {
@@ -140,7 +141,7 @@ export const InteractionActions = {
 
         // 3. Update Interaction Record
         if (Object.keys(updates).length > 0) {
-            await database.write(async () => {
+            await writeScheduler.important('updateInteraction:record', async () => {
                 await interaction.update(rec => {
                     if (updates.interactionCategory) rec.interactionCategory = updates.interactionCategory;
                     if (updates.activity) rec.activity = updates.activity;
@@ -242,7 +243,7 @@ export const InteractionActions = {
             return;
         }
 
-        await database.write(async () => {
+        await writeScheduler.important('createIntention', async () => {
             const batchOps: any[] = [];
 
             const intention = database.get<Intention>('intentions').prepareCreate(i => {
@@ -265,7 +266,7 @@ export const InteractionActions = {
     },
 
     dismissIntention: async (intentionId: string): Promise<void> => {
-        await database.write(async () => {
+        await writeScheduler.important('dismissIntention', async () => {
             const intention = await database.get<Intention>('intentions').find(intentionId);
             await intention.update(i => { i.status = 'dismissed' });
         });

@@ -22,8 +22,12 @@ export default function Dashboard() {
     const colors = theme?.colors || {};
     const [activeTab, setActiveTab] = useState<'insights' | 'circle'>('circle');
     // Lazy tab loading: Track which tabs have been visited
-    // Tabs mount on first visit and stay mounted for instant subsequent switching
-    const [hasVisitedInsights, setHasVisitedInsights] = useState(false);
+    // insightsState progression: 'unvisited' -> 'loading' -> 'mounting' -> 'ready'
+    // - 'unvisited': Tab never selected
+    // - 'loading': Tab selected, showing loader (HomeScreen NOT mounted yet)
+    // - 'mounting': HomeScreen mounted but hidden, waiting for onReady
+    // - 'ready': HomeScreen has signaled ready (fade in content)
+    const [insightsState, setInsightsState] = useState<'unvisited' | 'loading' | 'mounting' | 'ready'>('unvisited');
     const [hasVisitedCircle, setHasVisitedCircle] = useState(true); // Default tab starts visited
     const [showSettings, setShowSettings] = useState(false);
     const {
@@ -145,19 +149,28 @@ export default function Dashboard() {
         setActiveTab(tab);
     };
 
-    // Mark tabs as visited after the first render of the loading state
-    // This ensures the loading indicator shows briefly before content mounts
+    // Transition insights through phases: unvisited -> loading -> mounting
     useEffect(() => {
-        if (activeTab === 'insights' && !hasVisitedInsights) {
-            // Show loading indicator briefly, then mount content with fade-in
-            const timer = setTimeout(() => setHasVisitedInsights(true), 200);
+        if (activeTab === 'insights' && insightsState === 'unvisited') {
+            setInsightsState('loading');
+        }
+        // After loader is visible, mount HomeScreen in background after brief delay
+        if (activeTab === 'insights' && insightsState === 'loading') {
+            const timer = setTimeout(() => setInsightsState('mounting'), 100);
             return () => clearTimeout(timer);
         }
         if (activeTab === 'circle' && !hasVisitedCircle) {
             const timer = setTimeout(() => setHasVisitedCircle(true), 50);
             return () => clearTimeout(timer);
         }
-    }, [activeTab, hasVisitedInsights, hasVisitedCircle]);
+    }, [activeTab, insightsState, hasVisitedCircle]);
+
+    // Callback for when HomeScreen is ready to display
+    const handleInsightsReady = () => {
+        if (insightsState === 'mounting') {
+            setInsightsState('ready');
+        }
+    };
 
     // Note: repairTiers() is now called once in DataInitializer, not on every Dashboard mount
 
@@ -206,7 +219,8 @@ export default function Dashboard() {
 
                 {/* Lazy tab loading: Mount tabs only after first visit, then keep mounted */}
                 <View style={styles.tabContent}>
-                    {activeTab === 'insights' && !hasVisitedInsights && (
+                    {/* Show loader during 'loading' and 'mounting' phases */}
+                    {activeTab === 'insights' && (insightsState === 'loading' || insightsState === 'mounting') && (
                         <Animated.View
                             style={[styles.screenContainer, styles.loadingContainer]}
                             entering={FadeIn.duration(200)}
@@ -225,15 +239,17 @@ export default function Dashboard() {
                             </View>
                         </Animated.View>
                     )}
-                    {hasVisitedInsights && (
+                    {/* Mount HomeScreen only during 'mounting' and 'ready' phases */}
+                    {(insightsState === 'mounting' || insightsState === 'ready') && (
                         <Animated.View
                             style={[
                                 styles.screenContainer,
-                                activeTab !== 'insights' && styles.hidden
+                                // Hide during mounting phase and when on another tab
+                                (insightsState === 'mounting' || activeTab !== 'insights') && styles.hidden
                             ]}
                             entering={FadeIn.duration(300)}
                         >
-                            <HomeScreen />
+                            <HomeScreen onReady={handleInsightsReady} />
                         </Animated.View>
                     )}
                     {hasVisitedCircle && (

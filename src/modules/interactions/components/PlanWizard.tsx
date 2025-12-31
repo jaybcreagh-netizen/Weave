@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, Modal, ScrollView, SafeAreaView, Alert, Keyboard, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, Modal, ScrollView, SafeAreaView, Alert, Keyboard, KeyboardAvoidingView, Platform, Vibration } from 'react-native';
 import Animated, { SlideInLeft, SlideInRight, SlideOutLeft, SlideOutRight } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
 import {
@@ -28,6 +28,7 @@ import { getDefaultTimeForCategory, calculateActivityPriorities, isSmartDefaults
 import { database } from '@/db';
 import Interaction from '@/db/models/Interaction';
 import { startOfDay, addDays, isSaturday, nextSaturday, getDay } from 'date-fns';
+import { useUIStore } from '@/shared/stores/uiStore';
 import { Q } from '@nozbe/watermelondb';
 import { InitiatorType } from '@/modules/relationships';
 import { useDebounceCallback } from '@/shared/hooks/useDebounceCallback';
@@ -88,9 +89,9 @@ export function PlanWizard({ visible, onClose, initialFriend, prefillData, repla
     date: prefillData?.date,
     category: prefillData?.category || suggestion?.suggestedCategory,
     title: prefillData?.title,
-    location: prefillData?.location,
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
 
   // Lifted state for performance
   const [plannedDates, setPlannedDates] = useState<Date[]>([]);
@@ -273,60 +274,81 @@ export function PlanWizard({ visible, onClose, initialFriend, prefillData, repla
       return;
     }
 
-    setIsSubmitting(true);
-    try {
-      // If rescheduling, delete the old plan first
-      if (replaceInteractionId) {
-        await deleteWeave(replaceInteractionId);
-      }
+    // 1. VISUAL CONFIRMATION
+    setIsSuccess(true);
+    Vibration.vibrate();
 
-      // Merge date and time if time is set
-      let finalDate = formData.date;
-      if (formData.time) {
-        finalDate = new Date(formData.date);
-        finalDate.setHours(
-          formData.time.getHours(),
-          formData.time.getMinutes(),
-          0,
-          0
-        );
-      }
-
-      // Create the interaction
-      const newPlan = await planWeave({
-        friendIds: selectedFriends.map(f => f.id),
-        activity: formData.category,
-        category: formData.category,
-        notes: formData.notes,
-        date: finalDate,
-        type: 'plan',
-        status: 'planned',
-        mode: selectedFriends.length > 1 ? 'group' : 'one-on-one',
-        // Include title and location
-        title: formData.title?.trim() || undefined,
-        location: formData.location?.trim() || undefined,
-        initiator: formData.initiator,
-      });
-
+    // 2. DELAYED CLOSE (Allow user to see success state)
+    setTimeout(() => {
       handleClose();
+      // Reset success state
+      setTimeout(() => setIsSuccess(false), 300);
+    }, 800);
 
-      // Run secondary operations in background
-      (async () => {
+    // 3. BACKGROUND WORK (Starts immediately)
+    // Capture valid data before closure potentially gets confusing (though const is safe)
+    const validDate = formData.date!;
+    const validCategory = formData.category!;
+    const validTitle = formData.title;
+    const validLocation = formData.location;
+    const validNotes = formData.notes;
+    const validInitiator = formData.initiator;
+    const validTime = formData.time;
+    const validShouldShare = formData.shouldShare;
+
+    // 2. BACKGROUND WORK (Fire and forget)
+    // We wrap this in a self-executing async function to not block the UI
+    (async () => {
+      try {
+        // If rescheduling, delete the old plan first (this is fast enough to await usually, but let's bundle)
+        if (replaceInteractionId) {
+          await deleteWeave(replaceInteractionId);
+        }
+
+        // Merge date and time if time is set
+        let finalDate = validDate;
+        if (validTime) {
+          finalDate = new Date(validDate);
+          finalDate.setHours(
+            validTime.getHours(),
+            validTime.getMinutes(),
+            0,
+            0
+          );
+        }
+
+        // Create the interaction
+        const newPlan = await planWeave({
+          friendIds: selectedFriends.map(f => f.id),
+          activity: validCategory,
+          category: validCategory,
+          notes: validNotes,
+          date: finalDate,
+          type: 'plan',
+          status: 'planned',
+          mode: selectedFriends.length > 1 ? 'group' : 'one-on-one',
+          // Include title and location
+          title: validTitle,
+          location: validLocation,
+          initiator: validInitiator,
+        }, { skipToast: true });
+
+        // Run secondary operations in background
         // Try to create calendar event if settings enabled
         try {
           const settings = await CalendarService.getCalendarSettings();
           if (settings.enabled) {
-            const categoryMeta = getCategoryMetadata(formData.category!);
+            const categoryMeta = getCategoryMetadata(validCategory);
             const friendNames = selectedFriends.map(f => f.name).join(', ');
-            const eventTitle = formData.title?.trim() || `${categoryMeta?.label || formData.category} with ${friendNames}`;
+            const eventTitle = validTitle?.trim() || `${categoryMeta?.label || validCategory} with ${friendNames}`;
 
             const result = await CalendarService.createWeaveCalendarEventWithResult({
               title: eventTitle,
               friendNames: friendNames,
-              category: categoryMeta?.label || formData.category!,
+              category: categoryMeta?.label || validCategory,
               date: finalDate,
-              location: formData.location?.trim(),
-              notes: formData.notes?.trim(),
+              location: validLocation?.trim(),
+              notes: validNotes?.trim(),
             });
 
             if (result.success && result.eventId && newPlan.id) {
@@ -352,7 +374,7 @@ export function PlanWizard({ visible, onClose, initialFriend, prefillData, repla
         }
 
         // SHARE LOGIC (Phase 4)
-        if (formData.shouldShare && newPlan.id) {
+        if (validShouldShare && newPlan.id) {
           try {
             const linkedFriends = selectedFriends.filter(f => f.linkedUserId);
             if (linkedFriends.length > 0) {
@@ -360,25 +382,24 @@ export function PlanWizard({ visible, onClose, initialFriend, prefillData, repla
               await executeShareWeave({
                 interactionId: newPlan.id,
                 participantUserIds: linkedFriends.map(f => f.linkedUserId!),
-                title: formData.title,
+                title: validTitle,
                 weaveDate: finalDate.toISOString(),
-                location: formData.location,
-                category: formData.category!,
+                location: validLocation,
+                category: validCategory,
                 duration: null,
-                note: formData.notes,
+                note: validNotes,
               });
             }
           } catch (shareErr) {
             console.warn('Share failed:', shareErr);
           }
         }
-      })();
-    } catch (error) {
-      console.error('Error creating plan:', error);
-      Alert.alert('Error', 'Failed to create plan. Please try again.');
-    } finally {
-      setIsSubmitting(false);
-    }
+      } catch (error) {
+        console.error('Error creating plan:', error);
+        // Since modal is closed, show Alert
+        Alert.alert('Error', 'Failed to save plan. Please check your connection.');
+      }
+    })();
   });
 
   const canProceedFromStep1 = !!formData.date;
@@ -487,6 +508,7 @@ export function PlanWizard({ visible, onClose, initialFriend, prefillData, repla
                   onUpdate={updateFormData}
                   onSubmit={handleSubmit}
                   isSubmitting={isSubmitting}
+                  isSuccess={isSuccess}
                   friend={initialFriend}
                   suggestion={suggestion}
                   selectedFriends={selectedFriends}

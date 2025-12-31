@@ -1,3 +1,10 @@
+/**
+ * NudgesSheet - Displays suggestions and intentions
+ * 
+ * OPTIMIZATION: Migrated from withObservables to FriendsObservableContext.
+ * Uses centralized context for friends instead of creating a separate subscription.
+ */
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { View, TouchableOpacity } from 'react-native';
 import { BottomSheetSectionList } from '@gorhom/bottom-sheet';
@@ -14,11 +21,9 @@ import { FeatureFlags } from '@/shared/config/feature-flags';
 import { usePendingWeaves, ActivityInboxSheet } from '@/modules/sync';
 import { getPendingRequestCount } from '@/modules/relationships/services/friend-linking.service';
 import { SuggestionActionSheet } from '@/modules/interactions/components/SuggestionActionSheet';
-import withObservables from '@nozbe/with-observables';
-import { database } from '@/db';
+import { useFriendsObservable } from '@/shared/context/FriendsObservableContext';
 import FriendModel from '@/db/models/Friend';
 import { useRouter } from 'expo-router';
-import * as Haptics from 'expo-haptics';
 import { SeasonAnalyticsService } from '@/modules/intelligence';
 
 interface NudgesSheetProps {
@@ -29,7 +34,6 @@ interface NudgesSheetProps {
   onAct: (suggestion: Suggestion) => void;
   onLater: (suggestionId: string) => void;
   onIntentionPress: (intention: Intention) => void;
-  friends: FriendModel[];
 }
 
 // Urgency group configuration
@@ -61,7 +65,7 @@ interface SuggestionSection {
   data: Suggestion[];
 }
 
-const NudgesSheetComponent = function ({
+export const NudgesSheet: React.FC<NudgesSheetProps> = ({
   isVisible,
   suggestions,
   intentions,
@@ -69,10 +73,10 @@ const NudgesSheetComponent = function ({
   onAct,
   onLater,
   onIntentionPress,
-  friends,
-}: NudgesSheetProps) {
+}) => {
   const { colors, tokens } = useTheme();
   const router = useRouter();
+  const { friends } = useFriendsObservable();
   const [showActivityInbox, setShowActivityInbox] = useState(false);
   const [selectedSuggestion, setSelectedSuggestion] = useState<Suggestion | null>(null);
 
@@ -83,9 +87,10 @@ const NudgesSheetComponent = function ({
         key: group.key,
         title: group.title,
         icon: group.icon,
-        data: suggestions.filter((s) =>
-          group.urgencies.includes((s.urgency || 'low') as any)
-        ),
+        data: suggestions.filter((s) => {
+          const urgency = s.urgency || 'low';
+          return (group.urgencies as readonly string[]).includes(urgency);
+        }),
       }))
       .filter((section) => section.data.length > 0);
   }, [suggestions]);
@@ -318,8 +323,3 @@ const NudgesSheetComponent = function ({
   );
 };
 
-const enhance = withObservables([], () => ({
-  friends: database.get<FriendModel>('friends').query().observe(),
-}));
-
-export const NudgesSheet = enhance(NudgesSheetComponent);

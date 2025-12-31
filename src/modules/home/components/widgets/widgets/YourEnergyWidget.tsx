@@ -8,7 +8,7 @@ import { useTheme } from '@/shared/hooks/useTheme';
 import { database } from '@/db';
 import { HomeWidgetBase, HomeWidgetConfig } from '../HomeWidgetBase';
 import { MoonPhaseIllustration } from '@/modules/intelligence';
-import { YearInMoonsModal } from '@/modules/intelligence';
+import { UnifiedCalendarModal } from '@/modules/insights/components/UnifiedCalendar';
 import { WidgetHeader } from '@/shared/ui/WidgetHeader';
 import {
     getYearMoonData,
@@ -57,8 +57,8 @@ export const YourEnergyWidget: React.FC = () => {
     const logs = useBatteryLogs();
     const { tokens, typography, colors } = useTheme();
     const router = useRouter();
-    const [showModal, setShowModal] = useState(false);
-    const [initialTab, setInitialTab] = useState<'moons' | 'patterns'>('moons');
+    const [showLifeCalendar, setShowLifeCalendar] = useState(false);
+    const [calendarInitialTab, setCalendarInitialTab] = useState<'moons' | 'patterns'>('moons');
 
     const screenWidth = Dimensions.get('window').width;
     // Calculate column width to ensure 7 items fit perfectly in the row
@@ -183,7 +183,7 @@ export const YourEnergyWidget: React.FC = () => {
                         icon={<Zap size={16} color={tokens.primaryMuted} />}
                         action={{
                             label: `${currentMonthName} ${currentMonthData.year}`,
-                            onPress: () => setShowModal(true)
+                            onPress: () => setShowLifeCalendar(true)
                         }}
                     />
 
@@ -212,7 +212,6 @@ export const YourEnergyWidget: React.FC = () => {
                                     phase={day.moonPhase}
                                     size={moonSize}
                                     hasCheckin={day.hasCheckin}
-                                    color={tokens.primary}
                                 />
                                 <Text
                                     style={{
@@ -253,10 +252,7 @@ export const YourEnergyWidget: React.FC = () => {
 
                         <View style={{ flexDirection: 'row', gap: 6 }}>
                             <TouchableOpacity
-                                onPress={() => {
-                                    setInitialTab('moons');
-                                    setShowModal(true);
-                                }}
+                                onPress={() => setShowLifeCalendar(true)}
                                 style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: tokens.secondary, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 6 }}
                             >
                                 <Calendar size={12} color={tokens.foreground} />
@@ -266,14 +262,14 @@ export const YourEnergyWidget: React.FC = () => {
                                     fontFamily: typography.fonts.sansMedium,
                                     color: tokens.foreground
                                 }}>
-                                    Your year
+                                    Life Calendar
                                 </Text>
                             </TouchableOpacity>
 
                             <TouchableOpacity
                                 onPress={() => {
-                                    setInitialTab('patterns');
-                                    setShowModal(true);
+                                    setCalendarInitialTab('patterns');
+                                    setShowLifeCalendar(true);
                                 }}
                                 style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: tokens.primary, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 6 }}
                             >
@@ -292,10 +288,10 @@ export const YourEnergyWidget: React.FC = () => {
                 </View>
             </HomeWidgetBase>
 
-            <YearInMoonsModal
-                isOpen={showModal}
-                onClose={() => setShowModal(false)}
-                initialTab={initialTab}
+            <UnifiedCalendarModal
+                isOpen={showLifeCalendar}
+                onClose={() => setShowLifeCalendar(false)}
+                initialTab={calendarInitialTab}
             />
         </>
     );

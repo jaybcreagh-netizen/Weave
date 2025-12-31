@@ -15,6 +15,7 @@ import type { InteractionType } from '@/shared/types/legacy-types';
 import type { SocialSeason } from '@/db/models/UserProfile';
 import Logger from '@/shared/utils/Logger';
 import { eventBus } from '@/shared/events/event-bus';
+import { writeScheduler } from '@/shared/services/write-scheduler';
 
 import Interaction from '@/db/models/Interaction';
 import InteractionFriend from '@/db/models/InteractionFriend';
@@ -60,7 +61,7 @@ export async function recalculateScoreOnEdit(
   const delta = newPoints - oldPoints;
 
   if (delta !== 0) {
-    await database.write(async () => {
+    await writeScheduler.background('Intelligence:recalcScore', async () => {
       await friend.update(f => {
         // Use SCORE_BUFFER_CAP for storage to allow deletion headroom,
         // but still prevent infinite accumulation.
@@ -192,45 +193,53 @@ export async function prepareWeaveScoringOps(
 
   // 1. Pre-fetch interaction history counts for all friends
   const historyCounts = new Map<string, number>();
-  const friendIds = friends.map(f => f.id);
+  const historyStart = Date.now();
 
-  if (friendIds.length > 0) {
-    const FRIEND_BATCH_SIZE = 900;
-    let allLinks: any[] = [];
-
-    for (let i = 0; i < friendIds.length; i += FRIEND_BATCH_SIZE) {
-      const batch = friendIds.slice(i, i + FRIEND_BATCH_SIZE);
-      const links = await database.get('interaction_friends')
-        .query(Q.where('friend_id', Q.oneOf(batch)))
+  // Optimization: Parallelize checks per friend.
+  // We only need to know if the count is >= 5 for the affinity bonus.
+  await Promise.all(friends.map(async (friend) => {
+    try {
+      const linkStart = Date.now();
+      // Step A: Get interaction IDs for this friend
+      const links = await database.get<InteractionFriend>('interaction_friends')
+        .query(Q.where('friend_id', friend.id))
         .fetch();
-      allLinks = allLinks.concat(links);
-    }
+      Logger.info(`[Perf] Friend ${friend.name}: links fetch ${Date.now() - linkStart}ms (${links.length} links)`);
 
-    const allInteractionIds = Array.from(new Set(allLinks.map((r: any) => r.interactionId)));
-    const validInteractionIds = new Set<string>();
+      const interactionIds = links.map(l => l.interactionId);
 
-    if (allInteractionIds.length > 0) {
-      const ID_BATCH_SIZE = 900;
-      for (let i = 0; i < allInteractionIds.length; i += ID_BATCH_SIZE) {
-        const batch = allInteractionIds.slice(i, i + ID_BATCH_SIZE);
-        const validInteractions = await database.get('interactions')
-          .query(
-            Q.where('id', Q.oneOf(batch)),
-            Q.where('interaction_category', interactionData.category || ''),
-            Q.where('status', 'completed')
-          ).fetch();
-
-        validInteractions.forEach((interaction: any) => validInteractionIds.add(interaction.id));
+      if (interactionIds.length === 0) {
+        historyCounts.set(friend.id, 0);
+        return;
       }
-    }
 
-    allLinks.forEach((link: any) => {
-      if (validInteractionIds.has(link.interactionId)) {
-        const currentCount = historyCounts.get(link.friendId) || 0;
-        historyCounts.set(link.friendId, currentCount + 1);
-      }
-    });
-  }
+      // Step B: Check if we have at least 5 qualifying interactions
+      // Note: Q.take() is not supported with fetchCount, so we fetch() and count
+      const countStart = Date.now();
+      let totalFound = 0;
+
+      // Optimization: Only check first batch since we just need >= 5
+      const ID_BATCH_SIZE = 100; // Smaller batch for faster initial check
+      const batch = interactionIds.slice(0, ID_BATCH_SIZE);
+
+      const matchingInteractions = await database.get('interactions')
+        .query(
+          Q.where('id', Q.oneOf(batch)),
+          Q.where('interaction_category', interactionData.category || ''),
+          Q.where('status', 'completed')
+        ).fetch();
+
+      totalFound = matchingInteractions.length;
+      Logger.info(`[Perf] Friend ${friend.name}: count query ${Date.now() - countStart}ms (found: ${totalFound})`);
+
+      historyCounts.set(friend.id, totalFound);
+
+    } catch (error) {
+      Logger.error(`Error fetching history count for friend ${friend.id}`, error);
+      historyCounts.set(friend.id, 0);
+    }
+  }));
+  Logger.info(`[Perf] History counts total: ${Date.now() - historyStart}ms`);
 
   const batchOps: any[] = [];
 
@@ -330,7 +339,8 @@ export async function processWeaveScoring(
   const { scoreUpdates, ops } = await prepareWeaveScoringOps(friends, interactionData, database, season);
 
   if (ops.length > 0) {
-    await database.write(async () => {
+    // BACKGROUND PRIORITY: Scoring can wait, user actions take priority
+    await writeScheduler.background('Intelligence:scoring', async () => {
       await database.batch(ops);
     });
   }
@@ -440,7 +450,7 @@ export async function logNetworkHealth(score: number, database: Database, force:
       }
     }
 
-    await database.write(async () => {
+    writeScheduler.background('Intelligence:networkHealthLog', async () => {
       await database.get('network_health_logs').create((log: any) => {
         log.score = score;
         log.timestamp = new Date(now);

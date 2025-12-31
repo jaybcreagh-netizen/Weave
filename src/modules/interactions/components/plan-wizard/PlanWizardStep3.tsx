@@ -17,6 +17,7 @@ interface PlanWizardStep3Props {
   onUpdate: (updates: Partial<PlanFormData>) => void;
   onSubmit: () => void;
   isSubmitting: boolean;
+  isSuccess?: boolean;
   friend: FriendModel;
   suggestion: PlanSuggestion | null;
   selectedFriends: FriendModel[];
@@ -39,6 +40,7 @@ export function PlanWizardStep3({
   onUpdate,
   onSubmit,
   isSubmitting,
+  isSuccess,
   friend,
   suggestion,
   selectedFriends,
@@ -258,15 +260,21 @@ export function PlanWizardStep3({
       {/* Create button */}
       <TouchableOpacity
         onPress={onSubmit}
-        disabled={isSubmitting}
-        className="py-4 rounded-full items-center mt-4"
+        disabled={isSubmitting || isSuccess}
+        className="py-4 rounded-full items-center mt-4 flex-row justify-center"
         style={{
-          backgroundColor: colors.primary,
-          opacity: isSubmitting ? 0.6 : 1,
+          backgroundColor: isSuccess ? '#10b981' : colors.primary, // Green for success
+          opacity: (isSubmitting && !isSuccess) ? 0.6 : 1,
+          transform: [{ scale: isSuccess ? 1.02 : 1 }], // Slight pulse
         }}
       >
+        {isSuccess && (
+          <View className="mr-2">
+            <Text style={{ color: 'white', fontSize: 18 }}>✓</Text>
+          </View>
+        )}
         <Text className="font-inter-semibold text-base text-white">
-          {isSubmitting ? 'Creating Plan...' : 'Create Plan'}
+          {isSuccess ? 'Scheduled!' : (isSubmitting ? 'Creating Plan...' : 'Create Plan')}
         </Text>
       </TouchableOpacity>
 

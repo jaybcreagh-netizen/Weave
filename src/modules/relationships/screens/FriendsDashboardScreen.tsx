@@ -280,15 +280,7 @@ export function FriendsDashboardScreen() {
         }
     };
 
-    const renderTier = (viewTier: 'inner' | 'close' | 'community') => {
-        return (
-            <FriendTierList
-                tier={getDbTier(viewTier)}
-                scrollHandler={animatedScrollHandler}
-                isQuickWeaveOpen={isQuickWeaveOpen}
-            />
-        );
-    };
+
 
     const handleClearSearch = useCallback(() => {
         setSearchQuery('');
@@ -355,9 +347,21 @@ export function FriendsDashboardScreen() {
                             scrollEnabled={!isQuickWeaveOpen}
                             directionalLockEnabled={true}
                         >
-                            {renderTier('inner')}
-                            {renderTier('close')}
-                            {renderTier('community')}
+                            <FriendTierList
+                                tier={getDbTier('inner')}
+                                scrollHandler={animatedScrollHandler}
+                                isQuickWeaveOpen={isQuickWeaveOpen}
+                            />
+                            <FriendTierList
+                                tier={getDbTier('close')}
+                                scrollHandler={animatedScrollHandler}
+                                isQuickWeaveOpen={isQuickWeaveOpen}
+                            />
+                            <FriendTierList
+                                tier={getDbTier('community')}
+                                scrollHandler={animatedScrollHandler}
+                                isQuickWeaveOpen={isQuickWeaveOpen}
+                            />
                         </Animated.ScrollView>
                     </GestureDetector>
                 </Animated.View>

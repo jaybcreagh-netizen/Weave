@@ -1,6 +1,7 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useEffect, useState } from 'react';
 import { View, Text, Pressable, ScrollView, InteractionManager } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import * as FileSystem from 'expo-file-system';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
   useSharedValue,
@@ -109,17 +110,15 @@ export const FriendListRowContent = ({ friend, animatedRef, variant = 'default',
     setImageError(false);
   }, [photoUrl]);
 
-  // Resolve photo URL
-  const [resolvedPhotoUrl, setResolvedPhotoUrl] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (photoUrl) {
-      resolveImageUri(photoUrl).then(uri => {
-        if (uri) setResolvedPhotoUrl(uri);
-      });
-    } else {
-      setResolvedPhotoUrl(null);
+  // Resolve photo URL synchronously for performance
+  const resolvedPhotoUrl = useMemo(() => {
+    if (!photoUrl) return null;
+    // If it's a relative path (common case), prepend document directory synchronously
+    if (!photoUrl.startsWith('file://') && !photoUrl.startsWith('/')) {
+      return `${FileSystem.documentDirectory}${photoUrl.replace(/^\//, '')}`;
     }
+    // For absolute paths, we assume they are valid or let Image onError handle it
+    return photoUrl;
   }, [photoUrl]);
 
   // Update intelligent status line with caching for performance

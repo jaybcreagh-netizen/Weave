@@ -5,9 +5,12 @@
  * Multiple components were independently subscribing to friends.query().observe(),
  * causing performance issues when switching tabs. This context provides a single
  * subscription that all components share.
+ * 
+ * OPTIMIZATION: Also prefetches profile images when friends load for instant display.
  */
 
-import React, { createContext, useContext, useEffect, useState, useMemo } from 'react';
+import React, { createContext, useContext, useEffect, useState, useMemo, useRef } from 'react';
+import { Image } from 'expo-image';
 import { database } from '@/db';
 import FriendModel from '@/db/models/Friend';
 
@@ -32,6 +35,7 @@ const FriendsObservableContext = createContext<FriendsContextValue | null>(null)
 export function FriendsObservableProvider({ children }: { children: React.ReactNode }) {
     const [friends, setFriends] = useState<FriendModel[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const prefetchedUrls = useRef<Set<string>>(new Set());
 
     // Single subscription to friends table
     useEffect(() => {
@@ -46,6 +50,41 @@ export function FriendsObservableProvider({ children }: { children: React.ReactN
 
         return () => subscription.unsubscribe();
     }, []);
+
+    // Prefetch profile images when friends change
+    useEffect(() => {
+        // Skip prefetching if already handled by DataInitializer (simple check)
+        if (friends.length === 0) return;
+
+        const urlsToPrefetch: string[] = [];
+
+        for (const friend of friends) {
+            const url = friend.photoUrl;
+            if (url && !prefetchedUrls.current.has(url)) {
+                urlsToPrefetch.push(url);
+                prefetchedUrls.current.add(url);
+            }
+        }
+
+        if (urlsToPrefetch.length > 0) {
+            // Prefetch in batches to avoid overwhelming the network
+            // Higher priority for Inner Circle friends (first 5)
+            const priorityUrls = urlsToPrefetch.slice(0, 10);
+            const remainingUrls = urlsToPrefetch.slice(10);
+
+            // Prefetch priority images immediately
+            Image.prefetch(priorityUrls, 'memory-disk').catch(() => {
+                // Silently fail - images will load normally when rendered
+            });
+
+            // Prefetch remaining images with a slight delay
+            if (remainingUrls.length > 0) {
+                setTimeout(() => {
+                    Image.prefetch(remainingUrls, 'memory-disk').catch(() => { });
+                }, 500);
+            }
+        }
+    }, [friends]);
 
     // Memoized tier groups - computed once per friends update
     const { innerCircle, closeFriends, community, counts } = useMemo(() => {

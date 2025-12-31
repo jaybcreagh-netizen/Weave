@@ -32,10 +32,16 @@ export function NotificationManager() {
 
     // Initialize Event Listeners
     useEffect(() => {
-        setupIntelligenceListeners();
+        const cleanupIntelligence = setupIntelligenceListeners();
+
         // DISABLED: Gamification is undercooked and adds ~2s processing per weave
         // Uncomment when ready to re-enable badges/achievements
-        // setupGamificationListeners();
+        // const cleanupGamification = setupGamificationListeners();
+
+        return () => {
+            if (cleanupIntelligence) cleanupIntelligence();
+            // if (cleanupGamification) cleanupGamification();
+        };
     }, []);
 
     // Initialize all notification systems

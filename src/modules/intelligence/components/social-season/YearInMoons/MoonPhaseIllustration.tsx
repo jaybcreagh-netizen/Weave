@@ -11,7 +11,7 @@ interface MoonPhaseIllustrationProps {
   size?: number;
   hasCheckin?: boolean;
   batteryLevel?: number | null; // 1-5, if provided directly (avoids round-trip conversion)
-  color?: string;
+  color?: string; // Optional override - defaults to energy-based color
 }
 
 // Battery level moon icons
@@ -22,6 +22,19 @@ const MOON_ICONS = {
   4: Phase4, // Waxing - Good
   5: Phase5, // Full Moon - High
 };
+
+// Energy-based color palette: warm earthy tones that match the app aesthetic
+// Depleted (1) = dusty rose/terracotta, Full (5) = warm sage/forest
+const ENERGY_COLORS: Record<1 | 2 | 3 | 4 | 5, string> = {
+  1: '#C9866B', // Dusty terracotta - depleted
+  2: '#D4A574', // Warm sand - low
+  3: '#C9985A', // Aged gold - balanced (matches app primary)
+  4: '#A8B98A', // Sage green - good
+  5: '#7D9B76', // Forest sage - full
+};
+
+// Muted color for days without check-in
+const NO_CHECKIN_COLOR = '#A8A29E';
 
 export function MoonPhaseIllustration({
   phase,
@@ -40,19 +53,21 @@ export function MoonPhaseIllustration({
   }
 
   const MoonIcon = MOON_ICONS[level];
+  // Use energy color based on level, or override with provided color
+  const moonColor = color ?? ENERGY_COLORS[level];
 
-  // If no check-in, show Phase 1 (New Moon) with low opacity
+  // If no check-in, show Phase 1 (New Moon) with low opacity and muted color
   if (!hasCheckin) {
     return (
-      <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center', opacity: 0.2 }}>
-        <Phase1 width={size} height={size} fill={color} color={color} />
+      <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center', opacity: 0.25 }}>
+        <Phase1 width={size} height={size} fill={NO_CHECKIN_COLOR} color={NO_CHECKIN_COLOR} />
       </View>
     );
   }
 
   return (
     <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
-      <MoonIcon width={size} height={size} fill={color} color={color} />
+      <MoonIcon width={size} height={size} fill={moonColor} color={moonColor} />
     </View>
   );
 }

@@ -72,6 +72,8 @@ export function ToastNotification({ message, friendName, onDismiss }: ToastNotif
       >
         <Animated.View style={[{
           borderRadius: 24,
+          borderWidth: 1,
+          borderColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
           overflow: 'hidden',
           shadowColor: "#000",
           shadowOffset: { width: 0, height: 8 },
@@ -79,19 +81,10 @@ export function ToastNotification({ message, friendName, onDismiss }: ToastNotif
           shadowRadius: 20,
           elevation: 12,
         }, animatedStyle]}>
-          {/* Glassmorphic Background */}
-          <View className="absolute inset-0">
-            <BlurView
-              intensity={isDarkMode ? 40 : 60}
-              tint={isDarkMode ? 'dark' : 'light'}
-              className="absolute inset-0"
-            />
-            {/* Subtle background overlay for better visibility */}
-            <View
-              className="absolute inset-0"
-              style={{ backgroundColor: isDarkMode ? 'rgba(0,0,0,0.4)' : 'rgba(255,255,255,0.6)' }}
-            />
-          </View>
+          <View
+            className="absolute inset-0"
+            style={{ backgroundColor: colors.card }}
+          />
 
           {/* Content */}
           <View className="flex-row items-center p-5 pr-7 min-w-[260px] max-w-[85%] gap-4">

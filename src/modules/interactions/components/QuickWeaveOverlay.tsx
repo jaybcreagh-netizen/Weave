@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, Platform } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -7,7 +7,8 @@ import Animated, {
   runOnJS,
   interpolate,
   withSpring,
-  withSequence,
+  useDerivedValue,
+  useAnimatedReaction,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { BlurView } from 'expo-blur';
@@ -22,27 +23,18 @@ import {
   HeartHandshake,
   Star,
   HelpCircle,
-  Moon,
-  Heart,
-  Dumbbell,
-  Laptop,
-  Plane
 } from 'lucide-react-native';
 
 import { useUIStore } from '@/shared/stores/uiStore';
 import { useCardGesture } from '@/shared/context/CardGestureContext';
 import { useTheme } from '@/shared/hooks/useTheme';
-import { database } from '@/db';
-import FriendModel from '@/db/models/Friend';
-import { Q } from '@nozbe/watermelondb';
 import { InteractionCategory } from '@/shared/types/legacy-types';
 
 // Compact sizing for sleeker feel
-const MENU_RADIUS = 88; // Increased from 75px (was 100px originally)
+const MENU_RADIUS = 88;
 const ITEM_SIZE = 50;
 const CENTER_SIZE = 44;
 const HIGHLIGHT_THRESHOLD = 25;
-const SELECTION_THRESHOLD = 40;
 
 interface RadialMenuItem {
   id: InteractionCategory;
@@ -74,92 +66,47 @@ const DEFAULT_ACTIVITIES: InteractionCategory[] = [
 ];
 
 export function QuickWeaveOverlay() {
-  const quickWeaveFriendId = useUIStore(state => state.quickWeaveFriendId);
-  const quickWeaveCenterPoint = useUIStore(state => state.quickWeaveCenterPoint);
   const quickWeaveActivities = useUIStore(state => state.quickWeaveActivities);
-  const isQuickWeaveClosing = useUIStore(state => state.isQuickWeaveClosing);
-  const _finishClosingQuickWeave = useUIStore(state => state._finishClosingQuickWeave);
-  const [friend, setFriend] = React.useState<FriendModel | null>(null);
-  const { dragX, dragY, highlightedIndex } = useCardGesture();
+  // We still use these global stores as fallback/logic notifiers, but visual drive is purely UI thread
+  const {
+    dragX,
+    dragY,
+    highlightedIndex,
+    overlayCenter,
+    isLongPressActive,
+    cardMetadata,
+    activeCardId
+  } = useCardGesture();
+
   const { colors, isDarkMode } = useTheme();
 
-  useEffect(() => {
-    if (!quickWeaveFriendId) {
-      setFriend(null);
-      return;
-    }
+  // Re-render tracking removed for production performance
 
-    // Efficiently fetch only the required friend
-    const fetchFriend = async () => {
-      try {
-        const found = await database.get<FriendModel>('friends').find(quickWeaveFriendId);
-        setFriend(found);
-      } catch (error) {
-        console.error('Error fetching friend for Quick Weave:', error);
-      }
-    };
+  // Use derived value for opacity and scale based on isLongPressActive
+  // This ensures instant response on the UI thread without waiting for React renders
+  const menuScale = useDerivedValue(() => {
+    return isLongPressActive.value
+      ? withSpring(1, { damping: 25, stiffness: 300 })
+      : withTiming(0.3, { duration: 150 });
+  });
 
-    fetchFriend();
-  }, [quickWeaveFriendId]);
+  const overlayOpacity = useDerivedValue(() => {
+    return isLongPressActive.value
+      ? withTiming(1, { duration: 100 })
+      : withTiming(0, { duration: 150 });
+  });
 
-  const overlayOpacity = useSharedValue(0);
-  const menuScale = useSharedValue(0.3);
-  const centerPulse = useSharedValue(1);
-
-  // Entrance Animation - Fast and snappy
-  useEffect(() => {
-    if (quickWeaveFriendId) {
-      overlayOpacity.value = withTiming(1, { duration: 100 });
-      menuScale.value = withSpring(1, { damping: 25, stiffness: 300 });
-    } else if (!isQuickWeaveClosing) {
-      overlayOpacity.value = 0;
-      menuScale.value = 0.8;
-    }
-  }, [quickWeaveFriendId, isQuickWeaveClosing]);
-
-  // Exit Animation - Fast dismiss
-  useEffect(() => {
-    if (isQuickWeaveClosing) {
-      menuScale.value = withTiming(0.3, { duration: 60 });
-      overlayOpacity.value = withTiming(0, { duration: 80 }, (finished) => {
-        if (finished) {
-          runOnJS(_finishClosingQuickWeave)();
-        }
-      });
-    }
-  }, [isQuickWeaveClosing]);
-
-  const overlayStyle = useAnimatedStyle(() => ({
-    opacity: overlayOpacity.value,
-  }));
-
-  const menuContainerStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(menuScale.value, [0.3, 1], [0, 1]),
-    transform: [{ scale: menuScale.value }],
-  }));
-
-  const centerStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: centerPulse.value }],
-  }));
-
-  // Early return AFTER all hooks have been called
-  if (!quickWeaveCenterPoint || !quickWeaveFriendId || !friend) {
-    return null;
-  }
-
-  // Use smart-ordered activities or fallback to default
+  // Calculate dynamic data
   const orderedCategories = quickWeaveActivities.length > 0
-    ? quickWeaveActivities.slice(0, 6) // Take first 6
+    ? quickWeaveActivities.slice(0, 6)
     : DEFAULT_ACTIVITIES;
 
-  // Map to RadialMenuItem format
   const ACTIVITIES: RadialMenuItem[] = orderedCategories.map(category => ({
     id: category,
     icon: CATEGORY_METADATA[category]?.icon || HelpCircle,
     label: CATEGORY_METADATA[category]?.label || category,
   }));
 
-  // Calculate positions dynamically based on actual activity count
   const itemPositions = ACTIVITIES.map((_, i) => {
     const angle = (i / ACTIVITIES.length) * 2 * Math.PI - Math.PI / 2;
     return {
@@ -169,17 +116,32 @@ export function QuickWeaveOverlay() {
     };
   });
 
-  const friendInitial = friend.name.charAt(0).toUpperCase();
+  // Styles
+  const containerStyle = useAnimatedStyle(() => ({
+    opacity: overlayOpacity.value,
+    // Hide completely when closed to let touches pass through
+    display: overlayOpacity.value === 0 ? 'none' : 'flex',
+  }));
+
+  const menuContainerStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(menuScale.value, [0.3, 1], [0, 1]),
+    transform: [{ scale: menuScale.value }],
+    left: overlayCenter.value.x - MENU_RADIUS,
+    top: overlayCenter.value.y - MENU_RADIUS,
+  }));
 
   return (
-    <View className="absolute inset-0" pointerEvents="none">
-      <Animated.View style={overlayStyle}>
+    <Animated.View
+      className="absolute inset-0 z-50 pointer-events-none"
+      style={containerStyle}
+    >
+      <View className="absolute inset-0">
         <BlurView
           intensity={isDarkMode ? 25 : 15}
           tint={isDarkMode ? 'dark' : 'light'}
-          className="absolute inset-0"
+          style={{ flex: 1 }}
         />
-      </Animated.View>
+      </View>
 
       <Animated.View
         style={[
@@ -187,57 +149,38 @@ export function QuickWeaveOverlay() {
             position: 'absolute',
             width: MENU_RADIUS * 2,
             height: MENU_RADIUS * 2,
-            left: quickWeaveCenterPoint.x - MENU_RADIUS,
-            top: quickWeaveCenterPoint.y - MENU_RADIUS,
             alignItems: 'center',
             justifyContent: 'center',
           },
           menuContainerStyle,
         ]}
       >
-        {/* Center Circle - Anchor Point */}
-        <Animated.View
-          style={[
-            {
-              width: CENTER_SIZE,
-              height: CENTER_SIZE,
-              borderRadius: CENTER_SIZE / 2,
-              // Softened center circle
-              backgroundColor: isDarkMode ? 'rgba(40, 40, 40, 0.6)' : 'rgba(255, 255, 255, 0.6)',
-              alignItems: 'center',
-              justifyContent: 'center',
-              position: 'absolute',
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.1,
-              shadowRadius: 4,
-              elevation: 2,
-              borderWidth: 1,
-              borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
-              overflow: 'hidden', // For BlurView if we wanted it inside, but background color is enough for "soft"
-            },
-            centerStyle,
-          ]}
+        {/* Center Circle */}
+        <View
+          style={{
+            width: CENTER_SIZE,
+            height: CENTER_SIZE,
+            borderRadius: CENTER_SIZE / 2,
+            backgroundColor: isDarkMode ? '#282828' : '#FFFFFF',
+            alignItems: 'center',
+            justifyContent: 'center',
+            position: 'absolute',
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.1,
+            shadowRadius: 4,
+            elevation: 2,
+            borderWidth: 1,
+            borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
+          }}
         >
-          {/* Optional: Add BlurView inside for extra softness if supported */}
-          {Platform.OS === 'ios' && (
-            <BlurView
-              intensity={20}
-              tint={isDarkMode ? 'dark' : 'light'}
-              style={{ position: 'absolute', width: '100%', height: '100%' }}
-            />
-          )}
-          <Text
-            style={{
-              fontSize: 18,
-              fontWeight: '700',
-              color: isDarkMode ? 'white' : colors.foreground, // Adapted to theme
-              fontFamily: 'Lora_700Bold',
-            }}
-          >
-            {friendInitial}
-          </Text>
-        </Animated.View>
+          <InitialDisplay
+            activeCardId={activeCardId}
+            metadata={cardMetadata}
+            isDarkMode={isDarkMode}
+            colors={colors}
+          />
+        </View>
 
         {/* Radial Menu Items */}
         {ACTIVITIES.map((item, index) => (
@@ -254,9 +197,42 @@ export function QuickWeaveOverlay() {
           />
         ))}
       </Animated.View>
-    </View>
+    </Animated.View>
   );
 }
+
+// Separate component to handle the Reanimated text logic cleanly
+// Using useAnimatedReaction instead of useDerivedValue to avoid excessive re-renders
+const InitialDisplay = React.memo(function InitialDisplay({ activeCardId, metadata, isDarkMode, colors }: any) {
+  const [initial, setInitial] = useState('•');
+
+  // Only update state when the value actually changes
+  useAnimatedReaction(
+    () => {
+      const id = activeCardId.value;
+      return (id && metadata.value[id]) ? metadata.value[id].initial : '•';
+    },
+    (currentValue, previousValue) => {
+      if (currentValue !== previousValue) {
+        runOnJS(setInitial)(currentValue);
+      }
+    },
+    []
+  );
+
+  return (
+    <Text
+      style={{
+        fontSize: 18,
+        fontWeight: '700',
+        color: isDarkMode ? 'white' : colors.foreground,
+        fontFamily: 'Lora_700Bold',
+      }}
+    >
+      {initial}
+    </Text>
+  );
+});
 
 function MenuItem({
   item,
@@ -285,11 +261,9 @@ function MenuItem({
     const dragDistance = Math.sqrt(dragX.value ** 2 + dragY.value ** 2);
     const hasDragged = dragDistance > HIGHLIGHT_THRESHOLD;
 
-    // Subtle scale - snappy, not bouncy
     const targetScale = isHighlighted && hasDragged ? 1.12 : 1;
     const scale = withTiming(targetScale, { duration: 100 });
 
-    // Clearer opacity states
     const targetOpacity = hasDragged ? (isHighlighted ? 1 : 0.5) : 0.85;
     const opacity = withTiming(targetOpacity, { duration: 80 });
 
@@ -308,14 +282,14 @@ function MenuItem({
     const dragDistance = Math.sqrt(dragX.value ** 2 + dragY.value ** 2);
     const hasDragged = dragDistance > HIGHLIGHT_THRESHOLD;
 
-    // Keep it clean - white/frosted always, just slightly brighter when highlighted
+    // Use solid colors for efficient shadow calculation
     const backgroundColor = isHighlighted && hasDragged
       ? isDarkMode
-        ? 'rgba(255, 255, 255, 0.25)' // Slightly brighter frosted
-        : 'rgba(255, 255, 255, 1)' // Pure white
+        ? '#4A4A4A'  // Solid equivalent of rgba(255, 255, 255, 0.25) on dark bg
+        : '#FFFFFF'
       : isDarkMode
-        ? 'rgba(255, 255, 255, 0.15)' // Frosted glass
-        : 'rgba(255, 255, 255, 0.95)'; // Near white
+        ? '#3A3A3A'  // Solid equivalent of rgba(255, 255, 255, 0.15) on dark bg
+        : '#F5F5F5'; // Solid equivalent of rgba(255, 255, 255, 0.95)
 
     return {
       backgroundColor: withTiming(backgroundColor, { duration: 80 }),
@@ -327,7 +301,6 @@ function MenuItem({
     const dragDistance = Math.sqrt(dragX.value ** 2 + dragY.value ** 2);
     const hasDragged = dragDistance > HIGHLIGHT_THRESHOLD;
 
-    // Always visible, subtle highlight
     const targetOpacity = isHighlighted && hasDragged ? 1 : 0.75;
 
     return {
@@ -350,7 +323,6 @@ function MenuItem({
         animatedStyle,
       ]}
     >
-      {/* Item Circle with Icon */}
       <Animated.View
         style={[
           {
@@ -377,7 +349,6 @@ function MenuItem({
         />
       </Animated.View>
 
-      {/* Label with Backdrop Blur */}
       <Animated.View
         style={[
           {

@@ -56,7 +56,7 @@ export function QuickWeaveProvider({ children }: { children: React.ReactNode }) 
   return (
     <>
       {children}
-      {isQuickWeaveOpen && <QuickWeaveOverlay />}
+      <QuickWeaveOverlay />
       {microReflectionData && (
         <MicroReflectionSheet
           isVisible={!!microReflectionData}

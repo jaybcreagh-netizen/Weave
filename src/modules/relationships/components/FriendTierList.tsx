@@ -1,13 +1,20 @@
-import React, { useEffect, useRef } from 'react';
+/**
+ * FriendTierList - Displays friends filtered by tier
+ * 
+ * OPTIMIZATION: Migrated from withObservables to FriendsObservableContext.
+ * Instead of 3 separate tier subscriptions, we now use 1 centralized context
+ * and filter locally. This eliminates cascade re-renders during writes.
+ */
+
+import React, { useEffect, useRef, useMemo } from 'react';
 import { View, Text, Dimensions } from 'react-native';
-import Animated, { useSharedValue, useAnimatedStyle, withDelay, withTiming, useAnimatedRef } from 'react-native-reanimated';
+import Animated, { useSharedValue, useAnimatedStyle, withDelay, withTiming, useAnimatedRef, runOnUI } from 'react-native-reanimated';
 import { FlashList } from '@shopify/flash-list';
-import withObservables from '@nozbe/with-observables';
 
 import FriendModel from '@/db/models/Friend';
-import { friendRepository } from '../repositories/friend.repository';
 import { FriendListRow } from './FriendListRow';
 import { useCardGesture } from '@/shared/context/CardGestureContext';
+import { useFriendsObservable } from '@/shared/context/FriendsObservableContext';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { WeaveIcon } from '@/shared/components/WeaveIcon';
 import { tierColors } from '@/shared/constants/constants';
@@ -16,7 +23,6 @@ import { type Tier } from '../types';
 const { width: screenWidth } = Dimensions.get('window');
 const AnimatedFlashList = Animated.createAnimatedComponent(FlashList);
 
-// Keep this consistent with _friends.tsx for now
 const getTierBackground = (tier: Tier, isDarkMode: boolean) => {
     const tierColorMap: Record<string, string> = {
         InnerCircle: tierColors.InnerCircle,
@@ -24,8 +30,7 @@ const getTierBackground = (tier: Tier, isDarkMode: boolean) => {
         Community: tierColors.Community,
     };
     const color = tierColorMap[tier] || tierColors.Community;
-    // Very subtle tinting - 3% opacity for light mode, 5% for dark mode
-    const opacity = isDarkMode ? '0D' : '08'; // Hex opacity values
+    const opacity = isDarkMode ? '0D' : '08';
     return `${color}${opacity}`;
 };
 
@@ -44,14 +49,12 @@ const AnimatedFriendCardItem = React.memo(({
     const translateY = useSharedValue(hasAnimated.current ? 0 : 25);
 
     useEffect(() => {
-        // Register refs on JS thread (not UI thread) to preserve animated ref identity
-        registerRef(item.id, animatedRef);
+        runOnUI(registerRef)(item.id, animatedRef, { initial: item.name ? item.name.charAt(0).toUpperCase() : '•' });
         return () => {
-            unregisterRef(item.id);
+            runOnUI(unregisterRef)(item.id);
         };
-    }, [item.id, animatedRef, registerRef, unregisterRef]);
+    }, [item.id, item.name, animatedRef, registerRef, unregisterRef]);
 
-    // Only animate on initial mount
     useEffect(() => {
         if (!hasAnimated.current) {
             opacity.value = withDelay(index * 35, withTiming(1, { duration: 250 }));
@@ -78,14 +81,25 @@ const AnimatedFriendCardItem = React.memo(({
 
 interface FriendTierListProps {
     tier: Tier;
-    friends: FriendModel[];
     scrollHandler?: any;
     isQuickWeaveOpen?: boolean;
 }
 
-const FriendTierListContent = ({ tier, friends, scrollHandler, isQuickWeaveOpen }: FriendTierListProps) => {
+/**
+ * FriendTierList - Now uses centralized FriendsObservableContext
+ * instead of per-tier withObservables subscriptions.
+ */
+export const FriendTierList = React.memo(({ tier, scrollHandler, isQuickWeaveOpen }: FriendTierListProps) => {
     const { colors, isDarkMode } = useTheme();
+    const { friends: allFriends } = useFriendsObservable();
     const tierBgColor = getTierBackground(tier, isDarkMode);
+
+    // Filter friends by tier - memoized for performance
+    const friends = useMemo(() => {
+        return allFriends
+            .filter(f => f.tier === tier)
+            .sort((a, b) => (b.weaveScore ?? 0) - (a.weaveScore ?? 0));
+    }, [allFriends, tier]);
 
     if (friends.length === 0) {
         return (
@@ -120,10 +134,5 @@ const FriendTierListContent = ({ tier, friends, scrollHandler, isQuickWeaveOpen 
             />
         </View>
     );
-};
+});
 
-const enhance = withObservables(['tier'], ({ tier }: { tier: Tier }) => ({
-    friends: friendRepository.getFriendsByTierQuery(tier),
-}));
-
-export const FriendTierList = enhance(FriendTierListContent);

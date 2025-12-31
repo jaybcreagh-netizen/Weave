@@ -471,7 +471,6 @@ export function YearInMoonsModal({ isOpen, onClose, initialTab = 'moons' }: Year
                               size={moonSize - 8}
                               hasCheckin={day.hasCheckin}
                               batteryLevel={day.batteryLevel}
-                              color={tokens.primary}
                             />
                             {/* Day number */}
                             <Text
@@ -565,7 +564,6 @@ export function YearInMoonsModal({ isOpen, onClose, initialTab = 'moons' }: Year
                 size={80}
                 hasCheckin={selectedDay.hasCheckin}
                 batteryLevel={selectedDay.batteryLevel}
-                color={tokens.primary}
               />
             </View>
 

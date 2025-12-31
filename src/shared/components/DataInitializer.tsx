@@ -44,11 +44,15 @@ interface DataInitializerProps {
     children: ReactNode;
 }
 
+import { useFriendsObservable } from '@/shared/context/FriendsObservableContext';
+
 export function DataInitializer({ children }: DataInitializerProps) {
     const posthog = usePostHog();
     const [analyticsInitialized, setAnalyticsInitialized] = useState(false);
     const hasCompletedOnboarding = useTutorialStore((state) => state.hasCompletedOnboarding);
     const pathname = usePathname();
+    // Use friends loading state to prevent blank screen
+    const { isLoading: friendsLoading } = useFriendsObservable();
 
     const [fontsLoaded, fontError] = useFonts({
         Lora_400Regular,
@@ -114,7 +118,7 @@ export function DataInitializer({ children }: DataInitializerProps) {
         // Enforce minimum display time for the splash animation
         const timer = setTimeout(() => {
             setIsSplashAnimationComplete(true);
-        }, 300);  // Reduced from 800ms for faster startup
+        }, 150);  // Reduced to 150ms (was 300ms) for snappy startup
 
         return () => clearTimeout(timer);
     }, []);
@@ -129,8 +133,36 @@ export function DataInitializer({ children }: DataInitializerProps) {
                 // Pre-warm friend cache to prevent empty flash on dashboard
                 const initializeFriendCache = async () => {
                     const { database } = await import('@/db');
-                    // Just fetching the count is enough to initialize the collection and adapter
-                    await database.get('friends').query().fetchCount();
+                    const { generateIntelligentStatusLine, statusLineCache } = await import('@/modules/intelligence');
+                    const { Image } = await import('expo-image');
+
+                    // Fetch friends (this also initializes the collection and adapter)
+                    const friends = await database.get('friends').query().fetch();
+                    const topFriends = friends.slice(0, 20); // First 20 likely visible
+
+                    // Pre-warm status line cache and images in parallel (fire-and-forget)
+                    // NOW: Await to ensure data is ready before splash hides
+                    await Promise.all([
+                        ...topFriends.map(async (friend: any) => {
+                            const cacheKey = {
+                                friendId: friend.id,
+                                lastUpdated: friend.lastUpdated.getTime(),
+                                weaveScore: friend.weaveScore,
+                                archetype: friend.archetype,
+                            };
+                            // Skip if already cached
+                            if (statusLineCache.get(cacheKey)) return;
+
+                            const status = await generateIntelligentStatusLine(friend);
+                            statusLineCache.set(cacheKey, status);
+                        }),
+                        // Also prefetch images for top friends
+                        ...topFriends
+                            .filter((f: any) => f.photoUrl)
+                            .map((f: any) => Image.prefetch(f.photoUrl, 'memory-disk').catch(() => { }))
+                    ]).catch(() => {
+                        // Silently ignore - status lines and images will load on-demand if this fails
+                    });
                 };
 
                 // CRITICAL WRITES: Run sequentially to prevent queue congestion
@@ -215,7 +247,7 @@ export function DataInitializer({ children }: DataInitializerProps) {
     useEffect(() => {
         if (isDatabaseReady) {
             contentOpacity.value = withTiming(1, {
-                duration: 400,  // Reduced from 800ms for faster startup
+                duration: 300,  // Reduced from 400ms for snappier reveal
                 easing: Easing.out(Easing.ease),
             });
         }
@@ -228,31 +260,37 @@ export function DataInitializer({ children }: DataInitializerProps) {
     // Monitor app state changes for logging and maintenance
     useAppStateChange((state) => {
         if (state === 'active') {
+            // IMMEDIATE: Analytics tracking (no database writes)
             trackEvent(AnalyticsEvents.APP_OPENED);
             trackRetentionMetrics();
 
-            NotificationOrchestrator.onAppForeground().catch((error) => {
-                console.error('[App] Error during foreground notification checks:', error);
-            });
-
-            // Sync calendar changes when app becomes active
-            import('@/modules/interactions').then(({ CalendarService }) => {
-                CalendarService.syncCalendarChanges().catch((error: unknown) => {
-                    console.error('[App] Error syncing calendar on foreground:', error);
+            // DEFERRED: Heavy operations run after 2 seconds
+            // This gives priority to user interactions like Quick Weave
+            // which need immediate access to the database write queue
+            setTimeout(() => {
+                NotificationOrchestrator.onAppForeground().catch((error) => {
+                    console.error('[App] Error during foreground notification checks:', error);
                 });
-            });
 
-            import('@/modules/interactions/hooks/useEventSuggestions').then(({ prefetchEventSuggestions }) => {
-                import('@/shared/api/query-client').then(({ queryClient }) => {
-                    prefetchEventSuggestions(queryClient).catch((error) => {
-                        console.error('[App] Error prefetching event suggestions on foreground:', error);
+                // Sync calendar changes when app becomes active
+                import('@/modules/interactions').then(({ CalendarService }) => {
+                    CalendarService.syncCalendarChanges().catch((error: unknown) => {
+                        console.error('[App] Error syncing calendar on foreground:', error);
                     });
                 });
-            });
 
-            PlanService.checkPendingPlans().catch(err => {
-                console.error('[App] Error checking pending plans on active:', err);
-            });
+                import('@/modules/interactions/hooks/useEventSuggestions').then(({ prefetchEventSuggestions }) => {
+                    import('@/shared/api/query-client').then(({ queryClient }) => {
+                        prefetchEventSuggestions(queryClient).catch((error) => {
+                            console.error('[App] Error prefetching event suggestions on foreground:', error);
+                        });
+                    });
+                });
+
+                PlanService.checkPendingPlans().catch(err => {
+                    console.error('[App] Error checking pending plans on active:', err);
+                });
+            }, 2000); // 2 second delay to free write queue for user actions
         } else if (state === 'background') {
             trackEvent(AnalyticsEvents.APP_BACKGROUNDED);
         }
@@ -268,7 +306,7 @@ export function DataInitializer({ children }: DataInitializerProps) {
                 {children}
             </Animated.View>
 
-            <LoadingScreen visible={!fontsLoaded || !dataLoaded || !isDatabaseReady || !isSplashAnimationComplete} />
+            <LoadingScreen visible={!fontsLoaded || !dataLoaded || !isDatabaseReady || !isSplashAnimationComplete || friendsLoading} />
         </>
     );
 }

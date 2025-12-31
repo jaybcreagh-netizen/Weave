@@ -1,6 +1,6 @@
-import React, { createContext, useContext, useMemo, useRef, useEffect, useCallback } from 'react';
-import { View, AppState, AppStateStatus } from 'react-native';
-import Animated, { useSharedValue, useAnimatedScrollHandler, runOnJS, measure, type AnimatedRef } from 'react-native-reanimated';
+import React, { createContext, useContext, useMemo, useRef } from 'react';
+import { View } from 'react-native';
+import Animated, { useSharedValue, useAnimatedScrollHandler, runOnJS, measure } from 'react-native-reanimated';
 import { Gesture } from 'react-native-gesture-handler';
 import * as Haptics from 'expo-haptics';
 
@@ -12,11 +12,14 @@ interface CardGestureContextType {
   animatedScrollHandler: any;
   activeCardId: Animated.SharedValue<string | null>;
   pendingCardId: Animated.SharedValue<string | null>; // Card being held (before long-press activates)
-  registerRef: (id: string, ref: AnimatedRef<Animated.View>) => void;
+  registerRef: (id: string, ref: React.RefObject<any>, metadata?: { initial: string }) => void;
   unregisterRef: (id: string) => void;
   dragX: Animated.SharedValue<number>;
   dragY: Animated.SharedValue<number>;
   highlightedIndex: Animated.SharedValue<number>;
+  overlayCenter: Animated.SharedValue<{ x: number; y: number }>;
+  cardMetadata: Animated.SharedValue<Record<string, { initial: string }>>;
+  isLongPressActive: Animated.SharedValue<boolean>;
 }
 
 const CardGestureContext = createContext<CardGestureContextType | null>(null);
@@ -75,9 +78,9 @@ function useCardGestureCoordinator(): CardGestureContextType {
     }
   };
 
-  // Store animated refs in a regular JS object (not shared value) to preserve their special properties
-  // Animated refs lose their identity when stored in shared values
-  const cardRefs = useRef<Record<string, AnimatedRef<Animated.View>>>({});
+  const cardRefs = useSharedValue<Record<string, React.RefObject<Animated.View>>>({});
+  const cardMetadata = useSharedValue<Record<string, { initial: string }>>({});
+  const overlayCenter = useSharedValue<{ x: number; y: number }>({ x: 0, y: 0 });
   const scrollOffset = useSharedValue(0);
   const activeCardId = useSharedValue<string | null>(null);
   const pendingCardId = useSharedValue<string | null>(null); // Track which card is being held before activation
@@ -89,26 +92,6 @@ function useCardGestureCoordinator(): CardGestureContextType {
 
   // Timeout for delayed pending feedback (so quick taps don't trigger it)
   const pendingFeedbackTimeout = useRef<NodeJS.Timeout | null>(null);
-
-  // Reset all gesture state when app resumes from background
-  // This fixes gestures getting stuck if app was backgrounded mid-gesture
-  useEffect(() => {
-    const handleAppStateChange = (nextState: AppStateStatus) => {
-      if (nextState === 'active') {
-        // Reset all gesture state
-        activeCardId.value = null;
-        pendingCardId.value = null;
-        isLongPressActive.value = false;
-        dragX.value = 0;
-        dragY.value = 0;
-        highlightedIndex.value = -1;
-        clearPendingFeedback();
-      }
-    };
-
-    const subscription = AppState.addEventListener('change', handleAppStateChange);
-    return () => subscription?.remove();
-  }, []);
 
   const startPendingFeedback = (targetId: string) => {
     // Clear any existing timeout
@@ -129,29 +112,32 @@ function useCardGestureCoordinator(): CardGestureContextType {
     }
   };
 
-  // Register/unregister refs on the JS thread (not worklets) to preserve animated ref identity
-  const registerRef = useCallback((id: string, ref: AnimatedRef<Animated.View>) => {
-    cardRefs.current[id] = ref;
-  }, []);
+  const registerRef = (id: string, ref: React.RefObject<Animated.View>, metadata?: { initial: string }) => {
+    'worklet';
+    cardRefs.value[id] = ref;
+    if (metadata) {
+      const newMeta = Object.assign({}, cardMetadata.value);
+      newMeta[id] = metadata;
+      cardMetadata.value = newMeta;
+    }
+  };
 
-  const unregisterRef = useCallback((id: string) => {
-    delete cardRefs.current[id];
-  }, []);
+  const unregisterRef = (id: string) => {
+    'worklet';
+    delete cardRefs.value[id];
+  };
 
   const animatedScrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => { 'worklet'; scrollOffset.value = event.contentOffset.y; },
   });
 
-  // Find target card at given coordinates - runs on UI thread via worklet
-  // Uses measure() with animated refs to get layout measurements
   const findTargetCardId = (absoluteX: number, absoluteY: number) => {
     'worklet';
-    const cardIds = Object.keys(cardRefs.current);
+    const cardIds = Object.keys(cardRefs.value);
     for (const id of cardIds) {
-      const ref = cardRefs.current[id];
-      if (!ref) continue;
-      // measure() from Reanimated works with animated refs in worklets
-      const measurement = measure(ref);
+      const ref = cardRefs.value[id];
+      // Cast to any to satisfy Reanimated's measure type requirement, assuming ref is valid
+      const measurement = measure(ref as any);
       if (measurement === null) continue;
       const { pageX: x, pageY: y, width, height } = measurement;
       if (absoluteX >= x && absoluteX <= x + width && absoluteY >= y && absoluteY <= y + height) {
@@ -188,22 +174,37 @@ function useCardGestureCoordinator(): CardGestureContextType {
         const targetId = findTargetCardId(event.absoluteX, event.absoluteY);
         if (targetId) {
           startCoordinates.value = { x: event.x, y: event.y };
+          // PRE-SET the overlay center here so it's ready before activation
+          overlayCenter.value = {
+            x: event.absoluteX,
+            y: event.absoluteY,
+          };
+
           // Delay pending feedback - only shows if user holds for 120ms+
           runOnJS(startPendingFeedback)(targetId);
-          // Prefetch Quick Weave data immediately to ensure instant open on activation
-          // runOnJS(handlePrepareQuickWeaveStable)(targetId);
         }
       })
       .onStart((event) => {
         'worklet';
         // Clear the delayed pending feedback since we're now activating
         runOnJS(clearPendingFeedback)();
-        // Now set activeCardId when long press actually activates
         const targetId = findTargetCardId(event.absoluteX, event.absoluteY);
+
+        console.log(`[Gesture] LongPress onStart. Target: ${targetId}, Time: ${Date.now()}`);
+
         if (targetId) {
           pendingCardId.value = null; // Clear pending state
           activeCardId.value = targetId;
+
+          // Ensure coordinates are fresh (though onBegin likely caught them)
+          overlayCenter.value = {
+            x: event.absoluteX,
+            y: event.absoluteY,
+          };
+
+          // ACTIVATE LAST - enables the derived values in the overlay
           isLongPressActive.value = true;
+
           runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Medium);
           const centerPoint = {
             x: event.absoluteX,
@@ -251,17 +252,19 @@ function useCardGestureCoordinator(): CardGestureContextType {
       })
       .onEnd((event, success) => {
         'worklet';
+        console.log(`[Gesture] LongPress onEnd. Active: ${isLongPressActive.value}, Time: ${Date.now()}`);
         if (isLongPressActive.value) {
-          // Close the overlay first
-          runOnJS(closeQuickWeaveStable)(Date.now());
-
           const distance = Math.sqrt(dragX.value ** 2 + dragY.value ** 2);
           if (distance >= SELECTION_THRESHOLD && highlightedIndex.value !== -1 && activeCardId.value) {
-            // Process interaction selection after overlay closes
+            // CRITICAL: Process interaction FIRST before any UI updates
+            // This prevents shadow recalculations from blocking the critical path
             const selectedIndex = highlightedIndex.value;
             const friendId = activeCardId.value;
             runOnJS(handleInteractionSelectionStable)(selectedIndex, friendId);
           }
+
+          // Close overlay AFTER starting the interaction (can run concurrently)
+          runOnJS(closeQuickWeaveStable)(Date.now());
         }
 
         // Reset all state immediately - always, regardless of gesture state
@@ -286,5 +289,18 @@ function useCardGestureCoordinator(): CardGestureContextType {
     return Gesture.Exclusive(tap, longPressAndDrag);
   }, []); // Empty dependency array means this runs only once.
 
-  return { gesture, animatedScrollHandler, activeCardId, pendingCardId, registerRef, unregisterRef, dragX, dragY, highlightedIndex };
+  return {
+    gesture,
+    animatedScrollHandler,
+    activeCardId,
+    pendingCardId,
+    registerRef,
+    unregisterRef,
+    dragX,
+    dragY,
+    highlightedIndex,
+    cardMetadata,
+    overlayCenter,
+    isLongPressActive
+  };
 }

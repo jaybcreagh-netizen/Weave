@@ -1,40 +1,29 @@
-import { useEffect, useMemo, useState } from 'react';
-import { database } from '@/db';
-import { Q } from '@nozbe/watermelondb';
+import { useMemo } from 'react';
 import Interaction from '@/db/models/Interaction';
 import { InteractionActions } from '../services/interaction.actions';
 import * as WeaveLoggingService from '../services/weave-logging.service';
+import { useInteractionObservable } from '@/shared/context/InteractionObservableContext';
 
+/**
+ * Hook for accessing interactions data and actions.
+ * 
+ * OPTIMIZATION: Uses centralized InteractionObservableContext instead of
+ * creating its own observable subscription. This reduces the number of
+ * subscriptions that fire on each database write.
+ */
 export function useInteractions() {
-  const [interactions, setInteractions] = useState<Interaction[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const {
+    interactions,
+    completedInteractions,
+    isLoading
+  } = useInteractionObservable();
 
-  useEffect(() => {
-    const subscription = database.get<Interaction>('interactions')
-      .query(Q.sortBy('interaction_date', Q.desc))
-      .observe()
-      .subscribe({
-        next: (data) => {
-          setInteractions(data);
-          setIsLoading(false);
-        },
-        error: (err) => {
-          console.error('[useInteractions] Failed to observe interactions:', err);
-          setIsLoading(false);
-        }
-      });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  const completedInteractions = useMemo(() =>
-    interactions.filter(i => i.status === 'completed'),
+  const getInteractionById = useMemo(
+    () => (id: string): Interaction | undefined => {
+      return interactions.find(i => i.id === id);
+    },
     [interactions]
   );
-
-  const getInteractionById = (id: string): Interaction | undefined => {
-    return interactions.find(i => i.id === id);
-  };
 
   return {
     allInteractions: interactions,
@@ -50,3 +39,4 @@ export function useInteractions() {
     updateInteractionVibeAndNotes: InteractionActions.updateInteractionVibeAndNotes
   };
 }
+

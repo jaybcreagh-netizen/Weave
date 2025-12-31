@@ -12,24 +12,31 @@ import { deleteWeaveCalendarEvent } from './calendar.service';
 import Logger from '@/shared/utils/Logger';
 import { eventBus } from '@/shared/events/event-bus';
 import { recalculateScoreOnDelete } from '@/modules/intelligence';
+import { writeScheduler } from '@/shared/services/write-scheduler';
 
 export async function logWeave(data: InteractionFormData): Promise<Interaction> {
+    const logStart = Date.now();
+    console.log(`[logWeave] START at ${logStart}`);
+
     // Validate input data
     try {
         WeaveLogSchema.parse(data);
     } catch (error) {
         throw new Error(`Invalid weave data: ${error instanceof Error ? error.message : String(error)}`);
     }
+    console.log(`[logWeave] Validation done at ${Date.now() - logStart}ms`);
 
     const friends = await database.get<FriendModel>('friends').query(Q.where('id', Q.oneOf(data.friendIds))).fetch();
+    console.log(`[logWeave] Friend fetch done at ${Date.now() - logStart}ms`);
 
     if (friends.length === 0) {
         throw new Error('No friends found for this interaction.');
     }
 
-    // 1. Create the interaction record (Main Transaction)
-    const { interaction } = await database.write(async () => {
+    // 1. Create the interaction record (Main Transaction - CRITICAL PRIORITY)
+    const { interaction } = await writeScheduler.critical('logWeave', async () => {
         const batchOps: any[] = []; // keeping any[] for flexibility with WatermelonDB batch which sometimes requires specific Model types
+        const batchStart = Date.now();
 
         const newInteraction = database.get<Interaction>('interactions').prepareCreate((interaction: Interaction) => {
             interaction.interactionDate = data.date;
@@ -54,6 +61,7 @@ export async function logWeave(data: InteractionFormData): Promise<Interaction> 
             }
         });
         batchOps.push(newInteraction);
+        console.log(`[logWeave:batch] prepareCreate interaction: ${Date.now() - batchStart}ms`);
 
         for (const friend of friends) {
             batchOps.push(database.get('interaction_friends').prepareCreate((_ifriend: any) => {
@@ -62,11 +70,15 @@ export async function logWeave(data: InteractionFormData): Promise<Interaction> 
                 ifriend.friend.set(friend);
             }));
         }
+        console.log(`[logWeave:batch] prepareCreate joins (${friends.length}): ${Date.now() - batchStart}ms`);
 
+        const dbBatchStart = Date.now();
         await database.batch(batchOps);
+        console.log(`[logWeave:batch] database.batch() itself: ${Date.now() - dbBatchStart}ms`);
 
         return { interaction: newInteraction };
     });
+    console.log(`[logWeave] DB write done at ${Date.now() - logStart}ms`);
 
     // 2. Run Side Effects (Decoupled via Event Bus)
     // OPTIMIZATION: Fire-and-forget - the interaction is saved, scoring/gamification can run in background
@@ -91,18 +103,20 @@ export async function logWeave(data: InteractionFormData): Promise<Interaction> 
         initiator: data.initiator,
     });
     updateLastInteractionTimestamp();
+    console.log(`[logWeave] COMPLETE at ${Date.now() - logStart}ms`);
 
     return interaction;
 }
 
-export async function planWeave(data: InteractionFormData): Promise<Interaction> {
+export async function planWeave(data: InteractionFormData, options?: { skipToast?: boolean }): Promise<Interaction> {
     const friends = await database.get<FriendModel>('friends').query(Q.where('id', Q.oneOf(data.friendIds))).fetch();
 
     if (friends.length === 0) {
         throw new Error('No friends found for this plan.');
     }
 
-    const interaction = await database.write(async () => {
+    // IMPORTANT PRIORITY: User action but slight delay acceptable
+    const interaction = await writeScheduler.important('planWeave', async () => {
         const batchOps: any[] = [];
 
         // @ts-ignore
@@ -148,16 +162,18 @@ export async function planWeave(data: InteractionFormData): Promise<Interaction>
         }).catch(err => Logger.error('Error emitting interaction:created for plan:', err));
 
         // Show confirmation toast
-        import('@/shared/stores/uiStore').then(({ useUIStore }) => {
-            const friendNames = friends.map(f => f.name);
-            let message = 'Weave planned!';
-            if (friendNames.length === 1) {
-                message = `Planned with ${friendNames[0]}!`;
-            } else if (friendNames.length > 1) {
-                message = `Planned with ${friendNames[0]} + ${friendNames.length - 1} others!`;
-            }
-            useUIStore.getState().showToast(message, friendNames[0] || '');
-        }).catch(err => Logger.error('Error triggering toast:', err));
+        if (!options?.skipToast) {
+            import('@/shared/stores/uiStore').then(({ useUIStore }) => {
+                const friendNames = friends.map(f => f.name);
+                let message = 'Weave planned!';
+                if (friendNames.length === 1) {
+                    message = `Planned with ${friendNames[0]}!`;
+                } else if (friendNames.length > 1) {
+                    message = `Planned with ${friendNames[0]} + ${friendNames.length - 1} others!`;
+                }
+                useUIStore.getState().showToast(message, friendNames[0] || '');
+            }).catch(err => Logger.error('Error triggering toast:', err));
+        }
 
         return newInteraction;
     });
@@ -169,7 +185,8 @@ export async function deleteWeave(id: string): Promise<void> {
     const interaction = await database.get('interactions').find(id) as Interaction;
     const calendarEventId = interaction.calendarEventId;
 
-    await database.write(async () => {
+    // CRITICAL PRIORITY: User-initiated delete action
+    await writeScheduler.critical('deleteWeave', async () => {
         const joinRecords = await database.get<InteractionFriend>('interaction_friends').query(Q.where('interaction_id', id)).fetch();
 
         // RECALCULATE SCORING before deleting

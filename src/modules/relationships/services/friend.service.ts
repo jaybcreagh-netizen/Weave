@@ -7,11 +7,13 @@ import { type FriendFormData } from '../types';
 import { tierMap } from '@/shared/constants/constants';
 import { trackEvent, AnalyticsEvents } from '@/shared/services/analytics.service';
 import { deleteImage, getRelativePath } from './image.service';
+import { writeScheduler } from '@/shared/services/write-scheduler';
 
 export async function createFriend(data: FriendFormData, source: 'manual' | 'onboarding' | 'import' = 'manual'): Promise<Friend> {
   let newFriend: Friend | undefined;
   try {
-    await database.write(async () => {
+    // IMPORTANT PRIORITY: User-initiated action
+    await writeScheduler.important('createFriend', async () => {
       const batchOps: any[] = [];
 
       newFriend = database.get<Friend>('friends').prepareCreate(friend => {
@@ -69,7 +71,8 @@ export async function createFriend(data: FriendFormData, source: 'manual' | 'onb
 export async function updateFriend(id: string, data: FriendFormData): Promise<Friend> {
   let updatedFriend: Friend | undefined;
   const friend = await database.get<Friend>('friends').find(id);
-  await database.write(async () => {
+  // IMPORTANT PRIORITY: User-initiated action
+  await writeScheduler.important('updateFriend', async () => {
     updatedFriend = await friend.update(record => {
       record.name = data.name;
       record.dunbarTier = tierMap[data.tier] || 'Community';
@@ -94,7 +97,8 @@ export async function deleteFriend(id: string): Promise<void> {
   const friend = await database.get<Friend>('friends').find(id);
   const photoUrl = friend.photoUrl;
 
-  await database.write(async () => {
+  // CRITICAL PRIORITY: User-initiated destructive action
+  await writeScheduler.critical('deleteFriend', async () => {
     await friend.destroyPermanently();
   });
 
@@ -120,7 +124,8 @@ export async function batchAddFriends(contacts: Array<{ name: string; photoUrl?:
     for (let i = 0; i < contacts.length; i += BATCH_SIZE) {
       const chunk = contacts.slice(i, i + BATCH_SIZE);
 
-      await database.write(async () => {
+      // IMPORTANT PRIORITY: User-initiated bulk action
+      await writeScheduler.important('batchAddFriends', async () => {
         const batchOps: any[] = [];
 
         for (const contact of chunk) {
