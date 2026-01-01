@@ -103,7 +103,11 @@ export function PhoneAuthScreen() {
             // Store formatted phone for verification
             setPhone(formattedPhone);
         } else {
-            Alert.alert('Error', result.error || 'Failed to send code');
+            // Show error with appropriate title based on error type
+            const title = result.errorCode === 'RATE_LIMITED' ? 'Too Many Attempts'
+                : result.errorCode === 'INVALID_PHONE' ? 'Invalid Phone Number'
+                    : 'Error';
+            Alert.alert(title, result.error || 'Failed to send code');
         }
     };
 

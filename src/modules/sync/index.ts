@@ -37,6 +37,8 @@ export {
     unsubscribeFromRealtime,
     onIncomingWeave,
     onIncomingLink,
+    onOutgoingLinkStatusChange,
+    onParticipantResponse,
     getRealtimeStatus,
     forceReconnect,
 } from './services/realtime.service';

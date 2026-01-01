@@ -36,6 +36,8 @@ let isManuallyDisconnected = false;
 // Handler Sets for O(1) deduplication
 const weaveHandlerSet = new Set<IncomingWeaveHandler>();
 const linkHandlerSet = new Set<IncomingLinkHandler>();
+const outgoingLinkHandlerSet = new Set<OutgoingLinkStatusHandler>();
+const participantResponseHandlerSet = new Set<ParticipantResponseHandler>();
 
 // =============================================================================
 // TYPES
@@ -60,6 +62,8 @@ export interface IncomingLinkPayload {
 
 type IncomingWeaveHandler = (payload: IncomingWeavePayload) => void;
 type IncomingLinkHandler = (payload: IncomingLinkPayload) => void;
+type OutgoingLinkStatusHandler = (payload: IncomingLinkPayload) => void;
+type ParticipantResponseHandler = (payload: IncomingWeavePayload) => void;
 
 // =============================================================================
 // SUBSCRIPTION MANAGEMENT
@@ -128,6 +132,36 @@ export async function subscribeToRealtime(): Promise<void> {
                 logger.info('Realtime', 'Incoming friend link request', payload);
                 const data = payload.new as IncomingLinkPayload;
                 linkHandlerSet.forEach(handler => handler(data));
+            }
+        )
+        // UPDATE: When OUR outgoing link request status changes (accepted/declined)
+        .on(
+            'postgres_changes',
+            {
+                event: 'UPDATE',
+                schema: 'public',
+                table: 'friend_links',
+                filter: `user_a_id=eq.${user.id}`,
+            },
+            (payload) => {
+                logger.info('Realtime', 'Outgoing link status changed', payload);
+                const data = payload.new as IncomingLinkPayload;
+                outgoingLinkHandlerSet.forEach(handler => handler(data));
+            }
+        )
+        // UPDATE: When someone responds to a weave WE shared
+        .on(
+            'postgres_changes',
+            {
+                event: 'UPDATE',
+                schema: 'public',
+                table: 'shared_weave_participants',
+                // No filter here - we need to check if we're the creator in the handler
+            },
+            (payload) => {
+                logger.info('Realtime', 'Participant response to shared weave', payload);
+                const data = payload.new as IncomingWeavePayload;
+                participantResponseHandlerSet.forEach(handler => handler(data));
             }
         )
         .subscribe((status, err) => {
@@ -269,6 +303,52 @@ export function onIncomingLink(handler: IncomingLinkHandler): () => void {
     };
 }
 
+/**
+ * Register a handler for outgoing link status changes (when someone accepts/declines our request)
+ * Uses Set for O(1) deduplication - same handler won't be registered twice
+ * 
+ * @returns Cleanup function to unregister the handler
+ */
+export function onOutgoingLinkStatusChange(handler: OutgoingLinkStatusHandler): () => void {
+    if (outgoingLinkHandlerSet.has(handler)) {
+        logger.debug('Realtime', 'Outgoing link handler already registered, skipping duplicate');
+        return () => {
+            outgoingLinkHandlerSet.delete(handler);
+        };
+    }
+
+    outgoingLinkHandlerSet.add(handler);
+    logger.debug('Realtime', `Registered outgoing link handler (total: ${outgoingLinkHandlerSet.size})`);
+
+    return () => {
+        outgoingLinkHandlerSet.delete(handler);
+        logger.debug('Realtime', `Unregistered outgoing link handler (total: ${outgoingLinkHandlerSet.size})`);
+    };
+}
+
+/**
+ * Register a handler for participant responses to weaves we shared
+ * Uses Set for O(1) deduplication - same handler won't be registered twice
+ * 
+ * @returns Cleanup function to unregister the handler
+ */
+export function onParticipantResponse(handler: ParticipantResponseHandler): () => void {
+    if (participantResponseHandlerSet.has(handler)) {
+        logger.debug('Realtime', 'Participant response handler already registered, skipping duplicate');
+        return () => {
+            participantResponseHandlerSet.delete(handler);
+        };
+    }
+
+    participantResponseHandlerSet.add(handler);
+    logger.debug('Realtime', `Registered participant response handler (total: ${participantResponseHandlerSet.size})`);
+
+    return () => {
+        participantResponseHandlerSet.delete(handler);
+        logger.debug('Realtime', `Unregistered participant response handler (total: ${participantResponseHandlerSet.size})`);
+    };
+}
+
 // =============================================================================
 // STATUS UTILITIES
 // =============================================================================
@@ -279,7 +359,12 @@ export function onIncomingLink(handler: IncomingLinkHandler): () => void {
 export function getRealtimeStatus(): {
     isConnected: boolean;
     reconnectAttempts: number;
-    handlerCounts: { weave: number; link: number };
+    handlerCounts: {
+        weave: number;
+        link: number;
+        outgoingLink: number;
+        participantResponse: number;
+    };
 } {
     return {
         isConnected: realtimeChannel !== null && !isManuallyDisconnected,
@@ -287,6 +372,8 @@ export function getRealtimeStatus(): {
         handlerCounts: {
             weave: weaveHandlerSet.size,
             link: linkHandlerSet.size,
+            outgoingLink: outgoingLinkHandlerSet.size,
+            participantResponse: participantResponseHandlerSet.size,
         },
     };
 }

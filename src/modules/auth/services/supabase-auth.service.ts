@@ -35,7 +35,11 @@ export type AuthErrorCode =
     | 'CANCELLED'           // User cancelled the flow
     | 'RATE_LIMITED'        // Too many attempts
     | 'INVALID_PHONE'       // Phone number format invalid
+    | 'INVALID_EMAIL'       // Email format invalid
     | 'INVALID_OTP'         // OTP code incorrect or expired
+    | 'WEAK_PASSWORD'       // Password doesn't meet requirements
+    | 'WRONG_PASSWORD'      // Incorrect password for sign in
+    | 'EMAIL_NOT_CONFIRMED' // Email verification required
     | 'NETWORK_ERROR'       // Network connectivity issue
     | 'NOT_CONFIGURED'      // Supabase not configured
     | 'NOT_AUTHENTICATED'   // User not logged in
@@ -74,7 +78,42 @@ function classifyAuthError(error: any): { code: AuthErrorCode; message: string }
     if (msg.includes('invalid') && (msg.includes('phone') || msg.includes('number'))) {
         return {
             code: 'INVALID_PHONE',
-            message: 'Please enter a valid phone number with country code (e.g., +1234567890).',
+            message: 'Please enter a valid phone number with country code (e.g., +14155551234).',
+        };
+    }
+
+    // Invalid email format
+    if (msg.includes('invalid') && msg.includes('email')) {
+        return {
+            code: 'INVALID_EMAIL',
+            message: 'Please enter a valid email address.',
+        };
+    }
+
+    // Password too weak
+    if (msg.includes('password') && (msg.includes('weak') || msg.includes('short') || msg.includes('least'))) {
+        return {
+            code: 'WEAK_PASSWORD',
+            message: 'Password must be at least 6 characters long.',
+        };
+    }
+
+    // Wrong password / invalid credentials
+    if (msg.includes('invalid login') || msg.includes('invalid credentials') ||
+        (msg.includes('password') && msg.includes('incorrect')) ||
+        msg.includes('wrong password')) {
+        return {
+            code: 'WRONG_PASSWORD',
+            message: 'Incorrect email or password. Please try again.',
+        };
+    }
+
+    // Email not confirmed
+    if (msg.includes('email not confirmed') || msg.includes('confirm your email') ||
+        msg.includes('verify your email')) {
+        return {
+            code: 'EMAIL_NOT_CONFIRMED',
+            message: 'Please check your inbox and verify your email before signing in.',
         };
     }
 
@@ -102,15 +141,16 @@ function classifyAuthError(error: any): { code: AuthErrorCode; message: string }
         };
     }
 
-    // Account exists
-    if (msg.includes('already') || msg.includes('exists') || msg.includes('duplicate')) {
+    // Account already exists (user already registered)
+    if (msg.includes('already') || msg.includes('exists') || msg.includes('duplicate') ||
+        msg.includes('user already registered')) {
         return {
             code: 'ALREADY_EXISTS',
-            message: 'An account with this phone number already exists.',
+            message: 'An account with this email already exists. Try signing in instead.',
         };
     }
 
-    // Unknown error
+    // Unknown error - return the original message if available
     return {
         code: 'UNKNOWN',
         message: error?.message || 'An unexpected error occurred. Please try again.',
@@ -278,10 +318,23 @@ export async function signInWithPhone(phone: string): Promise<AuthResult> {
     }
 
     // Basic phone format validation
-    if (!phone || phone.length < 10 || !phone.startsWith('+')) {
+    // Must start with + and have at least 7 digits after the country code
+    if (!phone || !phone.startsWith('+')) {
         return {
             success: false,
-            error: 'Please enter a valid phone number with country code (e.g., +1234567890).',
+            error: 'Please enter a valid phone number with country code (e.g., +14155551234).',
+            errorCode: 'INVALID_PHONE',
+        };
+    }
+
+    // Extract just the digits (excluding the +)
+    const digitsOnly = phone.slice(1).replace(/[^0-9]/g, '');
+    // Most country codes are 1-3 digits, so we need at least 8 total digits 
+    // (1 for country code + 7 for number) to be valid
+    if (digitsOnly.length < 8) {
+        return {
+            success: false,
+            error: 'Phone number is too short. Please include your full number.',
             errorCode: 'INVALID_PHONE',
         };
     }
@@ -350,17 +403,21 @@ export async function verifyPhoneOtp(phone: string, token: string): Promise<Auth
  */
 export async function linkPhoneToUser(phone: string): Promise<AuthResult> {
     const client = getSupabaseClient();
-    if (!client) return { success: false, error: 'Supabase not available' };
+    if (!client) return { success: false, error: 'Supabase not available', errorCode: 'NOT_CONFIGURED' };
 
     try {
         const { error } = await client.auth.updateUser({
             phone,
         });
 
-        if (error) throw error;
+        if (error) {
+            const classified = classifyAuthError(error);
+            return { success: false, error: classified.message, errorCode: classified.code };
+        }
         return { success: true };
     } catch (error: any) {
-        return { success: false, error: error.message };
+        const classified = classifyAuthError(error);
+        return { success: false, error: classified.message, errorCode: classified.code };
     }
 }
 
@@ -370,7 +427,7 @@ export async function linkPhoneToUser(phone: string): Promise<AuthResult> {
  */
 export async function verifyAndLinkPhone(phone: string, token: string): Promise<AuthResult> {
     const client = getSupabaseClient();
-    if (!client) return { success: false, error: 'Supabase not available' };
+    if (!client) return { success: false, error: 'Supabase not available', errorCode: 'NOT_CONFIGURED' };
 
     try {
         const { data, error } = await client.auth.verifyOtp({
@@ -379,7 +436,10 @@ export async function verifyAndLinkPhone(phone: string, token: string): Promise<
             type: 'phone_change',
         });
 
-        if (error) throw error;
+        if (error) {
+            const classified = classifyAuthError(error);
+            return { success: false, error: classified.message, errorCode: classified.code };
+        }
 
         // Update profile with verified phone
         if (data.user) {
@@ -388,7 +448,8 @@ export async function verifyAndLinkPhone(phone: string, token: string): Promise<
 
         return { success: true, userId: data.user?.id };
     } catch (error: any) {
-        return { success: false, error: error.message };
+        const classified = classifyAuthError(error);
+        return { success: false, error: classified.message, errorCode: classified.code };
     }
 }
 
@@ -421,7 +482,8 @@ export async function signUpWithEmail(
         });
 
         if (error) {
-            return { success: false, error: error.message };
+            const classified = classifyAuthError(error);
+            return { success: false, error: classified.message, errorCode: classified.code };
         }
 
         // Create user profile
@@ -434,10 +496,8 @@ export async function signUpWithEmail(
 
         return { success: true, userId: data.user?.id };
     } catch (error: unknown) {
-        if (error instanceof Error) {
-            return { success: false, error: error.message };
-        }
-        return { success: false, error: 'Unknown error' };
+        const classified = classifyAuthError(error);
+        return { success: false, error: classified.message, errorCode: classified.code };
     }
 }
 
@@ -460,15 +520,14 @@ export async function signInWithEmail(
         });
 
         if (error) {
-            return { success: false, error: error.message };
+            const classified = classifyAuthError(error);
+            return { success: false, error: classified.message, errorCode: classified.code };
         }
 
         return { success: true, userId: data.user?.id };
     } catch (error: unknown) {
-        if (error instanceof Error) {
-            return { success: false, error: error.message };
-        }
-        return { success: false, error: 'Unknown error' };
+        const classified = classifyAuthError(error);
+        return { success: false, error: classified.message, errorCode: classified.code };
     }
 }
 
