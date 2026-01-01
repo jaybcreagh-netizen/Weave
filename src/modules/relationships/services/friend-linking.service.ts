@@ -376,6 +376,213 @@ export async function getPendingRequestCount(): Promise<number> {
 }
 
 /**
+ * Sync the status of an outgoing link request from the server
+ * This updates the local Friend record if the request was accepted
+ *
+ * @param localFriendId - The local WatermelonDB friend ID
+ * @returns true if status was synced (and possibly updated), false on error
+ */
+export async function syncOutgoingLinkStatus(localFriendId: string): Promise<boolean> {
+    const client = getSupabaseClient();
+    if (!client) return false;
+
+    const session = await getCurrentSession();
+    if (!session) return false;
+
+    try {
+        // Get local friend to find their linkedUserId
+        const friend = await database.get<Friend>('friends').find(localFriendId);
+
+        if (!friend.linkedUserId) {
+            console.log('[FriendLinking] Friend has no linkedUserId, nothing to sync');
+            return true;
+        }
+
+        // Only sync if status is pending_sent
+        if (friend.linkStatus !== 'pending_sent') {
+            return true;
+        }
+
+        // Query server for the current link status
+        // The link could be stored with user_a/user_b in either direction
+        const { data: linkData, error } = await client
+            .from('friend_links')
+            .select('id, status, linked_at')
+            .or(`and(user_a_id.eq.${session.userId},user_b_id.eq.${friend.linkedUserId}),and(user_a_id.eq.${friend.linkedUserId},user_b_id.eq.${session.userId})`)
+            .in('status', ['pending', 'accepted'])
+            .maybeSingle();
+
+        if (error) {
+            console.error('[FriendLinking] Error fetching link status:', error);
+            return false;
+        }
+
+        if (!linkData) {
+            // No link found - maybe it was declined or deleted
+            // Could update local status to reflect this, but for now just return
+            console.log('[FriendLinking] No active link found on server');
+            return true;
+        }
+
+        // If server shows 'accepted', update local to 'linked'
+        if (linkData.status === 'accepted' && friend.linkStatus !== 'linked') {
+            console.log('[FriendLinking] Link was accepted! Updating local status to linked');
+            await database.write(async () => {
+                await friend.update(f => {
+                    f.linkStatus = 'linked';
+                    f.linkedAt = linkData.linked_at ? new Date(linkData.linked_at).getTime() : Date.now();
+                    f.serverLinkId = linkData.id;
+                });
+            });
+        }
+
+        return true;
+    } catch (e) {
+        console.error('[FriendLinking] Exception syncing link status:', e);
+        return false;
+    }
+}
+
+/**
+ * Sync all outgoing link requests that are pending
+ * Call this on app foreground or periodic sync
+ */
+export async function syncAllOutgoingLinkStatuses(): Promise<void> {
+    const client = getSupabaseClient();
+    if (!client) return;
+
+    const session = await getCurrentSession();
+    if (!session) return;
+
+    try {
+        // Get all local friends with pending_sent status
+        const pendingFriends = await database
+            .get<Friend>('friends')
+            .query()
+            .fetch();
+
+        const pendingSent = pendingFriends.filter(f => f.linkStatus === 'pending_sent' && f.linkedUserId);
+
+        if (pendingSent.length === 0) {
+            return;
+        }
+
+        console.log(`[FriendLinking] Syncing ${pendingSent.length} pending outgoing requests`);
+
+        // Get the linked user IDs
+        const linkedUserIds = pendingSent.map(f => f.linkedUserId!);
+
+        // Query server for all our outgoing links
+        const { data: serverLinks, error } = await client
+            .from('friend_links')
+            .select('id, user_a_id, user_b_id, status, linked_at')
+            .eq('user_a_id', session.userId)
+            .in('user_b_id', linkedUserIds)
+            .in('status', ['pending', 'accepted']);
+
+        if (error) {
+            console.error('[FriendLinking] Error fetching server links:', error);
+            return;
+        }
+
+        if (!serverLinks || serverLinks.length === 0) {
+            return;
+        }
+
+        // Create a map of linkedUserId -> server link status
+        const statusMap = new Map(
+            serverLinks.map(link => [link.user_b_id, link])
+        );
+
+        // Update local friends that have been accepted
+        await database.write(async () => {
+            for (const friend of pendingSent) {
+                const serverLink = statusMap.get(friend.linkedUserId!);
+                if (serverLink && serverLink.status === 'accepted') {
+                    console.log(`[FriendLinking] Updating ${friend.name} to linked`);
+                    await friend.update(f => {
+                        f.linkStatus = 'linked';
+                        f.linkedAt = serverLink.linked_at ? new Date(serverLink.linked_at).getTime() : Date.now();
+                        f.serverLinkId = serverLink.id;
+                    });
+                }
+            }
+        });
+    } catch (e) {
+        console.error('[FriendLinking] Exception syncing all link statuses:', e);
+    }
+}
+
+/**
+ * Sync incoming link requests to local Friend records
+ * Updates friends who sent us a link request to show pending_received status
+ */
+export async function syncIncomingLinkRequests(): Promise<void> {
+    const client = getSupabaseClient();
+    if (!client) return;
+
+    const session = await getCurrentSession();
+    if (!session) return;
+
+    try {
+        // Get pending incoming link requests from server
+        const { data: incomingRequests, error } = await client
+            .from('friend_links')
+            .select('id, user_a_id, status, created_at')
+            .eq('user_b_id', session.userId)
+            .eq('status', 'pending');
+
+        if (error) {
+            console.error('[FriendLinking] Error fetching incoming requests:', error);
+            return;
+        }
+
+        if (!incomingRequests || incomingRequests.length === 0) {
+            return;
+        }
+
+        console.log(`[FriendLinking] Found ${incomingRequests.length} incoming link requests`);
+
+        // Get the user IDs who sent us requests
+        const requesterUserIds = incomingRequests.map(r => r.user_a_id);
+
+        // Find local friends that match these requester user IDs
+        // This handles the case where you already have someone as a local friend
+        // and they send you a link request
+        const allFriends = await database
+            .get<Friend>('friends')
+            .query()
+            .fetch();
+
+        // Create a map of linkedUserId -> friend for quick lookup
+        const friendsByLinkedUserId = new Map<string, Friend>();
+        for (const friend of allFriends) {
+            if (friend.linkedUserId) {
+                friendsByLinkedUserId.set(friend.linkedUserId, friend);
+            }
+        }
+
+        // Update friends who have pending_received status needed
+        await database.write(async () => {
+            for (const request of incomingRequests) {
+                const friend = friendsByLinkedUserId.get(request.user_a_id);
+
+                // Only update if friend exists and doesn't already have pending_received or linked status
+                if (friend && friend.linkStatus !== 'pending_received' && friend.linkStatus !== 'linked') {
+                    console.log(`[FriendLinking] Updating ${friend.name} to pending_received`);
+                    await friend.update(f => {
+                        f.linkStatus = 'pending_received';
+                        f.serverLinkId = request.id;
+                    });
+                }
+            }
+        });
+    } catch (e) {
+        console.error('[FriendLinking] Exception syncing incoming link requests:', e);
+    }
+}
+
+/**
  * Unlink a friend (remove cloud connection, keep local friend record)
  * 
  * This allows users to disconnect from a linked friend while maintaining

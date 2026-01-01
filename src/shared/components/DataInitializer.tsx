@@ -290,6 +290,24 @@ export function DataInitializer({ children }: DataInitializerProps) {
                 PlanService.checkPendingPlans().catch(err => {
                     console.error('[App] Error checking pending plans on active:', err);
                 });
+
+                // Sync outgoing link request statuses (checks if any pending requests were accepted)
+                import('@/modules/relationships/services/friend-linking.service').then(({ syncAllOutgoingLinkStatuses, syncIncomingLinkRequests }) => {
+                    syncAllOutgoingLinkStatuses().catch((error) => {
+                        console.error('[App] Error syncing outgoing link statuses on foreground:', error);
+                    });
+                    // Sync incoming link requests to local Friend records
+                    syncIncomingLinkRequests().catch((error) => {
+                        console.error('[App] Error syncing incoming link requests on foreground:', error);
+                    });
+                });
+
+                // Sync shared weave participant responses (for weaves you shared)
+                import('@/modules/sync/services/share-weave.service').then(({ syncSharedWeaveResponses }) => {
+                    syncSharedWeaveResponses().catch((error) => {
+                        console.error('[App] Error syncing shared weave responses on foreground:', error);
+                    });
+                });
             }, 2000); // 2 second delay to free write queue for user actions
         } else if (state === 'background') {
             trackEvent(AnalyticsEvents.APP_BACKGROUNDED);

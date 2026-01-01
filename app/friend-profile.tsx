@@ -19,6 +19,7 @@ import {
 } from '@/modules/relationships';
 import { ErrorBoundary } from '@/shared/components/ErrorBoundary';
 import { LinkFriendSheet } from '@/modules/relationships/components/LinkFriendSheet';
+import { syncOutgoingLinkStatus } from '@/modules/relationships/services/friend-linking.service';
 
 export default function FriendProfile() {
   const router = useRouter();
@@ -105,6 +106,16 @@ export default function FriendProfile() {
       modals.resetModals();
     }
   }, [friendId, modals.resetModals]);
+
+  // Sync link status from server when viewing a friend with pending_sent status
+  // This updates the local status if the other user has accepted the link request
+  useEffect(() => {
+    if (friendModel && friendModel.linkStatus === 'pending_sent') {
+      syncOutgoingLinkStatus(friendModel.id).catch(err => {
+        console.warn('[FriendProfile] Failed to sync link status:', err);
+      });
+    }
+  }, [friendModel?.id, friendModel?.linkStatus]);
 
   // Define all handlers as useCallback BEFORE any conditional returns (Rules of Hooks)
   const handleEdit = useCallback(() => {
