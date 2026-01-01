@@ -113,6 +113,98 @@ export async function getShareStatus(interactionId: string): Promise<{
 }
 
 /**
+ * Sync participant responses for shared weaves where current user is creator
+ * Updates local SharedWeaveRef status based on server participant responses
+ */
+export async function syncSharedWeaveResponses(): Promise<void> {
+    const client = getSupabaseClient();
+    if (!client) return;
+
+    const { data: { user } } = await client.auth.getUser();
+    if (!user) return;
+
+    try {
+        // Get all local SharedWeaveRefs where we are the creator and status is pending
+        const refCollection = database.get<SharedWeaveRef>('shared_weave_refs');
+        const allRefs = await refCollection.query().fetch();
+        const pendingCreatorRefs = allRefs.filter(
+            r => r.isCreator && r.status === 'pending' && r.serverWeaveId
+        );
+
+        if (pendingCreatorRefs.length === 0) {
+            return;
+        }
+
+        logger.info('ShareWeave', `Syncing ${pendingCreatorRefs.length} pending shared weave responses`);
+
+        // Get server weave IDs
+        const serverWeaveIds = pendingCreatorRefs.map(r => r.serverWeaveId);
+
+        // Query server for participant responses
+        const { data: participants, error } = await client
+            .from('shared_weave_participants')
+            .select('shared_weave_id, user_id, response, responded_at')
+            .in('shared_weave_id', serverWeaveIds);
+
+        if (error) {
+            logger.error('ShareWeave', 'Error fetching participant responses:', error);
+            return;
+        }
+
+        if (!participants || participants.length === 0) {
+            return;
+        }
+
+        // Group responses by shared_weave_id
+        const responsesByWeave = new Map<string, Array<{ response: string; responded_at: string | null }>>();
+        for (const p of participants) {
+            const existing = responsesByWeave.get(p.shared_weave_id) || [];
+            existing.push({ response: p.response, responded_at: p.responded_at });
+            responsesByWeave.set(p.shared_weave_id, existing);
+        }
+
+        // Update local refs based on aggregated responses
+        await database.write(async () => {
+            for (const ref of pendingCreatorRefs) {
+                const responses = responsesByWeave.get(ref.serverWeaveId);
+                if (!responses) continue;
+
+                // Determine overall status:
+                // - If any participant accepted, mark as accepted
+                // - If all declined, mark as declined
+                // - Otherwise keep as pending
+                const hasAccepted = responses.some(r => r.response === 'accepted');
+                const allDeclined = responses.every(r => r.response === 'declined');
+
+                let newStatus: string | null = null;
+                if (hasAccepted) {
+                    newStatus = 'accepted';
+                } else if (allDeclined && responses.length > 0) {
+                    newStatus = 'declined';
+                }
+
+                if (newStatus && newStatus !== ref.status) {
+                    logger.info('ShareWeave', `Updating shared weave ${ref.serverWeaveId} status to ${newStatus}`);
+                    await ref.update(r => {
+                        r.status = newStatus as 'pending' | 'accepted' | 'declined' | 'expired';
+                        if (newStatus === 'accepted' || newStatus === 'declined') {
+                            const respondedAt = responses.find(r => r.responded_at)?.responded_at;
+                            if (respondedAt) {
+                                r.respondedAt = new Date(respondedAt).getTime();
+                            }
+                        }
+                    });
+                }
+            }
+        });
+
+        logger.info('ShareWeave', 'Finished syncing shared weave responses');
+    } catch (e) {
+        logger.error('ShareWeave', 'Exception syncing shared weave responses:', e);
+    }
+}
+
+/**
  * Get linked friends from a list of friend IDs
  */
 export async function getLinkedFriendsFromIds(friendIds: string[]): Promise<Friend[]> {

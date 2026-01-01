@@ -255,9 +255,20 @@ export function DataInitializer({ children }: DataInitializerProps) {
             });
 
             // Sync outgoing link request statuses (checks if any pending requests were accepted)
-            import('@/modules/relationships/services/friend-linking.service').then(({ syncAllOutgoingLinkStatuses }) => {
+            import('@/modules/relationships/services/friend-linking.service').then(({ syncAllOutgoingLinkStatuses, syncIncomingLinkRequests }) => {
                 syncAllOutgoingLinkStatuses().catch((error) => {
-                    console.error('[App] Error syncing link statuses on foreground:', error);
+                    console.error('[App] Error syncing outgoing link statuses on foreground:', error);
+                });
+                // Sync incoming link requests to local Friend records
+                syncIncomingLinkRequests().catch((error) => {
+                    console.error('[App] Error syncing incoming link requests on foreground:', error);
+                });
+            });
+
+            // Sync shared weave participant responses (for weaves you shared)
+            import('@/modules/sync/services/share-weave.service').then(({ syncSharedWeaveResponses }) => {
+                syncSharedWeaveResponses().catch((error) => {
+                    console.error('[App] Error syncing shared weave responses on foreground:', error);
                 });
             });
         } else if (state === 'background') {
