@@ -5,13 +5,20 @@
  * - Photo at top
  * - Identity section (username, display name)
  * - Personal section (birthday, archetype)
+ * 
+ * Username changes are protected with:
+ * - 30-day cooldown
+ * - 3 changes per year limit
+ * - biometric/password re-authentication
+ * - 14-day reservation of old username
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Alert, ScrollView, KeyboardAvoidingView, Platform, TouchableOpacity, ActivityIndicator, Modal } from 'react-native';
 import { router } from 'expo-router';
-import { User, AtSign, Edit3, Check, X, ChevronLeft, Camera, Cake, Sparkles, ChevronRight, Eye, LogOut } from 'lucide-react-native';
+import { User, AtSign, Edit3, Check, X, ChevronLeft, Camera, Cake, Sparkles, ChevronRight, Eye, LogOut, Lock, AlertTriangle } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
+import * as LocalAuthentication from 'expo-local-authentication';
 import { decode } from 'base64-arraybuffer';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
@@ -19,8 +26,17 @@ import { Text } from '@/shared/ui/Text';
 import { Button } from '@/shared/ui/Button';
 import { Input } from '@/shared/ui/Input';
 import { CachedImage } from '@/shared/ui/CachedImage';
+import { Card } from '@/shared/ui/Card';
 import { useTheme } from '@/shared/hooks/useTheme';
-import { getCurrentSession, getUserProfile } from '@/modules/auth';
+import {
+    getCurrentSession,
+    getUserProfile,
+    canChangeUsername,
+    changeUsername,
+    isUsernameAvailable,
+    formatCooldownRemaining,
+    type UsernameChangeStatus,
+} from '@/modules/auth';
 import { getSupabaseClient } from '@/shared/services/supabase-client';
 import { ArchetypeCarouselPicker } from '@/modules/intelligence';
 import { archetypeData } from '@/shared/constants/constants';
@@ -50,16 +66,22 @@ export function ProfileScreen() {
     // UI State
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [showArchetypePicker, setShowArchetypePicker] = useState(false);
+    const [showUsernameConfirmModal, setShowUsernameConfirmModal] = useState(false);
 
     // Username validation
     const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
     const [checkingUsername, setCheckingUsername] = useState(false);
+
+    // Username change restrictions
+    const [usernameChangeStatus, setUsernameChangeStatus] = useState<UsernameChangeStatus | null>(null);
+    const isUsernameChanging = username !== originalUsername;
 
     // Cleanup modals on unmount to prevent gesture blocking
     useEffect(() => {
         return () => {
             setShowDatePicker(false);
             setShowArchetypePicker(false);
+            setShowUsernameConfirmModal(false);
         };
     }, []);
 
@@ -77,6 +99,7 @@ export function ProfileScreen() {
 
         setUserId(session.userId);
 
+        // Load profile data
         const profile = await getUserProfile(session.userId);
         if (profile) {
             setUsername(profile.username);
@@ -95,6 +118,10 @@ export function ProfileScreen() {
                 setOriginalArchetype(profile.archetype);
             }
         }
+
+        // Check username change permissions
+        const changeStatus = await canChangeUsername(session.userId);
+        setUsernameChangeStatus(changeStatus);
 
         setLoading(false);
     };
@@ -162,7 +189,7 @@ export function ProfileScreen() {
         setUploadingPhoto(false);
     };
 
-    const checkUsernameAvailability = async (newUsername: string) => {
+    const checkUsernameAvailability = useCallback(async (newUsername: string) => {
         if (newUsername === originalUsername) {
             setUsernameAvailable(true);
             return;
@@ -174,21 +201,12 @@ export function ProfileScreen() {
         }
 
         setCheckingUsername(true);
-        const client = getSupabaseClient();
-        if (!client) {
-            setCheckingUsername(false);
-            return;
-        }
 
-        const { data } = await client
-            .from('user_profiles')
-            .select('username')
-            .eq('username', newUsername.toLowerCase())
-            .single();
-
-        setUsernameAvailable(!data);
+        // Use the new service that checks reservations too
+        const available = await isUsernameAvailable(newUsername, userId || undefined);
+        setUsernameAvailable(available);
         setCheckingUsername(false);
-    };
+    }, [originalUsername, userId]);
 
     const handleUsernameChange = (text: string) => {
         const sanitized = text.toLowerCase().replace(/[^a-z0-9_]/g, '');
@@ -241,6 +259,141 @@ export function ProfileScreen() {
         return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
     };
 
+    /**
+     * Authenticate user with biometrics or device passcode
+     */
+    const authenticateUser = async (): Promise<boolean> => {
+        try {
+            const hasHardware = await LocalAuthentication.hasHardwareAsync();
+            const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+
+            if (!hasHardware || !isEnrolled) {
+                // No biometrics available, show confirmation alert instead
+                return new Promise((resolve) => {
+                    Alert.alert(
+                        'Confirm Change',
+                        'Username changes are limited. Are you sure you want to continue?',
+                        [
+                            { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+                            { text: 'Continue', onPress: () => resolve(true) },
+                        ]
+                    );
+                });
+            }
+
+            const result = await LocalAuthentication.authenticateAsync({
+                promptMessage: 'Authenticate to change username',
+                fallbackLabel: 'Use passcode',
+                cancelLabel: 'Cancel',
+            });
+
+            return result.success;
+        } catch (error) {
+            console.error('Authentication error:', error);
+            return false;
+        }
+    };
+
+    /**
+     * Handle username change with confirmation and auth
+     */
+    const handleUsernameChangeConfirmed = async () => {
+        if (!userId) return;
+
+        setShowUsernameConfirmModal(false);
+
+        // Authenticate user
+        const authenticated = await authenticateUser();
+        if (!authenticated) {
+            Alert.alert('Authentication Required', 'Username change cancelled.');
+            return;
+        }
+
+        setSaving(true);
+
+        // Use the protected change_username function
+        const result = await changeUsername(userId, username);
+
+        if (!result.success) {
+            setSaving(false);
+
+            switch (result.error) {
+                case 'cooldown':
+                    Alert.alert(
+                        'Cooldown Active',
+                        `You can change your username ${result.cooldownEndsAt ? formatCooldownRemaining(result.cooldownEndsAt) : 'later'}.`
+                    );
+                    break;
+                case 'yearly_limit':
+                    Alert.alert(
+                        'Limit Reached',
+                        'You\'ve used all username changes for this year.'
+                    );
+                    break;
+                case 'taken':
+                    Alert.alert('Username Taken', 'This username is already in use.');
+                    break;
+                case 'reserved':
+                    Alert.alert('Username Reserved', 'This username is temporarily reserved by another user.');
+                    break;
+                default:
+                    Alert.alert('Error', 'Could not change username. Please try again.');
+            }
+            return;
+        }
+
+        // Username changed successfully, now save other fields
+        await saveOtherFields();
+
+        // Update state
+        setOriginalUsername(username);
+
+        // Refresh change status
+        const newStatus = await canChangeUsername(userId);
+        setUsernameChangeStatus(newStatus);
+
+        Alert.alert(
+            'Profile Saved!',
+            result.changesRemaining !== undefined
+                ? `Your old username @${result.oldUsername} is reserved for 14 days. You have ${result.changesRemaining} username change${result.changesRemaining === 1 ? '' : 's'} left this year.`
+                : 'Your profile has been updated.',
+            [{ text: 'OK', onPress: () => router.back() }]
+        );
+    };
+
+    /**
+     * Save non-username fields
+     */
+    const saveOtherFields = async () => {
+        if (!userId) return;
+
+        const client = getSupabaseClient();
+        if (!client) return;
+
+        const profileData: Record<string, any> = {
+            display_name: displayName.trim(),
+            updated_at: new Date().toISOString(),
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        };
+
+        if (birthday) {
+            profileData.birthday = birthday.toISOString().split('T')[0];
+        }
+
+        if (archetype) {
+            profileData.archetype = archetype;
+        }
+
+        await client
+            .from('user_profiles')
+            .update(profileData)
+            .eq('id', userId);
+
+        setOriginalDisplayName(displayName);
+        if (birthday) setOriginalBirthday(birthday.toISOString().split('T')[0]);
+        if (archetype) setOriginalArchetype(archetype);
+    };
+
     const handleSave = async () => {
         if (!userId) return;
 
@@ -259,47 +412,32 @@ export function ProfileScreen() {
             return;
         }
 
+        // If username is changing, show confirmation modal
+        if (isUsernameChanging) {
+            // First check if change is even allowed
+            if (usernameChangeStatus && !usernameChangeStatus.allowed) {
+                if (usernameChangeStatus.reason === 'cooldown' && usernameChangeStatus.cooldownEndsAt) {
+                    Alert.alert(
+                        'Cooldown Active',
+                        `You can change your username ${formatCooldownRemaining(usernameChangeStatus.cooldownEndsAt)}.`
+                    );
+                } else {
+                    Alert.alert(
+                        'Limit Reached',
+                        'You\'ve used all username changes for this year.'
+                    );
+                }
+                return;
+            }
+
+            setShowUsernameConfirmModal(true);
+            return;
+        }
+
+        // No username change, just save other fields
         setSaving(true);
-
-        const client = getSupabaseClient();
-        if (!client) {
-            Alert.alert('Error', 'Could not connect to server');
-            setSaving(false);
-            return;
-        }
-
-        const profileData: Record<string, any> = {
-            id: userId,
-            username: username.toLowerCase(),
-            display_name: displayName.trim(),
-            updated_at: new Date().toISOString(),
-            // Auto-detect timezone from device
-            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        };
-
-        if (birthday) {
-            profileData.birthday = birthday.toISOString().split('T')[0];
-        }
-
-        if (archetype) {
-            profileData.archetype = archetype;
-        }
-
-        const { error } = await client
-            .from('user_profiles')
-            .upsert(profileData, { onConflict: 'id' });
-
+        await saveOtherFields();
         setSaving(false);
-
-        if (error) {
-            Alert.alert('Error', 'Could not save profile. Please try again.');
-            return;
-        }
-
-        setOriginalUsername(username);
-        setOriginalDisplayName(displayName);
-        if (birthday) setOriginalBirthday(birthday.toISOString().split('T')[0]);
-        if (archetype) setOriginalArchetype(archetype);
 
         Alert.alert('Success', 'Profile saved!', [
             { text: 'OK', onPress: () => router.back() }
@@ -311,6 +449,11 @@ export function ProfileScreen() {
         displayName !== originalDisplayName ||
         birthdayStr !== originalBirthday ||
         archetype !== originalArchetype;
+
+    // Determine if username field should be disabled
+    const isUsernameDisabled = usernameChangeStatus !== null &&
+        !usernameChangeStatus.allowed &&
+        username === originalUsername;
 
     if (loading) {
         return (
@@ -388,8 +531,12 @@ export function ProfileScreen() {
                                     placeholder="username"
                                     autoCapitalize="none"
                                     autoCorrect={false}
+                                    editable={!isUsernameDisabled}
                                     className="flex-1 text-right border-0 bg-transparent p-0"
-                                    style={{ color: colors.foreground }}
+                                    style={{
+                                        color: isUsernameDisabled ? colors['muted-foreground'] : colors.foreground,
+                                        opacity: isUsernameDisabled ? 0.6 : 1,
+                                    }}
                                 />
                                 {checkingUsername && (
                                     <ActivityIndicator size="small" color={colors['muted-foreground']} />
@@ -400,8 +547,32 @@ export function ProfileScreen() {
                                 {usernameAvailable === false && !checkingUsername && (
                                     <X size={18} color="#EF4444" />
                                 )}
+                                {isUsernameDisabled && (
+                                    <Lock size={16} color={colors['muted-foreground']} />
+                                )}
                             </View>
                         </View>
+
+                        {/* Username restriction info */}
+                        {usernameChangeStatus && (
+                            <View className="px-4 pb-3">
+                                {!usernameChangeStatus.allowed && usernameChangeStatus.reason === 'cooldown' && usernameChangeStatus.cooldownEndsAt && (
+                                    <Text variant="caption" style={{ color: colors['muted-foreground'] }}>
+                                        Change available {formatCooldownRemaining(usernameChangeStatus.cooldownEndsAt)}
+                                    </Text>
+                                )}
+                                {!usernameChangeStatus.allowed && usernameChangeStatus.reason === 'yearly_limit' && (
+                                    <Text variant="caption" style={{ color: colors.destructive }}>
+                                        No changes remaining this year
+                                    </Text>
+                                )}
+                                {usernameChangeStatus.allowed && (
+                                    <Text variant="caption" style={{ color: colors['muted-foreground'] }}>
+                                        {usernameChangeStatus.changesRemaining} change{usernameChangeStatus.changesRemaining === 1 ? '' : 's'} remaining this year
+                                    </Text>
+                                )}
+                            </View>
+                        )}
 
                         <View className="h-px ml-11" style={{ backgroundColor: colors.border }} />
 
@@ -551,6 +722,51 @@ export function ProfileScreen() {
                     </View>
                 </View>
             </ScrollView>
+
+            {/* Username Change Confirmation Modal */}
+            <Modal
+                visible={showUsernameConfirmModal}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setShowUsernameConfirmModal(false)}
+            >
+                <View className="flex-1 justify-center items-center bg-black/50 px-6">
+                    <Card className="w-full max-w-sm p-5">
+                        <View className="items-center mb-4">
+                            <View className="w-14 h-14 rounded-full items-center justify-center mb-3" style={{ backgroundColor: colors.primary + '20' }}>
+                                <AlertTriangle size={28} color={colors.primary} />
+                            </View>
+                            <Text variant="h3" className="text-center mb-2">Change Username?</Text>
+                            <Text variant="body" className="text-center" style={{ color: colors['muted-foreground'] }}>
+                                Your old username <Text style={{ fontWeight: '600' }}>@{originalUsername}</Text> will be reserved for 14 days before becoming available.
+                            </Text>
+                        </View>
+
+                        {usernameChangeStatus && (
+                            <View className="py-3 px-4 rounded-lg mb-4" style={{ backgroundColor: colors.muted }}>
+                                <Text variant="caption" className="text-center" style={{ color: colors['muted-foreground'] }}>
+                                    You have <Text style={{ fontWeight: '700', color: colors.foreground }}>{usernameChangeStatus.changesRemaining}</Text> username change{usernameChangeStatus.changesRemaining === 1 ? '' : 's'} remaining this year
+                                </Text>
+                            </View>
+                        )}
+
+                        <View className="flex-row gap-3">
+                            <Button
+                                variant="outline"
+                                label="Cancel"
+                                onPress={() => setShowUsernameConfirmModal(false)}
+                                className="flex-1"
+                            />
+                            <Button
+                                variant="primary"
+                                label="Continue"
+                                onPress={handleUsernameChangeConfirmed}
+                                className="flex-1"
+                            />
+                        </View>
+                    </Card>
+                </View>
+            </Modal>
 
             {/* Date Picker Modal */}
             {showDatePicker && (

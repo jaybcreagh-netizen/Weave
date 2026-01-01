@@ -5,6 +5,7 @@ export * from './hooks/useFeatureGate';
 
 // Components
 export * from './components/SyncConflictModal';
+export * from './components/VisibilitySettings';
 
 // Stores
 export * from './store/auth.store';
@@ -26,6 +27,7 @@ export * from './hooks/useSyncSettings';
 export * from './services/supabase.service';
 export * from './services/supabase-auth.service';
 export * from './services/social-battery.service';
+export * from './services/username.service';
 
 // Data Replication (re-exported from sync module for backwards compatibility)
 export {

@@ -39,6 +39,12 @@
           <string>exp+weave</string>
         </array>
       </dict>
+      <dict>
+        <key>CFBundleURLSchemes</key>
+        <array>
+          <string>com.googleusercontent.apps.969321521100-h5bor0gqkojmc8crq1ee72g4h87lig03</string>
+        </array>
+      </dict>
     </array>
     <key>CFBundleVersion</key>
     <string>1</string>

@@ -8,7 +8,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { View, Alert, ActivityIndicator, TouchableOpacity } from 'react-native';
-import { LogOut, LogIn, RefreshCw, CheckCircle, AlertCircle, Cloud, Eye, ChevronRight } from 'lucide-react-native';
+import { LogOut, LogIn, RefreshCw, CheckCircle, AlertCircle, Cloud, ChevronRight, Phone } from 'lucide-react-native';
 import { router } from 'expo-router';
 
 import { Text, CachedImage } from '@/shared/ui';
@@ -29,6 +29,7 @@ interface UserInfo {
     username?: string;
     displayName?: string;
     photoUrl?: string;
+    phone?: string;
 }
 
 export function AccountSettings({ onClose, onOpenAuth }: AccountSettingsProps) {
@@ -58,7 +59,7 @@ export function AccountSettings({ onClose, onOpenAuth }: AccountSettingsProps) {
                 // Get profile info - use 'id' not 'user_id'
                 const { data: profile } = await client
                     .from('user_profiles')
-                    .select('username, display_name, photo_url')
+                    .select('username, display_name, photo_url, phone')
                     .eq('id', user.id)
                     .single();
 
@@ -67,6 +68,7 @@ export function AccountSettings({ onClose, onOpenAuth }: AccountSettingsProps) {
                     username: profile?.username,
                     displayName: profile?.display_name,
                     photoUrl: profile?.photo_url,
+                    phone: profile?.phone,
                 });
             } catch (error) {
                 logger.error('AccountSettings', 'Failed to fetch user info:', error);
@@ -248,6 +250,22 @@ export function AccountSettings({ onClose, onOpenAuth }: AccountSettingsProps) {
                         </View>
                     </View>
                 </TouchableOpacity>
+
+                {/* Link Phone Section - shown when no phone linked */}
+                {!userInfo.phone && (
+                    <>
+                        <View className="border-t border-border mx-4" style={{ borderColor: colors.border }} />
+                        <SettingsItem
+                            icon={Phone}
+                            title="Link Phone Number"
+                            subtitle="Enable contact matching & backup auth"
+                            onPress={() => {
+                                onClose();
+                                setTimeout(() => router.push('/phone-auth?mode=link'), 300);
+                            }}
+                        />
+                    </>
+                )}
             </View>
         );
     }
