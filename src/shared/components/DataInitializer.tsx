@@ -253,6 +253,13 @@ export function DataInitializer({ children }: DataInitializerProps) {
             PlanService.checkPendingPlans().catch(err => {
                 console.error('[App] Error checking pending plans on active:', err);
             });
+
+            // Sync outgoing link request statuses (checks if any pending requests were accepted)
+            import('@/modules/relationships/services/friend-linking.service').then(({ syncAllOutgoingLinkStatuses }) => {
+                syncAllOutgoingLinkStatuses().catch((error) => {
+                    console.error('[App] Error syncing link statuses on foreground:', error);
+                });
+            });
         } else if (state === 'background') {
             trackEvent(AnalyticsEvents.APP_BACKGROUNDED);
         }
