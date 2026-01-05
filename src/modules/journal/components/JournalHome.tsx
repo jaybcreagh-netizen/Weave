@@ -13,6 +13,7 @@ import {
   View,
   Text,
   TouchableOpacity,
+  ScrollView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -33,6 +34,8 @@ import { JournalFeed } from './Journal/JournalFeed';
 import { JournalReflections } from './Journal/JournalReflections';
 import { JournalFriendList } from './Journal/JournalFriendList';
 import { JournalCalendar } from './Journal/JournalCalendar';
+import { WeaveIcon } from '@/shared/components/WeaveIcon';
+import { useOracleSheet } from '@/modules/oracle/hooks/useOracleSheet';
 
 // ============================================================================
 // TYPES
@@ -46,6 +49,7 @@ interface JournalHomeProps {
   onFriendArcPress: (friendId: string) => void;
   onMemoryAction: (memory: Memory) => void;
   onClose?: () => void;
+  initialTab?: Tab;
 }
 
 // ============================================================================
@@ -58,12 +62,14 @@ export function JournalHome({
   onFriendArcPress,
   onMemoryAction,
   onClose,
+  initialTab,
 }: JournalHomeProps) {
-  const { colors, typography } = useTheme();
+  const { colors, typography, tokens } = useTheme();
   const insets = useSafeAreaInsets();
+  const { open } = useOracleSheet();
 
   // State
-  const [activeTab, setActiveTab] = useState<Tab>('all');
+  const [activeTab, setActiveTab] = useState<Tab>(initialTab || 'all');
 
   // ============================================================================
   // RENDER TABS
@@ -71,7 +77,7 @@ export function JournalHome({
 
   const renderTabs = () => (
     <View className="flex-row px-5 mb-4 gap-2">
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingRight: 20 }}>
         {[
           { id: 'all' as Tab, label: 'Feed', icon: BookOpen },
           { id: 'reflections' as Tab, label: 'Reflections', icon: Sparkles },
@@ -81,6 +87,12 @@ export function JournalHome({
           const isActive = activeTab === tab.id;
           const IconComponent = tab.icon;
 
+          // Special styling for Oracle
+          let backgroundColor = isActive ? colors.primary : colors.muted;
+          let textColor = isActive ? colors['primary-foreground'] : colors.foreground;
+
+
+
           return (
             <TouchableOpacity
               key={tab.id}
@@ -88,7 +100,7 @@ export function JournalHome({
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 setActiveTab(tab.id);
               }}
-              className="flex-row items-center gap-1.5 px-4 py-2 rounded-full"
+              className="flex-row items-center gap-1.5 px-4 py-2.5 rounded-full"
               style={{
                 backgroundColor: isActive ? colors.primary : colors.muted,
               }}
@@ -156,11 +168,17 @@ export function JournalHome({
         </Text>
 
         {/* Actions */}
-        <View className="flex-row gap-2">
-          {/* Search (Placeholder for now, implementation inside sub-components or lifted state TBD) */}
-          {/* Note: Original JournalHome had search. Moving search to strictly 'Feed' or specific tabs 
-                 might be better, or keeping it global. For "Streamlined" initial pass, removing global search 
-                 complexity from parent. Ideally Search should be its own modal or view. */}
+        <View className="flex-row gap-2 items-center">
+          <TouchableOpacity
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              open({ context: 'journal' });
+            }}
+            className="w-10 h-10 rounded-full items-center justify-center mr-2"
+            style={{ backgroundColor: colors.primary + '20' }}
+          >
+            <WeaveIcon size={20} color={colors.primary} />
+          </TouchableOpacity>
 
           {onClose && (
             <TouchableOpacity
@@ -207,6 +225,3 @@ export function JournalHome({
     </View>
   );
 }
-
-// Helper to make the ScrollView in renderTabs work
-import { ScrollView } from 'react-native';

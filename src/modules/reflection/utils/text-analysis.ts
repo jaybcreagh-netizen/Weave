@@ -140,35 +140,68 @@ export function calculateThemeRelevance(chipKeywords: string[], detectedThemes: 
 /**
  * Generate contextual prompt based on detected themes
  */
-export function generateContextualPrompt(themes: TextThemes): string | null {
+export interface ContextualPromptResult {
+  text: string;
+  icon: string;
+  type: 'positive' | 'laughter' | 'meaningful' | 'complex' | 'tough' | 'comfort';
+}
+
+/**
+ * Generate contextual prompt based on detected themes
+ */
+export function generateContextualPrompt(themes: TextThemes): ContextualPromptResult | null {
   // High intensity positive emotions
   if (themes.intensity === 'high' && themes.sentiment === 'positive') {
-    return 'Sounds like a great time! 🌟';
+    return {
+      text: 'Sounds like a great time!',
+      icon: 'Star',
+      type: 'positive',
+    };
   }
 
   // Laughter detected
   if (themes.emotions.includes('laughter')) {
-    return 'Lots of laughs? 😄';
+    return {
+      text: 'Lots of laughs?',
+      icon: 'Laugh',
+      type: 'laughter',
+    };
   }
 
   // Deep conversation
   if (themes.emotions.includes('deep') || themes.activities.includes('deep_talk')) {
-    return 'Sounds meaningful 💭';
+    return {
+      text: 'Sounds meaningful',
+      icon: 'MessageCircle',
+      type: 'meaningful',
+    };
   }
 
   // Mixed/complex emotions
   if (themes.sentiment === 'mixed') {
-    return 'Complex feelings? 🌙';
+    return {
+      text: 'Complex feelings?',
+      icon: 'Moon',
+      type: 'complex',
+    };
   }
 
   // Difficult/negative
   if (themes.sentiment === 'negative' || themes.topics.includes('struggles')) {
-    return 'That sounds tough 💙';
+    return {
+      text: 'That sounds tough',
+      icon: 'HeartHandshake',
+      type: 'tough',
+    };
   }
 
   // Comfort/ease
   if (themes.emotions.includes('comfort')) {
-    return 'Nice and comfortable? ☕';
+    return {
+      text: 'Nice and comfortable?',
+      icon: 'Coffee',
+      type: 'comfort',
+    };
   }
 
   return null;
@@ -219,21 +252,21 @@ export function calculateReflectionQuality(
       level: 'rich',
       score,
       label: 'Rich reflection',
-      emoji: '✨',
+      emoji: 'Sparkles', // Changed from emoji to icon name
     };
   } else if (score >= 40) {
     return {
       level: 'meaningful',
       score,
       label: 'Meaningful reflection',
-      emoji: '🌱',
+      emoji: 'Sprout', // Changed from emoji to icon name
     };
   } else {
     return {
       level: 'quick',
       score,
       label: 'Quick note',
-      emoji: '📝',
+      emoji: 'PenLine', // Changed from emoji to icon name
     };
   }
 }

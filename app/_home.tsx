@@ -5,6 +5,7 @@ import { SocialSeasonWidgetV2 } from '@/modules/home/components/widgets/widgets/
 import { YourEnergyWidget } from '@/modules/home/components/widgets/widgets/YourEnergyWidget';
 import { TodaysFocusWidgetV2 } from '@/modules/home/components/widgets/widgets/TodaysFocusWidgetV2';
 import { JournalWidget } from '@/modules/home/components/widgets/widgets/JournalWidget';
+import { OracleFAB } from '@/modules/home/components/OracleFAB';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { ReflectionReadyPrompt } from '@/modules/reflection/components/WeeklyReflection/ReflectionReadyPrompt';
 import { YearInMoonsModal } from '@/modules/intelligence';
@@ -210,6 +211,8 @@ export default function Home({ onReady }: HomeProps) {
         isOpen={showYearInMoons}
         onClose={() => setShowYearInMoons(false)}
       />
+
+      <OracleFAB />
     </>
   );
 }

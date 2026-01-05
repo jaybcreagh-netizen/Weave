@@ -8,6 +8,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { View, ScrollView, TouchableOpacity } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { Sparkles, ChevronRight, Clock } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
@@ -99,6 +100,7 @@ function formatDaysSince(days: number): string {
 
 export function WeekSnapshotStep({ summary, insight, onComplete }: WeekSnapshotStepProps) {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const [intentionModalOpen, setIntentionModalOpen] = useState(false);
   const [selectedFriend, setSelectedFriend] = useState<AttentionFriend['friend'] | null>(null);
   const [intentionSetFor, setIntentionSetFor] = useState<Set<string>>(new Set());
@@ -170,22 +172,22 @@ export function WeekSnapshotStep({ summary, insight, onComplete }: WeekSnapshotS
       <ScrollView
         className="flex-1"
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 24 }}
+        contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 24), flexGrow: 1 }}
       >
         {/* Stats Card */}
         <Animated.View
           entering={FadeIn.duration(400)}
-          className="mb-6"
+          className="mb-4"
         >
-          <Card className="p-6">
+          <Card className="p-4">
             {/* Stats Row */}
-            <View className="flex-row items-center justify-around mb-5">
+            <View className="flex-row items-center justify-around mb-3">
               <TouchableOpacity
                 onPress={() => handleStatPress('weaves')}
                 activeOpacity={0.7}
                 className="items-center px-4 py-2"
               >
-                <Text variant="h1" className="font-lora-bold text-4xl">
+                <Text variant="h1" className="font-lora-bold text-3xl">
                   {summary.totalWeaves}
                 </Text>
                 <Text variant="caption" className="text-muted-foreground mt-1 uppercase tracking-wide text-xs">
@@ -256,7 +258,7 @@ export function WeekSnapshotStep({ summary, insight, onComplete }: WeekSnapshotS
         {/* Friends Needing Attention */}
         {attentionFriends.length > 0 && (
           <Animated.View entering={FadeInDown.delay(200).duration(400)}>
-            <Text variant="body" className="font-medium mb-3 text-muted-foreground">
+            <Text variant="caption" className="font-medium mb-2 text-muted-foreground">
               Might appreciate a hello
             </Text>
 
@@ -267,43 +269,45 @@ export function WeekSnapshotStep({ summary, insight, onComplete }: WeekSnapshotS
                 <Animated.View
                   key={af.friend.id}
                   entering={FadeInDown.delay(300 + index * 100).duration(300)}
-                  className="mb-3"
+                  className="mb-2"
                 >
                   <Card
-                    className={`p-4 ${hasIntention ? 'border border-primary/30' : ''}`}
+                    className={`p-3 ${hasIntention ? 'border border-primary/30' : ''}`}
                   >
                     <View className="flex-row items-center">
                       {/* Archetype Icon */}
                       <View
-                        className="w-12 h-12 rounded-full items-center justify-center mr-4 bg-muted"
+                        className="w-10 h-10 rounded-full items-center justify-center mr-3 bg-muted"
                       >
                         <ArchetypeIcon
                           archetype={af.friend.archetype as Archetype}
-                          size={24}
+                          size={20}
                           color={colors.foreground}
                         />
                       </View>
 
                       {/* Friend Info - stacked vertically */}
                       <View className="flex-1">
-                        <Text variant="h4" className="font-semibold text-base" numberOfLines={1}>
+                        <Text variant="body" className="font-semibold" numberOfLines={1}>
                           {af.friend.name}
                         </Text>
-                        <Text variant="caption" className="text-muted-foreground mt-0.5">
-                          {af.tierLabel}
-                        </Text>
-                        <View className="flex-row items-center mt-1">
-                          <Clock size={11} color={colors['muted-foreground']} />
-                          <Text variant="caption" className="text-muted-foreground ml-1 text-xs">
-                            {formatDaysSince(af.daysSinceContact)}
+                        <View className="flex-row items-center">
+                          <Text variant="caption" className="text-muted-foreground text-xs">
+                            {af.tierLabel}
                           </Text>
+                          <View className="flex-row items-center ml-2">
+                            <Clock size={10} color={colors['muted-foreground']} />
+                            <Text variant="caption" className="text-muted-foreground ml-1 text-xs">
+                              {formatDaysSince(af.daysSinceContact)}
+                            </Text>
+                          </View>
                         </View>
                       </View>
 
                       {/* Action Button */}
                       {hasIntention ? (
                         <View
-                          className="px-3 py-2.5 rounded-xl bg-primary/10"
+                          className="px-3 py-2 rounded-xl bg-primary/10"
                         >
                           <Text variant="caption" className="font-semibold text-primary text-xs">
                             ✓ Set
@@ -312,7 +316,7 @@ export function WeekSnapshotStep({ summary, insight, onComplete }: WeekSnapshotS
                       ) : (
                         <TouchableOpacity
                           onPress={() => handleSetIntention(af.friend)}
-                          className="px-4 py-2.5 rounded-xl bg-primary/10"
+                          className="px-3 py-2 rounded-xl bg-primary/10"
                           activeOpacity={0.7}
                         >
                           <Text variant="caption" className="font-semibold text-primary text-xs">
@@ -340,26 +344,26 @@ export function WeekSnapshotStep({ summary, insight, onComplete }: WeekSnapshotS
             </Text>
           </Animated.View>
         )}
-      </ScrollView>
 
-      {/* Complete Button */}
-      <Animated.View
-        entering={FadeInDown.delay(500).duration(400)}
-        className="pt-4 pb-2"
-      >
-        <Button
-          onPress={handleComplete}
-          variant="primary"
-          className="flex-row justify-center items-center"
+        {/* Complete Button - inside ScrollView */}
+        <Animated.View
+          entering={FadeInDown.delay(500).duration(400)}
+          className="pt-6 mt-auto"
         >
-          <View className="flex-row items-center">
-            <Text variant="button" className="mr-2 text-primary-foreground">
-              Complete
-            </Text>
-            <ChevronRight size={18} color={colors['primary-foreground']} />
-          </View>
-        </Button>
-      </Animated.View>
+          <Button
+            onPress={handleComplete}
+            variant="primary"
+            className="flex-row justify-center items-center"
+          >
+            <View className="flex-row items-center">
+              <Text variant="button" className="mr-2 text-primary-foreground">
+                Complete
+              </Text>
+              <ChevronRight size={18} color={colors['primary-foreground']} />
+            </View>
+          </Button>
+        </Animated.View>
+      </ScrollView>
 
       {/* Intention Form Modal */}
       {selectedFriend && (

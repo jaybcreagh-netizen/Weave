@@ -109,6 +109,8 @@ export function FriendProfileModals({
                     }
                 }}
                 friendArchetype={friend?.archetype as any}
+                friendId={friend?.id}
+                friendName={friend?.name}
             />
 
             <EditInteractionModal

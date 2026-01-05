@@ -163,14 +163,10 @@ export function IntentionsList({ intentions, onIntentionPress }: IntentionsListP
           return (
             <TouchableOpacity
               key={intention.id}
-              className="w-52 p-4 rounded-2xl border shadow-sm"
+              className="w-52 p-4 rounded-2xl border"
               style={{
                 backgroundColor: colors.card,
                 borderColor: colors.border,
-                shadowColor: tokens.shadow.color,
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.05,
-                shadowRadius: 8
               }}
               onPress={() => onIntentionPress(intention)}
               activeOpacity={0.7}

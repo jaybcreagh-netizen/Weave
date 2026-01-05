@@ -35,6 +35,8 @@ import { format, isToday, isYesterday, startOfDay } from 'date-fns';
 import { KeyboardScrollView } from '@/shared/ui';
 import { BufferedTextInput } from '@/shared/ui/BufferedTextInput';
 import { FriendSelector } from '@/modules/relationships';
+import { GuidedReflectionSheet } from './GuidedReflection/GuidedReflectionSheet';
+import { ReflectionContext } from '../services/oracle/types';
 
 // ============================================================================
 // TYPES
@@ -73,6 +75,7 @@ export function QuickCaptureSheet({
   const [saving, setSaving] = useState(false);
   const [entryDate, setEntryDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showGuidedReflection, setShowGuidedReflection] = useState(false);
 
 
   // Load friends on mount
@@ -399,21 +402,41 @@ export function QuickCaptureSheet({
                 </TouchableOpacity>
               </View>
 
-              {/* Expand to full */}
+              {/* Expand options */}
               {hasContent && (
-                <TouchableOpacity
-                  onPress={handleExpandToFull}
-                  className="flex-row items-center justify-center gap-2 py-3"
-                >
-                  <Sparkles size={16} color={colors.primary} />
-                  <Text
-                    className="text-sm"
-                    style={{ color: colors.primary, fontFamily: 'Inter_500Medium' }}
+                <View className="gap-2">
+                  {/* Help me write - primary option */}
+                  <TouchableOpacity
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      setShowGuidedReflection(true);
+                    }}
+                    className="flex-row items-center justify-center gap-2 py-3 rounded-xl"
+                    style={{ backgroundColor: colors.primary }}
                   >
-                    Expand into full reflection
-                  </Text>
-                  <ChevronRight size={16} color={colors.primary} />
-                </TouchableOpacity>
+                    <Sparkles size={16} color={colors['primary-foreground']} />
+                    <Text
+                      className="text-sm"
+                      style={{ color: colors['primary-foreground'], fontFamily: 'Inter_600SemiBold' }}
+                    >
+                      Help me write more
+                    </Text>
+                  </TouchableOpacity>
+
+                  {/* Expand to full - secondary option */}
+                  <TouchableOpacity
+                    onPress={handleExpandToFull}
+                    className="flex-row items-center justify-center gap-2 py-3"
+                  >
+                    <Text
+                      className="text-sm"
+                      style={{ color: colors['muted-foreground'], fontFamily: 'Inter_500Medium' }}
+                    >
+                      Write freeform instead
+                    </Text>
+                    <ChevronRight size={14} color={colors['muted-foreground']} />
+                  </TouchableOpacity>
+                </View>
               )}
             </ScrollView>
           </KeyboardAvoidingView>
@@ -427,6 +450,29 @@ export function QuickCaptureSheet({
         selectedFriends={selectedFriends}
         onSelectionChange={handleFriendSelectionChange}
         asModal={true}
+      />
+
+      {/* Help me write sheet */}
+      <GuidedReflectionSheet
+        isOpen={showGuidedReflection}
+        onClose={() => setShowGuidedReflection(false)}
+        context={{
+          type: 'quick_capture',
+          friendIds: selectedFriends.map(f => f.id),
+          friendNames: selectedFriends.map(f => f.name),
+          quickCaptureText: text,
+        } as ReflectionContext}
+        onComplete={(content, friendIds) => {
+          setShowGuidedReflection(false);
+          setText('');
+          setSelectedFriends([]);
+          onClose();
+        }}
+        onEscape={() => {
+          setShowGuidedReflection(false);
+          // User wants freeform, expand to full
+          handleExpandToFull();
+        }}
       />
     </>
   );

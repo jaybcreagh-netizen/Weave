@@ -9,6 +9,7 @@ import { Q } from '@nozbe/watermelondb';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MultiActionFAB, type FABAction } from '@/shared/components/MultiActionFAB';
 import { NudgesFAB, NudgesSheet } from '@/modules/insights';
+import { usePendingWeaves } from '@/modules/sync';
 import { useUIStore } from '@/shared/stores/uiStore';
 import { usePlans, PlanService, getSuggestionCooldownDays, PlanWizard } from '@/modules/interactions';
 import { useSuggestions } from '@/modules/interactions';
@@ -58,6 +59,10 @@ export function FriendsDashboardScreen() {
     const [planWizardFriend, setPlanWizardFriend] = useState<FriendModel | null>(null);
     const [weaveUserSearchVisible, setWeaveUserSearchVisible] = useState(false);
     const [contactDiscoveryVisible, setContactDiscoveryVisible] = useState(false);
+
+    // Pending activity for badge (link requests + shared weaves)
+    const { pendingWeaves } = usePendingWeaves();
+    const pendingActivityCount = pendingWeaves.filter(w => w.status === 'pending').length;
 
     // Search state
     const [searchQuery, setSearchQuery] = useState('');
@@ -370,10 +375,11 @@ export function FriendsDashboardScreen() {
             <MultiActionFAB onAction={handleFABAction} />
 
             <NudgesFAB
-                isVisible={suggestionCount > 0 || intentions.length > 0}
+                isVisible={suggestionCount > 0 || intentions.length > 0 || pendingActivityCount > 0}
                 hasSuggestions={suggestionCount > 0}
                 hasCritical={hasCritical}
                 onClick={() => setNudgesSheetVisible(true)}
+                pendingActivityCount={pendingActivityCount}
             />
 
             {/* MicroReflectionSheet is handled globally by QuickWeaveProvider in _layout.tsx */}

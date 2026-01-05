@@ -20,6 +20,11 @@ import {
     declineLinkRequest,
     LinkRequest
 } from '@/modules/relationships/services/friend-linking.service';
+import {
+    findBestMatch,
+    MatchCandidate,
+} from '@/modules/relationships/services/friend-matching.service';
+import { LinkMatchConfirmModal } from '@/modules/relationships/components/LinkMatchConfirmModal';
 import { usePendingWeaves } from '../hooks/usePendingWeaves';
 import { useSharedWeaveHistory } from '../hooks/useSharedWeaveHistory';
 import { SharedWeaveCard } from './SharedWeaveCard';
@@ -44,6 +49,11 @@ export function ActivityInboxSheet({
     const [requests, setRequests] = useState<LinkRequest[]>([]);
     const [loadingRequests, setLoadingRequests] = useState(true);
     const [processingRequestId, setProcessingRequestId] = useState<string | null>(null);
+
+    // Match confirmation modal state
+    const [matchModalVisible, setMatchModalVisible] = useState(false);
+    const [pendingRequest, setPendingRequest] = useState<LinkRequest | null>(null);
+    const [foundMatch, setFoundMatch] = useState<MatchCandidate | null>(null);
 
     // Shared Weaves state
     const {
@@ -85,17 +95,54 @@ export function ActivityInboxSheet({
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         setProcessingRequestId(request.id);
 
-        const success = await acceptLinkRequest(request.id, undefined, 'Community');
+        // Check for potential matching existing friends
+        const match = await findBestMatch(request.displayName);
+
+        if (match) {
+            // Found a potential match - show confirmation modal
+            setPendingRequest(request);
+            setFoundMatch(match);
+            setMatchModalVisible(true);
+            setProcessingRequestId(null);
+            return;
+        }
+
+        // No match found - proceed with creating new friend
+        await completeAcceptRequest(request.id, undefined);
+    };
+
+    const completeAcceptRequest = async (requestId: string, localFriendId: string | undefined) => {
+        setProcessingRequestId(requestId);
+
+        const success = await acceptLinkRequest(requestId, localFriendId, 'Community');
 
         if (success) {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            setRequests(prev => prev.filter(r => r.id !== request.id));
+            setRequests(prev => prev.filter(r => r.id !== requestId));
             onRequestHandled?.();
         } else {
             Alert.alert('Error', 'Failed to accept request. Please try again.');
         }
 
         setProcessingRequestId(null);
+    };
+
+    const handleConfirmMatch = (friendId: string) => {
+        if (pendingRequest) {
+            setMatchModalVisible(false);
+            completeAcceptRequest(pendingRequest.id, friendId);
+        }
+        setPendingRequest(null);
+        setFoundMatch(null);
+    };
+
+    const handleCreateNewFriend = () => {
+        if (pendingRequest) {
+            setMatchModalVisible(false);
+            completeAcceptRequest(pendingRequest.id, undefined);
+        }
+        setPendingRequest(null);
+        setFoundMatch(null);
     };
 
     const handleDeclineRequest = async (request: LinkRequest) => {
@@ -334,66 +381,91 @@ export function ActivityInboxSheet({
     const weaveCount = actuallyPendingWeaves.length;
 
     return (
-        <StandardBottomSheet
-            visible={visible}
-            onClose={onClose}
-            title="Activity"
-            height="full"
-        >
-            <View className="flex-1">
-                {/* Tab Selector */}
-                <View className="flex-row mx-4 mb-4 p-1 rounded-xl" style={{ backgroundColor: colors.muted }}>
-                    <TouchableOpacity
-                        className="flex-1 py-2 rounded-lg items-center"
-                        style={{ backgroundColor: activeTab === 'requests' ? colors.card : 'transparent' }}
-                        onPress={() => setActiveTab('requests')}
-                    >
-                        <View className="flex-row items-center gap-2">
-                            <Link2 size={16} color={activeTab === 'requests' ? colors.primary : colors['muted-foreground']} />
-                            <Text
-                                className="font-medium text-xs"
-                                style={{ color: activeTab === 'requests' ? colors.foreground : colors['muted-foreground'] }}
-                            >
-                                Requests{requestCount > 0 ? ` (${requestCount})` : ''}
-                            </Text>
-                        </View>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        className="flex-1 py-2 rounded-lg items-center"
-                        style={{ backgroundColor: activeTab === 'weaves' ? colors.card : 'transparent' }}
-                        onPress={() => setActiveTab('weaves')}
-                    >
-                        <View className="flex-row items-center gap-2">
-                            <Send size={16} color={activeTab === 'weaves' ? colors.primary : colors['muted-foreground']} />
-                            <Text
-                                className="font-medium text-xs"
-                                style={{ color: activeTab === 'weaves' ? colors.foreground : colors['muted-foreground'] }}
-                            >
-                                Inbox{weaveCount > 0 ? ` (${weaveCount})` : ''}
-                            </Text>
-                        </View>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        className="flex-1 py-2 rounded-lg items-center"
-                        style={{ backgroundColor: activeTab === 'history' ? colors.card : 'transparent' }}
-                        onPress={() => setActiveTab('history')}
-                    >
-                        <View className="flex-row items-center gap-2">
-                            <History size={16} color={activeTab === 'history' ? colors.primary : colors['muted-foreground']} />
-                            <Text
-                                className="font-medium text-xs"
-                                style={{ color: activeTab === 'history' ? colors.foreground : colors['muted-foreground'] }}
-                            >
-                                History
-                            </Text>
-                        </View>
-                    </TouchableOpacity>
-                </View>
+        <>
+            <StandardBottomSheet
+                visible={visible}
+                onClose={onClose}
+                title="Activity"
+                height="full"
+            >
+                <View className="flex-1">
+                    {/* Tab Selector */}
+                    <View className="flex-row mx-4 mb-4 p-1 rounded-xl" style={{ backgroundColor: colors.muted }}>
+                        <TouchableOpacity
+                            className="flex-1 py-2 rounded-lg items-center"
+                            style={{ backgroundColor: activeTab === 'requests' ? colors.card : 'transparent' }}
+                            onPress={() => setActiveTab('requests')}
+                        >
+                            <View className="flex-row items-center gap-2">
+                                <Link2 size={16} color={activeTab === 'requests' ? colors.primary : colors['muted-foreground']} />
+                                <Text
+                                    className="font-medium text-xs"
+                                    style={{ color: activeTab === 'requests' ? colors.foreground : colors['muted-foreground'] }}
+                                >
+                                    Requests{requestCount > 0 ? ` (${requestCount})` : ''}
+                                </Text>
+                            </View>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            className="flex-1 py-2 rounded-lg items-center"
+                            style={{ backgroundColor: activeTab === 'weaves' ? colors.card : 'transparent' }}
+                            onPress={() => setActiveTab('weaves')}
+                        >
+                            <View className="flex-row items-center gap-2">
+                                <Send size={16} color={activeTab === 'weaves' ? colors.primary : colors['muted-foreground']} />
+                                <Text
+                                    className="font-medium text-xs"
+                                    style={{ color: activeTab === 'weaves' ? colors.foreground : colors['muted-foreground'] }}
+                                >
+                                    Inbox{weaveCount > 0 ? ` (${weaveCount})` : ''}
+                                </Text>
+                            </View>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            className="flex-1 py-2 rounded-lg items-center"
+                            style={{ backgroundColor: activeTab === 'history' ? colors.card : 'transparent' }}
+                            onPress={() => setActiveTab('history')}
+                        >
+                            <View className="flex-row items-center gap-2">
+                                <History size={16} color={activeTab === 'history' ? colors.primary : colors['muted-foreground']} />
+                                <Text
+                                    className="font-medium text-xs"
+                                    style={{ color: activeTab === 'history' ? colors.foreground : colors['muted-foreground'] }}
+                                >
+                                    History
+                                </Text>
+                            </View>
+                        </TouchableOpacity>
+                    </View>
 
-                {/* Content */}
-                {activeTab === 'requests' ? renderRequestsContent() :
-                    activeTab === 'weaves' ? renderWeavesContent() : renderHistoryContent()}
-            </View>
-        </StandardBottomSheet>
+                    {/* Content */}
+                    {activeTab === 'requests' ? renderRequestsContent() :
+                        activeTab === 'weaves' ? renderWeavesContent() : renderHistoryContent()}
+                </View>
+            </StandardBottomSheet>
+
+            {/* Match Confirmation Modal */}
+            {
+                pendingRequest && foundMatch && (
+                    <LinkMatchConfirmModal
+                        visible={matchModalVisible}
+                        onClose={() => {
+                            setMatchModalVisible(false);
+                            setPendingRequest(null);
+                            setFoundMatch(null);
+                        }}
+                        incomingRequest={{
+                            displayName: pendingRequest.displayName,
+                            username: pendingRequest.username,
+                            photoUrl: pendingRequest.photoUrl,
+                        }}
+                        match={foundMatch}
+                        onConfirmLink={handleConfirmMatch}
+                        onCreateNew={handleCreateNewFriend}
+                        isLoading={processingRequestId === pendingRequest.id}
+                    />
+                )
+            }
+        </>
     );
 }

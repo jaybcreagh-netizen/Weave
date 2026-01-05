@@ -20,6 +20,7 @@ interface ProfileHeaderProps {
     onShowBadgePopup?: () => void;
     onShowTierFit?: () => void;
     onLinkToWeaveUser?: () => void;
+    onUnlinkFriend?: () => void;
 }
 
 export function ProfileHeader({
@@ -32,6 +33,7 @@ export function ProfileHeader({
     onShowBadgePopup,
     onShowTierFit,
     onLinkToWeaveUser,
+    onUnlinkFriend,
 }: ProfileHeaderProps) {
     const { colors } = useTheme();
 
@@ -77,6 +79,7 @@ export function ProfileHeader({
                         <LinkStatusBadge
                             friend={friend}
                             onLinkPress={onLinkToWeaveUser}
+                            onUnlinkPress={onUnlinkFriend}
                         />
                     </View>
 

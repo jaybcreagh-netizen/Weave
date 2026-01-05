@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { View, Text } from 'react-native';
+import { Sparkles, Sprout, PenLine, Star, Laugh, MessageCircle, Moon, HeartHandshake, Coffee } from 'lucide-react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { ReflectionStoryChips } from './ReflectionStoryChips';
 import { ReflectionTextInput } from './ReflectionTextInput';
@@ -190,13 +191,18 @@ export function ContextualReflectionInput({
   return (
     <Animated.View entering={FadeIn.duration(400)} className="gap-4">
       {/* Reflection quality indicator */}
+      {/* Reflection quality indicator */}
       {reflectionQuality.score > 0 && (
         <Animated.View
           entering={FadeIn.duration(300)}
-          className="self-start py-1.5 px-3 rounded-2xl bg-green-500/10"
+          className="self-start py-1.5 px-3 rounded-full bg-green-500/10 flex-row items-center gap-1.5"
         >
-          <Text className="text-[13px] font-semibold text-green-500">
-            {reflectionQuality.emoji} {reflectionQuality.label}
+          {reflectionQuality.emoji === 'Sparkles' && <Sparkles size={12} color="#22c55e" />}
+          {reflectionQuality.emoji === 'Sprout' && <Sprout size={12} color="#22c55e" />}
+          {reflectionQuality.emoji === 'PenLine' && <PenLine size={12} color="#22c55e" />}
+
+          <Text className="text-[13px] font-medium text-green-500">
+            {reflectionQuality.label}
           </Text>
         </Animated.View>
       )}
@@ -205,11 +211,17 @@ export function ContextualReflectionInput({
       {!!contextualPrompt && (
         <Animated.View
           entering={FadeIn.duration(300)}
-          className="py-2 px-3 rounded-xl bg-purple-500/10"
+          className="py-2 px-3 rounded-xl bg-purple-500/10 flex-row items-center gap-2 self-start"
         >
           <Text className="text-[15px] font-medium leading-[22px]" style={{ color: colors.foreground }}>
-            {contextualPrompt}
+            {contextualPrompt.text}
           </Text>
+          {contextualPrompt.icon === 'Star' && <Star size={14} color={colors.primary} />}
+          {contextualPrompt.icon === 'Laugh' && <Laugh size={14} color={colors.primary} />}
+          {contextualPrompt.icon === 'MessageCircle' && <MessageCircle size={14} color={colors.primary} />}
+          {contextualPrompt.icon === 'Moon' && <Moon size={14} color={colors.primary} />}
+          {contextualPrompt.icon === 'HeartHandshake' && <HeartHandshake size={14} color={colors.primary} />}
+          {contextualPrompt.icon === 'Coffee' && <Coffee size={14} color={colors.primary} />}
         </Animated.View>
       )}
 

@@ -79,4 +79,69 @@ export default class Friend extends Model {
   @text('contact_id') contactId?: string // Device contact ID for re-sync
   @text('preferred_messaging_app') preferredMessagingApp?: 'whatsapp' | 'telegram' | 'sms' | 'email'
 
+  // v53: Journal intelligence feedback
+  @text('detected_themes_raw') detectedThemesRaw?: string
+  @field('last_journal_sentiment') lastJournalSentiment?: number // -2 to +2
+  @field('journal_mention_count') journalMentionCount?: number
+  @field('reflection_activity_score') reflectionActivityScore?: number
+  @field('needs_attention') needsAttention?: boolean
+
+  // v53: Communication patterns (for triage)
+  @field('avg_weave_duration_minutes') avgWeaveDurationMinutes?: number
+  @text('preferred_weave_types_raw') preferredWeaveTypesRaw?: string
+  @text('best_time_of_day') bestTimeOfDay?: 'morning' | 'afternoon' | 'evening'
+  @field('best_day_of_week') bestDayOfWeek?: number // 0-6
+
+  // v53: Topic evolution
+  @text('topic_clusters_raw') topicClustersRaw?: string
+  @text('topic_trend') topicTrend?: 'deepening' | 'stable' | 'surface'
+
+  // v53: Reconnection tracking
+  @field('reconnection_attempts') reconnectionAttempts?: number
+  @field('successful_reconnections') successfulReconnections?: number
+  @field('last_reconnection_date') lastReconnectionDate?: number
+
+  /** Get detected themes as array */
+  get detectedThemes(): string[] {
+    if (!this.detectedThemesRaw) return []
+    try {
+      return JSON.parse(this.detectedThemesRaw)
+    } catch {
+      return []
+    }
+  }
+
+  /** Get preferred weave types as array */
+  get preferredWeaveTypes(): string[] {
+    if (!this.preferredWeaveTypesRaw) return []
+    try {
+      return JSON.parse(this.preferredWeaveTypesRaw)
+    } catch {
+      return []
+    }
+  }
+
+  /** Get topic clusters as record */
+  get topicClusters(): Record<string, number> {
+    if (!this.topicClustersRaw) return {}
+    try {
+      return JSON.parse(this.topicClustersRaw)
+    } catch {
+      return {}
+    }
+  }
+
+  /** Check if friend has concerning journal sentiment */
+  get hasConcerningSentiment(): boolean {
+    return this.lastJournalSentiment !== undefined && this.lastJournalSentiment <= -1
+  }
+
+  /** Calculate reconnection success rate */
+  get reconnectionSuccessRate(): number {
+    const attempts = this.reconnectionAttempts ?? 0
+    const successes = this.successfulReconnections ?? 0
+    if (attempts === 0) return 0
+    return successes / attempts
+  }
+
 }

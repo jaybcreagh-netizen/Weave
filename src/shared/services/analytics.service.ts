@@ -89,6 +89,18 @@ export const AnalyticsEvents = {
   FRIEND_LINK_SENT: 'friend_link_sent',
   FRIEND_LINK_ACCEPTED: 'friend_link_accepted',
   FRIEND_LINK_DECLINED: 'friend_link_declined',
+
+  // Oracle
+  ORACLE_QUESTION_ASKED: 'oracle_question_asked',
+  ORACLE_RESPONSE_RECEIVED: 'oracle_response_received',
+  ORACLE_ACTION_SUGGESTED: 'oracle_action_suggested',
+  ORACLE_ACTION_TAKEN: 'oracle_action_taken',
+
+  // Guided Reflection
+  GUIDED_REFLECTION_STARTED: 'guided_reflection_started',
+  GUIDED_REFLECTION_COMPLETED: 'guided_reflection_completed',
+  GUIDED_REFLECTION_ESCAPED: 'guided_reflection_escaped',
+  GUIDED_REFLECTION_DRAFT_EDITED: 'guided_reflection_draft_edited',
 } as const;
 
 export type AnalyticsEvent = typeof AnalyticsEvents[keyof typeof AnalyticsEvents];

@@ -19,6 +19,11 @@ import {
     declineLinkRequest,
     LinkRequest
 } from '@/modules/relationships/services/friend-linking.service';
+import {
+    findBestMatch,
+    MatchCandidate,
+} from '@/modules/relationships/services/friend-matching.service';
+import { LinkMatchConfirmModal } from './LinkMatchConfirmModal';
 
 interface PendingRequestsSheetProps {
     visible: boolean;
@@ -35,6 +40,12 @@ export function PendingRequestsSheet({
     const [requests, setRequests] = useState<LinkRequest[]>([]);
     const [loading, setLoading] = useState(true);
     const [processingId, setProcessingId] = useState<string | null>(null);
+
+    // Match confirmation modal state
+    const [matchModalVisible, setMatchModalVisible] = useState(false);
+    const [pendingRequest, setPendingRequest] = useState<LinkRequest | null>(null);
+    const [foundMatch, setFoundMatch] = useState<MatchCandidate | null>(null);
+    const [selectedTier, setSelectedTier] = useState<'InnerCircle' | 'CloseFriends' | 'Community'>('Community');
 
     // Load requests when sheet opens
     useEffect(() => {
@@ -55,16 +66,22 @@ export function PendingRequestsSheet({
 
         const processAccept = async (tier: 'InnerCircle' | 'CloseFriends' | 'Community') => {
             setProcessingId(request.id);
-            const success = await acceptLinkRequest(request.id, undefined, tier);
 
-            if (success) {
-                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                setRequests(prev => prev.filter(r => r.id !== request.id));
-                onRequestHandled?.();
-            } else {
-                Alert.alert('Error', 'Failed to accept request. Please try again.');
+            // Check for potential matching existing friends
+            const match = await findBestMatch(request.displayName);
+
+            if (match) {
+                // Found a potential match - show confirmation modal
+                setPendingRequest(request);
+                setFoundMatch(match);
+                setSelectedTier(tier);
+                setMatchModalVisible(true);
+                setProcessingId(null);
+                return;
             }
-            setProcessingId(null);
+
+            // No match found - proceed with creating new friend
+            await completeAcceptRequest(request.id, undefined, tier);
         };
 
         Alert.alert(
@@ -77,6 +94,42 @@ export function PendingRequestsSheet({
                 { text: 'Inner Circle', onPress: () => processAccept('InnerCircle') },
             ]
         );
+    };
+
+    const completeAcceptRequest = async (
+        requestId: string,
+        localFriendId: string | undefined,
+        tier: 'InnerCircle' | 'CloseFriends' | 'Community'
+    ) => {
+        setProcessingId(requestId);
+        const success = await acceptLinkRequest(requestId, localFriendId, tier);
+
+        if (success) {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            setRequests(prev => prev.filter(r => r.id !== requestId));
+            onRequestHandled?.();
+        } else {
+            Alert.alert('Error', 'Failed to accept request. Please try again.');
+        }
+        setProcessingId(null);
+    };
+
+    const handleConfirmMatch = (friendId: string) => {
+        if (pendingRequest) {
+            setMatchModalVisible(false);
+            completeAcceptRequest(pendingRequest.id, friendId, selectedTier);
+        }
+        setPendingRequest(null);
+        setFoundMatch(null);
+    };
+
+    const handleCreateNewFriend = () => {
+        if (pendingRequest) {
+            setMatchModalVisible(false);
+            completeAcceptRequest(pendingRequest.id, undefined, selectedTier);
+        }
+        setPendingRequest(null);
+        setFoundMatch(null);
     };
 
     const handleDecline = async (request: LinkRequest) => {
@@ -171,36 +224,61 @@ export function PendingRequestsSheet({
     };
 
     return (
-        <StandardBottomSheet
-            visible={visible}
-            onClose={onClose}
-            title="Link Requests"
-            height="form"
-        >
-            <View className="flex-1 px-4">
-                {loading ? (
-                    <View className="flex-1 items-center justify-center">
-                        <ActivityIndicator size="large" color={colors.primary} />
-                    </View>
-                ) : requests.length > 0 ? (
-                    <FlatList
-                        data={requests}
-                        keyExtractor={item => item.id}
-                        renderItem={renderRequestItem}
-                        showsVerticalScrollIndicator={false}
+        <>
+            <StandardBottomSheet
+                visible={visible}
+                onClose={onClose}
+                title="Link Requests"
+                height="form"
+            >
+                <View className="flex-1 px-4">
+                    {loading ? (
+                        <View className="flex-1 items-center justify-center">
+                            <ActivityIndicator size="large" color={colors.primary} />
+                        </View>
+                    ) : requests.length > 0 ? (
+                        <FlatList
+                            data={requests}
+                            keyExtractor={item => item.id}
+                            renderItem={renderRequestItem}
+                            showsVerticalScrollIndicator={false}
+                        />
+                    ) : (
+                        <View className="flex-1 items-center justify-center">
+                            <UserPlus size={48} color={colors['muted-foreground']} />
+                            <Text className="text-center mt-4 text-lg font-medium" style={{ color: colors.foreground }}>
+                                No pending requests
+                            </Text>
+                            <Text className="text-center text-sm mt-2" style={{ color: colors['muted-foreground'] }}>
+                                When someone sends you a link request, it will appear here
+                            </Text>
+                        </View>
+                    )}
+                </View>
+            </StandardBottomSheet>
+
+            {/* Match Confirmation Modal */}
+            {
+                pendingRequest && foundMatch && (
+                    <LinkMatchConfirmModal
+                        visible={matchModalVisible}
+                        onClose={() => {
+                            setMatchModalVisible(false);
+                            setPendingRequest(null);
+                            setFoundMatch(null);
+                        }}
+                        incomingRequest={{
+                            displayName: pendingRequest.displayName,
+                            username: pendingRequest.username,
+                            photoUrl: pendingRequest.photoUrl,
+                        }}
+                        match={foundMatch}
+                        onConfirmLink={handleConfirmMatch}
+                        onCreateNew={handleCreateNewFriend}
+                        isLoading={processingId === pendingRequest.id}
                     />
-                ) : (
-                    <View className="flex-1 items-center justify-center">
-                        <UserPlus size={48} color={colors['muted-foreground']} />
-                        <Text className="text-center mt-4 text-lg font-medium" style={{ color: colors.foreground }}>
-                            No pending requests
-                        </Text>
-                        <Text className="text-center text-sm mt-2" style={{ color: colors['muted-foreground'] }}>
-                            When someone sends you a link request, it will appear here
-                        </Text>
-                    </View>
-                )}
-            </View>
-        </StandardBottomSheet>
+                )
+            }
+        </>
     );
 }

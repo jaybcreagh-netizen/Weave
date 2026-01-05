@@ -63,7 +63,11 @@ import {
   generateJournalPrompts,
   JournalPrompt,
   PromptContext,
+  useSmartPrompt,
+  journalIntelligenceService,
 } from '@/modules/journal';
+
+import { useUserProfile } from '@/modules/auth/hooks/useUserProfile';
 
 // ============================================================================
 // TYPES
@@ -106,6 +110,7 @@ export function GuidedReflectionModal({
   prefilledWeaveId,
 }: GuidedReflectionModalProps) {
   const { colors } = useTheme();
+  const { profile } = useUserProfile();
 
   // Navigation
   const [step, setStep] = useState<Step>('context');
@@ -385,6 +390,13 @@ export function GuidedReflectionModal({
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
       if (savedEntry) {
+        // ORACLE INTELLIGENCE: Process entry for signals (async/fire-and-forget)
+        // Check if journal analysis is enabled on the profile
+        const aiEnabled = profile?.isJournalAnalysisEnabled ?? false;
+        journalIntelligenceService.processEntry(savedEntry, aiEnabled).catch(err => {
+          console.error('[GuidedReflection] Failed to queue intelligence processing:', err);
+        });
+
         onSave({
           id: savedEntry.id,
           content: savedEntry.content,

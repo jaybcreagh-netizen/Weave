@@ -61,8 +61,10 @@ export function QuickWeaveProvider({ children }: { children: React.ReactNode }) 
         <MicroReflectionSheet
           isVisible={!!microReflectionData}
           friendName={microReflectionData.friendName}
+          friendId={microReflectionData.friendId}
           activityLabel={microReflectionData.activityLabel}
           activityId={microReflectionData.activityId}
+          interactionId={microReflectionData.interactionId}
           friendArchetype={microReflectionData.friendArchetype}
           onSave={handleSave}
           onSkip={hideMicroReflectionSheet}

@@ -5,9 +5,10 @@ import { StandardBottomSheet } from '@/shared/ui/Sheet/StandardBottomSheet';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { AutoBackupService } from '../AutoBackupService';
 import { getImportPreview, importData } from '@/modules/auth';
-import { Clock, CloudDownload, FileText, AlertCircle, Share2 } from 'lucide-react-native';
+import { Clock, CloudDownload, FileText, AlertCircle, Share2, FolderOpen } from 'lucide-react-native';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system';
+import * as DocumentPicker from 'expo-document-picker';
 
 interface BackupItem {
     filename: string;
@@ -193,6 +194,85 @@ export const BackupListSheet: React.FC<BackupListSheetProps> = ({
         }
     };
 
+    const handleImportFromFile = async () => {
+        if (isRestoring) return;
+
+        try {
+            const result = await DocumentPicker.getDocumentAsync({
+                type: 'application/json',
+                copyToCacheDirectory: true,
+            });
+
+            if (result.canceled) return;
+
+            const fileUri = result.assets[0].uri;
+            const fileContent = await FileSystem.readAsStringAsync(fileUri);
+
+            setIsRestoring(true);
+
+            const preview = getImportPreview(fileContent);
+
+            if (!preview.valid) {
+                Alert.alert('Invalid File', preview.error || 'The selected file is not a valid Weave backup.');
+                setIsRestoring(false);
+                return;
+            }
+
+            Alert.alert(
+                'Restore from File',
+                `Restore from backup?\n\n` +
+                `Backup Date: ${new Date(preview.preview!.exportDate).toLocaleDateString()}\n` +
+                `Friends: ${preview.preview!.totalFriends}\n` +
+                `Interactions: ${preview.preview!.totalInteractions}\n\n` +
+                `⚠️ This will DELETE all current data and replace it with this backup.`,
+                [
+                    {
+                        text: 'Cancel',
+                        style: 'cancel',
+                        onPress: () => setIsRestoring(false),
+                    },
+                    {
+                        text: 'Restore',
+                        style: 'destructive',
+                        onPress: async () => {
+                            try {
+                                const importResult = await importData(fileContent, true);
+
+                                if (importResult.success) {
+                                    Alert.alert(
+                                        'Restore Complete',
+                                        `Successfully restored ${importResult.friendsImported} friends.`,
+                                        [{
+                                            text: 'OK',
+                                            onPress: () => {
+                                                onClose();
+                                                onRestoreComplete();
+                                            },
+                                        }]
+                                    );
+                                } else {
+                                    Alert.alert(
+                                        'Restore Failed',
+                                        `Errors:\n${importResult.errors.join('\n')}`
+                                    );
+                                }
+                            } catch (err) {
+                                console.error('Import failed:', err);
+                                Alert.alert('Restore Failed', 'An error occurred while restoring the backup.');
+                            } finally {
+                                setIsRestoring(false);
+                            }
+                        },
+                    },
+                ]
+            );
+        } catch (err) {
+            setIsRestoring(false);
+            console.error('Failed to read file:', err);
+            Alert.alert('Error', 'Failed to read the selected file.');
+        }
+    };
+
     const renderContent = () => {
         if (isLoading) {
             return (
@@ -228,10 +308,10 @@ export const BackupListSheet: React.FC<BackupListSheetProps> = ({
                 <View className="items-center justify-center py-12 px-4">
                     <CloudDownload size={48} color={colors['muted-foreground']} />
                     <Text className="mt-4 text-center font-inter-medium" style={{ color: colors.foreground }}>
-                        No Backups Found
+                        No iCloud Backups Found
                     </Text>
                     <Text className="mt-2 text-center text-sm" style={{ color: colors['muted-foreground'] }}>
-                        Enable Auto-Backup to iCloud to create automatic backups of your data.
+                        Enable Auto-Backup to create automatic backups, or import from a file below.
                     </Text>
                 </View>
             );
@@ -298,15 +378,33 @@ export const BackupListSheet: React.FC<BackupListSheetProps> = ({
         <StandardBottomSheet
             visible={isOpen}
             onClose={onClose}
-            title="Restore from iCloud"
+            title="Restore Backup"
             scrollable
             height="form"
         >
             <View className="px-4 pb-8">
                 <Text className="text-sm text-center mb-4" style={{ color: colors['muted-foreground'] }}>
-                    Select a backup to restore
+                    Select an iCloud backup to restore
                 </Text>
                 {renderContent()}
+
+                {/* Separator and Import from File option */}
+                <View className="mt-6 pt-4" style={{ borderTopWidth: 1, borderTopColor: colors.border }}>
+                    <TouchableOpacity
+                        onPress={handleImportFromFile}
+                        disabled={isRestoring}
+                        className="flex-row items-center justify-center gap-2 py-3 rounded-lg"
+                        style={{ backgroundColor: colors.muted, opacity: isRestoring ? 0.5 : 1 }}
+                    >
+                        <FolderOpen size={18} color={colors['muted-foreground']} />
+                        <Text className="text-sm font-inter-medium" style={{ color: colors['muted-foreground'] }}>
+                            Import from Files
+                        </Text>
+                    </TouchableOpacity>
+                    <Text className="text-xs text-center mt-2" style={{ color: colors['muted-foreground'] }}>
+                        Restore from a backup file saved elsewhere
+                    </Text>
+                </View>
             </View>
         </StandardBottomSheet>
     );

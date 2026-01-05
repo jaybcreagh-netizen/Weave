@@ -24,6 +24,8 @@ export default function JournalScreen() {
         openEntryType?: string;
         prefilledText?: string;
         prefilledFriendIds?: string;
+        initialTab?: string;
+        context?: string; // Oracle context: 'insights' | 'circle' | etc.
     }>();
 
     const [showQuickCapture, setShowQuickCapture] = useState(false);
@@ -109,6 +111,7 @@ export default function JournalScreen() {
                 />
             ) : (
                 <JournalHome
+                    initialTab={params.initialTab as any}
                     onClose={() => {
                         if (router.canGoBack()) {
                             router.back();

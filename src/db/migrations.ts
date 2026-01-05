@@ -1104,5 +1104,167 @@ export default schemaMigrations({
         }),
       ],
     },
+    {
+      // Migration from schema v52 to v53
+      // Oracle AI Infrastructure for Journal & Social Oracle
+      toVersion: 53,
+      steps: [
+        // Create oracle_context_cache table
+        createTable({
+          name: 'oracle_context_cache',
+          columns: [
+            { name: 'context_type', type: 'string' },
+            { name: 'friend_id', type: 'string', isOptional: true, isIndexed: true },
+            { name: 'payload_json', type: 'string' },
+            { name: 'tokens_estimate', type: 'number' },
+            { name: 'valid_until', type: 'number', isIndexed: true },
+            { name: 'created_at', type: 'number' },
+          ],
+        }),
+        // Create journal_signals table
+        createTable({
+          name: 'journal_signals',
+          columns: [
+            { name: 'journal_entry_id', type: 'string', isIndexed: true },
+            { name: 'sentiment', type: 'number' },
+            { name: 'sentiment_label', type: 'string' },
+            { name: 'core_themes_json', type: 'string' },
+            { name: 'emergent_themes_json', type: 'string' },
+            { name: 'dynamics_json', type: 'string' },
+            { name: 'confidence', type: 'number' },
+            { name: 'extracted_at', type: 'number' },
+            { name: 'extractor_version', type: 'string' },
+          ],
+        }),
+        // Create oracle_consultations table
+        createTable({
+          name: 'oracle_consultations',
+          columns: [
+            { name: 'question', type: 'string' },
+            { name: 'response', type: 'string' },
+            { name: 'grounding_data_json', type: 'string' },
+            { name: 'context_tier_used', type: 'string' },
+            { name: 'tokens_used', type: 'number' },
+            { name: 'turn_count', type: 'number' },
+            { name: 'saved_to_journal', type: 'boolean' },
+            { name: 'journal_entry_id', type: 'string', isOptional: true },
+            { name: 'created_at', type: 'number', isIndexed: true },
+          ],
+        }),
+        // Create conversation_threads table
+        createTable({
+          name: 'conversation_threads',
+          columns: [
+            { name: 'friend_id', type: 'string', isIndexed: true },
+            { name: 'topic', type: 'string' },
+            { name: 'first_mentioned', type: 'number' },
+            { name: 'last_mentioned', type: 'number', isIndexed: true },
+            { name: 'mention_count', type: 'number' },
+            { name: 'status', type: 'string' },
+            { name: 'sentiment', type: 'string' },
+            { name: 'source_entry_ids_raw', type: 'string' },
+          ],
+        }),
+        // Create llm_quality_log table
+        createTable({
+          name: 'llm_quality_log',
+          columns: [
+            { name: 'prompt_id', type: 'string', isIndexed: true },
+            { name: 'prompt_version', type: 'string' },
+            { name: 'input_hash', type: 'string' },
+            { name: 'output_hash', type: 'string' },
+            { name: 'latency_ms', type: 'number' },
+            { name: 'tokens_used', type: 'number' },
+            { name: 'error_type', type: 'string', isOptional: true },
+            { name: 'user_feedback', type: 'string', isOptional: true },
+            { name: 'created_at', type: 'number', isIndexed: true },
+          ],
+        }),
+        // Add intelligence fields to friends table
+        addColumns({
+          table: 'friends',
+          columns: [
+            // Journal intelligence feedback
+            { name: 'detected_themes_raw', type: 'string', isOptional: true },
+            { name: 'last_journal_sentiment', type: 'number', isOptional: true },
+            { name: 'journal_mention_count', type: 'number', isOptional: true },
+            { name: 'reflection_activity_score', type: 'number', isOptional: true },
+            { name: 'needs_attention', type: 'boolean', isOptional: true },
+            // Communication patterns (for triage)
+            { name: 'avg_weave_duration_minutes', type: 'number', isOptional: true },
+            { name: 'preferred_weave_types_raw', type: 'string', isOptional: true },
+            { name: 'best_time_of_day', type: 'string', isOptional: true },
+            { name: 'best_day_of_week', type: 'number', isOptional: true },
+            // Topic evolution
+            { name: 'topic_clusters_raw', type: 'string', isOptional: true },
+            { name: 'topic_trend', type: 'string', isOptional: true },
+            // Reconnection tracking
+            { name: 'reconnection_attempts', type: 'number', isOptional: true },
+            { name: 'successful_reconnections', type: 'number', isOptional: true },
+            { name: 'last_reconnection_date', type: 'number', isOptional: true },
+          ],
+        }),
+        // Add AI privacy settings to user_profile
+        addColumns({
+          table: 'user_profile',
+          columns: [
+            { name: 'ai_features_enabled', type: 'boolean', isOptional: true },
+            { name: 'ai_journal_analysis_enabled', type: 'boolean', isOptional: true },
+            { name: 'ai_oracle_enabled', type: 'boolean', isOptional: true },
+            { name: 'ai_disclosure_acknowledged_at', type: 'number', isOptional: true },
+          ],
+        }),
+      ],
+    },
+    {
+      // Migration from schema v53 to v54
+      // Proactive Insights Settings
+      toVersion: 54,
+      steps: [
+        addColumns({
+          table: 'user_profile',
+          columns: [
+            { name: 'proactive_insights_enabled', type: 'boolean', isOptional: true },
+            { name: 'suppressed_insight_rules', type: 'string', isOptional: true },
+            { name: 'milestones_enabled', type: 'boolean', isOptional: true },
+          ],
+        }),
+        createTable({
+          name: 'proactive_insights',
+          columns: [
+            { name: 'rule_id', type: 'string', isIndexed: true },
+            { name: 'type', type: 'string' },
+            { name: 'friend_id', type: 'string', isOptional: true, isIndexed: true },
+            { name: 'headline', type: 'string' },
+            { name: 'body', type: 'string' },
+            { name: 'grounding_data_json', type: 'string' },
+            { name: 'action_type', type: 'string' },
+            { name: 'action_params_json', type: 'string' },
+            { name: 'action_label', type: 'string' },
+            { name: 'severity', type: 'number', isOptional: true },
+            { name: 'generated_at', type: 'number', isIndexed: true },
+            { name: 'expires_at', type: 'number', isIndexed: true },
+            { name: 'status', type: 'string', isIndexed: true },
+            { name: 'feedback', type: 'string', isOptional: true },
+            { name: 'status_changed_at', type: 'number', isOptional: true },
+            { name: 'created_at', type: 'number' },
+            { name: 'updated_at', type: 'number' },
+          ],
+        }),
+        createTable({
+          name: 'milestone_records',
+          columns: [
+            { name: 'friend_id', type: 'string', isOptional: true, isIndexed: true },
+            { name: 'milestone_type', type: 'string', isIndexed: true },
+            { name: 'scope', type: 'string' },
+            { name: 'threshold', type: 'number' },
+            { name: 'achieved_at', type: 'number' },
+            { name: 'year', type: 'number', isOptional: true },
+            { name: 'created_at', type: 'number' },
+            { name: 'updated_at', type: 'number' },
+          ],
+        }),
+      ],
+    },
   ],
 });

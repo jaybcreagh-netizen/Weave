@@ -1,25 +1,38 @@
 import React, { useEffect } from 'react';
-import { TouchableOpacity, StyleSheet } from 'react-native';
+import { TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming, Easing } from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { WeaveIcon } from '@/shared/components/WeaveIcon';
+import { usePausableAnimation } from '@/shared/hooks/usePausableAnimation';
+import { Text } from '@/shared/ui';
 
 interface NudgesFABProps {
   isVisible: boolean;
   hasSuggestions: boolean;
   hasCritical: boolean;
   onClick: () => void;
+  /** Count of pending activity (link requests + shared weaves) */
+  pendingActivityCount?: number;
 }
 
-export function NudgesFAB({ isVisible, hasSuggestions, hasCritical, onClick }: NudgesFABProps) {
+import { useOracleSheet } from '@/modules/oracle/hooks/useOracleSheet';
+
+export function NudgesFAB({ isVisible, hasSuggestions, hasCritical, onClick, pendingActivityCount = 0 }: NudgesFABProps) {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const { colors, isDarkMode } = useTheme();
   const pulseScale = useSharedValue(1);
+  const { open } = useOracleSheet();
 
-  // Gentle pulse animation
+  // Pause animation when app is sleeping (backgrounded or idle) to save battery
+  const { isSleeping } = usePausableAnimation(pulseScale);
+
+  // Gentle pulse animation - pauses when app is sleeping
   useEffect(() => {
-    if (hasSuggestions) {
+    if ((hasSuggestions || pendingActivityCount > 0) && !isSleeping) {
       pulseScale.value = withRepeat(
         withTiming(1.08, { duration: 2000, easing: Easing.inOut(Easing.ease) }),
         -1,
@@ -28,7 +41,7 @@ export function NudgesFAB({ isVisible, hasSuggestions, hasCritical, onClick }: N
     } else {
       pulseScale.value = withTiming(1, { duration: 200 });
     }
-  }, [hasSuggestions]);
+  }, [hasSuggestions, pendingActivityCount, isSleeping]);
 
   const iconStyle = useAnimatedStyle(() => ({
     transform: [{ scale: pulseScale.value }],
@@ -38,7 +51,11 @@ export function NudgesFAB({ isVisible, hasSuggestions, hasCritical, onClick }: N
 
   return (
     <TouchableOpacity
-      onPress={onClick}
+      onPress={() => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        // Open Oracle with circle context (shows nudges)
+        open({ context: 'circle' });
+      }}
       style={{
         position: 'absolute',
         left: 20,
@@ -60,7 +77,34 @@ export function NudgesFAB({ isVisible, hasSuggestions, hasCritical, onClick }: N
       <Animated.View style={iconStyle}>
         <WeaveIcon size={24} color={colors.foreground} />
       </Animated.View>
+
+      {/* Activity Badge */}
+      {pendingActivityCount > 0 && (
+        <View
+          style={{
+            position: 'absolute',
+            top: -2,
+            right: -2,
+            minWidth: 18,
+            height: 18,
+            borderRadius: 9,
+            backgroundColor: colors.destructive,
+            alignItems: 'center',
+            justifyContent: 'center',
+            paddingHorizontal: 4,
+          }}
+        >
+          <Text
+            style={{
+              color: '#fff',
+              fontSize: 10,
+              fontWeight: '700',
+            }}
+          >
+            {pendingActivityCount > 9 ? '9+' : pendingActivityCount}
+          </Text>
+        </View>
+      )}
     </TouchableOpacity>
   );
 }
-

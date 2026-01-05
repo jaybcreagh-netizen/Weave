@@ -11,6 +11,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { View, TouchableOpacity, Keyboard } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WeaveLoading } from '@/shared/components/WeaveLoading';
 import { ChevronLeft } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
@@ -43,6 +44,8 @@ import { ScannedEvent } from '@/modules/interactions/services/event-scanner';
 import * as Haptics from 'expo-haptics';
 import { WeeklyReflectionChannel } from '@/modules/notifications/services/channels/weekly-reflection';
 import { logger } from '@/shared/services/logger.service';
+import ProactiveInsight from '@/db/models/ProactiveInsight'; // Default import
+import { Q } from '@nozbe/watermelondb'; // Query
 
 // ============================================================================
 // TYPES
@@ -112,6 +115,7 @@ function buildPromptEngineInput(summary: ExtendedWeeklySummary): PromptEngineInp
 
 export function WeeklyReflectionModal({ isOpen, onClose }: WeeklyReflectionModalProps) {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
 
   // State
   const [currentStep, setCurrentStep] = useState<Step>('prompt');
@@ -122,6 +126,7 @@ export function WeeklyReflectionModal({ isOpen, onClose }: WeeklyReflectionModal
   const [reflectionData, setReflectionData] = useState<ReflectionData>({ text: '', chipIds: [] });
   const [hasUnloggedEvents, setHasUnloggedEvents] = useState(false);
   const [selectedEvents, setSelectedEvents] = useState<ScannedEvent[]>([]);
+  const [activeInsights, setActiveInsights] = useState<ProactiveInsight[]>([]); // New state
 
   // Load data when modal opens
   useEffect(() => {
@@ -154,6 +159,19 @@ export function WeeklyReflectionModal({ isOpen, onClose }: WeeklyReflectionModal
       const eventReview = await scanWeekForUnloggedEvents();
 
       setHasUnloggedEvents(eventReview.events.length > 0);
+
+      // Fetch active proactive insights (unread/active)
+      // We want to surface high-priority ones (e.g. drift) as context
+      const insights = await database
+        .get<ProactiveInsight>('proactive_insights')
+        .query(
+          Q.where('status', 'active'),
+          Q.sortBy('created_at', Q.desc),
+          Q.take(3)
+        )
+        .fetch();
+
+      setActiveInsights(insights);
 
     } catch (error) {
       logger.error('WeeklyReflection', 'Error loading data:', error);
@@ -325,7 +343,7 @@ export function WeeklyReflectionModal({ isOpen, onClose }: WeeklyReflectionModal
       </View>
 
       {/* Content */}
-      <View className="flex-1 px-5 py-2">
+      <View className="flex-1 px-5 py-2" style={{ paddingBottom: Math.max(insets.bottom, 16) }}>
         {isLoading ? (
           <View className="flex-1 items-center justify-center">
             <WeaveLoading size={48} />
@@ -339,6 +357,8 @@ export function WeeklyReflectionModal({ isOpen, onClose }: WeeklyReflectionModal
               <View className="flex-1">
                 <ReflectionPromptStep
                   prompt={prompt}
+                  promptEngineInput={buildPromptEngineInput(summary)} // Pass input for context
+                  insights={activeInsights} // Pass insights
                   onNext={handlePromptNext}
                 />
               </View>

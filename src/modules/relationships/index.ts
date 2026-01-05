@@ -65,6 +65,13 @@ export { LifeEventsSection } from './components/profile/LifeEventsSection';
 export { TimelineList } from './components/profile/TimelineList';
 export { FriendProfileModals } from './components/profile/FriendProfileModals';
 export { IntentionsFAB } from './components/IntentionsFAB';
+export { LinkMatchConfirmModal } from './components/LinkMatchConfirmModal';
+// Friend Matching
+export {
+  findPotentialMatches,
+  findBestMatch,
+  type MatchCandidate,
+} from './services/friend-matching.service';
 // Screens
 export { FriendsDashboardScreen } from './screens/FriendsDashboardScreen';
 

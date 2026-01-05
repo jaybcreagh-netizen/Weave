@@ -9,24 +9,31 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { View, TouchableOpacity, TouchableWithoutFeedback, TextInput, Keyboard } from 'react-native';
 import { BottomSheetTextInput } from '@gorhom/bottom-sheet';
-import { Edit3, Sparkles } from 'lucide-react-native';
+import { Sparkles, Edit3, Lightbulb } from 'lucide-react-native'; // Added Lightbulb
 import { useTheme } from '@/shared/hooks/useTheme';
 import { Text } from '@/shared/ui/Text';
 import { Button } from '@/shared/ui/Button';
+import { OracleInsightCard } from '@/modules/oracle/components/OracleInsightCard'; // Import OracleInsightCard
+import ProactiveInsight from '@/db/models/ProactiveInsight'; // Import Model
 import {
   ReflectionPrompt,
   detectChipsFromText,
   DetectedChip,
+  PromptEngineInput, // Import
 } from '../../services/prompt-engine';
+import { ReflectionAssistant } from '@/modules/journal/services/reflection-assistant.service'; // Fix import path
 import { STORY_CHIPS } from '../../services/story-chips.service';
 import * as Haptics from 'expo-haptics';
+import { ActivityIndicator } from 'react-native'; // Import ActivityIndicator
 
 interface ReflectionPromptStepProps {
   prompt: ReflectionPrompt;
+  promptEngineInput?: PromptEngineInput; // Make optional to support legacy usage
+  insights?: ProactiveInsight[];
   onNext: (text: string, selectedChipIds: string[]) => void;
 }
 
-export function ReflectionPromptStep({ prompt, onNext }: ReflectionPromptStepProps) {
+export function ReflectionPromptStep({ prompt, promptEngineInput, insights = [], onNext }: ReflectionPromptStepProps) {
   const { colors } = useTheme();
   // Using any for ref because BottomSheetTextInput type definition is complex and doesn't match standard TextInput exactly in this context
   const inputRef = useRef<any>(null);
@@ -35,6 +42,30 @@ export function ReflectionPromptStep({ prompt, onNext }: ReflectionPromptStepPro
   const [selectedChipIds, setSelectedChipIds] = useState<Set<string>>(new Set());
   const [detectedChips, setDetectedChips] = useState<DetectedChip[]>([]);
   const [showChips, setShowChips] = useState(false);
+  const [isDrafting, setIsDrafting] = useState(false); // State for AI drafting
+
+  // Filter insights to show only relevant ones (e.g. drift)
+  const displayInsight = useMemo(() => {
+    if (!insights || insights.length === 0) return null;
+    return insights[0]; // Show the most recent high-priority insight
+  }, [insights]);
+
+  const handleHelpMeWrite = async () => {
+    if (!promptEngineInput) return;
+
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setIsDrafting(true);
+    try {
+      const draft = await ReflectionAssistant.generateDraft(promptEngineInput, prompt.question);
+      setText(draft);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (error) {
+      console.error('Failed to generate draft:', error);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } finally {
+      setIsDrafting(false);
+    }
+  };
 
   // Detect chips from text with debounce
   useEffect(() => {
@@ -105,11 +136,36 @@ export function ReflectionPromptStep({ prompt, onNext }: ReflectionPromptStepPro
             </View>
           </View>
 
+          {/* Insight Card (Context) */}
+          {displayInsight && (
+            <View className="mb-6 mx-4">
+              <OracleInsightCard insight={displayInsight} onDismiss={() => { }} onAction={() => { }} compact />
+            </View>
+          )}
+
           {/* Prompt Question */}
           <View>
-            <Text variant="h3" className="text-center leading-7 mb-8 px-4 font-lora-medium">
+            <Text variant="h3" className="text-center leading-7 mb-4 px-4 font-lora-medium">
               {prompt.question}
             </Text>
+
+            {/* Help Me Write Button */}
+            {promptEngineInput && !text && (
+              <TouchableOpacity
+                onPress={handleHelpMeWrite}
+                disabled={isDrafting}
+                className="self-center flex-row items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 mb-6"
+              >
+                {isDrafting ? (
+                  <ActivityIndicator size="small" color={colors.primary} />
+                ) : (
+                  <Sparkles size={14} color={colors.primary} />
+                )}
+                <Text variant="caption" className="font-medium text-primary">
+                  {isDrafting ? 'Writing...' : 'Help me write'}
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
 
           {/* Text Input */}

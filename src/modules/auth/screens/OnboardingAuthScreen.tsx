@@ -108,7 +108,15 @@ export function OnboardingAuthScreen() {
                 handleSuccessNavigation();
             }
         } else {
-            Alert.alert('Error', result.error);
+            // Show context-aware error title based on error code
+            const title = result.errorCode === 'ALREADY_EXISTS' ? 'Account Exists'
+                : result.errorCode === 'WEAK_PASSWORD' ? 'Password Too Weak'
+                    : result.errorCode === 'WRONG_PASSWORD' ? 'Sign In Failed'
+                        : result.errorCode === 'INVALID_EMAIL' ? 'Invalid Email'
+                            : result.errorCode === 'EMAIL_NOT_CONFIRMED' ? 'Email Not Verified'
+                                : result.errorCode === 'RATE_LIMITED' ? 'Too Many Attempts'
+                                    : 'Error';
+            Alert.alert(title, result.error);
         }
     };
 

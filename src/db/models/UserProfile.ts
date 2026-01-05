@@ -72,4 +72,29 @@ export default class UserProfile extends Model {
   @text('phone') phone?: string;
   @text('email') email?: string;
   @text('google_id') googleId?: string;
+
+  // v53: AI Privacy Settings
+  @field('ai_features_enabled') aiFeaturesEnabled?: boolean; // Master toggle
+  @field('ai_journal_analysis_enabled') aiJournalAnalysisEnabled?: boolean; // Journal signal extraction
+  @field('ai_oracle_enabled') aiOracleEnabled?: boolean; // Oracle consultations
+  @field('ai_disclosure_acknowledged_at') aiDisclosureAcknowledgedAt?: number; // When user read disclosure
+
+  /** Check if AI features are available (master toggle on + disclosure acknowledged) */
+  get isAIEnabled(): boolean {
+    return this.aiFeaturesEnabled === true && this.aiDisclosureAcknowledgedAt !== undefined;
+  }
+
+  /** Check if journal analysis specifically is enabled */
+  get isJournalAnalysisEnabled(): boolean {
+    return this.isAIEnabled && this.aiJournalAnalysisEnabled !== false;
+  }
+
+  /** Check if Oracle is enabled */
+  get isOracleEnabled(): boolean {
+    return this.isAIEnabled && this.aiOracleEnabled !== false;
+  }
+
+  // v54: Proactive Insights (Phase 7)
+  @field('proactive_insights_enabled') proactiveInsightsEnabled?: boolean;
+  @text('suppressed_insight_rules') suppressedInsightRules?: string; // JSON array of rule IDs
 }

@@ -103,6 +103,14 @@ export async function logWeave(data: InteractionFormData): Promise<Interaction> 
         initiator: data.initiator,
     });
     updateLastInteractionTimestamp();
+
+    // Trigger Oracle Insight Check (Non-blocking)
+    import('@/modules/journal').then(({ InsightGenerator }) => {
+        InsightGenerator.generateDailyInsights().catch(err => {
+            console.error('[logWeave] Error generating insights:', err);
+        });
+    });
+
     console.log(`[logWeave] COMPLETE at ${Date.now() - logStart}ms`);
 
     return interaction;

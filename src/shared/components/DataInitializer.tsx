@@ -17,7 +17,7 @@ import {
     Inter_600SemiBold,
 } from '@expo-google-fonts/inter';
 
-import { initializeDataMigrations, initializeAppSingletons } from '@/db';
+import { initializeDataMigrations, initializeAppSingletons, repairSchemaIfNeeded } from '@/db';
 import { LoadingScreen } from '@/shared/components/LoadingScreen';
 import { useDatabaseReady } from '@/shared/hooks/useDatabaseReady';
 import { useAppStateChange } from '@/shared/hooks/useAppState';
@@ -165,6 +165,12 @@ export function DataInitializer({ children }: DataInitializerProps) {
                     });
                 };
 
+                // 0. Schema repair: Add any missing columns from failed migrations
+                // This MUST run before ANY other database operations
+                const t0 = Date.now();
+                await repairSchemaIfNeeded();
+                console.log(`[Startup] Schema repair check: ${Date.now() - t0}ms`);
+
                 // CRITICAL WRITES: Run sequentially to prevent queue congestion
                 // 1. Data migrations must complete first (may have writes)
                 const t1 = Date.now();
@@ -178,11 +184,13 @@ export function DataInitializer({ children }: DataInitializerProps) {
 
                 // NON-CRITICAL: These are reads or non-blocking, can run in parallel
                 const t3 = Date.now();
+                const { llmConfigManager } = await import('@/shared/services/llm');
                 await Promise.all([
                     initializeAnalytics(),
-                    initializeFriendCache()
+                    initializeFriendCache(),
+                    llmConfigManager.initialize(), // Initialize LLM providers (supabase-proxy)
                 ]);
-                console.log(`[Startup] Analytics + Friend cache: ${Date.now() - t3}ms`);
+                console.log(`[Startup] Analytics + Friend cache + LLM: ${Date.now() - t3}ms`);
 
                 // Sync calendar changes on app launch (non-blocking)
                 import('@/modules/interactions').then(({ CalendarService }) => {
@@ -309,6 +317,15 @@ export function DataInitializer({ children }: DataInitializerProps) {
                     });
                 });
             }, 2000); // 2 second delay to free write queue for user actions
+
+            // Oracle Insights Generation (runs in background)
+            setTimeout(() => {
+                import('@/modules/journal').then(({ InsightGenerator }) => {
+                    InsightGenerator.generateDailyInsights().catch(err => {
+                        console.error('[App] Error generating daily insights:', err);
+                    });
+                });
+            }, 5000); // 5 second delay to ensure critical path is clear
         } else if (state === 'background') {
             trackEvent(AnalyticsEvents.APP_BACKGROUNDED);
         }

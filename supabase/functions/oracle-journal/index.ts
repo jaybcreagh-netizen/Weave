@@ -1,32 +1,129 @@
-// Follow this setup guide to integrate the Deno language server with your editor:
-// https://deno.land/manual/getting_started/setup_your_environment
-// This enables autocomplete, go to definition, etc.
+// Supabase Edge Function: Gemini API Proxy
+// Securely proxies LLM requests through Supabase, keeping API key server-side
 
-// Setup type definitions for built-in Supabase Runtime APIs
 import "jsr:@supabase/functions-js/edge-runtime.d.ts"
 
-console.log("Hello from Functions!")
+const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models'
+
+interface RequestBody {
+  system?: string
+  user: string
+  model?: string
+  temperature?: number
+  maxTokens?: number
+}
+
+interface GeminiResponse {
+  candidates?: Array<{
+    content: {
+      parts: Array<{ text: string }>
+    }
+    finishReason: string
+  }>
+  usageMetadata?: {
+    promptTokenCount: number
+    candidatesTokenCount: number
+    totalTokenCount: number
+  }
+  error?: {
+    message: string
+    code: number
+  }
+}
 
 Deno.serve(async (req) => {
-  const { name } = await req.json()
-  const data = {
-    message: `Hello ${name}!`,
+  // Handle CORS
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', {
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+      },
+    })
   }
 
-  return new Response(
-    JSON.stringify(data),
-    { headers: { "Content-Type": "application/json" } },
-  )
+  try {
+    // Get API key from environment (Supabase secret)
+    const apiKey = Deno.env.get('GEMINI_API_KEY')
+    if (!apiKey) {
+      return new Response(
+        JSON.stringify({ error: 'GEMINI_API_KEY not configured' }),
+        { status: 500, headers: { 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // Parse request body
+    const body: RequestBody = await req.json()
+    const { system, user, model = 'gemini-2.0-flash', temperature = 0.7, maxTokens = 1024 } = body
+
+    if (!user) {
+      return new Response(
+        JSON.stringify({ error: 'Missing required field: user' }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // Build Gemini request
+    const geminiRequest = {
+      contents: [
+        {
+          role: 'user',
+          parts: [{ text: user }]
+        }
+      ],
+      systemInstruction: system ? { parts: [{ text: system }] } : undefined,
+      generationConfig: {
+        temperature,
+        maxOutputTokens: maxTokens,
+      }
+    }
+
+    // Call Gemini API
+    const geminiUrl = `${GEMINI_API_URL}/${model}:generateContent?key=${apiKey}`
+    const geminiResponse = await fetch(geminiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(geminiRequest),
+    })
+
+    const geminiData: GeminiResponse = await geminiResponse.json()
+
+    // Handle Gemini errors
+    if (geminiData.error) {
+      console.error('Gemini API error:', geminiData.error)
+      return new Response(
+        JSON.stringify({ error: geminiData.error.message }),
+        { status: geminiResponse.status, headers: { 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // Extract response text
+    const text = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || ''
+    const usage = geminiData.usageMetadata
+
+    return new Response(
+      JSON.stringify({
+        text,
+        usage: usage ? {
+          promptTokens: usage.promptTokenCount,
+          completionTokens: usage.candidatesTokenCount,
+          totalTokens: usage.totalTokenCount,
+        } : undefined,
+        finishReason: geminiData.candidates?.[0]?.finishReason,
+      }),
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        },
+      }
+    )
+  } catch (error) {
+    console.error('Edge function error:', error)
+    return new Response(
+      JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
+      { status: 500, headers: { 'Content-Type': 'application/json' } }
+    )
+  }
 })
-
-/* To invoke locally:
-
-  1. Run `supabase start` (see: https://supabase.com/docs/reference/cli/supabase-start)
-  2. Make an HTTP request:
-
-  curl -i --location --request POST 'http://127.0.0.1:54321/functions/v1/oracle-journal' \
-    --header 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0' \
-    --header 'Content-Type: application/json' \
-    --data '{"name":"Functions"}'
-
-*/

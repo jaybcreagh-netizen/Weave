@@ -12,7 +12,7 @@
  * - User hasn't been prompted in last 3 weaves
  */
 
-import React, { useEffect, useCallback } from 'react';
+import React, { useEffect, useCallback, useState } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import Animated, {
   FadeIn,
@@ -25,12 +25,14 @@ import Animated, {
   withTiming,
   withDelay,
 } from 'react-native-reanimated';
-import { Sparkles, X, ChevronRight } from 'lucide-react-native';
+import { Sparkles, X, ChevronRight, MessageCircle, PenLine } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
 import InteractionModel from '@/db/models/Interaction';
 import FriendModel from '@/db/models/Friend';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { GuidedReflectionSheet } from './GuidedReflection';
+import { ReflectionContext } from '../services/oracle/types';
 
 // ============================================================================
 // TYPES
@@ -42,6 +44,7 @@ interface WeaveReflectPromptProps {
   friends: FriendModel[];
   onReflect: () => void;
   onDismiss: () => void;
+  onGuidedReflectionComplete?: (content: string, friendIds: string[]) => void;
 }
 
 interface MeaningfulnessCheck {
@@ -97,14 +100,16 @@ export function checkMeaningfulness(interaction: InteractionModel): Meaningfulne
 
 /**
  * Check if we should show the prompt (rate limiting).
+ * Now shows after every meaningful weave to encourage reflection.
  */
 export async function shouldShowPrompt(): Promise<boolean> {
   try {
     const weavesSinceStr = await AsyncStorage.getItem(WEAVES_SINCE_PROMPT_KEY);
     const weavesSince = weavesSinceStr ? parseInt(weavesSinceStr, 10) : 0;
 
-    // Only show every 3+ weaves
-    return weavesSince >= 3;
+    // Show every meaningful weave (was: only every 3+ weaves)
+    // This helps users deepen their reflections while the moment is fresh
+    return weavesSince >= 0; // Always show for meaningful weaves
   } catch {
     return true;
   }
@@ -145,12 +150,23 @@ export function WeaveReflectPrompt({
   friends,
   onReflect,
   onDismiss,
+  onGuidedReflectionComplete,
 }: WeaveReflectPromptProps) {
   const { colors } = useTheme();
+  const [showGuidedSheet, setShowGuidedSheet] = useState(false);
 
   // Animation values
   const sparkleScale = useSharedValue(1);
   const sparkleRotation = useSharedValue(0);
+
+  // Build guided reflection context
+  const guidedContext: ReflectionContext | null = interaction ? {
+    type: 'post_weave' as const,
+    friendIds: friends.map(f => f.id),
+    friendNames: friends.map(f => f.name),
+    interactionId: interaction.id,
+    activity: interaction.interactionCategory || undefined,
+  } : null;
 
   // Animate sparkle on mount
   useEffect(() => {
@@ -176,6 +192,24 @@ export function WeaveReflectPrompt({
     onReflect();
   }, [onReflect]);
 
+  const handleGuidedReflect = useCallback(async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    await resetWeaveCount();
+    setShowGuidedSheet(true);
+  }, []);
+
+  const handleGuidedComplete = useCallback((content: string, friendIds: string[]) => {
+    setShowGuidedSheet(false);
+    onGuidedReflectionComplete?.(content, friendIds);
+    onDismiss();
+  }, [onGuidedReflectionComplete, onDismiss]);
+
+  const handleGuidedEscape = useCallback(() => {
+    setShowGuidedSheet(false);
+    // User chose to write themselves - go to journal
+    onReflect();
+  }, [onReflect]);
+
   const handleDismiss = useCallback(async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     await resetWeaveCount();
@@ -194,6 +228,7 @@ export function WeaveReflectPrompt({
 
   // Get friend name(s)
   const friendNames = friends.map(f => f.name).join(' & ');
+
 
   // Get note preview (truncated)
   const notePreview = interaction.note
@@ -272,11 +307,11 @@ export function WeaveReflectPrompt({
               : 'Want to capture more about this moment while it\'s fresh?'}
           </Text>
 
-          {/* Actions */}
+          {/* Actions - Now with guided reflection as primary */}
           <View className="flex-row gap-3">
             <TouchableOpacity
               onPress={handleDismiss}
-              className="flex-1 py-3 rounded-xl items-center"
+              className="py-3 px-4 rounded-xl items-center"
               style={{
                 backgroundColor: colors.muted,
                 borderWidth: 1,
@@ -286,29 +321,59 @@ export function WeaveReflectPrompt({
             >
               <Text
                 className="text-sm"
-                style={{ color: colors.foreground, fontFamily: 'Inter_500Medium' }}
+                style={{ color: colors['muted-foreground'], fontFamily: 'Inter_500Medium' }}
               >
-                Maybe later
+                Skip
               </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               onPress={handleReflect}
               className="flex-1 flex-row items-center justify-center gap-1.5 py-3 rounded-xl"
+              style={{
+                backgroundColor: colors.muted,
+                borderWidth: 1,
+                borderColor: colors.border,
+              }}
+              activeOpacity={0.7}
+            >
+              <PenLine size={14} color={colors.foreground} />
+              <Text
+                className="text-sm"
+                style={{ color: colors.foreground, fontFamily: 'Inter_500Medium' }}
+              >
+                Write
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={handleGuidedReflect}
+              className="flex-1 flex-row items-center justify-center gap-1.5 py-3 rounded-xl"
               style={{ backgroundColor: colors.primary }}
               activeOpacity={0.8}
             >
+              <MessageCircle size={14} color={colors['primary-foreground']} />
               <Text
                 className="text-sm"
                 style={{ color: colors['primary-foreground'], fontFamily: 'Inter_600SemiBold' }}
               >
-                Reflect on this
+                Help me write
               </Text>
-              <ChevronRight size={16} color={colors['primary-foreground']} />
             </TouchableOpacity>
           </View>
         </View>
       </View>
+
+      {/* Guided Reflection Sheet */}
+      {guidedContext && (
+        <GuidedReflectionSheet
+          isOpen={showGuidedSheet}
+          onClose={() => setShowGuidedSheet(false)}
+          context={guidedContext}
+          onComplete={handleGuidedComplete}
+          onEscape={handleGuidedEscape}
+        />
+      )}
     </Animated.View>
   );
 }

@@ -1,8 +1,9 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb'
 
 export default appSchema({
-  version: 52, // v52 Server Link ID for offline link sync
+  version: 54, // v54 Proactive Insights Settings
   tables: [
+    // ===== ORACLE AI INFRASTRUCTURE =====
     tableSchema({
       name: 'oracle_insights',
       columns: [
@@ -22,6 +23,126 @@ export default appSchema({
         { name: 'created_at', type: 'number' }
       ]
     }),
+    // v54: Feature: Proactive Insights (Phase 7)
+    tableSchema({
+      name: 'proactive_insights',
+      columns: [
+        // Identity
+        { name: 'rule_id', type: 'string', isIndexed: true },
+        { name: 'type', type: 'string' },  // 'friend' | 'pattern' | 'milestone'
+
+        // Relations
+        { name: 'friend_id', type: 'string', isOptional: true, isIndexed: true },
+
+        // Content
+        { name: 'headline', type: 'string' },
+        { name: 'body', type: 'string' },
+        { name: 'grounding_data_json', type: 'string' },
+
+        // Action
+        { name: 'action_type', type: 'string' },
+        { name: 'action_params_json', type: 'string' },
+        { name: 'action_label', type: 'string' },
+
+        // Metadata
+        { name: 'severity', type: 'number', isOptional: true },
+        { name: 'generated_at', type: 'number', isIndexed: true },
+        { name: 'expires_at', type: 'number', isIndexed: true },
+
+        // Status
+        { name: 'status', type: 'string', isIndexed: true },
+        { name: 'feedback', type: 'string', isOptional: true },
+        { name: 'status_changed_at', type: 'number', isOptional: true },
+
+        { name: 'created_at', type: 'number' },
+        { name: 'updated_at', type: 'number' },
+      ]
+    }),
+    tableSchema({
+      name: 'milestone_records',
+      columns: [
+        { name: 'friend_id', type: 'string', isOptional: true, isIndexed: true },
+        { name: 'milestone_type', type: 'string', isIndexed: true },
+        { name: 'scope', type: 'string' },  // 'lifetime' | 'yearly' | 'streak'
+        { name: 'threshold', type: 'number' },
+        { name: 'achieved_at', type: 'number' },
+        { name: 'year', type: 'number', isOptional: true },  // For yearly milestones
+        { name: 'created_at', type: 'number' },
+        { name: 'updated_at', type: 'number' },
+      ]
+    }),
+    // v53: Oracle context cache for LLM optimization
+    tableSchema({
+      name: 'oracle_context_cache',
+      columns: [
+        { name: 'context_type', type: 'string' },              // 'essential' | 'pattern' | 'rich'
+        { name: 'friend_id', type: 'string', isOptional: true, isIndexed: true },
+        { name: 'payload_json', type: 'string' },              // Serialized OracleContextPayload
+        { name: 'tokens_estimate', type: 'number' },
+        { name: 'valid_until', type: 'number', isIndexed: true },
+        { name: 'created_at', type: 'number' }
+      ]
+    }),
+    // v53: Journal signal extraction results
+    tableSchema({
+      name: 'journal_signals',
+      columns: [
+        { name: 'journal_entry_id', type: 'string', isIndexed: true },
+        { name: 'sentiment', type: 'number' },                 // -2 to +2
+        { name: 'sentiment_label', type: 'string' },           // tense|concerned|neutral|positive|grateful
+        { name: 'core_themes_json', type: 'string' },          // JSON array of CoreTheme
+        { name: 'emergent_themes_json', type: 'string' },      // JSON array of freeform themes
+        { name: 'dynamics_json', type: 'string' },             // JSON: reciprocity, depth, tension, etc.
+        { name: 'confidence', type: 'number' },                // 0-1
+        { name: 'extracted_at', type: 'number' },
+        { name: 'extractor_version', type: 'string' }          // Track prompt version for reprocessing
+      ]
+    }),
+    // v53: Oracle consultation history
+    tableSchema({
+      name: 'oracle_consultations',
+      columns: [
+        { name: 'question', type: 'string' },
+        { name: 'response', type: 'string' },
+        { name: 'grounding_data_json', type: 'string' },       // JSON array of GroundingCitation
+        { name: 'context_tier_used', type: 'string' },         // Which tier was used
+        { name: 'tokens_used', type: 'number' },
+        { name: 'turn_count', type: 'number' },                // For multi-turn organic dialogue
+        { name: 'saved_to_journal', type: 'boolean' },
+        { name: 'journal_entry_id', type: 'string', isOptional: true },
+        { name: 'created_at', type: 'number', isIndexed: true }
+      ]
+    }),
+    // v53: Conversation threads per friend (LLM-extracted topics)
+    tableSchema({
+      name: 'conversation_threads',
+      columns: [
+        { name: 'friend_id', type: 'string', isIndexed: true },
+        { name: 'topic', type: 'string' },                     // "Marcus's dad's health"
+        { name: 'first_mentioned', type: 'number' },
+        { name: 'last_mentioned', type: 'number', isIndexed: true },
+        { name: 'mention_count', type: 'number' },
+        { name: 'status', type: 'string' },                    // 'active' | 'resolved' | 'dormant'
+        { name: 'sentiment', type: 'string' },                 // 'concern' | 'neutral' | 'positive'
+        { name: 'source_entry_ids_raw', type: 'string' }       // JSON array of entry IDs
+      ]
+    }),
+    // v53: LLM quality tracking for prompt iteration
+    tableSchema({
+      name: 'llm_quality_log',
+      columns: [
+        { name: 'prompt_id', type: 'string', isIndexed: true },
+        { name: 'prompt_version', type: 'string' },
+        { name: 'input_hash', type: 'string' },                // Hash of context for deduplication
+        { name: 'output_hash', type: 'string' },               // Hash of response
+        { name: 'latency_ms', type: 'number' },
+        { name: 'tokens_used', type: 'number' },
+        { name: 'error_type', type: 'string', isOptional: true },
+        { name: 'user_feedback', type: 'string', isOptional: true }, // 'accepted' | 'rejected' | 'edited'
+        { name: 'created_at', type: 'number', isIndexed: true }
+      ]
+    }),
+    // ===== CORE TABLES =====
     tableSchema({
       name: 'friends',
       columns: [
@@ -76,6 +197,24 @@ export default appSchema({
         { name: 'email', type: 'string', isOptional: true },
         { name: 'contact_id', type: 'string', isOptional: true }, // Device contact ID for re-sync
         { name: 'preferred_messaging_app', type: 'string', isOptional: true }, // whatsapp, telegram, sms, email
+        // NEW v53: Journal intelligence feedback
+        { name: 'detected_themes_raw', type: 'string', isOptional: true }, // JSON array of detected themes
+        { name: 'last_journal_sentiment', type: 'number', isOptional: true }, // -2 to +2
+        { name: 'journal_mention_count', type: 'number', isOptional: true }, // Total mentions in journal
+        { name: 'reflection_activity_score', type: 'number', isOptional: true }, // Computed engagement score
+        { name: 'needs_attention', type: 'boolean', isOptional: true }, // Flagged for dashboard
+        // NEW v53: Communication patterns (for triage)
+        { name: 'avg_weave_duration_minutes', type: 'number', isOptional: true },
+        { name: 'preferred_weave_types_raw', type: 'string', isOptional: true }, // JSON array
+        { name: 'best_time_of_day', type: 'string', isOptional: true }, // 'morning' | 'afternoon' | 'evening'
+        { name: 'best_day_of_week', type: 'number', isOptional: true }, // 0-6
+        // NEW v53: Topic evolution
+        { name: 'topic_clusters_raw', type: 'string', isOptional: true }, // JSON: topic -> frequency
+        { name: 'topic_trend', type: 'string', isOptional: true }, // 'deepening' | 'stable' | 'surface'
+        // NEW v53: Reconnection tracking
+        { name: 'reconnection_attempts', type: 'number', isOptional: true },
+        { name: 'successful_reconnections', type: 'number', isOptional: true },
+        { name: 'last_reconnection_date', type: 'number', isOptional: true },
       ]
     }),
     tableSchema({
@@ -207,6 +346,12 @@ export default appSchema({
         // NEW v47: Messaging preferences
         { name: 'default_messaging_app', type: 'string', isOptional: true }, // User's preferred messaging app (whatsapp, telegram, sms, email)
 
+        // NEW v53: AI Privacy Settings
+        { name: 'ai_features_enabled', type: 'boolean', isOptional: true }, // Master toggle for AI features
+        { name: 'ai_journal_analysis_enabled', type: 'boolean', isOptional: true }, // Journal signal extraction
+        { name: 'ai_oracle_enabled', type: 'boolean', isOptional: true }, // Oracle consultations
+        { name: 'ai_disclosure_acknowledged_at', type: 'number', isOptional: true }, // When user read disclosure
+
         // Metadata
         { name: 'created_at', type: 'number' },
         { name: 'updated_at', type: 'number' },
@@ -221,6 +366,11 @@ export default appSchema({
         { name: 'phone', type: 'string', isOptional: true },
         { name: 'email', type: 'string', isOptional: true },
         { name: 'google_id', type: 'string', isOptional: true },
+
+        // NEW v54: Proactive Insights (Phase 7)
+        { name: 'proactive_insights_enabled', type: 'boolean', isOptional: true },
+        { name: 'suppressed_insight_rules', type: 'string', isOptional: true }, // JSON array of rule IDs
+        { name: 'milestones_enabled', type: 'boolean', isOptional: true },
 
       ]
     }),

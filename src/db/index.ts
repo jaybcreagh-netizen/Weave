@@ -34,9 +34,20 @@ import NetworkHealthLog from './models/NetworkHealthLog';
 import EveningDigest from './models/EveningDigest';
 import SharedWeaveRef from './models/SharedWeaveRef';
 import SyncQueueItem from './models/SyncQueueItem';
+import PendingPushNotification from './models/PendingPushNotification';
+// v53: Oracle AI Infrastructure
+import OracleContextCache from './models/OracleContextCache';
+import JournalSignals from './models/JournalSignals';
+import ProactiveInsight from './models/ProactiveInsight';
+import OracleConsultation from './models/OracleConsultation';
+import ConversationThread from './models/ConversationThread';
+import LLMQualityLog from './models/LLMQualityLog';
 
 import { setGenerator } from '@nozbe/watermelondb/utils/common/randomId';
 import { v4 as uuidv4 } from 'uuid';
+
+// Schema repair utility for fixing missing columns
+export { repairSchemaIfNeeded } from './repair-schema';
 
 // Configure WatermelonDB to use UUIDs for new records
 setGenerator(() => uuidv4());
@@ -85,6 +96,14 @@ export const database = new Database({
     EveningDigest,
     SharedWeaveRef,
     SyncQueueItem,
+    PendingPushNotification,
+    // v53: Oracle AI Infrastructure
+    OracleContextCache,
+    JournalSignals,
+    OracleConsultation,
+    ConversationThread,
+    LLMQualityLog,
+    ProactiveInsight,
   ],
 });
 

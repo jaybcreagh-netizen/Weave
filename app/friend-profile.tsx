@@ -19,7 +19,8 @@ import {
 } from '@/modules/relationships';
 import { ErrorBoundary } from '@/shared/components/ErrorBoundary';
 import { LinkFriendSheet } from '@/modules/relationships/components/LinkFriendSheet';
-import { syncOutgoingLinkStatus } from '@/modules/relationships/services/friend-linking.service';
+import { syncOutgoingLinkStatus, unlinkFriend } from '@/modules/relationships/services/friend-linking.service';
+import { UIEventBus } from '@/shared/services/ui-event-bus';
 
 export default function FriendProfile() {
   const router = useRouter();
@@ -140,6 +141,36 @@ export default function FriendProfile() {
     }
   }, [friend, deleteFriend, router]);
 
+  const handleUnlinkFriend = useCallback(() => {
+    if (friendModel && friendModel.linkStatus === 'linked') {
+      Alert.alert(
+        "Unlink Account",
+        "Are you sure you want to unlink this friend from their Weave account? You will no longer see their updates or share weaves.",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Unlink",
+            style: "destructive",
+            onPress: async () => {
+              try {
+                const success = await unlinkFriend(friendModel.id);
+                if (success) {
+                  UIEventBus.emit({ type: 'SHOW_TOAST', message: 'Friend account unlinked' });
+                  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                } else {
+                  Alert.alert("Error", "Failed to unlink friend. Please try again.");
+                }
+              } catch (error) {
+                console.error("Error unlinking friend:", error);
+                Alert.alert("Error", "An unexpected error occurred.");
+              }
+            }
+          }
+        ]
+      );
+    }
+  }, [friendModel]);
+
   const handleDeleteInteraction = useCallback(async (interactionId: string) => {
     try {
       await deleteWeave(interactionId);
@@ -253,6 +284,7 @@ export default function FriendProfile() {
                   onShowBadgePopup={() => modals.setShowBadgePopup(true)}
                   onShowTierFit={() => modals.setShowTierFitSheet(true)}
                   onLinkToWeaveUser={() => setShowLinkSheet(true)}
+                  onUnlinkFriend={handleUnlinkFriend}
                 />
 
                 <ActionButtons

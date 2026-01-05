@@ -83,7 +83,7 @@ export const NOTIFICATION_CONFIG: Record<string, NotificationConfigItem> = {
         id: "smart-suggestions",
         name: "Smart Suggestions",
         description: "AI-powered friend outreach suggestions",
-        enabled: true,
+        enabled: false, // Disabled by default - users found multiple daily nudges guilt-inducing. Friend suggestions still appear in-app.
         schedule: {
             type: "interval",
             hours: 10,

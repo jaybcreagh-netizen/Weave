@@ -31,6 +31,7 @@ import { JournalIcon } from 'assets/icons/JournalIcon';
 import { differenceInDays } from 'date-fns';
 
 import { useTheme } from '@/shared/hooks/useTheme';
+import { useAppSleeping } from '@/shared/hooks/useAppState';
 import { UIEventBus } from '@/shared/services/ui-event-bus';
 import { HomeWidgetBase, HomeWidgetConfig } from '../HomeWidgetBase';
 import { database } from '@/db';
@@ -325,16 +326,19 @@ export function JournalWidget() {
         return () => { mounted = false; };
     }, [determineState, promptKey]);
 
-    // Cycle stats every 5 seconds
+    // Pause stat cycling when app is sleeping to save battery
+    const isSleeping = useAppSleeping();
+
+    // Cycle stats every 5 seconds (only when visible)
     useEffect(() => {
-        if (isLoading) return;
+        if (isLoading || isSleeping) return;
 
         const interval = setInterval(() => {
             setStatIndex((prev) => (prev + 1) % STATS.length);
         }, 5000);
 
         return () => clearInterval(interval);
-    }, [isLoading]);
+    }, [isLoading, isSleeping]);
 
     // Handle widget tap
     const handlePress = () => {
@@ -482,87 +486,86 @@ export function JournalWidget() {
                             )}
                         </View>
                     </TouchableOpacity>
+                </View>
 
-                    {/* Action Buttons for Reflection States */}
+                <View className="mt-3 flex-row gap-3">
                     {isReflectionState && (
-                        <View className="mt-3 flex-row gap-3">
-                            {widgetState?.type === 'weekly-reflection' ? (
-                                <>
-                                    <TouchableOpacity
-                                        onPress={() => {
-                                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                                            UIEventBus.emit({ type: 'OPEN_WEEKLY_REFLECTION' });
+                        widgetState?.type === 'weekly-reflection' ? (
+                            <>
+                                <TouchableOpacity
+                                    onPress={() => {
+                                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                                        UIEventBus.emit({ type: 'OPEN_WEEKLY_REFLECTION' });
+                                    }}
+                                    className="bg-primary px-4 py-2.5 rounded-full flex-row items-center gap-2 flex-1 justify-center"
+                                    style={{ backgroundColor: tokens.primary }}
+                                >
+                                    <Sparkles size={16} color="#FFFFFF" />
+                                    <Text
+                                        className="text-white font-semibold text-sm"
+                                        style={{ fontFamily: typography.fonts.sansSemiBold }}
+                                    >
+                                        Reflect
+                                    </Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    onPress={() => {
+                                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                        router.push('/journal');
+                                    }}
+                                    className="px-4 py-2.5 rounded-full flex-row items-center gap-2 flex-1 justify-center border"
+                                    style={{ borderColor: tokens.border }}
+                                >
+                                    <BookOpen size={16} color={tokens.foreground} />
+                                    <Text
+                                        className="font-medium text-sm"
+                                        style={{
+                                            color: tokens.foreground,
+                                            fontFamily: typography.fonts.sansSemiBold
                                         }}
-                                        className="bg-primary px-4 py-2.5 rounded-full flex-row items-center gap-2 flex-1 justify-center"
-                                        style={{ backgroundColor: tokens.primary }}
                                     >
-                                        <Sparkles size={16} color="#FFFFFF" />
-                                        <Text
-                                            className="text-white font-semibold text-sm"
-                                            style={{ fontFamily: typography.fonts.sansSemiBold }}
-                                        >
-                                            Reflect
-                                        </Text>
-                                    </TouchableOpacity>
-                                    <TouchableOpacity
-                                        onPress={() => {
-                                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                                            router.push('/journal');
+                                        Journal
+                                    </Text>
+                                </TouchableOpacity>
+                            </>
+                        ) : (
+                            <>
+                                <View
+                                    className="px-4 py-2.5 rounded-full flex-row items-center gap-2 flex-1 justify-center opacity-70"
+                                    style={{ backgroundColor: tokens.backgroundMuted }}
+                                >
+                                    <Sparkles size={16} color={tokens.foregroundMuted} />
+                                    <Text
+                                        className="font-medium text-sm"
+                                        style={{
+                                            color: tokens.foregroundMuted,
+                                            fontFamily: typography.fonts.sansSemiBold
                                         }}
-                                        className="px-4 py-2.5 rounded-full flex-row items-center gap-2 flex-1 justify-center border"
-                                        style={{ borderColor: tokens.border }}
                                     >
-                                        <BookOpen size={16} color={tokens.foreground} />
-                                        <Text
-                                            className="font-medium text-sm"
-                                            style={{
-                                                color: tokens.foreground,
-                                                fontFamily: typography.fonts.sansSemiBold
-                                            }}
-                                        >
-                                            Journal
-                                        </Text>
-                                    </TouchableOpacity>
-                                </>
-                            ) : (
-                                <>
-                                    <View
-                                        className="px-4 py-2.5 rounded-full flex-row items-center gap-2 flex-1 justify-center opacity-70"
-                                        style={{ backgroundColor: tokens.backgroundMuted }}
-                                    >
-                                        <Sparkles size={16} color={tokens.foregroundMuted} />
-                                        <Text
-                                            className="font-medium text-sm"
-                                            style={{
-                                                color: tokens.foregroundMuted,
-                                                fontFamily: typography.fonts.sansSemiBold
-                                            }}
-                                        >
-                                            Completed
-                                        </Text>
-                                    </View>
-                                    <TouchableOpacity
-                                        onPress={() => {
-                                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                                            router.push('/journal');
+                                        Completed
+                                    </Text>
+                                </View>
+                                <TouchableOpacity
+                                    onPress={() => {
+                                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                        router.push('/journal');
+                                    }}
+                                    className="px-4 py-2.5 rounded-full flex-row items-center gap-2 flex-1 justify-center border"
+                                    style={{ borderColor: tokens.border }}
+                                >
+                                    <BookOpen size={16} color={tokens.foreground} />
+                                    <Text
+                                        className="font-medium text-sm"
+                                        style={{
+                                            color: tokens.foreground,
+                                            fontFamily: typography.fonts.sansSemiBold
                                         }}
-                                        className="px-4 py-2.5 rounded-full flex-row items-center gap-2 flex-1 justify-center border"
-                                        style={{ borderColor: tokens.border }}
                                     >
-                                        <BookOpen size={16} color={tokens.foreground} />
-                                        <Text
-                                            className="font-medium text-sm"
-                                            style={{
-                                                color: tokens.foreground,
-                                                fontFamily: typography.fonts.sansSemiBold
-                                            }}
-                                        >
-                                            Journal
-                                        </Text>
-                                    </TouchableOpacity>
-                                </>
-                            )}
-                        </View>
+                                        Journal
+                                    </Text>
+                                </TouchableOpacity>
+                            </>
+                        )
                     )}
                 </View>
 
@@ -604,6 +607,6 @@ export function JournalWidget() {
                     )}
                 </View>
             </View>
-        </HomeWidgetBase>
+        </HomeWidgetBase >
     );
 }

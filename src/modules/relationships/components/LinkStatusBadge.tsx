@@ -18,9 +18,10 @@ import { FeatureFlags } from '@/shared/config/feature-flags';
 interface LinkStatusBadgeProps {
     friend: FriendModel;
     onLinkPress?: () => void;
+    onUnlinkPress?: () => void;
 }
 
-export function LinkStatusBadge({ friend, onLinkPress }: LinkStatusBadgeProps) {
+export function LinkStatusBadge({ friend, onLinkPress, onUnlinkPress }: LinkStatusBadgeProps) {
     const { colors } = useTheme();
 
     // Don't show if accounts aren't enabled
@@ -28,8 +29,26 @@ export function LinkStatusBadge({ friend, onLinkPress }: LinkStatusBadgeProps) {
 
     const { linkStatus, linkedUserId } = friend;
 
-    // Already linked - show linked badge
+    // Already linked - show linked badge (clickable if unlink handler provided)
     if (linkStatus === 'linked' && linkedUserId) {
+        if (onUnlinkPress) {
+            return (
+                <TouchableOpacity
+                    className="flex-row items-center gap-2 px-3 py-2 rounded-lg"
+                    style={{ backgroundColor: colors.primary + '20' }}
+                    onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        onUnlinkPress();
+                    }}
+                >
+                    <Check size={16} color={colors.primary} />
+                    <Text className="text-sm font-medium" style={{ color: colors.primary }}>
+                        Linked Weave User
+                    </Text>
+                </TouchableOpacity>
+            );
+        }
+
         return (
             <View
                 className="flex-row items-center gap-2 px-3 py-2 rounded-lg"
