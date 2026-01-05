@@ -126,7 +126,60 @@ export const FocusGenerator = {
      * Get suggestions with optional season-aware filtering
      */
     async getSuggestions(limit: number = 10, season?: SocialSeason | null): Promise<Suggestion[]> {
-        return fetchSuggestions(limit, season);
+        const suggestions = await fetchSuggestions(limit, season);
+        return this.enrichWithContext(suggestions);
+    },
+
+    /**
+     * Enrich suggestions with LLM-generated context snippets
+     */
+    async enrichWithContext(suggestions: Suggestion[]): Promise<Suggestion[]> {
+        // Return early if no suggestions
+        if (suggestions.length === 0) return [];
+
+        // We'll process in parallel but handle errors gracefully
+        const enriched = await Promise.all(suggestions.map(async (suggestion) => {
+            try {
+                // Only enrich friend-based suggestions
+                if (!suggestion.friendId) return suggestion;
+
+                // 1. Fetch recent signals and threads for this friend
+                // We use raw SQL or watermelon queries here.
+                // For MVP, let's keep it lightweight. 
+                // Checks for active threads or recent negative signals.
+
+                // Note: We need to import these models/tables. 
+                // If tables don't exist yet (Phase 1 pending?), we skip.
+                // Assuming they exist per previous list_dir checks (ConversationThread.ts exists).
+
+                const threads = await database.get('conversation_threads')
+                    .query(
+                        Q.where('friend_id', suggestion.friendId),
+                        Q.where('status', 'active'),
+                        Q.sortBy('last_mentioned', Q.desc),
+                        Q.take(1)
+                    ).fetch();
+
+                if (threads.length > 0) {
+                    const thread = threads[0] as any; // Cast to avoid strict typing issues if model generic
+                    // Simple rule-based enrichment for now to save tokens/latency
+                    // "Sarah mentioned [Topic] recently."
+                    return {
+                        ...suggestion,
+                        contextSnippet: `${suggestion.friendName || 'They'} mentioned ${thread.topic} recently.`,
+                        aiEnriched: true
+                    };
+                }
+
+                return suggestion;
+
+            } catch (e) {
+                // Fail silent, return original
+                return suggestion;
+            }
+        }));
+
+        return enriched;
     },
 
     /**

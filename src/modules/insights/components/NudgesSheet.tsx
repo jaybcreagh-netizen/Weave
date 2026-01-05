@@ -34,6 +34,7 @@ interface NudgesSheetProps {
   onAct: (suggestion: Suggestion) => void;
   onLater: (suggestionId: string) => void;
   onIntentionPress: (intention: Intention) => void;
+  portalHost?: string;
 }
 
 // Urgency group configuration
@@ -73,6 +74,7 @@ export const NudgesSheet: React.FC<NudgesSheetProps> = ({
   onAct,
   onLater,
   onIntentionPress,
+  portalHost,
 }) => {
   const { colors, tokens } = useTheme();
   const router = useRouter();
@@ -281,6 +283,7 @@ export const NudgesSheet: React.FC<NudgesSheetProps> = ({
         titleComponent={CustomTitle}
         disableContentPanning
         hasUnsavedChanges={false}
+        portalHost={portalHost}
         renderScrollContent={() => (
           <BottomSheetSectionList
             sections={groupedSuggestions}
@@ -315,6 +318,7 @@ export const NudgesSheet: React.FC<NudgesSheetProps> = ({
       <ActivityInboxSheet
         visible={showActivityInbox}
         onClose={() => setShowActivityInbox(false)}
+        portalHost={portalHost}
         onRequestHandled={() => {
           getPendingRequestCount().then(setPendingRequestCount);
         }}

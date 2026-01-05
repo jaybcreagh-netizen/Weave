@@ -33,6 +33,7 @@ interface ActivityInboxSheetProps {
     visible: boolean;
     onClose: () => void;
     onRequestHandled?: () => void;
+    portalHost?: string;
 }
 
 type TabType = 'requests' | 'weaves' | 'history';
@@ -40,7 +41,8 @@ type TabType = 'requests' | 'weaves' | 'history';
 export function ActivityInboxSheet({
     visible,
     onClose,
-    onRequestHandled
+    onRequestHandled,
+    portalHost
 }: ActivityInboxSheetProps) {
     const { colors, isDarkMode } = useTheme();
     const [activeTab, setActiveTab] = useState<TabType>('requests');
@@ -387,6 +389,7 @@ export function ActivityInboxSheet({
                 onClose={onClose}
                 title="Activity"
                 height="full"
+                portalHost={portalHost}
             >
                 <View className="flex-1">
                     {/* Tab Selector */}

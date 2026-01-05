@@ -466,6 +466,60 @@ class OracleService {
 
         return response.text.trim()
     }
+    /**
+     * Generate a narrative summary for the Weekly Reflection
+     */
+    /**
+     * Generate a narrative summary for the Weekly Reflection
+     */
+    async generateWeeklyNarrative(summary: any, season: string | null = null): Promise<string> {
+        // Sanitize summary to avoid circular JSON (WatermelonDB models)
+        // We extract only what the LLM needs for the narrative
+        const sanitizedSummary = {
+            totalInteractions: summary.totalInteractions,
+            uniqueFriends: summary.uniqueFriends?.length || 0,
+            interactionsPerDay: summary.interactionsPerDay,
+            topFriends: summary.friendActivity?.slice(0, 5).map((f: any) => ({
+                name: f.friendName,
+                count: f.count,
+                tier: f.tier
+            })) || [],
+            reconnections: summary.reconnections?.map((r: any) => r.friendName) || [],
+            weekStreak: summary.weekStreak,
+            socialBatteryAvg: summary.socialBatteryAvg
+        };
+
+        const seasonContext = season ? `The user is currently in a "${season}" social season phase.` : "";
+
+        const prompt = `
+        You are the Oracle, a wise and empathetic counselor for the user's relationships.
+        Here is a summary of the user's social activity this week:
+        ${JSON.stringify(sanitizedSummary, null, 2)}
+        ${seasonContext}
+
+        Write a 2-3 sentence narrative summary of their week.
+        Acknowledge their effort, highlight a key moment (like a deep dive or a good recurring connection), and be encouraging.
+        
+        Crucially, if the week was quiet and they are in a "Resting" phase, validate that need for rest. 
+        If they are "Blooming" but inactive, gently nudge them to open up.
+        
+        End with 1 small, specific, actionable suggestion for next week (e.g. "Reach out to [Name]", "Plan a quiet coffee").
+        
+        Use a mystical but grounded tone.
+        Do not use markdown. Just plain text.
+        `;
+
+        try {
+            const response = await llmService.complete({
+                system: "You are a wise relationship counselor.",
+                user: prompt
+            });
+            return response.text;
+        } catch (e) {
+            logger.error('OracleService', 'Error generating narrative', e);
+            return "The stars have been quiet this week, but your journey continues. Take this time to reflect on what matters most.";
+        }
+    }
 }
 
 export const oracleService = new OracleService()

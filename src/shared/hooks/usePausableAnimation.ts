@@ -1,9 +1,11 @@
 import { useEffect } from 'react';
 import { useSharedValue, cancelAnimation, SharedValue } from 'react-native-reanimated';
+import { useIsFocused } from '@react-navigation/native';
 import { useAppSleeping } from './useAppState';
 
 /**
  * Hook that automatically pauses Reanimated animations when app is sleeping (backgrounded or idle)
+ * OR when the screen is not focused (user is on a different tab/screen).
  *
  * Usage:
  * ```
@@ -19,16 +21,19 @@ import { useAppSleeping } from './useAppState';
  */
 export function usePausableAnimation(sharedValue: SharedValue<number>) {
   const isSleeping = useAppSleeping();
+  const isFocused = useIsFocused();
+
+  const shouldPause = isSleeping || !isFocused;
 
   useEffect(() => {
-    if (isSleeping) {
-      // Cancel animation when app is sleeping
+    if (shouldPause) {
+      // Cancel animation when app is sleeping or screen is not focused
       cancelAnimation(sharedValue);
     }
-  }, [isSleeping, sharedValue]);
+  }, [shouldPause, sharedValue]);
 
   return {
-    isSleeping,
+    isSleeping: shouldPause, // Return effective sleeping state
   };
 }
 
@@ -49,18 +54,21 @@ export function usePausableSharedValue<T>(
 ): SharedValue<T> {
   const sharedValue = useSharedValue(initialValue);
   const isSleeping = useAppSleeping();
+  const isFocused = useIsFocused();
+
+  const shouldPause = isSleeping || !isFocused;
 
   useEffect(() => {
-    if (isSleeping) {
+    if (shouldPause) {
       // Cancel animation when sleeping
       if (typeof sharedValue.value === 'number') {
         cancelAnimation(sharedValue as any);
       }
     } else if (animationCallback) {
-      // Restart animation when awake
+      // Restart animation when awake and focused
       animationCallback(sharedValue);
     }
-  }, [isSleeping]);
+  }, [shouldPause]);
 
   return sharedValue;
 }

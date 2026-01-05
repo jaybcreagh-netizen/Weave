@@ -21,7 +21,7 @@ interface SocialBatterySheetProps {
 }
 
 // Battery level moon phase states with descriptions
-const BATTERY_STATES = [
+export const BATTERY_STATES = [
   {
     value: 1,
     label: 'New Moon',

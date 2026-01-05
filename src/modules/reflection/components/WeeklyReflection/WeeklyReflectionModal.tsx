@@ -35,6 +35,7 @@ import {
   PromptEngineInput,
 } from '../../services/prompt-engine';
 import { notificationStore } from '@/modules/notifications/services/notification-store';
+import { SocialSeasonService } from '@/modules/intelligence/services/social-season.service';
 import { ReflectionPromptStep } from './ReflectionPromptStepComponent';
 import { WeekSnapshotStep } from './WeekSnapshotStepComponent';
 import { CalendarEventsStep } from './CalendarEventsStepComponent';
@@ -46,6 +47,8 @@ import { WeeklyReflectionChannel } from '@/modules/notifications/services/channe
 import { logger } from '@/shared/services/logger.service';
 import ProactiveInsight from '@/db/models/ProactiveInsight'; // Default import
 import { Q } from '@nozbe/watermelondb'; // Query
+import { OracleSummaryStep } from './OracleSummaryStep';
+import { oracleService } from '@/modules/oracle/services/oracle-service';
 
 // ============================================================================
 // TYPES
@@ -56,7 +59,7 @@ interface WeeklyReflectionModalProps {
   onClose: () => void;
 }
 
-type Step = 'prompt' | 'snapshot' | 'events';
+type Step = 'prompt' | 'summary' | 'snapshot' | 'events';
 
 interface ReflectionData {
   text: string;
@@ -127,6 +130,7 @@ export function WeeklyReflectionModal({ isOpen, onClose }: WeeklyReflectionModal
   const [hasUnloggedEvents, setHasUnloggedEvents] = useState(false);
   const [selectedEvents, setSelectedEvents] = useState<ScannedEvent[]>([]);
   const [activeInsights, setActiveInsights] = useState<ProactiveInsight[]>([]); // New state
+  const [weeklyNarrative, setWeeklyNarrative] = useState<string | null>(null); // Oracle narrative
 
   // Load data when modal opens
   useEffect(() => {
@@ -162,16 +166,22 @@ export function WeeklyReflectionModal({ isOpen, onClose }: WeeklyReflectionModal
 
       // Fetch active proactive insights (unread/active)
       // We want to surface high-priority ones (e.g. drift) as context
-      const insights = await database
-        .get<ProactiveInsight>('proactive_insights')
-        .query(
-          Q.where('status', 'active'),
-          Q.sortBy('created_at', Q.desc),
-          Q.take(3)
-        )
-        .fetch();
+      // Fetch active proactive insights (unread/active)
+      // We want to surface high-priority ones (e.g. drift) as context
+      // REMOVED: User feedback indicates this feels like "opening the nudges tab" inside reflection.
+      // Keeping reflection focused on the prompt for now.
+      setActiveInsights([]);
 
-      setActiveInsights(insights);
+      // Fetch current season
+      const season = await SocialSeasonService.getCurrentSeason();
+
+      // Generate narrative (non-blocking)
+      oracleService.generateWeeklyNarrative(summaryData, season).then(narrative => {
+        setWeeklyNarrative(narrative);
+      }).catch(err => {
+        logger.warn('WeeklyReflection', 'Error generating narrative', err);
+        setWeeklyNarrative("The stars are quiet, but your journey continues.");
+      });
 
     } catch (error) {
       logger.error('WeeklyReflection', 'Error loading data:', error);
@@ -186,6 +196,10 @@ export function WeeklyReflectionModal({ isOpen, onClose }: WeeklyReflectionModal
 
   const handlePromptNext = (text: string, chipIds: string[]) => {
     setReflectionData({ text, chipIds });
+    setCurrentStep('summary'); // Go to Oracle Summary first
+  };
+
+  const handleSummaryNext = () => {
     setCurrentStep('snapshot');
   };
 
@@ -278,15 +292,19 @@ export function WeeklyReflectionModal({ isOpen, onClose }: WeeklyReflectionModal
   // ============================================================================
 
   const handleBack = () => {
+    Keyboard.dismiss();
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    if (currentStep === 'snapshot') {
+    if (currentStep === 'summary') {
       setCurrentStep('prompt');
+    } else if (currentStep === 'snapshot') {
+      setCurrentStep('summary');
     } else if (currentStep === 'events') {
       setCurrentStep('snapshot');
     }
   };
 
   const handleClose = () => {
+    Keyboard.dismiss(); // Ensure keyboard is gone
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     onClose();
   };
@@ -297,12 +315,13 @@ export function WeeklyReflectionModal({ isOpen, onClose }: WeeklyReflectionModal
 
   const stepTitles: Record<Step, string> = {
     prompt: 'Check-in',
+    summary: 'Oracle Insight',
     snapshot: 'Your Week',
     events: 'Calendar',
   };
 
   // Progress indicator
-  const steps: Step[] = hasUnloggedEvents ? ['prompt', 'snapshot', 'events'] : ['prompt', 'snapshot'];
+  const steps: Step[] = hasUnloggedEvents ? ['prompt', 'summary', 'snapshot', 'events'] : ['prompt', 'summary', 'snapshot'];
   const currentStepIndex = steps.indexOf(currentStep);
 
   return (
@@ -360,6 +379,15 @@ export function WeeklyReflectionModal({ isOpen, onClose }: WeeklyReflectionModal
                   promptEngineInput={buildPromptEngineInput(summary)} // Pass input for context
                   insights={activeInsights} // Pass insights
                   onNext={handlePromptNext}
+                />
+              </View>
+            )}
+
+            {currentStep === 'summary' && (
+              <View className="flex-1">
+                <OracleSummaryStep
+                  narrative={weeklyNarrative}
+                  onContinue={handleSummaryNext}
                 />
               </View>
             )}

@@ -95,4 +95,7 @@ export interface Suggestion {
   createdAt?: Date;
   /** Pre-computed tracking context - populated during generation to avoid duplicate queries */
   trackingContext?: SuggestionTrackingContext;
+  // New for Phase 8: AI-enriched context
+  contextSnippet?: string;
+  aiEnriched?: boolean;
 }

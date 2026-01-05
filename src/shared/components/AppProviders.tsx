@@ -17,7 +17,6 @@ import { useTheme } from '@/shared/hooks/useTheme';
 import { AuthProvider } from '@/modules/auth';
 import { SyncConflictProvider } from '@/modules/auth';
 import { RealtimeProvider } from '@/shared/components/RealtimeProvider';
-import { OracleSheet } from '@/modules/oracle';
 
 import { queryClient } from '@/shared/api/query-client';
 
@@ -67,7 +66,6 @@ export function AppProviders({ children }: AppProvidersProps) {
                                                             }}
                                                         >
                                                             {children}
-                                                            <OracleSheet />
                                                         </ErrorBoundary>
                                                     </ToastProvider>
                                                 </QuickWeaveProvider>

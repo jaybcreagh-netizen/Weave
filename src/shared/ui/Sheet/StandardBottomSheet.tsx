@@ -49,6 +49,7 @@ export function StandardBottomSheet({
   confirmCloseMessage = 'Discard Changes? You have unsaved changes. Are you sure you want to discard them?',
   keyboardBehavior = 'interactive',
   keyboardBlurBehavior = 'restore',
+  portalHost,
 }: StandardBottomSheetProps & { keyboardBehavior?: BottomSheetProps['keyboardBehavior'], keyboardBlurBehavior?: BottomSheetProps['keyboardBlurBehavior'] }) {
   const { colors, isDarkMode } = useTheme();
   const bottomSheetRef = useRef<BottomSheet>(null);
@@ -162,7 +163,7 @@ export function StandardBottomSheet({
   const ContentWrapper = scrollable ? BottomSheetScrollView : BottomSheetView;
 
   return (
-    <Portal>
+    <Portal hostName={portalHost}>
       <BottomSheet
         ref={bottomSheetRef}
         index={visible ? initialSnapIndex : -1}

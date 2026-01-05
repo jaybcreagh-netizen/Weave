@@ -481,7 +481,14 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = () => {
                                     fontSize: typography.scale.body.fontSize,
                                     lineHeight: typography.scale.body.lineHeight
                                 }}>
-                                    {suggestions.length} suggestion{suggestions.length !== 1 ? 's' : ''}
+                                    {suggestions[0]?.contextSnippet ? (
+                                        <>
+                                            {suggestions[0].contextSnippet}
+                                            {suggestions.length > 1 && <Text style={{ color: tokens.foregroundSubtle }}> +{suggestions.length - 1} more</Text>}
+                                        </>
+                                    ) : (
+                                        `${suggestions.length} suggestion${suggestions.length !== 1 ? 's' : ''}`
+                                    )}
                                 </Text>
                             </View>
                             <ChevronRight size={16} color={tokens.foregroundSubtle} />

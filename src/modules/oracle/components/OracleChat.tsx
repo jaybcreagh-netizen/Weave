@@ -44,9 +44,10 @@ interface OracleChatProps {
     friendId?: string
     friendName?: string
     onClose?: () => void
+    portalHost?: string
 }
 
-export function OracleChat({ context = 'default', friendId, friendName, onClose }: OracleChatProps) {
+export function OracleChat({ context = 'default', friendId, friendName, onClose, portalHost }: OracleChatProps) {
     const { colors, typography } = useTheme()
     const { messages, isLoading, error, askQuestion, remainingQuestions, saveToJournal, isSaved } = useOracle()
     const [input, setInput] = useState('')
@@ -312,6 +313,7 @@ export function OracleChat({ context = 'default', friendId, friendName, onClose 
             <NudgesSheetWrapper
                 isVisible={showNudgesSheet}
                 onClose={() => setShowNudgesSheet(false)}
+                portalHost={portalHost}
             />
         </>
     )

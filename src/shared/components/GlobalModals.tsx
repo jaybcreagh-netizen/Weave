@@ -12,6 +12,7 @@ import { PostWeaveRatingModal } from '@/modules/interactions';
 import { MemoryMomentModal } from '@/modules/journal';
 import { EveningCheckinSheet } from '@/modules/home';
 import { EveningDigestChannel, EveningCheckinContent } from '@/modules/notifications';
+import { OracleSheet } from '@/modules/oracle';
 
 export function GlobalModals() {
     const { user } = useAuth();
@@ -158,6 +159,9 @@ export function GlobalModals() {
                     onBatterySubmit={handleBatterySubmit}
                 />
             )}
+
+            {/* Oracle Sheet */}
+            <OracleSheet />
         </>
     );
 }

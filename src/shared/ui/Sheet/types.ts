@@ -115,4 +115,9 @@ export interface StandardBottomSheetProps {
    * @default "Discard Changes? You have unsaved changes. Are you sure you want to discard them?"
    */
   confirmCloseMessage?: string;
+  /**
+   * Custom portal host name to render the sheet into.
+   * Useful when rendering sheets inside native Modals.
+   */
+  portalHost?: string;
 }

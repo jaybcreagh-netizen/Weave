@@ -210,7 +210,7 @@ export function SuggestionCard({ suggestion, friend, onAct, onLater, index = 0 }
                   }}
                   numberOfLines={2}
                 >
-                  {suggestion.subtitle}
+                  {suggestion.contextSnippet || suggestion.subtitle}
                 </Text>
 
                 <Button

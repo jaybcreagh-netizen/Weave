@@ -37,5 +37,15 @@ export const SocialSeasonService = {
         if (!oldSeason || oldSeason !== season) {
             await SeasonAnalyticsService.transitionSeason(season, !!durationDays);
         }
+    },
+
+    /**
+     * Get the current social season for the user.
+     */
+    async getCurrentSeason(): Promise<SocialSeason | null> {
+        const profileCollection = database.get<UserProfile>('user_profile');
+        const profiles = await profileCollection.query().fetch();
+        if (profiles.length === 0) return null;
+        return profiles[0].currentSocialSeason || null;
     }
 };

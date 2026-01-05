@@ -13,28 +13,31 @@ import { useSuggestions, usePlans } from '@/modules/interactions'
 interface NudgesSheetWrapperProps {
     isVisible: boolean
     onClose: () => void
+    portalHost?: string
 }
 
-function NudgesSheetContent({ onClose }: { onClose: () => void }) {
+// Keep mounted to preserve hook state and avoid re-fetch latency
+function NudgesSheetContent({ isVisible, onClose, portalHost }: { isVisible: boolean, onClose: () => void, portalHost?: string }) {
+    // Hooks run continuously to keep data fresh, but React Query caching handles the heavy lifting
     const { suggestions, dismissSuggestion } = useSuggestions()
     const { intentions } = usePlans()
 
     return (
         <NudgesSheet
-            isVisible={true}
+            isVisible={isVisible}
             suggestions={suggestions}
             intentions={intentions}
             onClose={onClose}
             onAct={() => onClose()}
             onLater={(id) => dismissSuggestion(id, 1)}
             onIntentionPress={() => onClose()}
+            portalHost={portalHost}
         />
     )
 }
 
-export function NudgesSheetWrapper({ isVisible, onClose }: NudgesSheetWrapperProps) {
-    // Only mount the content (and its hooks) when visible
-    if (!isVisible) return null
-
-    return <NudgesSheetContent onClose={onClose} />
+export function NudgesSheetWrapper({ isVisible, onClose, portalHost }: NudgesSheetWrapperProps) {
+    // OPTIMIZATION: We now keep this mounted to avoid the 1-2s delay of re-fetching suggestions
+    // when opening the sheet. The hooks will keep data fresh in the background.
+    return <NudgesSheetContent isVisible={isVisible} onClose={onClose} portalHost={portalHost} />
 }

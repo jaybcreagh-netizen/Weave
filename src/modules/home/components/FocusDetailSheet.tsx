@@ -300,7 +300,7 @@ export const FocusDetailSheet: React.FC<FocusDetailSheetProps> = ({
                                         <ListItem
                                             leading={renderSuggestionIcon(suggestion.icon, suggestion.category)}
                                             title={suggestion.title}
-                                            subtitle={suggestion.subtitle}
+                                            subtitle={suggestion.contextSnippet || suggestion.subtitle}
                                             showDivider={index < suggestions.length - 1}
                                             compact
                                             trailing={

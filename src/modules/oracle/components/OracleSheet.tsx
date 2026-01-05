@@ -12,6 +12,7 @@ import { useTheme } from '@/shared/hooks/useTheme'
 import { Text } from '@/shared/ui/Text'
 import { useOracleSheet } from '../hooks/useOracleSheet'
 import { OracleChat } from './OracleChat'
+import { PortalHost } from '@gorhom/portal'
 
 export function OracleSheet() {
     const { colors, typography } = useTheme()
@@ -59,8 +60,12 @@ export function OracleSheet() {
                         friendId={params.friendId}
                         friendName={params.friendName}
                         onClose={close}
+                        portalHost="oracle-sheet-host"
                     />
                 </KeyboardAvoidingView>
+
+                {/* Portal Host for sheets rendered inside this modal */}
+                <PortalHost name="oracle-sheet-host" />
             </SafeAreaView>
         </Modal>
     )

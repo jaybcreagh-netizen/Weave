@@ -15,6 +15,7 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useIsFocused } from '@react-navigation/native';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown, FadeOutUp } from 'react-native-reanimated';
 import {
@@ -328,17 +329,18 @@ export function JournalWidget() {
 
     // Pause stat cycling when app is sleeping to save battery
     const isSleeping = useAppSleeping();
+    const isFocused = useIsFocused();
 
     // Cycle stats every 5 seconds (only when visible)
     useEffect(() => {
-        if (isLoading || isSleeping) return;
+        if (isLoading || isSleeping || !isFocused) return;
 
         const interval = setInterval(() => {
             setStatIndex((prev) => (prev + 1) % STATS.length);
         }, 5000);
 
         return () => clearInterval(interval);
-    }, [isLoading, isSleeping]);
+    }, [isLoading, isSleeping, isFocused]);
 
     // Handle widget tap
     const handlePress = () => {

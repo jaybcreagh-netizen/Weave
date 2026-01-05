@@ -187,10 +187,29 @@ export const EveningDigestChannel: NotificationChannel & {
         const highValueItems = items.filter(i => i.priority >= 40);
         const shouldSend = highValueItems.length > 0;
 
+        // Dynamic body generation (Phase 8)
+        let body = "Tap to view summary";
+        const critical = focusData.suggestions.find(s => s.urgency === 'critical');
+        const high = focusData.suggestions.find(s => s.urgency === 'high');
+        const topSuggestion = critical || high;
+
+        if (topSuggestion) {
+            if (topSuggestion.contextSnippet) {
+                // "Review today. Also, Sarah mentioned feeling overwhelmed..."
+                // Truncate if too long
+                const snippet = topSuggestion.contextSnippet.length > 60
+                    ? topSuggestion.contextSnippet.substring(0, 57) + '...'
+                    : topSuggestion.contextSnippet;
+                body = `Review your day. Also: ${snippet}`;
+            } else if (topSuggestion.friendName) {
+                body = `Review your day. Also, time to connect with ${topSuggestion.friendName}?`;
+            }
+        }
+
         return {
             items,
             notificationTitle: "Your evening brief 🌙",
-            notificationBody: "Tap to view summary",
+            notificationBody: body,
             shouldSend
         };
     },

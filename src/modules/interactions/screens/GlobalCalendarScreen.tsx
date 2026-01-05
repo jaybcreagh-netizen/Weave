@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, Modal, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowLeft, X, Calendar as CalendarIcon, Users, Moon } from 'lucide-react-native';
+import { ArrowLeft, X, Calendar as CalendarIcon, Users, Moon, Battery } from 'lucide-react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { format, isToday } from 'date-fns';
+import { format, isToday, startOfDay, endOfDay } from 'date-fns';
 import * as Haptics from 'expo-haptics';
 
 import { GlobalYearCalendar } from '@/shared/components/GlobalYearCalendar';
@@ -19,12 +19,18 @@ import { InteractionDetailModal } from '../components/InteractionDetailModal';
 import { Interaction } from '@/shared/types/legacy-types';
 import { EveningDigestChannel } from '@/modules/notifications';
 import { useUIStore } from '@/shared/stores/uiStore';
+import { SocialBatterySheet, BATTERY_STATES } from '@/modules/home/components/widgets/SocialBatterySheet';
+import { MoonPhaseIllustration } from '@/modules/intelligence/components/social-season/YearInMoons/MoonPhaseIllustration';
+import SocialBatteryLog from '@/db/models/SocialBatteryLog';
+import { SocialBatteryService } from '@/modules/auth/services/social-battery.service';
+import { useUserProfile } from '@/modules/auth/hooks/useUserProfile';
 
 export function GlobalCalendarScreen() {
     const router = useRouter();
     const { fromFriendId } = useLocalSearchParams<{ fromFriendId: string }>();
     const { colors } = useTheme();
     const { allInteractions } = useInteractions();
+    const { profile } = useUserProfile();
     const openDigestSheet = useUIStore(state => state.openDigestSheet);
 
     const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -34,6 +40,8 @@ export function GlobalCalendarScreen() {
     const [selectedInteractionDetail, setSelectedInteractionDetail] = useState<Interaction | null>(null);
     const [interactionDetailVisible, setInteractionDetailVisible] = useState(false);
     const [selectedDateDigest, setSelectedDateDigest] = useState<EveningDigest | null>(null);
+    const [selectedDateBatteryLog, setSelectedDateBatteryLog] = useState<SocialBatteryLog | null>(null);
+    const [batterySheetVisible, setBatterySheetVisible] = useState(false);
 
     // Load friends for interactions when modal opens
     useEffect(() => {
@@ -63,15 +71,58 @@ export function GlobalCalendarScreen() {
         setInteractionFriends(friendsMap);
     };
 
+    const loadBatteryLog = async (date: Date) => {
+        if (!profile) return;
+
+        try {
+            const start = startOfDay(date);
+            const end = endOfDay(date);
+
+            const logs = await database.get<SocialBatteryLog>('social_battery_logs')
+                .query(
+                    Q.where('user_id', profile.id),
+                    Q.where('timestamp', Q.between(start.getTime(), end.getTime()))
+                ).fetch();
+
+            setSelectedDateBatteryLog(logs.length > 0 ? logs[0] : null);
+        } catch (error) {
+            console.error('Error loading battery log:', error);
+        }
+    };
+
+    const handleBatterySubmit = async (value: number, note?: string) => {
+        if (!profile || !selectedDate) return;
+
+        try {
+            // Use noon of the selected date to ensure it falls within the day
+            const timestamp = startOfDay(selectedDate).getTime() + 12 * 60 * 60 * 1000;
+
+            // Pass profile.id as the userId since SocialBatteryService expects to find the profile by ID
+            await SocialBatteryService.submitCheckin(profile.id, value, note, timestamp, true);
+
+            setBatterySheetVisible(false);
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+            // Reload log
+            await loadBatteryLog(selectedDate);
+        } catch (error) {
+            console.error('Error submitting battery check-in:', error);
+        }
+    };
+
     const handleDateSelect = async (date: Date, interactions: any[]) => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         setSelectedDate(date);
         setSelectedDateInteractions(interactions);
-        setDayDetailModalVisible(true);
 
         // Load digest for this date
         const digest = await EveningDigestChannel.loadDigestForDate(date);
         setSelectedDateDigest(digest);
+
+        // Load battery log
+        await loadBatteryLog(date);
+
+        setDayDetailModalVisible(true);
     };
 
     const handleInteractionPress = (interaction: any) => {
@@ -277,6 +328,82 @@ export function GlobalCalendarScreen() {
                             </View>
                         )}
 
+                        {/* Social Battery Card */}
+                        {(isToday(selectedDate || new Date()) || (selectedDate && selectedDate < new Date())) && (
+                            <TouchableOpacity
+                                onPress={() => {
+                                    if (!selectedDateBatteryLog) {
+                                        setDayDetailModalVisible(false);
+                                        // Wait a moment for modal to close before opening sheet
+                                        setTimeout(() => {
+                                            setBatterySheetVisible(true);
+                                        }, 300);
+                                    }
+                                }}
+                                activeOpacity={selectedDateBatteryLog ? 1 : 0.7}
+                                className="p-4 rounded-2xl mt-4"
+                                style={{
+                                    backgroundColor: colors.card,
+                                    borderColor: selectedDateBatteryLog ? BATTERY_STATES.find(s => s.value === selectedDateBatteryLog.value)?.color : colors.border,
+                                    borderWidth: 1,
+                                }}
+                            >
+                                <View className="flex-row items-center gap-3">
+                                    {selectedDateBatteryLog ? (
+                                        <View className="w-10 h-10 items-center justify-center">
+                                            <MoonPhaseIllustration
+                                                phase={0}
+                                                batteryLevel={selectedDateBatteryLog.value}
+                                                size={32}
+                                                color={BATTERY_STATES.find(s => s.value === selectedDateBatteryLog.value)?.color || colors.primary}
+                                                hasCheckin={true}
+                                            />
+                                        </View>
+                                    ) : (
+                                        <View
+                                            className="w-10 h-10 rounded-full items-center justify-center"
+                                            style={{ backgroundColor: colors.muted }}
+                                        >
+                                            <Battery size={20} color={colors['muted-foreground']} />
+                                        </View>
+                                    )}
+
+                                    <View className="flex-1">
+                                        <Text
+                                            className="text-base font-semibold"
+                                            style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold' }}
+                                        >
+                                            {selectedDateBatteryLog
+                                                ? BATTERY_STATES.find(s => s.value === selectedDateBatteryLog.value)?.shortDesc
+                                                : 'Social Energy'}
+                                        </Text>
+                                        <Text
+                                            className="text-sm"
+                                            style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
+                                        >
+                                            {selectedDateBatteryLog
+                                                ? 'Check-in recorded'
+                                                : 'No check-in recorded'}
+                                        </Text>
+                                    </View>
+
+                                    {!selectedDateBatteryLog && (
+                                        <View
+                                            className="px-3 py-1.5 rounded-full"
+                                            style={{ backgroundColor: colors.primary }}
+                                        >
+                                            <Text
+                                                className="text-xs font-semibold"
+                                                style={{ color: colors['primary-foreground'], fontFamily: 'Inter_600SemiBold' }}
+                                            >
+                                                Check In
+                                            </Text>
+                                        </View>
+                                    )}
+                                </View>
+                            </TouchableOpacity>
+                        )}
+
                         {/* Evening Digest Card */}
                         {selectedDateDigest && (
                             <TouchableOpacity
@@ -324,6 +451,12 @@ export function GlobalCalendarScreen() {
                 interaction={selectedInteractionDetail}
                 isOpen={interactionDetailVisible}
                 onClose={() => setInteractionDetailVisible(false)}
+            />
+
+            <SocialBatterySheet
+                isVisible={batterySheetVisible}
+                onSubmit={handleBatterySubmit}
+                onDismiss={() => setBatterySheetVisible(false)}
             />
         </SafeAreaView>
     );
