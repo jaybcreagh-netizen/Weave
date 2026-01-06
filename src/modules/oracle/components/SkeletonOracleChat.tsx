@@ -1,24 +1,32 @@
-
 import React, { useEffect } from 'react';
-import { View, Platform, Text } from 'react-native';
+import { View, Platform, DimensionValue } from 'react-native';
 import Animated, {
     useSharedValue,
     useAnimatedStyle,
     withRepeat,
     withTiming,
+    Easing,
     withSequence
 } from 'react-native-reanimated';
 import { useTheme } from '@/shared/hooks/useTheme';
 
-export function SkeletonOracleChat() {
-    const { colors } = useTheme();
+interface SkeletonProps {
+    width?: DimensionValue;
+    height?: DimensionValue;
+    borderRadius?: number;
+    style?: any;
+}
+
+function SkeletonBlock({ width, height, borderRadius = 8, style }: SkeletonProps) {
+    const { colors, isDarkMode } = useTheme();
+    // Brighter/lighter base for "not heavy grey" feel
     const opacity = useSharedValue(0.3);
 
     useEffect(() => {
         opacity.value = withRepeat(
             withSequence(
-                withTiming(0.7, { duration: 1000 }),
-                withTiming(0.3, { duration: 1000 })
+                withTiming(0.6, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
+                withTiming(0.3, { duration: 1000, easing: Easing.inOut(Easing.ease) })
             ),
             -1,
             true
@@ -30,64 +38,66 @@ export function SkeletonOracleChat() {
     }));
 
     return (
-        <View className="flex-1 px-4">
-            {/* Carousel Placeholder */}
-            <View className="mb-4 mt-2">
-                <Animated.View
-                    style={[{
-                        height: 140,
-                        backgroundColor: colors.card,
-                        borderRadius: 16,
-                        borderColor: colors.border,
-                        borderWidth: 1
-                    }, animatedStyle]}
-                />
-            </View>
+        <Animated.View
+            style={[{
+                width,
+                height,
+                borderRadius,
+                backgroundColor: isDarkMode ? colors.muted : '#E5E5E5', // Lighter grey in light mode
+            }, style, animatedStyle]}
+        />
+    );
+}
 
-            {/* Empty State Placeholder - Center Icon */}
-            <View className="flex-1 items-center justify-center p-6 pb-20">
-                <Animated.View
-                    className="w-32 h-32 rounded-full mb-6"
-                    style={[{ backgroundColor: colors.muted }, animatedStyle]}
-                />
+export function SkeletonOracleChat() {
+    const { colors } = useTheme();
 
-                {/* Text Lines */}
-                <Animated.View
-                    className="h-6 w-48 rounded-md mb-2"
-                    style={[{ backgroundColor: colors.muted }, animatedStyle]}
-                />
+    return (
+        <View style={{ flex: 1, paddingHorizontal: 16 }}>
+            {/* Center Content Placeholder */}
+            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingBottom: 80 }}>
+                {/* Icon Placeholder - Circle */}
+                <SkeletonBlock width={128} height={128} borderRadius={64} style={{ marginBottom: 24 }} />
 
-                {/* Chips Row */}
-                <View className="flex-row gap-2 mt-6">
-                    <Animated.View
-                        className="h-10 w-24 rounded-full"
-                        style={[{ backgroundColor: colors.muted }, animatedStyle]}
-                    />
-                    <Animated.View
-                        className="h-10 w-24 rounded-full"
-                        style={[{ backgroundColor: colors.muted }, animatedStyle]}
-                    />
+                {/* Title Placeholder - "What's on your mind?" */}
+                <SkeletonBlock width={200} height={24} borderRadius={6} style={{ marginBottom: 24 }} />
+
+                {/* Chips Placeholders */}
+                <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
+                    <SkeletonBlock width={140} height={36} borderRadius={18} />
+                    <SkeletonBlock width={140} height={36} borderRadius={18} />
                 </View>
             </View>
 
             {/* Input Bar Placeholder */}
-            <View className="flex-row items-end gap-2 py-3 border-t" style={{ borderColor: colors.border }}>
+            <View
+                style={{
+                    flexDirection: 'row',
+                    alignItems: 'flex-end',
+                    gap: 8,
+                    paddingVertical: 12,
+                    borderTopWidth: 1,
+                    borderTopColor: colors.border
+                }}
+            >
+                {/* Input Field Skeleton */}
                 <View
-                    className="flex-1 h-12 rounded-xl justify-center px-3"
-                    style={{ backgroundColor: colors.input }}
+                    style={{
+                        flex: 1,
+                        height: 48,
+                        borderRadius: 12,
+                        borderWidth: 1,
+                        borderColor: colors.border,
+                        padding: 12,
+                        justifyContent: 'center',
+                        backgroundColor: colors.card
+                    }}
                 >
-                    <Animated.Text
-                        style={[{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }, animatedStyle]}
-                    >
-                        Ask a question...
-                    </Animated.Text>
+                    <SkeletonBlock width={120} height={12} borderRadius={4} />
                 </View>
-                <View
-                    className="w-12 h-12 rounded-full items-center justify-center"
-                    style={{ backgroundColor: colors.primary, opacity: 0.5 }}
-                >
-                    <View style={{ width: 20, height: 20, backgroundColor: colors['primary-foreground'], borderRadius: 10, opacity: 0.5 }} />
-                </View>
+
+                {/* Send Button Skeleton */}
+                <SkeletonBlock width={48} height={48} borderRadius={24} />
             </View>
 
             {/* Keyboard spacer */}

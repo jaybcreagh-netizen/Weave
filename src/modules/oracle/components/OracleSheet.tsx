@@ -8,6 +8,7 @@
 import React, { useState } from 'react'
 import { Modal, View, TouchableOpacity, SafeAreaView, Platform, InteractionManager } from 'react-native'
 import { X, Clock } from 'lucide-react-native'
+import Animated, { FadeIn, FadeOut, Easing } from 'react-native-reanimated'
 import { useTheme } from '@/shared/hooks/useTheme'
 import { Text } from '@/shared/ui/Text'
 import { useOracleSheet } from '../hooks/useOracleSheet'
@@ -29,11 +30,11 @@ export function OracleSheet() {
     React.useEffect(() => {
         if (isOpen) {
             PerfLogger.log('Oracle', 'Sheet Opened (Visible)');
-            // Defer heavy rendering to allow modal animation to start smoothly
-            const task = InteractionManager.runAfterInteractions(() => {
+            // Start mounting content quickly, but allow one frame for the modal to init
+            const timer = setTimeout(() => {
                 setIsReady(true);
-            });
-            return () => task.cancel();
+            }, 50);
+            return () => clearTimeout(timer);
         } else {
             setIsReady(false);
             // Reset state when closed
@@ -81,24 +82,38 @@ export function OracleSheet() {
                 </View>
 
                 {/* Oracle Chat Content */}
-                {isReady ? (
-                    <OracleChat
-                        context={params.context || 'default'}
-                        friendId={params.friendId}
-                        friendName={params.friendName}
-                        onClose={close}
-                        portalHost="oracle-sheet-host"
-                        initialQuestion={params.initialQuestion}
-                        journalContent={params.journalContent}
-                        lensContext={params.lensContext}
-                        conversationId={selectedConversationId}
-                    />
-                ) : (
-                    <SkeletonOracleChat />
-                )}
+                <View className="flex-1">
+                    {isReady ? (
+                        <Animated.View
+                            key="chat"
+                            entering={FadeIn.duration(400).easing(Easing.out(Easing.ease))}
+                            style={{ flex: 1 }}
+                        >
+                            <OracleChat
+                                context={params.context || 'default'}
+                                friendId={params.friendId}
+                                friendName={params.friendName}
+                                onClose={close}
+                                portalHost="oracle-sheet-host"
+                                initialQuestion={params.initialQuestion}
+                                journalContent={params.journalContent}
+                                lensContext={params.lensContext}
+                                conversationId={selectedConversationId}
+                            />
+                        </Animated.View>
+                    ) : (
+                        <Animated.View
+                            key="skeleton"
+                            exiting={FadeOut.duration(200)}
+                            style={{ flex: 1 }}
+                        >
+                            <SkeletonOracleChat />
+                        </Animated.View>
+                    )}
 
-                {/* Portal Host for sheets rendered inside this modal */}
-                <PortalHost name="oracle-sheet-host" />
+                    {/* Portal Host for sheets rendered inside this modal */}
+                    <PortalHost name="oracle-sheet-host" />
+                </View>
 
                 <StandardBottomSheet
                     visible={showHistory}
