@@ -10,7 +10,7 @@ export * from './components/VisibilitySettings';
 // Stores
 export * from './store/auth.store';
 export * from './store/user-profile.store';
-export * from './store/sync.store';
+export * from './store/background-event-sync.store';
 
 // Context (new)
 export * from './context/AuthContext';

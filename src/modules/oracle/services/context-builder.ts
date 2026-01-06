@@ -4,7 +4,14 @@ import { Q } from '@nozbe/watermelondb'
 import Friend from '@/db/models/Friend'
 import Interaction from '@/db/models/Interaction'
 import JournalEntry from '@/db/models/JournalEntry'
+import LifeEvent from '@/db/models/LifeEvent'
+import SocialBatteryLog from '@/db/models/SocialBatteryLog'
+import UserFact from '@/db/models/UserFact'
+import Intention from '@/db/models/Intention'
+import { SocialSeasonService } from '@/modules/intelligence/services/social-season.service'
 import { logger } from '@/shared/services/logger.service'
+import { getExpectedCadence } from './insight-rules'
+import UserProfile from '@/db/models/UserProfile'
 
 /**
  * Oracle Context Tiers
@@ -21,12 +28,45 @@ export interface OracleContext {
     friends: FriendOracleContext[]
     socialHealth: SocialHealthContext
     recentJournaling: JournalSummary[]
-    venueAndActivitySuggestions?: VenueSuggestions  // NEW
+    activeIntentions?: SimplifiedIntention[]
+    activeSuggestions?: SimplifiedSuggestion[]
+    venueAndActivitySuggestions?: VenueSuggestions
 }
 
 interface UserContext {
     name: string
     currentFocus?: string
+    socialSeason: string
+    socialBattery: {
+        current: string // "3/5" or "Data unavailable"
+        trend: string   // "Draining", "Recharging", "Stable"
+    }
+    upcomingLifeEvents: SimplifiedLifeEvent[] // Events in next 14 days (Social Load)
+    userFacts: string[] // Crystalized memories/preferences
+    oracleTonePreference?: string // 'grounded' | 'warm' | 'playful' | 'poetic'
+}
+
+interface SimplifiedIntention {
+    friendName: string
+    description: string
+    createdAt: string
+}
+
+interface SimplifiedSuggestion {
+    id: string
+    friendName: string
+    description: string
+    type: string
+    urgency: string
+    reason?: string
+}
+
+interface SimplifiedLifeEvent {
+    title: string
+    date: string
+    importance: string
+    friendName: string
+    notes?: string
 }
 
 interface FriendOracleContext {
@@ -45,6 +85,9 @@ interface FriendOracleContext {
         interactionCount: number
         lastMet: string // "2 days ago"
     }
+
+    // NEW: Context V2
+    lifeEvents?: SimplifiedLifeEvent[] // Upcoming or recent significant events
 
     // NEW: Past activities and venues with this friend
     pastActivities?: string[]  // e.g. ["coffee", "dinner", "hiking"]
@@ -67,6 +110,7 @@ interface JournalSummary {
 interface VenueSuggestions {
     byArchetype: Record<string, string[]>  // e.g. { "Hermit": ["quiet coffee shop", "bookstore"], ... }
     forGroup?: string[]  // Suggestions for group based on combined archetypes
+    seasonAdapted?: string[] // NEW: Suggestions filtered by social season
 }
 
 class OracleContextBuilder {
@@ -92,16 +136,19 @@ class OracleContextBuilder {
 
         const friends = await this.getFriends(allFriendIds)
         const formattedFriends = await Promise.all(friends.map(f => this.formatFriend(f, tier)))
+        const userContext = await this.getUserContext()
 
-        // Generate venue/activity suggestions based on archetypes
+        // Generate venue/activity suggestions based on archetypes AND season
         const archetypes = friends.map(f => f.archetype).filter(Boolean)
-        const venueSuggestions = this.getVenueSuggestions(archetypes)
+        const venueSuggestions = this.getVenueSuggestions(archetypes, userContext.socialSeason)
 
         return {
-            userProfile: await this.getUserContext(),
+            userProfile: userContext,
             friends: formattedFriends,
             socialHealth: await this.getSocialHealth(),
             recentJournaling: await this.getRecentJournaling(tier),
+            activeIntentions: await this.getActiveIntentions(friendIds),
+            activeSuggestions: await this.getActiveSuggestions(friendIds),
             venueAndActivitySuggestions: venueSuggestions
         }
     }
@@ -199,6 +246,9 @@ class OracleContextBuilder {
             lastMet
         }
 
+        // NEW: Fetch life events for this friend
+        base.lifeEvents = await this.getFriendLifeEvents(friend.id)
+
         // Extract past activities and venues from interactions
         if (interactionFriends.length > 0) {
             try {
@@ -228,38 +278,279 @@ class OracleContextBuilder {
     }
 
     private async getUserContext(): Promise<UserContext> {
-        return { name: 'User' } // Placeholder until UserProfile is robust
+        // 1. Social Season
+        const season = await SocialSeasonService.getCurrentSeason() || 'unknown'
+
+        // 2. Social Battery (Last 7 days)
+        let batteryInfo = { current: 'Data unavailable', trend: 'Unknown' }
+        try {
+            const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000)
+            const logs = await database.get<SocialBatteryLog>('social_battery_logs')
+                .query(
+                    Q.where('timestamp', Q.gte(sevenDaysAgo)),
+                    Q.sortBy('timestamp', Q.asc)
+                ).fetch()
+
+            if (logs.length > 0) {
+                const latest = logs[logs.length - 1]
+                const avg = logs.reduce((sum, log) => sum + log.value, 0) / logs.length
+
+                // Simple trend detection
+                const firstHalf = logs.slice(0, Math.floor(logs.length / 2))
+                const secondHalf = logs.slice(Math.floor(logs.length / 2))
+                const firstAvg = firstHalf.length ? firstHalf.reduce((sum, log) => sum + log.value, 0) / firstHalf.length : 0
+                const secondAvg = secondHalf.length ? secondHalf.reduce((sum, log) => sum + log.value, 0) / secondHalf.length : 0
+
+                let trend = 'Stable'
+                if (secondAvg > firstAvg + 0.5) trend = 'Recharging'
+                if (secondAvg < firstAvg - 0.5) trend = 'Draining'
+
+                batteryInfo = {
+                    current: `${latest.value}/5 (Avg: ${avg.toFixed(1)})`,
+                    trend
+                }
+            }
+        } catch (e) {
+            logger.warn('OracleContextBuilder', 'Error fetching battery logs', e)
+        }
+
+        // 3. Upcoming Life Events (Social Load) - Next 14 days
+        let upcomingEvents: SimplifiedLifeEvent[] = []
+        try {
+            const now = Date.now()
+            const fourteenDaysFromNow = now + (14 * 24 * 60 * 60 * 1000)
+
+            // Note: This is an expensive query if we scan all events, but LifeEvent table should be small.
+            // Ideally we'd filter by date in SQL, but event_date might be just a timestamp or special format.
+            // Assuming event_date is a timestamp for now based on schema.
+            const events = await database.get<LifeEvent>('life_events')
+                .query(
+                    Q.where('event_date', Q.between(now, fourteenDaysFromNow))
+                ).fetch()
+
+            // We need friend names for these events
+            upcomingEvents = await Promise.all(events.map(async e => {
+                const friend = await (e.friend as any).fetch()
+                return {
+                    title: e.title,
+                    date: new Date(e.eventDate).toLocaleDateString(),
+                    importance: e.importance,
+                    friendName: friend?.name || 'Unknown Friend',
+                    notes: e.notes
+                }
+            }))
+        } catch (e) {
+            logger.warn('OracleContextBuilder', 'Error fetching life events', e)
+        }
+
+        return {
+            name: 'User',
+            socialSeason: season,
+            socialBattery: batteryInfo,
+            upcomingLifeEvents: upcomingEvents,
+            userFacts: await this.getUserFacts(),
+            oracleTonePreference: (await database.get<UserProfile>('user_profile').query().fetch())[0]?.oracleTonePreference
+        }
+    }
+
+    private async getUserFacts(): Promise<string[]> {
+        try {
+            const facts = await database.get<UserFact>('user_facts')
+                .query(
+                    Q.where('confidence', Q.gte(0.7)),
+                    Q.sortBy('created_at', Q.desc),
+                    Q.take(10)
+                ).fetch()
+
+            return facts.map(f => f.factContent)
+        } catch (e) {
+            return []
+        }
+    }
+
+    private async getFriendLifeEvents(friendId: string): Promise<SimplifiedLifeEvent[]> {
+        try {
+            const now = Date.now()
+            const thirtyDaysFromNow = now + (30 * 24 * 60 * 60 * 1000)
+
+            const events = await database.get<LifeEvent>('life_events')
+                .query(
+                    Q.where('friend_id', friendId),
+                    Q.where('event_date', Q.between(now, thirtyDaysFromNow))
+                ).fetch()
+
+            return events.map(e => ({
+                title: e.title,
+                date: new Date(e.eventDate).toLocaleDateString(),
+                importance: e.importance,
+                friendName: 'This Friend', // Redundant but fits interface
+                notes: e.notes
+            }))
+        } catch (e) {
+            return []
+        }
     }
 
     private async getSocialHealth(): Promise<SocialHealthContext> {
-        // Placeholder stats
-        return {
-            totalActiveFriends: 0,
-            needingAttentionCount: 0,
-            overallVibe: 'balanced'
+        try {
+            const friends = await database.get<Friend>('friends').query(
+                Q.where('is_dormant', false)
+            ).fetch()
+
+            const now = Date.now()
+            const ONE_DAY = 24 * 60 * 60 * 1000
+
+            // Count active friends (interacted in last 30 days)
+            const activeFriends = friends.filter(f => {
+                if (!f.lastInteractionDate) return false
+                const daysSince = (now - f.lastInteractionDate.getTime()) / ONE_DAY
+                return daysSince <= 30
+            })
+
+            // Count friends needing attention (past expected cadence)
+            const needingAttention = friends.filter(f => {
+                if (!f.lastInteractionDate) return true
+                const daysSince = (now - f.lastInteractionDate.getTime()) / ONE_DAY
+                const expectedCadence = getExpectedCadence(f.tier)
+                return daysSince > expectedCadence * 1.5
+            })
+
+            // Calculate overall vibe from recent interactions (last 14 days)
+            const recentInteractions = await database.get<Interaction>('interactions').query(
+                Q.where('interaction_date', Q.gte(now - 14 * ONE_DAY)),
+                Q.where('status', 'completed')
+            ).fetch()
+
+            const vibeScores = recentInteractions
+                .map(i => parseInt(i.vibe || '0', 10))
+                .filter(v => !isNaN(v) && v > 0)
+
+            const avgVibe = vibeScores.length > 0
+                ? vibeScores.reduce((a, b) => a + b, 0) / vibeScores.length
+                : null
+
+            const overallVibe = avgVibe === null ? 'No recent data'
+                : avgVibe >= 4 ? 'Thriving'
+                    : avgVibe >= 3 ? 'Good'
+                        : avgVibe >= 2 ? 'Mixed'
+                            : 'Low energy'
+
+            return {
+                totalActiveFriends: activeFriends.length,
+                needingAttentionCount: needingAttention.length,
+                overallVibe
+            }
+        } catch (error) {
+            logger.warn('OracleContextBuilder', 'Error calculating social health', { error })
+            return {
+                totalActiveFriends: 0,
+                needingAttentionCount: 0,
+                overallVibe: 'Unknown'
+            }
         }
     }
 
     private async getRecentJournaling(tier: ContextTier): Promise<JournalSummary[]> {
         if (tier === ContextTier.ESSENTIAL) return []
 
-        const entries = await database.get<JournalEntry>('journal_entries')
-            .query(
-                Q.sortBy('created_at', Q.desc),
-                Q.take(5)
-            ).fetch()
+        try {
+            const twoWeeksAgo = Date.now() - 14 * 24 * 60 * 60 * 1000
 
-        return entries.map(e => ({
-            date: e.createdAt.toISOString().split('T')[0],
-            topics: [], // TODO: extract from content or saved tags
-            sentiment: 'neutral'
-        }))
+            const entries = await database.get<JournalEntry>('journal_entries')
+                .query(
+                    Q.where('entry_date', Q.gte(twoWeeksAgo)),
+                    Q.sortBy('entry_date', Q.desc),
+                    Q.take(5)
+                ).fetch()
+
+            return entries.map(entry => ({
+                date: entry.createdAt.toISOString().split('T')[0],
+                topics: entry.title ? [entry.title] : [],
+                sentiment: this.inferSentiment(entry)
+            }))
+        } catch (error) {
+            logger.warn('OracleContextBuilder', 'Error fetching recent journaling', { error })
+            return []
+        }
+    }
+
+    private inferSentiment(entry: JournalEntry): string {
+        // Simple heuristic - could be enhanced with LLM later
+        const contentLength = entry.content.length
+        if (contentLength > 500) return 'reflective'
+        if (contentLength > 200) return 'thoughtful'
+        return 'brief'
+    }
+
+    private async getActiveIntentions(friendIds: string[]): Promise<SimplifiedIntention[]> {
+        try {
+            // Base query for active intentions
+            const intentionsQuery = database.get<Intention>('intentions').query(
+                Q.where('status', 'active')
+            );
+
+            const allIntentions = await intentionsQuery.fetch();
+
+            const simplified: SimplifiedIntention[] = [];
+
+            for (const intention of allIntentions) {
+                // Fetch associated friends
+                const intentionFriends = await intention.intentionFriends.fetch();
+
+                // If specific friends requested, filter
+                if (friendIds.length > 0) {
+                    const hasRequestedFriend = intentionFriends.some(f => friendIds.includes(f.friendId));
+                    if (!hasRequestedFriend) continue;
+                }
+
+                // Get friend names
+                const friends = await Promise.all(intentionFriends.map(f => f.friend.fetch()));
+                const friendNames = friends.map(f => f.name).join(', ');
+
+                simplified.push({
+                    friendName: friendNames || 'Unknown Friend',
+                    description: intention.description || 'No description',
+                    createdAt: intention.createdAt.toLocaleDateString()
+                });
+            }
+
+            return simplified;
+        } catch (error) {
+            logger.warn('OracleContextBuilder', 'Error fetching active intentions', { error });
+            return [];
+        }
+    }
+
+    private async getActiveSuggestions(friendIds: string[]): Promise<SimplifiedSuggestion[]> {
+        try {
+            // We need to fetch suggestions dynamically.
+            // Ideally this should use the SuggestionService, but to avoid circular deps we might need care.
+            // For now, let's assume we can import the service.
+            // Note: In a real app, we might store generated suggestions in a LocalState or Cache.
+            // Since I cannot easily import the full `fetchSuggestions` logic here without risk,
+            // I will return an empty array for now and rely on the Prompt to ask the user or Client to pass it.
+            // WAIT - the OracleSheet has access to `useSuggestions`. It pass 'context: output' ?
+            // No, the context builder runs on the "server" (or service layer).
+
+            // BETTER APPROACH:
+            // The `OracleService.generateResponse` takes `context`.
+            // The `useOracleSheet` hook calls `OracleChat`. `OracleChat` calls `OracleService`.
+            // `OracleChat` has access to `useSuggestions`.
+            // I should pass the suggestions FROM THE UI into the Oracle Service options,
+            // rather than making the ContextBuilder fetch them again (which is expensive/complex).
+
+            // So I will NOT implement complex fetching here.
+            // Instead I will return empty and rely on INJECTED context from the UI.
+            return [];
+        } catch (error) {
+            return [];
+        }
     }
 
     /**
      * Get venue/activity suggestions based on archetypes
      */
-    private getVenueSuggestions(archetypes: string[]): VenueSuggestions {
+    private getVenueSuggestions(archetypes: string[], season: string): VenueSuggestions {
         // Archetype to suggested activities/venues mapping
         const ARCHETYPE_SUGGESTIONS: Record<string, string[]> = {
             'Hermit': ['quiet coffee shop', 'bookstore', 'peaceful walk in nature', 'home dinner', 'one-on-one lunch'],
@@ -306,7 +597,15 @@ class OracleContextBuilder {
             }
         }
 
-        return { byArchetype, forGroup }
+        // NEW: Season-adapted suggestions
+        let seasonAdapted: string[] = []
+        if (season === 'resting') {
+            seasonAdapted = ['home visit', 'quiet walk', 'low-energy hangout', 'sending a thoughtful text', 'brief coffee']
+        } else if (season === 'blooming') {
+            seasonAdapted = ['host a dinner', 'organize a group trip', 'attend a social event', 'try a new hobby group']
+        }
+
+        return { byArchetype, forGroup, seasonAdapted }
     }
 }
 

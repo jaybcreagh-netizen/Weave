@@ -33,6 +33,11 @@ export async function createFriend(data: FriendFormData, source: 'manual' | 'onb
         friend.momentumLastUpdated = new Date();
         friend.isDormant = false;
         friend.dormantSince = undefined;
+
+        // Contact details
+        friend.phoneNumber = data.phoneNumber;
+        friend.email = data.email;
+        friend.preferredMessagingApp = data.preferredMessagingApp;
       });
       batchOps.push(newFriend);
 
@@ -82,6 +87,12 @@ export async function updateFriend(id: string, data: FriendFormData): Promise<Fr
       record.birthday = data.birthday || undefined;
       record.anniversary = data.anniversary || undefined;
       record.relationshipType = data.relationshipType || undefined;
+
+      // Contact details
+      record.phoneNumber = data.phoneNumber;
+      record.email = data.email;
+      record.preferredMessagingApp = data.preferredMessagingApp;
+
       record.lastUpdated = new Date();
     });
   });

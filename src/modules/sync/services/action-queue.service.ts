@@ -42,13 +42,33 @@ export async function enqueueOperation(
     payload: Record<string, unknown>
 ): Promise<string> {
     const queueCollection = database.get<SyncQueueItem>('sync_queue');
+    const serializedPayload = JSON.stringify(payload);
+
+    // Check for duplicates
+    // We fetch pending/processing items of the same type and check payload equality
+    const existingItems = await queueCollection
+        .query(
+            Q.where('operation_type', operationType),
+            Q.where('status', Q.oneOf(['pending', 'processing']))
+        )
+        .fetch();
+
+    const duplicate = existingItems.find(item => item.payload === serializedPayload);
+
+    if (duplicate) {
+        logger.info('ActionQueue', `Duplicate operation detected, skipping: ${operationType}`, {
+            itemId: duplicate.id,
+            status: duplicate.status
+        });
+        return duplicate.id;
+    }
 
     let itemId = '';
 
     await database.write(async () => {
         const item = await queueCollection.create(record => {
             record.operationType = operationType;
-            record.payload = JSON.stringify(payload);
+            record.payload = serializedPayload;
             record.status = 'pending';
             record.retryCount = 0;
             record.queuedAt = Date.now();

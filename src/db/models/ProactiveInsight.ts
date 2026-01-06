@@ -23,6 +23,18 @@ export default class ProactiveInsight extends Model {
 
     @field('severity') severity?: number
 
+    // v58: Transparency for Insight Redesign
+    @text('source_signals_json') sourceSignalsJson?: string
+
+    get sourceSignals(): any[] {
+        if (!this.sourceSignalsJson) return []
+        try {
+            return JSON.parse(this.sourceSignalsJson)
+        } catch {
+            return []
+        }
+    }
+
     @date('generated_at') generatedAt!: Date
     @date('expires_at') expiresAt!: Date
 

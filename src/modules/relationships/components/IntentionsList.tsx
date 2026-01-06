@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Target } from 'lucide-react-native';
+import * as Haptics from 'expo-haptics';
 import { logger } from '@/shared/services/logger.service';
 import { View, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { formatDistanceToNow } from 'date-fns';
@@ -21,13 +22,14 @@ interface IntentionWithFriend {
 interface IntentionsListProps {
   intentions: Intention[];
   onIntentionPress: (intention: Intention) => void;
+  onDeleteIntention?: (id: string) => void;
 }
 
 /**
  * Displays active intentions at the top of Insights sheet
  * Horizontal scrolling layout for a more modern feel
  */
-export function IntentionsList({ intentions, onIntentionPress }: IntentionsListProps) {
+export function IntentionsList({ intentions, onIntentionPress, ...props }: IntentionsListProps) {
   const { colors, tokens } = useTheme();
   const [intentionsWithFriends, setIntentionsWithFriends] = useState<IntentionWithFriend[]>([]);
 
@@ -169,6 +171,23 @@ export function IntentionsList({ intentions, onIntentionPress }: IntentionsListP
                 borderColor: colors.border,
               }}
               onPress={() => onIntentionPress(intention)}
+              onLongPress={() => {
+                if (props.onDeleteIntention) {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  Alert.alert(
+                    'Delete Intention',
+                    'Are you sure you want to delete this intention?',
+                    [
+                      { text: 'Cancel', style: 'cancel' },
+                      {
+                        text: 'Delete',
+                        style: 'destructive',
+                        onPress: () => props.onDeleteIntention?.(intention.id)
+                      }
+                    ]
+                  );
+                }
+              }}
               activeOpacity={0.7}
             >
               <View className="flex-row justify-between items-start mb-3 gap-2">

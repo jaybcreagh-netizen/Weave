@@ -19,6 +19,8 @@ interface TimelineListProps {
     onEditInteraction: (id: string) => void;
     ListHeaderComponent?: React.ReactElement;
     archetype?: string;
+    /** Set of interaction IDs that have linked journal entries */
+    linkedJournalIds?: Set<string>;
 }
 
 export function TimelineList({
@@ -30,7 +32,8 @@ export function TimelineList({
     onDeleteInteraction,
     onEditInteraction,
     ListHeaderComponent,
-    archetype
+    archetype,
+    linkedJournalIds
 }: TimelineListProps) {
     const { colors } = useTheme();
 
@@ -55,10 +58,11 @@ export function TimelineList({
                     isFirstInSection={isFirstInSection}
                     isLastItem={isLastItem}
                     archetype={archetype}
+                    hasLinkedJournal={linkedJournalIds?.has(interaction.id)}
                 />
             </View>
         );
-    }, [onInteractionPress, onDeleteInteraction, onEditInteraction, sections, archetype]);
+    }, [onInteractionPress, onDeleteInteraction, onEditInteraction, sections, archetype, linkedJournalIds]);
 
     return (
         <View className="flex-1 relative">

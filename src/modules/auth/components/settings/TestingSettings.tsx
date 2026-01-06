@@ -376,6 +376,37 @@ export const TestingSettings: React.FC<TestingSettingsProps> = ({ onClose }) => 
             <View className="border-t border-border" style={{ borderColor: colors.border }} />
 
             <SettingsItem
+                icon={Sparkles}
+                title="Force Generate Insights"
+                subtitle="Run the daily oracle job now"
+                onPress={() => {
+                    Alert.alert(
+                        'Generate Insights',
+                        'This will trigger the daily insight generation job. It uses LLM tokens. Continue?',
+                        [
+                            { text: 'Cancel', style: 'cancel' },
+                            {
+                                text: 'Generate',
+                                onPress: async () => {
+                                    try {
+                                        // Dynamic import to avoid cycles
+                                        const { InsightGenerator } = await import('@/modules/oracle/services/insight-generator');
+                                        await InsightGenerator.generateDailyInsights();
+                                        Alert.alert('Success', 'Insights generated! Check the logs or home screen.');
+                                    } catch (error) {
+                                        console.error('Failed to generate insights:', error);
+                                        Alert.alert('Error', 'Failed to generate insights.');
+                                    }
+                                }
+                            }
+                        ]
+                    );
+                }}
+            />
+
+            <View className="border-t border-border" style={{ borderColor: colors.border }} />
+
+            <SettingsItem
                 icon={Database}
                 title="Generate Test Data"
                 subtitle="Create 100 test friends"

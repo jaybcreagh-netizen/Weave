@@ -3,7 +3,7 @@
  * The main "Then and When" calendar view combining energy, weaves, and drift detection
  */
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, ScrollView, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
@@ -18,17 +18,20 @@ import { SeasonHeader } from './SeasonHeader';
 import { MonthGrid, DayData } from './MonthGrid';
 import { DriftAlertsSection } from './DriftAlertsSection';
 import { DayDetailSheet, DayDetailData, DayWeave } from './DayDetailSheet';
-import { EditInteractionModal } from '@/modules/interactions';
-import { InteractionActions } from '@/modules/interactions/services/interaction.actions';
 
 interface UnifiedCalendarProps {
     onOpenPlanWizard?: (friendId?: string, friendName?: string) => void;
     onOpenBatteryCheckin?: (date?: Date) => void;
+    onEditWeave?: (weaveId: string) => void;
+    /** Increment this to trigger a data refresh */
+    refreshTrigger?: number;
 }
 
 export function UnifiedCalendar({
     onOpenPlanWizard,
     onOpenBatteryCheckin,
+    onEditWeave,
+    refreshTrigger,
 }: UnifiedCalendarProps) {
     const { tokens } = useTheme();
     const router = useRouter();
@@ -43,9 +46,6 @@ export function UnifiedCalendar({
     const [selectedDate, setSelectedDate] = useState<Date | null>(null);
     const [dayDetailData, setDayDetailData] = useState<DayDetailData | null>(null);
     const [showDayDetail, setShowDayDetail] = useState(false);
-    const [selectedWeaveId, setSelectedWeaveId] = useState<string | null>(null);
-    const [showEditModal, setShowEditModal] = useState(false);
-    const [selectedInteraction, setSelectedInteraction] = useState<any>(null);
 
     // Load initial data
     useEffect(() => {
@@ -56,6 +56,13 @@ export function UnifiedCalendar({
     useEffect(() => {
         loadMonthData();
     }, [currentMonth]);
+
+    // Reload data when refresh is triggered (e.g., after battery check-in)
+    useEffect(() => {
+        if (refreshTrigger !== undefined && refreshTrigger > 0) {
+            loadMonthData();
+        }
+    }, [refreshTrigger]);
 
     const loadData = async () => {
         setIsLoading(true);
@@ -255,6 +262,8 @@ export function UnifiedCalendar({
 
     const handleCheckIn = useCallback(
         (date: Date) => {
+            // Called after DayDetailSheet closes (with 300ms delay)
+            // This prevents two modals from transitioning simultaneously
             if (onOpenBatteryCheckin) {
                 onOpenBatteryCheckin(date);
             }
@@ -262,26 +271,12 @@ export function UnifiedCalendar({
         [onOpenBatteryCheckin]
     );
 
-    const handleViewWeave = useCallback(async (weaveId: string) => {
-        try {
-            const interaction = await database.get('interactions').find(weaveId);
-            setSelectedInteraction(interaction);
-            setSelectedWeaveId(weaveId);
-            setShowEditModal(true);
-            setShowDayDetail(false); // Close day sheet when opening weave
-        } catch (error) {
-            console.error('[UnifiedCalendar] Error loading weave:', error);
+    const handleViewWeave = useCallback((weaveId: string) => {
+        if (onEditWeave) {
+            onEditWeave(weaveId);
         }
-    }, []);
-
-    const handleSaveInteraction = useCallback(async (interactionId: string, updates: any) => {
-        await InteractionActions.updateInteraction(interactionId, updates);
-        setShowEditModal(false);
-        setSelectedInteraction(null);
-        setSelectedWeaveId(null);
-        // Reload month data to reflect changes
-        loadMonthData();
-    }, []);
+        setShowDayDetail(false); // Close day sheet when opening weave
+    }, [onEditWeave]);
 
     if (isLoading) {
         return (
@@ -330,17 +325,7 @@ export function UnifiedCalendar({
                 onViewWeave={handleViewWeave}
             />
 
-            {/* Edit Interaction Modal */}
-            <EditInteractionModal
-                interaction={selectedInteraction}
-                isOpen={showEditModal}
-                onClose={() => {
-                    setShowEditModal(false);
-                    setSelectedInteraction(null);
-                    setSelectedWeaveId(null);
-                }}
-                onSave={handleSaveInteraction}
-            />
+
         </View>
     );
 }

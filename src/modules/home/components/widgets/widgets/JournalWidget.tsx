@@ -91,29 +91,51 @@ const STATS: StatItem[] = [
         icon: Flame,
         getValue: async () => {
             // Calculate streak: consecutive days with completed weaves backwards from today
+            // OPTIMIZED: Fetch all relevant interactions in one go instead of 30 queries
             const today = new Date();
             today.setHours(0, 0, 0, 0);
+
+            // Look back 30 days
+            const lookbackWindow = 30 * 24 * 60 * 60 * 1000;
+            const windowStart = today.getTime() - lookbackWindow;
+            const windowEnd = today.getTime() + 24 * 60 * 60 * 1000; // Include today
+
+            const interactions = await database
+                .get<Interaction>('interactions')
+                .query(
+                    Q.where('status', 'completed'),
+                    Q.where('interaction_date', Q.gte(windowStart)),
+                    Q.where('interaction_date', Q.lt(windowEnd)),
+                    Q.sortBy('interaction_date', 'desc')
+                )
+                .fetch();
+
+            // Create a set of dates (YYYY-MM-DD) that have completed interactions
+            const activeDates = new Set<string>();
+            interactions.forEach(interaction => {
+                const date = new Date(interaction.interactionDate);
+                date.setHours(0, 0, 0, 0);
+                activeDates.add(date.toISOString().split('T')[0]);
+            });
 
             let streak = 0;
             let checkDate = new Date(today);
 
-            for (let i = 0; i < 30; i++) { // Check up to 30 days back
-                const dayStart = checkDate.getTime();
-                const dayEnd = dayStart + 24 * 60 * 60 * 1000;
-
-                const count = await database
-                    .get<Interaction>('interactions')
-                    .query(
-                        Q.where('status', 'completed'),
-                        Q.where('interaction_date', Q.gte(dayStart)),
-                        Q.where('interaction_date', Q.lt(dayEnd))
-                    )
-                    .fetchCount();
-
-                if (count > 0) {
+            for (let i = 0; i < 30; i++) {
+                const dateStr = checkDate.toISOString().split('T')[0];
+                if (activeDates.has(dateStr)) {
                     streak++;
                     checkDate.setDate(checkDate.getDate() - 1);
                 } else {
+                    // If today has no interaction yet, don't break streak if yesterday had one
+                    // But if we are checking today (i===0) and it's missing, we allow it (streak continues from yesterday)
+                    // However, standard streak logic usually implies "current streak ending today or yesterday".
+                    // If i==0 (today) and no interaction, we check yesterday. 
+                    // If yesterday is missing, streak is 0.
+                    if (i === 0) {
+                        checkDate.setDate(checkDate.getDate() - 1);
+                        continue;
+                    }
                     break;
                 }
             }
@@ -186,19 +208,19 @@ export function JournalWidget() {
     const router = useRouter();
 
     const [widgetState, setWidgetState] = useState<WidgetState | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const [statIndex, setStatIndex] = useState(0); // Start at 0, cycle automatically
-    const [statValues, setStatValues] = useState<number[]>([]); // Store all values
-    const [promptKey, setPromptKey] = useState(0); // For refreshing prompt
-    const [forceDefaultPrompt, setForceDefaultPrompt] = useState(false); // Skip priority when refreshing
+    const [isWidgetStateLoading, setIsWidgetStateLoading] = useState(true);
+    const [statValues, setStatValues] = useState<number[]>([]);
+    const [statIndex, setStatIndex] = useState(0);
+    const [promptKey, setPromptKey] = useState(0);
+    const [forceDefaultPrompt, setForceDefaultPrompt] = useState(false);
 
     // Get the current stat config
-    const currentStat = STATS[statIndex];
-    // If we have values loaded, use the real value, otherwise null
-    const currentStatValue = statValues.length > 0 ? statValues[statIndex] : null;
+    // Default to first stat if empty
+    const currentStat = STATS[statIndex % STATS.length];
+    const currentStatValue = statValues.length > 0 ? statValues[statIndex % statValues.length] : null;
     const StatIcon = currentStat.icon;
 
-    // Get a random general prompt
+    // ... (getRandomGeneralPrompt and determineState remain the same) ...
     const getRandomGeneralPrompt = (): WidgetState => {
         const randomPrompt = GENERAL_PROMPTS[Math.floor(Math.random() * GENERAL_PROMPTS.length)];
         return {
@@ -214,6 +236,7 @@ export function JournalWidget() {
 
     // Determine widget state based on priority
     const determineState = useCallback(async (): Promise<WidgetState> => {
+        // ... (keep existing implementation of determineState) ...
         // If forceDefaultPrompt is set, skip all prioritization and show random prompt
         if (forceDefaultPrompt) {
             return getRandomGeneralPrompt();
@@ -281,66 +304,83 @@ export function JournalWidget() {
         return getRandomGeneralPrompt();
     }, [promptKey, forceDefaultPrompt]);
 
-    // Load widget state and ALL stats
-    useEffect(() => {
-        let mounted = true;
-
-        const load = async () => {
-            setIsLoading(true);
-            try {
-                // Determine state and fetch all stats in parallel
-                const [state, ...values] = await Promise.all([
-                    determineState(),
-                    ...STATS.map(s => s.getValue())
-                ]);
-
-                if (mounted) {
-                    setWidgetState(state);
-                    setStatValues(values as number[]);
-                    // Randomize start index so it handles fresh mounts differently
-                    setStatIndex(Math.floor(Math.random() * STATS.length));
-                }
-            } catch (error) {
-                console.error('[JournalWidget] Error loading:', error);
-                // Fall back to default state
-                if (mounted) {
-                    const randomPrompt = GENERAL_PROMPTS[Math.floor(Math.random() * GENERAL_PROMPTS.length)];
-                    setWidgetState({
-                        type: 'default',
-                        prompt: {
-                            id: 'general',
-                            question: randomPrompt,
-                            context: 'General prompt',
-                            type: 'general',
-                        }
-                    });
-                    setStatValues(STATS.map(() => 0));
-                }
-            } finally {
-                if (mounted) {
-                    setIsLoading(false);
-                }
-            }
-        };
-
-        load();
-        return () => { mounted = false; };
-    }, [determineState, promptKey]);
-
     // Pause stat cycling when app is sleeping to save battery
     const isSleeping = useAppSleeping();
     const isFocused = useIsFocused();
 
+    useEffect(() => {
+        let mounted = true;
+        // Don't load if not focused to save resources (e.g. valid on other tabs)
+        // We still load once on mount if we are on the home tab, but this helps if we are deep in stack
+        // Actually, for widgets in a scrollview, 'isFocused' might be true even if off screen? 
+        // But useIsFocused refers to the screen. 
+        // We'll trust the screen focus.
+
+        if (!isFocused) return;
+
+        // Function to load main widget state (prompt)
+        const loadWidgetState = async () => {
+            console.time('JournalWidget.loadState');
+            setIsWidgetStateLoading(true);
+            try {
+                // Short delay to allow screen transitions to settle
+                await new Promise(resolve => setTimeout(resolve, 500));
+
+                const state = await determineState();
+                if (mounted) {
+                    setWidgetState(state);
+                }
+            } catch (error) {
+                console.error('[JournalWidget] Error loading state:', error);
+                if (mounted) {
+                    setWidgetState(getRandomGeneralPrompt());
+                }
+            } finally {
+                if (mounted) {
+                    setIsWidgetStateLoading(false);
+                    console.timeEnd('JournalWidget.loadState');
+                }
+            }
+        };
+
+        // Function to load stats independently - DEFERRED
+        const loadStats = async () => {
+            console.time('JournalWidget.loadStats');
+            try {
+                // Defer stats loading significantly to prioritize main content
+                await new Promise(resolve => setTimeout(resolve, 2000));
+
+                const values = await Promise.all(STATS.map(s => s.getValue()));
+                if (mounted) {
+                    setStatValues(values);
+                    setStatIndex(Math.floor(Math.random() * STATS.length));
+                }
+            } catch (error) {
+                console.error('[JournalWidget] Error loading stats:', error);
+                if (mounted) {
+                    setStatValues(STATS.map(() => 0));
+                }
+            } finally {
+                if (mounted) console.timeEnd('JournalWidget.loadStats');
+            }
+        };
+
+        loadWidgetState();
+        loadStats();
+
+        return () => { mounted = false; };
+    }, [determineState, promptKey, isFocused]);
+
     // Cycle stats every 5 seconds (only when visible)
     useEffect(() => {
-        if (isLoading || isSleeping || !isFocused) return;
+        if (isWidgetStateLoading || isSleeping || !isFocused) return;
 
         const interval = setInterval(() => {
             setStatIndex((prev) => (prev + 1) % STATS.length);
         }, 5000);
 
         return () => clearInterval(interval);
-    }, [isLoading, isSleeping, isFocused]);
+    }, [isWidgetStateLoading, isSleeping, isFocused]);
 
     // Handle widget tap
     const handlePress = () => {
@@ -408,7 +448,7 @@ export function JournalWidget() {
     const isReflectionState = widgetState?.type === 'weekly-reflection' || widgetState?.type === 'weekly-reflection-completed';
 
     return (
-        <HomeWidgetBase config={WIDGET_CONFIG} isLoading={isLoading}>
+        <HomeWidgetBase config={WIDGET_CONFIG} isLoading={isWidgetStateLoading}>
             {/* Increased fixed height to accommodate layout */}
             <View style={{ height: 200, justifyContent: 'space-between' }}>
                 <View className="flex-1">

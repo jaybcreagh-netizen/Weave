@@ -1266,5 +1266,91 @@ export default schemaMigrations({
         }),
       ],
     },
+    {
+      // Migration from schema v54 to v55
+      // Oracle Refactor - Reliable Last Seen
+      toVersion: 55,
+      steps: [
+        addColumns({
+          table: 'friends',
+          columns: [
+            { name: 'last_interaction_date', type: 'number', isOptional: true, isIndexed: true },
+          ],
+        }),
+      ],
+    },
+    {
+      // Migration from schema v55 to v56
+      // Crystalized Insights (Memory) - User Facts
+      toVersion: 56,
+      steps: [
+        createTable({
+          name: 'user_facts',
+          columns: [
+            { name: 'fact_content', type: 'string' },
+            { name: 'category', type: 'string' }, // 'social_preference', 'logistics', 'value'
+            { name: 'confidence', type: 'number' },
+            { name: 'source', type: 'string' }, // 'oracle_feedback', 'explicit_entry'
+            { name: 'relevant_friend_id', type: 'string', isOptional: true, isIndexed: true },
+            { name: 'created_at', type: 'number' },
+            { name: 'updated_at', type: 'number' },
+          ],
+        }),
+      ],
+    },
+    {
+      // Migration from schema v56 to v57
+      // Oracle Tone Preference (Phase 4 Style Personalization)
+      toVersion: 57,
+      steps: [
+        addColumns({
+          table: 'user_profile',
+          columns: [
+            { name: 'oracle_tone_preference', type: 'string', isOptional: true },
+          ],
+        }),
+      ],
+    },
+    {
+      // Migration from schema v57 to v58
+      // Oracle Insight Redesign: Frequency + Synthesis Source
+      toVersion: 58,
+      steps: [
+        addColumns({
+          table: 'user_profile',
+          columns: [
+            { name: 'insight_frequency', type: 'string', isOptional: true },
+          ],
+        }),
+        addColumns({
+          table: 'proactive_insights',
+          columns: [
+            { name: 'source_signals_json', type: 'string', isOptional: true },
+          ],
+        }),
+      ],
+    },
+    {
+      // Migration from schema v58 to v59
+      // Oracle Conversation Persistence
+      toVersion: 59,
+      steps: [
+        createTable({
+          name: 'oracle_conversations',
+          columns: [
+            { name: 'title', type: 'string' },
+            { name: 'context', type: 'string' },
+            { name: 'friend_id', type: 'string', isOptional: true, isIndexed: true },
+            { name: 'turns_json', type: 'string' },
+            { name: 'turn_count', type: 'number' },
+            { name: 'is_archived', type: 'boolean', isIndexed: true },
+            { name: 'started_at', type: 'number', isIndexed: true },
+            { name: 'last_message_at', type: 'number', isIndexed: true },
+            { name: 'created_at', type: 'number' },
+            { name: 'updated_at', type: 'number' },
+          ],
+        }),
+      ],
+    },
   ],
 });

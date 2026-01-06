@@ -98,7 +98,9 @@ interface SuggestionsResult {
 /**
  * Hook to fetch event suggestions (upcoming and past)
  */
-export function useEventSuggestions() {
+export function useEventSuggestions(options?: { enabled?: boolean }) {
+    const enabled = options?.enabled ?? true;
+
     return useQuery<SuggestionsResult>({
         queryKey: QUERY_KEY,
         queryFn: async () => {
@@ -154,6 +156,7 @@ export function useEventSuggestions() {
                 pastEvents: pastSuggestions,
             };
         },
+        enabled,
         staleTime: 60 * 60 * 1000, // 1 hour throttle, replacing manual check
         gcTime: 24 * 60 * 60 * 1000, // Keep in cache for 24 hours
     });

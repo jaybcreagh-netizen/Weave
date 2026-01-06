@@ -6,7 +6,7 @@ import { logger } from '@/shared/services/logger.service';
 
 // Version tracking for data migrations - bump when adding new migrations
 const MIGRATION_VERSION_KEY = 'DATA_MIGRATION_VERSION';
-const CURRENT_MIGRATION_VERSION = 2;
+const CURRENT_MIGRATION_VERSION = 3;
 
 // Helper to migrate old activity types to new categories
 function migrateActivityToCategory(activity: string): InteractionCategory {
@@ -278,12 +278,60 @@ export async function runDataMigrationIfNeeded(database: Database): Promise<void
   // Ensure user_progress has v30 columns
   await ensureUserProgressColumns(database);
 
+  // Backfill last_interaction_date (v55)
+  if (CURRENT_MIGRATION_VERSION >= 3) {
+    await backfillLastInteractionDates(database);
+  }
+
   // Mark migrations as complete
   try {
     await AsyncStorage.setItem(MIGRATION_VERSION_KEY, CURRENT_MIGRATION_VERSION.toString());
     logger.info('DataMigration', 'Marked migrations complete (v' + CURRENT_MIGRATION_VERSION + ')');
   } catch (error) {
     logger.warn('DataMigration', 'Failed to save migration version', error);
+  }
+}
+
+/**
+ * Backfill last_interaction_date for all friends (Oracle Refactor v55)
+ */
+export async function backfillLastInteractionDates(database: Database): Promise<void> {
+  const friendsCollection = database.get('friends');
+  const interactionsCollection = database.get('interactions');
+
+  try {
+    const friends = await friendsCollection.query().fetch();
+    logger.info('DataMigration', `Backfilling last interaction dates for ${friends.length} friends...`);
+
+    await database.write(async () => {
+      for (const friend of friends) {
+        // Find latest completed interaction for this friend
+        const latestInteraction = await interactionsCollection.query(
+          Q.on('interaction_friends', 'friend_id', friend.id),
+          Q.where('status', 'completed'),
+          Q.sortBy('interaction_date', Q.desc),
+          Q.take(1)
+        ).fetch();
+
+        if (latestInteraction.length > 0) {
+          const lastDate = latestInteraction[0].interactionDate;
+          // @ts-ignore
+          // Check if update is needed (compare using getTime() to handle potential discrepancies)
+          // Also handle case where lastInteractionDate might be undefined on the record yet
+          const currentDate = friend.lastInteractionDate;
+
+          if (!currentDate || currentDate.getTime() !== lastDate.getTime()) {
+            await friend.prepareUpdate(rec => {
+              // @ts-ignore
+              rec.lastInteractionDate = lastDate;
+            });
+          }
+        }
+      }
+    }); // End database.write
+    logger.info('DataMigration', '✅ Backfill complete.');
+  } catch (error) {
+    logger.error('DataMigration', '❌ Error backfilling interaction dates:', error);
   }
 }
 

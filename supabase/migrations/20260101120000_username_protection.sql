@@ -24,6 +24,10 @@ CREATE INDEX IF NOT EXISTS idx_reserved_expires ON reserved_usernames(expires_at
 -- RLS: Only the system/functions can modify, but allow reads for availability checks
 ALTER TABLE reserved_usernames ENABLE ROW LEVEL SECURITY;
 
+-- Drop existing policies if they exist (for idempotent migrations)
+DROP POLICY IF EXISTS "Anyone can check reserved usernames" ON reserved_usernames;
+DROP POLICY IF EXISTS "Users can manage own reservations" ON reserved_usernames;
+
 -- Allow authenticated users to check if a username is reserved
 CREATE POLICY "Anyone can check reserved usernames" 
   ON reserved_usernames FOR SELECT 

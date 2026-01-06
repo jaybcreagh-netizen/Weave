@@ -97,4 +97,10 @@ export default class UserProfile extends Model {
   // v54: Proactive Insights (Phase 7)
   @field('proactive_insights_enabled') proactiveInsightsEnabled?: boolean;
   @text('suppressed_insight_rules') suppressedInsightRules?: string; // JSON array of rule IDs
+
+  // v57: Oracle Tone Preference (Phase 4 Style Personalization)
+  @text('oracle_tone_preference') oracleTonePreference?: 'grounded' | 'warm' | 'playful' | 'poetic';
+
+  // v58: Oracle Insight Frequency (Phase 1 Redesign)
+  @text('insight_frequency') insightFrequency?: 'weekly' | 'biweekly' | 'monthly' | 'on_demand';
 }

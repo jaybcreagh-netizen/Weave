@@ -7,6 +7,7 @@ import SuggestionEvent from '@/db/models/SuggestionEvent';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { sync } from '@/shared/services/sync.service';
 import { scheduleEventSuggestionNotification } from '@/modules/notifications/services/channels/event-suggestion';
+import { supabase } from '@/modules/auth/services/supabase.service';
 import Logger from '@/shared/utils/Logger';
 
 // Task identifier
@@ -96,8 +97,14 @@ TaskManager.defineTask(BACKGROUND_EVENT_SYNC_TASK, async () => {
 
     // Perform database sync
     try {
-      await sync();
-      Logger.info('[BackgroundSync] Native sync completed');
+      // Check if user is logged in
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        await sync();
+        Logger.info('[BackgroundSync] Native sync completed');
+      } else {
+        Logger.debug('[BackgroundSync] No active session, skipping sync');
+      }
     } catch (error) {
       Logger.error('[BackgroundSync] Native sync failed:', error);
     }

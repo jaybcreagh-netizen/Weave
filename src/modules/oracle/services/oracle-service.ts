@@ -1,18 +1,43 @@
 
 import { llmService } from '@/shared/services/llm'
 import { getPrompt, interpolatePrompt } from '@/shared/services/llm/prompt-registry'
-import { oracleContextBuilder, ContextTier } from './context-builder'
+import { oracleContextBuilder, ContextTier, OracleContext } from './context-builder'
 import { logger } from '@/shared/services/logger.service'
 import { trackEvent, AnalyticsEvents } from '@/shared/services/analytics.service'
 import { getActiveThreadsForFriend } from '@/modules/journal/services/thread-extractor'
 import {
     OracleAction,
     OracleStructuredResponse,
+    ReflectionContext,
+    ComposedEntry,
+    InsightSignal,
     GuidedSession,
     GuidedTurn,
-    ReflectionContext,
-    ComposedEntry
+    OracleSuggestion
 } from './types'
+import { writeScheduler } from '@/shared/services/write-scheduler'
+import { database } from '@/db'
+import OracleConversation from '@/db/models/OracleConversation'
+import { Q } from '@nozbe/watermelondb'
+import Friend from '@/db/models/Friend'
+import ProactiveInsight from '@/db/models/ProactiveInsight'
+import UserFact from '@/db/models/UserFact'
+import UserProfile from '@/db/models/UserProfile'
+import JournalEntryFriend from '@/db/models/JournalEntryFriend'
+import JournalEntry from '@/db/models/JournalEntry'
+import JournalSignals from '@/db/models/JournalSignals'
+import { INSIGHT_EXPIRY_HOURS } from './insight-rules'
+
+// Daily limit for free users (if implemented later)
+const DAILY_LIMIT = 20
+
+// Tone modifiers for prompt injection
+const TONE_MODIFIERS: Record<string, string> = {
+    'grounded': 'Be concise and direct. Cite specific data. Avoid metaphors.',
+    'warm': 'Be empathetic, supportive, and affirming. Use warm language.',
+    'playful': 'Be light and slightly witty. Keep a casual, friendly tone.',
+    'poetic': 'Use evocative metaphors and imagery. Be reflective and lyrical.'
+}
 
 export interface OracleTurn {
     role: 'user' | 'assistant'
@@ -46,28 +71,105 @@ class OracleService {
     private readonly MAX_DAILY_QUESTIONS = 999 // TODO: Change back to 5 for production
     private readonly MAX_TURNS_PER_SESSION = 10
 
+    private activeGuidedSession: GuidedSession | null = null
+    private currentConversationId: string | null = null
+
+    constructor() {
+        // Load initial state if needed
+    }
+
+    /**
+     * Start a new conversation or resume an existing one
+     */
+    async startConversation(conversationId?: string, context = 'consultation', friendId?: string) {
+        if (conversationId) {
+            // Resume existing
+            try {
+                const conversation = await database.get<OracleConversation>('oracle_conversations').find(conversationId)
+                if (conversation) {
+                    this.currentConversationId = conversation.id
+                    this.currentSession = {
+                        id: conversation.id,
+                        turns: conversation.turns,
+                        contextTier: ContextTier.PATTERN, // Default for now, could be stored
+                        lastUpdated: conversation.lastMessageAt.getTime()
+                    }
+                    return
+                }
+            } catch (e) {
+                logger.warn('OracleService', 'Failed to load conversation', e)
+            }
+        }
+
+        // Start new
+        this.currentConversationId = null // Will be created on first save
+        this.currentSession = {
+            id: Date.now().toString(), // Temporary ID until saved
+            turns: [],
+            contextTier: ContextTier.PATTERN,
+            lastUpdated: Date.now()
+        }
+    }
+
+    /**
+     * Persist current session to DB
+     */
+    private async persistSession(friendId?: string) {
+        if (!this.currentSession || this.currentSession.turns.length === 0) return
+
+        try {
+            await database.write(async () => {
+                const conversationsFn = database.get<OracleConversation>('oracle_conversations')
+
+                if (this.currentConversationId) {
+                    // Update existing
+                    const conversation = await conversationsFn.find(this.currentConversationId)
+                    await conversation.update(c => {
+                        c.turns = this.currentSession!.turns as any
+                        c.turnCount = this.currentSession!.turns.length
+                        c.lastMessageAt = new Date()
+                    })
+                } else {
+                    // Create new
+                    const newConv = await conversationsFn.create(c => {
+                        c.title = this.currentSession!.turns[0].content.slice(0, 50)
+                        c.context = 'consultation'
+                        c.friendId = friendId
+                        c.turns = this.currentSession!.turns as any
+                        c.turnCount = this.currentSession!.turns.length
+                        c.startedAt = new Date()
+                        c.lastMessageAt = new Date()
+                        c.isArchived = false
+                    })
+                    this.currentConversationId = newConv.id
+                }
+            })
+        } catch (error) {
+            logger.error('OracleService', 'Failed to persist conversation', error)
+        }
+    }
+
     /**
      * Ask the Oracle a question
      * Returns both the text response and any suggested action
      */
-    async ask(question: string, friendIds: string[] = []): Promise<OracleResponse> {
+    async ask(question: string, friendIds: string[] = [], additionalContext?: string): Promise<OracleResponse> {
         this.checkRateLimit()
 
         // Initialize session if needed
         if (!this.currentSession) {
-            this.currentSession = {
-                id: Date.now().toString(),
-                turns: [],
-                contextTier: ContextTier.PATTERN,
-                lastUpdated: Date.now()
-            }
+            await this.startConversation(undefined, 'consultation', friendIds[0])
         }
 
-        const session = this.currentSession
+        const session = this.currentSession!
 
         // 1. Build Context (pass question for friend name extraction)
         const contextData = await oracleContextBuilder.buildContext(friendIds, session.contextTier, question)
-        const contextString = JSON.stringify(contextData, null, 2)
+        let contextString = JSON.stringify(contextData, null, 2)
+
+        if (additionalContext) {
+            contextString += `\n\n[FOCUSED CONTEXT START]\nThe user is asking about this specific content (e.g. a journal entry):\n"${additionalContext}"\n[FOCUSED CONTEXT END]\n`
+        }
 
         // 2. Format History
         const historyText = session.turns
@@ -81,12 +183,19 @@ class OracleService {
             throw new Error('Oracle consultation prompt not found in registry')
         }
 
+        const tonePref = contextData.userProfile.oracleTonePreference || 'grounded'
+        const toneModifier = TONE_MODIFIERS[tonePref] || TONE_MODIFIERS['grounded']
+
         const finalPrompt = interpolatePrompt(promptDef.userPromptTemplate, {
             context: contextString,
             conversationHistory: historyText,
             question: question,
-            turnNumber: Math.floor(session.turns.length / 2) + 1
+            turnNumber: Math.floor(session.turns.length / 2) + 1,
+            toneModifier: toneModifier // Assuming prompt registry supports this variable, or we inject into system prompt
         })
+
+        // Inject tone modifier into system prompt
+        const systemPromptWithTone = `${promptDef.systemPrompt}\n\n${toneModifier}`
 
         logger.info('OracleService', 'Asking Oracle', {
             questionLen: question.length,
@@ -95,7 +204,7 @@ class OracleService {
 
         // 4. Call LLM
         const response = await llmService.complete({
-            system: promptDef.systemPrompt,
+            system: systemPromptWithTone,
             user: finalPrompt,
         }, promptDef.defaultOptions)
 
@@ -114,6 +223,9 @@ class OracleService {
 
         // Increment usage
         this.incrementUsage()
+
+        // Persist to DB
+        await this.persistSession(friendIds[0])
 
         return parsed
     }
@@ -157,6 +269,12 @@ class OracleService {
             return objectMatch[0]
         }
 
+        // Try to find JSON array directly
+        const arrayMatch = text.match(/\[[\s\S]*\]/)
+        if (arrayMatch) {
+            return arrayMatch[0]
+        }
+
         return text
     }
 
@@ -185,14 +303,96 @@ class OracleService {
 
     resetSession() {
         this.currentSession = null
+        this.activeGuidedSession = null
+        this.currentConversationId = null
+    }
+
+    getCurrentSession(): OracleSession | null {
+        return this.currentSession
+    }
+
+    /**
+     * Analyze a journal entry to generate Contextual Lens suggestions
+     */
+    async analyzeEntryContext(entry: JournalEntry): Promise<OracleSuggestion[]> {
+        logger.info('OracleService', 'Analyzing entry context', { entryId: entry.id })
+
+        try {
+            const promptDef = getPrompt('oracle_lens_analysis')
+            if (!promptDef) {
+                logger.error('OracleService', 'Oracle Lens prompt not found in registry')
+                throw new Error('Oracle Lens prompt not found')
+            }
+
+            // Fetch related data
+            const links = await entry.journalEntryFriends.fetch()
+            const friends = await Promise.all(
+                links.map(link => database.get<Friend>('friends').find(link.friendId))
+            )
+
+            const signals = await database.get<JournalSignals>('journal_signals')
+                .query(Q.where('journal_entry_id', entry.id))
+                .fetch()
+
+            const signalData = signals.length > 0 ? signals[0] : null
+
+            logger.info('OracleService', 'Context data prepared', {
+                friendsCount: friends.length,
+                hasSignals: !!signalData
+            })
+
+            const userPrompt = interpolatePrompt(promptDef.userPromptTemplate, {
+                content: entry.content || '',
+                friendNames: friends.map(f => f.name).join(', ') || 'None',
+                sentimentLabel: signalData?.sentimentLabel || 'neutral',
+                topics: signalData?.coreThemes?.join(', ') || 'General'
+            })
+
+            logger.info('OracleService', 'Sending prompt to LLM')
+
+            const response = await llmService.complete({
+                system: promptDef.systemPrompt,
+                user: userPrompt
+            }, promptDef.defaultOptions)
+
+            logger.info('OracleService', 'LLM Response received', { length: response.text.length })
+
+            try {
+                const cleanedJson = this.extractJson(response.text)
+                const suggestions = JSON.parse(cleanedJson)
+
+                if (!Array.isArray(suggestions)) {
+                    logger.error('OracleService', 'LLM response is not an array', { response: response.text })
+                    return []
+                }
+
+                logger.info('OracleService', 'Parsed suggestions', { count: suggestions.length })
+
+                // Assign UUIDs if missing (LLM might not generate them)
+                // and validating minimal structure
+                return suggestions.map((s: any) => ({
+                    id: Math.random().toString(36).substring(7),
+                    archetype: s.archetype || 'THE_HERMIT', // Fallback
+                    title: s.title || 'Explore',
+                    reasoning: s.reasoning || '',
+                    initialQuestion: s.initialQuestion || 'What is on your mind?'
+                })) as OracleSuggestion[]
+            } catch (e) {
+                logger.error('OracleService', 'Failed to parse Lens suggestions', { error: e, response: response.text })
+                return [] // Fail gracefully
+            }
+        } catch (error) {
+            logger.error('OracleService', 'Fatal error in analyzeEntryContext', error)
+            throw error
+        }
     }
 
     // ========================================================================
     // GUIDED REFLECTION MODE
+    // ========================================================================
+    // GUIDED REFLECTION MODE
     // Oracle asks, user answers, Oracle composes entry
     // ========================================================================
-
-    private activeGuidedSession: GuidedSession | null = null
 
     /**
      * Start a guided reflection session
@@ -244,6 +444,7 @@ class OracleService {
 
     /**
      * Continue guided reflection with user's answer
+     * Hard limit: After 3 answers, always compose (no more questions)
      */
     async continueReflection(session: GuidedSession, answer: string): Promise<GuidedSession> {
         if (session.status !== 'in_progress' || !session.pendingQuestion) {
@@ -256,6 +457,19 @@ class OracleService {
             userAnswer: answer
         }
         session.turns.push(turn)
+
+        const turnCount = session.turns.length
+        const MAX_QUESTIONS = 3
+
+        // HARD LIMIT: After 3 answers, always compose
+        if (turnCount >= MAX_QUESTIONS) {
+            logger.info('OracleService', 'Hard limit reached, composing entry', { turnCount })
+            session.composedDraft = await this.composeEntry(session)
+            session.pendingQuestion = undefined
+            session.status = 'draft_ready'
+            this.activeGuidedSession = session
+            return session
+        }
 
         // Generate next question or transition to composition
         const promptDef = getPrompt('oracle_guided_question')
@@ -273,7 +487,9 @@ class OracleService {
             activeThreads: session.context.activeThreads?.length
                 ? session.context.activeThreads.map(t => `- ${t.topic} (${t.sentiment})`).join('\n')
                 : 'No active threads',
-            conversationHistory
+            conversationHistory,
+            turnCount: turnCount + 1, // Next turn number
+            mustCompose: turnCount + 1 >= MAX_QUESTIONS // Signal to LLM if next is final
         })
 
         const response = await llmService.complete({
@@ -283,18 +499,14 @@ class OracleService {
 
         const result = JSON.parse(this.extractJson(response.text))
 
-        if (result.readyToCompose) {
-            // Time to compose the entry
-            session.composedDraft = await this.composeEntry(session)
-            session.pendingQuestion = undefined
-            session.status = 'draft_ready'
-        } else {
-            session.pendingQuestion = result.question
-        }
+        // NEVER compose here - the hard limit above handles composition after 3 answers
+        // Always ask the next question (LLM's or fallback)
+        session.pendingQuestion = result.question || 'What else stood out to you?'
 
         this.activeGuidedSession = session
         return session
     }
+
 
     /**
      * Complete the guided reflection and save the entry
@@ -314,6 +526,22 @@ class OracleService {
                 source: 'guided_reflection',
                 turnCount: session.turns.length,
                 reflectionType: session.context.type
+            }
+        }
+
+        // If this reflection was triggered from an insight, mark it as acted_on
+        if (session.context.insightId) {
+            try {
+                const insight = await database.get<ProactiveInsight>('proactive_insights').find(session.context.insightId)
+                await writeScheduler.important('markInsightActedOn', async () => {
+                    await insight.update(rec => {
+                        rec.status = 'acted_on'
+                        rec.statusChangedAt = new Date()
+                    })
+                })
+                logger.info('OracleService', 'Marked insight as acted_on', { insightId: session.context.insightId })
+            } catch (error) {
+                logger.warn('OracleService', 'Could not mark insight as acted_on', { insightId: session.context.insightId, error })
             }
         }
 
@@ -357,6 +585,155 @@ class OracleService {
             durationMs: Date.now() - session.startedAt
         })
     }
+
+    /**
+     * Force compose an entry early (user tapped "That's enough")
+     * Requires at least 1 answer to compose from
+     */
+    async forceCompose(session: GuidedSession): Promise<GuidedSession> {
+        if (session.status !== 'in_progress' || session.turns.length === 0) {
+            throw new Error('Cannot force compose: no answers to compose from')
+        }
+
+        logger.info('OracleService', 'Force composing entry early', { turnCount: session.turns.length })
+
+        session.composedDraft = await this.composeEntry(session)
+        session.pendingQuestion = undefined
+        session.status = 'draft_ready'
+
+        this.activeGuidedSession = session
+        return session
+    }
+
+    /**
+     * Start deepening an existing draft with follow-up questions
+     * Returns a session in 'deepening' mode
+     */
+    async startDeepening(session: GuidedSession): Promise<GuidedSession> {
+        if (session.status !== 'draft_ready' || !session.composedDraft) {
+            throw new Error('Cannot deepen: no draft available')
+        }
+
+        // Generate first deepening question
+        const promptDef = getPrompt('oracle_deepen_question')
+        if (!promptDef) throw new Error('Deepen question prompt not found')
+
+        const userPrompt = interpolatePrompt(promptDef.userPromptTemplate, {
+            originalDraft: session.composedDraft,
+            conversationHistory: '(Starting deepening conversation)',
+            turnCount: 1,
+            mustCompose: false
+        })
+
+        const response = await llmService.complete({
+            system: promptDef.systemPrompt,
+            user: userPrompt
+        }, promptDef.defaultOptions)
+
+        const result = JSON.parse(this.extractJson(response.text))
+
+        session.deepeningTurns = []
+        session.originalDraft = session.composedDraft
+        session.hasDeepened = true  // Mark that we've deepened (only allow once)
+        session.pendingQuestion = result.question || 'What else would you like to add?'
+        session.status = 'deepening'
+
+        logger.info('OracleService', 'Started deepening reflection', {
+            originalLength: session.composedDraft.length
+        })
+
+        this.activeGuidedSession = session
+        return session
+    }
+
+    /**
+     * Continue deepening with user's answer
+     * Hard limit: After 3 deepening answers, always compose refined entry
+     */
+    async continueDeepening(session: GuidedSession, answer: string): Promise<GuidedSession> {
+        if (session.status !== 'deepening' || !session.pendingQuestion) {
+            throw new Error('Session not in deepening mode')
+        }
+
+        // Record the deepening turn
+        const turn: GuidedTurn = {
+            oracleQuestion: session.pendingQuestion,
+            userAnswer: answer
+        }
+        session.deepeningTurns = session.deepeningTurns || []
+        session.deepeningTurns.push(turn)
+
+        const turnCount = session.deepeningTurns.length
+        const MAX_DEEPEN_QUESTIONS = 3
+
+        // HARD LIMIT: After 3 deepening answers, always compose refined entry
+        if (turnCount >= MAX_DEEPEN_QUESTIONS) {
+            logger.info('OracleService', 'Deepening hard limit reached', { turnCount })
+            session.composedDraft = await this.composeDeepenedEntry(session)
+            session.pendingQuestion = undefined
+            session.status = 'draft_ready'
+            this.activeGuidedSession = session
+            return session
+        }
+
+        // Generate next deepening question or compose
+        const promptDef = getPrompt('oracle_deepen_question')
+        if (!promptDef) throw new Error('Deepen question prompt not found')
+
+        const conversationHistory = session.deepeningTurns
+            .map((t: GuidedTurn) => `Oracle: ${t.oracleQuestion}\nUser: ${t.userAnswer}`)
+            .join('\n\n')
+
+        const userPrompt = interpolatePrompt(promptDef.userPromptTemplate, {
+            originalDraft: session.originalDraft || session.composedDraft,
+            conversationHistory,
+            turnCount: turnCount + 1,
+            mustCompose: turnCount + 1 >= MAX_DEEPEN_QUESTIONS
+        })
+
+        const response = await llmService.complete({
+            system: promptDef.systemPrompt,
+            user: userPrompt
+        }, promptDef.defaultOptions)
+
+        const result = JSON.parse(this.extractJson(response.text))
+
+        if (result.readyToCompose) {
+            session.composedDraft = await this.composeDeepenedEntry(session)
+            session.pendingQuestion = undefined
+            session.status = 'draft_ready'
+        } else {
+            session.pendingQuestion = result.question
+        }
+
+        this.activeGuidedSession = session
+        return session
+    }
+
+    /**
+     * Compose a deepened/refined entry from original + deepening Q&A
+     */
+    private async composeDeepenedEntry(session: GuidedSession): Promise<string> {
+        const promptDef = getPrompt('oracle_deepen_composition')
+        if (!promptDef) throw new Error('Deepen composition prompt not found')
+
+        const conversationHistory = (session.deepeningTurns || [])
+            .map((t: GuidedTurn) => `Q: ${t.oracleQuestion}\nA: ${t.userAnswer}`)
+            .join('\n\n')
+
+        const userPrompt = interpolatePrompt(promptDef.userPromptTemplate, {
+            originalDraft: session.originalDraft || session.composedDraft,
+            conversationHistory
+        })
+
+        const response = await llmService.complete({
+            system: promptDef.systemPrompt,
+            user: userPrompt
+        }, promptDef.defaultOptions)
+
+        return response.text.trim()
+    }
+
 
     /**
      * Generate a draft from freeform context (topic + subject + seed)
@@ -410,6 +787,76 @@ class OracleService {
         return this.activeGuidedSession
     }
 
+    /**
+     * Generate personalized starter prompts based on user context
+     */
+    async getPersonalizedStarterPrompts(context: OracleContext): Promise<{ text: string, icon: string }[]> {
+        const prompts: { text: string, icon: string }[] = []
+
+        // Social season awareness
+        if (context.userProfile.socialSeason === 'resting') {
+            prompts.push({
+                text: "You're in a resting season - how's your energy?",
+                icon: 'battery-low'
+            })
+        } else if (context.userProfile.socialSeason === 'blooming') {
+            prompts.push({
+                text: "Lots of social momentum lately - feeling good?",
+                icon: 'sparkles'
+            })
+        }
+
+        // Friends needing attention
+        if (context.socialHealth.needingAttentionCount > 0) {
+            const count = context.socialHealth.needingAttentionCount
+            prompts.push({
+                text: `${count} friend${count > 1 ? 's' : ''} might be missing you`,
+                icon: 'users'
+            })
+        }
+
+        // Specific friend drift (highest priority one)
+        // We'd need to find drifting friends from context.friends if we had that detail exposed easily
+        // context.friends are generic FriendOracleContext.
+        // Let's assume we can check socialHealth or just pick a random specific prompt if we have data.
+
+        // Recent journal sentiment
+        const recentJournal = context.recentJournaling?.[0]
+        if (recentJournal?.sentiment === 'reflective') {
+            prompts.push({
+                text: "You seemed thoughtful in your last entry",
+                icon: 'book-open'
+            })
+        }
+
+        // Battery trend
+        if (context.userProfile.socialBattery.trend === 'Draining') {
+            prompts.push({
+                text: "Your social battery has been draining - need to recharge?",
+                icon: 'battery-charging'
+            })
+        }
+
+        // Fallback generic prompts if none matched (or to fill up)
+        const fallbacks = [
+            { text: "What's on your mind?", icon: 'message-circle' },
+            { text: "Who have you been thinking about?", icon: 'heart' },
+            { text: "How's your social energy?", icon: 'battery' }
+        ]
+
+        // Add fallbacks until we have 3-4
+        for (const prompt of fallbacks) {
+            if (prompts.length < 4) {
+                // simple dedup check
+                if (!prompts.find(p => p.text === prompt.text)) {
+                    prompts.push(prompt)
+                }
+            }
+        }
+
+        return prompts.slice(0, 4)
+    }
+
     // ========================================================================
     // PRIVATE HELPERS
     // ========================================================================
@@ -433,7 +880,9 @@ class OracleService {
             activeThreads: context.activeThreads?.length
                 ? context.activeThreads.map(t => `- ${t.topic} (${t.sentiment})`).join('\n')
                 : 'No active threads',
-            conversationHistory
+            conversationHistory,
+            turnCount: previousTurns.length + 1,  // This is the turn we're generating for
+            mustCompose: false  // Never must compose on first question generation
         })
 
         const response = await llmService.complete({
@@ -441,7 +890,16 @@ class OracleService {
             user: userPrompt
         }, promptDef.defaultOptions)
 
-        const result = JSON.parse(this.extractJson(response.text))
+        let result: { question?: string, readyToCompose?: boolean } = {}
+        try {
+            const jsonStr = this.extractJson(response.text)
+            result = JSON.parse(jsonStr)
+        } catch (e) {
+            logger.warn('OracleService', 'Failed to parse JSON from generateNextQuestion', { error: e, text: response.text })
+            // Fallback: Use the raw text as the question, assuming the LLM just spoke
+            result = { question: response.text.replace(/^Oracle:\s*/i, '').replace(/^"/, '').replace(/"$/, '').trim() }
+        }
+
         return result.question || 'How was it?'
     }
 
@@ -492,21 +950,25 @@ class OracleService {
         const seasonContext = season ? `The user is currently in a "${season}" social season phase.` : "";
 
         const prompt = `
-        You are the Oracle, a wise and empathetic counselor for the user's relationships.
-        Here is a summary of the user's social activity this week:
-        ${JSON.stringify(sanitizedSummary, null, 2)}
-        ${seasonContext}
+        You are the Oracle, a calm and observant guide. Your tone is grounded, minimalist, and deeply mindful. 
+        Think: "A quiet observation shared over a cup of tea."
 
-        Write a 2-3 sentence narrative summary of their week.
-        Acknowledge their effort, highlight a key moment (like a deep dive or a good recurring connection), and be encouraging.
-        
-        Crucially, if the week was quiet and they are in a "Resting" phase, validate that need for rest. 
-        If they are "Blooming" but inactive, gently nudge them to open up.
-        
-        End with 1 small, specific, actionable suggestion for next week (e.g. "Reach out to [Name]", "Plan a quiet coffee").
-        
-        Use a mystical but grounded tone.
-        Do not use markdown. Just plain text.
+        DATA FOR THE WEEK:
+        ${JSON.stringify(sanitizedSummary, null, 2)}
+        Season: ${seasonContext}
+
+        INSTRUCTIONS:
+        1. Write 2-3 sentences reflecting on the user's social rhythm this week.
+        2. Focus on "Relational Architecture": Use words like rhythm, presence, space, consistency, or gravity instead of flowery metaphors (no "glow," "magic," or "whispers"). "Threads" is okay.
+        3. Acknowledge the reality of their effort. If they were quiet, validate the "Resting" phase as intentional space. If they are "Blooming" but inactive, describe it as a "quiet readiness" rather than a failure.
+        4. Be specific about the data without sounding like a report.
+        5. End with one brief, actionable suggestion.
+
+        STYLE CONSTRAINTS:
+        - No flowery adjectives or romanticized metaphors.
+        - No Markdown. Plain text only.
+        - Use "They/Them" or the person's Name.
+        - Keep the language spare and intentional.
         `;
 
         try {
@@ -518,6 +980,442 @@ class OracleService {
         } catch (e) {
             logger.error('OracleService', 'Error generating narrative', e);
             return "The stars have been quiet this week, but your journey continues. Take this time to reflect on what matters most.";
+        }
+    }
+
+
+    // ========================================================================
+    // SIGNAL PROCESSING (Proactive Insights)
+    // ========================================================================
+
+    /**
+     * Process raw signals into polished insights via LLM
+     */
+    async synthesizeInsights(signals: InsightSignal[]): Promise<void> {
+        // 1. Fetch active insights to prevent duplicates/spam
+        const activeInsights = await database.get<ProactiveInsight>('proactive_insights').query(
+            Q.where('status', Q.oneOf(['unseen', 'seen']))
+        ).fetch()
+
+        // 2. Filter out signals that are already "covered" by active insights
+        // Simplification: If we have ANY active synthesis insight, maybe we don't gen another?
+        // Or if the signals match exactly? behavior:
+        // For now, allow generation if > 2 signals or if distinct enough.
+        // Actually, with biweekly frequency, we assume the previous ones are expired/archived by the time we run this.
+        // But let's be safe.
+
+        // If we have a very recent insight (last 24h), skip
+        const recent = activeInsights.find(i =>
+            i.generatedAt.getTime() > Date.now() - 24 * 60 * 60 * 1000
+        )
+        if (recent) {
+            logger.info('OracleService', 'Skipping synthesis: Recent insight exists')
+            return
+        }
+
+        // 3. Prepare Prompt Context
+        const signalContexts = await Promise.all(signals.map(async s => {
+            let friendName = 'Unknown'
+            if (s.friendId) {
+                try {
+                    const friend = await database.get<Friend>('friends').find(s.friendId)
+                    friendName = friend.name
+                } catch { }
+            }
+            return {
+                type: s.type,
+                friendName,
+                data: s.data,
+                priority: s.priority
+            }
+        }))
+
+        // 4. Generate Synthesis
+        try {
+            const toneModifier = await this.getUserToneModifier()
+            const prompt = `
+            DATA SIGNALS:
+            ${JSON.stringify(signalContexts, null, 2)}
+
+            INSTRUCTIONS:
+            Synthesize these signals into a single, cohesive "letter" from the Oracle.
+            - Do not list them item by item.
+            - Find the narrative thread connecting them (e.g. "You've been focused on inner circle..." or "A lot of drifting lately...").
+            - If signals are contradictory, note the balance.
+            - Length: 2-3 short paragraphs.
+            - Tone: ${toneModifier}.
+            - End with a gentle question or thought.
+            
+            Output JSON: { "headline": "...", "body": "..." }
+            `
+
+            const response = await llmService.complete({
+                system: "You are the Oracle, a wise relationship synthesizer.",
+                user: prompt
+            }, {
+                jsonMode: true
+            })
+
+            const result = JSON.parse(response.text)
+
+            // 5. Save Insight
+            await writeScheduler.important('createProactiveInsight', async () => {
+                const newInsight = await database.get<ProactiveInsight>('proactive_insights').create(insight => {
+                    insight.ruleId = `synthesis_${Date.now()}`
+                    insight.type = 'pattern' // Synthesis is a pattern of signals
+                    insight.headline = result.headline || 'Oracle Insight'
+                    insight.body = result.body
+                    insight.groundingDataJson = JSON.stringify({ signalCount: signals.length })
+                    insight.sourceSignalsJson = JSON.stringify(signals)
+                    insight.actionType = 'guided_reflection' // Default for synthesis
+                    insight.actionLabel = 'Reflect'
+                    insight.severity = Math.max(...signals.map(s => s.priority))
+                    insight.generatedAt = new Date()
+                    insight.expiresAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000) // 14 days expiry
+                    insight.status = 'unseen'
+                })
+
+                // Track Event
+                trackEvent(AnalyticsEvents.INSIGHT_GENERATED, {
+                    insightId: newInsight.id,
+                    signalCount: signals.length,
+                    severity: newInsight.severity
+                })
+            })
+
+            logger.info('OracleService', `Generated Synthesis from ${signals.length} signals`)
+
+        } catch (e) {
+            logger.error('OracleService', 'Synthesis failed', e)
+        }
+    }
+
+    /**
+     * @deprecated Used for single-signal processing. Replaced by synthesizeInsights in v58.
+     */
+    async processSignals(signals: InsightSignal[]): Promise<void> {
+        // ... legacy implementation ...
+        // 1. Fetch active insights to prevent duplicates
+        const activeInsights = await database.get<ProactiveInsight>('proactive_insights').query(
+            Q.where('status', Q.oneOf(['unseen', 'seen']))
+        ).fetch()
+
+        // 2. Build map of existing signals
+        // Key format: `${signal.type}:${signal.friendId || 'pattern'}`
+        const activeKeys = new Set(activeInsights.map(insight => {
+            // Map insight ruleId back to signal type if possible, or just use identifying info
+            // Insight ruleId is `signal_${signal.type}`
+            const type = insight.ruleId.replace('signal_', '')
+            return `${type}:${insight.friendId || 'pattern'}`
+        }))
+
+        // 3. Filter out signals that are already active
+        const newSignals = signals.filter(signal => {
+            const key = `${signal.type}:${signal.friendId || 'pattern'}`
+            // If we already have this insight active, skip it
+            return !activeKeys.has(key)
+        })
+
+        // 4. Sort by priority
+        const sorted = newSignals.sort((a, b) => b.priority - a.priority)
+
+        // 5. Take top 1 (Reduced from 3 to prevent backlog/fatigue)
+        const topSignals = sorted.slice(0, 1)
+
+        logger.info('OracleService', `Processing ${topSignals.length} signals (from ${signals.length} raw, ${newSignals.length} new)`)
+
+        // 6. Process in parallel
+        await Promise.all(topSignals.map(signal => this.polishSignal(signal)))
+    }
+
+    /**
+     * Use LLM to transform a signal into a magical, gender-neutral insight
+     */
+    /**
+     * Use LLM to transform a signal into a magical, gender-neutral insight
+     */
+    private async polishSignal(signal: InsightSignal): Promise<void> {
+        let prompt = ''
+        let friend: Friend | undefined
+
+        // Fetch friend if present
+        if (signal.friendId) {
+            try {
+                friend = await database.get<Friend>('friends').find(signal.friendId)
+            } catch (e) {
+                // If friend not found, proceed as pattern
+            }
+        }
+
+        // BRANCH 1: Journal Signal (Inferred Life Event)
+        if (signal.type === 'journal_signal') {
+            const themes = signal.data.coreThemes || []
+            const isCelebration = themes.includes('celebration') || themes.includes('reconnection')
+
+            prompt = `
+            You are the Oracle, identifying a significant moment from the user's journal.
+            
+            SIGNAL: Journal Entry with themes: ${themes.join(', ')}
+            FRIEND: ${friend ? friend.name : 'Unknown User'}
+            CONTEXT: ${JSON.stringify(signal.data)}
+
+            INSTRUCTIONS:
+            1. Write a 1-2 sentence observation.
+            2. If it's a 'celebration' or 'life_transition', suggest adding it as a Life Event so they remember it.
+            3. Be warm and architectural. 
+            
+            Example: "It sounds like a major milestone for Sarah. Would you like to mark this 'Engagement' on her timeline?"
+
+            Output format: Just the text.
+            `
+        }
+        // BRANCH 2: Friend-based Insight
+        else if (signal.friendId && friend) {
+            prompt = `
+            You are the Weave Oracle, a calm and observant guide. 
+            Your tone is grounded, minimalist, and deeply mindful. Think: "A quiet observation shared over a cup of tea."
+            
+            Write a short observation for the user about their friend ${friend.name}.
+    
+            SIGNAL INPUT:
+            Type: ${signal.type}
+            Data: ${JSON.stringify(signal.data)}
+            Friend Tier: ${friend.tier}
+            
+            INSTRUCTIONS:
+            1. Focus on "Relational Architecture": Use words like rhythm, presence, space, consistency, or gravity instead of flowery metaphors.
+            2. Gender: Use "They/Them" or the friend's name (${friend.name}). Do NOT use He/She unless you are 100% certain.
+            3. Brevity: Keep insights to 1-2 short sentences.
+            4. Context: If "lastActivityType" is present, subtly weave it in (e.g. "since that last coffee").
+    
+            STYLE CONSTRAINTS:
+            - No flowery adjectives (no "glow", "magic", "whispers").
+            - "Threads" is okay (it's the app name), but keep it grounded.
+            - Avoid the "Robot": Never say "Based on your data" or "You haven't seen them in X days."
+            - Keep the language spare and intentional.
+            
+            Output format: Just the text.
+            `
+        }
+        // BRANCH 3: Pattern-based Insight (Activity/Location/Vibe)
+        else if (signal.type === 'activity_habit') {
+            const activity = signal.data.activity || 'Unknown Activity'
+            const count = signal.data.count || 0
+            prompt = `
+            TASK: Write a 1-sentence insight about the user's recurring activity.
+            
+            DATA:
+            - Activity: "${activity}"
+            - Frequency: ${count} times this month
+            
+            TEMPLATE: Start your response with: "Your '${activity}' routine..."
+            
+            Then add ONE short sentence explaining why this is valuable (e.g., consistency, social anchor, low-effort connection).
+            
+            Example: "Your 'Coffee' routine has become a reliable anchor for connection. 4 times this month suggests it works for you."
+            
+            Output: Just the 1-2 sentence text. No quotes.
+            `
+        }
+        else if (signal.type === 'location_pattern') {
+            const location = signal.data.location || 'Unknown Place'
+            const count = signal.data.count || 0
+            prompt = `
+            TASK: Write a 1-sentence insight about the user's go-to spot.
+            
+            DATA:
+            - Location: "${location}"
+            - Frequency: ${count} visits this month
+            
+            TEMPLATE: Start your response with: "${location} has become..."
+            
+            Then add ONE short sentence on why this spot is meaningful (e.g., familiar territory, low effort, reliable memories).
+            
+            Example: "Central Park has become your familiar ground. ${count} visits this month shows it's your default weave setting."
+            
+            Output: Just the 1-2 sentence text. No quotes.
+            `
+        }
+        else if (signal.type === 'vibe_trend') {
+            const vibe = signal.data.vibe || 'undefined'
+            const count = signal.data.count || 0
+            const total = signal.data.total || 0
+            prompt = `
+            TASK: Write a 1-sentence insight about the user's recent energy trend.
+            
+            DATA:
+            - Dominant Vibe: "${vibe}"
+            - How often: ${count} out of ${total} recent interactions
+            
+            TEMPLATE: Start your response with: "Your recent vibe has been mostly '${vibe}'..."
+            
+            Then add ONE sentence with a gentle observation or encouragement.
+            
+            Example: "Your recent vibe has been mostly 'high energy'. That's ${count} out of ${total} weaves feeling good—maintain that momentum."
+            
+            Output: Just the 1-2 sentence text. No quotes.
+            `
+        }
+        else {
+            // Fallback for unknown pattern types
+            prompt = `
+            TASK: Summarize the following data in ONE sentence. Be specific.
+            DATA: ${JSON.stringify(signal.data)}
+            Output: Just the text.
+            `
+        }
+
+        try {
+            // Fetch user's tone preference
+            const toneModifier = await this.getUserToneModifier()
+
+            const response = await llmService.complete({
+                system: `You are a wise relationship companion. ${toneModifier}`,
+                user: prompt
+            })
+
+            const polishedText = response.text.trim().replace(/^["']|["']$/g, '')
+            if (!polishedText) return
+
+            // Save to DB
+            await writeScheduler.important('createProactiveInsight', async () => {
+                await database.get<ProactiveInsight>('proactive_insights').create(insight => {
+                    insight.ruleId = `signal_${signal.type}`
+                    insight.type = signal.friendId ? 'friend' : 'pattern'
+                    insight.friendId = signal.friendId // Optional
+                    insight.headline = this.getHeadlineForSignal(signal.type, friend?.name || 'You', signal.data)
+                    insight.body = polishedText
+                    insight.groundingDataJson = JSON.stringify(signal.data)
+                    insight.actionType = this.getActionTypeForSignal(signal.type)
+                    insight.actionLabel = this.getActionLabelForSignal(signal.type)
+                    // Customize action params for journal signal
+                    const actionParams = signal.type === 'journal_signal'
+                        ? {
+                            friendId: signal.friendId,
+                            eventType: 'milestone', // Default
+                            eventDescription: 'Imported from Journal'
+                        }
+                        : (signal.friendId ? { friendId: signal.friendId } : {})
+
+                    insight.actionParamsJson = JSON.stringify(actionParams)
+                    insight.severity = signal.priority
+                    insight.generatedAt = new Date()
+                    insight.expiresAt = new Date(Date.now() + INSIGHT_EXPIRY_HOURS * 60 * 60 * 1000)
+                    insight.status = 'unseen'
+                })
+            })
+
+            logger.info('OracleService', `Generated insight (${signal.type}): ${polishedText}`)
+
+        } catch (e) {
+            logger.error('OracleService', 'Failed to polish signal', e)
+        }
+    }
+
+    private getHeadlineForSignal(type: string, name: string, data?: Record<string, any>): string {
+        switch (type) {
+            case 'drifting': return `Drifting from ${name}`
+            case 'deepening': return `Deepening with ${name}`
+            case 'reconnection_win': return `Welcome back, ${name}`
+            case 'consistency_win': return `On a roll with ${name}`
+            case 'one_sided': return `One-sided with ${name}?`
+            case 'location_pattern': return data?.location ? `Your Spot: ${data.location}` : 'Familiar Ground'
+            case 'activity_habit': return data?.activity ? `Your ${data.activity} Habit` : 'Your Ritual'
+            case 'vibe_trend': return data?.vibe ? `Vibe Check: ${data.vibe}` : 'Energy Check'
+            case 'journal_signal': return `Moment with ${name}`
+            default: return `Insight: ${name}`
+        }
+    }
+
+    private getActionTypeForSignal(type: string): string {
+        switch (type) {
+            case 'deepening': return 'guided_reflection'
+            case 'location_pattern': return 'log_weave' // Encourage logging more at this spot
+            case 'activity_habit': return 'plan_weave' // Plan another one?
+            case 'vibe_trend': return 'create_reflection' // Reflect on why energy is high/low
+            case 'journal_signal': return 'add_life_event'
+            default: return 'plan_weave'
+        }
+    }
+
+    private getActionLabelForSignal(type: string): string {
+        switch (type) {
+            case 'deepening': return 'Reflect'
+            case 'drifting': return 'Reach out'
+            case 'reconnection_win': return 'Keep it up'
+            case 'location_pattern': return 'Log another'
+            case 'activity_habit': return 'Plan again'
+            case 'vibe_trend': return 'Journal'
+            case 'journal_signal': return 'Add Event'
+            default: return 'Connect'
+        }
+    }
+
+    /**
+     * CRYSTALIZED MEMORY (Phase 3)
+     * Save a fact about the user or a friend based on accepted insight or direct feedback.
+     */
+    async learnFact(content: string, category: string, confidence = 1.0, friendId?: string): Promise<void> {
+        await writeScheduler.important('learnFact', async () => {
+            // Check if similar fact exists to avoid duplicates
+            const existing = await database.get<UserFact>('user_facts')
+                .query(Q.where('fact_content', content))
+                .fetch()
+
+            if (existing.length > 0) return
+
+            await database.get<UserFact>('user_facts').create(fact => {
+                fact.factContent = content
+                fact.category = category
+                fact.confidence = confidence
+                fact.source = 'oracle_feedback'
+                fact.relevantFriendId = friendId
+            })
+        })
+    }
+
+    /**
+     * Get the user's preferred tone modifier for Oracle prompts.
+     */
+    private async getUserToneModifier(): Promise<string> {
+        try {
+            const profile = await database.get<UserProfile>('user_profile').query().fetch()
+            if (profile.length > 0 && profile[0].oracleTonePreference) {
+                return TONE_MODIFIERS[profile[0].oracleTonePreference] || TONE_MODIFIERS['grounded']
+            }
+        } catch (e) {
+            // Default
+        }
+        return TONE_MODIFIERS['grounded']
+    }
+
+    /**
+     * Invalidate (mark as acted_on) insights for specific friends when user interacts with them.
+     */
+    async invalidateInsightsForFriends(friendIds: string[]): Promise<void> {
+        if (!friendIds || friendIds.length === 0) return
+
+        try {
+            // Find active insights for these friends
+            const insights = await database.get<ProactiveInsight>('proactive_insights').query(
+                Q.where('status', Q.oneOf(['unseen', 'seen'])),
+                Q.where('friend_id', Q.oneOf(friendIds))
+            ).fetch()
+
+            if (insights.length === 0) return
+
+            await writeScheduler.important('invalidateInsights', async () => {
+                await database.batch(
+                    ...insights.map(insight => insight.prepareUpdate(rec => {
+                        rec.status = 'acted_on'
+                        rec.statusChangedAt = new Date()
+                    }))
+                )
+            })
+
+            logger.info('OracleService', `Invalidated ${insights.length} insights for friends`, { friendIds })
+        } catch (error) {
+            logger.error('OracleService', 'Failed to invalidate insights', error)
         }
     }
 }

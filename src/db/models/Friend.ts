@@ -40,6 +40,7 @@ export default class Friend extends Model {
   @date('momentum_last_updated') momentumLastUpdated!: Date
   @field('is_dormant') isDormant!: boolean
   @date('dormant_since') dormantSince?: Date
+  @date('last_interaction_date') lastInteractionDate?: Date
 
   // Life events and relationship context
   @text('birthday') birthday?: string // Format: "MM-DD"

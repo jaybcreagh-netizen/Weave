@@ -41,7 +41,17 @@ export const SocialSeasonWidgetV2: React.FC<SocialSeasonWidgetProps> = () => {
     const { friends } = useFriendsObservable();
     const { tokens, typography } = useTheme();
     const { profile } = useUserProfile();
-    const { data: batteryStats = { average: 50, trend: 'stable' } } = useSocialBatteryStats();
+
+    // Defer fetching to avoid startup contention
+    const [isDeferralOver, setIsDeferralOver] = useState(false);
+    useEffect(() => {
+        const timer = setTimeout(() => setIsDeferralOver(true), 2000);
+        return () => clearTimeout(timer);
+    }, []);
+
+    const { data: batteryStats = { average: 50, trend: 'stable' } } = useSocialBatteryStats({
+        enabled: isDeferralOver
+    });
     const { allInteractions } = useInteractions();
 
     // Get cached values from Zustand store

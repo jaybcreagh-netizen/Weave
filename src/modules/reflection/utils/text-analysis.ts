@@ -208,6 +208,37 @@ export function generateContextualPrompt(themes: TextThemes): ContextualPromptRe
 }
 
 /**
+ * Extract all detected themes as a flat array for storage
+ * Used by Oracle-guided reflections to store extracted keywords
+ */
+export function extractThemesArray(text: string): string[] {
+  const themes = analyzeText(text);
+  const allThemes: string[] = [];
+
+  // Add emotions
+  allThemes.push(...themes.emotions);
+
+  // Add activities
+  allThemes.push(...themes.activities);
+
+  // Add topics
+  allThemes.push(...themes.topics);
+
+  // Add sentiment if not neutral
+  if (themes.sentiment !== 'neutral') {
+    allThemes.push(themes.sentiment);
+  }
+
+  // Add intensity if high
+  if (themes.intensity === 'high') {
+    allThemes.push('intense');
+  }
+
+  // Deduplicate
+  return [...new Set(allThemes)];
+}
+
+/**
  * Reflection Quality Score
  */
 export interface ReflectionQuality {

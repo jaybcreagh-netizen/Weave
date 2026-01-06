@@ -13,7 +13,7 @@ import {
   Keyboard,
 } from 'react-native';
 import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
-import { Calendar, Sparkles, Trash2 } from 'lucide-react-native';
+import { Calendar, Sparkles, Trash2, ExternalLink } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { StandardBottomSheet } from '@/shared/ui/Sheet';
 import { BottomSheetInput } from '@/shared/ui';
@@ -22,12 +22,15 @@ import { database } from '@/db';
 import JournalEntry from '@/db/models/JournalEntry';
 import FriendModel from '@/db/models/Friend';
 import JournalEntryFriend from '@/db/models/JournalEntryFriend';
+import Interaction from '@/db/models/Interaction';
+import InteractionFriend from '@/db/models/InteractionFriend';
 import { Q } from '@nozbe/watermelondb';
 import { STORY_CHIPS } from '@/modules/reflection';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as Haptics from 'expo-haptics';
 import { logger } from '@/shared/services/logger.service';
 import { YourPatternsSection } from '@/modules/insights';
+import { useRouter } from 'expo-router';
 
 interface JournalEntryModalProps {
   isOpen: boolean;
@@ -39,6 +42,7 @@ interface JournalEntryModalProps {
 
 export function JournalEntryModal({ isOpen, onClose, entry, onSave, onDelete }: JournalEntryModalProps) {
   const { colors } = useTheme();
+  const router = useRouter();
   const isEditMode = !!entry;
 
   const [title, setTitle] = useState('');
@@ -52,6 +56,13 @@ export function JournalEntryModal({ isOpen, onClose, entry, onSave, onDelete }: 
 
   // Track which entry we've initialized to prevent resetting state on re-renders
   const [initializedForId, setInitializedForId] = useState<string | null>(null);
+
+  // Linked weave info for "View original weave" button
+  const [linkedWeaveInfo, setLinkedWeaveInfo] = useState<{
+    friendId: string;
+    friendName: string;
+    activityLabel: string;
+  } | null>(null);
 
 
 
@@ -79,6 +90,13 @@ export function JournalEntryModal({ isOpen, onClose, entry, onSave, onDelete }: 
             setSelectedFriendIds(new Set(links.map(link => link.friendId)));
           })
           .catch(err => logger.error('JournalEntry', 'Error fetching linked friends:', err));
+
+        // Load linked weave info if present
+        if (entry.linkedWeaveId) {
+          loadLinkedWeaveInfo(entry.linkedWeaveId);
+        } else {
+          setLinkedWeaveInfo(null);
+        }
       } else {
         // Reset for new entry
         setTitle('');
@@ -86,6 +104,7 @@ export function JournalEntryModal({ isOpen, onClose, entry, onSave, onDelete }: 
         setEntryDate(new Date());
         setSelectedFriendIds(new Set());
         setSelectedChips(new Set());
+        setLinkedWeaveInfo(null);
       }
     }
 
@@ -94,6 +113,35 @@ export function JournalEntryModal({ isOpen, onClose, entry, onSave, onDelete }: 
       setInitializedForId(null);
     }
   }, [isOpen, entry, initializedForId]);
+
+  const loadLinkedWeaveInfo = async (weaveId: string) => {
+    try {
+      const interaction = await database.get<Interaction>('interactions').find(weaveId);
+      const interactionFriends = await database.get<InteractionFriend>('interaction_friends')
+        .query(Q.where('interaction_id', weaveId))
+        .fetch();
+
+      if (interactionFriends.length > 0) {
+        const friend = await database.get<FriendModel>('friends').find(interactionFriends[0].friendId);
+        setLinkedWeaveInfo({
+          friendId: friend.id,
+          friendName: friend.name,
+          activityLabel: interaction.title || interaction.activity || 'weave',
+        });
+      }
+    } catch (err) {
+      logger.warn('JournalEntry', 'Could not load linked weave info', { err });
+      setLinkedWeaveInfo(null);
+    }
+  };
+
+  const handleViewOriginalWeave = () => {
+    if (!linkedWeaveInfo) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    onClose();
+    // Navigate to friend profile - the weave will be visible in the timeline
+    router.push(`/friend-profile?friendId=${linkedWeaveInfo.friendId}`);
+  };
 
   const loadFriends = async () => {
     try {
@@ -298,6 +346,32 @@ export function JournalEntryModal({ isOpen, onClose, entry, onSave, onDelete }: 
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="interactive"
       >
+        {/* Linked Weave Banner */}
+        {linkedWeaveInfo && (
+          <TouchableOpacity
+            onPress={handleViewOriginalWeave}
+            className="flex-row items-center justify-between px-4 py-3 rounded-xl mb-4"
+            style={{ backgroundColor: colors.primary + '15' }}
+          >
+            <View className="flex-1">
+              <Text
+                className="text-xs font-medium"
+                style={{ color: colors.primary, fontFamily: 'Inter_500Medium' }}
+              >
+                Linked to weave
+              </Text>
+              <Text
+                className="text-sm"
+                style={{ color: colors.foreground, fontFamily: 'Inter_400Regular' }}
+                numberOfLines={1}
+              >
+                {linkedWeaveInfo.activityLabel} with {linkedWeaveInfo.friendName}
+              </Text>
+            </View>
+            <ExternalLink size={18} color={colors.primary} />
+          </TouchableOpacity>
+        )}
+
         {/* Date Selector */}
         <View className="mb-4">
           <Text

@@ -50,7 +50,8 @@ export function NotificationManager() {
             try {
                 // Delay initialization to avoid writer contention on startup
                 // This prevents the "writer queue" warning and potential UI jank during splash dismissal
-                await new Promise(resolve => setTimeout(resolve, 2000));
+                // INCREASED: 20000ms to push heavy notification checks well past initial interactions
+                await new Promise(resolve => setTimeout(resolve, 20000));
 
                 await NotificationOrchestrator.init();
                 // Register background task for reliable notifications

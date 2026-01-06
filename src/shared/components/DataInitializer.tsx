@@ -26,6 +26,7 @@ import { AutoBackupService } from '@/modules/backup';
 import { useBackgroundSyncStore } from '@/modules/auth';
 import { PlanService } from '@/modules/interactions';
 import { NotificationOrchestrator } from '@/modules/notifications';
+import { SyncOrchestrator } from '@/modules/sync';
 
 import {
     initializeAnalytics,
@@ -182,29 +183,38 @@ export function DataInitializer({ children }: DataInitializerProps) {
                 await initializeAppSingletons();
                 console.log(`[Startup] App singletons: ${Date.now() - t2}ms`);
 
-                // NON-CRITICAL: These are reads or non-blocking, can run in parallel
+                // NON-CRITICAL: These are reads or non-blocking
                 const t3 = Date.now();
                 const { llmConfigManager } = await import('@/shared/services/llm');
+
+                // Only await essential services - friend cache is fire-and-forget
+                // This allows journal/other screens to load without waiting for 60+ status line queries
                 await Promise.all([
                     initializeAnalytics(),
-                    initializeFriendCache(),
                     llmConfigManager.initialize(), // Initialize LLM providers (supabase-proxy)
                 ]);
-                console.log(`[Startup] Analytics + Friend cache + LLM: ${Date.now() - t3}ms`);
 
-                // Sync calendar changes on app launch (non-blocking)
-                import('@/modules/interactions').then(({ CalendarService }) => {
-                    CalendarService.syncCalendarChanges().catch((error: unknown) => {
-                        console.error('[App] Error syncing calendar on launch:', error);
-                    });
+                // Friend cache warming runs in background - don't block app readiness
+                initializeFriendCache().catch(() => {
+                    // Silently ignore - status lines will load on-demand
                 });
+
+                console.log(`[Startup] Analytics + LLM: ${Date.now() - t3}ms`);
+
+                // Sync calendar changes on app launch (deferred)
+                // Sync calendar changes on app launch (deferred)
+                setTimeout(() => {
+                    import('@/modules/interactions').then(({ CalendarService }) => {
+                        CalendarService.syncCalendarChanges().catch((error: unknown) => {
+                            console.error('[App] Error syncing calendar on launch:', error);
+                        });
+                    });
+                }, 45000); // 45 seconds delay to clear initial user activity
 
                 // NOTE: Event suggestion prefetching removed from startup
                 // It runs on foreground via useAppStateChange and React Query's staleTime
                 // prevents excessive rescans. Running it here caused duplicate scans.
 
-                // DEFERRED: These write-heavy operations run after a delay to avoid queue congestion
-                // They will fire 3 seconds after UI is ready, giving priority to user interactions
                 setTimeout(() => {
                     // Run image cleanup (non-blocking)
                     import('@/modules/relationships/services/image.service').then(({ verifyAndCleanupFriendImages }) => {
@@ -224,7 +234,7 @@ export function DataInitializer({ children }: DataInitializerProps) {
                     PlanService.checkPendingPlans().catch(err => {
                         console.error('[App] Error checking pending plans on launch:', err);
                     });
-                }, 3000);
+                }, 55000);
 
                 console.log(`[Startup] Total initialization: ${Date.now() - startTime}ms`);
                 setDataLoaded(true);
@@ -237,6 +247,17 @@ export function DataInitializer({ children }: DataInitializerProps) {
         };
 
         initializeData();
+    }, []);
+
+    // Initialize Sync Orchestrator - DEFERRED to avoid blocking initial queries
+    useEffect(() => {
+        // Delay sync initialization to allow user-facing queries to execute first
+        // This prevents write queue congestion from blocking journal/feed loads
+        const timer = setTimeout(() => {
+            SyncOrchestrator.initialize();
+        }, 3000); // 3 second delay
+
+        return () => clearTimeout(timer);
     }, []);
 
     // Initialize background sync
@@ -310,18 +331,18 @@ export function DataInitializer({ children }: DataInitializerProps) {
                     });
                 });
 
-                // Sync shared weave participant responses (for weaves you shared)
                 import('@/modules/sync/services/share-weave.service').then(({ syncSharedWeaveResponses }) => {
                     syncSharedWeaveResponses().catch((error) => {
                         console.error('[App] Error syncing shared weave responses on foreground:', error);
                     });
                 });
-            }, 2000); // 2 second delay to free write queue for user actions
+            }, 45000); // 45 second delay to free write queue for user actions
 
             // Oracle Insights Generation (runs in background)
+            // Oracle Insights Generation (runs in background)
             setTimeout(() => {
-                import('@/modules/journal').then(({ InsightGenerator }) => {
-                    InsightGenerator.generateDailyInsights().catch(err => {
+                import('@/modules/oracle').then(({ InsightGenerator }) => {
+                    InsightGenerator.generateDailyInsights().catch((err: unknown) => {
                         console.error('[App] Error generating daily insights:', err);
                     });
                 });

@@ -55,7 +55,7 @@ Deno.serve(async (req) => {
 
     // Parse request body
     const body: RequestBody = await req.json()
-    const { system, user, model = 'gemini-2.0-flash', temperature = 0.7, maxTokens = 1024 } = body
+    const { system, user, model = 'gemini-3-flash', temperature = 1.0, maxTokens = 1024 } = body
 
     if (!user) {
       return new Response(

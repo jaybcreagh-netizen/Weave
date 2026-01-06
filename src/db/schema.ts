@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb'
 
 export default appSchema({
-  version: 54, // v54 Proactive Insights Settings
+  version: 59, // v59 Oracle Conversation Persistence
   tables: [
     // ===== ORACLE AI INFRASTRUCTURE =====
     tableSchema({
@@ -38,6 +38,7 @@ export default appSchema({
         { name: 'headline', type: 'string' },
         { name: 'body', type: 'string' },
         { name: 'grounding_data_json', type: 'string' },
+        { name: 'source_signals_json', type: 'string', isOptional: true },
 
         // Action
         { name: 'action_type', type: 'string' },
@@ -142,6 +143,22 @@ export default appSchema({
         { name: 'created_at', type: 'number', isIndexed: true }
       ]
     }),
+    // v59: Oracle Conversation Persistence
+    tableSchema({
+      name: 'oracle_conversations',
+      columns: [
+        { name: 'title', type: 'string' },
+        { name: 'context', type: 'string' },
+        { name: 'friend_id', type: 'string', isOptional: true, isIndexed: true },
+        { name: 'turns_json', type: 'string' },
+        { name: 'turn_count', type: 'number' },
+        { name: 'is_archived', type: 'boolean', isIndexed: true },
+        { name: 'started_at', type: 'number', isIndexed: true },
+        { name: 'last_message_at', type: 'number', isIndexed: true },
+        { name: 'created_at', type: 'number' },
+        { name: 'updated_at', type: 'number' }
+      ]
+    }),
     // ===== CORE TABLES =====
     tableSchema({
       name: 'friends',
@@ -160,6 +177,8 @@ export default appSchema({
         { name: 'momentum_last_updated', type: 'number' },
         { name: 'is_dormant', type: 'boolean' },
         { name: 'dormant_since', type: 'number', isOptional: true },
+        // NEW v55: Reliable Last Seen (Oracle Refactor)
+        { name: 'last_interaction_date', type: 'number', isOptional: true, isIndexed: true },
         // NEW: Life events and relationship context
         { name: 'birthday', type: 'string', isOptional: true }, // Format: "MM-DD" (month and day only)
         { name: 'anniversary', type: 'string', isOptional: true }, // Format: "MM-DD" (month and day only)
@@ -371,6 +390,12 @@ export default appSchema({
         { name: 'proactive_insights_enabled', type: 'boolean', isOptional: true },
         { name: 'suppressed_insight_rules', type: 'string', isOptional: true }, // JSON array of rule IDs
         { name: 'milestones_enabled', type: 'boolean', isOptional: true },
+
+        // NEW v57: Oracle Tone Preference (Phase 4 Style Personalization)
+        { name: 'oracle_tone_preference', type: 'string', isOptional: true }, // 'grounded' | 'warm' | 'playful' | 'poetic'
+
+        // v58: Oracle Insight Frequency (Phase 1 Redesign)
+        { name: 'insight_frequency', type: 'string', isOptional: true }, // 'weekly' | 'biweekly' | 'monthly' | 'on_demand'
 
       ]
     }),
@@ -744,6 +769,19 @@ export default appSchema({
         { name: 'retry_count', type: 'number' },
         { name: 'created_at', type: 'number', isIndexed: true },
       ]
-    })
+    }),
+    // NEW: Crystalized Memory (Oracle V2)
+    tableSchema({
+      name: 'user_facts',
+      columns: [
+        { name: 'fact_content', type: 'string' },
+        { name: 'category', type: 'string' },
+        { name: 'confidence', type: 'number' },
+        { name: 'source', type: 'string' },
+        { name: 'relevant_friend_id', type: 'string', isOptional: true, isIndexed: true },
+        { name: 'created_at', type: 'number' },
+        { name: 'updated_at', type: 'number' },
+      ]
+    }),
   ]
 })

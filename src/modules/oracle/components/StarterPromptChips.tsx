@@ -6,11 +6,11 @@
 import React from 'react'
 import { View, ScrollView, TouchableOpacity, Text } from 'react-native'
 import { useTheme } from '@/shared/hooks/useTheme'
-import { useStarterPrompts, StarterPrompt, OracleContext } from '../hooks/useStarterPrompts'
+import { useStarterPrompts, StarterPrompt, OracleEntryPoint } from '../hooks/useStarterPrompts'
 
 interface StarterPromptChipsProps {
     onSelect: (prompt: string) => void
-    context?: OracleContext
+    context?: OracleEntryPoint
 }
 
 export function StarterPromptChips({ onSelect, context = 'default' }: StarterPromptChipsProps) {

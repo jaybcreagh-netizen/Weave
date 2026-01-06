@@ -13,6 +13,8 @@ import { MemoryMomentModal } from '@/modules/journal';
 import { EveningCheckinSheet } from '@/modules/home';
 import { EveningDigestChannel, EveningCheckinContent } from '@/modules/notifications';
 import { OracleSheet } from '@/modules/oracle';
+import { BackgroundSuggestionFetcher } from '@/modules/interactions';
+
 
 export function GlobalModals() {
     const { user } = useAuth();
@@ -162,6 +164,9 @@ export function GlobalModals() {
 
             {/* Oracle Sheet */}
             <OracleSheet />
+
+            {/* Performance Optimization: Keep suggestions fresh in background */}
+            <BackgroundSuggestionFetcher />
         </>
     );
 }

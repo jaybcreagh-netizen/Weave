@@ -55,6 +55,7 @@ export const AnalyticsEvents = {
   WEEKLY_REFLECTION_COMPLETED: 'weekly_reflection_completed',
 
   // Insights & Analytics
+  INSIGHT_GENERATED: 'insight_generated',
   INSIGHTS_VIEWED: 'insights_viewed',
   YEAR_IN_MOONS_VIEWED: 'year_in_moons_viewed',
   TROPHY_CABINET_VIEWED: 'trophy_cabinet_viewed',

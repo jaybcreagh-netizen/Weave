@@ -14,6 +14,13 @@ interface OracleInsightSettingsProps {
     userProfiles: UserProfile[]
 }
 
+const TONE_OPTIONS = [
+    { id: 'grounded', label: 'Grounded', description: 'Concise and direct. Cites specific data. Minimal metaphors.' },
+    { id: 'warm', label: 'Warm', description: 'Empathetic and affirming. Supportive language.' },
+    { id: 'playful', label: 'Playful', description: 'Light and witty. Casual, friendly tone.' },
+    { id: 'poetic', label: 'Poetic', description: 'Evocative metaphors and imagery. Reflective.' },
+]
+
 function OracleInsightSettings({ userProfiles }: OracleInsightSettingsProps) {
     const userProfile = userProfiles[0]
     const { colors, typography } = useTheme()
@@ -24,6 +31,14 @@ function OracleInsightSettings({ userProfiles }: OracleInsightSettingsProps) {
     // Safely parse suppressed rules
     const suppressedRules: string[] = JSON.parse(userProfile.suppressedInsightRules || '[]')
     const isAllEnabled = userProfile.proactiveInsightsEnabled !== false // Default true
+
+    const updateTone = async (tone: string) => {
+        await database.write(async () => {
+            await userProfile.update((rec: UserProfile) => {
+                rec.oracleTonePreference = tone as any
+            })
+        })
+    }
 
     const toggleAll = async (value: boolean) => {
         await database.write(async () => {
@@ -124,6 +139,78 @@ function OracleInsightSettings({ userProfiles }: OracleInsightSettingsProps) {
                     Milestone Celebration
                 </Text>
                 {Object.values(MILESTONE_RULES).map(renderRuleToggle)}
+
+                <Text className="text-sm font-bold mt-8 mb-4 uppercase tracking-wider" style={{ color: colors['muted-foreground'] }}>
+                    Insight Frequency
+                </Text>
+                <View className="mb-8">
+                    {['weekly', 'biweekly', 'monthly', 'on_demand'].map((option) => {
+                        const current = userProfile.insightFrequency || 'biweekly'
+                        const isSelected = current === option
+
+                        const LABELS: Record<string, string> = {
+                            weekly: 'Weekly',
+                            biweekly: 'Biweekly (Recommended)',
+                            monthly: 'Monthly',
+                            on_demand: 'Only when I ask'
+                        }
+
+                        const DESCRIPTIONS: Record<string, string> = {
+                            weekly: 'One thoughtful insight each week',
+                            biweekly: 'Deep reflection every two weeks',
+                            monthly: 'A monthly digest of patterns',
+                            on_demand: 'No proactive insights, just when you ask'
+                        }
+
+                        return (
+                            <TouchableOpacity
+                                key={option}
+                                onPress={async () => {
+                                    await database.write(async () => {
+                                        await userProfile.update(rec => {
+                                            rec.insightFrequency = option as any
+                                        })
+                                    })
+                                }}
+                                className={`p-4 mb-2 rounded-xl border ${isSelected ? 'border-primary' : 'border-gray-200 dark:border-gray-800'}`}
+                                style={isSelected ? { backgroundColor: colors.primary + '15' } : {}}
+                            >
+                                <Text style={{ color: colors.foreground, fontFamily: typography.fonts.sansMedium }}>
+                                    {LABELS[option]}
+                                </Text>
+                                <Text className="text-xs mt-1" style={{ color: colors['muted-foreground'] }}>
+                                    {DESCRIPTIONS[option]}
+                                </Text>
+                            </TouchableOpacity>
+                        )
+                    })}
+                </View>
+
+                {/* Oracle Tone Preference */}
+                <Text className="text-sm font-bold mt-8 mb-4 uppercase tracking-wider" style={{ color: colors['muted-foreground'] }}>
+                    Oracle Tone
+                </Text>
+                <Text className="text-xs mb-4" style={{ color: colors['muted-foreground'] }}>
+                    Choose how the Oracle communicates with you.
+                </Text>
+                {TONE_OPTIONS.map(tone => {
+                    const isSelected = (userProfile.oracleTonePreference || 'grounded') === tone.id
+                    return (
+                        <TouchableOpacity
+                            key={tone.id}
+                            onPress={() => updateTone(tone.id)}
+                            className={`p-4 mb-2 rounded-xl border ${isSelected ? 'border-primary' : 'border-gray-200 dark:border-gray-800'}`}
+                            style={isSelected ? { backgroundColor: colors.primary + '15' } : {}}
+                        >
+                            <Text style={{ color: colors.foreground, fontFamily: typography.fonts.sansMedium }}>
+                                {tone.label}
+                            </Text>
+                            <Text className="text-xs mt-1" style={{ color: colors['muted-foreground'] }}>
+                                {tone.description}
+                            </Text>
+                        </TouchableOpacity>
+                    )
+                })}
 
                 <View className="h-10" />
             </ScrollView>

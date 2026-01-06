@@ -9,7 +9,9 @@ export interface UseOracleResult {
     messages: OracleTurn[]
     isLoading: boolean
     error: string | null
-    askQuestion: (text: string) => Promise<void>
+    askQuestion: (text: string, context?: string) => Promise<void>
+    startWithContext: (instruction: string, context?: string) => Promise<void>
+    loadConversation: (id: string) => Promise<void>
     remainingQuestions: number
     resetParams: () => void
     saveToJournal: () => Promise<void>
@@ -23,19 +25,18 @@ export function useOracle(): UseOracleResult {
     const [remainingQuestions, setRemainingQuestions] = useState(oracleService.getRemainingQuestions())
     const [isSaved, setIsSaved] = useState(false)
 
-    const askQuestion = useCallback(async (text: string) => {
+    const askQuestion = useCallback(async (text: string, context?: string) => {
         if (!text.trim()) return
 
         setIsLoading(true)
         setError(null)
-        setIsSaved(false) // Reset saved state for new conversation
+        setIsSaved(false)
 
-        // Optimistic update
         const userMsg: OracleTurn = { role: 'user', content: text, timestamp: Date.now() }
         setMessages(prev => [...prev, userMsg])
 
         try {
-            const response = await oracleService.ask(text)
+            const response = await oracleService.ask(text, [], context)
             const oracleMsg: OracleTurn = {
                 role: 'assistant',
                 content: response.text,
@@ -45,17 +46,45 @@ export function useOracle(): UseOracleResult {
             setMessages(prev => [...prev, oracleMsg])
             setRemainingQuestions(oracleService.getRemainingQuestions())
         } catch (err) {
-            logger.error('useOracle', 'Failed to ask Oracle', err)
-            if (err instanceof Error && err.message === 'ORACLE_RATE_LIMIT_EXCEEDED') {
-                setError('You have reached your daily limit of questions.')
-            } else {
-                setError('The Oracle is meditating. Please try again later.')
-            }
-            // Remove optimistic message if needed? No, keep it so user can retry or copy.
+            handleError(err)
         } finally {
             setIsLoading(false)
         }
     }, [])
+
+    const startWithContext = useCallback(async (instruction: string, context?: string) => {
+        setIsLoading(true)
+        setError(null)
+        setIsSaved(false)
+
+        try {
+            // Send instruction as user message BUT do not add to local state
+            // OracleService will track it in session, but UI won't show it
+            const response = await oracleService.ask(instruction, [], context)
+
+            const oracleMsg: OracleTurn = {
+                role: 'assistant',
+                content: response.text,
+                timestamp: Date.now(),
+                action: response.action
+            }
+            setMessages([oracleMsg]) // Start with this message
+            setRemainingQuestions(oracleService.getRemainingQuestions())
+        } catch (err) {
+            handleError(err)
+        } finally {
+            setIsLoading(false)
+        }
+    }, [])
+
+    const handleError = (err: any) => {
+        logger.error('useOracle', 'Failed to ask Oracle', err)
+        if (err instanceof Error && err.message === 'ORACLE_RATE_LIMIT_EXCEEDED') {
+            setError('You have reached your daily limit of questions.')
+        } else {
+            setError('The Oracle is meditating. Please try again later.')
+        }
+    }
 
     const saveToJournal = useCallback(async () => {
         if (messages.length === 0 || isSaved) return
@@ -97,11 +126,28 @@ export function useOracle(): UseOracleResult {
         setRemainingQuestions(oracleService.getRemainingQuestions())
     }, [])
 
+    const loadConversation = useCallback(async (conversationId: string) => {
+        setIsLoading(true)
+        try {
+            await oracleService.startConversation(conversationId)
+            const session = oracleService.getCurrentSession()
+            if (session) {
+                setMessages(session.turns)
+            }
+        } catch (e) {
+            handleError(e)
+        } finally {
+            setIsLoading(false)
+        }
+    }, [])
+
     return {
         messages,
         isLoading,
         error,
         askQuestion,
+        startWithContext,
+        loadConversation,
         remainingQuestions,
         resetParams,
         saveToJournal,

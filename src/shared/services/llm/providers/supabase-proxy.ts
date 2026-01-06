@@ -24,7 +24,7 @@ import { logger } from '@/shared/services/logger.service'
 
 const FUNCTION_NAME = 'oracle-journal'
 const DEFAULT_MAX_TOKENS = 1024
-const DEFAULT_TEMPERATURE = 0.7
+const DEFAULT_TEMPERATURE = 1.0
 
 export interface SupabaseProxyConfig {
     functionName?: string
@@ -43,7 +43,7 @@ export class SupabaseProxyProvider implements LLMProvider {
 
     constructor(config: SupabaseProxyConfig = {}) {
         this.functionName = config.functionName || FUNCTION_NAME
-        this.model = config.model || 'gemini-2.0-flash'
+        this.model = config.model || 'gemini-3-flash'
     }
 
     // ============================================================================

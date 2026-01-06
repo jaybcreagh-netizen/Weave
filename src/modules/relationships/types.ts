@@ -45,4 +45,5 @@ export type FriendFormData = {
   relationshipType?: RelationshipType;
   phoneNumber?: string;
   email?: string;
+  preferredMessagingApp?: 'whatsapp' | 'telegram' | 'sms' | 'email';
 };

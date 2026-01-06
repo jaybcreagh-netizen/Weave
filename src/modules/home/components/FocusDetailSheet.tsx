@@ -16,9 +16,11 @@ import { WidgetHeader } from '@/shared/ui/WidgetHeader';
 import Interaction from '@/db/models/Interaction';
 import { Suggestion } from '@/shared/types/common';
 import FriendModel from '@/db/models/Friend';
+import Intention from '@/db/models/Intention';
 import { format } from 'date-fns';
 import { calculateWeeklySummary, generateContextualPrompts, selectBestPrompt, ContextualPrompt } from '@/modules/reflection';
-import { getCategoryLabel } from '@/modules/interactions';
+import { getCategoryLabel, InteractionActions } from '@/modules/interactions';
+import { IntentionsList } from '@/modules/relationships/components/IntentionsList';
 
 interface UpcomingDate {
     friend: FriendModel;
@@ -35,6 +37,7 @@ interface FocusDetailSheetProps {
     tomorrowPlans?: Interaction[];
     completedPlans: Interaction[];
     suggestions: Suggestion[];
+    intentions: Intention[];
     upcomingDates: UpcomingDate[];
     friends: FriendModel[];
     onConfirmPlan: (id: string) => void;
@@ -49,6 +52,7 @@ export const FocusDetailSheet: React.FC<FocusDetailSheetProps> = ({
     tomorrowPlans = [],
     completedPlans,
     suggestions,
+    intentions,
     upcomingDates,
     friends,
     onConfirmPlan,
@@ -162,6 +166,26 @@ export const FocusDetailSheet: React.FC<FocusDetailSheetProps> = ({
                         >
                             {prompt.prompt}
                         </Text>
+                    </View>
+                )}
+
+                {/* Intentions Section - Top Priority */}
+                {intentions && intentions.length > 0 && (
+                    <View className="mb-2">
+                        <IntentionsList
+                            intentions={intentions}
+                            onIntentionPress={() => {
+                                // TODO: Handle intention press - maybe open edit modal or weave logger?
+                                onClose();
+                            }}
+                            onDeleteIntention={async (id) => {
+                                try {
+                                    await InteractionActions.dismissIntention(id);
+                                } catch (error) {
+                                    console.error('Error deleting intention:', error);
+                                }
+                            }}
+                        />
                     </View>
                 )}
 
@@ -339,7 +363,7 @@ export const FocusDetailSheet: React.FC<FocusDetailSheetProps> = ({
                     </View>
                 )}
 
-                {upcomingPlans.length === 0 && completedPlans.length === 0 && suggestions.length === 0 && upcomingDates.length === 0 && (
+                {upcomingPlans.length === 0 && completedPlans.length === 0 && suggestions.length === 0 && upcomingDates.length === 0 && (!intentions || intentions.length === 0) && (
                     <View className="items-center justify-center py-16 gap-4">
                         <CheckCircle2 size={48} color={tokens.success} />
                         <Text

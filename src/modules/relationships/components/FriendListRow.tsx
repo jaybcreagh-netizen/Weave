@@ -32,8 +32,10 @@ import { ArchetypeCard } from '@/modules/intelligence';
 import { StandardBottomSheet } from '@/shared/ui/Sheet/StandardBottomSheet';
 import { CachedImage } from '@/shared/ui';
 import { database } from '@/db';
+import Intention from '@/db/models/Intention';
+import { Q } from '@nozbe/watermelondb';
 import { StatusLineIcon } from '@/shared/components/StatusLineIcon';
-import { Sparkles, Handshake, Users, Heart, Briefcase, Home, GraduationCap, Palette, type LucideIcon } from 'lucide-react-native';
+import { Sparkles, Handshake, Users, Heart, Briefcase, Home, GraduationCap, Palette, Target, Star, type LucideIcon } from 'lucide-react-native';
 
 const ATTENTION_THRESHOLD = 35;
 const STABLE_THRESHOLD = 65;
@@ -66,6 +68,7 @@ export const FriendListRowContent = ({ friend, animatedRef, variant = 'default',
     text: archetypeData[archetype as Archetype]?.essence || '',
     variant: 'default'
   });
+  const [hasIntention, setHasIntention] = useState(false);
   const [imageError, setImageError] = useState(false);
   const [showDetailSheet, setShowDetailSheet] = useState(false);
   const [showArchetypePicker, setShowArchetypePicker] = useState(false);
@@ -160,6 +163,36 @@ export const FriendListRowContent = ({ friend, animatedRef, variant = 'default',
 
     return () => handle.cancel();
   }, [friend.id, friend.lastUpdated.getTime(), friend.weaveScore, archetype]);
+
+  // Check for active intentions
+  // Check for active intentions - Reactive subscription
+  useEffect(() => {
+    const query = database.get<Intention>('intentions').query(
+      Q.where('status', 'active')
+    );
+
+    const subscription = query.observe().subscribe(async (activeIntentions) => {
+      // Check if any active intention is linked to this friend
+      let found = false;
+      // Use for..of for async break capability
+      for (const intention of activeIntentions) {
+        try {
+          const count = await intention.intentionFriends
+            .extend(Q.where('friend_id', id))
+            .fetchCount();
+          if (count > 0) {
+            found = true;
+            break;
+          }
+        } catch (e) {
+          // ignore error
+        }
+      }
+      setHasIntention(found);
+    });
+
+    return () => subscription.unsubscribe();
+  }, [id]);
 
   // "Just Nurtured" glow effect
   useEffect(() => {
@@ -441,19 +474,34 @@ export const FriendListRowContent = ({ friend, animatedRef, variant = 'default',
                 <Text style={{ fontSize: 8, color: 'white', fontWeight: 'bold' }}>!</Text>
               </View>
             )}
+
+            {/* Active Intention Indicator */}
+            {hasIntention && (
+              <View
+                className="absolute -top-1 -right-1 w-4 h-4 rounded-full items-center justify-center"
+                style={{
+                  backgroundColor: colors.primary,
+                  borderWidth: 1.5,
+                  borderColor: colors.card,
+                  opacity: 0.6,
+                }}
+              >
+                <Star size={8} color="white" fill="white" />
+              </View>
+            )}
           </View>
         </Pressable>
-      </View>
+      </View >
 
       {/* Friend Detail Sheet */}
-      <FriendDetailSheet
+      < FriendDetailSheet
         isVisible={showDetailSheet}
         onClose={() => setShowDetailSheet(false)}
         friendId={friend.id}
       />
 
       {/* Quick Archetype Picker Sheet */}
-      <StandardBottomSheet
+      < StandardBottomSheet
         visible={showArchetypePicker}
         onClose={() => setShowArchetypePicker(false)}
         height="full"
@@ -479,8 +527,8 @@ export const FriendListRowContent = ({ friend, animatedRef, variant = 'default',
             ))}
           </View>
         </View>
-      </StandardBottomSheet>
-    </Animated.View>
+      </StandardBottomSheet >
+    </Animated.View >
   );
 };
 

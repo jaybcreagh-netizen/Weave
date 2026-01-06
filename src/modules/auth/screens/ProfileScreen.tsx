@@ -42,6 +42,9 @@ import { ArchetypeCarouselPicker } from '@/modules/intelligence';
 import { archetypeData } from '@/shared/constants/constants';
 import { unregisterPushToken } from '@/modules/notifications';
 import type { Archetype } from '@/shared/types/common';
+import { SyncOrchestrator, useSyncStatusStore } from '@/modules/sync';
+import { formatDistanceToNow } from 'date-fns';
+import { RefreshCw, Database } from 'lucide-react-native';
 
 export function ProfileScreen() {
     const { colors } = useTheme();
@@ -670,6 +673,10 @@ export function ProfileScreen() {
                     className="mt-2"
                 />
 
+                {/* Data & Sync Section */}
+                {/* Data & Sync Section */}
+                <DataSyncSection colors={colors} />
+
                 {/* Account Section */}
                 <View className="mt-6 mb-6">
                     <Text className="text-xs font-semibold tracking-widest mb-2 ml-1" style={{ color: colors['muted-foreground'] }}>
@@ -825,6 +832,70 @@ export function ProfileScreen() {
                 </View>
             </Modal>
         </KeyboardAvoidingView>
+    );
+}
+
+
+
+function DataSyncSection({ colors }: { colors: any }) {
+    const isSyncing = useSyncStatusStore(state => state.isSyncing);
+    const lastSyncTime = useSyncStatusStore(state => state.lastSyncTime);
+    const lastError = useSyncStatusStore(state => state.lastError);
+    const [justSynced, setJustSynced] = useState(false);
+
+    const handleSync = async () => {
+        setJustSynced(false);
+        await SyncOrchestrator.triggerSync('manual_user');
+        if (!useSyncStatusStore.getState().lastError) {
+            setJustSynced(true);
+            setTimeout(() => setJustSynced(false), 3000);
+        }
+    };
+
+    return (
+        <View className="mt-6">
+            <Text className="text-xs font-semibold tracking-widest mb-2 ml-1" style={{ color: colors['muted-foreground'] }}>
+                DATA & SYNC
+            </Text>
+
+            <View className="rounded-xl border overflow-hidden" style={{
+                backgroundColor: colors.card,
+                borderColor: colors.border,
+            }}>
+                <TouchableOpacity
+                    className="flex-row items-center justify-between py-3.5 px-4"
+                    onPress={handleSync}
+                    disabled={isSyncing}
+                >
+                    <View className="flex-row items-center gap-2">
+                        <Database size={20} color={colors.primary} style={{ marginRight: 8 }} />
+                        <Text style={{ color: colors.foreground }}>
+                            Sync Data
+                        </Text>
+                    </View>
+                    <View className="flex-row items-center gap-2 flex-1 justify-end">
+                        {isSyncing ? (
+                            <ActivityIndicator size="small" color={colors.primary} />
+                        ) : justSynced ? (
+                            <Text className="text-xs text-green-500 font-medium">Synced!</Text>
+                        ) : lastError ? (
+                            <Text className="text-xs text-red-500">Failed</Text>
+                        ) : (
+                            <Text variant="caption" style={{ color: colors['muted-foreground'] }}>
+                                {lastSyncTime
+                                    ? formatDistanceToNow(lastSyncTime, { addSuffix: true })
+                                    : 'Never'}
+                            </Text>
+                        )}
+                        <RefreshCw
+                            size={16}
+                            color={isSyncing ? colors.primary : colors['muted-foreground']}
+                            style={{ opacity: isSyncing ? 0.5 : 1 }}
+                        />
+                    </View>
+                </TouchableOpacity>
+            </View>
+        </View>
     );
 }
 

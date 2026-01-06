@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, Alert } from 'react-native';
 import { StandardBottomSheet } from '@/shared/ui/Sheet';
 import {
   Sparkles,
@@ -36,6 +36,7 @@ interface IntentionsDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   onIntentionPress: (intention: Intention) => void;
+  onDeleteIntention?: (id: string) => void;
 }
 
 /**
@@ -47,6 +48,7 @@ export function IntentionsDrawer({
   isOpen,
   onClose,
   onIntentionPress,
+  onDeleteIntention,
 }: IntentionsDrawerProps) {
   const { colors } = useTheme();
 
@@ -55,6 +57,27 @@ export function IntentionsDrawer({
     onIntentionPress(intention);
     // Note: StandardBottomSheet should be closed by parent if desired, or we can close it here
     onClose();
+  };
+
+  const handleLongPress = (intention: Intention) => {
+    if (onDeleteIntention) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      Alert.alert(
+        'Delete Intention',
+        'Are you sure you want to delete this intention?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: () => {
+              onDeleteIntention(intention.id);
+              // Optional: Close drawer if empty? No, keep open to show empty state.
+            }
+          }
+        ]
+      );
+    }
   };
 
   return (
@@ -118,6 +141,7 @@ export function IntentionsDrawer({
                 className="p-4 rounded-xl border gap-2"
                 style={{ backgroundColor: colors.background, borderColor: colors.border }}
                 onPress={() => handleIntentionPress(intention)}
+                onLongPress={() => handleLongPress(intention)}
                 activeOpacity={0.7}
               >
                 <View className="flex-row items-center justify-between">

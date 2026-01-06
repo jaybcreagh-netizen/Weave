@@ -182,14 +182,17 @@ export async function recalculateScoreOnDelete(
 /**
  * Prepares scoring operations without executing them.
  * Useful for batching multiple scoring updates (e.g., at app startup).
+ * Refactored to separate calculation from DB preparation to avoid holding "prepared" records
+ * outside of a write lock.
  */
-export async function prepareWeaveScoringOps(
+export async function calculateWeaveScoring(
   friends: FriendModel[],
   interactionData: InteractionFormData,
   database: Database,
   season?: SocialSeason | null
-): Promise<{ scoreUpdates: ScoreUpdate[], ops: any[] }> {
+): Promise<{ scoreUpdates: ScoreUpdate[], updates: Map<string, any> }> {
   const scoreUpdates: ScoreUpdate[] = [];
+  const updates = new Map<string, any>();
 
   // 1. Pre-fetch interaction history counts for all friends
   const historyCounts = new Map<string, number>();
@@ -241,7 +244,8 @@ export async function prepareWeaveScoringOps(
   }));
   Logger.info(`[Perf] History counts total: ${Date.now() - historyStart}ms`);
 
-  const batchOps: any[] = [];
+  // No batchOps here anymore - we just calculate data
+
 
   for (const friend of friends) {
     const scoreBefore = calculateCurrentScore(friend);
@@ -296,23 +300,6 @@ export async function prepareWeaveScoringOps(
       newResilience = updateResilience(friend, interactionData.vibe as Vibe | null);
     }
 
-    batchOps.push(friend.prepareUpdate(record => {
-      record.weaveScore = scoreAfterRaw;
-      record.lastUpdated = newLastUpdated;
-
-      if (isNewerInteraction) {
-        if (momentumScore !== undefined) record.momentumScore = momentumScore;
-        if (momentumLastUpdated !== undefined) record.momentumLastUpdated = momentumLastUpdated;
-        if (newResilience !== undefined && newResilience !== null) {
-          record.resilience = newResilience;
-        }
-      }
-
-      if (interactionData.vibe) {
-        record.ratedWeavesCount += 1;
-      }
-    }));
-
     const scoreAfter = Math.min(100, Math.max(0, scoreBefore + effectivePoints));
 
     scoreUpdates.push({
@@ -321,9 +308,53 @@ export async function prepareWeaveScoringOps(
       scoreAfter,
       pointsEarned,
     });
+
+    updates.set(friend.id, {
+      weaveScore: scoreAfterRaw,
+      lastUpdated: newLastUpdated,
+      isNewerInteraction,
+      momentumScore,
+      momentumLastUpdated,
+      newResilience,
+      hasVibe: !!interactionData.vibe
+    });
   }
 
-  return { scoreUpdates, ops: batchOps };
+  return { scoreUpdates, updates };
+}
+
+/**
+ * Apply the calculated updates to the database records.
+ * MUST be called inside a writer lock.
+ */
+function applyWeaveScoringUpdates(
+  friends: FriendModel[],
+  updates: Map<string, any>
+): any[] {
+  const batchOps: any[] = [];
+
+  for (const friend of friends) {
+    const update = updates.get(friend.id);
+    if (!update) continue;
+
+    batchOps.push(friend.prepareUpdate(record => {
+      record.weaveScore = update.weaveScore;
+      record.lastUpdated = update.lastUpdated;
+
+      if (update.isNewerInteraction) {
+        if (update.momentumScore !== undefined) record.momentumScore = update.momentumScore;
+        if (update.momentumLastUpdated !== undefined) record.momentumLastUpdated = update.momentumLastUpdated;
+        if (update.newResilience !== undefined && update.newResilience !== null) {
+          record.resilience = update.newResilience;
+        }
+      }
+
+      if (update.hasVibe) {
+        record.ratedWeavesCount += 1;
+      }
+    }));
+  }
+  return batchOps;
 }
 
 /**
@@ -336,12 +367,24 @@ export async function processWeaveScoring(
   database: Database,
   season?: SocialSeason | null
 ): Promise<ScoreUpdate[]> {
-  const { scoreUpdates, ops } = await prepareWeaveScoringOps(friends, interactionData, database, season);
+  // 1. Calculate outside the lock (READ-ONLY)
+  const { scoreUpdates, updates } = await calculateWeaveScoring(friends, interactionData, database, season);
 
-  if (ops.length > 0) {
+  if (updates.size > 0) {
+    // 2. Acquire lock and apply updates (WRITE)
     // BACKGROUND PRIORITY: Scoring can wait, user actions take priority
     await writeScheduler.background('Intelligence:scoring', async () => {
-      await database.batch(ops);
+      // Re-fetch friends inside the lock if needed? 
+      // Actually WatermelonDB models are mutable but persist across transactions. 
+      // Ideally we'd re-fetch to carry over any changes that happened while we were calculating,
+      // but 'prepareUpdate' works on the instance.
+      // The safest bet to avoid "Pending changes" is to create the prepared update INSIDE the lock.
+      // That's what applyWeaveScoringUpdates does now.
+
+      const ops = applyWeaveScoringUpdates(friends, updates);
+      if (ops.length > 0) {
+        await database.batch(ops);
+      }
     });
   }
 

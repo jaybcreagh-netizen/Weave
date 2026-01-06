@@ -13,6 +13,7 @@ import LifeEvent from '@/db/models/LifeEvent';
 import { Q } from '@nozbe/watermelondb';
 import Interaction from '@/db/models/Interaction';
 import InteractionFriend from '@/db/models/InteractionFriend';
+import Intention from '@/db/models/Intention';
 import { Card } from '@/shared/ui/Card';
 import { WidgetHeader } from '@/shared/ui/WidgetHeader';
 import { ListItem } from '@/shared/ui/ListItem';
@@ -59,6 +60,32 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = () => {
     const [upcomingDates, setUpcomingDates] = useState<UpcomingDate[]>([]);
     const [confirmingIds, setConfirmingIds] = useState<Set<string>>(new Set());
     const [selectedSuggestion, setSelectedSuggestion] = useState<Suggestion | null>(null);
+    const [intentions, setIntentions] = useState<Intention[]>([]);
+
+    // Load active intentions
+    useEffect(() => {
+        const loadIntentions = async () => {
+            try {
+                const activeIntentions = await database.get<Intention>('intentions')
+                    .query(Q.where('status', 'active'))
+                    .fetch();
+                setIntentions(activeIntentions);
+            } catch (e) {
+                console.error('Error loading intentions:', e);
+            }
+        };
+
+        // Load initially
+        loadIntentions();
+
+        // Subscribe to changes
+        const subscription = database.get<Intention>('intentions')
+            .query(Q.where('status', 'active'))
+            .observe()
+            .subscribe(setIntentions);
+
+        return () => subscription.unsubscribe();
+    }, []);
 
     // Logic ported from V1
     const pendingConfirmations = useMemo(() => {
@@ -361,7 +388,8 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = () => {
     const hasReviews = false; // Disabled in condensed widget
     const hasSuggestions = suggestions.length > 0;
     const hasUpcomingDates = upcomingDates.length > 0;
-    const isAllClear = !hasUpcoming && !hasCompleted && !hasTomorrow && !hasSuggestions && !hasUpcomingDates;
+    const hasIntentions = intentions.length > 0;
+    const isAllClear = !hasUpcoming && !hasCompleted && !hasTomorrow && !hasSuggestions && !hasUpcomingDates && !hasIntentions;
 
     return (
         <>
@@ -485,9 +513,10 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = () => {
                                         <>
                                             {suggestions[0].contextSnippet}
                                             {suggestions.length > 1 && <Text style={{ color: tokens.foregroundSubtle }}> +{suggestions.length - 1} more</Text>}
+                                            {hasIntentions && <Text style={{ color: tokens.foregroundSubtle }}> · {intentions.length} intention{intentions.length !== 1 ? 's' : ''}</Text>}
                                         </>
                                     ) : (
-                                        `${suggestions.length} suggestion${suggestions.length !== 1 ? 's' : ''}`
+                                        `${suggestions.length} suggestion${suggestions.length !== 1 ? 's' : ''}${hasIntentions ? ` · ${intentions.length} intention${intentions.length !== 1 ? 's' : ''}` : ''}`
                                     )}
                                 </Text>
                             </View>
@@ -524,6 +553,7 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = () => {
                 tomorrowPlans={tomorrowsPlans}
                 completedPlans={todaysCompleted}
                 suggestions={suggestions}
+                intentions={intentions}
                 upcomingDates={upcomingDates}
                 friends={friends}
                 onConfirmPlan={handleConfirmPlan}

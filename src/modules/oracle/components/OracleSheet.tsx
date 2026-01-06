@@ -5,18 +5,42 @@
  * Can be opened from anywhere in the app via useOracleSheet().
  */
 
-import React from 'react'
-import { Modal, View, TouchableOpacity, SafeAreaView, KeyboardAvoidingView, Platform } from 'react-native'
-import { X } from 'lucide-react-native'
+import React, { useState } from 'react'
+import { Modal, View, TouchableOpacity, SafeAreaView, Platform, InteractionManager } from 'react-native'
+import { X, Clock } from 'lucide-react-native'
 import { useTheme } from '@/shared/hooks/useTheme'
 import { Text } from '@/shared/ui/Text'
 import { useOracleSheet } from '../hooks/useOracleSheet'
 import { OracleChat } from './OracleChat'
+import { SkeletonOracleChat } from './SkeletonOracleChat'
 import { PortalHost } from '@gorhom/portal'
+import { PerfLogger } from '@/shared/utils/performance-logger';
+import { ConversationHistoryList } from './ConversationHistoryList'
+import { StandardBottomSheet } from '@/shared/ui/Sheet/StandardBottomSheet'
 
 export function OracleSheet() {
     const { colors, typography } = useTheme()
     const { isOpen, params, close } = useOracleSheet()
+
+    const [isReady, setIsReady] = React.useState(false);
+    const [showHistory, setShowHistory] = useState(false)
+    const [selectedConversationId, setSelectedConversationId] = useState<string | undefined>(undefined)
+
+    React.useEffect(() => {
+        if (isOpen) {
+            PerfLogger.log('Oracle', 'Sheet Opened (Visible)');
+            // Defer heavy rendering to allow modal animation to start smoothly
+            const task = InteractionManager.runAfterInteractions(() => {
+                setIsReady(true);
+            });
+            return () => task.cancel();
+        } else {
+            setIsReady(false);
+            // Reset state when closed
+            setShowHistory(false);
+            setSelectedConversationId(undefined);
+        }
+    }, [isOpen]);
 
     if (!isOpen) return null
 
@@ -47,25 +71,50 @@ export function OracleSheet() {
                         Weave
                     </Text>
 
-                    <View style={{ width: 24 }} />
+                    <TouchableOpacity
+                        onPress={() => setShowHistory(true)}
+                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                        className="p-1 rounded-full hover:bg-black/5 dark:hover:bg-white/10"
+                    >
+                        <Clock size={24} color={colors.foreground} />
+                    </TouchableOpacity>
                 </View>
 
                 {/* Oracle Chat Content */}
-                <KeyboardAvoidingView
-                    behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-                    style={{ flex: 1 }}
-                >
+                {isReady ? (
                     <OracleChat
                         context={params.context || 'default'}
                         friendId={params.friendId}
                         friendName={params.friendName}
                         onClose={close}
                         portalHost="oracle-sheet-host"
+                        initialQuestion={params.initialQuestion}
+                        journalContent={params.journalContent}
+                        lensContext={params.lensContext}
+                        conversationId={selectedConversationId}
                     />
-                </KeyboardAvoidingView>
+                ) : (
+                    <SkeletonOracleChat />
+                )}
 
                 {/* Portal Host for sheets rendered inside this modal */}
                 <PortalHost name="oracle-sheet-host" />
+
+                <StandardBottomSheet
+                    visible={showHistory}
+                    onClose={() => setShowHistory(false)}
+                    title="Past Conversations"
+                    portalHost="oracle-sheet-host"
+                    snapPoints={['80%']}
+                >
+                    <ConversationHistoryList
+                        onSelect={(id) => {
+                            setSelectedConversationId(id)
+                            setShowHistory(false)
+                        }}
+                        onClose={() => setShowHistory(false)}
+                    />
+                </StandardBottomSheet>
             </SafeAreaView>
         </Modal>
     )

@@ -13,6 +13,13 @@ export interface OracleSheetParams {
     friendId?: string
     friendName?: string
     interactionId?: string
+    initialQuestion?: string
+    journalContent?: string // Content to seed the Oracle context with
+    lensContext?: {
+        archetype: string
+        title: string
+        reasoning: string
+    }
 }
 
 interface OracleSheetState {

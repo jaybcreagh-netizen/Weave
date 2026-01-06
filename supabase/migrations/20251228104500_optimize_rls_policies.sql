@@ -57,6 +57,7 @@ CREATE POLICY "Users can update own profile" ON public.user_profiles
 
 DROP POLICY IF EXISTS "Users can view own profile" ON public.user_profiles;
 DROP POLICY IF EXISTS "Users can search by username" ON public.user_profiles;
+DROP POLICY IF EXISTS "Authenticated can view profiles" ON public.user_profiles;
 
 CREATE POLICY "Authenticated can view profiles" ON public.user_profiles
   FOR SELECT TO authenticated USING (true);
@@ -91,6 +92,7 @@ CREATE POLICY "Users can create weaves" ON public.shared_weaves
 
 DROP POLICY IF EXISTS "Users can view own weaves" ON public.shared_weaves;
 DROP POLICY IF EXISTS "Participants can view shared weaves" ON public.shared_weaves;
+DROP POLICY IF EXISTS "Users can view related shared weaves" ON public.shared_weaves;
 
 CREATE POLICY "Users can view related shared weaves" ON public.shared_weaves
   FOR SELECT USING (

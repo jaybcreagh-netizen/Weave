@@ -40,8 +40,10 @@ import OracleContextCache from './models/OracleContextCache';
 import JournalSignals from './models/JournalSignals';
 import ProactiveInsight from './models/ProactiveInsight';
 import OracleConsultation from './models/OracleConsultation';
+import OracleConversation from './models/OracleConversation';
 import ConversationThread from './models/ConversationThread';
 import LLMQualityLog from './models/LLMQualityLog';
+import UserFact from './models/UserFact';
 
 import { setGenerator } from '@nozbe/watermelondb/utils/common/randomId';
 import { v4 as uuidv4 } from 'uuid';
@@ -103,7 +105,12 @@ export const database = new Database({
     OracleConsultation,
     ConversationThread,
     LLMQualityLog,
+    LLMQualityLog,
     ProactiveInsight,
+    // v59: Conversation Persistence
+    OracleConversation,
+    // v56: Crystalized Memory
+    UserFact,
   ],
 });
 

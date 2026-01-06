@@ -1,7 +1,5 @@
 import React from 'react'
 import { View, Text, TouchableOpacity } from 'react-native'
-import { LinearGradient } from 'expo-linear-gradient'
-import { BlurView } from 'expo-blur'
 import Animated, { FadeIn, FadeOut, Layout } from 'react-native-reanimated'
 import { Sparkles, X, ArrowRight } from 'lucide-react-native'
 import ProactiveInsight from '@/db/models/ProactiveInsight'
@@ -11,101 +9,103 @@ interface OracleInsightCardProps {
     insight: ProactiveInsight
     onAction: (insight: ProactiveInsight) => void
     onDismiss: (insight: ProactiveInsight) => void
-    compact?: boolean
 }
 
-export function OracleInsightCard({ insight, onAction, onDismiss, compact = false }: OracleInsightCardProps) {
-    const { isDarkMode: isDark } = useTheme()
-
-    // Magical/Wisdom aesthetic colors
-    const gradientColors = isDark
-        ? ['#2D1B4E', '#1A1625'] // Deep Purple -> Dark
-        : ['#E6DFF7', '#FAF9FD'] // Light Lilac -> White
-
-    const accentColor = isDark ? '#FFD700' : '#8A4FFF' // Gold / Purple
-    const textColor = isDark ? '#F5F1E8' : '#2D3142'
+export function OracleInsightCard({ insight, onAction, onDismiss }: OracleInsightCardProps) {
+    const { colors, typography } = useTheme()
 
     return (
         <Animated.View
             entering={FadeIn.duration(400)}
             exiting={FadeOut.duration(300)}
             layout={Layout.springify()}
-            className="mb-4 mx-1 rounded-2xl overflow-hidden shadow-sm"
-            style={{
-                shadowColor: accentColor,
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.1,
-                shadowRadius: 8,
-            }}
+            className="mb-4 mx-1"
         >
-            <LinearGradient
-                colors={gradientColors as any}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={{ padding: compact ? 12 : 16 }}
+            <View
+                style={{
+                    backgroundColor: colors.card,
+                    borderRadius: 16,
+                    borderWidth: 1,
+                    borderColor: colors.border,
+                    padding: 20,
+                    shadowColor: '#000000',
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.05,
+                    shadowRadius: 8,
+                    elevation: 2
+                }}
             >
-                {/* Header Badge */}
-                <View className="flex-row justify-between items-start mb-2">
-                    <View className="flex-row items-center bg-white/10 px-2 py-1 rounded-full border border-white/20">
-                        <Sparkles size={12} color={accentColor} />
+                {/* Header: Clean & Minimal */}
+                <View className="flex-row justify-between items-start mb-4">
+                    <View className="flex-row items-center space-x-2">
+                        <Sparkles size={14} color={colors.primary} />
                         <Text
-                            className="text-xs font-medium ml-1.5"
-                            style={{ color: accentColor, letterSpacing: 0.5 }}
+                            style={{
+                                color: colors['muted-foreground'],
+                                fontFamily: typography.fonts.sansMedium,
+                                fontSize: 12,
+                                letterSpacing: 0.5,
+                                textTransform: 'uppercase'
+                            }}
                         >
-                            ORACLE INSIGHT
+                            Insight
                         </Text>
                     </View>
 
                     <TouchableOpacity
                         onPress={() => onDismiss(insight)}
                         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                        className="p-1 rounded-full bg-black/5"
+                        className="opacity-50"
                     >
-                        <X size={14} color={isDark ? '#FFFFFF60' : '#00000040'} />
+                        <X size={16} color={colors.foreground} />
                     </TouchableOpacity>
                 </View>
 
-                {/* Content */}
-                <View className="mb-4">
+                {/* Content: Letter Style */}
+                <View className="mb-6">
                     <Text
-                        className={`${compact ? 'text-base' : 'text-lg'} font-bold mb-1`}
-                        style={{ color: textColor, fontFamily: 'Lora_700Bold' }}
+                        className="text-lg mb-2"
+                        style={{
+                            color: colors.foreground,
+                            fontFamily: typography.fonts.serifBold, // Lora Bold
+                            lineHeight: 28
+                        }}
                     >
                         {insight.headline}
                     </Text>
                     <Text
-                        className={`${compact ? 'text-xs' : 'text-sm'} leading-5`}
-                        style={{ color: isDark ? '#E2E2E2' : '#4A5568', fontFamily: 'Inter_400Regular' }}
-                        numberOfLines={compact ? 2 : undefined}
+                        className="text-base leading-7"
+                        style={{
+                            color: colors.foreground,
+                            fontFamily: typography.fonts.serif, // Lora Regular
+                            opacity: 0.9
+                        }}
                     >
                         {insight.body}
                     </Text>
                 </View>
 
-                {/* Action Button */}
-                <TouchableOpacity
-                    onPress={() => onAction(insight)}
-                    activeOpacity={0.8}
-                >
-                    <BlurView
-                        intensity={20}
-                        tint={isDark ? 'light' : 'dark'}
-                        className="flex-row items-center justify-between px-4 py-3 rounded-xl overflow-hidden"
-                        style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.03)' }}
+                {/* Action Footer: Subtle & Integrated */}
+                <View className="flex-row items-center justify-between pt-4 border-t" style={{ borderColor: colors.border }}>
+                    <TouchableOpacity
+                        onPress={() => onAction(insight)}
+                        activeOpacity={0.7}
+                        className="flex-row items-center"
                     >
                         <Text
-                            className="text-sm font-semibold"
-                            style={{ color: textColor }}
+                            style={{
+                                color: colors.primary,
+                                fontFamily: typography.fonts.sansMedium,
+                                fontSize: 14,
+                                marginRight: 6
+                            }}
                         >
-                            {insight.actionLabel}
+                            {insight.actionLabel || "Reflect"}
                         </Text>
-                        <View className="bg-white/20 rounded-full p-1">
-                            <ArrowRight size={14} color={textColor} />
-                        </View>
-                    </BlurView>
-                </TouchableOpacity>
-
-            </LinearGradient>
+                        <ArrowRight size={14} color={colors.primary} />
+                    </TouchableOpacity>
+                </View>
+            </View>
         </Animated.View>
     )
 }

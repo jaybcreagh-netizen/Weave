@@ -65,3 +65,6 @@ export { ActivityInboxSheet } from './components/ActivityInboxSheet';
 // Hooks
 export { useSyncStatus } from './hooks/useSyncStatus';
 export { usePendingWeaves } from './hooks/usePendingWeaves';
+
+export { SyncOrchestrator } from './services/sync-orchestrator';
+export { useSyncStatusStore } from './store/sync-status.store';

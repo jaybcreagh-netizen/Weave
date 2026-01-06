@@ -1,4 +1,5 @@
 // Components
+export { BackgroundSuggestionFetcher } from './components/BackgroundSuggestionFetcher';
 export { QuickWeaveOverlay } from './components/QuickWeaveOverlay';
 export { PlanWizard } from './components/PlanWizard';
 export { PostWeaveRatingModal } from './components/PostWeaveRatingModal';// Screens
@@ -19,6 +20,7 @@ export { useSuggestions } from './hooks/useSuggestions';
 export { useQuickWeave } from './hooks/useQuickWeave';
 
 // Services
+export { InteractionActions } from './services/interaction.actions';
 export * as WeaveLoggingService from './services/weave-logging.service';
 export * as PlanService from './services/plan.service';
 export * as CalendarService from './services/calendar.service';

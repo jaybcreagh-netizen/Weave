@@ -253,6 +253,7 @@ export const AnimatedBottomSheet = forwardRef<AnimatedBottomSheetRef, AnimatedBo
       visible={visible}
       animationType="none"
       statusBarTranslucent
+      presentationStyle="overFullScreen"
       onRequestClose={handleClosePress}
       testID={testID}
     >

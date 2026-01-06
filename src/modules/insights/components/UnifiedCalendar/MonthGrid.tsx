@@ -3,10 +3,16 @@
  * Displays a month grid with colored moon phases for each day
  */
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, Dimensions } from 'react-native';
 import { ChevronLeft, ChevronRight } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
+import Animated, {
+    useSharedValue,
+    useAnimatedStyle,
+    withSequence,
+    withSpring,
+} from 'react-native-reanimated';
 import {
     startOfMonth,
     endOfMonth,
@@ -21,6 +27,53 @@ import {
 
 import { useTheme } from '@/shared/hooks/useTheme';
 import { MoonPhaseIllustration } from '@/modules/intelligence/components/social-season/YearInMoons/MoonPhaseIllustration';
+
+/**
+ * Animated wrapper for moon cells that pulses when battery level changes
+ */
+const AnimatedMoonCell = React.memo(({
+    children,
+    batteryLevel,
+    hasCheckin,
+}: {
+    children: React.ReactNode;
+    batteryLevel: number | null;
+    hasCheckin: boolean;
+}) => {
+    const scale = useSharedValue(1);
+    const firstRender = useRef(true);
+    const prevHasCheckin = useRef(hasCheckin);
+
+    useEffect(() => {
+        // Skip animation on first render
+        if (firstRender.current) {
+            firstRender.current = false;
+            prevHasCheckin.current = hasCheckin;
+            return;
+        }
+
+        // Animate when a new check-in appears (hasCheckin changes from false to true)
+        // or when batteryLevel changes on an existing check-in
+        if (hasCheckin && (!prevHasCheckin.current || batteryLevel !== null)) {
+            scale.value = withSequence(
+                withSpring(1.08, { damping: 15, stiffness: 300 }),
+                withSpring(1, { damping: 15, stiffness: 200 })
+            );
+        }
+
+        prevHasCheckin.current = hasCheckin;
+    }, [batteryLevel, hasCheckin]);
+
+    const animatedStyle = useAnimatedStyle(() => ({
+        transform: [{ scale: scale.value }],
+    }));
+
+    return (
+        <Animated.View style={animatedStyle}>
+            {children}
+        </Animated.View>
+    );
+});
 
 export interface DayData {
     date: Date;
@@ -171,25 +224,30 @@ export function MonthGrid({
                                 justifyContent: 'center',
                             }}
                         >
-                            <View
-                                style={{
-                                    borderRadius: moonSize, // Full circle
-                                    padding: 4,
-                                    backgroundColor: isSelected
-                                        ? tokens.primary + '20'
-                                        : 'transparent',
-                                    borderWidth,
-                                    borderColor,
-                                    borderStyle,
-                                }}
+                            <AnimatedMoonCell
+                                batteryLevel={data?.batteryLevel ?? null}
+                                hasCheckin={data?.hasCheckin ?? false}
                             >
-                                <MoonPhaseIllustration
-                                    phase={0}
-                                    batteryLevel={data?.batteryLevel ?? undefined}
-                                    size={moonSize}
-                                    hasCheckin={data?.hasCheckin ?? false}
-                                />
-                            </View>
+                                <View
+                                    style={{
+                                        borderRadius: moonSize, // Full circle
+                                        padding: 4,
+                                        backgroundColor: isSelected
+                                            ? tokens.primary + '20'
+                                            : 'transparent',
+                                        borderWidth,
+                                        borderColor,
+                                        borderStyle,
+                                    }}
+                                >
+                                    <MoonPhaseIllustration
+                                        phase={0}
+                                        batteryLevel={data?.batteryLevel ?? undefined}
+                                        size={moonSize}
+                                        hasCheckin={data?.hasCheckin ?? false}
+                                    />
+                                </View>
+                            </AnimatedMoonCell>
                             <Text
                                 className="text-[10px] mt-0.5 font-inter"
                                 style={{

@@ -13,7 +13,14 @@ import Animated, { FadeIn, FadeOut, SlideInDown, SlideOutDown } from 'react-nati
  * Shows up when the app detects a recent event with friend matches
  */
 export function EventSuggestionModal() {
-  const { data } = useEventSuggestions();
+  // Defer scanning to avoid startup contention
+  const [isReady, setIsReady] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setIsReady(true), 5000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const { data } = useEventSuggestions({ enabled: isReady });
   const { mutate: dismissSuggestion } = useDismissSuggestion();
   const { colors } = useTheme();
 

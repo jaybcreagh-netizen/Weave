@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useDebounceCallback } from '@/shared/hooks/useDebounceCallback';
 import { View, Text, TouchableOpacity, TextInput, ScrollView, Image, StyleSheet, Modal, Alert, ActivityIndicator, Keyboard } from 'react-native';
-import { ArrowLeft, Camera, X, Users, AlertCircle, RotateCw, Handshake, Heart, Briefcase, Home, GraduationCap, Palette, type LucideIcon } from 'lucide-react-native';
+import { ArrowLeft, Camera, X, Users, AlertCircle, RotateCw, Handshake, Heart, Briefcase, Home, GraduationCap, Palette, MessageSquare, Mail, Phone, type LucideIcon } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as Contacts from 'expo-contacts';
 import { useRouter } from 'expo-router';
@@ -75,6 +75,9 @@ export function FriendForm({ onSave, friend, initialTier, fromOnboarding, onSkip
     birthday: friend?.birthday,
     anniversary: friend?.anniversary,
     relationshipType: friend?.relationshipType as RelationshipType | undefined,
+    phoneNumber: friend?.phoneNumber,
+    email: friend?.email,
+    preferredMessagingApp: friend?.preferredMessagingApp as any,
   });
 
   // Resolve initial photo URL if it's a relative path
@@ -533,6 +536,70 @@ export function FriendForm({ onSave, friend, initialTier, fromOnboarding, onSkip
           </View>
 
           <View>
+            <Text style={[styles.label, { color: colors.foreground }]}>Contact Details</Text>
+
+            <View style={{ gap: 12 }}>
+              {/* Phone Number */}
+              <View style={[styles.inputWrapper, { backgroundColor: colors.card, borderColor: colors.border, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12 }]}>
+                <Phone size={18} color={colors['muted-foreground']} />
+                <TextInput
+                  value={formData.phoneNumber}
+                  onChangeText={(phone) => setFormData({ ...formData, phoneNumber: phone })}
+                  style={[styles.inputFlex, { color: colors.foreground }]}
+                  placeholder="Phone Number"
+                  placeholderTextColor={colors['muted-foreground']}
+                  keyboardType="phone-pad"
+                />
+              </View>
+
+              {/* Email */}
+              <View style={[styles.inputWrapper, { backgroundColor: colors.card, borderColor: colors.border, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12 }]}>
+                <Mail size={18} color={colors['muted-foreground']} />
+                <TextInput
+                  value={formData.email}
+                  onChangeText={(email) => setFormData({ ...formData, email })}
+                  style={[styles.inputFlex, { color: colors.foreground }]}
+                  placeholder="Email Address"
+                  placeholderTextColor={colors['muted-foreground']}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                />
+              </View>
+
+              {/* Preferred Messaging App */}
+              <View>
+                <Text style={[styles.subLabel, { color: colors['muted-foreground'] }]}>Preferred App</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+                  {([
+                    { id: 'whatsapp', label: 'WhatsApp' },
+                    { id: 'telegram', label: 'Telegram' },
+                    { id: 'sms', label: 'SMS/iMessage' },
+                    { id: 'email', label: 'Email' }
+                  ] as const).map((app) => (
+                    <TouchableOpacity
+                      key={app.id}
+                      onPress={() => setFormData({ ...formData, preferredMessagingApp: app.id })}
+                      style={[
+                        styles.messagingAppButton,
+                        { borderColor: colors.border, backgroundColor: colors.card },
+                        formData.preferredMessagingApp === app.id && { borderColor: colors.primary, backgroundColor: colors.primary + '15' }
+                      ]}
+                    >
+                      <Text style={[
+                        styles.messagingAppText,
+                        { color: colors.foreground },
+                        formData.preferredMessagingApp === app.id && { color: colors.primary, fontWeight: '600' }
+                      ]}>
+                        {app.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            </View>
+          </View>
+
+          <View>
             <Text style={[styles.label, { color: colors.foreground }]}>Birthday (Optional)</Text>
             <MonthDayPicker
               value={formData.birthday}
@@ -970,5 +1037,30 @@ const styles = StyleSheet.create({
   warningButtonPrimaryText: {
     fontSize: 15,
     fontWeight: '600',
+  },
+  inputWrapper: {
+    height: 50,
+    borderRadius: 12,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  inputFlex: {
+    flex: 1,
+    height: '100%',
+    paddingHorizontal: 12,
+    fontSize: 16,
+  },
+  subLabel: {
+    fontSize: 13,
+    marginBottom: 8,
+  },
+  messagingAppButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+  messagingAppText: {
+    fontSize: 13,
   },
 });

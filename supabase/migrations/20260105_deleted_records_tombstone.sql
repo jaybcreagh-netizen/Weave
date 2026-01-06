@@ -9,7 +9,7 @@
 -- =====================================================
 
 CREATE TABLE IF NOT EXISTS deleted_records (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
   table_name TEXT NOT NULL,
   record_id TEXT NOT NULL,
@@ -21,6 +21,11 @@ CREATE TABLE IF NOT EXISTS deleted_records (
 
 -- Enable RLS
 ALTER TABLE deleted_records ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policies if they exist (for idempotent migrations)
+DROP POLICY IF EXISTS "Users can view own deleted records" ON deleted_records;
+DROP POLICY IF EXISTS "Service role can insert deleted records" ON deleted_records;
+DROP POLICY IF EXISTS "Users can insert own deleted records" ON deleted_records;
 
 -- Users can only see their own deleted records
 CREATE POLICY "Users can view own deleted records"
@@ -38,8 +43,8 @@ CREATE POLICY "Users can insert own deleted records"
   WITH CHECK (auth.uid() = user_id);
 
 -- Indexes for efficient querying
-CREATE INDEX idx_deleted_records_user_table ON deleted_records(user_id, table_name);
-CREATE INDEX idx_deleted_records_deleted_at ON deleted_records(deleted_at);
+CREATE INDEX IF NOT EXISTS idx_deleted_records_user_table ON deleted_records(user_id, table_name);
+CREATE INDEX IF NOT EXISTS idx_deleted_records_deleted_at ON deleted_records(deleted_at);
 
 -- =====================================================
 -- Cleanup Function
@@ -75,34 +80,42 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Apply deletion triggers to all synced tables
+DROP TRIGGER IF EXISTS track_friends_deletion ON friends;
 CREATE TRIGGER track_friends_deletion
   AFTER DELETE ON friends
   FOR EACH ROW EXECUTE FUNCTION record_deletion();
 
+DROP TRIGGER IF EXISTS track_interactions_deletion ON interactions;
 CREATE TRIGGER track_interactions_deletion
   AFTER DELETE ON interactions
   FOR EACH ROW EXECUTE FUNCTION record_deletion();
 
+DROP TRIGGER IF EXISTS track_interaction_friends_deletion ON interaction_friends;
 CREATE TRIGGER track_interaction_friends_deletion
   AFTER DELETE ON interaction_friends
   FOR EACH ROW EXECUTE FUNCTION record_deletion();
 
+DROP TRIGGER IF EXISTS track_intentions_deletion ON intentions;
 CREATE TRIGGER track_intentions_deletion
   AFTER DELETE ON intentions
   FOR EACH ROW EXECUTE FUNCTION record_deletion();
 
+DROP TRIGGER IF EXISTS track_intention_friends_deletion ON intention_friends;
 CREATE TRIGGER track_intention_friends_deletion
   AFTER DELETE ON intention_friends
   FOR EACH ROW EXECUTE FUNCTION record_deletion();
 
+DROP TRIGGER IF EXISTS track_life_events_deletion ON life_events;
 CREATE TRIGGER track_life_events_deletion
   AFTER DELETE ON life_events
   FOR EACH ROW EXECUTE FUNCTION record_deletion();
 
+DROP TRIGGER IF EXISTS track_weekly_reflections_deletion ON weekly_reflections;
 CREATE TRIGGER track_weekly_reflections_deletion
   AFTER DELETE ON weekly_reflections
   FOR EACH ROW EXECUTE FUNCTION record_deletion();
 
+DROP TRIGGER IF EXISTS track_journal_entries_deletion ON journal_entries;
 CREATE TRIGGER track_journal_entries_deletion
   AFTER DELETE ON journal_entries
   FOR EACH ROW EXECUTE FUNCTION record_deletion();

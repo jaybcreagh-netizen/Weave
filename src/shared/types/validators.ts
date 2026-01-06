@@ -21,9 +21,18 @@ export const ReflectionChipSchema = z.object({
   componentOverrides: z.record(z.string(), z.string()),
 });
 
+export const OracleReflectionMetadataSchema = z.object({
+  turnCount: z.number(),
+  hasDeepened: z.boolean(),
+  contentLength: z.number(),
+  linkedJournalId: z.string().optional(),
+  extractedThemes: z.array(z.string()).optional(),
+});
+
 export const StructuredReflectionSchema = z.object({
   chips: z.array(ReflectionChipSchema).optional(),
   customNotes: z.string().optional(),
+  oracleGuided: OracleReflectionMetadataSchema.optional(),
 });
 
 // Friend Schema

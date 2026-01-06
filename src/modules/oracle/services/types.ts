@@ -8,6 +8,11 @@ export type OracleActionType =
     | 'add_life_event'
     | 'create_reflection'
     | 'plan_weave'
+    | 'set_reminder'
+    | 'view_friend'
+    | 'view_insights'
+    | 'start_deepening'
+    | 'share_summary'
 
 export interface OracleAction {
     type: OracleActionType
@@ -26,6 +31,8 @@ export interface OracleAction {
         content?: string
         // For plan_weave
         suggestedDate?: string
+        // For set_reminder
+        message?: string
     }
 }
 
@@ -40,6 +47,11 @@ export const ACTION_LABELS: Record<OracleActionType, { label: string; icon: stri
     add_life_event: { label: 'Add life event', icon: 'gift' },
     create_reflection: { label: 'Save as reflection', icon: 'book-open' },
     plan_weave: { label: 'Plan a meetup', icon: 'calendar' },
+    set_reminder: { label: 'Set reminder', icon: 'bell' },
+    view_friend: { label: 'View profile', icon: 'user' },
+    view_insights: { label: 'View insights', icon: 'sparkles' },
+    start_deepening: { label: 'Go deeper', icon: 'arrow-down-circle' },
+    share_summary: { label: 'Share summary', icon: 'share' },
 }
 
 // ============================================================================
@@ -66,6 +78,7 @@ export type ReflectionType =
 
 export type GuidedSessionStatus =
     | 'in_progress'   // Asking questions
+    | 'deepening'     // Follow-up deepening questions
     | 'draft_ready'   // Composed entry ready for review
     | 'complete'      // Entry saved
 
@@ -77,6 +90,7 @@ export interface ReflectionContext {
     activity?: string            // Activity type from interaction
     weekStartDate?: string       // For weekly_reflection
     quickCaptureText?: string    // For quick_capture - existing text to expand
+    insightId?: string           // If reflection was triggered from an insight
     activeThreads?: Array<{      // Ongoing topics with these friends
         id: string
         topic: string
@@ -107,6 +121,11 @@ export interface GuidedSession {
     // Composition
     composedDraft?: string
 
+    // Deepening state (for "Go Deeper" feature)
+    deepeningTurns?: GuidedTurn[]
+    originalDraft?: string  // Preserved before deepening
+    hasDeepened?: boolean   // Track if already deepened once
+
     // Status
     status: GuidedSessionStatus
 
@@ -128,3 +147,32 @@ export interface ComposedEntry {
     }
 }
 
+
+export interface InsightSignal {
+    type: 'drifting' | 'deepening' | 'one_sided' | 'reconnection_win' | 'consistency_win' | 'location_pattern' | 'activity_habit' | 'vibe_trend' | 'journal_signal';
+    friendId?: string;
+    data: Record<string, any>;
+    priority: number;
+}
+
+// ============================================================================
+// ORACLE LENS (Contextual Intelligence)
+// ============================================================================
+
+export type OracleLensArchetype =
+    | 'THE_HERMIT'
+    | 'THE_EMPEROR'
+    | 'THE_LOVERS'
+    | 'THE_MAGICIAN'
+    | 'THE_EMPRESS'
+    | 'THE_HIGH_PRIESTESS'
+    | 'THE_FOOL'
+    | 'THE_SUN';
+
+export interface OracleSuggestion {
+    id: string; // UUID
+    archetype: OracleLensArchetype;
+    title: string;
+    reasoning: string;
+    initialQuestion: string;
+}

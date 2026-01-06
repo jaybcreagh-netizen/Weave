@@ -59,10 +59,11 @@ export function useSuggestions() {
       .observe()
       .subscribe(() => {
         // Debounce: coalesce rapid changes into a single invalidation
+        // INCREASED: 2000ms to prevent thrashing during sync/batch updates
         if (debounceTimer) clearTimeout(debounceTimer);
         debounceTimer = setTimeout(() => {
           queryClient.invalidateQueries({ queryKey: ['suggestions', 'all'] });
-        }, 500);
+        }, 2000);
       });
 
     return () => {

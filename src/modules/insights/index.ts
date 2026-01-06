@@ -34,9 +34,6 @@ export * from './hooks/useTierFit';
 export { TierFitCard } from './components/TierFitCard';
 export { TierFitBottomSheet } from './components/TierFitBottomSheet';
 export { TierSuggestionAlert } from './components/TierSuggestionAlert';
-export { YourPatternsSection } from './components/YourPatternsSection';
-export { NudgesFAB } from './components/NudgesFAB';
-export { NudgesSheet } from './components/NudgesSheet';
 export { VerifiedReciprocityCard } from './components/VerifiedReciprocityCard';
 export { ArchetypeCompatibilityBadge } from './components/ArchetypeCompatibilityBadge';
 

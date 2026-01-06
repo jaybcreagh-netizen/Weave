@@ -24,9 +24,24 @@ export function Button({
     disabled,
     children,
     style,
+    onPress,
+    delayLongPress, // Extract this prop if it exists on TouchableOpacityProps but we don't need to do anything special with it, just pass it down via ...props
     ...props
 }: ButtonProps) {
     const { colors } = useTheme();
+
+    // Anti-double-tap ref
+    const lastPressTime = React.useRef(0);
+    const DEBOUNCE_TIME = 500; // ms
+
+    const handlePress = React.useCallback((e: any) => {
+        const now = Date.now();
+        if (now - lastPressTime.current < DEBOUNCE_TIME) {
+            return;
+        }
+        lastPressTime.current = now;
+        onPress?.(e);
+    }, [onPress]);
 
     // Map variant to container classes
     const variantClasses = {
@@ -75,6 +90,7 @@ export function Button({
             style={style}
             disabled={disabled || loading}
             activeOpacity={0.7}
+            onPress={handlePress}
             {...props}
         >
             {loading ? (

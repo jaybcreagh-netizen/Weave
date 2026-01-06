@@ -54,8 +54,30 @@ class JournalIntelligenceService {
                 }
             }
 
+            // 5. Trigger style analysis (fire-and-forget, runs periodically)
+            this.maybeAnalyzeStyle()
+
         } catch (error) {
             Logger.error('JournalIntelligence', 'Failed to process entry', error)
+        }
+    }
+
+    private entryCountSinceLastAnalysis = 0
+    private readonly ANALYZE_EVERY_N_ENTRIES = 5
+
+    /**
+     * Trigger style analysis every N entries
+     */
+    private maybeAnalyzeStyle(): void {
+        this.entryCountSinceLastAnalysis++
+        if (this.entryCountSinceLastAnalysis >= this.ANALYZE_EVERY_N_ENTRIES) {
+            this.entryCountSinceLastAnalysis = 0
+            // Fire-and-forget
+            import('@/modules/oracle/services/style-analyzer').then(({ styleAnalyzer }) => {
+                styleAnalyzer.analyzeAndStoreStyle().catch(e => {
+                    Logger.warn('JournalIntelligence', 'Style analysis failed', e)
+                })
+            })
         }
     }
 

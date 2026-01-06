@@ -21,6 +21,9 @@ import { ErrorBoundary } from '@/shared/components/ErrorBoundary';
 import { LinkFriendSheet } from '@/modules/relationships/components/LinkFriendSheet';
 import { syncOutgoingLinkStatus, unlinkFriend } from '@/modules/relationships/services/friend-linking.service';
 import { UIEventBus } from '@/shared/services/ui-event-bus';
+import { database } from '@/db';
+import JournalEntry from '@/db/models/JournalEntry';
+import { Q } from '@nozbe/watermelondb';
 
 export default function FriendProfile() {
   const router = useRouter();
@@ -56,6 +59,25 @@ export default function FriendProfile() {
 
   // Link to Weave User state
   const [showLinkSheet, setShowLinkSheet] = useState(false);
+
+  // Track which interactions have linked journal entries
+  const [linkedJournalIds, setLinkedJournalIds] = useState<Set<string>>(new Set());
+
+  // Fetch journal entries linked to this friend's interactions
+  useEffect(() => {
+    if (!interactions || interactions.length === 0) return;
+
+    const interactionIds = interactions.map(i => i.id);
+
+    database.get<JournalEntry>('journal_entries')
+      .query(Q.where('linked_weave_id', Q.oneOf(interactionIds)))
+      .fetch()
+      .then(entries => {
+        const ids = new Set(entries.map(e => e.linkedWeaveId).filter(Boolean) as string[]);
+        setLinkedJournalIds(ids);
+      })
+      .catch(() => setLinkedJournalIds(new Set()));
+  }, [interactions]);
 
   const scrollY = useSharedValue(0);
 
@@ -269,6 +291,7 @@ export default function FriendProfile() {
             onInteractionPress={modals.setSelectedInteraction}
             onDeleteInteraction={handleDeleteInteraction}
             onEditInteraction={handleEditInteractionWrapper}
+            linkedJournalIds={linkedJournalIds}
             ListHeaderComponent={
               <View>
                 <ProfileHeader

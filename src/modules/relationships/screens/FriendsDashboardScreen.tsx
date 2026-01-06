@@ -8,7 +8,7 @@ import { Q } from '@nozbe/watermelondb';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MultiActionFAB, type FABAction } from '@/shared/components/MultiActionFAB';
-import { NudgesFAB, NudgesSheet } from '@/modules/insights';
+import { OracleFAB } from '@/modules/home/components/OracleFAB';
 import { usePendingWeaves } from '@/modules/sync';
 import { useUIStore } from '@/shared/stores/uiStore';
 import { usePlans, PlanService, getSuggestionCooldownDays, PlanWizard } from '@/modules/interactions';
@@ -52,7 +52,6 @@ export function FriendsDashboardScreen() {
     const suggestionCount = suggestions.length;
     const hasCritical = suggestions.some(s => s.priority === 'high');
     const { dismissIntention, intentions } = usePlans();
-    const [nudgesSheetVisible, setNudgesSheetVisible] = useState(false);
     const [selectedIntention, setSelectedIntention] = useState<Intention | null>(null);
     const [addFriendMenuVisible, setAddFriendMenuVisible] = useState(false);
     const [friendPickerVisible, setFriendPickerVisible] = useState(false);
@@ -222,7 +221,6 @@ export function FriendsDashboardScreen() {
     };
 
     const handleActOnSuggestion = async (suggestion: Suggestion) => {
-        setNudgesSheetVisible(false);
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         await SuggestionTrackerService.trackSuggestionActed(suggestion.id);
 
@@ -373,29 +371,10 @@ export function FriendsDashboardScreen() {
             )}
 
             <MultiActionFAB onAction={handleFABAction} />
+            <OracleFAB />
 
-            <NudgesFAB
-                isVisible={suggestionCount > 0 || intentions.length > 0 || pendingActivityCount > 0}
-                hasSuggestions={suggestionCount > 0}
-                hasCritical={hasCritical}
-                onClick={() => setNudgesSheetVisible(true)}
-                pendingActivityCount={pendingActivityCount}
-            />
 
             {/* MicroReflectionSheet is handled globally by QuickWeaveProvider in _layout.tsx */}
-
-            <NudgesSheet
-                isVisible={nudgesSheetVisible}
-                suggestions={suggestions}
-                intentions={intentions}
-                onClose={() => setNudgesSheetVisible(false)}
-                onAct={handleActOnSuggestion}
-                onLater={handleDismissSuggestion}
-                onIntentionPress={(intention) => {
-                    setSelectedIntention(intention);
-                    setNudgesSheetVisible(false);
-                }}
-            />
 
             <IntentionActionSheet
                 intention={selectedIntention}

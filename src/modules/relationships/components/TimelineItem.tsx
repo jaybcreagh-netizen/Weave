@@ -23,7 +23,7 @@ import { formatPoeticDate, calculateWeaveWarmth, getThreadColors } from '@/share
 import { modeIcons } from '@/shared/constants/constants';
 import { getCategoryMetadata, CATEGORY_METADATA, ACTIVITY_TO_CATEGORY_MAP } from '@/shared/constants/interaction-categories';
 import type { LucideIcon } from 'lucide-react-native';
-import { Sparkles } from 'lucide-react-native';
+import { Sparkles, BookOpen } from 'lucide-react-native';
 import { type Interaction, type InteractionCategory, type Archetype, type ActivityType } from '@/shared/types/legacy-types';
 import { calculateDeepeningLevel, getDeepeningVisuals } from '@/modules/intelligence';
 import { CategoryArchetypeMatrix } from '@/modules/intelligence/constants';
@@ -44,9 +44,10 @@ interface TimelineItemProps {
   onDelete?: (id: string) => void;
   onEdit?: (id: string) => void;
   archetype?: string;
+  hasLinkedJournal?: boolean; // Shows journal icon if this weave has a linked journal entry
 }
 
-export const TimelineItem = React.memo(({ interaction, isFuture, onPress, index, scrollY, itemY = 0, showKnot = true, sectionLabel, isFirstInSection = false, isLastItem = false, archetype }: TimelineItemProps) => {
+export const TimelineItem = React.memo(({ interaction, isFuture, onPress, index, scrollY, itemY = 0, showKnot = true, sectionLabel, isFirstInSection = false, isLastItem = false, archetype, hasLinkedJournal }: TimelineItemProps) => {
   const { colors, isDarkMode } = useTheme();
   const { justLoggedInteractionId, setJustLoggedInteractionId } = useUIStore();
 
@@ -783,6 +784,15 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, index,
                     <Text className="text-sm">{deepeningVisuals.badgeEmoji}</Text>
                   </View>
                 )}
+                {/* Journal entry indicator */}
+                {hasLinkedJournal && !isFuture && (
+                  <View
+                    className="absolute -bottom-1 -right-1 rounded-full p-0.5"
+                    style={{ backgroundColor: colors.card }}
+                  >
+                    <BookOpen size={12} color={colors.primary} />
+                  </View>
+                )}
               </View>
               <View className="flex-1">
                 {/* Show custom title if it exists, otherwise show category label */}
@@ -816,7 +826,8 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, index,
     prevProps.isFuture === nextProps.isFuture &&
     prevProps.index === nextProps.index &&
     prevProps.isLastItem === nextProps.isLastItem &&
-    prevProps.archetype === nextProps.archetype
+    prevProps.archetype === nextProps.archetype &&
+    prevProps.hasLinkedJournal === nextProps.hasLinkedJournal
   );
 });
 // Knot Container: absolute w-full h-10 top-2 left-5 z-10

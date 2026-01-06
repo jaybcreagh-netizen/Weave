@@ -181,6 +181,7 @@ export function FriendProfileModals({
                 onIntentionPress={(intention) => {
                     setSelectedIntentionForAction(intention as any);
                 }}
+                onDeleteIntention={dismissIntention}
             />
 
             <IntentionActionSheet

@@ -26,7 +26,7 @@ import { Button } from '@/shared/ui/Button'
 import { Icon } from '@/shared/ui/Icon'
 import { useTheme } from '@/shared/hooks/useTheme'
 import { useGuidedReflection, GuidedReflectionState } from '../../hooks/useGuidedReflection'
-import { ReflectionContext } from '../../services/oracle/types'
+import { ReflectionContext } from '@/modules/oracle'
 import { TopicSelectionStep } from './TopicSelectionStep'
 import { FreeformGatherStep, FreeformContext } from './FreeformGatherStep'
 import Animated, {
@@ -62,6 +62,8 @@ export function GuidedReflectionSheet({
         state,
         startSession,
         submitAnswer,
+        forceComposeEarly,
+        goDeeper,
         editDraft,
         confirmAndSave,
         escapeToFreeform,
@@ -117,7 +119,7 @@ export function GuidedReflectionSheet({
     const handleFreeformComplete = async (freeformContext: FreeformContext) => {
         setIsGeneratingFreeform(true)
         try {
-            const { oracleService } = await import('../../services/oracle/oracle-service')
+            const { oracleService } = await import('@/modules/oracle')
             const draft = await oracleService.generateFreeformDraft({
                 topic: freeformContext.topic,
                 subjectType: freeformContext.subjectType,
@@ -301,6 +303,8 @@ export function GuidedReflectionSheet({
                                 composedEntry={freeformDraft}
                                 onEdit={setFreeformDraft}
                                 onConfirm={handleFreeformConfirm}
+                                onGoDeeper={() => { }}  // Freeform drafts don't support deepening
+                                canDeepen={false}
                                 onEscape={handleEscape}
                                 colors={colors}
                             />
@@ -320,10 +324,28 @@ export function GuidedReflectionSheet({
                                 inputValue={inputValue}
                                 onChangeInput={setInputValue}
                                 onSubmit={handleSubmit}
+                                onForceCompose={forceComposeEarly}
                                 onEscape={handleEscape}
                                 onBack={handleBack}
                                 inputRef={inputRef}
                                 colors={colors}
+                                isDeepening={false}
+                            />
+                        )}
+
+                        {/* Deepening State (follow-up questions after draft) */}
+                        {!showTopicSelection && !showFreeformGather && !freeformDraft && !isGeneratingFreeform && state.status === 'deepening' && (
+                            <ConversationView
+                                state={state}
+                                inputValue={inputValue}
+                                onChangeInput={setInputValue}
+                                onSubmit={handleSubmit}
+                                onForceCompose={forceComposeEarly}
+                                onEscape={handleEscape}
+                                onBack={handleBack}
+                                inputRef={inputRef}
+                                colors={colors}
+                                isDeepening={true}
                             />
                         )}
 
@@ -333,6 +355,8 @@ export function GuidedReflectionSheet({
                                 composedEntry={state.composedEntry}
                                 onEdit={editDraft}
                                 onConfirm={handleConfirmSave}
+                                onGoDeeper={goDeeper}
+                                canDeepen={state.canDeepen}
                                 onEscape={handleEscape}
                                 colors={colors}
                             />
@@ -388,14 +412,16 @@ function OracleThinking({ colors }: { colors: any }) {
 }
 
 interface ConversationViewProps {
-    state: Extract<GuidedReflectionState, { status: 'in_progress' }>
+    state: Extract<GuidedReflectionState, { status: 'in_progress' }> | Extract<GuidedReflectionState, { status: 'deepening' }>
     inputValue: string
     onChangeInput: (value: string) => void
     onSubmit: () => void
+    onForceCompose: () => void  // "That's enough" button
     onEscape: () => void
     onBack: () => void
     inputRef: React.RefObject<TextInput>
     colors: any
+    isDeepening?: boolean
 }
 
 function ConversationView({
@@ -403,19 +429,24 @@ function ConversationView({
     inputValue,
     onChangeInput,
     onSubmit,
+    onForceCompose,
     onEscape,
     onBack,
     inputRef,
-    colors
+    colors,
+    isDeepening = false
 }: ConversationViewProps) {
-    const turnCount = state.session.turns.length
+    const turnCount = isDeepening
+        ? (state.session.deepeningTurns?.length || 0)
+        : state.session.turns.length
+    const MAX_QUESTIONS = 3
 
     return (
         <View className="flex-1 w-full">
             {/* Previous turns (scrollable) */}
             {turnCount > 0 && (
                 <View className="mb-6 opacity-60">
-                    {state.session.turns.map((turn, i) => (
+                    {(isDeepening ? state.session.deepeningTurns || [] : state.session.turns).map((turn, i) => (
                         <View key={i} className="mb-4 pl-4 border-l-2" style={{ borderColor: colors.border }}>
                             <Text variant="caption" className="mb-1" style={{ color: colors['muted-foreground'] }}>
                                 {turn.oracleQuestion}
@@ -471,15 +502,27 @@ function ConversationView({
 
             {/* Actions */}
             <View className="flex-row items-center justify-between mt-auto">
-                <Pressable
-                    onPress={turnCount === 0 ? onBack : onEscape}
-                    className="py-3 px-4 rounded-full"
-                    style={{ backgroundColor: colors.muted }}
-                >
-                    <Text variant="caption" style={{ color: colors.foreground, fontWeight: '600' }}>
-                        {turnCount === 0 ? '← Back' : "I'll write myself"}
-                    </Text>
-                </Pressable>
+                {turnCount === 0 ? (
+                    <Pressable
+                        onPress={onBack}
+                        className="py-3 px-4 rounded-full"
+                        style={{ backgroundColor: colors.muted }}
+                    >
+                        <Text variant="caption" style={{ color: colors.foreground, fontWeight: '600' }}>
+                            ← Back
+                        </Text>
+                    </Pressable>
+                ) : (
+                    <Pressable
+                        onPress={onForceCompose}
+                        className="py-3 px-4 rounded-full"
+                        style={{ backgroundColor: colors.muted }}
+                    >
+                        <Text variant="caption" style={{ color: colors.foreground, fontWeight: '600' }}>
+                            That's enough
+                        </Text>
+                    </Pressable>
+                )}
 
                 <Button
                     variant="primary"
@@ -490,26 +533,27 @@ function ConversationView({
             </View>
 
             {/* Turn indicator */}
-            {turnCount > 0 && (
-                <View className="mt-4 items-center">
-                    <Text variant="caption" style={{ color: colors['muted-foreground'] }}>
-                        Question {turnCount + 1}
-                    </Text>
-                </View>
-            )}
+            <View className="mt-4 items-center">
+                <Text variant="caption" style={{ color: colors['muted-foreground'] }}>
+                    {isDeepening ? 'Deepening' : 'Question'} {turnCount + 1} of {MAX_QUESTIONS}
+                </Text>
+            </View>
         </View>
     )
 }
+
 
 interface DraftViewProps {
     composedEntry: string
     onEdit: (content: string) => void
     onConfirm: () => void
+    onGoDeeper: () => void
+    canDeepen: boolean
     onEscape: () => void
     colors: any
 }
 
-function DraftView({ composedEntry, onEdit, onConfirm, onEscape, colors }: DraftViewProps) {
+function DraftView({ composedEntry, onEdit, onConfirm, onGoDeeper, canDeepen, onEscape, colors }: DraftViewProps) {
     const [isEditing, setIsEditing] = useState(false)
     const [editedContent, setEditedContent] = useState(composedEntry)
 
@@ -568,11 +612,14 @@ function DraftView({ composedEntry, onEdit, onConfirm, onEscape, colors }: Draft
                         </Text>
                     </Pressable>
 
-                    <View className="flex-row gap-3">
+                    <View className="flex-row gap-2">
                         {isEditing ? (
                             <Button variant="outline" onPress={handleSaveEdit} label="Done" />
                         ) : (
                             <Button variant="outline" onPress={() => setIsEditing(true)} label="Edit" />
+                        )}
+                        {canDeepen && !isEditing && (
+                            <Button variant="outline" onPress={onGoDeeper} label="Go Deeper" />
                         )}
                         <Button variant="primary" onPress={onConfirm} label="Save Entry" />
                     </View>

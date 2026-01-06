@@ -70,6 +70,11 @@ export type FriendFormData = {
   birthday?: string; // Format: "MM-DD"
   anniversary?: string; // Format: "MM-DD"
   relationshipType?: RelationshipType;
+
+  // Contact details
+  phoneNumber?: string;
+  email?: string;
+  preferredMessagingApp?: 'whatsapp' | 'telegram' | 'sms' | 'email';
 };
 
 export interface LifeEvent {

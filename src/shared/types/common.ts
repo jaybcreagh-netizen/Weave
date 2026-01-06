@@ -59,9 +59,20 @@ export interface ReflectionChip {
   componentOverrides: Record<string, string>;
 }
 
+/** Oracle-guided reflection metadata */
+export interface OracleReflectionMetadata {
+  turnCount: number;           // Number of Q&A turns (typically 3-6)
+  hasDeepened: boolean;        // Did they use "Go Deeper"?
+  contentLength: number;       // Character count of composed entry
+  linkedJournalId?: string;    // Reference to the journal entry
+  extractedThemes?: string[];  // Keywords extracted from content
+}
+
 export interface StructuredReflection {
   chips?: ReflectionChip[];
   customNotes?: string;
+  /** Metadata from Oracle-guided "Help me write" flow */
+  oracleGuided?: OracleReflectionMetadata;
 }
 
 /** Pre-computed context for suggestion tracking (avoids duplicate DB queries) */

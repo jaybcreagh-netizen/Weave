@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react'
-import { View, ScrollView } from 'react-native'
+import { View } from 'react-native'
 import { withObservables } from '@nozbe/watermelondb/react'
 import { Q } from '@nozbe/watermelondb'
 import { database } from '@/db'
@@ -40,24 +40,12 @@ function InsightsCarousel({ insights, onAction }: InsightsCarouselProps) {
     if (insights.length === 0) return null
 
     return (
-        <View className="mb-2">
-            <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 8 }}
-                decelerationRate="fast"
-                snapToInterval={340} // Approx width of card + margin
-            >
-                {insights.map(insight => (
-                    <View key={insight.id} style={{ width: 330, marginRight: 12 }}>
-                        <OracleInsightCard
-                            insight={insight}
-                            onAction={onAction}
-                            onDismiss={handleDismiss}
-                        />
-                    </View>
-                ))}
-            </ScrollView>
+        <View className="mb-2 px-1">
+            <OracleInsightCard
+                insight={insights[0]}
+                onAction={onAction}
+                onDismiss={handleDismiss}
+            />
         </View>
     )
 }
@@ -67,7 +55,7 @@ const enhance = withObservables([], () => ({
         Q.where('status', Q.oneOf(['unseen', 'seen'])),
         Q.sortBy('severity', Q.desc), // Show critical first
         Q.sortBy('generated_at', Q.desc), // Then newest
-        Q.take(3) // Cap at 3
+        Q.take(1) // Cap at 1 (Single Synthesis Model)
     )
 }))
 

@@ -1,21 +1,42 @@
-import React, { useState } from 'react';
-import { View } from 'react-native';
+import React, { useState, Suspense, lazy } from 'react';
+import { View, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import {
-    JournalHome,
-    QuickCaptureSheet,
-    GuidedReflectionModal,
-    FriendshipArcView,
-    JournalEntryModal,
-} from '@/modules/journal/components';
-import { WeeklyReflectionDetailModal } from '@/modules/reflection';
+import { JournalHome } from '@/modules/journal/components';
+import { useOracleSheet } from '@/modules/oracle';
 import JournalEntry from '@/db/models/JournalEntry';
 import WeeklyReflection from '@/db/models/WeeklyReflection';
 import { database } from '@/db';
-import { Q } from '@nozbe/watermelondb';
+import { useTheme } from '@/shared/hooks/useTheme';
+
+// Lazy load modals - they're not needed until user opens them
+const QuickCaptureSheet = lazy(() =>
+    import('@/modules/journal/components/QuickCaptureSheet').then(m => ({ default: m.QuickCaptureSheet }))
+);
+const GuidedReflectionModal = lazy(() =>
+    import('@/modules/journal/components/GuidedReflectionModal').then(m => ({ default: m.GuidedReflectionModal }))
+);
+const FriendshipArcView = lazy(() =>
+    import('@/modules/journal/components/FriendshipArcView').then(m => ({ default: m.FriendshipArcView }))
+);
+const JournalEntryModal = lazy(() =>
+    import('@/modules/journal/components/JournalEntryModal').then(m => ({ default: m.JournalEntryModal }))
+);
+const JournalEntryDetailSheet = lazy(() =>
+    import('@/modules/journal/components/JournalEntryDetailSheet').then(m => ({ default: m.JournalEntryDetailSheet }))
+);
+const WeeklyReflectionDetailModal = lazy(() =>
+    import('@/modules/reflection').then(m => ({ default: m.WeeklyReflectionDetailModal }))
+);
+const LifeEventModal = lazy(() =>
+    import('@/modules/relationships/components/LifeEventModal').then(m => ({ default: m.LifeEventModal }))
+);
+const NudgesSheetWrapper = lazy(() =>
+    import('@/modules/oracle').then(m => ({ default: m.NudgesSheetWrapper }))
+);
 
 export default function JournalScreen() {
     const router = useRouter();
+    const { colors } = useTheme();
     const params = useLocalSearchParams<{
         mode?: string;
         friendId?: string;
@@ -25,7 +46,7 @@ export default function JournalScreen() {
         prefilledText?: string;
         prefilledFriendIds?: string;
         initialTab?: string;
-        context?: string; // Oracle context: 'insights' | 'circle' | etc.
+        context?: string;
     }>();
 
     const [showQuickCapture, setShowQuickCapture] = useState(false);
@@ -34,30 +55,33 @@ export default function JournalScreen() {
     const [prefilledText, setPrefilledText] = useState<string>('');
     const [prefilledFriendIds, setPrefilledFriendIds] = useState<string[]>([]);
 
-    // Selection state
     const [selectedEntry, setSelectedEntry] = useState<JournalEntry | null>(null);
+    const [viewingEntry, setViewingEntry] = useState<JournalEntry | null>(null);
     const [selectedReflection, setSelectedReflection] = useState<WeeklyReflection | null>(null);
+
+    const [showLifeEvent, setShowLifeEvent] = useState(false);
+    const [lifeEventFriendId, setLifeEventFriendId] = useState<string | null>(null);
+    const [showNudgeSheet, setShowNudgeSheet] = useState(false);
+
+    const { open: openOracle } = useOracleSheet();
 
     // Deep link handling
     React.useEffect(() => {
         const handleDeepLink = async () => {
-            // Handle opening specific entry
             if (params.openEntryId) {
                 try {
                     if (params.openEntryType === 'reflection') {
                         const reflection = await database.get<WeeklyReflection>('weekly_reflections').find(params.openEntryId);
                         setSelectedReflection(reflection);
                     } else {
-                        // Default to journal
                         const entry = await database.get<JournalEntry>('journal_entries').find(params.openEntryId);
-                        setSelectedEntry(entry);
+                        setViewingEntry(entry);
                     }
                 } catch (error) {
                     console.error('Error opening linked entry:', error);
                 }
             }
 
-            // Handle prefilled guided reflection
             if (params.mode === 'guided') {
                 if (params.prefilledText) {
                     setPrefilledText(params.prefilledText);
@@ -70,13 +94,13 @@ export default function JournalScreen() {
         };
 
         handleDeepLink();
-    }, [params.openEntryId, params.mode]); // Don't depend on params object directly to avoid loops
+    }, [params.openEntryId, params.mode]);
 
     const handleArcEntryPress = async (id: string, type: 'journal' | 'reflection') => {
         try {
             if (type === 'journal') {
                 const entry = await database.get<JournalEntry>('journal_entries').find(id);
-                setSelectedEntry(entry);
+                setViewingEntry(entry);
             } else if (type === 'reflection') {
                 const reflection = await database.get<WeeklyReflection>('weekly_reflections').find(id);
                 setSelectedReflection(reflection);
@@ -86,29 +110,34 @@ export default function JournalScreen() {
         }
     };
 
+    // Minimal fallback for lazy components
+    const LazyFallback = null;
+
     return (
         <>
             {selectedFriendId ? (
-                <FriendshipArcView
-                    friendId={selectedFriendId}
-                    onBack={() => {
-                        if (params.friendId) {
-                            if (router.canGoBack()) {
-                                router.back();
+                <Suspense fallback={<View className="flex-1" style={{ backgroundColor: colors.background }} />}>
+                    <FriendshipArcView
+                        friendId={selectedFriendId}
+                        onBack={() => {
+                            if (params.friendId) {
+                                if (router.canGoBack()) {
+                                    router.back();
+                                } else {
+                                    router.replace('/');
+                                }
                             } else {
-                                router.replace('/');
+                                setSelectedFriendId(null);
                             }
-                        } else {
+                        }}
+                        onEntryPress={handleArcEntryPress}
+                        onWriteAbout={(friendId, friendName) => {
+                            setPrefilledFriendIds([friendId]);
                             setSelectedFriendId(null);
-                        }
-                    }}
-                    onEntryPress={handleArcEntryPress}
-                    onWriteAbout={(friendId, friendName) => {
-                        setPrefilledFriendIds([friendId]);
-                        setSelectedFriendId(null);
-                        setShowGuided(true);
-                    }}
-                />
+                            setShowGuided(true);
+                        }}
+                    />
+                </Suspense>
             ) : (
                 <JournalHome
                     initialTab={params.initialTab as any}
@@ -127,14 +156,13 @@ export default function JournalScreen() {
                         if ('weekStartDate' in entry) {
                             setSelectedReflection(entry as WeeklyReflection);
                         } else {
-                            setSelectedEntry(entry as JournalEntry);
+                            setViewingEntry(entry as JournalEntry);
                         }
                     }}
                     onFriendArcPress={(friendId) => {
                         setSelectedFriendId(friendId);
                     }}
                     onMemoryAction={async (memory) => {
-                        // Fetch full data needed for the modal
                         const { getMemoryForNotification } = require('@/modules/journal/services/journal-context-engine');
                         const { UIEventBus } = await import('@/shared/services/ui-event-bus');
 
@@ -148,56 +176,159 @@ export default function JournalScreen() {
                 />
             )}
 
-            <QuickCaptureSheet
-                visible={showQuickCapture}
-                onClose={() => setShowQuickCapture(false)}
-                onExpandToFull={(text, friendIds) => {
-                    setPrefilledText(text);
-                    setPrefilledFriendIds(friendIds);
-                    setShowQuickCapture(false);
-                    // Add delay to allow sheet to close before opening modal to avoid race condition
-                    // "Attempt to present ... whose view is not in the window hierarchy"
-                    setTimeout(() => {
-                        setShowGuided(true);
-                    }, 500);
-                }}
-            />
+            {/* Lazy-loaded modals - only load when needed */}
+            <Suspense fallback={LazyFallback}>
+                {showQuickCapture && (
+                    <QuickCaptureSheet
+                        visible={showQuickCapture}
+                        onClose={() => setShowQuickCapture(false)}
+                        onExpandToFull={(text, friendIds) => {
+                            setPrefilledText(text);
+                            setPrefilledFriendIds(friendIds);
+                            setShowQuickCapture(false);
+                            setTimeout(() => {
+                                setShowGuided(true);
+                            }, 500);
+                        }}
+                    />
+                )}
+            </Suspense>
 
-            <GuidedReflectionModal
-                visible={showGuided}
-                onClose={() => {
-                    setShowGuided(false);
-                    setPrefilledText('');
-                    setPrefilledFriendIds([]);
-                }}
-                onSave={(entry) => {
-                    console.log('Saved:', entry);
-                }}
-                prefilledWeaveId={params.weaveId}
-                prefilledText={prefilledText}
-                prefilledFriendIds={prefilledFriendIds}
-            />
+            <Suspense fallback={LazyFallback}>
+                {showGuided && (
+                    <GuidedReflectionModal
+                        visible={showGuided}
+                        onClose={() => {
+                            setShowGuided(false);
+                            setPrefilledText('');
+                            setPrefilledFriendIds([]);
+                        }}
+                        onSave={(entry) => {
+                            console.log('Saved:', entry);
+                        }}
+                        prefilledWeaveId={params.weaveId}
+                        prefilledText={prefilledText}
+                        prefilledFriendIds={prefilledFriendIds}
+                    />
+                )}
+            </Suspense>
 
-            {/* Entry Viewers */}
-            <JournalEntryModal
-                isOpen={!!selectedEntry}
-                onClose={() => setSelectedEntry(null)}
-                entry={selectedEntry}
-                onSave={() => {
-                    // Refresh data if needed, or just close
-                    setSelectedEntry(null);
-                }}
-                onDelete={() => {
-                    // Entry was deleted, clear selection
-                    setSelectedEntry(null);
-                }}
-            />
+            <Suspense fallback={LazyFallback}>
+                {!!viewingEntry && (
+                    <JournalEntryDetailSheet
+                        isOpen={!!viewingEntry}
+                        onClose={() => setViewingEntry(null)}
+                        entry={viewingEntry}
+                        onEdit={(entry) => {
+                            setViewingEntry(null);
+                            setTimeout(() => setSelectedEntry(entry), 100);
+                        }}
+                        onDelete={() => {
+                            setViewingEntry(null);
+                        }}
+                        onMimicWeave={(friendIds, options) => {
+                            setViewingEntry(null);
+                            router.push({
+                                pathname: '/weave-logger',
+                                params: {
+                                    friendId: friendIds[0],
+                                    date: options?.date,
+                                    category: options?.category,
+                                }
+                            });
+                        }}
+                        onReflect={(entry, suggestion) => {
+                            setViewingEntry(null);
+                            openOracle({
+                                context: 'journal',
+                                initialQuestion: suggestion?.initialQuestion,
+                                journalContent: entry.content,
+                                lensContext: suggestion ? {
+                                    archetype: suggestion.archetype,
+                                    title: suggestion.title,
+                                    reasoning: suggestion.reasoning
+                                } : undefined
+                            });
+                        }}
+                        onCreateLifeEvent={(friendId) => {
+                            setViewingEntry(null);
+                            setLifeEventFriendId(friendId);
+                            setShowLifeEvent(true);
+                        }}
+                        onReachOut={async (friendId) => {
+                            setViewingEntry(null);
+                            try {
+                                const friend = await database.get<any>('friends').find(friendId);
 
-            <WeeklyReflectionDetailModal
-                isOpen={!!selectedReflection}
-                onClose={() => setSelectedReflection(null)}
-                reflection={selectedReflection}
-            />
+                                if (!friend.phoneNumber && !friend.email) {
+                                    router.push({
+                                        pathname: '/weave-logger',
+                                        params: {
+                                            friendId: friend.id,
+                                        }
+                                    });
+                                } else {
+                                    const { messagingService } = await import('@/modules/messaging/services/messaging.service');
+                                    await messagingService.reachOut({
+                                        friendId: friend.id,
+                                        friendName: friend.name,
+                                        phoneNumber: friend.phoneNumber,
+                                        email: friend.email,
+                                        contextMessage: "Hey! Thinking of you."
+                                    });
+                                }
+                            } catch (error) {
+                                console.error('Error reaching out:', error);
+                            }
+                        }}
+                    />
+                )}
+            </Suspense>
+
+            <Suspense fallback={LazyFallback}>
+                {!!selectedEntry && (
+                    <JournalEntryModal
+                        isOpen={!!selectedEntry}
+                        onClose={() => setSelectedEntry(null)}
+                        entry={selectedEntry}
+                        onSave={() => {
+                            setSelectedEntry(null);
+                        }}
+                        onDelete={() => {
+                            setSelectedEntry(null);
+                        }}
+                    />
+                )}
+            </Suspense>
+
+            <Suspense fallback={LazyFallback}>
+                {showLifeEvent && (
+                    <LifeEventModal
+                        visible={showLifeEvent}
+                        onClose={() => setShowLifeEvent(false)}
+                        friendId={lifeEventFriendId || ''}
+                    />
+                )}
+            </Suspense>
+
+            <Suspense fallback={LazyFallback}>
+                {showNudgeSheet && (
+                    <NudgesSheetWrapper
+                        isVisible={showNudgeSheet}
+                        onClose={() => setShowNudgeSheet(false)}
+                    />
+                )}
+            </Suspense>
+
+            <Suspense fallback={LazyFallback}>
+                {!!selectedReflection && (
+                    <WeeklyReflectionDetailModal
+                        isOpen={!!selectedReflection}
+                        onClose={() => setSelectedReflection(null)}
+                        reflection={selectedReflection}
+                    />
+                )}
+            </Suspense>
         </>
     );
 }

@@ -9,8 +9,9 @@ interface BatteryStats {
     trend: 'rising' | 'falling' | 'stable' | null;
 }
 
-export function useSocialBatteryStats() {
+export function useSocialBatteryStats(options?: { enabled?: boolean }) {
     const { user } = useAuth();
+    const enabled = options?.enabled ?? true;
 
     return useQuery({
         queryKey: ['social-battery-stats', user?.id],
@@ -53,7 +54,7 @@ export function useSocialBatteryStats() {
 
             return { average, trend };
         },
-        enabled: !!user,
+        enabled: enabled && !!user,
         staleTime: 5 * 60 * 1000, // 5 minutes
     });
 }

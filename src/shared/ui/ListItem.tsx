@@ -73,9 +73,22 @@ export const ListItem: React.FC<ListItemProps> = ({
         </View>
     );
 
+    // Anti-double-tap ref
+    const lastPressTime = React.useRef(0);
+    const DEBOUNCE_TIME = 500; // ms
+
+    const handlePress = React.useCallback(() => {
+        const now = Date.now();
+        if (now - lastPressTime.current < DEBOUNCE_TIME) {
+            return;
+        }
+        lastPressTime.current = now;
+        onPress?.();
+    }, [onPress]);
+
     if (onPress) {
         return (
-            <TouchableOpacity onPress={onPress} activeOpacity={0.6}>
+            <TouchableOpacity onPress={handlePress} activeOpacity={0.6}>
                 {content}
             </TouchableOpacity>
         );

@@ -13,6 +13,7 @@ import Logger from '@/shared/utils/Logger';
 import { eventBus } from '@/shared/events/event-bus';
 import { recalculateScoreOnDelete } from '@/modules/intelligence';
 import { writeScheduler } from '@/shared/services/write-scheduler';
+import { oracleService } from '@/modules/oracle/services/oracle-service';
 
 export async function logWeave(data: InteractionFormData): Promise<Interaction> {
     const logStart = Date.now();
@@ -69,6 +70,14 @@ export async function logWeave(data: InteractionFormData): Promise<Interaction> 
                 ifriend.interaction.set(newInteraction);
                 ifriend.friend.set(friend);
             }));
+
+            // Update lastInteractionDate if this log is newer than current
+            const newDate = new Date(data.date);
+            if (!friend.lastInteractionDate || newDate > friend.lastInteractionDate) {
+                batchOps.push(friend.prepareUpdate(f => {
+                    f.lastInteractionDate = newDate;
+                }));
+            }
         }
         console.log(`[logWeave:batch] prepareCreate joins (${friends.length}): ${Date.now() - batchStart}ms`);
 
@@ -105,7 +114,13 @@ export async function logWeave(data: InteractionFormData): Promise<Interaction> 
     updateLastInteractionTimestamp();
 
     // Trigger Oracle Insight Check (Non-blocking)
-    import('@/modules/journal').then(({ InsightGenerator }) => {
+    // 1. Invalidate any stale insights for these friends (e.g. "Drifting" is now resolved)
+    oracleService.invalidateInsightsForFriends(data.friendIds).catch(err => {
+        console.warn('[logWeave] Error invalidating insights:', err);
+    });
+
+    // 2. Generate new insights
+    import('@/modules/oracle').then(({ InsightGenerator }) => {
         InsightGenerator.generateDailyInsights().catch(err => {
             console.error('[logWeave] Error generating insights:', err);
         });
@@ -168,6 +183,11 @@ export async function planWeave(data: InteractionFormData, options?: { skipToast
             friends,
             data
         }).catch(err => Logger.error('Error emitting interaction:created for plan:', err));
+
+        // Invalidate insights for these friends
+        oracleService.invalidateInsightsForFriends(data.friendIds).catch(err => {
+            console.warn('[planWeave] Error invalidating insights:', err);
+        });
 
         // Show confirmation toast
         if (!options?.skipToast) {

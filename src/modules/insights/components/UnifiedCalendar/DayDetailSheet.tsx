@@ -70,8 +70,13 @@ export function DayDetailSheet({
 
     const handleCheckIn = () => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        onCheckIn(data.date);
+        // Close the sheet first
         onClose();
+        // Wait for modal to close before triggering battery sheet
+        // This prevents two modals from transitioning simultaneously
+        setTimeout(() => {
+            onCheckIn(data.date);
+        }, 300);
     };
 
     const completedWeaves = data.weaves.filter((w) => w.status === 'completed');

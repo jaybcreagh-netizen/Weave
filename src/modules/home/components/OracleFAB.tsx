@@ -7,6 +7,7 @@ import * as Haptics from 'expo-haptics';
 import { useTheme } from '@/shared/hooks/useTheme';
 
 import { useOracleSheet } from '@/modules/oracle/hooks/useOracleSheet';
+import { PerfLogger } from '@/shared/utils/performance-logger';
 
 export function OracleFAB() {
     const router = useRouter();
@@ -28,14 +29,15 @@ export function OracleFAB() {
                 zIndex: 50,
                 backgroundColor: isDarkMode ? colors.accent : colors.primary + '33',
                 shadowColor: isDarkMode ? colors.accent : '#000',
-                shadowOffset: { width: 0, height: 5 },
-                shadowOpacity: 0.22,
-                shadowRadius: 6,
-                elevation: 10,
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.25,
+                shadowRadius: 3.84,
+                elevation: 5,
             }}
             onPress={() => {
+                PerfLogger.log('Oracle', 'FAB Pressed');
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                open({ context: 'insights' });
+                open({ context: 'circle' });
             }}
             activeOpacity={0.8}
         >

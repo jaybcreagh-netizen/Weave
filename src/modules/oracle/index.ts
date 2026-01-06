@@ -7,11 +7,13 @@
 
 // Components
 export { OracleSheet } from './components/OracleSheet'
+export { OracleSuggestionSheet } from './components/OracleSuggestionSheet'
 export { OracleChat } from './components/OracleChat'
 export { StarterPromptChips } from './components/StarterPromptChips'
 export { default as InsightsCarousel } from './components/InsightsCarousel'
 export { InsightsChip } from './components/InsightsChip'
 export { OracleActionButton } from './components/OracleActionButton'
+
 
 // Hooks
 export { useOracle } from './hooks/useOracle'
@@ -22,3 +24,5 @@ export type { OracleContext, OracleSheetParams } from './hooks/useOracleSheet'
 // Services - export the service instance
 export { oracleService } from './services/oracle-service'
 export type { OracleTurn } from './services/oracle-service'
+export type { GuidedSession, ReflectionContext, ComposedEntry, OracleSuggestion } from './services/types'
+export { InsightGenerator } from './services/insight-generator'

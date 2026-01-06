@@ -36,6 +36,7 @@ import { JournalFriendList } from './Journal/JournalFriendList';
 import { JournalCalendar } from './Journal/JournalCalendar';
 import { WeaveIcon } from '@/shared/components/WeaveIcon';
 import { useOracleSheet } from '@/modules/oracle/hooks/useOracleSheet';
+import { PerfLogger } from '@/shared/utils/performance-logger';
 
 // ============================================================================
 // TYPES
@@ -130,7 +131,12 @@ export function JournalHome({
   // MAIN RENDER
   // ============================================================================
 
+  React.useEffect(() => {
+    PerfLogger.log('Journal', 'Home Mounted');
+  }, []);
+
   const renderContent = () => {
+    PerfLogger.log('Journal', 'Rendering Tab Content', { tab: activeTab });
     switch (activeTab) {
       case 'all':
         return <JournalFeed onEntryPress={onEntryPress} />;
@@ -203,13 +209,7 @@ export function JournalHome({
       {/* FAB for New Entry */}
       <View
         className="absolute bottom-6 right-6"
-        style={{
-          shadowColor: "#000",
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.3,
-          shadowRadius: 4.65,
-          elevation: 8,
-        }}
+      // Removed potential shadow props from container to fix warning
       >
         <TouchableOpacity
           onPress={() => {
@@ -217,7 +217,14 @@ export function JournalHome({
             onNewEntry('quick');
           }}
           className="w-14 h-14 rounded-full items-center justify-center"
-          style={{ backgroundColor: colors.primary }}
+          style={{
+            backgroundColor: colors.primary,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.3,
+            shadowRadius: 4.65,
+            elevation: 8,
+          }}
         >
           <BookOpen size={24} color={colors['primary-foreground']} />
         </TouchableOpacity>
