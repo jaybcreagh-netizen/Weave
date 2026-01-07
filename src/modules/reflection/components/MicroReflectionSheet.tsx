@@ -10,7 +10,7 @@ import { AnimatedBottomSheet } from '@/shared/ui/Sheet';
 import { BufferedTextInput } from '@/shared/ui/BufferedTextInput';
 import { MoonPhaseSelector } from '@/modules/intelligence/components/MoonPhaseSelector';
 import { GuidedReflectionSheet } from '@/modules/journal/components/GuidedReflection/GuidedReflectionSheet';
-import { ReflectionContext } from '@/modules/journal/services/oracle/types';
+import { OracleSuggestion } from '@/modules/oracle';
 
 interface MicroReflectionSheetProps {
   isVisible: boolean;

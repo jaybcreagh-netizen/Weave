@@ -139,7 +139,7 @@ export function ReflectionPromptStep({ prompt, promptEngineInput, insights = [],
           {/* Insight Card (Context) */}
           {displayInsight && (
             <View className="mb-6 mx-4">
-              <OracleInsightCard insight={displayInsight} onDismiss={() => { }} onAction={() => { }} compact />
+              <OracleInsightCard insight={displayInsight} onDismiss={() => { }} onAction={() => { }} />
             </View>
           )}
 

@@ -1,4 +1,5 @@
 import { Database, Q } from '@nozbe/watermelondb';
+import Interaction from '@/db/models/Interaction';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { InteractionCategory, ActivityType } from '@/shared/types/legacy-types';
 import { logger } from '@/shared/services/logger.service';
@@ -66,6 +67,7 @@ export async function migrateInteractionsToCategories(database: Database): Promi
 
         for (const interaction of chunk) {
           try {
+
             // Skip if already has a category
             if ((interaction._raw as any).interaction_category) {
               continue;
@@ -314,7 +316,7 @@ export async function backfillLastInteractionDates(database: Database): Promise<
         ).fetch();
 
         if (latestInteraction.length > 0) {
-          const lastDate = latestInteraction[0].interactionDate;
+          const lastDate = (latestInteraction[0] as Interaction).interactionDate;
           // @ts-ignore
           // Check if update is needed (compare using getTime() to handle potential discrepancies)
           // Also handle case where lastInteractionDate might be undefined on the record yet

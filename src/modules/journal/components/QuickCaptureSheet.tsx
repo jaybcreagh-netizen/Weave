@@ -36,7 +36,7 @@ import { KeyboardScrollView } from '@/shared/ui';
 import { BufferedTextInput } from '@/shared/ui/BufferedTextInput';
 import { FriendSelector } from '@/modules/relationships';
 import { GuidedReflectionSheet } from './GuidedReflection/GuidedReflectionSheet';
-import { ReflectionContext } from '../services/oracle/types';
+import { OracleSuggestion, ReflectionContext } from '@/modules/oracle';
 
 // ============================================================================
 // TYPES

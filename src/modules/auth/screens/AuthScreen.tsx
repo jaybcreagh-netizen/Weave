@@ -28,6 +28,7 @@ type AuthMode = 'signin' | 'signup';
 
 export function AuthScreen() {
     const { colors } = useTheme();
+    const isDark = (colors.background as string) === '#14101F' || (colors.background as string) === '#000000';
     const [mode, setMode] = useState<AuthMode>('signin');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -119,7 +120,7 @@ export function AuthScreen() {
                 {appleAvailable && Platform.OS === 'ios' && (
                     <AppleAuthentication.AppleAuthenticationButton
                         buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
-                        buttonStyle={colors.background === '#000000'
+                        buttonStyle={isDark
                             ? AppleAuthentication.AppleAuthenticationButtonStyle.WHITE
                             : AppleAuthentication.AppleAuthenticationButtonStyle.BLACK
                         }

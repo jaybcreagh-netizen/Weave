@@ -13,7 +13,9 @@ import {
     FlatList,
     ActivityIndicator,
     KeyboardAvoidingView,
-    Platform
+    Platform,
+    TouchableWithoutFeedback,
+    Keyboard
 } from 'react-native'
 import { Text } from '@/shared/ui/Text'
 import { Send, Bot, User, Bookmark, Check } from 'lucide-react-native'
@@ -351,99 +353,102 @@ INSTRUCTIONS:
                 behavior={Platform.OS === 'ios' ? 'padding' : undefined}
                 keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
             >
-                <View className="flex-1 px-4">
-                    <FlatList
-                        ref={listRef}
-                        data={messages}
-                        renderItem={renderMessage}
-                        keyExtractor={(_, index) => index.toString()}
-                        contentContainerStyle={{ flexGrow: 1, paddingBottom: 20 }}
-                        ListEmptyComponent={
-                            isLoading ? (
-                                <View className="flex-1 justify-end pb-10">
-                                    <View className="flex-row justify-start mb-4">
-                                        <View
-                                            className="w-8 h-8 rounded-full items-center justify-center mr-2 mt-1"
-                                            style={{ backgroundColor: colors.primary }}
-                                        >
-                                            <WeaveIcon size={16} color={colors['primary-foreground']} />
-                                        </View>
-                                        <View
-                                            className="px-4 py-3 rounded-2xl rounded-tl-none bg-gray-100 dark:bg-gray-800"
-                                            style={{
-                                                backgroundColor: colors.card,
-                                                borderWidth: 1,
-                                                borderColor: colors.border
-                                            }}
-                                        >
-                                            <Text style={{ color: colors.foreground, fontFamily: typography.fonts.sans, fontStyle: 'italic' }}>
-                                                Thinking...
-                                            </Text>
+                <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+                    <View className="flex-1 px-4">
+                        <FlatList
+                            ref={listRef}
+                            data={messages}
+                            renderItem={renderMessage}
+                            keyExtractor={(_, index) => index.toString()}
+                            contentContainerStyle={{ flexGrow: 1, paddingBottom: 20 }}
+                            ListEmptyComponent={
+                                isLoading ? (
+                                    <View className="flex-1 justify-end pb-10">
+                                        <View className="flex-row justify-start mb-4">
+                                            <View
+                                                className="w-8 h-8 rounded-full items-center justify-center mr-2 mt-1"
+                                                style={{ backgroundColor: colors.primary }}
+                                            >
+                                                <WeaveIcon size={16} color={colors['primary-foreground']} />
+                                            </View>
+                                            <View
+                                                className="px-4 py-3 rounded-2xl rounded-tl-none bg-gray-100 dark:bg-gray-800"
+                                                style={{
+                                                    backgroundColor: colors.card,
+                                                    borderWidth: 1,
+                                                    borderColor: colors.border
+                                                }}
+                                            >
+                                                <Text style={{ color: colors.foreground, fontFamily: typography.fonts.sans, fontStyle: 'italic' }}>
+                                                    Thinking...
+                                                </Text>
+                                            </View>
                                         </View>
                                     </View>
+                                ) : renderEmptyState
+                            }
+                            ListHeaderComponent={
+                                <View className="mb-4">
+                                    <InsightsCarousel onAction={handleInsightAction} />
                                 </View>
-                            ) : renderEmptyState
-                        }
-                        ListHeaderComponent={
-                            <View className="mb-4">
-                                <InsightsCarousel onAction={handleInsightAction} />
-                            </View>
-                        }
-                        showsVerticalScrollIndicator={false}
-                    />
-
-                    {messages.length > 0 && !isLoading && (
-                        <TouchableOpacity
-                            onPress={saveToJournal}
-                            disabled={isSaved}
-                            className="flex-row items-center justify-center py-2 mb-2"
-                            style={{ opacity: isSaved ? 0.5 : 1 }}
-                        >
-                            {isSaved ? <Check size={16} color={colors.primary} /> : <Bookmark size={16} color={colors.primary} />}
-                            <Text style={{ color: colors.primary, fontFamily: typography.fonts.sans, fontSize: 13, marginLeft: 6 }}>
-                                {isSaved ? 'Saved to Journal' : 'Save to Journal'}
-                            </Text>
-                        </TouchableOpacity>
-                    )}
-
-                    {error && (
-                        <View className="p-3 mb-2 rounded-lg bg-red-500/10 border border-red-500/20">
-                            <Text className="text-red-500 text-sm text-center">{error}</Text>
-                        </View>
-                    )}
-
-                    <View className="flex-row items-end gap-2 py-3 border-t" style={{ borderColor: colors.border }}>
-                        <TextInput
-                            className="flex-1 p-3 rounded-xl min-h-[48px] max-h-[120px]"
-                            style={{
-                                backgroundColor: colors.input,
-                                color: colors.foreground,
-                                fontFamily: typography.fonts.sans
-                            }}
-                            placeholder={remainingQuestions > 0 ? "Ask a question..." : "Daily limit reached"}
-                            placeholderTextColor={colors['muted-foreground']}
-                            value={input}
-                            onChangeText={setInput}
-                            multiline
-                            editable={remainingQuestions > 0 && !isLoading}
-                            returnKeyType="send"
-                            onSubmitEditing={handleSend}
+                            }
+                            showsVerticalScrollIndicator={false}
+                            keyboardShouldPersistTaps="handled"
                         />
 
-                        <TouchableOpacity
-                            className="w-12 h-12 rounded-full items-center justify-center mb-[1px]"
-                            style={{ backgroundColor: !input.trim() || isLoading ? colors.muted : colors.primary }}
-                            onPress={handleSend}
-                            disabled={!input.trim() || isLoading}
-                        >
-                            {isLoading ? (
-                                <ActivityIndicator color={colors['primary-foreground']} size="small" />
-                            ) : (
-                                <Send size={20} color={colors['primary-foreground']} />
-                            )}
-                        </TouchableOpacity>
+                        {messages.length > 0 && !isLoading && (
+                            <TouchableOpacity
+                                onPress={saveToJournal}
+                                disabled={isSaved}
+                                className="flex-row items-center justify-center py-2 mb-2"
+                                style={{ opacity: isSaved ? 0.5 : 1 }}
+                            >
+                                {isSaved ? <Check size={16} color={colors.primary} /> : <Bookmark size={16} color={colors.primary} />}
+                                <Text style={{ color: colors.primary, fontFamily: typography.fonts.sans, fontSize: 13, marginLeft: 6 }}>
+                                    {isSaved ? 'Saved to Journal' : 'Save to Journal'}
+                                </Text>
+                            </TouchableOpacity>
+                        )}
+
+                        {error && (
+                            <View className="p-3 mb-2 rounded-lg bg-red-500/10 border border-red-500/20">
+                                <Text className="text-red-500 text-sm text-center">{error}</Text>
+                            </View>
+                        )}
+
+                        <View className="flex-row items-end gap-2 py-3 border-t" style={{ borderColor: colors.border }}>
+                            <TextInput
+                                className="flex-1 p-3 rounded-xl min-h-[48px] max-h-[120px]"
+                                style={{
+                                    backgroundColor: colors.input,
+                                    color: colors.foreground,
+                                    fontFamily: typography.fonts.sans
+                                }}
+                                placeholder={remainingQuestions > 0 ? "Ask a question..." : "Daily limit reached"}
+                                placeholderTextColor={colors['muted-foreground']}
+                                value={input}
+                                onChangeText={setInput}
+                                multiline
+                                editable={remainingQuestions > 0 && !isLoading}
+                                returnKeyType="send"
+                                onSubmitEditing={handleSend}
+                            />
+
+                            <TouchableOpacity
+                                className="w-12 h-12 rounded-full items-center justify-center mb-[1px]"
+                                style={{ backgroundColor: !input.trim() || isLoading ? colors.muted : colors.primary }}
+                                onPress={handleSend}
+                                disabled={!input.trim() || isLoading}
+                            >
+                                {isLoading ? (
+                                    <ActivityIndicator color={colors['primary-foreground']} size="small" />
+                                ) : (
+                                    <Send size={20} color={colors['primary-foreground']} />
+                                )}
+                            </TouchableOpacity>
+                        </View>
                     </View>
-                </View>
+                </TouchableWithoutFeedback>
             </KeyboardAvoidingView>
 
             <GuidedReflectionSheet

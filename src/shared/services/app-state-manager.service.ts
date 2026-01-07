@@ -12,38 +12,50 @@ class AppStateManager {
   private currentState: AppStateStatus = AppState.currentState;
   private subscription: any = null;
   private lastActivityTime: number = Date.now();
-  private idleCheckInterval: any = null;
+  private idleTimer: NodeJS.Timeout | null = null;
   private isCurrentlyIdle: boolean = false;
 
   constructor() {
     this.subscription = AppState.addEventListener('change', this.handleAppStateChange);
 
-    // Start idle detection only when app is active
-    this.startIdleDetection();
+    // Initial check
+    if (this.currentState === 'active') {
+      this.resetIdleTimer();
+    }
   }
 
-  private startIdleDetection() {
-    // Check for idle state every 10 seconds
-    this.idleCheckInterval = setInterval(() => {
-      if (this.currentState !== 'active') return;
+  /**
+   * Start or reset the idle timer
+   * This replaces the polling mechanism with a precise timeout
+   */
+  private resetIdleTimer() {
+    if (this.idleTimer) {
+      clearTimeout(this.idleTimer);
+      this.idleTimer = null;
+    }
 
-      const timeSinceActivity = Date.now() - this.lastActivityTime;
-      const shouldBeIdle = timeSinceActivity > IDLE_TIMEOUT;
+    // Only schedule idle check if we are currently active (and not already idle)
+    // If we are already idle, we wait for activity to reset
+    if (this.currentState === 'active' && !this.isCurrentlyIdle) {
+      this.idleTimer = setTimeout(() => {
+        this.handleIdleTrigger();
+      }, IDLE_TIMEOUT);
+    }
+  }
 
-      if (shouldBeIdle !== this.isCurrentlyIdle) {
-        this.isCurrentlyIdle = shouldBeIdle;
+  private handleIdleTrigger() {
+    if (this.currentState !== 'active') return;
 
+    this.isCurrentlyIdle = true;
 
-        // Notify idle listeners
-        this.idleListeners.forEach(listener => {
-          try {
-            listener(shouldBeIdle);
-          } catch (error) {
-            logger.error('AppState', 'Idle listener error:', error);
-          }
-        });
+    // Notify idle listeners
+    this.idleListeners.forEach(listener => {
+      try {
+        listener(true);
+      } catch (error) {
+        logger.error('AppState', 'Idle listener error:', error);
       }
-    }, 10000);
+    });
   }
 
   /**
@@ -63,12 +75,26 @@ class AppStateManager {
         }
       });
     }
+
+    // Reset the timer since we just had activity
+    this.resetIdleTimer();
   }
 
   private handleAppStateChange = (nextState: AppStateStatus) => {
-
-
     this.currentState = nextState;
+
+    if (nextState === 'active') {
+      this.resetIdleTimer();
+    } else {
+      // If we go background, we can pause the idle timer (or let it run? strictly speaking if we are background we are 'idle' in a sense, but usually we just care about active->idle transition)
+      // Implementation choice: clear the timer to avoid firing 'idle' event while in background, unless we want to track background as idle.
+      // Given: "Check for idle state every 10 seconds ... if (this.currentState !== 'active') return;" in original code.
+      // So original code did NOT fire idle if background.
+      if (this.idleTimer) {
+        clearTimeout(this.idleTimer);
+        this.idleTimer = null;
+      }
+    }
 
     // Notify all listeners
     this.listeners.forEach(listener => {
@@ -146,8 +172,8 @@ class AppStateManager {
     if (this.subscription) {
       this.subscription.remove();
     }
-    if (this.idleCheckInterval) {
-      clearInterval(this.idleCheckInterval);
+    if (this.idleTimer) {
+      clearTimeout(this.idleTimer);
     }
     this.listeners.clear();
     this.idleListeners.clear();

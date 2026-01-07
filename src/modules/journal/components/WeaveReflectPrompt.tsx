@@ -32,7 +32,7 @@ import FriendModel from '@/db/models/Friend';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { GuidedReflectionSheet } from './GuidedReflection';
-import { ReflectionContext } from '../services/oracle/types';
+import { OracleSuggestion, ReflectionContext } from '@/modules/oracle';
 
 // ============================================================================
 // TYPES

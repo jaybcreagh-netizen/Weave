@@ -348,7 +348,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "/bin/sh `${NODE_BINARY:-node} --print \"require('path').dirname(require.resolve('@sentry/react-native/package.json')) + '/scripts/sentry-xcode-debug-files.sh'\"`";
+			shellScript = "if [ -d \"${PROJECT_DIR}/hermes-maven.dSYM\" ]; then\n    echo \"Copying hermes-maven.dSYM to ${DWARF_DSYM_FOLDER_PATH}/hermes.framework.dSYM\"\n    cp -rf \"${PROJECT_DIR}/hermes-maven.dSYM\" \"${DWARF_DSYM_FOLDER_PATH}/hermes.framework.dSYM\"\nfi\n/bin/sh `${NODE_BINARY:-node} --print \"require('path').dirname(require.resolve('@sentry/react-native/package.json')) + '/scripts/sentry-xcode-debug-files.sh'\"`";
 		};
 		FEB427DB7D8B64218A63796B /* [Expo] Configure project */ = {
 			isa = PBXShellScriptBuildPhase;

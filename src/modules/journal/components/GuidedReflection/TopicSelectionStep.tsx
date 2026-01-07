@@ -21,7 +21,7 @@ import { database } from '@/db'
 import { Q } from '@nozbe/watermelondb'
 import Interaction from '@/db/models/Interaction'
 import Friend from '@/db/models/Friend'
-import { ReflectionContext } from '../../services/oracle/types'
+import { OracleSuggestion, ReflectionContext } from '@/modules/oracle';
 import { formatDistanceToNow } from 'date-fns'
 
 interface TopicSelectionStepProps {

@@ -12,7 +12,7 @@
  * 5. Default - General journaling prompt
  */
 
-import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useIsFocused } from '@react-navigation/native';
@@ -48,6 +48,8 @@ import {
     type MeaningfulWeave
 } from '@/modules/journal';
 import { generateJournalPrompts, type JournalPrompt } from '@/modules/journal';
+// Static import to avoid dynamic import issues in production builds
+import { hasCompletedReflectionForCurrentWeek } from '@/modules/reflection/services/weekly-reflection.service';
 
 const WIDGET_CONFIG: HomeWidgetConfig = {
     id: 'journal',
@@ -248,26 +250,30 @@ export function JournalWidget() {
         const isSundayOrMonday = dayOfWeek === 0 || dayOfWeek === 1;
 
         if (isSundayOrMonday) {
-            // Use the centralized check which correctly handles week bounds
-            // (Sunday/Monday = reflecting on PREVIOUS week, not current)
-            const { hasCompletedReflectionForCurrentWeek } = await import('@/modules/reflection/services/weekly-reflection.service');
-            const hasReflectedThisWeek = await hasCompletedReflectionForCurrentWeek();
-
-            // Only show reflection prompt if not yet completed - otherwise fall through to other prompts
-            if (!hasReflectedThisWeek) {
-                return { type: 'weekly-reflection' };
+            try {
+                // Use the centralized check which correctly handles week bounds
+                // (Sunday/Monday = reflecting on PREVIOUS week, not current)
+                const hasReflectedThisWeek = await hasCompletedReflectionForCurrentWeek();
+                // Only show reflection prompt if not yet completed - otherwise fall through to other prompts
+                if (!hasReflectedThisWeek) {
+                    return { type: 'weekly-reflection' };
+                }
+            } catch (error) {
+                console.warn('[JournalWidget] Error checking weekly reflection:', error);
             }
-            // If completed, continue to check other states (post-weave, memory, nudge, default)
+            // If completed or error, continue to check other states
         }
 
         // 2. Check for meaningful weave in last 48h
         try {
-            const meaningfulWeaves = await getRecentMeaningfulWeaves(1, 48);
-            if (meaningfulWeaves.length > 0) {
-                const weave = meaningfulWeaves[0];
-                const prompts = generateJournalPrompts({ type: 'weave', weave });
-                if (prompts.length > 0) {
-                    return { type: 'post-weave', weave, prompt: prompts[0] };
+            if (typeof getRecentMeaningfulWeaves === 'function') {
+                const meaningfulWeaves = await getRecentMeaningfulWeaves(1, 48);
+                if (meaningfulWeaves && meaningfulWeaves.length > 0) {
+                    const weave = meaningfulWeaves[0];
+                    const prompts = generateJournalPrompts({ type: 'weave', weave });
+                    if (prompts && prompts.length > 0) {
+                        return { type: 'post-weave', weave, prompt: prompts[0] };
+                    }
                 }
             }
         } catch (error) {
@@ -276,28 +282,34 @@ export function JournalWidget() {
 
         // 3. Check for memories
         try {
-            const memories = await getMemories(1);
-            if (memories.length > 0) {
-                return { type: 'memory', memory: memories[0] };
+            if (typeof getMemories === 'function') {
+                const memories = await getMemories(1);
+                if (memories && memories.length > 0) {
+                    return { type: 'memory', memory: memories[0] };
+                }
             }
         } catch (error) {
             console.warn('[JournalWidget] Error fetching memories:', error);
         }
 
         // 4. Check days since last journal entry (nudge if 3+ days)
-        const lastEntry = await database
-            .get<JournalEntry>('journal_entries')
-            .query(Q.sortBy('created_at', 'desc'), Q.take(1))
-            .fetch();
+        try {
+            const lastEntry = await database
+                .get<JournalEntry>('journal_entries')
+                .query(Q.sortBy('created_at', 'desc'), Q.take(1))
+                .fetch();
 
-        if (lastEntry.length > 0) {
-            const daysSince = differenceInDays(today, lastEntry[0].createdAt);
-            if (daysSince >= 3) {
-                return { type: 'nudge', daysSinceLastEntry: daysSince };
+            if (lastEntry.length > 0) {
+                const daysSince = differenceInDays(today, lastEntry[0].createdAt);
+                if (daysSince >= 3) {
+                    return { type: 'nudge', daysSinceLastEntry: daysSince };
+                }
+            } else {
+                // No entries at all - nudge to start
+                return { type: 'nudge', daysSinceLastEntry: -1 };
             }
-        } else {
-            // No entries at all - nudge to start
-            return { type: 'nudge', daysSinceLastEntry: -1 };
+        } catch (error) {
+            console.warn('[JournalWidget] Error checking last entry:', error);
         }
 
         // 5. Default - general prompt
@@ -308,35 +320,49 @@ export function JournalWidget() {
     const isSleeping = useAppSleeping();
     const isFocused = useIsFocused();
 
-    useEffect(() => {
-        let mounted = true;
-        // Don't load if not focused to save resources (e.g. valid on other tabs)
-        // We still load once on mount if we are on the home tab, but this helps if we are deep in stack
-        // Actually, for widgets in a scrollview, 'isFocused' might be true even if off screen? 
-        // But useIsFocused refers to the screen. 
-        // We'll trust the screen focus.
+    // Use a ref for mounted state to survive effect re-runs and prevent race conditions
+    const mountedRef = useRef(true);
+    const loadIdRef = useRef(0);
 
-        if (!isFocused) return;
+    useEffect(() => {
+        // Reset mounted state on each effect run
+        mountedRef.current = true;
+        const currentLoadId = ++loadIdRef.current;
 
         // Function to load main widget state (prompt)
         const loadWidgetState = async () => {
             console.time('JournalWidget.loadState');
             setIsWidgetStateLoading(true);
             try {
-                // Short delay to allow screen transitions to settle
-                await new Promise(resolve => setTimeout(resolve, 500));
+                // Reduced delay - the main content should load fast
+                await new Promise(resolve => setTimeout(resolve, 100));
 
-                const state = await determineState();
-                if (mounted) {
+                // Check if this load is still valid (not superseded by a newer load)
+                if (currentLoadId !== loadIdRef.current) {
+                    console.log('[JournalWidget] Load superseded, aborting');
+                    return;
+                }
+
+                // Race against a timeout to prevent infinite loading
+                const statePromise = determineState();
+                const timeoutPromise = new Promise<WidgetState>((_, reject) =>
+                    setTimeout(() => reject(new Error('JournalWidget state determination timed out')), 5000)
+                );
+
+                const state = await Promise.race([statePromise, timeoutPromise]);
+
+                // Check both mounted and load ID to ensure we should update state
+                if (mountedRef.current && currentLoadId === loadIdRef.current) {
                     setWidgetState(state);
                 }
             } catch (error) {
                 console.error('[JournalWidget] Error loading state:', error);
-                if (mounted) {
+                if (mountedRef.current && currentLoadId === loadIdRef.current) {
                     setWidgetState(getRandomGeneralPrompt());
                 }
             } finally {
-                if (mounted) {
+                // Always clear loading state if this is still the active load
+                if (mountedRef.current && currentLoadId === loadIdRef.current) {
                     setIsWidgetStateLoading(false);
                     console.timeEnd('JournalWidget.loadState');
                 }
@@ -350,26 +376,32 @@ export function JournalWidget() {
                 // Defer stats loading significantly to prioritize main content
                 await new Promise(resolve => setTimeout(resolve, 2000));
 
+                if (currentLoadId !== loadIdRef.current) return;
+
                 const values = await Promise.all(STATS.map(s => s.getValue()));
-                if (mounted) {
+                if (mountedRef.current && currentLoadId === loadIdRef.current) {
                     setStatValues(values);
                     setStatIndex(Math.floor(Math.random() * STATS.length));
                 }
             } catch (error) {
                 console.error('[JournalWidget] Error loading stats:', error);
-                if (mounted) {
+                if (mountedRef.current && currentLoadId === loadIdRef.current) {
                     setStatValues(STATS.map(() => 0));
                 }
             } finally {
-                if (mounted) console.timeEnd('JournalWidget.loadStats');
+                if (mountedRef.current && currentLoadId === loadIdRef.current) {
+                    console.timeEnd('JournalWidget.loadStats');
+                }
             }
         };
 
         loadWidgetState();
         loadStats();
 
-        return () => { mounted = false; };
-    }, [determineState, promptKey, isFocused]);
+        return () => {
+            mountedRef.current = false;
+        };
+    }, [determineState, promptKey]); // Removed isFocused - it's not used as a gate and causes race conditions
 
     // Cycle stats every 5 seconds (only when visible)
     useEffect(() => {

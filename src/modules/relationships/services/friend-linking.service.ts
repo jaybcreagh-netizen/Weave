@@ -425,7 +425,8 @@ export async function syncOutgoingLinkStatus(localFriendId: string): Promise<boo
         }
 
         // If server shows 'accepted', update local to 'linked'
-        if (linkData.status === 'accepted' && friend.linkStatus !== 'linked') {
+        // We know friend.linkStatus is 'pending_sent' here due to check at start of function
+        if (linkData.status === 'accepted') {
             console.log('[FriendLinking] Link was accepted! Updating local status to linked');
             await database.write(async () => {
                 await friend.update(f => {

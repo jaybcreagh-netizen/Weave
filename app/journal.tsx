@@ -30,9 +30,7 @@ const WeeklyReflectionDetailModal = lazy(() =>
 const LifeEventModal = lazy(() =>
     import('@/modules/relationships/components/LifeEventModal').then(m => ({ default: m.LifeEventModal }))
 );
-const NudgesSheetWrapper = lazy(() =>
-    import('@/modules/oracle').then(m => ({ default: m.NudgesSheetWrapper }))
-);
+
 
 export default function JournalScreen() {
     const router = useRouter();
@@ -311,14 +309,7 @@ export default function JournalScreen() {
                 )}
             </Suspense>
 
-            <Suspense fallback={LazyFallback}>
-                {showNudgeSheet && (
-                    <NudgesSheetWrapper
-                        isVisible={showNudgeSheet}
-                        onClose={() => setShowNudgeSheet(false)}
-                    />
-                )}
-            </Suspense>
+
 
             <Suspense fallback={LazyFallback}>
                 {!!selectedReflection && (

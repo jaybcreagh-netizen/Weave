@@ -327,7 +327,7 @@ export async function calculateWeaveScoring(
  * Apply the calculated updates to the database records.
  * MUST be called inside a writer lock.
  */
-function applyWeaveScoringUpdates(
+export function applyWeaveScoringUpdates(
   friends: FriendModel[],
   updates: Map<string, any>
 ): any[] {

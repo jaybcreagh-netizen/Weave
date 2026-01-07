@@ -16,7 +16,7 @@ import { DataSettings } from './settings/DataSettings';
 import { NotificationSettings } from './settings/NotificationSettings';
 import { AccountSettings } from './settings/AccountSettings';
 import { FeatureFlags } from '@/shared/config/feature-flags';
-import { ActivityInboxSheet, usePendingWeaves } from '@/modules/sync';
+import { ActivityInboxSheet, usePendingWeaves, useActivityCounts } from '@/modules/sync'; // Added useActivityCounts
 import { getPendingRequestCount } from '@/modules/relationships/services/friend-linking.service';
 
 // Modals
@@ -41,21 +41,19 @@ export function SettingsModal({
   const [showArchetypeLibrary, setShowArchetypeLibrary] = useState(false);
   const [showGroupList, setShowGroupList] = useState(false);
   const [showManageFriends, setShowManageFriends] = useState(false);
+
   const [showActivityInbox, setShowActivityInbox] = useState(false);
 
-  // Pending activity counts (only fetch if accounts enabled)
-  const [pendingRequestCount, setPendingRequestCount] = useState(0);
-  const { pendingWeaves } = usePendingWeaves();
-  const pendingWeaveCount = FeatureFlags.ACCOUNTS_ENABLED
-    ? pendingWeaves.filter(w => w.status === 'pending').length
-    : 0;
-  const totalPendingCount = pendingRequestCount + pendingWeaveCount;
+  // Use shared hook for counts
+  const { totalPendingCount, refreshCounts } = useActivityCounts();
 
-  // Fetch pending request count
-  useEffect(() => {
-    if (!FeatureFlags.ACCOUNTS_ENABLED || !isOpen) return;
-    getPendingRequestCount().then(setPendingRequestCount);
-  }, [isOpen]);
+  // pendingWeaves is no longer used directly here, unless for other reasons?
+  // It was only used for count.
+  // Wait, I need to remove usePendingWeaves from the top if not used? 
+  // Ah, the hook useActivityCounts uses usePendingWeaves internally.
+  // I can remove the unused imports later or let lint catch it.
+  // But wait, line 48 was `const { pendingWeaves } = usePendingWeaves();`
+  // I am deleting it.
 
   if (!isOpen) return null;
 
@@ -255,9 +253,7 @@ export function SettingsModal({
       <ActivityInboxSheet
         visible={showActivityInbox}
         onClose={() => setShowActivityInbox(false)}
-        onRequestHandled={() => {
-          getPendingRequestCount().then(setPendingRequestCount);
-        }}
+        onRequestHandled={refreshCounts}
       />
 
     </StandardBottomSheet>

@@ -31,6 +31,7 @@ export function useSharedWeaveHistory(): UseSharedWeaveHistoryReturn {
             // Transform to SharedWeaveData format
             const formattedWeaves: SharedWeaveData[] = weaves.map(w => ({
                 id: w.id,
+                creatorUserId: w.creatorUserId,
                 creatorName: w.creatorName,
                 weaveDate: new Date(w.weaveDate),
                 title: w.title,

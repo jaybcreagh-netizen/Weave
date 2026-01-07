@@ -36,6 +36,7 @@ export { TierFitBottomSheet } from './components/TierFitBottomSheet';
 export { TierSuggestionAlert } from './components/TierSuggestionAlert';
 export { VerifiedReciprocityCard } from './components/VerifiedReciprocityCard';
 export { ArchetypeCompatibilityBadge } from './components/ArchetypeCompatibilityBadge';
+export { YourPatternsSection } from './components/YourPatternsSection';
 
 // Unified Calendar
 export { UnifiedCalendar } from './components/UnifiedCalendar';

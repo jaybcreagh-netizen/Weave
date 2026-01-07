@@ -37,7 +37,8 @@ jest.mock('@/db', () => ({
         get: jest.fn(() => ({
             query: jest.fn().mockReturnValue({
                 fetch: jest.fn().mockResolvedValue(
-                    mockFriends.filter(f => !f.linkStatus || f.linkStatus === '')
+                    // @ts-ignore
+                    mockFriends.filter(f => !f.linkStatus || f.linkStatus === '') as any
                 ),
             }),
         })),

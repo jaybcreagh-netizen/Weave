@@ -130,15 +130,22 @@ export async function processQueue(): Promise<void> {
             const queueCollection = database.get<SyncQueueItem>('sync_queue');
             let hasMore = true;
 
+            const skippedIds = new Set<string>();
+
             // Process in batches to prevent OOM on large queues
             while (hasMore) {
-                const pendingItems = await queueCollection
+                let query = queueCollection
                     .query(
                         Q.where('status', 'pending'),
-                        Q.sortBy('queued_at', Q.asc),
-                        Q.take(BATCH_SIZE)
-                    )
-                    .fetch();
+                        Q.sortBy('queued_at', Q.asc)
+                    );
+
+                // Exclude items we've already skipped in this run
+                if (skippedIds.size > 0) {
+                    query = query.extend(Q.where('id', Q.notIn(Array.from(skippedIds))));
+                }
+
+                const pendingItems = await query.extend(Q.take(BATCH_SIZE)).fetch();
 
                 if (pendingItems.length === 0) {
                     logger.debug('ActionQueue', 'No pending items to process');
@@ -147,12 +154,21 @@ export async function processQueue(): Promise<void> {
 
                 logger.info('ActionQueue', `Processing batch of ${pendingItems.length} pending items`);
 
+                let processedCount = 0;
+
                 // Process each item in the batch
                 for (const item of pendingItems) {
-                    await processItem(item);
+                    const wasProcessed = await processItem(item);
+                    if (!wasProcessed) {
+                        skippedIds.add(item.id);
+                    } else {
+                        processedCount++;
+                    }
                 }
 
-                // Continue if we got a full batch (more items may exist)
+                // Continue if we got a full batch AND we processed at least one item
+                // If we skipped everything in this batch, we might be caught in a loop if we don't rely on the Q.notIn exclusion.
+                // With Q.notIn, we can just check if we got a full batch.
                 hasMore = pendingItems.length === BATCH_SIZE;
             }
 
@@ -167,8 +183,9 @@ export async function processQueue(): Promise<void> {
 
 /**
  * Process a single queue item
+ * Returns true if processed (success or fail), false if skipped (backoff)
  */
-async function processItem(item: SyncQueueItem): Promise<void> {
+async function processItem(item: SyncQueueItem): Promise<boolean> {
     // Check if we should wait (backoff)
     if (item.retryCount > 0) {
         const delay = getBackoffDelay(item.retryCount - 1);
@@ -176,7 +193,7 @@ async function processItem(item: SyncQueueItem): Promise<void> {
 
         if (timeSinceLastAttempt < delay) {
             logger.debug('ActionQueue', `Skipping ${item.id} - backoff not elapsed`);
-            return;
+            return false;
         }
     }
 
@@ -234,6 +251,8 @@ async function processItem(item: SyncQueueItem): Promise<void> {
             });
         });
     }
+
+    return true;
 }
 
 /**

@@ -201,9 +201,11 @@ export async function checkPendingPlans(): Promise<void> {
 
       // Prepare ops instead of executing immediately
       // Use "prepareWeaveScoringOps" which we imported manually or via module
-      const { ops } = await import('@/modules/intelligence').then(m =>
-        m.prepareWeaveScoringOps(friends, interactionData, database, currentSeason)
-      );
+      const { ops } = await import('@/modules/intelligence').then(async m => {
+        const { updates } = await m.calculateWeaveScoring(friends, interactionData, database, currentSeason);
+        const ops = m.applyWeaveScoringUpdates(friends, updates);
+        return { ops };
+      });
 
       if (ops.length > 0) {
         allScoringOps.push(...ops);

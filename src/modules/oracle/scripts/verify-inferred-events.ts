@@ -1,9 +1,10 @@
-
-import { oracleService } from '../services/oracle-service.ts';
-import { database } from '../../../db/index.ts';
-import { InsightSignal } from '../services/types.ts';
-import ProactiveInsight from '../../../db/models/ProactiveInsight.ts';
-import Friend from '../../../db/models/Friend.ts';
+import { oracleService } from '../services/oracle-service';
+import { database } from '@/db';
+import { database as db } from '@/db';
+import { InsightSignal } from '../services/types';
+import ProactiveInsight from '@/db/models/ProactiveInsight';
+import Interaction from '@/db/models/Interaction';
+import Friend from '@/db/models/Friend';
 
 async function verifyInferredEvents() {
     console.log('--- Verifying Inferred Life Events ---');

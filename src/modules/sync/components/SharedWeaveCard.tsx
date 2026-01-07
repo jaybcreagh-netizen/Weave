@@ -17,6 +17,7 @@ import { type InteractionCategory } from '@/shared/types/legacy-types';
 
 export interface SharedWeaveData {
     id: string; // server shared_weave_id
+    creatorUserId: string;
     creatorName: string;
     creatorAvatarUrl?: string;
     weaveDate: Date;

@@ -378,16 +378,10 @@ export function PlanWizard({ visible, onClose, initialFriend, prefillData, repla
           try {
             const linkedFriends = selectedFriends.filter(f => f.linkedUserId);
             if (linkedFriends.length > 0) {
-              const { executeShareWeave } = await import('@/modules/sync/services/sync-operations');
-              await executeShareWeave({
+              const { shareWeave } = await import('@/modules/sync/services/share-weave.service');
+              await shareWeave({
                 interactionId: newPlan.id,
-                participantUserIds: linkedFriends.map(f => f.linkedUserId!),
-                title: validTitle,
-                weaveDate: finalDate.toISOString(),
-                location: validLocation,
-                category: validCategory,
-                duration: null,
-                note: validNotes,
+                linkedFriendIds: linkedFriends.map(f => f.id),
               });
             }
           } catch (shareErr) {

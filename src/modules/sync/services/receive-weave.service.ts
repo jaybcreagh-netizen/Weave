@@ -37,13 +37,57 @@ export async function acceptWeave(sharedWeaveId: string, weaveData: IncomingWeav
         const { data: { user } } = await client.auth.getUser();
         if (!user) throw new Error('Not authenticated');
 
-        // Find the linked friend record for the creator
+        // SMART FRIEND MATCHING
         const friendsCollection = database.get<Friend>('friends');
+
+        // 1. Try to find by linked user ID (Direct Match)
         const linkedFriends = await friendsCollection
             .query(Q.where('linked_user_id', weaveData.creatorUserId))
             .fetch();
 
-        const creatorFriend = linkedFriends.length > 0 ? linkedFriends[0] : null;
+        let creatorFriend = linkedFriends.length > 0 ? linkedFriends[0] : null;
+
+        // 2. If no direct link, try fuzzy name matching on unlinked friends
+        if (!creatorFriend) {
+            const normalizedName = weaveData.creatorName.trim().toLowerCase();
+
+            // Fetch all unlinked friends (linked_user_id is null)
+            // We fetch all because we need to do fuzzy/normalized matching in JS
+            // (WatermelonDB LIKE is case-sensitive on some adapters and we want robust trimming)
+            const unlinkedFriends = await friendsCollection
+                .query(Q.where('linked_user_id', null))
+                .fetch();
+
+            const match = unlinkedFriends.find(f => f.name.trim().toLowerCase() === normalizedName);
+
+            if (match) {
+                // MATCH FOUND: Merge profiles
+                logger.info('ReceiveWeave', `Smart Match: Merging "${match.name}" with incoming weaver "${weaveData.creatorName}"`);
+
+                await database.write(async () => {
+                    await match.update(f => {
+                        f.linkedUserId = weaveData.creatorUserId;
+                        f.linkStatus = 'linked';
+                        // We don't overwrite the name to preserve user's nickname preference
+                    });
+                });
+
+                creatorFriend = match;
+            } else {
+                // NO MATCH: Create new friend
+                logger.info('ReceiveWeave', `No match found. Creating new friend: "${weaveData.creatorName}"`);
+
+                await database.write(async () => {
+                    creatorFriend = await friendsCollection.create(record => {
+                        record.name = weaveData.creatorName;
+                        record.linkedUserId = weaveData.creatorUserId;
+                        record.dunbarTier = 'Community'; // Default to outer circle
+                        record.linkStatus = 'linked';
+                        record.archetype = 'Fool'; // Default archetype
+                    });
+                });
+            }
+        }
 
         let interactionId = '';
 
@@ -52,24 +96,29 @@ export async function acceptWeave(sharedWeaveId: string, weaveData: IncomingWeav
             const interactionsCollection = database.get<Interaction>('interactions');
             const interaction = await interactionsCollection.create(record => {
                 record.interactionDate = new Date(weaveData.weaveDate);
-                record.interactionType = 'log';
+                record.interactionType = 'log'; // Or 'plan' if future? Plan wizard implies future usually.
+                // Logic check: if weaveDate > now, it should be 'plan' and status 'planned'
+                const isFuture = new Date(weaveData.weaveDate).getTime() > Date.now();
+
+                record.interactionType = isFuture ? 'plan' : 'log';
+                record.status = isFuture ? 'planned' : 'completed';
+
                 record.interactionCategory = weaveData.category;
                 record.activity = weaveData.category;
                 record.title = weaveData.title;
                 record.location = weaveData.location;
                 record.duration = weaveData.duration;
-                record.status = 'completed';
                 record.mode = 'one-on-one';
             });
 
             interactionId = interaction.id;
 
-            // Link to creator friend if we have them
+            // Link to creator friend
             if (creatorFriend) {
                 const joinCollection = database.get<InteractionFriend>('interaction_friends');
                 await joinCollection.create(record => {
                     record.interactionId = interaction.id;
-                    record.friendId = creatorFriend.id;
+                    record.friendId = creatorFriend!.id;
                 });
             }
 

@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import Animated, { FadeIn, useSharedValue, useAnimatedStyle, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Sparkles, Users, Settings } from 'lucide-react-native';
+import { Sparkles, Users, Settings, Inbox } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { SettingsModal } from '@/modules/auth/components/settings-modal';
 import { SocialBatterySheet } from '@/modules/home/components/widgets/SocialBatterySheet';
@@ -15,15 +15,15 @@ import { useTutorialStore } from '@/shared/stores/tutorialStore';
 import { shouldSendSocialBatteryNotification } from '@/modules/notifications';
 import { ProfileCompletionSheet } from '@/modules/auth/components/ProfileCompletionSheet';
 import { WeaveIcon } from '@/shared/components/WeaveIcon';
-
+import { ActivityInboxSheet, useActivityCounts } from '@/modules/sync'; // Added ActivityInboxSheet and useActivityCounts
 
 export default function Dashboard() {
     const theme = useTheme();
     const colors = theme?.colors || {};
     const [activeTab, setActiveTab] = useState<'insights' | 'circle'>('circle');
-    // Lazy tab loading: Track which tabs have been visited
-    // insightsState progression: 'unvisited' -> 'loading' -> 'mounting' -> 'ready'
-    // - 'unvisited': Tab never selected
+    const [showActivityInbox, setShowActivityInbox] = useState(false);
+    const { totalPendingCount, refreshCounts } = useActivityCounts();
+
     // - 'loading': Tab selected, showing loader (HomeScreen NOT mounted yet)
     // - 'mounting': HomeScreen mounted but hidden, waiting for onReady
     // - 'ready': HomeScreen has signaled ready (fade in content)
@@ -212,9 +212,25 @@ export default function Dashboard() {
 
 
 
-                    <TouchableOpacity onPress={() => setShowSettings(true)} style={styles.settingsButton}>
-                        <Settings size={24} color={colors['muted-foreground']} />
-                    </TouchableOpacity>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                        <TouchableOpacity
+                            onPress={() => setShowActivityInbox(true)}
+                            style={styles.settingsButton}
+                        >
+                            <View style={styles.tabIconContainer}>
+                                <Inbox size={24} color={colors['muted-foreground']} />
+                                {totalPendingCount > 0 && (
+                                    <View style={[styles.notificationBadge, { backgroundColor: colors.destructive }]}>
+                                        <Text style={styles.notificationText}>{totalPendingCount}</Text>
+                                    </View>
+                                )}
+                            </View>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity onPress={() => setShowSettings(true)} style={styles.settingsButton}>
+                            <Settings size={24} color={colors['muted-foreground']} />
+                        </TouchableOpacity>
+                    </View>
                 </View>
 
                 {/* Lazy tab loading: Mount tabs only after first visit, then keep mounted */}
@@ -291,6 +307,11 @@ export default function Dashboard() {
 
             <BadgeUnlockModal />
             <ProfileCompletionSheet />
+            <ActivityInboxSheet
+                visible={showActivityInbox}
+                onClose={() => setShowActivityInbox(false)}
+                onRequestHandled={refreshCounts}
+            />
         </View>
     );
 }
