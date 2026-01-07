@@ -489,26 +489,45 @@ export function ProfileScreen() {
                 showsVerticalScrollIndicator={false}
             >
                 {/* Photo Section */}
+                {/* Photo Section */}
                 <View className="items-center mb-8">
                     <TouchableOpacity
                         onPress={handlePickPhoto}
                         disabled={uploadingPhoto}
-                        className="w-32 h-32 rounded-full border-4 overflow-hidden relative"
-                        style={{ borderColor: colors.border }}
+                        className="relative"
                     >
-                        {photoUrl ? (
-                            <CachedImage source={{ uri: photoUrl }} className="w-full h-full" />
-                        ) : (
-                            <View className="w-full h-full items-center justify-center" style={{ backgroundColor: colors.muted }}>
-                                <User size={48} color={colors['muted-foreground']} />
-                            </View>
-                        )}
-                        {uploadingPhoto && (
-                            <View className="absolute inset-0 bg-black/50 items-center justify-center">
-                                <ActivityIndicator color="#FFFFFF" />
-                            </View>
-                        )}
-                        <View className="absolute bottom-0 right-0 w-9 h-9 rounded-full items-center justify-center" style={{ backgroundColor: colors.primary }}>
+                        {/* Image Container - Clipped */}
+                        <View
+                            className="w-32 h-32 rounded-full border-4 overflow-hidden"
+                            style={{ borderColor: colors.border }}
+                        >
+                            {photoUrl ? (
+                                <CachedImage
+                                    source={{ uri: photoUrl }}
+                                    className="w-full h-full"
+                                    fallbackIcon={
+                                        <View className="w-full h-full items-center justify-center" style={{ backgroundColor: colors.muted }}>
+                                            <User size={48} color={colors['muted-foreground']} />
+                                        </View>
+                                    }
+                                />
+                            ) : (
+                                <View className="w-full h-full items-center justify-center" style={{ backgroundColor: colors.muted }}>
+                                    <User size={48} color={colors['muted-foreground']} />
+                                </View>
+                            )}
+                            {uploadingPhoto && (
+                                <View className="absolute inset-0 bg-black/50 items-center justify-center">
+                                    <ActivityIndicator color="#FFFFFF" />
+                                </View>
+                            )}
+                        </View>
+
+                        {/* Camera Badge - Unclipped */}
+                        <View
+                            className="absolute bottom-0 right-0 w-9 h-9 rounded-full items-center justify-center shadow-sm"
+                            style={{ backgroundColor: colors.primary, elevation: 2 }}
+                        >
                             <Camera size={16} color="#FFFFFF" />
                         </View>
                     </TouchableOpacity>
