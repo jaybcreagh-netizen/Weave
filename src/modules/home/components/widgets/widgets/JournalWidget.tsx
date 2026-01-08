@@ -86,105 +86,130 @@ const STATS: StatItem[] = [
     {
         icon: BookOpen,
         getValue: async () => {
-            return database.get<JournalEntry>('journal_entries').query().fetchCount();
+            try {
+                return await database.get<JournalEntry>('journal_entries').query().fetchCount();
+            } catch (error) {
+                Sentry.addBreadcrumb({ category: 'journal-widget-stats', message: 'Entry count stat failed', level: 'error', data: { error: String(error) } });
+                return 0;
+            }
         },
         formatLabel: (value) => `${value} ${value === 1 ? 'entry' : 'entries'}`,
     },
     {
         icon: Flame,
         getValue: async () => {
-            // Calculate streak: consecutive days with completed weaves backwards from today
-            // OPTIMIZED: Fetch all relevant interactions in one go instead of 30 queries
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
+            try {
+                // Calculate streak: consecutive days with completed weaves backwards from today
+                // OPTIMIZED: Fetch all relevant interactions in one go instead of 30 queries
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
 
-            // Look back 30 days
-            const lookbackWindow = 30 * 24 * 60 * 60 * 1000;
-            const windowStart = today.getTime() - lookbackWindow;
-            const windowEnd = today.getTime() + 24 * 60 * 60 * 1000; // Include today
+                // Look back 30 days
+                const lookbackWindow = 30 * 24 * 60 * 60 * 1000;
+                const windowStart = today.getTime() - lookbackWindow;
+                const windowEnd = today.getTime() + 24 * 60 * 60 * 1000; // Include today
 
-            const interactions = await database
-                .get<Interaction>('interactions')
-                .query(
-                    Q.where('status', 'completed'),
-                    Q.where('interaction_date', Q.gte(windowStart)),
-                    Q.where('interaction_date', Q.lt(windowEnd)),
-                    Q.sortBy('interaction_date', 'desc')
-                )
-                .fetch();
+                const interactions = await database
+                    .get<Interaction>('interactions')
+                    .query(
+                        Q.where('status', 'completed'),
+                        Q.where('interaction_date', Q.gte(windowStart)),
+                        Q.where('interaction_date', Q.lt(windowEnd)),
+                        Q.sortBy('interaction_date', 'desc')
+                    )
+                    .fetch();
 
-            // Create a set of dates (YYYY-MM-DD) that have completed interactions
-            const activeDates = new Set<string>();
-            interactions.forEach(interaction => {
-                const date = new Date(interaction.interactionDate);
-                date.setHours(0, 0, 0, 0);
-                activeDates.add(date.toISOString().split('T')[0]);
-            });
+                // Create a set of dates (YYYY-MM-DD) that have completed interactions
+                const activeDates = new Set<string>();
+                interactions.forEach(interaction => {
+                    const date = new Date(interaction.interactionDate);
+                    date.setHours(0, 0, 0, 0);
+                    activeDates.add(date.toISOString().split('T')[0]);
+                });
 
-            let streak = 0;
-            let checkDate = new Date(today);
+                let streak = 0;
+                let checkDate = new Date(today);
 
-            for (let i = 0; i < 30; i++) {
-                const dateStr = checkDate.toISOString().split('T')[0];
-                if (activeDates.has(dateStr)) {
-                    streak++;
-                    checkDate.setDate(checkDate.getDate() - 1);
-                } else {
-                    // If today has no interaction yet, don't break streak if yesterday had one
-                    // But if we are checking today (i===0) and it's missing, we allow it (streak continues from yesterday)
-                    // However, standard streak logic usually implies "current streak ending today or yesterday".
-                    // If i==0 (today) and no interaction, we check yesterday. 
-                    // If yesterday is missing, streak is 0.
-                    if (i === 0) {
+                for (let i = 0; i < 30; i++) {
+                    const dateStr = checkDate.toISOString().split('T')[0];
+                    if (activeDates.has(dateStr)) {
+                        streak++;
                         checkDate.setDate(checkDate.getDate() - 1);
-                        continue;
+                    } else {
+                        // If today has no interaction yet, don't break streak if yesterday had one
+                        // But if we are checking today (i===0) and it's missing, we allow it (streak continues from yesterday)
+                        // However, standard streak logic usually implies "current streak ending today or yesterday".
+                        // If i==0 (today) and no interaction, we check yesterday. 
+                        // If yesterday is missing, streak is 0.
+                        if (i === 0) {
+                            checkDate.setDate(checkDate.getDate() - 1);
+                            continue;
+                        }
+                        break;
                     }
-                    break;
                 }
-            }
 
-            return streak;
+                return streak;
+            } catch (error) {
+                Sentry.addBreadcrumb({ category: 'journal-widget-stats', message: 'Streak stat failed', level: 'error', data: { error: String(error) } });
+                return 0;
+            }
         },
         formatLabel: (value) => `${value} day streak`,
     },
     {
         icon: Calendar,
         getValue: async () => {
-            // Weeks active: from first interaction to now
-            const firstInteraction = await database
-                .get<Interaction>('interactions')
-                .query(Q.sortBy('interaction_date', 'asc'), Q.take(1))
-                .fetch();
+            try {
+                // Weeks active: from first interaction to now
+                const firstInteraction = await database
+                    .get<Interaction>('interactions')
+                    .query(Q.sortBy('interaction_date', 'asc'), Q.take(1))
+                    .fetch();
 
-            if (firstInteraction.length === 0) return 0;
+                if (firstInteraction.length === 0) return 0;
 
-            const firstDate = new Date(firstInteraction[0].interactionDate);
-            const now = new Date();
-            const weeks = Math.floor(differenceInDays(now, firstDate) / 7);
-            return Math.max(1, weeks);
+                const firstDate = new Date(firstInteraction[0].interactionDate);
+                const now = new Date();
+                const weeks = Math.floor(differenceInDays(now, firstDate) / 7);
+                return Math.max(1, weeks);
+            } catch (error) {
+                Sentry.addBreadcrumb({ category: 'journal-widget-stats', message: 'Weeks active stat failed', level: 'error', data: { error: String(error) } });
+                return 0;
+            }
         },
         formatLabel: (value) => `${value} ${value === 1 ? 'week' : 'weeks'} active`,
     },
     {
         icon: Users,
         getValue: async () => {
-            // Count unique friends documented in journal entries via join table
-            const joinEntries = await database
-                .get<JournalEntryFriend>('journal_entry_friends')
-                .query()
-                .fetch();
+            try {
+                // Count unique friends documented in journal entries via join table
+                const joinEntries = await database
+                    .get<JournalEntryFriend>('journal_entry_friends')
+                    .query()
+                    .fetch();
 
-            const friendIds = new Set<string>();
-            joinEntries.forEach((entry) => friendIds.add(entry.friendId));
+                const friendIds = new Set<string>();
+                joinEntries.forEach((entry) => friendIds.add(entry.friendId));
 
-            return friendIds.size;
+                return friendIds.size;
+            } catch (error) {
+                Sentry.addBreadcrumb({ category: 'journal-widget-stats', message: 'Friends in story stat failed', level: 'error', data: { error: String(error) } });
+                return 0;
+            }
         },
         formatLabel: (value) => `${value} ${value === 1 ? 'friend' : 'friends'} in your story`,
     },
     {
         icon: Sparkles,
         getValue: async () => {
-            return database.get<WeeklyReflection>('weekly_reflections').query().fetchCount();
+            try {
+                return await database.get<WeeklyReflection>('weekly_reflections').query().fetchCount();
+            } catch (error) {
+                Sentry.addBreadcrumb({ category: 'journal-widget-stats', message: 'Reflection count stat failed', level: 'error', data: { error: String(error) } });
+                return 0;
+            }
         },
         formatLabel: (value) => `${value} ${value === 1 ? 'reflection' : 'reflections'}`,
     },
