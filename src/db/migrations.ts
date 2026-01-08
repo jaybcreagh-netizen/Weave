@@ -1352,5 +1352,18 @@ export default schemaMigrations({
         }),
       ],
     },
+    {
+      // Migration from schema v59 to v60
+      // Smart Actions Cache
+      toVersion: 60,
+      steps: [
+        addColumns({
+          table: 'journal_entries',
+          columns: [
+            { name: 'smart_actions_json', type: 'string', isOptional: true },
+          ],
+        }),
+      ],
+    },
   ],
 });

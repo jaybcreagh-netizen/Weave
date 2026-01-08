@@ -23,7 +23,7 @@ import { logger } from '@/shared/services/logger.service'
 // ============================================================================
 
 const FUNCTION_NAME = 'oracle-journal'
-const DEFAULT_MAX_TOKENS = 1024
+const DEFAULT_MAX_TOKENS = 8192
 const DEFAULT_TEMPERATURE = 1.0
 
 export interface SupabaseProxyConfig {
@@ -63,6 +63,12 @@ export class SupabaseProxyProvider implements LLMProvider {
                 )
             }
 
+            const jsonModeValue = options?.jsonMode ?? false
+            logger.debug('SupabaseProxyProvider', 'Invoking Edge Function', {
+                jsonMode: jsonModeValue,
+                promptPreview: prompt.user?.substring(0, 100)
+            })
+
             const { data, error } = await supabase.functions.invoke(this.functionName, {
                 body: {
                     system: prompt.system,
@@ -70,6 +76,8 @@ export class SupabaseProxyProvider implements LLMProvider {
                     model: this.model,
                     temperature: options?.temperature ?? DEFAULT_TEMPERATURE,
                     maxTokens: options?.maxTokens ?? DEFAULT_MAX_TOKENS,
+                    jsonMode: jsonModeValue,
+                    thinkingLevel: options?.thinkingLevel,
                 },
             })
 
@@ -151,9 +159,19 @@ export class SupabaseProxyProvider implements LLMProvider {
                 metadata: response.metadata,
             }
         } catch (error) {
+            // Better error message handling
+            const errorMessage = error instanceof Error
+                ? error.message
+                : (typeof error === 'object' ? JSON.stringify(error) : String(error))
+
+            logger.error('SupabaseProxyProvider', 'Failed to parse structured response', {
+                error: errorMessage,
+                responsePreview: response.text?.substring(0, 200)
+            })
+
             throw createLLMError(
                 LLMErrorType.PARSE_ERROR,
-                `Failed to parse JSON response: ${error instanceof Error ? error.message : 'Unknown error'}`,
+                `Failed to parse JSON response: ${errorMessage}`,
                 { retryable: true }
             )
         }

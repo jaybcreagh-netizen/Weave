@@ -34,6 +34,7 @@ import { differenceInDays } from 'date-fns';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { useAppSleeping } from '@/shared/hooks/useAppState';
 import { UIEventBus } from '@/shared/services/ui-event-bus';
+import * as Sentry from '@sentry/react-native';
 import { HomeWidgetBase, HomeWidgetConfig } from '../HomeWidgetBase';
 import { database } from '@/db';
 import { Q } from '@nozbe/watermelondb';
@@ -241,8 +242,11 @@ export function JournalWidget() {
         // ... (keep existing implementation of determineState) ...
         // If forceDefaultPrompt is set, skip all prioritization and show random prompt
         if (forceDefaultPrompt) {
+            Sentry.addBreadcrumb({ category: 'journal-widget', message: 'Using forced default prompt', level: 'info' });
             return getRandomGeneralPrompt();
         }
+
+        Sentry.addBreadcrumb({ category: 'journal-widget', message: 'determineState started', level: 'info' });
 
         // 1. Check Weekly Reflection (Sunday or Monday, not yet completed for target week)
         const today = new Date();
@@ -251,14 +255,17 @@ export function JournalWidget() {
 
         if (isSundayOrMonday) {
             try {
+                Sentry.addBreadcrumb({ category: 'journal-widget', message: 'Step 1: Checking weekly reflection...', level: 'info' });
                 // Use the centralized check which correctly handles week bounds
                 // (Sunday/Monday = reflecting on PREVIOUS week, not current)
                 const hasReflectedThisWeek = await hasCompletedReflectionForCurrentWeek();
+                Sentry.addBreadcrumb({ category: 'journal-widget', message: `Step 1: Weekly reflection check complete. hasReflected=${hasReflectedThisWeek}`, level: 'info' });
                 // Only show reflection prompt if not yet completed - otherwise fall through to other prompts
                 if (!hasReflectedThisWeek) {
                     return { type: 'weekly-reflection' };
                 }
             } catch (error) {
+                Sentry.addBreadcrumb({ category: 'journal-widget', message: 'Step 1: Weekly reflection check failed', level: 'warning', data: { error: String(error) } });
                 console.warn('[JournalWidget] Error checking weekly reflection:', error);
             }
             // If completed or error, continue to check other states
@@ -267,7 +274,9 @@ export function JournalWidget() {
         // 2. Check for meaningful weave in last 48h
         try {
             if (typeof getRecentMeaningfulWeaves === 'function') {
+                Sentry.addBreadcrumb({ category: 'journal-widget', message: 'Step 2: Fetching meaningful weaves...', level: 'info' });
                 const meaningfulWeaves = await getRecentMeaningfulWeaves(1, 48);
+                Sentry.addBreadcrumb({ category: 'journal-widget', message: `Step 2: Meaningful weaves fetched. count=${meaningfulWeaves?.length || 0}`, level: 'info' });
                 if (meaningfulWeaves && meaningfulWeaves.length > 0) {
                     const weave = meaningfulWeaves[0];
                     const prompts = generateJournalPrompts({ type: 'weave', weave });
@@ -277,27 +286,33 @@ export function JournalWidget() {
                 }
             }
         } catch (error) {
+            Sentry.addBreadcrumb({ category: 'journal-widget', message: 'Step 2: Meaningful weaves fetch failed', level: 'warning', data: { error: String(error) } });
             console.warn('[JournalWidget] Error fetching meaningful weaves:', error);
         }
 
         // 3. Check for memories
         try {
             if (typeof getMemories === 'function') {
+                Sentry.addBreadcrumb({ category: 'journal-widget', message: 'Step 3: Fetching memories...', level: 'info' });
                 const memories = await getMemories(1);
+                Sentry.addBreadcrumb({ category: 'journal-widget', message: `Step 3: Memories fetched. count=${memories?.length || 0}`, level: 'info' });
                 if (memories && memories.length > 0) {
                     return { type: 'memory', memory: memories[0] };
                 }
             }
         } catch (error) {
+            Sentry.addBreadcrumb({ category: 'journal-widget', message: 'Step 3: Memories fetch failed', level: 'warning', data: { error: String(error) } });
             console.warn('[JournalWidget] Error fetching memories:', error);
         }
 
         // 4. Check days since last journal entry (nudge if 3+ days)
         try {
+            Sentry.addBreadcrumb({ category: 'journal-widget', message: 'Step 4: Checking last journal entry...', level: 'info' });
             const lastEntry = await database
                 .get<JournalEntry>('journal_entries')
                 .query(Q.sortBy('created_at', 'desc'), Q.take(1))
                 .fetch();
+            Sentry.addBreadcrumb({ category: 'journal-widget', message: `Step 4: Last entry check complete. found=${lastEntry.length > 0}`, level: 'info' });
 
             if (lastEntry.length > 0) {
                 const daysSince = differenceInDays(today, lastEntry[0].createdAt);
@@ -309,10 +324,12 @@ export function JournalWidget() {
                 return { type: 'nudge', daysSinceLastEntry: -1 };
             }
         } catch (error) {
+            Sentry.addBreadcrumb({ category: 'journal-widget', message: 'Step 4: Last entry check failed', level: 'warning', data: { error: String(error) } });
             console.warn('[JournalWidget] Error checking last entry:', error);
         }
 
         // 5. Default - general prompt
+        Sentry.addBreadcrumb({ category: 'journal-widget', message: 'Step 5: Using default prompt', level: 'info' });
         return getRandomGeneralPrompt();
     }, [promptKey, forceDefaultPrompt]);
 
@@ -332,6 +349,7 @@ export function JournalWidget() {
         // Function to load main widget state (prompt)
         const loadWidgetState = async () => {
             console.time('JournalWidget.loadState');
+            Sentry.addBreadcrumb({ category: 'journal-widget', message: 'loadWidgetState started', level: 'info' });
             setIsWidgetStateLoading(true);
             try {
                 // Reduced delay - the main content should load fast
@@ -339,23 +357,38 @@ export function JournalWidget() {
 
                 // Check if this load is still valid (not superseded by a newer load)
                 if (currentLoadId !== loadIdRef.current) {
+                    Sentry.addBreadcrumb({ category: 'journal-widget', message: 'Load superseded, aborting', level: 'info' });
                     console.log('[JournalWidget] Load superseded, aborting');
                     return;
                 }
 
                 // Race against a timeout to prevent infinite loading
+                // CRITICAL: Use resolve instead of reject for the timeout
+                // In production builds, JSI database queries may hang indefinitely
+                // if the native bridge isn't ready. A rejecting timeout won't help
+                // because Promise.race only moves on if a promise settles.
+                // By resolving with a fallback, we guarantee the widget exits loading.
+                Sentry.addBreadcrumb({ category: 'journal-widget', message: 'Starting determineState with 3s timeout', level: 'info' });
                 const statePromise = determineState();
-                const timeoutPromise = new Promise<WidgetState>((_, reject) =>
-                    setTimeout(() => reject(new Error('JournalWidget state determination timed out')), 5000)
-                );
+                let timeoutId: ReturnType<typeof setTimeout>;
+                const timeoutPromise = new Promise<WidgetState>((resolve) => {
+                    timeoutId = setTimeout(() => {
+                        Sentry.addBreadcrumb({ category: 'journal-widget', message: 'TIMEOUT: determineState took >3s, using fallback', level: 'warning' });
+                        console.warn('[JournalWidget] State determination timed out, using fallback');
+                        resolve(getRandomGeneralPrompt());
+                    }, 3000); // 3s timeout (reduced from 5s for better UX)
+                });
 
                 const state = await Promise.race([statePromise, timeoutPromise]);
+                clearTimeout(timeoutId!);
+                Sentry.addBreadcrumb({ category: 'journal-widget', message: `State resolved. type=${state.type}`, level: 'info' });
 
                 // Check both mounted and load ID to ensure we should update state
                 if (mountedRef.current && currentLoadId === loadIdRef.current) {
                     setWidgetState(state);
                 }
             } catch (error) {
+                Sentry.addBreadcrumb({ category: 'journal-widget', message: 'loadWidgetState caught error', level: 'error', data: { error: String(error) } });
                 console.error('[JournalWidget] Error loading state:', error);
                 if (mountedRef.current && currentLoadId === loadIdRef.current) {
                     setWidgetState(getRandomGeneralPrompt());
@@ -364,6 +397,7 @@ export function JournalWidget() {
                 // Always clear loading state if this is still the active load
                 if (mountedRef.current && currentLoadId === loadIdRef.current) {
                     setIsWidgetStateLoading(false);
+                    Sentry.addBreadcrumb({ category: 'journal-widget', message: 'loadWidgetState complete, loading=false', level: 'info' });
                     console.timeEnd('JournalWidget.loadState');
                 }
             }

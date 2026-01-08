@@ -6,7 +6,7 @@
  */
 
 import { useState, useCallback } from 'react'
-import { oracleService, GuidedSession, ReflectionContext, ComposedEntry } from '@/modules/oracle'
+import { oracleService, GuidedSession, ReflectionContext, ComposedEntry, actionExtractionService } from '@/modules/oracle'
 import { logger } from '@/shared/services/logger.service'
 import { database } from '@/db'
 import JournalEntry from '@/db/models/JournalEntry'
@@ -265,6 +265,8 @@ export function useGuidedReflection(): UseGuidedReflectionReturn {
                 }
             }
 
+            let targetId: string | undefined;
+
             await database.write(async () => {
                 const newEntry = await database.get<JournalEntry>('journal_entries').create((entry) => {
                     entry.content = result.content
@@ -342,7 +344,15 @@ export function useGuidedReflection(): UseGuidedReflectionReturn {
                         logger.warn('useGuidedReflection', 'Could not update interaction with Oracle metadata', { err })
                     }
                 }
+
+                targetId = newEntry.id;
             })
+
+            // TRIGGER SILENT AUDIT
+            if (targetId) {
+                actionExtractionService.queueEntry(targetId)
+            }
+
         } catch (error) {
             logger.error('useGuidedReflection', 'Failed to save journal entry', { error })
             throw error

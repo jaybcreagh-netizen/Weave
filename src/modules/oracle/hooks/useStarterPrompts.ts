@@ -14,9 +14,15 @@ import { database } from '@/db'
 import { Q } from '@nozbe/watermelondb'
 import Intention from '@/db/models/Intention'
 
+// Simple in-memory cache
+let cachedPrompts: StarterPrompt[] | null = null
+let lastFetchTime = 0
+const CACHE_TTL = 1000 * 60 * 15 // 15 minutes
+
 export interface StarterPrompt {
     id: string
-    text: string
+    text: string // Display label
+    prompt?: string // Actual text sent to LLM (defaults to text if undefined)
     type: 'contextual' | 'evergreen' | 'followup'
 }
 
@@ -29,7 +35,7 @@ export type OracleEntryPoint = 'insights' | 'circle' | 'journal' | 'friend' | 'i
  * 
  * @param context - Where Oracle was opened from (affects chip suggestions)
  */
-export function useStarterPrompts(context: OracleEntryPoint = 'default'): StarterPrompt[] {
+export function useStarterPrompts(context: OracleEntryPoint = 'default'): { prompts: StarterPrompt[], refresh: () => void, loading: boolean } {
     const { friends } = useFriendsObservable()
     const { suggestions } = useSuggestions()
     const [followUps, setFollowUps] = useState<FollowUpPrompt[]>([])
@@ -57,33 +63,56 @@ export function useStarterPrompts(context: OracleEntryPoint = 'default'): Starte
         return () => { mounted = false }
     }, [])
 
-    // Fetch personalized prompts (async)
+    // Force refresh mechanism
+    const [refreshKey, setRefreshKey] = useState(0)
+    const refresh = () => setRefreshKey(prev => prev + 1)
+
+    const [isLoading, setIsLoading] = useState(false)
+
+    // Fetch personalized prompts (async) - depends on refreshKey
     useEffect(() => {
         let mounted = true
         const fetchPersonalized = async () => {
             if (context === 'default' || context === 'insights') {
+                // Check cache first (ignore cache if refreshing explicitly)
+                if (refreshKey === 0 && cachedPrompts && (Date.now() - lastFetchTime < CACHE_TTL)) {
+                    if (mounted) {
+                        setPersonalizedContextPrompts(cachedPrompts)
+                    }
+                    return
+                }
+
+                setIsLoading(true)
                 try {
                     // Use PATTERN tier to get journal sentiment
                     const oracleContext = await oracleContextBuilder.buildContext([], ContextTier.PATTERN)
                     const rawPrompts = await oracleService.getPersonalizedStarterPrompts(oracleContext)
 
+                    const newPrompts = rawPrompts.map((p, i) => ({
+                        id: `pers-${i}-${Date.now()}`,
+                        text: p.text,
+                        prompt: p.prompt,
+                        type: 'contextual'
+                    })) as StarterPrompt[]
+
                     if (mounted) {
-                        setPersonalizedContextPrompts(rawPrompts.map((p, i) => ({
-                            id: `pers-${i}-${Date.now()}`,
-                            text: p.text,
-                            type: 'contextual'
-                        })))
+                        setPersonalizedContextPrompts(newPrompts)
+                        // Update cache
+                        cachedPrompts = newPrompts
+                        lastFetchTime = Date.now()
                     }
                 } catch (error) {
                     console.warn('Failed to fetch personalized prompts', error)
+                } finally {
+                    if (mounted) setIsLoading(false)
                 }
             }
         }
         fetchPersonalized()
         return () => { mounted = false }
-    }, [context])
+    }, [context, refreshKey])
 
-    return useMemo(() => {
+    const result = useMemo(() => {
         const prompts: StarterPrompt[] = []
 
         // === 1. Context-Specific Prompts ===
@@ -136,28 +165,64 @@ export function useStarterPrompts(context: OracleEntryPoint = 'default'): Starte
                     prompts.push({
                         id: 'about-friend',
                         text: `How is ${topFriend.name} doing?`,
+                        prompt: `Tell me about my recent interactions with ${topFriend.name} and how our relationship is doing.`,
                         type: 'contextual',
                     })
                 }
                 prompts.push(
-                    { id: 'who-needs-attention', text: 'Who needs attention?', type: 'evergreen' }
+                    {
+                        id: 'who-needs-attention',
+                        text: 'Who needs attention?',
+                        prompt: 'Identify any friends who I have lost touch with or who might need proactive outreach.',
+                        type: 'evergreen'
+                    }
                 )
             }
         }
         else if (context === 'insights') {
             // === INSIGHTS CONTEXT: Data & Journaling ===
             prompts.push(
-                { id: 'summarise-week', text: 'Summarise my week', type: 'evergreen' },
-                { id: 'patterns', text: 'What are my social patterns?', type: 'evergreen' },
-                { id: 'battery-check', text: 'How is my social battery?', type: 'evergreen' }
+                {
+                    id: 'summarise-week',
+                    text: 'Summarise my week',
+                    prompt: 'Please look at my recent journal entries and interactions and summarise my week.',
+                    type: 'evergreen'
+                },
+                {
+                    id: 'patterns',
+                    text: 'What are my social patterns?',
+                    prompt: 'Analyze my social interaction patterns and tell me what you see.',
+                    type: 'evergreen'
+                },
+                {
+                    id: 'battery-check',
+                    text: 'How is my social battery?',
+                    prompt: 'Based on my recent activity, how is my social battery looking?',
+                    type: 'evergreen'
+                }
             )
         }
         else if (context === 'journal') {
             // === JOURNAL CONTEXT ===
             prompts.push(
-                { id: 'draft-reflection', text: 'Draft a reflection', type: 'evergreen' },
-                { id: 'what-to-write', text: 'What should I write about?', type: 'evergreen' },
-                { id: 'recent-highlights', text: 'Recent highlights', type: 'evergreen' },
+                {
+                    id: 'draft-reflection',
+                    text: 'Draft a reflection',
+                    prompt: 'Help me draft a reflection on my day.',
+                    type: 'evergreen'
+                },
+                {
+                    id: 'what-to-write',
+                    text: 'What should I write about?',
+                    prompt: 'Give me some journaling prompts based on my recent life events.',
+                    type: 'evergreen'
+                },
+                {
+                    id: 'recent-highlights',
+                    text: 'Recent highlights',
+                    prompt: 'What are some recent highlights from my journals?',
+                    type: 'evergreen'
+                },
             )
         }
         else {
@@ -180,8 +245,18 @@ export function useStarterPrompts(context: OracleEntryPoint = 'default'): Starte
             // 3. Fallbacks
             if (prompts.length < 4) {
                 prompts.push(
-                    { id: 'who-to-see', text: 'Who should I see this week?', type: 'evergreen' },
-                    { id: 'patterns', text: 'What are my social patterns?', type: 'evergreen' },
+                    {
+                        id: 'who-to-see',
+                        text: 'Who should I see this week?',
+                        prompt: 'Suggest some friends I should meet up with this week based on who I haven\'t seen in a while.',
+                        type: 'evergreen'
+                    },
+                    {
+                        id: 'patterns',
+                        text: 'What are my social patterns?',
+                        prompt: 'Analyze my social interaction patterns and tell me what you see.',
+                        type: 'evergreen'
+                    },
                 )
             }
         }
@@ -197,7 +272,21 @@ export function useStarterPrompts(context: OracleEntryPoint = 'default'): Starte
             }
         }
 
-        return prompts.slice(0, 4) // Strict limit to 4
-    }, [friends, followUps, context, personalizedContextPrompts, suggestions, activeIntentions])
-}
+        // Randomize slightly based on refreshKey to make it feel dynamic?
+        // Actually, personalized prompts are re-fetched on refreshKey change, so that's enough dynamism for now.
 
+        // Shuffle implementation using refreshKey to ensure consistent but changing order
+        const shuffled = [...prompts]
+        if (refreshKey > 0) {
+            // Simple deterministic shuffle based on refreshKey and length
+            for (let i = shuffled.length - 1; i > 0; i--) {
+                const j = (i + refreshKey) % (i + 1);
+                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+            }
+        }
+
+        return shuffled.slice(0, 4)
+    }, [friends, followUps, context, personalizedContextPrompts, suggestions, activeIntentions, refreshKey])
+
+    return { prompts: result, refresh, loading: isLoading }
+}

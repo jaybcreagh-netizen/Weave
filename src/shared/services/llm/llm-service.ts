@@ -18,6 +18,7 @@ import {
     LLMStructuredResponse,
     JSONSchema,
     TokenUsage,
+    LLMStreamChunk,
 } from './types'
 import { LLMError, classifyError, USER_ERROR_MESSAGES } from './errors'
 import { withRetry, RetryConfig } from './retry'
@@ -134,6 +135,60 @@ export class LLMService {
                     errorType: llmError.type,
                 })
             }
+
+            throw llmError
+        }
+    }
+
+    /**
+     * Complete a prompt with streaming
+     */
+    async *completeStream(
+        prompt: LLMPrompt,
+        options?: LLMOptions
+    ): AsyncGenerator<LLMStreamChunk, void, unknown> {
+        const provider = this.getProvider(options?.provider)
+        if (!provider) {
+            throw classifyError(new Error('No LLM provider available'), 'service')
+        }
+        if (!provider.completeStream) {
+            throw classifyError(new Error(`Provider ${provider.name} does not support streaming`), 'service')
+        }
+
+        const startTime = Date.now()
+        let usage: TokenUsage | undefined
+
+        try {
+            // Note: Retry logic for streams is complex (requires buffering), skipping for now.
+            const stream = provider.completeStream(prompt, options)
+
+            for await (const chunk of stream) {
+                if (chunk.usage) {
+                    usage = chunk.usage
+                }
+                yield chunk
+            }
+
+            // Log success (approximate tokens if not provided)
+            await this.logQuality({
+                promptId: 'direct_stream',
+                promptVersion: '1.0.0',
+                latencyMs: Date.now() - startTime,
+                tokensUsed: usage?.totalTokens || 0,
+                success: true,
+            })
+        } catch (error) {
+            const llmError = classifyError(error, provider.name)
+
+            // Log failure
+            await this.logQuality({
+                promptId: 'direct_stream',
+                promptVersion: '1.0.0',
+                latencyMs: Date.now() - startTime,
+                tokensUsed: 0,
+                success: false,
+                errorType: llmError.type,
+            })
 
             throw llmError
         }

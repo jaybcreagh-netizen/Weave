@@ -5,20 +5,76 @@ import { UIEventBus } from '@/shared/services/ui-event-bus';
 
 import { MilestoneCelebration } from '@/modules/gamification';
 import { TrophyCabinetModal } from '@/modules/gamification';
-import { EventSuggestionModal } from '@/modules/interactions';
-import { WeeklyReflectionModal } from '@/modules/reflection';
+import { EventSuggestionModal, PlanWizard, usePlans, InteractionActions, PostWeaveRatingModal, BackgroundSuggestionFetcher } from '@/modules/interactions';
+import { WeeklyReflectionModal, IntentionFormModal } from '@/modules/reflection';
 import { SyncConflictModal, useAuth, SocialBatteryService } from '@/modules/auth';
-import { PostWeaveRatingModal } from '@/modules/interactions';
 import { MemoryMomentModal } from '@/modules/journal';
 import { EveningCheckinSheet } from '@/modules/home';
 import { EveningDigestChannel, EveningCheckinContent } from '@/modules/notifications';
 import { OracleSheet } from '@/modules/oracle';
-import { BackgroundSuggestionFetcher } from '@/modules/interactions';
 
+import { database } from '@/db';
+import FriendModel from '@/db/models/Friend';
 
 export function GlobalModals() {
     const { user } = useAuth();
     const [eveningCheckinContent, setEveningCheckinContent] = useState<EveningCheckinContent | null>(null);
+
+    // Global Modal State
+    const planWizardData = useUIStore((state) => state.planWizardData);
+    const closePlanWizard = useUIStore((state) => state.closePlanWizard);
+    const intentionFormData = useUIStore((state) => state.intentionFormData);
+    const closeIntentionForm = useUIStore((state) => state.closeIntentionForm);
+    const milestoneCelebrationData = useUIStore((state) => state.milestoneCelebrationData);
+    const hideMilestoneCelebration = useUIStore((state) => state.hideMilestoneCelebration);
+    const isTrophyCabinetOpen = useUIStore((state) => state.isTrophyCabinetOpen);
+    const closeTrophyCabinet = useUIStore((state) => state.closeTrophyCabinet);
+    const isWeeklyReflectionOpen = useUIStore((state) => state.isWeeklyReflectionOpen);
+    const closeWeeklyReflection = useUIStore((state) => state.closeWeeklyReflection);
+    const memoryMomentData = useUIStore((state) => state.memoryMomentData);
+    const digestSheetVisible = useUIStore((state) => state.digestSheetVisible);
+    const digestItems = useUIStore((state) => state.digestItems);
+
+    // Friend Models for Modals
+    const [planWizardFriend, setPlanWizardFriend] = useState<FriendModel | null>(null);
+    const [intentionFriend, setIntentionFriend] = useState<FriendModel | null>(null);
+
+    // Fetch friend for Plan Wizard
+    useEffect(() => {
+        if (planWizardData?.friendId) {
+            database.get<FriendModel>('friends').find(planWizardData.friendId)
+                .then(setPlanWizardFriend)
+                .catch(err => {
+                    console.warn('[GlobalModals] Failed to find friend for PlanWizard:', err);
+                    setPlanWizardFriend(null);
+                });
+        } else {
+            setPlanWizardFriend(null);
+        }
+    }, [planWizardData?.friendId]);
+
+    // Fetch friend for Intention Form
+    useEffect(() => {
+        if (intentionFormData?.friendId) {
+            database.get<FriendModel>('friends').find(intentionFormData.friendId)
+                .then(setIntentionFriend)
+                .catch(err => {
+                    console.warn('[GlobalModals] Failed to find friend for IntentionForm:', err);
+                    setIntentionFriend(null);
+                });
+        } else {
+            setIntentionFriend(null);
+        }
+    }, [intentionFormData?.friendId]);
+
+    // Intention Save Handler
+    const handleSaveIntention = useCallback(async (description: string | undefined, category?: any) => {
+        if (intentionFormData?.friendId) {
+            await InteractionActions.createIntention([intentionFormData.friendId], description, category);
+            // We rely on observable updates, but closing is manual
+            // IntentionFormModal calls onClose after this promise resolves, but we should close global state
+        }
+    }, [intentionFormData]);
 
     // Subscribe to UIEventBus to handle events from non-React code (notifications, etc.)
     useEffect(() => {
@@ -72,16 +128,6 @@ export function GlobalModals() {
         setEveningCheckinContent(null);
     }, []);
 
-    const milestoneCelebrationData = useUIStore((state) => state.milestoneCelebrationData);
-    const hideMilestoneCelebration = useUIStore((state) => state.hideMilestoneCelebration);
-    const isTrophyCabinetOpen = useUIStore((state) => state.isTrophyCabinetOpen);
-    const closeTrophyCabinet = useUIStore((state) => state.closeTrophyCabinet);
-    const isWeeklyReflectionOpen = useUIStore((state) => state.isWeeklyReflectionOpen);
-    const closeWeeklyReflection = useUIStore((state) => state.closeWeeklyReflection);
-    const memoryMomentData = useUIStore((state) => state.memoryMomentData);
-    const digestSheetVisible = useUIStore((state) => state.digestSheetVisible);
-    const digestItems = useUIStore((state) => state.digestItems);
-
     return (
         <>
             {/* Global Milestone Celebration Modal */}
@@ -98,6 +144,26 @@ export function GlobalModals() {
 
             {/* Global Event Suggestion Modal */}
             <EventSuggestionModal />
+
+            {/* Plan Wizard (Global) */}
+            {planWizardFriend && (
+                <PlanWizard
+                    visible={!!planWizardData}
+                    onClose={closePlanWizard}
+                    initialFriend={planWizardFriend}
+                    prefillData={planWizardData?.prefillData}
+                />
+            )}
+
+            {/* Intention Form Modal (Global) */}
+            {intentionFriend && (
+                <IntentionFormModal
+                    isOpen={!!intentionFormData}
+                    friendName={intentionFriend.name}
+                    onClose={closeIntentionForm}
+                    onSave={handleSaveIntention}
+                />
+            )}
 
             {/* Weekly Reflection Modal */}
             <WeeklyReflectionModal

@@ -31,6 +31,7 @@ import * as Haptics from 'expo-haptics';
 import { logger } from '@/shared/services/logger.service';
 import { YourPatternsSection } from '@/modules/insights';
 import { useRouter } from 'expo-router';
+import { actionExtractionService } from '@/modules/oracle';
 
 interface JournalEntryModalProps {
   isOpen: boolean;
@@ -161,6 +162,8 @@ export function JournalEntryModal({ isOpen, onClose, entry, onSave, onDelete }: 
     }
 
     try {
+      let targetId: string | undefined;
+
       await database.write(async () => {
         let journalEntry = entry;
 
@@ -193,6 +196,8 @@ export function JournalEntryModal({ isOpen, onClose, entry, onSave, onDelete }: 
           });
         }
 
+        targetId = journalEntry.id;
+
         // Create new friend links
         if (journalEntry) {
           const friendsCollection = database.get<JournalEntryFriend>('journal_entry_friends');
@@ -204,6 +209,12 @@ export function JournalEntryModal({ isOpen, onClose, entry, onSave, onDelete }: 
           }
         }
       });
+
+      // TRIGGER SILENT AUDIT
+      // Queue this entry for background action detection
+      if (targetId) {
+        actionExtractionService.queueEntry(targetId);
+      }
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       onSave();

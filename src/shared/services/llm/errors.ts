@@ -80,9 +80,32 @@ export interface LLMError extends Error {
  * @param provider - Provider name for context
  */
 export function classifyError(error: unknown, provider: string = 'unknown'): LLMError {
+    // Extract a proper error message
+    let message: string
+    if (error instanceof Error) {
+        message = error.message
+    } else if (typeof error === 'string') {
+        message = error
+    } else if (error !== null && typeof error === 'object') {
+        // Handle plain objects with message property
+        const obj = error as Record<string, unknown>
+        if (typeof obj.message === 'string') {
+            message = obj.message
+        } else {
+            // Stringify the whole object for debugging
+            try {
+                message = JSON.stringify(error)
+            } catch {
+                message = 'Unknown error'
+            }
+        }
+    } else {
+        message = 'Unknown error'
+    }
+
     const baseError: LLMError = {
         name: 'LLMError',
-        message: error instanceof Error ? error.message : String(error),
+        message,
         type: LLMErrorType.UNKNOWN,
         retryable: false,
         provider,

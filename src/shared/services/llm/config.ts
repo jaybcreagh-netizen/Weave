@@ -55,9 +55,9 @@ export const AVAILABLE_PROVIDERS: ProviderInfo[] = [
     {
         name: 'gemini',
         provider: 'gemini',
-        model: 'gemini-3.0-flash',
-        displayName: 'Gemini 3.0 Flash',
-        description: 'Latest, fastest Google model',
+        model: 'gemini-3-flash-preview',
+        displayName: 'Gemini 3.0 Flash Preview',
+        description: 'Latest, fastest Google model (Preview)',
     },
     {
         name: 'gemini',
@@ -101,7 +101,7 @@ const SECURE_KEY_CLAUDE = 'weave_llm_claude_api_key'
 const DEFAULT_CONFIG: LLMConfig = {
     // Default to supabase-proxy which routes through Edge Function (no client-side API key needed)
     provider: 'supabase-proxy',
-    geminiModel: 'gemini-2.0-flash',
+    geminiModel: 'gemini-3-flash-preview',
     claudeModel: 'claude-3.5-haiku-20241022',
 }
 
@@ -183,10 +183,13 @@ class LLMConfigManager {
         )
 
         // Register Gemini if we have a key (for users who want direct access)
-        if (this.config.geminiApiKey) {
+        // OR if we have the public env var (Simulating dev environment or baked key)
+        const geminiKey = this.config.geminiApiKey || process.env.EXPO_PUBLIC_GEMINI_API_KEY
+
+        if (geminiKey) {
             llmService.registerProvider(
                 createGeminiFlashProvider({
-                    apiKey: this.config.geminiApiKey,
+                    apiKey: geminiKey,
                     model: this.config.geminiModel,
                 }),
                 this.config.provider === 'gemini'

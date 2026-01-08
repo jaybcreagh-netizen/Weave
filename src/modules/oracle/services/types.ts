@@ -176,3 +176,37 @@ export interface OracleSuggestion {
     reasoning: string;
     initialQuestion: string;
 }
+
+export type OracleLensMode =
+    | 'consultation'
+    | 'go_deeper'
+    | 'plan_next_steps'
+    | 'expand_entry'
+    | 'quick_actions';
+
+export interface InsightAnalysisResult {
+    analysis: string
+    identified_pattern: string
+    clarifying_question: string
+    confidence: number
+}
+
+export interface AssessDraftResult {
+    status: 'complete' | 'gaps'
+    missing_elements: string[]
+    clarifying_questions: string[]
+    confidence: number
+}
+
+export interface SmartAction {
+    type: 'mimic_plan' | 'schedule_event' | 'create_intention' | 'update_profile' | 'reach_out';
+    label: string;
+    data: {
+        friendId?: string;
+        activity?: string;
+        date?: string;
+        note?: string;
+    };
+    confidence: number;
+}
+

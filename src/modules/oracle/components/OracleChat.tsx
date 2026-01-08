@@ -5,7 +5,7 @@
  * Displays messages, handles input, shows contextual chips.
  */
 
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect, useMemo } from 'react'
 import {
     View,
     TextInput,
@@ -29,6 +29,8 @@ import Animated, {
 import { useTheme } from '@/shared/hooks/useTheme'
 import { useOracle } from '../hooks/useOracle'
 import { OracleTurn } from '../services/oracle-service'
+import { OracleContext } from '../services/context-builder'
+import { StarterPrompt } from '../hooks/useStarterPrompts'
 import { OracleAction } from '../services/types'
 import { AnimatedWeaveIcon, WeaveIcon } from '@/shared/components/WeaveIcon'
 import { StarterPromptChips } from './StarterPromptChips'
@@ -44,6 +46,7 @@ import { PerfLogger } from '@/shared/utils/performance-logger';
 import { trackEvent, AnalyticsEvents } from '@/shared/services/analytics.service';
 import { useAuth } from '@/modules/auth/context/AuthContext';
 import { CachedImage } from '@/shared/ui/CachedImage';
+import { MessageItem } from './MessageItem';
 
 interface OracleChatProps {
     context?: OracleEntryPoint
@@ -58,10 +61,16 @@ interface OracleChatProps {
         title: string
         reasoning: string
     }
+    insightContext?: {
+        analysis: string
+        pattern: string
+        clarifyingQuestion: string
+        userAnswer?: string
+    }
     conversationId?: string
 }
 
-export function OracleChat({ context = 'default', friendId, friendName, onClose, portalHost, initialQuestion, journalContent, lensContext, conversationId }: OracleChatProps) {
+export function OracleChat({ context = 'default', friendId, friendName, onClose, portalHost, initialQuestion, journalContent, lensContext, insightContext, conversationId }: OracleChatProps) {
     const { colors, typography } = useTheme()
     const { messages, isLoading, error, askQuestion, startWithContext, loadConversation, remainingQuestions, saveToJournal, isSaved } = useOracle()
     const { user } = useAuth()
@@ -80,6 +89,9 @@ export function OracleChat({ context = 'default', friendId, friendName, onClose,
         let payload = ''
         if (lensContext) {
             payload += `[SELECTED LENS: ${lensContext.title} (${lensContext.archetype})]\nWhy this lens: ${lensContext.reasoning}\n\n`
+        }
+        if (insightContext) {
+            payload += `[INSIGHT ANALYSIS]\nPattern: ${insightContext.pattern}\nAnalysis: ${insightContext.analysis}\nClarifying Question Asked: "${insightContext.clarifyingQuestion}"\nUser Answer Context: The user is answering this question.\n\n`
         }
         if (journalContent) {
             payload += payload ? `[FOCUSED CONTENT]\n${journalContent}` : journalContent
@@ -195,7 +207,8 @@ INSTRUCTIONS:
         }
     }
 
-    const handleActionPress = (action: OracleAction) => {
+    // Memoized action handler
+    const handleActionPress = React.useCallback((action: OracleAction) => {
         switch (action.type) {
             case 'log_weave':
                 onClose?.()
@@ -246,7 +259,7 @@ INSTRUCTIONS:
                 // Implement sharing logic
                 break
         }
-    }
+    }, [onClose, router.push, saveToJournal, setShowGuidedReflection])
 
     const handleGuidedComplete = () => {
         setShowGuidedReflection(false)
@@ -260,77 +273,39 @@ INSTRUCTIONS:
         listRef.current?.scrollToOffset({ offset: 0, animated: true })
     }
 
-    const renderMessage = ({ item }: { item: OracleTurn }) => {
-        const isUser = item.role === 'user'
+    // Memoized render item to prevent list re-renders on inputs
+    const renderMessage = React.useCallback(({ item }: { item: OracleTurn }) => {
         return (
-            <View className="mb-4">
-                <View className={`flex-row ${isUser ? 'justify-end' : 'justify-start'}`}>
-                    {!isUser && (
-                        <View
-                            className="w-8 h-8 rounded-full items-center justify-center mr-2 mt-1"
-                            style={{ backgroundColor: colors.primary }}
-                        >
-                            <WeaveIcon size={16} color={colors['primary-foreground']} />
-                        </View>
-                    )}
-
-                    <View
-                        className={`px-4 py-3 rounded-2xl max-w-[80%] ${isUser ? 'rounded-tr-none' : 'rounded-tl-none'}`}
-                        style={{
-                            backgroundColor: isUser ? colors.primary : colors.card,
-                            borderWidth: isUser ? 0 : 1,
-                            borderColor: colors.border
-                        }}
-                    >
-                        {isUser ? (
-                            <Text style={{ color: colors['primary-foreground'], fontFamily: typography.fonts.sans }}>
-                                {item.content}
-                            </Text>
-                        ) : (
-                            <SimpleMarkdown
-                                content={item.content}
-                                style={{
-                                    color: colors.foreground,
-                                    fontFamily: typography.fonts.sans,
-                                    fontSize: 15,
-                                    lineHeight: 22,
-                                }}
-                            />
-                        )}
-                    </View>
-
-                    {isUser && (
-                        <View
-                            className="w-8 h-8 rounded-full items-center justify-center ml-2 mt-1 overflow-hidden"
-                            style={{ backgroundColor: colors.muted }}
-                        >
-                            {user?.user_metadata?.avatar_url || user?.user_metadata?.picture ? (
-                                <CachedImage
-                                    source={{ uri: user?.user_metadata?.avatar_url || user?.user_metadata?.picture }}
-                                    style={{ width: 32, height: 32 }}
-                                    contentFit="cover"
-                                />
-                            ) : (
-                                <User size={16} color={colors['muted-foreground']} />
-                            )}
-                        </View>
-                    )}
-                </View>
-
-                {!isUser && item.action && (
-                    <View className="ml-10">
-                        <OracleActionButton action={item.action} onPress={handleActionPress} />
-                    </View>
-                )}
-            </View>
+            <MessageItem
+                item={item}
+                colors={colors}
+                typography={typography}
+                user={user}
+                onAction={handleActionPress}
+            />
         )
+    }, [colors, typography, user, handleActionPress])
+
+    const handlePromptSelect = (prompt: StarterPrompt) => {
+        // Just set the text, but let user send it?
+        // NO - Previous user feedback "taps it sends straight to chat".
+        // SO - We should AUTO SEND, but using the prompt logic.
+
+        const instruction = prompt.prompt || prompt.text
+        const displayLabel = prompt.text
+
+        // If they differ, we use displayOverride
+        if (instruction !== displayLabel) {
+            askQuestion(instruction, context, displayLabel)
+        } else {
+            askQuestion(instruction)
+        }
     }
 
-    const renderEmptyState = () => (
-        <View className="flex-1 items-center justify-center p-6">
+    const emptyState = useMemo(() => (
+        <View className="flex-1 items-center justify-center p-6 bg-background">
             <View
                 className="w-32 h-32 rounded-full items-center justify-center mb-6"
-                style={{ backgroundColor: colors.muted }}
             >
                 <AnimatedWeaveIcon size={80} color={colors.primary} animatedProps={animatedProps} />
             </View>
@@ -342,9 +317,9 @@ INSTRUCTIONS:
             </Text>
 
             <InsightsChip onPress={handleInsightsChipPress} />
-            <StarterPromptChips onSelect={setInput} context={context} />
+            <StarterPromptChips onSelect={handlePromptSelect} context={context} />
         </View>
-    )
+    ), [colors, typography, animatedProps, context, askQuestion])
 
     return (
         <>
@@ -385,7 +360,7 @@ INSTRUCTIONS:
                                             </View>
                                         </View>
                                     </View>
-                                ) : renderEmptyState
+                                ) : emptyState
                             }
                             ListHeaderComponent={
                                 <View className="mb-4">
@@ -449,7 +424,7 @@ INSTRUCTIONS:
                         </View>
                     </View>
                 </TouchableWithoutFeedback>
-            </KeyboardAvoidingView>
+            </KeyboardAvoidingView >
 
             <GuidedReflectionSheet
                 isOpen={showGuidedReflection}

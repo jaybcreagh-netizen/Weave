@@ -2,13 +2,14 @@ import React from 'react';
 import { TouchableOpacity, TouchableOpacityProps, ActivityIndicator, View } from 'react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { Text } from './Text';
+import { Icon } from './Icon';
 
 export interface ButtonProps extends TouchableOpacityProps {
     variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'destructive';
     size?: 'sm' | 'md' | 'lg';
     label?: string;
     loading?: boolean;
-    icon?: React.ReactNode;
+    icon?: React.ReactNode | string;
     fullWidth?: boolean;
     className?: string;
 }
@@ -100,7 +101,15 @@ export function Button({
                 />
             ) : (
                 <>
-                    {icon && <View className="mr-2">{icon}</View>}
+                    {icon && (
+                        <View className="mr-2">
+                            {typeof icon === 'string' ? (
+                                <Icon name={icon as any} size={16} color={textStyle.color} />
+                            ) : (
+                                icon
+                            )}
+                        </View>
+                    )}
                     {label ? (
                         <Text
                             variant="button"

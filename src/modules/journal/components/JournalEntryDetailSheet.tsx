@@ -16,7 +16,8 @@ import {
 } from 'lucide-react-native';
 import { WeaveIcon } from '@/shared/components/WeaveIcon';
 import { StandardBottomSheet } from '@/shared/ui/Sheet';
-import { oracleService, OracleSuggestionSheet, OracleSuggestion } from '@/modules/oracle';
+import { oracleService } from '@/modules/oracle';
+import { useOracleSheet } from '@/modules/oracle/hooks/useOracleSheet';
 import { database } from '@/db';
 import JournalEntry from '@/db/models/JournalEntry';
 import FriendModel from '@/db/models/Friend';
@@ -37,7 +38,7 @@ interface JournalEntryDetailSheetProps {
     onEdit: (entry: JournalEntry) => void;
     onDelete: () => void;
     onMimicWeave: (friendIds: string[], options?: { date?: string; category?: string }) => void;
-    onReflect: (entry: JournalEntry, suggestion?: OracleSuggestion) => void;
+    onReflect: (entry: JournalEntry, suggestion?: any) => void;
     onCreateLifeEvent: (friendId: string) => void;
     onReachOut: (friendId: string) => void;
 }
@@ -66,46 +67,18 @@ export function JournalEntryDetailSheet({
     const [relatedEntries, setRelatedEntries] = useState<JournalEntry[]>([]);
 
     // Oracle Lens State
-    const [isAnalyzing, setIsAnalyzing] = useState(false);
-    const [showOracleSheet, setShowOracleSheet] = useState(false);
-    const [suggestions, setSuggestions] = useState<OracleSuggestion[]>([]);
+    const { open } = useOracleSheet();
 
-    const handleAskOracle = async () => {
+    const handleAskOracle = () => {
         if (!entry) return;
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-        // If we already have suggestions for this entry, just show them
-        if (suggestions.length > 0) {
-            setShowOracleSheet(true);
-            return;
-        }
-
-        setIsAnalyzing(true);
-        try {
-            const results = await oracleService.analyzeEntryContext(entry);
-
-            if (results && results.length > 0) {
-                setSuggestions(results);
-                setShowOracleSheet(true);
-            } else {
-                // Fallback if no suggestions generated
-                onReflect(entry);
-            }
-        } catch (error) {
-            logger.error('JournalDetail', 'Failed to analyze entry', error);
-            // Fallback - just open standard reflect if analysis fails
-            onReflect(entry);
-        } finally {
-            setIsAnalyzing(false);
-        }
-    };
-
-    const handleOracleSelect = (suggestion: OracleSuggestion) => {
-        setShowOracleSheet(false);
-        // Delay to allow sheet to close
-        setTimeout(() => {
-            if (entry) onReflect(entry, suggestion);
-        }, 500);
+        open({
+            context: 'journal',
+            journalContent: entry.content,
+            friendId: friends.length > 0 ? friends[0].id : undefined,
+            friendName: friends.length > 0 ? friends[0].name : undefined
+        });
     };
 
     const loadData = async () => {
@@ -185,7 +158,10 @@ export function JournalEntryDetailSheet({
             setLinkedWeaveInfo(null);
             setSignals(null);
             setRelatedEntries([]);
-            setSuggestions([]);
+            setFriends([]);
+            setLinkedWeaveInfo(null);
+            setSignals(null);
+            setRelatedEntries([]);
         }
     }, [entry, isOpen]);
 
@@ -418,79 +394,132 @@ export function JournalEntryDetailSheet({
                                 Actions
                             </Text>
 
-                            <View className="flex-row flex-wrap justify-between gap-y-3">
-                                {/* Ask Oracle (Unified Styling) */}
-                                <TouchableOpacity
-                                    onPress={handleAskOracle}
-                                    disabled={isAnalyzing}
-                                    className="w-[48%] flex-col items-center justify-center p-4 rounded-2xl border gap-2"
-                                    style={{
-                                        backgroundColor: colors.primary + '10',
-                                        borderColor: colors.primary + '30'
-                                    }}
-                                >
-                                    {isAnalyzing ? (
-                                        <Loader2 size={24} color={colors.primary} className="animate-spin" />
-                                    ) : (
-                                        <WeaveIcon size={24} color={colors.primary} opacity={0.8} />
+                            {/* Actions Logic: Smart Actions vs Defaults */}
+                            {entry && entry.smartActions && entry.smartActions.length > 0 ? (
+                                <View className="flex-row flex-wrap justify-between gap-y-3">
+                                    {entry.smartActions.map((action: any, index: number) => {
+                                        let icon = <Sparkles size={24} color={colors.primary} opacity={0.8} />;
+                                        let onPress = () => { };
+
+                                        // Map action types to handlers
+                                        switch (action.type) {
+                                            case 'mimic_plan':
+                                                icon = <Copy size={24} color={colors.primary} opacity={0.8} />;
+                                                onPress = () => handleMimic(); // TODO: Pass specific data
+                                                break;
+                                            case 'schedule_event':
+                                                icon = <Calendar size={24} color={colors.primary} opacity={0.8} />;
+                                                onPress = () => handleMimic(); // Reuse mimic for now
+                                                break;
+                                            case 'create_intention':
+                                                icon = <Zap size={24} color={colors.primary} opacity={0.8} />;
+                                                onPress = () => { /* Intention creation modal */ };
+                                                break;
+                                            case 'reach_out':
+                                                icon = <MessageCircle size={24} color={colors.primary} opacity={0.8} />;
+                                                onPress = () => handleReachOut();
+                                                break;
+                                            case 'update_profile': // Phase 3
+                                                icon = <Edit3 size={24} color={colors.primary} opacity={0.8} />;
+                                                break;
+                                        }
+
+                                        return (
+                                            <TouchableOpacity
+                                                key={`smart-action-${index}`}
+                                                onPress={() => {
+                                                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                                                    onPress();
+                                                }}
+                                                className="w-[48%] flex-col items-center justify-center p-4 rounded-2xl border gap-2"
+                                                style={{
+                                                    backgroundColor: colors.primary + '15', // Highlighted bg
+                                                    borderColor: colors.primary + '40'
+                                                }}
+                                            >
+                                                <View className="absolute top-2 right-2">
+                                                    <Sparkles size={12} color={colors.primary} opacity={0.6} />
+                                                </View>
+                                                {icon}
+                                                <Text className="text-sm font-medium text-center" style={{ color: colors.primary }}>
+                                                    {action.label}
+                                                </Text>
+                                            </TouchableOpacity>
+                                        );
+                                    })}
+                                </View>
+                            ) : (
+                                /* Default Generic Actions */
+                                <View className="flex-row flex-wrap justify-between gap-y-3">
+                                    {/* Ask The Oracle */}
+                                    <TouchableOpacity
+                                        onPress={handleAskOracle}
+                                        className="w-[48%] flex-col items-center justify-center p-4 rounded-2xl border gap-2"
+                                        style={{
+                                            backgroundColor: colors.primary + '15', // Slightly darker to stand out? Or same? Let's use same for consistency, or maybe slightly different to highlight AI?
+                                            borderColor: colors.primary + '30'
+                                        }}
+                                    >
+                                        <Sparkles size={24} color={colors.primary} opacity={0.8} />
+                                        <Text className="text-sm font-medium text-center" style={{ color: colors.primary }}>
+                                            Ask The Oracle
+                                        </Text>
+                                    </TouchableOpacity>
+
+                                    {/* Mimic Plan */}
+                                    {(friends.length > 0 || linkedWeaveInfo) && (
+                                        <TouchableOpacity
+                                            onPress={handleMimic}
+                                            className="w-[48%] flex-col items-center justify-center p-4 rounded-2xl border gap-2"
+                                            style={{
+                                                backgroundColor: colors.primary + '10',
+                                                borderColor: colors.primary + '30'
+                                            }}
+                                        >
+                                            <Copy size={24} color={colors.primary} opacity={0.8} />
+                                            <Text className="text-sm font-medium text-center" style={{ color: colors.primary }}>
+                                                Mimic Plan
+                                            </Text>
+                                        </TouchableOpacity>
                                     )}
-                                    <Text className="text-sm font-medium text-center" style={{ color: colors.primary }}>
-                                        {isAnalyzing ? 'Consulting...' : 'Ask Oracle'}
-                                    </Text>
-                                </TouchableOpacity>
 
-                                {/* Mimic Weave */}
-                                {friends.length > 0 && (
-                                    <TouchableOpacity
-                                        onPress={handleMimic}
-                                        className="w-[48%] flex-col items-center justify-center p-4 rounded-2xl border gap-2"
-                                        style={{
-                                            backgroundColor: colors.primary + '10',
-                                            borderColor: colors.primary + '30'
-                                        }}
-                                    >
-                                        <Copy size={24} color={colors.primary} opacity={0.8} />
-                                        <Text className="text-sm font-medium text-center" style={{ color: colors.primary }}>
-                                            Mimic Plan
-                                        </Text>
-                                    </TouchableOpacity>
-                                )}
+                                    {/* Life Event */}
+                                    {friends.length > 0 && (
+                                        <TouchableOpacity
+                                            onPress={handleLifeEvent}
+                                            className="w-[48%] flex-col items-center justify-center p-4 rounded-2xl border gap-2"
+                                            style={{
+                                                backgroundColor: colors.primary + '10',
+                                                borderColor: colors.primary + '30'
+                                            }}
+                                        >
+                                            <Gift size={24} color={colors.primary} opacity={0.8} />
+                                            <Text className="text-sm font-medium text-center" style={{ color: colors.primary }}>
+                                                Add Milestone
+                                            </Text>
+                                        </TouchableOpacity>
+                                    )}
 
-                                {/* Life Event */}
-                                {friends.length > 0 && (
-                                    <TouchableOpacity
-                                        onPress={handleLifeEvent}
-                                        className="w-[48%] flex-col items-center justify-center p-4 rounded-2xl border gap-2"
-                                        style={{
-                                            backgroundColor: colors.primary + '10',
-                                            borderColor: colors.primary + '30'
-                                        }}
-                                    >
-                                        <Gift size={24} color={colors.primary} opacity={0.8} />
-                                        <Text className="text-sm font-medium text-center" style={{ color: colors.primary }}>
-                                            Add Milestone
-                                        </Text>
-                                    </TouchableOpacity>
-                                )}
-
-                                {/* Reach Out (formerly Nudge) */}
-                                {friends.length > 0 && (
-                                    <TouchableOpacity
-                                        onPress={handleReachOut}
-                                        className="w-[48%] flex-col items-center justify-center p-4 rounded-2xl border gap-2"
-                                        style={{
-                                            backgroundColor: colors.primary + '10',
-                                            borderColor: colors.primary + '30'
-                                        }}
-                                    >
-                                        <MessageCircle size={24} color={colors.primary} opacity={0.8} />
-                                        <Text className="text-sm font-medium text-center" style={{ color: colors.primary }}>
-                                            Reach Out
-                                        </Text>
-                                    </TouchableOpacity>
-                                )}
-                            </View>
+                                    {/* Reach Out (formerly Nudge) */}
+                                    {friends.length > 0 && (
+                                        <TouchableOpacity
+                                            onPress={handleReachOut}
+                                            className="w-[48%] flex-col items-center justify-center p-4 rounded-2xl border gap-2"
+                                            style={{
+                                                backgroundColor: colors.primary + '10',
+                                                borderColor: colors.primary + '30'
+                                            }}
+                                        >
+                                            <MessageCircle size={24} color={colors.primary} opacity={0.8} />
+                                            <Text className="text-sm font-medium text-center" style={{ color: colors.primary }}>
+                                                Reach Out
+                                            </Text>
+                                        </TouchableOpacity>
+                                    )}
+                                </View>
+                            )}
                         </View>
+                        {/* Removed stray View closing tag here */}
 
                         {/* Related Memories (Moved to bottom & simplified) */}
                         {relatedEntries.length > 0 && (
@@ -535,17 +564,9 @@ export function JournalEntryDetailSheet({
                                 </View>
                             </View>
                         )}
-
                     </ScrollView>
                 </View>
-            </StandardBottomSheet>
-
-            <OracleSuggestionSheet
-                visible={showOracleSheet}
-                onClose={() => setShowOracleSheet(false)}
-                suggestions={suggestions}
-                onSelect={handleOracleSelect}
-            />
+            </StandardBottomSheet >
         </>
     );
 }

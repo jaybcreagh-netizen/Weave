@@ -13,7 +13,10 @@ import {
     InsightSignal,
     GuidedSession,
     GuidedTurn,
-    OracleSuggestion
+    OracleSuggestion,
+    InsightAnalysisResult,
+    AssessDraftResult,
+    SmartAction
 } from './types'
 import { writeScheduler } from '@/shared/services/write-scheduler'
 import { database } from '@/db'
@@ -231,8 +234,117 @@ class OracleService {
     }
 
     /**
-     * Parse the LLM response, handling both JSON and plain text fallback
+     * Ask the Oracle a question with streaming response
+     * Yields the current text content as it generates
      */
+    async *askStream(question: string, friendIds: string[] = [], additionalContext?: string): AsyncGenerator<string, OracleResponse, unknown> {
+        this.checkRateLimit()
+
+        // Initialize session if needed
+        if (!this.currentSession) {
+            await this.startConversation(undefined, 'consultation', friendIds[0])
+        }
+
+        const session = this.currentSession!
+
+        // 1. Build Context
+        const contextData = await oracleContextBuilder.buildContext(friendIds, session.contextTier, question)
+        let contextString = JSON.stringify(contextData, null, 2)
+
+        if (additionalContext) {
+            contextString += `\n\n[FOCUSED CONTEXT START]\nThe user is asking about this specific content (e.g. a journal entry):\n"${additionalContext}"\n[FOCUSED CONTEXT END]\n`
+        }
+
+        // 2. Format History
+        const historyText = session.turns
+            .slice(-6)
+            .map(t => `${t.role.toUpperCase()}: ${t.content}`)
+            .join('\n\n')
+
+        // 3. Prepare Prompt
+        const promptDef = getPrompt('oracle_consultation')
+        if (!promptDef) {
+            throw new Error('Oracle consultation prompt not found in registry')
+        }
+
+        const tonePref = contextData.userProfile.oracleTonePreference || 'grounded'
+        const toneModifier = TONE_MODIFIERS[tonePref] || TONE_MODIFIERS['grounded']
+
+        const finalPrompt = interpolatePrompt(promptDef.userPromptTemplate, {
+            context: contextString,
+            conversationHistory: historyText,
+            question: question,
+            turnNumber: Math.floor(session.turns.length / 2) + 1,
+            toneModifier: toneModifier
+        })
+
+        const systemPromptWithTone = `${promptDef.systemPrompt}\n\n${toneModifier}`
+
+        logger.info('OracleService', 'Asking Oracle (Stream)', {
+            questionLen: question.length,
+            contextTier: session.contextTier
+        })
+
+        // 4. Call LLM Stream
+        const stream = llmService.completeStream({
+            system: systemPromptWithTone,
+            user: finalPrompt,
+        }, { ...promptDef.defaultOptions, jsonMode: true }) // Force JSON mode for better streaming parsing
+
+        let fullRawText = ''
+        let lastYieldedTextLength = 0
+
+        try {
+            for await (const chunk of stream) {
+                fullRawText += chunk.text
+
+                // Real-time JSON field extraction
+                // Matches "text": "..." handling escaped quotes
+                // We assume Gemini outputs "text" field first as per examples
+                const textMatch = fullRawText.match(/"text":\s*"((?:[^"\\]|\\.)*)/)
+
+                if (textMatch) {
+                    let currentContent = textMatch[1]
+                    // Unescape for display
+                    currentContent = currentContent.replace(/\\"/g, '"').replace(/\\\\/g, '\\').replace(/\\n/g, '\n')
+
+                    if (currentContent.length > lastYieldedTextLength) {
+                        yield currentContent
+                        lastYieldedTextLength = currentContent.length
+                    }
+                } else if (!fullRawText.trim().startsWith('{') && fullRawText.length > 5) {
+                    // Fallback: raw text if not JSON
+                    yield fullRawText
+                }
+            }
+        } catch (e) {
+            logger.error('OracleService', 'Streaming failed', e)
+            // Continue to parsing what we have or re-throwing?
+            // If we have some text, we might want to save it.
+            if (!fullRawText) throw e
+        }
+
+        // 5. Parse Final Response
+        const parsed = this.parseResponse(fullRawText)
+
+        // 6. Update Session
+        session.turns.push({ role: 'user', content: question, timestamp: Date.now() })
+        session.turns.push({
+            role: 'assistant',
+            content: parsed.text,
+            timestamp: Date.now(),
+            action: parsed.action
+        })
+        session.lastUpdated = Date.now()
+
+        // Increment usage
+        this.incrementUsage()
+
+        // Persist to DB
+        await this.persistSession(friendIds[0])
+
+        return parsed
+    }
     private parseResponse(rawResponse: string): OracleResponse {
         try {
             // Try to parse as JSON
@@ -244,8 +356,35 @@ class OracleService {
                 action: parsed.suggestedAction
             }
         } catch (e) {
-            // Fallback: treat as plain text
-            logger.warn('OracleService', 'Failed to parse JSON response, using raw text', { error: e })
+            // Fallback 1: Try to extract text via regex if it looks like a JSON blob
+            // Matches "text": "..." handling escaped quotes, even if truncated
+            const textMatch = rawResponse.match(/"text":\s*"((?:[^"\\]|\\.)*)(?:"|$)/s)
+
+            if (textMatch && textMatch[1]) {
+                logger.warn('OracleService', 'JSON parse failed, but extracted text via regex', { error: e })
+                let extractedText = textMatch[1]
+
+                // Cleanup: replace escaped quotes
+                extractedText = extractedText.replace(/\\"/g, '"').replace(/\\\\/g, '\\')
+
+                return {
+                    text: extractedText, // Might be truncated, but better than raw JSON
+                    action: undefined
+                }
+            }
+
+            // Fallback 2: If it really looks like broken JSON but we couldn't extract text, 
+            // don't show the raw JSON soup to the user.
+            if (rawResponse.trim().startsWith('{')) {
+                logger.warn('OracleService', 'Failed to parse JSON response and extraction failed', { error: e })
+                return {
+                    text: "I'm having a little trouble connecting cleanly right now. Could you ask that again?",
+                    action: undefined
+                }
+            }
+
+            // Fallback 3: Treat as plain text (legacy behavior for non-JSON models)
+            logger.warn('OracleService', 'Using raw text response', { error: e })
             return {
                 text: rawResponse,
                 action: undefined
@@ -257,25 +396,39 @@ class OracleService {
      * Extract JSON from a response that might have markdown code blocks
      */
     private extractJson(text: string): string {
-        // Remove markdown code blocks if present
-        const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/)
-        if (jsonMatch) {
-            return jsonMatch[1].trim()
-        }
+        try {
+            // Remove markdown code blocks if present
+            let clean = text.replace(/```(?:json)?\s*([\s\S]*?)```/g, '$1')
 
-        // Try to find JSON object directly
-        const objectMatch = text.match(/\{[\s\S]*\}/)
-        if (objectMatch) {
-            return objectMatch[0]
-        }
+            // Remove any leading/trailing text outside valid JSON brackets
+            // Find first '{' or '['
+            const firstCurly = clean.indexOf('{')
+            const firstSquare = clean.indexOf('[')
 
-        // Try to find JSON array directly
-        const arrayMatch = text.match(/\[[\s\S]*\]/)
-        if (arrayMatch) {
-            return arrayMatch[0]
-        }
+            let start = -1
+            if (firstCurly !== -1 && firstSquare !== -1) {
+                start = Math.min(firstCurly, firstSquare)
+            } else if (firstCurly !== -1) {
+                start = firstCurly
+            } else {
+                start = firstSquare
+            }
 
-        return text
+            if (start !== -1) {
+                // Find last '}' or ']'
+                const lastCurly = clean.lastIndexOf('}')
+                const lastSquare = clean.lastIndexOf(']')
+                const end = Math.max(lastCurly, lastSquare)
+
+                if (end > start) {
+                    clean = clean.substring(start, end + 1)
+                }
+            }
+
+            return clean.trim()
+        } catch (e) {
+            return text
+        }
     }
 
     private checkRateLimit() {
@@ -387,6 +540,107 @@ class OracleService {
         }
     }
 
+    /**
+     * Analyze a journal draft to see if needs expansion
+     */
+    async assessDraft(draft: string): Promise<AssessDraftResult> {
+        // 1. Pre-check: extremely short drafts are always gaps
+        if (draft.length < 10) {
+            return {
+                status: 'gaps',
+                missing_elements: ['content'],
+                clarifying_questions: ['What would you like to capture?'],
+                confidence: 1.0
+            }
+        }
+
+        // 2. Pre-check: extremely long drafts are always complete (don't annoy power users)
+        if (draft.length > 300) {
+            return {
+                status: 'complete',
+                missing_elements: [],
+                clarifying_questions: [],
+                confidence: 1.0
+            }
+        }
+
+        const promptDef = getPrompt('oracle_assess_completeness')
+        if (!promptDef) throw new Error('Assess completeness prompt not found')
+
+        const userPrompt = interpolatePrompt(promptDef.userPromptTemplate, {
+            draft
+        })
+
+        const response = await llmService.complete({
+            system: promptDef.systemPrompt,
+            user: userPrompt
+        }, promptDef.defaultOptions)
+
+        try {
+            const json = this.extractJson(response.text)
+            return JSON.parse(json) as AssessDraftResult
+        } catch (e) {
+            logger.warn('OracleService', 'Failed to parse assess draft result', e)
+            // Fallback to complete to avoid blocking
+            return {
+                status: 'complete',
+                missing_elements: [],
+                clarifying_questions: [],
+                confidence: 0.0
+            }
+        }
+    }
+
+    /**
+     * Expand a draft into a full entry using QA context
+     */
+    async expandJournalEntry(draft: string, qa: { question: string, answer: string }[]): Promise<string> {
+        const promptDef = getPrompt('oracle_deepen_composition')
+        if (!promptDef) throw new Error('Deepen composition prompt not found')
+
+        const conversationHistory = qa
+            .map(t => `Q: ${t.question}\nA: ${t.answer}`)
+            .join('\n\n')
+
+        const userPrompt = interpolatePrompt(promptDef.userPromptTemplate, {
+            originalDraft: draft,
+            conversationHistory
+        })
+
+        const response = await llmService.complete({
+            system: promptDef.systemPrompt,
+            user: userPrompt
+        }, promptDef.defaultOptions)
+
+        return response.text.trim()
+    }
+
+    /**
+     * Detect smart actions from arbitrary text
+     */
+    async detectActions(text: string, friendContext: string = ''): Promise<SmartAction[]> {
+        const promptDef = getPrompt('journal_action_detection')
+        if (!promptDef) throw new Error('Action detection prompt not found')
+
+        const userPrompt = interpolatePrompt(promptDef.userPromptTemplate, {
+            content: text,
+            friendNames: friendContext || 'None'
+        })
+
+        const response = await llmService.complete({
+            system: promptDef.systemPrompt,
+            user: userPrompt
+        }, promptDef.defaultOptions)
+
+        try {
+            const json = this.extractJson(response.text)
+            return JSON.parse(json) as SmartAction[]
+        } catch (e) {
+            logger.warn('OracleService', 'Failed to parse actions', e)
+            return []
+        }
+    }
+
     // ========================================================================
     // GUIDED REFLECTION MODE
     // ========================================================================
@@ -492,16 +746,19 @@ class OracleService {
             mustCompose: turnCount + 1 >= MAX_QUESTIONS // Signal to LLM if next is final
         })
 
+        // Using complete() because supabase-proxy doesn't support native structured output
         const response = await llmService.complete({
             system: promptDef.systemPrompt,
             user: userPrompt
         }, promptDef.defaultOptions)
 
-        const result = JSON.parse(this.extractJson(response.text))
+        const question = this.extractGuidedQuestion(response.text)
 
         // NEVER compose here - the hard limit above handles composition after 3 answers
         // Always ask the next question (LLM's or fallback)
-        session.pendingQuestion = result.question || 'What else stood out to you?'
+        session.pendingQuestion = (question && question.length > 3)
+            ? question
+            : 'What else stood out to you?'
 
         this.activeGuidedSession = session
         return session
@@ -625,17 +882,18 @@ class OracleService {
             mustCompose: false
         })
 
+        // Using complete() because supabase-proxy doesn't support native structured output
         const response = await llmService.complete({
             system: promptDef.systemPrompt,
             user: userPrompt
         }, promptDef.defaultOptions)
 
-        const result = JSON.parse(this.extractJson(response.text))
+        const question = this.extractGuidedQuestion(response.text)
 
         session.deepeningTurns = []
         session.originalDraft = session.composedDraft
-        session.hasDeepened = true  // Mark that we've deepened (only allow once)
-        session.pendingQuestion = result.question || 'What else would you like to add?'
+        session.hasDeepened = true
+        session.pendingQuestion = (question && question.length > 3) ? question : 'What else would you like to add?'
         session.status = 'deepening'
 
         logger.info('OracleService', 'Started deepening reflection', {
@@ -691,19 +949,26 @@ class OracleService {
             mustCompose: turnCount + 1 >= MAX_DEEPEN_QUESTIONS
         })
 
+        // Using complete() because supabase-proxy doesn't support native structured output
         const response = await llmService.complete({
             system: promptDef.systemPrompt,
             user: userPrompt
         }, promptDef.defaultOptions)
 
-        const result = JSON.parse(this.extractJson(response.text))
+        const question = this.extractGuidedQuestion(response.text)
 
-        if (result.readyToCompose) {
+        // Check if response indicates ready to compose (look for the flag in raw response)
+        const readyToCompose = response.text.toLowerCase().includes('"readytocompose": true') ||
+            response.text.toLowerCase().includes('"readytocompose":true')
+
+        if (readyToCompose) {
             session.composedDraft = await this.composeDeepenedEntry(session)
             session.pendingQuestion = undefined
             session.status = 'draft_ready'
         } else {
-            session.pendingQuestion = result.question
+            session.pendingQuestion = (question && question.length > 3)
+                ? question
+                : 'What else would you like to add?'
         }
 
         this.activeGuidedSession = session
@@ -789,19 +1054,72 @@ class OracleService {
 
     /**
      * Generate personalized starter prompts based on user context
+     * Uses LLM for dynamic variety, falls back to static logic
      */
-    async getPersonalizedStarterPrompts(context: OracleContext): Promise<{ text: string, icon: string }[]> {
-        const prompts: { text: string, icon: string }[] = []
+    async getPersonalizedStarterPrompts(context: OracleContext): Promise<{ text: string, icon: string, prompt?: string }[]> {
+        try {
+            // 1. Try LLM generation
+            const promptDef = getPrompt('oracle_starter_prompts')
+            if (!promptDef) throw new Error('Starter prompts prompt not found')
+
+            // Format context for prompt
+            const topFriends = context.friends
+                .slice(0, 3)
+                .map(f => f.name)
+                .join(', ') || 'None'
+
+            const interpolatedUserPrompt = interpolatePrompt(promptDef.userPromptTemplate, {
+                socialSeason: context.userProfile.socialSeason,
+                socialBatteryTrend: context.userProfile.socialBattery.trend,
+                socialBatteryLevel: context.userProfile.socialBattery.current,
+                needingAttentionCount: context.socialHealth.needingAttentionCount.toString(),
+                recentSentiment: context.recentJournaling?.[0]?.sentiment === 'reflective' ? 'Reflective' : 'Neutral',
+                topFriends
+            })
+
+            const response = await llmService.complete(
+                {
+                    system: promptDef.systemPrompt,
+                    user: interpolatedUserPrompt
+                },
+                {
+                    temperature: 0.8,
+                    jsonMode: true
+                }
+            )
+
+            const json = this.extractJson(response.text)
+            const generatedPrompts = JSON.parse(json) as { text: string, prompt: string, icon: string }[]
+
+            if (Array.isArray(generatedPrompts) && generatedPrompts.length > 0) {
+                return generatedPrompts
+            }
+
+            throw new Error('Empty or invalid prompts from LLM')
+
+        } catch (error) {
+            console.warn('[OracleService] Failed to generate dynamic prompts, falling back to static:', error)
+            return this._getStaticStarterPrompts(context)
+        }
+    }
+
+    /**
+     * Fallback static prompts
+     */
+    private _getStaticStarterPrompts(context: OracleContext): { text: string, icon: string, prompt?: string }[] {
+        const prompts: { text: string, icon: string, prompt?: string }[] = []
 
         // Social season awareness
         if (context.userProfile.socialSeason === 'resting') {
             prompts.push({
-                text: "You're in a resting season - how's your energy?",
+                text: "Reflect on my 'Resting' season",
+                prompt: "My social season is currently 'Resting'. Help me check in with my energy levels and reflect on my need for rest.",
                 icon: 'battery-low'
             })
         } else if (context.userProfile.socialSeason === 'blooming') {
             prompts.push({
-                text: "Lots of social momentum lately - feeling good?",
+                text: "Analyze my social momentum",
+                prompt: "My social season is currently 'Blooming' and I have momentum. Help me reflect on how this feels and how to channel this energy sustainably.",
                 icon: 'sparkles'
             })
         }
@@ -810,7 +1128,8 @@ class OracleService {
         if (context.socialHealth.needingAttentionCount > 0) {
             const count = context.socialHealth.needingAttentionCount
             prompts.push({
-                text: `${count} friend${count > 1 ? 's' : ''} might be missing you`,
+                text: "Who am I losing touch with?",
+                prompt: `I have ${count} friends who haven't heard from me in a while. Help me identify who they might be and draft a quick message to one of them.`,
                 icon: 'users'
             })
         }
@@ -824,7 +1143,8 @@ class OracleService {
         const recentJournal = context.recentJournaling?.[0]
         if (recentJournal?.sentiment === 'reflective') {
             prompts.push({
-                text: "You seemed thoughtful in your last entry",
+                text: "Go deeper on my last entry",
+                prompt: "My last journal entry was quite reflective. Help me expand on those thoughts and go deeper.",
                 icon: 'book-open'
             })
         }
@@ -832,29 +1152,38 @@ class OracleService {
         // Battery trend
         if (context.userProfile.socialBattery.trend === 'Draining') {
             prompts.push({
-                text: "Your social battery has been draining - need to recharge?",
+                text: "My battery is draining - help?",
+                prompt: "My social battery has been draining recently. Suggest some ways I can recharge or protect my energy.",
                 icon: 'battery-charging'
             })
         }
 
         // Fallback generic prompts if none matched (or to fill up)
         const fallbacks = [
-            { text: "What's on your mind?", icon: 'message-circle' },
-            { text: "Who have you been thinking about?", icon: 'heart' },
-            { text: "How's your social energy?", icon: 'battery' }
+            {
+                text: "I need to vent...",
+                prompt: "I want to vent or process something. Ask me what's on my mind.",
+                icon: 'message-circle'
+            },
+            {
+                text: "Who should I call?",
+                prompt: "I've been thinking about connection. Help me figure out who I should reach out to.",
+                icon: 'phone'
+            },
+            {
+                text: "Check my social battery",
+                prompt: "Help me assess my current social energy levels.",
+                icon: 'battery'
+            }
         ]
 
-        // Add fallbacks until we have 3-4
-        for (const prompt of fallbacks) {
-            if (prompts.length < 4) {
-                // simple dedup check
-                if (!prompts.find(p => p.text === prompt.text)) {
-                    prompts.push(prompt)
-                }
-            }
+        // Add fallbacks to ensure we have at least 3
+        let needed = 3 - prompts.length
+        if (needed > 0) {
+            prompts.push(...fallbacks.slice(0, needed))
         }
 
-        return prompts.slice(0, 4)
+        return prompts
     }
 
     // ========================================================================
@@ -881,26 +1210,92 @@ class OracleService {
                 ? context.activeThreads.map(t => `- ${t.topic} (${t.sentiment})`).join('\n')
                 : 'No active threads',
             conversationHistory,
-            turnCount: previousTurns.length + 1,  // This is the turn we're generating for
-            mustCompose: false  // Never must compose on first question generation
+            turnCount: previousTurns.length + 1,
+            mustCompose: false
         })
 
+        // Using complete() because supabase-proxy doesn't support native structured output
         const response = await llmService.complete({
             system: promptDef.systemPrompt,
             user: userPrompt
         }, promptDef.defaultOptions)
 
-        let result: { question?: string, readyToCompose?: boolean } = {}
+        // Robust parsing with multiple fallback strategies
+        const question = this.extractGuidedQuestion(response.text)
+        return question && question.length > 3 ? question : 'How was it?'
+    }
+
+    /**
+     * Extract question from LLM response with multiple fallback strategies
+     */
+    private extractGuidedQuestion(responseText: string): string | undefined {
+        logger.debug('OracleService', 'extractGuidedQuestion input', {
+            responseLength: responseText?.length,
+            responsePreview: responseText?.substring(0, 200)
+        })
+
+        // Strategy 1: Try to parse as JSON
         try {
-            const jsonStr = this.extractJson(response.text)
-            result = JSON.parse(jsonStr)
+            const json = this.extractJson(responseText)
+            logger.debug('OracleService', 'extractJson result', { json: json?.substring(0, 200) })
+            const parsed = JSON.parse(json)
+            logger.debug('OracleService', 'Parsed JSON', { parsed })
+
+            // If we successfully parsed JSON, use its values
+            if (typeof parsed === 'object' && parsed !== null) {
+                // If question exists and is a valid string, return it
+                if (parsed.question && typeof parsed.question === 'string' && parsed.question.length > 3) {
+                    logger.info('OracleService', 'Strategy 1 succeeded: JSON parse with question', { question: parsed.question })
+                    return parsed.question
+                }
+
+                // If readyToCompose is true, return undefined to trigger composition
+                if (parsed.readyToCompose === true) {
+                    logger.info('OracleService', 'Strategy 1: readyToCompose=true, returning undefined')
+                    return undefined
+                }
+            }
         } catch (e) {
-            logger.warn('OracleService', 'Failed to parse JSON from generateNextQuestion', { error: e, text: response.text })
-            // Fallback: Use the raw text as the question, assuming the LLM just spoke
-            result = { question: response.text.replace(/^Oracle:\s*/i, '').replace(/^"/, '').replace(/"$/, '').trim() }
+            logger.debug('OracleService', 'JSON parse failed', { error: (e as Error).message })
         }
 
-        return result.question || 'How was it?'
+        // Strategy 2: Extract question field via regex
+        const questionMatch = responseText.match(/"question"\s*:\s*"([^"]+)"/)
+        if (questionMatch?.[1] && questionMatch[1].length > 3) {
+            logger.info('OracleService', 'Strategy 2 succeeded: regex extraction', { question: questionMatch[1] })
+            return questionMatch[1]
+        }
+
+        // Strategy 3: Look for a question in the text (ends with ?)
+        const questionSentence = responseText.match(/([^.!?]*\?)\s*$/)?.[1]?.trim()
+        if (questionSentence && questionSentence.length > 10) {
+            logger.info('OracleService', 'Strategy 3 succeeded: question sentence', { question: questionSentence })
+            return questionSentence
+        }
+
+        // Strategy 4: Clean up raw text as last resort
+        // SKIP if the response looks like JSON (contains readyToCompose or structured data)
+        if (responseText.includes('readyToCompose') || responseText.includes('"question"')) {
+            logger.debug('OracleService', 'Strategy 4 skipped: response appears to be JSON')
+            return undefined
+        }
+
+        const cleaned = responseText
+            .replace(/^```(?:json)?\s*/i, '')
+            .replace(/```\s*$/, '')
+            .replace(/^[{[\s"']+/, '')
+            .replace(/[}\]"'\s]+$/, '')
+            .trim()
+
+        if (cleaned.length > 10 && !cleaned.includes('{') && !cleaned.includes(':')) {
+            logger.info('OracleService', 'Strategy 4 succeeded: cleaned text', { question: cleaned })
+            return cleaned
+        }
+
+        logger.warn('OracleService', 'All extraction strategies failed', {
+            responseText: responseText?.substring(0, 300)
+        })
+        return undefined
     }
 
     private async composeEntry(session: GuidedSession): Promise<string> {
@@ -1416,6 +1811,68 @@ class OracleService {
             logger.info('OracleService', `Invalidated ${insights.length} insights for friends`, { friendIds })
         } catch (error) {
             logger.error('OracleService', 'Failed to invalidate insights', error)
+        }
+    }
+
+    /**
+     * Phase 3: Insight Assessment Engine
+     * Analyzes a user's question to identify underlying patterns before answering.
+     */
+    async analyzeInsightIntent(query: string, friendId?: string): Promise<InsightAnalysisResult> {
+        try {
+            // 1. Build context
+            let contextSummary = "No specific friend context selected.";
+            if (friendId) {
+                const context = await oracleContextBuilder.buildContext([friendId], ContextTier.PATTERN);
+                const friend = context.friends[0];
+                if (friend) {
+                    contextSummary = `
+                    Friend: ${friend.name}
+                    Tier: ${friend.tier}
+                    Archetype: ${friend.archetype}
+                    
+                    Pattern Signals:
+                    ${friend.themes?.map(s => `- ${s}`).join('\n') || 'None'}
+                    
+                    Recent Dynamics:
+                    - Trend: ${friend.dynamics?.trend || 'Unknown'}
+                    - Reciprocity: ${friend.dynamics?.reciprocity || 'Unknown'}
+                    `;
+                }
+            }
+
+            // 2. Call LLM Service
+            const response = await llmService.completeFromRegistry(
+                'oracle_insight_analysis',
+                {
+                    context_summary: contextSummary,
+                    user_query: query
+                },
+                {
+                    jsonMode: true,
+                    temperature: 0.3
+                }
+            );
+
+            if (!response.text) {
+                throw new Error('Empty response from LLM');
+            }
+
+            // 3. Parse JSON
+            // Clean markdown code blocks if present (common LLM artifact)
+            const cleanJson = response.text.replace(/```json\n|\n```/g, '').trim();
+            const result = JSON.parse(cleanJson) as InsightAnalysisResult;
+            return result;
+
+        } catch (error) {
+            logger.error('OracleService', 'Failed to analyze insight intent', error);
+            // Fallback result
+            return {
+                analysis: "Unable to analyze deeply at this moment.",
+                identified_pattern: "Unknown",
+                clarifying_question: "Could you tell me a bit more about what's on your mind?",
+                confidence: 0
+            };
         }
     }
 }

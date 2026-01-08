@@ -24,6 +24,7 @@ export enum ContextTier {
 }
 
 export interface OracleContext {
+    currentDate: string // e.g. "Friday, January 7th, 2026"
     userProfile: UserContext
     friends: FriendOracleContext[]
     socialHealth: SocialHealthContext
@@ -143,6 +144,7 @@ class OracleContextBuilder {
         const venueSuggestions = this.getVenueSuggestions(archetypes, userContext.socialSeason)
 
         return {
+            currentDate: new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }),
             userProfile: userContext,
             friends: formattedFriends,
             socialHealth: await this.getSocialHealth(),
@@ -155,21 +157,47 @@ class OracleContextBuilder {
 
     /**
      * Extract friend names mentioned in the question and return their IDs
+     * Supports:
+     * - Exact Name Match ("Hannah")
+     * - Start-of-name Match ("Han" -> "Hannah")
+     * - Case insensitive
      */
     private async extractMentionedFriends(question: string): Promise<string[]> {
         try {
-            // Get all friends
+            // Get all friends (caching this in memory or optimizing query would be better for scale, 
+            // but for <500 friends this is fine)
             const allFriends = await database.get<Friend>('friends').query().fetch()
 
-            // Normalize question for matching
             const normalizedQuestion = question.toLowerCase()
 
-            // Find friends whose names appear in the question
+            // Heuristic:
+            // 1. Identify potential names in the question (capitalized words or words > 2 chars)
+            // 2. Check if any friend name STARTS with that word
+
+            // Simple approach: Check every friend against the text
             const matchedFriends = allFriends.filter(friend => {
                 const name = friend.name.toLowerCase()
-                // Check for exact word match (not substring of another word)
-                const regex = new RegExp(`\\b${this.escapeRegex(name)}\\b`, 'i')
-                return regex.test(normalizedQuestion)
+                const parts = name.split(' ') // Handle "Sarah Jones"
+                const firstName = parts[0]
+
+                // 1. Check for full name or first name boundary match
+                // \bNAME\b
+                if (new RegExp(`\\b${this.escapeRegex(name)}\\b`, 'i').test(normalizedQuestion)) return true
+                if (new RegExp(`\\b${this.escapeRegex(firstName)}\\b`, 'i').test(normalizedQuestion)) return true
+
+                // 2. Check for "Starts With" nickname heuristic
+                // e.g. "Han" matches "Hannah"
+                // We look for words in the question that are at least 3 chars long
+                // and are a prefix of the friend's first name.
+                // "Han" -> startsWith("han") -> MATCH
+                // "Ha" -> too short (risk of false positive)
+
+                const questionWords = normalizedQuestion.match(/\b\w{3,}\b/g) || []
+                return questionWords.some(word =>
+                    firstName.startsWith(word) &&
+                    // Verify the word isn't just a common stopword (optional, but "Han" is rare as a word)
+                    firstName.length >= word.length // Redundant but explicit
+                )
             })
 
             return matchedFriends.map(f => f.id)

@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb'
 
 export default appSchema({
-  version: 59, // v59 Oracle Conversation Persistence
+  version: 60, // v60: Smart Actions Cache
   tables: [
     // ===== ORACLE AI INFRASTRUCTURE =====
     tableSchema({
@@ -560,7 +560,8 @@ export default appSchema({
         { name: 'synced_at', type: 'number', isOptional: true },
         { name: 'sync_status', type: 'string', isOptional: true },
         { name: 'server_updated_at', type: 'number', isOptional: true },
-
+        // NEW v60: Smart Actions Cache
+        { name: 'smart_actions_json', type: 'string', isOptional: true },
       ]
     }),
     tableSchema({

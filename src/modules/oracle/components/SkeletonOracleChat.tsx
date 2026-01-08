@@ -6,7 +6,10 @@ import Animated, {
     withRepeat,
     withTiming,
     Easing,
-    withSequence
+    withSequence,
+    withDelay,
+    FadeIn,
+    ZoomIn
 } from 'react-native-reanimated';
 import { useTheme } from '@/shared/hooks/useTheme';
 
@@ -15,21 +18,28 @@ interface SkeletonProps {
     height?: DimensionValue;
     borderRadius?: number;
     style?: any;
+    delay?: number;
 }
 
-function SkeletonBlock({ width, height, borderRadius = 8, style }: SkeletonProps) {
+function SkeletonBlock({ width, height, borderRadius = 8, style, delay = 0 }: SkeletonProps) {
     const { colors, isDarkMode } = useTheme();
     // Brighter/lighter base for "not heavy grey" feel
-    const opacity = useSharedValue(0.3);
+    // Start at 0 opacity and fade in to 0.3 then pulse
+    const opacity = useSharedValue(0);
 
     useEffect(() => {
-        opacity.value = withRepeat(
+        opacity.value = withDelay(delay,
             withSequence(
-                withTiming(0.6, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
-                withTiming(0.3, { duration: 1000, easing: Easing.inOut(Easing.ease) })
-            ),
-            -1,
-            true
+                withTiming(0.3, { duration: 400 }), // Enter
+                withRepeat(
+                    withSequence(
+                        withTiming(0.6, { duration: 800, easing: Easing.inOut(Easing.quad) }),
+                        withTiming(0.3, { duration: 800, easing: Easing.inOut(Easing.quad) })
+                    ),
+                    -1,
+                    true
+                )
+            )
         );
     }, []);
 
@@ -43,7 +53,7 @@ function SkeletonBlock({ width, height, borderRadius = 8, style }: SkeletonProps
                 width,
                 height,
                 borderRadius,
-                backgroundColor: isDarkMode ? colors.muted : '#E5E5E5', // Lighter grey in light mode
+                backgroundColor: isDarkMode ? colors.muted : '#E5E5E5',
             }, style, animatedStyle]}
         />
     );
@@ -56,16 +66,18 @@ export function SkeletonOracleChat() {
         <View style={{ flex: 1, paddingHorizontal: 16 }}>
             {/* Center Content Placeholder */}
             <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingBottom: 80 }}>
-                {/* Icon Placeholder - Circle */}
-                <SkeletonBlock width={128} height={128} borderRadius={64} style={{ marginBottom: 24 }} />
+                {/* Icon Placeholder - Circle - Breathing scale */}
+                <Animated.View entering={ZoomIn.duration(400)}>
+                    <SkeletonBlock width={128} height={128} borderRadius={64} style={{ marginBottom: 24 }} delay={0} />
+                </Animated.View>
 
-                {/* Title Placeholder - "What's on your mind?" */}
-                <SkeletonBlock width={200} height={24} borderRadius={6} style={{ marginBottom: 24 }} />
+                {/* Title Placeholder */}
+                <SkeletonBlock width={200} height={24} borderRadius={6} style={{ marginBottom: 24 }} delay={50} />
 
                 {/* Chips Placeholders */}
                 <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
-                    <SkeletonBlock width={140} height={36} borderRadius={18} />
-                    <SkeletonBlock width={140} height={36} borderRadius={18} />
+                    <SkeletonBlock width={140} height={36} borderRadius={18} delay={100} />
+                    <SkeletonBlock width={140} height={36} borderRadius={18} delay={150} />
                 </View>
             </View>
 
@@ -93,11 +105,11 @@ export function SkeletonOracleChat() {
                         backgroundColor: colors.card
                     }}
                 >
-                    <SkeletonBlock width={120} height={12} borderRadius={4} />
+                    <SkeletonBlock width={120} height={12} borderRadius={4} delay={200} />
                 </View>
 
                 {/* Send Button Skeleton */}
-                <SkeletonBlock width={48} height={48} borderRadius={24} />
+                <SkeletonBlock width={48} height={48} borderRadius={24} delay={250} />
             </View>
 
             {/* Keyboard spacer */}

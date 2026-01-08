@@ -57,4 +57,20 @@ export default class JournalEntry extends Model {
     this.storyChipsRaw = JSON.stringify(chips);
   }
 
+  // Smart Actions cache
+  @text('smart_actions_json') smartActionsRaw?: string;
+
+  get smartActions(): any[] {
+    if (!this.smartActionsRaw) return [];
+    try {
+      return JSON.parse(this.smartActionsRaw);
+    } catch {
+      return [];
+    }
+  }
+
+  set smartActions(actions: any[]) {
+    this.smartActionsRaw = JSON.stringify(actions);
+  }
+
 }

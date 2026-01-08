@@ -96,6 +96,13 @@ export const AnalyticsEvents = {
   ORACLE_RESPONSE_RECEIVED: 'oracle_response_received',
   ORACLE_ACTION_SUGGESTED: 'oracle_action_suggested',
   ORACLE_ACTION_TAKEN: 'oracle_action_taken',
+  // Oracle Lens (Phase 4-6)
+  ORACLE_MODE_SWITCHED: 'oracle_mode_switched',      // When user taps a mode pill
+  ORACLE_LENS_SELECTED: 'oracle_lens_selected',     // When a specific archetype lens is chosen
+  ORACLE_ACTION_DETECTED: 'oracle_action_detected', // When "Silent Audit" finds actions
+  ORACLE_ACTION_EXECUTED: 'oracle_action_executed', // When user clicks "Execute"
+  ORACLE_DRAFT_EXPANDED: 'oracle_draft_expanded',   // When user completes Expand Draft flow
+  ORACLE_INSIGHT_ANALYZED: 'oracle_insight_analyzed', // When user runs Insight analysis
 
   // Guided Reflection
   GUIDED_REFLECTION_STARTED: 'guided_reflection_started',

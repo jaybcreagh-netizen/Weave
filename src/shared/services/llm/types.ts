@@ -38,6 +38,32 @@ export interface LLMProvider {
         schema: JSONSchema,
         options?: LLMOptions
     ): Promise<LLMStructuredResponse<T>>
+
+    /**
+     * Generate a text completion with streaming
+     * @returns Async iterable of stream chunks
+     */
+    completeStream?(prompt: LLMPrompt, options?: LLMOptions): AsyncGenerator<LLMStreamChunk, void, unknown>
+}
+
+/**
+ * Chunk of data from a streaming LLM response
+ */
+export interface LLMStreamChunk {
+    /** Text delta (new content since last chunk) */
+    text: string
+
+    /** Full accumulated text so far (optional, provider-dependent) */
+    fullText?: string
+
+    /** Is this the final chunk? */
+    isDone: boolean
+
+    /** Usage stats (usually only available in final chunk) */
+    usage?: TokenUsage
+
+    /** Metadata (usually only available in final chunk) */
+    metadata?: ResponseMetadata
 }
 
 // ============================================================================
@@ -111,6 +137,28 @@ export interface LLMOptions {
      * Useful for structured extraction tasks
      */
     jsonMode?: boolean
+
+    /**
+     * Gemini 3 Thinking Level
+     * Controls the depth of internal reasoning - 'off' or 'low' reduces latency for simple tasks
+     */
+    thinkingLevel?: 'off' | 'low' | 'medium' | 'high'
+
+    /**
+     * Gemini-specific Thinking Config
+     * Note: Only for supported models (gemini-2.0-flash-thinking)
+     */
+    thinkingConfig?: {
+        includeThoughts?: boolean
+    }
+
+    /**
+     * Gemini-specific Safety Settings
+     */
+    safetySettings?: Array<{
+        category: string
+        threshold: string
+    }>
 
     /** Request timeout in ms */
     timeoutMs?: number
@@ -188,6 +236,7 @@ export interface JSONSchema {
     items?: JSONSchemaProperty
     required?: string[]
     description?: string
+    enum?: string[]
 }
 
 export interface JSONSchemaProperty {

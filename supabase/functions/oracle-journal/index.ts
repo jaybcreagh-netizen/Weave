@@ -11,6 +11,8 @@ interface RequestBody {
   model?: string
   temperature?: number
   maxTokens?: number
+  jsonMode?: boolean  // When true, use responseMimeType: 'application/json'
+  thinkingLevel?: 'off' | 'low' | 'medium' | 'high'  // Controls Gemini 3's thinking depth
 }
 
 interface GeminiResponse {
@@ -55,13 +57,39 @@ Deno.serve(async (req) => {
 
     // Parse request body
     const body: RequestBody = await req.json()
-    const { system, user, model = 'gemini-3-flash', temperature = 1.0, maxTokens = 1024 } = body
+    const { system, user, model = 'gemini-3-flash', temperature = 1.0, maxTokens = 1024, jsonMode = false, thinkingLevel } = body
 
     if (!user) {
       return new Response(
         JSON.stringify({ error: 'Missing required field: user' }),
         { status: 400, headers: { 'Content-Type': 'application/json' } }
       )
+    }
+
+    // Build generation config with optional JSON mode and thinking level
+    const generationConfig: Record<string, unknown> = {
+      temperature,
+      maxOutputTokens: maxTokens,
+    }
+
+    // Enable JSON mode for structured output - this enforces valid JSON at API level
+    console.log('[oracle-journal] Request received:', { model, jsonMode, thinkingLevel, promptLength: user.length })
+    if (jsonMode) {
+      generationConfig.responseMimeType = 'application/json'
+    }
+
+    // Set thinking level for Gemini 3 - 'low' reduces latency, 'high' enables deeper reasoning
+    if (thinkingLevel && thinkingLevel !== 'off') {
+      const budgets = {
+        low: 2048,
+        medium: 8192,
+        high: 16384
+      }
+      const budget = budgets[thinkingLevel as keyof typeof budgets]
+      if (budget) {
+        generationConfig.thinkingConfig = { thinkingBudget: budget }
+        console.log('[oracle-journal] Thinking budget set:', budget)
+      }
     }
 
     // Build Gemini request
@@ -73,10 +101,7 @@ Deno.serve(async (req) => {
         }
       ],
       systemInstruction: system ? { parts: [{ text: system }] } : undefined,
-      generationConfig: {
-        temperature,
-        maxOutputTokens: maxTokens,
-      }
+      generationConfig,
     }
 
     // Call Gemini API

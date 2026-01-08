@@ -9,7 +9,7 @@ export interface UseOracleResult {
     messages: OracleTurn[]
     isLoading: boolean
     error: string | null
-    askQuestion: (text: string, context?: string) => Promise<void>
+    askQuestion: (text: string, context?: string, displayOverride?: string) => Promise<void>
     startWithContext: (instruction: string, context?: string) => Promise<void>
     loadConversation: (id: string) => Promise<void>
     remainingQuestions: number
@@ -25,28 +25,41 @@ export function useOracle(): UseOracleResult {
     const [remainingQuestions, setRemainingQuestions] = useState(oracleService.getRemainingQuestions())
     const [isSaved, setIsSaved] = useState(false)
 
-    const askQuestion = useCallback(async (text: string, context?: string) => {
+    const askQuestion = useCallback(async (text: string, context?: string, displayOverride?: string) => {
         if (!text.trim()) return
 
         setIsLoading(true)
         setError(null)
         setIsSaved(false)
 
-        const userMsg: OracleTurn = { role: 'user', content: text, timestamp: Date.now() }
+        const userMsg: OracleTurn = {
+            role: 'user',
+            content: displayOverride || text,
+            timestamp: Date.now()
+        }
+
+        // Add user message immediately
         setMessages(prev => [...prev, userMsg])
 
         try {
+            // Call Oracle (Non-streaming for Supabase Proxy compatibility)
+            // Note: oracleService.ask returns { text, action }
             const response = await oracleService.ask(text, [], context)
-            const oracleMsg: OracleTurn = {
+
+            const assistantMsg: OracleTurn = {
                 role: 'assistant',
                 content: response.text,
                 timestamp: Date.now(),
                 action: response.action
             }
-            setMessages(prev => [...prev, oracleMsg])
+
+            setMessages(prev => [...prev, assistantMsg])
             setRemainingQuestions(oracleService.getRemainingQuestions())
         } catch (err) {
             handleError(err)
+
+            // Remove user message on failure? 
+            // Better to keep it so they can copy/retry
         } finally {
             setIsLoading(false)
         }

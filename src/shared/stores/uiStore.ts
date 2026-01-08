@@ -130,6 +130,15 @@ interface UIStore {
   popupQueue: ('social-battery' | 'weekly-reflection')[];
   requestPopup: (type: 'social-battery' | 'weekly-reflection') => void;
   closePopup: (type: 'social-battery' | 'weekly-reflection') => void;
+
+  // Global Modal Data
+  planWizardData: { friendId?: string; prefillData?: any } | null;
+  intentionFormData: { friendId?: string; initialText?: string } | null;
+
+  openPlanWizard: (data?: { friendId?: string; prefillData?: any }) => void;
+  closePlanWizard: () => void;
+  openIntentionForm: (data?: { friendId?: string; initialText?: string }) => void;
+  closeIntentionForm: () => void;
 }
 
 export const useUIStore = create<UIStore>((set, get) => ({
@@ -378,5 +387,15 @@ export const useUIStore = create<UIStore>((set, get) => ({
   // Shared suggestion stats
   suggestionCount: 0,
   hasCriticalSuggestion: false,
+  // Global Modals
+  planWizardData: null,
+  intentionFormData: null,
+
+  openPlanWizard: (data) => set({ planWizardData: data || {} }),
+  closePlanWizard: () => set({ planWizardData: null }),
+
+  openIntentionForm: (data) => set({ intentionFormData: data || {} }),
+  closeIntentionForm: () => set({ intentionFormData: null }),
+
   setSuggestionStats: (count, hasCritical) => set({ suggestionCount: count, hasCriticalSuggestion: hasCritical }),
 }));

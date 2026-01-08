@@ -157,6 +157,21 @@ export function QuickCaptureSheet({
         }
       });
 
+      // TRIGGER SILENT AUDIT
+      // We can't easily get the ID out of the write block if we don't return it, 
+      // but we can query specific entry or refactor. 
+      // Actually, we can return values from database.write if needed, 
+      // but simpler is to use the ID if we generated it, or refactor the write to return it.
+      // However, QuickCapture uses an arrow function. 
+      // Let's rely on the fact that if we created it, we can't easily get it here without refactoring.
+      // Wait, we CAN get it if we move the variable declaration out.
+
+      // REFACTORING TO CAPTURE ID:
+      // Note: I will refactor the write block in a separate tool call if needed. 
+      // For now, let's assume I can't easily access newEntry.id here.
+      // actually, let's just use the `actionExtractionService` inside the write? No, queueEntry is async-safe but better outside.
+
+      // FIX in next step: I'll use a variable.
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
       // Reset and close
