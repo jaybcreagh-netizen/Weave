@@ -41,7 +41,7 @@ export function AddFriendMenu({
       visible={isOpen}
       onClose={onClose}
       title="Add Friends"
-      height="action"
+      height="auto"
     >
       <View className="p-6 gap-3">
         {/* Add Single Friend - Opens search-first sheet */}

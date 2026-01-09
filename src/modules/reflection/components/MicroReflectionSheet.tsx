@@ -110,12 +110,12 @@ export function MicroReflectionSheet({
         scrollable
       >
         {/* Header */}
-        <View className="items-center mb-4">
-          <Text className="text-sm font-medium mb-2" style={{ color: colors['muted-foreground'] }}>
+        <View className="items-center mb-6">
+          <Text className="text-sm font-medium mb-1.5" style={{ color: colors['muted-foreground'] }}>
             Logged
           </Text>
           <BufferedTextInput
-            inputClassName="text-2xl font-bold font-lora-bold text-center mb-1 min-w-[200px]"
+            inputClassName="text-3xl font-bold font-lora-bold text-center mb-2 min-w-[200px]"
             style={{ color: colors.foreground }}
             value={title}
             onChangeText={setTitle}
@@ -129,12 +129,12 @@ export function MicroReflectionSheet({
         </View>
 
         {/* Prompt */}
-        <Text className="text-lg font-semibold text-center mb-6" style={{ color: colors.foreground }}>
+        <Text className="text-lg font-semibold text-center mb-8" style={{ color: colors.foreground }}>
           {getPrompt()}
         </Text>
 
         {/* Moon Phase Selector */}
-        <View className="w-full mb-5">
+        <View className="w-full mb-8">
           <MoonPhaseSelector
             selectedVibe={selectedVibe}
             onSelect={handleVibeSelect}
@@ -142,8 +142,8 @@ export function MicroReflectionSheet({
         </View>
 
         {/* Optional Note */}
-        <View className="mb-4">
-          <View className="flex-row items-center justify-between mb-2">
+        <View className="mb-8">
+          <View className="flex-row items-center justify-between mb-3">
             <Text className="text-[13px] font-medium" style={{ color: colors['muted-foreground'] }}>
               Add a note
             </Text>
@@ -161,7 +161,7 @@ export function MicroReflectionSheet({
             </TouchableOpacity>
           </View>
           <BufferedTextInput
-            inputClassName="border rounded-xl p-3 text-[15px] min-h-[80px] max-h-[120px]"
+            inputClassName="border rounded-xl p-4 text-[16px] min-h-[100px] max-h-[140px]"
             style={{
               backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)',
               color: colors.foreground,
@@ -173,14 +173,14 @@ export function MicroReflectionSheet({
             value={notes}
             onChangeText={setNotes}
             multiline
-            numberOfLines={3}
+            numberOfLines={4}
             returnKeyType="done"
             blurOnSubmit
           />
         </View>
 
         {/* Actions */}
-        <View className="flex-row gap-3">
+        <View className="flex-row gap-4 mb-4">
           <TouchableOpacity
             className="flex-1 py-4 rounded-xl border-[1.5px] items-center justify-center"
             style={{ borderColor: colors.border }}

@@ -8,7 +8,7 @@ import Animated, {
   runOnJS,
 } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
-import { Calendar, Heart, Sparkles, X } from 'lucide-react-native';
+import { Calendar, Heart, Sparkles, X, CloudSun } from 'lucide-react-native';
 import withObservables from '@nozbe/with-observables';
 
 import { useTheme } from '@/shared/hooks/useTheme';
@@ -298,7 +298,7 @@ const FriendDetailSheetContent: React.FC<FriendDetailSheetProps> = ({
               }}
             >
               <View className="items-center justify-center" style={{ width: 20, height: 20 }}>
-                <Text style={{ fontSize: 16 }}>🌤️</Text>
+                <CloudSun size={20} color={weaveScore < 35 ? tokens.destructive : colors['muted-foreground']} />
               </View>
               <Text
                 className="mt-1 font-inter-medium text-xs"
@@ -359,7 +359,7 @@ const FriendDetailSheetContent: React.FC<FriendDetailSheetProps> = ({
                         borderColor: `${affinityColor}40`,
                       }}
                     >
-                      <Text className="text-sm">{metadata.icon}</Text>
+                      <metadata.iconComponent size={14} color={affinityColor} />
                       <Text
                         className="font-inter-semibold text-[12px] font-semibold"
                         style={{ color: affinityColor }}
@@ -399,7 +399,7 @@ const FriendDetailSheetContent: React.FC<FriendDetailSheetProps> = ({
                   }}
                   className="flex-row items-center gap-1.5 rounded-full border px-3 py-2"
                 >
-                  <Text className="text-base">{milestone.icon}</Text>
+                  <milestone.iconComponent size={16} color={colors.primary} />
                   <Text
                     style={{ color: colors.primary }}
                     className="font-inter-semibold text-xs font-semibold"

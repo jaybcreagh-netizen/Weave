@@ -6,7 +6,7 @@
  */
 
 import React from 'react';
-import { View, TouchableOpacity } from 'react-native';
+import { View, TouchableOpacity, Image } from 'react-native';
 import { Check, X, Calendar, MapPin, User } from 'lucide-react-native';
 import { format } from 'date-fns';
 
@@ -61,12 +61,20 @@ export function SharedWeaveCard({
         >
             {/* Header - Creator info */}
             <View className="flex-row items-center gap-2 mb-3">
-                <View
-                    className="w-8 h-8 rounded-full items-center justify-center"
-                    style={{ backgroundColor: colors.primary + '20' }}
-                >
-                    <User size={16} color={colors.primary} />
-                </View>
+                {weave.creatorAvatarUrl ? (
+                    <Image
+                        source={{ uri: weave.creatorAvatarUrl }}
+                        className="w-8 h-8 rounded-full"
+                        style={{ backgroundColor: colors.muted }}
+                    />
+                ) : (
+                    <View
+                        className="w-8 h-8 rounded-full items-center justify-center"
+                        style={{ backgroundColor: colors.primary + '20' }}
+                    >
+                        <User size={16} color={colors.primary} />
+                    </View>
+                )}
                 <View className="flex-1">
                     <Text
                         className="font-semibold"

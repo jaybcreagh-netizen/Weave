@@ -11,6 +11,7 @@ import { StyleSheet, Platform, Modal } from 'react-native';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { Button } from '@/shared/ui/Button';
 import { type Interaction, type MoonPhase, type InteractionCategory } from '../types';
+import { InteractionShape } from '@/shared/types/derived';
 import { modeIcons } from '@/shared/constants/constants';
 import { getCategoryMetadata } from '@/shared/constants/interaction-categories';
 import { STORY_CHIPS } from '@/modules/reflection/services/story-chips.service';
@@ -41,12 +42,12 @@ const formatDateTime = (date: Date | string): { date: string; time: string } => 
 };
 
 interface InteractionDetailModalProps {
-  interaction: Interaction | null;
+  interaction: Interaction | InteractionShape | null;
   isOpen: boolean;
   onClose: () => void;
   friendName?: string;
-  onEditReflection?: (interaction: Interaction) => void;
-  onEdit?: (interaction: Interaction) => void;
+  onEditReflection?: (interaction: Interaction | InteractionShape) => void;
+  onEdit?: (interaction: Interaction | InteractionShape) => void;
 
   onDelete?: (interactionId: string) => void;
   onUpdate?: (interactionId: string, updates: Partial<Interaction>) => Promise<void>;
@@ -70,7 +71,7 @@ export function InteractionDetailModal({
   const sheetRef = useRef<AnimatedBottomSheetRef>(null);
 
   // Cache interaction to keep displaying it during close animation
-  const [cachedInteraction, setCachedInteraction] = useState<Interaction | null>(interaction);
+  const [cachedInteraction, setCachedInteraction] = useState<Interaction | InteractionShape | null>(interaction);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [tempDate, setTempDate] = useState<Date | null>(null);
@@ -527,7 +528,7 @@ export function InteractionDetailModal({
                           setCachedInteraction({
                             ...activeInteraction,
                             interactionDate: tempDate
-                          });
+                          } as Interaction | InteractionShape);
                           setShowDatePicker(false);
                         }
                       }}

@@ -15,6 +15,10 @@ export type MockContact = {
   image?: { uri: string };
 };
 
+/**
+ * @deprecated Use FriendShape (Readonly<FriendModel>) or FriendModel instead.
+ * This type is being phased out in favor of WatermelonDB models.
+ */
 export type Friend = {
   id: string;
   name: string;
@@ -32,8 +36,16 @@ export type Friend = {
   toleranceWindowDays?: number;
   resilience: number;
   typicalIntervalDays?: number;
+  // Friend Linking (v46)
+  linkedUserId?: string;
+  linkStatus?: 'pending_sync' | 'pending_sent' | 'pending_received' | 'linked' | 'declined';
+  linkedAt?: number;
 };
 
+/**
+ * @deprecated Use InteractionShape (Readonly<InteractionModel>) or InteractionModel instead.
+ * This type is being phased out in favor of WatermelonDB models.
+ */
 export type Interaction = {
   id: string;
   friendIds?: string[];
@@ -77,6 +89,9 @@ export type FriendFormData = {
   preferredMessagingApp?: 'whatsapp' | 'telegram' | 'sms' | 'email';
 };
 
+/**
+ * @deprecated Use LifeEventModel instead.
+ */
 export interface LifeEvent {
   id: string;
   friendId: string;
@@ -91,6 +106,9 @@ export interface LifeEvent {
   updatedAt: Date;
 }
 
+/**
+ * @deprecated Use IntentionModel instead.
+ */
 export interface Intention {
   id: string;
   description?: string;

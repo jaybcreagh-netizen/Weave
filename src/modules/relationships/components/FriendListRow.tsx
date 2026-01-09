@@ -20,6 +20,7 @@ import { useTheme } from '@/shared/hooks/useTheme';
 import { ArchetypeIcon } from '@/modules/intelligence';
 import { archetypeData } from '@/shared/constants/constants';
 import FriendModel from '@/db/models/Friend';
+import { FriendShape } from '@/shared/types/derived';
 import { useCardGesture } from '@/shared/context/CardGestureContext';
 import { calculateCurrentScore } from '@/modules/intelligence';
 import { generateIntelligentStatusLine } from '@/modules/intelligence';
@@ -52,7 +53,7 @@ const RELATIONSHIP_ICONS: Record<RelationshipType, LucideIcon> = {
 };
 
 interface FriendListRowProps {
-  friend: FriendModel;
+  friend: FriendModel | FriendShape;
   animatedRef?: AnimatedRef<Animated.View>;
   variant?: 'default' | 'full' | 'compact';
   onPress?: (friend: FriendModel) => void;

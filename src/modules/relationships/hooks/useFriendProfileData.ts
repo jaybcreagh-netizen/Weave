@@ -7,12 +7,14 @@ import IntentionModel from '@/db/models/Intention';
 import { LifeEventRepository } from '@/modules/relationships/repositories/life-event.repository';
 import LifeEventModel from '@/db/models/LifeEvent';
 import { Friend, Interaction, LifeEvent, Intention } from '@/shared/types/legacy-types';
+import { FriendShape, InteractionShape } from '@/shared/types/derived';
 import { switchMap } from 'rxjs/operators';
 import { of, combineLatest } from 'rxjs';
 import IntentionFriend from '@/db/models/IntentionFriend';
 import FriendModel from '@/db/models/Friend';
 import InteractionModel from '@/db/models/Interaction';
 import { useRouter } from 'expo-router';
+import { useInteractionShareStatus, type ShareInfoMap } from '@/modules/sync';
 
 export function useFriendProfileData(friendId: string | undefined) {
     const router = useRouter();
@@ -162,54 +164,14 @@ export function useFriendProfileData(friendId: string | undefined) {
     }, [friendIntentionsModels, friendId]);
 
     // Map Friend Model to DTO
-    const friend: Friend | null = useMemo(() => {
-        if (!friendModel) return null;
-        return {
-            id: friendModel.id,
-            name: friendModel.name,
-            createdAt: friendModel.createdAt,
-            dunbarTier: friendModel.dunbarTier as any, // Cast to Tier
-            archetype: friendModel.archetype as any, // Cast to Archetype
-            weaveScore: friendModel.weaveScore,
-            lastUpdated: friendModel.lastUpdated,
-            photoUrl: friendModel.photoUrl,
-            notes: friendModel.notes,
-            isDormant: friendModel.isDormant,
-            birthday: friendModel.birthday,
-            anniversary: friendModel.anniversary,
-            relationshipType: friendModel.relationshipType as any,
-            toleranceWindowDays: friendModel.toleranceWindowDays,
-            resilience: friendModel.resilience,
-            typicalIntervalDays: friendModel.typicalIntervalDays,
-        };
-    }, [friendModel, version]);
+    const friend: FriendShape | null = friendModel;
 
     // Map Interaction Models to DTOs
-    const interactions: Interaction[] = useMemo(() => {
-        return (interactionsModels || []).map(model => ({
-            id: model.id,
-            friendIds: [friendId || ''], // Default to current friend
-            createdAt: model.createdAt,
-            interactionDate: model.interactionDate,
-            category: model.interactionCategory as any,
-            interactionType: model.interactionType as any,
-            duration: model.duration as any,
-            vibe: model.vibe as any,
-            note: model.note || null,
-            source: undefined, // Not on model
-            photos: undefined, // Not on model
-            reflection: model.reflection,
-            activity: model.activity,
-            status: model.status,
-            mode: model.mode,
-            title: model.title,
-            location: model.location,
-            eventImportance: model.eventImportance,
-            initiator: model.initiator,
-            updatedAt: model.updatedAt,
-            interactionCategory: model.interactionCategory as any,
-        }));
-    }, [interactionsModels, friendId]);
+    const interactions: InteractionShape[] = interactionsModels;
+
+    // Get share status for all interactions
+    const interactionIds = useMemo(() => interactionsModels.map(i => i.id), [interactionsModels]);
+    const { shareInfoMap, isLoading: isShareInfoLoading } = useInteractionShareStatus(interactionIds);
 
     const loadLifeEvents = useCallback(async (id: string) => {
         try {
@@ -271,6 +233,8 @@ export function useFriendProfileData(friendId: string | undefined) {
         friendModel, // Expose the raw model for reactive components
         interactions,
         interactionsModels, // Expose models for modals that need them
+        shareInfoMap, // Map of interactionId -> ShareInfo for timeline styling
+        isShareInfoLoading,
         friendIntentions,
         activeLifeEvents,
         isDataLoaded,

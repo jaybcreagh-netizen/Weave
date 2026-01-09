@@ -1,7 +1,7 @@
 import * as Network from 'expo-network';
 import { AppState, AppStateStatus } from 'react-native';
 import { sync } from '@/shared/services/sync.service';
-import { supabase } from '@/modules/auth';
+import { getSupabaseClient } from '@/shared/services/supabase-client';
 import Logger from '@/shared/utils/Logger';
 import { useSyncStatusStore } from '../store/sync-status.store';
 
@@ -24,8 +24,37 @@ class SyncOrchestratorService {
         // 2. Setup periodic background sync
         this.registerBackgroundSync();
 
-        // 3. Trigger initial sync
-        this.triggerSync('initialization');
+        // 3. Setup Auth listener to trigger sync on login/session load
+        this.setupAuthListener();
+
+        // 4. Check status immediately
+        this.checkInitialStatus();
+    }
+
+    private async checkInitialStatus() {
+        const supabase = getSupabaseClient();
+        if (!supabase) {
+            Logger.info('[SyncOrchestrator] Initial check: Supabase not configured');
+            return;
+        }
+
+        const { data: { session } } = await supabase.auth.getSession();
+        Logger.info(`[SyncOrchestrator] Initial session check: ${session ? 'User: ' + session.user.id : 'No session'}`);
+        if (session) {
+            this.triggerSync('initialization');
+        }
+    }
+
+    private setupAuthListener() {
+        const supabase = getSupabaseClient();
+        if (!supabase) return;
+
+        supabase.auth.onAuthStateChange((event, session) => {
+            Logger.info(`[SyncOrchestrator] Auth event: ${event}, Session: ${session ? 'Yes' : 'No'}`);
+            if (event === 'SIGNED_IN' || (event === 'INITIAL_SESSION' && session) || event === 'TOKEN_REFRESHED') {
+                this.triggerSync('auth-change');
+            }
+        });
     }
 
     private setupAppStateListener() {
@@ -68,10 +97,12 @@ class SyncOrchestratorService {
             return;
         }
 
+        // Prevent concurrent syncs - check and set atomically
         if (this.isSyncing) {
             Logger.debug(`[SyncOrchestrator] Sync already in progress, skipping (${reason})`);
             return;
         }
+        this.isSyncing = true; // Set immediately to block concurrent calls
 
         const store = useSyncStatusStore.getState();
 
@@ -83,6 +114,13 @@ class SyncOrchestratorService {
                 return;
             }
 
+            // Check if Supabase is configured
+            const supabase = getSupabaseClient();
+            if (!supabase) {
+                Logger.debug(`[SyncOrchestrator] Supabase not configured, skipping sync (${reason})`);
+                return;
+            }
+
             // Check if user is logged in
             const { data: { session } } = await supabase.auth.getSession();
             if (!session?.user) {
@@ -90,7 +128,6 @@ class SyncOrchestratorService {
                 return;
             }
 
-            this.isSyncing = true;
             store.setSyncing(true);
             store.setLastError(null);
 

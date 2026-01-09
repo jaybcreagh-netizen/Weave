@@ -25,6 +25,7 @@ interface DismissedSuggestions {
 async function loadDismissedSuggestions(): Promise<Set<string>> {
     try {
         const data = await AsyncStorage.getItem(DISMISSED_SUGGESTIONS_KEY);
+        // console.log('[EventSuggestions] Loaded raw data:', data);
         if (!data) return new Set();
 
         const parsed: DismissedSuggestions = JSON.parse(data);
@@ -32,10 +33,12 @@ async function loadDismissedSuggestions(): Promise<Set<string>> {
         // Clear dismissed suggestions older than 30 days
         const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
         if (parsed.timestamp < thirtyDaysAgo) {
+            console.log('[EventSuggestions] Clearing expired suggestions');
             await AsyncStorage.removeItem(DISMISSED_SUGGESTIONS_KEY);
             return new Set();
         }
 
+        console.log(`[EventSuggestions] Loaded ${parsed.eventIds.length} dismissed suggestions`);
         return new Set(parsed.eventIds);
     } catch (error) {
         console.error('[EventSuggestions] Error loading dismissed suggestions:', error);
@@ -57,6 +60,7 @@ async function saveDismissedSuggestion(eventId: string): Promise<void> {
         };
 
         await AsyncStorage.setItem(DISMISSED_SUGGESTIONS_KEY, JSON.stringify(data));
+        console.log('[EventSuggestions] Saved dismissed suggestion:', eventId);
     } catch (error) {
         console.error('[EventSuggestions] Error saving dismissed suggestion:', error);
     }
@@ -132,7 +136,11 @@ export function useEventSuggestions(options?: { enabled?: boolean }) {
             const now = new Date();
 
             const upcomingSuggestions: EventSuggestion[] = upcomingResult.events
-                .filter((event) => !dismissed.has(event.id))
+                .filter((event) => {
+                    const isDismissed = dismissed.has(event.id);
+                    if (isDismissed) console.log(`[EventSuggestions] filtering out dismissed upcoming event: ${event.id} - ${event.title}`);
+                    return !isDismissed;
+                })
                 .filter((event) => event.matchedFriends.length > 0)
                 .map((event) => ({
                     event,
@@ -141,7 +149,11 @@ export function useEventSuggestions(options?: { enabled?: boolean }) {
                 }));
 
             const pastSuggestions: EventSuggestion[] = pastResult.events
-                .filter((event) => !dismissed.has(event.id))
+                .filter((event) => {
+                    const isDismissed = dismissed.has(event.id);
+                    console.log(`[EventSuggestions] Checking past event: ${event.id} ("${event.title}"). Dismissed? ${isDismissed}`);
+                    return !isDismissed;
+                })
                 .filter((event) => event.matchedFriends.length > 0)
                 .map((event) => ({
                     event,

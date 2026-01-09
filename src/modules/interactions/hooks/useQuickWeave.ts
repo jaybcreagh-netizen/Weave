@@ -107,10 +107,10 @@ export function useQuickWeave() {
         openQuickWeave(friendId, centerPoint, defaultOrder);
     }, [openQuickWeave]);
 
-    const handleTap = useCallback((friendId: string) => {
+    const handleTap = useDebounceCallback(useCallback((friendId: string) => {
         // Navigate immediately for snappy feel
         router.push(`/friend-profile?friendId=${friendId}`);
-    }, [router]);
+    }, [router]), 500, true);
 
     return {
         handleInteractionSelection,

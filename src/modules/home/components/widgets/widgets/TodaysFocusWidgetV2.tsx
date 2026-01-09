@@ -27,6 +27,7 @@ import { parseFlexibleDate } from '@/shared/utils/date-utils';
 import { useReachOut, ContactLinker } from '@/modules/messaging';
 import { SuggestionActionSheet } from '@/modules/interactions/components/SuggestionActionSheet';
 import { useFriendsObservable } from '@/shared/context/FriendsObservableContext';
+import { useOracleSheet } from '@/modules/oracle';
 
 const WIDGET_CONFIG: HomeWidgetConfig = {
     id: 'todays-focus',
@@ -55,6 +56,7 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = () => {
     const { completePlan } = usePlans();
     const { openPostWeaveRating, openWeeklyReflection } = useUIStore();
     const { reachOut } = useReachOut();
+    const oracleSheet = useOracleSheet();
 
     const [showDetailSheet, setShowDetailSheet] = useState(false);
     const [upcomingDates, setUpcomingDates] = useState<UpcomingDate[]>([]);
@@ -284,6 +286,18 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = () => {
             return;
         }
 
+        // Handle Oracle suggestions (no friend required)
+        if (suggestion.action?.type === 'oracle') {
+            setShowDetailSheet(false);
+            setTimeout(() => {
+                oracleSheet.open({
+                    context: 'insights',
+                    initialQuestion: suggestion.action?.prefillPrompt || suggestion.title,
+                });
+            }, 500);
+            return;
+        }
+
         const friend = friends.find(f => f.id === suggestion.friendId);
         if (!friend) {
             setShowDetailSheet(false);
@@ -291,8 +305,13 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = () => {
         }
 
         // Show choice sheet for all friend-related suggestions
-        setSelectedSuggestion(suggestion);
+        // Close the detail sheet first to avoid modal stacking issues
         setShowDetailSheet(false);
+
+        // Wait for sheet to close before showing action sheet
+        setTimeout(() => {
+            setSelectedSuggestion(suggestion);
+        }, 500);
     };
 
     const handlePlanSuggestion = (suggestion: Suggestion, friend: FriendModel) => {

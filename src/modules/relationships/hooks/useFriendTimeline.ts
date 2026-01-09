@@ -1,8 +1,8 @@
 import { useMemo } from 'react';
 import { isFuture, isToday } from 'date-fns';
-import { type Interaction } from '@/shared/types/legacy-types';
+import { InteractionShape } from '@/shared/types/derived';
 
-export function useFriendTimeline(interactions: Interaction[] | undefined) {
+export function useFriendTimeline(interactions: InteractionShape[] | undefined) {
     const sortedInteractions = useMemo(() =>
         [...(interactions || [])].sort((a, b) => {
             const dateA = new Date(a.interactionDate).getTime();
@@ -14,7 +14,7 @@ export function useFriendTimeline(interactions: Interaction[] | undefined) {
         }), [interactions]);
 
     const timelineSections = useMemo(() => {
-        const sections: { [key: string]: Interaction[] } = {
+        const sections: { [key: string]: InteractionShape[] } = {
             Seeds: [], // Future
             Today: [],
             'Woven Memories': [], // Past

@@ -16,6 +16,7 @@ import {
 } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
 import FriendModel from '@/db/models/Friend';
+import { FriendShape } from '@/shared/types/derived';
 import { InteractionCategory } from '@/shared/types/common';
 import { usePlanSuggestion } from '../hooks/usePlanSuggestion';
 import { PlanWizardStep1 } from './plan-wizard/PlanWizardStep1';
@@ -52,7 +53,7 @@ const CATEGORIES: Array<{
 interface PlanWizardProps {
   visible: boolean;
   onClose: () => void;
-  initialFriend: FriendModel; // The friend from whose profile the wizard was opened
+  initialFriend: FriendModel | FriendShape; // The friend from whose profile the wizard was opened
   // Optional prefill from suggestions or reschedule
   prefillData?: {
     date?: Date;

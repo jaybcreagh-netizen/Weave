@@ -102,24 +102,8 @@ export async function executeShareWeave(payload: Record<string, unknown>): Promi
         category: data.category,
     });
 
-    // Send Push Notifications (Phase 4)
-    // Using PushQueueService for reliable delivery (handles offline/retries)
-    // Fire and forget - don't block sync success
-    Promise.all(data.participantUserIds.map(async (recipientId) => {
-        try {
-            await PushQueueService.sendOrQueue(recipientId, {
-                type: 'shared_weave',
-                title: 'New Shared Weave',
-                body: `${user.user_metadata.full_name || 'A friend'} shared "${data.title || 'a moment'}" with you.`,
-                data: {
-                    sharedWeaveId: sharedWeave.id,
-                    action: 'view_shared_weave'
-                }
-            });
-        } catch (err) {
-            console.warn('Error queuing shared weave push:', err);
-        }
-    })).catch(err => console.error('Push notification batch failed', err));
+    // NOTE: Push Notifications are now handled by database triggers (on_shared_weave_participant_added)
+    // This prevents duplicate notifications and ensures reliability even if client disconnects immediately.
 }
 
 // =============================================================================
@@ -180,34 +164,8 @@ export async function executeUpdateSharedWeave(payload: Record<string, unknown>)
 
     logger.info('SyncOps', 'Updated shared weave', { serverWeaveId: ref.serverWeaveId });
 
-    // Send Update Notifications
-    try {
-        // Fetch participants to notify
-        const { data: participants } = await client
-            .from('shared_weave_participants')
-            .select('user_id')
-            .eq('shared_weave_id', ref.serverWeaveId);
-
-        if (participants) {
-            const recipients = participants
-                .map(p => p.user_id)
-                .filter(uid => uid !== user.id); // Don't notify self
-
-            Promise.all(recipients.map(async (recipientId) => {
-                await PushQueueService.sendOrQueue(recipientId, {
-                    type: 'shared_weave',
-                    title: 'Weave Updated',
-                    body: `${user.user_metadata.full_name || 'A friend'} updated "${data.title || 'the weave'}".`,
-                    data: {
-                        sharedWeaveId: ref.serverWeaveId,
-                        action: 'view_shared_weave'
-                    }
-                });
-            })).catch(err => console.error('Update push notification batch failed', err));
-        }
-    } catch (err) {
-        console.warn('Error fetching participants for notification:', err);
-    }
+    // NOTE: Push Notifications handled by server triggers
+    // Future: Implement notify_shared_weave_update trigger if needed
 }
 
 // =============================================================================
@@ -266,28 +224,7 @@ export async function executeAcceptWeave(payload: Record<string, unknown>): Prom
     // Track analytics for observability
     trackEvent(AnalyticsEvents.SHARED_WEAVE_ACCEPTED);
 
-    // Notify Creator (Phase 4)
-    try {
-        const { data: weave } = await client
-            .from('shared_weaves')
-            .select('created_by, title')
-            .eq('id', data.sharedWeaveId)
-            .single();
-
-        if (weave && weave.created_by !== user.id) {
-            await PushQueueService.sendOrQueue(weave.created_by, {
-                type: 'shared_weave',
-                title: 'Friend Joining',
-                body: `${user.user_metadata.full_name || 'A friend'} is joining "${weave.title || 'your plan'}".`,
-                data: {
-                    sharedWeaveId: data.sharedWeaveId,
-                    action: 'view_shared_weave'
-                }
-            });
-        }
-    } catch (err) {
-        console.warn('Error sending accept notification:', err);
-    }
+    // NOTE: Push Notifications handled by database trigger (on_shared_weave_participant_accepted)
 }
 
 // =============================================================================
@@ -362,12 +299,16 @@ export async function executeSendLinkRequest(payload: Record<string, unknown>): 
     const client = getSupabaseClient();
     if (!client) throw new Error('No Supabase client');
 
-    // Idempotency: Check if request already exists
+    // Sort user IDs to satisfy CHECK constraint (user_a_id < user_b_id)
+    const [userAId, userBId] = [data.requesterId, data.targetUserId].sort();
+    const isRequesterUserA = userAId === data.requesterId;
+
+    // Idempotency: Check if request already exists (check both orderings)
     const { data: existing } = await client
         .from('friend_links')
         .select('id, status')
-        .eq('user_a_id', data.requesterId)
-        .eq('user_b_id', data.targetUserId)
+        .eq('user_a_id', userAId)
+        .eq('user_b_id', userBId)
         .in('status', ['pending', 'accepted'])
         .maybeSingle();
 
@@ -385,13 +326,15 @@ export async function executeSendLinkRequest(payload: Record<string, unknown>): 
         return;
     }
 
-    // Create new link request
+    // Create new link request with properly ordered IDs
     const { data: linkData, error } = await client
         .from('friend_links')
         .insert({
-            user_a_id: data.requesterId,
-            user_b_id: data.targetUserId,
-            user_a_friend_id: data.localFriendId,
+            user_a_id: userAId,
+            user_b_id: userBId,
+            // Store local friend ID in the correct column based on who's user A
+            user_a_friend_id: isRequesterUserA ? data.localFriendId : undefined,
+            user_b_friend_id: isRequesterUserA ? undefined : data.localFriendId,
             initiated_by: data.requesterId,
             status: 'pending',
         })

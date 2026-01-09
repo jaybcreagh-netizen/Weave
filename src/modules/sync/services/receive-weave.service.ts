@@ -5,6 +5,9 @@
  */
 
 import { database } from '@/db';
+import * as CalendarService from '@/modules/interactions/services/calendar.service';
+import { getCategoryMetadata } from '@/shared/constants/interaction-categories';
+import { type InteractionCategory } from '@/shared/types/legacy-types';
 import Interaction from '@/db/models/Interaction';
 import InteractionFriend from '@/db/models/InteractionFriend';
 import SharedWeaveRef from '@/db/models/SharedWeaveRef';
@@ -18,6 +21,7 @@ interface IncomingWeave {
     id: string; // server shared_weave_id
     creatorUserId: string;
     creatorName: string;
+    creatorAvatarUrl?: string;
     weaveDate: string; // ISO string
     title?: string;
     location?: string;
@@ -89,6 +93,9 @@ export async function acceptWeave(sharedWeaveId: string, weaveData: IncomingWeav
             }
         }
 
+
+
+        const isFuture = new Date(weaveData.weaveDate).getTime() > Date.now();
         let interactionId = '';
 
         await database.write(async () => {
@@ -96,9 +103,8 @@ export async function acceptWeave(sharedWeaveId: string, weaveData: IncomingWeav
             const interactionsCollection = database.get<Interaction>('interactions');
             const interaction = await interactionsCollection.create(record => {
                 record.interactionDate = new Date(weaveData.weaveDate);
-                record.interactionType = 'log'; // Or 'plan' if future? Plan wizard implies future usually.
+                record.interactionType = 'log'; // Will be updated below based on isFuture
                 // Logic check: if weaveDate > now, it should be 'plan' and status 'planned'
-                const isFuture = new Date(weaveData.weaveDate).getTime() > Date.now();
 
                 record.interactionType = isFuture ? 'plan' : 'log';
                 record.status = isFuture ? 'planned' : 'completed';
@@ -134,6 +140,46 @@ export async function acceptWeave(sharedWeaveId: string, weaveData: IncomingWeav
                 ref.respondedAt = Date.now();
             });
         });
+
+
+        // CALENDAR INTEGRATION
+        // Mirroring PlanWizard behavior: if it's a future plan, try to add to device calendar
+        if (isFuture) {
+            try {
+                const settings = await CalendarService.getCalendarSettings();
+                if (settings.enabled) {
+                    const categoryMeta = getCategoryMetadata(weaveData.category as InteractionCategory);
+                    const friendName = creatorFriend?.name || weaveData.creatorName;
+
+                    const eventTitle = weaveData.title?.trim() ||
+                        `🧵 ${categoryMeta?.label || weaveData.category} with ${friendName}`;
+
+                    const result = await CalendarService.createWeaveCalendarEventWithResult({
+                        title: eventTitle,
+                        friendNames: friendName,
+                        category: categoryMeta?.label || weaveData.category,
+                        date: new Date(weaveData.weaveDate),
+                        location: weaveData.location?.trim(),
+                        notes: `Shared weave accepted from ${friendName}`,
+                    });
+
+                    if (result.success && result.eventId && interactionId) {
+                        logger.info('ReceiveWeave', 'Created calendar event', { eventId: result.eventId });
+
+                        // Update interaction with calendar event ID
+                        await database.write(async () => {
+                            const interaction = await database.get<Interaction>('interactions').find(interactionId);
+                            await interaction.update(i => {
+                                i.calendarEventId = result.eventId!;
+                            });
+                        });
+                    }
+                }
+            } catch (calendarError) {
+                logger.warn('ReceiveWeave', 'Failed to create calendar event:', calendarError);
+                // Non-blocking, continue
+            }
+        }
 
         // Enqueue sync operation to update server
         await enqueueOperation('accept_weave', {
@@ -222,28 +268,44 @@ export async function fetchPendingSharedWeaves(): Promise<IncomingWeave[]> {
             return [];
         }
 
-        // Get creator names
+        // Get creator names and avatars
         const creatorIds = [...new Set(participants.map((p: any) => p.shared_weaves?.created_by).filter(Boolean))];
 
-        const { data: profiles } = await client
+        logger.debug('ReceiveWeave', 'Fetching creator profiles', { creatorIds });
+
+        // Fetch profiles with photo_url (the column used for profile pictures)
+        const { data: profiles, error: profileError } = await client
             .from('user_profiles')
-            .select('user_id, display_name, username')
-            .in('user_id', creatorIds);
+            .select('id, display_name, username, photo_url')
+            .in('id', creatorIds);
+
+        logger.debug('ReceiveWeave', 'Profile fetch result', {
+            profiles,
+            profileError: profileError?.message,
+            profileCount: profiles?.length || 0
+        });
 
         const profileMap = new Map(
-            (profiles || []).map((p: any) => [p.user_id, p.display_name || p.username || 'Unknown'])
+            (profiles || []).map((p: any) => [p.id, {
+                name: p.display_name || p.username || 'Unknown',
+                avatarUrl: p.photo_url // photo_url is the actual column name
+            }])
         );
 
-        return participants.map((p: any) => ({
-            id: p.shared_weave_id,
-            creatorUserId: p.shared_weaves?.created_by,
-            creatorName: profileMap.get(p.shared_weaves?.created_by) || 'A friend',
-            weaveDate: p.shared_weaves?.weave_date,
-            title: p.shared_weaves?.title,
-            location: p.shared_weaves?.location,
-            category: p.shared_weaves?.category,
-            duration: p.shared_weaves?.duration,
-        }));
+        return participants.map((p: any) => {
+            const profile = profileMap.get(p.shared_weaves?.created_by);
+            return {
+                id: p.shared_weave_id,
+                creatorUserId: p.shared_weaves?.created_by,
+                creatorName: profile?.name || 'A friend',
+                creatorAvatarUrl: profile?.avatarUrl,
+                weaveDate: p.shared_weaves?.weave_date,
+                title: p.shared_weaves?.title,
+                location: p.shared_weaves?.location,
+                category: p.shared_weaves?.category,
+                duration: p.shared_weaves?.duration,
+            };
+        });
 
     } catch (error) {
         logger.error('ReceiveWeave', 'Failed to fetch pending weaves:', error);
@@ -288,29 +350,36 @@ export async function fetchSharedWeaveHistory(): Promise<(IncomingWeave & { stat
             return [];
         }
 
-        // Get creator names
+        // Get creator names and photos
         const creatorIds = [...new Set(participants.map((p: any) => p.shared_weaves?.created_by).filter(Boolean))];
 
         const { data: profiles } = await client
             .from('user_profiles')
-            .select('user_id, display_name, username')
-            .in('user_id', creatorIds);
+            .select('id, display_name, username, photo_url')
+            .in('id', creatorIds);
 
         const profileMap = new Map(
-            (profiles || []).map((p: any) => [p.user_id, p.display_name || p.username || 'Unknown'])
+            (profiles || []).map((p: any) => [p.id, {
+                name: p.display_name || p.username || 'Unknown',
+                photoUrl: p.photo_url
+            }])
         );
 
-        return participants.map((p: any) => ({
-            id: p.shared_weave_id,
-            creatorUserId: p.shared_weaves?.created_by,
-            creatorName: profileMap.get(p.shared_weaves?.created_by) || 'A friend',
-            weaveDate: p.shared_weaves?.weave_date,
-            title: p.shared_weaves?.title,
-            location: p.shared_weaves?.location,
-            category: p.shared_weaves?.category,
-            duration: p.shared_weaves?.duration,
-            status: p.response as 'accepted' | 'declined',
-        }));
+        return participants.map((p: any) => {
+            const profile = profileMap.get(p.shared_weaves?.created_by);
+            return {
+                id: p.shared_weave_id,
+                creatorUserId: p.shared_weaves?.created_by,
+                creatorName: profile?.name || 'A friend',
+                creatorAvatarUrl: profile?.photoUrl,
+                weaveDate: p.shared_weaves?.weave_date,
+                title: p.shared_weaves?.title,
+                location: p.shared_weaves?.location,
+                category: p.shared_weaves?.category,
+                duration: p.shared_weaves?.duration,
+                status: p.response as 'accepted' | 'declined',
+            };
+        });
 
     } catch (error) {
         logger.error('ReceiveWeave', 'Failed to fetch history:', error);

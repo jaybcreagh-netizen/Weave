@@ -11,57 +11,15 @@ import * as WebBrowser from 'expo-web-browser';
 WebBrowser.maybeCompleteAuthSession();
 
 // Supabase configuration
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
-
-/**
- * Main Supabase client instance
- * Used for all auth and database operations
- */
-
-// Define a partial interface for the dummy client to avoid 'any'
-interface DummySupabaseClient {
-  auth: {
-    getSession: () => Promise<{ data: { session: null }, error: null }>;
-    onAuthStateChange: () => { data: { subscription: { unsubscribe: () => void } } };
-    signInWithOAuth: () => Promise<{ error: { message: string } }>;
-    signOut: () => Promise<{ error: null }>;
-  };
-  from: () => {
-    select: () => { data: any[], error: { message: string } };
-    insert: () => { data: null, error: { message: string } };
-    update: () => { data: null, error: { message: string } };
-    delete: () => { data: null, error: { message: string } };
-    upload: () => { data: null, error: { message: string } };
-    getPublicUrl: () => { data: { publicUrl: string } };
-    remove: () => { error: { message: string } };
-  };
-  storage: {
-    from: (bucket: string) => {
-      upload: () => { data: null, error: { message: string } };
-      getPublicUrl: () => { data: { publicUrl: string } };
-      remove: () => { error: { message: string } };
-    };
-  };
-}
-
-const ExpoSecureStoreAdapter = {
-  getItem: (key: string) => {
-    return SecureStore.getItemAsync(key);
-  },
-  setItem: (key: string, value: string) => {
-    SecureStore.setItemAsync(key, value);
-  },
-  removeItem: (key: string) => {
-    SecureStore.deleteItemAsync(key);
-  },
-};
+// Import the shared client
+import { getSupabaseClient } from '@/shared/services/supabase-client';
 
 export const supabase = (() => {
-  if (!supabaseUrl || !supabaseAnonKey) {
+  const client = getSupabaseClient();
+
+  if (!client) {
     console.warn(
-      'Missing Supabase environment variables. Cloud sync will be disabled.\n' +
-      'Add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY to .env'
+      'Supabase client not available/configured. Cloud sync will be disabled.'
     );
 
     // Return a dummy client that warns on usage but doesn't crash
@@ -92,14 +50,8 @@ export const supabase = (() => {
     } as unknown as TypedSupabaseClient;
   }
 
-  return createClient(supabaseUrl, supabaseAnonKey, {
-    auth: {
-      storage: ExpoSecureStoreAdapter as any,
-      autoRefreshToken: true,
-      persistSession: true,
-      detectSessionInUrl: false,
-    },
-  });
+  // Cast the shared client to TypedSupabaseClient
+  return client as unknown as TypedSupabaseClient;
 })();
 
 /**

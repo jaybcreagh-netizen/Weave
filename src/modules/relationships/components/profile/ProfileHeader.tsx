@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import Animated, { SharedValue, useAnimatedStyle } from 'react-native-reanimated';
-import { ArrowLeft, Edit, Trash2, Calendar } from 'lucide-react-native';
+import { ArrowLeft, Edit, Trash2, Calendar, Bell } from 'lucide-react-native';
 import { FriendListRow, FriendListRowContent } from '@/modules/relationships/components/FriendListRow';
 import { PatternBadge } from '@/modules/gamification';
 import { TierFitCard } from '@/modules/insights';
@@ -21,6 +21,8 @@ interface ProfileHeaderProps {
     onShowTierFit?: () => void;
     onLinkToWeaveUser?: () => void;
     onUnlinkFriend?: () => void;
+    /** Count of pending shared weaves from this friend */
+    pendingWeaveCount?: number;
 }
 
 export function ProfileHeader({
@@ -34,6 +36,7 @@ export function ProfileHeader({
     onShowTierFit,
     onLinkToWeaveUser,
     onUnlinkFriend,
+    pendingWeaveCount = 0,
 }: ProfileHeaderProps) {
     const { colors } = useTheme();
 
@@ -75,12 +78,24 @@ export function ProfileHeader({
                     <PatternBadge friend={friend as any} style={{ marginTop: 4, marginLeft: 4 }} />
 
                     {/* Link Status Badge */}
-                    <View style={{ marginTop: 8 }}>
+                    <View style={{ marginTop: 8, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                         <LinkStatusBadge
                             friend={friend}
                             onLinkPress={onLinkToWeaveUser}
                             onUnlinkPress={onUnlinkFriend}
                         />
+                        {/* Pending Weaves Badge */}
+                        {pendingWeaveCount > 0 && (
+                            <View
+                                className="flex-row items-center gap-1 px-2 py-1 rounded-full"
+                                style={{ backgroundColor: '#F59E0B20' }}
+                            >
+                                <Bell size={12} color="#F59E0B" />
+                                <Text style={{ color: '#F59E0B', fontSize: 11, fontWeight: '600' }}>
+                                    {pendingWeaveCount} pending
+                                </Text>
+                            </View>
+                        )}
                     </View>
 
                     {/* Linked Friend's Archetype (if linked) */}

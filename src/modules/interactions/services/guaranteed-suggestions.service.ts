@@ -14,6 +14,7 @@ import { Suggestion } from '@/shared/types/common';
 import FriendModel from '@/db/models/Friend';
 import { calculateCurrentScore } from '@/modules/intelligence/services/orchestrator.service';
 import type { SocialSeason } from '@/db/models/UserProfile';
+import { oracleService } from '@/modules/oracle';
 
 // ============================================================================
 // DAILY REFLECT PROMPTS
@@ -66,7 +67,6 @@ const WILDCARD_SUGGESTIONS: WildcardSuggestion[] = [
     { title: "Spontaneous check-in", subtitle: "Send a 'just thinking of you' text to brighten their day", icon: "MessageCircle", actionType: 'log', prefilledCategory: 'text-call' },
     { title: "Group spark", subtitle: "Plan a casual hangout with two friends who'd enjoy meeting", icon: "Users", actionType: 'plan', prefilledCategory: 'hangout' },
     { title: "Deep dive", subtitle: "Schedule a heart-to-heart with someone you haven't caught up with properly", icon: "Coffee", actionType: 'plan', prefilledCategory: 'deep-talk' },
-    { title: "Celebration seed", subtitle: "Plan ahead for an upcoming friend milestone you can celebrate", icon: "PartyPopper", actionType: 'plan', prefilledCategory: 'celebration' },
     { title: "Walk & talk", subtitle: "Invite someone for a walk. Connections flow easier in motion.", icon: "Footprints", actionType: 'plan', prefilledCategory: 'activity-hobby' },
 ];
 
@@ -194,13 +194,12 @@ export function generateGuaranteedSuggestions(
         }
     }
 
-    // 3. WILDCARD - Context-aware spontaneous suggestion
-    // In resting season, prefer low-energy wildcards
-    if (!existingCategories.has('wildcard')) {
-        const wildcardSuggestion = generateWildcard(friends, usedFriendIds, season === 'resting');
-        if (wildcardSuggestion) {
-            suggestions.push(wildcardSuggestion);
-            if (wildcardSuggestion.friendId) usedFriendIds.add(wildcardSuggestion.friendId);
+    // 3. ORACLE SUGGESTION - Personalized Oracle prompt (replaces generic wildcards)
+    // This provides more contextual and interesting suggestions than wildcards
+    if (!existingCategories.has('oracle-nudge')) {
+        const oracleSuggestion = generateOracleSuggestion();
+        if (oracleSuggestion) {
+            suggestions.push(oracleSuggestion);
         }
     }
 
@@ -266,6 +265,46 @@ function generateDailyReflect(): Suggestion {
         actionLabel: 'Reflect',
         action: {
             type: 'reflect',
+        },
+        dismissible: true,
+        createdAt: new Date(),
+    };
+}
+
+// ============================================================================
+// ORACLE SUGGESTION PROMPTS
+// Personalized prompts that open the Oracle chat
+// ============================================================================
+
+const ORACLE_SUGGESTION_PROMPTS = [
+    { text: "Who should I prioritize this week?", icon: "Users" },
+    { text: "How's my social balance looking?", icon: "BarChart2" },
+    { text: "Suggest a friend to reconnect with", icon: "UserPlus" },
+    { text: "What patterns do you see in my connections?", icon: "TrendingUp" },
+    { text: "Help me plan my social energy", icon: "Battery" },
+];
+
+/**
+ * Generate an Oracle suggestion that opens the Oracle chat with a prefilled prompt
+ * Returns null gracefully if prompts aren't available
+ */
+function generateOracleSuggestion(): Suggestion | null {
+    // Pick a random prompt from the list
+    const prompt = ORACLE_SUGGESTION_PROMPTS[Math.floor(Math.random() * ORACLE_SUGGESTION_PROMPTS.length)];
+
+    return {
+        id: `oracle-nudge-${new Date().toISOString().split('T')[0]}`,
+        friendId: '', // No specific friend
+        type: 'connect',
+        title: prompt.text,
+        subtitle: 'Ask the Oracle',
+        icon: prompt.icon,
+        category: 'oracle-nudge',
+        urgency: 'low',
+        actionLabel: 'Ask Oracle',
+        action: {
+            type: 'oracle',
+            prefillPrompt: prompt.text,
         },
         dismissible: true,
         createdAt: new Date(),

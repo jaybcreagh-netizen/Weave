@@ -107,6 +107,13 @@ export function GlobalModals() {
                 case 'FRIEND_NURTURED':
                     useUIStore.getState().setJustNurturedFriendId(event.friendId);
                     break;
+                case 'SHARED_WEAVE_CONFIRMED':
+                    // Celebration toast for shared weave mutual confirmation
+                    useUIStore.getState().showToast(
+                        `🎉 Weave confirmed with ${event.creatorName}!`,
+                        'Shared'
+                    );
+                    break;
             }
         });
 

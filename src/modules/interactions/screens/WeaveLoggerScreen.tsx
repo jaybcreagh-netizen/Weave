@@ -41,6 +41,8 @@ const dateOptions: { id: string; icon: LucideIcon; label: string; getDate: () =>
 interface WeaveLoggerScreenProps {
     /** Pre-selected friend ID (optional) */
     friendId?: string;
+    /** List of pre-selected friend IDs (optional, takes precedence over friendId) */
+    friendIds?: string[];
     /** Pre-selected date (optional) */
     date?: string;
     /** Pre-selected category (optional) */
@@ -59,6 +61,7 @@ interface WeaveLoggerScreenProps {
 
 export function WeaveLoggerScreen({
     friendId,
+    friendIds,
     date,
     category,
     notes,
@@ -104,7 +107,9 @@ export function WeaveLoggerScreen({
 
     // Cleanup on unmount
     useEffect(() => {
+        console.log('[WeaveLogger] Screen Mounted');
         return () => {
+            console.log('[WeaveLogger] Screen Unmounted');
             isMountedRef.current = false;
             if (navigationTimeoutRef.current) {
                 clearTimeout(navigationTimeoutRef.current);
@@ -134,23 +139,33 @@ export function WeaveLoggerScreen({
 
     // Fetch friend's data and set as initial selected friend
     useEffect(() => {
-        if (friendId) {
-            database.get<FriendModel>(FriendModel.table)
-                .find(friendId)
-                .then(friend => {
+        const loadFriends = async () => {
+            try {
+                if (friendIds && friendIds.length > 0) {
+                    const friends = await database.get<FriendModel>(FriendModel.table)
+                        .query(Q.where('id', Q.oneOf(friendIds)))
+                        .fetch();
+                    setSelectedFriends(friends);
+                    if (friends.length > 0) {
+                        setFriendArchetype(friends[0].archetype as Archetype);
+                    }
+                } else if (friendId) {
+                    const friend = await database.get<FriendModel>(FriendModel.table).find(friendId);
                     setSelectedFriends([friend]);
                     setFriendArchetype(friend.archetype as Archetype);
-                })
-                .catch(err => {
-                    console.error('Error fetching friend:', err);
-                    Alert.alert(
-                        'Error',
-                        'Could not load friend details. Please try again.',
-                        [{ text: 'OK', onPress: onBack }]
-                    );
-                });
-        }
-    }, [friendId, onBack]);
+                }
+            } catch (err) {
+                console.error('Error fetching friends:', err);
+                Alert.alert(
+                    'Error',
+                    'Could not load friend details. Please try again.',
+                    [{ text: 'OK', onPress: onBack }]
+                );
+            }
+        };
+        loadFriends();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [friendId, friendIds?.join(','), onBack]);
 
     // Check for linked friends when selectedFriends changes
     useEffect(() => {
@@ -391,7 +406,11 @@ export function WeaveLoggerScreen({
 
     return (
         <ErrorBoundary>
-            <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
+            <SafeAreaView
+                className="flex-1"
+                style={{ backgroundColor: colors.background }}
+                onTouchStart={() => console.log('[WeaveLogger] Touch Start on Root')}
+            >
                 <KeyboardAvoidingView
                     behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                     style={{ flex: 1 }}

@@ -7,6 +7,7 @@
 
 import { database } from '@/db';
 import Friend from '@/db/models/Friend';
+import { Q } from '@nozbe/watermelondb';
 import { getSupabaseClient } from '@/shared/services/supabase-client';
 import { getCurrentSession } from '@/modules/auth/services/supabase-auth.service';
 
@@ -83,12 +84,16 @@ export async function createLinkedFriend(
     if (!session) return null;
 
     try {
+        // Sort user IDs to satisfy CHECK constraint (user_a_id < user_b_id)
+        const [userAId, userBId] = [session.userId, targetUser.id].sort();
+        const isCurrentUserA = userAId === session.userId;
+
         // 1. Create friend_link in Supabase (pending request)
         const { data: linkData, error: linkError } = await client
             .from('friend_links')
             .insert({
-                user_a_id: session.userId, // Requester
-                user_b_id: targetUser.id,   // Target
+                user_a_id: userAId,
+                user_b_id: userBId,
                 initiated_by: session.userId,
                 status: 'pending',
             })
@@ -123,9 +128,20 @@ export async function createLinkedFriend(
                 // Friend Linking fields
                 f.linkedUserId = targetUser.id;
                 f.linkStatus = 'pending_sent';
+                f.serverLinkId = linkData?.[0]?.id;
             });
             createdFriend = friend;
         });
+
+        // 3. Update the server with our local friend ID
+        if (createdFriend && linkData?.[0]?.id) {
+            await client
+                .from('friend_links')
+                .update({
+                    [isCurrentUserA ? 'user_a_friend_id' : 'user_b_friend_id']: (createdFriend as Friend).id,
+                })
+                .eq('id', linkData[0].id);
+        }
 
         if (createdFriend) {
             console.log('[FriendLinking] Created linked friend:', (createdFriend as Friend).id, 'for user:', targetUser.username);
@@ -143,28 +159,38 @@ export async function createLinkedFriend(
 export async function sendLinkRequest(
     localFriendId: string,
     targetUserId: string
-): Promise<boolean> {
+): Promise<{ success: boolean; error?: string }> {
     const client = getSupabaseClient();
-    if (!client) return false;
+    if (!client) return { success: false, error: 'Network error: No Supabase client' };
 
     const session = await getCurrentSession();
-    if (!session) return false;
+    if (!session) return { success: false, error: 'Authentication error: No active session' };
 
     try {
-        // 1. Create friend_link in Supabase
+        // Sort user IDs to satisfy CHECK constraint (user_a_id < user_b_id)
+        const [userAId, userBId] = [session.userId, targetUserId].sort();
+        const isCurrentUserA = userAId === session.userId;
+
+        // 1. Create or update friend_link in Supabase
+        // Use upsert to handle cases where a link already exists (e.g. unlinked or declined)
         const { error: linkError } = await client
             .from('friend_links')
-            .insert({
-                user_a_id: session.userId,
-                user_b_id: targetUserId,
-                user_a_friend_id: localFriendId, // Store local friend reference
+            .upsert({
+                user_a_id: userAId,
+                user_b_id: userBId,
+                // Store local friend ID in the correct column based on who's user A
+                user_a_friend_id: isCurrentUserA ? localFriendId : undefined,
+                user_b_friend_id: isCurrentUserA ? undefined : localFriendId,
                 initiated_by: session.userId,
                 status: 'pending',
+                unlinked_at: null // Clear unlinked status if present
+            }, {
+                onConflict: 'user_a_id, user_b_id'
             });
 
         if (linkError) {
             console.error('[FriendLinking] Failed to create link:', linkError);
-            return false;
+            return { success: false, error: linkError.message || 'Failed to send link request' };
         }
 
         // 2. Update local Friend
@@ -176,10 +202,10 @@ export async function sendLinkRequest(
             });
         });
 
-        return true;
-    } catch (e) {
+        return { success: true };
+    } catch (e: any) {
         console.error('[FriendLinking] Exception sending link:', e);
-        return false;
+        return { success: false, error: e.message || 'An unexpected error occurred' };
     }
 }
 
@@ -276,9 +302,24 @@ export async function acceptLinkRequest(
 
         // 3. Create/update local Friend
         await database.write(async () => {
-            if (localFriendId) {
+            let friendIdToUpdate = localFriendId;
+
+            // Safety check: If no localFriendId provided, check if a friend with this linkedUserId already exists
+            // This prevents duplicate creation if matching failed for any reason
+            if (!friendIdToUpdate) {
+                const existingFriends = await database.get<Friend>('friends')
+                    .query(Q.where('linked_user_id', linkData.user_a_id))
+                    .fetch();
+
+                if (existingFriends.length > 0) {
+                    console.log('[FriendLinking] Found existing friend with linkedUserId, using that instead of creating new');
+                    friendIdToUpdate = existingFriends[0].id;
+                }
+            }
+
+            if (friendIdToUpdate) {
                 // Update existing friend
-                const friend = await database.get<Friend>('friends').find(localFriendId);
+                const friend = await database.get<Friend>('friends').find(friendIdToUpdate);
                 await friend.update(f => {
                     f.linkedUserId = linkData.user_a_id;
                     f.linkStatus = 'linked';
@@ -405,11 +446,14 @@ export async function syncOutgoingLinkStatus(localFriendId: string): Promise<boo
 
         // Query server for the current link status
         // The link could be stored with user_a/user_b in either direction
+        // Use limit(1) to be robust against potential duplicate data
         const { data: linkData, error } = await client
             .from('friend_links')
             .select('id, status, linked_at')
             .or(`and(user_a_id.eq.${session.userId},user_b_id.eq.${friend.linkedUserId}),and(user_a_id.eq.${friend.linkedUserId},user_b_id.eq.${session.userId})`)
             .in('status', ['pending', 'accepted'])
+            .order('created_at', { ascending: false })
+            .limit(1)
             .maybeSingle();
 
         if (error) {

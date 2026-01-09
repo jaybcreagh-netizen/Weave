@@ -6,7 +6,7 @@
  */
 
 import React, { useState, useCallback, useEffect } from 'react';
-import { View } from 'react-native';
+import { View, Alert } from 'react-native';
 import { Search, Link } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 
@@ -76,14 +76,17 @@ export function LinkFriendSheet({
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         setLinkingUserId(user.id);
 
-        const success = await sendLinkRequest(friendId, user.id);
+        const result = await sendLinkRequest(friendId, user.id);
 
         setLinkingUserId(null);
 
-        if (success) {
+        if (result.success) {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             onLinked();
             onClose();
+        } else {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+            Alert.alert("Link Failed", result.error || "Could not send link request.");
         }
     };
 

@@ -1,4 +1,4 @@
-import React, { ReactNode } from 'react';
+import React, { ReactNode, useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StatusBar } from 'expo-status-bar';
 import { PortalProvider } from '@gorhom/portal';
@@ -17,6 +17,7 @@ import { useTheme } from '@/shared/hooks/useTheme';
 import { AuthProvider } from '@/modules/auth';
 import { SyncConflictProvider } from '@/modules/auth';
 import { RealtimeProvider } from '@/shared/components/RealtimeProvider';
+import { runExpirationCheckOnStartup } from '@/modules/sync';
 
 import { queryClient } from '@/shared/api/query-client';
 
@@ -36,6 +37,11 @@ interface AppProvidersProps {
 export function AppProviders({ children }: AppProvidersProps) {
     const isDarkMode = useUIStore((state) => state.isDarkMode);
     const { colors } = useTheme();
+
+    // Run shared weave expiration check on app startup
+    useEffect(() => {
+        runExpirationCheckOnStartup();
+    }, []);
 
     return (
         <QueryClientProvider client={queryClient}>

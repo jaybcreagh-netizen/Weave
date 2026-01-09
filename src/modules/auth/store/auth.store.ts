@@ -132,10 +132,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         .from('user_subscriptions')
         .select('*')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
       if (error) {
         console.error('Error fetching subscription:', error);
+        return;
+      }
+
+      if (!data) {
         // Default to free tier if no subscription found
         set({
           subscription: {

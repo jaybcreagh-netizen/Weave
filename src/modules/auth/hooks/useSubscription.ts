@@ -24,12 +24,19 @@ export function useSubscription() {
                 .from('user_subscriptions')
                 .select('*')
                 .eq('user_id', user.id)
-                .single();
+                .maybeSingle();
 
             if (error) {
-                // Default to free tier if no subscription found or error
-                // We log the error but return a default object to keep the UI working
                 console.error('Error fetching subscription:', error);
+                return {
+                    tier: 'free',
+                    status: 'active',
+                    trialEndsAt: null,
+                    currentPeriodEnd: null,
+                };
+            }
+
+            if (!data) {
                 return {
                     tier: 'free',
                     status: 'active',

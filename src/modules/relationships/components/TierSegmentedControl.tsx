@@ -169,10 +169,10 @@ export function TierSegmentedControl({
                   {counts[tier]}/{TIER_MAX[tier]}
                 </Text>
               </View>
-              {/* Warning indicator when at/over capacity */}
-              {atCapacity && (
+              {/* Warning indicator only when over capacity */}
+              {overCapacity && (
                 <Text style={{ fontSize: 10, opacity: isActive ? 0.7 : 0.4 }}>
-                  {overCapacity ? '⚠️' : '⚡'}
+                  ⚠️
                 </Text>
               )}
             </Pressable>

@@ -82,7 +82,7 @@ export function StarterPromptChips({ onSelect, context = 'default' }: StarterPro
     // Combine loading check inside the render to allow exit animations
     return (
         <View className="mt-8 w-full items-center min-h-[100px]">
-            {loading ? (
+            {loading && prompts.length === 0 ? (
                 <LoadingSkeleton colors={colors} />
             ) : (
                 <>
@@ -132,17 +132,34 @@ export function StarterPromptChips({ onSelect, context = 'default' }: StarterPro
                         </View>
                     )}
 
-                    {!loading && prompts.length > 0 && (
-                        <TouchableOpacity
-                            onPress={refresh}
-                            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                            className="mt-4 flex-row items-center justify-center opacity-40"
-                        >
-                            <RefreshCcw size={14} color={colors['muted-foreground']} style={{ marginRight: 6 }} />
-                            <Text style={{ fontFamily: typography.fonts.sans, fontSize: 11, color: colors['muted-foreground'] }}>
-                                Refresh suggestions
-                            </Text>
-                        </TouchableOpacity>
+                    {loading ? (
+                        <View className="mt-4 opacity-40 flex-row items-center">
+                            <Animated.View
+                                style={{ marginRight: 6 }}
+                                entering={FadeInDown.duration(300)}
+                            >
+                                <RefreshCcw size={14} color={colors['muted-foreground']} />
+                            </Animated.View>
+                            <Animated.Text
+                                entering={FadeInDown.duration(300).delay(100)}
+                                style={{ fontFamily: typography.fonts.sans, fontSize: 11, color: colors['muted-foreground'] }}
+                            >
+                                Generating...
+                            </Animated.Text>
+                        </View>
+                    ) : (
+                        prompts.length > 0 && (
+                            <TouchableOpacity
+                                onPress={refresh}
+                                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                className="mt-4 flex-row items-center justify-center opacity-40"
+                            >
+                                <RefreshCcw size={14} color={colors['muted-foreground']} style={{ marginRight: 6 }} />
+                                <Text style={{ fontFamily: typography.fonts.sans, fontSize: 11, color: colors['muted-foreground'] }}>
+                                    Refresh suggestions
+                                </Text>
+                            </TouchableOpacity>
+                        )
                     )}
                 </>
             )}

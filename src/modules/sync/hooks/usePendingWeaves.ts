@@ -42,6 +42,7 @@ export function usePendingWeaves(): UsePendingWeavesReturn {
                 id: w.id,
                 creatorUserId: w.creatorUserId,
                 creatorName: w.creatorName,
+                creatorAvatarUrl: w.creatorAvatarUrl,
                 weaveDate: new Date(w.weaveDate),
                 title: w.title,
                 location: w.location,
@@ -73,11 +74,16 @@ export function usePendingWeaves(): UsePendingWeavesReturn {
             };
 
             await acceptWeave(weaveId, weaveData);
-            return weaveId;
+            return { weaveId, creatorName: weave.creatorName };
         },
-        onSuccess: (weaveId) => {
+        onSuccess: ({ weaveId, creatorName }) => {
             logger.info('usePendingWeaves', 'Accept mutation success', { weaveId });
-            showToast('Weave accepted! It will appear in your timeline.', 'Weave');
+
+            // Emit celebration event for the mutual confirmation
+            import('@/shared/services/ui-event-bus').then(({ UIEventBus }) => {
+                UIEventBus.emit({ type: 'SHARED_WEAVE_CONFIRMED', creatorName });
+            });
+
             // Optimistically update or invalidate
             queryClient.setQueryData(['pending-weaves'], (old: SharedWeaveData[] | undefined) =>
                 old ? old.filter(w => w.id !== weaveId) : []

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, TouchableOpacity, Alert, Image, ActionSheetIOS, Platform, Modal, SafeAreaView, FlatList, TextInput } from 'react-native';
+import { View, TouchableOpacity, Alert, Image, ActionSheetIOS, Platform, Modal, SafeAreaView, FlatList } from 'react-native';
+import { BufferedTextInput } from '@/shared/ui/BufferedTextInput';
 import { Check, Trash2, Users, Camera, X } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useTheme } from '@/shared/hooks/useTheme';
@@ -322,19 +323,15 @@ export function GroupManagerModal({
 
             {/* Form */}
             <View className="mb-6">
-                <Text variant="caption" className="mb-2" style={{ color: colors['muted-foreground'] }}>
-                    Group Name
-                </Text>
-                <TextInput
+                <BufferedTextInput
+                    label="Group Name"
                     placeholder="e.g., Girl Group, Family"
-                    placeholderTextColor={colors['muted-foreground']}
                     value={name}
                     onChangeText={setName}
                     autoCapitalize="words"
-                    className="p-4 rounded-xl font-inter-regular text-base"
+                    inputClassName="p-4"
                     style={{
                         backgroundColor: colors.muted,
-                        color: colors.foreground
                     }}
                 />
             </View>
@@ -345,7 +342,7 @@ export function GroupManagerModal({
                 </Text>
             </View>
         </View>
-    ), [displayPhoto, colors, name, setName, selectedFriendIds.length, showImagePicker]);
+    ), [displayPhoto, colors, selectedFriendIds.length, showImagePicker]);
 
     const renderFooter = React.useCallback(() => (
         <View className="flex-row gap-3">

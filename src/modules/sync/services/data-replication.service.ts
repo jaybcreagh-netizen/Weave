@@ -10,7 +10,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { database } from '@/db';
-import { supabase } from '@/modules/auth/services/supabase.service';
+import { getSupabaseClient } from '@/shared/services/supabase-client';
 import { Q } from '@nozbe/watermelondb';
 import type { Model } from '@nozbe/watermelondb';
 import Logger from '@/shared/utils/Logger';
@@ -57,6 +57,7 @@ export class DataReplicationService {
     private userId: string;
     private lastSyncTimestamp: number;
     private isSyncing: boolean = false;
+    private supabase = getSupabaseClient();
 
     constructor(userId: string) {
         this.userId = userId;
@@ -141,7 +142,7 @@ export class DataReplicationService {
                     Logger.debug(`DataReplication: 📥 Pulling ${tableName} page ${pageNumber}...`);
 
                     // Fetch records modified after cursor timestamp
-                    const { data, error } = await supabase
+                    const { data, error } = await this.supabase!
                         .from(tableName)
                         .select('*')
                         .eq('user_id', this.userId)
@@ -270,7 +271,7 @@ export class DataReplicationService {
                     const serverRecords = batch.map(record => this.serializeForServer(record, tableName));
 
                     // Upsert to server
-                    const { error } = await (supabase
+                    const { error } = await (this.supabase!
                         .from(tableName) as any)
                         .upsert(serverRecords as any[], { onConflict: 'id' } as any);
 

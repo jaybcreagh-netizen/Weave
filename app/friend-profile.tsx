@@ -24,6 +24,7 @@ import { UIEventBus } from '@/shared/services/ui-event-bus';
 import { database } from '@/db';
 import JournalEntry from '@/db/models/JournalEntry';
 import { Q } from '@nozbe/watermelondb';
+import { usePendingWeavesForFriend, PendingWeavesSection } from '@/modules/sync';
 
 export default function FriendProfile() {
   const router = useRouter();
@@ -38,6 +39,7 @@ export default function FriendProfile() {
     friend,
     friendModel,
     interactions,
+    shareInfoMap,
     friendIntentions,
     activeLifeEvents,
     isDataLoaded,
@@ -53,6 +55,16 @@ export default function FriendProfile() {
   } = useFriendProfileData(validFriendId);
 
   const { timelineSections } = useFriendTimeline(interactions);
+
+  // Get pending weaves from this friend's linked account
+  const linkedUserId = friendModel?.linkedUserId || undefined;
+  const {
+    pendingWeaves: friendPendingWeaves,
+    handleAccept: handleAcceptPendingWeave,
+    handleDecline: handleDeclinePendingWeave,
+    processingId: pendingProcessingId,
+    hasPending: hasPendingFromFriend
+  } = usePendingWeavesForFriend(linkedUserId);
 
   // Use the new hook for modal state
   const modals = useFriendProfileModals();
@@ -292,6 +304,7 @@ export default function FriendProfile() {
             onDeleteInteraction={handleDeleteInteraction}
             onEditInteraction={handleEditInteractionWrapper}
             linkedJournalIds={linkedJournalIds}
+            shareInfoMap={shareInfoMap}
             ListHeaderComponent={
               <View>
                 <ProfileHeader
@@ -308,6 +321,7 @@ export default function FriendProfile() {
                   onShowTierFit={() => modals.setShowTierFitSheet(true)}
                   onLinkToWeaveUser={() => setShowLinkSheet(true)}
                   onUnlinkFriend={handleUnlinkFriend}
+                  pendingWeaveCount={friendPendingWeaves.length}
                 />
 
                 <ActionButtons
@@ -327,6 +341,17 @@ export default function FriendProfile() {
                     modals.setShowLifeEventModal(true);
                   }}
                 />
+
+                {/* Pending shared weaves from this friend */}
+                {hasPendingFromFriend && (
+                  <PendingWeavesSection
+                    pendingWeaves={friendPendingWeaves}
+                    onAccept={handleAcceptPendingWeave}
+                    onDecline={handleDeclinePendingWeave}
+                    processingId={pendingProcessingId}
+                    friendName={friendModel?.name || 'Friend'}
+                  />
+                )}
               </View>
             }
             archetype={friendModel?.archetype}

@@ -38,6 +38,35 @@ const ALLOWED_TABLES = new Set([
   'intention_friends',
   'weekly_reflections',
   'journal_entries',
+  'proactive_insights',
+  'conversation_threads',
+  'groups',
+  'group_members',
+  'oracle_consultations',
+  'oracle_conversations',
+  'event_suggestion_feedback',
+  'llm_quality_log',
+  'journal_entry_friends',
+  'custom_chips',
+  'pending_push_notifications',
+  'user_facts',
+  'interaction_outcomes',
+  'oracle_insights',
+  'social_battery_logs',
+  'oracle_context_cache',
+  'network_health_logs',
+  'journal_signals',
+  'sync_queue',
+  'oracle_usage',
+  'shared_weave_refs',
+  'social_season_logs',
+  'evening_digests',
+  'chip_usage',
+  'portfolio_snapshots',
+  'friend_badges',
+  'achievement_unlocks',
+  'practice_log',
+  'suggestion_events',
 ])
 
 interface TableChanges {
@@ -53,7 +82,7 @@ interface SyncPushRequest {
   lastPulledAt: number
 }
 
-serve(async (req) => {
+serve(async (req: Request) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -69,20 +98,30 @@ serve(async (req) => {
       )
     }
 
+    // Extract token from "Bearer <token>"
+    const token = authHeader.replace('Bearer ', '')
+
     // Create Supabase client with user's auth
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!
     const supabase = createClient(supabaseUrl, supabaseAnonKey, {
       global: {
         headers: { Authorization: authHeader }
+      },
+      auth: {
+        persistSession: false, // Critical for Edge Functions
+        autoRefreshToken: false,
+        detectSessionInUrl: false
       }
     })
 
-    // Get authenticated user
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    // Get authenticated user - explicitly passing token
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
+
     if (authError || !user) {
+      console.error('[sync-push] Auth failed:', authError)
       return new Response(
-        JSON.stringify({ error: 'Unauthorized', details: authError?.message }),
+        JSON.stringify({ error: 'Unauthorized', details: authError?.message || 'User not found' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
@@ -105,8 +144,64 @@ serve(async (req) => {
     let totalUpdated = 0
     let totalDeleted = 0
 
-    // Process changes for each table
-    for (const [tableName, tableChanges] of Object.entries(changes)) {
+    // Define topological order for processing (Parents -> Children)
+    const TOPOLOGICAL_ORDER = [
+      // Level 0: Independent tables or core entities
+      'user_profile',
+      'user_progress',
+      'friends',
+      'interactions',
+      'intentions',
+      'journal_entries',
+      'weekly_reflections',
+      'groups',
+      'custom_chips',
+      'social_season_logs',
+      'evening_digests',
+
+      // Level 1: Tables dependent on Level 0
+      'life_events',
+      'interaction_friends',
+      'intention_friends',
+      'journal_entry_friends',
+      'group_members',
+      'suggestion_events', // Depends on friends
+      'proactive_insights',
+      'conversation_threads',
+      'interaction_outcomes',
+      'oracle_insights',
+      'friend_badges',
+
+      // Level 2: Tables dependent on Level 1 or multiple sources
+      'oracle_consultations',
+      'oracle_conversations',
+      'event_suggestion_feedback',
+      'llm_quality_log',
+      'pending_push_notifications',
+      'user_facts', // May depend on multiple
+      'social_battery_logs',
+      'oracle_context_cache',
+      'network_health_logs',
+      'journal_signals',
+      'sync_queue',
+      'oracle_usage',
+      'shared_weave_refs',
+      'chip_usage',
+      'portfolio_snapshots',
+      'achievement_unlocks',
+      'practice_log',
+    ]
+
+    // Create a Set for fast lookup of order index (defaults to high number if not found)
+    const orderMap = new Map(TOPOLOGICAL_ORDER.map((table, index) => [table, index]))
+    const getOrder = (table: string) => orderMap.get(table) ?? 999
+
+    // Sort tables by topological order
+    const sortedTableNames = Object.keys(changes).sort((a, b) => getOrder(a) - getOrder(b))
+
+    // Process changes for each table in order
+    for (const tableName of sortedTableNames) {
+      const tableChanges = changes[tableName]
       // Security: Only allow syncing to known tables
       if (!ALLOWED_TABLES.has(tableName)) {
         console.warn(`[sync-push] Skipping unauthorized table: ${tableName}`)
@@ -151,10 +246,10 @@ serve(async (req) => {
       }
     )
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('[sync-push] Error:', error)
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: error.message || 'Unknown error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   }
@@ -185,6 +280,13 @@ async function processCreatedRecords(
         })
 
       if (error) {
+        // Handle foreign key violations gracefully (e.g. orphan records)
+        if (error.code === '23503') {
+          console.warn(`[sync-push] Skipping orphan record in ${tableName} (Foreign Key Violation):`, error.details)
+          // Do not count as failure, just skip
+          continue
+        }
+
         console.error(`[sync-push] Error creating ${tableName} record:`, error)
         continue
       }
@@ -332,6 +434,18 @@ function sanitizeRecord(
 
   // Always set user_id to authenticated user (security)
   sanitized.user_id = userId
+
+  // Convert numeric timestamps to ISO strings (for tables like suggestion_events)
+  if (typeof sanitized.event_timestamp === 'number') {
+    sanitized.event_timestamp = new Date(sanitized.event_timestamp).toISOString()
+  }
+
+  // Generic timestamp conversion for any field ending in _at or _timestamp that is a number
+  for (const [key, value] of Object.entries(sanitized)) {
+    if ((key.endsWith('_at') || key.endsWith('_timestamp')) && typeof value === 'number') {
+      sanitized[key] = new Date(value).toISOString()
+    }
+  }
 
   return sanitized
 }

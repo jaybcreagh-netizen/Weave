@@ -95,7 +95,7 @@
       [
         "@sentry/react-native/expo",
         {
-          "url": "https://sentry.io/",
+          "url": "https://de.sentry.io/",
           "project": "weave-native",
           "organization": "jay-creagh"
         }

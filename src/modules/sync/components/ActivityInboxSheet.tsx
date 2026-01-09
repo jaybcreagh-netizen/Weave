@@ -27,7 +27,9 @@ import {
 import { LinkMatchConfirmModal } from '@/modules/relationships/components/LinkMatchConfirmModal';
 import { usePendingWeaves } from '../hooks/usePendingWeaves';
 import { useSharedWeaveHistory } from '../hooks/useSharedWeaveHistory';
+import { useOutgoingWeaves, OutgoingWeave } from '../hooks/useOutgoingWeaves';
 import { SharedWeaveCard } from './SharedWeaveCard';
+import { OutgoingWeaveCard } from './OutgoingWeaveCard';
 
 interface ActivityInboxSheetProps {
     visible: boolean;
@@ -36,7 +38,7 @@ interface ActivityInboxSheetProps {
     portalHost?: string;
 }
 
-type TabType = 'requests' | 'weaves' | 'history';
+type TabType = 'requests' | 'weaves' | 'sent' | 'history';
 
 export function ActivityInboxSheet({
     visible,
@@ -75,6 +77,16 @@ export function ActivityInboxSheet({
         refresh: refreshHistory
     } = useSharedWeaveHistory();
 
+    // Outgoing (Sent) Weaves
+    const {
+        outgoingWeaves,
+        isLoading: loadingOutgoing,
+        failedCount,
+        pendingCount,
+        refresh: refreshOutgoing,
+        retryAll,
+    } = useOutgoingWeaves();
+
     const actuallyPendingWeaves = pendingWeaves.filter(w => w.status === 'pending');
 
     // Load requests when sheet opens
@@ -83,6 +95,7 @@ export function ActivityInboxSheet({
             loadRequests();
             refreshWeaves();
             refreshHistory();
+            refreshOutgoing();
         }
     }, [visible]);
 
@@ -334,6 +347,67 @@ export function ActivityInboxSheet({
         );
     };
 
+    // SENT TAB - Outgoing weaves
+    const renderSentContent = () => {
+        if (loadingOutgoing) {
+            return (
+                <View className="flex-1 items-center justify-center py-12">
+                    <ActivityIndicator size="large" color={colors.primary} />
+                </View>
+            );
+        }
+
+        if (outgoingWeaves.length === 0) {
+            return (
+                <View className="flex-1 items-center justify-center py-12">
+                    <View
+                        className="w-14 h-14 rounded-full items-center justify-center mb-3"
+                        style={{ backgroundColor: colors.muted }}
+                    >
+                        <Send size={24} color={colors['muted-foreground']} />
+                    </View>
+                    <Text className="text-center text-base font-medium" style={{ color: colors.foreground }}>
+                        No sent weaves
+                    </Text>
+                    <Text className="text-center text-sm mt-1 px-8" style={{ color: colors['muted-foreground'] }}>
+                        When you share a weave, it will appear here
+                    </Text>
+                </View>
+            );
+        }
+
+        return (
+            <View className="flex-1">
+                {/* Sync/Retry button if there are pending or failed items */}
+                {(failedCount > 0 || pendingCount > 0) && (
+                    <TouchableOpacity
+                        className="flex-row items-center justify-center gap-2 mx-4 mb-3 py-3 rounded-xl"
+                        style={{ backgroundColor: failedCount > 0 ? colors.destructive + '15' : colors.primary + '15' }}
+                        onPress={retryAll}
+                        activeOpacity={0.7}
+                    >
+                        <RefreshCw size={16} color={failedCount > 0 ? colors.destructive : colors.primary} />
+                        <Text className="font-medium" style={{ color: failedCount > 0 ? colors.destructive : colors.primary }}>
+                            {failedCount > 0 ? `Retry ${failedCount} Failed` : `Sync ${pendingCount} Pending`}
+                        </Text>
+                    </TouchableOpacity>
+                )}
+                <FlatList
+                    data={outgoingWeaves}
+                    keyExtractor={item => item.id}
+                    renderItem={({ item }) => (
+                        <OutgoingWeaveCard
+                            weave={item}
+                            onRetry={retryAll}
+                        />
+                    )}
+                    showsVerticalScrollIndicator={false}
+                    contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 16 }}
+                />
+            </View>
+        );
+    };
+
     // HISTORY TAB (Phase 4)
     const renderHistoryContent = () => {
         if (loadingHistory) {
@@ -426,6 +500,21 @@ export function ActivityInboxSheet({
                         </TouchableOpacity>
                         <TouchableOpacity
                             className="flex-1 py-2 rounded-lg items-center"
+                            style={{ backgroundColor: activeTab === 'sent' ? colors.card : 'transparent' }}
+                            onPress={() => setActiveTab('sent')}
+                        >
+                            <View className="flex-row items-center gap-2">
+                                <Send size={16} color={activeTab === 'sent' ? colors.primary : colors['muted-foreground']} style={{ transform: [{ rotate: '-45deg' }] }} />
+                                <Text
+                                    className="font-medium text-xs"
+                                    style={{ color: activeTab === 'sent' ? colors.foreground : colors['muted-foreground'] }}
+                                >
+                                    Sent{failedCount > 0 ? ` (${failedCount})` : ''}
+                                </Text>
+                            </View>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            className="flex-1 py-2 rounded-lg items-center"
                             style={{ backgroundColor: activeTab === 'history' ? colors.card : 'transparent' }}
                             onPress={() => setActiveTab('history')}
                         >
@@ -443,7 +532,9 @@ export function ActivityInboxSheet({
 
                     {/* Content */}
                     {activeTab === 'requests' ? renderRequestsContent() :
-                        activeTab === 'weaves' ? renderWeavesContent() : renderHistoryContent()}
+                        activeTab === 'weaves' ? renderWeavesContent() :
+                            activeTab === 'sent' ? renderSentContent() :
+                                renderHistoryContent()}
                 </View>
             </StandardBottomSheet>
 

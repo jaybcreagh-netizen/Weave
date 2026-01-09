@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
-import { Interaction, LifeEvent, Intention } from '@/shared/types/legacy-types';
+import { LifeEvent, Intention } from '@/shared/types/legacy-types';
+import { InteractionShape } from '@/shared/types/derived';
 import { isFuture } from 'date-fns';
 
 export function useFriendProfileModals() {
@@ -9,8 +10,8 @@ export function useFriendProfileModals() {
     // Computed for compatibility (though consumers should prefer ID lookup from live data)
     // We don't compute selectedInteraction here because we don't have the list.
 
-    const [editingReflection, setEditingReflection] = useState<Interaction | null>(null);
-    const [editingInteraction, setEditingInteraction] = useState<Interaction | null>(null);
+    const [editingReflection, setEditingReflection] = useState<InteractionShape | null>(null);
+    const [editingInteraction, setEditingInteraction] = useState<InteractionShape | null>(null);
     const [showPlanChoice, setShowPlanChoice] = useState(false);
     const [showPlanWizard, setShowPlanWizard] = useState(false);
     const [showIntentionForm, setShowIntentionForm] = useState(false);
@@ -37,11 +38,11 @@ export function useFriendProfileModals() {
     }, []);
 
     // Wrapper to match expected interface for onInteractionPress
-    const setSelectedInteraction = useCallback((interaction: Interaction | null) => {
+    const setSelectedInteraction = useCallback((interaction: InteractionShape | null) => {
         setSelectedInteractionId(interaction?.id || null);
     }, []);
 
-    const handleEditInteraction = useCallback((interaction: Interaction) => {
+    const handleEditInteraction = useCallback((interaction: InteractionShape) => {
         // Add a small delay to allow the detail modal to close first (iOS race condition)
         setTimeout(() => {
             // Check if this is a future planned weave

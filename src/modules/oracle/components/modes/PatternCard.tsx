@@ -2,7 +2,7 @@ import React from 'react';
 import { View } from 'react-native';
 import { Text } from '@/shared/ui/Text';
 import { Card } from '@/shared/ui/Card';
-import { Icon } from '@/shared/ui/Icon';
+import { CheckCircle2, AlertCircle, LayoutGrid } from 'lucide-react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useTheme } from '@/shared/hooks/useTheme';
 
@@ -22,7 +22,7 @@ export const PatternCard: React.FC<PatternCardProps> = ({ patternName, analysis,
         <Animated.View entering={FadeInDown.delay(300).springify()}>
             <Card
                 className="mb-4 overflow-hidden border-0"
-                style={{ backgroundColor: colors.surface }}
+                style={{ backgroundColor: colors.card }}
             >
                 {/* Header Strip */}
                 <View
@@ -37,12 +37,11 @@ export const PatternCard: React.FC<PatternCardProps> = ({ patternName, analysis,
                             className="rounded-full px-2 py-0.5 mr-2 flex-row items-center"
                             style={{ backgroundColor: isHighConfidence ? colors.primary + '20' : colors.warning + '20' }}
                         >
-                            <Icon
-                                name={isHighConfidence ? 'CheckCircle' : 'AlertCircle'}
-                                size={12}
-                                color={alertColor}
-                                className="mr-1"
-                            />
+                            {isHighConfidence ? (
+                                <CheckCircle2 size={12} color={alertColor} style={{ marginRight: 4 }} />
+                            ) : (
+                                <AlertCircle size={12} color={alertColor} style={{ marginRight: 4 }} />
+                            )}
                             <Text
                                 variant="caption"
                                 className="font-medium uppercase tracking-wider"
@@ -66,7 +65,7 @@ export const PatternCard: React.FC<PatternCardProps> = ({ patternName, analysis,
 
                 {/* Decorative Grid Background (Subtle) */}
                 <View className="absolute inset-0 z-[-1] opacity-5">
-                    <Icon name="Grid" size={200} color={colors.foreground} />
+                    <LayoutGrid size={200} color={colors.foreground} />
                 </View>
             </Card>
         </Animated.View>

@@ -7,7 +7,8 @@ import {
     Feather,
     Zap,
     X,
-    Loader2
+    Loader2,
+    MessageCircle
 } from 'lucide-react-native'
 import { BlurView } from 'expo-blur'
 import { useTheme } from '@/shared/hooks/useTheme'
@@ -25,6 +26,12 @@ const MODE_CONFIG: Record<OracleLensMode, {
     label: string,
     description: string
 }> = {
+    'consultation': {
+        icon: MessageCircle,
+        color: '#8B5CF6',
+        label: 'Consult Oracle',
+        description: 'Ask a question or seek guidance on your relationships.'
+    },
     'go_deeper': {
         icon: Sparkles,
         color: '#7C3AED', // Purple

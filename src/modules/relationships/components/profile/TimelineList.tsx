@@ -4,8 +4,9 @@ import { WeaveLoading } from '@/shared/components/WeaveLoading';
 import Animated from 'react-native-reanimated';
 import { WeaveIcon } from '@/shared/components/WeaveIcon';
 import { TimelineItem } from '@/modules/relationships/components/TimelineItem';
-import { Interaction } from '@/shared/types/legacy-types';
+import { InteractionShape } from '@/shared/types/derived';
 import { useTheme } from '@/shared/hooks/useTheme';
+import { type ShareInfoMap } from '@/modules/sync';
 
 const AnimatedSectionList = Animated.createAnimatedComponent(SectionList);
 
@@ -14,13 +15,15 @@ interface TimelineListProps {
     onScroll: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
     onLoadMore: () => void;
     hasMore: boolean;
-    onInteractionPress: (interaction: Interaction) => void;
+    onInteractionPress: (interaction: InteractionShape) => void;
     onDeleteInteraction: (id: string) => void;
     onEditInteraction: (id: string) => void;
     ListHeaderComponent?: React.ReactElement;
     archetype?: string;
     /** Set of interaction IDs that have linked journal entries */
     linkedJournalIds?: Set<string>;
+    /** Map of interaction IDs to share status info */
+    shareInfoMap?: ShareInfoMap;
 }
 
 export function TimelineList({
@@ -33,7 +36,8 @@ export function TimelineList({
     onEditInteraction,
     ListHeaderComponent,
     archetype,
-    linkedJournalIds
+    linkedJournalIds,
+    shareInfoMap
 }: TimelineListProps) {
     const { colors } = useTheme();
 
@@ -44,6 +48,9 @@ export function TimelineList({
         // Check if this is the last item in the entire timeline
         const lastSection = sections[sections.length - 1];
         const isLastItem = lastSection?.data[lastSection.data.length - 1]?.id === interaction.id;
+
+        // Get share info for this interaction
+        const shareInfo = shareInfoMap?.get(interaction.id) ?? null;
 
         return (
             <View className="px-5">
@@ -59,10 +66,11 @@ export function TimelineList({
                     isLastItem={isLastItem}
                     archetype={archetype}
                     hasLinkedJournal={linkedJournalIds?.has(interaction.id)}
+                    shareInfo={shareInfo}
                 />
             </View>
         );
-    }, [onInteractionPress, onDeleteInteraction, onEditInteraction, sections, archetype, linkedJournalIds]);
+    }, [onInteractionPress, onDeleteInteraction, onEditInteraction, sections, archetype, linkedJournalIds, shareInfoMap]);
 
     return (
         <View className="flex-1 relative">

@@ -88,12 +88,14 @@ export async function findPotentialMatches(
     phoneNumber?: string
 ): Promise<MatchCandidate[]> {
     try {
-        // Fetch all local friends that are NOT already linked
+        // Fetch all local friends that are NOT already fully linked
+        // Include pending_received so we don't miss friends who have an incoming request
         const friends = await database.get<Friend>('friends')
             .query(
                 Q.or(
                     Q.where('link_status', null),
-                    Q.where('link_status', '')
+                    Q.where('link_status', ''),
+                    Q.where('link_status', 'pending_received')
                 )
             )
             .fetch();

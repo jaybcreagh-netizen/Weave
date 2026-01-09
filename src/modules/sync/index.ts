@@ -55,17 +55,27 @@ export {
     fetchPendingSharedWeaves,
 } from './services/receive-weave.service';
 
+export {
+    expirePendingSharedWeaves,
+    runExpirationCheckOnStartup,
+    getExpirationStats,
+    isExpired,
+} from './services/shared-weave-expiration.service';
+
 // Components
 export { ShareWeaveToggle } from './components/ShareWeaveToggle';
 export { ShareStatusBadge } from './components/ShareStatusBadge';
 export { SharedWeaveCard, type SharedWeaveData } from './components/SharedWeaveCard';
 export { PendingWeavesSheet } from './components/PendingWeavesSheet';
 export { ActivityInboxSheet } from './components/ActivityInboxSheet';
+export { PendingWeavesSection } from './components/PendingWeavesSection';
 
 // Hooks
 export { useSyncStatus } from './hooks/useSyncStatus';
 export { usePendingWeaves } from './hooks/usePendingWeaves';
+export { usePendingWeavesForFriend } from './hooks/usePendingWeavesForFriend';
 export { useActivityCounts } from './hooks/useActivityCounts';
+export { useInteractionShareStatus, type ShareInfo, type ShareInfoMap, getShareInfo } from './hooks/useInteractionShareStatus';
 
 export { SyncOrchestrator } from './services/sync-orchestrator';
 export { useSyncStatusStore } from './store/sync-status.store';

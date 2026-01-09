@@ -13,6 +13,7 @@ import { Icon } from '@/shared/ui/Icon';
 import InteractionModel from '@/db/models/Interaction';
 import InteractionFriend from '@/db/models/InteractionFriend';
 import FriendModel from '@/db/models/Friend';
+import { InteractionShape } from '@/shared/types/derived';
 import { type InteractionCategory, type Vibe, type StructuredReflection, type Interaction } from '../types';
 import { database } from '@/db';
 import { Q } from '@nozbe/watermelondb';
@@ -26,7 +27,7 @@ import { BlurView } from 'expo-blur';
 import { ReciprocitySelector, InitiatorType } from '@/modules/relationships/components/ReciprocitySelector';
 
 interface EditInteractionModalProps {
-  interaction: InteractionModel | Interaction | null;
+  interaction: InteractionModel | Interaction | InteractionShape | null;
   isOpen: boolean;
   onClose: () => void;
   onSave: (interactionId: string, updates: {

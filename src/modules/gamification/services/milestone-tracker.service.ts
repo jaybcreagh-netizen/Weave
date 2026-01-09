@@ -2,6 +2,7 @@ import { database } from '@/db';
 import UserProgress from '@/db/models/UserProgress';
 import PracticeLog from '@/db/models/PracticeLog';
 import { startOfDay, differenceInDays } from 'date-fns';
+import { LucideIcon, Scroll, Trophy, Sparkles, Star, Crown, PenTool, Book, BookOpen, Mountain, Flame, Award, Gem } from 'lucide-react-native';
 
 /**
  * Milestone Tracker
@@ -20,6 +21,7 @@ export interface Milestone {
   id: string;
   name: string;
   icon: string;
+  iconComponent: LucideIcon;
   description: string;
   threshold: number;
 }
@@ -33,6 +35,7 @@ export const CONSISTENCY_MILESTONES: Milestone[] = [
     id: 'thread-starter',
     name: 'Thread Starter',
     icon: '🧵',
+    iconComponent: Scroll,
     description: 'Your first week of weaving practice',
     threshold: 7,
   },
@@ -40,6 +43,7 @@ export const CONSISTENCY_MILESTONES: Milestone[] = [
     id: 'consistent-weaver',
     name: 'Consistent Weaver',
     icon: '🏆',
+    iconComponent: Trophy,
     description: 'Three weeks of daily intentionality',
     threshold: 21,
   },
@@ -47,6 +51,7 @@ export const CONSISTENCY_MILESTONES: Milestone[] = [
     id: 'social-architect',
     name: 'Social Architect',
     icon: '✨',
+    iconComponent: Sparkles,
     description: 'Two months of dedicated practice',
     threshold: 60,
   },
@@ -54,6 +59,7 @@ export const CONSISTENCY_MILESTONES: Milestone[] = [
     id: 'weave-master',
     name: 'Weave Master',
     icon: '🌟',
+    iconComponent: Star,
     description: '100 days of nurturing your connections',
     threshold: 100,
   },
@@ -61,6 +67,7 @@ export const CONSISTENCY_MILESTONES: Milestone[] = [
     id: 'constellation-keeper',
     name: 'Constellation Keeper',
     icon: '👑',
+    iconComponent: Crown,
     description: 'A full year of mindful connection',
     threshold: 365,
   },
@@ -75,6 +82,7 @@ export const DEPTH_MILESTONES: Milestone[] = [
     id: 'thoughtful-scribe',
     name: 'Thoughtful Scribe',
     icon: '🖋️',
+    iconComponent: PenTool,
     description: 'Your first reflections on connection',
     threshold: 10,
   },
@@ -82,6 +90,7 @@ export const DEPTH_MILESTONES: Milestone[] = [
     id: 'insightful-chronicler',
     name: 'Insightful Chronicler',
     icon: '📖',
+    iconComponent: Book,
     description: 'A growing practice of self-awareness',
     threshold: 50,
   },
@@ -89,6 +98,7 @@ export const DEPTH_MILESTONES: Milestone[] = [
     id: 'keeper-of-wisdom',
     name: 'Keeper of Wisdom',
     icon: '🦉',
+    iconComponent: BookOpen,
     description: 'Deep commitment to reflection',
     threshold: 150,
   },
@@ -103,6 +113,7 @@ export const NURTURING_MILESTONES: Milestone[] = [
     id: 'first-peak',
     name: 'First Peak Moment',
     icon: '⛰️',
+    iconComponent: Mountain,
     description: 'A deeply meaningful connection',
     threshold: 1, // Detected by NLP on first highly positive interaction
   },
@@ -110,6 +121,7 @@ export const NURTURING_MILESTONES: Milestone[] = [
     id: 'rekindled-flame',
     name: 'Rekindled Flame',
     icon: '🔥',
+    iconComponent: Flame,
     description: 'Revived a dormant connection',
     threshold: 1, // Achieved when dormant friend becomes active again
   },
@@ -117,6 +129,7 @@ export const NURTURING_MILESTONES: Milestone[] = [
     id: 'centennial-weave',
     name: 'Centennial Weave',
     icon: '💯',
+    iconComponent: Award,
     description: '100 weaves with this friend',
     threshold: 100,
   },
@@ -124,6 +137,7 @@ export const NURTURING_MILESTONES: Milestone[] = [
     id: 'kindred-spirit',
     name: 'Kindred Spirit',
     icon: '💫',
+    iconComponent: Gem,
     description: '500 weaves together - a rare bond',
     threshold: 500,
   },

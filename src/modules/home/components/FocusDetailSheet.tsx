@@ -21,6 +21,8 @@ import { format } from 'date-fns';
 import { calculateWeeklySummary, generateContextualPrompts, selectBestPrompt, ContextualPrompt } from '@/modules/reflection';
 import { getCategoryLabel, InteractionActions } from '@/modules/interactions';
 import { IntentionsList } from '@/modules/relationships/components/IntentionsList';
+import { oracleService } from '@/modules/oracle';
+import { oracleContextBuilder, ContextTier } from '@/modules/oracle/services/context-builder';
 
 interface UpcomingDate {
     friend: FriendModel;
@@ -86,6 +88,29 @@ export const FocusDetailSheet: React.FC<FocusDetailSheetProps> = ({
         let isMounted = true;
         const loadPrompt = async () => {
             try {
+                // Try Oracle-generated prompt first (more contextual and personalized)
+                try {
+                    const oracleContext = await oracleContextBuilder.buildContext([], ContextTier.PATTERN);
+                    const oraclePrompts = await Promise.race([
+                        oracleService.getPersonalizedStarterPrompts(oracleContext),
+                        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000))
+                    ]);
+
+                    if (oraclePrompts && oraclePrompts.length > 0 && isMounted) {
+                        // Use the first Oracle prompt
+                        const oraclePrompt = oraclePrompts[0];
+                        setPrompt({
+                            prompt: oraclePrompt.prompt || oraclePrompt.text,
+                            context: 'Oracle',
+                        });
+                        return; // Success! Skip rule-based fallback
+                    }
+                } catch (oracleError) {
+                    // Oracle failed, will fall back to rule-based
+                    console.log('[FocusDetailSheet] Oracle prompt failed, using fallback:', oracleError);
+                }
+
+                // Fallback to rule-based prompts
                 const summary = await calculateWeeklySummary();
                 const prompts = generateContextualPrompts(summary);
                 const bestPrompt = selectBestPrompt(prompts);

@@ -23,15 +23,16 @@ import { formatPoeticDate, calculateWeaveWarmth, getThreadColors } from '@/share
 import { modeIcons } from '@/shared/constants/constants';
 import { getCategoryMetadata, CATEGORY_METADATA, ACTIVITY_TO_CATEGORY_MAP } from '@/shared/constants/interaction-categories';
 import type { LucideIcon } from 'lucide-react-native';
-import { Sparkles, BookOpen } from 'lucide-react-native';
-import { type Interaction, type InteractionCategory, type Archetype, type ActivityType } from '@/shared/types/legacy-types';
+import { Sparkles, BookOpen, ArrowLeftRight } from 'lucide-react-native';
+import { type InteractionCategory, type Archetype, type ActivityType } from '@/shared/types/legacy-types';
+import { InteractionShape, ShareInfo } from '@/shared/types/derived';
 import { calculateDeepeningLevel, getDeepeningVisuals } from '@/modules/intelligence';
 import { CategoryArchetypeMatrix } from '@/modules/intelligence/constants';
 import { usePausableAnimation } from '@/shared/hooks/usePausableAnimation';
 import { useUIStore } from '@/shared/stores/uiStore';
 
 interface TimelineItemProps {
-  interaction: Interaction;
+  interaction: InteractionShape;
   isFuture: boolean;
   onPress: () => void;
   index: number;
@@ -45,9 +46,10 @@ interface TimelineItemProps {
   onEdit?: (id: string) => void;
   archetype?: string;
   hasLinkedJournal?: boolean; // Shows journal icon if this weave has a linked journal entry
+  shareInfo?: ShareInfo | null; // Share status for shared weaves
 }
 
-export const TimelineItem = React.memo(({ interaction, isFuture, onPress, index, scrollY, itemY = 0, showKnot = true, sectionLabel, isFirstInSection = false, isLastItem = false, archetype, hasLinkedJournal }: TimelineItemProps) => {
+export const TimelineItem = React.memo(({ interaction, isFuture, onPress, index, scrollY, itemY = 0, showKnot = true, sectionLabel, isFirstInSection = false, isLastItem = false, archetype, hasLinkedJournal, shareInfo }: TimelineItemProps) => {
   const { colors, isDarkMode } = useTheme();
   const { justLoggedInteractionId, setJustLoggedInteractionId } = useUIStore();
 
@@ -280,6 +282,13 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, index,
 
   const cardTintColor = useMemo(() => getVibeColorTint(0.05), [isFuture, interaction.vibe, colors, deepeningMetrics, isArchetypeAligned, isDarkMode]);
 
+  // Shared weave styling constants
+  const SHARED_WEAVE_ACCENT = '#F59E0B'; // Warm amber for shared weaves
+  const isSharedWeave = shareInfo?.isShared === true;
+  const isConfirmedShared = isSharedWeave && shareInfo?.status === 'accepted';
+  const isPendingSent = isSharedWeave && shareInfo?.isCreator && shareInfo?.status === 'pending';
+  const isPendingReceived = isSharedWeave && !shareInfo?.isCreator && shareInfo?.status === 'pending';
+
   // Memoize dynamic styles
   const dynamicStyles = useMemo(() => ({
     sectionLabel: {
@@ -311,7 +320,12 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, index,
     cardSubtitle: {
       color: colors['muted-foreground'],
     },
-  }), [colors, warmth, isDarkMode, isArchetypeAligned]);
+    // Shared weave accent styling
+    sharedWeaveAccent: {
+      borderColor: isPendingSent ? SHARED_WEAVE_ACCENT + '60' : colors.border,
+      borderWidth: isPendingSent ? 2 : 1,
+    },
+  }), [colors, warmth, isDarkMode, isArchetypeAligned, isSharedWeave, isConfirmedShared, isPendingSent]);
 
   // Animation values
   const pulseAnimation = useSharedValue(0);
@@ -725,8 +739,10 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, index,
                 shadowColor: '#000',
                 shadowOffset: { width: 0, height: 2 },
               },
-              // Scale-based border and shadow for deepened weaves
-              deepeningMetrics.level !== 'none' && {
+              // Shared weave accent styling (takes priority over deepening)
+              isSharedWeave && dynamicStyles.sharedWeaveAccent,
+              // Scale-based border and shadow for deepened weaves (only if not shared)
+              !isSharedWeave && deepeningMetrics.level !== 'none' && {
                 borderColor: colors.primary + deepeningVisuals.borderOpacity.toString(16).padStart(2, '0'),
                 borderWidth: deepeningVisuals.borderWidth,
                 shadowColor: colors.primary,
@@ -794,7 +810,11 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, index,
                   </View>
                 )}
               </View>
+
+
+
               <View className="flex-1">
+                {/* Show custom title if it exists, otherwise show category label */}
                 {/* Show custom title if it exists, otherwise show category label */}
                 <Text className="font-semibold mb-1 text-base font-[Lora_700Bold]" style={dynamicStyles.cardTitle}>
                   {interaction.title || displayLabel}
@@ -803,12 +823,30 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, index,
                 <Text className="text-[13px] capitalize" style={dynamicStyles.cardSubtitle}>
                   {interaction.title ? displayLabel : interaction.mode?.replace('-', ' ')}
                 </Text>
+                {/* Pending status pill for outgoing shared weaves */}
+                {isPendingSent && (
+                  <View className="mt-1.5">
+                    <Text className="text-[11px] font-medium" style={{ color: '#F59E0B', opacity: 0.7 }} numberOfLines={1}>
+                      ⏳ Awaiting response
+                    </Text>
+                  </View>
+                )}
                 {/* Reflection chip preview - scale-based label */}
-                {deepeningMetrics.level !== 'none' && (
+                {deepeningMetrics.level !== 'none' && !isSharedWeave && (
                   <View className="mt-1.5">
                     <Text className="text-[11px] font-medium opacity-70" style={{ color: colors.primary }} numberOfLines={1}>
                       {deepeningVisuals.badgeText}
                     </Text>
+                  </View>
+                )}
+
+                {/* Shared Weave Indicator (Bottom Right of Card) */}
+                {isConfirmedShared && (
+                  <View
+                    className="absolute bottom-[-10px] right-[-10px] rounded-full p-1"
+                    style={{ backgroundColor: colors.card }}
+                  >
+                    <ArrowLeftRight size={14} color={colors['muted-foreground']} style={{ opacity: 0.6 }} />
                   </View>
                 )}
               </View>
@@ -827,7 +865,9 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, index,
     prevProps.index === nextProps.index &&
     prevProps.isLastItem === nextProps.isLastItem &&
     prevProps.archetype === nextProps.archetype &&
-    prevProps.hasLinkedJournal === nextProps.hasLinkedJournal
+    prevProps.hasLinkedJournal === nextProps.hasLinkedJournal &&
+    prevProps.shareInfo?.status === nextProps.shareInfo?.status &&
+    prevProps.shareInfo?.isCreator === nextProps.shareInfo?.isCreator
   );
 });
 // Knot Container: absolute w-full h-10 top-2 left-5 z-10

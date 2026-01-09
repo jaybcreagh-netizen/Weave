@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, Text } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -81,9 +81,17 @@ export function ToastNotification({ message, friendName, onDismiss }: ToastNotif
           shadowRadius: 20,
           elevation: 12,
         }, animatedStyle]}>
+          <BlurView
+            intensity={80}
+            tint={isDarkMode ? 'dark' : 'light'}
+            className="absolute inset-0"
+            style={StyleSheet.absoluteFill}
+          />
           <View
             className="absolute inset-0"
-            style={{ backgroundColor: colors.card }}
+            style={{
+              backgroundColor: isDarkMode ? 'rgba(30,30,30,0.4)' : 'rgba(255,255,255,0.65)'
+            }}
           />
 
           {/* Content */}

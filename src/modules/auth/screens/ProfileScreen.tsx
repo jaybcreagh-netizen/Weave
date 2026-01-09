@@ -504,7 +504,7 @@ export function ProfileScreen() {
                             {photoUrl ? (
                                 <CachedImage
                                     source={{ uri: photoUrl }}
-                                    className="w-full h-full"
+                                    style={{ width: '100%', height: '100%' }}
                                     fallbackIcon={
                                         <View className="w-full h-full items-center justify-center" style={{ backgroundColor: colors.muted }}>
                                             <User size={48} color={colors['muted-foreground']} />
@@ -903,7 +903,7 @@ function DataSyncSection({ colors }: { colors: any }) {
                             <Text variant="caption" style={{ color: colors['muted-foreground'] }}>
                                 {lastSyncTime
                                     ? formatDistanceToNow(lastSyncTime, { addSuffix: true })
-                                    : 'Never'}
+                                    : 'Tap to sync'}
                             </Text>
                         )}
                         <RefreshCw

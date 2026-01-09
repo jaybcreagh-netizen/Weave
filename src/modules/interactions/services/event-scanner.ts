@@ -47,7 +47,7 @@ export interface ScannedEvent {
  */
 export interface FriendMatch {
   friend: FriendModel;
-  matchType: 'exact' | 'fuzzy' | 'attendee';
+  matchType: 'exact' | 'fuzzy' | 'attendee' | 'manual';
   confidence: number; // 0-1
 }
 
@@ -349,8 +349,27 @@ export async function scanCalendarEvents(options: ScanOptions): Promise<ScanResu
       }
     }
 
+    // Deduplicate events based on Title + StartTime
+    // This handles cases where the same event exists on multiple calendars (e.g., Personal + Work)
+    const uniqueEvents = new Map<string, ScannedEvent>();
+
+    for (const event of result.events) {
+      const key = `${event.title}|${event.startDate.getTime()}`;
+      if (!uniqueEvents.has(key)) {
+        uniqueEvents.set(key, event);
+      } else {
+        // Keep the one with more matched friends, or just the first one if equal
+        const existing = uniqueEvents.get(key)!;
+        if (event.matchedFriends.length > existing.matchedFriends.length) {
+          uniqueEvents.set(key, event);
+        }
+      }
+    }
+
+    result.events = Array.from(uniqueEvents.values());
+
     Logger.info(
-      `[EventScanner] Scan complete: ${result.events.length} classified, ${result.matchedEvents} with friend matches`
+      `[EventScanner] Scan complete: ${result.events.length} classified (unique), ${result.matchedEvents} with friend matches`
     );
     return result;
   } catch (error) {

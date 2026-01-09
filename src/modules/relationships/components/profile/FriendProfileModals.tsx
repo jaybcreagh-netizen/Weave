@@ -1,6 +1,7 @@
 import React from 'react';
 import { isFuture } from 'date-fns';
 import { Interaction, InteractionCategory, Friend } from '@/shared/types/legacy-types';
+import { FriendShape, InteractionShape } from '@/shared/types/derived';
 import IntentionModel from '@/db/models/Intention';
 import { StructuredReflection } from '@/modules/interactions';
 import { InteractionDetailModal } from '@/modules/interactions';
@@ -20,10 +21,10 @@ import { useFriendProfileModals } from '@/modules/relationships';
 import { Intention } from '@/shared/types/legacy-types';
 
 interface FriendProfileModalsProps {
-    friend: Friend;
+    friend: FriendShape;
     modals: ReturnType<typeof useFriendProfileModals>;
     friendIntentions: Intention[];
-    selectedInteraction: Interaction | null; // Reactive selected interaction
+    selectedInteraction: InteractionShape | null; // Reactive selected interaction
     updateReflection: (id: string, reflection: StructuredReflection) => Promise<void>;
     updateInteraction: (id: string, updates: any) => Promise<void>; // Using any to avoid Model vs DTO conflicts
     createIntention: (friendIds: string[], description: string, category?: InteractionCategory) => Promise<void>;
@@ -157,7 +158,7 @@ export function FriendProfileModals({
                         setShowPlanWizard(false);
                         setEditingInteraction(null);
                     }}
-                    initialFriend={friend as any}
+                    initialFriend={friend}
                 />
             )}
 

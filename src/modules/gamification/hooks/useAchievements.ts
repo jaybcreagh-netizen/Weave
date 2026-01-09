@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { database } from '@/db';
 import UserProgress from '@/db/models/UserProgress';
 import { CONSISTENCY_MILESTONES, Milestone } from '../services/milestone-tracker.service';
+import { Flame, Zap, Scroll, PenTool, Library } from 'lucide-react-native';
 
 /**
  * @interface Achievement
@@ -39,6 +40,7 @@ export const useAchievements = () => {
           isUnlocked: !nextMilestone,
           progress: nextMilestone ? (progress.currentStreak / nextMilestone.threshold) * 100 : 100,
           icon: 'Flame',
+          iconComponent: Flame,
         };
 
         const newAchievements: Achievement[] = [
@@ -50,6 +52,7 @@ export const useAchievements = () => {
             isUnlocked: progress.catalystProgress >= 10,
             progress: (progress.catalystProgress / 10) * 100,
             icon: 'Zap',
+            iconComponent: Zap,
           },
           {
             id: 'high_priestess',
@@ -59,6 +62,7 @@ export const useAchievements = () => {
             isUnlocked: progress.highPriestessProgress >= 5,
             progress: (progress.highPriestessProgress / 5) * 100,
             icon: 'Scroll',
+            iconComponent: Scroll,
           },
           {
             id: 'scribe',
@@ -68,6 +72,7 @@ export const useAchievements = () => {
             isUnlocked: progress.scribeProgress >= 1,
             progress: (progress.scribeProgress / 1) * 100,
             icon: 'PenTool',
+            iconComponent: PenTool,
           },
           {
             id: 'curator',
@@ -77,6 +82,7 @@ export const useAchievements = () => {
             isUnlocked: progress.curatorProgress >= 7,
             progress: (progress.curatorProgress / 7) * 100,
             icon: 'Library',
+            iconComponent: Library,
           },
         ];
 

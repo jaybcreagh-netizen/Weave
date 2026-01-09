@@ -15,6 +15,7 @@ import {
     JSONSchema,
     TokenUsage,
     ResponseMetadata,
+    LLMStreamChunk,
 } from '../types'
 import { classifyError, createLLMError, LLMErrorType } from '../errors'
 import { withTimeout } from '../retry'

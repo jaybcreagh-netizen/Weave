@@ -350,6 +350,39 @@ export async function retryFailed(): Promise<void> {
 }
 
 /**
+ * Retry pending items that may be stuck in backoff
+ * Resets retry count to 0 so they process immediately
+ */
+export async function retryPending(): Promise<void> {
+    const queueCollection = database.get<SyncQueueItem>('sync_queue');
+    const pendingItems = await queueCollection
+        .query(
+            Q.where('status', 'pending'),
+            Q.where('retry_count', Q.gt(0)) // Only items that have been retried
+        )
+        .fetch();
+
+    if (pendingItems.length === 0) {
+        logger.info('ActionQueue', 'No stuck pending items to reset');
+        return;
+    }
+
+    await database.write(async () => {
+        const updates = pendingItems.map(item =>
+            item.prepareUpdate(record => {
+                record.retryCount = 0;
+                record.lastError = undefined;
+            })
+        );
+        await database.batch(...updates);
+    });
+
+    logger.info('ActionQueue', `Reset ${pendingItems.length} pending items for immediate retry`);
+
+    startProcessing();
+}
+
+/**
  * Clear completed items older than specified age
  */
 export async function clearOldCompleted(maxAgeMs: number = 7 * 24 * 60 * 60 * 1000): Promise<void> {

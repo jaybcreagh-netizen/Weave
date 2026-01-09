@@ -173,7 +173,7 @@ function useCardGestureCoordinator(): CardGestureContextType {
         // so quick taps don't trigger the "charging" animation/haptic
         const targetId = findTargetCardId(event.absoluteX, event.absoluteY);
         if (targetId) {
-          startCoordinates.value = { x: event.x, y: event.y };
+          startCoordinates.value = { x: event.absoluteX, y: event.absoluteY };
           // PRE-SET the overlay center here so it's ready before activation
           overlayCenter.value = {
             x: event.absoluteX,
@@ -215,9 +215,29 @@ function useCardGestureCoordinator(): CardGestureContextType {
       })
       .onTouchesMove((event, state) => {
         'worklet';
-        if (!isLongPressActive.value) return;
-
         const touch = event.changedTouches[0];
+
+        // BEFORE activation: detect horizontal swipes and cancel the pending long-press
+        // This prevents accidental quick weave when swiping between tier tabs
+        if (!isLongPressActive.value) {
+          if (pendingCardId.value !== null) {
+            const deltaX = touch.absoluteX - startCoordinates.value.x;
+            const deltaY = touch.absoluteY - startCoordinates.value.y;
+            const totalMovement = Math.abs(deltaX) + Math.abs(deltaY) + 0.001;
+            const horizontalRatio = Math.abs(deltaX) / totalMovement;
+
+            // If movement is clearly horizontal (>70% horizontal, >12px), cancel activation
+            const isHorizontalSwipe = horizontalRatio > 0.7 && Math.abs(deltaX) > 12;
+            if (isHorizontalSwipe) {
+              runOnJS(clearPendingFeedback)();
+              pendingCardId.value = null;
+              state.fail(); // Cancel the gesture entirely
+            }
+          }
+          return;
+        }
+
+        // AFTER activation: handle drag tracking for overlay selection
         const currentDragX = touch.x - startCoordinates.value.x;
         const currentDragY = touch.y - startCoordinates.value.y;
 

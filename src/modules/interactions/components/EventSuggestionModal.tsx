@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, View, Text, TouchableOpacity } from 'react-native';
-import { X, Calendar, MapPin, Users } from 'lucide-react-native';
+import { FriendSelector } from '@/modules/relationships/components/FriendSelector';
+import type FriendModel from '@/db/models/Friend';
+import { X, Calendar, MapPin, Users, Pencil } from 'lucide-react-native';
 import { BlurView } from 'expo-blur';
 import { router } from 'expo-router';
 import { useEventSuggestions, useDismissSuggestion, type EventSuggestion } from '../hooks/useEventSuggestions';
@@ -8,10 +10,6 @@ import { useTheme } from '@/shared/hooks/useTheme';
 import { format } from 'date-fns';
 import Animated, { FadeIn, FadeOut, SlideInDown, SlideOutDown } from 'react-native-reanimated';
 
-/**
- * Modal to suggest logging a past calendar event as a weave
- * Shows up when the app detects a recent event with friend matches
- */
 export function EventSuggestionModal() {
   // Defer scanning to avoid startup contention
   const [isReady, setIsReady] = useState(false);
@@ -26,16 +24,16 @@ export function EventSuggestionModal() {
 
   // Local UI state for the modal
   const [showingPastEvent, setShowingPastEvent] = useState<EventSuggestion | null>(null);
+  const [isFriendSelectorVisible, setIsFriendSelectorVisible] = useState(false);
+  const [processedIds, setProcessedIds] = useState<Set<string>>(new Set());
 
   // Effect to automatically show the first available past event
-  // This implements the "Shows up when..." behavior described in the comment
   useEffect(() => {
-    if (data?.pastEvents && data.pastEvents.length > 0 && !showingPastEvent) {
-      // Pick the most recent one or just the first one?
-      // The scanner likely returns them in order.
-      setShowingPastEvent(data.pastEvents[0]);
+    const nextEvent = data?.pastEvents?.find(e => !processedIds.has(e.event.id));
+    if (nextEvent && !showingPastEvent) {
+      setShowingPastEvent(nextEvent);
     }
-  }, [data?.pastEvents, showingPastEvent]);
+  }, [data?.pastEvents, showingPastEvent, processedIds]);
 
   if (!showingPastEvent) {
     return null;
@@ -65,16 +63,40 @@ export function EventSuggestionModal() {
       params.append('notes', event.notes);
     }
 
+    console.log('[EventSuggestionModal] Logging weave, marking processed:', event.id);
+    setProcessedIds(prev => new Set(prev).add(event.id));
+    dismissSuggestion(event.id);
+
+    console.log('[EventSuggestionModal] Dismissing modal');
     setShowingPastEvent(null);
-    router.push(`/interaction-form?${params.toString()}`);
+    // Allow the modal to close/unmount before navigating to prevent gesture blocking issues
+    setTimeout(() => {
+      router.push(`/weave-logger?${params.toString()}`);
+    }, 100);
+  };
+
+  const handleFriendsChanged = (selectedFriends: FriendModel[]) => {
+    setShowingPastEvent({
+      ...showingPastEvent,
+      event: {
+        ...event,
+        matchedFriends: selectedFriends.map((friend) => ({
+          friend,
+          matchType: 'manual',
+          confidence: 1.0,
+        })),
+      },
+    });
   };
 
   const handleDismiss = () => {
+    setProcessedIds(prev => new Set(prev).add(event.id));
     dismissSuggestion(event.id);
     setShowingPastEvent(null);
   };
 
   const handleNotNow = () => {
+    setProcessedIds(prev => new Set(prev).add(event.id));
     setShowingPastEvent(null);
   };
 
@@ -175,12 +197,22 @@ export function EventSuggestionModal() {
               {/* Friends */}
               <View className="flex-row items-center gap-2 mb-2">
                 <Users color={colors['muted-foreground']} size={16} />
-                <Text
-                  className="text-sm font-inter-regular flex-1"
-                  style={{ color: colors['muted-foreground'] }}
-                >
-                  {friendNames}
-                </Text>
+                <View className="flex-1 flex-row items-center justify-between">
+                  <Text
+                    className="text-sm font-inter-regular flex-1 mr-2"
+                    style={{ color: colors['muted-foreground'] }}
+                    numberOfLines={1}
+                  >
+                    {friendNames || 'No friends matched'}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => setIsFriendSelectorVisible(true)}
+                    className="p-1 rounded-full"
+                    style={{ backgroundColor: colors.card }}
+                  >
+                    <Pencil size={12} color={colors.primary} />
+                  </TouchableOpacity>
+                </View>
               </View>
 
               {/* Date */}
@@ -248,6 +280,15 @@ export function EventSuggestionModal() {
             </View>
           </Animated.View>
         </BlurView>
+
+        {/* Friend Selector Modal */}
+        <FriendSelector
+          visible={isFriendSelectorVisible}
+          onClose={() => setIsFriendSelectorVisible(false)}
+          selectedFriends={event.matchedFriends.map(m => m.friend)}
+          onSelectionChange={handleFriendsChanged}
+          asModal={true}
+        />
       </Animated.View>
     </Modal>
   );

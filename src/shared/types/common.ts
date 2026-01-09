@@ -92,10 +92,11 @@ export interface Suggestion {
   reason?: string;
   priority?: 'high' | 'medium' | 'low';
   action: {
-    type: 'plan' | 'log' | 'reflect' | 'connect' | 'intention' | 'tier-review' | 'reach-out';
+    type: 'plan' | 'log' | 'reflect' | 'connect' | 'intention' | 'tier-review' | 'reach-out' | 'oracle';
     interactionId?: string;
     prefilledCategory?: string;
     prefilledMode?: 'plan' | 'log' | 'reflect' | 'connect' | 'detailed';
+    prefillPrompt?: string; // For Oracle suggestions - prefills the Oracle chat
   };
   category?: string;
   friendName?: string;

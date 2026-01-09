@@ -64,7 +64,7 @@ interface TableChanges {
 
 type SyncDatabaseChangeSet = Record<string, TableChanges>
 
-serve(async (req) => {
+serve(async (req: Request) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -75,10 +75,13 @@ serve(async (req) => {
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
       return new Response(
-        JSON.stringify({ error: 'Missing authorization header' }),
+        JSON.stringify({ error: 'Missing authorization header (Edge)' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
+
+    // Extract token from "Bearer <token>"
+    const token = authHeader.replace('Bearer ', '')
 
     // Create Supabase client with user's auth
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
@@ -86,14 +89,21 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseAnonKey, {
       global: {
         headers: { Authorization: authHeader }
+      },
+      auth: {
+        persistSession: false, // Critical for Edge Functions
+        autoRefreshToken: false,
+        detectSessionInUrl: false
       }
     })
 
-    // Get authenticated user
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    // Get authenticated user - explicitly passing token
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
+
     if (authError || !user) {
+      console.error('[sync-pull] Auth failed:', authError)
       return new Response(
-        JSON.stringify({ error: 'Unauthorized', details: authError?.message }),
+        JSON.stringify({ error: 'Unauthorized (Edge): getUser failed', details: authError?.message || 'User not found' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
@@ -137,10 +147,10 @@ serve(async (req) => {
       }
     )
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('[sync-pull] Error:', error)
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: error.message || 'Unknown error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   }
