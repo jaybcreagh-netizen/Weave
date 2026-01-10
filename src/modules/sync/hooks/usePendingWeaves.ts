@@ -84,12 +84,16 @@ export function usePendingWeaves(): UsePendingWeavesReturn {
                 UIEventBus.emit({ type: 'SHARED_WEAVE_CONFIRMED', creatorName });
             });
 
-            // Optimistically update or invalidate
+            // Optimistically remove from cache immediately
             queryClient.setQueryData(['pending-weaves'], (old: SharedWeaveData[] | undefined) =>
                 old ? old.filter(w => w.id !== weaveId) : []
             );
-            // Also invalidate to be sure
-            queryClient.invalidateQueries({ queryKey: ['pending-weaves'] });
+
+            // Delayed re-validation to sync with server without race condition
+            // This prevents the invalidation from overwriting the optimistic update
+            setTimeout(() => {
+                queryClient.invalidateQueries({ queryKey: ['pending-weaves'] });
+            }, 1500);
         },
         onError: (err) => {
             logger.error('usePendingWeaves', 'Accept mutation failed', err);
@@ -109,7 +113,10 @@ export function usePendingWeaves(): UsePendingWeavesReturn {
             queryClient.setQueryData(['pending-weaves'], (old: SharedWeaveData[] | undefined) =>
                 old ? old.filter(w => w.id !== weaveId) : []
             );
-            queryClient.invalidateQueries({ queryKey: ['pending-weaves'] });
+            // Delayed re-validation to prevent race condition with optimistic update
+            setTimeout(() => {
+                queryClient.invalidateQueries({ queryKey: ['pending-weaves'] });
+            }, 1500);
         },
         onError: (err) => {
             logger.error('usePendingWeaves', 'Decline mutation failed', err);

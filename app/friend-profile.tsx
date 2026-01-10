@@ -60,15 +60,42 @@ export default function FriendProfile() {
   const { timelineSections } = useFriendTimeline(interactions);
   const [isPendingSheetVisible, setIsPendingSheetVisible] = useState(false);
 
+  // Track weave IDs currently being accepted to prevent duplicate display
+  const [acceptingWeaveIds, setAcceptingWeaveIds] = useState<Set<string>>(new Set());
+
   // Get pending weaves from this friend's linked account
   const linkedUserId = friendModel?.linkedUserId || undefined;
   const {
-    pendingWeaves: friendPendingWeaves,
-    handleAccept: handleAcceptPendingWeave,
+    pendingWeaves: rawFriendPendingWeaves,
+    handleAccept: baseHandleAcceptPendingWeave,
     handleDecline: handleDeclinePendingWeave,
     processingId: pendingProcessingId,
     hasPending: hasPendingFromFriend
   } = usePendingWeavesForFriend(linkedUserId);
+
+  // Filter out weaves currently being accepted to prevent duplicate display
+  const friendPendingWeaves = useMemo(() =>
+    rawFriendPendingWeaves.filter(w => !acceptingWeaveIds.has(w.id)),
+    [rawFriendPendingWeaves, acceptingWeaveIds]
+  );
+
+  // Wrapped accept handler that immediately filters out the accepting weave
+  const handleAcceptPendingWeave = useCallback(async (weaveId: string) => {
+    // Immediately add to accepting set to filter from timeline
+    setAcceptingWeaveIds(prev => new Set(prev).add(weaveId));
+    try {
+      await baseHandleAcceptPendingWeave(weaveId);
+    } finally {
+      // Clear after a delay to allow WatermelonDB to update timeline
+      setTimeout(() => {
+        setAcceptingWeaveIds(prev => {
+          const next = new Set(prev);
+          next.delete(weaveId);
+          return next;
+        });
+      }, 2000);
+    }
+  }, [baseHandleAcceptPendingWeave]);
 
   // Merge pending weaves into timeline
   const mergedTimelineSections = useMemo(() => {
