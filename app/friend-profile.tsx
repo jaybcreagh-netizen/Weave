@@ -1,13 +1,15 @@
-import React, { useEffect, useCallback, useState } from 'react';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { View, Text, Alert, StyleSheet, ActivityIndicator } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, withDelay, Easing, useAnimatedScrollHandler, runOnJS } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { isFuture, isToday } from 'date-fns';
 
 import { useTheme } from '@/shared/hooks/useTheme';
 import { useFriendProfileData, useFriendTimeline } from '@/modules/relationships';
 import { useFriendProfileModals } from '@/modules/relationships';
+import { InteractionShape } from '@/shared/types/derived';
 
 import {
   ProfileHeader,
@@ -25,6 +27,7 @@ import { database } from '@/db';
 import JournalEntry from '@/db/models/JournalEntry';
 import { Q } from '@nozbe/watermelondb';
 import { usePendingWeavesForFriend, PendingWeavesSection } from '@/modules/sync';
+import { StandardBottomSheet } from '@/shared/ui/Sheet';
 
 export default function FriendProfile() {
   const router = useRouter();
@@ -55,6 +58,7 @@ export default function FriendProfile() {
   } = useFriendProfileData(validFriendId);
 
   const { timelineSections } = useFriendTimeline(interactions);
+  const [isPendingSheetVisible, setIsPendingSheetVisible] = useState(false);
 
   // Get pending weaves from this friend's linked account
   const linkedUserId = friendModel?.linkedUserId || undefined;
@@ -66,6 +70,75 @@ export default function FriendProfile() {
     hasPending: hasPendingFromFriend
   } = usePendingWeavesForFriend(linkedUserId);
 
+  // Merge pending weaves into timeline
+  const mergedTimelineSections = useMemo(() => {
+    if (!friendPendingWeaves.length) return timelineSections;
+
+    // Create fake interactions
+    const pendingInteractions = friendPendingWeaves.map(weave => ({
+      id: weave.id,
+      interactionDate: weave.weaveDate,
+      title: weave.title,
+      type: 'hangout', // Default
+      mode: weave.category || 'hangout',
+      activity: weave.category || 'hangout',
+      duration: weave.duration,
+      location: weave.location || '',
+      description: '',
+      // Mock other required fields
+      createdAt: new Date(weave.weaveDate).getTime(), // Ensure number/date match InteractionShape expectation (number usually)
+      updatedAt: new Date(weave.weaveDate).getTime(),
+      friendId: validFriendId,
+      status: 'active',
+    } as unknown as InteractionShape));
+
+    // Create a copy of sections to modify
+    const newSections = timelineSections.map(s => ({ ...s, data: [...s.data] }));
+
+    // Distribute pending weaves
+    pendingInteractions.forEach(interaction => {
+      // Logic to find section (Seeds, Today, Woven Memories)
+      const date = new Date(interaction.interactionDate);
+      let sectionTitle = 'Woven Memories';
+      if (isFuture(date)) sectionTitle = 'Seeds';
+      else if (isToday(date)) sectionTitle = 'Today';
+
+      let section = newSections.find(s => s.title === sectionTitle);
+      if (!section) {
+        section = { title: sectionTitle, data: [] };
+        newSections.push(section);
+      }
+      section.data.push(interaction);
+    });
+
+    // Sort ordering of sections
+    const order = ['Seeds', 'Today', 'Woven Memories'];
+    newSections.sort((a, b) => order.indexOf(a.title) - order.indexOf(b.title));
+
+    // Sort data within sections
+    newSections.forEach(section => {
+      section.data.sort((a, b) => new Date(b.interactionDate).getTime() - new Date(a.interactionDate).getTime());
+    });
+
+    return newSections;
+
+  }, [timelineSections, friendPendingWeaves, validFriendId]);
+
+  // Merge Share Info
+  const mergedShareInfoMap = useMemo(() => {
+    const map = new Map(shareInfoMap || []); // Clone existing
+    friendPendingWeaves.forEach(w => {
+      map.set(w.id, {
+        isShared: true,
+        status: 'pending',
+        isCreator: false,
+        serverWeaveId: w.id,
+        sharedAt: Date.now() // Approximation
+      });
+    });
+    return map;
+  }, [shareInfoMap, friendPendingWeaves]);
+
   // Use the new hook for modal state
   const modals = useFriendProfileModals();
 
@@ -74,6 +147,9 @@ export default function FriendProfile() {
 
   // Track which interactions have linked journal entries
   const [linkedJournalIds, setLinkedJournalIds] = useState<Set<string>>(new Set());
+
+  // Merge pending weaves into timeline
+
 
   // Fetch journal entries linked to this friend's interactions
   useEffect(() => {
@@ -296,7 +372,7 @@ export default function FriendProfile() {
         <Animated.View style={[{ flex: 1 }, pageAnimatedStyle]}>
 
           <TimelineList
-            sections={timelineSections}
+            sections={mergedTimelineSections}
             onScroll={animatedScrollHandler}
             onLoadMore={handleLoadMore}
             hasMore={hasMoreInteractions}
@@ -304,7 +380,9 @@ export default function FriendProfile() {
             onDeleteInteraction={handleDeleteInteraction}
             onEditInteraction={handleEditInteractionWrapper}
             linkedJournalIds={linkedJournalIds}
-            shareInfoMap={shareInfoMap}
+            shareInfoMap={mergedShareInfoMap}
+            onAccept={handleAcceptPendingWeave}
+            onDecline={handleDeclinePendingWeave}
             ListHeaderComponent={
               <View>
                 <ProfileHeader
@@ -321,7 +399,8 @@ export default function FriendProfile() {
                   onShowTierFit={() => modals.setShowTierFitSheet(true)}
                   onLinkToWeaveUser={() => setShowLinkSheet(true)}
                   onUnlinkFriend={handleUnlinkFriend}
-                  pendingWeaveCount={friendPendingWeaves.length}
+                  pendingWeaveCount={friendPendingWeaves?.length || 0}
+                  onPressPending={() => setIsPendingSheetVisible(true)}
                 />
 
                 <ActionButtons
@@ -341,17 +420,6 @@ export default function FriendProfile() {
                     modals.setShowLifeEventModal(true);
                   }}
                 />
-
-                {/* Pending shared weaves from this friend */}
-                {hasPendingFromFriend && (
-                  <PendingWeavesSection
-                    pendingWeaves={friendPendingWeaves}
-                    onAccept={handleAcceptPendingWeave}
-                    onDecline={handleDeclinePendingWeave}
-                    processingId={pendingProcessingId}
-                    friendName={friendModel?.name || 'Friend'}
-                  />
-                )}
               </View>
             }
             archetype={friendModel?.archetype}
@@ -386,6 +454,28 @@ export default function FriendProfile() {
               setShowLinkSheet(false);
             }}
           />
+
+          <StandardBottomSheet
+            visible={isPendingSheetVisible}
+            onClose={() => setIsPendingSheetVisible(false)}
+            snapPoints={['50%', '90%']}
+          >
+            <PendingWeavesSection
+              pendingWeaves={friendPendingWeaves}
+              onAccept={async (id) => {
+                await handleAcceptPendingWeave(id);
+                // Close sheet if no more pending? Or keep open? User preference.
+                // Keeping open allows handling multiple.
+                if (friendPendingWeaves.length <= 1) setIsPendingSheetVisible(false);
+              }}
+              onDecline={async (id) => {
+                await handleDeclinePendingWeave(id);
+                if (friendPendingWeaves.length <= 1) setIsPendingSheetVisible(false);
+              }}
+              processingId={pendingProcessingId}
+              friendName={friend.name}
+            />
+          </StandardBottomSheet>
 
         </Animated.View>
       </SafeAreaView>

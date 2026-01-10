@@ -23,7 +23,7 @@ import { formatPoeticDate, calculateWeaveWarmth, getThreadColors } from '@/share
 import { modeIcons } from '@/shared/constants/constants';
 import { getCategoryMetadata, CATEGORY_METADATA, ACTIVITY_TO_CATEGORY_MAP } from '@/shared/constants/interaction-categories';
 import type { LucideIcon } from 'lucide-react-native';
-import { Sparkles, BookOpen, ArrowLeftRight } from 'lucide-react-native';
+import { Sparkles, BookOpen, ArrowLeftRight, Trash2, Check, X } from 'lucide-react-native';
 import { type InteractionCategory, type Archetype, type ActivityType } from '@/shared/types/legacy-types';
 import { InteractionShape, ShareInfo } from '@/shared/types/derived';
 import { calculateDeepeningLevel, getDeepeningVisuals } from '@/modules/intelligence';
@@ -47,9 +47,11 @@ interface TimelineItemProps {
   archetype?: string;
   hasLinkedJournal?: boolean; // Shows journal icon if this weave has a linked journal entry
   shareInfo?: ShareInfo | null; // Share status for shared weaves
+  onAccept?: (id: string) => void;
+  onDecline?: (id: string) => void;
 }
 
-export const TimelineItem = React.memo(({ interaction, isFuture, onPress, index, scrollY, itemY = 0, showKnot = true, sectionLabel, isFirstInSection = false, isLastItem = false, archetype, hasLinkedJournal, shareInfo }: TimelineItemProps) => {
+export const TimelineItem = React.memo(({ interaction, isFuture, onPress, index, scrollY, itemY = 0, showKnot = true, sectionLabel, isFirstInSection = false, isLastItem = false, archetype, hasLinkedJournal, shareInfo, onAccept, onDecline }: TimelineItemProps) => {
   const { colors, isDarkMode } = useTheme();
   const { justLoggedInteractionId, setJustLoggedInteractionId } = useUIStore();
 
@@ -322,8 +324,9 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, index,
     },
     // Shared weave accent styling
     sharedWeaveAccent: {
-      borderColor: isPendingSent ? SHARED_WEAVE_ACCENT + '60' : colors.border,
-      borderWidth: isPendingSent ? 2 : 1,
+      borderColor: (isPendingSent || isPendingReceived) ? SHARED_WEAVE_ACCENT + '60' : colors.border,
+      borderWidth: (isPendingSent || isPendingReceived) ? 2 : 1,
+      borderStyle: (isPendingSent || isPendingReceived) ? 'dashed' : 'solid' as 'dashed' | 'solid',
     },
   }), [colors, warmth, isDarkMode, isArchetypeAligned, isSharedWeave, isConfirmedShared, isPendingSent]);
 
@@ -643,44 +646,48 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, index,
         <View className="absolute w-full h-10 top-2 left-5 z-10" pointerEvents="none">
           {/* Connector line from thread to card */}
           {/* Future: dotted, Past: solid */}
-          <View
-            className="absolute h-[1.5px] top-5"
-            style={{
-              left: THREAD_CENTER,
-              width: CARD_START - THREAD_CENTER,
-              backgroundColor: isDarkMode ? colors.border : 'rgba(181, 138, 108, 0.5)',
-              opacity: isFuture ? 0.5 : 1,
-              borderStyle: isFuture ? 'dotted' : 'solid',
-            }}
-          />
-
-          {/* Knot on thread - centered on thread */}
-          {/* Knots fade from golden (recent) to white (distant) - hollow "O" appearance */}
-          <Animated.View
-            className="absolute w-[10px] h-[10px] top-4 rounded-full border-2 shadow-sm"
-            style={[
-              knotAnimatedStyle,
-              {
-                left: THREAD_CENTER - (KNOT_SIZE / 2),
-                backgroundColor: isFuture ? 'transparent' : (temporalColors.knot === colors.card ? 'transparent' : temporalColors.knot),
-                borderColor: isFuture ? 'rgba(247, 245, 242, 0.6)' : temporalColors.line,
-                shadowColor: isFuture ? undefined : temporalColors.glow,
-                shadowOffset: { width: 0, height: 1 },
-                shadowOpacity: warmth > 0.5 ? 0.3 : 0.15,
-                shadowRadius: 3 + (warmth * 6),
-              }
-            ]}
-          >
-            {/* Glow effect for warm/recent knots */}
-            {warmth > 0.5 && !isFuture && (
+          {!isPendingReceived && (
+            <>
               <View
-                className="absolute w-4 h-4 -top-[3px] -left-[3px] rounded-full -z-10 opacity-20"
+                className="absolute h-[1.5px] top-5"
                 style={{
-                  backgroundColor: temporalColors.glow,
+                  left: THREAD_CENTER,
+                  width: CARD_START - THREAD_CENTER,
+                  backgroundColor: isDarkMode ? colors.border : 'rgba(181, 138, 108, 0.5)',
+                  opacity: isFuture ? 0.5 : 1,
+                  borderStyle: isFuture ? 'dotted' : 'solid',
                 }}
               />
-            )}
-          </Animated.View>
+
+              {/* Knot on thread - centered on thread */}
+              {/* Knots fade from golden (recent) to white (distant) - hollow "O" appearance */}
+              <Animated.View
+                className="absolute w-[10px] h-[10px] top-4 rounded-full border-2 shadow-sm"
+                style={[
+                  knotAnimatedStyle,
+                  {
+                    left: THREAD_CENTER - (KNOT_SIZE / 2),
+                    backgroundColor: isFuture ? 'transparent' : (temporalColors.knot === colors.card ? 'transparent' : temporalColors.knot),
+                    borderColor: isFuture ? 'rgba(247, 245, 242, 0.6)' : temporalColors.line,
+                    shadowColor: isFuture ? undefined : temporalColors.glow,
+                    shadowOffset: { width: 0, height: 1 },
+                    shadowOpacity: warmth > 0.5 ? 0.3 : 0.15,
+                    shadowRadius: 3 + (warmth * 6),
+                  }
+                ]}
+              >
+                {/* Glow effect for warm/recent knots */}
+                {warmth > 0.5 && !isFuture && (
+                  <View
+                    className="absolute w-4 h-4 -top-[3px] -left-[3px] rounded-full -z-10 opacity-20"
+                    style={{
+                      backgroundColor: temporalColors.glow,
+                    }}
+                  />
+                )}
+              </Animated.View>
+            </>
+          )}
 
           {/* Vertical line segment connecting to next item (point-to-point) */}
           {/* Line has airgaps at both ends - doesn't touch knots */}
@@ -724,10 +731,10 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, index,
         {/* Card */}
         <TouchableOpacity
           className="flex-1"
-          onPress={onPress}
-          onPressIn={handlePressIn}
-          onPressOut={handlePressOut}
-          activeOpacity={1}
+          onPress={isPendingReceived ? undefined : onPress}
+          onPressIn={isPendingReceived ? undefined : handlePressIn}
+          onPressOut={isPendingReceived ? undefined : handlePressOut}
+          activeOpacity={isPendingReceived ? 1 : 0.7}
         >
           <Animated.View
             className="rounded-2xl overflow-hidden shadow-sm elevation-4 border"
@@ -736,6 +743,7 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, index,
               isFuture ? dynamicStyles.cardPlanned : dynamicStyles.cardCompleted,
               cardAnimatedStyle,
               {
+                opacity: isPendingReceived ? 0.7 : 1,
                 shadowColor: '#000',
                 shadowOffset: { width: 0, height: 2 },
               },
@@ -841,6 +849,9 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, index,
                 )}
 
                 {/* Shared Weave Indicator (Bottom Right of Card) */}
+
+
+                {/* Shared Weave Indicator (Bottom Right of Card - Confirmed Only) */}
                 {isConfirmedShared && (
                   <View
                     className="absolute bottom-[-10px] right-[-10px] rounded-full p-1"
@@ -849,12 +860,37 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, index,
                     <ArrowLeftRight size={14} color={colors['muted-foreground']} style={{ opacity: 0.6 }} />
                   </View>
                 )}
+
+                {/* Pending Actions (Inline Inline) */}
+                {isPendingReceived && (
+                  <View className="flex-row items-center gap-3 mt-3 border-t border-dashed pt-2" style={{ borderColor: colors.border }}>
+                    <Text className="flex-1 text-xs italic" style={{ color: colors['muted-foreground'] }}>
+                      Shared with you
+                    </Text>
+                    {onAccept && onDecline && (
+                      <View className="flex-row gap-3">
+                        <TouchableOpacity
+                          onPress={() => onDecline(interaction.id)}
+                          className="rounded-full p-2 bg-red-50 dark:bg-red-900/20"
+                        >
+                          <X size={16} color={colors.destructive} />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={() => onAccept(interaction.id)}
+                          className="rounded-full p-2 bg-green-50 dark:bg-green-900/20"
+                        >
+                          <Check size={16} color="#16A34A" />
+                        </TouchableOpacity>
+                      </View>
+                    )}
+                  </View>
+                )}
               </View>
             </View>
           </Animated.View>
         </TouchableOpacity>
-      </Animated.View>
-    </View>
+      </Animated.View >
+    </View >
   );
 }, (prevProps, nextProps) => {
   // Custom comparison - only re-render if interaction data actually changes

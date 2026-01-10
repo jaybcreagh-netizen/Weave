@@ -23,6 +23,7 @@ interface ProfileHeaderProps {
     onUnlinkFriend?: () => void;
     /** Count of pending shared weaves from this friend */
     pendingWeaveCount?: number;
+    onPressPending?: () => void;
 }
 
 export function ProfileHeader({
@@ -37,6 +38,7 @@ export function ProfileHeader({
     onLinkToWeaveUser,
     onUnlinkFriend,
     pendingWeaveCount = 0,
+    onPressPending,
 }: ProfileHeaderProps) {
     const { colors } = useTheme();
 
@@ -86,7 +88,8 @@ export function ProfileHeader({
                         />
                         {/* Pending Weaves Badge */}
                         {pendingWeaveCount > 0 && (
-                            <View
+                            <TouchableOpacity
+                                onPress={onPressPending}
                                 className="flex-row items-center gap-1 px-2 py-1 rounded-full"
                                 style={{ backgroundColor: '#F59E0B20' }}
                             >
@@ -94,7 +97,7 @@ export function ProfileHeader({
                                 <Text style={{ color: '#F59E0B', fontSize: 11, fontWeight: '600' }}>
                                     {pendingWeaveCount} pending
                                 </Text>
-                            </View>
+                            </TouchableOpacity>
                         )}
                     </View>
 

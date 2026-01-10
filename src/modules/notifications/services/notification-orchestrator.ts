@@ -66,13 +66,32 @@ class NotificationOrchestratorService {
             Notifications.setNotificationHandler({
                 handleNotification: async (notification) => {
                     // Track foreground presentation
-                    const type = notification.request.content.data?.type as NotificationType;
+                    const data = notification.request.content.data || {};
+                    const type = data.type as NotificationType;
+
                     if (type) {
                         notificationAnalytics.trackForegroundShown(type);
                     }
 
-                    // Suppress all foreground notifications - they'll still work in background
-                    // Users shouldn't be interrupted while actively using the app
+                    // Determine if we should show a system alert based on type
+                    // We want to show alerts for social interactions (High Priority)
+                    const isSocialNotification = [
+                        'shared_weave',
+                        'link_request',
+                        'link_accepted',
+                        'friend_joined'
+                    ].includes(type || '');
+
+                    if (isSocialNotification) {
+                        return {
+                            shouldShowAlert: true,
+                            shouldPlaySound: true,
+                            shouldSetBadge: true,
+                        };
+                    }
+
+                    // For other notifications (nudges, reminders), suppress alert if app is open
+                    // Users shouldn't be interrupted by routine nudges while using the app
                     return {
                         shouldShowAlert: false,
                         shouldPlaySound: false,

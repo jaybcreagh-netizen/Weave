@@ -24,6 +24,8 @@ interface TimelineListProps {
     linkedJournalIds?: Set<string>;
     /** Map of interaction IDs to share status info */
     shareInfoMap?: ShareInfoMap;
+    onAccept?: (id: string) => void;
+    onDecline?: (id: string) => void;
 }
 
 export function TimelineList({
@@ -37,7 +39,9 @@ export function TimelineList({
     ListHeaderComponent,
     archetype,
     linkedJournalIds,
-    shareInfoMap
+    shareInfoMap,
+    onAccept,
+    onDecline
 }: TimelineListProps) {
     const { colors } = useTheme();
 
@@ -67,10 +71,12 @@ export function TimelineList({
                     archetype={archetype}
                     hasLinkedJournal={linkedJournalIds?.has(interaction.id)}
                     shareInfo={shareInfo}
+                    onAccept={onAccept}
+                    onDecline={onDecline}
                 />
             </View>
         );
-    }, [onInteractionPress, onDeleteInteraction, onEditInteraction, sections, archetype, linkedJournalIds, shareInfoMap]);
+    }, [onInteractionPress, onDeleteInteraction, onEditInteraction, sections, archetype, linkedJournalIds, shareInfoMap, onAccept, onDecline]);
 
     return (
         <View className="flex-1 relative">

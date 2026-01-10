@@ -29,7 +29,8 @@
         "NSCalendarsUsageDescription": "Weave adds your planned interactions to your calendar so you never miss a connection.",
         "NSRemindersUsageDescription": "Weave can set reminders for your planned interactions.",
         "UIBackgroundModes": [
-          "fetch"
+          "fetch",
+          "remote-notification"
         ],
         "LSApplicationQueriesSchemes": [
           "whatsapp",
@@ -90,8 +91,17 @@
       }
     },
     "plugins": [
+      "@lovesworking/watermelondb-expo-plugin-sdk-52-plus",
       "expo-router",
       "expo-font",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "kotlinVersion": "1.9.24"
+          }
+        }
+      ],
       [
         "@sentry/react-native/expo",
         {
