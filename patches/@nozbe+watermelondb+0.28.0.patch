@@ -1,0 +1,21 @@
+diff --git a/node_modules/@nozbe/watermelondb/src/adapters/sqlite/makeDispatcher/index.js b/node_modules/@nozbe/watermelondb/src/adapters/sqlite/makeDispatcher/index.js
+index 1234567..89abcdef 100644
+--- a/node_modules/@nozbe/watermelondb/src/adapters/sqlite/makeDispatcher/index.js
++++ b/node_modules/@nozbe/watermelondb/src/adapters/sqlite/makeDispatcher/index.js
+@@ -10,7 +10,14 @@
+
+   const { WMDatabaseBridge } = NativeModules
+
+-  if (WMDatabaseBridge.NONE) {
++  // Fix for Issue #1953: Avoid checking 'NONE' directly if it triggers a read-only crash
++  // Checks if the native module exists and property is accessible safely
++  let supportsNone = false;
++  try {
++      supportsNone = !!WMDatabaseBridge && WMDatabaseBridge.NONE;
++  } catch (e) {
++      supportsNone = false;
++  }
++
++  if (supportsNone) {
+     return new NativeDispatcher(WMDatabaseBridge)
+   }
