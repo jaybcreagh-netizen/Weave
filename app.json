@@ -81,7 +81,7 @@
       "favicon": "./assets/favicon.png"
     },
     "scheme": "weave",
-    "newArchEnabled": false,
+    "newArchEnabled": true,
     "extra": {
       "router": {
         "origin": false

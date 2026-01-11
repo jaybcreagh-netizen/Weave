@@ -1,5 +1,5 @@
 import React, { useMemo, useEffect, useState } from 'react';
-import { View, Text, Pressable, ScrollView, InteractionManager } from 'react-native';
+import { View, Text, ScrollView, InteractionManager } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import * as FileSystem from 'expo-file-system';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -12,7 +12,9 @@ import Animated, {
   Easing,
   interpolate,
   type AnimatedRef,
+  runOnJS,
 } from 'react-native-reanimated';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 
 import { useUIStore } from '@/shared/stores/uiStore';
 import { type Archetype, type RelationshipType, type Friend } from '@/shared/types/legacy-types';
@@ -107,7 +109,7 @@ export const FriendListRowContent = ({ friend, animatedRef, variant = 'default',
 
   const glowProgress = useSharedValue(0);
   const pressScale = useSharedValue(1);
-  const pressOpacity = useSharedValue(gradientOpacity);
+  const pressOpacity = useSharedValue(1); // Replaces Pressable opacity effect
 
   // Reset image error state when photoUrl changes
   useEffect(() => {
@@ -166,7 +168,6 @@ export const FriendListRowContent = ({ friend, animatedRef, variant = 'default',
   }, [friend.id, friend.lastUpdated.getTime(), friend.weaveScore, archetype]);
 
   // Check for active intentions
-  // Check for active intentions - Reactive subscription
   useEffect(() => {
     const query = database.get<Intention>('intentions').query(
       Q.where('status', 'active')
@@ -207,18 +208,7 @@ export const FriendListRowContent = ({ friend, animatedRef, variant = 'default',
   }, [justNurturedFriendId, id]);
 
   const handleCardLongPress = () => {
-    // Only allow long press on friend profile page (variant='full'), not on dashboard
-    // if (variant !== 'full') return;
-
-    // We moved the Detail Sheet to onPress for 'full' variant.
-    // So we don't do anything here, potentially allowing bubbling?
-    // actually, if we want to bubble we should probably not have this handler or return false?
-    // For now, let's just disabling the local action.
     return;
-
-    // OLD BEHAVIOR:
-    // setShowDetailSheet(true);
-    // Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
   };
 
   // Handle tap to assign archetype for Unknown archetypes
@@ -263,15 +253,17 @@ export const FriendListRowContent = ({ friend, animatedRef, variant = 'default',
       targetScale = 1.03; // Grows to same as active for seamless transition
     }
 
-    // Use timing with easeOut for smooth continuous growth (no "tick tick")
+    // Combine gesture scale with local press scale
+    const finalScale = targetScale * pressScale.value;
+
     return {
       transform: [{
-        scale: withTiming(targetScale, {
+        scale: withTiming(finalScale, {
           duration: isPending ? 260 : 150, // Match long-press duration for pending, quick return otherwise
           easing: Easing.out(Easing.quad)
         })
       }],
-      opacity: isDormant ? 0.6 : 1,
+      opacity: (isDormant ? 0.6 : 1) * pressOpacity.value,
     };
   });
 
@@ -327,7 +319,39 @@ export const FriendListRowContent = ({ friend, animatedRef, variant = 'default',
   const containerMargin = isCompact ? 'mb-2' : 'mb-3';
   const avatarSize = isCompact ? 'w-10 h-10' : 'w-12 h-12';
   const nameSize = isCompact ? 15 : 17;
-  const showStatusIcon = !isCompact; // Hide status icon in compact mode to save space? Or keep it? Users like info. Let's keep it but maybe smaller text.
+  const showStatusIcon = !isCompact;
+
+  // Gestures for New Architecture
+  const tapGesture = Gesture.Tap()
+    .runOnJS(true)
+    .onBegin(() => {
+      // Visual feedback on press down
+      pressOpacity.value = withTiming(0.8, { duration: 100 });
+      pressScale.value = withTiming(0.98, { duration: 100 });
+    })
+    .onFinalize(() => {
+      // Reset feedback
+      pressOpacity.value = withTiming(1, { duration: 150 });
+      pressScale.value = withTiming(1, { duration: 150 });
+    })
+    .onEnd(() => {
+      if (onPress) {
+        onPress(friend);
+      } else {
+        handleCardPress();
+      }
+    });
+
+  const longPressGesture = Gesture.LongPress()
+    .runOnJS(true)
+    .minDuration(500)
+    .onStart(() => {
+       if (variant !== 'full' && handleCardLongPress) {
+          handleCardLongPress();
+       }
+    });
+
+  const composedGesture = Gesture.Race(longPressGesture, tapGesture);
 
   return (
     <Animated.View ref={animatedRef} style={rowStyle}>
@@ -369,129 +393,126 @@ export const FriendListRowContent = ({ friend, animatedRef, variant = 'default',
           style={{ backgroundColor: 'rgba(255, 255, 255, 0.3)' }}
         />
 
-        {/* Content */}
-        <Pressable
-          onPress={onPress ? () => onPress(friend) : handleCardPress}
-          onLongPress={variant === 'full' ? undefined : handleCardLongPress}
-          delayLongPress={500}
-          className={`flex-row items-center ${containerPadding} gap-3`}
-        >
-          {/* Avatar */}
-          <View
-            className={`rounded-full overflow-hidden items-center justify-center ${avatarSize}`}
-            style={{
-              backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.08)',
-              borderWidth: 0.5,
-              borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
-            }}
-          >
-            {resolvedPhotoUrl && !imageError ? (
-              <CachedImage
-                source={{ uri: normalizeContactImageUri(resolvedPhotoUrl) }}
-                style={{ width: '100%', height: '100%' }}
-                contentFit="cover"
-                onError={() => setImageError(true)}
-              />
-            ) : (
-              <Text
-                className="font-semibold"
-                style={{ color: colors.foreground, fontSize: isCompact ? 16 : 18 }}
-              >
-                {name.charAt(0).toUpperCase()}
-              </Text>
-            )}
-          </View>
-
-          {/* Text Content */}
-          <View className="flex-1">
-            <View className="flex-row items-center gap-1.5">
-              <Text
-                className="font-semibold"
-                style={{
-                  fontSize: nameSize,
-                  lineHeight: nameSize + 4,
-                  color: colors.foreground,
-                  fontFamily: 'Lora_700Bold',
-                }}
-                numberOfLines={1}
-              >
-                {name}
-              </Text>
-              {variant === 'full' && relationshipType && (
-                (() => {
-                  const RelIcon = RELATIONSHIP_ICONS[relationshipType as RelationshipType];
-                  return RelIcon ? <RelIcon size={14} color={colors.primary} /> : null;
-                })()
-              )}
-            </View>
-
-            <View className="flex-row items-center gap-1.5 mt-0.5">
-              {statusLine.icon && showStatusIcon && (
-                <StatusLineIcon icon={statusLine.icon} size={12} color={colors.primary} />
-              )}
-              <Text
-                className="text-status"
-                style={{
-                  color: statusColor,
-                  opacity: statusLine.variant === 'default' ? 0.7 : 0.9,
-                  fontWeight: statusLine.variant !== 'default' ? '500' : '400',
-                  fontSize: 12
-                }}
-                numberOfLines={1}
-                ellipsizeMode="tail"
-              >
-                {statusLine.text}
-              </Text>
-            </View>
-          </View>
-
-          {/* Archetype Icon */}
-          <View className="relative">
+        {/* Content using GestureDetector for New Architecture compatibility */}
+        <GestureDetector gesture={composedGesture}>
+          <View className={`flex-row items-center ${containerPadding} gap-3`}>
+            {/* Avatar */}
             <View
-              className="w-10 h-10 rounded-[10px] items-center justify-center"
+              className={`rounded-full overflow-hidden items-center justify-center ${avatarSize}`}
               style={{
-                backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)',
+                backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.08)',
                 borderWidth: 0.5,
-                borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)',
-                transform: [{ scale: isCompact ? 0.9 : 1 }]
+                borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
               }}
             >
-              <ArchetypeIcon
-                archetype={archetype as Archetype}
-                size={18}
-                color={isDarkMode ? '#FFFFFF' : colors['muted-foreground']}
-              />
+              {resolvedPhotoUrl && !imageError ? (
+                <CachedImage
+                  source={{ uri: normalizeContactImageUri(resolvedPhotoUrl) }}
+                  style={{ width: '100%', height: '100%' }}
+                  contentFit="cover"
+                  onError={() => setImageError(true)}
+                />
+              ) : (
+                <Text
+                  className="font-semibold"
+                  style={{ color: colors.foreground, fontSize: isCompact ? 16 : 18 }}
+                >
+                  {name.charAt(0).toUpperCase()}
+                </Text>
+              )}
             </View>
-            {/* Unknown Archetype Indicator */}
-            {archetype === 'Unknown' && (
-              <View
-                className="absolute -top-1 -right-1 w-4 h-4 rounded-full items-center justify-center"
-                style={{
-                  backgroundColor: '#f59e0b',
-                  borderWidth: 1.5,
-                  borderColor: colors.card,
-                }}
-              >
-                <Text style={{ fontSize: 8, color: 'white', fontWeight: 'bold' }}>!</Text>
-              </View>
-            )}
 
-            {/* Active Intention Indicator */}
-            {hasIntention && (
+            {/* Text Content */}
+            <View className="flex-1">
+              <View className="flex-row items-center gap-1.5">
+                <Text
+                  className="font-semibold"
+                  style={{
+                    fontSize: nameSize,
+                    lineHeight: nameSize + 4,
+                    color: colors.foreground,
+                    fontFamily: 'Lora_700Bold',
+                  }}
+                  numberOfLines={1}
+                >
+                  {name}
+                </Text>
+                {variant === 'full' && relationshipType && (
+                  (() => {
+                    const RelIcon = RELATIONSHIP_ICONS[relationshipType as RelationshipType];
+                    return RelIcon ? <RelIcon size={14} color={colors.primary} /> : null;
+                  })()
+                )}
+              </View>
+
+              <View className="flex-row items-center gap-1.5 mt-0.5">
+                {statusLine.icon && showStatusIcon && (
+                  <StatusLineIcon icon={statusLine.icon} size={12} color={colors.primary} />
+                )}
+                <Text
+                  className="text-status"
+                  style={{
+                    color: statusColor,
+                    opacity: statusLine.variant === 'default' ? 0.7 : 0.9,
+                    fontWeight: statusLine.variant !== 'default' ? '500' : '400',
+                    fontSize: 12
+                  }}
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                >
+                  {statusLine.text}
+                </Text>
+              </View>
+            </View>
+
+            {/* Archetype Icon */}
+            <View className="relative">
               <View
-                className="absolute -top-1 -right-1 w-4 h-4 rounded-full items-center justify-center"
+                className="w-10 h-10 rounded-[10px] items-center justify-center"
                 style={{
-                  backgroundColor: colors.primary,
-                  borderWidth: 1.5,
-                  borderColor: colors.card,
-                  opacity: 0.6,
+                  backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)',
+                  borderWidth: 0.5,
+                  borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)',
+                  transform: [{ scale: isCompact ? 0.9 : 1 }]
                 }}
               >
-                <Star size={8} color="white" fill="white" />
+                <ArchetypeIcon
+                  archetype={archetype as Archetype}
+                  size={18}
+                  color={isDarkMode ? '#FFFFFF' : colors['muted-foreground']}
+                />
               </View>
-            )}
+              {/* Unknown Archetype Indicator */}
+              {archetype === 'Unknown' && (
+                <View
+                  className="absolute -top-1 -right-1 w-4 h-4 rounded-full items-center justify-center"
+                  style={{
+                    backgroundColor: '#f59e0b',
+                    borderWidth: 1.5,
+                    borderColor: colors.card,
+                  }}
+                >
+                  <Text style={{ fontSize: 8, color: 'white', fontWeight: 'bold' }}>!</Text>
+                </View>
+              )}
+
+              {/* Active Intention Indicator */}
+              {hasIntention && (
+                <View
+                  className="absolute -top-1 -right-1 w-4 h-4 rounded-full items-center justify-center"
+                  style={{
+                    backgroundColor: colors.primary,
+                    borderWidth: 1.5,
+                    borderColor: colors.card,
+                    opacity: 0.6,
+                  }}
+                >
+                  <Star size={8} color="white" fill="white" />
+                </View>
+              )}
+            </View>
           </View>
-        </Pressable>
+        </GestureDetector>
       </View >
 
       {/* Friend Detail Sheet */}
