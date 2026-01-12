@@ -10,6 +10,7 @@ import { useRouter } from 'expo-router'
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated'
 import * as Haptics from 'expo-haptics'
 import { trackEvent, AnalyticsEvents } from '@/shared/services/analytics.service';
+import { SPRINGS } from '@/shared/constants/animation';
 
 export const ExpandModeView = () => {
     const { colors } = useTheme()
@@ -198,7 +199,7 @@ export const ExpandModeView = () => {
                 )}
 
                 {step === 'review' && (
-                    <Animated.View entering={FadeInDown.springify()}>
+                    <Animated.View entering={FadeInDown.springify().damping(SPRINGS.PREMIUM.damping).stiffness(SPRINGS.PREMIUM.stiffness)}>
                         <Text variant="h2" className="text-center mb-6">Here is your entry</Text>
 
                         <Card className="p-4 mb-6">

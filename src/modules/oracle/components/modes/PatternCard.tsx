@@ -5,6 +5,7 @@ import { Card } from '@/shared/ui/Card';
 import { CheckCircle2, AlertCircle, LayoutGrid } from 'lucide-react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useTheme } from '@/shared/hooks/useTheme';
+import { SPRINGS } from '@/shared/constants/animation';
 
 interface PatternCardProps {
     patternName: string;
@@ -19,7 +20,7 @@ export const PatternCard: React.FC<PatternCardProps> = ({ patternName, analysis,
     const alertColor = isHighConfidence ? colors.primary : colors.warning;
 
     return (
-        <Animated.View entering={FadeInDown.delay(300).springify()}>
+        <Animated.View entering={FadeInDown.delay(300).springify().damping(SPRINGS.PREMIUM.damping).stiffness(SPRINGS.PREMIUM.stiffness)}>
             <Card
                 className="mb-4 overflow-hidden border-0"
                 style={{ backgroundColor: colors.card }}

@@ -7,6 +7,7 @@ import { Button } from '@/shared/ui/Button';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { SmartAction } from '@/modules/oracle/services/types';
+import { SPRINGS } from '@/shared/constants/animation';
 
 interface ActionCardProps {
     action: SmartAction;
@@ -38,7 +39,7 @@ export const ActionCard: React.FC<ActionCardProps> = ({ action, onExecute, index
     }
 
     return (
-        <Animated.View entering={FadeInDown.delay(index * 100).springify()}>
+        <Animated.View entering={FadeInDown.delay(index * 100).springify().damping(SPRINGS.PREMIUM.damping).stiffness(SPRINGS.PREMIUM.stiffness)}>
             <Card className="mb-3 p-4 border border-border bg-surface">
                 <View className="flex-row items-center justify-between">
                     <View className="flex-row items-center flex-1 mr-4">

@@ -21,6 +21,7 @@ import Animated, {
 import { useTheme } from '@/shared/hooks/useTheme'
 import { useStarterPrompts, StarterPrompt, OracleEntryPoint } from '../hooks/useStarterPrompts'
 import { RefreshCcw } from 'lucide-react-native'
+import { SPRINGS } from '@/shared/constants/animation'
 
 interface StarterPromptChipsProps {
     onSelect: (prompt: StarterPrompt) => void
@@ -97,9 +98,11 @@ export function StarterPromptChips({ onSelect, context = 'default' }: StarterPro
                             }}
                         >
                             {prompts.map((prompt, index) => (
+
+
                                 <Animated.View
                                     key={prompt.id}
-                                    entering={ZoomIn.delay(index * 50).springify().damping(12)}
+                                    entering={ZoomIn.delay(index * 50).springify().damping(SPRINGS.PREMIUM.damping).stiffness(SPRINGS.PREMIUM.stiffness)}
                                     exiting={ZoomOut.duration(200)}
                                     layout={LinearTransition.delay(100)}
                                 >

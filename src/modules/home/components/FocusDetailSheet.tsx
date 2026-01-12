@@ -7,6 +7,7 @@ import {
     HeartCrack, Activity, Target, History, Egg, Book,
     MessageCircle, Hand, Send, Users, Mic, Image, Coffee
 } from 'lucide-react-native';
+import Animated, { FadeIn } from 'react-native-reanimated';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { AnimatedBottomSheet } from '@/shared/ui/Sheet';
 import { ListItem } from '@/shared/ui/ListItem';
@@ -91,17 +92,15 @@ export const FocusDetailSheet: React.FC<FocusDetailSheetProps> = ({
                 // Try Oracle-generated prompt first (more contextual and personalized)
                 try {
                     const oracleContext = await oracleContextBuilder.buildContext([], ContextTier.PATTERN);
-                    const oraclePrompts = await Promise.race([
-                        oracleService.getPersonalizedStarterPrompts(oracleContext),
-                        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000))
+                    const reflectionText = await Promise.race([
+                        oracleService.generateDailyReflection(oracleContext),
+                        new Promise<string>((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000))
                     ]);
 
-                    if (oraclePrompts && oraclePrompts.length > 0 && isMounted) {
-                        // Use the first Oracle prompt
-                        const oraclePrompt = oraclePrompts[0];
+                    if (reflectionText && isMounted) {
                         setPrompt({
-                            prompt: oraclePrompt.prompt || oraclePrompt.text,
-                            context: 'Oracle',
+                            prompt: reflectionText,
+                            context: 'Oracle Insight',
                         });
                         return; // Success! Skip rule-based fallback
                     }
@@ -172,7 +171,8 @@ export const FocusDetailSheet: React.FC<FocusDetailSheetProps> = ({
             <View>
                 {/* Reflection Prompt */}
                 {prompt && (
-                    <View
+                    <Animated.View
+                        entering={FadeIn.duration(600).delay(200)}
                         className="p-4 rounded-xl mb-6 border"
                         style={{ backgroundColor: tokens.primary + '10', borderColor: tokens.primary + '20' }}
                     >
@@ -191,7 +191,7 @@ export const FocusDetailSheet: React.FC<FocusDetailSheetProps> = ({
                         >
                             {prompt.prompt}
                         </Text>
-                    </View>
+                    </Animated.View>
                 )}
 
                 {/* Intentions Section - Top Priority */}

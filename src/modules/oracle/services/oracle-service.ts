@@ -1053,6 +1053,48 @@ class OracleService {
     }
 
     /**
+     * Generate a daily reflection grounded in recent context
+     * Replaces the old question-based prompts for the Focus sheet
+     */
+    async generateDailyReflection(context: OracleContext): Promise<string> {
+        try {
+            const promptDef = getPrompt('oracle_daily_reflection')
+            if (!promptDef) throw new Error('Daily reflection prompt not found')
+
+            // Extract topic summary
+            const recentTopics = context.recentJournaling
+                .map(j => j.topics.join(', '))
+                .filter(Boolean)
+                .join('; ') || 'None'
+
+            const recentSentiment = context.recentJournaling[0]?.sentiment || 'Neutral'
+
+            const interpolatedUserPrompt = interpolatePrompt(promptDef.userPromptTemplate, {
+                socialSeason: context.userProfile.socialSeason,
+                socialBatteryTrend: context.userProfile.socialBattery.trend,
+                socialBatteryLevel: context.userProfile.socialBattery.current,
+                needingAttentionCount: context.socialHealth.needingAttentionCount.toString(),
+                recentTopics,
+                recentSentiment
+            })
+
+            const response = await llmService.complete(
+                {
+                    system: promptDef.systemPrompt,
+                    user: interpolatedUserPrompt
+                },
+                promptDef.defaultOptions
+            )
+
+            return response.text.trim().replace(/^["']|["']$/g, '')
+        } catch (error) {
+            logger.warn('OracleService', 'Failed to generate daily reflection', error)
+            // Fallback to a safe, generic reflection
+            return "Take a moment to check in with yourself today. Small connections matter."
+        }
+    }
+
+    /**
      * Generate personalized starter prompts based on user context
      * Uses LLM for dynamic variety, falls back to static logic
      */

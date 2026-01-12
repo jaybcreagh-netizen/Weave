@@ -3,6 +3,8 @@ import { View, Text, TouchableOpacity } from 'react-native'
 import Animated, { FadeIn, FadeOut, Layout } from 'react-native-reanimated'
 import { Sparkles, X, ArrowRight } from 'lucide-react-native'
 import ProactiveInsight from '@/db/models/ProactiveInsight'
+import { SPRINGS } from '@/shared/constants/animation'
+
 import { useTheme } from '@/shared/hooks/useTheme'
 
 interface OracleInsightCardProps {
@@ -18,7 +20,7 @@ export function OracleInsightCard({ insight, onAction, onDismiss }: OracleInsigh
         <Animated.View
             entering={FadeIn.duration(400)}
             exiting={FadeOut.duration(300)}
-            layout={Layout.springify()}
+            layout={Layout.springify().damping(SPRINGS.PREMIUM.damping).stiffness(SPRINGS.PREMIUM.stiffness).mass(SPRINGS.PREMIUM.mass)}
             className="mb-4 mx-1"
         >
             <View
