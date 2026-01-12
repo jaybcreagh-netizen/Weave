@@ -24,15 +24,11 @@ export function useQuickWeave() {
     const { logWeave } = useInteractions();
 
     const handleInteraction = useDebounceCallback(useCallback(async (activityId: string, activityLabel: string, friendId: string) => {
-        const t0 = Date.now();
-
         // STEP 1: Trigger haptic feedback immediately (very fast, no re-renders)
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        console.log(`[handleInteraction] Haptics: ${Date.now() - t0}ms`);
 
         // STEP 2: Start the database write FIRST - this is the critical path
         // Don't await it - let it run in background
-        console.log(`[handleInteraction] Starting logWeave at ${Date.now() - t0}ms`);
         const logPromise = logWeave({
             friendIds: [friendId],
             category: activityId as InteractionCategory,
@@ -51,7 +47,6 @@ export function useQuickWeave() {
         requestAnimationFrame(() => {
             closeQuickWeave();
             setJustNurturedFriendId(friendId);
-            console.log(`[handleInteraction] UI updates deferred: ${Date.now() - t0}ms`);
         });
 
         // STEP 4: Show reflection sheet after write completes
@@ -74,7 +69,6 @@ export function useQuickWeave() {
     }, [logWeave, closeQuickWeave, setJustNurturedFriendId, showMicroReflectionSheet]));
 
     const handleInteractionSelection = useCallback(async (selectedIndex: number, friendId: string) => {
-        console.log(`[QuickWeave] handleInteractionSelection called at ${Date.now()}`);
         try {
             // Get the selected category from quickWeaveActivities
             const currentActivities = quickWeaveActivities.length > 0
@@ -92,9 +86,7 @@ export function useQuickWeave() {
             const activityMetadata = ACTIVITIES.find(a => a.id === activityId);
             const activityLabel = activityMetadata?.label || activityId;
 
-            console.log(`[QuickWeave] Calling handleInteraction at ${Date.now()}`);
             await handleInteraction(activityId, activityLabel, friendId);
-            console.log(`[QuickWeave] handleInteraction completed at ${Date.now()}`);
         } catch (error) {
             console.error('Error handling interaction selection:', error);
         }

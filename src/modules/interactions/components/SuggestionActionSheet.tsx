@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { View, Text as RNText, TouchableOpacity } from 'react-native';
 import { Calendar, MessageCircle } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { useTheme } from '@/shared/hooks/useTheme';
 import FriendModel from '@/db/models/Friend';

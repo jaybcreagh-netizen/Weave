@@ -1,5 +1,5 @@
 import { Share, Platform } from 'react-native';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { logger } from '@/shared/services/logger.service';
 import { database } from '@/db';

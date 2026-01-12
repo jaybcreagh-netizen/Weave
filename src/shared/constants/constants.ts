@@ -44,7 +44,7 @@ export const archetypeData: Record<Archetype, { name: string; essence: string; d
     essence: 'Protector & Builder',
     description: 'Provides stability, structure, and practical support. They are reliable foundations in your life.',
     traits: ['Reliable', 'Protective', 'Structured', 'Practical'],
-    icon: '🏰',
+    icon: 'Castle',
     careStyle: 'Acts of Service'
   },
   Empress: {
@@ -52,7 +52,7 @@ export const archetypeData: Record<Archetype, { name: string; essence: string; d
     essence: 'Nurturer & Creator',
     description: 'Brings warmth, abundance, and emotional nourishment. They help you grow and feel cared for.',
     traits: ['Nurturing', 'Creative', 'Warm', 'Abundant'],
-    icon: '🌱',
+    icon: 'Sprout',
     careStyle: 'Gifts & Nurturing'
   },
   HighPriestess: {
@@ -60,7 +60,7 @@ export const archetypeData: Record<Archetype, { name: string; essence: string; d
     essence: 'Intuitive & Confidant',
     description: 'Understands the unspoken. A safe harbor for secrets, deep feelings, and spiritual connection.',
     traits: ['Intuitive', 'Deep', 'Mysterious', 'Understanding'],
-    icon: '🌙',
+    icon: 'Moon',
     careStyle: 'Deep Listening'
   },
   Fool: {
@@ -68,7 +68,7 @@ export const archetypeData: Record<Archetype, { name: string; essence: string; d
     essence: 'Adventurer & Joy-Bringer',
     description: 'Brings spontaneity, fun, and new experiences. They remind you not to take life too seriously.',
     traits: ['Spontaneous', 'Playful', 'Optimistic', 'Free-spirited'],
-    icon: '🎒',
+    icon: 'Backpack',
     careStyle: 'Play & Adventure'
   },
   Sun: {
@@ -76,7 +76,7 @@ export const archetypeData: Record<Archetype, { name: string; essence: string; d
     essence: 'Optimist & Energizer',
     description: 'Radiates positivity and vitality. Being around them recharges your batteries and lifts your spirits.',
     traits: ['Radiant', 'Optimistic', 'Energetic', 'Joyful'],
-    icon: '☀️',
+    icon: 'Sun',
     careStyle: 'Celebration & Energy'
   },
   Hermit: {
@@ -84,7 +84,7 @@ export const archetypeData: Record<Archetype, { name: string; essence: string; d
     essence: 'Guide & Truth-Seeker',
     description: 'Values deep, one-on-one connection and wisdom. They help you find clarity and inner truth.',
     traits: ['Wise', 'Introspective', 'Authentic', 'Patient'],
-    icon: '🏮',
+    icon: 'Flame',
     careStyle: 'Presence & Wisdom'
   },
   Magician: {
@@ -92,7 +92,7 @@ export const archetypeData: Record<Archetype, { name: string; essence: string; d
     essence: 'Catalyst & Inspirer',
     description: 'Makes things happen. They inspire you to take action, transform, and realize your potential.',
     traits: ['Transformative', 'Inspiring', 'Resourceful', 'Active'],
-    icon: '✨',
+    icon: 'Sparkles',
     careStyle: 'Shared Projects'
   },
   Lovers: {
@@ -100,7 +100,7 @@ export const archetypeData: Record<Archetype, { name: string; essence: string; d
     essence: 'Mirror & Harmonizer',
     description: 'Reflects your values and seeks harmony. A connection based on mutual choice and deep alignment.',
     traits: ['Harmonious', 'Aligned', 'Reflective', 'Connected'],
-    icon: '❤️',
+    icon: 'Heart',
     careStyle: 'Quality Time'
   },
   Unknown: {
@@ -108,7 +108,7 @@ export const archetypeData: Record<Archetype, { name: string; essence: string; d
     essence: 'Unassigned Archetype',
     description: 'This friend has not been assigned an archetype yet.',
     traits: [],
-    icon: '❓',
+    icon: 'HelpCircle',
     careStyle: 'Unknown'
   }
 };
@@ -158,9 +158,9 @@ export const moonPhasesData = {
 };
 
 export const modeIcons = {
-  light: '☀️',
-  dark: '🌙',
-  system: '⚙️',
+  light: 'Sun',
+  dark: 'Moon',
+  system: 'Settings',
 };
 
 // V2 Matrix: Maps Archetype -> Interaction Category -> Multiplier (0.5 to 2.0)

@@ -14,6 +14,7 @@ import * as Haptics from 'expo-haptics';
 import { X } from 'lucide-react-native';
 import { Suggestion } from '@/shared/types/common';
 import { useTheme } from '@/shared/hooks/useTheme';
+import { SPRINGS } from '@/shared/constants/animation';
 import { Text } from '@/shared/ui/Text';
 import { Button } from '@/shared/ui/Button';
 import { Icon } from '@/shared/ui/Icon';
@@ -80,7 +81,7 @@ export function SuggestionCard({ suggestion, friend, onAct, onLater, index = 0 }
         isDismissing.value = true;
         runOnJS(handleDismiss)();
       } else {
-        translateX.value = withSpring(0, { damping: 20, stiffness: 300 });
+        translateX.value = withSpring(0, SPRINGS.PREMIUM);
       }
     });
 
@@ -97,9 +98,9 @@ export function SuggestionCard({ suggestion, friend, onAct, onLater, index = 0 }
   return (
     <GestureDetector gesture={panGesture}>
       <Animated.View
-        entering={FadeInDown.delay(index * 80).springify().damping(14)}
-        exiting={FadeOutLeft.springify().damping(12)}
-        layout={LinearTransition.springify().damping(12)}
+        entering={FadeInDown.delay(index * 80).springify().damping(SPRINGS.PREMIUM.damping).stiffness(SPRINGS.PREMIUM.stiffness)}
+        exiting={FadeOutLeft.springify().damping(SPRINGS.PREMIUM.damping).stiffness(SPRINGS.PREMIUM.stiffness)}
+        layout={LinearTransition.springify().damping(SPRINGS.PREMIUM.damping).stiffness(SPRINGS.PREMIUM.stiffness)}
         className="mb-3"
       >
         {/* Dismiss indicator behind card */}

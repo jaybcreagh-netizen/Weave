@@ -14,6 +14,8 @@ import { type Interaction, type MoonPhase, type InteractionCategory } from '../t
 import { InteractionShape } from '@/shared/types/derived';
 import { modeIcons } from '@/shared/constants/constants';
 import { getCategoryMetadata } from '@/shared/constants/interaction-categories';
+import { Icon } from '@/shared/ui/Icon';
+import { MoonPhaseIllustration } from '@/modules/intelligence/components/social-season/YearInMoons/MoonPhaseIllustration';
 import { STORY_CHIPS } from '@/modules/reflection/services/story-chips.service';
 import { database } from '@/db';
 import { Q } from '@nozbe/watermelondb';
@@ -22,15 +24,15 @@ import InteractionModel from '@/db/models/Interaction';
 import { shareInteractionAsICS } from '../services/calendar-export.service';
 import { ShareStatusBadge, getShareStatus } from '@/modules/sync';
 
-const moonPhaseIcons: Record<MoonPhase, string> = {
-  'NewMoon': '🌑',
-  'WaxingCrescent': '🌒',
-  'FirstQuarter': '🌓',
-  'WaxingGibbous': '🌔',
-  'FullMoon': '🌕',
-  'WaningGibbous': '🌖',
-  'LastQuarter': '🌗',
-  'WaningCrescent': '🌘'
+const MOON_PHASE_LEVELS: Record<MoonPhase, number> = {
+  'NewMoon': 1,
+  'WaxingCrescent': 2,
+  'FirstQuarter': 3,
+  'WaxingGibbous': 4,
+  'FullMoon': 5,
+  'WaningGibbous': 4,
+  'LastQuarter': 3,
+  'WaningCrescent': 2
 };
 
 const formatDateTime = (date: Date | string): { date: string; time: string } => {
@@ -145,7 +147,7 @@ export function InteractionDetailModal({
   if (!activeInteraction) return null;
 
   const { date, time } = formatDateTime(activeInteraction.interactionDate);
-  const moonIcon = activeInteraction.vibe ? moonPhaseIcons[activeInteraction.vibe as MoonPhase] : null;
+  const moonLevel = activeInteraction.vibe ? MOON_PHASE_LEVELS[activeInteraction.vibe as MoonPhase] : null;
   const isPast = new Date(activeInteraction.interactionDate) < new Date();
   const isPlanned = activeInteraction.status === 'planned' || activeInteraction.status === 'pending_confirm';
 
@@ -198,22 +200,23 @@ export function InteractionDetailModal({
   const isCategory = activeInteraction.activity && activeInteraction.activity.includes('-');
 
   let displayLabel: string;
-  let displayIcon: string;
+  let DisplayIcon: React.ElementType | null = null;
+  let displayIconName: string | null = null;
 
   if (isCategory) {
     const categoryData = getCategoryMetadata(activeInteraction.activity as InteractionCategory);
     if (categoryData) {
       displayLabel = categoryData.label;
-      displayIcon = categoryData.icon;
+      DisplayIcon = categoryData.iconComponent;
     } else {
       // Fallback if category not found
       displayLabel = activeInteraction.activity || 'Interaction';
-      displayIcon = modeIcons[activeInteraction.mode as keyof typeof modeIcons] || '📅';
+      displayIconName = modeIcons[activeInteraction.mode as keyof typeof modeIcons] || 'Calendar';
     }
   } else {
     // Old format - use mode icon and activity name
     displayLabel = activeInteraction.activity || 'Interaction';
-    displayIcon = modeIcons[activeInteraction.mode as keyof typeof modeIcons] || '📅';
+    displayIconName = modeIcons[activeInteraction.mode as keyof typeof modeIcons] || 'Calendar';
   }
 
   return (
@@ -227,7 +230,11 @@ export function InteractionDetailModal({
       >
         <View className="flex-row justify-between items-start px-6 pt-2">
           <View className="flex-1 flex-row items-center gap-3 mb-2">
-            <Text className="text-3xl">{displayIcon}</Text>
+            {DisplayIcon ? (
+              <DisplayIcon size={32} color={colors.foreground} />
+            ) : (
+              <Icon name={(displayIconName || 'Calendar') as any} size={32} color={colors.foreground} />
+            )}
             <View>
               <Text
                 className="text-2xl font-semibold"
@@ -323,7 +330,7 @@ export function InteractionDetailModal({
               colors={colors}
             />
           )}
-          {isPast && moonIcon && <InfoRow icon={<Text className="text-2xl">{moonIcon}</Text>} title={(activeInteraction.vibe || '').replace(/([A-Z])/g, ' $1').trim()} subtitle="Moon phase" colors={colors} />}
+          {isPast && moonLevel && <InfoRow icon={<MoonPhaseIllustration phase={0} size={24} batteryLevel={moonLevel} hasCheckin={true} />} title={(activeInteraction.vibe || '').replace(/([A-Z])/g, ' $1').trim()} subtitle="Moon phase" colors={colors} />}
           {activeInteraction.location && <InfoRow icon={<MapPin color={colors['muted-foreground']} size={20} />} title={activeInteraction.location} subtitle="Location" colors={colors} />}
 
           {/* Reflection chips display */}

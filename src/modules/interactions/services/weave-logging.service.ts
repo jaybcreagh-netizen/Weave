@@ -16,8 +16,6 @@ import { writeScheduler } from '@/shared/services/write-scheduler';
 import { oracleService } from '@/modules/oracle/services/oracle-service';
 
 export async function logWeave(data: InteractionFormData): Promise<Interaction> {
-    const logStart = Date.now();
-    console.log(`[logWeave] START at ${logStart}`);
 
     // Validate input data
     try {
@@ -25,10 +23,8 @@ export async function logWeave(data: InteractionFormData): Promise<Interaction> 
     } catch (error) {
         throw new Error(`Invalid weave data: ${error instanceof Error ? error.message : String(error)}`);
     }
-    console.log(`[logWeave] Validation done at ${Date.now() - logStart}ms`);
 
     const friends = await database.get<FriendModel>('friends').query(Q.where('id', Q.oneOf(data.friendIds))).fetch();
-    console.log(`[logWeave] Friend fetch done at ${Date.now() - logStart}ms`);
 
     if (friends.length === 0) {
         throw new Error('No friends found for this interaction.');
@@ -37,7 +33,6 @@ export async function logWeave(data: InteractionFormData): Promise<Interaction> 
     // 1. Create the interaction record (Main Transaction - CRITICAL PRIORITY)
     const { interaction } = await writeScheduler.critical('logWeave', async () => {
         const batchOps: any[] = []; // keeping any[] for flexibility with WatermelonDB batch which sometimes requires specific Model types
-        const batchStart = Date.now();
 
         const newInteraction = database.get<Interaction>('interactions').prepareCreate((interaction: Interaction) => {
             interaction.interactionDate = data.date;
@@ -62,7 +57,6 @@ export async function logWeave(data: InteractionFormData): Promise<Interaction> 
             }
         });
         batchOps.push(newInteraction);
-        console.log(`[logWeave:batch] prepareCreate interaction: ${Date.now() - batchStart}ms`);
 
         for (const friend of friends) {
             batchOps.push(database.get('interaction_friends').prepareCreate((_ifriend: any) => {
@@ -79,15 +73,11 @@ export async function logWeave(data: InteractionFormData): Promise<Interaction> 
                 }));
             }
         }
-        console.log(`[logWeave:batch] prepareCreate joins (${friends.length}): ${Date.now() - batchStart}ms`);
 
-        const dbBatchStart = Date.now();
         await database.batch(batchOps);
-        console.log(`[logWeave:batch] database.batch() itself: ${Date.now() - dbBatchStart}ms`);
 
         return { interaction: newInteraction };
     });
-    console.log(`[logWeave] DB write done at ${Date.now() - logStart}ms`);
 
     // 2. Run Side Effects (Decoupled via Event Bus)
     // OPTIMIZATION: Fire-and-forget - the interaction is saved, scoring/gamification can run in background
@@ -125,8 +115,6 @@ export async function logWeave(data: InteractionFormData): Promise<Interaction> 
             console.error('[logWeave] Error generating insights:', err);
         });
     });
-
-    console.log(`[logWeave] COMPLETE at ${Date.now() - logStart}ms`);
 
     return interaction;
 }

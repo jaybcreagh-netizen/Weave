@@ -9,6 +9,7 @@ import Animated, {
   withSpring,
   useDerivedValue,
   useAnimatedReaction,
+  type SharedValue,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { BlurView } from 'expo-blur';
@@ -86,7 +87,7 @@ export function QuickWeaveOverlay() {
   // This ensures instant response on the UI thread without waiting for React renders
   const menuScale = useDerivedValue(() => {
     return isLongPressActive.value
-      ? withSpring(1, { damping: 25, stiffness: 300 })
+      ? withSpring(1, { damping: 40, stiffness: 300 })
       : withTiming(0.3, { duration: 150 });
   });
 
@@ -134,8 +135,9 @@ export function QuickWeaveOverlay() {
     <Animated.View
       className="absolute inset-0 z-50 pointer-events-none"
       style={containerStyle}
+      pointerEvents="none" // Explicitly disable touches for this container
     >
-      <View className="absolute inset-0">
+      <View className="absolute inset-0" pointerEvents="none">
         <BlurView
           intensity={isDarkMode ? 25 : 15}
           tint={isDarkMode ? 'dark' : 'light'}
@@ -247,9 +249,9 @@ function MenuItem({
   item: RadialMenuItem;
   index: number;
   position: { x: number; y: number; angle: number };
-  highlightedIndex: Animated.SharedValue<number>;
-  dragX: Animated.SharedValue<number>;
-  dragY: Animated.SharedValue<number>;
+  highlightedIndex: SharedValue<number>;
+  dragX: SharedValue<number>;
+  dragY: SharedValue<number>;
   isDarkMode: boolean;
   primaryColor: string;
 }) {

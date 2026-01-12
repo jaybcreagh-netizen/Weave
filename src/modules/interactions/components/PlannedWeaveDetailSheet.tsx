@@ -169,10 +169,34 @@ export function PlannedWeaveDetailSheet({
             // Update calendar event if exists
             if (interaction.calendarEventId) {
                 try {
+                    // Build calendar-friendly data with proper formatting (matching create format)
+                    const friendNames = participants.map(f => f.name).join(', ') || 'friends';
+                    const categoryMeta = category ? getCategoryMetadata(category) : null;
+                    const categoryLabel = categoryMeta?.label || category || 'Weave';
+
+                    // Build title: use interaction title if available, otherwise category + friends
+                    const eventTitle = interaction.title
+                        ? interaction.title
+                        : `${categoryLabel} with ${friendNames}`;
+
+                    // Build formatted notes matching create format
+                    const eventNotes = [
+                        `📅 Planned weave with ${friendNames}`,
+                        '',
+                        `Activity: ${categoryLabel}`,
+                        location.trim() ? `Location: ${location.trim()}` : null,
+                        '',
+                        notes.trim() ? `Notes:\n${notes.trim()}` : null,
+                        '',
+                        '---',
+                        'Created by Weave'
+                    ].filter(Boolean).join('\n');
+
                     await CalendarService.updateWeaveCalendarEvent(interaction.calendarEventId, {
+                        title: eventTitle,
                         date: finalDate,
                         location: location.trim(),
-                        notes: notes.trim(),
+                        notes: eventNotes,
                     });
                 } catch (calendarError) {
                     console.warn('Failed to update calendar event:', calendarError);

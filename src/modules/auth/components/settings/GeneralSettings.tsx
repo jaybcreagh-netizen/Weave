@@ -10,6 +10,7 @@ import {
     Shield,
     FileText,
     Sparkles,
+    Zap,
 } from 'lucide-react-native';
 
 // Modals
@@ -17,6 +18,9 @@ import { FeedbackModal } from '../FeedbackModal';
 
 // Feature flags and auth
 import { isFeatureEnabled } from '@/shared/config/feature-flags';
+
+// Settings keys
+import { QUICK_WEAVE_ENABLED_KEY } from '@/modules/interactions/utils/quick-weave-settings';
 
 interface GeneralSettingsProps {
     onClose: () => void;
@@ -27,6 +31,7 @@ export const GeneralSettings: React.FC<GeneralSettingsProps> = ({ onClose }) => 
 
     const [showFeedbackModal, setShowFeedbackModal] = useState(false);
     const [smartDefaultsEnabled, setSmartDefaultsEnabled] = useState(true);
+    const [quickWeaveEnabled, setQuickWeaveEnabled] = useState(true);
 
     useEffect(() => {
         loadSettings();
@@ -35,6 +40,9 @@ export const GeneralSettings: React.FC<GeneralSettingsProps> = ({ onClose }) => 
     const loadSettings = async () => {
         const smartDefaultsStr = await AsyncStorage.getItem('@weave:smart_defaults_enabled');
         setSmartDefaultsEnabled(smartDefaultsStr ? JSON.parse(smartDefaultsStr) : true);
+
+        const quickWeaveStr = await AsyncStorage.getItem(QUICK_WEAVE_ENABLED_KEY);
+        setQuickWeaveEnabled(quickWeaveStr ? JSON.parse(quickWeaveStr) : true);
     };
 
     const handleToggleSmartDefaults = async (enabled: boolean) => {
@@ -42,12 +50,29 @@ export const GeneralSettings: React.FC<GeneralSettingsProps> = ({ onClose }) => 
         await AsyncStorage.setItem('@weave:smart_defaults_enabled', JSON.stringify(enabled));
     };
 
+    const handleToggleQuickWeave = async (enabled: boolean) => {
+        setQuickWeaveEnabled(enabled);
+        await AsyncStorage.setItem(QUICK_WEAVE_ENABLED_KEY, JSON.stringify(enabled));
+    };
+
     return (
         <View className="gap-4">
             {/* Account Section - Only show if feature is enabled */}
 
 
-            {/* Community / Management */}
+            {/* Interaction Settings */}
+            <SettingsItem
+                icon={Zap}
+                title="Quick Weave"
+                subtitle="Long-press friends for radial quick log"
+                rightElement={
+                    <ModernSwitch
+                        value={quickWeaveEnabled}
+                        onValueChange={handleToggleQuickWeave}
+                    />
+                }
+            />
+
             <SettingsItem
                 icon={Sparkles}
                 title="Smart Activity Ordering"

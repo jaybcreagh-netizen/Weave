@@ -1,25 +1,26 @@
-import React, { createContext, useContext, useMemo, useRef } from 'react';
-import { View } from 'react-native';
-import Animated, { useSharedValue, useAnimatedScrollHandler, runOnJS, measure } from 'react-native-reanimated';
+import React, { createContext, useContext, useMemo, useRef, useEffect } from 'react';
+import { View, AppState } from 'react-native';
+import Animated, { useSharedValue, useAnimatedScrollHandler, runOnJS, measure, type SharedValue } from 'react-native-reanimated';
 import { Gesture } from 'react-native-gesture-handler';
 import * as Haptics from 'expo-haptics';
 
 import { useQuickWeave } from '@/modules/interactions/hooks/useQuickWeave';
 import { itemPositions, HIGHLIGHT_THRESHOLD, SELECTION_THRESHOLD } from '@/modules/interactions/constants';
+import { isQuickWeaveEnabled } from '@/modules/interactions/utils/quick-weave-settings';
 
 interface CardGestureContextType {
   gesture: any; // Using any to avoid complex Gesture type issues
   animatedScrollHandler: any;
-  activeCardId: Animated.SharedValue<string | null>;
-  pendingCardId: Animated.SharedValue<string | null>; // Card being held (before long-press activates)
+  activeCardId: SharedValue<string | null>;
+  pendingCardId: SharedValue<string | null>; // Card being held (before long-press activates)
   registerRef: (id: string, ref: React.RefObject<any>, metadata?: { initial: string }) => void;
   unregisterRef: (id: string) => void;
-  dragX: Animated.SharedValue<number>;
-  dragY: Animated.SharedValue<number>;
-  highlightedIndex: Animated.SharedValue<number>;
-  overlayCenter: Animated.SharedValue<{ x: number; y: number }>;
-  cardMetadata: Animated.SharedValue<Record<string, { initial: string }>>;
-  isLongPressActive: Animated.SharedValue<boolean>;
+  dragX: SharedValue<number>;
+  dragY: SharedValue<number>;
+  highlightedIndex: SharedValue<number>;
+  overlayCenter: SharedValue<{ x: number; y: number }>;
+  cardMetadata: SharedValue<Record<string, { initial: string }>>;
+  isLongPressActive: SharedValue<boolean>;
 }
 
 const CardGestureContext = createContext<CardGestureContextType | null>(null);
@@ -43,6 +44,26 @@ export function useCardGesture(options?: { optional?: boolean }): CardGestureCon
 function useCardGestureCoordinator(): CardGestureContextType {
   const { handleInteractionSelection, handleOpenQuickWeave, handleTap, closeQuickWeave } = useQuickWeave();
 
+  // Track whether Quick Weave is enabled (refreshed on mount and app foreground)
+  const quickWeaveEnabledRef = useRef(true);
+
+  useEffect(() => {
+    // Load setting on mount
+    const loadSetting = async () => {
+      quickWeaveEnabledRef.current = await isQuickWeaveEnabled();
+    };
+    loadSetting();
+
+    // Refresh when app comes to foreground (in case user changed setting)
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active') {
+        loadSetting();
+      }
+    });
+
+    return () => subscription.remove();
+  }, []);
+
   // Create refs to hold the latest version of the handlers
   // This prevents the stale closure issue where the gesture (which is memoized once)
   // holds onto the *initial* version of these functions (and thus the initial activities list/state).
@@ -64,6 +85,9 @@ function useCardGestureCoordinator(): CardGestureContextType {
   // Stable wrappers that use the refs and enforce chronological order
   const handleInteractionSelectionStable = (index: number, fId: string) => interactionSelectionRef.current(index, fId);
   const handleOpenQuickWeaveStable = (fId: string, point: { x: number; y: number }, timestamp: number) => {
+    // If Quick Weave is disabled, don't open the overlay
+    if (!quickWeaveEnabledRef.current) return;
+
     if (timestamp >= lastGestureTimestamp.current) {
       lastGestureTimestamp.current = timestamp;
       openQuickWeaveRef.current(fId, point);
@@ -94,6 +118,9 @@ function useCardGestureCoordinator(): CardGestureContextType {
   const pendingFeedbackTimeout = useRef<NodeJS.Timeout | null>(null);
 
   const startPendingFeedback = (targetId: string) => {
+    // If Quick Weave is disabled, don't show any feedback
+    if (!quickWeaveEnabledRef.current) return;
+
     // Clear any existing timeout
     if (pendingFeedbackTimeout.current) {
       clearTimeout(pendingFeedbackTimeout.current);
@@ -149,22 +176,11 @@ function useCardGestureCoordinator(): CardGestureContextType {
 
   // THE FIX: Wrap the entire gesture definition in useMemo to prevent re-creation on re-renders.
   const gesture = useMemo(() => {
-    const tap = Gesture.Tap()
-      .maxDuration(150) // Balanced tap detection
-      .onEnd((event, success) => {
-        'worklet';
-        // Clear any pending feedback timeout so quick taps don't trigger it
-        runOnJS(clearPendingFeedback)();
-        if (success && !isLongPressActive.value) {
-          const targetId = findTargetCardId(event.absoluteX, event.absoluteY);
-          if (targetId) {
-            runOnJS(handleTapStable)(targetId);
-          }
-        }
-      });
+    // We removed the global Tap gesture because it was conflicting with native TouchableOpacity.
+    // Taps are now handled locally by the FriendListRow's TouchableOpacity.
 
     const longPressAndDrag = Gesture.LongPress()
-      .minDuration(150) // 150ms activation as requested
+      .minDuration(500) // Increased from 150ms to 500ms to prevent blocking taps
       .maxDistance(999999)
       .shouldCancelWhenOutside(false)
       .onBegin((event) => {
@@ -189,8 +205,6 @@ function useCardGestureCoordinator(): CardGestureContextType {
         // Clear the delayed pending feedback since we're now activating
         runOnJS(clearPendingFeedback)();
         const targetId = findTargetCardId(event.absoluteX, event.absoluteY);
-
-        console.log(`[Gesture] LongPress onStart. Target: ${targetId}, Time: ${Date.now()}`);
 
         if (targetId) {
           pendingCardId.value = null; // Clear pending state
@@ -238,8 +252,8 @@ function useCardGestureCoordinator(): CardGestureContextType {
         }
 
         // AFTER activation: handle drag tracking for overlay selection
-        const currentDragX = touch.x - startCoordinates.value.x;
-        const currentDragY = touch.y - startCoordinates.value.y;
+        const currentDragX = touch.absoluteX - startCoordinates.value.x;
+        const currentDragY = touch.absoluteY - startCoordinates.value.y;
 
         dragX.value = currentDragX;
         dragY.value = currentDragY;
@@ -272,7 +286,6 @@ function useCardGestureCoordinator(): CardGestureContextType {
       })
       .onEnd((event, success) => {
         'worklet';
-        console.log(`[Gesture] LongPress onEnd. Active: ${isLongPressActive.value}, Time: ${Date.now()}`);
         if (isLongPressActive.value) {
           const distance = Math.sqrt(dragX.value ** 2 + dragY.value ** 2);
           if (distance >= SELECTION_THRESHOLD && highlightedIndex.value !== -1 && activeCardId.value) {
@@ -297,6 +310,9 @@ function useCardGestureCoordinator(): CardGestureContextType {
       })
       .onFinalize(() => {
         'worklet';
+        // Cleanup timeout in case gesture failed before activation
+        runOnJS(clearPendingFeedback)();
+
         // Final cleanup to ensure card scale resets - extra safety
         activeCardId.value = null;
         pendingCardId.value = null;
@@ -306,7 +322,7 @@ function useCardGestureCoordinator(): CardGestureContextType {
         highlightedIndex.value = -1;
       });
 
-    return Gesture.Exclusive(tap, longPressAndDrag);
+    return longPressAndDrag;
   }, []); // Empty dependency array means this runs only once.
 
   return {
