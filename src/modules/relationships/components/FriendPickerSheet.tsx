@@ -213,7 +213,7 @@ export function FriendPickerSheet({
         <BottomSheetFlatList
           data={filteredFriends}
           renderItem={renderFriendItem}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item: any) => item.id}
           ListEmptyComponent={EmptyComponent}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 40 }}

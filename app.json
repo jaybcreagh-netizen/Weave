@@ -91,7 +91,10 @@
       }
     },
     "plugins": [
-      ["@nozbe/watermelondb/plugin", {}],
+      [
+        "@lovesworking/watermelondb-expo-plugin-sdk-52-plus",
+        {}
+      ],
       "expo-router",
       "expo-font",
       "./tools/withSimdjsonModularHeaders.js",

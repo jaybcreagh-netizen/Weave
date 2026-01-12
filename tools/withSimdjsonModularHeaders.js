@@ -9,13 +9,13 @@ const withSimdjsonModularHeaders = (config) => {
       // We look for the "use_expo_modules!" line or "use_react_native!" line to inject before
       const anchor = /use_expo_modules!/;
       if (anchor.test(podfileContent)) {
-          config.modResults.contents = podfileContent.replace(
-              anchor,
-              `pod 'simdjson', :modular_headers => true\n  use_expo_modules!`
-          );
+        config.modResults.contents = podfileContent.replace(
+          anchor,
+          `pod 'simdjson', :path => '../node_modules/@nozbe/simdjson', :modular_headers => true\n  use_expo_modules!`
+        );
       } else {
-          // Fallback if use_expo_modules! is not found (unlikely in managed workflow)
-          config.modResults.contents += `\npod 'simdjson', :modular_headers => true\n`;
+        // Fallback if use_expo_modules! is not found (unlikely in managed workflow)
+        config.modResults.contents += `\npod 'simdjson', :modular_headers => true\n`;
       }
     }
     return config;
