@@ -1,7 +1,7 @@
 // src/modules/relationships/services/__tests__/image.service.test.ts
 import { uploadFriendPhoto, deleteFriendPhoto } from '../image.service';
 import * as ImageManipulator from 'expo-image-manipulator';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { Image } from 'react-native';
 
 // Mock external dependencies

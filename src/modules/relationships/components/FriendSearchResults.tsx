@@ -45,9 +45,13 @@ const SORT_LABELS: Record<SortOption, string> = {
 const AnimatedSearchResultItem = React.memo(({
   item,
   index,
+  onOpenArchetypePicker,
+  onOpenDetail,
 }: {
   item: FriendModel;
   index: number;
+  onOpenArchetypePicker?: (friend: FriendModel) => void;
+  onOpenDetail?: (friend: FriendModel) => void;
 }) => {
   const { registerRef, unregisterRef } = useCardGesture();
   const animatedRef = useAnimatedRef<Animated.View>();
@@ -62,7 +66,12 @@ const AnimatedSearchResultItem = React.memo(({
 
   return (
     <Animated.View className="mb-3">
-      <FriendListRow friend={item} animatedRef={animatedRef} />
+      <FriendListRow
+        friend={item}
+        animatedRef={animatedRef}
+        onOpenArchetypePicker={onOpenArchetypePicker}
+        onOpenDetail={onOpenDetail}
+      />
     </Animated.View>
   );
 }, (prevProps, nextProps) => {
@@ -76,6 +85,8 @@ interface FriendSearchResultsProps {
   sortOption: SortOption;
   scrollHandler?: any;
   isQuickWeaveOpen?: boolean;
+  onOpenArchetypePicker?: (friend: FriendModel) => void;
+  onOpenDetail?: (friend: FriendModel) => void;
 }
 
 const FriendSearchResultsContent = ({
@@ -85,6 +96,8 @@ const FriendSearchResultsContent = ({
   sortOption,
   scrollHandler,
   isQuickWeaveOpen,
+  onOpenArchetypePicker,
+  onOpenDetail,
 }: FriendSearchResultsProps) => {
   const { colors } = useTheme();
 
@@ -197,7 +210,12 @@ const FriendSearchResultsContent = ({
   }
 
   const renderSearchResultItem = ({ item, index }: { item: FriendModel; index: number }) => (
-    <AnimatedSearchResultItem item={item} index={index} />
+    <AnimatedSearchResultItem
+      item={item}
+      index={index}
+      onOpenDetail={onOpenDetail}
+      onOpenArchetypePicker={onOpenArchetypePicker}
+    />
   );
 
   // Build results header text
@@ -219,6 +237,7 @@ const FriendSearchResultsContent = ({
         </Text>
       </View>
 
+      {/* @ts-ignore - AnimatedFlashList types are tricky with estimatedItemSize */}
       <AnimatedFlashList
         contentContainerStyle={{ paddingHorizontal: 20, paddingVertical: 8 }}
         data={filteredFriends}
@@ -229,6 +248,7 @@ const FriendSearchResultsContent = ({
         scrollEventThrottle={8}
         renderItem={renderSearchResultItem as any}
         disableIntervalMomentum={true}
+        keyboardShouldPersistTaps="handled"
       />
     </View>
   );

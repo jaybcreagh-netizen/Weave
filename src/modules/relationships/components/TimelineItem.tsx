@@ -12,6 +12,7 @@ import Animated, {
   interpolate,
   Easing,
   runOnJS,
+  type SharedValue,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import Svg, { Line } from 'react-native-svg';
@@ -19,6 +20,7 @@ import Svg, { Line } from 'react-native-svg';
 const AnimatedLine = Animated.createAnimatedComponent(Line);
 
 import { useTheme } from '@/shared/hooks/useTheme';
+import { SPRINGS } from '@/shared/constants/animation';
 import { formatPoeticDate, calculateWeaveWarmth, getThreadColors } from '@/shared/utils/timeline-utils';
 import { modeIcons } from '@/shared/constants/constants';
 import { getCategoryMetadata, CATEGORY_METADATA, ACTIVITY_TO_CATEGORY_MAP } from '@/shared/constants/interaction-categories';
@@ -27,6 +29,7 @@ import { Sparkles, BookOpen, ArrowLeftRight, Trash2, Check, X } from 'lucide-rea
 import { type InteractionCategory, type Archetype, type ActivityType } from '@/shared/types/legacy-types';
 import { InteractionShape, ShareInfo } from '@/shared/types/derived';
 import { calculateDeepeningLevel, getDeepeningVisuals } from '@/modules/intelligence';
+import { Icon } from '@/shared/ui/Icon';
 import { CategoryArchetypeMatrix } from '@/modules/intelligence/constants';
 import { usePausableAnimation } from '@/shared/hooks/usePausableAnimation';
 import { useUIStore } from '@/shared/stores/uiStore';
@@ -36,7 +39,7 @@ interface TimelineItemProps {
   isFuture: boolean;
   onPress: () => void;
   index: number;
-  scrollY?: Animated.SharedValue<number>;
+  scrollY?: SharedValue<number>;
   itemY?: number;
   showKnot?: boolean;
   sectionLabel?: string;
@@ -221,7 +224,7 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, index,
     // 4. Default Fallback
     return {
       displayLabel: interaction.activity || 'Interaction',
-      displayIcon: modeIcons[interaction.mode as keyof typeof modeIcons] || '✨',
+      displayIcon: modeIcons[interaction.mode as keyof typeof modeIcons] || 'Sparkles',
       IconComponent: Sparkles as LucideIcon,
       determinedCategory: null
     };
@@ -390,11 +393,7 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, index,
     // Knot pop-in - subtle spring bounce
     knotScale.value = withDelay(
       knotAppearDelay,
-      withSpring(1, {
-        damping: 18,
-        stiffness: 280,
-        mass: 0.5,
-      })
+      withSpring(1, SPRINGS.PLAYFUL)
     );
     knotOpacity.value = withDelay(
       knotAppearDelay,
@@ -415,18 +414,12 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, index,
 
     entranceScale.value = withDelay(
       cardStartDelay,
-      withSpring(1, {
-        damping: 20,
-        stiffness: 200,
-      })
+      withSpring(1, SPRINGS.PREMIUM)
     );
 
     entranceTranslateY.value = withDelay(
       cardStartDelay,
-      withSpring(0, {
-        damping: 20,
-        stiffness: 220,
-      })
+      withSpring(0, SPRINGS.PREMIUM)
     );
 
     // Line drawing animation - pen stroke effect
@@ -519,13 +512,13 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, index,
 
   // Card press animation
   const handlePressIn = () => {
-    pressScale.value = withSpring(0.97, { damping: 15, stiffness: 300 });
-    cardShadow.value = withSpring(1, { damping: 15, stiffness: 300 });
+    pressScale.value = withSpring(0.97, SPRINGS.PREMIUM);
+    cardShadow.value = withSpring(1, SPRINGS.PREMIUM);
   };
 
   const handlePressOut = () => {
-    pressScale.value = withSpring(1, { damping: 15, stiffness: 300 });
-    cardShadow.value = withSpring(2, { damping: 15, stiffness: 300 });
+    pressScale.value = withSpring(1, SPRINGS.PREMIUM);
+    cardShadow.value = withSpring(2, SPRINGS.PREMIUM);
   };
 
   const cardAnimatedStyle = useAnimatedStyle(() => ({
@@ -803,9 +796,9 @@ export const TimelineItem = React.memo(({ interaction, isFuture, onPress, index,
                   </Text>
                 )}
                 {/* Deepened weave indicator - scale-based sparkles */}
-                {deepeningMetrics.level !== 'none' && (
+                {deepeningMetrics.level !== 'none' && deepeningVisuals.badgeIcon && (
                   <View className="absolute -top-1 -right-1">
-                    <Text className="text-sm">{deepeningVisuals.badgeEmoji}</Text>
+                    <Icon name={deepeningVisuals.badgeIcon as any} size={14} color={colors.primary} />
                   </View>
                 )}
                 {/* Journal entry indicator */}

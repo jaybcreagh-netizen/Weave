@@ -13,7 +13,7 @@
  * 3. Graceful fallback: Works offline, syncs when online
  */
 
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { Image } from 'react-native';
 import Logger from '@/shared/utils/Logger';

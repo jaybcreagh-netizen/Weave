@@ -1,4 +1,5 @@
 import { ReactNode } from 'react';
+import { WithSpringConfig } from 'react-native-reanimated';
 import { SheetHeight } from './constants';
 
 /**
@@ -120,4 +121,10 @@ export interface StandardBottomSheetProps {
    * Useful when rendering sheets inside native Modals.
    */
   portalHost?: string;
+
+  /**
+   * Custom animation configuration for the sheet
+   * Use this to tune the spring physics (damping, stiffness, etc.)
+   */
+  animationConfigs?: WithSpringConfig;
 }

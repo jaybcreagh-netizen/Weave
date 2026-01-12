@@ -1,7 +1,7 @@
 import React, { useMemo, useEffect, useState } from 'react';
-import { View, Text, ScrollView, InteractionManager } from 'react-native';
+import { View, Text, ScrollView, InteractionManager, TouchableOpacity } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
   useSharedValue,
@@ -29,10 +29,8 @@ import { generateIntelligentStatusLine } from '@/modules/intelligence';
 import { normalizeContactImageUri } from '../utils/image.utils';
 import { resolveImageUri } from '../services/image.service';
 import { statusLineCache } from '@/modules/intelligence';
-import { FriendDetailSheet } from './FriendDetailSheet';
 import { HydratedFriend } from '@/types/hydrated';
-import { ArchetypeCard } from '@/modules/intelligence';
-import { StandardBottomSheet } from '@/shared/ui/Sheet/StandardBottomSheet';
+import { useQuickWeave } from '@/modules/interactions/hooks/useQuickWeave';
 import { CachedImage } from '@/shared/ui';
 import { database } from '@/db';
 import Intention from '@/db/models/Intention';
@@ -59,10 +57,19 @@ interface FriendListRowProps {
   animatedRef?: AnimatedRef<Animated.View>;
   variant?: 'default' | 'full' | 'compact';
   onPress?: (friend: FriendModel) => void;
+  onOpenArchetypePicker?: (friend: FriendModel) => void;
+  onOpenDetail?: (friend: FriendModel) => void;
 }
 
 
-export const FriendListRowContent = ({ friend, animatedRef, variant = 'default', onPress }: FriendListRowProps) => {
+export const FriendListRowContent = ({
+  friend,
+  animatedRef,
+  variant = 'default',
+  onPress,
+  onOpenArchetypePicker,
+  onOpenDetail
+}: FriendListRowProps) => {
 
   if (!friend) return null;
 
@@ -73,9 +80,9 @@ export const FriendListRowContent = ({ friend, animatedRef, variant = 'default',
   });
   const [hasIntention, setHasIntention] = useState(false);
   const [imageError, setImageError] = useState(false);
-  const [showDetailSheet, setShowDetailSheet] = useState(false);
-  const [showArchetypePicker, setShowArchetypePicker] = useState(false);
+
   const { colors, isDarkMode } = useTheme();
+  // Sheets hoisted to parent - removed local sheet state
   const setArchetypeModal = useUIStore(state => state.setArchetypeModal);
   const justNurturedFriendId = useUIStore(state => state.justNurturedFriendId);
   const setJustNurturedFriendId = useUIStore(state => state.setJustNurturedFriendId);
@@ -116,22 +123,34 @@ export const FriendListRowContent = ({ friend, animatedRef, variant = 'default',
     setImageError(false);
   }, [photoUrl]);
 
-  // Resolve photo URL synchronously for performance
+  // Resolve photo URL synchronously for performance, handling stale iOS absolute paths
   const resolvedPhotoUrl = useMemo(() => {
     if (!photoUrl) return null;
-    // If it's a relative path (common case), prepend document directory synchronously
+
+    // Handle relative paths (e.g. "weave_images/photo.jpg")
     if (!photoUrl.startsWith('file://') && !photoUrl.startsWith('/')) {
       return `${FileSystem.documentDirectory}${photoUrl.replace(/^\//, '')}`;
     }
-    // For absolute paths, we assume they are valid or let Image onError handle it
+
+    // Handle absolute paths (legacy or stale iOS paths)
+    // On iOS, the app sandbox path changes on every launch/build.
+    // If we stored an absolute path like "file:///.../Application/OLD-UUID/Documents/weave_images/...",
+    // we must repair it to point to the current container.
+    if (photoUrl.includes('weave_images')) {
+      const relativePart = photoUrl.split('weave_images')[1];
+      // Reconstruct using current document directory
+      // FileSystem.documentDirectory includes the trailing slash
+      return `${FileSystem.documentDirectory}weave_images${relativePart}`;
+    }
+
+    // Fallback for absolute paths that don't match the expected structure
     return photoUrl;
   }, [photoUrl]);
 
   // Update intelligent status line with caching for performance
   useEffect(() => {
-    // Special handling for Unknown archetype
     if (archetype === 'Unknown') {
-      setStatusLine({ text: 'Tap to assign an archetype', icon: '✨', variant: 'accent' });
+      setStatusLine({ text: 'Tap to assign an archetype', icon: 'Sparkles', variant: 'accent' });
       return;
     }
 
@@ -212,33 +231,22 @@ export const FriendListRowContent = ({ friend, animatedRef, variant = 'default',
   };
 
   // Handle tap to assign archetype for Unknown archetypes
-  // AND open detail sheet for Full variant
+  // AND open detail sheet for Full/Default variants
   const handleCardPress = () => {
     if (archetype === 'Unknown') {
       console.log(`[FriendListRow] Opening archetype picker for friend: ${name} (id: ${id}), archetype: ${archetype}`);
-      setShowArchetypePicker(true);
+      onOpenArchetypePicker?.(friend as FriendModel);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    } else if (variant === 'full') {
-      // New behavior: Open detail sheet on tap
-      setShowDetailSheet(true);
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } else {
+      // Open detail sheet if callback is provided (works for default & full variants)
+      if (onOpenDetail) {
+        onOpenDetail(friend as FriendModel);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      }
     }
   };
 
-  // Handle archetype selection
-  const handleArchetypeSelect = async (selectedArchetype: Archetype) => {
-    try {
-      await database.write(async () => {
-        await friend.update((f) => {
-          f.archetype = selectedArchetype;
-        });
-      });
-      setShowArchetypePicker(false);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch (error) {
-      console.error('Error updating archetype:', error);
-    }
-  };
+  // handleArchetypeSelect removed - handled by parent
 
   // Animated styles for gesture feedback
   const rowStyle = useAnimatedStyle(() => {
@@ -346,9 +354,9 @@ export const FriendListRowContent = ({ friend, animatedRef, variant = 'default',
     .runOnJS(true)
     .minDuration(500)
     .onStart(() => {
-       if (variant !== 'full' && handleCardLongPress) {
-          handleCardLongPress();
-       }
+      if (variant !== 'full' && handleCardLongPress) {
+        handleCardLongPress();
+      }
     });
 
   const composedGesture = Gesture.Race(longPressGesture, tapGesture);
@@ -368,33 +376,41 @@ export const FriendListRowContent = ({ friend, animatedRef, variant = 'default',
           elevation: 2,
         }}
       >
-        {/* Single gradient background - health indicator */}
-        <Animated.View style={[{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }, gradientStyle]}>
-          <LinearGradient
-            colors={[`${gradientColors[0]}`, `${gradientColors[1]}`]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={{ flex: 1 }}
+        <TouchableOpacity
+          activeOpacity={0.7}
+          onPress={() => {
+            if (onPress) {
+              onPress(friend);
+            } else {
+              handleCardPress();
+            }
+          }}
+        >
+          {/* Single gradient background - health indicator */}
+          <Animated.View style={[{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }, gradientStyle]}>
+            <LinearGradient
+              colors={[`${gradientColors[0]}`, `${gradientColors[1]}`]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={{ flex: 1 }}
+            />
+          </Animated.View>
+
+          {/* "Just Nurtured" glow overlay */}
+          <Animated.View
+            style={[
+              { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'white', zIndex: 10 },
+              glowStyle
+            ]}
+            pointerEvents="none"
           />
-        </Animated.View>
 
-        {/* "Just Nurtured" glow overlay */}
-        <Animated.View
-          style={[
-            { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'white', zIndex: 10 },
-            glowStyle
-          ]}
-          pointerEvents="none"
-        />
+          {/* Subtle top highlight for depth */}
+          <View
+            className="absolute top-0 left-0 right-0 h-[1px]"
+            style={{ backgroundColor: 'rgba(255, 255, 255, 0.3)' }}
+          />
 
-        {/* Subtle top highlight for depth */}
-        <View
-          className="absolute top-0 left-0 right-0 h-[1px]"
-          style={{ backgroundColor: 'rgba(255, 255, 255, 0.3)' }}
-        />
-
-        {/* Content using GestureDetector for New Architecture compatibility */}
-        <GestureDetector gesture={composedGesture}>
           <View className={`flex-row items-center ${containerPadding} gap-3`}>
             {/* Avatar */}
             <View
@@ -512,44 +528,8 @@ export const FriendListRowContent = ({ friend, animatedRef, variant = 'default',
               )}
             </View>
           </View>
-        </GestureDetector>
+        </TouchableOpacity>
       </View >
-
-      {/* Friend Detail Sheet */}
-      < FriendDetailSheet
-        isVisible={showDetailSheet}
-        onClose={() => setShowDetailSheet(false)}
-        friendId={friend.id}
-      />
-
-      {/* Quick Archetype Picker Sheet */}
-      < StandardBottomSheet
-        visible={showArchetypePicker}
-        onClose={() => setShowArchetypePicker(false)}
-        height="full"
-        title={`Choose ${name}'s Archetype`}
-        scrollable
-      >
-        <View className="px-5 pb-6">
-          <Text
-            className="text-sm mb-4 text-center"
-            style={{ color: colors['muted-foreground'] }}
-          >
-            Tap to select • Long-press to learn more
-          </Text>
-          <View className="flex-row flex-wrap gap-3">
-            {(['Emperor', 'Empress', 'HighPriestess', 'Fool', 'Sun', 'Hermit', 'Magician', 'Lovers'] as Archetype[]).map((arch) => (
-              <View key={arch} style={{ width: '48%' }}>
-                <ArchetypeCard
-                  archetype={arch}
-                  isSelected={false}
-                  onSelect={handleArchetypeSelect}
-                />
-              </View>
-            ))}
-          </View>
-        </View>
-      </StandardBottomSheet >
     </Animated.View >
   );
 };

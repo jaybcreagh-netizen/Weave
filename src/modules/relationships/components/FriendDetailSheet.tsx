@@ -8,7 +8,7 @@ import Animated, {
   runOnJS,
 } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
-import { Calendar, Heart, Sparkles, X, CloudSun } from 'lucide-react-native';
+import { Calendar, Heart, Sparkles, X, CloudSun, Star, Gem } from 'lucide-react-native';
 import withObservables from '@nozbe/with-observables';
 
 import { useTheme } from '@/shared/hooks/useTheme';
@@ -366,12 +366,13 @@ const FriendDetailSheetContent: React.FC<FriendDetailSheetProps> = ({
                       >
                         {metadata.label}
                       </Text>
-                      <Text
-                        className="font-inter-medium text-[10px] font-medium"
-                        style={{ color: `${affinityColor}CC` }}
-                      >
-                        {level === 'peak' ? '★' : level === 'high' ? '✦' : '◆'}
-                      </Text>
+                      {level === 'peak' ? (
+                        <Star size={10} color={affinityColor} fill={affinityColor} />
+                      ) : level === 'high' ? (
+                        <Sparkles size={10} color={affinityColor} />
+                      ) : (
+                        <Gem size={10} color={affinityColor} />
+                      )}
                     </View>
                   );
                 })}

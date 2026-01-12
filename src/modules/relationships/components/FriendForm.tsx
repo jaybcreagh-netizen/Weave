@@ -244,7 +244,7 @@ export function FriendForm({ onSave, friend, initialTier, fromOnboarding, onSkip
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.8, // Reduced from 1 for better performance

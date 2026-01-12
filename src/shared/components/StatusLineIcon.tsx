@@ -30,30 +30,29 @@ import {
  */
 const STATUS_ICON_MAP: Record<string, LucideIcon> = {
     // Life events
-    '🎂': Cake,
-    '💝': Heart,
-    '💼': Briefcase,
-    '📦': Package,
-    '💒': Church,
-    '👶': Baby,
-    '🕊️': Feather,
-    '🏥': Hospital,
-    '🎓': GraduationCap,
-    '🎉': PartyPopper,
-    '✨': Sparkles,
+    'Cake': Cake,
+    'Heart': Heart,
+    'Briefcase': Briefcase,
+    'Package': Package,
+    'Church': Church,
+    'Baby': Baby,
+    'Feather': Feather,
+    'Hospital': Hospital,
+    'GraduationCap': GraduationCap,
+    'PartyPopper': PartyPopper,
+    'Sparkles': Sparkles,
 
     // Status / Activity
-    '🗓️': Calendar,
-    '💭': MessageSquareHeart,
-    '🥂': UtensilsCrossed,
-    '🏂': Palette,
-    '📱': Phone,
-    '🛋️': Sofa,
-    '💫': Zap,
-    '🌱': Sprout,
-    '🎨': Palette,
-    '🌟': Star,
-    '📈': TrendingUp,
+    'Calendar': Calendar,
+    'MessageSquareHeart': MessageSquareHeart,
+    'UtensilsCrossed': UtensilsCrossed,
+    'Palette': Palette,
+    'Phone': Phone,
+    'Sofa': Sofa,
+    'Zap': Zap,
+    'Sprout': Sprout,
+    'Star': Star,
+    'TrendingUp': TrendingUp,
 };
 
 interface StatusLineIconProps {
@@ -64,7 +63,6 @@ interface StatusLineIconProps {
 
 /**
  * Renders a status line icon as a Lucide component
- * Falls back to rendering the emoji as text if no mapping exists
  */
 export function StatusLineIcon({ icon, size = 12, color }: StatusLineIconProps) {
     if (!icon) return null;
@@ -75,7 +73,7 @@ export function StatusLineIcon({ icon, size = 12, color }: StatusLineIconProps) 
         return <IconComponent size={size} color={color} />;
     }
 
-    // Fallback to text for unmapped emojis (shouldn't happen after full migration)
+    // Fallback? or just null
     return null;
 }
 

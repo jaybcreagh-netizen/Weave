@@ -23,6 +23,9 @@ import { type Tier } from '../types';
 const { width: screenWidth } = Dimensions.get('window');
 const AnimatedFlashList = Animated.createAnimatedComponent(FlashList);
 
+// Track which friend cards have animated this session (module-level for persistence)
+const animatedCardIds = new Set<string>();
+
 const getTierBackground = (tier: Tier, isDarkMode: boolean) => {
     const tierColorMap: Record<string, string> = {
         InnerCircle: tierColors.InnerCircle,
@@ -37,16 +40,25 @@ const getTierBackground = (tier: Tier, isDarkMode: boolean) => {
 const AnimatedFriendCardItem = React.memo(({
     item,
     index,
+    onOpenArchetypePicker,
+    onOpenDetail,
 }: {
     item: FriendModel;
     index: number;
+    onOpenArchetypePicker?: (friend: FriendModel) => void;
+    onOpenDetail?: (friend: FriendModel) => void;
 }) => {
+    // Debug log
+    /* console.log(`[AnimatedFriendCardItem] Render ${item.name}. Has onOpenDetail: ${!!onOpenDetail}`); */
+
     const { registerRef, unregisterRef } = useCardGesture();
     const animatedRef = useAnimatedRef<Animated.View>();
-    const hasAnimated = useRef(false);
 
-    const opacity = useSharedValue(hasAnimated.current ? 1 : 0);
-    const translateY = useSharedValue(hasAnimated.current ? 0 : 25);
+    // Check if this card has already animated this session
+    const hasAnimatedBefore = animatedCardIds.has(item.id);
+
+    const opacity = useSharedValue(hasAnimatedBefore ? 1 : 0);
+    const translateY = useSharedValue(hasAnimatedBefore ? 0 : 25);
 
     useEffect(() => {
         runOnUI(registerRef)(item.id, animatedRef, { initial: item.name ? item.name.charAt(0).toUpperCase() : '•' });
@@ -56,12 +68,12 @@ const AnimatedFriendCardItem = React.memo(({
     }, [item.id, item.name, animatedRef, registerRef, unregisterRef]);
 
     useEffect(() => {
-        if (!hasAnimated.current) {
+        if (!hasAnimatedBefore) {
             opacity.value = withDelay(index * 35, withTiming(1, { duration: 250 }));
             translateY.value = withDelay(index * 35, withTiming(0, { duration: 250 }));
-            hasAnimated.current = true;
+            animatedCardIds.add(item.id);
         }
-    }, [index]);
+    }, []);
 
     const animatedStyle = useAnimatedStyle(() => ({
         opacity: opacity.value,
@@ -72,7 +84,12 @@ const AnimatedFriendCardItem = React.memo(({
         <Animated.View
             className="mb-3"
             style={animatedStyle}>
-            <FriendListRow friend={item} animatedRef={animatedRef} />
+            <FriendListRow
+                friend={item}
+                animatedRef={animatedRef}
+                onOpenArchetypePicker={onOpenArchetypePicker}
+                onOpenDetail={onOpenDetail}
+            />
         </Animated.View>
     );
 }, (prevProps, nextProps) => {
@@ -83,15 +100,18 @@ interface FriendTierListProps {
     tier: Tier;
     scrollHandler?: any;
     isQuickWeaveOpen?: boolean;
+    onOpenArchetypePicker?: (friend: FriendModel) => void;
+    onOpenDetail?: (friend: FriendModel) => void;
 }
 
 /**
  * FriendTierList - Now uses centralized FriendsObservableContext
  * instead of per-tier withObservables subscriptions.
  */
-export const FriendTierList = React.memo(({ tier, scrollHandler, isQuickWeaveOpen }: FriendTierListProps) => {
-    const { colors, isDarkMode } = useTheme();
+export const FriendTierList = React.memo(({ tier, scrollHandler, isQuickWeaveOpen, onOpenArchetypePicker, onOpenDetail }: FriendTierListProps) => {
     const { friends: allFriends } = useFriendsObservable();
+
+    const { colors, isDarkMode } = useTheme();
     const tierBgColor = getTierBackground(tier, isDarkMode);
 
     // Filter friends by tier - memoized for performance
@@ -116,11 +136,14 @@ export const FriendTierList = React.memo(({ tier, scrollHandler, isQuickWeaveOpe
         <AnimatedFriendCardItem
             item={item}
             index={index}
+            onOpenArchetypePicker={onOpenArchetypePicker}
+            onOpenDetail={onOpenDetail}
         />
     );
 
     return (
         <View className="h-full" style={{ width: screenWidth, backgroundColor: tierBgColor }}>
+            {/* @ts-ignore - AnimatedFlashList types are tricky with estimatedItemSize */}
             <AnimatedFlashList
                 contentContainerStyle={{ paddingHorizontal: 20, paddingVertical: 16 }}
                 data={friends}
@@ -128,9 +151,10 @@ export const FriendTierList = React.memo(({ tier, scrollHandler, isQuickWeaveOpe
                 keyExtractor={(item: any) => item.id}
                 scrollEnabled={!isQuickWeaveOpen}
                 onScroll={scrollHandler}
-                scrollEventThrottle={8}
+                scrollEventThrottle={16}
                 renderItem={renderFriendItem as any}
                 disableIntervalMomentum={true}
+                keyboardShouldPersistTaps="handled"
             />
         </View>
     );

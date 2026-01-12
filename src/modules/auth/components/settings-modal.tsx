@@ -64,6 +64,11 @@ export function SettingsModal({
       height="full"
       scrollable
       title="Settings"
+      animationConfigs={{
+        damping: 50,
+        stiffness: 300,
+        mass: 1,
+      }}
     >
       <View style={{ paddingBottom: 40 }}>
         <View className="gap-2">

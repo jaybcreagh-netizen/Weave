@@ -50,6 +50,7 @@ export function StandardBottomSheet({
   keyboardBehavior = 'interactive',
   keyboardBlurBehavior = 'restore',
   portalHost,
+  animationConfigs,
 }: StandardBottomSheetProps & { keyboardBehavior?: BottomSheetProps['keyboardBehavior'], keyboardBlurBehavior?: BottomSheetProps['keyboardBlurBehavior'] }) {
   const { colors, isDarkMode } = useTheme();
   const bottomSheetRef = useRef<BottomSheet>(null);
@@ -110,20 +111,15 @@ export function StandardBottomSheet({
   // Render backdrop with consistent styling and interception
   const renderBackdrop = useCallback(
     (props: BottomSheetBackdropProps) => (
-      <View className="absolute inset-0">
-        <BottomSheetBackdrop
-          {...props}
-          disappearsOnIndex={-1}
-          appearsOnIndex={0}
-          opacity={BACKDROP_OPACITY.visible}
-          pressBehavior="none"
-        />
-        <TouchableWithoutFeedback onPress={handleAttemptClose}>
-          <View className="absolute inset-0" />
-        </TouchableWithoutFeedback>
-      </View>
+      <BottomSheetBackdrop
+        {...props}
+        disappearsOnIndex={-1}
+        appearsOnIndex={0}
+        opacity={BACKDROP_OPACITY.visible}
+        pressBehavior="close"
+      />
     ),
-    [handleAttemptClose]
+    []
   );
 
   // Handle manual close with animation
@@ -186,7 +182,7 @@ export function StandardBottomSheet({
           borderRadius: 2,
           marginTop: 8,
         }}
-        animationConfigs={{
+        animationConfigs={animationConfigs || {
           damping: SHEET_SPRING_CONFIG.damping,
           stiffness: SHEET_SPRING_CONFIG.stiffness,
         }}

@@ -1,5 +1,5 @@
 import { PostHogProvider, usePostHog, PostHog, PostHogOptions } from 'posthog-react-native';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import Constants from 'expo-constants';
 
 // Beta API Key and Host

@@ -7,12 +7,13 @@
 
 /**
  * Standard spring animation configuration
- * - damping: 28 provides smooth deceleration without bounce
- * - stiffness: 220 gives responsive but not jarring movement
+ * - damping: 30 provides standard premium feel
+ * - stiffness: 300 provides snappy response
  */
 export const SHEET_SPRING_CONFIG = {
-  damping: 28,
-  stiffness: 220,
+  damping: 40,
+  stiffness: 300,
+  mass: 1,
 } as const;
 
 /**

@@ -1,7 +1,6 @@
 import { useState, useCallback } from 'react';
 import { LifeEvent, Intention } from '@/shared/types/legacy-types';
 import { InteractionShape } from '@/shared/types/derived';
-import { isFuture } from 'date-fns';
 
 export function useFriendProfileModals() {
     // Store ID instead of object for reactivity
@@ -45,16 +44,12 @@ export function useFriendProfileModals() {
     const handleEditInteraction = useCallback((interaction: InteractionShape) => {
         // Add a small delay to allow the detail modal to close first (iOS race condition)
         setTimeout(() => {
-            // Check if this is a future planned weave
-            const interactionDate = new Date(interaction.interactionDate);
-            if (isFuture(interactionDate)) {
-                // Open PlanWizard for future interactions
-                setEditingInteraction(interaction);
-                setShowPlanWizard(true);
-            } else {
-                // Open EditInteractionModal for past/completed interactions
-                setEditingInteraction(interaction);
-            }
+            // Setting editingInteraction triggers either:
+            // - PlannedWeaveDetailSheet (for future interactions)
+            // - EditInteractionModal (for past interactions)
+            // Note: Do NOT set showPlanWizard here - that's only for creating NEW plans.
+            // The PlannedWeaveDetailSheet handles editing existing plans via editingInteraction.
+            setEditingInteraction(interaction);
         }, 500);
     }, []);
 

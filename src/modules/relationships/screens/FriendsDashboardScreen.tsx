@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
-import { View, Dimensions, ScrollView } from 'react-native';
+import { View, Dimensions, ScrollView, Text, TouchableOpacity } from 'react-native';
 import Animated, { FadeIn, FadeOut, useSharedValue, useAnimatedScrollHandler } from 'react-native-reanimated';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
@@ -39,6 +39,11 @@ import FriendBadgePopup from '../components/FriendBadgePopup';
 import { UsernameSearchSheet } from '../components/UsernameSearchSheet';
 import { ContactDiscoverySheet } from '../components/ContactDiscoverySheet';
 import { Tier } from '../types';
+import { FriendDetailSheet } from '../components/FriendDetailSheet';
+import { StandardBottomSheet } from '@/shared/ui/Sheet/StandardBottomSheet';
+import { ArchetypeCard } from '@/modules/intelligence';
+import { Archetype } from '@/shared/types/legacy-types';
+import { archetypeData } from '@/shared/constants/constants';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -155,6 +160,32 @@ export function FriendsDashboardScreen() {
     const [activeTier, setActiveTier] = React.useState<'inner' | 'close' | 'community'>('inner');
     const scrollViewRef = React.useRef<ScrollView>(null);
     const tiers = ['inner', 'close', 'community'] as const;
+
+    // const [selectedFriendForDetail, setSelectedFriendForDetail] = useState<FriendModel | null>(null);
+    const [selectedFriendForArchetype, setSelectedFriendForArchetype] = useState<FriendModel | null>(null);
+
+    const handleOpenDetail = useCallback((friend: FriendModel) => {
+        router.push({ pathname: '/friend-profile', params: { friendId: friend.id } });
+    }, [router]);
+
+    const handleOpenArchetypePicker = useCallback((friend: FriendModel) => {
+        setSelectedFriendForArchetype(friend);
+    }, []);
+
+    const handleArchetypeSelect = useCallback(async (selectedArchetype: Archetype) => {
+        if (!selectedFriendForArchetype) return;
+        try {
+            await database.write(async () => {
+                await selectedFriendForArchetype.update((f) => {
+                    f.archetype = selectedArchetype;
+                });
+            });
+            setSelectedFriendForArchetype(null);
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        } catch (error) {
+            console.error('Error updating archetype:', error);
+        }
+    }, [selectedFriendForArchetype]);
 
     const handleTierChange = (tier: 'inner' | 'close' | 'community') => {
         setActiveTier(tier);
@@ -321,6 +352,8 @@ export function FriendsDashboardScreen() {
                             sortOption={sortOption}
                             scrollHandler={animatedScrollHandler}
                             isQuickWeaveOpen={isQuickWeaveOpen}
+                            onOpenDetail={handleOpenDetail}
+                            onOpenArchetypePicker={handleOpenArchetypePicker}
                         />
                     </GestureDetector>
                 </Animated.View>
@@ -354,16 +387,22 @@ export function FriendsDashboardScreen() {
                                 tier={getDbTier('inner')}
                                 scrollHandler={animatedScrollHandler}
                                 isQuickWeaveOpen={isQuickWeaveOpen}
+                                onOpenDetail={handleOpenDetail}
+                                onOpenArchetypePicker={handleOpenArchetypePicker}
                             />
                             <FriendTierList
                                 tier={getDbTier('close')}
                                 scrollHandler={animatedScrollHandler}
                                 isQuickWeaveOpen={isQuickWeaveOpen}
+                                onOpenDetail={handleOpenDetail}
+                                onOpenArchetypePicker={handleOpenArchetypePicker}
                             />
                             <FriendTierList
                                 tier={getDbTier('community')}
                                 scrollHandler={animatedScrollHandler}
                                 isQuickWeaveOpen={isQuickWeaveOpen}
+                                onOpenDetail={handleOpenDetail}
+                                onOpenArchetypePicker={handleOpenArchetypePicker}
                             />
                         </Animated.ScrollView>
                     </GestureDetector>
@@ -448,6 +487,39 @@ export function FriendsDashboardScreen() {
                     currentStep={1}
                     totalSteps={2}
                 />
+            )}
+
+            {/* Hoisted Sheets */}
+            {/* Hoisted Sheets */}
+            {/* Hoisted Sheets */}
+            {selectedFriendForArchetype && (
+                <StandardBottomSheet
+                    visible={!!selectedFriendForArchetype}
+                    onClose={() => setSelectedFriendForArchetype(null)}
+                    height="full"
+                    title={`Choose ${selectedFriendForArchetype.name}'s Archetype`}
+                    scrollable
+                >
+                    <View className="px-5 pb-6">
+                        <Text
+                            className="text-sm mb-4 text-center"
+                            style={{ color: colors['muted-foreground'] }}
+                        >
+                            Tap to select • Long-press to learn more
+                        </Text>
+                        <View className="flex-row flex-wrap gap-3">
+                            {(['Emperor', 'Empress', 'HighPriestess', 'Fool', 'Sun', 'Hermit', 'Magician', 'Lovers'] as Archetype[]).map((arch) => (
+                                <View key={arch} style={{ width: '48%' }}>
+                                    <ArchetypeCard
+                                        archetype={arch}
+                                        isSelected={false}
+                                        onSelect={handleArchetypeSelect}
+                                    />
+                                </View>
+                            ))}
+                        </View>
+                    </View>
+                </StandardBottomSheet>
             )}
         </View>
     );

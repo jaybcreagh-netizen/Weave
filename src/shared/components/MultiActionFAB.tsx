@@ -4,15 +4,18 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
+  useAnimatedProps,
   withSpring,
   withTiming,
   interpolate,
   Extrapolation,
+  type SharedValue,
 } from 'react-native-reanimated';
 import { Plus, X, PenLine, CalendarPlus, UserPlus } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { Text } from '@/shared/ui';
+import { SPRINGS } from '@/shared/constants/animation';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -34,11 +37,10 @@ const ACTIONS: ActionItem[] = [
   { id: 'add-friend', label: 'Add Friend', icon: UserPlus },
 ];
 
-const SPRING_CONFIG = {
-  damping: 15,
-  stiffness: 150,
-  mass: 0.8,
-};
+// Replaced local SPRING_CONFIG with shared SPRINGS.PLAYFUL (slightly tuned)
+// or just use SPRINGS.PREMIUM for consistency if requested.
+// Plan said "Premium Spring" (damping ~30) to replace "Bouncy Spring" (damping ~15).
+const SPRING_CONFIG = SPRINGS.PREMIUM;
 
 export function MultiActionFAB({ onAction }: MultiActionFABProps) {
   const insets = useSafeAreaInsets();
@@ -67,20 +69,18 @@ export function MultiActionFAB({ onAction }: MultiActionFABProps) {
   // Main FAB rotation animation
   const mainFabStyle = useAnimatedStyle(() => ({
     transform: [
-      { rotate: `${interpolate(expanded.value, [0, 1], [0, 135])}deg` },
+      { rotate: `${interpolate(expanded.value, [0, 1], [0, 135])} deg` },
     ],
   }));
 
   // Backdrop fade animation
   const backdropStyle = useAnimatedStyle(() => ({
     opacity: interpolate(expanded.value, [0, 1], [0, 1]),
-    pointerEvents: expanded.value > 0.5 ? 'auto' : 'none',
   }));
 
   // Action items container animation
   const actionsContainerStyle = useAnimatedStyle(() => ({
     opacity: interpolate(expanded.value, [0, 0.5, 1], [0, 0, 1]),
-    pointerEvents: expanded.value > 0.5 ? 'auto' : 'none',
     transform: [
       {
         translateY: interpolate(
@@ -93,6 +93,14 @@ export function MultiActionFAB({ onAction }: MultiActionFABProps) {
     ],
   }));
 
+  const backdropProps = useAnimatedProps(() => ({
+    pointerEvents: expanded.value > 0.5 ? 'auto' : ('none' as any),
+  }));
+
+  const actionContainerProps = useAnimatedProps(() => ({
+    pointerEvents: expanded.value > 0.5 ? 'auto' : ('none' as any),
+  }));
+
   const fabBackgroundColor = isDarkMode ? colors.accent : colors.primary;
   const fabIconColor = isDarkMode ? colors['accent-foreground'] : colors['primary-foreground'];
 
@@ -101,6 +109,7 @@ export function MultiActionFAB({ onAction }: MultiActionFABProps) {
       {/* Backdrop */}
       <AnimatedPressable
         style={[styles.backdrop, backdropStyle]}
+        animatedProps={backdropProps}
         onPress={collapse}
       />
 
@@ -111,6 +120,7 @@ export function MultiActionFAB({ onAction }: MultiActionFABProps) {
           { bottom: insets.bottom + 84 },
           actionsContainerStyle,
         ]}
+        animatedProps={actionContainerProps}
       >
         {ACTIONS.map((action, index) => (
           <ActionButton
@@ -149,7 +159,7 @@ export function MultiActionFAB({ onAction }: MultiActionFABProps) {
 interface ActionButtonProps {
   action: ActionItem;
   index: number;
-  expanded: Animated.SharedValue<number>;
+  expanded: SharedValue<number>;
   onPress: () => void;
   colors: Record<string, any>;
   isDarkMode: boolean;
