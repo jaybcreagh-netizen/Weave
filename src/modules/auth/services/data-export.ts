@@ -13,7 +13,7 @@ import IntentionFriend from '@/db/models/IntentionFriend';
 import PortfolioSnapshot from '@/db/models/PortfolioSnapshot';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform, Alert, Share } from 'react-native';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as Application from 'expo-application';
 
 interface ExportData {

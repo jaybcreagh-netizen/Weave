@@ -22,4 +22,7 @@ export default class InteractionFriend extends Model {
   @field('user_id') userId?: string;
   @field('synced_at') syncedAt?: number;
   @text('sync_status') customSyncStatus?: string;
+
+  // v61: Store actual points earned for accurate deletion reversal
+  @field('points_earned') pointsEarned?: number;
 }

@@ -1365,5 +1365,18 @@ export default schemaMigrations({
         }),
       ],
     },
+    {
+      // Migration from schema v60 to v61
+      // Store pointsEarned in interaction_friends for accurate deletion scoring
+      toVersion: 61,
+      steps: [
+        addColumns({
+          table: 'interaction_friends',
+          columns: [
+            { name: 'points_earned', type: 'number', isOptional: true },
+          ],
+        }),
+      ],
+    },
   ],
 });

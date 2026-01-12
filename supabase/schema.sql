@@ -179,6 +179,7 @@ CREATE TABLE interaction_friends (
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
   interaction_id UUID REFERENCES interactions(id) ON DELETE CASCADE NOT NULL,
   friend_id UUID REFERENCES friends(id) ON DELETE CASCADE NOT NULL,
+  points_earned NUMERIC DEFAULT 0,
 
   server_updated_at TIMESTAMPTZ DEFAULT NOW(),
   created_at_ts TIMESTAMPTZ DEFAULT NOW()

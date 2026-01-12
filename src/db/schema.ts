@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb'
 
 export default appSchema({
-  version: 60, // v60: Smart Actions Cache
+  version: 61, // v61: Store pointsEarned for accurate deletion scoring
   tables: [
     // ===== ORACLE AI INFRASTRUCTURE =====
     tableSchema({
@@ -282,7 +282,8 @@ export default appSchema({
         { name: 'user_id', type: 'string', isOptional: true, isIndexed: true },
         { name: 'synced_at', type: 'number', isOptional: true },
         { name: 'sync_status', type: 'string', isOptional: true },
-
+        // NEW v61: Store actual points earned for accurate deletion reversal
+        { name: 'points_earned', type: 'number', isOptional: true },
       ]
     }),
     tableSchema({
