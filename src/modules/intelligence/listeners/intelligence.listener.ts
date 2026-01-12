@@ -13,7 +13,7 @@ import { type InteractionFormData } from '@/shared/types/scoring.types';
 
 // Extract handler to allow removal
 const handleInteractionCreated = async (payload: any) => {
-    const { friends: payloadFriends, data } = payload as { friends: FriendModel[], data: InteractionFormData };
+    const { interactionId, friends: payloadFriends, data } = payload as { interactionId: string, friends: FriendModel[], data: InteractionFormData };
 
     const startTime = Date.now();
     Logger.info('[Intelligence] Processing interaction:created event - START');
@@ -36,7 +36,8 @@ const handleInteractionCreated = async (payload: any) => {
         const profileCollection = database.get<UserProfile>('user_profile');
         const profile = (await profileCollection.query().fetch())[0];
         const currentSeason = profile?.currentSocialSeason || 'balanced' as any;
-        await processWeaveScoring(friends, data, database, currentSeason);
+        // v61: Pass interactionId to store pointsEarned in InteractionFriend records
+        await processWeaveScoring(friends, data, database, currentSeason, interactionId);
         Logger.info(`[Intelligence] Scoring completed in ${Date.now() - scoringStart}ms`);
 
         // Insights (Life Events)

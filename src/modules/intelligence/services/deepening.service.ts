@@ -200,13 +200,13 @@ export function getDeepeningVisuals(metrics: DeepeningMetrics, colors: any, isDa
     profound: 'Profound',
   }[level];
 
-  // Badge emoji
-  const badgeEmoji = {
+  // Badge icon
+  const badgeIcon = {
     none: '',
     light: '',
     moderate: '',
-    deep: '✨',
-    profound: '🔮',
+    deep: 'Sparkles',
+    profound: 'Zap',
   }[level];
 
   return {
@@ -216,6 +216,6 @@ export function getDeepeningVisuals(metrics: DeepeningMetrics, colors: any, isDa
     shadowRadius,
     tintOpacity,
     badgeText,
-    badgeEmoji,
+    badgeIcon,
   };
 }

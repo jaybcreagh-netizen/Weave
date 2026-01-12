@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Modal } from 'react-native';
-import { Sparkles, X } from 'lucide-react-native';
+import { View, Text, TouchableOpacity, ScrollView, Modal, Pressable } from 'react-native';
+import { Sparkles, X, Star, Gem, Circle } from 'lucide-react-native';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import { AnimatedBottomSheet } from '@/shared/ui/Sheet';
@@ -109,13 +109,16 @@ export function ArchetypeLibrary({ isVisible, onClose }: ArchetypeLibraryProps) 
           visible={!!selectedArchetype}
           onRequestClose={handleCloseDetail}
         >
-          <BlurView intensity={90} className="flex-1 justify-center items-center" tint={isDarkMode ? 'dark' : 'light'}>
-            <TouchableOpacity
-              className="flex-1 justify-center items-center w-full"
-              activeOpacity={1}
+          <BlurView intensity={90} className="flex-1" tint={isDarkMode ? 'dark' : 'light'}>
+            <Pressable
+              style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
               onPress={handleCloseDetail}
+            />
+            <View
+              className="flex-1 justify-center items-center w-full"
+              pointerEvents="box-none"
             >
-              <TouchableOpacity activeOpacity={1} className="w-[90%] max-w-[500px] max-h-[85%]">
+              <View className="w-[90%] max-w-[500px] max-h-[85%]">
                 <View
                   className="w-full rounded-3xl p-6"
                   style={{
@@ -225,7 +228,6 @@ export function ArchetypeLibrary({ isVisible, onClose }: ArchetypeLibraryProps) 
                       {getInteractionAffinities(selectedArchetype!).map(({ category, level, multiplier }) => {
                         const metadata = CATEGORY_METADATA[category];
                         const affinityColor = getAffinityColor(level);
-                        const affinityIcon = getAffinityIcon(level);
 
                         return (
                           <View
@@ -238,7 +240,7 @@ export function ArchetypeLibrary({ isVisible, onClose }: ArchetypeLibraryProps) 
                             }}
                           >
                             <View className="flex-row items-center gap-2 flex-1">
-                              <Text className="text-lg">{metadata.icon}</Text>
+                              <metadata.iconComponent size={20} color={colors.foreground} />
                               <Text
                                 className="font-inter text-[14px] font-medium flex-1"
                                 style={{ color: colors.foreground }}
@@ -248,12 +250,15 @@ export function ArchetypeLibrary({ isVisible, onClose }: ArchetypeLibraryProps) 
                             </View>
 
                             <View className="flex-row items-center gap-2">
-                              <Text
-                                className="font-inter text-[12px] font-semibold"
-                                style={{ color: affinityColor }}
-                              >
-                                {affinityIcon}
-                              </Text>
+                              {level === 'peak' ? (
+                                <Star size={12} color={affinityColor} fill={affinityColor} />
+                              ) : level === 'high' ? (
+                                <Sparkles size={12} color={affinityColor} />
+                              ) : level === 'good' ? (
+                                <Gem size={12} color={affinityColor} />
+                              ) : (
+                                <Circle size={12} color={affinityColor} />
+                              )}
                               <Text
                                 className="font-inter text-[11px] font-medium"
                                 style={{ color: colors['muted-foreground'] }}
@@ -269,28 +274,28 @@ export function ArchetypeLibrary({ isVisible, onClose }: ArchetypeLibraryProps) 
                     {/* Legend */}
                     <View className="mt-4 flex-row flex-wrap items-center gap-3 px-2">
                       <View className="flex-row items-center gap-1">
-                        <Text className="font-inter text-[11px]" style={{ color: '#10b981' }}>★</Text>
+                        <Star size={11} color="#10b981" fill="#10b981" />
                         <Text className="font-inter text-[11px]" style={{ color: colors['muted-foreground'] }}>
                           Peak
                         </Text>
                       </View>
                       <Text className="font-inter text-[11px]" style={{ color: colors['muted-foreground'] }}>•</Text>
                       <View className="flex-row items-center gap-1">
-                        <Text className="font-inter text-[11px]" style={{ color: '#3b82f6' }}>✦</Text>
+                        <Sparkles size={11} color="#3b82f6" />
                         <Text className="font-inter text-[11px]" style={{ color: colors['muted-foreground'] }}>
                           High
                         </Text>
                       </View>
                       <Text className="font-inter text-[11px]" style={{ color: colors['muted-foreground'] }}>•</Text>
                       <View className="flex-row items-center gap-1">
-                        <Text className="font-inter text-[11px]" style={{ color: '#8b5cf6' }}>◆</Text>
+                        <Gem size={11} color="#8b5cf6" />
                         <Text className="font-inter text-[11px]" style={{ color: colors['muted-foreground'] }}>
                           Good
                         </Text>
                       </View>
                       <Text className="font-inter text-[11px]" style={{ color: colors['muted-foreground'] }}>•</Text>
                       <View className="flex-row items-center gap-1">
-                        <Text className="font-inter text-[11px]" style={{ color: '#6b7280' }}>○</Text>
+                        <Circle size={11} color="#6b7280" />
                         <Text className="font-inter text-[11px]" style={{ color: colors['muted-foreground'] }}>
                           Moderate
                         </Text>
@@ -298,11 +303,12 @@ export function ArchetypeLibrary({ isVisible, onClose }: ArchetypeLibraryProps) 
                     </View>
                   </ScrollView>
                 </View>
-              </TouchableOpacity>
-            </TouchableOpacity>
+              </View>
+            </View>
           </BlurView>
         </Modal>
-      )}
-    </AnimatedBottomSheet>
+      )
+      }
+    </AnimatedBottomSheet >
   );
 }

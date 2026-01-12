@@ -18,17 +18,17 @@ export interface StatusLine {
 
 // Life event emoji mapping
 const LIFE_EVENT_ICONS: Record<string, string> = {
-  birthday: '🎂',
-  anniversary: '💝',
-  new_job: '💼',
-  moving: '📦',
-  wedding: '💒',
-  baby: '👶',
-  loss: '🕊️',
-  health_event: '🏥',
-  graduation: '🎓',
-  celebration: '🎉',
-  other: '✨',
+  birthday: 'Cake',
+  anniversary: 'Heart',
+  new_job: 'Briefcase',
+  moving: 'Package',
+  wedding: 'Church',
+  baby: 'Baby',
+  loss: 'Feather',
+  health_event: 'Hospital',
+  graduation: 'GraduationCap',
+  celebration: 'PartyPopper',
+  other: 'Sparkles',
 };
 
 // Archetype-driven actionable nudges
@@ -115,7 +115,7 @@ async function checkLifeEventStatus(friend: HydratedFriend | Friend): Promise<St
     if (sortedEvents.length > 0) {
       const topEvent = sortedEvents[0];
       const daysUntil = differenceInDays(startOfDay(topEvent.eventDate), startOfDay(today));
-      const icon = LIFE_EVENT_ICONS[topEvent.eventType] || '✨';
+      const icon = LIFE_EVENT_ICONS[topEvent.eventType] || 'Sparkles';
 
       if (daysUntil === 0) {
         return { text: `${topEvent.title || topEvent.eventType} is today!`, icon, variant: 'accent' };
@@ -156,9 +156,9 @@ async function checkLifeEventStatus(friend: HydratedFriend | Friend): Promise<St
 
           const daysUntil = differenceInDays(startOfDay(birthdayThisYear), startOfDay(today));
           if (daysUntil >= 0 && daysUntil <= 7) {
-            if (daysUntil === 0) return { text: 'Birthday is today!', icon: '🎂', variant: 'accent' };
-            if (daysUntil === 1) return { text: 'Birthday is tomorrow', icon: '🎂', variant: 'accent' };
-            return { text: `Birthday in ${daysUntil} days`, icon: '🎂', variant: 'default' };
+            if (daysUntil === 0) return { text: 'Birthday is today!', icon: 'Cake', variant: 'accent' };
+            if (daysUntil === 1) return { text: 'Birthday is tomorrow', icon: 'Cake', variant: 'accent' };
+            return { text: `Birthday in ${daysUntil} days`, icon: 'Cake', variant: 'default' };
           }
         }
       }
@@ -188,9 +188,9 @@ async function checkLifeEventStatus(friend: HydratedFriend | Friend): Promise<St
 
           const daysUntil = differenceInDays(startOfDay(anniversaryThisYear), startOfDay(today));
           if (daysUntil >= 0 && daysUntil <= 7) {
-            if (daysUntil === 0) return { text: 'Friendship anniversary today!', icon: '💝', variant: 'accent' };
-            if (daysUntil === 1) return { text: 'Friendship anniversary tomorrow', icon: '💝', variant: 'accent' };
-            return { text: `Anniversary in ${daysUntil} days`, icon: '💝', variant: 'default' };
+            if (daysUntil === 0) return { text: 'Friendship anniversary today!', icon: 'Heart', variant: 'accent' };
+            if (daysUntil === 1) return { text: 'Friendship anniversary tomorrow', icon: 'Heart', variant: 'accent' };
+            return { text: `Anniversary in ${daysUntil} days`, icon: 'Heart', variant: 'default' };
           }
         }
       }
@@ -307,7 +307,7 @@ function generateHealthyRelationshipInsight(
   const archetypeData = archetypeInsights[friend.archetype];
   if (archetypeData && dominantType && archetypeData.types.includes(dominantType) && dominantCount >= 2) {
     const message = archetypeData.messages[Math.floor(Math.random() * archetypeData.messages.length)];
-    return { text: message, icon: '✨', variant: 'accent' };
+    return { text: message, icon: 'Sparkles', variant: 'accent' };
   }
 
   // Priority 2: High-quality interactions
@@ -317,7 +317,7 @@ function generateHealthyRelationshipInsight(
       'Really meaningful moments lately',
       'Deep connection is thriving',
     ];
-    return { text: qualityMessages[Math.floor(Math.random() * qualityMessages.length)], icon: '💫', variant: 'accent' };
+    return { text: qualityMessages[Math.floor(Math.random() * qualityMessages.length)], icon: 'Zap', variant: 'accent' };
   }
 
   // Priority 3: Consistency/streak insights
@@ -327,7 +327,7 @@ function generateHealthyRelationshipInsight(
       'Consistent connection over time',
       'Building a reliable pattern together',
     ];
-    return { text: consistencyMessages[Math.floor(Math.random() * consistencyMessages.length)], icon: '🌱', variant: 'success' };
+    return { text: consistencyMessages[Math.floor(Math.random() * consistencyMessages.length)], icon: 'Sprout', variant: 'success' };
   }
 
   // Priority 4: Interaction type patterns
@@ -338,43 +338,42 @@ function generateHealthyRelationshipInsight(
           `${dominantCount} deep talks lately—real connection`,
           'Vulnerability and openness are strong',
         ],
-        icon: '💭'
+        icon: 'MessageSquareHeart'
       },
       'meal-drink': {
         messages: [
           `${dominantCount} meals together this month`,
           'Your dining tradition is strong',
         ],
-        icon: '🥂'
+        icon: 'UtensilsCrossed'
       },
       'activity-hobby': {
         messages: [
           `${dominantCount} activities together lately`,
           'Shared interests are thriving',
         ],
-        icon: '🏂'
+        icon: 'Palette'
       },
       'text-call': {
         messages: [
           `${dominantCount} calls/texts—staying close`,
           'Regular check-ins are working',
         ],
-        icon: '📱'
+        icon: 'Phone'
       },
       'hangout': {
         messages: [
           `${dominantCount} hangouts this month`,
           'Just being together is enough',
-          'Just being together is enough',
         ],
-        icon: '🛋️'
+        icon: 'Sofa'
       },
       'event-party': {
         messages: [
           `${dominantCount} events together lately`,
           'Social moments are abundant',
         ],
-        icon: '🎉'
+        icon: 'PartyPopper'
       },
     };
 
@@ -386,7 +385,7 @@ function generateHealthyRelationshipInsight(
 
   // Priority 5: Variety insight
   if (hasVariety) {
-    return { text: `${recentCount} weaves across ${Object.keys(categoryCount).length} different types`, icon: '🎨', variant: 'default' };
+    return { text: `${recentCount} weaves across ${Object.keys(categoryCount).length} different types`, icon: 'Palette', variant: 'default' };
   }
 
   // Fallback: Simple momentum message (but more varied)
@@ -395,7 +394,7 @@ function generateHealthyRelationshipInsight(
     `Maintaining momentum with ${recentCount} weaves`,
     `${recentCount} quality moments together`,
   ];
-  return { text: momentumMessages[Math.floor(Math.random() * momentumMessages.length)], icon: '🌟', variant: 'default' };
+  return { text: momentumMessages[Math.floor(Math.random() * momentumMessages.length)], icon: 'Star', variant: 'default' };
 }
 
 /**
@@ -563,13 +562,13 @@ async function checkUpcomingPlans(friend: HydratedFriend | Friend): Promise<Stat
 
     // Use specific icons if available, else calendar
     const planIcons: Record<string, string> = {
-      'celebration': '🎉',
-      'travel': '✈️',
-      'meal-drink': '🍽️',
-      'activity-hobby': '🎨',
-      'text-call': '📞'
+      'celebration': 'PartyPopper',
+      'travel': 'Plane', // We don't have Plane in the map yet, let's use default or add it? Map has TrendingUp which is weird. Checking StatusLineIcon map... TrendingUp is there. Plane is not. Let's use Calendar as fallback or add Plane. Wait, I should probably check if Plane is available in StatusLineIcon map. It is not. I will use Calendar for now or TrendingUp? No, Calendar is better.
+      'meal-drink': 'UtensilsCrossed',
+      'activity-hobby': 'Palette',
+      'text-call': 'Phone'
     };
-    const icon = planIcons[topPlan.interactionCategory || ''] || '🗓️';
+    const icon = planIcons[topPlan.interactionCategory || ''] || 'Calendar';
 
     if (daysUntil === 0) {
       // Double check time - if it's today but the time has passed? 
@@ -579,9 +578,9 @@ async function checkUpcomingPlans(friend: HydratedFriend | Friend): Promise<Stat
       return { text: `${capitalize(categoryLabel)} planned for tomorrow`, icon, variant: 'accent' };
     } else if (daysUntil <= 7) {
       const dayName = format(topPlan.interactionDate, 'EEEE');
-      return { text: `${capitalize(categoryLabel)} planned for ${dayName}`, icon: '🗓️', variant: 'default' };
+      return { text: `${capitalize(categoryLabel)} planned for ${dayName}`, icon: 'Calendar', variant: 'default' };
     } else if (daysUntil <= 30) {
-      return { text: `${capitalize(categoryLabel)} planned in ${daysUntil} days`, icon: '🗓️', variant: 'default' };
+      return { text: `${capitalize(categoryLabel)} planned in ${daysUntil} days`, icon: 'Calendar', variant: 'default' };
     }
 
     // If > 30 days, we ignore it

@@ -77,54 +77,65 @@ export async function recalculateScoreOnEdit(
 
 /**
  * Recalculates score when an interaction is deleted.
- * Reverts the points earned and potentially rolls back lastUpdated.
+ * Uses stored pointsEarned for accurate reversal (v61+).
+ * Falls back to recalculation for legacy data (pointsEarned = 0 or undefined).
  */
 export async function recalculateScoreOnDelete(
   interaction: Interaction,
   friends: FriendModel[],
   database: Database
 ): Promise<void> {
-  // Helper to convert model to weave data
-  const interactionData = {
-    interactionType: interaction.activity as InteractionType,
-    category: interaction.interactionCategory as InteractionCategory,
-    duration: interaction.duration as Duration | null,
-    vibe: interaction.vibe as Vibe | null,
-    note: interaction.note,
-    reflectionJSON: interaction.reflectionJSON,
-    interactionHistoryCount: 0, // Fallback, won't drastically change removal logic
-    ignoreMomentum: true, // Use base points only to avoid excessive deduction
-  };
-
   const batchOps: any[] = [];
+
+  // v61: Fetch InteractionFriend records to get stored pointsEarned
+  const ifRecords = await database.get<InteractionFriend>('interaction_friends')
+    .query(Q.where('interaction_id', interaction.id))
+    .fetch();
+
+  // Create lookup map: friendId -> pointsEarned
+  const storedPointsMap = new Map<string, number>();
+  for (const ifRecord of ifRecords) {
+    storedPointsMap.set(ifRecord.friendId, ifRecord.pointsEarned || 0);
+  }
 
   // Parallelize the calculation and data fetching for each friend to avoid N+1 queries
   const opsPromises = friends.map(async (friend) => {
-    // 1. Calculate points that were added
-    const pointsToRemove = calculatePointsForWeave(friend, interactionData);
+    // 1. Determine points to remove - prefer stored value
+    let pointsToRemove = storedPointsMap.get(friend.id) || 0;
+
+    // Fallback for legacy data: recalculate if no stored points
+    if (pointsToRemove === 0) {
+      const interactionData = {
+        interactionType: interaction.activity as InteractionType,
+        category: interaction.interactionCategory as InteractionCategory,
+        duration: interaction.duration as Duration | null,
+        vibe: interaction.vibe as Vibe | null,
+        note: interaction.note,
+        reflectionJSON: interaction.reflectionJSON,
+        interactionHistoryCount: 0,
+        ignoreMomentum: true,
+      };
+      pointsToRemove = calculatePointsForWeave(friend, interactionData);
+      Logger.warn(`[Score Revert] Using fallback calculation for ${friend.name} (legacy data)`);
+    }
 
     // 2. Determine if we need to rollback lastUpdated
-    // If the deleted interaction has the same date as lastUpdated, we might need to find the previous one
     let newLastUpdated = friend.lastUpdated;
     const interactionDate = new Date(interaction.interactionDate);
 
-    // Check if dates are close enough (ignoring milliseconds diffs that might happen)
     const isLatest = friend.lastUpdated &&
       Math.abs(friend.lastUpdated.getTime() - interactionDate.getTime()) < 1000;
 
     if (isLatest) {
       // Find the most recent completed interaction that ISN'T this one
       // NOTE: Using manual two-step query to avoid Q.on issues on physical devices (per project memory)
-
-      // Step A: Get interaction IDs for this friend
       const friendLinks = await database.get<InteractionFriend>('interaction_friends')
         .query(Q.where('friend_id', friend.id))
         .fetch();
       const friendInteractionIds = friendLinks
         .map(l => l.interactionId)
-        .filter(id => id !== interaction.id); // Exclude the one being deleted
+        .filter(id => id !== interaction.id);
 
-      // Step B: Find the most recent completed interaction
       let latestInteractions: Interaction[] = [];
       if (friendInteractionIds.length > 0) {
         latestInteractions = await database.get<Interaction>('interactions')
@@ -136,23 +147,16 @@ export async function recalculateScoreOnDelete(
           ).fetch();
       }
 
-      if (latestInteractions.length > 0) {
-        const latest = latestInteractions[0];
-        if (latest.interactionDate) {
-          newLastUpdated = latest.interactionDate;
-        }
-      } else {
-        // No other interactions?
-        if (friend.weaveScore - pointsToRemove <= 0) {
-          newLastUpdated = new Date(0);
-        }
+      if (latestInteractions.length > 0 && latestInteractions[0].interactionDate) {
+        newLastUpdated = latestInteractions[0].interactionDate;
+      } else if (friend.weaveScore - pointsToRemove <= 0) {
+        newLastUpdated = new Date(0);
       }
     }
 
-    Logger.info(`[Score Revert] Friend ${friend.name}: Removed ${pointsToRemove.toFixed(1)} pts`);
+    Logger.info(`[Score Revert] Friend ${friend.name}: Removed ${pointsToRemove.toFixed(1)} pts (stored: ${storedPointsMap.has(friend.id) && storedPointsMap.get(friend.id)! > 0})`);
 
     return friend.prepareUpdate(f => {
-      // Allow score to drop, capped by buffer (though usually we just care about min 0)
       f.weaveScore = Math.min(SCORE_BUFFER_CAP, Math.max(0, f.weaveScore - pointsToRemove));
       if (isLatest && newLastUpdated) {
         f.lastUpdated = newLastUpdated;
@@ -316,7 +320,8 @@ export async function calculateWeaveScoring(
       momentumScore,
       momentumLastUpdated,
       newResilience,
-      hasVibe: !!interactionData.vibe
+      hasVibe: !!interactionData.vibe,
+      pointsEarned: effectivePoints, // v61: Store for InteractionFriend persistence
     });
   }
 
@@ -360,12 +365,19 @@ export function applyWeaveScoringUpdates(
 /**
  * Main entry point - coordinates all scoring services.
  * Executed in a single write transaction.
+ * 
+ * @param friends - Friends to update scores for
+ * @param interactionData - The interaction being logged
+ * @param database - Database instance for the transaction
+ * @param season - Optional social season for season-aware scoring bonuses
+ * @param interactionId - Optional interaction ID to store points in InteractionFriend records
  */
 export async function processWeaveScoring(
   friends: FriendModel[],
   interactionData: InteractionFormData,
   database: Database,
-  season?: SocialSeason | null
+  season?: SocialSeason | null,
+  interactionId?: string // v61: Optional for storing points in InteractionFriend
 ): Promise<ScoreUpdate[]> {
   // 1. Calculate outside the lock (READ-ONLY)
   const { scoreUpdates, updates } = await calculateWeaveScoring(friends, interactionData, database, season);
@@ -382,6 +394,27 @@ export async function processWeaveScoring(
       // That's what applyWeaveScoringUpdates does now.
 
       const ops = applyWeaveScoringUpdates(friends, updates);
+
+      // v61: Update InteractionFriend.pointsEarned if we have interactionId
+      if (interactionId) {
+        try {
+          const ifRecords = await database.get<InteractionFriend>('interaction_friends')
+            .query(Q.where('interaction_id', interactionId))
+            .fetch();
+
+          for (const ifRecord of ifRecords) {
+            const friendUpdate = updates.get(ifRecord.friendId);
+            if (friendUpdate?.pointsEarned !== undefined) {
+              ops.push(ifRecord.prepareUpdate((r: InteractionFriend) => {
+                r.pointsEarned = friendUpdate.pointsEarned;
+              }));
+            }
+          }
+        } catch (error) {
+          Logger.error('[processWeaveScoring] Error updating InteractionFriend.pointsEarned:', error);
+        }
+      }
+
       if (ops.length > 0) {
         await database.batch(ops);
       }

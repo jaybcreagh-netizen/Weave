@@ -1,8 +1,8 @@
 import React from 'react';
-import { View, Text, Modal, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, Modal, TouchableOpacity, ScrollView, Pressable } from 'react-native';
 import { useUIStore } from '@/shared/stores/uiStore';
 import { useTheme } from '@/shared/hooks/useTheme';
-import { X, Sparkles } from 'lucide-react-native';
+import { X, Sparkles, Star, Gem } from 'lucide-react-native';
 import { type Archetype, type InteractionCategory } from '@/shared/types/common';
 import { archetypeData, CategoryArchetypeMatrix } from '@/shared/constants/constants';
 import { CATEGORY_METADATA } from '@/shared/constants/interaction-categories';
@@ -79,13 +79,16 @@ export function ArchetypeDetailModal() {
       visible={!!archetypeModal}
       onRequestClose={() => setArchetypeModal(null)}
     >
-      <BlurView intensity={90} className="flex-1 justify-center items-center" tint={isDarkMode ? 'dark' : 'light'}>
-        <TouchableOpacity
-          className="flex-1 justify-center items-center w-full"
-          activeOpacity={1}
+      <BlurView intensity={90} className="flex-1" tint={isDarkMode ? 'dark' : 'light'}>
+        <Pressable
+          style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
           onPress={() => setArchetypeModal(null)}
+        />
+        <View
+          className="flex-1 justify-center items-center w-full"
+          pointerEvents="box-none"
         >
-          <TouchableOpacity activeOpacity={1} className="w-[85%] max-w-[400px] max-h-[80%]">
+          <View className="w-[85%] max-w-[400px] max-h-[80%]">
             <View
               className="w-full rounded-3xl p-6"
               style={{
@@ -201,47 +204,47 @@ export function ArchetypeDetailModal() {
                               borderColor: `${affinityColor}40`,
                             }}
                           >
-                            <Text className="text-base">{metadata.icon}</Text>
+                            <metadata.iconComponent size={14} color={affinityColor} />
                             <Text
                               className="font-inter text-[13px] font-semibold"
                               style={{ color: affinityColor }}
                             >
                               {metadata.label}
                             </Text>
-                            <Text
-                              className="font-inter text-[11px] font-medium"
-                              style={{ color: `${affinityColor}CC` }}
-                            >
-                              {level === 'peak' ? '★' : level === 'high' ? '✦' : '◆'}
-                            </Text>
+                            {level === 'peak' ? (
+                              <Star size={10} color={affinityColor} fill={affinityColor} />
+                            ) : level === 'high' ? (
+                              <Sparkles size={10} color={affinityColor} />
+                            ) : (
+                              <Gem size={10} color={affinityColor} />
+                            )}
                           </View>
                         );
                       })}
                     </View>
 
-                    <View className="mt-3 flex-row items-start gap-1.5 px-1">
-                      <Text className="font-inter text-[11px]" style={{ color: colors['muted-foreground'] }}>
-                        ★ Peak
-                      </Text>
-                      <Text className="font-inter text-[11px]" style={{ color: colors['muted-foreground'] }}>
-                        •
-                      </Text>
-                      <Text className="font-inter text-[11px]" style={{ color: colors['muted-foreground'] }}>
-                        ✦ High
-                      </Text>
-                      <Text className="font-inter text-[11px]" style={{ color: colors['muted-foreground'] }}>
-                        •
-                      </Text>
-                      <Text className="font-inter text-[11px]" style={{ color: colors['muted-foreground'] }}>
-                        ◆ Good
-                      </Text>
+                    <View className="mt-3 flex-row items-start gap-3 px-1">
+                      <View className="flex-row items-center gap-1">
+                        <Star size={10} color={colors['muted-foreground']} fill={colors['muted-foreground']} />
+                        <Text className="font-inter text-[11px]" style={{ color: colors['muted-foreground'] }}>Peak</Text>
+                      </View>
+                      <Text className="font-inter text-[11px]" style={{ color: colors['muted-foreground'] }}>•</Text>
+                      <View className="flex-row items-center gap-1">
+                        <Sparkles size={10} color={colors['muted-foreground']} />
+                        <Text className="font-inter text-[11px]" style={{ color: colors['muted-foreground'] }}>High</Text>
+                      </View>
+                      <Text className="font-inter text-[11px]" style={{ color: colors['muted-foreground'] }}>•</Text>
+                      <View className="flex-row items-center gap-1">
+                        <Gem size={10} color={colors['muted-foreground']} />
+                        <Text className="font-inter text-[11px]" style={{ color: colors['muted-foreground'] }}>Good</Text>
+                      </View>
                     </View>
                   </>
                 )}
               </ScrollView>
             </View>
-          </TouchableOpacity>
-        </TouchableOpacity>
+          </View>
+        </View>
       </BlurView>
     </Modal>
   );
