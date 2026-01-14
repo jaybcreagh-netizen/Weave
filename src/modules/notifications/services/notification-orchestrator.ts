@@ -11,7 +11,10 @@ import { notificationStore } from './notification-store';
 import { notificationAnalytics } from './notification-analytics';
 import { checkNotificationPermissions, requestNotificationPermissions } from './permission.service';
 import { registerPushToken, handleRemotePushNotification } from './push-token.service';
-import { showSharedWeaveNotification, showLinkRequestNotification } from './shared-weave-notifications';
+
+import { showSharedWeaveNotification, showLinkRequestNotification, handleIncomingSharedWeave } from './shared-weave-notifications';
+import { onIncomingLink, onIncomingWeave, IncomingLinkPayload, IncomingWeavePayload } from '@/modules/sync';
+import { getSupabaseClient } from '@/shared/services/supabase-client';
 
 // Channels
 import { BatteryCheckinChannel } from './channels/battery-checkin';
@@ -21,6 +24,7 @@ import { SmartSuggestionsChannel } from './channels/smart-suggestions';
 import { EventSuggestionChannel } from './channels/event-suggestion';
 import { DeepeningNudgeChannel } from './channels/deepening-nudge';
 import { EventReminderChannel } from './channels/event-reminder';
+import { UsernameNudgeChannel } from './channels/username-nudge';
 import { NotificationType } from '../types';
 
 import { EveningDigestChannel } from './channels/evening-digest';
@@ -87,6 +91,8 @@ class NotificationOrchestratorService {
                             shouldShowAlert: true,
                             shouldPlaySound: true,
                             shouldSetBadge: true,
+                            shouldShowBanner: true,
+                            shouldShowList: true,
                         };
                     }
 
@@ -96,6 +102,8 @@ class NotificationOrchestratorService {
                         shouldShowAlert: false,
                         shouldPlaySound: false,
                         shouldSetBadge: false,
+                        shouldShowBanner: false,
+                        shouldShowList: true, // Still show in list
                     };
                 },
             });
@@ -251,6 +259,9 @@ class NotificationOrchestratorService {
             // Restore event reminders
             await EventReminderChannel.scheduleAll();
 
+            // Username Nudge
+            await UsernameNudgeChannel.schedule();
+
             // Register push token for server-sent notifications
             registerPushToken().catch(err => {
                 Logger.error('[NotificationOrchestrator] Push token registration failed:', err);
@@ -298,6 +309,7 @@ class NotificationOrchestratorService {
             }
         });
 
+
         // Listen for interaction deletion
         eventBus.on('interaction:deleted', async (payload: any) => {
             try {
@@ -306,6 +318,71 @@ class NotificationOrchestratorService {
                 Logger.info(`[NotificationOrchestrator] Cancelled notifications for deleted interaction: ${payload.interactionId}`);
             } catch (error) {
                 Logger.error('[NotificationOrchestrator] Failed to handle interaction:deleted:', error);
+            }
+        });
+
+        // =========================================================================
+        // REALTIME SUBSCRIPTIONS
+        // =========================================================================
+
+        // Listen for incoming shared weaves (realtime)
+        onIncomingWeave(async (payload: IncomingWeavePayload) => {
+            Logger.info('[NotificationOrchestrator] Received incoming weave event', payload);
+            await handleIncomingSharedWeave(payload);
+        });
+
+        // Listen for incoming link requests (realtime)
+        onIncomingLink(async (payload: IncomingLinkPayload) => {
+            Logger.info('[NotificationOrchestrator] Received incoming link event', payload);
+
+            // Fetch user name (friend's name)
+            // Payload has user_a_id (requester) if we are user_b (receiver)
+            // or we need to check initiated_by
+
+            // Actually, let's keep it simple. The payload has IDs.
+            // We need to fetch the profile of the "other" person.
+            // But `shared-weave-notifications.ts` logic for link requests isn't fully updated to fetch yet?
+            // Wait, existing `showLinkRequestNotification` takes `userName`.
+            // So we need to fetch it here.
+
+            try {
+                // We assume we are the receiver (user_b) usually.
+                // But for 'link_accepted' status update, we might be user_a.
+                // It's safer to fetch the profile of the "other" user.
+
+                // However, `onIncomingLink` in realtime service filters for `user_b_id=eq.${user.id}` (requests TO us).
+                // So the requester is `user_a_id`.
+
+                const requesterId = payload.user_a_id;
+
+                // Fetch profile
+                // We can't easily import `getSupabaseClient` here if it causes cycle, but let's try or use database?
+                // Using database is better if we have them as a friend? No, they might be new.
+                // Use Supabase client.
+
+                // Dynamic import to avoid cycles if any? RealtimeService uses it.
+                // Let's just do it.
+
+
+                const client = getSupabaseClient();
+                if (!client) return;
+
+                const { data: profile } = await client
+                    .from('user_profiles')
+                    .select('display_name, username')
+                    .eq('id', requesterId)
+                    .single();
+
+                const userName = profile?.display_name || profile?.username || 'A user';
+
+                await showLinkRequestNotification({
+                    type: 'link_request',
+                    userId: requesterId,
+                    userName
+                });
+
+            } catch (e) {
+                Logger.error('[NotificationOrchestrator] Failed to handle incoming link:', e);
             }
         });
     }

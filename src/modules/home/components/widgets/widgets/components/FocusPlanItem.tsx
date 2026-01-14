@@ -153,11 +153,11 @@ export const FocusPlanItem: React.FC<FocusPlanItemProps> = ({
             <ListItem
                 title={interaction.title || `${categoryLabel}${displayNames ? ` with ${displayNames}` : ''}`}
                 subtitle={subtitle}
+                onPress={isCompletedSection && onDeepen ? () => onDeepen(interaction) : undefined}
                 trailing={
                     <View className="flex-row">
                         {isCompletedSection ? (
-                            <TouchableOpacity
-                                onPress={() => onDeepen?.(interaction)}
+                            <View
                                 className="w-8 h-8 rounded-full items-center justify-center"
                                 style={{
                                     backgroundColor: isReflected
@@ -170,7 +170,7 @@ export const FocusPlanItem: React.FC<FocusPlanItemProps> = ({
                                 ) : (
                                     getCategoryIcon(interaction.interactionCategory, 18, tokens.primary)
                                 )}
-                            </TouchableOpacity>
+                            </View>
                         ) : (
                             <TouchableOpacity
                                 onPress={() => onReschedule?.(interaction)}

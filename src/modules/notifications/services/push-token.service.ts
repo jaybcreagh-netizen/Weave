@@ -7,7 +7,7 @@
 
 import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
-import { Platform } from 'react-native';
+import { Platform, AppState } from 'react-native';
 import { getSupabaseClient } from '@/shared/services/supabase-client';
 import { logger } from '@/shared/services/logger.service';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -24,6 +24,12 @@ export async function getExpoPushToken(): Promise<string | null> {
         const { status: existingStatus } = await Notifications.getPermissionsAsync();
         if (existingStatus !== 'granted') {
             logger.info('PushToken', 'No notification permissions');
+            return null;
+        }
+
+        // Avoid fetching token in background/locked state (causes SecureStore crash on iOS)
+        if (AppState.currentState !== 'active') {
+            logger.info('PushToken', 'Skipping token fetch - app in background');
             return null;
         }
 

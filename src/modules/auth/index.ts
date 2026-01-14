@@ -26,6 +26,7 @@ export * from './hooks/useSyncSettings';
 // Services
 export * from './services/supabase.service';
 export * from './services/supabase-auth.service';
+export * from './services/auth-utils';
 export * from './services/social-battery.service';
 export * from './services/username.service';
 

@@ -6,10 +6,15 @@ import { WeaveIcon } from '@/shared/components/WeaveIcon';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '@/shared/hooks/useTheme';
 
-import { useOracleSheet } from '@/modules/oracle/hooks/useOracleSheet';
+import { useOracleSheet, OracleContext, OracleSheetParams } from '@/modules/oracle/hooks/useOracleSheet';
 import { PerfLogger } from '@/shared/utils/performance-logger';
 
-export function OracleFAB() {
+interface OracleFABProps {
+    context?: OracleContext
+    params?: Omit<OracleSheetParams, 'context'>
+}
+
+export function OracleFAB({ context = 'circle', params }: OracleFABProps) {
     const router = useRouter();
     const insets = useSafeAreaInsets();
     const { colors, isDarkMode } = useTheme();
@@ -20,7 +25,7 @@ export function OracleFAB() {
             style={{
                 position: 'absolute',
                 left: 20,
-                bottom: insets.bottom + 20,
+                bottom: 20, // Removed insets.bottom to let parent handle positioning if needed, or standard bottom
                 width: 52,
                 height: 52,
                 borderRadius: 26,
@@ -37,7 +42,7 @@ export function OracleFAB() {
             onPress={() => {
                 PerfLogger.log('Oracle', 'FAB Pressed');
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                open({ context: 'circle' });
+                open({ context, ...params });
             }}
             activeOpacity={0.8}
         >

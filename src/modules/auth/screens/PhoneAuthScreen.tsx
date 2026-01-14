@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Alert, KeyboardAvoidingView, Platform, TouchableOpacity, ScrollView, Modal, TouchableWithoutFeedback, Keyboard } from 'react-native';
+import { View, Alert, KeyboardAvoidingView, Platform, TouchableOpacity, ScrollView, Modal, TouchableWithoutFeedback, Keyboard, TextInput } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as Localization from 'expo-localization';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -42,11 +42,14 @@ export function PhoneAuthScreen() {
 
     // Mode defaults to 'signin', but can be passed as param
     const mode: AuthMode = (params.mode as AuthMode) || 'signin';
+    const otpInputRef = React.useRef<TextInput>(null);
+    const abortControllerRef = React.useRef<AbortController | null>(null);
 
     const [step, setStep] = useState<'phone' | 'otp'>('phone');
     const [phone, setPhone] = useState('');
     const [otp, setOtp] = useState('');
     const [loading, setLoading] = useState(false);
+    const [loadingMessage, setLoadingMessage] = useState('');
     const [showCountryPicker, setShowCountryPicker] = useState(false);
 
     // Default to US (Changed from UK to align with most common user base, but detector will override)
@@ -71,6 +74,22 @@ export function PhoneAuthScreen() {
         detectCountry();
     }, []);
 
+    useEffect(() => {
+        return () => {
+            abortControllerRef.current?.abort();
+        };
+    }, []);
+
+    // Safely focus OTP input after transition to prevent crash
+    useEffect(() => {
+        if (step === 'otp') {
+            const timer = setTimeout(() => {
+                otpInputRef.current?.focus();
+            }, 100);
+            return () => clearTimeout(timer);
+        }
+    }, [step]);
+
     // Simple validation
     const isValidPhone = phone.length >= 7; // Loosened slightly to allow for various formats
     const isValidOtp = otp.length === 6;
@@ -81,33 +100,88 @@ export function PhoneAuthScreen() {
             return;
         }
 
+        // Cancel any pending request
+        abortControllerRef.current?.abort();
+        abortControllerRef.current = new AbortController();
+
         setLoading(true);
-        // Format phone with selected country code
-        let formattedPhone = phone.replace(/[^0-9]/g, ''); // Strip non-digits
+        setLoadingMessage('Sending code ...');
 
-        // Remove leading zero if present (common mistake when adding country code)
-        if (formattedPhone.startsWith('0')) {
-            formattedPhone = formattedPhone.substring(1);
-        }
+        // Progress messages
+        const timer1 = setTimeout(() => setLoadingMessage('Still working ...'), 5000);
+        const timer2 = setTimeout(() => setLoadingMessage('Taking longer than usual ...'), 10000);
 
-        formattedPhone = `${selectedCountry.code}${formattedPhone}`;
+        try {
+            // Format phone with selected country code
+            let formattedPhone = phone.replace(/[^0-9]/g, ''); // Strip non-digits
 
-        const result = mode === 'link'
-            ? await linkPhoneToUser(formattedPhone)
-            : await signInWithPhone(formattedPhone);
+            // 1. Remove leading zero if present (common mistake when adding country code)
+            if (formattedPhone.startsWith('0')) {
+                formattedPhone = formattedPhone.substring(1);
+            }
 
-        setLoading(false);
+            // 2. Remove country code if user typed it
+            const countryCodeDigits = selectedCountry.code.replace('+', '');
+            if (formattedPhone.startsWith(countryCodeDigits) && formattedPhone.length > countryCodeDigits.length + 4) {
+                formattedPhone = formattedPhone.substring(countryCodeDigits.length);
+            }
 
-        if (result.success) {
-            setStep('otp');
-            // Store formatted phone for verification
-            setPhone(formattedPhone);
-        } else {
-            // Show error with appropriate title based on error type
-            const title = result.errorCode === 'RATE_LIMITED' ? 'Too Many Attempts'
-                : result.errorCode === 'INVALID_PHONE' ? 'Invalid Phone Number'
-                    : 'Error';
-            Alert.alert(title, result.error || 'Failed to send code');
+            formattedPhone = `${selectedCountry.code}${formattedPhone}`;
+            console.log('[PhoneAuth] Formatted phone for auth:', formattedPhone);
+
+            const result = (mode === 'link' || mode === 'change')
+                ? await linkPhoneToUser(formattedPhone)
+                : await signInWithPhone(formattedPhone);
+
+            // Check if aborted
+            if (abortControllerRef.current.signal.aborted) return;
+
+            if (result.success) {
+                if (result.isAlreadyLinked) {
+                    Alert.alert('Success', 'This phone number is already linked to your account.', [
+                        { text: 'OK', onPress: () => router.back() }
+                    ]);
+                    return;
+                }
+
+                console.log('[PhoneAuth] Success! Moving to OTP step');
+                setStep('otp');
+                setPhone(formattedPhone);
+            } else {
+                console.log('[PhoneAuth] Failed:', result.error);
+
+                if (result.errorCode === 'TIMEOUT') {
+                    Alert.alert(
+                        'Request Timed Out',
+                        'The request timed out, but the code might still be on its way. If you receive it, you can enter it manually.',
+                        [
+                            { text: 'Retry', onPress: handleSendOtp },
+                            {
+                                text: 'I have a code',
+                                onPress: () => {
+                                    setStep('otp');
+                                    setPhone(formattedPhone);
+                                }
+                            }
+                        ]
+                    );
+                    return;
+                }
+
+                const title = result.errorCode === 'RATE_LIMITED' ? 'Too Many Attempts'
+                    : result.errorCode === 'INVALID_PHONE' ? 'Invalid Phone Number'
+                        : 'Error';
+                Alert.alert(title, result.error || 'Failed to send code');
+            }
+        } catch (err) {
+            console.error('[PhoneAuth] Error:', err);
+            Alert.alert('Error', 'An unexpected error occurred');
+        } finally {
+            clearTimeout(timer1);
+            clearTimeout(timer2);
+            setLoading(false);
+            setLoadingMessage('');
+            abortControllerRef.current = null;
         }
     };
 
@@ -115,14 +189,14 @@ export function PhoneAuthScreen() {
         if (!isValidOtp) return;
         setLoading(true);
 
-        const result = mode === 'link'
+        const result = (mode === 'link' || mode === 'change')
             ? await verifyAndLinkPhone(phone, otp)
             : await verifyPhoneOtp(phone, otp);
 
         setLoading(false);
 
         if (result.success) {
-            if (mode === 'link') {
+            if (mode === 'link' || mode === 'change') {
                 Alert.alert('Success', 'Phone number verified!', [
                     { text: 'OK', onPress: () => router.back() }
                 ]);
@@ -211,6 +285,31 @@ export function PhoneAuthScreen() {
                                         disabled={!isValidPhone}
                                         className="mt-4"
                                     />
+                                    {loading && loadingMessage ? (
+                                        <Text className="text-center mt-2 text-xs opacity-60">
+                                            {loadingMessage}
+                                        </Text>
+                                    ) : null}
+
+                                    <TouchableOpacity
+                                        onPress={() => {
+                                            // Manual override: cancel spinner and abort request
+                                            abortControllerRef.current?.abort();
+                                            setLoading(false);
+
+                                            setStep('otp');
+                                            // Ensure we have a phone number set if they skip
+                                            if (!phone.includes(selectedCountry.code)) {
+                                                const formatted = `${selectedCountry.code}${phone.replace(/[^0-9]/g, '')}`;
+                                                setPhone(formatted);
+                                            }
+                                        }}
+                                        className="mt-4 items-center py-2"
+                                    >
+                                        <Text variant="caption" style={{ color: colors.primary }}>
+                                            I already have a code
+                                        </Text>
+                                    </TouchableOpacity>
 
                                     {/* Country Picker Modal */}
                                     <Modal
@@ -271,12 +370,13 @@ export function PhoneAuthScreen() {
                                 <>
                                     <View className="items-center mb-6 mt-2">
                                         <Input
+                                            ref={otpInputRef}
                                             placeholder="000000"
                                             keyboardType="number-pad"
                                             value={otp}
                                             onChangeText={setOtp}
                                             maxLength={6}
-                                            autoFocus
+                                            // autoFocus removed to prevent EXC_BAD_ACCESS crash
                                             className="text-center text-3xl tracking-[8px] h-16 w-full"
                                             style={{
                                                 fontSize: 32,

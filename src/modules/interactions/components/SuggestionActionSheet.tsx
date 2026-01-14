@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text as RNText, TouchableOpacity } from 'react-native';
-import { Calendar, MessageCircle } from 'lucide-react-native';
+import { Calendar, MessageCircle, Sparkles } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import * as FileSystem from 'expo-file-system/legacy';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
@@ -26,6 +26,10 @@ interface SuggestionActionSheetProps {
      * If provided, the sheet will handle the reach out logic internally.
      */
     onReachOutSuccess?: (suggestion: Suggestion) => void;
+    /**
+     * Callback for the reflect action
+     */
+    onReflect?: (suggestion: Suggestion, friend: FriendModel) => void;
 }
 
 /**
@@ -44,6 +48,7 @@ export function SuggestionActionSheet({
     onPlan,
     onDismiss,
     onReachOutSuccess,
+    onReflect,
 }: SuggestionActionSheetProps) {
     const { colors, tokens, typography } = useTheme();
     const [showContactLinker, setShowContactLinker] = useState(false);
@@ -54,6 +59,13 @@ export function SuggestionActionSheet({
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         onClose();
         setTimeout(() => onPlan(suggestion, friend), 300);
+    };
+
+    const handleReflect = () => {
+        if (!suggestion || !friend || !onReflect) return;
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        onClose();
+        setTimeout(() => onReflect(suggestion, friend), 300);
     };
 
     const handleDismissAction = () => {
@@ -264,48 +276,141 @@ export function SuggestionActionSheet({
                 entering={FadeInDown.delay(100).duration(300)}
                 className="gap-3"
             >
-                {/* Plan Weave - Primary Action */}
-                <TouchableOpacity
-                    onPress={handlePlan}
-                    activeOpacity={0.7}
-                    className="flex-row items-center justify-center gap-2 py-3.5 px-6 rounded-full"
-                    style={{
-                        backgroundColor: colors.primary,
-                    }}
-                >
-                    <Calendar color={colors['primary-foreground']} size={18} />
-                    <Text
-                        variant="body"
-                        weight="semibold"
-                        style={{
-                            color: colors['primary-foreground'],
-                        }}
-                    >
-                        Plan Weave
-                    </Text>
-                </TouchableOpacity>
+                {/* Dynamic Actions based on Suggestion Type */}
+                {suggestion.action?.type === 'reflect' || suggestion.type === 'reflect' ? (
+                    /* Reflection Action */
+                    <>
+                        <TouchableOpacity
+                            onPress={handleReflect}
+                            activeOpacity={0.7}
+                            className="flex-row items-center justify-center gap-2 py-3.5 px-6 rounded-full"
+                            style={{
+                                backgroundColor: tokens.primary,
+                            }}
+                        >
+                            <Sparkles color={colors['primary-foreground']} size={18} />
+                            <Text
+                                variant="body"
+                                weight="semibold"
+                                style={{
+                                    color: colors['primary-foreground'],
+                                }}
+                            >
+                                Reflect
+                            </Text>
+                        </TouchableOpacity>
 
-                {/* Reach Out - Secondary/Outline Action */}
-                <TouchableOpacity
-                    onPress={handleReachOut}
-                    activeOpacity={0.7}
-                    className="flex-row items-center justify-center gap-2 py-3.5 px-6 rounded-full border"
-                    style={{
-                        backgroundColor: 'transparent',
-                        borderColor: colors.border,
-                    }}
-                >
-                    <MessageCircle color={colors.foreground} size={18} />
-                    <Text
-                        variant="body"
-                        weight="semibold"
-                        style={{
-                            color: colors.foreground,
-                        }}
-                    >
-                        Reach Out
-                    </Text>
-                </TouchableOpacity>
+                        {/* Optional Secondary Plan Action */}
+                        <TouchableOpacity
+                            onPress={handlePlan}
+                            activeOpacity={0.7}
+                            className="flex-row items-center justify-center gap-2 py-3.5 px-6 rounded-full border"
+                            style={{
+                                backgroundColor: 'transparent',
+                                borderColor: colors.border,
+                            }}
+                        >
+                            <Calendar color={colors.foreground} size={18} />
+                            <Text
+                                variant="body"
+                                weight="semibold"
+                                style={{
+                                    color: colors.foreground,
+                                }}
+                            >
+                                Plan Next
+                            </Text>
+                        </TouchableOpacity>
+                    </>
+                ) : suggestion.action?.type === 'plan' ? (
+                    /* Plan Action - Primary */
+                    <>
+                        <TouchableOpacity
+                            onPress={handlePlan}
+                            activeOpacity={0.7}
+                            className="flex-row items-center justify-center gap-2 py-3.5 px-6 rounded-full"
+                            style={{
+                                backgroundColor: colors.primary,
+                            }}
+                        >
+                            <Calendar color={colors['primary-foreground']} size={18} />
+                            <Text
+                                variant="body"
+                                weight="semibold"
+                                style={{
+                                    color: colors['primary-foreground'],
+                                }}
+                            >
+                                Plan Weave
+                            </Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            onPress={handleReachOut}
+                            activeOpacity={0.7}
+                            className="flex-row items-center justify-center gap-2 py-3.5 px-6 rounded-full border"
+                            style={{
+                                backgroundColor: 'transparent',
+                                borderColor: colors.border,
+                            }}
+                        >
+                            <MessageCircle color={colors.foreground} size={18} />
+                            <Text
+                                variant="body"
+                                weight="semibold"
+                                style={{
+                                    color: colors.foreground,
+                                }}
+                            >
+                                Reach Out
+                            </Text>
+                        </TouchableOpacity>
+                    </>
+                ) : (
+                    /* Default / Reach Out Action */
+                    <>
+                        <TouchableOpacity
+                            onPress={handlePlan}
+                            activeOpacity={0.7}
+                            className="flex-row items-center justify-center gap-2 py-3.5 px-6 rounded-full"
+                            style={{
+                                backgroundColor: colors.primary,
+                            }}
+                        >
+                            <Calendar color={colors['primary-foreground']} size={18} />
+                            <Text
+                                variant="body"
+                                weight="semibold"
+                                style={{
+                                    color: colors['primary-foreground'],
+                                }}
+                            >
+                                Plan Weave
+                            </Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            onPress={handleReachOut}
+                            activeOpacity={0.7}
+                            className="flex-row items-center justify-center gap-2 py-3.5 px-6 rounded-full border"
+                            style={{
+                                backgroundColor: 'transparent',
+                                borderColor: colors.border,
+                            }}
+                        >
+                            <MessageCircle color={colors.foreground} size={18} />
+                            <Text
+                                variant="body"
+                                weight="semibold"
+                                style={{
+                                    color: colors.foreground,
+                                }}
+                            >
+                                Reach Out
+                            </Text>
+                        </TouchableOpacity>
+                    </>
+                )}
 
                 {/* Dismiss - Ghost/Text Link */}
                 <TouchableOpacity

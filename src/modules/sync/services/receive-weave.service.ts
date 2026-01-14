@@ -17,6 +17,17 @@ import { getSupabaseClient } from '@/shared/services/supabase-client';
 import { logger } from '@/shared/services/logger.service';
 import { Q } from '@nozbe/watermelondb';
 
+export interface IncomingWeaveUpdate {
+    id: string; // server shared_weave_id
+    title?: string;
+    weave_date?: string;
+    location?: string;
+    category?: string;
+    duration?: string;
+    note?: string;
+    last_edited_by?: string;
+}
+
 interface IncomingWeave {
     id: string; // server shared_weave_id
     creatorUserId: string;
@@ -231,6 +242,97 @@ export async function declineWeave(sharedWeaveId: string): Promise<void> {
     } catch (error) {
         logger.error('ReceiveWeave', 'Failed to decline weave:', error);
         throw error;
+    }
+}
+
+/**
+ * Handle update to a shared weave
+ */
+export async function handleSharedWeaveUpdate(update: IncomingWeaveUpdate): Promise<void> {
+    try {
+        // 1. Find local SharedWeaveRef
+        const refCollection = database.get<SharedWeaveRef>('shared_weave_refs');
+        const refs = await refCollection.query(Q.where('server_weave_id', update.id)).fetch();
+        const ref = refs[0];
+
+        if (!ref) {
+            logger.debug('ReceiveWeave', 'Ignoring update for unknown weave', { id: update.id });
+            return;
+        }
+
+        if (!ref.interactionId) {
+            logger.debug('ReceiveWeave', 'Ignoring update for weave without interaction', { id: update.id });
+            return;
+        }
+
+        // 2. Find local Interaction
+        const interaction = await database.get<Interaction>('interactions').find(ref.interactionId);
+
+        if (!interaction) {
+            logger.warn('ReceiveWeave', 'Interaction not found for ref', { interactionId: ref.interactionId });
+            return;
+        }
+
+        let changesMade = false;
+
+        // 3. Apply updates to Interaction
+        // We use a separate Write block for WatermelonDB
+        await database.write(async () => {
+            await interaction.update(rec => {
+                if (update.title !== undefined && update.title !== rec.title) {
+                    rec.title = update.title;
+                    changesMade = true;
+                }
+                if (update.location !== undefined && update.location !== rec.location) {
+                    rec.location = update.location;
+                    changesMade = true;
+                }
+                if (update.category !== undefined && update.category !== rec.interactionCategory) {
+                    rec.interactionCategory = update.category;
+                    rec.activity = update.category; // Keep activity in sync
+                    changesMade = true;
+                }
+                if (update.duration !== undefined && update.duration !== rec.duration) {
+                    rec.duration = update.duration; // Cast if needed, assuming string matches
+                    changesMade = true;
+                }
+                if (update.note !== undefined && update.note !== rec.note) {
+                    rec.note = update.note;
+                    changesMade = true;
+                }
+                if (update.weave_date !== undefined) {
+                    const newDate = new Date(update.weave_date);
+                    if (newDate.getTime() !== rec.interactionDate.getTime()) {
+                        rec.interactionDate = newDate;
+                        changesMade = true;
+                    }
+                }
+            });
+
+            // 4. Update SharedWeaveRef metadata if needed (not strictly persisted but good for debugging if we added columns)
+            // But we don't have columns for last_edited on Ref. Ignoring for now.
+        });
+
+        if (changesMade) {
+            logger.info('ReceiveWeave', 'Processed shared weave update', { weaveId: update.id });
+
+            // 5. Update Calendar Event if exists
+            if (interaction.calendarEventId) {
+                const calendarUpdates: any = {};
+                if (update.title) calendarUpdates.title = update.title;
+                if (update.location) calendarUpdates.location = update.location;
+                if (update.note) calendarUpdates.notes = update.note;
+                if (update.weave_date) calendarUpdates.date = new Date(update.weave_date);
+
+                if (Object.keys(calendarUpdates).length > 0) {
+                    CalendarService.updateWeaveCalendarEvent(interaction.calendarEventId, calendarUpdates)
+                        .catch(err => logger.warn('ReceiveWeave', 'Failed to update calendar for shared update', err));
+                }
+            }
+        }
+
+    } catch (error) {
+        logger.error('ReceiveWeave', 'Failed to handle shared weave update:', error);
     }
 }
 

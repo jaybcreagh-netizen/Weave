@@ -35,6 +35,7 @@ let isManuallyDisconnected = false;
 
 // Handler Sets for O(1) deduplication
 const weaveHandlerSet = new Set<IncomingWeaveHandler>();
+const weaveUpdateHandlerSet = new Set<IncomingWeaveUpdateHandler>();
 const linkHandlerSet = new Set<IncomingLinkHandler>();
 const outgoingLinkHandlerSet = new Set<OutgoingLinkStatusHandler>();
 const participantResponseHandlerSet = new Set<ParticipantResponseHandler>();
@@ -51,6 +52,17 @@ export interface IncomingWeavePayload {
     created_at: string;
 }
 
+export interface IncomingWeaveUpdatePayload {
+    id: string;
+    title?: string;
+    weave_date?: string;
+    location?: string;
+    category?: string;
+    duration?: string;
+    note?: string;
+    last_edited_by?: string;
+}
+
 export interface IncomingLinkPayload {
     id: string;
     user_a_id: string;
@@ -61,6 +73,7 @@ export interface IncomingLinkPayload {
 }
 
 type IncomingWeaveHandler = (payload: IncomingWeavePayload) => void;
+type IncomingWeaveUpdateHandler = (payload: IncomingWeaveUpdatePayload) => void;
 type IncomingLinkHandler = (payload: IncomingLinkPayload) => void;
 type OutgoingLinkStatusHandler = (payload: IncomingLinkPayload) => void;
 type ParticipantResponseHandler = (payload: IncomingWeavePayload) => void;
@@ -162,6 +175,20 @@ export async function subscribeToRealtime(): Promise<void> {
                 logger.info('Realtime', 'Participant response to shared weave', payload);
                 const data = payload.new as IncomingWeavePayload;
                 participantResponseHandlerSet.forEach(handler => handler(data));
+            }
+        )
+        // UPDATE: When a shared weave we are observing (participant) is updated
+        .on(
+            'postgres_changes',
+            {
+                event: 'UPDATE',
+                schema: 'public',
+                table: 'shared_weaves',
+            },
+            (payload) => {
+                logger.info('Realtime', 'Shared weave updated', payload);
+                const data = payload.new as IncomingWeaveUpdatePayload;
+                weaveUpdateHandlerSet.forEach(handler => handler(data));
             }
         )
         .subscribe((status, err) => {
@@ -349,6 +376,29 @@ export function onParticipantResponse(handler: ParticipantResponseHandler): () =
     };
 }
 
+/**
+ * Register a handler for updates to shared weaves
+ * Uses Set for O(1) deduplication - same handler won't be registered twice
+ * 
+ * @returns Cleanup function to unregister the handler
+ */
+export function onIncomingWeaveUpdate(handler: IncomingWeaveUpdateHandler): () => void {
+    if (weaveUpdateHandlerSet.has(handler)) {
+        logger.debug('Realtime', 'Weave update handler already registered, skipping duplicate');
+        return () => {
+            weaveUpdateHandlerSet.delete(handler);
+        };
+    }
+
+    weaveUpdateHandlerSet.add(handler);
+    logger.debug('Realtime', `Registered weave update handler (total: ${weaveUpdateHandlerSet.size})`);
+
+    return () => {
+        weaveUpdateHandlerSet.delete(handler);
+        logger.debug('Realtime', `Unregistered weave update handler (total: ${weaveUpdateHandlerSet.size})`);
+    };
+}
+
 // =============================================================================
 // STATUS UTILITIES
 // =============================================================================
@@ -364,6 +414,7 @@ export function getRealtimeStatus(): {
         link: number;
         outgoingLink: number;
         participantResponse: number;
+        weaveUpdate: number;
     };
 } {
     return {
@@ -374,6 +425,7 @@ export function getRealtimeStatus(): {
             link: linkHandlerSet.size,
             outgoingLink: outgoingLinkHandlerSet.size,
             participantResponse: participantResponseHandlerSet.size,
+            weaveUpdate: weaveUpdateHandlerSet.size,
         },
     };
 }

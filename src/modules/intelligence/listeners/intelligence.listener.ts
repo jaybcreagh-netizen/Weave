@@ -1,4 +1,5 @@
 import { eventBus } from '@/shared/events/event-bus';
+import { trackEvent, AnalyticsEvents } from '@/shared/services/analytics.service';
 import { Q } from '@nozbe/watermelondb';
 import { processWeaveScoring } from '../services/orchestrator.service';
 import { analyzeTierFit } from '@/modules/insights/services/tier-fit.service';
@@ -39,6 +40,26 @@ const handleInteractionCreated = async (payload: any) => {
         // v61: Pass interactionId to store pointsEarned in InteractionFriend records
         await processWeaveScoring(friends, data, database, currentSeason, interactionId);
         Logger.info(`[Intelligence] Scoring completed in ${Date.now() - scoringStart}ms`);
+
+        // Track scoring event
+        try {
+            const pointsStart = Date.now();
+            // Fetch the interaction friends to sum up points
+            const interactionFriends = await database.get('interaction_friends')
+                .query(Q.where('interaction_id', interactionId))
+                .fetch();
+
+            const totalPoints = interactionFriends.reduce((sum, record: any) => sum + (record.pointsEarned || 0), 0);
+
+            trackEvent(AnalyticsEvents.INTERACTION_SCORED, {
+                total_points: totalPoints,
+                friend_count: friends.length,
+                friends_scored: interactionFriends.length
+            });
+            Logger.info(`[Intelligence] Tracked INTERACTION_SCORED with ${totalPoints} points in ${Date.now() - pointsStart}ms`);
+        } catch (err) {
+            Logger.warn('[Intelligence] Failed to track INTERACTION_SCORED:', err);
+        }
 
         // Insights (Life Events)
         const lifeEventsStart = Date.now();

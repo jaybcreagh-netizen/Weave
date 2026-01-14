@@ -36,11 +36,14 @@ export {
     subscribeToRealtime,
     unsubscribeFromRealtime,
     onIncomingWeave,
+    onIncomingWeaveUpdate,
     onIncomingLink,
     onOutgoingLinkStatusChange,
     onParticipantResponse,
     getRealtimeStatus,
     forceReconnect,
+    type IncomingWeavePayload,
+    type IncomingLinkPayload,
 } from './services/realtime.service';
 
 export {
@@ -52,6 +55,7 @@ export {
 export {
     acceptWeave,
     declineWeave,
+    handleSharedWeaveUpdate,
     fetchPendingSharedWeaves,
 } from './services/receive-weave.service';
 

@@ -10,14 +10,14 @@ export interface InputProps extends TextInputProps {
     inputClassName?: string;
 }
 
-export function Input({
+export const Input = React.forwardRef<TextInput, InputProps>(({
     label,
     error,
     containerClassName = '',
     inputClassName = '',
     style,
     ...props
-}: InputProps) {
+}, ref) => {
     const { colors, tokens } = useTheme();
 
     return (
@@ -29,6 +29,7 @@ export function Input({
             )}
 
             <TextInput
+                ref={ref}
                 className={`h-12 rounded-xl px-4 border text-base font-inter-regular ${inputClassName}`}
                 style={[
                     {
@@ -49,5 +50,7 @@ export function Input({
             )}
         </View>
     );
-}
+});
+
+Input.displayName = 'Input';
 

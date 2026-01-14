@@ -131,7 +131,7 @@ class LLMConfigManager {
     private async doInitialize(): Promise<void> {
         // Load saved config (non-sensitive settings) from SecureStore
         try {
-            const saved = await SecureStore.getItemAsync(CONFIG_STORAGE_KEY)
+            const saved = await SecureStore.getItemAsync(CONFIG_STORAGE_KEY, { keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY })
             if (saved) {
                 const parsed = JSON.parse(saved)
                 this.config = { ...DEFAULT_CONFIG, ...parsed }
@@ -143,8 +143,8 @@ class LLMConfigManager {
         // Load API keys from secure storage
         try {
             const [geminiKey, claudeKey] = await Promise.all([
-                SecureStore.getItemAsync(SECURE_KEY_GEMINI),
-                SecureStore.getItemAsync(SECURE_KEY_CLAUDE),
+                SecureStore.getItemAsync(SECURE_KEY_GEMINI, { keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY }),
+                SecureStore.getItemAsync(SECURE_KEY_CLAUDE, { keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY }),
             ])
 
             if (geminiKey) {
@@ -262,7 +262,7 @@ class LLMConfigManager {
         const secureKey = provider === 'gemini' ? SECURE_KEY_GEMINI : SECURE_KEY_CLAUDE
 
         try {
-            await SecureStore.setItemAsync(secureKey, apiKey)
+            await SecureStore.setItemAsync(secureKey, apiKey, { keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY })
         } catch (error) {
             logger.error('LLMConfigManager', `Failed to save API key to SecureStore:`, error)
             throw new Error('Failed to securely store API key')
@@ -288,7 +288,7 @@ class LLMConfigManager {
         const secureKey = provider === 'gemini' ? SECURE_KEY_GEMINI : SECURE_KEY_CLAUDE
 
         try {
-            await SecureStore.deleteItemAsync(secureKey)
+            await SecureStore.deleteItemAsync(secureKey, { keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY })
         } catch (error) {
             logger.warn('LLMConfigManager', `Failed to delete API key from SecureStore:`, error)
         }
@@ -333,7 +333,7 @@ class LLMConfigManager {
         try {
             // Only save non-sensitive config to SecureStore (safer than AsyncStorage)
             const { geminiApiKey, claudeApiKey, ...safeConfig } = this.config
-            await SecureStore.setItemAsync(CONFIG_STORAGE_KEY, JSON.stringify(safeConfig))
+            await SecureStore.setItemAsync(CONFIG_STORAGE_KEY, JSON.stringify(safeConfig), { keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY })
         } catch (error) {
             logger.error('LLMConfigManager', 'Failed to save config:', error)
         }
@@ -346,8 +346,8 @@ class LLMConfigManager {
         // Clear API keys from secure storage
         try {
             await Promise.all([
-                SecureStore.deleteItemAsync(SECURE_KEY_GEMINI),
-                SecureStore.deleteItemAsync(SECURE_KEY_CLAUDE),
+                SecureStore.deleteItemAsync(SECURE_KEY_GEMINI, { keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY }),
+                SecureStore.deleteItemAsync(SECURE_KEY_CLAUDE, { keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY }),
             ])
         } catch (error) {
             logger.warn('LLMConfigManager', 'Failed to clear API keys from SecureStore:', error)
@@ -357,7 +357,7 @@ class LLMConfigManager {
         this.config = { ...DEFAULT_CONFIG }
 
         // Clear SecureStore config
-        await SecureStore.deleteItemAsync(CONFIG_STORAGE_KEY)
+        await SecureStore.deleteItemAsync(CONFIG_STORAGE_KEY, { keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY })
 
         logger.info('LLMConfigManager', 'Reset to default config and cleared all API keys')
     }

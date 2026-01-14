@@ -239,8 +239,8 @@ export function WeaveReflectPrompt({
 
   return (
     <Animated.View
-      entering={SlideInUp.springify().damping(18)}
-      exiting={SlideOutDown.springify().damping(18)}
+      entering={SlideInUp.springify().damping(40)}
+      exiting={SlideOutDown.springify().damping(40)}
       className="absolute bottom-6 left-4 right-4"
       style={{
         shadowColor: '#000',

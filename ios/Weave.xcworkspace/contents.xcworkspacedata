@@ -7,4 +7,40 @@
    <FileRef
       location = "group:Pods/Pods.xcodeproj">
    </FileRef>
+   <FileRef
+      location = "group:sentry 2.properties">
+   </FileRef>
+   <FileRef
+      location = "group:eas.json">
+   </FileRef>
+   <FileRef
+      location = "group:sentry 3.properties">
+   </FileRef>
+   <FileRef
+      location = "group:sentry 4.properties">
+   </FileRef>
+   <FileRef
+      location = "group:sentry 5.properties">
+   </FileRef>
+   <FileRef
+      location = "group:sentry 6.properties">
+   </FileRef>
+   <FileRef
+      location = "group:sentry 7.properties">
+   </FileRef>
+   <FileRef
+      location = "group:sentry 8.properties">
+   </FileRef>
+   <FileRef
+      location = "group:sentry 9.properties">
+   </FileRef>
+   <FileRef
+      location = "group:sentry 10.properties">
+   </FileRef>
+   <FileRef
+      location = "group:sentry 11.properties">
+   </FileRef>
+   <FileRef
+      location = "group:sentry 12.properties">
+   </FileRef>
 </Workspace>

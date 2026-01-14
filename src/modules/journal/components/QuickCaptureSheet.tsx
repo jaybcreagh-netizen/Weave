@@ -37,6 +37,7 @@ import { BufferedTextInput } from '@/shared/ui/BufferedTextInput';
 import { FriendSelector } from '@/modules/relationships';
 import { GuidedReflectionSheet } from './GuidedReflection/GuidedReflectionSheet';
 import { OracleSuggestion, ReflectionContext } from '@/modules/oracle';
+import { trackEvent, AnalyticsEvents } from '@/shared/services/analytics.service';
 
 // ============================================================================
 // TYPES
@@ -173,6 +174,12 @@ export function QuickCaptureSheet({
 
       // FIX in next step: I'll use a variable.
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+      trackEvent(AnalyticsEvents.JOURNAL_ENTRY_CREATED, {
+        source: 'quick_capture',
+        has_friends: selectedFriends.length > 0,
+        content_length: text.trim().length
+      });
 
       // Reset and close
       setText('');

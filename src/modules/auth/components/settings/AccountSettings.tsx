@@ -18,6 +18,7 @@ import { getSupabaseClient } from '@/shared/services/supabase-client';
 import { useSyncStatus } from '@/modules/sync';
 import { logger } from '@/shared/services/logger.service';
 import { unregisterPushToken } from '@/modules/notifications/services/push-token.service';
+import { formatPhoneDisplay } from '@/modules/auth';
 
 interface AccountSettingsProps {
     onClose: () => void;
@@ -50,34 +51,58 @@ export function AccountSettings({ onClose, onOpenAuth }: AccountSettingsProps) {
                     return;
                 }
 
-                const { data: { user } } = await client.auth.getUser();
+                // Create a promise that rejects after 5 seconds
+                const timeoutPromise = new Promise((_, reject) => {
+                    setTimeout(() => reject(new Error('Profile fetch timeout')), 5000);
+                });
+
+                // Race the user fetch against the timeout
+                const userPromise = client.auth.getUser();
+                const { data: { user } } = await Promise.race([userPromise, timeoutPromise]) as any;
+
                 if (!user) {
                     setIsLoading(false);
                     return;
                 }
 
-                // Get profile info - use 'id' not 'user_id'
-                const { data: profile } = await client
+                // Race the profile fetch against the timeout
+                // Note: using user_profiles (plural) as established in auth service, even if schema says singular
+                const profilePromise = client
                     .from('user_profiles')
                     .select('username, display_name, photo_url, phone')
                     .eq('id', user.id)
                     .single();
+
+                const { data: profile } = await Promise.race([profilePromise, timeoutPromise]) as any;
 
                 setUserInfo({
                     email: user.email || '',
                     username: profile?.username,
                     displayName: profile?.display_name,
                     photoUrl: profile?.photo_url,
-                    phone: profile?.phone,
+                    phone: user.phone, // STRICT source of truth. Ignore profile.phone if this is empty.
                 });
             } catch (error) {
-                logger.error('AccountSettings', 'Failed to fetch user info:', error);
+                // If it's a timeout or other error, log it but don't crash
+                // The UI will show the "Sign In" state which is safer than spinning
+                if (error instanceof Error && error.message === 'Profile fetch timeout') {
+                    logger.warn('AccountSettings', 'Profile fetch timed out - showing signed out state');
+                } else {
+                    logger.error('AccountSettings', 'Failed to fetch user info:', error);
+                }
             } finally {
-                setIsLoading(false);
+                if (mounted) {
+                    setIsLoading(false);
+                }
             }
         };
 
+        let mounted = true;
         fetchUserInfo();
+
+        return () => {
+            mounted = false;
+        };
     }, []);
 
     const handleOpenProfile = () => {
@@ -251,20 +276,34 @@ export function AccountSettings({ onClose, onOpenAuth }: AccountSettingsProps) {
                     </View>
                 </TouchableOpacity>
 
-                {/* Link Phone Section - shown when no phone linked */}
-                {!userInfo.phone && (
-                    <>
-                        <View className="border-t border-border mx-4" style={{ borderColor: colors.border }} />
-                        <SettingsItem
-                            icon={Phone}
-                            title="Link Phone Number"
-                            subtitle="Enable contact matching & backup auth"
-                            onPress={() => {
-                                onClose();
-                                setTimeout(() => router.push('/phone-auth?mode=link'), 300);
-                            }}
-                        />
-                    </>
+                {/* Phone Section - Always show */}
+                <View className="border-t border-border mx-4" style={{ borderColor: colors.border }} />
+                {userInfo.phone ? (
+                    <SettingsItem
+                        icon={Phone}
+                        title="Phone Number"
+                        subtitle={formatPhoneDisplay(userInfo.phone)}
+                        rightElement={
+                            <View className="flex-row items-center gap-1">
+                                <CheckCircle size={16} color="#22c55e" />
+                                <Text variant="caption" style={{ color: '#22c55e' }}>Verified</Text>
+                            </View>
+                        }
+                        onPress={() => {
+                            onClose();
+                            setTimeout(() => router.push('/phone-settings'), 300);
+                        }}
+                    />
+                ) : (
+                    <SettingsItem
+                        icon={Phone}
+                        title="Link Phone Number"
+                        subtitle="Enable contact matching & backup auth"
+                        onPress={() => {
+                            onClose();
+                            setTimeout(() => router.push('/phone-auth?mode=link'), 300);
+                        }}
+                    />
                 )}
             </View>
         );

@@ -14,7 +14,6 @@ import Animated, {
   type AnimatedRef,
   runOnJS,
 } from 'react-native-reanimated';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 
 import { useUIStore } from '@/shared/stores/uiStore';
 import { type Archetype, type RelationshipType, type Friend } from '@/shared/types/legacy-types';
@@ -226,9 +225,7 @@ export const FriendListRowContent = ({
     }
   }, [justNurturedFriendId, id]);
 
-  const handleCardLongPress = () => {
-    return;
-  };
+
 
   // Handle tap to assign archetype for Unknown archetypes
   // AND open detail sheet for Full/Default variants
@@ -328,38 +325,6 @@ export const FriendListRowContent = ({
   const avatarSize = isCompact ? 'w-10 h-10' : 'w-12 h-12';
   const nameSize = isCompact ? 15 : 17;
   const showStatusIcon = !isCompact;
-
-  // Gestures for New Architecture
-  const tapGesture = Gesture.Tap()
-    .runOnJS(true)
-    .onBegin(() => {
-      // Visual feedback on press down
-      pressOpacity.value = withTiming(0.8, { duration: 100 });
-      pressScale.value = withTiming(0.98, { duration: 100 });
-    })
-    .onFinalize(() => {
-      // Reset feedback
-      pressOpacity.value = withTiming(1, { duration: 150 });
-      pressScale.value = withTiming(1, { duration: 150 });
-    })
-    .onEnd(() => {
-      if (onPress) {
-        onPress(friend);
-      } else {
-        handleCardPress();
-      }
-    });
-
-  const longPressGesture = Gesture.LongPress()
-    .runOnJS(true)
-    .minDuration(500)
-    .onStart(() => {
-      if (variant !== 'full' && handleCardLongPress) {
-        handleCardLongPress();
-      }
-    });
-
-  const composedGesture = Gesture.Race(longPressGesture, tapGesture);
 
   return (
     <Animated.View ref={animatedRef} style={rowStyle}>

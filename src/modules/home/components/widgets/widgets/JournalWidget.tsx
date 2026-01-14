@@ -403,7 +403,6 @@ export function JournalWidget() {
                 if (mountedRef.current && currentLoadId === loadIdRef.current) {
                     setIsWidgetStateLoading(false);
                     Sentry.addBreadcrumb({ category: 'journal-widget', message: 'loadWidgetState complete, loading=false', level: 'info' });
-                    console.timeEnd('JournalWidget.loadState');
                 }
             }
         };
@@ -427,9 +426,7 @@ export function JournalWidget() {
                     setStatValues(STATS.map(() => 0));
                 }
             } finally {
-                if (mountedRef.current && currentLoadId === loadIdRef.current) {
-                    console.timeEnd('JournalWidget.loadStats');
-                }
+                // console.timeEnd removed to prevent crash
             }
         };
 

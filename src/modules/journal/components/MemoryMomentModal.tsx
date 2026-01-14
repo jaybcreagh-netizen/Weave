@@ -24,7 +24,7 @@ import * as Haptics from 'expo-haptics';
 import JournalEntry from '@/db/models/JournalEntry';
 import WeeklyReflection from '@/db/models/WeeklyReflection';
 import { Memory } from '@/modules/journal';
-import { trackEvent } from '@/shared/services/analytics.service';
+import { trackEvent, AnalyticsEvents } from '@/shared/services/analytics.service';
 
 interface MemoryMomentModalProps {
     visible: boolean;
@@ -49,7 +49,7 @@ export function MemoryMomentModal({
 
     React.useEffect(() => {
         if (visible && memory) {
-            trackEvent('memory_moment_opened', { memoryId: memory.id, type: memory.type });
+            trackEvent(AnalyticsEvents.MEMORY_MOMENT_VIEWED, { memoryId: memory.id, type: memory.type });
         }
     }, [visible, memory]);
 
@@ -72,13 +72,13 @@ export function MemoryMomentModal({
 
     const handleRead = () => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        trackEvent('memory_moment_action', { action: 'read', memoryId: memory.id });
+        trackEvent(AnalyticsEvents.MEMORY_MOMENT_ACTION, { action: 'read', memoryId: memory.id });
         onReadEntry();
     };
 
     const handleWrite = () => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        trackEvent('memory_moment_action', { action: 'write', memoryId: memory.id });
+        trackEvent(AnalyticsEvents.MEMORY_MOMENT_ACTION, { action: 'write', memoryId: memory.id });
         onWriteAbout();
     };
 

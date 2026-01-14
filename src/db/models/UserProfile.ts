@@ -69,6 +69,7 @@ export default class UserProfile extends Model {
   @field('server_updated_at') serverUpdatedAt?: number;
 
   // Identity (v49)
+  @text('username') username?: string;
   @text('phone') phone?: string;
   @text('email') email?: string;
   @text('google_id') googleId?: string;

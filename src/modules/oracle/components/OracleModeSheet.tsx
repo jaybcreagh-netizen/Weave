@@ -12,6 +12,7 @@ import {
 } from 'lucide-react-native'
 import { BlurView } from 'expo-blur'
 import { useTheme } from '@/shared/hooks/useTheme'
+import { useOracleSheet } from '../hooks/useOracleSheet'
 
 interface Props {
     visible: boolean
@@ -20,46 +21,72 @@ interface Props {
     loading?: boolean
 }
 
-const MODE_CONFIG: Record<OracleLensMode, {
+const getModeConfig = (friendName?: string, context?: string): Partial<Record<OracleLensMode, {
     icon: any,
     color: string,
     label: string,
     description: string
-}> = {
-    'consultation': {
-        icon: MessageCircle,
-        color: '#8B5CF6',
-        label: 'Consult Oracle',
-        description: 'Ask a question or seek guidance on your relationships.'
-    },
-    'go_deeper': {
-        icon: Sparkles,
-        color: '#7C3AED', // Purple
-        label: 'Go Deeper',
-        description: 'Understand this moment with full context about your connection.'
-    },
-    'plan_next_steps': {
-        icon: Calendar,
-        color: '#2563EB', // Blue
-        label: 'Plan Next Steps',
-        description: 'Turn this into action: schedule a meetup, reminder, or intention.'
-    },
-    'expand_entry': {
-        icon: Feather,
-        color: '#059669', // Green
-        label: 'Expand This Entry',
-        description: 'Capture more detail with a quick guided reflection.'
-    },
-    'quick_actions': {
-        icon: Zap,
-        color: '#D97706', // Orange
-        label: 'Quick Actions',
-        description: 'Directly access tools with pre-filled context.'
+}>> => {
+    const config: Partial<Record<OracleLensMode, {
+        icon: any,
+        color: string,
+        label: string,
+        description: string
+    }>> = {
+        'consultation': {
+            icon: MessageCircle,
+            color: '#8B5CF6',
+            label: friendName ? `Ask about ${friendName}` : 'Consult Oracle',
+            description: friendName ? `Get guidance on your friendship with ${friendName}.` : 'Ask a question or seek guidance on your relationships.'
+        },
+        'go_deeper': {
+            icon: Sparkles,
+            color: '#7C3AED', // Purple
+            label: friendName ? 'Deepen Connection' : 'Go Deeper',
+            description: friendName ? `Understand your dynamic with ${friendName} better.` : 'Understand this moment with full context about your connection.'
+        },
+        'plan_next_steps': {
+            icon: Calendar,
+            color: '#2563EB', // Blue
+            label: friendName ? `Plan with ${friendName}` : 'Plan Next Steps',
+            description: 'Turn this into action: schedule a meetup, reminder, or intention.'
+        },
+        'quick_actions': {
+            icon: Zap,
+            color: '#D97706', // Orange
+            label: friendName ? `Actions for ${friendName}` : 'Quick Actions',
+            description: 'Directly access tools with pre-filled context.'
+        }
     }
+
+    // Only show expand_entry if we are NOT in a friend context
+    // This makes it explicitly hidden for Friend Profiles
+    if (context !== 'friend') {
+        config['expand_entry'] = {
+            icon: Feather,
+            color: '#059669', // Green
+            label: 'Expand This Entry',
+            description: 'Capture more detail with a quick guided reflection.'
+        }
+    }
+
+    return config
 }
 
 export const OracleModeSheet = ({ visible, onClose, onSelectMode, loading = false }: Props) => {
     const { colors, isDarkMode } = useTheme()
+    const { params } = useOracleSheet()
+
+    // Debug logging
+    React.useEffect(() => {
+        console.log('[OracleModeSheet] params:', params);
+        console.log('[OracleModeSheet] friendName:', params?.friendName);
+    }, [params]);
+
+    const modeConfig = React.useMemo(
+        () => getModeConfig(params?.friendName, params?.context),
+        [params?.friendName, params?.context]
+    )
 
     if (!visible) return null
 
@@ -88,14 +115,6 @@ export const OracleModeSheet = ({ visible, onClose, onSelectMode, loading = fals
                         What would you like to do?
                     </Text>
                 </View>
-
-                <TouchableOpacity
-                    onPress={onClose}
-                    className="p-2 rounded-full"
-                    style={{ backgroundColor: colors.muted + '20' }}
-                >
-                    <X size={24} color={colors.foreground} />
-                </TouchableOpacity>
             </View>
 
             {/* Content */}
@@ -114,8 +133,9 @@ export const OracleModeSheet = ({ visible, onClose, onSelectMode, loading = fals
                         </Text>
                     </View>
                 ) : (
-                    (Object.keys(MODE_CONFIG) as OracleLensMode[]).map((mode) => {
-                        const config = MODE_CONFIG[mode]
+                    (Object.keys(modeConfig) as OracleLensMode[]).map((mode) => {
+                        const config = modeConfig[mode]
+                        if (!config) return null
                         const Icon = config.icon
 
                         return (

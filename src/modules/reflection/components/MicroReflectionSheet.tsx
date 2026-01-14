@@ -1,16 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, TouchableOpacity, Keyboard } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import * as FileSystem from 'expo-file-system/legacy';
 import { Sparkles } from 'lucide-react-native';
 import { type Vibe, type InteractionCategory } from '@/shared/types/common';
 
 import { useTheme } from '@/shared/hooks/useTheme';
 import { getCategoryMetadata } from '@/shared/constants/interaction-categories';
-import { AnimatedBottomSheet } from '@/shared/ui/Sheet';
+import { StandardBottomSheet } from '@/shared/ui/Sheet';
 import { BufferedTextInput } from '@/shared/ui/BufferedTextInput';
 import { MoonPhaseSelector } from '@/modules/intelligence/components/MoonPhaseSelector';
 import { GuidedReflectionSheet } from '@/modules/journal/components/GuidedReflection/GuidedReflectionSheet';
-import { OracleSuggestion } from '@/modules/oracle';
+import { database } from '@/db/index';
+import FriendModel from '@/db/models/Friend';
+import { CachedImage } from '@/shared/ui/CachedImage';
+import { Icon } from '@/shared/ui/Icon';
 
 interface MicroReflectionSheetProps {
   isVisible: boolean;
@@ -35,13 +39,43 @@ export function MicroReflectionSheet({
   onSave,
   onSkip,
 }: MicroReflectionSheetProps) {
-  const { colors, isDarkMode } = useTheme();
+  const { colors, isDarkMode, tokens } = useTheme();
   const [selectedVibe, setSelectedVibe] = useState<Vibe | null>(null);
   const [notes, setNotes] = useState('');
   const [title, setTitle] = useState(activityLabel);
   const [showGuidedReflection, setShowGuidedReflection] = useState(false);
+  const [friend, setFriend] = useState<FriendModel | null>(null);
 
+  // Fetch friend to get photo
+  useEffect(() => {
+    if (friendId && isVisible) {
+      const fetchFriend = async () => {
+        try {
+          const f = await database.get<FriendModel>('friends').find(friendId);
+          setFriend(f);
+        } catch (error) {
+          // consistent fail-safe
+        }
+      };
+      fetchFriend();
+    }
+  }, [friendId, isVisible]);
 
+  // Resolve photo URL
+  const resolvedPhotoUrl = useMemo(() => {
+    const photoUrl = friend?.photoUrl;
+    if (!photoUrl) return null;
+    if (!photoUrl.startsWith('file://') && !photoUrl.startsWith('/') && !photoUrl.startsWith('http')) {
+      return `${FileSystem.documentDirectory}${photoUrl.replace(/^\//, '')}`;
+    }
+    return photoUrl;
+  }, [friend?.photoUrl]);
+
+  const getInitials = (name: string) => {
+    const parts = name.trim().split(/\s+/);
+    if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+    return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+  };
 
   // Set title from activityLabel when opening
   useEffect(() => {
@@ -64,7 +98,6 @@ export function MicroReflectionSheet({
 
   const handleSave = () => {
     Keyboard.dismiss();
-    // Call onSave directly - the parent's handleSave will close the sheet after saving
     onSave({
       vibe: selectedVibe || undefined,
       notes: notes.trim() || undefined,
@@ -78,7 +111,6 @@ export function MicroReflectionSheet({
   };
 
   const handleCloseComplete = () => {
-    // Reset state after close animation completes
     setSelectedVibe(null);
     setNotes('');
     setTitle('');
@@ -100,41 +132,173 @@ export function MicroReflectionSheet({
       : 'How did it feel?';
   };
 
+  // Get category metadata for icon
+  const categoryMetadata = activityLabel && activityLabel.includes('-')
+    ? getCategoryMetadata(activityLabel as InteractionCategory)
+    : getCategoryMetadata('hangout'); // fallback
+
+
+  // ... (keep other imports)
+
+
+  // ...
+
   return (
     <>
-      <AnimatedBottomSheet
+      <StandardBottomSheet
         visible={isVisible}
         onClose={handleSkip}
-        onCloseComplete={handleCloseComplete}
         height="full"
         scrollable
+        title="Log Interaction"
+        footerComponent={
+          <View className="flex-row gap-4">
+            <TouchableOpacity
+              className="flex-1 py-3.5 rounded-full border items-center justify-center"
+              style={{ borderColor: colors.border }}
+              onPress={handleSkip}
+              activeOpacity={0.7}
+            >
+              <Text className="text-[15px] font-semibold" style={{ color: colors.foreground }}>
+                Skip
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              className="flex-1 py-3.5 rounded-full items-center justify-center shadow-sm"
+              style={{
+                backgroundColor: colors.primary,
+                shadowColor: colors.primary,
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.2,
+                shadowRadius: 4
+              }}
+              onPress={handleSave}
+              activeOpacity={0.8}
+            >
+              <Text className="text-[15px] font-bold" style={{ color: colors['primary-foreground'] }}>
+                Save
+              </Text>
+            </TouchableOpacity>
+          </View>
+        }
       >
-        {/* Header */}
-        <View className="items-center mb-6">
-          <Text className="text-sm font-medium mb-1.5" style={{ color: colors['muted-foreground'] }}>
-            Logged
-          </Text>
-          <BufferedTextInput
-            inputClassName="text-3xl font-bold font-lora-bold text-center mb-2 min-w-[200px]"
+        {/* Header Section */}
+        <View className="items-center mb-6 pt-2">
+          {/* Avatar with accent ring */}
+          <View
+            className="relative mb-3"
+            style={{
+              shadowColor: colors.primary,
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.15,
+              shadowRadius: 8,
+            }}
+          >
+            {resolvedPhotoUrl ? (
+              <CachedImage
+                source={{ uri: resolvedPhotoUrl }}
+                style={{
+                  width: 64,
+                  height: 64,
+                  borderRadius: 32,
+                  borderWidth: 2,
+                  borderColor: colors.card,
+                }}
+                contentFit="cover"
+              />
+            ) : (
+              <View
+                className="items-center justify-center"
+                style={{
+                  width: 64,
+                  height: 64,
+                  borderRadius: 32,
+                  backgroundColor: colors.primary + '20',
+                  borderWidth: 2,
+                  borderColor: colors.card,
+                }}
+              >
+                <Text
+                  style={{
+                    color: colors.primary,
+                    fontSize: 24,
+                    fontWeight: 'bold',
+                    fontFamily: 'Lora-Bold',
+                  }}
+                >
+                  {getInitials(friendName)}
+                </Text>
+              </View>
+            )}
+
+            {/* Category badge overlay */}
+            <View
+              className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full items-center justify-center"
+              style={{
+                backgroundColor: colors.card,
+                borderWidth: 2,
+                borderColor: colors.card,
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.1,
+                shadowRadius: 4,
+              }}
+            >
+              <categoryMetadata.iconComponent size={13} color={colors.primary} />
+            </View>
+          </View>
+
+          {/* Friend Name */}
+          <Text
+            className="text-lg font-bold font-lora-bold text-center mb-5"
             style={{ color: colors.foreground }}
-            value={title}
-            onChangeText={setTitle}
-            placeholder="Interaction Title"
-            placeholderTextColor={colors['muted-foreground'] + '80'}
-            returnKeyType="done"
-          />
-          <Text className="text-base font-semibold font-inter-semibold opacity-80" style={{ color: colors.foreground }}>
-            with {friendName}
+          >
+            {friendName}
           </Text>
+
+          {/* Interaction Title Card - More compact */}
+          <View
+            className="w-full px-4 py-3 bg-card rounded-xl border items-center shadow-sm"
+            style={{
+              borderColor: colors.border,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 1 },
+              shadowOpacity: 0.05,
+              shadowRadius: 2,
+              elevation: 2,
+              backgroundColor: isDarkMode ? 'rgba(255,255,255,0.03)' : 'white'
+            }}
+          >
+            <Text
+              className="text-[10px] font-bold uppercase tracking-widest mb-1 opacity-60"
+              style={{ color: colors['muted-foreground'] }}
+            >
+              Logged {categoryMetadata.label}
+            </Text>
+
+            <BufferedTextInput
+              inputClassName="text-xl font-bold font-lora-bold text-center h-auto p-0 border-0 bg-transparent min-w-[200px]"
+              style={{ color: colors.foreground }}
+              value={title}
+              onChangeText={setTitle}
+              placeholder="Interaction Title"
+              placeholderTextColor={colors['muted-foreground'] + '80'}
+              returnKeyType="done"
+              multiline={true}
+              numberOfLines={1}
+              maxLength={60}
+            />
+          </View>
         </View>
 
         {/* Prompt */}
-        <Text className="text-lg font-semibold text-center mb-8" style={{ color: colors.foreground }}>
+        <Text className="text-base font-semibold text-center mb-5" style={{ color: colors.foreground }}>
           {getPrompt()}
         </Text>
 
         {/* Moon Phase Selector */}
-        <View className="w-full mb-8">
+        <View className="w-full mb-6">
           <MoonPhaseSelector
             selectedVibe={selectedVibe}
             onSelect={handleVibeSelect}
@@ -142,9 +306,9 @@ export function MicroReflectionSheet({
         </View>
 
         {/* Optional Note */}
-        <View className="mb-8">
-          <View className="flex-row items-center justify-between mb-3">
-            <Text className="text-[13px] font-medium" style={{ color: colors['muted-foreground'] }}>
+        <View className="mb-4">
+          <View className="flex-row items-center justify-between mb-2">
+            <Text className="text-xs font-medium" style={{ color: colors['muted-foreground'] }}>
               Add a note
             </Text>
             <TouchableOpacity
@@ -154,14 +318,14 @@ export function MicroReflectionSheet({
               }}
               className="flex-row items-center gap-1"
             >
-              <Sparkles size={12} color={colors.primary} />
-              <Text className="text-[12px] font-medium" style={{ color: colors.primary }}>
+              <Sparkles size={11} color={colors.primary} />
+              <Text className="text-[11px] font-medium" style={{ color: colors.primary }}>
                 Help me write
               </Text>
             </TouchableOpacity>
           </View>
           <BufferedTextInput
-            inputClassName="border rounded-xl p-4 text-[16px] min-h-[100px] max-h-[140px]"
+            inputClassName="border rounded-xl p-3 text-[15px] min-h-[100px]"
             style={{
               backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)',
               color: colors.foreground,
@@ -173,37 +337,11 @@ export function MicroReflectionSheet({
             value={notes}
             onChangeText={setNotes}
             multiline
-            numberOfLines={4}
-            returnKeyType="done"
-            blurOnSubmit
+            returnKeyType="default"
+            blurOnSubmit={true}
           />
         </View>
-
-        {/* Actions */}
-        <View className="flex-row gap-4 mb-4">
-          <TouchableOpacity
-            className="flex-1 py-4 rounded-xl border-[1.5px] items-center justify-center"
-            style={{ borderColor: colors.border }}
-            onPress={handleSkip}
-            activeOpacity={0.7}
-          >
-            <Text className="text-base font-semibold" style={{ color: colors['muted-foreground'] }}>
-              Skip
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            className="flex-1 py-4 rounded-xl items-center justify-center shadow-sm elevation-4"
-            style={{ backgroundColor: colors.primary, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 8 }}
-            onPress={handleSave}
-            activeOpacity={0.8}
-          >
-            <Text className="text-base font-bold" style={{ color: colors['primary-foreground'] }}>
-              Save
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </AnimatedBottomSheet>
+      </StandardBottomSheet>
 
       {/* Oracle Help me write */}
       <GuidedReflectionSheet
@@ -226,4 +364,5 @@ export function MicroReflectionSheet({
       />
     </>
   );
+
 }

@@ -157,19 +157,14 @@ export const AnimatedBottomSheet = forwardRef<AnimatedBottomSheetRef, AnimatedBo
   const heightPercentage = customHeight ?? parseFloat(SHEET_HEIGHTS[height]) / 100;
   const sheetHeight = screenHeight * heightPercentage;
 
+  // Internal state to keep Modal visible while animating out
+  const [modalVisible, setModalVisible] = React.useState(visible);
+
   // Animation values
   const sheetTranslateY = useSharedValue(sheetHeight);
   const backdropOpacity = useSharedValue(0);
 
-  // Animate in when visible
-  useEffect(() => {
-    if (visible) {
-      backdropOpacity.value = withTiming(BACKDROP_OPACITY.visible, {
-        duration: SHEET_TIMING.backdropFade,
-      });
-      sheetTranslateY.value = withSpring(0, springConfig || SHEET_SPRING_CONFIG);
-    }
-  }, [visible, springConfig]);
+
 
   // Animated styles
   const backdropStyle = useAnimatedStyle(() => ({
@@ -215,6 +210,23 @@ export const AnimatedBottomSheet = forwardRef<AnimatedBottomSheetRef, AnimatedBo
     }
   }));
 
+  // Handle prop updates for visibility (including parent-initiated closing)
+  useEffect(() => {
+    if (visible) {
+      setModalVisible(true);
+      // Animate in
+      backdropOpacity.value = withTiming(BACKDROP_OPACITY.visible, {
+        duration: SHEET_TIMING.backdropFade,
+      });
+      sheetTranslateY.value = withSpring(0, springConfig || SHEET_SPRING_CONFIG);
+    } else if (modalVisible) {
+      // Parent turned off visibility, but we are still open -> animate out
+      animateOut(() => {
+        setModalVisible(false);
+      });
+    }
+  }, [visible, springConfig, animateOut, modalVisible]);
+
   const handleAttemptClose = useCallback(() => {
     if (hasUnsavedChanges) {
       Alert.alert(
@@ -250,7 +262,7 @@ export const AnimatedBottomSheet = forwardRef<AnimatedBottomSheetRef, AnimatedBo
   return (
     <Modal
       transparent
-      visible={visible}
+      visible={modalVisible}
       animationType="none"
       statusBarTranslucent
       presentationStyle="overFullScreen"

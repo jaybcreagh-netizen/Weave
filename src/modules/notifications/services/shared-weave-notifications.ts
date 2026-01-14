@@ -12,6 +12,8 @@
 import * as Notifications from 'expo-notifications';
 import Logger from '@/shared/utils/Logger';
 import { NOTIFICATION_CONFIG } from '../notification.config';
+import { IncomingWeavePayload } from '@/modules/sync';
+import { getSupabaseClient } from '@/shared/services/supabase-client';
 
 const TAG = 'SharedWeaveNotifications';
 
@@ -26,6 +28,54 @@ export interface LinkRequestNotificationData {
     type: 'link_request' | 'link_accepted';
     userId: string;
     userName: string;
+}
+
+/**
+ * Handle incoming shared weave event from Realtime
+ * Fetches necessary details (creator name, title) and shows notification
+ */
+export async function handleIncomingSharedWeave(payload: IncomingWeavePayload): Promise<void> {
+    try {
+        const client = getSupabaseClient();
+        if (!client) return;
+
+        // Fetch weave details to get title and creator ID
+        const { data: weaveData, error: weaveError } = await client
+            .from('shared_weaves')
+            .select('title, created_by')
+            .eq('id', payload.shared_weave_id)
+            .single();
+
+        if (weaveError || !weaveData) {
+            Logger.error(`[${TAG}] Failed to fetch weave details for notification:`, weaveError);
+            return;
+        }
+
+        // Fetch creator profile to get name
+        const { data: profileData, error: profileError } = await client
+            .from('user_profiles')
+            .select('display_name, username')
+            .eq('id', weaveData.created_by)
+            .single();
+
+        if (profileError || !profileData) {
+            Logger.warn(`[${TAG}] Failed to fetch creator profile for notification:`, profileError);
+            // Fallback to generic if profile fails
+        }
+
+        const creatorName = profileData?.display_name || profileData?.username || 'A friend';
+        const title = weaveData.title;
+
+        await showSharedWeaveNotification({
+            type: 'shared_weave',
+            sharedWeaveId: payload.shared_weave_id,
+            creatorName,
+            title
+        });
+
+    } catch (error) {
+        Logger.error(`[${TAG}] Error handling incoming shared weave:`, error);
+    }
 }
 
 /**
@@ -50,6 +100,7 @@ export async function showSharedWeaveNotification(data: SharedWeaveNotificationD
                     channelId: 'shared-weave',
                     sharedWeaveId: data.sharedWeaveId,
                     action: 'view_shared_weave',
+                    type: 'shared_weave', // Explicitly set type for foreground handler
                 },
                 sound: 'default',
             },
@@ -89,6 +140,7 @@ export async function showLinkRequestNotification(data: LinkRequestNotificationD
                     channelId: 'link-request',
                     userId: data.userId,
                     action: data.type === 'link_request' ? 'view_link_requests' : 'view_friend',
+                    type: data.type, // Explicitly set type for foreground handler
                 },
                 sound: 'default',
             },

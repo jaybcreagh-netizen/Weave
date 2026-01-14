@@ -35,6 +35,7 @@ export const AnalyticsEvents = {
   INTERACTION_UPDATED: 'interaction_updated',
   INTERACTION_DELETED: 'interaction_deleted',
   INTERACTION_COMPLETED: 'interaction_completed',
+  INTERACTION_SCORED: 'interaction_scored',
 
   // Quick Weave
   QUICK_WEAVE_OPENED: 'quick_weave_opened',
@@ -109,6 +110,13 @@ export const AnalyticsEvents = {
   GUIDED_REFLECTION_COMPLETED: 'guided_reflection_completed',
   GUIDED_REFLECTION_ESCAPED: 'guided_reflection_escaped',
   GUIDED_REFLECTION_DRAFT_EDITED: 'guided_reflection_draft_edited',
+
+  // Journal (Phase 5)
+  JOURNAL_ENTRY_CREATED: 'journal_entry_created',
+  JOURNAL_ENTRY_UPDATED: 'journal_entry_updated',
+  JOURNAL_ENTRY_DELETED: 'journal_entry_deleted',
+  MEMORY_MOMENT_VIEWED: 'memory_moment_viewed',
+  MEMORY_MOMENT_ACTION: 'memory_moment_action',
 } as const;
 
 export type AnalyticsEvent = typeof AnalyticsEvents[keyof typeof AnalyticsEvents];

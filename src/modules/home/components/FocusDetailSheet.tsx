@@ -44,6 +44,7 @@ interface FocusDetailSheetProps {
     upcomingDates: UpcomingDate[];
     friends: FriendModel[];
     onConfirmPlan: (id: string) => void;
+    onDeepenPlan?: (plan: Interaction) => void;
     onReschedulePlan: (plan: Interaction) => void;
     onSuggestionAction: (suggestion: Suggestion) => void;
 }
@@ -59,6 +60,7 @@ export const FocusDetailSheet: React.FC<FocusDetailSheetProps> = ({
     upcomingDates,
     friends,
     onConfirmPlan,
+    onDeepenPlan,
     onReschedulePlan,
     onSuggestionAction,
 }) => {
@@ -239,7 +241,7 @@ export const FocusDetailSheet: React.FC<FocusDetailSheetProps> = ({
                                                         size="sm"
                                                         variant="secondary"
                                                         onPress={() => onReschedulePlan(plan)}
-                                                        className="py-1 px-2.5 h-8 min-w-[80px]"
+                                                        className="px-3 min-h-[32px] min-w-[80px] py-1"
                                                     />
                                                 </View>
                                             }
@@ -276,7 +278,7 @@ export const FocusDetailSheet: React.FC<FocusDetailSheetProps> = ({
                                                         size="sm"
                                                         variant="secondary"
                                                         onPress={() => onReschedulePlan(plan)}
-                                                        className="py-1 px-2.5 h-8 min-w-[80px]"
+                                                        className="px-3 min-h-[32px] min-w-[80px] py-1"
                                                     />
                                                 </View>
                                             }
@@ -323,8 +325,8 @@ export const FocusDetailSheet: React.FC<FocusDetailSheetProps> = ({
                                                         <Button
                                                             label="Deepen"
                                                             size="sm"
-                                                            onPress={() => onConfirmPlan(plan.id)}
-                                                            className="py-1 px-2.5 h-8 min-w-[80px]"
+                                                            onPress={() => onDeepenPlan?.(plan) ?? onConfirmPlan(plan.id)}
+                                                            className="px-3 min-h-[32px] min-w-[80px] py-1"
                                                         />
                                                     )}
                                                 </View>
@@ -357,7 +359,7 @@ export const FocusDetailSheet: React.FC<FocusDetailSheetProps> = ({
                                                     label={suggestion.actionLabel || "View"}
                                                     variant="secondary"
                                                     size="sm"
-                                                    className="py-1 px-2.5 h-8 min-w-[80px]"
+                                                    className="px-3 min-h-[32px] min-w-[80px] py-1"
                                                     onPress={() => onSuggestionAction(suggestion)}
                                                 />
                                             }

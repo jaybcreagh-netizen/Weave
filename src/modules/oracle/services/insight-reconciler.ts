@@ -2,6 +2,7 @@ import { database } from '@/db'
 import { Q } from '@nozbe/watermelondb'
 import ProactiveInsight from '@/db/models/ProactiveInsight'
 import Interaction from '@/db/models/Interaction'
+import InteractionFriend from '@/db/models/InteractionFriend'
 import { writeScheduler } from '@/shared/services/write-scheduler'
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000
@@ -62,10 +63,21 @@ export class InsightReconciler {
         if (!insight.friendId) return false // Should have friendId
 
         // If ANY interaction happened AFTER generation, it's invalid
+
+        // Manual two-step query to avoid Q.on issues
+        const linkRecords = await database.get<InteractionFriend>('interaction_friends').query(
+            Q.where('friend_id', insight.friendId)
+        ).fetch()
+
+        const interactionIds = linkRecords.map(l => l.interactionId)
+
+        if (interactionIds.length === 0) return true // No interactions at all implies no *new* ones. Wait, logic check: if 0 interactions total, then 0 new ones. True.
+
         const newInteractions = await database.get<Interaction>('interactions').query(
-            Q.on('interaction_friends', 'friend_id', insight.friendId),
+            Q.where('id', Q.oneOf(interactionIds)),
             Q.where('status', 'completed'),
-            Q.where('interaction_date', Q.gte(insight.generatedAt.getTime()))
+            Q.where('interaction_date', Q.gte(insight.generatedAt.getTime())),
+            Q.take(1) // Only need to exist
         ).fetchCount()
 
         return newInteractions === 0
@@ -84,10 +96,21 @@ export class InsightReconciler {
         if (innerCircleIds.length === 0) return false // No inner circle? Invalid insight.
 
         // 2. Check for interactions with these friends since generation
+
+        // Manual two-step query to avoid Q.on issues
+        const linkRecords = await database.get<InteractionFriend>('interaction_friends').query(
+            Q.where('friend_id', Q.oneOf(innerCircleIds))
+        ).fetch()
+
+        const interactionIds = linkRecords.map(l => l.interactionId)
+
+        if (interactionIds.length === 0) return true // No interactions with inner circle at all.
+
         const newInteractions = await database.get<Interaction>('interactions').query(
-            Q.on('interaction_friends', 'friend_id', Q.oneOf(innerCircleIds)),
+            Q.where('id', Q.oneOf(interactionIds)),
             Q.where('status', 'completed'),
-            Q.where('interaction_date', Q.gte(insight.generatedAt.getTime()))
+            Q.where('interaction_date', Q.gte(insight.generatedAt.getTime())),
+            Q.take(1)
         ).fetchCount()
 
         return newInteractions === 0

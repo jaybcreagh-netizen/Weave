@@ -46,9 +46,9 @@ export const useOracleSheet = create<OracleSheetState>((set) => ({
     open: (params = {}) => set({
         isOpen: true,
         params,
-        // If context is NOT 'journal', default to 'consultation' (standard chat)
-        // If context IS 'journal', default to null (show Mode Selector)
-        activeMode: params.context === 'journal' ? null : 'consultation'
+        // If context is NOT 'journal' or 'friend', default to 'consultation' (standard chat)
+        // If context IS 'journal' or 'friend', default to null (show Mode Selector)
+        activeMode: (params.context === 'journal' || params.context === 'friend') ? null : 'consultation'
     }),
     close: () => set({ isOpen: false, params: {}, activeMode: null }),
     setMode: (mode) => set({ activeMode: mode }),

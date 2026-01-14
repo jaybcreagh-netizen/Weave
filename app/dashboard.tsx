@@ -14,6 +14,8 @@ import FriendsScreen from './_friends';
 import { useTutorialStore } from '@/shared/stores/tutorialStore';
 import { shouldSendSocialBatteryNotification } from '@/modules/notifications';
 import { ProfileCompletionSheet } from '@/modules/auth/components/ProfileCompletionSheet';
+import { AccountIncentiveModal } from '@/modules/auth/components/AccountIncentiveModal';
+import { useAccountIncentive } from '@/modules/auth/hooks/useAccountIncentive';
 import { WeaveIcon } from '@/shared/components/WeaveIcon';
 import { ActivityInboxSheet, useActivityCounts } from '@/modules/sync'; // Added ActivityInboxSheet and useActivityCounts
 
@@ -23,6 +25,7 @@ export default function Dashboard() {
     const [activeTab, setActiveTab] = useState<'insights' | 'circle'>('circle');
     const [showActivityInbox, setShowActivityInbox] = useState(false);
     const { totalPendingCount, refreshCounts } = useActivityCounts();
+    const { shouldShow: showAccountIncentive, dismiss: dismissAccountIncentive } = useAccountIncentive();
 
     // - 'loading': Tab selected, showing loader (HomeScreen NOT mounted yet)
     // - 'mounting': HomeScreen mounted but hidden, waiting for onReady
@@ -307,6 +310,10 @@ export default function Dashboard() {
 
             <BadgeUnlockModal />
             <ProfileCompletionSheet />
+            <AccountIncentiveModal
+                isOpen={showAccountIncentive}
+                onDismiss={dismissAccountIncentive}
+            />
             <ActivityInboxSheet
                 visible={showActivityInbox}
                 onClose={() => setShowActivityInbox(false)}

@@ -231,21 +231,28 @@ function useCardGestureCoordinator(): CardGestureContextType {
         'worklet';
         const touch = event.changedTouches[0];
 
-        // BEFORE activation: detect horizontal swipes and cancel the pending long-press
-        // This prevents accidental quick weave when swiping between tier tabs
+        // BEFORE activation: detect vertical/horizontal swipes and cancel the pending long-press
+        // This prevents accidental quick weave when swiping between tier tabs OR scrolling the list
         if (!isLongPressActive.value) {
           if (pendingCardId.value !== null) {
             const deltaX = touch.absoluteX - startCoordinates.value.x;
             const deltaY = touch.absoluteY - startCoordinates.value.y;
             const totalMovement = Math.abs(deltaX) + Math.abs(deltaY) + 0.001;
             const horizontalRatio = Math.abs(deltaX) / totalMovement;
+            const verticalRatio = Math.abs(deltaY) / totalMovement;
 
-            // If movement is clearly horizontal (>70% horizontal, >12px), cancel activation
+            // 1. Horizontal Swipe (Tier switching)
+            // If movement is clearly horizontal (>70% horizontal, >12px)
             const isHorizontalSwipe = horizontalRatio > 0.7 && Math.abs(deltaX) > 12;
-            if (isHorizontalSwipe) {
+
+            // 2. Vertical Scroll (List scrolling)
+            // If movement is clearly vertical (>70% vertical, >12px)
+            const isVerticalScroll = verticalRatio > 0.7 && Math.abs(deltaY) > 12;
+
+            if (isHorizontalSwipe || isVerticalScroll) {
               runOnJS(clearPendingFeedback)();
               pendingCardId.value = null;
-              state.fail(); // Cancel the gesture entirely
+              state.fail(); // Cancel the gesture entirely to let ScrollView/Pager take over
             }
           }
           return;

@@ -150,6 +150,7 @@ export async function convertIntentionToPlan(intentionId: string): Promise<void>
 export async function checkPendingPlans(): Promise<void> {
   const now = Date.now();
 
+  // 1. Find plans that are past due
   const pendingPlans = await database
     .get<Interaction>('interactions')
     .query(
@@ -162,7 +163,13 @@ export async function checkPendingPlans(): Promise<void> {
     )
     .fetch();
 
-  if (pendingPlans.length === 0) {
+  // 2. Find any legacy 'pending_confirm' items (feature abandoned) to migrate them
+  const legacyPendingConfirm = await database
+    .get<Interaction>('interactions')
+    .query(Q.where('status', 'pending_confirm'))
+    .fetch();
+
+  if (pendingPlans.length === 0 && legacyPendingConfirm.length === 0) {
     return;
   }
 
@@ -171,11 +178,11 @@ export async function checkPendingPlans(): Promise<void> {
   const profile = (await profileCollection.query().fetch())[0];
   const currentSeason = profile?.currentSocialSeason || 'balanced' as any;
 
-  // Track which plans were successfully scored and their operations
-  const successfullyScoredPlans: Interaction[] = [];
+  // Track operations
   const allScoringOps: any[] = [];
+  const itemsToUpdate: Interaction[] = [];
 
-  // Process scoring for each plan
+  // A. Process NEW past-due plans (need scoring + status update)
   for (const plan of pendingPlans) {
     try {
       // Fetch friends for this plan
@@ -199,8 +206,7 @@ export async function checkPendingPlans(): Promise<void> {
 
       logger.info('PlanService', `Auto-scoring past plan: ${plan.id} with neutral vibe`);
 
-      // Prepare ops instead of executing immediately
-      // Use "prepareWeaveScoringOps" which we imported manually or via module
+      // Prepare scoring ops
       const { ops } = await import('@/modules/intelligence').then(async m => {
         const { updates } = await m.calculateWeaveScoring(friends, interactionData, database, currentSeason);
         const ops = m.applyWeaveScoringUpdates(friends, updates);
@@ -211,30 +217,34 @@ export async function checkPendingPlans(): Promise<void> {
         allScoringOps.push(...ops);
       }
 
-      // Mark as successfully scored
-      successfullyScoredPlans.push(plan);
+      itemsToUpdate.push(plan);
     } catch (err) {
       logger.error('PlanService', `Failed to auto-score plan ${plan.id}:`, err);
-      // Don't add to successfullyScoredPlans - will retry next time
     }
   }
 
-  // Batch all status updates AND scoring updates into ONE write operation
-  if (successfullyScoredPlans.length > 0) {
-    const planUpdates = successfullyScoredPlans.map(plan =>
-      plan.prepareUpdate(p => {
-        p.status = 'pending_confirm';
+  // B. Process LEGACY pending_confirm items (just status update, already scored)
+  if (legacyPendingConfirm.length > 0) {
+    logger.info('PlanService', `Migrating ${legacyPendingConfirm.length} legacy pending_confirm items to completed`);
+    itemsToUpdate.push(...legacyPendingConfirm);
+  }
+
+  // Batch all updates
+  if (itemsToUpdate.length > 0) {
+    const statusUpdates = itemsToUpdate.map(item =>
+      item.prepareUpdate(p => {
+        p.status = 'completed'; // Direct to completed
         p.completionPromptedAt = now;
       })
     );
 
-    const finalBatch = [...allScoringOps, ...planUpdates];
+    const finalBatch = [...allScoringOps, ...statusUpdates];
 
     await database.write(async () => {
       await database.batch(...finalBatch);
     });
 
-    logger.info('PlanService', `Batched status update and scoring for ${successfullyScoredPlans.length} plans (${finalBatch.length} ops)`);
+    logger.info('PlanService', `Batched auto-complete and scoring for ${itemsToUpdate.length} interactions`);
   }
 }
 
@@ -250,23 +260,9 @@ export async function checkPendingPlans(): Promise<void> {
  * But let's stick to the user's specific request first.
  */
 export async function checkMissedPlans(): Promise<void> {
-  const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-
-  const oldPendingPlans = await database
-    .get<Interaction>('interactions')
-    .query(
-      Q.where('status', 'pending_confirm'),
-      Q.where('completion_prompted_at', Q.lt(sevenDaysAgo))
-    )
-    .fetch();
-
-  if (oldPendingPlans.length > 0) {
-    await database.write(async () => {
-      for (const plan of oldPendingPlans) {
-        await plan.update(p => {
-          p.status = 'missed';
-        });
-      }
-    });
-  }
+  // FEATURE ABANDONED: 'pending_confirm' status is no longer used.
+  // Plans now auto-complete. This function is kept for now in case we need
+  // to resurrect 'missed' logic later, but practically it will find 0 items
+  // because checkPendingPlans migrates them all to 'completed'.
+  return;
 }

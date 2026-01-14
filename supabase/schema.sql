@@ -217,7 +217,7 @@ CREATE TABLE intention_friends (
 );
 
 -- User profile table
-CREATE TABLE user_profile (
+CREATE TABLE user_profiles (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
 
@@ -431,18 +431,18 @@ CREATE POLICY "Users can delete own intention_friends"
   USING (auth.uid() = user_id);
 
 -- User profile policies
-ALTER TABLE user_profile ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_profiles ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Users can view own profile"
-  ON user_profile FOR SELECT
+  ON user_profiles FOR SELECT
   USING (auth.uid() = user_id);
 
 CREATE POLICY "Users can insert own profile"
-  ON user_profile FOR INSERT
+  ON user_profiles FOR INSERT
   WITH CHECK (auth.uid() = user_id);
 
 CREATE POLICY "Users can update own profile"
-  ON user_profile FOR UPDATE
+  ON user_profiles FOR UPDATE
   USING (auth.uid() = user_id);
 
 -- User progress policies
@@ -565,7 +565,7 @@ CREATE TRIGGER update_interactions_updated_at BEFORE UPDATE ON interactions
 CREATE TRIGGER update_intentions_updated_at BEFORE UPDATE ON intentions
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-CREATE TRIGGER update_user_profile_updated_at BEFORE UPDATE ON user_profile
+CREATE TRIGGER update_user_profiles_updated_at BEFORE UPDATE ON user_profiles
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_user_progress_updated_at BEFORE UPDATE ON user_progress

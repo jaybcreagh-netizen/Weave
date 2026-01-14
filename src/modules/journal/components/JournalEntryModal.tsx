@@ -32,6 +32,7 @@ import { logger } from '@/shared/services/logger.service';
 import { YourPatternsSection } from '@/modules/insights';
 import { useRouter } from 'expo-router';
 import { actionExtractionService } from '@/modules/oracle';
+import { trackEvent, AnalyticsEvents } from '@/shared/services/analytics.service';
 
 interface JournalEntryModalProps {
   isOpen: boolean;
@@ -217,6 +218,20 @@ export function JournalEntryModal({ isOpen, onClose, entry, onSave, onDelete }: 
       }
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+      const trackingProps = {
+        source: 'full_editor',
+        has_friends: selectedFriendIds.size > 0,
+        has_chips: selectedChips.size > 0,
+        content_length: content.trim().length
+      };
+
+      if (entry) {
+        trackEvent(AnalyticsEvents.JOURNAL_ENTRY_UPDATED, trackingProps);
+      } else {
+        trackEvent(AnalyticsEvents.JOURNAL_ENTRY_CREATED, trackingProps);
+      }
+
       onSave();
       onClose();
     } catch (error) {
@@ -274,6 +289,10 @@ export function JournalEntryModal({ isOpen, onClose, entry, onSave, onDelete }: 
               });
 
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              trackEvent(AnalyticsEvents.JOURNAL_ENTRY_DELETED, {
+                source: 'full_editor',
+                content_length: content.length
+              });
               onDelete?.();
               onClose();
             } catch (error) {

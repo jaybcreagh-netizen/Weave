@@ -11,6 +11,8 @@ import * as AppleAuthentication from 'expo-apple-authentication';
 import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 import { getSupabaseClient } from '@/shared/services/supabase-client';
 import { isFeatureEnabled } from '@/shared/config/feature-flags';
+import { setUserProperties } from '@/shared/services/analytics.service';
+import { withTimeout, AUTH_TIMEOUTS } from './auth-utils';
 
 // Configure Google Sign-In
 // Note: client IDs should come from env vars
@@ -44,6 +46,7 @@ export type AuthErrorCode =
     | 'NOT_CONFIGURED'      // Supabase not configured
     | 'NOT_AUTHENTICATED'   // User not logged in
     | 'ALREADY_EXISTS'      // Account already exists
+    | 'TIMEOUT'             // Request timed out
     | 'UNKNOWN';            // Unknown error
 
 export interface AuthResult {
@@ -51,6 +54,7 @@ export interface AuthResult {
     error?: string;
     errorCode?: AuthErrorCode;
     userId?: string;
+    isAlreadyLinked?: boolean;
 }
 
 export interface UserSession {
@@ -59,12 +63,25 @@ export interface UserSession {
     displayName?: string;
 }
 
+// ... (rest of the file until classifyAuthError)
+
 /**
  * Classify a Supabase error into a specific error code
  */
 function classifyAuthError(error: any): { code: AuthErrorCode; message: string } {
     const msg = error?.message?.toLowerCase() || '';
     const errorCode = error?.code || error?.status || '';
+
+    // Log the raw error for debugging
+    console.log('[Auth] classifyAuthError:', { msg, errorCode, rawError: error });
+
+    // Timeout Error
+    if (msg.includes('timed out') || msg.includes('timeout')) {
+        return {
+            code: 'TIMEOUT',
+            message: 'The request timed out. Please check your connection.',
+        };
+    }
 
     // Rate limiting
     if (msg.includes('rate limit') || msg.includes('too many') || errorCode === 429) {
@@ -74,11 +91,21 @@ function classifyAuthError(error: any): { code: AuthErrorCode; message: string }
         };
     }
 
-    // Invalid phone format
+
+    // Twilio/Provider Configuration Error (Invalid Sender ID)
+    if (msg.includes('invalid from number') || msg.includes('caller id')) {
+        return {
+            code: 'NOT_CONFIGURED',
+            message: `Configuration Error: The server's SMS sender ID is invalid. Please check your Supabase/Twilio settings. (Error: ${msg})`,
+        };
+    }
+
+    // Invalid phone format (User error)
     if (msg.includes('invalid') && (msg.includes('phone') || msg.includes('number'))) {
         return {
             code: 'INVALID_PHONE',
-            message: 'Please enter a valid phone number with country code (e.g., +14155551234).',
+            // Append the raw message so we can see if it's "twilio error" or "sms provider not set up" etc
+            message: `Please enter a valid phone number with country code. (Error: ${msg})`,
         };
     }
 
@@ -156,7 +183,6 @@ function classifyAuthError(error: any): { code: AuthErrorCode; message: string }
         message: error?.message || 'An unexpected error occurred. Please try again.',
     };
 }
-
 // ═══════════════════════════════════════════════════════════════════
 // APPLE SIGN-IN
 // ═══════════════════════════════════════════════════════════════════
@@ -239,6 +265,14 @@ export async function signInWithApple(): Promise<AuthResult> {
             await updateUserProfile(data.user.id, { displayName: fullName });
         }
 
+        if (data.user) {
+            setUserProperties({
+                email: data.user.email,
+                name: fullName,
+                auth_provider: 'apple'
+            });
+        }
+
         console.log('[Auth] Sign-in successful!');
         return { success: true, userId: data.user?.id };
     } catch (error: unknown) {
@@ -285,6 +319,14 @@ export async function signInWithGoogle(): Promise<AuthResult> {
                     displayName: response.data.user.name,
                     photoUrl: response.data.user.photo ?? undefined,
                     googleId: response.data.user.id,
+                });
+            }
+
+            if (data.user) {
+                setUserProperties({
+                    email: data.user.email,
+                    name: response.data.user.name,
+                    auth_provider: 'google'
                 });
             }
 
@@ -340,9 +382,17 @@ export async function signInWithPhone(phone: string): Promise<AuthResult> {
     }
 
     try {
-        const { error } = await client.auth.signInWithOtp({
-            phone,
-        });
+        console.log('[Auth] Sending OTP to:', phone);
+        console.log('[Auth] Client ready, invoking signInWithOtp...');
+        const otpStart = Date.now();
+
+        const { error } = await withTimeout(
+            client.auth.signInWithOtp({ phone }),
+            AUTH_TIMEOUTS.OTP_SEND,
+            'OTP Send'
+        );
+
+        console.log(`[Auth] signInWithOtp completed in ${Date.now() - otpStart}ms`);
 
         if (error) {
             const classified = classifyAuthError(error);
@@ -366,11 +416,17 @@ export async function verifyPhoneOtp(phone: string, token: string): Promise<Auth
     }
 
     try {
-        const { data, error } = await client.auth.verifyOtp({
+        const verifyPromise = client.auth.verifyOtp({
             phone,
             token,
             type: 'sms',
         });
+
+        const { data, error } = await withTimeout(
+            verifyPromise,
+            AUTH_TIMEOUTS.OTP_VERIFY,
+            'OTP Verify'
+        );
 
         if (error) {
             const classified = classifyAuthError(error);
@@ -388,6 +444,11 @@ export async function verifyPhoneOtp(phone: string, token: string): Promise<Auth
             }
             // Ensure phone is set in profile
             await updateUserProfile(data.user.id, { phone });
+
+            setUserProperties({
+                phone: phone,
+                auth_provider: 'phone'
+            });
         }
 
         return { success: true, userId: data.user?.id };
@@ -406,9 +467,55 @@ export async function linkPhoneToUser(phone: string): Promise<AuthResult> {
     if (!client) return { success: false, error: 'Supabase not available', errorCode: 'NOT_CONFIGURED' };
 
     try {
-        const { error } = await client.auth.updateUser({
-            phone,
-        });
+        console.log('[Auth] Linking phone:', phone);
+
+        // DEBUG: Check basic connectivity
+        try {
+            console.log('[Auth] Checking internet connectivity...');
+            const pong = await fetch('https://www.google.com', { method: 'HEAD', cache: 'no-store' });
+            console.log('[Auth] Internet is reachable. Status:', pong.status);
+        } catch (netErr) {
+            console.error('[Auth] ❌ NO INTERNET CONNECTION:', netErr);
+            return {
+                success: false,
+                error: 'No internet connection',
+                errorCode: 'TIMEOUT'
+            };
+        }
+
+        // 1. Check if already linked to THIS user
+        const { data: userData } = await client.auth.getUser();
+
+        console.log('[Auth] Current user phone:', userData?.user?.phone);
+
+        // Normalize for comparison (remove non-digits)
+        const currentPhoneClean = userData?.user?.phone?.replace(/[^0-9]/g, '');
+        const newPhoneClean = phone.replace(/[^0-9]/g, '');
+
+        console.log(`[Auth] Comparing clean phones: ${currentPhoneClean} vs ${newPhoneClean}`);
+
+        if (currentPhoneClean && currentPhoneClean === newPhoneClean) {
+            console.log('[Auth] Phone already linked to this user. Returning success.');
+            return { success: true, isAlreadyLinked: true };
+        }
+
+        console.log('[Auth] Client ready, invoking updateUser...');
+        const params = { phone };
+        console.log('[Auth] Update params:', JSON.stringify(params));
+        const start = Date.now();
+
+        const authPromise = client.auth.updateUser(params);
+
+        // Restore timeout wrapper
+        const { data, error } = await withTimeout(
+            authPromise,
+            AUTH_TIMEOUTS.OTP_SEND,
+            'Link Phone'
+        );
+
+        console.log(`[Auth] linkPhoneToUser completed in ${Date.now() - start}ms`);
+
+        console.log('[Auth] linkPhoneToUser response:', { hasData: !!data, error });
 
         if (error) {
             const classified = classifyAuthError(error);
@@ -416,6 +523,7 @@ export async function linkPhoneToUser(phone: string): Promise<AuthResult> {
         }
         return { success: true };
     } catch (error: any) {
+        console.error('[Auth] linkPhoneToUser exception:', error);
         const classified = classifyAuthError(error);
         return { success: false, error: classified.message, errorCode: classified.code };
     }
@@ -430,11 +538,17 @@ export async function verifyAndLinkPhone(phone: string, token: string): Promise<
     if (!client) return { success: false, error: 'Supabase not available', errorCode: 'NOT_CONFIGURED' };
 
     try {
-        const { data, error } = await client.auth.verifyOtp({
+        const verifyPromise = client.auth.verifyOtp({
             phone,
             token,
             type: 'phone_change',
         });
+
+        const { data, error } = await withTimeout(
+            verifyPromise,
+            AUTH_TIMEOUTS.OTP_VERIFY,
+            'Link Verify'
+        );
 
         if (error) {
             const classified = classifyAuthError(error);
@@ -491,6 +605,12 @@ export async function signUpWithEmail(
             await createUserProfile(data.user.id, {
                 email,
                 displayName,
+            });
+
+            setUserProperties({
+                email: email,
+                name: displayName,
+                auth_provider: 'email'
             });
         }
 
@@ -687,5 +807,74 @@ export async function getUserProfile(userId: string): Promise<{
     } catch (e) {
         console.error('[Auth] getUserProfile exception:', e);
         return null;
+    }
+}
+
+/**
+ * Unlink phone number from user account
+ *
+ * This only clears the phone from user_profiles (for UI/contact matching).
+ * It does NOT remove phone from auth.users to avoid SMS provider latency.
+ *
+ * If phone is the user's ONLY auth method, this operation is blocked.
+ */
+export async function unlinkPhone(): Promise<AuthResult> {
+    const client = getSupabaseClient();
+    if (!client) {
+        return { success: false, error: 'Supabase not available', errorCode: 'NOT_CONFIGURED' };
+    }
+
+    try {
+        console.log('[Auth] Unlinking phone number...');
+
+        // 1. Get current user and check auth methods
+        const { data: { user }, error: userError } = await client.auth.getUser();
+
+        if (userError || !user) {
+            return { success: false, error: 'Not authenticated', errorCode: 'NOT_AUTHENTICATED' };
+        }
+
+        // 2. Check if phone is their only auth method
+        // Users have identities array with their auth providers
+        const identities = user.identities || [];
+        const providers = identities.map(i => i.provider);
+
+        // Check for non-phone auth methods (apple, google, email)
+        const hasOtherAuth = providers.some(p => p === 'apple' || p === 'google' || p === 'email');
+        const hasPhoneAuth = providers.includes('phone');
+
+        console.log('[Auth] User providers:', providers, { hasOtherAuth, hasPhoneAuth });
+
+        // If phone is their only auth method, block the operation
+        if (hasPhoneAuth && !hasOtherAuth) {
+            console.log('[Auth] Cannot unlink - phone is only auth method');
+            return {
+                success: false,
+                error: 'Cannot remove phone number - it\'s your only sign-in method. Add another sign-in method first.',
+                errorCode: 'NOT_CONFIGURED'
+            };
+        }
+
+        // 3. Clear phone from user_profiles (simple DB update, no SMS provider)
+        const { error: profileError } = await client
+            .from('user_profiles')
+            .update({
+                phone: null,
+                phone_hash: null,
+                updated_at: Date.now(),  // Epoch ms for WatermelonDB compatibility
+            })
+            .eq('id', user.id);
+
+        if (profileError) {
+            console.error('[Auth] Failed to clear phone from user_profiles:', profileError);
+            return { success: false, error: 'Failed to remove phone number', errorCode: 'UNKNOWN' };
+        }
+
+        console.log('[Auth] Phone unlinked successfully from profile');
+        return { success: true };
+    } catch (error: any) {
+        console.error('[Auth] unlinkPhone exception:', error);
+        const classified = classifyAuthError(error);
+        return { success: false, error: classified.message, errorCode: classified.code };
     }
 }

@@ -17,8 +17,8 @@ import {
   LifeEventsSection,
   TimelineList,
   FriendProfileModals,
-  IntentionsFAB
 } from '@/modules/relationships';
+import { OracleFAB } from '@/modules/home/components/OracleFAB';
 import { ErrorBoundary } from '@/shared/components/ErrorBoundary';
 import { LinkFriendSheet } from '@/modules/relationships/components/LinkFriendSheet';
 import { syncOutgoingLinkStatus, unlinkFriend } from '@/modules/relationships/services/friend-linking.service';
@@ -466,9 +466,12 @@ export default function FriendProfile() {
             refreshLifeEvents={refreshLifeEvents}
           />
 
-          <IntentionsFAB
-            count={friendIntentions?.length || 0}
-            onClick={() => modals.setShowIntentionsDrawer(true)}
+          <OracleFAB
+            context="friend"
+            params={{
+              friendId: friend.id,
+              friendName: friend.name
+            }}
           />
 
           <LinkFriendSheet

@@ -12,6 +12,8 @@ import {
     subscribeToRealtime,
     unsubscribeFromRealtime,
     onIncomingWeave,
+    onIncomingWeaveUpdate,
+    handleSharedWeaveUpdate,
     onIncomingLink,
     onOutgoingLinkStatusChange,
     onParticipantResponse,
@@ -35,6 +37,20 @@ export function RealtimeProvider({ children }: RealtimeProviderProps) {
         // Invalidate pending weaves query so the list refreshes
         queryClient.invalidateQueries({ queryKey: ['pending-weaves'] });
     }, [showToast]);
+
+    // Handler for shared weave updates (title, date, etc. changed)
+    const handleWeaveUpdate = useCallback((payload: any) => {
+        // payload is IncomingWeaveUpdatePayload (snake_case)
+        // handleSharedWeaveUpdate expects IncomingWeaveUpdate (mostly matching snake_case for properties we care about)
+        // We just need to ensure the types match or mapping is done.
+        // IncomingWeaveUpdatePayload has keys: id, title, weave_date...
+        // IncomingWeaveUpdate has keys: id, title, weave_date...
+        // They match!
+        logger.info('RealtimeProvider', 'Processing shared weave update');
+        handleSharedWeaveUpdate(payload).catch(err => {
+            logger.error('RealtimeProvider', 'Failed to handle shared weave update', err);
+        });
+    }, []);
 
     // Handler for incoming link requests (someone wants to link with us)
     const handleIncomingLink = useCallback(() => {
@@ -89,6 +105,7 @@ export function RealtimeProvider({ children }: RealtimeProviderProps) {
 
         // Register event handlers
         const cleanupWeave = onIncomingWeave(handleIncomingWeave);
+        const cleanupWeaveUpdate = onIncomingWeaveUpdate(handleWeaveUpdate);
         const cleanupLink = onIncomingLink(handleIncomingLink);
         const cleanupOutgoingLink = onOutgoingLinkStatusChange(handleOutgoingLinkStatusChange);
         const cleanupParticipant = onParticipantResponse(handleParticipantResponse);
@@ -97,6 +114,7 @@ export function RealtimeProvider({ children }: RealtimeProviderProps) {
         return () => {
             logger.info('RealtimeProvider', 'Cleaning up realtime subscription');
             cleanupWeave();
+            cleanupWeaveUpdate();
             cleanupLink();
             cleanupOutgoingLink();
             cleanupParticipant();
@@ -107,6 +125,7 @@ export function RealtimeProvider({ children }: RealtimeProviderProps) {
     }, [
         user?.id,
         handleIncomingWeave,
+        handleWeaveUpdate,
         handleIncomingLink,
         handleOutgoingLinkStatusChange,
         handleParticipantResponse,

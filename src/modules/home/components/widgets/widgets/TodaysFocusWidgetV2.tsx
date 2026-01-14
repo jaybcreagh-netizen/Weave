@@ -262,15 +262,22 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = () => {
         const friend = friends.find(f => f.id === friendId);
 
         if (friend) {
-            showMicroReflectionSheet({
-                friendId: friend.id,
-                friendName: friend.name,
-                activityId: plan.interactionCategory || 'hangout',
-                activityLabel: plan.title || 'Interaction',
-                interactionId: plan.id,
-                friendArchetype: friend.archetype,
-            });
+            // Close the detail sheet first to prevent stacking issues
+            setShowDetailSheet(false);
+
+            // Wait a brief moment for the sheet to begin closing before opening the next one
+            setTimeout(() => {
+                showMicroReflectionSheet({
+                    friendId: friend.id,
+                    friendName: friend.name,
+                    activityId: plan.interactionCategory || 'hangout',
+                    activityLabel: plan.title || 'Interaction',
+                    interactionId: plan.id,
+                    friendArchetype: friend.archetype,
+                });
+            }, 300);
         }
+
     };
 
     const handleReviewPlan = (id?: string) => {
@@ -409,6 +416,20 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = () => {
     const hasUpcomingDates = upcomingDates.length > 0;
     const hasIntentions = intentions.length > 0;
     const isAllClear = !hasUpcoming && !hasCompleted && !hasTomorrow && !hasSuggestions && !hasUpcomingDates && !hasIntentions;
+
+    const handleReflectSuggestion = (suggestion: Suggestion, friend: FriendModel) => {
+        showMicroReflectionSheet({
+            friendId: friend.id,
+            friendName: friend.name,
+            activityId: suggestion.category || 'hangout',
+            activityLabel: suggestion.title || 'Interaction',
+            interactionId: suggestion.action?.interactionId || '',
+            friendArchetype: friend.archetype,
+        });
+
+        // ANALYTICS: Track acceptance
+        SeasonAnalyticsService.trackSuggestionAccepted().catch(console.error);
+    };
 
     return (
         <>
@@ -576,6 +597,7 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = () => {
                 upcomingDates={upcomingDates}
                 friends={friends}
                 onConfirmPlan={handleConfirmPlan}
+                onDeepenPlan={handleDeepenWeave}
                 onReschedulePlan={handleReschedulePlan}
                 onSuggestionAction={handleSuggestionAction}
             />
@@ -590,6 +612,7 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = () => {
                 onPlan={handlePlanSuggestion}
                 onDismiss={handleSuggestionDismiss}
                 onReachOutSuccess={handleReachOutSuccess}
+                onReflect={handleReflectSuggestion}
             />
         </>
     );

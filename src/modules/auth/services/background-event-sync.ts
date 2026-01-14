@@ -5,7 +5,7 @@ import { CalendarService, getCalendarSettings } from '@/modules/interactions/ser
 import { database } from '@/db';
 import SuggestionEvent from '@/db/models/SuggestionEvent';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { sync } from '@/shared/services/sync.service';
+import { SyncOrchestrator } from '@/modules/sync';
 import { scheduleEventSuggestionNotification } from '@/modules/notifications/services/channels/event-suggestion';
 import { supabase } from '@/modules/auth/services/supabase.service';
 import Logger from '@/shared/utils/Logger';
@@ -100,8 +100,8 @@ TaskManager.defineTask(BACKGROUND_EVENT_SYNC_TASK, async () => {
       // Check if user is logged in
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
-        await sync();
-        Logger.info('[BackgroundSync] Native sync completed');
+        await SyncOrchestrator.triggerSync('background-event-sync');
+        Logger.info('[BackgroundSync] Native sync triggered via Orchestrator');
       } else {
         Logger.debug('[BackgroundSync] No active session, skipping sync');
       }
