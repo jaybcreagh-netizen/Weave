@@ -12,6 +12,7 @@ import { Users, CalendarClock, Flame } from 'lucide-react-native';
 
 import { database } from '@/db';
 import { useTheme } from '@/shared/hooks/useTheme';
+import { useSocialBatteryStats } from '@/modules/auth';
 import { getDriftAlerts, DriftAlert } from '@/modules/insights/services/drift-detection.service';
 import { getYearMoonData } from '@/modules/reflection';
 
@@ -41,13 +42,14 @@ export function UnifiedCalendar({
     const [isLoading, setIsLoading] = useState(true);
     const [currentMonth, setCurrentMonth] = useState(startOfMonth(new Date()));
     const [season, setSeason] = useState<'Resting' | 'Balanced' | 'Blooming'>('Balanced');
-    const [avgEnergy, setAvgEnergy] = useState<number | undefined>();
     const [driftAlerts, setDriftAlerts] = useState<DriftAlert[]>([]);
     const [dayDataMap, setDayDataMap] = useState<Map<string, DayData>>(new Map());
     const [selectedDate, setSelectedDate] = useState<Date | null>(null);
     const [dayDetailData, setDayDetailData] = useState<DayDetailData | null>(null);
     const [showDayDetail, setShowDayDetail] = useState(false);
     const [monthStats, setMonthStats] = useState({ weaves: 0, upcoming: 0, streak: 0 });
+
+    const { data: batteryStats } = useSocialBatteryStats();
 
     // Load initial data
     useEffect(() => {
@@ -163,7 +165,6 @@ export function UnifiedCalendar({
             // MonthData comes from getYearMoonData which generates all days. So we are good.
 
             setDayDataMap(newDayDataMap);
-            setAvgEnergy(energyCount > 0 ? totalEnergy / energyCount : undefined);
 
             // Calculate month stats
             const completedCount = interactions.filter((i: any) => i.status === 'completed').length;
@@ -316,7 +317,7 @@ export function UnifiedCalendar({
             >
                 {/* Season Header */}
                 <View className="px-4 pt-4">
-                    <SeasonHeader season={season} avgEnergy={avgEnergy} />
+                    <SeasonHeader season={season} avgEnergy={batteryStats?.average ?? undefined} />
                 </View>
 
                 {/* Drift Alerts (conditional) */}

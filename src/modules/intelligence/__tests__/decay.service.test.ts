@@ -105,7 +105,7 @@ describe('Decay Service', () => {
 
     it('never drops the score below zero', () => {
       mockFriend.weaveScore = 10;
-      mockFriend.lastUpdated = daysAgo(30); // High decay
+      mockFriend.lastUpdated = daysAgo(100); // High decay (100 days ensures even slow decay reaches 0)
       const newScore = applyDecay(mockFriend as FriendModel);
       expect(newScore).toBe(0);
     });

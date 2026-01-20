@@ -3,7 +3,7 @@ import { Tier, InteractionType, InteractionCategory, Duration, Vibe, Archetype }
 export const TierDecayRates: Record<Tier, number> = {
   InnerCircle: 2.5,
   CloseFriends: 1.5,
-  Community: 0.3, // Was 0.5 - lowered to make maintenance meaningful
+  Community: 0.4,
 };
 
 export const TierDriftingThresholds: Record<Tier, number> = {
@@ -22,10 +22,10 @@ export interface ArchetypeDecayConfig {
 }
 
 export const ArchetypeDecayConfigs: Record<Archetype, ArchetypeDecayConfig> = {
-  Hermit: { modifier: 0.5, graceDays: 21 },
-  HighPriestess: { modifier: 0.7, graceDays: 14 },
-  Magician: { modifier: 0.8, graceDays: 10 },
-  Fool: { modifier: 0.8, graceDays: 14 },
+  Hermit: { modifier: 0.5, graceDays: 14 },
+  HighPriestess: { modifier: 0.7, graceDays: 10 },
+  Magician: { modifier: 0.8, graceDays: 7 },
+  Fool: { modifier: 0.8, graceDays: 7 },
   Empress: { modifier: 0.9, graceDays: 7 },
   Emperor: { modifier: 1.0, graceDays: 5 },
   Lovers: { modifier: 1.0, graceDays: 5 },

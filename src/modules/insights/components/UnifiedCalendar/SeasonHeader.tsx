@@ -157,7 +157,7 @@ export function SeasonHeader({ season, avgEnergy }: SeasonHeaderProps) {
                                     fontFamily: typography.fonts.sans,
                                 }}
                             >
-                                avg
+                                7d avg
                             </Text>
                         </>
                     )}

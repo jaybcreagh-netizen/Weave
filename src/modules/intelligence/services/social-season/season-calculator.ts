@@ -35,7 +35,25 @@ export function calculateSeasonScore(input: SeasonCalculationInput): number {
   const batteryScore = calculateBatteryScore(input);
 
   // Weighted combination: 60% activity, 40% battery
-  const finalScore = activityScore * 0.6 + batteryScore * 0.4;
+  let finalScore = activityScore * 0.6 + batteryScore * 0.4;
+
+  // CIRCUIT BREAKER LOGIC: Check for burnout
+  // If battery is critically low, force the season score down regardless of activity
+  const { batteryLast7DaysAvg } = input;
+
+  if (batteryLast7DaysAvg !== null) {
+    if (batteryLast7DaysAvg < 1.8) {
+      // CRITICAL BURNOUT: Force Deep Resting
+      // Even if highly active, user needs to stop.
+      // Score 0 = Deep Resting
+      finalScore = 0;
+    } else if (batteryLast7DaysAvg < 2.5) {
+      // PRE-BURNOUT: Cap at Balanced
+      // Prevent clicking over into "Blooming" even if activity is high.
+      // Cap at 75 (Top of Balanced is 80)
+      finalScore = Math.min(finalScore, 75);
+    }
+  }
 
   return Math.max(0, Math.min(100, finalScore));
 }

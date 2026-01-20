@@ -3,6 +3,7 @@ import { View, StyleSheet, TextInput } from 'react-native';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Phone, Users, Shield, AtSign, CheckCircle2 } from 'lucide-react-native';
+import { database } from '@/db';
 
 import { StandardBottomSheet } from '@/shared/ui/Sheet';
 import { Text } from '@/shared/ui/Text';
@@ -75,7 +76,39 @@ export function ProfileCompletionSheet() {
 
             // 2. Check Phone Need (Secondary)
             // Only prompt if username is settled
-            if (!profile.phone && !needsUsername) {
+            let currentPhone = profile.phone;
+
+            // Should we double check with Supabase?
+            if (!currentPhone && !needsUsername) {
+                try {
+                    const client = getSupabaseClient();
+                    if (client) {
+                        const { data } = await client
+                            .from('user_profiles')
+                            .select('phone')
+                            .eq('id', user.id)
+                            .single();
+
+                        if (data?.phone) {
+                            currentPhone = data.phone;
+                            console.log('[ProfileCompletionSheet] Fetched phone from Supabase:', currentPhone);
+
+                            // 🚀 SELF-HEAL: Update local profile immediately
+                            // This ensures next time we don't need to fetch
+                            const localProfile = profile; // Capture for closure
+                            database.write(async () => {
+                                await localProfile.update((p: any) => {
+                                    p.phone = data.phone;
+                                });
+                            }).catch((err: any) => console.warn('[ProfileCompletionSheet] Failed to self-heal phone:', err));
+                        }
+                    }
+                } catch (e) {
+                    console.warn('[ProfileCompletionSheet] Failed to fetch phone:', e);
+                }
+            }
+
+            if (!currentPhone && !needsUsername) {
                 setStep('phone');
                 await checkSnooze();
                 return;
