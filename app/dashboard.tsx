@@ -267,12 +267,16 @@ export default function Dashboard() {
                                 (insightsState === 'mounting' || activeTab !== 'insights') && styles.hidden
                             ]}
                             entering={FadeIn.duration(300)}
+                            pointerEvents={activeTab === 'insights' ? 'auto' : 'none'}
                         >
                             <HomeScreen onReady={handleInsightsReady} />
                         </Animated.View>
                     )}
                     {hasVisitedCircle && (
-                        <View style={[styles.screenContainer, activeTab !== 'circle' && styles.hidden]}>
+                        <View
+                            style={[styles.screenContainer, activeTab !== 'circle' && styles.hidden]}
+                            pointerEvents={activeTab === 'circle' ? 'auto' : 'none'}
+                        >
                             <FriendsScreen />
                         </View>
                     )}
@@ -327,7 +331,8 @@ const styles = StyleSheet.create({
     container: { flex: 1 },
     tabContent: { flex: 1 },
     screenContainer: { flex: 1 },
-    hidden: { display: 'none' },
+    // Use opacity/absolute positioning instead of display: none to avoid Reanimated layout crashes
+    hidden: { opacity: 0, position: 'absolute', width: '100%', height: '100%', zIndex: -1 },
     loadingContainer: { alignItems: 'center', justifyContent: 'center' },
     tabBar: {
         flexDirection: 'row',

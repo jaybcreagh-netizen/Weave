@@ -27,6 +27,7 @@ import { startOfDay, subDays, format } from 'date-fns';
 import { SeasonIcon, PulseSheet, SeasonOverrideModal } from '@/modules/intelligence';
 import { useDashboardCacheStore } from '@/shared/stores/dashboardCacheStore';
 import { useFriendsObservable } from '@/shared/context/FriendsObservableContext';
+import { WidgetHeader } from '@/shared/ui/WidgetHeader';
 
 const WIDGET_CONFIG: HomeWidgetConfig = {
     id: 'social-season',
@@ -154,8 +155,8 @@ export const SocialSeasonWidgetV2: React.FC<SocialSeasonWidgetProps> = () => {
                 avgScoreAllFriends,
                 avgScoreInnerCircle,
                 momentumCount,
-                batteryLast7DaysAvg: averageBattery,
-                batteryTrend: batteryTrend,
+                batteryLast7DaysAvg: averageBattery ?? 0,
+                batteryTrend: batteryTrend ?? 'stable',
             };
 
             let newSeason = calculateSocialSeason(input, profile.currentSocialSeason);
@@ -283,37 +284,12 @@ export const SocialSeasonWidgetV2: React.FC<SocialSeasonWidgetProps> = () => {
                             entering={FadeIn.duration(300)}
                             exiting={FadeOut.duration(200)}
                             layout={Layout.springify()}
-                            className="flex-row items-center gap-4"
                         >
-                            <View
-                                className="w-16 h-16 rounded-full items-center justify-center"
-                                style={{ backgroundColor: 'rgba(255, 215, 0, 0.1)' }} // Subtle gold tint
-                            >
-                                <SeasonIcon season={season} size={48} color={tokens.primary} />
-                            </View>
-                            <View className="flex-1">
-                                <Text
-                                    className="mb-1"
-                                    style={{
-                                        color: tokens.foreground,
-                                        fontFamily: typography.fonts.serifBold,
-                                        fontSize: typography.scale.h2.fontSize,
-                                        lineHeight: typography.scale.h2.lineHeight
-                                    }}
-                                >
-                                    {getSeasonDisplayName(season)}
-                                </Text>
-                                <Text
-                                    style={{
-                                        color: tokens.foregroundMuted,
-                                        fontFamily: typography.fonts.sans,
-                                        fontSize: typography.scale.body.fontSize,
-                                        lineHeight: typography.scale.body.lineHeight
-                                    }}
-                                >
-                                    {greeting.subtext}
-                                </Text>
-                            </View>
+                            <WidgetHeader
+                                title={getSeasonDisplayName(season)}
+                                subtitle={greeting.subtext}
+                                icon={<SeasonIcon season={season} size={20} color={tokens.primary} />}
+                            />
                         </Animated.View>
 
                         {profile?.seasonOverrideUntil && profile.seasonOverrideUntil > Date.now() && (
@@ -332,18 +308,7 @@ export const SocialSeasonWidgetV2: React.FC<SocialSeasonWidgetProps> = () => {
                             </View>
                         )}
 
-                        <View
-                            className="mt-3 pt-3 border-t items-center"
-                            style={{ borderTopColor: tokens.borderSubtle }}
-                        >
-                            <Text style={{
-                                color: tokens.primary,
-                                fontFamily: typography.fonts.sansMedium,
-                                fontSize: typography.scale.label.fontSize,
-                            }}>
-                                View pulse
-                            </Text>
-                        </View>
+
                     </View>
                 </TouchableOpacity >
             </HomeWidgetBase >

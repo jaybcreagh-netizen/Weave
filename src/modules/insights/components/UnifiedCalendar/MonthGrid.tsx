@@ -180,7 +180,7 @@ export function MonthGrid({
                         return (
                             <View
                                 key={`padding-${index}`}
-                                style={{ width: columnWidth, height: moonSize + 20 }}
+                                style={{ width: columnWidth, height: moonSize + 32 }}
                             />
                         );
                     }
@@ -219,7 +219,7 @@ export function MonthGrid({
                             onPress={() => handleDayPress(day)}
                             style={{
                                 width: columnWidth,
-                                height: moonSize + 20,
+                                height: moonSize + 32,
                                 alignItems: 'center',
                                 justifyContent: 'center',
                             }}
@@ -231,7 +231,7 @@ export function MonthGrid({
                                 <View
                                     style={{
                                         borderRadius: moonSize, // Full circle
-                                        padding: 4,
+                                        padding: 2,
                                         backgroundColor: isSelected
                                             ? tokens.primary + '20'
                                             : 'transparent',
@@ -249,7 +249,7 @@ export function MonthGrid({
                                 </View>
                             </AnimatedMoonCell>
                             <Text
-                                className="text-[10px] mt-0.5 font-inter"
+                                className="text-[10px] mt-3 font-inter"
                                 style={{
                                     color: data?.hasCheckin
                                         ? tokens.foreground

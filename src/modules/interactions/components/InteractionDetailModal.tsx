@@ -1,22 +1,19 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
-import { Calendar, MapPin, Heart, MessageCircle, Sparkles, Edit3, Trash2, Share2, Clock } from 'lucide-react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, TouchableOpacity, LayoutAnimation, Platform, ActivityIndicator } from 'react-native';
+import { Calendar, MapPin, Heart, MessageCircle, Sparkles, Edit3, Trash2, Share2, Clock, X, Check } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/shared/hooks/useTheme';
-import { AnimatedBottomSheet, AnimatedBottomSheetRef } from '@/shared/ui/Sheet';
-import { CustomCalendar } from '@/shared/components/CustomCalendar';
+import { StandardBottomSheet } from '@/shared/ui/Sheet';
+import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { BlurView } from 'expo-blur';
-import { StyleSheet, Platform, Modal } from 'react-native';
-import Animated, { FadeInUp } from 'react-native-reanimated';
 import { Button } from '@/shared/ui/Button';
 import { type Interaction, type MoonPhase, type InteractionCategory } from '../types';
 import { InteractionShape } from '@/shared/types/derived';
 import { modeIcons } from '@/shared/constants/constants';
 import { getCategoryMetadata } from '@/shared/constants/interaction-categories';
 import { Icon } from '@/shared/ui/Icon';
-import { MoonPhaseIllustration } from '@/modules/intelligence/components/social-season/YearInMoons/MoonPhaseIllustration';
-import { STORY_CHIPS } from '@/modules/reflection/services/story-chips.service';
+import { MoonPhaseIllustration } from '@/modules/intelligence';
+import { STORY_CHIPS } from '@/modules/reflection';
 import { database } from '@/db';
 import { Q } from '@nozbe/watermelondb';
 import FriendModel from '@/db/models/Friend';
@@ -24,7 +21,7 @@ import InteractionModel from '@/db/models/Interaction';
 import { shareInteractionAsICS } from '../services/calendar-export.service';
 import { ShareStatusBadge, getShareStatus } from '@/modules/sync';
 import { InviteFriendSheet } from './InviteFriendSheet';
-import { Ticket } from 'lucide-react-native';
+import { generateInviteCode } from '../services/invite.service';
 
 const MOON_PHASE_LEVELS: Record<MoonPhase, number> = {
   'NewMoon': 1,
@@ -71,18 +68,17 @@ export function InteractionDetailModal({
   const insets = useSafeAreaInsets();
   const { colors, isDarkMode } = useTheme();
 
-  // Ref to control the sheet animation
-  const sheetRef = useRef<AnimatedBottomSheetRef>(null);
-
   // Cache interaction to keep displaying it during close animation
   const [cachedInteraction, setCachedInteraction] = useState<Interaction | InteractionShape | null>(interaction);
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [showTimePicker, setShowTimePicker] = useState(false);
-  const [tempDate, setTempDate] = useState<Date | null>(null);
+
+  // Inline editing state
+  const [isEditingDate, setIsEditingDate] = useState(false);
+  const [tempDate, setTempDate] = useState<Date>(new Date());
 
   // Invite Logic
-  const [showInviteSheet, setShowInviteSheet] = useState(false);
+  // const [showInviteSheet, setShowInviteSheet] = useState(false); // Removed separate sheet
   const [friendToInvite, setFriendToInvite] = useState<FriendModel | null>(null);
+  const [isSharing, setIsSharing] = useState(false);
 
   useEffect(() => {
     if (interaction) {
@@ -93,9 +89,6 @@ export function InteractionDetailModal({
   // Use cached version if current is null (during closing)
   const activeInteraction = interaction || cachedInteraction;
 
-  // Track pending actions for after close animation
-  const pendingActionRef = useRef<'edit' | 'delete' | 'editReflection' | null>(null);
-
   const [participants, setParticipants] = useState<FriendModel[]>([]);
   const [shareStatus, setShareStatus] = useState<{
     isShared: boolean;
@@ -104,7 +97,7 @@ export function InteractionDetailModal({
 
   // Fetch all participants for this interaction
   useEffect(() => {
-    if (!activeInteraction) {
+    if (!activeInteraction || !activeInteraction.id) {
       setParticipants([]);
       return;
     }
@@ -176,45 +169,49 @@ export function InteractionDetailModal({
   // Handler for sharing the plan
   const handleShare = async () => {
     try {
-      // Fetch the full Interaction model from database to pass to share function
+      setIsSharing(true);
+      // Fetch the full Interaction model
       const interactionModel = await database.get<InteractionModel>('interactions').find(activeInteraction.id);
-      const success = await shareInteractionAsICS(interactionModel);
+
+      let code: string | undefined = undefined;
+
+      // If we have an unlinked friend to invite, generate a code
+      if (friendToInvite) {
+        const generated = await generateInviteCode(friendToInvite.id, friendToInvite.name, interactionModel);
+        if (generated) code = generated;
+      }
+
+      const success = await shareInteractionAsICS(interactionModel, code);
       if (!success) {
         console.warn('Share was cancelled or failed');
       }
     } catch (error) {
       console.error('Error sharing interaction:', error);
+    } finally {
+      setIsSharing(false);
     }
   };
 
-  // Handle close completion - execute pending action
-  const handleCloseComplete = () => {
-    if (!activeInteraction) return;
-
-    if (pendingActionRef.current === 'edit' && onEdit) {
-      onEdit(activeInteraction);
-    } else if (pendingActionRef.current === 'delete' && onDelete) {
-      onDelete(activeInteraction.id);
-    } else if (pendingActionRef.current === 'editReflection' && onEditReflection) {
-      onEditReflection(activeInteraction);
-    }
-    pendingActionRef.current = null;
-  };
-
-  // Action handlers that set pending action and close via ref to trigger animation
+  // Action handlers now trigger immediately and close the sheet
   const handleEditPress = () => {
-    pendingActionRef.current = 'edit';
-    sheetRef.current?.close();
+    if (activeInteraction && onEdit) {
+      onEdit(activeInteraction);
+      onClose();
+    }
   };
 
   const handleDeletePress = () => {
-    pendingActionRef.current = 'delete';
-    sheetRef.current?.close();
+    if (activeInteraction && onDelete) {
+      onDelete(activeInteraction.id);
+      onClose();
+    }
   };
 
   const handleEditReflectionPress = () => {
-    pendingActionRef.current = 'editReflection';
-    sheetRef.current?.close();
+    if (activeInteraction && onEditReflection) {
+      onEditReflection(activeInteraction);
+      onClose();
+    }
   };
 
   // Get friendly label and icon for category (or fall back to activity)
@@ -224,6 +221,24 @@ export function InteractionDetailModal({
   let displayLabel: string;
   let DisplayIcon: React.ElementType | null = null;
   let displayIconName: string | null = null;
+
+  // Save Date Handler
+  const handleSaveDate = async () => {
+    if (activeInteraction && onUpdate && tempDate) {
+      // Optimistic update
+      setCachedInteraction({
+        ...activeInteraction,
+        interactionDate: tempDate
+      } as Interaction | InteractionShape);
+
+      // Close inline edit
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      setIsEditingDate(false);
+
+      // Perform update
+      await onUpdate(activeInteraction.id, { interactionDate: tempDate });
+    }
+  };
 
   if (isCategory) {
     const categoryData = getCategoryMetadata(activeInteraction.activity as InteractionCategory);
@@ -243,12 +258,11 @@ export function InteractionDetailModal({
 
   return (
     <>
-      <AnimatedBottomSheet
-        ref={sheetRef}
+      <StandardBottomSheet
         visible={isOpen}
         onClose={onClose}
-        height="form"
-        onCloseComplete={handleCloseComplete}
+        snapPoints={['85%']}
+        scrollable={false} // We manage scrolling internally with BottomSheetScrollView
       >
         <View className="flex-row justify-between items-start px-6 pt-2">
           <View className="flex-1 flex-row items-center gap-3 mb-2">
@@ -275,22 +289,17 @@ export function InteractionDetailModal({
 
           {/* Action buttons */}
           <View className="flex-row items-center gap-1">
-            {/* Invite Button for unlinked friends */}
-            {isPlanned && friendToInvite && (
-              <TouchableOpacity
-                onPress={() => setShowInviteSheet(true)}
-                className="p-2"
-              >
-                <Ticket color={colors.primary} size={20} />
-              </TouchableOpacity>
-            )}
-
             {isPlanned && (
               <TouchableOpacity
                 onPress={handleShare}
                 className="p-2"
+                disabled={isSharing}
               >
-                <Share2 color={colors.primary} size={20} />
+                {isSharing ? (
+                  <ActivityIndicator size="small" color={colors.primary} />
+                ) : (
+                  <Share2 color={colors.primary} size={20} />
+                )}
               </TouchableOpacity>
             )}
             {onEdit && (
@@ -312,7 +321,10 @@ export function InteractionDetailModal({
           </View>
         </View>
 
-        <ScrollView contentContainerStyle={{ padding: 24, gap: 24 }}>
+        <BottomSheetScrollView
+          contentContainerStyle={{ padding: 24, gap: 24 }}
+          style={{ flex: 1 }}
+        >
           <View className="flex-row items-center gap-2">
             <View
               className="self-start px-3 py-1.5 rounded-full"
@@ -339,24 +351,77 @@ export function InteractionDetailModal({
 
           <TouchableOpacity
             onPress={() => {
-              if (activeInteraction && onUpdate && isPlanned) {
-                setTempDate(new Date(activeInteraction.interactionDate));
-                setShowDatePicker(true);
+              if (isPlanned && onUpdate && activeInteraction) {
+                if (!isEditingDate) {
+                  // Enter edit mode
+                  setTempDate(new Date(activeInteraction.interactionDate));
+                  LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                  setIsEditingDate(true);
+                } else {
+                  // Close edit mode without saving? Or maybe just toggle?
+                  // Let's toggle off on press if already open (cancel)
+                  LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                  setIsEditingDate(false);
+                }
               }
             }}
-            // Disable if not planned or no update capability
-            // BUT: If the user expects to 'Tap to change', we should probably show a message or just not disable opacity so much if it's confusing.
-            // For now, keeping logic but relying on correct props.
             disabled={!isPlanned || !onUpdate}
+            activeOpacity={0.7}
           >
             <InfoRow
               icon={<Calendar color={colors['muted-foreground']} size={20} />}
               title={date}
               subtitle={time}
               colors={colors}
-              isEditable={isPlanned && !!onUpdate}
+              isEditable={isPlanned && !!onUpdate && !isEditingDate}
             />
           </TouchableOpacity>
+
+          {/* Inline Date Picker */}
+          {isEditingDate && (
+            <View
+              className="rounded-2xl -mt-4 p-4 gap-4"
+              style={{
+                backgroundColor: colors.muted + '40',
+                borderWidth: 1,
+                borderColor: colors.border
+              }}
+            >
+              <DateTimePicker
+                value={tempDate}
+                mode="datetime"
+                display="spinner"
+                onChange={(event, selectedDate) => {
+                  if (selectedDate) setTempDate(selectedDate);
+                }}
+                textColor={colors.foreground}
+                style={{ height: 180 }}
+              />
+
+              <View className="flex-row gap-3">
+                <View className="flex-1">
+                  <Button
+                    label="Cancel"
+                    variant="ghost"
+                    size="sm"
+                    onPress={() => {
+                      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                      setIsEditingDate(false);
+                    }}
+                  />
+                </View>
+                <View className="flex-1">
+                  <Button
+                    label="Save"
+                    variant="primary"
+                    size="sm"
+                    onPress={handleSaveDate}
+                    icon={<Check size={16} color="white" />}
+                  />
+                </View>
+              </View>
+            </View>
+          )}
           {participants.length > 0 && (
             <InfoRow
               icon={<Heart color={colors['muted-foreground']} size={20} />}
@@ -434,7 +499,7 @@ export function InteractionDetailModal({
           )}
 
           {activeInteraction.note && <InfoRow icon={<MessageCircle color={colors['muted-foreground']} size={20} />} title={activeInteraction.note} subtitle="Notes" colors={colors} />}
-        </ScrollView>
+        </BottomSheetScrollView>
 
         {/* Deepen Weave / Edit Reflection Button - Only for past interactions */}
         {onEditReflection && isPast && (
@@ -467,169 +532,10 @@ export function InteractionDetailModal({
             </TouchableOpacity>
           </View>
         )}
-      </AnimatedBottomSheet>
+      </StandardBottomSheet>
 
-      {/* Date Picker Modal */}
-      {
-        showDatePicker && (
-          <Modal
-            key="reschedule-modal"
-            visible={true}
-            transparent
-            animationType="fade"
-            onRequestClose={() => setShowDatePicker(false)}
-            onDismiss={() => setShowDatePicker(false)}
-          >
-            <BlurView intensity={isDarkMode ? 20 : 40} tint={isDarkMode ? 'dark' : 'light'} style={StyleSheet.absoluteFill}>
-              <TouchableOpacity
-                className="flex-1 justify-center items-center p-5"
-                activeOpacity={1}
-                onPress={() => setShowDatePicker(false)}
-              >
-                <Animated.View
-                  entering={FadeInUp.duration(200).springify()}
-                  className="w-full max-w-md rounded-3xl p-6 shadow-2xl"
-                  style={{
-                    backgroundColor: isDarkMode ? colors.background + 'F5' : colors.background + 'F8',
-                  }}
-                  onStartShouldSetResponder={() => true}
-                >
-                  <View className="flex-row justify-between items-center mb-4">
-                    <Text className="text-xl font-bold" style={{ color: colors.foreground }}>
-                      Reschedule Weave
-                    </Text>
-                    <TouchableOpacity onPress={() => setShowDatePicker(false)} className="p-2 -mr-2">
-                      <Edit3 color={colors['muted-foreground']} size={22} style={{ transform: [{ rotate: '45deg' }, { scale: 1.2 }] }} />
-                    </TouchableOpacity>
-                  </View>
 
-                  {/* Date Selection */}
-                  <CustomCalendar
-                    selectedDate={tempDate || new Date()}
-                    onDateSelect={(date) => {
-                      // Preserve time
-                      const newDate = new Date(date);
-                      if (tempDate) {
-                        newDate.setHours(tempDate.getHours(), tempDate.getMinutes());
-                      } else {
-                        newDate.setHours(12, 0); // Default to noon if no temp date
-                      }
-                      setTempDate(newDate);
-                    }}
-                  />
 
-                  {/* Time Selection - Always Visible & Integrated */}
-                  <View className="mt-4 pt-4 border-t" style={{ borderColor: colors.border }}>
-                    <Text className="text-sm font-medium mb-3" style={{ color: colors.foreground }}>Time</Text>
-
-                    <View className="flex-row items-center justify-between">
-                      <TouchableOpacity
-                        onPress={() => setShowTimePicker(true)}
-                        className="flex-1 p-3 rounded-xl border flex-row justify-between items-center mr-2"
-                        style={{
-                          borderColor: colors.border,
-                          backgroundColor: colors.card,
-                          opacity: Platform.OS === 'ios' ? 0.6 : 1 // Dim on iOS because we show spinner below
-                        }}
-                        disabled={Platform.OS === 'ios'}
-                      >
-                        <Text style={{ color: colors.foreground }}>
-                          {tempDate ? tempDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Set Time'}
-                        </Text>
-                        <Clock size={16} color={colors['muted-foreground']} />
-                      </TouchableOpacity>
-                    </View>
-
-                    {/* iOS Inline Time Picker - Always visible for easier editing */}
-                    {Platform.OS === 'ios' && (
-                      <View className="mt-2 items-center">
-                        <DateTimePicker
-                          value={tempDate || new Date()}
-                          mode="time"
-                          display="spinner"
-                          onChange={(event, time) => {
-                            if (time && event.type === 'set') {
-                              const newDate = new Date(tempDate || new Date());
-                              newDate.setHours(time.getHours(), time.getMinutes());
-                              setTempDate(newDate);
-                            }
-                          }}
-                          style={{ height: 120 }}
-                          textColor={colors.foreground}
-                        />
-                      </View>
-                    )}
-                  </View>
-
-                  {/* Android Time Picker (Modal) */}
-                  {Platform.OS === 'android' && showTimePicker && (
-                    <DateTimePicker
-                      value={tempDate || new Date()}
-                      mode="time"
-                      display="default"
-                      onChange={(event, time) => {
-                        setShowTimePicker(false);
-                        if (time && event.type === 'set') {
-                          const newDate = new Date(tempDate || new Date());
-                          newDate.setHours(time.getHours(), time.getMinutes());
-                          setTempDate(newDate);
-                        }
-                      }}
-                    />
-                  )}
-
-                  <View className="mt-6 gap-3">
-                    <Button
-                      label="Save Changes"
-                      variant="primary"
-                      onPress={async () => {
-                        if (activeInteraction && onUpdate && tempDate) {
-                          await onUpdate(activeInteraction.id, { interactionDate: tempDate });
-                          setCachedInteraction({
-                            ...activeInteraction,
-                            interactionDate: tempDate
-                          } as Interaction | InteractionShape);
-                          setShowDatePicker(false);
-                        }
-                      }}
-                    />
-                    <Button
-                      label="Cancel"
-                      variant="ghost"
-                      onPress={() => setShowDatePicker(false)}
-                    />
-                  </View>
-
-                </Animated.View>
-              </TouchableOpacity>
-            </BlurView>
-          </Modal>
-        )
-      }
-
-      {/* Invite Friend Sheet */}
-      {friendToInvite && activeInteraction && (
-        <InviteFriendSheet
-          visible={showInviteSheet}
-          onClose={() => setShowInviteSheet(false)}
-          weaveId={activeInteraction.id}
-          friendName={friendToInvite.name}
-          friendLocalId={friendToInvite.id}
-          weaveSnapshot={{
-            title: activeInteraction.title,
-            interaction_date: activeInteraction.interactionDate, // Serialized
-            location: activeInteraction.location,
-            activity: activeInteraction.activity,
-            duration: activeInteraction.duration,
-            vibe: activeInteraction.vibe,
-            note: activeInteraction.note,
-            mode: activeInteraction.mode,
-            interaction_type: activeInteraction.interactionType,
-            event_importance: activeInteraction.eventImportance,
-            interaction_category: activeInteraction.interactionCategory,
-          }}
-        />
-      )}
     </>
   );
 }

@@ -20,6 +20,7 @@ import { Button } from '@/shared/ui/Button';
 import { Input } from '@/shared/ui/Input';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { WeaveIcon } from '@/shared/components/WeaveIcon';
+import { GoogleIcon } from '@/shared/ui/icons/GoogleIcon';
 import {
     signInWithApple,
     signInWithGoogle,
@@ -30,7 +31,7 @@ import {
 
 export function OnboardingAuthScreen({ source: sourceProp }: { source?: string }) {
     const { colors, isDarkMode } = useTheme();
-    const { source: sourceParam } = useLocalSearchParams<{ source:string }>();
+    const { source: sourceParam } = useLocalSearchParams<{ source: string }>();
     const source = sourceProp || sourceParam;
     const [appleAvailable, setAppleAvailable] = useState(false);
     const [loading, setLoading] = useState(false);
@@ -197,32 +198,32 @@ export function OnboardingAuthScreen({ source: sourceProp }: { source?: string }
                         />
                     )}
                     {/* Custom Google Button matching app design */}
-                    <TouchableOpacity
+                    <Button
+                        variant="outline"
+                        label="Sign in with Google"
+                        icon={<GoogleIcon size={20} />}
                         onPress={handleGoogleSignIn}
-                        className="flex-row items-center justify-center rounded-xl"
                         style={{
-                            width: '100%',
                             height: 50,
                             backgroundColor: isDarkMode ? '#FFFFFF' : '#FFFFFF',
-                            borderWidth: 1,
-                            borderColor: colors.border,
+                            borderColor: colors.border
                         }}
-                        activeOpacity={0.8}
+                        className="w-full"
+                    // Force text color to black/grey since background is white
+                    // We override the default outline text color (which follows theme)
+                    // to ensure contrast on the white Google button
                     >
-                        <Image
-                            source={{ uri: 'https://www.google.com/favicon.ico' }}
-                            style={{ width: 20, height: 20, marginRight: 10 }}
-                        />
                         <Text
                             style={{
                                 fontSize: 17,
                                 fontWeight: '500',
                                 color: '#1F1F1F',
+                                marginLeft: 8
                             }}
                         >
                             Sign in with Google
                         </Text>
-                    </TouchableOpacity>
+                    </Button>
                 </Animated.View>
 
                 {/* Tertiary: Email (expandable) */}

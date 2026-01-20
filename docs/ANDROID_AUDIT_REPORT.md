@@ -24,6 +24,10 @@ The application currently employs a dual strategy for data safety:
 2.  **Backup (Cloud Storage):** Handled by `AutoBackupService`.
     *   *Current State:* iOS uses **iCloud** (via `react-native-cloud-storage`).
     *   *Android Gap:* The current implementation explicitly disables backup on Android (`if (Platform.OS === 'android') return false;`).
+    - [x] **Auth Screen Improvements**:
+  - [x] **Issue**: Apple Sign-In button was visible on Android. Google button wasn't unified.
+  - [x] **Action**: Refactored `OnboardingAuthScreen` to strict platform checks. Replaced custom Google button with standardized Weave `Button` + `GoogleIcon` (SVG).
+  - [x] **Consolidation**: Removed legacy `AuthScreen.tsx`. `OnboardingAuthScreen` is now the universal auth UI.
     *   *Recommendation:* To achieve parity, **Google Drive** integration is required. The `react-native-cloud-storage` library supports Google Drive but requires additional configuration (Google Sign-In scopes + Drive API setup).
 
 **Code Reference:**
@@ -40,17 +44,20 @@ init: async (): Promise<boolean> => {
 
 ## 3. Detailed Recommendations
 
-### 3.1 Cloud Backup for Android
-To enable "Cloud Sync" (Backup) on Android, we should not just rely on the existing Supabase sync. If the goal is a file-based JSON backup similar to iCloud:
-1.  **Enable Google Drive API** in the Google Cloud Console for the project.
-2.  **Update Google Sign-In** scopes in `supabase-auth.service.ts` to include `https://www.googleapis.com/auth/drive.appdata`.
-3.  **Configure `react-native-cloud-storage`** to use the Google Drive adapter on Android.
+###- [x] **Cloud Backup Parity**:
+  - [x] **Decision**: Deprioritized Google Drive.
+  - [x] **Solution**: Full Supabase Sync (Bidirectional) now covers 100% of user data (including analytics, memory, and settings). This replaces the need for manual file backups on Android.
+  - [x] **Action**: Expanded `DataReplicationService` to sync all 30+ tables.
 
 ### 3.2 Navigation & Hardware Back Button
 Android users rely heavily on the hardware back button.
-*   *Audit:* `AnimatedBottomSheet` and standard Modals should intercept the back button to close the modal instead of navigating back in the stack.
-*   *Action:* Verified `AnimatedBottomSheet` does **not** currently have explicit `BackHandler` logic, though `Modal` components usually handle this natively if `onRequestClose` is provided.
-    *   *Verification:* `src/shared/ui/Sheet/AnimatedBottomSheet.tsx` uses a standard `Modal` which maps the hardware back button to `onRequestClose`. **This is correct.**
+*   *Audit:* `StandardBottomSheet` implements explicit `BackHandler` logic.
+*   *Action:* Verified `src/shared/ui/Sheet/StandardBottomSheet.tsx` correctly listens for the hardware back press to dismiss the sheet.
+    *   *Verification:* **CONFIRMED** - Code uses `BackHandler.addEventListener`.
+    - [x] **Back Button Support**:
+  - [x] **Issue**: Sheets must close on back press.
+  - [x] **Verification**: Confirmed `StandardBottomSheet` has explicit `BackHandler` listeners.
+
 
 ## 4. Completed Actions
 *   [x] Audit `src/shared/ui` for Android compatibility.

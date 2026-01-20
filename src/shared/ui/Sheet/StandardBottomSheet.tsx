@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useRef, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Alert, TouchableWithoutFeedback } from 'react-native';
+import { View, Text, TouchableOpacity, Alert, TouchableWithoutFeedback, BackHandler } from 'react-native';
 import BottomSheet, {
   BottomSheetBackdrop,
   BottomSheetView,
@@ -137,6 +137,23 @@ export function StandardBottomSheet({
     }
   }, [visible, initialSnapIndex]);
 
+  // Handle hardware back press
+  useEffect(() => {
+    if (!visible || isFullyClosed) return;
+
+    const onBackPress = () => {
+      handleAttemptClose();
+      return true; // Prevent default behavior (exit app/nav back)
+    };
+
+    const backHandler = BackHandler.addEventListener(
+      'hardwareBackPress',
+      onBackPress
+    );
+
+    return () => backHandler.remove();
+  }, [visible, isFullyClosed, handleAttemptClose]);
+
   // Render footer using BottomSheetFooter for robust handling
   const renderFooter = useCallback(
     (props: BottomSheetFooterProps) => (
@@ -235,7 +252,8 @@ export function StandardBottomSheet({
         ) : (
           <ContentWrapper
             style={[
-              !scrollable && { marginTop: 56, flex: 1 } // Push non-scrollable content below header (header is ~56px tall)
+              !scrollable && { marginTop: 56 }, // Push non-scrollable content below header
+              !scrollable && !isDynamic && { flex: 1 } // Only flex 1 for fixed-height sheets
             ]}
             ref={scrollable ? scrollRef : undefined}
             contentContainerStyle={[

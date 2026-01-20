@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { differenceInDays, format, isSameDay, addDays, startOfDay } from 'date-fns';
-import { Check, Clock, ChevronRight, Sparkles, Calendar, CheckCircle2 } from 'lucide-react-native';
+import { Check, Clock, ChevronRight, Sparkles, Calendar, CheckCircle2, Coffee, Moon, Users } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { HomeWidgetBase, HomeWidgetConfig } from '../HomeWidgetBase';
@@ -47,6 +47,60 @@ interface UpcomingDate {
 }
 
 interface TodaysFocusWidgetProps { }
+
+interface RestDayStateProps {
+    isLoading?: boolean;
+    dailyReflection?: string | null;
+}
+
+const RestDayState: React.FC<RestDayStateProps> = ({ isLoading, dailyReflection }) => {
+    const { tokens, typography } = useTheme();
+
+    return (
+        <View className="px-4 pb-4">
+            <View
+                style={{
+                    backgroundColor: tokens.backgroundSubtle,
+                    borderRadius: 12,
+                    padding: 16,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 16
+                }}
+            >
+                <View style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 20,
+                    backgroundColor: tokens.background,
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                }}>
+                    <Coffee size={20} color={tokens.primary} />
+                </View>
+
+                <View style={{ flex: 1, gap: 2 }}>
+                    <Text style={{
+                        color: tokens.foreground,
+                        fontFamily: typography.fonts.serif,
+                        fontSize: 16,
+                        textAlign: 'left'
+                    }}>
+                        No commitments today
+                    </Text>
+                    <Text style={{
+                        color: tokens.foregroundMuted,
+                        fontFamily: typography.fonts.sans,
+                        fontSize: 13,
+                        textAlign: 'left'
+                    }}>
+                        It's a perfect time to recharge.
+                    </Text>
+                </View>
+            </View>
+        </View>
+    );
+};
 
 const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = () => {
     const { friends } = useFriendsObservable();
@@ -468,7 +522,12 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = () => {
                 <View style={{ padding: 16, paddingBottom: 0 }}>
                     <WidgetHeader
                         title="Today's Focus"
-                        action={{ label: 'See all', onPress: () => setShowDetailSheet(true) }}
+                        icon={<Calendar size={20} color={tokens.primary} />}
+                        subtitle={todaysUpcoming.length > 0
+                            ? `${todaysUpcoming.length} upcoming · ${tomorrowsPlans.length} tomorrow`
+                            : suggestions.length > 0
+                                ? `${suggestions.length} suggestions · ${intentions.length} intentions`
+                                : "No commitments today"}
                     />
                 </View>
 
@@ -550,56 +609,13 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = () => {
                 )}
 
                 {/* Show Oracle reflection when no calendar events, or "all caught up" if truly empty */}
-                {hasNoCalendarEvents && !hasSuggestions && !hasUpcomingDates ? (
-                    <TouchableOpacity
-                        onPress={() => oracleSheet.open({ context: 'insights' })}
-                        activeOpacity={0.7}
-                    >
-                        <View className="p-4 items-center justify-center gap-3">
-                            <View className="flex-row items-center gap-2">
-                                <Sparkles size={18} color={tokens.primary} />
-                                <Text style={{
-                                    color: tokens.foreground,
-                                    fontFamily: typography.fonts.sansMedium,
-                                    fontSize: typography.scale.body.fontSize,
-                                }}>
-                                    Oracle Insight
-                                </Text>
-                            </View>
-                            {isLoadingReflection ? (
-                                <Text style={{
-                                    color: tokens.foregroundMuted,
-                                    fontFamily: typography.fonts.sans,
-                                    fontSize: typography.scale.body.fontSize,
-                                    lineHeight: typography.scale.body.lineHeight,
-                                    textAlign: 'center',
-                                    fontStyle: 'italic'
-                                }}>
-                                    Reflecting on your patterns...
-                                </Text>
-                            ) : dailyReflection ? (
-                                <Text style={{
-                                    color: tokens.foregroundMuted,
-                                    fontFamily: typography.fonts.sans,
-                                    fontSize: typography.scale.body.fontSize,
-                                    lineHeight: typography.scale.body.lineHeight,
-                                    textAlign: 'center',
-                                }}>
-                                    {dailyReflection}
-                                </Text>
-                            ) : (
-                                <View className="flex-row items-center gap-2">
-                                    <CheckCircle2 size={24} color={tokens.success} />
-                                    <Text style={{
-                                        color: tokens.foregroundMuted,
-                                        fontFamily: typography.fonts.sans,
-                                        fontSize: typography.scale.body.fontSize,
-                                    }}>
-                                        You're all caught up
-                                    </Text>
-                                </View>
-                            )}
-                        </View>
+                {/* Show Oracle reflection when no calendar events, regardless of suggestions */}
+                {hasNoCalendarEvents ? (
+                    <TouchableOpacity onPress={() => setShowDetailSheet(true)}>
+                        <RestDayState
+                            isLoading={isLoadingReflection}
+                            dailyReflection={dailyReflection}
+                        />
                     </TouchableOpacity>
                 ) : null}
 

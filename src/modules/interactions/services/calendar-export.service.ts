@@ -202,7 +202,7 @@ function generateICSContent(event: ICSEvent): string {
 /**
  * Generates ICS content from a Weave Interaction
  */
-export async function generateICSFromInteraction(interaction: Interaction): Promise<string> {
+export async function generateICSFromInteraction(interaction: Interaction, inviteCode?: string): Promise<string> {
   // Get friend names
   const friendNames = await getFriendNamesForInteraction(interaction.id);
   const friendsText = friendNames.length > 0 ? friendNames.join(', ') : 'Friend';
@@ -243,6 +243,11 @@ export async function generateICSFromInteraction(interaction: Interaction): Prom
     descriptionParts.push(interaction.note);
   }
 
+  if (inviteCode) {
+    descriptionParts.push('');
+    descriptionParts.push(`🔗 Join me on Weave: https://weave.app/invite/${inviteCode}`);
+  }
+
   descriptionParts.push('');
   descriptionParts.push('---');
   descriptionParts.push('Created with Weave 🧵');
@@ -278,10 +283,10 @@ async function writeICSFile(icsContent: string, filename: string): Promise<strin
  * Shares an interaction as an ICS file via the native share sheet
  * Works on both iOS and Android with proper file sharing
  */
-export async function shareInteractionAsICS(interaction: Interaction): Promise<boolean> {
+export async function shareInteractionAsICS(interaction: Interaction, inviteCode?: string): Promise<boolean> {
   try {
     // Generate ICS content
-    const icsContent = await generateICSFromInteraction(interaction);
+    const icsContent = await generateICSFromInteraction(interaction, inviteCode);
 
     // Get friend names for the filename
     const friendNames = await getFriendNamesForInteraction(interaction.id);
@@ -340,7 +345,9 @@ export async function shareInteractionAsICS(interaction: Interaction): Promise<b
           `👥 With: ${friendsText}`,
           interaction.activity ? `📍 Activity: ${interaction.activity}` : '',
           interaction.location ? `📌 Location: ${interaction.location}` : '',
+          interaction.location ? `📌 Location: ${interaction.location}` : '',
           interaction.note ? `📝 ${interaction.note}` : '',
+          inviteCode ? `🔗 Join me on Weave: https://weave.app/invite/${inviteCode}` : '',
           ``,
           `Add to your calendar!`,
         ].filter(Boolean).join('\n');

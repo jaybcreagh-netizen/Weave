@@ -180,7 +180,7 @@ export const YourEnergyWidget: React.FC = () => {
                 <View style={{ padding: 16 }}>
                     <WidgetHeader
                         title="Your Energy"
-                        icon={<Zap size={16} color={tokens.primaryMuted} />}
+                        icon={<Zap size={20} color={tokens.primary} />}
                         action={{
                             label: `${currentMonthName} ${currentMonthData.year}`,
                             onPress: () => setShowLifeCalendar(true)

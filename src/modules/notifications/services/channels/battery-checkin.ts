@@ -125,7 +125,7 @@ export const BatteryCheckinChannel: NotificationChannel & {
         setTimeout(() => {
             UIEventBus.emit({ type: 'OPEN_SOCIAL_BATTERY_SHEET' });
             notificationAnalytics.trackActionCompleted('battery-checkin', 'open_sheet');
-        }, 500);
+        }, 2000);
     },
 
     // Specific methods for this channel

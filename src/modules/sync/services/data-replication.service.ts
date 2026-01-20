@@ -39,11 +39,33 @@ const SYNC_TABLES = [
     'interaction_friends',
     'intentions',
     'intention_friends',
-    'user_profiles',
+    'user_profile', // FIXED: table name is user_profile, not user_profiles
     'user_progress',
     'life_events',
     'weekly_reflections',
     'journal_entries',
+    'social_battery_logs',
+    'portfolio_snapshots',
+    'social_season_logs',
+    'custom_chips',
+    'chip_usage',
+    'oracle_conversations',
+    // Expanded Sync Coverage (Full Data Portability)
+    'groups',
+    'group_members',
+    'user_facts',
+    'friend_badges',
+    'achievement_unlocks',
+    'practice_log',
+    'interaction_outcomes',
+    'network_health_logs',
+    'proactive_insights',
+    'conversation_threads',
+    'oracle_consultations',
+    'journal_signals',
+    'suggestion_events',
+    'event_suggestion_feedback',
+    'shared_weave_refs',
 ] as const;
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -142,8 +164,9 @@ export class DataReplicationService {
                     Logger.debug(`DataReplication: 📥 Pulling ${tableName} page ${pageNumber}...`);
 
                     // Fetch records modified after cursor timestamp
+                    const remoteTableName = this.getRemoteTableName(tableName);
                     const { data, error } = await this.supabase!
-                        .from(tableName)
+                        .from(remoteTableName)
                         .select('*')
                         .eq('user_id', this.userId)
                         .gt('server_updated_at', new Date(cursorTimestamp).toISOString())
@@ -271,8 +294,9 @@ export class DataReplicationService {
                     const serverRecords = batch.map(record => this.serializeForServer(record, tableName));
 
                     // Upsert to server
+                    const remoteTableName = this.getRemoteTableName(tableName);
                     const { error } = await (this.supabase!
-                        .from(tableName) as any)
+                        .from(remoteTableName) as any)
                         .upsert(serverRecords as any[], { onConflict: 'id' } as any);
 
                     if (error) {
@@ -419,6 +443,17 @@ export class DataReplicationService {
             Logger.error('DataReplication: Failed to load last sync timestamp:', error);
             this.lastSyncTimestamp = 0;
         }
+    }
+
+    /**
+     * Get remote table name from local table name
+     * Handles pluralization mismatches (e.g. user_profile -> user_profiles)
+     */
+    private getRemoteTableName(localTableName: string): string {
+        if (localTableName === 'user_profile') {
+            return 'user_profiles';
+        }
+        return localTableName;
     }
 
     /**

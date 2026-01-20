@@ -43,6 +43,7 @@ import JournalEntryFriend from '@/db/models/JournalEntryFriend';
 import WeeklyReflection from '@/db/models/WeeklyReflection';
 import Interaction from '@/db/models/Interaction';
 import { SPRINGS } from '@/shared/constants/animation';
+import { WidgetHeader } from '@/shared/ui/WidgetHeader';
 // FIX: Direct imports to avoid circular dependencies in barrel files
 import {
     getRecentMeaningfulWeaves,
@@ -517,9 +518,8 @@ export function JournalWidget() {
 
     return (
         <HomeWidgetBase config={WIDGET_CONFIG} isLoading={isWidgetStateLoading}>
-            {/* Increased fixed height to accommodate layout */}
-            <View style={{ height: 200, justifyContent: 'space-between' }}>
-                <View className="flex-1">
+            <View className="justify-between">
+                <View>
                     <TouchableOpacity
                         activeOpacity={0.7}
                         onPress={() => {
@@ -527,47 +527,18 @@ export function JournalWidget() {
                             router.push('/journal');
                         }}
                     >
-                        {/* Large Header matching Social Season style */}
-                        <View className="flex-row items-center gap-4 mb-4">
-                            <View
-                                className="w-16 h-16 rounded-full items-center justify-center"
-                                style={{ backgroundColor: tokens.primary + '15' }}
-                            >
-                                {widgetState?.type === 'weekly-reflection-completed' ? (
-                                    <View className="bg-primary w-full h-full rounded-full items-center justify-center">
-                                        <Sparkles size={32} color="#FFFFFF" />
-                                    </View>
-                                ) : (
-                                    <JournalIcon size={48} color={tokens.primary} />
-                                )}
-                            </View>
-                            <View>
-                                <Text
-                                    className="mb-1"
-                                    style={{
-                                        color: tokens.foreground,
-                                        fontFamily: typography.fonts.serifBold,
-                                        fontSize: typography.scale.h2.fontSize,
-                                        lineHeight: typography.scale.h2.lineHeight
-                                    }}
-                                >
-                                    Journal
-                                </Text>
-                                <Text
-                                    style={{
-                                        color: tokens.foregroundMuted,
-                                        fontFamily: typography.fonts.sans,
-                                        fontSize: typography.scale.bodySmall.fontSize,
-                                        lineHeight: typography.scale.bodySmall.lineHeight
-                                    }}
-                                >
-                                    Capture your story
-                                </Text>
-                            </View>
-                        </View>
+                        <WidgetHeader
+                            title="Journal"
+                            subtitle="Capture your story"
+                            icon={widgetState?.type === 'weekly-reflection-completed' ? (
+                                <Sparkles size={20} color={tokens.primary} />
+                            ) : (
+                                <JournalIcon size={20} color={tokens.primary} />
+                            )}
+                        />
 
-                        {/* Prompt text - Fixed height container */}
-                        <View style={{ height: 60, justifyContent: 'center' }}>
+                        {/* Prompt text */}
+                        <View className="mb-4 justify-center">
                             <Text
                                 numberOfLines={isReflectionState ? 2 : 3}
                                 style={{

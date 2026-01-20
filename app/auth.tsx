@@ -1,7 +1,7 @@
 /**
  * Auth Screen Route
  * 
- * Thin wrapper for the AuthScreen component.
+ * Thin wrapper for the OnboardingAuthScreen component.
  * Gated by ACCOUNTS_ENABLED feature flag.
  */
 
