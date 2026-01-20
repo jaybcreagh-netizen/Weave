@@ -8,7 +8,8 @@
 import React, { useState } from 'react'
 import { Modal, View, TouchableOpacity, SafeAreaView, Platform, InteractionManager } from 'react-native'
 import { X, Clock } from 'lucide-react-native'
-import Animated, { FadeIn, FadeOut, Easing } from 'react-native-reanimated'
+import Animated, { FadeIn, FadeOut, Easing, SlideInDown, SlideOutDown } from 'react-native-reanimated'
+import { SHEET_SPRING_CONFIG } from '@/shared/ui/Sheet/constants'
 import { useTheme } from '@/shared/hooks/useTheme'
 import { Text } from '@/shared/ui/Text'
 import { useOracleSheet } from '../hooks/useOracleSheet'
@@ -115,72 +116,82 @@ export function OracleSheet() {
     return (
         <Modal
             visible={isOpen}
-            animationType="slide"
-            presentationStyle="pageSheet"
+            animationType="none"
+            transparent={true}
             onRequestClose={close}
+            statusBarTranslucent={true} // Allow drawing behind status bar for premium feel
         >
-            <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
-                <View
-                    className="flex-row items-center justify-between px-4 py-3 border-b"
-                    style={{ borderBottomColor: colors.border }}
+            {/* Backdrop */}
+            <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }}>
+                <Animated.View
+                    style={{ flex: 1 }}
+                    entering={SlideInDown.springify().damping(SHEET_SPRING_CONFIG.damping).stiffness(SHEET_SPRING_CONFIG.stiffness).mass(SHEET_SPRING_CONFIG.mass)}
+                    exiting={SlideOutDown.springify().damping(SHEET_SPRING_CONFIG.damping).stiffness(SHEET_SPRING_CONFIG.stiffness).mass(SHEET_SPRING_CONFIG.mass)}
                 >
-                    {showBackButton ? (
-                        <TouchableOpacity
-                            onPress={() => setMode(null)}
-                            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                            className="flex-row items-center"
+                    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background, marginTop: Platform.select({ android: 20, default: 0 }) /* Small top gap on Android */ }}>
+                        <View
+                            className="flex-row items-center justify-between px-4 py-3 border-b"
+                            style={{ borderBottomColor: colors.border }}
                         >
-                            <Text style={{ color: colors.foreground, marginRight: 4 }}>← Back</Text>
-                        </TouchableOpacity>
-                    ) : (
-                        <TouchableOpacity onPress={close} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                            <X size={24} color={colors.foreground} />
-                        </TouchableOpacity>
-                    )}
+                            {showBackButton ? (
+                                <TouchableOpacity
+                                    onPress={() => setMode(null)}
+                                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                    className="flex-row items-center"
+                                >
+                                    <Text style={{ color: colors.foreground, marginRight: 4 }}>← Back</Text>
+                                </TouchableOpacity>
+                            ) : (
+                                <TouchableOpacity onPress={close} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                                    <X size={24} color={colors.foreground} />
+                                </TouchableOpacity>
+                            )}
 
-                    <Text
-                        variant="h3"
-                        style={{
-                            color: colors.foreground,
-                            fontFamily: typography.fonts.serifBold,
-                        }}
-                    >
-                        Weave
-                    </Text>
+                            <Text
+                                variant="h3"
+                                style={{
+                                    color: colors.foreground,
+                                    fontFamily: typography.fonts.serifBold,
+                                }}
+                            >
+                                Weave
+                            </Text>
 
-                    <TouchableOpacity
-                        onPress={() => setShowHistory(true)}
-                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                        className="p-1 rounded-full hover:bg-black/5 dark:hover:bg-white/10"
-                    >
-                        <Clock size={24} color={colors.foreground} />
-                    </TouchableOpacity>
-                </View>
+                            <TouchableOpacity
+                                onPress={() => setShowHistory(true)}
+                                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                className="p-1 rounded-full hover:bg-black/5 dark:hover:bg-white/10"
+                            >
+                                <Clock size={24} color={colors.foreground} />
+                            </TouchableOpacity>
+                        </View>
 
-                {/* Content */}
-                <View className="flex-1">
-                    {renderContent()}
+                        {/* Content */}
+                        <View className="flex-1">
+                            {renderContent()}
 
-                    {/* Portal Host for sheets rendered inside this modal */}
-                    <PortalHost name="oracle-sheet-host" />
-                </View>
+                            {/* Portal Host for sheets rendered inside this modal */}
+                            <PortalHost name="oracle-sheet-host" />
+                        </View>
 
-                <StandardBottomSheet
-                    visible={showHistory}
-                    onClose={() => setShowHistory(false)}
-                    title="Past Conversations"
-                    portalHost="oracle-sheet-host"
-                    snapPoints={['80%']}
-                >
-                    <ConversationHistoryList
-                        onSelect={(id) => {
-                            setSelectedConversationId(id)
-                            setShowHistory(false)
-                        }}
-                        onClose={() => setShowHistory(false)}
-                    />
-                </StandardBottomSheet>
-            </SafeAreaView>
+                        <StandardBottomSheet
+                            visible={showHistory}
+                            onClose={() => setShowHistory(false)}
+                            title="Past Conversations"
+                            portalHost="oracle-sheet-host"
+                            snapPoints={['80%']}
+                        >
+                            <ConversationHistoryList
+                                onSelect={(id) => {
+                                    setSelectedConversationId(id)
+                                    setShowHistory(false)
+                                }}
+                                onClose={() => setShowHistory(false)}
+                            />
+                        </StandardBottomSheet>
+                    </SafeAreaView>
+                </Animated.View>
+            </View>
         </Modal>
     )
 }

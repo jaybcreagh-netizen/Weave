@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import Animated, { SharedValue, useAnimatedStyle } from 'react-native-reanimated';
-import { ArrowLeft, Edit, Trash2, Calendar, Bell } from 'lucide-react-native';
+import { ArrowLeft, Edit, Trash2, Calendar, Bell, Share2 } from 'lucide-react-native';
 import { FriendListRow, FriendListRowContent } from '@/modules/relationships/components/FriendListRow';
 import { PatternBadge } from '@/modules/gamification';
 import { TierFitCard } from '@/modules/insights';
@@ -21,9 +21,12 @@ interface ProfileHeaderProps {
     onShowTierFit?: () => void;
     onLinkToWeaveUser?: () => void;
     onUnlinkFriend?: () => void;
+    onInvite?: () => void;
+    /** Count of pending shared weaves from this friend */
     /** Count of pending shared weaves from this friend */
     pendingWeaveCount?: number;
     onPressPending?: () => void;
+    onPressProfile?: () => void;
 }
 
 export function ProfileHeader({
@@ -37,8 +40,10 @@ export function ProfileHeader({
     onShowTierFit,
     onLinkToWeaveUser,
     onUnlinkFriend,
+    onInvite,
     pendingWeaveCount = 0,
     onPressPending,
+    onPressProfile,
 }: ProfileHeaderProps) {
     const { colors } = useTheme();
 
@@ -54,6 +59,9 @@ export function ProfileHeader({
                     <Text style={{ color: colors.foreground }}>Back</Text>
                 </TouchableOpacity>
                 <View className="flex-row items-center gap-2">
+                    <TouchableOpacity onPress={onInvite} className="p-2">
+                        <Share2 size={20} color={colors['muted-foreground']} />
+                    </TouchableOpacity>
                     <TouchableOpacity onPress={onGlobalCalendar} className="p-2">
                         <Calendar size={20} color={colors['muted-foreground']} />
                     </TouchableOpacity>
@@ -68,15 +76,14 @@ export function ProfileHeader({
 
             <View style={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8, gap: 12 }}>
                 <Animated.View style={headerAnimatedStyle}>
-                    <TouchableOpacity
-                        activeOpacity={0.95}
-                        onLongPress={onShowBadgePopup}
-                    >
-                        {/* Wrapper View to ensure flex behavior */}
-                        <View>
-                            <FriendListRowContent friend={friend} variant="full" />
-                        </View>
-                    </TouchableOpacity>
+                    <View>
+                        <FriendListRowContent
+                            friend={friend}
+                            variant="full"
+                            onPress={onPressProfile}
+                            onLongPress={onShowBadgePopup}
+                        />
+                    </View>
                     <PatternBadge friend={friend as any} style={{ marginTop: 4, marginLeft: 4 }} />
 
                     {/* Link Status Badge */}

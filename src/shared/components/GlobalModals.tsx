@@ -6,7 +6,7 @@ import { UIEventBus } from '@/shared/services/ui-event-bus';
 import { MilestoneCelebration } from '@/modules/gamification';
 import { TrophyCabinetModal } from '@/modules/gamification';
 import { EventSuggestionModal, PlanWizard, usePlans, InteractionActions, PostWeaveRatingModal, BackgroundSuggestionFetcher } from '@/modules/interactions';
-import { WeeklyReflectionModal, IntentionFormModal } from '@/modules/reflection';
+import { WeeklyReflectionModal, IntentionFormModal, hasCompletedReflectionForCurrentWeek } from '@/modules/reflection';
 import { SyncConflictModal, useAuth, SocialBatteryService } from '@/modules/auth';
 import { MemoryMomentModal } from '@/modules/journal';
 import { EveningCheckinSheet } from '@/modules/home';
@@ -93,7 +93,14 @@ export function GlobalModals() {
                         });
                     break;
                 case 'OPEN_WEEKLY_REFLECTION':
-                    useUIStore.getState().openWeeklyReflection();
+                    // Check if reflection already completed for current week
+                    hasCompletedReflectionForCurrentWeek().then(completed => {
+                        if (completed) {
+                            console.log('[GlobalModals] Weekly reflection already completed, skipping');
+                            return;
+                        }
+                        useUIStore.getState().openWeeklyReflection();
+                    });
                     break;
                 case 'OPEN_SOCIAL_BATTERY_SHEET':
                     useUIStore.getState().openSocialBatterySheet();

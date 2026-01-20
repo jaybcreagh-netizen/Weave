@@ -1,11 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Alert, LayoutAnimation } from 'react-native';
+import { View, Text, TouchableOpacity, Alert, LayoutAnimation, ActivityIndicator } from 'react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { Calendar as CalendarIcon, ChevronRight } from 'lucide-react-native';
 import { ModernSwitch } from '@/shared/ui/ModernSwitch';
 import { SettingsItem } from './SettingsItem';
 import { CalendarService } from '@/modules/interactions';
 import { useSyncSettings } from '@/modules/auth';
+import { syncAllBirthdaysAndAnniversaries } from '@/modules/relationships';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const BIRTHDAY_SYNC_KEY = '@weave_birthday_sync_enabled';
 
 export const CalendarSettings = () => {
     const { colors } = useTheme();
@@ -19,6 +23,10 @@ export const CalendarSettings = () => {
     });
     const [availableCalendars, setAvailableCalendars] = useState<any[]>([]);
 
+    // Birthday sync state
+    const [birthdaySyncEnabled, setBirthdaySyncEnabled] = useState(false);
+    const [isSyncingBirthdays, setIsSyncingBirthdays] = useState(false);
+
     // Background sync settings from hook
     const {
         settings: backgroundSyncSettings,
@@ -28,7 +36,17 @@ export const CalendarSettings = () => {
     // Load settings on mount
     useEffect(() => {
         loadCalendarSettings();
+        loadBirthdaySyncSetting();
     }, []);
+
+    const loadBirthdaySyncSetting = async () => {
+        try {
+            const value = await AsyncStorage.getItem(BIRTHDAY_SYNC_KEY);
+            setBirthdaySyncEnabled(value === 'true');
+        } catch (error) {
+            console.error('Error loading birthday sync setting:', error);
+        }
+    };
 
     const loadCalendarSettings = async () => {
         const settings = await CalendarService.getCalendarSettings();
@@ -123,6 +141,40 @@ export const CalendarSettings = () => {
         }
     };
 
+    const handleToggleBirthdaySync = async (enabled: boolean) => {
+        if (enabled) {
+            setIsSyncingBirthdays(true);
+            try {
+                const result = await syncAllBirthdaysAndAnniversaries();
+                await AsyncStorage.setItem(BIRTHDAY_SYNC_KEY, 'true');
+                setBirthdaySyncEnabled(true);
+
+                const totalSynced = result.synced;
+                if (totalSynced > 0) {
+                    Alert.alert(
+                        'Birthdays Synced',
+                        `${totalSynced} birthday/anniversary event${totalSynced > 1 ? 's' : ''} added to your calendar.`,
+                        [{ text: 'OK' }]
+                    );
+                } else {
+                    Alert.alert(
+                        'Sync Complete',
+                        'No new birthdays or anniversaries to add. Events will be created automatically when you add birthdays to friends.',
+                        [{ text: 'OK' }]
+                    );
+                }
+            } catch (error) {
+                console.error('Error syncing birthdays:', error);
+                Alert.alert('Sync Failed', 'Failed to sync birthdays. Please try again.', [{ text: 'OK' }]);
+            } finally {
+                setIsSyncingBirthdays(false);
+            }
+        } else {
+            await AsyncStorage.setItem(BIRTHDAY_SYNC_KEY, 'false');
+            setBirthdaySyncEnabled(false);
+        }
+    };
+
     return (
         <View className="gap-4">
             <SettingsItem
@@ -164,6 +216,27 @@ export const CalendarSettings = () => {
                         value={calendarSettings.twoWaySync}
                         onValueChange={handleToggleTwoWaySync}
                     />
+                </View>
+            )}
+
+            {calendarSettings.enabled && (
+                <View className="flex-row items-center justify-between pl-13 mt-3">
+                    <View className="flex-1">
+                        <Text className="text-sm font-inter-medium" style={{ color: colors.foreground }}>
+                            Sync Birthdays & Anniversaries
+                        </Text>
+                        <Text className="text-xs font-inter-regular" style={{ color: colors['muted-foreground'] }}>
+                            Add friend birthdays and partner anniversaries as recurring calendar events
+                        </Text>
+                    </View>
+                    {isSyncingBirthdays ? (
+                        <ActivityIndicator size="small" color={colors.primary} />
+                    ) : (
+                        <ModernSwitch
+                            value={birthdaySyncEnabled}
+                            onValueChange={handleToggleBirthdaySync}
+                        />
+                    )}
                 </View>
             )}
 

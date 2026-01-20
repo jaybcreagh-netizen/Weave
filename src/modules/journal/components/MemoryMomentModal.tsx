@@ -25,6 +25,7 @@ import JournalEntry from '@/db/models/JournalEntry';
 import WeeklyReflection from '@/db/models/WeeklyReflection';
 import { Memory } from '@/modules/journal';
 import { trackEvent, AnalyticsEvents } from '@/shared/services/analytics.service';
+import { SPRINGS } from '@/shared/constants/animation';
 
 interface MemoryMomentModalProps {
     visible: boolean;
@@ -91,7 +92,7 @@ export function MemoryMomentModal({
         >
             <View className="flex-1 justify-center items-center px-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
                 <Animated.View
-                    entering={FadeInDown.springify().damping(15)}
+                    entering={FadeInDown.springify().damping(SPRINGS.PREMIUM.damping).stiffness(SPRINGS.PREMIUM.stiffness)}
                     className="w-full rounded-3xl overflow-hidden" // Removed max-w-sm to be responsive
                     style={{ width: '100%', maxWidth: 380, backgroundColor: colors.background }} // Added width constraint manually
                 >

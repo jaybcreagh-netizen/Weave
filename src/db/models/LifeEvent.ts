@@ -47,4 +47,7 @@ export default class LifeEvent extends Model {
   @text('sync_status') customSyncStatus?: string;
   @field('server_updated_at') serverUpdatedAt?: number;
 
+  // Native calendar integration (v62)
+  @text('calendar_event_id') calendarEventId?: string;
+
 }

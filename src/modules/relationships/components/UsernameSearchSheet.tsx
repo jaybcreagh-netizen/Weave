@@ -92,7 +92,7 @@ export function UsernameSearchSheet({
             visible={visible}
             onClose={onClose}
             title="Add Friend"
-            height="form"
+            height="full"
         >
             <View className="flex-1 px-4">
                 {/* Search Input */}

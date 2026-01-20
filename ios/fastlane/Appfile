@@ -1,0 +1,9 @@
+app_identifier("com.jaycreagh.WeaveNative")
+apple_id(ENV["APPLE_ID"] || "") # Your Apple Developer email
+team_id("4B8M99LBV9")
+
+# For App Store Connect API (recommended over password auth)
+# Set these environment variables:
+# - APP_STORE_CONNECT_API_KEY_ID
+# - APP_STORE_CONNECT_API_ISSUER_ID
+# - APP_STORE_CONNECT_API_KEY_PATH (path to .p8 file)

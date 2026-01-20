@@ -35,7 +35,7 @@ import { TierSegmentedControl } from '../components/TierSegmentedControl';
 import { AddFriendMenu } from '../components/AddFriendMenu';
 import { FriendPickerSheet } from '../components/FriendPickerSheet';
 import { IntentionActionSheet } from '../components/IntentionActionSheet';
-import FriendBadgePopup from '../components/FriendBadgePopup';
+
 import { UsernameSearchSheet } from '../components/UsernameSearchSheet';
 import { ContactDiscoverySheet } from '../components/ContactDiscoverySheet';
 import { Tier } from '../types';

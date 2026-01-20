@@ -18,8 +18,10 @@ export function useFriendProfileModals() {
     const [selectedIntentionForAction, setSelectedIntentionForAction] = useState<Intention | null>(null);
     const [showLifeEventModal, setShowLifeEventModal] = useState(false);
     const [editingLifeEvent, setEditingLifeEvent] = useState<LifeEvent | null>(null);
-    const [showBadgePopup, setShowBadgePopup] = useState(false);
+
     const [showTierFitSheet, setShowTierFitSheet] = useState(false);
+    const [showFriendDetailSheet, setShowFriendDetailSheet] = useState(false);
+    const [showInviteSheet, setShowInviteSheet] = useState(false);
 
     const resetModals = useCallback(() => {
         setSelectedInteractionId(null);
@@ -32,8 +34,10 @@ export function useFriendProfileModals() {
         setSelectedIntentionForAction(null);
         setShowLifeEventModal(false);
         setEditingLifeEvent(null);
-        setShowBadgePopup(false);
+
         setShowTierFitSheet(false);
+        setShowFriendDetailSheet(false);
+        setShowInviteSheet(false);
     }, []);
 
     // Wrapper to match expected interface for onInteractionPress
@@ -76,10 +80,13 @@ export function useFriendProfileModals() {
         setShowLifeEventModal,
         editingLifeEvent,
         setEditingLifeEvent,
-        showBadgePopup,
-        setShowBadgePopup,
+
         showTierFitSheet,
         setShowTierFitSheet,
+        showFriendDetailSheet,
+        setShowFriendDetailSheet,
+        showInviteSheet,
+        setShowInviteSheet,
 
         // Actions
         resetModals,

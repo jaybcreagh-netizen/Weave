@@ -13,6 +13,7 @@ export type SyncOperationType =
     | 'accept_weave'
     | 'decline_weave'
     | 'update_shared_weave'
+    | 'update_shared_weave_participants'
     | 'send_link_request'
     | 'accept_link_request'
     | 'decline_link_request'

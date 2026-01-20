@@ -27,7 +27,8 @@ import { parseFlexibleDate } from '@/shared/utils/date-utils';
 import { useReachOut, ContactLinker } from '@/modules/messaging';
 import { SuggestionActionSheet } from '@/modules/interactions/components/SuggestionActionSheet';
 import { useFriendsObservable } from '@/shared/context/FriendsObservableContext';
-import { useOracleSheet } from '@/modules/oracle';
+import { useOracleSheet, oracleService, oracleContextBuilder, ContextTier } from '@/modules/oracle';
+import { hasCompletedReflectionForCurrentWeek } from '@/modules/reflection';
 
 const WIDGET_CONFIG: HomeWidgetConfig = {
     id: 'todays-focus',
@@ -63,6 +64,8 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = () => {
     const [confirmingIds, setConfirmingIds] = useState<Set<string>>(new Set());
     const [selectedSuggestion, setSelectedSuggestion] = useState<Suggestion | null>(null);
     const [intentions, setIntentions] = useState<Intention[]>([]);
+    const [dailyReflection, setDailyReflection] = useState<string | null>(null);
+    const [isLoadingReflection, setIsLoadingReflection] = useState(false);
 
     // Load active intentions
     useEffect(() => {
@@ -286,6 +289,12 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = () => {
 
     const handleSuggestionAction = async (suggestion: Suggestion) => {
         if (suggestion.id === 'weekly-reflection-sunday') {
+            // Check if reflection already completed
+            const completed = await hasCompletedReflectionForCurrentWeek();
+            if (completed) {
+                console.log('[TodaysFocus] Weekly reflection already completed, skipping');
+                return;
+            }
             setShowDetailSheet(false);
             setTimeout(() => {
                 openWeeklyReflection();
@@ -415,7 +424,29 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = () => {
     const hasSuggestions = suggestions.length > 0;
     const hasUpcomingDates = upcomingDates.length > 0;
     const hasIntentions = intentions.length > 0;
-    const isAllClear = !hasUpcoming && !hasCompleted && !hasTomorrow && !hasSuggestions && !hasUpcomingDates && !hasIntentions;
+    const hasNoCalendarEvents = !hasUpcoming && !hasCompleted && !hasTomorrow;
+    const isAllClear = hasNoCalendarEvents && !hasSuggestions && !hasUpcomingDates && !hasIntentions;
+
+    // Load daily reflection when there are no calendar events
+    useEffect(() => {
+        if (!hasNoCalendarEvents || dailyReflection || isLoadingReflection) return;
+
+        const loadReflection = async () => {
+            setIsLoadingReflection(true);
+            try {
+                const context = await oracleContextBuilder.buildContext([], ContextTier.ESSENTIAL);
+                const reflection = await oracleService.generateDailyReflection(context);
+                setDailyReflection(reflection);
+            } catch (error) {
+                console.error('Error loading daily reflection:', error);
+                setDailyReflection(null);
+            } finally {
+                setIsLoadingReflection(false);
+            }
+        };
+
+        loadReflection();
+    }, [hasNoCalendarEvents, dailyReflection, isLoadingReflection]);
 
     const handleReflectSuggestion = (suggestion: Suggestion, friend: FriendModel) => {
         showMicroReflectionSheet({
@@ -518,18 +549,58 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = () => {
                     </View>
                 )}
 
-                {isAllClear ? (
-                    <View className="p-6 items-center justify-center gap-3">
-                        <CheckCircle2 size={32} color={tokens.success} />
-                        <Text style={{
-                            color: tokens.foregroundMuted,
-                            fontFamily: typography.fonts.sans,
-                            fontSize: typography.scale.body.fontSize,
-                            lineHeight: typography.scale.body.lineHeight
-                        }}>
-                            You're all caught up
-                        </Text>
-                    </View>
+                {/* Show Oracle reflection when no calendar events, or "all caught up" if truly empty */}
+                {hasNoCalendarEvents && !hasSuggestions && !hasUpcomingDates ? (
+                    <TouchableOpacity
+                        onPress={() => oracleSheet.open({ context: 'insights' })}
+                        activeOpacity={0.7}
+                    >
+                        <View className="p-4 items-center justify-center gap-3">
+                            <View className="flex-row items-center gap-2">
+                                <Sparkles size={18} color={tokens.primary} />
+                                <Text style={{
+                                    color: tokens.foreground,
+                                    fontFamily: typography.fonts.sansMedium,
+                                    fontSize: typography.scale.body.fontSize,
+                                }}>
+                                    Oracle Insight
+                                </Text>
+                            </View>
+                            {isLoadingReflection ? (
+                                <Text style={{
+                                    color: tokens.foregroundMuted,
+                                    fontFamily: typography.fonts.sans,
+                                    fontSize: typography.scale.body.fontSize,
+                                    lineHeight: typography.scale.body.lineHeight,
+                                    textAlign: 'center',
+                                    fontStyle: 'italic'
+                                }}>
+                                    Reflecting on your patterns...
+                                </Text>
+                            ) : dailyReflection ? (
+                                <Text style={{
+                                    color: tokens.foregroundMuted,
+                                    fontFamily: typography.fonts.sans,
+                                    fontSize: typography.scale.body.fontSize,
+                                    lineHeight: typography.scale.body.lineHeight,
+                                    textAlign: 'center',
+                                }}>
+                                    {dailyReflection}
+                                </Text>
+                            ) : (
+                                <View className="flex-row items-center gap-2">
+                                    <CheckCircle2 size={24} color={tokens.success} />
+                                    <Text style={{
+                                        color: tokens.foregroundMuted,
+                                        fontFamily: typography.fonts.sans,
+                                        fontSize: typography.scale.body.fontSize,
+                                    }}>
+                                        You're all caught up
+                                    </Text>
+                                </View>
+                            )}
+                        </View>
+                    </TouchableOpacity>
                 ) : null}
 
 

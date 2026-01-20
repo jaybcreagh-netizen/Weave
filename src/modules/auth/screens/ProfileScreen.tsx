@@ -44,7 +44,8 @@ import { unregisterPushToken } from '@/modules/notifications';
 import type { Archetype } from '@/shared/types/common';
 import { SyncOrchestrator, useSyncStatusStore } from '@/modules/sync';
 import { formatDistanceToNow } from 'date-fns';
-import { RefreshCw, Database } from 'lucide-react-native';
+import { RefreshCw, Database, Ticket } from 'lucide-react-native';
+import { ClaimInviteSheet } from '@/modules/relationships';
 
 export function ProfileScreen() {
     const { colors } = useTheme();
@@ -70,6 +71,7 @@ export function ProfileScreen() {
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [showArchetypePicker, setShowArchetypePicker] = useState(false);
     const [showUsernameConfirmModal, setShowUsernameConfirmModal] = useState(false);
+    const [showClaimSheet, setShowClaimSheet] = useState(false);
 
     // Username validation
     const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
@@ -727,6 +729,29 @@ export function ProfileScreen() {
 
                         <View className="h-px ml-11" style={{ backgroundColor: colors.border }} />
 
+                        <View className="h-px ml-11" style={{ backgroundColor: colors.border }} />
+
+                        {/* Redeem Invite */}
+                        <TouchableOpacity
+                            className="flex-row items-center justify-between py-3.5 px-4"
+                            onPress={() => setShowClaimSheet(true)}
+                        >
+                            <View className="flex-row items-center gap-2">
+                                <Ticket size={20} color={colors.primary} style={{ marginRight: 8 }} />
+                                <Text style={{ color: colors.foreground }}>
+                                    Redeem Invite Code
+                                </Text>
+                            </View>
+                            <View className="flex-row items-center gap-2 flex-1 justify-end">
+                                <Text variant="caption" style={{ color: colors['muted-foreground'] }}>
+                                    Join a friend's weave
+                                </Text>
+                                <ChevronRight size={18} color={colors['muted-foreground']} />
+                            </View>
+                        </TouchableOpacity>
+
+                        <View className="h-px ml-11" style={{ backgroundColor: colors.border }} />
+
                         {/* Sign Out */}
                         <TouchableOpacity
                             className="flex-row items-center justify-between py-3.5 px-4"
@@ -850,6 +875,14 @@ export function ProfileScreen() {
                     />
                 </View>
             </Modal>
+            {/* Claim Invite Sheet */}
+            <ClaimInviteSheet
+                visible={showClaimSheet}
+                onClose={() => setShowClaimSheet(false)}
+                onSuccess={() => {
+                    // Refresh profile or handle success
+                }}
+            />
         </KeyboardAvoidingView>
     );
 }

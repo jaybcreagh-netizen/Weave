@@ -1378,5 +1378,27 @@ export default schemaMigrations({
         }),
       ],
     },
+    {
+      // Migration from schema v61 to v62
+      // Calendar integration for life events and birthdays/anniversaries
+      // Adds calendar_event_id to life_events for one-time events
+      // Adds birthday_calendar_event_id and anniversary_calendar_event_id to friends for recurring events
+      toVersion: 62,
+      steps: [
+        addColumns({
+          table: 'life_events',
+          columns: [
+            { name: 'calendar_event_id', type: 'string', isOptional: true },
+          ],
+        }),
+        addColumns({
+          table: 'friends',
+          columns: [
+            { name: 'birthday_calendar_event_id', type: 'string', isOptional: true },
+            { name: 'anniversary_calendar_event_id', type: 'string', isOptional: true },
+          ],
+        }),
+      ],
+    },
   ],
 });

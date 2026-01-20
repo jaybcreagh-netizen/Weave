@@ -36,6 +36,16 @@ export {
 export * from './utils/image.utils';
 export * from './services/life-event-detection';
 export * from './services/life-event.service';
+export {
+  syncBirthdayToCalendar,
+  syncAnniversaryToCalendar,
+  removeBirthdayFromCalendar,
+  removeAnniversaryFromCalendar,
+  syncAllBirthdaysToCalendar,
+  syncAllAnniversariesToCalendar,
+  syncAllBirthdaysAndAnniversaries,
+  type BulkSyncResult,
+} from './services/birthday-calendar.service';
 export { FriendForm } from './components/FriendForm';
 export { FriendListRow, FriendListRowContent } from './components/FriendListRow';
 export { FriendTierList } from './components/FriendTierList';
@@ -48,7 +58,7 @@ export { TimelineItem } from './components/TimelineItem';
 export { IntentionsDrawer } from './components/IntentionsDrawer';
 export { IntentionActionSheet } from './components/IntentionActionSheet';
 export { LifeEventModal } from './components/LifeEventModal';
-export { default as FriendBadgePopup } from './components/FriendBadgePopup';
+
 export { TierBalanceContent } from './components/TierBalanceContent';
 export { FriendSelector } from './components/FriendSelector';
 export { ReciprocitySelector, InitiatorType } from './components/ReciprocitySelector';
@@ -74,4 +84,6 @@ export {
 } from './services/friend-matching.service';
 // Screens
 export { FriendsDashboardScreen } from './screens/FriendsDashboardScreen';
+export { ClaimInviteSheet } from './components/ClaimInviteSheet';
+export { checkClaimedInvites } from './services/friend-linking.service';
 

@@ -76,7 +76,7 @@ export const InteractionActions = {
                             ifriend.friend.set(friend);
                         }));
                     }
-                    await database.batch(batchOps);
+                    await database.batch(...batchOps);
                 });
 
                 // processWeaveScoring for added friends
@@ -206,6 +206,49 @@ export const InteractionActions = {
                 if (shouldSync) {
                     const { enqueueOperation } = await import('@/modules/sync/services/action-queue.service');
                     await enqueueOperation('update_shared_weave', syncPayload);
+                }
+
+                // Sync participant changes if any
+                if (addedFriendIds.length > 0 || removedFriendIds.length > 0) {
+                    // Get the server weave ID from the ref
+                    const ref = sharedRefs[0] as any; // SharedWeaveRef
+                    const serverWeaveId = ref.serverWeaveId;
+
+                    // Lookup linked user IDs for added friends
+                    const addedUserIds: string[] = [];
+                    if (addedFriendIds.length > 0) {
+                        const addedFriends = await database.get<FriendModel>('friends')
+                            .query(Q.where('id', Q.oneOf(addedFriendIds)))
+                            .fetch();
+                        for (const friend of addedFriends) {
+                            if (friend.linkedUserId) {
+                                addedUserIds.push(friend.linkedUserId);
+                            }
+                        }
+                    }
+
+                    // Lookup linked user IDs for removed friends
+                    const removedUserIds: string[] = [];
+                    if (removedFriendIds.length > 0) {
+                        const removedFriends = await database.get<FriendModel>('friends')
+                            .query(Q.where('id', Q.oneOf(removedFriendIds)))
+                            .fetch();
+                        for (const friend of removedFriends) {
+                            if (friend.linkedUserId) {
+                                removedUserIds.push(friend.linkedUserId);
+                            }
+                        }
+                    }
+
+                    // Only sync if we have linked users to add/remove
+                    if (addedUserIds.length > 0 || removedUserIds.length > 0) {
+                        const { enqueueOperation } = await import('@/modules/sync/services/action-queue.service');
+                        await enqueueOperation('update_shared_weave_participants', {
+                            serverWeaveId,
+                            addedUserIds,
+                            removedUserIds,
+                        });
+                    }
                 }
             }
         } catch (err) {

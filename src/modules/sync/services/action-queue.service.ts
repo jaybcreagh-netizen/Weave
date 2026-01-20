@@ -239,7 +239,7 @@ async function processItem(item: SyncQueueItem): Promise<boolean> {
                 if (newRetryCount >= MAX_RETRIES) {
                     record.status = 'failed';
                     // Track shared weave failures for observability
-                    if (['share_weave', 'accept_weave', 'decline_weave', 'update_shared_weave'].includes(item.operationType)) {
+                    if (['share_weave', 'accept_weave', 'decline_weave', 'update_shared_weave', 'update_shared_weave_participants'].includes(item.operationType)) {
                         trackEvent(AnalyticsEvents.SHARED_WEAVE_FAILED, {
                             operation: item.operationType,
                             error: errorMessage,
@@ -267,6 +267,7 @@ async function executeOperation(
         executeAcceptWeave,
         executeDeclineWeave,
         executeUpdateSharedWeave,
+        executeUpdateSharedWeaveParticipants,
         executeSendLinkRequest,
         executeAcceptLinkRequest,
         executeDeclineLinkRequest,
@@ -284,6 +285,9 @@ async function executeOperation(
             break;
         case 'update_shared_weave':
             await executeUpdateSharedWeave(payload);
+            break;
+        case 'update_shared_weave_participants':
+            await executeUpdateSharedWeaveParticipants(payload);
             break;
         case 'send_link_request':
             await executeSendLinkRequest(payload);

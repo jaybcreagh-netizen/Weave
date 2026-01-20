@@ -1,3 +1,5 @@
+import { Platform } from 'react-native';
+
 /**
  * Standardized animation constants for bottom sheets
  *
@@ -11,8 +13,8 @@
  * - stiffness: 300 provides snappy response
  */
 export const SHEET_SPRING_CONFIG = {
-  damping: 40,
-  stiffness: 300,
+  damping: Platform.select({ android: 30, default: 40 }),
+  stiffness: Platform.select({ android: 150, default: 300 }),
   mass: 1,
 } as const;
 

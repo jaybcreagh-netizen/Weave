@@ -692,3 +692,54 @@ export async function unlinkFriend(localFriendId: string): Promise<boolean> {
     }
 }
 
+/**
+ * Check for claimed invites and link the corresponding local friend
+ * This handles the "Sender Side" of the referral flow
+ */
+export async function checkClaimedInvites(): Promise<void> {
+    const client = getSupabaseClient();
+    if (!client) return;
+
+    const session = await getCurrentSession();
+    if (!session) return;
+
+    try {
+        const { data: claimedInvites, error } = await client
+            .from('invite_links')
+            .select('id, creator_friend_local_id, claimed_by, claimed_at')
+            .eq('creator_id', session.userId)
+            .eq('status', 'claimed')
+            .not('creator_friend_local_id', 'is', null);
+
+        if (error) {
+            console.error('[FriendLinking] Error checking claimed invites:', error);
+            return;
+        }
+
+        if (!claimedInvites || claimedInvites.length === 0) return;
+
+        await database.write(async () => {
+            for (const invite of claimedInvites) {
+                if (!invite.creator_friend_local_id || !invite.claimed_by) continue;
+
+                try {
+                    const friend = await database.get<Friend>('friends').find(invite.creator_friend_local_id);
+                    if (friend && !friend.linkedUserId) {
+                        console.log(`[FriendLinking] Linking friend ${friend.name} to user ${invite.claimed_by} via invite`);
+                        await friend.update(f => {
+                            f.linkedUserId = invite.claimed_by;
+                            f.linkStatus = 'linked';
+                            f.linkedAt = new Date(invite.claimed_at).getTime();
+                        });
+                    }
+                } catch (e) {
+                    // Friend might have been deleted locally
+                    console.log(`[FriendLinking] Friend ${invite.creator_friend_local_id} not found locally`);
+                }
+            }
+        });
+
+    } catch (e) {
+        console.error('[FriendLinking] Exception checking claimed invites:', e);
+    }
+}

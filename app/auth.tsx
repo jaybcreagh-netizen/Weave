@@ -8,7 +8,7 @@
 import React from 'react';
 import { View, Text } from 'react-native';
 import { FeatureGate } from '@/shared/components/FeatureGate';
-import { AuthScreen } from '@/modules/auth/screens/AuthScreen';
+import { OnboardingAuthScreen } from '@/modules/auth/screens/OnboardingAuthScreen';
 
 export default function AuthRoute() {
     return (
@@ -20,7 +20,7 @@ export default function AuthRoute() {
                 </View>
             }
         >
-            <AuthScreen />
+            <OnboardingAuthScreen source="settings" />
         </FeatureGate>
     );
 }

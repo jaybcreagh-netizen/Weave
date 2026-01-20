@@ -162,33 +162,46 @@ export async function subscribeToRealtime(): Promise<void> {
                 outgoingLinkHandlerSet.forEach(handler => handler(data));
             }
         )
-        // UPDATE: When someone responds to a weave WE shared
+        // OPTIMIZED: Subscribe to realtime_signals with user_id filter
+        // This replaces the expensive unfiltered subscriptions to shared_weaves
+        // and shared_weave_participants that caused O(n) RLS check storms.
         .on(
             'postgres_changes',
             {
-                event: 'UPDATE',
+                event: 'INSERT',
                 schema: 'public',
-                table: 'shared_weave_participants',
-                // No filter here - we need to check if we're the creator in the handler
+                table: 'realtime_signals',
+                filter: `user_id=eq.${user.id}`,
             },
             (payload) => {
-                logger.info('Realtime', 'Participant response to shared weave', payload);
-                const data = payload.new as IncomingWeavePayload;
-                participantResponseHandlerSet.forEach(handler => handler(data));
-            }
-        )
-        // UPDATE: When a shared weave we are observing (participant) is updated
-        .on(
-            'postgres_changes',
-            {
-                event: 'UPDATE',
-                schema: 'public',
-                table: 'shared_weaves',
-            },
-            (payload) => {
-                logger.info('Realtime', 'Shared weave updated', payload);
-                const data = payload.new as IncomingWeaveUpdatePayload;
-                weaveUpdateHandlerSet.forEach(handler => handler(data));
+                const signal = payload.new as {
+                    id: string;
+                    user_id: string;
+                    signal_type: string;
+                    payload: Record<string, unknown>;
+                };
+
+                logger.info('Realtime', `Signal received: ${signal.signal_type}`, signal.payload);
+
+                // Route signal to appropriate handler based on type
+                switch (signal.signal_type) {
+                    case 'weave_update':
+                        const weaveData = signal.payload as unknown as IncomingWeaveUpdatePayload;
+                        weaveUpdateHandlerSet.forEach(handler => handler(weaveData));
+                        break;
+
+                    case 'participant_response':
+                        const responseData = signal.payload as unknown as IncomingWeavePayload;
+                        participantResponseHandlerSet.forEach(handler => handler(responseData));
+                        break;
+
+                    default:
+                        logger.warn('Realtime', `Unknown signal type: ${signal.signal_type}`);
+                }
+
+                // Optionally delete the signal after processing (cleanup handles old ones)
+                // Fire and forget - don't await
+                deleteSignal(signal.id);
             }
         )
         .subscribe((status, err) => {
@@ -436,4 +449,28 @@ export function getRealtimeStatus(): {
 export async function forceReconnect(): Promise<void> {
     reconnectAttempts = 0;
     await subscribeToRealtime();
+}
+
+// =============================================================================
+// SIGNAL CLEANUP
+// =============================================================================
+
+/**
+ * Delete a processed signal (fire and forget)
+ * This keeps the signals table small. The DB also has a cleanup function
+ * that removes signals older than 1 hour.
+ */
+async function deleteSignal(signalId: string): Promise<void> {
+    try {
+        const client = getSupabaseClient();
+        if (!client) return;
+
+        await client
+            .from('realtime_signals')
+            .delete()
+            .eq('id', signalId);
+    } catch (error) {
+        // Ignore errors - cleanup function will handle old signals
+        logger.debug('Realtime', 'Failed to delete signal (non-critical)', { signalId });
+    }
 }

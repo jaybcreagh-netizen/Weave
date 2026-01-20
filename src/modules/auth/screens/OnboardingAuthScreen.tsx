@@ -28,9 +28,10 @@ import {
     isAppleSignInAvailable,
 } from '@/modules/auth/services/supabase-auth.service';
 
-export function OnboardingAuthScreen() {
+export function OnboardingAuthScreen({ source: sourceProp }: { source?: string }) {
     const { colors, isDarkMode } = useTheme();
-    const { source } = useLocalSearchParams<{ source: string }>();
+    const { source: sourceParam } = useLocalSearchParams<{ source:string }>();
+    const source = sourceProp || sourceParam;
     const [appleAvailable, setAppleAvailable] = useState(false);
     const [loading, setLoading] = useState(false);
     const [showEmailForm, setShowEmailForm] = useState(false);

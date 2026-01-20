@@ -123,6 +123,18 @@ export const WeeklyReflectionChannel: NotificationChannel = {
     },
 
     handleTap: async (data, router) => {
+        // Check if reflection already completed for current week
+        const { hasCompletedReflectionForCurrentWeek } = await import('@/modules/reflection');
+        const completed = await hasCompletedReflectionForCurrentWeek();
+
+        if (completed) {
+            Logger.info('[WeeklyReflection] Already completed for current week, skipping modal');
+            // Still navigate to dashboard, just don't open the modal
+            if (router.canGoBack()) router.dismissAll();
+            router.replace('/dashboard');
+            return;
+        }
+
         if (router.canGoBack()) router.dismissAll();
         router.replace('/dashboard');
 

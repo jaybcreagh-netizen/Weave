@@ -10,12 +10,18 @@ import Animated, { FadeInUp } from 'react-native-reanimated';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { database } from '@/db';
 import LifeEventModel, { LifeEventType, LifeEventImportance } from '@/db/models/LifeEvent';
+import FriendModel from '@/db/models/Friend';
 import { LifeEvent } from '@/shared/types/legacy-types';
 
 import UserProgress from '@/db/models/UserProgress';
 import { CustomCalendar } from '@/shared/components/CustomCalendar';
 import { startOfDay } from 'date-fns';
 import { AnimatedBottomSheet } from '@/shared/ui/Sheet';
+import {
+  createLifeEventCalendarEvent,
+  updateLifeEventCalendarEvent,
+  deleteLifeEventCalendarEvent,
+} from '@/modules/interactions/services/calendar.service';
 
 interface LifeEventModalProps {
   visible: boolean;
@@ -89,29 +95,60 @@ export const LifeEventModal: React.FC<LifeEventModalProps> = ({
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      await database.write(async () => {
-        if (existingEvent) {
-          // Update existing event
-          const eventModel = await database.get<LifeEventModel>('life_events').find(existingEvent.id);
+      // Get friend name for calendar event
+      const friend = await database.get<FriendModel>('friends').find(friendId);
+      const friendName = friend.name;
+      const eventTitle = title.trim() || EVENT_TYPES.find(t => t.value === eventType)?.label || 'Life Event';
+
+      if (existingEvent) {
+        // Update existing event
+        const eventModel = await database.get<LifeEventModel>('life_events').find(existingEvent.id);
+
+        // Update calendar event if it exists
+        if (eventModel.calendarEventId) {
+          await updateLifeEventCalendarEvent(eventModel.calendarEventId, {
+            eventTitle,
+            eventType,
+            eventDate: startOfDay(eventDate),
+            notes: notes.trim(),
+          });
+        }
+
+        await database.write(async () => {
           await eventModel.update(event => {
             event.eventType = eventType;
             event.eventDate = startOfDay(eventDate);
-            event.title = title.trim() || EVENT_TYPES.find(t => t.value === eventType)?.label || 'Life Event';
+            event.title = eventTitle;
             event.notes = notes.trim();
             event.importance = importance;
           });
-        } else {
-          // Create new event
+        });
+      } else {
+        // Create calendar event first (outside DB write transaction)
+        const calendarResult = await createLifeEventCalendarEvent({
+          friendName,
+          eventType,
+          eventTitle,
+          eventDate: startOfDay(eventDate),
+          notes: notes.trim(),
+        });
+
+        // Create new life event in database
+        await database.write(async () => {
           await database.get<LifeEventModel>('life_events').create(event => {
             event.friendId = friendId;
             event.eventType = eventType;
             event.eventDate = startOfDay(eventDate);
-            event.title = title.trim() || EVENT_TYPES.find(t => t.value === eventType)?.label || 'Life Event';
+            event.title = eventTitle;
             event.notes = notes.trim();
             event.importance = importance;
             event.source = 'manual';
             event.isRecurring = false;
             event.reminded = false;
+            // Store calendar event ID if created successfully
+            if (calendarResult.success && calendarResult.eventId) {
+              event.calendarEventId = calendarResult.eventId;
+            }
           });
 
           const userProgress = await database.get<UserProgress>('user_progress').query().fetch();
@@ -119,8 +156,8 @@ export const LifeEventModal: React.FC<LifeEventModalProps> = ({
           await progress.update(p => {
             p.scribeProgress += 1;
           });
-        }
-      });
+        });
+      }
 
       onClose();
     } catch (error) {
@@ -144,8 +181,14 @@ export const LifeEventModal: React.FC<LifeEventModalProps> = ({
           style: 'destructive',
           onPress: async () => {
             try {
+              const eventModel = await database.get<LifeEventModel>('life_events').find(existingEvent.id);
+
+              // Delete calendar event if it exists (outside DB write transaction)
+              if (eventModel.calendarEventId) {
+                await deleteLifeEventCalendarEvent(eventModel.calendarEventId);
+              }
+
               await database.write(async () => {
-                const eventModel = await database.get<LifeEventModel>('life_events').find(existingEvent.id);
                 await eventModel.destroyPermanently();
               });
               onClose();

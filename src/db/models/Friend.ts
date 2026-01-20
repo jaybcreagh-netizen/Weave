@@ -47,6 +47,10 @@ export default class Friend extends Model {
   @text('anniversary') anniversary?: string // Format: "MM-DD"
   @text('relationship_type') relationshipType?: string
 
+  // Native calendar integration for recurring events (v62)
+  @text('birthday_calendar_event_id') birthdayCalendarEventId?: string
+  @text('anniversary_calendar_event_id') anniversaryCalendarEventId?: string
+
   // Adaptive decay pattern learning (v21)
   @field('typical_interval_days') typicalIntervalDays?: number
   @field('tolerance_window_days') toleranceWindowDays?: number

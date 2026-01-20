@@ -3,6 +3,7 @@ import Logger from '@/shared/utils/Logger';
 import { NotificationChannel } from '@/modules/notifications';
 import { database } from '@/db';
 import UserProfile from '@/db/models/UserProfile';
+import { getSupabaseClient } from '@/shared/services/supabase-client';
 
 const ID_PREFIX = 'username-nudge';
 
@@ -15,7 +16,33 @@ export const UsernameNudgeChannel: NotificationChannel = {
 
             if (!profile) return;
 
-            const currentUsername = profile.username || '';
+            // Check local first, then fallback to Supabase
+            // (handles case where username was set but not synced locally yet)
+            let currentUsername = profile.username || '';
+
+            if (!currentUsername || currentUsername.startsWith('user_')) {
+                // Local DB might be stale - check Supabase
+                try {
+                    const client = getSupabaseClient();
+                    if (client) {
+                        const { data: { user } } = await client.auth.getUser();
+                        if (user) {
+                            const { data } = await client
+                                .from('user_profiles')
+                                .select('username')
+                                .eq('id', user.id)
+                                .single();
+                            if (data?.username) {
+                                currentUsername = data.username;
+                                Logger.info('[UsernameNudge] Fetched username from Supabase:', currentUsername);
+                            }
+                        }
+                    }
+                } catch (e) {
+                    Logger.warn('[UsernameNudge] Failed to fetch username from Supabase:', e);
+                }
+            }
+
             const needsNudge = !currentUsername || currentUsername.startsWith('user_');
 
             if (!needsNudge) {

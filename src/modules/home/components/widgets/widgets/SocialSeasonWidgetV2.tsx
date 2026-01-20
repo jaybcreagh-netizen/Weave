@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
+import Animated, { FadeIn, FadeOut, Layout } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { HomeWidgetBase, HomeWidgetConfig } from '../HomeWidgetBase';
@@ -49,7 +50,8 @@ export const SocialSeasonWidgetV2: React.FC<SocialSeasonWidgetProps> = () => {
         return () => clearTimeout(timer);
     }, []);
 
-    const { data: batteryStats = { average: 50, trend: 'stable' } } = useSocialBatteryStats({
+    // Battery is on 1-5 scale, null means no data
+    const { data: batteryStats = { average: null, trend: null } } = useSocialBatteryStats({
         enabled: isDeferralOver
     });
     const { allInteractions } = useInteractions();
@@ -59,10 +61,18 @@ export const SocialSeasonWidgetV2: React.FC<SocialSeasonWidgetProps> = () => {
     const isCacheStale = useDashboardCacheStore((state) => state.isSocialSeasonStale);
     const setCache = useDashboardCacheStore((state) => state.setSocialSeasonCache);
 
-    // Initialize state from cache (instant display, no loading flicker)
+    // Initialize state from cache, falling back to persisted profile season
+    // This prevents the "balanced → actual" flash on first boot
     const [isCalculating, setIsCalculating] = useState(false);
     const [season, setSeason] = useState<SocialSeason>(cache.season);
     const [seasonData, setSeasonData] = useState<SeasonExplanationData | null>(cache.seasonData);
+
+    // Sync season from profile when cache is stale (prevents "balanced" flash on cold start)
+    useEffect(() => {
+        if (!cache.lastCalculated && profile?.currentSocialSeason) {
+            setSeason(profile.currentSocialSeason as SocialSeason);
+        }
+    }, [profile?.currentSocialSeason, cache.lastCalculated]);
     const [showDetailSheet, setShowDetailSheet] = useState(false);
     const [showOverrideModal, setShowOverrideModal] = useState(false);
     const [weeklyWeaves, setWeeklyWeaves] = useState(cache.weeklyWeaves);
@@ -134,8 +144,9 @@ export const SocialSeasonWidgetV2: React.FC<SocialSeasonWidgetProps> = () => {
             const innerCircleScores = innerCircleFriends.map(f => calculateCurrentScore(f));
             const avgScoreInnerCircle = innerCircleScores.reduce((sum, score) => sum + score, 0) / innerCircleScores.length || 0;
             const momentumCount = friends.filter(f => f.momentumScore > 10 && f.momentumLastUpdated.getTime() > Date.now() - 24 * 60 * 60 * 1000).length;
-            const averageBattery = batteryStats.average || 50;
-            const batteryTrend = batteryStats.trend || 'stable';
+            // Pass null to calculator if no battery data - it will use neutral score (60)
+            const averageBattery = batteryStats.average;  // null is valid, don't default to 50!
+            const batteryTrend = batteryStats.trend;
 
             const input: SeasonCalculationInput = {
                 weavesLast7Days,
@@ -240,8 +251,8 @@ export const SocialSeasonWidgetV2: React.FC<SocialSeasonWidgetProps> = () => {
         avgScoreAllFriends: calculateWeightedNetworkHealth(friends) || 50,
         avgScoreInnerCircle: friends.filter(f => f.dunbarTier === 'InnerCircle').reduce((sum, f) => sum + calculateCurrentScore(f), 0) / friends.filter(f => f.dunbarTier === 'InnerCircle').length || 50,
         momentumCount: friends.filter(f => f.momentumScore > 10).length,
-        batteryLast7DaysAvg: batteryStats.average || 50,
-        batteryTrend: batteryStats.trend || 'stable',
+        batteryLast7DaysAvg: batteryStats.average,  // null is valid
+        batteryTrend: batteryStats.trend,
     });
 
     const greeting = getSeasonGreeting(season, context);
@@ -267,7 +278,13 @@ export const SocialSeasonWidgetV2: React.FC<SocialSeasonWidgetProps> = () => {
                     activeOpacity={0.7}
                 >
                     <View>
-                        <View className="flex-row items-center gap-4">
+                        <Animated.View
+                            key={season}
+                            entering={FadeIn.duration(300)}
+                            exiting={FadeOut.duration(200)}
+                            layout={Layout.springify()}
+                            className="flex-row items-center gap-4"
+                        >
                             <View
                                 className="w-16 h-16 rounded-full items-center justify-center"
                                 style={{ backgroundColor: 'rgba(255, 215, 0, 0.1)' }} // Subtle gold tint
@@ -297,7 +314,7 @@ export const SocialSeasonWidgetV2: React.FC<SocialSeasonWidgetProps> = () => {
                                     {greeting.subtext}
                                 </Text>
                             </View>
-                        </View>
+                        </Animated.View>
 
                         {profile?.seasonOverrideUntil && profile.seasonOverrideUntil > Date.now() && (
                             <View

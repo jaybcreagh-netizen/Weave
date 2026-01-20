@@ -56,6 +56,7 @@ interface FriendListRowProps {
   animatedRef?: AnimatedRef<Animated.View>;
   variant?: 'default' | 'full' | 'compact';
   onPress?: (friend: FriendModel) => void;
+  onLongPress?: (friend: FriendModel) => void;
   onOpenArchetypePicker?: (friend: FriendModel) => void;
   onOpenDetail?: (friend: FriendModel) => void;
 }
@@ -66,6 +67,7 @@ export const FriendListRowContent = ({
   animatedRef,
   variant = 'default',
   onPress,
+  onLongPress,
   onOpenArchetypePicker,
   onOpenDetail
 }: FriendListRowProps) => {
@@ -350,6 +352,7 @@ export const FriendListRowContent = ({
               handleCardPress();
             }
           }}
+          onLongPress={() => onLongPress?.(friend as FriendModel)}
         >
           {/* Single gradient background - health indicator */}
           <Animated.View style={[{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }, gradientStyle]}>

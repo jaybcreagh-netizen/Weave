@@ -302,6 +302,276 @@ export async function deleteWeaveCalendarEvent(eventId: string): Promise<boolean
   }
 }
 
+// --- Life Events ---
+
+/**
+ * Map life event types to emojis for calendar display
+ */
+const LIFE_EVENT_EMOJIS: Record<string, string> = {
+  new_job: '💼',
+  moving: '🏠',
+  graduation: '🎓',
+  health_event: '🏥',
+  celebration: '🎉',
+  loss: '🕯️',
+  wedding: '💒',
+  baby: '👶',
+  birthday: '🎂',
+  anniversary: '💝',
+  other: '📌',
+};
+
+/**
+ * Creates a calendar event for a friend's life event (one-time, all-day)
+ * Examples: new job, wedding, baby, moving, etc.
+ */
+export async function createLifeEventCalendarEvent(params: {
+  friendName: string;
+  eventType: string;
+  eventTitle: string;
+  eventDate: Date;
+  notes?: string;
+}): Promise<CreateEventResult> {
+  try {
+    const settings = await getCalendarSettings();
+    if (!settings.enabled) {
+      logger.debug('CalendarService', 'Calendar integration disabled');
+      return { success: false, eventId: null, error: 'disabled' };
+    }
+
+    const hasPermission = await requestCalendarPermissions();
+    if (!hasPermission) {
+      logger.warn('CalendarService', 'Calendar permissions not granted');
+      return { success: false, eventId: null, error: 'no_permission', message: 'Calendar permissions not granted' };
+    }
+
+    const calendarId = await getDefaultCalendarId();
+    if (!calendarId) {
+      logger.warn('CalendarService', 'No calendar available for event creation');
+      return { success: false, eventId: null, error: 'no_calendar', message: 'No calendar available. Please select a calendar in Settings.' };
+    }
+
+    const emoji = LIFE_EVENT_EMOJIS[params.eventType] || LIFE_EVENT_EMOJIS.other;
+    const eventTitle = `${emoji} ${params.eventTitle}`;
+
+    const eventNotes = [
+      `Life event for ${params.friendName}`,
+      '',
+      params.notes ? `Notes:\n${params.notes}` : null,
+      '',
+      '---',
+      'Created by Weave'
+    ].filter(Boolean).join('\n');
+
+    const eventDetails: Partial<Calendar.Event> = {
+      title: eventTitle,
+      startDate: params.eventDate,
+      endDate: params.eventDate,
+      notes: eventNotes,
+      allDay: true,
+    };
+
+    logger.info('CalendarService', `Creating life event "${eventTitle}" on calendar ${calendarId}`);
+    const eventId = await Calendar.createEventAsync(calendarId, eventDetails);
+    logger.info('CalendarService', `Life event created successfully: ${eventId}`);
+
+    return { success: true, eventId };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error('CalendarService', 'Error creating life event:', errorMessage);
+    return { success: false, eventId: null, error: 'create_failed', message: `Failed to create event: ${errorMessage}` };
+  }
+}
+
+/**
+ * Updates an existing life event calendar event
+ */
+export async function updateLifeEventCalendarEvent(eventId: string, params: {
+  eventTitle?: string;
+  eventType?: string;
+  eventDate?: Date;
+  notes?: string;
+}): Promise<boolean> {
+  try {
+    const settings = await getCalendarSettings();
+    if (!settings.enabled) return false;
+
+    const hasPermission = await checkCalendarPermissions();
+    if (!hasPermission.granted) return false;
+
+    const updateParams: Partial<Calendar.Event> = {};
+
+    if (params.eventTitle !== undefined) {
+      const emoji = params.eventType ? (LIFE_EVENT_EMOJIS[params.eventType] || LIFE_EVENT_EMOJIS.other) : '📌';
+      updateParams.title = `${emoji} ${params.eventTitle}`;
+    }
+    if (params.eventDate !== undefined) {
+      updateParams.startDate = params.eventDate;
+      updateParams.endDate = params.eventDate;
+    }
+    if (params.notes !== undefined) {
+      updateParams.notes = params.notes || '';
+    }
+
+    if (Object.keys(updateParams).length > 0) {
+      await Calendar.updateEventAsync(eventId, updateParams);
+    }
+    return true;
+  } catch (error) {
+    console.error('Error updating life event calendar event:', error);
+    return false;
+  }
+}
+
+/**
+ * Deletes a life event calendar event
+ */
+export async function deleteLifeEventCalendarEvent(eventId: string): Promise<boolean> {
+  return deleteWeaveCalendarEvent(eventId);
+}
+
+// --- Birthday & Anniversary Events (Recurring) ---
+
+/**
+ * Converts MM-DD string to a Date object for the next occurrence
+ * If the date has already passed this year, returns next year's date
+ */
+function getNextOccurrenceDate(monthDay: string): Date {
+  const [month, day] = monthDay.split('-').map(Number);
+  const today = new Date();
+  const thisYear = today.getFullYear();
+
+  // Create date for this year
+  const dateThisYear = new Date(thisYear, month - 1, day);
+
+  // If the date has passed, use next year
+  if (dateThisYear < today) {
+    return new Date(thisYear + 1, month - 1, day);
+  }
+
+  return dateThisYear;
+}
+
+/**
+ * Creates a recurring annual calendar event for a friend's birthday
+ */
+export async function createBirthdayCalendarEvent(params: {
+  friendName: string;
+  monthDay: string; // "MM-DD" format
+}): Promise<CreateEventResult> {
+  try {
+    const settings = await getCalendarSettings();
+    if (!settings.enabled) {
+      logger.debug('CalendarService', 'Calendar integration disabled');
+      return { success: false, eventId: null, error: 'disabled' };
+    }
+
+    const hasPermission = await requestCalendarPermissions();
+    if (!hasPermission) {
+      logger.warn('CalendarService', 'Calendar permissions not granted');
+      return { success: false, eventId: null, error: 'no_permission', message: 'Calendar permissions not granted' };
+    }
+
+    const calendarId = await getDefaultCalendarId();
+    if (!calendarId) {
+      logger.warn('CalendarService', 'No calendar available for event creation');
+      return { success: false, eventId: null, error: 'no_calendar', message: 'No calendar available. Please select a calendar in Settings.' };
+    }
+
+    const eventTitle = `🎂 ${params.friendName}'s Birthday`;
+    const startDate = getNextOccurrenceDate(params.monthDay);
+
+    const eventDetails: Partial<Calendar.Event> = {
+      title: eventTitle,
+      startDate,
+      endDate: startDate,
+      notes: `Annual birthday reminder for ${params.friendName}\n\n---\nCreated by Weave`,
+      allDay: true,
+      recurrenceRule: {
+        frequency: Calendar.Frequency.YEARLY,
+        interval: 1,
+      },
+    };
+
+    logger.info('CalendarService', `Creating birthday event "${eventTitle}" on calendar ${calendarId}`);
+    const eventId = await Calendar.createEventAsync(calendarId, eventDetails);
+    logger.info('CalendarService', `Birthday event created successfully: ${eventId}`);
+
+    return { success: true, eventId };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error('CalendarService', 'Error creating birthday event:', errorMessage);
+    return { success: false, eventId: null, error: 'create_failed', message: `Failed to create event: ${errorMessage}` };
+  }
+}
+
+/**
+ * Creates a recurring annual calendar event for an anniversary with a partner friend
+ */
+export async function createAnniversaryCalendarEvent(params: {
+  friendName: string;
+  monthDay: string; // "MM-DD" format
+}): Promise<CreateEventResult> {
+  try {
+    const settings = await getCalendarSettings();
+    if (!settings.enabled) {
+      logger.debug('CalendarService', 'Calendar integration disabled');
+      return { success: false, eventId: null, error: 'disabled' };
+    }
+
+    const hasPermission = await requestCalendarPermissions();
+    if (!hasPermission) {
+      logger.warn('CalendarService', 'Calendar permissions not granted');
+      return { success: false, eventId: null, error: 'no_permission', message: 'Calendar permissions not granted' };
+    }
+
+    const calendarId = await getDefaultCalendarId();
+    if (!calendarId) {
+      logger.warn('CalendarService', 'No calendar available for event creation');
+      return { success: false, eventId: null, error: 'no_calendar', message: 'No calendar available. Please select a calendar in Settings.' };
+    }
+
+    const eventTitle = `💝 Anniversary with ${params.friendName}`;
+    const startDate = getNextOccurrenceDate(params.monthDay);
+
+    const eventDetails: Partial<Calendar.Event> = {
+      title: eventTitle,
+      startDate,
+      endDate: startDate,
+      notes: `Annual anniversary reminder with ${params.friendName}\n\n---\nCreated by Weave`,
+      allDay: true,
+      recurrenceRule: {
+        frequency: Calendar.Frequency.YEARLY,
+        interval: 1,
+      },
+    };
+
+    logger.info('CalendarService', `Creating anniversary event "${eventTitle}" on calendar ${calendarId}`);
+    const eventId = await Calendar.createEventAsync(calendarId, eventDetails);
+    logger.info('CalendarService', `Anniversary event created successfully: ${eventId}`);
+
+    return { success: true, eventId };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error('CalendarService', 'Error creating anniversary event:', errorMessage);
+    return { success: false, eventId: null, error: 'create_failed', message: `Failed to create event: ${errorMessage}` };
+  }
+}
+
+/**
+ * Deletes a birthday calendar event
+ */
+export async function deleteBirthdayCalendarEvent(eventId: string): Promise<boolean> {
+  return deleteWeaveCalendarEvent(eventId);
+}
+
+/**
+ * Deletes an anniversary calendar event
+ */
+export async function deleteAnniversaryCalendarEvent(eventId: string): Promise<boolean> {
+  return deleteWeaveCalendarEvent(eventId);
+}
+
 // --- Two-Way Sync ---
 
 function detectChanges(calendarEvent: Calendar.Event, interaction: Interaction): { hasChanges: boolean; fields: string[] } {

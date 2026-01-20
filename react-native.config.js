@@ -1,15 +1,6 @@
 module.exports = {
-    dependencies: {
-      '@nozbe/watermelondb': {
-        platforms: {
-          android: {
-            sourceDir: '../node_modules/@nozbe/watermelondb/native/android',
-            packageImportPath: 'import com.nozbe.watermelondb.WatermelonDBPackage;',
-          },
-          ios: {
-            podspecPath: '../node_modules/@nozbe/watermelondb/WatermelonDB.podspec'
-          },
-        },
-      },
-    },
-  };
+  dependencies: {
+    // WatermelonDB should be autolinked automatically. 
+    // Manual config has been removed to allow standard detection.
+  },
+};

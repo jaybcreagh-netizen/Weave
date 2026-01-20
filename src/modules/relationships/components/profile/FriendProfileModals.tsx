@@ -1,5 +1,4 @@
 import React from 'react';
-import { isFuture } from 'date-fns';
 import { Interaction, InteractionCategory, Friend } from '@/shared/types/legacy-types';
 import { FriendShape, InteractionShape } from '@/shared/types/derived';
 import IntentionModel from '@/db/models/Intention';
@@ -14,9 +13,11 @@ import { IntentionFormModal } from '@/modules/reflection';
 import { IntentionsDrawer } from '@/modules/relationships/components/IntentionsDrawer';
 import { IntentionActionSheet } from '@/modules/relationships/components/IntentionActionSheet';
 import { LifeEventModal } from '@/modules/relationships/components/LifeEventModal';
-import FriendBadgePopup from '@/modules/relationships/components/FriendBadgePopup';
+
 import { TierFitBottomSheetWrapper } from './TierFitBottomSheetWrapper';
 import { useFriendProfileModals } from '@/modules/relationships';
+import { FriendDetailSheet } from '../FriendDetailSheet';
+import { InviteFriendSheet } from '@/modules/interactions/components/InviteFriendSheet';
 
 import { Intention } from '@/shared/types/legacy-types';
 
@@ -65,11 +66,12 @@ export function FriendProfileModals({
         setShowLifeEventModal,
         editingLifeEvent,
         setEditingLifeEvent,
-        showBadgePopup,
-        setShowBadgePopup,
+
         showTierFitSheet,
         setShowTierFitSheet,
         handleEditInteraction,
+        showInviteSheet,
+        setShowInviteSheet,
     } = modals;
 
     return (
@@ -114,17 +116,18 @@ export function FriendProfileModals({
                 friendName={friend?.name}
             />
 
+            {/* EditInteractionModal - for editing past/completed weaves */}
             <EditInteractionModal
                 interaction={editingInteraction as any}
-                isOpen={editingInteraction !== null && !showPlanWizard && !isFuture(new Date(editingInteraction?.interactionDate || 0))}
+                isOpen={editingInteraction !== null && !showPlanWizard && editingInteraction?.status === 'completed'}
                 onClose={() => setEditingInteraction(null)}
                 onSave={updateInteraction as any}
             />
 
-            {/* PlannedWeaveDetailSheet - for editing future weaves */}
-            {editingInteraction && isFuture(new Date(editingInteraction.interactionDate)) && (
+            {/* PlannedWeaveDetailSheet - for editing planned weaves (by status, not date) */}
+            {editingInteraction && (editingInteraction.status === 'planned' || editingInteraction.status === 'pending_confirm') && (
                 <PlannedWeaveDetailSheet
-                    visible={editingInteraction !== null && isFuture(new Date(editingInteraction.interactionDate))}
+                    visible={true}
                     onClose={() => setEditingInteraction(null)}
                     interaction={editingInteraction as unknown as InteractionModel}
                     onDelete={deleteWeave}
@@ -211,20 +214,31 @@ export function FriendProfileModals({
                 existingEvent={editingLifeEvent as any}
             />
 
-            {friend && (
-                <FriendBadgePopup
-                    visible={showBadgePopup}
-                    onClose={() => setShowBadgePopup(false)}
-                    friendId={friend.id}
-                    friendName={friend.name}
-                />
-            )}
+
 
             {friend && showTierFitSheet && (
                 <TierFitBottomSheetWrapper
                     friendId={friend.id}
                     visible={showTierFitSheet}
                     onDismiss={() => setShowTierFitSheet(false)}
+                />
+            )}
+
+            {friend && (
+                <FriendDetailSheet
+                    isVisible={modals.showFriendDetailSheet}
+                    onClose={() => modals.setShowFriendDetailSheet(false)}
+                    friendId={friend.id}
+                />
+            )}
+
+            {friend && (
+                <InviteFriendSheet
+                    visible={showInviteSheet}
+                    onClose={() => setShowInviteSheet(false)}
+                    friendName={friend.name}
+                    friendLocalId={friend.id}
+                // No weave data for pure friend invite
                 />
             )}
         </>

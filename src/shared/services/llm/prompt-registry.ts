@@ -96,7 +96,7 @@ RELATIONSHIP PATTERNS:
 Generate one reflection prompt (under 25 words):`,
 
     defaultOptions: {
-      maxTokens: 1024,
+      maxTokens: 2048,
       temperature: 0.8,
     },
   },
@@ -525,7 +525,7 @@ TRIAGE REASON: {{triageReason}}
 Generate context snippet (max 15 words):`,
 
     defaultOptions: {
-      maxTokens: 1024,
+      maxTokens: 2048,
       temperature: 0.6,
     },
   },
@@ -650,7 +650,7 @@ Generate one insight (1-2 sentences):`,
 
 
     defaultOptions: {
-      maxTokens: 2048,
+      maxTokens: 4096,
       temperature: 0.7,
     },
   },
@@ -734,7 +734,7 @@ OUTPUT FORMAT (JSON ONLY):
 
 Analyze completeness (JSON):`,
     defaultOptions: {
-      maxTokens: 2048,
+      maxTokens: 4096,
       temperature: 0.2
     }
   },
@@ -789,7 +789,7 @@ FRIENDS INVOLVED: {{friendNames}}
 Detect actions (JSON array only):`,
 
     defaultOptions: {
-      maxTokens: 1024, // Increased for JSON array output
+      maxTokens: 2048,
       temperature: 0.1, // Very low temp for consistent logic
       jsonMode: true,
       thinkingLevel: 'low',
@@ -841,7 +841,7 @@ Recent Sentiment: {{recentSentiment}}
 Generate a daily reflection (max 3 sentences):`,
 
     defaultOptions: {
-      maxTokens: 512,
+      maxTokens: 2048,
       temperature: 0.7,
     },
   },
@@ -887,7 +887,7 @@ CURRENT INTERACTION CONTEXT: {{currentContext}}
 Generate a follow-up prompt (under 25 words):`,
 
     defaultOptions: {
-      maxTokens: 1024,
+      maxTokens: 2048,
       temperature: 0.7,
     },
   },
@@ -953,7 +953,7 @@ ACTIVE THREADS:
 Generate one insight (2-3 sentences):`,
 
     defaultOptions: {
-      maxTokens: 2048,
+      maxTokens: 4096,
       temperature: 0.7,
     },
   },
@@ -1025,7 +1025,7 @@ SENTIMENT TRENDS:
 Generate one cross-friend pattern insight (2-3 sentences):`,
 
     defaultOptions: {
-      maxTokens: 2048,
+      maxTokens: 4096,
       temperature: 0.7,
     },
   },
@@ -1364,7 +1364,7 @@ USER'S THOUGHT: {{seed}}
 Write a polished 2-4 sentence reflection in first person:`,
 
     defaultOptions: {
-      maxTokens: 2048,
+      maxTokens: 4096,
       temperature: 0.7,
       thinkingLevel: 'low',
     },

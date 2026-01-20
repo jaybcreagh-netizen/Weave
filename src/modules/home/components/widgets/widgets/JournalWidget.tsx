@@ -42,6 +42,7 @@ import JournalEntry from '@/db/models/JournalEntry';
 import JournalEntryFriend from '@/db/models/JournalEntryFriend';
 import WeeklyReflection from '@/db/models/WeeklyReflection';
 import Interaction from '@/db/models/Interaction';
+import { SPRINGS } from '@/shared/constants/animation';
 // FIX: Direct imports to avoid circular dependencies in barrel files
 import {
     getRecentMeaningfulWeaves,
@@ -687,8 +688,8 @@ export function JournalWidget() {
                     <View className="flex-1 overflow-hidden h-6 justify-center">
                         <Animated.View
                             key={statIndex}
-                            entering={FadeInDown.springify().damping(12)}
-                            exiting={FadeOutUp.springify().damping(12)}
+                            entering={FadeInDown.springify().damping(SPRINGS.PREMIUM.damping).stiffness(SPRINGS.PREMIUM.stiffness)}
+                            exiting={FadeOutUp.springify().damping(SPRINGS.PREMIUM.damping).stiffness(SPRINGS.PREMIUM.stiffness)}
                             className="flex-row items-center gap-2 absolute top-0 left-0 bottom-0"
                         >
                             <StatIcon size={14} color={tokens.foregroundMuted} />

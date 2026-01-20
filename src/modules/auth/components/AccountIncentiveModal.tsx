@@ -38,7 +38,7 @@ export function AccountIncentiveModal({ isOpen, onDismiss }: AccountIncentiveMod
         <StandardBottomSheet
             visible={isOpen}
             onClose={onDismiss}
-            height="action"
+            height="full"
             title="Connect the Threads"
         >
             <View style={styles.container}>

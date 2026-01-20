@@ -1,0 +1,187 @@
+# Weave iOS Fastfile
+# Run with: cd ios && bundle exec fastlane beta
+
+default_platform(:ios)
+
+# ============================================================================
+# CONFIGURATION
+# ============================================================================
+
+WORKSPACE = "Weave.xcworkspace"
+SCHEME = "Weave"
+BUNDLE_ID = "com.jaycreagh.WeaveNative"
+
+# Sentry configuration (matches sentry.properties)
+SENTRY_ORG = "jay-creagh"
+SENTRY_PROJECT = "weave"
+SENTRY_URL = "https://de.sentry.io/"
+
+# ============================================================================
+# LANES
+# ============================================================================
+
+platform :ios do
+
+  # --------------------------------------------------------------------------
+  # BETA: Build and upload to TestFlight
+  # --------------------------------------------------------------------------
+  desc "Build and upload to TestFlight with proper dSYM handling"
+  lane :beta do |options|
+    # Ensure we're on a clean state
+    ensure_git_status_clean unless options[:skip_git_check]
+
+    # Increment build number (uses current timestamp for uniqueness)
+    increment_build_number(
+      build_number: Time.now.strftime("%Y%m%d%H%M"),
+      xcodeproj: "Weave.xcodeproj"
+    )
+
+    # Build the app
+    build_ios_app(
+      workspace: WORKSPACE,
+      scheme: SCHEME,
+      export_method: "app-store",
+      output_directory: "./build",
+      output_name: "Weave.ipa",
+      include_bitcode: false,
+      include_symbols: true,
+      export_options: {
+        uploadBitcode: false,
+        uploadSymbols: true,
+        compileBitcode: false
+      }
+    )
+
+    # Upload dSYMs to Sentry (including Hermes)
+    upload_dsyms_to_sentry
+
+    # Upload to TestFlight using App Store Connect API
+    api_key = app_store_connect_api_key(
+      key_id: ENV["APP_STORE_CONNECT_API_KEY_ID"],
+      issuer_id: ENV["APP_STORE_CONNECT_API_ISSUER_ID"],
+      key_filepath: ENV["APP_STORE_CONNECT_API_KEY_PATH"],
+    )
+
+    upload_to_testflight(
+      api_key: api_key,
+      skip_waiting_for_build_processing: true,
+      skip_submission: true
+    )
+
+    # Clean up
+    clean_build_artifacts
+
+    UI.success "✅ Build uploaded to TestFlight!"
+  end
+
+  # --------------------------------------------------------------------------
+  # BUILD ONLY: Just build, no upload
+  # --------------------------------------------------------------------------
+  desc "Build release IPA without uploading"
+  lane :build do
+    build_ios_app(
+      workspace: WORKSPACE,
+      scheme: SCHEME,
+      export_method: "app-store",
+      output_directory: "./build",
+      output_name: "Weave.ipa",
+      include_bitcode: false,
+      include_symbols: true
+    )
+
+    upload_dsyms_to_sentry
+
+    UI.success "✅ Build complete! IPA at ./build/Weave.ipa"
+  end
+
+  # --------------------------------------------------------------------------
+  # DSYMS: Upload dSYMs to Sentry (can run separately)
+  # --------------------------------------------------------------------------
+  desc "Upload dSYMs to Sentry"
+  lane :upload_dsyms do
+    upload_dsyms_to_sentry
+  end
+
+  # --------------------------------------------------------------------------
+  # BUMP: Increment version number
+  # --------------------------------------------------------------------------
+  desc "Bump version number"
+  lane :bump do |options|
+    bump_type = options[:type] || "patch" # patch, minor, major
+
+    increment_version_number(
+      bump_type: bump_type,
+      xcodeproj: "Weave.xcodeproj"
+    )
+
+    version = get_version_number(xcodeproj: "Weave.xcodeproj")
+    UI.success "✅ Version bumped to #{version}"
+  end
+
+  # ============================================================================
+  # PRIVATE LANES
+  # ============================================================================
+
+  private_lane :upload_dsyms_to_sentry do
+    # Check for Sentry auth token
+    unless ENV["SENTRY_AUTH_TOKEN"]
+      UI.important "⚠️  SENTRY_AUTH_TOKEN not set - skipping dSYM upload"
+      UI.important "   Set it with: export SENTRY_AUTH_TOKEN=your_token"
+      next
+    end
+
+    dsym_path = lane_context[SharedValues::DSYM_OUTPUT_PATH]
+
+    unless dsym_path && File.exist?(dsym_path)
+      UI.important "⚠️  No dSYM path found, looking in build directory..."
+      dsym_path = Dir["./build/*.dSYM.zip"].first || Dir["./build/**/*.dSYM"].first
+    end
+
+    # Upload app dSYMs via Fastlane plugin
+    if dsym_path
+      UI.message "📤 Uploading app dSYMs to Sentry..."
+      sentry_upload_dsym(
+        auth_token: ENV["SENTRY_AUTH_TOKEN"],
+        org_slug: SENTRY_ORG,
+        project_slug: SENTRY_PROJECT,
+        url: SENTRY_URL,
+        dsym_path: dsym_path
+      )
+    end
+
+    # Upload Hermes debug info using sentry-cli
+    # This extracts symbols from the framework binary itself
+    hermes_framework = "../Pods/hermes-engine/destroot/Library/Frameworks/universal/hermes.xcframework/ios-arm64/hermes.framework"
+
+    if File.exist?(hermes_framework)
+      UI.message "📤 Uploading Hermes debug symbols to Sentry..."
+      sh(
+        "sentry-cli",
+        "--url", SENTRY_URL,
+        "debug-files", "upload",
+        "--org", SENTRY_ORG,
+        "--project", SENTRY_PROJECT,
+        "--include-sources",
+        hermes_framework,
+        error_callback: ->(result) { UI.important "⚠️  Hermes upload warning: #{result}" }
+      )
+      UI.success "✅ Hermes symbols uploaded!"
+    else
+      UI.important "⚠️  Hermes framework not found at: #{hermes_framework}"
+    end
+
+    # Also upload from DerivedData if available (catches any built dSYMs)
+    derived_data_dsyms = File.expand_path("~/Library/Developer/Xcode/DerivedData/**/#{SCHEME}.app.dSYM")
+    Dir[derived_data_dsyms].each do |dsym|
+      UI.message "📤 Uploading DerivedData dSYM: #{dsym}"
+      sentry_upload_dsym(
+        auth_token: ENV["SENTRY_AUTH_TOKEN"],
+        org_slug: SENTRY_ORG,
+        project_slug: SENTRY_PROJECT,
+        url: SENTRY_URL,
+        dsym_path: dsym
+      )
+    end
+  end
+
+end

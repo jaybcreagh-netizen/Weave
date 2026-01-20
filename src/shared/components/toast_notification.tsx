@@ -11,6 +11,7 @@ import { BlurView } from 'expo-blur';
 import { Sparkles } from 'lucide-react-native';
 import { Portal } from '@gorhom/portal';
 import { useTheme } from '@/shared/hooks/useTheme';
+import { SPRINGS } from '@/shared/constants/animation';
 
 interface ToastNotificationProps {
   message: string;
@@ -28,9 +29,9 @@ export function ToastNotification({ message, friendName, onDismiss }: ToastNotif
 
   useEffect(() => {
     // Entrance animation: Pop in
-    scale.value = withSpring(1, { damping: 12, stiffness: 100 });
+    scale.value = withSpring(1, SPRINGS.PLAYFUL);
     opacity.value = withTiming(1, { duration: 200 });
-    translateY.value = withSpring(0, { damping: 15, stiffness: 100 });
+    translateY.value = withSpring(0, SPRINGS.PLAYFUL);
 
     // Auto dismiss
     const timer = setTimeout(() => {

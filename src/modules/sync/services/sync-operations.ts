@@ -169,6 +169,85 @@ export async function executeUpdateSharedWeave(payload: Record<string, unknown>)
 }
 
 // =============================================================================
+// UPDATE SHARED WEAVE PARTICIPANTS
+// =============================================================================
+
+interface UpdateSharedWeaveParticipantsPayload {
+    serverWeaveId: string;       // Supabase shared_weaves.id
+    addedUserIds: string[];      // Supabase user IDs to add
+    removedUserIds: string[];    // Supabase user IDs to remove
+}
+
+/**
+ * Update participants on a shared weave (add/remove)
+ */
+export async function executeUpdateSharedWeaveParticipants(payload: Record<string, unknown>): Promise<void> {
+    const data = payload as unknown as UpdateSharedWeaveParticipantsPayload;
+    const client = getSupabaseClient();
+    if (!client) throw new Error('No Supabase client');
+
+    const { data: { user } } = await client.auth.getUser();
+    if (!user) throw new Error('Not authenticated');
+
+    // Add new participants
+    if (data.addedUserIds.length > 0) {
+        const participantInserts = data.addedUserIds.map(userId => ({
+            shared_weave_id: data.serverWeaveId,
+            user_id: userId,
+            response: 'pending',
+            role: 'viewer',
+        }));
+
+        const { error: insertError } = await client
+            .from('shared_weave_participants')
+            .insert(participantInserts);
+
+        if (insertError) {
+            // Handle duplicate participants gracefully (e.g., user already added)
+            if (insertError.code !== '23505') { // 23505 = unique violation
+                throw new Error(`Failed to add participants: ${insertError.message}`);
+            }
+            logger.warn('SyncOps', 'Some participants already exist (skipped)', {
+                serverWeaveId: data.serverWeaveId,
+                addedCount: data.addedUserIds.length
+            });
+        }
+
+        logger.info('SyncOps', 'Added participants to shared weave', {
+            serverWeaveId: data.serverWeaveId,
+            count: data.addedUserIds.length
+        });
+
+        // Track analytics
+        trackEvent(AnalyticsEvents.SHARED_WEAVE_CREATED, {
+            participant_count: data.addedUserIds.length,
+            action: 'participants_added',
+        });
+    }
+
+    // Remove participants
+    if (data.removedUserIds.length > 0) {
+        const { error: deleteError } = await client
+            .from('shared_weave_participants')
+            .delete()
+            .eq('shared_weave_id', data.serverWeaveId)
+            .in('user_id', data.removedUserIds);
+
+        if (deleteError) {
+            throw new Error(`Failed to remove participants: ${deleteError.message}`);
+        }
+
+        logger.info('SyncOps', 'Removed participants from shared weave', {
+            serverWeaveId: data.serverWeaveId,
+            count: data.removedUserIds.length
+        });
+    }
+
+    // NOTE: Push notifications for new participants are handled by the database trigger
+    // (on_shared_weave_participant_added) which fires on INSERT
+}
+
+// =============================================================================
 // ACCEPT WEAVE
 // =============================================================================
 

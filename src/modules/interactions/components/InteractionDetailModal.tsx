@@ -23,6 +23,8 @@ import FriendModel from '@/db/models/Friend';
 import InteractionModel from '@/db/models/Interaction';
 import { shareInteractionAsICS } from '../services/calendar-export.service';
 import { ShareStatusBadge, getShareStatus } from '@/modules/sync';
+import { InviteFriendSheet } from './InviteFriendSheet';
+import { Ticket } from 'lucide-react-native';
 
 const MOON_PHASE_LEVELS: Record<MoonPhase, number> = {
   'NewMoon': 1,
@@ -77,6 +79,10 @@ export function InteractionDetailModal({
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [tempDate, setTempDate] = useState<Date | null>(null);
+
+  // Invite Logic
+  const [showInviteSheet, setShowInviteSheet] = useState(false);
+  const [friendToInvite, setFriendToInvite] = useState<FriendModel | null>(null);
 
   useEffect(() => {
     if (interaction) {
@@ -134,6 +140,22 @@ export function InteractionDetailModal({
 
     fetchParticipants();
   }, [activeInteraction]);
+
+
+  // Determine if we should show the invite button
+  // Show if:
+  // 1. We have participants
+  // 2. At least one participant is NOT linked (no linkedUserId) 
+  // For MVP: If multiple unlinked, we'll just pick the first one or logic could be improved
+  useEffect(() => {
+    if (participants.length > 0) {
+      // Find the first unlinked friend
+      const unlinked = participants.find(p => !p.linkedUserId);
+      setFriendToInvite(unlinked || null);
+    } else {
+      setFriendToInvite(null);
+    }
+  }, [participants]);
 
   // Fetch share status
   useEffect(() => {
@@ -253,6 +275,16 @@ export function InteractionDetailModal({
 
           {/* Action buttons */}
           <View className="flex-row items-center gap-1">
+            {/* Invite Button for unlinked friends */}
+            {isPlanned && friendToInvite && (
+              <TouchableOpacity
+                onPress={() => setShowInviteSheet(true)}
+                className="p-2"
+              >
+                <Ticket color={colors.primary} size={20} />
+              </TouchableOpacity>
+            )}
+
             {isPlanned && (
               <TouchableOpacity
                 onPress={handleShare}
@@ -312,6 +344,9 @@ export function InteractionDetailModal({
                 setShowDatePicker(true);
               }
             }}
+            // Disable if not planned or no update capability
+            // BUT: If the user expects to 'Tap to change', we should probably show a message or just not disable opacity so much if it's confusing.
+            // For now, keeping logic but relying on correct props.
             disabled={!isPlanned || !onUpdate}
           >
             <InfoRow
@@ -438,10 +473,12 @@ export function InteractionDetailModal({
       {
         showDatePicker && (
           <Modal
+            key="reschedule-modal"
             visible={true}
             transparent
             animationType="fade"
             onRequestClose={() => setShowDatePicker(false)}
+            onDismiss={() => setShowDatePicker(false)}
           >
             <BlurView intensity={isDarkMode ? 20 : 40} tint={isDarkMode ? 'dark' : 'light'} style={StyleSheet.absoluteFill}>
               <TouchableOpacity
@@ -481,48 +518,64 @@ export function InteractionDetailModal({
                     }}
                   />
 
-                  {/* Time Selection */}
+                  {/* Time Selection - Always Visible & Integrated */}
                   <View className="mt-4 pt-4 border-t" style={{ borderColor: colors.border }}>
-                    <Text className="text-sm font-medium mb-2" style={{ color: colors.foreground }}>Time</Text>
-                    <TouchableOpacity
-                      onPress={() => setShowTimePicker(true)}
-                      className="p-3 rounded-xl border flex-row justify-between items-center"
-                      style={{ borderColor: colors.border, backgroundColor: colors.card }}
-                    >
-                      <Text style={{ color: colors.foreground }}>
-                        {tempDate ? tempDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Set Time'}
-                      </Text>
-                      <Clock size={16} color={colors['muted-foreground']} />
-                    </TouchableOpacity>
+                    <Text className="text-sm font-medium mb-3" style={{ color: colors.foreground }}>Time</Text>
+
+                    <View className="flex-row items-center justify-between">
+                      <TouchableOpacity
+                        onPress={() => setShowTimePicker(true)}
+                        className="flex-1 p-3 rounded-xl border flex-row justify-between items-center mr-2"
+                        style={{
+                          borderColor: colors.border,
+                          backgroundColor: colors.card,
+                          opacity: Platform.OS === 'ios' ? 0.6 : 1 // Dim on iOS because we show spinner below
+                        }}
+                        disabled={Platform.OS === 'ios'}
+                      >
+                        <Text style={{ color: colors.foreground }}>
+                          {tempDate ? tempDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Set Time'}
+                        </Text>
+                        <Clock size={16} color={colors['muted-foreground']} />
+                      </TouchableOpacity>
+                    </View>
+
+                    {/* iOS Inline Time Picker - Always visible for easier editing */}
+                    {Platform.OS === 'ios' && (
+                      <View className="mt-2 items-center">
+                        <DateTimePicker
+                          value={tempDate || new Date()}
+                          mode="time"
+                          display="spinner"
+                          onChange={(event, time) => {
+                            if (time && event.type === 'set') {
+                              const newDate = new Date(tempDate || new Date());
+                              newDate.setHours(time.getHours(), time.getMinutes());
+                              setTempDate(newDate);
+                            }
+                          }}
+                          style={{ height: 120 }}
+                          textColor={colors.foreground}
+                        />
+                      </View>
+                    )}
                   </View>
 
-                  {showTimePicker && (
-                    <View className="mt-3">
-                      <DateTimePicker
-                        value={tempDate || new Date()}
-                        mode="time"
-                        display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                        onChange={(event, time) => {
-                          if (Platform.OS === 'android') {
-                            setShowTimePicker(false);
-                          }
-                          if (time && event.type === 'set') {
-                            const newDate = new Date(tempDate || new Date());
-                            newDate.setHours(time.getHours(), time.getMinutes());
-                            setTempDate(newDate);
-                          }
-                        }}
-                      />
-                      {Platform.OS === 'ios' && (
-                        <Button
-                          label="Done"
-                          size="sm"
-                          variant="ghost"
-                          onPress={() => setShowTimePicker(false)}
-                          className="self-center mt-2"
-                        />
-                      )}
-                    </View>
+                  {/* Android Time Picker (Modal) */}
+                  {Platform.OS === 'android' && showTimePicker && (
+                    <DateTimePicker
+                      value={tempDate || new Date()}
+                      mode="time"
+                      display="default"
+                      onChange={(event, time) => {
+                        setShowTimePicker(false);
+                        if (time && event.type === 'set') {
+                          const newDate = new Date(tempDate || new Date());
+                          newDate.setHours(time.getHours(), time.getMinutes());
+                          setTempDate(newDate);
+                        }
+                      }}
+                    />
                   )}
 
                   <View className="mt-6 gap-3">
@@ -553,6 +606,30 @@ export function InteractionDetailModal({
           </Modal>
         )
       }
+
+      {/* Invite Friend Sheet */}
+      {friendToInvite && activeInteraction && (
+        <InviteFriendSheet
+          visible={showInviteSheet}
+          onClose={() => setShowInviteSheet(false)}
+          weaveId={activeInteraction.id}
+          friendName={friendToInvite.name}
+          friendLocalId={friendToInvite.id}
+          weaveSnapshot={{
+            title: activeInteraction.title,
+            interaction_date: activeInteraction.interactionDate, // Serialized
+            location: activeInteraction.location,
+            activity: activeInteraction.activity,
+            duration: activeInteraction.duration,
+            vibe: activeInteraction.vibe,
+            note: activeInteraction.note,
+            mode: activeInteraction.mode,
+            interaction_type: activeInteraction.interactionType,
+            event_importance: activeInteraction.eventImportance,
+            interaction_category: activeInteraction.interactionCategory,
+          }}
+        />
+      )}
     </>
   );
 }

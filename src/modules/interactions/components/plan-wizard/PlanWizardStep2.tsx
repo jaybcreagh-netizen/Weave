@@ -4,6 +4,7 @@ import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-na
 import { Sparkles } from 'lucide-react-native';
 import { format } from 'date-fns';
 import { useTheme } from '@/shared/hooks/useTheme';
+import { SPRINGS } from '@/shared/constants/animation';
 import { type InteractionCategory } from '@/shared/types/common';
 import FriendModel from '@/db/models/Friend';
 import { PlanSuggestion } from '../../hooks/usePlanSuggestion';
@@ -37,7 +38,7 @@ export function PlanWizardStep2({
   const scale = useSharedValue(1);
 
   // Ref to track timeout for cleanup
-  const timeoutRef = React.useRef<NodeJS.Timeout>();
+  const timeoutRef = React.useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     return () => {
@@ -58,9 +59,9 @@ export function PlanWizardStep2({
       onCategorySelect(suggestion.suggestedCategory);
 
       // Visual feedback: scale down then advance
-      scale.value = withSpring(0.95, { damping: 15 });
+      scale.value = withSpring(0.95, SPRINGS.PLAYFUL);
       timeoutRef.current = setTimeout(() => {
-        scale.value = withSpring(1, { damping: 15 });
+        scale.value = withSpring(1, SPRINGS.PLAYFUL);
         onContinue();
       }, 200);
     }
@@ -71,9 +72,9 @@ export function PlanWizardStep2({
     onCategorySelect(category);
 
     // Visual feedback: scale down then advance
-    scale.value = withSpring(0.95, { damping: 15 });
+    scale.value = withSpring(0.95, SPRINGS.PLAYFUL);
     timeoutRef.current = setTimeout(() => {
-      scale.value = withSpring(1, { damping: 15 });
+      scale.value = withSpring(1, SPRINGS.PLAYFUL);
       onContinue();
     }, 200);
   };

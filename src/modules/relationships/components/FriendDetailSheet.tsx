@@ -7,12 +7,12 @@ import Animated, {
   withTiming,
   runOnJS,
 } from 'react-native-reanimated';
-import { BlurView } from 'expo-blur';
+
 import { Calendar, Heart, Sparkles, X, CloudSun, Star, Gem } from 'lucide-react-native';
 import withObservables from '@nozbe/with-observables';
 
 import { useTheme } from '@/shared/hooks/useTheme';
-import { ArchetypeIcon } from '@/modules/intelligence';
+import { ArchetypeIcon, ArchetypeCard } from '@/modules/intelligence';
 import { archetypeData, CategoryArchetypeMatrix } from '@/shared/constants/constants';
 import { CATEGORY_METADATA } from '@/shared/constants/interaction-categories';
 import { type InteractionCategory, Archetype } from '@/shared/types/legacy-types';
@@ -139,10 +139,10 @@ const FriendDetailSheetContent: React.FC<FriendDetailSheetProps> = ({
   };
 
   return (
-    <Modal transparent visible={isVisible} onRequestClose={onClose} animationType="none">
+    <Modal transparent visible={shouldRender} onRequestClose={onClose} animationType="none">
       {/* Backdrop */}
       <Animated.View style={animatedBackdropStyle} className="absolute inset-0">
-        <BlurView intensity={isDarkMode ? 40 : 20} className="absolute inset-0" />
+        <View className="absolute inset-0 bg-black/50" />
         <TouchableOpacity
           className="absolute inset-0"
           activeOpacity={1}
@@ -311,30 +311,20 @@ const FriendDetailSheetContent: React.FC<FriendDetailSheetProps> = ({
         </View>
 
         {/* Archetype Info */}
-        <View
-          style={{ backgroundColor: colors.muted, borderColor: colors.border }}
-          className="mb-6 rounded-2xl border p-4"
-        >
-          <View className="mb-3 flex-row items-center gap-3">
-            <ArchetypeIcon archetype={friend.archetype} size={24} color={colors.primary} />
-            <Text
-              style={{ color: colors.foreground }}
-              className="font-lora-bold text-lg font-bold"
-            >
-              {archetypeInfo?.name || friend.archetype}
-            </Text>
-          </View>
-          <Text
-            style={{ color: colors['muted-foreground'] }}
-            className="font-inter-regular text-sm leading-5 mb-4"
-          >
-            {archetypeInfo?.description || 'A unique archetype'}
-          </Text>
+        <View className="mb-6">
+          <ArchetypeCard
+            archetype={friend.archetype}
+            isSelected={true}
+            className="mb-4"
+          />
 
           {/* Perfect Connections */}
           {topInteractions.length > 0 && (
-            <>
-              <View className="flex-row items-center gap-2 mb-3 mt-2">
+            <View
+              style={{ backgroundColor: colors.muted, borderColor: colors.border }}
+              className="rounded-2xl border p-4"
+            >
+              <View className="flex-row items-center gap-2 mb-3">
                 <Sparkles size={14} color={colors.primary} />
                 <Text
                   className="font-inter-semibold text-[14px]"
@@ -377,7 +367,7 @@ const FriendDetailSheetContent: React.FC<FriendDetailSheetProps> = ({
                   );
                 })}
               </View>
-            </>
+            </View>
           )}
         </View>
 

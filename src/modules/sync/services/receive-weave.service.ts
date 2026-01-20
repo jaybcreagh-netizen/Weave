@@ -338,6 +338,7 @@ export async function handleSharedWeaveUpdate(update: IncomingWeaveUpdate): Prom
 
 /**
  * Fetch pending shared weaves from server
+ * Filters out weaves we've already responded to locally (prevents reappear bug)
  */
 export async function fetchPendingSharedWeaves(): Promise<IncomingWeave[]> {
     try {
@@ -370,8 +371,31 @@ export async function fetchPendingSharedWeaves(): Promise<IncomingWeave[]> {
             return [];
         }
 
+        // CRITICAL FIX: Filter out weaves we've already responded to locally
+        // This prevents the "reappear" bug where server sync hasn't caught up yet
+        const refCollection = database.get<SharedWeaveRef>('shared_weave_refs');
+        const localRefs = await refCollection.query().fetch();
+        const respondedWeaveIds = new Set(
+            localRefs
+                .filter(ref => ref.status === 'accepted' || ref.status === 'declined')
+                .map(ref => ref.serverWeaveId)
+        );
+
+        // Filter out already-responded weaves
+        const pendingParticipants = participants.filter(
+            (p: any) => !respondedWeaveIds.has(p.shared_weave_id)
+        );
+
+        if (respondedWeaveIds.size > 0) {
+            logger.debug('ReceiveWeave', 'Filtered out locally-responded weaves', {
+                serverCount: participants.length,
+                filteredCount: pendingParticipants.length,
+                respondedIds: Array.from(respondedWeaveIds)
+            });
+        }
+
         // Get creator names and avatars
-        const creatorIds = [...new Set(participants.map((p: any) => p.shared_weaves?.created_by).filter(Boolean))];
+        const creatorIds = [...new Set(pendingParticipants.map((p: any) => p.shared_weaves?.created_by).filter(Boolean))];
 
         logger.debug('ReceiveWeave', 'Fetching creator profiles', { creatorIds });
 
@@ -394,7 +418,7 @@ export async function fetchPendingSharedWeaves(): Promise<IncomingWeave[]> {
             }])
         );
 
-        return participants.map((p: any) => {
+        return pendingParticipants.map((p: any) => {
             const profile = profileMap.get(p.shared_weaves?.created_by);
             return {
                 id: p.shared_weave_id,

@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb'
 
 export default appSchema({
-  version: 61, // v61: Store pointsEarned for accurate deletion scoring
+  version: 62, // v62: Calendar event IDs for life events and birthdays/anniversaries
   tables: [
     // ===== ORACLE AI INFRASTRUCTURE =====
     tableSchema({
@@ -183,6 +183,9 @@ export default appSchema({
         { name: 'birthday', type: 'string', isOptional: true }, // Format: "MM-DD" (month and day only)
         { name: 'anniversary', type: 'string', isOptional: true }, // Format: "MM-DD" (month and day only)
         { name: 'relationship_type', type: 'string', isOptional: true }, // friend, close_friend, family, partner, colleague, acquaintance
+        // NEW v62: Calendar event IDs for recurring birthday/anniversary events
+        { name: 'birthday_calendar_event_id', type: 'string', isOptional: true },
+        { name: 'anniversary_calendar_event_id', type: 'string', isOptional: true },
         // NEW v21: Adaptive decay pattern learning
         { name: 'typical_interval_days', type: 'number', isOptional: true }, // Learned average days between interactions
         { name: 'tolerance_window_days', type: 'number', isOptional: true }, // Learned tolerance before decay accelerates
@@ -428,7 +431,8 @@ export default appSchema({
         { name: 'synced_at', type: 'number', isOptional: true },
         { name: 'sync_status', type: 'string', isOptional: true },
         { name: 'server_updated_at', type: 'number', isOptional: true },
-
+        // NEW v62: Native calendar event ID for life events
+        { name: 'calendar_event_id', type: 'string', isOptional: true },
       ]
     }),
     tableSchema({

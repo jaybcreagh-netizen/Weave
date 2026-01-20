@@ -428,6 +428,8 @@ export default function FriendProfile() {
                   onUnlinkFriend={handleUnlinkFriend}
                   pendingWeaveCount={friendPendingWeaves?.length || 0}
                   onPressPending={() => setIsPendingSheetVisible(true)}
+                  onPressProfile={() => modals.setShowFriendDetailSheet(true)}
+                  onInvite={() => modals.setShowInviteSheet(true)}
                 />
 
                 <ActionButtons

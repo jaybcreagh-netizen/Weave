@@ -25,7 +25,7 @@ export function OracleFAB({ context = 'circle', params }: OracleFABProps) {
             style={{
                 position: 'absolute',
                 left: 20,
-                bottom: 20, // Removed insets.bottom to let parent handle positioning if needed, or standard bottom
+                bottom: insets.bottom + 20,
                 width: 52,
                 height: 52,
                 borderRadius: 26,
@@ -33,11 +33,13 @@ export function OracleFAB({ context = 'circle', params }: OracleFABProps) {
                 justifyContent: 'center',
                 zIndex: 50,
                 backgroundColor: isDarkMode ? colors.accent : colors.primary + '33',
+                borderWidth: 1,
+                borderColor: colors.border,
                 shadowColor: isDarkMode ? colors.accent : '#000',
                 shadowOffset: { width: 0, height: 2 },
                 shadowOpacity: 0.25,
                 shadowRadius: 3.84,
-                elevation: 5,
+                elevation: 0,
             }}
             onPress={() => {
                 PerfLogger.log('Oracle', 'FAB Pressed');
