@@ -40,14 +40,22 @@ export function Card({
         className
     ].filter(Boolean).join(' ');
 
-    const dynamicStyle = variant === 'default'
-        ? { backgroundColor: colors.card }
+    // Add shadow/elevation only for default variant
+    const elevationStyle = variant === 'default'
+        ? {
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.1,
+            shadowRadius: 8,
+            elevation: 3, // Android elevation
+            backgroundColor: colors.card,
+        }
         : {};
 
     return (
         <View
             className={finalClass}
-            style={[dynamicStyle, style]}
+            style={[elevationStyle, style]}
             {...props}
         >
             {children}

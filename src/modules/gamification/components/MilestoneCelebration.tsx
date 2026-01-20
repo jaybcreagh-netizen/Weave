@@ -124,6 +124,7 @@ export const MilestoneCelebration: React.FC<MilestoneCelebrationProps> = ({
       visible={visible}
       transparent
       animationType="none"
+      statusBarTranslucent
       onRequestClose={onClose}
     >
       {/* Backdrop */}
