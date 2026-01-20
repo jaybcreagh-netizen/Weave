@@ -5,8 +5,11 @@ import {
     AlertTriangle, RefreshCw, Zap, Heart, Clock, Star,
     Gift, Briefcase, Home, GraduationCap, PartyPopper,
     HeartCrack, Activity, Target, History, Egg, Book,
-    MessageCircle, Hand, Send, Users, Mic, Image, Coffee
+    MessageCircle, Hand, Send, Users, Mic, Image, Coffee, UserPlus
 } from 'lucide-react-native';
+import { SharedWeaveData } from '@/modules/sync';
+import { LinkRequest } from '@/modules/relationships';
+import { CachedImage } from '@/shared/ui/CachedImage';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { AnimatedBottomSheet } from '@/shared/ui/Sheet';
@@ -47,6 +50,8 @@ interface FocusDetailSheetProps {
     onDeepenPlan?: (plan: Interaction) => void;
     onReschedulePlan: (plan: Interaction) => void;
     onSuggestionAction: (suggestion: Suggestion) => void;
+    linkRequests?: LinkRequest[];
+    pendingWeaves?: SharedWeaveData[];
 }
 
 export const FocusDetailSheet: React.FC<FocusDetailSheetProps> = ({
@@ -63,6 +68,8 @@ export const FocusDetailSheet: React.FC<FocusDetailSheetProps> = ({
     onDeepenPlan,
     onReschedulePlan,
     onSuggestionAction,
+    linkRequests = [],
+    pendingWeaves = [],
 }) => {
     const { tokens, typography, spacing, isDarkMode } = useTheme();
     const [planFriendIds, setPlanFriendIds] = React.useState<Record<string, string[]>>({});
@@ -213,6 +220,100 @@ export const FocusDetailSheet: React.FC<FocusDetailSheetProps> = ({
                                 }
                             }}
                         />
+                    </View>
+                )}
+
+                {/* Pending Actions Section - Top Priority */}
+                {(linkRequests.length > 0 || pendingWeaves.length > 0) && (
+                    <View className="mb-6">
+                        <WidgetHeader title="Action Required" icon={<AlertTriangle size={20} color={tokens.primary} />} />
+                        <Card padding="none">
+                            {linkRequests.map((request, index) => (
+                                <View key={`request-${request.id}`} className="px-4">
+                                    <ListItem
+                                        leading={
+                                            request.photoUrl ? (
+                                                <CachedImage
+                                                    source={{ uri: request.photoUrl }}
+                                                    style={{ width: 40, height: 40, borderRadius: 20 }}
+                                                />
+                                            ) : (
+                                                <View
+                                                    style={{
+                                                        width: 40,
+                                                        height: 40,
+                                                        borderRadius: 20,
+                                                        backgroundColor: tokens.backgroundSubtle,
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center'
+                                                    }}
+                                                >
+                                                    <UserPlus size={20} color={tokens.primary} />
+                                                </View>
+                                            )
+                                        }
+                                        title={request.displayName}
+                                        subtitle="Sent you a friend link request"
+                                        showDivider={index < linkRequests.length - 1 || pendingWeaves.length > 0}
+                                        compact
+                                        trailing={
+                                            <Button
+                                                label="View"
+                                                size="sm"
+                                                onPress={() => {
+                                                    // TODO: Open ActivityInboxSheet or handle here
+                                                    // For now just close so they can go to settings, or we'd need to emit an event
+                                                    // Ideally we navigate to the inbox or show the sheet
+                                                    // But FocusDetailSheet is a sheet itself...
+                                                    onClose();
+                                                    // We might want to pass a handler to open the inbox
+                                                }}
+                                                className="px-3 min-h-[32px] min-w-[60px] py-1"
+                                            />
+                                        }
+                                    />
+                                </View>
+                            ))}
+                            {pendingWeaves.map((weave, index) => (
+                                <View key={`weave-${weave.id}`} className="px-4">
+                                    <ListItem
+                                        leading={
+                                            weave.creatorAvatarUrl ? (
+                                                <CachedImage
+                                                    source={{ uri: weave.creatorAvatarUrl }}
+                                                    style={{ width: 40, height: 40, borderRadius: 20 }}
+                                                />
+                                            ) : (
+                                                <View
+                                                    style={{
+                                                        width: 40,
+                                                        height: 40,
+                                                        borderRadius: 20,
+                                                        backgroundColor: tokens.backgroundSubtle,
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center'
+                                                    }}
+                                                >
+                                                    <Send size={20} color={tokens.primary} />
+                                                </View>
+                                            )
+                                        }
+                                        title={weave.title || 'Shared Weave'}
+                                        subtitle={`Invited by ${weave.creatorName}`}
+                                        showDivider={index < pendingWeaves.length - 1}
+                                        compact
+                                        trailing={
+                                            <Button
+                                                label="View"
+                                                size="sm"
+                                                onPress={onClose}
+                                                className="px-3 min-h-[32px] min-w-[60px] py-1"
+                                            />
+                                        }
+                                    />
+                                </View>
+                            ))}
+                        </Card>
                     </View>
                 )}
 

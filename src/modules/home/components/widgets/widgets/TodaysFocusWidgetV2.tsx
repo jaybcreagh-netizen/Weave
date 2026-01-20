@@ -29,6 +29,10 @@ import { SuggestionActionSheet } from '@/modules/interactions/components/Suggest
 import { useFriendsObservable } from '@/shared/context/FriendsObservableContext';
 import { useOracleSheet, oracleService, oracleContextBuilder, ContextTier } from '@/modules/oracle';
 import { hasCompletedReflectionForCurrentWeek } from '@/modules/reflection';
+import { usePendingWeaves } from '@/modules/sync';
+import { getPendingIncomingRequests, LinkRequest } from '@/modules/relationships';
+import { UserPlus, Send } from 'lucide-react-native';
+import { CachedImage } from '@/shared/ui/CachedImage';
 
 const WIDGET_CONFIG: HomeWidgetConfig = {
     id: 'todays-focus',
@@ -99,6 +103,68 @@ const RestDayState: React.FC<RestDayStateProps> = ({ isLoading, dailyReflection 
                 </View>
             </View>
         </View>
+
+    );
+};
+
+interface PendingItemProps {
+    id: string;
+    title: string;
+    subtitle: string;
+    photoUrl?: string;
+    type: 'request' | 'weave';
+    onPress: () => void;
+    showDivider: boolean;
+}
+
+const PendingItem: React.FC<PendingItemProps> = ({ id, title, subtitle, photoUrl, type, onPress, showDivider }) => {
+    const { tokens, typography } = useTheme();
+
+    return (
+        <View className="px-4">
+            <ListItem
+                title={title}
+                subtitle={subtitle}
+                leading={
+                    photoUrl ? (
+                        <CachedImage
+                            source={{ uri: photoUrl }}
+                            style={{ width: 40, height: 40, borderRadius: 20 }}
+                        />
+                    ) : (
+                        <View
+                            style={{
+                                width: 40,
+                                height: 40,
+                                borderRadius: 20,
+                                backgroundColor: tokens.backgroundSubtle,
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                            }}
+                        >
+                            {type === 'request' ? (
+                                <UserPlus size={20} color={tokens.primary} />
+                            ) : (
+                                <Send size={20} color={tokens.primary} />
+                            )}
+                        </View>
+                    )
+                }
+                trailing={
+                    <View
+                        style={{
+                            width: 8,
+                            height: 8,
+                            borderRadius: 4,
+                            backgroundColor: tokens.primary
+                        }}
+                    />
+                }
+                showDivider={showDivider}
+                onPress={onPress}
+                compact
+            />
+        </View>
     );
 };
 
@@ -112,6 +178,12 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = () => {
     const { openPostWeaveRating, openWeeklyReflection } = useUIStore();
     const { reachOut } = useReachOut();
     const oracleSheet = useOracleSheet();
+
+    // Pending Actions State
+    const [linkRequests, setLinkRequests] = useState<LinkRequest[]>([]);
+    const { pendingWeaves, isLoading: isLoadingWeaves } = usePendingWeaves();
+    // Filter strictly for pending status to match widget logic
+    const pendingWeaveInvites = useMemo(() => pendingWeaves.filter(w => w.status === 'pending'), [pendingWeaves]);
 
     const [showDetailSheet, setShowDetailSheet] = useState(false);
     const [upcomingDates, setUpcomingDates] = useState<UpcomingDate[]>([]);
@@ -144,6 +216,19 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = () => {
             .subscribe(setIntentions);
 
         return () => subscription.unsubscribe();
+    }, []);
+
+    // Load pending link requests
+    useEffect(() => {
+        const loadRequests = async () => {
+            try {
+                const pending = await getPendingIncomingRequests();
+                setLinkRequests(pending);
+            } catch (e) {
+                console.error('Error loading pending requests:', e);
+            }
+        };
+        loadRequests();
     }, []);
 
     // Logic ported from V1
@@ -478,7 +563,11 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = () => {
     const hasSuggestions = suggestions.length > 0;
     const hasUpcomingDates = upcomingDates.length > 0;
     const hasIntentions = intentions.length > 0;
-    const hasNoCalendarEvents = !hasUpcoming && !hasCompleted && !hasTomorrow;
+    const hasLinkRequests = linkRequests.length > 0;
+    const hasPendingWeaves = pendingWeaveInvites.length > 0;
+    const hasPendingActions = hasLinkRequests || hasPendingWeaves;
+
+    const hasNoCalendarEvents = !hasUpcoming && !hasCompleted && !hasTomorrow && !hasPendingActions;
     const isAllClear = hasNoCalendarEvents && !hasSuggestions && !hasUpcomingDates && !hasIntentions;
 
     // Load daily reflection when there are no calendar events
@@ -530,6 +619,41 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = () => {
                                 : "No commitments today"}
                     />
                 </View>
+
+                {/* Pending Actions Section */}
+                {hasPendingActions && (
+                    <View className="mb-2">
+                        <View className="px-4 py-2 pt-4">
+                            <Text className="text-xs font-semibold uppercase tracking-wide" style={{ color: tokens.primary }}>Action Required</Text>
+                        </View>
+                        <Card padding="none">
+                            {linkRequests.map((request, index) => (
+                                <PendingItem
+                                    key={`request-${request.id}`}
+                                    id={request.id}
+                                    title={request.displayName}
+                                    subtitle="Sent you a friend link request"
+                                    photoUrl={request.photoUrl}
+                                    type="request"
+                                    onPress={() => setShowDetailSheet(true)}
+                                    showDivider={index < linkRequests.length - 1 || pendingWeaveInvites.length > 0}
+                                />
+                            ))}
+                            {pendingWeaveInvites.map((weave, index) => (
+                                <PendingItem
+                                    key={`weave-${weave.id}`}
+                                    id={weave.id}
+                                    title={weave.title || 'Shared Weave'}
+                                    subtitle={`Invited by ${weave.creatorName}`}
+                                    photoUrl={weave.creatorAvatarUrl}
+                                    type="weave"
+                                    onPress={() => setShowDetailSheet(true)}
+                                    showDivider={index < pendingWeaveInvites.length - 1}
+                                />
+                            ))}
+                        </Card>
+                    </View>
+                )}
 
                 {/* Upcoming Plans Section */}
                 {hasUpcoming && (
@@ -625,49 +749,21 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = () => {
 
                 {/* Visual Separator if needed, but spacing might be enough */}
 
-                {hasSuggestions && (
+                {/* Simple "See more" footer when there's additional content */}
+                {(hasSuggestions || hasIntentions || hasUpcomingDates) && (
                     <TouchableOpacity onPress={() => setShowDetailSheet(true)}>
-                        <View className="flex-row items-center justify-between p-4" style={(hasUpcoming || hasCompleted || hasTomorrow || hasUpcomingDates) ? { borderTopWidth: 1, borderTopColor: tokens.borderSubtle } : undefined}>
-                            <View className="flex-1 flex-row items-center mr-2">
-                                <Sparkles size={16} color={tokens.primaryMuted} style={{ marginRight: 8 }} />
-                                <Text className="flex-1" style={{
-                                    color: tokens.foreground,
-                                    fontFamily: typography.fonts.sans,
-                                    fontSize: typography.scale.body.fontSize,
-                                    lineHeight: typography.scale.body.lineHeight
-                                }}>
-                                    {suggestions[0]?.contextSnippet ? (
-                                        <>
-                                            {suggestions[0].contextSnippet}
-                                            {suggestions.length > 1 && <Text style={{ color: tokens.foregroundSubtle }}> +{suggestions.length - 1} more</Text>}
-                                            {hasIntentions && <Text style={{ color: tokens.foregroundSubtle }}> · {intentions.length} intention{intentions.length !== 1 ? 's' : ''}</Text>}
-                                        </>
-                                    ) : (
-                                        `${suggestions.length} suggestion${suggestions.length !== 1 ? 's' : ''}${hasIntentions ? ` · ${intentions.length} intention${intentions.length !== 1 ? 's' : ''}` : ''}`
-                                    )}
-                                </Text>
-                            </View>
-                            <ChevronRight size={16} color={tokens.foregroundSubtle} />
-                        </View>
-                    </TouchableOpacity>
-                )}
-
-                {hasUpcomingDates && (
-                    <TouchableOpacity onPress={() => setShowDetailSheet(true)}>
-                        <View className="flex-row items-center justify-between p-4" style={(hasUpcoming || hasCompleted || hasTomorrow || hasSuggestions) ? { borderTopWidth: 1, borderTopColor: tokens.borderSubtle } : undefined}>
-                            <View className="flex-1 flex-row items-center mr-2">
-                                <Calendar size={16} color={tokens.primaryMuted} style={{ marginRight: 8 }} />
-                                <Text className="flex-1" style={{
-                                    color: tokens.foreground,
-                                    fontFamily: typography.fonts.sans,
-                                    fontSize: typography.scale.body.fontSize,
-                                    lineHeight: typography.scale.body.lineHeight
-                                }}>
-                                    {upcomingDates[0].friend.name}'s {upcomingDates[0].type === 'birthday' ? 'birthday' : 'event'} {upcomingDates[0].daysUntil === 0 ? 'today' : upcomingDates[0].daysUntil === 1 ? 'tomorrow' : `in ${upcomingDates[0].daysUntil} days`}
-                                    {upcomingDates.length > 1 && ` +${upcomingDates.length - 1} more`}
-                                </Text>
-                            </View>
-                            <ChevronRight size={16} color={tokens.foregroundSubtle} />
+                        <View
+                            className="flex-row items-center justify-center p-3"
+                            style={(hasUpcoming || hasCompleted || hasTomorrow) ? { borderTopWidth: 1, borderTopColor: tokens.borderSubtle } : undefined}
+                        >
+                            <Text style={{
+                                color: tokens.primary,
+                                fontFamily: typography.fonts.sansMedium,
+                                fontSize: typography.scale.body.fontSize,
+                            }}>
+                                See more
+                            </Text>
+                            <ChevronRight size={16} color={tokens.primary} style={{ marginLeft: 4 }} />
                         </View>
                     </TouchableOpacity>
                 )}
@@ -687,6 +783,9 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = () => {
                 onDeepenPlan={handleDeepenWeave}
                 onReschedulePlan={handleReschedulePlan}
                 onSuggestionAction={handleSuggestionAction}
+
+                linkRequests={linkRequests}
+                pendingWeaves={pendingWeaveInvites}
             />
 
 

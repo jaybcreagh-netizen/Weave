@@ -6,8 +6,10 @@
 
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
+import Animated, { FadeIn, FadeOut, Layout } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { format } from 'date-fns';
+import { ChevronDown, ChevronUp } from 'lucide-react-native';
 
 import { useTheme } from '@/shared/hooks/useTheme';
 import { useUserProfile } from '@/modules/auth';
@@ -41,6 +43,7 @@ export function SeasonHeader({ season, avgEnergy }: SeasonHeaderProps) {
     const { isDarkMode, tokens, typography } = useTheme();
     const { profile } = useUserProfile();
     const [showOverrideModal, setShowOverrideModal] = useState(false);
+    const [isExpanded, setIsExpanded] = useState(false);
 
     // Map to lowercase for service/component compatibility
     const seasonLower = season.toLowerCase() as SocialSeason;
@@ -55,6 +58,11 @@ export function SeasonHeader({ season, avgEnergy }: SeasonHeaderProps) {
         setShowOverrideModal(true);
     };
 
+    const handlePress = () => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        setIsExpanded(!isExpanded);
+    };
+
     const handleSeasonOverride = async (newSeason: SocialSeason, durationDays?: number) => {
         if (!profile) return;
         await SocialSeasonService.updateSeason(profile.id, newSeason, durationDays);
@@ -66,10 +74,11 @@ export function SeasonHeader({ season, avgEnergy }: SeasonHeaderProps) {
     return (
         <>
             <TouchableOpacity
+                onPress={handlePress}
                 onLongPress={handleLongPress}
                 delayLongPress={500}
                 activeOpacity={0.8}
-                className="flex-row items-center px-4 py-3 rounded-xl mb-4"
+                className="flex-row items-center px-4 py-3 rounded-xl mb-2"
                 style={{ backgroundColor: seasonColor + '15' }}
             >
                 {/* Season Icon */}
@@ -128,30 +137,82 @@ export function SeasonHeader({ season, avgEnergy }: SeasonHeaderProps) {
                     )}
                 </View>
 
-                {/* Average Energy */}
-                {avgEnergy !== undefined && (
-                    <View className="items-end">
-                        <Text
-                            className="text-lg"
-                            style={{
-                                color: seasonColor,
-                                fontFamily: typography.fonts.serifBold,
-                            }}
-                        >
-                            {avgEnergy.toFixed(1)}
-                        </Text>
-                        <Text
-                            className="text-xs"
-                            style={{
-                                color: tokens.foregroundMuted,
-                                fontFamily: typography.fonts.sans,
-                            }}
-                        >
-                            avg
-                        </Text>
-                    </View>
-                )}
+                {/* Expand/Collapse Indicator and Avg Energy */}
+                <View className="items-end">
+                    {avgEnergy !== undefined && (
+                        <>
+                            <Text
+                                className="text-lg"
+                                style={{
+                                    color: seasonColor,
+                                    fontFamily: typography.fonts.serifBold,
+                                }}
+                            >
+                                {avgEnergy.toFixed(1)}
+                            </Text>
+                            <Text
+                                className="text-xs"
+                                style={{
+                                    color: tokens.foregroundMuted,
+                                    fontFamily: typography.fonts.sans,
+                                }}
+                            >
+                                avg
+                            </Text>
+                        </>
+                    )}
+                    {isExpanded ? (
+                        <ChevronUp size={16} color={tokens.foregroundMuted} style={{ marginTop: 4 }} />
+                    ) : (
+                        <ChevronDown size={16} color={tokens.foregroundMuted} style={{ marginTop: 4 }} />
+                    )}
+                </View>
             </TouchableOpacity>
+
+            {/* Expanded Pulse Content */}
+            {isExpanded && (
+                <Animated.View
+                    entering={FadeIn.duration(200)}
+                    exiting={FadeOut.duration(150)}
+                    layout={Layout.springify().damping(20).stiffness(200)}
+                    className="px-4 py-3 rounded-xl mb-4"
+                    style={{ backgroundColor: tokens.backgroundMuted }}
+                >
+                    <Text
+                        style={{
+                            color: tokens.foreground,
+                            fontFamily: typography.fonts.sansMedium,
+                            fontSize: typography.scale.body.fontSize,
+                            marginBottom: 8,
+                        }}
+                    >
+                        What this means for you
+                    </Text>
+                    <Text
+                        style={{
+                            color: tokens.foregroundMuted,
+                            fontFamily: typography.fonts.sans,
+                            fontSize: typography.scale.caption.fontSize,
+                            lineHeight: typography.scale.caption.lineHeight * 1.4,
+                        }}
+                    >
+                        {season === 'Resting' && 'Your energy is lower right now. Focus on deep 1:1 connections with your inner circle. Group activities can wait.'}
+                        {season === 'Balanced' && 'You\'re in a sustainable rhythm. Great time to maintain existing connections and maybe rekindle one that\'s been quiet.'}
+                        {season === 'Blooming' && 'You\'re at peak social energy! Perfect time for group weaves, new introductions, and expanding your community tier.'}
+                    </Text>
+                    <Text
+                        className="mt-3"
+                        style={{
+                            color: tokens.foregroundMuted,
+                            fontFamily: typography.fonts.sans,
+                            fontSize: 11,
+                            fontStyle: 'italic',
+                        }}
+                    >
+                        Long-press to manually override your season
+                    </Text>
+                </Animated.View>
+            )}
 
             {/* Override Modal */}
             <SeasonOverrideModal

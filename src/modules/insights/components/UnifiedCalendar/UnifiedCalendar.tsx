@@ -4,10 +4,11 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, ScrollView, ActivityIndicator } from 'react-native';
+import { View, ScrollView, ActivityIndicator, Text } from 'react-native';
 import { useRouter } from 'expo-router';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { Q } from '@nozbe/watermelondb';
+import { Users, CalendarClock, Flame } from 'lucide-react-native';
 
 import { database } from '@/db';
 import { useTheme } from '@/shared/hooks/useTheme';
@@ -46,6 +47,7 @@ export function UnifiedCalendar({
     const [selectedDate, setSelectedDate] = useState<Date | null>(null);
     const [dayDetailData, setDayDetailData] = useState<DayDetailData | null>(null);
     const [showDayDetail, setShowDayDetail] = useState(false);
+    const [monthStats, setMonthStats] = useState({ weaves: 0, upcoming: 0, streak: 0 });
 
     // Load initial data
     useEffect(() => {
@@ -162,6 +164,25 @@ export function UnifiedCalendar({
 
             setDayDataMap(newDayDataMap);
             setAvgEnergy(energyCount > 0 ? totalEnergy / energyCount : undefined);
+
+            // Calculate month stats
+            const completedCount = interactions.filter((i: any) => i.status === 'completed').length;
+            const upcomingCount = interactions.filter((i: any) => i.status === 'planned' || i.status === 'pending_confirm').length;
+
+            // Calculate check-in streak (consecutive days with check-ins ending today or most recent)
+            let streak = 0;
+            if (monthData?.days) {
+                const sortedDays = [...monthData.days].sort((a, b) => b.date.getTime() - a.date.getTime());
+                for (const day of sortedDays) {
+                    if (day.hasCheckin) {
+                        streak++;
+                    } else if (streak > 0) {
+                        break; // Stop counting once we hit a gap after starting
+                    }
+                }
+            }
+
+            setMonthStats({ weaves: completedCount, upcoming: upcomingCount, streak: energyCount });
         } catch (error) {
             console.error('[UnifiedCalendar] Error loading month data:', error);
         }
@@ -313,6 +334,53 @@ export function UnifiedCalendar({
                     onDayPress={handleDayPress}
                     selectedDate={selectedDate}
                 />
+
+                {/* Month Stats */}
+                <View
+                    className="flex-row justify-between items-center mx-4 mt-4 gap-2"
+                >
+                    {/* Weaves */}
+                    <View
+                        className="flex-1 flex-row items-center justify-center py-3 px-3 rounded-xl gap-2"
+                        style={{ backgroundColor: tokens.primary + '15' }}
+                    >
+                        <Users size={14} color={tokens.primary} />
+                        <Text style={{ color: tokens.primary, fontFamily: 'Inter_600SemiBold', fontSize: 13 }}>
+                            {monthStats.weaves}
+                        </Text>
+                        <Text style={{ color: tokens.foregroundMuted, fontFamily: 'Inter_400Regular', fontSize: 12 }}>
+                            weaves
+                        </Text>
+                    </View>
+
+                    {/* Upcoming */}
+                    <View
+                        className="flex-1 flex-row items-center justify-center py-3 px-3 rounded-xl gap-2"
+                        style={{ backgroundColor: '#7D9B76' + '15' }}
+                    >
+                        <CalendarClock size={14} color="#7D9B76" />
+                        <Text style={{ color: '#7D9B76', fontFamily: 'Inter_600SemiBold', fontSize: 13 }}>
+                            {monthStats.upcoming}
+                        </Text>
+                        <Text style={{ color: tokens.foregroundMuted, fontFamily: 'Inter_400Regular', fontSize: 12 }}>
+                            upcoming
+                        </Text>
+                    </View>
+
+                    {/* Streak */}
+                    <View
+                        className="flex-1 flex-row items-center justify-center py-3 px-3 rounded-xl gap-2"
+                        style={{ backgroundColor: '#E07A5F' + '15' }}
+                    >
+                        <Flame size={14} color="#E07A5F" />
+                        <Text style={{ color: '#E07A5F', fontFamily: 'Inter_600SemiBold', fontSize: 13 }}>
+                            {monthStats.streak}
+                        </Text>
+                        <Text style={{ color: tokens.foregroundMuted, fontFamily: 'Inter_400Regular', fontSize: 12 }}>
+                            streak
+                        </Text>
+                    </View>
+                </View>
             </ScrollView>
 
             {/* Day Detail Sheet */}

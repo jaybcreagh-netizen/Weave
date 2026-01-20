@@ -4,14 +4,15 @@
  */
 
 import React, { useState } from 'react';
-import { View, Modal, TouchableOpacity, Text, SafeAreaView } from 'react-native';
-import { X, Calendar, Sparkles } from 'lucide-react-native';
+import { View, Modal, TouchableOpacity, Text, SafeAreaView, ScrollView } from 'react-native';
+import { X, Calendar, Sparkles, Scale } from 'lucide-react-native';
 import { startOfDay } from 'date-fns';
 import * as Haptics from 'expo-haptics';
 
 import { useTheme } from '@/shared/hooks/useTheme';
 import { UnifiedCalendar } from './UnifiedCalendar';
 import { PatternsTabContent } from '@/modules/intelligence/components/social-season/YearInMoons/PatternsTabContent';
+import { TierBalanceContent } from '@/modules/relationships/components/TierBalanceContent';
 import { EditInteractionModal } from '@/modules/interactions';
 import { InteractionActions } from '@/modules/interactions/services/interaction.actions';
 import { SocialBatterySheet } from '@/modules/home/components/widgets/SocialBatterySheet';
@@ -19,7 +20,7 @@ import { SocialBatteryService } from '@/modules/auth/services/social-battery.ser
 import { useUserProfile } from '@/modules/auth/hooks/useUserProfile';
 import { database } from '@/db';
 
-type TabId = 'moons' | 'patterns';
+type TabId = 'moons' | 'alignment' | 'patterns';
 
 interface UnifiedCalendarModalProps {
     isOpen: boolean;
@@ -30,6 +31,7 @@ interface UnifiedCalendarModalProps {
 
 const TABS: { id: TabId; label: string; icon: typeof Calendar }[] = [
     { id: 'moons', label: 'Moons', icon: Calendar },
+    { id: 'alignment', label: 'Alignment', icon: Scale },
     { id: 'patterns', label: 'Patterns', icon: Sparkles },
 ];
 
@@ -179,6 +181,11 @@ export function UnifiedCalendarModal({
                             onEditWeave={handleEditWeave}
                             refreshTrigger={calendarRefreshTrigger}
                         />
+                    )}
+                    {currentTab === 'alignment' && (
+                        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 40 }}>
+                            <TierBalanceContent />
+                        </ScrollView>
                     )}
                     {currentTab === 'patterns' && <PatternsTabContent />}
 

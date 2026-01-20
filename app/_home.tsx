@@ -1,8 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 
 import { HomeWidgetGrid, WidgetGridItem } from '@/modules/home/components/widgets/HomeWidgetGrid';
-import { SocialSeasonWidgetV2 } from '@/modules/home/components/widgets/widgets/SocialSeasonWidgetV2';
-import { YourEnergyWidget } from '@/modules/home/components/widgets/widgets/YourEnergyWidget';
+import { YourPulseWidget } from '@/modules/home/components/widgets/widgets/YourPulseWidget';
 import { TodaysFocusWidgetV2 } from '@/modules/home/components/widgets/widgets/TodaysFocusWidgetV2';
 import { JournalWidget } from '@/modules/home/components/widgets/widgets/JournalWidget';
 import { OracleFAB } from '@/modules/home/components/OracleFAB';
@@ -161,25 +160,14 @@ export default function Home({ onReady }: HomeProps) {
       visible: true,
     },
     {
-      id: 'social-season',
-      component: SocialSeasonWidgetV2,
+      id: 'your-pulse',
+      component: YourPulseWidget,
       config: {
-        id: 'social-season',
-        type: 'social-season',
+        id: 'your-pulse',
+        type: 'your-pulse',
         fullWidth: true,
       },
       position: 1,
-      visible: true,
-    },
-    {
-      id: 'your-energy',
-      component: YourEnergyWidget,
-      config: {
-        id: 'your-energy',
-        type: 'your-energy',
-        fullWidth: true,
-      },
-      position: 2,
       visible: true,
     },
     {
@@ -190,7 +178,7 @@ export default function Home({ onReady }: HomeProps) {
         type: 'journal',
         fullWidth: true,
       },
-      position: 3,
+      position: 2,
       visible: true,
     },
   ];
