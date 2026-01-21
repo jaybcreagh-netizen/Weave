@@ -126,6 +126,9 @@
     "lucide-react-native": {
       "react": "$react"
     },
+    "@nozbe/with-observables": {
+      "@types/react": "$@types/react"
+    },
     "react-native-safe-area-context": "^5.0.0"
   },
   "private": true
