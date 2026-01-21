@@ -172,40 +172,32 @@ INSTRUCTIONS:
         setInput('')
     }
 
-    const handleInsightAction = (insight: ProactiveInsight) => {
+    // Handle "Tell me more" - asks the Oracle about the insight
+    const handleTellMeMore = (insight: ProactiveInsight) => {
         trackEvent(AnalyticsEvents.ORACLE_ACTION_TAKEN, {
             insightId: insight.id,
-            actionType: insight.actionType,
+            actionType: 'tell_me_more',
             friendId: insight.actionParams?.friendId
         })
 
-        switch (insight.actionType) {
-            case 'plan_weave':
-                onClose?.()
-                router.push({
-                    pathname: '/weave-logger',
-                    params: insight.actionParams.friendId ? { friendIds: insight.actionParams.friendId } : undefined
-                })
-                break
-            case 'open_contact':
-                if (insight.actionParams.friendId) {
-                    onClose?.()
-                    router.push({
-                        pathname: '/friend-profile',
-                        params: { id: insight.actionParams.friendId }
-                    })
-                }
-                break
-            case 'guided_reflection':
-                // Store insight ID so we can mark it as acted_on when reflection is saved
-                setReflectionInsightId(insight.id)
-                setShowGuidedReflection(true)
-                break
-            case 'view_friend_list':
-                onClose?.()
-                router.replace('/(tabs)/circle')
-                break
-        }
+        // Ask the Oracle about this insight
+        const question = `Tell me more about this insight: "${insight.headline}". ${insight.body}`
+        askQuestion(question)
+    }
+
+    // Handle "Plan" action - navigate to weave logger
+    const handlePlanWeave = (insight: ProactiveInsight) => {
+        trackEvent(AnalyticsEvents.ORACLE_ACTION_TAKEN, {
+            insightId: insight.id,
+            actionType: 'plan_weave',
+            friendId: insight.actionParams?.friendId
+        })
+
+        onClose?.()
+        router.push({
+            pathname: '/weave-logger',
+            params: insight.actionParams?.friendId ? { friendIds: insight.actionParams.friendId } : undefined
+        })
     }
 
     // Memoized action handler
@@ -274,13 +266,18 @@ INSTRUCTIONS:
         listRef.current?.scrollToOffset({ offset: 0, animated: true })
     }
 
+    const [isGeneratingInsight, setIsGeneratingInsight] = useState(false)
+
     const handleRequestInsight = async () => {
+        setIsGeneratingInsight(true)
         try {
             await InsightGenerator.generateOnDemand()
             // Scroll to top to show the new insight in the carousel
             listRef.current?.scrollToOffset({ offset: 0, animated: true })
         } catch (e) {
             // Silently fail, insights will just not appear
+        } finally {
+            setIsGeneratingInsight(false)
         }
     }
 
@@ -313,8 +310,10 @@ INSTRUCTIONS:
         }
     }
 
+    const [hasInsights, setHasInsights] = useState(false)
+
     const emptyState = useMemo(() => (
-        <View className="flex-1 items-center justify-center p-6 bg-background">
+        <View className={`flex-1 items-center p-6 bg-background ${hasInsights ? 'justify-start pt-2' : 'justify-center'}`}>
             <View
                 className="w-32 h-32 rounded-full items-center justify-center mb-6"
             >
@@ -327,10 +326,10 @@ INSTRUCTIONS:
                 What's on your mind?
             </Text>
 
-            <InsightsChip onPress={handleInsightsChipPress} />
-            <StarterPromptChips onSelect={handlePromptSelect} context={context} onRequestInsight={handleRequestInsight} />
+
+            <StarterPromptChips onSelect={handlePromptSelect} context={context} onRequestInsight={handleRequestInsight} isGeneratingInsight={isGeneratingInsight} />
         </View>
-    ), [colors, typography, animatedProps, context, askQuestion])
+    ), [colors, typography, animatedProps, context, askQuestion, hasInsights, isGeneratingInsight])
 
     return (
         <>
@@ -375,7 +374,7 @@ INSTRUCTIONS:
                             }
                             ListHeaderComponent={
                                 <View className="mb-4">
-                                    <InsightsCarousel onAction={handleInsightAction} />
+                                    <InsightsCarousel onTellMeMore={handleTellMeMore} onPlanWeave={handlePlanWeave} onHasInsights={setHasInsights} />
                                 </View>
                             }
                             showsVerticalScrollIndicator={false}

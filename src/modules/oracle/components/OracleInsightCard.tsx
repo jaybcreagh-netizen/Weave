@@ -1,7 +1,7 @@
 import React from 'react'
 import { View, Text, TouchableOpacity } from 'react-native'
 import Animated, { FadeIn, FadeOut, Layout } from 'react-native-reanimated'
-import { Sparkles, X, ArrowRight } from 'lucide-react-native'
+import { Sparkles, X, MessageCircle, Calendar, PenLine } from 'lucide-react-native'
 import ProactiveInsight from '@/db/models/ProactiveInsight'
 import { SPRINGS } from '@/shared/constants/animation'
 
@@ -9,12 +9,24 @@ import { useTheme } from '@/shared/hooks/useTheme'
 
 interface OracleInsightCardProps {
     insight: ProactiveInsight
-    onAction: (insight: ProactiveInsight) => void
+    onTellMeMore: (insight: ProactiveInsight) => void  // Opens chat with insight context
+    onPlanWeave?: (insight: ProactiveInsight) => void  // Optional: Plan a hangout
+    onLogWeave?: (insight: ProactiveInsight) => void   // Optional: Log an interaction
     onDismiss: (insight: ProactiveInsight) => void
 }
 
-export function OracleInsightCard({ insight, onAction, onDismiss }: OracleInsightCardProps) {
+export function OracleInsightCard({ insight, onTellMeMore, onPlanWeave, onLogWeave, onDismiss }: OracleInsightCardProps) {
     const { colors, typography } = useTheme()
+
+    // Determine which contextual action to show based on insight type/signal
+    // Check sourceSignals for drift detection or just general friend context
+    const sourceSignals = insight.sourceSignalsJson ? JSON.parse(insight.sourceSignalsJson) : []
+    const signalWithFriend = sourceSignals.find((s: any) => s.friendId)
+    const friendId = signalWithFriend?.friendId
+
+    // Show plan action if we have a specific friend context (or if explicitly set)
+    const showPlanAction = insight.actionType === 'plan_weave' || !!friendId
+    const showLogAction = insight.actionType === 'log_weave'
 
     return (
         <Animated.View
@@ -64,12 +76,12 @@ export function OracleInsightCard({ insight, onAction, onDismiss }: OracleInsigh
                 </View>
 
                 {/* Content: Letter Style */}
-                <View className="mb-6">
+                <View className="mb-5">
                     <Text
                         className="text-lg mb-2"
                         style={{
                             color: colors.foreground,
-                            fontFamily: typography.fonts.serifBold, // Lora Bold
+                            fontFamily: typography.fonts.serifBold,
                             lineHeight: 28
                         }}
                     >
@@ -79,7 +91,7 @@ export function OracleInsightCard({ insight, onAction, onDismiss }: OracleInsigh
                         className="text-base leading-7"
                         style={{
                             color: colors.foreground,
-                            fontFamily: typography.fonts.serif, // Lora Regular
+                            fontFamily: typography.fonts.serif,
                             opacity: 0.9
                         }}
                     >
@@ -87,25 +99,70 @@ export function OracleInsightCard({ insight, onAction, onDismiss }: OracleInsigh
                     </Text>
                 </View>
 
-                {/* Action Footer: Subtle & Integrated */}
-                <View className="flex-row items-center justify-between pt-4 border-t" style={{ borderColor: colors.border }}>
+                {/* Action Footer: Two buttons side by side */}
+                <View className="flex-row items-center gap-3 pt-4 border-t" style={{ borderColor: colors.border }}>
+                    {/* Tell me more - always shown */}
                     <TouchableOpacity
-                        onPress={() => onAction(insight)}
+                        onPress={() => onTellMeMore(insight)}
                         activeOpacity={0.7}
-                        className="flex-row items-center"
+                        className="flex-row items-center px-3 py-2 rounded-full"
+                        style={{ backgroundColor: colors.primary + '15' }}
                     >
+                        <MessageCircle size={14} color={colors.primary} />
                         <Text
                             style={{
                                 color: colors.primary,
                                 fontFamily: typography.fonts.sansMedium,
-                                fontSize: 14,
-                                marginRight: 6
+                                fontSize: 13,
+                                marginLeft: 6
                             }}
                         >
-                            {insight.actionLabel || "Reflect"}
+                            Tell me more
                         </Text>
-                        <ArrowRight size={14} color={colors.primary} />
                     </TouchableOpacity>
+
+                    {/* Contextual action: Plan or Log */}
+                    {showPlanAction && onPlanWeave && (
+                        <TouchableOpacity
+                            onPress={() => onPlanWeave(insight)}
+                            activeOpacity={0.7}
+                            className="flex-row items-center px-3 py-2 rounded-full"
+                            style={{ backgroundColor: colors.muted }}
+                        >
+                            <Calendar size={14} color={colors.foreground} />
+                            <Text
+                                style={{
+                                    color: colors.foreground,
+                                    fontFamily: typography.fonts.sansMedium,
+                                    fontSize: 13,
+                                    marginLeft: 6
+                                }}
+                            >
+                                Plan
+                            </Text>
+                        </TouchableOpacity>
+                    )}
+
+                    {showLogAction && onLogWeave && (
+                        <TouchableOpacity
+                            onPress={() => onLogWeave(insight)}
+                            activeOpacity={0.7}
+                            className="flex-row items-center px-3 py-2 rounded-full"
+                            style={{ backgroundColor: colors.muted }}
+                        >
+                            <PenLine size={14} color={colors.foreground} />
+                            <Text
+                                style={{
+                                    color: colors.foreground,
+                                    fontFamily: typography.fonts.sansMedium,
+                                    fontSize: 13,
+                                    marginLeft: 6
+                                }}
+                            >
+                                Log
+                            </Text>
+                        </TouchableOpacity>
+                    )}
                 </View>
             </View>
         </Animated.View>

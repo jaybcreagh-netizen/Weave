@@ -4,7 +4,7 @@
  */
 
 import React from 'react'
-import { View, TouchableOpacity, Text } from 'react-native'
+import { View, TouchableOpacity, Text, ActivityIndicator } from 'react-native'
 import Animated, {
     FadeInDown,
     FadeOutUp,
@@ -27,6 +27,7 @@ interface StarterPromptChipsProps {
     onSelect: (prompt: StarterPrompt) => void
     context?: OracleEntryPoint
     onRequestInsight?: () => void
+    isGeneratingInsight?: boolean
 }
 
 const LoadingSkeleton = ({ colors }: { colors: any }) => {
@@ -77,7 +78,7 @@ const LoadingSkeleton = ({ colors }: { colors: any }) => {
     )
 }
 
-export function StarterPromptChips({ onSelect, context = 'default', onRequestInsight }: StarterPromptChipsProps) {
+export function StarterPromptChips({ onSelect, context = 'default', onRequestInsight, isGeneratingInsight }: StarterPromptChipsProps) {
     const { colors, typography } = useTheme()
     const { prompts, refresh, loading } = useStarterPrompts(context)
 
@@ -107,6 +108,7 @@ export function StarterPromptChips({ onSelect, context = 'default', onRequestIns
                                 >
                                     <TouchableOpacity
                                         onPress={onRequestInsight}
+                                        disabled={isGeneratingInsight}
                                         style={{
                                             flexDirection: 'row',
                                             alignItems: 'center',
@@ -116,10 +118,15 @@ export function StarterPromptChips({ onSelect, context = 'default', onRequestIns
                                             backgroundColor: colors.primary + '15',
                                             borderWidth: 1,
                                             borderColor: colors.primary + '40',
+                                            opacity: isGeneratingInsight ? 0.6 : 1,
                                         }}
                                         activeOpacity={0.6}
                                     >
-                                        <Sparkles size={12} color={colors.primary} style={{ marginRight: 4 }} />
+                                        {isGeneratingInsight ? (
+                                            <ActivityIndicator size="small" color={colors.primary} style={{ marginRight: 4 }} />
+                                        ) : (
+                                            <Sparkles size={12} color={colors.primary} style={{ marginRight: 4 }} />
+                                        )}
                                         <Text
                                             style={{
                                                 color: colors.primary,
@@ -127,7 +134,7 @@ export function StarterPromptChips({ onSelect, context = 'default', onRequestIns
                                                 fontSize: 12,
                                             }}
                                         >
-                                            Give me an insight
+                                            {isGeneratingInsight ? 'Thinking...' : 'Give me an insight'}
                                         </Text>
                                     </TouchableOpacity>
                                 </Animated.View>

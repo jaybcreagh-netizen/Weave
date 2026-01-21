@@ -677,15 +677,32 @@ class OracleService {
         }
         context.activeThreads = activeThreads
 
-        // Generate first question
-        const firstQuestion = await this.generateNextQuestion(context, [])
+        // Determine start state
+        let initialTurns: GuidedTurn[] = []
+        let nextQuestion: string
+
+        if (context.quickCaptureText && context.quickCaptureText.trim().length > 0) {
+            // User already wrote something. Treat it as the answer to "What's on your mind?"
+            const seedTurn: GuidedTurn = {
+                oracleQuestion: "What's on your mind?",
+                userAnswer: context.quickCaptureText
+            }
+            initialTurns.push(seedTurn)
+
+            // Generate the NEXT question immediately based on this answer
+            // We pass the seed turn as history so the LLM sees what the user wrote
+            nextQuestion = await this.generateNextQuestion(context, initialTurns)
+        } else {
+            // Standard start - generate first question from scratch
+            nextQuestion = await this.generateNextQuestion(context, [])
+        }
 
         const session: GuidedSession = {
             id: Date.now().toString(),
             mode: 'guided_reflection',
             context,
-            turns: [],
-            pendingQuestion: firstQuestion,
+            turns: initialTurns,
+            pendingQuestion: nextQuestion,
             status: 'in_progress',
             startedAt: Date.now()
         }
@@ -693,14 +710,16 @@ class OracleService {
         this.activeGuidedSession = session
         logger.info('OracleService', 'Started guided reflection', {
             type: context.type,
-            friendIds: context.friendIds
+            friendIds: context.friendIds,
+            hasQuickCapture: !!context.quickCaptureText
         })
 
         // Analytics
         trackEvent(AnalyticsEvents.GUIDED_REFLECTION_STARTED, {
             reflectionType: context.type,
             friendCount: context.friendIds.length,
-            activeThreadCount: activeThreads.length
+            activeThreadCount: activeThreads.length,
+            hasQuickCapture: !!context.quickCaptureText
         })
 
         return session
@@ -1460,27 +1479,82 @@ class OracleService {
             return
         }
 
-        // 3. Prepare Prompt Context
-        const signalContexts = await Promise.all(signals.map(async s => {
+
+
+        // 3. Smart Filtering: 48h Cooldown on Dismissed (Friend + Topic)
+        const fortyEightHoursAgo = new Date(Date.now() - 48 * 60 * 60 * 1000)
+
+        const dismissedInsights = await database.get<ProactiveInsight>('proactive_insights').query(
+            Q.where('status', 'dismissed'),
+            Q.where('generated_at', Q.gte(fortyEightHoursAgo.getTime()))
+        ).fetch()
+
+        // Create a set of "banned" signatures: `${friendId}:${signalType}`
+        const bannedSignatures = new Set<string>()
+
+        dismissedInsights.forEach(insight => {
+            try {
+                const sourceSignals = JSON.parse(insight.sourceSignalsJson || '[]')
+                // Only ban the PRIMARY signal (first one), not all
+                const primarySignal = sourceSignals[0]
+                if (primarySignal) {
+                    if (primarySignal.friendId) {
+                        bannedSignatures.add(`${primarySignal.friendId}:${primarySignal.type}`)
+                    } else {
+                        // User signal (no friend), ban the type globally for 48h
+                        bannedSignatures.add(`user:${primarySignal.type}`)
+                    }
+                }
+            } catch (e) {
+                // Ignore parse errors
+            }
+        })
+
+        // Filter incoming signals
+        const filteredSignals = signals.filter(s => {
+            const signature = s.friendId ? `${s.friendId}:${s.type}` : `user:${s.type}`
+            if (bannedSignatures.has(signature)) {
+                logger.info('OracleService', `Skipping signal due to cooldown: ${signature}`)
+                return false
+            }
+            return true
+        })
+
+        if (filteredSignals.length === 0) {
+            logger.info('OracleService', 'All signals on cooldown - generating fallback insight')
+
+            // Fallback: Pick a random active friend for a gentle check-in suggestion
+            await this.generateFallbackInsight()
+            return
+        }
+
+        // 4. Prepare Prompt Context (using filtered signals)
+        const signalContexts = await Promise.all(filteredSignals.map(async s => {
             let friendName = 'Unknown'
+            let relationshipType = 'friend' // default
             if (s.friendId) {
                 try {
                     const friend = await database.get<Friend>('friends').find(s.friendId)
                     friendName = friend.name
+                    relationshipType = friend.relationshipType || 'friend'
                 } catch { }
             }
             return {
                 type: s.type,
                 friendName,
+                friendId: s.friendId,
+                relationshipType, // e.g. 'partner', 'family', 'colleague', 'friend'
                 data: s.data,
                 priority: s.priority
             }
         }))
 
-        // 4. Generate Synthesis - FOCUSED: Pick top 2 signals max
+        // 5. Generate Synthesis - FOCUSED: Pick top 2 signals max
         const topSignals = signalContexts
             .sort((a, b) => (b.priority || 0) - (a.priority || 0))
             .slice(0, 2)
+
+        if (topSignals.length === 0) return
 
         try {
             const prompt = `
@@ -1495,11 +1569,12 @@ WRITE A BRIEF, CASUAL INSIGHT:
 - Sound like a friend, not a therapist. Warm but direct.
 - Focus on ONE thing only. Don't try to cover everything.
 - End with a gentle nudge or simple suggestion.
+- IMPORTANT: Use the correct relationship term! If relationshipType is "partner", say "your partner" not "your friend". Same for "family", "colleague", etc.
 
 Examples of good tone:
 - "It's been almost 2 months since you hung out with Sam. Maybe worth a quick text?"
 - "You've been seeing a lot of Lewis lately - that connection's really growing!"
-- "Phil might be feeling a bit neglected. A quick check-in could go a long way."
+- "You and your partner haven't had quality time in a while. Date night?"
 
 BAD (too verbose): "Your social energy is currently concentrated on immediate, high-frequency digital communication..."
 GOOD: "You've been texting Lewis a ton but haven't seen Sam in weeks."
@@ -1525,11 +1600,21 @@ Output JSON: { "headline": "...", "body": "..." }
                     insight.body = result.body
                     insight.groundingDataJson = JSON.stringify({ signalCount: topSignals.length })
                     insight.sourceSignalsJson = JSON.stringify(topSignals)
+
+                    // Action: Guided Reflection
                     insight.actionType = 'guided_reflection'
                     insight.actionLabel = 'Tell me more'
+
+                    // Link friend if applicable
+                    const primarySignal = topSignals[0]
+                    if (primarySignal?.friendId) {
+                        insight.friendId = primarySignal.friendId
+                        insight.actionParamsJson = JSON.stringify({ friendId: primarySignal.friendId })
+                    }
+
                     insight.severity = Math.max(...signals.map(s => s.priority))
                     insight.generatedAt = new Date()
-                    insight.expiresAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)
+                    insight.expiresAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000) // 14 days expiration
                     insight.status = 'unseen'
                 })
 
@@ -1936,6 +2021,68 @@ Output JSON: { "headline": "...", "body": "..." }
                 clarifying_question: "Could you tell me a bit more about what's on your mind?",
                 confidence: 0
             };
+        }
+    }
+
+    /**
+     * Generate a gentle fallback insight when all real signals are on cooldown.
+     * Picks a random friend for a check-in suggestion.
+     */
+    private async generateFallbackInsight(): Promise<void> {
+        try {
+            // Get a random active friend
+            const friends = await database.get<Friend>('friends').query(
+                Q.where('is_dormant', false)
+            ).fetch()
+
+            if (friends.length === 0) {
+                logger.info('OracleService', 'No friends for fallback insight')
+                return
+            }
+
+            // Pick a random friend
+            const randomFriend = friends[Math.floor(Math.random() * friends.length)]
+
+            // Create a gentle, generic insight
+            const fallbackHeadlines = [
+                "Who's on your mind?",
+                "Time for a quick check-in?",
+                "A moment to connect",
+                "Thinking of someone?",
+            ]
+            const fallbackBodies = [
+                `It might be nice to reach out to ${randomFriend.name} today.`,
+                `When was the last time you caught up with ${randomFriend.name}?`,
+                `${randomFriend.name} might appreciate hearing from you.`,
+                `A quick message to ${randomFriend.name} could brighten both your days.`,
+            ]
+
+            const headline = fallbackHeadlines[Math.floor(Math.random() * fallbackHeadlines.length)]
+            const body = fallbackBodies[Math.floor(Math.random() * fallbackBodies.length)]
+
+            await writeScheduler.important('createFallbackInsight', async () => {
+                await database.get<ProactiveInsight>('proactive_insights').create(insight => {
+                    insight.ruleId = `fallback_${Date.now()}`
+                    insight.type = 'friend'
+                    insight.headline = headline
+                    insight.body = body
+                    insight.friendId = randomFriend.id
+                    insight.groundingDataJson = JSON.stringify({ fallback: true })
+                    insight.sourceSignalsJson = JSON.stringify([{ type: 'fallback', friendId: randomFriend.id }])
+                    insight.actionType = 'view_friend'
+                    insight.actionLabel = `See ${randomFriend.name}`
+                    insight.actionParamsJson = JSON.stringify({ friendId: randomFriend.id })
+                    insight.severity = 1
+                    insight.generatedAt = new Date()
+                    insight.expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+                    insight.status = 'unseen'
+                })
+            })
+
+            logger.info('OracleService', `Generated fallback insight for ${randomFriend.name}`)
+
+        } catch (e) {
+            logger.error('OracleService', 'Failed to generate fallback insight', e)
         }
     }
 }

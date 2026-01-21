@@ -2,9 +2,13 @@ import { database } from '@/db'
 import { Q } from '@nozbe/watermelondb'
 import Friend from '@/db/models/Friend'
 import Interaction from '@/db/models/Interaction'
+import LifeEvent from '@/db/models/LifeEvent'
+import JournalSignals from '@/db/models/JournalSignals'
+import JournalEntryFriend from '@/db/models/JournalEntryFriend'
 import { FRIEND_RULES, PATTERN_RULES, getExpectedCadence } from './insight-rules'
 import { InsightSignal } from './types'
 import UserProfile from '@/db/models/UserProfile'
+import SocialBatteryLog from '@/db/models/SocialBatteryLog'
 import { oracleService } from './oracle-service'
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000
@@ -33,6 +37,10 @@ export class InsightGenerator {
         const patternSignals = await this.generatePatternSignals()
         signals.push(...patternSignals)
 
+        // 3. Generate User Signals (Battery, Activity)
+        const userSignals = await this.generateUserSignals()
+        signals.push(...userSignals)
+
         // 3. Process via Oracle (LLM Polish)
         if (signals.length > 0) {
             // New Redesign: Synthesize all signals into one narrative
@@ -55,7 +63,19 @@ export class InsightGenerator {
         const patternSignals = await this.generatePatternSignals()
         signals.push(...patternSignals)
 
-        // 3. Process via Oracle (skip if no signals)
+        // 3. Generate User Signals
+        const userSignals = await this.generateUserSignals()
+        signals.push(...userSignals)
+
+        // 4. Generate Life Event Signals (birthdays, anniversaries)
+        const lifeEventSignals = await this.generateLifeEventSignals()
+        signals.push(...lifeEventSignals)
+
+        // 5. Generate Journal Signals (sentiment patterns)
+        const journalSignals = await this.generateJournalBasedSignals()
+        signals.push(...journalSignals)
+
+        // 6. Process via Oracle (skip if no signals)
         if (signals.length > 0) {
             await oracleService.synthesizeInsights(signals)
         }
@@ -102,6 +122,12 @@ export class InsightGenerator {
 
             const oneSided = await this.checkOneSided(friend)
             if (oneSided) signals.push(oneSided)
+
+            const consistency = await this.checkConsistency(friend)
+            if (consistency) signals.push(consistency)
+
+            const qualityStreak = await this.checkHighQualityStreak(friend)
+            if (qualityStreak) signals.push(qualityStreak)
         }
 
         const dormantFriends = await database.get<Friend>('friends').query(
@@ -221,6 +247,66 @@ export class InsightGenerator {
         return null
     }
 
+    /**
+     * Consistency Win: Friend you've been seeing regularly (3+ times in last 30 days)
+     */
+    private static async checkConsistency(friend: Friend): Promise<InsightSignal | null> {
+        const recentCount = await this.getManualInteractionCount(friend.id, 30)
+
+        // At least 3 interactions in the last month = consistent
+        if (recentCount >= 3) {
+            return {
+                type: 'consistency_win',
+                friendId: friend.id,
+                data: {
+                    recentCount,
+                    timeframe: '30 days'
+                },
+                priority: 2
+            }
+        }
+        return null
+    }
+
+    /**
+     * High Quality Streak: Multiple high-vibe interactions recently
+     */
+    private static async checkHighQualityStreak(friend: Friend): Promise<InsightSignal | null> {
+        // Get recent interactions for this friend
+        const links = await database.get('interaction_friends').query(
+            Q.where('friend_id', friend.id)
+        ).fetch() as any[]
+
+        if (links.length === 0) return null
+
+        const interactionIds = links.map(l => l.interaction_id || l.interactionId)
+        const twoWeeksAgo = new Date(Date.now() - 14 * ONE_DAY_MS).getTime()
+
+        const recentInteractions = await database.get<Interaction>('interactions').query(
+            Q.where('id', Q.oneOf(interactionIds)),
+            Q.where('status', 'completed'),
+            Q.where('interaction_date', Q.gte(twoWeeksAgo))
+        ).fetch()
+
+        // Count high-vibe interactions (assumes vibe contains 'full' or similar for high energy)
+        const highVibeCount = recentInteractions.filter(i =>
+            i.vibe && (i.vibe.toLowerCase().includes('full') || i.vibe.toLowerCase().includes('waxing'))
+        ).length
+
+        if (highVibeCount >= 2) {
+            return {
+                type: 'high_quality_streak',
+                friendId: friend.id,
+                data: {
+                    highVibeCount,
+                    totalRecent: recentInteractions.length
+                },
+                priority: 2
+            }
+        }
+        return null
+    }
+
     // === PATTERN DETECTORS (EMERGENT INSIGHTS) ===
 
     private static async generatePatternSignals(): Promise<InsightSignal[]> {
@@ -305,6 +391,231 @@ export class InsightGenerator {
                 },
                 priority: 1
             })
+        }
+
+        return signals
+    }
+
+    private static async generateUserSignals(): Promise<InsightSignal[]> {
+        const signals: InsightSignal[] = []
+
+        // 1. Social Battery Trends
+        // Fetch last 5 logs
+        const logs = await database.get<SocialBatteryLog>('social_battery_logs').query(
+            Q.sortBy('timestamp', Q.desc),
+            Q.take(5)
+        ).fetch()
+
+        if (logs.length >= 3) {
+            const recent = logs.slice(0, 3)
+            const avg = recent.reduce((sum, log) => sum + log.value, 0) / recent.length
+
+            if (avg <= 30) {
+                signals.push({
+                    type: 'user_battery_low',
+                    data: { avg: Math.round(avg) },
+                    priority: 3
+                })
+            } else if (avg >= 80) {
+                signals.push({
+                    type: 'user_battery_high',
+                    data: { avg: Math.round(avg) },
+                    priority: 2
+                })
+            }
+
+            // Check Trend (using all 5 logs if possible)
+            // Values are desc (newest first). So [0] is newest.
+            // "Recharging": [4] < [3] < [2] < [1] < [0]
+            // "Draining": [4] > [3] > [2] > [1] > [0]
+            if (logs.length >= 4) {
+                let isRising = true
+                let isFalling = true
+                for (let i = 0; i < logs.length - 1; i++) {
+                    // Newest [i] vs Older [i+1]
+                    if (logs[i].value <= logs[i + 1].value) isRising = false
+                    if (logs[i].value >= logs[i + 1].value) isFalling = false
+                }
+
+                if (isRising) {
+                    signals.push({
+                        type: 'user_battery_recharging',
+                        data: { trend: 'rising', current: logs[0].value },
+                        priority: 2
+                    })
+                } else if (isFalling) {
+                    signals.push({
+                        type: 'user_battery_draining',
+                        data: { trend: 'falling', current: logs[0].value },
+                        priority: 3 // Higher priority if draining
+                    })
+                }
+            }
+        }
+
+        // 2. Activity Spikes (This Week vs Last Week)
+        const now = Date.now()
+        const oneWeekAgo = now - 7 * ONE_DAY_MS
+        const twoWeeksAgo = now - 14 * ONE_DAY_MS
+
+        const thisWeekCount = await database.get<Interaction>('interactions').query(
+            Q.where('status', 'completed'),
+            Q.where('interaction_date', Q.gte(oneWeekAgo))
+        ).fetchCount()
+
+        const lastWeekCount = await database.get<Interaction>('interactions').query(
+            Q.where('status', 'completed'),
+            Q.where('interaction_date', Q.between(twoWeeksAgo, oneWeekAgo))
+        ).fetchCount()
+
+        // Need baseline
+        if (lastWeekCount >= 3) {
+            const ratio = thisWeekCount / lastWeekCount
+            if (ratio >= 1.5) {
+                signals.push({
+                    type: 'user_activity_spike',
+                    data: { thisWeek: thisWeekCount, lastWeek: lastWeekCount, percent: Math.round(ratio * 100) },
+                    priority: 2
+                })
+            } else if (ratio <= 0.5) {
+                signals.push({
+                    type: 'user_activity_drop',
+                    data: { thisWeek: thisWeekCount, lastWeek: lastWeekCount, percent: Math.round(ratio * 100) },
+                    priority: 2
+                })
+            }
+        }
+
+        return signals
+    }
+
+    /**
+     * Generate signals from upcoming life events (birthdays, anniversaries, etc.)
+     */
+    private static async generateLifeEventSignals(): Promise<InsightSignal[]> {
+        const signals: InsightSignal[] = []
+
+        // Look for events in the next 7 days
+        const now = Date.now()
+        const sevenDaysFromNow = now + (7 * ONE_DAY_MS)
+
+        const upcomingEvents = await database.get<LifeEvent>('life_events').query(
+            Q.where('event_date', Q.between(now, sevenDaysFromNow))
+        ).fetch()
+
+        for (const event of upcomingEvents) {
+            const daysUntil = Math.ceil((event.eventDate.getTime() - now) / ONE_DAY_MS)
+
+            if (event.eventType === 'birthday') {
+                signals.push({
+                    type: 'upcoming_birthday',
+                    friendId: event.friendId,
+                    data: {
+                        daysUntil,
+                        eventDate: event.eventDate.toISOString(),
+                        title: event.title
+                    },
+                    priority: daysUntil <= 2 ? 4 : 3 // Higher priority if very soon
+                })
+            } else if (['anniversary', 'wedding', 'graduation', 'new_job'].includes(event.eventType)) {
+                signals.push({
+                    type: 'upcoming_life_event',
+                    friendId: event.friendId,
+                    data: {
+                        eventType: event.eventType,
+                        daysUntil,
+                        eventDate: event.eventDate.toISOString(),
+                        title: event.title,
+                        importance: event.importance
+                    },
+                    priority: event.importance === 'high' ? 3 : 2
+                })
+            }
+        }
+
+        return signals
+    }
+
+    /**
+     * Generate signals from journal entry sentiment analysis
+     */
+    private static async generateJournalBasedSignals(): Promise<InsightSignal[]> {
+        const signals: InsightSignal[] = []
+
+        // Get recent journal signals (last 30 days) with high confidence
+        const thirtyDaysAgo = Date.now() - (30 * ONE_DAY_MS)
+        const recentSignals = await database.get<JournalSignals>('journal_signals').query(
+            Q.where('extracted_at', Q.gte(thirtyDaysAgo)),
+            Q.where('confidence', Q.gte(0.7))
+        ).fetch()
+
+        if (recentSignals.length === 0) return signals
+
+        // Get journal entry IDs to find linked friends
+        const journalEntryIds = recentSignals.map(s => s.journalEntryId)
+
+        // Fetch friend links for these entries
+        const friendLinks = await database.get<JournalEntryFriend>('journal_entry_friends').query(
+            Q.where('journal_entry_id', Q.oneOf(journalEntryIds))
+        ).fetch()
+
+        // Group by friend to calculate sentiment patterns
+        const friendSentiments: Record<string, {
+            total: number,
+            count: number,
+            hasTension: boolean,
+            positiveCount: number
+        }> = {}
+
+        for (const signal of recentSignals) {
+            const linkedFriends = friendLinks.filter(l =>
+                (l as any).journalEntryId === signal.journalEntryId ||
+                (l as any).journal_entry_id === signal.journalEntryId
+            )
+
+            for (const link of linkedFriends) {
+                const friendId = (link as any).friendId || (link as any).friend_id
+                if (!friendId) continue
+
+                if (!friendSentiments[friendId]) {
+                    friendSentiments[friendId] = { total: 0, count: 0, hasTension: false, positiveCount: 0 }
+                }
+
+                friendSentiments[friendId].total += signal.sentiment
+                friendSentiments[friendId].count += 1
+                if (signal.hasTensionSignal) friendSentiments[friendId].hasTension = true
+                if (signal.sentiment >= 1) friendSentiments[friendId].positiveCount += 1
+            }
+        }
+
+        // Generate signals based on patterns
+        for (const [friendId, data] of Object.entries(friendSentiments)) {
+            const avgSentiment = data.total / data.count
+
+            // Tension detected
+            if (data.hasTension || avgSentiment <= -1) {
+                signals.push({
+                    type: 'journal_tension',
+                    friendId,
+                    data: {
+                        avgSentiment: Math.round(avgSentiment * 10) / 10,
+                        entryCount: data.count
+                    },
+                    priority: 3
+                })
+            }
+            // Positive momentum
+            else if (data.positiveCount >= 2 && avgSentiment >= 1) {
+                signals.push({
+                    type: 'journal_positive',
+                    friendId,
+                    data: {
+                        avgSentiment: Math.round(avgSentiment * 10) / 10,
+                        positiveCount: data.positiveCount
+                    },
+                    priority: 2
+                })
+            }
         }
 
         return signals

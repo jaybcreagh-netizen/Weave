@@ -9,12 +9,17 @@ import { writeScheduler } from '@/shared/services/write-scheduler'
 
 interface InsightsCarouselProps {
     insights: ProactiveInsight[]
-    onAction: (insight: ProactiveInsight) => void
+    onTellMeMore: (insight: ProactiveInsight) => void
+    onPlanWeave: (insight: ProactiveInsight) => void
+    onHasInsights?: (hasInsights: boolean) => void
 }
 
-function InsightsCarousel({ insights, onAction }: InsightsCarouselProps) {
+function InsightsCarousel({ insights, onTellMeMore, onPlanWeave, onHasInsights }: InsightsCarouselProps) {
 
     useEffect(() => {
+        // Notify parent about insights presence
+        onHasInsights?.(insights.length > 0)
+
         // Mark 'unseen' insights as 'seen'
         const unseen = insights.filter(i => i.status === 'unseen')
         if (unseen.length > 0) {
@@ -43,7 +48,8 @@ function InsightsCarousel({ insights, onAction }: InsightsCarouselProps) {
         <View className="mb-2 px-1">
             <OracleInsightCard
                 insight={insights[0]}
-                onAction={onAction}
+                onTellMeMore={onTellMeMore}
+                onPlanWeave={onPlanWeave}
                 onDismiss={handleDismiss}
             />
         </View>
@@ -60,3 +66,4 @@ const enhance = withObservables([], () => ({
 }))
 
 export default enhance(InsightsCarousel)
+

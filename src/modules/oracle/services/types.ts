@@ -149,7 +149,7 @@ export interface ComposedEntry {
 
 
 export interface InsightSignal {
-    type: 'drifting' | 'deepening' | 'one_sided' | 'reconnection_win' | 'consistency_win' | 'location_pattern' | 'activity_habit' | 'vibe_trend' | 'journal_signal';
+    type: 'drifting' | 'deepening' | 'one_sided' | 'reconnection_win' | 'consistency_win' | 'high_quality_streak' | 'location_pattern' | 'activity_habit' | 'vibe_trend' | 'journal_signal' | 'user_battery_low' | 'user_battery_high' | 'user_battery_recharging' | 'user_battery_draining' | 'user_activity_spike' | 'user_activity_drop' | 'fallback' | 'upcoming_birthday' | 'upcoming_life_event' | 'journal_tension' | 'journal_positive' | 'activity_staleness' | 'archetype_suggestion';
     friendId?: string;
     data: Record<string, any>;
     priority: number;

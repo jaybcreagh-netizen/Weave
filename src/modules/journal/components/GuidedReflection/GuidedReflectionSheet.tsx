@@ -26,7 +26,7 @@ import { Button } from '@/shared/ui/Button'
 import { Icon } from '@/shared/ui/Icon'
 import { useTheme } from '@/shared/hooks/useTheme'
 import { useGuidedReflection, GuidedReflectionState } from '../../hooks/useGuidedReflection'
-import { ReflectionContext } from '@/modules/oracle'
+import { ReflectionContext, GuidedSession } from '@/modules/oracle'
 import { TopicSelectionStep } from './TopicSelectionStep'
 import { FreeformGatherStep, FreeformContext } from './FreeformGatherStep'
 import Animated, {
@@ -419,7 +419,7 @@ interface ConversationViewProps {
     onForceCompose: () => void  // "That's enough" button
     onEscape: () => void
     onBack: () => void
-    inputRef: React.RefObject<TextInput>
+    inputRef: React.RefObject<TextInput | null>
     colors: any
     isDeepening?: boolean
 }
@@ -543,8 +543,11 @@ function ConversationView({
 }
 
 
+
+
 interface DraftViewProps {
     composedEntry: string
+    session?: GuidedSession
     onEdit: (content: string) => void
     onConfirm: () => void
     onGoDeeper: () => void
@@ -553,9 +556,26 @@ interface DraftViewProps {
     colors: any
 }
 
-function DraftView({ composedEntry, onEdit, onConfirm, onGoDeeper, canDeepen, onEscape, colors }: DraftViewProps) {
+function DraftView({ composedEntry, session, onEdit, onConfirm, onGoDeeper, canDeepen, onEscape, colors }: DraftViewProps) {
     const [isEditing, setIsEditing] = useState(false)
+    const [viewMode, setViewMode] = useState<'refined' | 'original'>('refined')
     const [editedContent, setEditedContent] = useState(composedEntry)
+
+    // Build original transcript
+    const originalTranscript = React.useMemo(() => {
+        if (!session) return ''
+        const allTurns = [...session.turns, ...(session.deepeningTurns || [])]
+        return allTurns.map(t => `Q: ${t.oracleQuestion}\n\nA: ${t.userAnswer}`).join('\n\n---\n\n')
+    }, [session])
+
+    // Update edited content when switching modes
+    useEffect(() => {
+        if (viewMode === 'refined') {
+            setEditedContent(composedEntry)
+        } else {
+            setEditedContent(originalTranscript)
+        }
+    }, [viewMode, composedEntry, originalTranscript])
 
     const handleSaveEdit = () => {
         onEdit(editedContent)
@@ -566,16 +586,59 @@ function DraftView({ composedEntry, onEdit, onConfirm, onGoDeeper, canDeepen, on
         <View className="flex-1 w-full">
             <Animated.View entering={FadeIn.duration(400)} className="flex-1">
                 {/* Header */}
-                <View className="flex-row items-center mb-6">
-                    <View
-                        className="w-10 h-10 rounded-full items-center justify-center mr-3"
-                        style={{ backgroundColor: colors.primary + '15' }}
-                    >
-                        <Icon name="Sparkles" size={20} color={colors.primary} />
+                <View className="flex-row items-center justify-between mb-4">
+                    <View className="flex-row items-center">
+                        <View
+                            className="w-10 h-10 rounded-full items-center justify-center mr-3"
+                            style={{ backgroundColor: colors.primary + '15' }}
+                        >
+                            <Icon name="Sparkles" size={20} color={colors.primary} />
+                        </View>
+                        <View>
+                            <Text variant="h4" style={{ color: colors.foreground }}>
+                                Review Entry
+                            </Text>
+                            <Text variant="caption" style={{ color: colors['muted-foreground'] }}>
+                                {viewMode === 'refined' ? 'AI Synthesized' : 'Original Transcript'}
+                            </Text>
+                        </View>
                     </View>
-                    <Text variant="h4" style={{ color: colors.foreground }}>
-                        Here's what I heard
-                    </Text>
+
+                    {/* Toggle - Only show if session/transcript exists */}
+                    {session && (
+                        <View className="flex-row bg-muted rounded-lg p-1" style={{ backgroundColor: colors.muted }}>
+                            <Pressable
+                                onPress={() => setViewMode('refined')}
+                                className={`px-3 py-1.5 rounded-md ${viewMode === 'refined' ? 'bg-background shadow-sm' : ''}`}
+                                style={viewMode === 'refined' ? { backgroundColor: colors.card } : {}}
+                            >
+                                <Text
+                                    variant="caption"
+                                    style={{
+                                        color: viewMode === 'refined' ? colors.foreground : colors['muted-foreground'],
+                                        fontWeight: viewMode === 'refined' ? '600' : '400'
+                                    }}
+                                >
+                                    Refined
+                                </Text>
+                            </Pressable>
+                            <Pressable
+                                onPress={() => setViewMode('original')}
+                                className={`px-3 py-1.5 rounded-md ${viewMode === 'original' ? 'bg-background shadow-sm' : ''}`}
+                                style={viewMode === 'original' ? { backgroundColor: colors.card } : {}}
+                            >
+                                <Text
+                                    variant="caption"
+                                    style={{
+                                        color: viewMode === 'original' ? colors.foreground : colors['muted-foreground'],
+                                        fontWeight: viewMode === 'original' ? '600' : '400'
+                                    }}
+                                >
+                                    Original
+                                </Text>
+                            </Pressable>
+                        </View>
+                    )}
                 </View>
 
                 {/* Composed entry */}
@@ -596,7 +659,7 @@ function DraftView({ composedEntry, onEdit, onConfirm, onGoDeeper, canDeepen, on
                         />
                     ) : (
                         <Text variant="body" style={{ color: colors.foreground, lineHeight: 28, fontSize: 16 }}>
-                            {composedEntry}
+                            {editedContent}
                         </Text>
                     )}
                 </ScrollView>
@@ -618,10 +681,19 @@ function DraftView({ composedEntry, onEdit, onConfirm, onGoDeeper, canDeepen, on
                         ) : (
                             <Button variant="outline" onPress={() => setIsEditing(true)} label="Edit" />
                         )}
-                        {canDeepen && !isEditing && (
+                        {canDeepen && !isEditing && viewMode === 'refined' && (
                             <Button variant="outline" onPress={onGoDeeper} label="Go Deeper" />
                         )}
-                        <Button variant="primary" onPress={onConfirm} label="Save Entry" />
+                        <Button variant="primary" onPress={() => {
+                            // Ensure we save currently visible content
+                            if (isEditing) {
+                                onEdit(editedContent)
+                            } else if (viewMode === 'original' && composedEntry !== editedContent) {
+                                // If listening to original, we must update the main composed entry to match it so it saves correctly
+                                onEdit(editedContent)
+                            }
+                            onConfirm()
+                        }} label="Save Entry" />
                     </View>
                 </View>
             </Animated.View>
