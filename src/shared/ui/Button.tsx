@@ -117,7 +117,16 @@ export function Button({
                         >
                             {label}
                         </Text>
-                    ) : children}
+                    ) : (
+                        typeof children === 'string' ? (
+                            <Text
+                                variant="button"
+                                style={textStyle}
+                            >
+                                {children}
+                            </Text>
+                        ) : children
+                    )}
                 </>
             )}
         </TouchableOpacity>

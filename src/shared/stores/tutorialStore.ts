@@ -17,6 +17,11 @@ interface TutorialState {
   hasSeenInsightsTab: boolean;
   hasSeenQuizPrompt: boolean;
   hasTakenQuiz: boolean;
+  hasSeenOracleTooltip: boolean;
+  hasSeenAddFriendPrompt: boolean;
+  hasSeenFirstPlanCongrats: boolean;
+  hasSeenFirstLogColorChange: boolean;
+  hasSeenFirstInsights: boolean;
 
   // Helper
   persistState: (updates: Partial<TutorialState>) => Promise<void>;
@@ -35,6 +40,11 @@ interface TutorialState {
   markInsightsTabSeen: () => Promise<void>;
   markQuizPromptSeen: () => Promise<void>;
   markQuizTaken: () => Promise<void>;
+  markOracleTooltipSeen: () => Promise<void>;
+  markAddFriendPromptSeen: () => Promise<void>;
+  markFirstPlanCongratsSeen: () => Promise<void>;
+  markFirstLogColorChangeSeen: () => Promise<void>;
+  markFirstInsightsSeen: () => Promise<void>;
 
   // Utilities
   resetTutorials: () => Promise<void>;
@@ -58,6 +68,11 @@ export const useTutorialStore = create<TutorialState>((set, get) => ({
   hasSeenInsightsTab: false,
   hasSeenQuizPrompt: false,
   hasTakenQuiz: false,
+  hasSeenOracleTooltip: false,
+  hasSeenAddFriendPrompt: false,
+  hasSeenFirstPlanCongrats: false,
+  hasSeenFirstLogColorChange: false,
+  hasSeenFirstInsights: false,
 
   // Helper to persist state
   persistState: async (updates: Partial<TutorialState>) => {
@@ -140,6 +155,31 @@ export const useTutorialStore = create<TutorialState>((set, get) => ({
     await persistState({ hasTakenQuiz: true });
   },
 
+  markOracleTooltipSeen: async () => {
+    const { persistState } = get();
+    await persistState({ hasSeenOracleTooltip: true });
+  },
+
+  markAddFriendPromptSeen: async () => {
+    const { persistState } = get();
+    await persistState({ hasSeenAddFriendPrompt: true });
+  },
+
+  markFirstPlanCongratsSeen: async () => {
+    const { persistState } = get();
+    await persistState({ hasSeenFirstPlanCongrats: true });
+  },
+
+  markFirstLogColorChangeSeen: async () => {
+    const { persistState } = get();
+    await persistState({ hasSeenFirstLogColorChange: true });
+  },
+
+  markFirstInsightsSeen: async () => {
+    const { persistState } = get();
+    await persistState({ hasSeenFirstInsights: true });
+  },
+
   resetTutorials: async () => {
     try {
       await AsyncStorage.removeItem(STORAGE_KEY);
@@ -157,6 +197,11 @@ export const useTutorialStore = create<TutorialState>((set, get) => ({
         hasSeenInsightsTab: false,
         hasSeenQuizPrompt: false,
         hasTakenQuiz: false,
+        hasSeenOracleTooltip: false,
+        hasSeenAddFriendPrompt: false,
+        hasSeenFirstPlanCongrats: false,
+        hasSeenFirstLogColorChange: false,
+        hasSeenFirstInsights: false,
       });
     } catch (error) {
       console.error('Failed to reset tutorial state:', error);

@@ -2,7 +2,9 @@ import React from 'react';
 import { Alert } from 'react-native';
 import { Tier } from '@/shared/types/legacy-types';
 import { logger } from '@/shared/services/logger.service';
-import { TierFitBottomSheet, useTierFit, changeFriendTier, dismissTierSuggestion } from '@/modules/insights';
+import { TierFitBottomSheet } from '@/modules/insights/components/TierFitBottomSheet';
+import { useTierFit } from '@/modules/insights/hooks/useTierFit';
+import { changeFriendTier, dismissTierSuggestion } from '@/modules/insights/services/tier-management.service';
 
 interface TierFitBottomSheetWrapperProps {
     friendId: string;

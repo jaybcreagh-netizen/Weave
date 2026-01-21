@@ -30,6 +30,7 @@ import { useUIStore } from '@/shared/stores/uiStore';
 import { useCardGesture } from '@/shared/context/CardGestureContext';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { InteractionCategory } from '@/shared/types/legacy-types';
+import { CachedImage } from '@/shared/ui/CachedImage';
 
 // Compact sizing for sleeker feel
 const MENU_RADIUS = 88;
@@ -207,20 +208,59 @@ export function QuickWeaveOverlay() {
 // Using useAnimatedReaction instead of useDerivedValue to avoid excessive re-renders
 const InitialDisplay = React.memo(function InitialDisplay({ activeCardId, metadata, isDarkMode, colors }: any) {
   const [initial, setInitial] = useState('•');
+  const [avatar, setAvatar] = useState<string | null>(null);
 
   // Only update state when the value actually changes
   useAnimatedReaction(
     () => {
       const id = activeCardId.value;
-      return (id && metadata.value[id]) ? metadata.value[id].initial : '•';
+      return (id && metadata.value[id])
+        ? { initial: metadata.value[id].initial, avatar: metadata.value[id].avatar }
+        : { initial: '•', avatar: null };
     },
     (currentValue, previousValue) => {
-      if (currentValue !== previousValue) {
-        runOnJS(setInitial)(currentValue);
+      if (!previousValue ||
+        currentValue.initial !== previousValue.initial ||
+        currentValue.avatar !== previousValue.avatar) {
+        runOnJS(setInitial)(currentValue.initial);
+        runOnJS(setAvatar)(currentValue.avatar ?? null);
       }
     },
     []
   );
+
+  if (avatar && avatar.trim().length > 0) {
+    return (
+      <View style={{ width: '100%', height: '100%', borderRadius: 999, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }}>
+        <CachedImage
+          source={{ uri: avatar }}
+          style={{ width: '100%', height: '100%' }}
+          contentFit="cover"
+          fallbackIcon={
+            <View style={{ width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center', backgroundColor: isDarkMode ? '#282828' : '#FFFFFF' }}>
+              <Text
+                style={{
+                  fontSize: 18,
+                  fontWeight: '700',
+                  color: isDarkMode ? 'white' : colors.foreground,
+                  fontFamily: 'Lora_700Bold',
+                }}
+              >
+                {initial}
+              </Text>
+            </View>
+          }
+        />
+        {/* Dark overlay for better contrast against white icons if needed */}
+        <View style={{
+          position: 'absolute',
+          top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: isDarkMode ? 'rgba(0,0,0,0.1)' : 'transparent',
+          borderRadius: 999
+        }} />
+      </View>
+    );
+  }
 
   return (
     <Text

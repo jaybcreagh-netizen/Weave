@@ -40,6 +40,27 @@ export class InsightGenerator {
         }
     }
 
+    /**
+     * Generate an insight immediately (on-demand, skips cadence checks)
+     * Used when user explicitly taps "Give me an insight"
+     */
+    static async generateOnDemand(): Promise<void> {
+        const signals: InsightSignal[] = []
+
+        // 1. Generate Friend Signals
+        const friendSignals = await this.generateFriendSignals()
+        signals.push(...friendSignals)
+
+        // 2. Generate Pattern Signals
+        const patternSignals = await this.generatePatternSignals()
+        signals.push(...patternSignals)
+
+        // 3. Process via Oracle (skip if no signals)
+        if (signals.length > 0) {
+            await oracleService.synthesizeInsights(signals)
+        }
+    }
+
     private static async shouldGenerateInsights(userProfile: UserProfile): Promise<boolean> {
         const frequency = userProfile.insightFrequency || 'biweekly'
         if (frequency === 'on_demand') return false

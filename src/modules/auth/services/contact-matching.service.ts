@@ -1,6 +1,7 @@
 import * as Contacts from 'expo-contacts';
 import * as Crypto from 'expo-crypto';
 import { getSupabaseClient } from '@/shared/services/supabase-client';
+import { normalizePhone } from '@/modules/auth/services/auth-utils';
 
 export type ContactMatch = {
     userId: string;
@@ -27,29 +28,10 @@ export class ContactMatchingService {
     }
 
     /**
-     * Normalize phone number to E.164 format (simple version)
-     * Removes non-numeric characters.
-     * In a real app, use google-libphonenumber for robust parsing.
+     * Normalize phone number to E.164 format using shared utility
      */
-    static normalizePhone(phone: string): string | null {
-        // Remove all non-numeric chars
-        const cleaned = phone.replace(/\D/g, '');
-
-        // Basic naive logic for US numbers (user is likely US based given the logs)
-        // Improved logic: 
-        // If starts with +, keep it.
-        // If 10 digits, assume US +1
-        // If 11 digits and starts with 1, assume US +1
-
-        if (cleaned.length === 10) {
-            return `+1${cleaned}`;
-        } else if (cleaned.length === 11 && cleaned.startsWith('1')) {
-            return `+${cleaned}`;
-        } else if (phone.startsWith('+')) {
-            return `+${cleaned}`; // Trust the + prefix if present
-        }
-
-        return null; // Skip invalid/unknown formats to be safe
+    static normalizePhone(phone: string, countryCode = 'US'): string | null {
+        return normalizePhone(phone, countryCode);
     }
 
     /**

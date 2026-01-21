@@ -60,3 +60,23 @@ export function formatPhoneDisplay(phone: string | null | undefined): string {
 
     return `${countryCode} •••-•••-${lastFour}`;
 }
+
+/**
+ * Normalize phone number to E.164 format using google-libphonenumber
+ */
+import { PhoneNumberUtil, PhoneNumberFormat } from 'google-libphonenumber';
+
+export function normalizePhone(phone: string, countryCode = 'US'): string | null {
+    try {
+        const phoneUtil = PhoneNumberUtil.getInstance();
+        const number = phoneUtil.parseAndKeepRawInput(phone, countryCode);
+
+        if (!phoneUtil.isValidNumber(number)) {
+            return null;
+        }
+
+        return phoneUtil.format(number, PhoneNumberFormat.E164);
+    } catch (e) {
+        return null;
+    }
+}

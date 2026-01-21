@@ -1,30 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { View, Share, ActivityIndicator } from 'react-native';
-import { Text } from '@/shared/ui/Text';
-import { Button } from '@/shared/ui/Button';
+import { View, ActivityIndicator, Share } from 'react-native';
+import { Text, Button, Icon } from '@/shared/ui';
 import { StandardBottomSheet } from '@/shared/ui/Sheet/StandardBottomSheet';
-import { getSupabaseClient } from '@/shared/services/supabase-client';
-import { Icon } from '@/shared/ui/Icon';
-import { useUIStore } from '@/shared/stores/uiStore';
-import { database } from '@/db';
-
-// Define the RPC response type locally or in a shared types file
-interface CreateInviteResponse {
-    code: string;
-    expires_at: string;
-}
+import { generateInviteCode } from '../services/invite.service';
 
 interface InviteFriendSheetProps {
     visible: boolean;
     onClose: () => void;
     weaveId?: string;
     friendName: string;
-    friendLocalId: string; // The local ID of the friend being invited
-    weaveSnapshot?: any; // The JSON snapshot of the weave to be shared
+    friendLocalId: string;
+    weaveSnapshot?: any;
 }
 
 export const InviteFriendSheet: React.FC<InviteFriendSheetProps> = ({
-    visible,
+    visible, // ...
     onClose,
     weaveId,
     friendName,
@@ -32,17 +22,16 @@ export const InviteFriendSheet: React.FC<InviteFriendSheetProps> = ({
     weaveSnapshot,
 }) => {
     const [code, setCode] = useState<string | null>(null);
+    const [link, setLink] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    // Note: Toast functionality was intended here, but keeping it simple for MVP 
-    // without external Clipboard dependency for now.
-    // const showToast = useUIStore((state) => state.showToast);
+    // ...
 
-    // Reset state when sheet opens
     useEffect(() => {
         if (visible) {
             setCode(null);
+            setLink(null);
             setIsLoading(false);
             setError(null);
             generateInvite();
@@ -52,43 +41,13 @@ export const InviteFriendSheet: React.FC<InviteFriendSheetProps> = ({
     const generateInvite = async () => {
         setIsLoading(true);
         setError(null);
-        const supabase = getSupabaseClient();
-
-        if (!supabase) {
-            setError('Supabase is not configured');
-            setIsLoading(false);
-            return;
-        }
 
         try {
-            // Get local user profile to pass as display name if needed (for anonymous users)
-            let displayName = undefined;
-            try {
-                const userProfileCollection = database.get('user_profiles');
-                // We assume there's one active profile or use a query if needed. 
-                // For now, let's try to get the first one or default.
-                // In a real app, we might check the auth store or a singleton.
-                const profiles = await userProfileCollection.query().fetch();
-                if (profiles.length > 0) {
-                    displayName = (profiles[0] as any).displayName || (profiles[0] as any).username;
-                }
-            } catch (e) {
-                // Ignore, just fallback
-            }
+            const result = await generateInviteCode(friendLocalId, friendName, undefined, weaveSnapshot);
 
-            const { data, error: rpcError } = await supabase.rpc('create_invite', {
-                p_weave_snapshot: weaveSnapshot || null,
-                p_friend_name: friendName,
-                p_creator_friend_local_id: friendLocalId,
-                p_display_name: displayName,
-            });
-
-            if (rpcError) throw rpcError;
-
-            // The RPC returns a table, so data is an array. We expect one row.
-            const inviteData = data as CreateInviteResponse[];
-            if (inviteData && inviteData.length > 0) {
-                setCode(inviteData[0].code);
+            if (result) {
+                setCode(result.code);
+                setLink(result.link);
             } else {
                 throw new Error('No invite code returned');
             }
@@ -101,19 +60,19 @@ export const InviteFriendSheet: React.FC<InviteFriendSheetProps> = ({
     };
 
     const handleShare = async () => {
-        if (!code) return;
+        if (!link) return;
 
         try {
-            // Updated message based on whether it's a weave invite or just a friend link
             let message = '';
             if (weaveId) {
-                message = `Hey ${friendName}! Join me on Weave to plan our hangout. Download the app and use my invite code: ${code}\n\nDownload Weave: https://apps.apple.com/app/weave/id6475656675`;
+                message = `Hey ${friendName}! Join me on Weave to plan our hangout. Tap here to join: ${link}`;
             } else {
-                message = `Hey ${friendName}! Let's connect on Weave to track our friendship. Download the app and use my invite code: ${code}\n\nDownload Weave: https://apps.apple.com/app/weave/id6475656675`;
+                message = `Hey ${friendName}! Let's connect on Weave. Tap here to add me: ${link}`;
             }
 
             await Share.share({
                 message,
+                url: link, // iOS often uses this field for better presentation
             });
         } catch (error) {
             console.error('Error sharing:', error);

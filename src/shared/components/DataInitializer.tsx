@@ -23,7 +23,7 @@ import { useDatabaseReady } from '@/shared/hooks/useDatabaseReady';
 import { useAppStateChange } from '@/shared/hooks/useAppState';
 import { useTutorialStore } from '@/shared/stores/tutorialStore';
 import { AutoBackupService } from '@/modules/backup';
-import { useBackgroundSyncStore } from '@/modules/auth';
+import { useBackgroundSyncStore, useAuthLoading } from '@/modules/auth';
 import { PlanService } from '@/modules/interactions';
 import { NotificationOrchestrator } from '@/modules/notifications';
 import { SyncOrchestrator } from '@/modules/sync';
@@ -54,6 +54,7 @@ export function DataInitializer({ children }: DataInitializerProps) {
     const pathname = usePathname();
     // Use friends loading state to prevent blank screen
     const { isLoading: friendsLoading } = useFriendsObservable();
+    const isAuthLoading = useAuthLoading();
 
     const [fontsLoaded, fontError] = useFonts({
         Lora_400Regular,
@@ -362,7 +363,7 @@ export function DataInitializer({ children }: DataInitializerProps) {
                 {children}
             </Animated.View>
 
-            <LoadingScreen visible={!fontsLoaded || !dataLoaded || !isDatabaseReady || !isSplashAnimationComplete || friendsLoading} />
+            <LoadingScreen visible={!fontsLoaded || !dataLoaded || !isDatabaseReady || !isSplashAnimationComplete || friendsLoading || isAuthLoading} />
         </>
     );
 }

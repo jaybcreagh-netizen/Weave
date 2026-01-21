@@ -1,6 +1,7 @@
 import { database } from '@/db';
 import { getSupabaseClient } from '@/shared/services/supabase-client';
 import Interaction from '@/db/models/Interaction';
+import UserProfile from '@/db/models/UserProfile';
 
 interface CreateInviteResponse {
     code: string;
@@ -10,27 +11,29 @@ interface CreateInviteResponse {
 export async function generateInviteCode(
     friendLocalId: string,
     friendName: string,
-    interaction?: Interaction
-): Promise<string | null> {
+    interaction?: Interaction,
+    existingSnapshot?: any
+): Promise<{ code: string; link: string } | null> {
     const supabase = getSupabaseClient();
     if (!supabase) return null;
 
     try {
         // Get user display name
-        let displayName = undefined;
+        let displayName = 'User';
         try {
-            const userProfileCollection = database.get('user_profiles');
-            const profiles = await userProfileCollection.query().fetch();
+            const profiles = await database.get<UserProfile>('user_profile').query().fetch();
             if (profiles.length > 0) {
-                displayName = (profiles[0] as any).displayName || (profiles[0] as any).username;
+                const profile = profiles[0];
+                displayName = profile.username || profile.email?.split('@')[0] || 'User';
             }
         } catch (e) {
-            // Ignore
+            console.warn('Could not fetch user profile for invite name', e);
         }
 
         // Construct weave snapshot if interaction provided
-        let weaveSnapshot = null;
-        if (interaction) {
+        let weaveSnapshot = existingSnapshot || null;
+
+        if (interaction && !weaveSnapshot) {
             weaveSnapshot = {
                 title: interaction.title,
                 interaction_date: interaction.interactionDate,
@@ -57,7 +60,17 @@ export async function generateInviteCode(
 
         const inviteData = data as CreateInviteResponse[];
         if (inviteData && inviteData.length > 0) {
-            return inviteData[0].code;
+            const code = inviteData[0].code;
+            const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+            if (!supabaseUrl) {
+                console.warn('[InviteService] Missing SUPABASE_URL, returning raw code');
+                return { code, link: code }; // Fallback
+            }
+            // Construct proxy URL
+            // Ensure no double slash if url ends with /
+            const baseUrl = supabaseUrl.replace(/\/$/, '');
+            const link = `${baseUrl}/functions/v1/invite-proxy?code=${code}`;
+            return { code, link };
         }
         return null;
     } catch (error) {

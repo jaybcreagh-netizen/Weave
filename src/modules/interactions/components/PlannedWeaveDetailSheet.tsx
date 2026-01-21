@@ -24,6 +24,7 @@ import {
     ChevronRight,
     Trash2,
     X,
+    Sparkles,
 } from 'lucide-react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { format } from 'date-fns';
@@ -44,6 +45,8 @@ import { NotesInputField } from '@/shared/components/NotesInputField';
 import { CustomCalendar } from '@/shared/components/CustomCalendar';
 import * as CalendarService from '../services/calendar.service';
 import * as Haptics from 'expo-haptics';
+import { useTutorialStore } from '@/shared/stores/tutorialStore';
+import { TutorialAlert } from '@/shared/ui/TutorialAlert';
 
 interface PlannedWeaveDetailSheetProps {
     visible: boolean;
@@ -121,6 +124,9 @@ export function PlannedWeaveDetailSheet({
     const [isSaving, setIsSaving] = useState(false);
     const [hasChanges, setHasChanges] = useState(false);
 
+    // Tutorial State
+    const [showFirstPlanAlert, setShowFirstPlanAlert] = useState(false);
+
     // Load interaction data when it changes
     useEffect(() => {
         if (interaction && visible) {
@@ -165,6 +171,11 @@ export function PlannedWeaveDetailSheet({
     const handleSave = async () => {
         if (!interaction || !onUpdate) return;
 
+        // 1. Check if this is their first planned weave
+        // We check the flag BEFORE saving/navigating to ensure we capture the moment
+        const { hasSeenFirstPlanCongrats, markFirstPlanCongratsSeen } = useTutorialStore.getState();
+
+        // We'll perform the actual save, but interrupt the close with the alert
         setIsSaving(true);
         try {
             // Merge date and time
@@ -218,6 +229,15 @@ export function PlannedWeaveDetailSheet({
 
             setHasChanges(false);
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+            // Check tutorial status AFTER successful save
+            if (!hasSeenFirstPlanCongrats) {
+                setIsSaving(false);
+                setShowFirstPlanAlert(true);
+                markFirstPlanCongratsSeen();
+                return; // Do NOT close yet
+            }
+
             onClose();
         } catch (error) {
             console.error('Error saving planned weave:', error);
@@ -595,6 +615,18 @@ export function PlannedWeaveDetailSheet({
                     }}
                 />
             )}
+
+            <TutorialAlert
+                visible={showFirstPlanAlert}
+                onClose={() => {
+                    setShowFirstPlanAlert(false);
+                    onClose();
+                }}
+                title="First Plan Set!"
+                message="You've taken the first step to nurturing this bond. We'll remind you when it's time."
+                buttonText="Awesome"
+                icon={<Sparkles size={32} color={colors.primary} />}
+            />
         </>
     );
 }

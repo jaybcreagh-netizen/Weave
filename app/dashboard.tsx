@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import Animated, { FadeIn, useSharedValue, useAnimatedStyle, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Sparkles, Users, Settings, Inbox } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { SettingsModal } from '@/modules/auth/components/settings-modal';
@@ -11,17 +11,20 @@ import { useUserProfileStore } from '@/modules/auth';
 import { useUIStore } from '@/shared/stores/uiStore';
 import HomeScreen from './_home';
 import FriendsScreen from './_friends';
+import { Tooltip } from '@/shared/ui/Tooltip';
 import { useTutorialStore } from '@/shared/stores/tutorialStore';
 import { shouldSendSocialBatteryNotification } from '@/modules/notifications';
 import { ProfileCompletionSheet } from '@/modules/auth/components/ProfileCompletionSheet';
 import { AccountIncentiveModal } from '@/modules/auth/components/AccountIncentiveModal';
 import { useAccountIncentive } from '@/modules/auth/hooks/useAccountIncentive';
 import { WeaveIcon } from '@/shared/components/WeaveIcon';
-import { ActivityInboxSheet, useActivityCounts } from '@/modules/sync'; // Added ActivityInboxSheet and useActivityCounts
+import { ActivityInboxSheet, useActivityCounts } from '@/modules/sync';
+import { TutorialAlert } from '@/shared/ui/TutorialAlert';
 
 export default function Dashboard() {
     const theme = useTheme();
     const colors = theme?.colors || {};
+    const insets = useSafeAreaInsets();
     const [activeTab, setActiveTab] = useState<'insights' | 'circle'>('circle');
     const [showActivityInbox, setShowActivityInbox] = useState(false);
     const { totalPendingCount, refreshCounts } = useActivityCounts();
@@ -33,15 +36,41 @@ export default function Dashboard() {
     const [insightsState, setInsightsState] = useState<'unvisited' | 'loading' | 'mounting' | 'ready'>('unvisited');
     const [hasVisitedCircle, setHasVisitedCircle] = useState(true); // Default tab starts visited
     const [showSettings, setShowSettings] = useState(false);
+
+
+
     const {
         isSocialBatterySheetOpen,
         openSocialBatterySheet,
         closeSocialBatterySheet,
-        suggestionCount, // Use shared state from UIStore (populated by useSuggestions in FriendsDashboardScreen)
+        suggestionCount,
     } = useUIStore();
+
     const { submitBatteryCheckin, profile, observeProfile } = useUserProfileStore();
-    // Tutorial state - check if QuickWeave tutorial is done
-    const hasPerformedQuickWeave = useTutorialStore((state) => state.hasPerformedQuickWeave);
+
+    // Tutorial Store
+    const {
+        hasPerformedQuickWeave,
+        hasSeenOracleTooltip,
+        hasSeenAddFriendPrompt,
+        hasAddedFirstFriend,
+        markOracleTooltipSeen,
+        markAddFriendPromptSeen
+    } = useTutorialStore();
+
+    // Mounted state and timeout refs to prevent race conditions
+    const isMountedRef = useRef(true);
+    const batteryTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+    // Derived Tooltip State
+    // Tutorial Sequence: 1. Add Friend -> 2. Oracle -> 3. Quick Weave (handled in screen)
+
+    // Show Add Friend tooltip first (if not seen and on Circle tab)
+    const showAddFriendTooltip = !hasSeenAddFriendPrompt && activeTab === 'circle' && isMountedRef.current;
+
+    // Show Oracle tooltip AFTER Add Friend is seen AND a friend has been added
+    // This prevents it from appearing immediately when opening the FAB
+    const showOracleTooltip = !hasSeenOracleTooltip && hasSeenAddFriendPrompt && hasAddedFirstFriend && isMountedRef.current;
 
     // Pulse animation for loading state
     const pulseScale = useSharedValue(1);
@@ -58,11 +87,6 @@ export default function Dashboard() {
     const pulseAnimatedStyle = useAnimatedStyle(() => ({
         transform: [{ scale: pulseScale.value }]
     }));
-
-
-    // Mounted state and timeout refs to prevent race conditions
-    const isMountedRef = useRef(true);
-    const batteryTimerRef = useRef<NodeJS.Timeout | null>(null);
 
     // Cleanup timeouts on unmount
     useEffect(() => {
@@ -216,19 +240,22 @@ export default function Dashboard() {
 
 
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                        <TouchableOpacity
-                            onPress={() => setShowActivityInbox(true)}
-                            style={styles.settingsButton}
-                        >
-                            <View style={styles.tabIconContainer}>
-                                <Inbox size={24} color={colors['muted-foreground']} />
-                                {totalPendingCount > 0 && (
-                                    <View style={[styles.notificationBadge, { backgroundColor: colors.destructive }]}>
-                                        <Text style={styles.notificationText}>{totalPendingCount}</Text>
-                                    </View>
-                                )}
-                            </View>
-                        </TouchableOpacity>
+                        <View>
+                            <TouchableOpacity
+                                onPress={() => setShowActivityInbox(true)}
+                                style={styles.settingsButton}
+                            >
+                                <View style={styles.tabIconContainer}>
+                                    <Inbox size={24} color={colors['muted-foreground']} />
+                                    {totalPendingCount > 0 && (
+                                        <View style={[styles.notificationBadge, { backgroundColor: colors.destructive }]}>
+                                            <Text style={styles.notificationText}>{totalPendingCount}</Text>
+                                        </View>
+                                    )}
+                                </View>
+                            </TouchableOpacity>
+
+                        </View>
 
                         <TouchableOpacity onPress={() => setShowSettings(true)} style={styles.settingsButton}>
                             <Settings size={24} color={colors['muted-foreground']} />
@@ -323,6 +350,43 @@ export default function Dashboard() {
                 onClose={() => setShowActivityInbox(false)}
                 onRequestHandled={refreshCounts}
             />
+
+            {/* Add Friend Tooltip (First) */}
+            <Tooltip
+                visible={showAddFriendTooltip}
+                text="Add friends to start weaving"
+                position="top"
+                onDismiss={markAddFriendPromptSeen}
+                targetStyle={{
+                    position: 'absolute',
+                    right: 20, // Align with Right FAB
+                    bottom: insets.bottom + 80 // Above FAB
+                }}
+                arrowStyle={{
+                    left: undefined,
+                    right: 26, // Center of FAB (52px / 2)
+                    marginRight: -6
+                }}
+            />
+
+            {/* Oracle Tooltip (Second) */}
+            <Tooltip
+                visible={showOracleTooltip}
+                text="Tap here to consult the oracle"
+                position="top"
+                onDismiss={markOracleTooltipSeen}
+                targetStyle={{
+                    position: 'absolute',
+                    left: 20,
+                    bottom: insets.bottom + 80
+                }}
+                arrowStyle={{
+                    left: 26,
+                    marginLeft: -6
+                }}
+            />
+
+
         </View>
     );
 }

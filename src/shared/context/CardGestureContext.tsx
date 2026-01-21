@@ -13,13 +13,13 @@ interface CardGestureContextType {
   animatedScrollHandler: any;
   activeCardId: SharedValue<string | null>;
   pendingCardId: SharedValue<string | null>; // Card being held (before long-press activates)
-  registerRef: (id: string, ref: React.RefObject<any>, metadata?: { initial: string }) => void;
+  registerRef: (id: string, ref: React.RefObject<any>, metadata?: { initial: string; avatar?: string | null }) => void;
   unregisterRef: (id: string) => void;
   dragX: SharedValue<number>;
   dragY: SharedValue<number>;
   highlightedIndex: SharedValue<number>;
   overlayCenter: SharedValue<{ x: number; y: number }>;
-  cardMetadata: SharedValue<Record<string, { initial: string }>>;
+  cardMetadata: SharedValue<Record<string, { initial: string; avatar?: string | null }>>;
   isLongPressActive: SharedValue<boolean>;
 }
 
@@ -103,7 +103,7 @@ function useCardGestureCoordinator(): CardGestureContextType {
   };
 
   const cardRefs = useSharedValue<Record<string, React.RefObject<Animated.View>>>({});
-  const cardMetadata = useSharedValue<Record<string, { initial: string }>>({});
+  const cardMetadata = useSharedValue<Record<string, { initial: string; avatar?: string | null }>>({});
   const overlayCenter = useSharedValue<{ x: number; y: number }>({ x: 0, y: 0 });
   const scrollOffset = useSharedValue(0);
   const activeCardId = useSharedValue<string | null>(null);
@@ -139,7 +139,7 @@ function useCardGestureCoordinator(): CardGestureContextType {
     }
   };
 
-  const registerRef = (id: string, ref: React.RefObject<Animated.View>, metadata?: { initial: string }) => {
+  const registerRef = (id: string, ref: React.RefObject<Animated.View>, metadata?: { initial: string; avatar?: string | null }) => {
     'worklet';
     cardRefs.value[id] = ref;
     if (metadata) {

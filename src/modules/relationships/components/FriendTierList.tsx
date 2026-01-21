@@ -19,6 +19,7 @@ import { useTheme } from '@/shared/hooks/useTheme';
 import { WeaveIcon } from '@/shared/components/WeaveIcon';
 import { tierColors } from '@/shared/constants/constants';
 import { type Tier } from '../types';
+import { resolveFriendPhotoUrl } from '../utils/photo-path.utils';
 
 const { width: screenWidth } = Dimensions.get('window');
 const AnimatedFlashList = Animated.createAnimatedComponent(FlashList);
@@ -60,12 +61,17 @@ const AnimatedFriendCardItem = React.memo(({
     const opacity = useSharedValue(hasAnimatedBefore ? 1 : 0);
     const translateY = useSharedValue(hasAnimatedBefore ? 0 : 25);
 
+    const resolvedAvatar = useMemo(() => resolveFriendPhotoUrl(item.photoUrl), [item.photoUrl]);
+
     useEffect(() => {
-        runOnUI(registerRef)(item.id, animatedRef, { initial: item.name ? item.name.charAt(0).toUpperCase() : '•' });
+        runOnUI(registerRef)(item.id, animatedRef, {
+            initial: item.name ? item.name.charAt(0).toUpperCase() : '•',
+            avatar: resolvedAvatar
+        });
         return () => {
             runOnUI(unregisterRef)(item.id);
         };
-    }, [item.id, item.name, animatedRef, registerRef, unregisterRef]);
+    }, [item.id, item.name, resolvedAvatar, animatedRef, registerRef, unregisterRef]);
 
     useEffect(() => {
         if (!hasAnimatedBefore) {

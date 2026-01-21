@@ -7,7 +7,7 @@ import { StandardBottomSheet } from '@/shared/ui/Sheet/StandardBottomSheet';
 import { getSupabaseClient } from '@/shared/services/supabase-client';
 import { Icon } from '@/shared/ui/Icon';
 import { useUIStore } from '@/shared/stores/uiStore';
-import { useRouter } from 'expo-router';
+
 import { database } from '@/db';
 import { Q } from '@nozbe/watermelondb';
 import FriendModel from '@/db/models/Friend';
@@ -26,20 +26,28 @@ interface ClaimInviteSheetProps {
     visible: boolean;
     onClose: () => void;
     onSuccess?: () => void;
+    initialCode?: string;
 }
 
 export const ClaimInviteSheet: React.FC<ClaimInviteSheetProps> = ({
     visible,
     onClose,
     onSuccess,
+    initialCode
 }) => {
-    const [code, setCode] = useState('');
+    const [code, setCode] = useState(initialCode || '');
+
+    // Update code if initialCode changes when reopening
+    React.useEffect(() => {
+        if (visible && initialCode) {
+            setCode(initialCode);
+        }
+    }, [visible, initialCode]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [claimedData, setClaimedData] = useState<ClaimInviteResponse | null>(null);
 
     const showToast = useUIStore((state) => state.showToast);
-    const router = useRouter();
 
     const processClaimedInvite = async (data: ClaimInviteResponse) => {
         try {

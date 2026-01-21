@@ -15,11 +15,13 @@ import {
     Calendar,
     Clock,
     X,
-    Repeat
+    Repeat,
+    Play
 } from 'lucide-react-native';
 import { NotificationOrchestrator } from '@/modules/notifications';
 import { SettingsItem } from './SettingsItem';
 import { useUIStore } from '@/shared/stores/uiStore';
+import { useTutorialStore } from '@/shared/stores/tutorialStore';
 import { DiagnosticService } from '@/shared/services/diagnostic.service';
 import { EveningDigestChannel } from '@/modules/notifications';
 import { generateStressTestData, clearStressTestData, getDataStats } from '@/db/seeds/stress-test-seed-data';
@@ -318,6 +320,36 @@ export const TestingSettings: React.FC<TestingSettingsProps> = ({ onClose }) => 
             </Text>
 
             {/* Test Actions */}
+
+            <SettingsItem
+                icon={Play}
+                title="Test Onboarding"
+                subtitle="Reset and restart onboarding flow"
+                onPress={() => {
+                    Alert.alert(
+                        'Test Onboarding',
+                        'This will reset your onboarding state and restart the flow. Continue?',
+                        [
+                            { text: 'Cancel', style: 'cancel' },
+                            {
+                                text: 'Reset & Start',
+                                onPress: async () => {
+                                    try {
+                                        await useTutorialStore.getState().resetTutorials();
+                                        onClose();
+                                        router.replace('/onboarding');
+                                    } catch (error) {
+                                        console.error('Failed to reset tutorials:', error);
+                                        Alert.alert('Error', 'Failed to reset onboarding state.');
+                                    }
+                                }
+                            }
+                        ]
+                    );
+                }}
+            />
+
+            <View className="border-t border-border" style={{ borderColor: colors.border }} />
 
             <SettingsItem
                 icon={Sparkles}

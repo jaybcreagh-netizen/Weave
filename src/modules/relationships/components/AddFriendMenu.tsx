@@ -1,9 +1,10 @@
 import React from 'react';
 import { View, TouchableOpacity } from 'react-native';
-import { UserPlus, Users, Sparkles } from 'lucide-react-native';
+import { UserPlus, Users, Sparkles, QrCode } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { StandardBottomSheet } from '@/shared/ui/Sheet/StandardBottomSheet';
+import { useAuth } from '@/modules/auth/context/AuthContext';
 import { Text } from '@/shared/ui';
 import { isFeatureEnabled } from '@/shared/config/feature-flags';
 
@@ -13,6 +14,7 @@ interface AddFriendMenuProps {
   onAddSingle: () => void;
   onAddBatch: () => void;
   onFindContacts: () => void;
+  onShowCode?: () => void;
 }
 
 export function AddFriendMenu({
@@ -21,8 +23,10 @@ export function AddFriendMenu({
   onAddSingle,
   onAddBatch,
   onFindContacts,
+  onShowCode,
 }: AddFriendMenuProps) {
   const { colors } = useTheme();
+  const { isAuthenticated } = useAuth();
 
   const handleAddSingle = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -43,7 +47,7 @@ export function AddFriendMenu({
       title="Add Friends"
       height="auto"
     >
-      <View className="p-6 gap-3">
+      <View className="px-6 pb-6 pt-14 gap-3">
         {/* Add Single Friend - Opens search-first sheet */}
         <TouchableOpacity
           className="flex-row items-center gap-3 py-3.5 px-4 rounded-xl"
@@ -62,8 +66,37 @@ export function AddFriendMenu({
           </View>
         </TouchableOpacity>
 
+        {/* My Weave Code - QR Code */}
+        {isAuthenticated && (
+          <TouchableOpacity
+            className="flex-row items-center gap-3 py-3.5 px-4 rounded-xl border border-dashed"
+            style={{
+              backgroundColor: colors.card,
+              borderColor: colors.primary,
+            }}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              if (onShowCode) {
+                onShowCode();
+                onClose();
+              }
+            }}
+            activeOpacity={0.8}
+          >
+            <QrCode color={colors.primary} size={20} />
+            <View className="flex-1">
+              <Text className="text-base font-semibold" style={{ color: colors.primary }}>
+                Show My Code
+              </Text>
+              <Text className="text-xs mt-0.5" style={{ color: colors['muted-foreground'] }}>
+                Let others scan to add you
+              </Text>
+            </View>
+          </TouchableOpacity>
+        )}
+
         {/* Find on Weave - Contact Discovery */}
-        {isFeatureEnabled('ACCOUNTS_ENABLED') && (
+        {isAuthenticated && isFeatureEnabled('ACCOUNTS_ENABLED') && (
           <TouchableOpacity
             className="flex-row items-center gap-3 py-3.5 px-4 rounded-xl"
             style={{ backgroundColor: colors.secondary }}

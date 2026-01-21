@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
-import { ArrowRight, Lightbulb, Calendar, CheckCircle2 } from 'lucide-react-native';
+import { ArrowRight, Calendar, CheckCircle2, Sparkles } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import Animated, { FadeInDown } from 'react-native-reanimated';
@@ -27,7 +27,7 @@ export function OnboardingScreen() {
     const completeOnboarding = useTutorialStore(state => state.completeOnboarding);
 
     const [currentStep, setCurrentStep] = useState(0);
-    const steps = ['hook', 'pathways', 'ready'];
+    const steps = ['hook', 'pathways'];
     const currentStepName = steps[currentStep];
     const isLastStep = currentStep === steps.length - 1;
 
@@ -58,17 +58,17 @@ export function OnboardingScreen() {
             case 'hook':
                 return (
                     <Animated.View style={styles.stepContainer} entering={FadeInDown.duration(600)}>
-                        <Text style={styles.title}>When did you last talk to...</Text>
+                        <Text style={styles.title}>When did you last reach out to...</Text>
                         <AnimatedThoughtBubbles
-                            phrases={["your sister?", "your best friend?", "your college roommate?"]}
+                            phrases={["a close friend?", "someone you miss?", "the person you keep meaning to call?"]}
                         />
                         <Text style={styles.subtitle}>
-                            Think of someone you care about deeply.{'\n'}When did you last connect?
+                            Think of someone you care about.{'\n'}When did you last connect?
                         </Text>
                         <Text style={styles.bodyText}>
-                            Life gets busy. Friendships fade without intention.
+                            Life gets busy. The threads of friendship slip through the cracks.
                             {'\n\n'}
-                            Weave helps you stay close to what matters, not through guilt, but through gentle guidance.
+                            Weave is your social brain. It helps you reconnect the threads that get lost.
                         </Text>
                     </Animated.View>
                 );
@@ -76,39 +76,39 @@ export function OnboardingScreen() {
             case 'pathways':
                 return (
                     <Animated.View style={styles.stepContainer} entering={FadeInDown.duration(600)}>
-                        <Text style={styles.title}>Three ways to weave connection</Text>
-                        <Text style={styles.subtitle}>Follow what feels right in each moment</Text>
+                        <Text style={styles.title}>How your social brain works</Text>
+                        <Text style={styles.subtitle}>Three ways to nurture your relationships</Text>
 
                         <View style={styles.pyramidContainer}>
-                            {/* Row 1: Intentions (top) */}
+                            {/* Row 1: Plan (top) */}
                             <View style={styles.pyramidRow}>
                                 <PathwayCard
-                                    icon={<Lightbulb size={24} color={theme.colors.primary} />}
-                                    title="Intentions"
-                                    subtitle="Hold the thread"
-                                    description="A gentle wish to reconnect, without the weight of when or how."
+                                    icon={<Calendar size={24} color={theme.colors.primary} />}
+                                    title="Plan"
+                                    subtitle="Schedule time with the people who matter"
+                                    description=""
                                     delay={300}
                                 />
                             </View>
 
-                            {/* Row 2: Plans and Logs */}
+                            {/* Row 2: Log and Reflect */}
                             <View style={styles.pyramidRowDouble}>
                                 <View style={styles.halfCard}>
                                     <PathwayCard
-                                        icon={<Calendar size={24} color={theme.colors.primary} />}
-                                        title="Plans"
-                                        subtitle="Weave the future"
-                                        description="When a day and time feel right, set them in place."
+                                        icon={<CheckCircle2 size={24} color={theme.colors.primary} />}
+                                        title="Log"
+                                        subtitle="Capture moments"
+                                        description=""
                                         delay={500}
                                         compact
                                     />
                                 </View>
                                 <View style={styles.halfCard}>
                                     <PathwayCard
-                                        icon={<CheckCircle2 size={24} color={theme.colors.primary} />}
-                                        title="Logs"
-                                        subtitle="Remember the past"
-                                        description="Honor the moments you've already shared."
+                                        icon={<Sparkles size={24} color={theme.colors.primary} />}
+                                        title="Reflect"
+                                        subtitle="Connect the dots"
+                                        description=""
                                         delay={700}
                                         compact
                                     />
@@ -117,31 +117,11 @@ export function OnboardingScreen() {
                         </View>
 
                         <Text style={styles.footerText}>
-                            You'll discover each one naturally as you explore.
+                            Weave learns from your network. It tracks your social seasons and helps you balance your energy.
                         </Text>
                     </Animated.View>
                 );
 
-            case 'archetypes':
-                return <ArchetypeImpactDemo />;
-
-            case 'ready':
-                return (
-                    <Animated.View style={styles.stepContainer} entering={FadeInDown.duration(600)}>
-                        <Text style={styles.celebrationEmoji}>✨</Text>
-                        <Text style={styles.title}>Ready to begin?</Text>
-                        <Text style={styles.bodyText}>
-                            Let's start by adding someone you care about.
-                            {'\n\n'}
-                            Weave will guide you gently as you go, learning through practice rather than instruction.
-                        </Text>
-                        <View style={styles.featuresList}>
-                            <FeatureItem text="Add a friend and discover their archetype" />
-                            <FeatureItem text="Experience your first QuickWeave" />
-                            <FeatureItem text="Find your compass home" />
-                        </View>
-                    </Animated.View>
-                );
 
             default:
                 return null;
@@ -392,7 +372,7 @@ const styles = StyleSheet.create({
         gap: 8,
     },
     nextButtonFinal: {
-        backgroundColor: theme.colors.accent,
+        backgroundColor: theme.colors.primary,
     },
     nextButtonText: {
         color: 'white',

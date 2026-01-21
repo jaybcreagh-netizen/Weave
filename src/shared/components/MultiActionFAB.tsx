@@ -23,6 +23,7 @@ export type FABAction = 'log-weave' | 'plan-weave' | 'add-friend';
 
 interface MultiActionFABProps {
   onAction: (action: FABAction) => void;
+  onPress?: () => void;
 }
 
 interface ActionItem {
@@ -42,15 +43,16 @@ const ACTIONS: ActionItem[] = [
 // Plan said "Premium Spring" (damping ~30) to replace "Bouncy Spring" (damping ~15).
 const SPRING_CONFIG = SPRINGS.PREMIUM;
 
-export function MultiActionFAB({ onAction }: MultiActionFABProps) {
+export function MultiActionFAB({ onAction, onPress }: MultiActionFABProps) {
   const insets = useSafeAreaInsets();
   const { colors, isDarkMode } = useTheme();
   const expanded = useSharedValue(0);
 
   const toggleExpanded = useCallback(() => {
+    if (onPress) onPress();
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     expanded.value = withSpring(expanded.value === 0 ? 1 : 0, SPRING_CONFIG);
-  }, [expanded]);
+  }, [expanded, onPress]);
 
   const collapse = useCallback(() => {
     expanded.value = withSpring(0, SPRING_CONFIG);

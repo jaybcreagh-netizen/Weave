@@ -14,7 +14,7 @@
 
 import 'react-native-url-polyfill/auto';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { SecureStoreAdapter } from '@/shared/services/secure-store-adapter';
 import { isFeatureEnabled } from '@/shared/config/feature-flags';
 
 // ═══════════════════════════════════════════════════════════════════
@@ -63,7 +63,7 @@ export function getSupabaseClient(): SupabaseClient<any> | null {
     if (!supabaseInstance) {
         supabaseInstance = createClient(SUPABASE_URL!, SUPABASE_ANON_KEY!, {
             auth: {
-                storage: AsyncStorage,
+                storage: SecureStoreAdapter,
                 autoRefreshToken: true,
                 persistSession: true,
                 detectSessionInUrl: false, // Not needed for React Native

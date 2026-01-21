@@ -16,8 +16,9 @@ import {
     linkPhoneToUser,
     verifyAndLinkPhone
 } from '@/modules/auth';
+import { normalizePhone } from '@/modules/auth/services/auth-utils';
 
-type AuthMode = 'signin' | 'link';
+type AuthMode = 'signin' | 'link' | 'change';
 
 // Country codes with region codes for locale matching
 const countryCodes = [
@@ -113,20 +114,28 @@ export function PhoneAuthScreen() {
 
         try {
             // Format phone with selected country code
-            let formattedPhone = phone.replace(/[^0-9]/g, ''); // Strip non-digits
+            // First construct the raw full number
+            let rawPhone = phone.replace(/[^0-9+]/g, '');
 
-            // 1. Remove leading zero if present (common mistake when adding country code)
-            if (formattedPhone.startsWith('0')) {
-                formattedPhone = formattedPhone.substring(1);
+            // If it doesn't start with +, assume it needs the country code
+            if (!rawPhone.startsWith('+')) {
+                // Remove leading zero if present
+                if (rawPhone.startsWith('0')) {
+                    rawPhone = rawPhone.substring(1);
+                }
+                rawPhone = `${selectedCountry.code}${rawPhone}`;
             }
 
-            // 2. Remove country code if user typed it
-            const countryCodeDigits = selectedCountry.code.replace('+', '');
-            if (formattedPhone.startsWith(countryCodeDigits) && formattedPhone.length > countryCodeDigits.length + 4) {
-                formattedPhone = formattedPhone.substring(countryCodeDigits.length);
+            // Normalize using google-libphonenumber
+            const formattedPhone = normalizePhone(rawPhone, selectedCountry.region);
+
+            if (!formattedPhone) {
+                Alert.alert('Invalid Phone', 'Please enter a valid phone number for the selected country.');
+                setLoading(false);
+                setLoadingMessage('');
+                return;
             }
 
-            formattedPhone = `${selectedCountry.code}${formattedPhone}`;
             console.log('[PhoneAuth] Formatted phone for auth:', formattedPhone);
 
             const result = (mode === 'link' || mode === 'change')

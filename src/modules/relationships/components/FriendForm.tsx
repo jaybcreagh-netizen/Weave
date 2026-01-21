@@ -29,10 +29,12 @@ interface FriendFormProps {
   initialTier?: 'inner' | 'close' | 'community';
   fromOnboarding?: boolean;
   onSkip?: () => void;
+  embedded?: boolean;
+  initialName?: string;
 }
 
 
-export function FriendForm({ onSave, friend, initialTier, fromOnboarding, onSkip }: FriendFormProps) {
+export function FriendForm({ onSave, friend, initialTier, fromOnboarding, onSkip, embedded = false, initialName }: FriendFormProps) {
   const router = useRouter();
   const { colors } = useTheme(); // Use the hook
 
@@ -42,7 +44,8 @@ export function FriendForm({ onSave, friend, initialTier, fromOnboarding, onSkip
   const [currentTutorialStep, setCurrentTutorialStep] = useState(0);
 
   // Tutorial handlers
-  const showTutorial = fromOnboarding && !hasAddedFirstFriend && !friend;
+  // Show tutorial if user hasn't added their first friend yet (regardless of entry point)
+  const showTutorial = !hasAddedFirstFriend && !friend;
 
   const handleTutorialNext = useCallback(() => {
     if (currentTutorialStep < 1) {
@@ -67,7 +70,7 @@ export function FriendForm({ onSave, friend, initialTier, fromOnboarding, onSkip
   };
 
   const [formData, setFormData] = useState<FriendFormData>({
-    name: friend?.name || "",
+    name: friend?.name || initialName || "",
     tier: friend ? getFormTier(friend.dunbarTier) : initialTier || 'inner',
     archetype: (friend?.archetype as Archetype) || "Emperor",
     notes: friend?.notes || "",
@@ -366,29 +369,36 @@ export function FriendForm({ onSave, friend, initialTier, fromOnboarding, onSkip
     }
   }, [friend?.id]);
 
-  return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
-      <View style={[styles.header, { borderColor: colors.border }]}>
-        {fromOnboarding ? (
-          <TouchableOpacity onPress={onSkip} style={styles.backButton}>
-            <Text style={[styles.backButtonText, { color: colors['muted-foreground'] }]}>Skip</Text>
-          </TouchableOpacity>
-        ) : (
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <ArrowLeft size={20} color={colors['muted-foreground']} />
-            <Text style={[styles.backButtonText, { color: colors['muted-foreground'] }]}>Back</Text>
-          </TouchableOpacity>
-        )}
-        <Text style={[styles.headerTitle, { color: colors.foreground }]}>
-          {friend ? "Edit Friend" : "Add Friend"}
-        </Text>
-        <View style={{ width: 40 }} />
-      </View>
+  const ScrollContainer = embedded ? View : ScrollView;
+  const scrollProps = embedded ? {} : {
+    contentContainerStyle: styles.scrollViewContent,
+    keyboardShouldPersistTaps: "handled" as const,
+    keyboardDismissMode: "interactive" as const
+  };
 
-      <ScrollView
-        contentContainerStyle={styles.scrollViewContent}
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="interactive"
+  return (
+    <SafeAreaView edges={embedded ? [] : undefined} style={[styles.safeArea, { backgroundColor: embedded ? 'transparent' : colors.background }]}>
+      {!embedded && (
+        <View style={[styles.header, { borderColor: colors.border }]}>
+          {fromOnboarding ? (
+            <TouchableOpacity onPress={onSkip} style={styles.backButton}>
+              <Text style={[styles.backButtonText, { color: colors['muted-foreground'] }]}>Skip</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+              <ArrowLeft size={20} color={colors['muted-foreground']} />
+              <Text style={[styles.backButtonText, { color: colors['muted-foreground'] }]}>Back</Text>
+            </TouchableOpacity>
+          )}
+          <Text style={[styles.headerTitle, { color: colors.foreground }]}>
+            {friend ? "Edit Friend" : "Add Friend"}
+          </Text>
+          <View style={{ width: 40 }} />
+        </View>
+      )}
+
+      <ScrollContainer
+        {...scrollProps as any}
       >
         <View style={{ gap: 24 }}>
           <View>
@@ -473,11 +483,14 @@ export function FriendForm({ onSave, friend, initialTier, fromOnboarding, onSkip
                     formData.tier === tier.id && [styles.tierButtonSelected, { borderColor: colors.primary, backgroundColor: colors.primary + '20' }]
                   ]}
                 >
-                  <Text style={[
-                    styles.tierButtonText,
-                    { color: colors.foreground },
-                    formData.tier === tier.id && [styles.tierButtonTextSelected, { color: colors.primary }]
-                  ]}>{tier.label}</Text>
+                  <Text
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    style={[
+                      styles.tierButtonText,
+                      { color: colors.foreground },
+                      formData.tier === tier.id && [styles.tierButtonTextSelected, { color: colors.primary }]
+                    ]}>{tier.label}</Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -683,7 +696,7 @@ export function FriendForm({ onSave, friend, initialTier, fromOnboarding, onSkip
             </Text>
           </TouchableOpacity>
         </View>
-      </ScrollView>
+      </ScrollContainer>
 
       {/* Archetype Detail Modal */}
       <ArchetypeDetailModal />
@@ -889,10 +902,13 @@ const styles = StyleSheet.create({
   },
   tierButton: {
     flex: 1,
-    padding: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 4,
     borderRadius: 12,
     borderWidth: 1,
     alignItems: 'center',
+    justifyContent: 'center',
+    height: 48, // Fixed height for consistency
   },
   tierButtonSelected: {},
   tierButtonText: {

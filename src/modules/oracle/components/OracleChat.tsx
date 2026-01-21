@@ -40,6 +40,7 @@ import { useRouter } from 'expo-router'
 import { GuidedReflectionSheet } from '@/modules/journal/components/GuidedReflection/GuidedReflectionSheet'
 import InsightsCarousel from './InsightsCarousel'
 import { InsightsChip } from './InsightsChip'
+import { InsightGenerator } from '../services/insight-generator'
 import ProactiveInsight from '@/db/models/ProactiveInsight'
 import { OracleEntryPoint } from '../hooks/useStarterPrompts'
 import { PerfLogger } from '@/shared/utils/performance-logger';
@@ -273,6 +274,16 @@ INSTRUCTIONS:
         listRef.current?.scrollToOffset({ offset: 0, animated: true })
     }
 
+    const handleRequestInsight = async () => {
+        try {
+            await InsightGenerator.generateOnDemand()
+            // Scroll to top to show the new insight in the carousel
+            listRef.current?.scrollToOffset({ offset: 0, animated: true })
+        } catch (e) {
+            // Silently fail, insights will just not appear
+        }
+    }
+
     // Memoized render item to prevent list re-renders on inputs
     const renderMessage = React.useCallback(({ item }: { item: OracleTurn }) => {
         return (
@@ -317,7 +328,7 @@ INSTRUCTIONS:
             </Text>
 
             <InsightsChip onPress={handleInsightsChipPress} />
-            <StarterPromptChips onSelect={handlePromptSelect} context={context} />
+            <StarterPromptChips onSelect={handlePromptSelect} context={context} onRequestInsight={handleRequestInsight} />
         </View>
     ), [colors, typography, animatedProps, context, askQuestion])
 

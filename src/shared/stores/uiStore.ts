@@ -139,6 +139,17 @@ interface UIStore {
   closePlanWizard: () => void;
   openIntentionForm: (data?: { friendId?: string; initialText?: string }) => void;
   closeIntentionForm: () => void;
+
+  // Invite Claiming
+  isClaimInviteSheetOpen: boolean;
+  pendingInviteCode: string | null;
+  openClaimInviteSheet: (code?: string) => void;
+  closeClaimInviteSheet: () => void;
+
+  isAddUserSheetOpen: boolean;
+  pendingAddUserId: string | null;
+  openAddUserSheet: (userId: string) => void;
+  closeAddUserSheet: () => void;
 }
 
 export const useUIStore = create<UIStore>((set, get) => ({
@@ -398,4 +409,21 @@ export const useUIStore = create<UIStore>((set, get) => ({
   closeIntentionForm: () => set({ intentionFormData: null }),
 
   setSuggestionStats: (count, hasCritical) => set({ suggestionCount: count, hasCriticalSuggestion: hasCritical }),
+
+  // Invite Claiming
+  isClaimInviteSheetOpen: false,
+  pendingInviteCode: null,
+  openClaimInviteSheet: (code) => set({
+    isClaimInviteSheetOpen: true,
+    pendingInviteCode: code || null
+  }),
+  closeClaimInviteSheet: () => set({
+    isClaimInviteSheetOpen: false,
+    pendingInviteCode: null
+  }),
+
+  isAddUserSheetOpen: false,
+  pendingAddUserId: null,
+  openAddUserSheet: (userId) => set({ isAddUserSheetOpen: true, pendingAddUserId: userId }),
+  closeAddUserSheet: () => set({ isAddUserSheetOpen: false, pendingAddUserId: null }),
 }));

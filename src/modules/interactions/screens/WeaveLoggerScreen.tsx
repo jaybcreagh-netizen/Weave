@@ -6,13 +6,16 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInUp, useSharedValue, withSpring } from 'react-native-reanimated';
 
 import { calculateDeepeningLevel } from '@/modules/intelligence/services/deepening.service';
+import { useTutorialStore } from '@/shared/stores/tutorialStore';
+import { TutorialAlert } from '@/shared/ui/TutorialAlert';
 import { useUIStore } from '@/shared/stores/uiStore';
+
 
 import { useInteractions } from '../hooks/useInteractions';
 import { type StructuredReflection } from '../types';
 import { WeaveReflectPrompt, useWeaveReflectPrompt } from '@/modules/journal';
 import { useDebounceCallback } from '@/shared/hooks/useDebounceCallback';
-import { Calendar as CalendarIcon, X, Sparkles, Users, ChevronLeft, Clock, Sun, Moon, LucideIcon } from 'lucide-react-native';
+import { Calendar as CalendarIcon, X, Sparkles, Users, ChevronLeft, Clock, Sun, Moon, LucideIcon, Palette } from 'lucide-react-native';
 import { CustomCalendar } from '@/shared/components/CustomCalendar';
 import { MoonPhaseSelector } from '@/modules/intelligence/components/MoonPhaseSelector';
 import { ContextualReflectionInput } from '@/modules/reflection/components/ContextualReflectionInput';
@@ -89,6 +92,7 @@ export function WeaveLoggerScreen({
     const [calendarDates, setCalendarDates] = useState<{ planned: Date[]; completed: Date[] }>({ planned: [], completed: [] });
     const [shareWithLinked, setShareWithLinked] = useState(false);
     const [linkedFriends, setLinkedFriends] = useState<FriendModel[]>([]);
+    const [showFirstLogAlert, setShowFirstLogAlert] = useState(false);
 
     const {
         showPrompt,
@@ -385,6 +389,13 @@ export function WeaveLoggerScreen({
         // and we stay on this screen.
         shouldShowPromptPromise.then((shouldShow) => {
             if (!shouldShow) {
+                const { hasSeenFirstLogColorChange, markFirstLogColorChangeSeen } = useTutorialStore.getState();
+                if (!hasSeenFirstLogColorChange) {
+                    setShowFirstLogAlert(true);
+                    markFirstLogColorChangeSeen();
+                    return;
+                }
+
                 // Delay slightly for safe unmount/toast visibility
                 navigationTimeoutRef.current = setTimeout(() => {
                     if (!isMountedRef.current) return;
@@ -826,6 +837,21 @@ export function WeaveLoggerScreen({
                     />
                 </KeyboardAvoidingView>
             </SafeAreaView>
+            <TutorialAlert
+                visible={showFirstLogAlert}
+                onClose={() => {
+                    setShowFirstLogAlert(false);
+                    // Navigate home after alert
+                    navigationTimeoutRef.current = setTimeout(() => {
+                        if (!isMountedRef.current) return;
+                        onBack();
+                    }, 100);
+                }}
+                title="Your World is Coloring In"
+                message="Every interaction adds color to your dashboard. Keep weaving to see your social graph come alive!"
+                buttonText="Beautiful"
+                icon={<Palette size={32} color={colors.primary} />}
+            />
         </ErrorBoundary>
     );
 }

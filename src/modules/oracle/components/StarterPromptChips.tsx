@@ -20,12 +20,13 @@ import Animated, {
 } from 'react-native-reanimated'
 import { useTheme } from '@/shared/hooks/useTheme'
 import { useStarterPrompts, StarterPrompt, OracleEntryPoint } from '../hooks/useStarterPrompts'
-import { RefreshCcw } from 'lucide-react-native'
+import { RefreshCcw, Sparkles } from 'lucide-react-native'
 import { SPRINGS } from '@/shared/constants/animation'
 
 interface StarterPromptChipsProps {
     onSelect: (prompt: StarterPrompt) => void
     context?: OracleEntryPoint
+    onRequestInsight?: () => void
 }
 
 const LoadingSkeleton = ({ colors }: { colors: any }) => {
@@ -76,7 +77,7 @@ const LoadingSkeleton = ({ colors }: { colors: any }) => {
     )
 }
 
-export function StarterPromptChips({ onSelect, context = 'default' }: StarterPromptChipsProps) {
+export function StarterPromptChips({ onSelect, context = 'default', onRequestInsight }: StarterPromptChipsProps) {
     const { colors, typography } = useTheme()
     const { prompts, refresh, loading } = useStarterPrompts(context)
 
@@ -97,6 +98,40 @@ export function StarterPromptChips({ onSelect, context = 'default' }: StarterPro
                                 paddingHorizontal: 24,
                             }}
                         >
+                            {/* Give me an insight pill */}
+                            {onRequestInsight && (
+                                <Animated.View
+                                    entering={ZoomIn.springify().damping(SPRINGS.PREMIUM.damping).stiffness(SPRINGS.PREMIUM.stiffness)}
+                                    exiting={ZoomOut.duration(200)}
+                                    layout={LinearTransition.delay(100)}
+                                >
+                                    <TouchableOpacity
+                                        onPress={onRequestInsight}
+                                        style={{
+                                            flexDirection: 'row',
+                                            alignItems: 'center',
+                                            paddingHorizontal: 12,
+                                            paddingVertical: 6,
+                                            borderRadius: 16,
+                                            backgroundColor: colors.primary + '15',
+                                            borderWidth: 1,
+                                            borderColor: colors.primary + '40',
+                                        }}
+                                        activeOpacity={0.6}
+                                    >
+                                        <Sparkles size={12} color={colors.primary} style={{ marginRight: 4 }} />
+                                        <Text
+                                            style={{
+                                                color: colors.primary,
+                                                fontFamily: typography.fonts.sansMedium,
+                                                fontSize: 12,
+                                            }}
+                                        >
+                                            Give me an insight
+                                        </Text>
+                                    </TouchableOpacity>
+                                </Animated.View>
+                            )}
                             {prompts.map((prompt, index) => (
 
 

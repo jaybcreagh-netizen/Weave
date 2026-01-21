@@ -48,15 +48,15 @@ export default function PermissionsScreen() {
     {
       id: 'contacts',
       title: 'Contacts',
-      description: 'Helps you quickly find and add friends from your address book',
+      description: 'Import friends from your phone',
       icon: <Users size={28} color={colors.primary} />,
-      required: true,
+      required: false,
       status: 'pending',
     },
     {
       id: 'notifications',
       title: 'Notifications',
-      description: 'Gentle reminders to nurture your relationships',
+      description: 'Get nudged when someone needs attention',
       icon: <Bell size={28} color={colors.primary} />,
       required: false,
       status: 'pending',
@@ -64,7 +64,7 @@ export default function PermissionsScreen() {
     {
       id: 'calendar',
       title: 'Calendar',
-      description: 'Sync planned interactions and detect past events to log',
+      description: 'Sync your plans and spot hangouts',
       icon: <CalendarDays size={28} color={colors.primary} />,
       required: false,
       status: 'pending',
@@ -130,7 +130,7 @@ export default function PermissionsScreen() {
     hasNavigatedRef.current = true;
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    router.replace('/add-friend?fromOnboarding=true');
+    router.replace('/social-battery-intro');
   };
 
   const handleSkip = async () => {
@@ -155,10 +155,10 @@ export default function PermissionsScreen() {
       <View style={styles.content}>
         <Animated.View entering={FadeInDown.duration(600).delay(100)}>
           <Text style={[styles.title, { color: colors.foreground }]}>
-            Let's Set Up Weave
+            A few quick permissions
           </Text>
           <Text style={[styles.subtitle, { color: colors['muted-foreground'] }]}>
-            To help you nurture your relationships, Weave needs a few permissions.
+            These help Weave work better for you.
           </Text>
         </Animated.View>
 
@@ -225,7 +225,7 @@ export default function PermissionsScreen() {
                 disabled={isRequesting}
               >
                 <Text style={styles.primaryButtonText}>
-                  {isRequesting ? 'Requesting...' : 'Allow Permissions'}
+                  {isRequesting ? 'Requesting...' : 'Allow All'}
                 </Text>
               </TouchableOpacity>
 

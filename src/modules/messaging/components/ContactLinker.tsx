@@ -8,6 +8,7 @@
 import React, { useState, useCallback, useRef } from 'react';
 import { View, Text, TouchableOpacity, TextInput, Alert, Platform } from 'react-native';
 import * as Contacts from 'expo-contacts';
+import { normalizePhone } from '@/modules/auth/services/auth-utils';
 import { Users, Phone, Mail, Check } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '@/shared/hooks/useTheme';
@@ -137,7 +138,26 @@ export function ContactLinker({
   );
 
   const handleManualSave = useCallback(() => {
-    saveContactInfo(phoneNumber || undefined, email || undefined);
+    let finalPhone = phoneNumber || undefined;
+    if (finalPhone) {
+      const normalized = normalizePhone(finalPhone); // Default to US if unknown, or maybe we should parse properly? 
+      // ContactLinker doesn't have country picker yet. For now, let's try to normalize.
+      if (normalized) {
+        finalPhone = normalized;
+      }
+      // If normalization fails (e.g. partial number), we might still want to save it as is?
+      // Or should we enforce it? For consistency, let's only save if valid or if close enough?
+      // The user might be typing a local number. google-libphonenumber is strict.
+      // Let's settle for: if it normalizes, use it. If not, keeping original input (fallback) 
+      // might be safer for "manual entry" where users might type weird things.
+      // BUT for discovery, we NEED E.164.
+      // Let's enforce it if possible, or simple strip.
+      // Given current context, let's trust normalizePhone but fallback to original if null 
+      // (to avoid blocking user if they know what they are doing with a local number).
+      if (normalized) finalPhone = normalized;
+    }
+
+    saveContactInfo(finalPhone, email || undefined);
   }, [phoneNumber, email, saveContactInfo]);
 
   const handleCloseComplete = useCallback(() => {

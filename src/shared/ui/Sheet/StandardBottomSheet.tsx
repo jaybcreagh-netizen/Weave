@@ -252,7 +252,7 @@ export function StandardBottomSheet({
         ) : (
           <ContentWrapper
             style={[
-              !scrollable && { marginTop: 56 }, // Push non-scrollable content below header
+              // !scrollable && { marginTop: 56 }, // REMOVED: Header is static, this adds unnecessary gap
               !scrollable && !isDynamic && { flex: 1 } // Only flex 1 for fixed-height sheets
             ]}
             ref={scrollable ? scrollRef : undefined}

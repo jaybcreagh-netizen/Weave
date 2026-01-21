@@ -30,6 +30,7 @@ import { resolveImageUri } from '../services/image.service';
 import { statusLineCache } from '@/modules/intelligence';
 import { HydratedFriend } from '@/types/hydrated';
 import { useQuickWeave } from '@/modules/interactions/hooks/useQuickWeave';
+import { resolveFriendPhotoUrl } from '../utils/photo-path.utils';
 import { CachedImage } from '@/shared/ui';
 import { database } from '@/db';
 import Intention from '@/db/models/Intention';
@@ -124,28 +125,11 @@ export const FriendListRowContent = ({
     setImageError(false);
   }, [photoUrl]);
 
-  // Resolve photo URL synchronously for performance, handling stale iOS absolute paths
+
+
+  // Resolve photo URL synchronously for performance
   const resolvedPhotoUrl = useMemo(() => {
-    if (!photoUrl) return null;
-
-    // Handle relative paths (e.g. "weave_images/photo.jpg")
-    if (!photoUrl.startsWith('file://') && !photoUrl.startsWith('/')) {
-      return `${FileSystem.documentDirectory}${photoUrl.replace(/^\//, '')}`;
-    }
-
-    // Handle absolute paths (legacy or stale iOS paths)
-    // On iOS, the app sandbox path changes on every launch/build.
-    // If we stored an absolute path like "file:///.../Application/OLD-UUID/Documents/weave_images/...",
-    // we must repair it to point to the current container.
-    if (photoUrl.includes('weave_images')) {
-      const relativePart = photoUrl.split('weave_images')[1];
-      // Reconstruct using current document directory
-      // FileSystem.documentDirectory includes the trailing slash
-      return `${FileSystem.documentDirectory}weave_images${relativePart}`;
-    }
-
-    // Fallback for absolute paths that don't match the expected structure
-    return photoUrl;
+    return resolveFriendPhotoUrl(photoUrl);
   }, [photoUrl]);
 
   // Update intelligent status line with caching for performance

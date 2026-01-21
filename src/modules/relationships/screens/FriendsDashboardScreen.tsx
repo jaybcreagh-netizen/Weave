@@ -38,6 +38,9 @@ import { IntentionActionSheet } from '../components/IntentionActionSheet';
 
 import { UsernameSearchSheet } from '../components/UsernameSearchSheet';
 import { ContactDiscoverySheet } from '../components/ContactDiscoverySheet';
+import { ClaimInviteSheet } from '../components/ClaimInviteSheet';
+import { ProfileCodeSheet } from '../components/ProfileCodeSheet';
+import { AddUserByLinkSheet } from '../components/AddUserByLinkSheet';
 import { Tier } from '../types';
 import { FriendDetailSheet } from '../components/FriendDetailSheet';
 import { StandardBottomSheet } from '@/shared/ui/Sheet/StandardBottomSheet';
@@ -50,7 +53,7 @@ const { width: screenWidth } = Dimensions.get('window');
 export function FriendsDashboardScreen() {
     const router = useRouter();
     const { colors } = useTheme();
-    const { isQuickWeaveOpen, showMicroReflectionSheet } = useUIStore();
+    const { isQuickWeaveOpen, showMicroReflectionSheet, isClaimInviteSheetOpen, closeClaimInviteSheet, pendingInviteCode, isAddUserSheetOpen, closeAddUserSheet, pendingAddUserId } = useUIStore();
     const { gesture, animatedScrollHandler, activeCardId, pendingCardId } = useCardGesture();
     const { suggestions, dismissSuggestion } = useSuggestions();
 
@@ -63,6 +66,7 @@ export function FriendsDashboardScreen() {
     const [planWizardFriend, setPlanWizardFriend] = useState<FriendModel | null>(null);
     const [weaveUserSearchVisible, setWeaveUserSearchVisible] = useState(false);
     const [contactDiscoveryVisible, setContactDiscoveryVisible] = useState(false);
+    const [profileCodeSheetVisible, setProfileCodeSheetVisible] = useState(false);
 
     // Pending activity for badge (link requests + shared weaves)
     const { pendingWeaves } = usePendingWeaves();
@@ -111,6 +115,7 @@ export function FriendsDashboardScreen() {
     const hasPerformedQuickWeave = useTutorialStore((state) => state.hasPerformedQuickWeave);
     const markQuickWeaveIntroSeen = useTutorialStore((state) => state.markQuickWeaveIntroSeen);
     const markQuickWeavePerformed = useTutorialStore((state) => state.markQuickWeavePerformed);
+    const markAddFriendPromptSeen = useTutorialStore((state) => state.markAddFriendPromptSeen);
 
     const [showCircleTutorial, setShowCircleTutorial] = useState(false);
     const [circleTutorialStep, setCircleTutorialStep] = useState(0);
@@ -409,7 +414,14 @@ export function FriendsDashboardScreen() {
                 </Animated.View>
             )}
 
-            <MultiActionFAB onAction={handleFABAction} />
+
+
+            <MultiActionFAB
+                onAction={handleFABAction}
+                onPress={() => {
+                    markAddFriendPromptSeen();
+                }}
+            />
             <OracleFAB />
 
 
@@ -436,6 +448,7 @@ export function FriendsDashboardScreen() {
                 onAddSingle={handleAddSingle}
                 onAddBatch={handleAddBatch}
                 onFindContacts={() => setContactDiscoveryVisible(true)}
+                onShowCode={() => setProfileCodeSheetVisible(true)}
             />
 
             <UsernameSearchSheet
@@ -448,6 +461,23 @@ export function FriendsDashboardScreen() {
             <ContactDiscoverySheet
                 visible={contactDiscoveryVisible}
                 onClose={() => setContactDiscoveryVisible(false)}
+            />
+
+            <ClaimInviteSheet
+                visible={isClaimInviteSheetOpen}
+                onClose={closeClaimInviteSheet}
+                initialCode={pendingInviteCode || undefined}
+            />
+
+            <ProfileCodeSheet
+                visible={profileCodeSheetVisible}
+                onClose={() => setProfileCodeSheetVisible(false)}
+            />
+
+            <AddUserByLinkSheet
+                visible={isAddUserSheetOpen}
+                onClose={closeAddUserSheet}
+                userId={pendingAddUserId || undefined}
             />
 
             <FriendPickerSheet

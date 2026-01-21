@@ -9,6 +9,7 @@ import { database } from '@/db';
 import FriendModel from '@/db/models/Friend';
 import { FriendListRow } from './FriendListRow';
 import { useCardGesture } from '@/shared/context/CardGestureContext';
+import { resolveFriendPhotoUrl } from '../utils/photo-path.utils';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { WeaveIcon } from '@/shared/components/WeaveIcon';
 import { calculateCurrentScore } from '@/modules/intelligence/services/orchestrator.service';
@@ -41,6 +42,8 @@ const SORT_LABELS: Record<SortOption, string> = {
   'alphabetical': 'A-Z',
 };
 
+// ...
+
 // Animated item wrapper with gesture registration
 const AnimatedSearchResultItem = React.memo(({
   item,
@@ -56,13 +59,18 @@ const AnimatedSearchResultItem = React.memo(({
   const { registerRef, unregisterRef } = useCardGesture();
   const animatedRef = useAnimatedRef<Animated.View>();
 
+  const resolvedAvatar = useMemo(() => resolveFriendPhotoUrl(item.photoUrl), [item.photoUrl]);
+
   useEffect(() => {
     // Register refs on JS thread (not UI thread) to preserve animated ref identity
-    registerRef(item.id, animatedRef);
+    registerRef(item.id, animatedRef, {
+      initial: item.name ? item.name.charAt(0).toUpperCase() : '•',
+      avatar: resolvedAvatar
+    });
     return () => {
       unregisterRef(item.id);
     };
-  }, [item.id, animatedRef, registerRef, unregisterRef]);
+  }, [item.id, item.name, resolvedAvatar, animatedRef, registerRef, unregisterRef]);
 
   return (
     <Animated.View className="mb-3">

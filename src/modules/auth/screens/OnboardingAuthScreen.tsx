@@ -159,13 +159,13 @@ export function OnboardingAuthScreen({ source: sourceProp }: { source?: string }
                             color: colors.foreground
                         }}
                     >
-                        Keep your connections safe
+                        Keep your social brain in sync
                     </Text>
                     <Text
                         className="text-base text-center"
                         style={{ color: colors['muted-foreground'] }}
                     >
-                        Sign in to sync across devices and share weaves with friends
+                        Sign up to sync your data, share weaves with friends, and unlock smarter insights.
                     </Text>
                 </Animated.View>
 
