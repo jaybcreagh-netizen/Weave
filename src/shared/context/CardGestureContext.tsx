@@ -7,6 +7,7 @@ import * as Haptics from 'expo-haptics';
 import { useQuickWeave } from '@/modules/interactions/hooks/useQuickWeave';
 import { itemPositions, HIGHLIGHT_THRESHOLD, SELECTION_THRESHOLD } from '@/modules/interactions/constants';
 import { isQuickWeaveEnabled } from '@/modules/interactions/utils/quick-weave-settings';
+import { useUIStore } from '@/shared/stores/uiStore';
 
 interface CardGestureContextType {
   gesture: any; // Using any to avoid complex Gesture type issues
@@ -46,11 +47,14 @@ function useCardGestureCoordinator(): CardGestureContextType {
 
   // Track whether Quick Weave is enabled (refreshed on mount and app foreground)
   const quickWeaveEnabledRef = useRef(true);
+  const isQuickWeaveEnabledSV = useSharedValue(true);
 
   useEffect(() => {
     // Load setting on mount
     const loadSetting = async () => {
-      quickWeaveEnabledRef.current = await isQuickWeaveEnabled();
+      const enabled = await isQuickWeaveEnabled();
+      quickWeaveEnabledRef.current = enabled;
+      isQuickWeaveEnabledSV.value = enabled;
     };
     loadSetting();
 
@@ -63,6 +67,13 @@ function useCardGestureCoordinator(): CardGestureContextType {
 
     return () => subscription.remove();
   }, []);
+
+  // REACTIVE FIX: Listen to the uiStore for changes and update the ref immediately
+  const isFeatureEnabled = useUIStore(state => state.isQuickWeaveFeatureEnabled);
+  useEffect(() => {
+    quickWeaveEnabledRef.current = isFeatureEnabled;
+    isQuickWeaveEnabledSV.value = isFeatureEnabled;
+  }, [isFeatureEnabled]);
 
   // Create refs to hold the latest version of the handlers
   // This prevents the stale closure issue where the gesture (which is memoized once)
@@ -185,6 +196,8 @@ function useCardGestureCoordinator(): CardGestureContextType {
       .shouldCancelWhenOutside(false)
       .onBegin((event) => {
         'worklet';
+        if (!isQuickWeaveEnabledSV.value) return;
+
         // Store coordinates immediately, but delay the visual feedback
         // so quick taps don't trigger the "charging" animation/haptic
         const targetId = findTargetCardId(event.absoluteX, event.absoluteY);
@@ -202,6 +215,8 @@ function useCardGestureCoordinator(): CardGestureContextType {
       })
       .onStart((event) => {
         'worklet';
+        if (!isQuickWeaveEnabledSV.value) return;
+
         // Clear the delayed pending feedback since we're now activating
         runOnJS(clearPendingFeedback)();
         const targetId = findTargetCardId(event.absoluteX, event.absoluteY);
@@ -229,6 +244,8 @@ function useCardGestureCoordinator(): CardGestureContextType {
       })
       .onTouchesMove((event, state) => {
         'worklet';
+        if (!isQuickWeaveEnabledSV.value) return;
+
         const touch = event.changedTouches[0];
 
         // BEFORE activation: detect vertical/horizontal swipes and cancel the pending long-press

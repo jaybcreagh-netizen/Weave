@@ -94,7 +94,7 @@ export const BottomSheetInput = React.forwardRef<any, BottomSheetInputProps>(({
 
             <BottomSheetTextInput
                 ref={ref}
-                className={`h-12 rounded-xl px-4 border text-base font-inter-regular ${inputClassName}`}
+                className={`rounded-xl px-4 border text-base font-inter-regular ${!props.multiline ? 'h-12' : ''} ${inputClassName}`}
                 style={[
                     {
                         backgroundColor: tokens?.input.background || colors['input-background'] || colors.card,

@@ -272,21 +272,19 @@ export function QuickCaptureSheet({
             <TouchableOpacity
               onPress={handleSave}
               disabled={!hasContent || saving}
-              className="px-4 py-2 rounded-lg"
-              style={{
-                backgroundColor: hasContent ? colors.primary : colors.muted,
-              }}
+              className="px-3 py-1 rounded-full"
             >
               <Text
-                className="text-sm font-semibold"
                 style={{
-                  color: hasContent ? colors['primary-foreground'] : colors['muted-foreground'],
+                  color: hasContent ? colors.primary : colors.muted,
                   fontFamily: 'Inter_600SemiBold',
+                  fontSize: 16
                 }}
               >
-                {saving ? 'Saving...' : 'Save'}
+                {saving ? '...' : 'Save'}
               </Text>
             </TouchableOpacity>
+
           </View>
 
           <KeyboardAvoidingView
@@ -424,44 +422,95 @@ export function QuickCaptureSheet({
                 </TouchableOpacity>
               </View>
 
-              {/* Expand options */}
-              {hasContent && (
-                <View className="gap-2">
-                  {/* Help me write - primary option */}
-                  <TouchableOpacity
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      setShowGuidedReflection(true);
+              {/* Primary Actions */}
+              <View className="gap-3 mt-4">
+                {/* Option 1: Quick Save (Freeform) */}
+                <TouchableOpacity
+                  onPress={handleSave}
+                  disabled={!hasContent || saving}
+                  className="flex-row items-center justify-center gap-2 py-4 rounded-2xl"
+                  style={{
+                    backgroundColor: hasContent ? colors.muted : colors.muted + '80',
+                    borderWidth: 1,
+                    borderColor: colors.border,
+                    opacity: hasContent ? 1 : 0.6
+                  }}
+                >
+                  <Text
+                    className="text-base"
+                    style={{
+                      color: hasContent ? colors.foreground : colors['muted-foreground'],
+                      fontFamily: 'Inter_600SemiBold'
                     }}
-                    className="flex-row items-center justify-center gap-2 py-3 rounded-xl"
-                    style={{ backgroundColor: colors.primary }}
                   >
-                    <Sparkles size={16} color={colors['primary-foreground']} />
-                    <Text
-                      className="text-sm"
-                      style={{ color: colors['primary-foreground'], fontFamily: 'Inter_600SemiBold' }}
-                    >
-                      Help me write more
-                    </Text>
-                  </TouchableOpacity>
+                    {saving ? 'Saving...' : 'Save Quick Note'}
+                  </Text>
+                </TouchableOpacity>
 
-                  {/* Expand to full - secondary option */}
-                  <TouchableOpacity
-                    onPress={handleExpandToFull}
-                    className="flex-row items-center justify-center gap-2 py-3"
+                {/* Option 2: Guided (Oracle) */}
+                <TouchableOpacity
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setShowGuidedReflection(true);
+                  }}
+                  disabled={!hasContent}
+                  className="flex-row items-center justify-center gap-2 py-4 rounded-2xl"
+                  style={{
+                    backgroundColor: hasContent ? colors.primary : colors.muted,
+                    opacity: hasContent ? 1 : 0.6
+                  }}
+                >
+                  <Sparkles size={18} color={hasContent ? colors['primary-foreground'] : colors['muted-foreground']} />
+                  <Text
+                    className="text-base"
+                    style={{
+                      color: hasContent ? colors['primary-foreground'] : colors['muted-foreground'],
+                      fontFamily: 'Inter_600SemiBold'
+                    }}
                   >
-                    <Text
-                      className="text-sm"
-                      style={{ color: colors['muted-foreground'], fontFamily: 'Inter_500Medium' }}
-                    >
-                      Write freeform instead
-                    </Text>
-                    <ChevronRight size={14} color={colors['muted-foreground']} />
-                  </TouchableOpacity>
-                </View>
-              )}
+                    Help me write more
+                  </Text>
+                </TouchableOpacity>
+
+                {/* Secondary: Expand to full */}
+                <TouchableOpacity
+                  onPress={handleExpandToFull}
+                  className="flex-row items-center justify-center gap-1 py-2 opacity-60"
+                >
+                  <Text
+                    className="text-sm"
+                    style={{ color: colors['muted-foreground'], fontFamily: 'Inter_500Medium' }}
+                  >
+                    Open in full editor
+                  </Text>
+                  <ChevronRight size={14} color={colors['muted-foreground']} />
+                </TouchableOpacity>
+              </View>
             </ScrollView>
           </KeyboardAvoidingView>
+
+          {/* Help me write sheet - NESTED INSIDE THE MAIN MODAL to avoid iOS pageSheet conflicts */}
+          <GuidedReflectionSheet
+            isOpen={showGuidedReflection}
+            onClose={() => setShowGuidedReflection(false)}
+            context={{
+              type: 'quick_capture',
+              friendIds: selectedFriends.map(f => f.id),
+              friendNames: selectedFriends.map(f => f.name),
+              quickCaptureText: text,
+            } as ReflectionContext}
+            onComplete={(content, friendIds) => {
+              setShowGuidedReflection(false);
+              setText('');
+              setSelectedFriends([]);
+              onClose();
+            }}
+            onEscape={() => {
+              setShowGuidedReflection(false);
+              // User wants freeform, expand to full
+              handleExpandToFull();
+            }}
+          />
         </View>
       </Modal>
 
@@ -473,30 +522,8 @@ export function QuickCaptureSheet({
         onSelectionChange={handleFriendSelectionChange}
         asModal={true}
       />
-
-      {/* Help me write sheet */}
-      <GuidedReflectionSheet
-        isOpen={showGuidedReflection}
-        onClose={() => setShowGuidedReflection(false)}
-        context={{
-          type: 'quick_capture',
-          friendIds: selectedFriends.map(f => f.id),
-          friendNames: selectedFriends.map(f => f.name),
-          quickCaptureText: text,
-        } as ReflectionContext}
-        onComplete={(content, friendIds) => {
-          setShowGuidedReflection(false);
-          setText('');
-          setSelectedFriends([]);
-          onClose();
-        }}
-        onEscape={() => {
-          setShowGuidedReflection(false);
-          // User wants freeform, expand to full
-          handleExpandToFull();
-        }}
-      />
     </>
+
   );
 }
 

@@ -46,6 +46,8 @@ interface DataInitializerProps {
 }
 
 import { useFriendsObservable } from '@/shared/context/FriendsObservableContext';
+import { useUIStore } from '@/shared/stores/uiStore';
+import { QUICK_WEAVE_ENABLED_KEY } from '@/modules/interactions/utils/quick-weave-settings';
 
 export function DataInitializer({ children }: DataInitializerProps) {
     const posthog = usePostHog();
@@ -266,8 +268,13 @@ export function DataInitializer({ children }: DataInitializerProps) {
         const initBackgroundSync = async () => {
             try {
                 await useBackgroundSyncStore.getState().loadSettings();
+
+                // Initialize Quick Weave enabled state
+                const quickWeaveStr = await AsyncStorage.getItem(QUICK_WEAVE_ENABLED_KEY);
+                const isQuickWeaveEnabled = quickWeaveStr ? JSON.parse(quickWeaveStr) : true;
+                useUIStore.getState().setQuickWeaveFeatureEnabled(isQuickWeaveEnabled);
             } catch (error) {
-                console.error('[App] Failed to initialize background sync:', error);
+                console.error('[App] Failed to initialize background sync or settings:', error);
             }
         };
         initBackgroundSync();

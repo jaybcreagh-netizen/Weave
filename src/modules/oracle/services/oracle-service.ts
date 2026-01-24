@@ -682,9 +682,9 @@ class OracleService {
         let nextQuestion: string
 
         if (context.quickCaptureText && context.quickCaptureText.trim().length > 0) {
-            // User already wrote something. Treat it as the answer to "What's on your mind?"
+            // User already wrote something. Treat it as the answer to our opening invitation.
             const seedTurn: GuidedTurn = {
-                oracleQuestion: "What's on your mind?",
+                oracleQuestion: "What would you like to reflect on today?",
                 userAnswer: context.quickCaptureText
             }
             initialTurns.push(seedTurn)
@@ -1276,7 +1276,8 @@ class OracleService {
             friendName: context.friendNames.join(' and '),
             archetype: '',
             lastSeen: 'recently',
-            activity: context.activity || 'spending time together',
+            activity: context.activity || 'general reflection',
+            type: context.type,
             activeThreads: context.activeThreads?.length
                 ? context.activeThreads.map(t => `- ${t.topic} (${t.sentiment})`).join('\n')
                 : 'No active threads',

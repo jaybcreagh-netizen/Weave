@@ -13,7 +13,7 @@ import {
   Keyboard,
 } from 'react-native';
 import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
-import { Calendar, Sparkles, Trash2, ExternalLink } from 'lucide-react-native';
+import { Calendar, Sparkles, Trash2, ExternalLink, X, ChevronRight, Maximize2, Minimize2 } from 'lucide-react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { StandardBottomSheet } from '@/shared/ui/Sheet';
 import { BottomSheetInput } from '@/shared/ui';
@@ -55,6 +55,7 @@ export function JournalEntryModal({ isOpen, onClose, entry, onSave, onDelete }: 
   const [allFriends, setAllFriends] = useState<FriendModel[]>([]);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showChipSelector, setShowChipSelector] = useState(false);
+  const [isFullScreen, setIsFullScreen] = useState(false);
 
   // Track which entry we've initialized to prevent resetting state on re-renders
   const [initializedForId, setInitializedForId] = useState<string | null>(null);
@@ -334,42 +335,46 @@ export function JournalEntryModal({ isOpen, onClose, entry, onSave, onDelete }: 
       height="full"
       disableContentPanning
       title={isEditMode ? 'Edit Entry' : 'New Journal Entry'}
-    >
-      {/* Header Actions */}
-      <View className="flex-row justify-between items-center px-5 pb-3" style={{ borderBottomWidth: 1, borderBottomColor: colors.border }}>
-        {/* Delete Button (only in edit mode) */}
-        {isEditMode ? (
+      headerLeft={
+        <View className="flex-row items-center">
           <TouchableOpacity
-            onPress={handleDelete}
-            className="p-2 rounded-lg"
-            style={{ backgroundColor: colors.destructive + '15' }}
+            onPress={handleClose}
+            className="p-2 -ml-2"
           >
-            <Trash2 size={20} color={colors.destructive} />
+            <X size={24} color={colors['muted-foreground']} />
           </TouchableOpacity>
-        ) : (
-          <View />
-        )}
 
-        {/* Save Button */}
+          {isEditMode && (
+            <TouchableOpacity
+              onPress={handleDelete}
+              className="p-2 ml-1 rounded-lg"
+              style={{ backgroundColor: colors.destructive + '15' }}
+            >
+              <Trash2 size={20} color={colors.destructive} />
+            </TouchableOpacity>
+          )}
+        </View>
+      }
+      headerRight={
         <TouchableOpacity
           onPress={handleSave}
           disabled={!content.trim()}
-          className="px-4 py-2 rounded-lg"
-          style={{
-            backgroundColor: content.trim() ? colors.primary : colors.muted,
-          }}
+          className="px-2 py-1"
         >
           <Text
-            className="text-sm font-semibold"
             style={{
-              color: content.trim() ? colors['primary-foreground'] : colors['muted-foreground'],
+              color: content.trim() ? colors.primary : colors.muted,
               fontFamily: 'Inter_600SemiBold',
+              fontSize: 16
             }}
           >
             Save
           </Text>
         </TouchableOpacity>
-      </View>
+      }
+      showCloseButton={false}
+    >
+
 
       <BottomSheetScrollView
         className="flex-1 px-5 py-4"
@@ -377,7 +382,7 @@ export function JournalEntryModal({ isOpen, onClose, entry, onSave, onDelete }: 
         keyboardDismissMode="interactive"
       >
         {/* Linked Weave Banner */}
-        {linkedWeaveInfo && (
+        {!isFullScreen && linkedWeaveInfo && (
           <TouchableOpacity
             onPress={handleViewOriginalWeave}
             className="flex-row items-center justify-between px-4 py-3 rounded-xl mb-4"
@@ -403,130 +408,175 @@ export function JournalEntryModal({ isOpen, onClose, entry, onSave, onDelete }: 
         )}
 
         {/* Date Selector */}
-        <View className="mb-4">
-          <Text
-            className="text-sm font-medium mb-2"
-            style={{ color: colors['muted-foreground'], fontFamily: 'Inter_500Medium' }}
-          >
-            Entry Date
-          </Text>
-          <TouchableOpacity
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              setShowDatePicker(true);
-            }}
-            className="flex-row items-center px-4 py-3 rounded-xl"
-            style={{ backgroundColor: colors.muted }}
-          >
-            <Calendar size={18} color={colors.foreground} />
+        {!isFullScreen && (
+          <View className="mb-4">
             <Text
-              className="text-base ml-3"
-              style={{ color: colors.foreground, fontFamily: 'Inter_400Regular' }}
+              className="text-sm font-medium mb-2"
+              style={{ color: colors['muted-foreground'], fontFamily: 'Inter_500Medium' }}
             >
-              {entryDate.toLocaleDateString('en-US', {
-                weekday: 'short',
-                month: 'short',
-                day: 'numeric',
-                year: 'numeric'
-              })}
+              Entry Date
             </Text>
-          </TouchableOpacity>
-
-          {showDatePicker && (
-            <DateTimePicker
-              value={entryDate}
-              mode="date"
-              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-              onChange={(event, selectedDate) => {
-                setShowDatePicker(Platform.OS === 'ios');
-                if (selectedDate) {
-                  setEntryDate(selectedDate);
-                }
+            <TouchableOpacity
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setShowDatePicker(true);
               }}
-            />
-          )}
-        </View>
+              className="flex-row items-center px-4 py-3 rounded-xl"
+              style={{ backgroundColor: colors.muted }}
+            >
+              <Calendar size={18} color={colors.foreground} />
+              <Text
+                className="text-base ml-3"
+                style={{ color: colors.foreground, fontFamily: 'Inter_400Regular' }}
+              >
+                {entryDate.toLocaleDateString('en-US', {
+                  weekday: 'short',
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric'
+                })}
+              </Text>
+            </TouchableOpacity>
+
+            {showDatePicker && (
+              <DateTimePicker
+                value={entryDate}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                onChange={(event, selectedDate) => {
+                  setShowDatePicker(Platform.OS === 'ios');
+                  if (selectedDate) {
+                    setEntryDate(selectedDate);
+                  }
+                }}
+              />
+            )}
+          </View>
+        )}
 
         {/* Title (optional) */}
-        <View className="mb-4">
-          <Text
-            className="text-sm font-medium mb-2"
-            style={{ color: colors['muted-foreground'], fontFamily: 'Inter_500Medium' }}
-          >
-            Title (optional)
-          </Text>
-          <BottomSheetInput
-            value={title}
-            onChangeText={setTitle}
-            placeholder="Give this entry a title..."
-          />
-        </View>
+        {!isFullScreen && (
+          <View className="mb-4">
+            <Text
+              className="text-sm font-medium mb-2"
+              style={{ color: colors['muted-foreground'], fontFamily: 'Inter_500Medium' }}
+            >
+              Title (optional)
+            </Text>
+            <BottomSheetInput
+              value={title}
+              onChangeText={setTitle}
+              placeholder="Give this entry a title..."
+            />
+          </View>
+        )}
 
         {/* Content */}
-        <View className="mb-4">
-          <Text
-            className="text-sm font-medium mb-2"
-            style={{ color: colors['muted-foreground'], fontFamily: 'Inter_500Medium' }}
-          >
-            What's on your mind?
-          </Text>
-          <BottomSheetInput
-            value={content}
-            onChangeText={setContent}
-            placeholder="Write your thoughts..."
-            multiline
-            numberOfLines={8}
-          />
-        </View>
+        {!isFullScreen && (
+          <View className="mb-4">
+            <View className="flex-row items-center justify-between mb-2">
+              <Text
+                className="text-sm font-medium"
+                style={{ color: colors['muted-foreground'], fontFamily: 'Inter_500Medium' }}
+              >
+                What's on your mind?
+              </Text>
+              <TouchableOpacity
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setIsFullScreen(true);
+                }}
+                className="p-1"
+              >
+                <Maximize2 size={18} color={colors.primary} />
+              </TouchableOpacity>
+            </View>
+            <BottomSheetInput
+              value={content}
+              onChangeText={setContent}
+              placeholder="Write your thoughts..."
+              multiline
+              numberOfLines={8}
+              inputClassName="min-h-[160px]"
+            />
+          </View>
+        )}
+
+        {isFullScreen && (
+          <View className="flex-1 min-h-[400px]">
+            <View className="flex-row items-center justify-between mb-4">
+              <TouchableOpacity
+                onPress={() => setIsFullScreen(false)}
+                className="flex-row items-center gap-1.5"
+                style={{ backgroundColor: colors.muted + '40', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 }}
+              >
+                <Minimize2 size={16} color={colors.primary} />
+                <Text style={{ color: colors.primary, fontFamily: 'Inter_600SemiBold', fontSize: 13 }}>Done editing</Text>
+              </TouchableOpacity>
+              <Text style={{ color: colors['muted-foreground'], fontFamily: 'Inter_500Medium' }}>Full Editor</Text>
+            </View>
+            <BottomSheetInput
+              value={content}
+              onChangeText={setContent}
+              placeholder="Write your thoughts..."
+              multiline
+              autoFocus
+              inputClassName="flex-1 min-h-[350px] text-lg leading-7"
+              style={{ textAlignVertical: 'top' }}
+            />
+          </View>
+        )}
 
         {/* Friend Tags */}
-        <View className="mb-4">
-          <Text
-            className="text-sm font-medium mb-2"
-            style={{ color: colors['muted-foreground'], fontFamily: 'Inter_500Medium' }}
-          >
-            Tag Friends
-          </Text>
-          <BottomSheetScrollView
-            horizontal
-            className="flex-row gap-2 mb-2"
-          >
-            {allFriends.map(friend => {
-              const isSelected = selectedFriendIds.has(friend.id);
-              return (
-                <TouchableOpacity
-                  key={friend.id}
-                  onPress={() => toggleFriend(friend.id)}
-                  className="px-4 py-2 rounded-full"
-                  style={{
-                    backgroundColor: isSelected ? colors.primary : colors.muted,
-                  }}
-                >
-                  <Text
-                    className="text-sm"
+        {!isFullScreen && (
+          <View className="mb-4">
+            <Text
+              className="text-sm font-medium mb-2"
+              style={{ color: colors['muted-foreground'], fontFamily: 'Inter_500Medium' }}
+            >
+              Tag Friends
+            </Text>
+            <BottomSheetScrollView
+              horizontal
+              className="flex-row gap-2 mb-2"
+            >
+              {allFriends.map(friend => {
+                const isSelected = selectedFriendIds.has(friend.id);
+                return (
+                  <TouchableOpacity
+                    key={friend.id}
+                    onPress={() => toggleFriend(friend.id)}
+                    className="px-4 py-2 rounded-full"
                     style={{
-                      color: isSelected ? colors['primary-foreground'] : colors.foreground,
-                      fontFamily: 'Inter_500Medium',
+                      backgroundColor: isSelected ? colors.primary : colors.muted,
                     }}
                   >
-                    {friend.name}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </BottomSheetScrollView>
-          {selectedFriendIds.size === 0 && (
-            <Text
-              className="text-xs"
-              style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
-            >
-              No friends tagged
-            </Text>
-          )}
-        </View>
+                    <Text
+                      className="text-sm"
+                      style={{
+                        color: isSelected ? colors['primary-foreground'] : colors.foreground,
+                        fontFamily: 'Inter_500Medium',
+                      }}
+                    >
+                      {friend.name}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </BottomSheetScrollView>
+            {selectedFriendIds.size === 0 && (
+              <Text
+                className="text-xs"
+                style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
+              >
+                No friends tagged
+              </Text>
+            )}
+          </View>
+        )}
 
         {/* Your Patterns */}
-        {!isEditMode && (
+        {!isFullScreen && !isEditMode && (
           <View className="mb-6">
             <YourPatternsSection
               onCustomChipCreated={() => {
@@ -538,74 +588,76 @@ export function JournalEntryModal({ isOpen, onClose, entry, onSave, onDelete }: 
         )}
 
         {/* Story Chips (Optional) */}
-        <View className="mb-4">
-          <TouchableOpacity
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              setShowChipSelector(!showChipSelector);
-            }}
-            className="flex-row items-center justify-between mb-2"
-          >
-            <Text
-              className="text-sm font-medium"
-              style={{ color: colors['muted-foreground'], fontFamily: 'Inter_500Medium' }}
+        {!isFullScreen && (
+          <View className="mb-4">
+            <TouchableOpacity
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setShowChipSelector(!showChipSelector);
+              }}
+              className="flex-row items-center justify-between mb-2"
             >
-              Story Chips (optional)
-            </Text>
-            <Sparkles size={16} color={colors['muted-foreground']} />
-          </TouchableOpacity>
+              <Text
+                className="text-sm font-medium"
+                style={{ color: colors['muted-foreground'], fontFamily: 'Inter_500Medium' }}
+              >
+                Story Chips (optional)
+              </Text>
+              <Sparkles size={16} color={colors['muted-foreground']} />
+            </TouchableOpacity>
 
-          {showChipSelector && (
-            <View className="flex-row flex-wrap gap-2 mb-2">
-              {STORY_CHIPS.map(chip => {
-                const isSelected = selectedChips.has(chip.id);
-                return (
-                  <TouchableOpacity
-                    key={chip.id}
-                    onPress={() => toggleChip(chip.id)}
-                    className="px-3 py-2 rounded-full"
-                    style={{
-                      backgroundColor: isSelected ? colors.primary + '20' : colors.muted,
-                    }}
-                  >
-                    <Text
-                      className="text-xs"
+            {showChipSelector && (
+              <View className="flex-row flex-wrap gap-2 mb-2">
+                {STORY_CHIPS.map(chip => {
+                  const isSelected = selectedChips.has(chip.id);
+                  return (
+                    <TouchableOpacity
+                      key={chip.id}
+                      onPress={() => toggleChip(chip.id)}
+                      className="px-3 py-2 rounded-full"
                       style={{
-                        color: isSelected ? colors.primary : colors.foreground,
-                        fontFamily: 'Inter_400Regular',
+                        backgroundColor: isSelected ? colors.primary + '20' : colors.muted,
                       }}
                     >
-                      {chip.plainText}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          )}
+                      <Text
+                        className="text-xs"
+                        style={{
+                          color: isSelected ? colors.primary : colors.foreground,
+                          fontFamily: 'Inter_400Regular',
+                        }}
+                      >
+                        {chip.plainText}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )}
 
-          {selectedChips.size > 0 && !showChipSelector && (
-            <View className="flex-row flex-wrap gap-2">
-              {Array.from(selectedChips).map(chipId => {
-                const chip = STORY_CHIPS.find(c => c.id === chipId);
-                if (!chip) return null;
-                return (
-                  <View
-                    key={chipId}
-                    className="px-3 py-1.5 rounded-full"
-                    style={{ backgroundColor: colors.primary + '15' }}
-                  >
-                    <Text
-                      className="text-xs"
-                      style={{ color: colors.primary, fontFamily: 'Inter_400Regular' }}
+            {selectedChips.size > 0 && !showChipSelector && (
+              <View className="flex-row flex-wrap gap-2">
+                {Array.from(selectedChips).map(chipId => {
+                  const chip = STORY_CHIPS.find(c => c.id === chipId);
+                  if (!chip) return null;
+                  return (
+                    <View
+                      key={chipId}
+                      className="px-3 py-1.5 rounded-full"
+                      style={{ backgroundColor: colors.primary + '15' }}
                     >
-                      {chip.plainText}
-                    </Text>
-                  </View>
-                );
-              })}
-            </View>
-          )}
-        </View>
+                      <Text
+                        className="text-xs"
+                        style={{ color: colors.primary, fontFamily: 'Inter_400Regular' }}
+                      >
+                        {chip.plainText}
+                      </Text>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+          </View>
+        )}
       </BottomSheetScrollView>
     </StandardBottomSheet>
   );

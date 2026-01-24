@@ -62,7 +62,11 @@ export default function Dashboard() {
     const isMountedRef = useRef(true);
     const batteryTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-    // Derived Tooltip State
+    // Tab animation state
+    // 0 = Insights, 1 = Circle
+    const tabValue = useSharedValue(activeTab === 'insights' ? 0 : 1);
+
+    // Pulse animation for loading state
     // Tutorial Sequence: 1. Add Friend -> 2. Oracle -> 3. Quick Weave (handled in screen)
 
     // Show Add Friend tooltip first (if not seen and on Circle tab)
@@ -87,6 +91,36 @@ export default function Dashboard() {
     const pulseAnimatedStyle = useAnimatedStyle(() => ({
         transform: [{ scale: pulseScale.value }]
     }));
+
+    const insightsAnimatedStyle = useAnimatedStyle(() => {
+        const opacity = 1 - tabValue.value;
+        const translateX = -20 * tabValue.value;
+        return {
+            opacity,
+            transform: [{ translateX }],
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: tabValue.value < 0.5 ? 1 : 0,
+        };
+    });
+
+    const circleAnimatedStyle = useAnimatedStyle(() => {
+        const opacity = tabValue.value;
+        const translateX = 20 * (1 - tabValue.value);
+        return {
+            opacity,
+            transform: [{ translateX }],
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: tabValue.value >= 0.5 ? 1 : 0,
+        };
+    });
 
     // Cleanup timeouts on unmount
     useEffect(() => {
@@ -174,6 +208,7 @@ export default function Dashboard() {
 
     const handleTabPress = (tab: 'insights' | 'circle') => {
         setActiveTab(tab);
+        tabValue.value = withTiming(tab === 'insights' ? 0 : 1, { duration: 300 });
     };
 
     // Transition insights through phases: unvisited -> loading -> mounting
@@ -265,47 +300,52 @@ export default function Dashboard() {
 
                 {/* Lazy tab loading: Mount tabs only after first visit, then keep mounted */}
                 <View style={styles.tabContent}>
-                    {/* Show loader during 'loading' and 'mounting' phases */}
-                    {activeTab === 'insights' && (insightsState === 'loading' || insightsState === 'mounting') && (
-                        <Animated.View
-                            style={[styles.screenContainer, styles.loadingContainer]}
-                            entering={FadeIn.duration(200)}
-                        >
-                            <View style={{ alignItems: 'center', gap: 12 }}>
-                                <Animated.View style={pulseAnimatedStyle}>
-                                    <WeaveIcon size={48} color={colors.primary} />
-                                </Animated.View>
-                                <Text style={{
-                                    fontSize: 14,
-                                    color: colors['muted-foreground'],
-                                    fontFamily: 'Inter_500Medium'
-                                }}>
-                                    Gathering insights...
-                                </Text>
+                    {/* Insights Container */}
+                    <Animated.View
+                        style={[styles.screenContainer, insightsAnimatedStyle]}
+                        pointerEvents={activeTab === 'insights' ? 'auto' : 'none'}
+                    >
+                        {/* Show loader during 'loading' and 'mounting' phases */}
+                        {(insightsState === 'loading' || insightsState === 'mounting') && (
+                            <View
+                                style={[styles.screenContainer, styles.loadingContainer]}
+                            >
+                                <View style={{ alignItems: 'center', gap: 12 }}>
+                                    <Animated.View style={pulseAnimatedStyle}>
+                                        <WeaveIcon size={48} color={colors.primary} />
+                                    </Animated.View>
+                                    <Text style={{
+                                        fontSize: 14,
+                                        color: colors['muted-foreground'],
+                                        fontFamily: 'Inter_500Medium'
+                                    }}>
+                                        Gathering insights...
+                                    </Text>
+                                </View>
                             </View>
-                        </Animated.View>
-                    )}
-                    {/* Mount HomeScreen only during 'mounting' and 'ready' phases */}
-                    {(insightsState === 'mounting' || insightsState === 'ready') && (
-                        <Animated.View
-                            style={[
-                                styles.screenContainer,
-                                // Hide during mounting phase and when on another tab
-                                (insightsState === 'mounting' || activeTab !== 'insights') && styles.hidden
-                            ]}
-                            entering={FadeIn.duration(300)}
-                            pointerEvents={activeTab === 'insights' ? 'auto' : 'none'}
-                        >
-                            <HomeScreen onReady={handleInsightsReady} />
-                        </Animated.View>
-                    )}
+                        )}
+                        {/* Mount HomeScreen only during 'mounting' and 'ready' phases */}
+                        {(insightsState === 'mounting' || insightsState === 'ready') && (
+                            <View
+                                style={[
+                                    styles.screenContainer,
+                                    // Hide during mounting phase
+                                    insightsState === 'mounting' && styles.hidden
+                                ]}
+                            >
+                                <HomeScreen onReady={handleInsightsReady} />
+                            </View>
+                        )}
+                    </Animated.View>
+
+                    {/* Circle Container */}
                     {hasVisitedCircle && (
-                        <View
-                            style={[styles.screenContainer, activeTab !== 'circle' && styles.hidden]}
+                        <Animated.View
+                            style={[styles.screenContainer, circleAnimatedStyle]}
                             pointerEvents={activeTab === 'circle' ? 'auto' : 'none'}
                         >
                             <FriendsScreen />
-                        </View>
+                        </Animated.View>
                     )}
                 </View>
 

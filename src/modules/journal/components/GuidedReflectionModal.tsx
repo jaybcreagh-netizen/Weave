@@ -1237,21 +1237,41 @@ export function GuidedReflectionModal({
                 borderBottomWidth: 1,
               }}
             >
-              <View className="flex-1 flex-row items-center">
-                {step !== 'context' && (
-                  <TouchableOpacity
-                    onPress={handleBack}
-                    className="mr-3"
+              <View className="flex-1 flex-row items-center justify-between">
+                <View className="flex-row items-center">
+                  {step !== 'context' && (
+                    <TouchableOpacity
+                      onPress={handleBack}
+                      className="mr-3"
+                    >
+                      <ChevronLeft size={24} color={colors.foreground} />
+                    </TouchableOpacity>
+                  )}
+                  <Text
+                    className="text-lg"
+                    style={{ color: colors.foreground, fontFamily: 'Lora_600SemiBold' }}
                   >
-                    <ChevronLeft size={24} color={colors.foreground} />
+                    {titleMap[step]}
+                  </Text>
+                </View>
+
+                {step === 'write' && (
+                  <TouchableOpacity
+                    onPress={handleSave}
+                    disabled={!text.trim() || saving}
+                    className="mr-2"
+                  >
+                    <Text
+                      style={{
+                        color: text.trim() ? colors.primary : colors.muted,
+                        fontFamily: 'Inter_600SemiBold',
+                        fontSize: 16
+                      }}
+                    >
+                      {saving ? '...' : 'Save'}
+                    </Text>
                   </TouchableOpacity>
                 )}
-                <Text
-                  className="text-lg"
-                  style={{ color: colors.foreground, fontFamily: 'Lora_600SemiBold' }}
-                >
-                  {titleMap[step]}
-                </Text>
               </View>
 
               <TouchableOpacity

@@ -150,6 +150,10 @@ interface UIStore {
   pendingAddUserId: string | null;
   openAddUserSheet: (userId: string) => void;
   closeAddUserSheet: () => void;
+
+  // Feature Flags
+  isQuickWeaveFeatureEnabled: boolean;
+  setQuickWeaveFeatureEnabled: (enabled: boolean) => void;
 }
 
 export const useUIStore = create<UIStore>((set, get) => ({
@@ -183,6 +187,9 @@ export const useUIStore = create<UIStore>((set, get) => ({
   isReflectionPromptOpen: false,
   isSocialBatterySheetOpen: false,
   memoryMomentData: null, // Moved here for consistency
+
+  isQuickWeaveFeatureEnabled: true,
+  setQuickWeaveFeatureEnabled: (enabled) => set({ isQuickWeaveFeatureEnabled: enabled }),
 
   lastReflectionPromptDate: null,
   markReflectionPromptShown: () => set({ lastReflectionPromptDate: Date.now() }),

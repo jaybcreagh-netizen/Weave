@@ -178,7 +178,7 @@ export function InteractionDetailModal({
       // If we have an unlinked friend to invite, generate a code
       if (friendToInvite) {
         const generated = await generateInviteCode(friendToInvite.id, friendToInvite.name, interactionModel);
-        if (generated) code = generated;
+        if (generated) code = generated.code;
       }
 
       const success = await shareInteractionAsICS(interactionModel, code);
@@ -264,7 +264,7 @@ export function InteractionDetailModal({
         snapPoints={['85%']}
         scrollable={false} // We manage scrolling internally with BottomSheetScrollView
       >
-        <View className="flex-row justify-between items-start px-6 pt-2">
+        <View className="flex-row justify-between items-start px-6 pt-6">
           <View className="flex-1 flex-row items-center gap-3 mb-2">
             {DisplayIcon ? (
               <DisplayIcon size={32} color={colors.foreground} />

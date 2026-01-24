@@ -64,6 +64,16 @@ export interface StandardBottomSheetProps {
   titleComponent?: ReactNode;
 
   /**
+   * Optional component to render on the left of the header
+   */
+  headerLeft?: ReactNode;
+
+  /**
+   * Optional component to render on the right of the header
+   */
+  headerRight?: ReactNode;
+
+  /**
    * Whether to show a close button in the header
    * Only shown when title is provided
    * @default true

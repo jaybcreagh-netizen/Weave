@@ -12,6 +12,7 @@ import {
     Sparkles,
     Zap,
 } from 'lucide-react-native';
+import { useUIStore } from '@/shared/stores/uiStore';
 
 // Modals
 import { FeedbackModal } from '../FeedbackModal';
@@ -52,6 +53,7 @@ export const GeneralSettings: React.FC<GeneralSettingsProps> = ({ onClose }) => 
 
     const handleToggleQuickWeave = async (enabled: boolean) => {
         setQuickWeaveEnabled(enabled);
+        useUIStore.getState().setQuickWeaveFeatureEnabled(enabled);
         await AsyncStorage.setItem(QUICK_WEAVE_ENABLED_KEY, JSON.stringify(enabled));
     };
 

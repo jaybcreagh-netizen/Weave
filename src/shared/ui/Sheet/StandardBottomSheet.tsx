@@ -51,6 +51,8 @@ export function StandardBottomSheet({
   keyboardBlurBehavior = 'restore',
   portalHost,
   animationConfigs,
+  headerLeft,
+  headerRight,
 }: StandardBottomSheetProps & { keyboardBehavior?: BottomSheetProps['keyboardBehavior'], keyboardBlurBehavior?: BottomSheetProps['keyboardBlurBehavior'] }) {
   const { colors, isDarkMode } = useTheme();
   const bottomSheetRef = useRef<BottomSheet>(null);
@@ -216,33 +218,45 @@ export function StandardBottomSheet({
         }}
       >
         {/* Header with optional title and close button - FIXED AT TOP */}
-        {(title || titleComponent || showCloseButton) && (
+        {(title || titleComponent || showCloseButton || headerLeft || headerRight) && (
           <View
-            className="flex-row items-center justify-center px-4 py-3 z-10"
+            className="flex-row items-center px-4 py-3 z-10"
             style={{ backgroundColor: colors.card }}
           >
-            {titleComponent ? (
-              titleComponent
-            ) : title ? (
-              <Text
-                className="text-xl font-lora-bold text-center flex-1"
-                style={{ color: colors.foreground }}
-                numberOfLines={1}
-              >
-                {title}
-              </Text>
-            ) : null}
-            {showCloseButton && (
-              <TouchableOpacity
-                onPress={handleClose}
-                className="absolute right-4 top-3 p-1 z-10"
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                accessibilityLabel="Close"
-                accessibilityRole="button"
-              >
-                <X size={24} color={colors['muted-foreground']} />
-              </TouchableOpacity>
-            )}
+            {/* Left Slot */}
+            <View className="flex-1 items-start">
+              {headerLeft}
+            </View>
+
+            {/* Center Slot (Title) */}
+            <View className="flex-[4] items-center">
+              {titleComponent ? (
+                titleComponent
+              ) : title ? (
+                <Text
+                  className="text-xl font-lora-bold text-center w-full"
+                  style={{ color: colors.foreground }}
+                  numberOfLines={1}
+                >
+                  {title}
+                </Text>
+              ) : null}
+            </View>
+
+            {/* Right Slot */}
+            <View className="flex-1 items-end">
+              {headerRight || (showCloseButton && (
+                <TouchableOpacity
+                  onPress={handleClose}
+                  className="p-1"
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  accessibilityLabel="Close"
+                  accessibilityRole="button"
+                >
+                  <X size={24} color={colors['muted-foreground']} />
+                </TouchableOpacity>
+              ))}
+            </View>
           </View>
         )}
 
