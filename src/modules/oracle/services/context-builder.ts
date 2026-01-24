@@ -12,6 +12,9 @@ import { SocialSeasonService } from '@/modules/intelligence/services/social-seas
 import { logger } from '@/shared/services/logger.service'
 import { getExpectedCadence } from './insight-rules'
 import UserProfile from '@/db/models/UserProfile'
+import { intelligenceEnhancer, DailyPersona, TriangulationCandidate } from '@/modules/intelligence/services/intelligence-enhancer.service'
+import { predictiveHealth } from '@/modules/intelligence/services/predictive-health.service'
+import { valueAlignment } from '@/modules/intelligence/services/value-alignment.service'
 
 /**
  * Oracle Context Tiers
@@ -32,6 +35,11 @@ export interface OracleContext {
     activeIntentions?: SimplifiedIntention[]
     activeSuggestions?: SimplifiedSuggestion[]
     venueAndActivitySuggestions?: VenueSuggestions
+
+    // Intelligence Layer
+    currentPersona?: DailyPersona
+    intelligenceCandidates?: TriangulationCandidate[]
+    intelligenceBlindspots?: string[]
 }
 
 interface UserContext {
@@ -41,9 +49,11 @@ interface UserContext {
     socialBattery: {
         current: string // "3/5" or "Data unavailable"
         trend: string   // "Draining", "Recharging", "Stable"
+        level?: number  // Numeric value for logic
     }
     upcomingLifeEvents: SimplifiedLifeEvent[] // Events in next 14 days (Social Load)
     userFacts: string[] // Crystalized memories/preferences
+    userArchetype?: string // Derived from UserFacts or Profile
     oracleTonePreference?: string // 'grounded' | 'warm' | 'playful' | 'poetic'
 }
 
@@ -93,6 +103,12 @@ interface FriendOracleContext {
     // NEW: Past activities and venues with this friend
     pastActivities?: string[]  // e.g. ["coffee", "dinner", "hiking"]
     favoriteVenues?: string[]  // Locations they've been to together
+
+    // NEW: Predictive Health
+    healthWarning?: string
+
+    // NEW: Value Alignment
+    valueAlignment?: string
 }
 
 interface SocialHealthContext {
@@ -143,6 +159,14 @@ class OracleContextBuilder {
         const archetypes = friends.map(f => f.archetype).filter(Boolean)
         const venueSuggestions = this.getVenueSuggestions(archetypes, userContext.socialSeason)
 
+        // Enhance with Intelligence Service
+        const persona = intelligenceEnhancer.getDailyPersona()
+
+        // Parse battery level from string "3/5" -> 3
+        const batteryLevel = userContext.socialBattery.level || 3
+        const candidates = await intelligenceEnhancer.getTriangulationCandidates(batteryLevel)
+        const blindspots = await intelligenceEnhancer.getBlindspots()
+
         return {
             currentDate: new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }),
             userProfile: userContext,
@@ -151,7 +175,12 @@ class OracleContextBuilder {
             recentJournaling: await this.getRecentJournaling(tier),
             activeIntentions: await this.getActiveIntentions(friendIds),
             activeSuggestions: await this.getActiveSuggestions(friendIds),
-            venueAndActivitySuggestions: venueSuggestions
+            venueAndActivitySuggestions: venueSuggestions,
+
+            // Injected Intelligence
+            currentPersona: persona,
+            intelligenceCandidates: candidates,
+            intelligenceBlindspots: blindspots
         }
     }
 
@@ -302,6 +331,29 @@ class OracleContextBuilder {
             }
         }
 
+        // Add Predictive Health Warning
+        try {
+            const prediction = predictiveHealth.predictHealth(friend)
+            const warning = predictiveHealth.getWarningMessage(friend, prediction)
+            if (warning) {
+                base.healthWarning = warning
+            }
+        } catch (e) {
+            // Ignore error
+        }
+
+        // Add Value Alignment Insight
+        try {
+            // Only calculate for Pattern/Rich tier (implied by early return above)
+            const alignment = await valueAlignment.calculateAlignment(friend.id)
+            const insight = valueAlignment.getAlignmentInsight(alignment)
+            if (insight) {
+                base.valueAlignment = insight
+            }
+        } catch (e) {
+            // Ignore
+        }
+
         return base
     }
 
@@ -310,7 +362,7 @@ class OracleContextBuilder {
         const season = await SocialSeasonService.getCurrentSeason() || 'unknown'
 
         // 2. Social Battery (Last 7 days)
-        let batteryInfo = { current: 'Data unavailable', trend: 'Unknown' }
+        let batteryInfo: UserContext['socialBattery'] = { current: 'Data unavailable', trend: 'Unknown' }
         try {
             const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000)
             const logs = await database.get<SocialBatteryLog>('social_battery_logs')
@@ -335,7 +387,8 @@ class OracleContextBuilder {
 
                 batteryInfo = {
                     current: `${latest.value}/5 (Avg: ${avg.toFixed(1)})`,
-                    trend
+                    trend,
+                    level: latest.value
                 }
             }
         } catch (e) {
@@ -377,7 +430,36 @@ class OracleContextBuilder {
             socialBattery: batteryInfo,
             upcomingLifeEvents: upcomingEvents,
             userFacts: await this.getUserFacts(),
+            userArchetype: await this.getUserArchetype(),
             oracleTonePreference: (await database.get<UserProfile>('user_profile').query().fetch())[0]?.oracleTonePreference
+        }
+    }
+
+    private async getUserArchetype(): Promise<string | undefined> {
+        try {
+            // Priority 1: Check UserProfile (if schema update lands later)
+            // const profile = await database.get<UserProfile>('user_profile').query().fetch()
+            // if (profile[0]?.archetype) return profile[0].archetype
+
+            // Priority 2: Check UserFacts (Workaround for Schema limitation)
+            // We look for facts like "User Archetype: Hermit"
+            const facts = await database.get<UserFact>('user_facts')
+                .query(
+                    Q.where('category', 'identity'),
+                    Q.where('fact_content', Q.like('%Archetype%')),
+                    Q.sortBy('created_at', Q.desc),
+                    Q.take(1)
+                ).fetch()
+
+            if (facts.length > 0) {
+                // specific parsing "User Archetype: Hermit" -> "Hermit"
+                const content = facts[0].factContent
+                if (content.includes('Archetype:')) return content.split('Archetype:')[1].trim()
+                return content
+            }
+            return undefined
+        } catch (e) {
+            return undefined
         }
     }
 

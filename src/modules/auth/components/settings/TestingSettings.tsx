@@ -148,8 +148,13 @@ export const TestingSettings: React.FC<TestingSettingsProps> = ({ onClose }) => 
 
     const handleTestEveningDigest = async () => {
         try {
-            await EveningDigestChannel.handleTap({ isTest: true }, router);
+            // Close modal first to prevent navigation context race conditions
             onClose();
+
+            // Allow time for modal to dismiss before navigating
+            setTimeout(async () => {
+                await EveningDigestChannel.handleTap({ isTest: true }, router);
+            }, 500);
         } catch (error) {
             console.error('Failed to open digest:', error);
             Alert.alert('Error', 'Failed to open digest sheet');

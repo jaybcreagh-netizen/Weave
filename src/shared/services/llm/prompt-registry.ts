@@ -349,6 +349,23 @@ PREVIOUS TURNS IN THIS CONVERSATION:
 (This is turn {{turnNumber}} of maximum 5)
 {{/if}}
 
+{{#if dailyFocus}}
+DAILY FOCUS (Adopt this persona):
+{{dailyFocus}}
+{{/if}}
+
+{{#if triangulationCandidates}}
+SUGGESTED CANDIDATES (Triangulated based on battery & archetype):
+{{triangulationCandidates}}
+Use these suggestions if the user asks "who should I see?" or feels stuck.
+{{/if}}
+
+{{#if blindspots}}
+POTENTIAL BLINDSPOTS (Heuristic alerts):
+{{blindspots}}
+Use these to gently challenge the user if relevant to their question.
+{{/if}}
+
 Respond as the Oracle in valid JSON format:`,
 
     defaultOptions: {
@@ -1397,7 +1414,10 @@ TASKS:
 2. Identify 3 distinct "Archetypal Paths" the user could take to process this.
    - Emotional/Internal (Hermit, Empress, High Priestess)
    - Practical/Actionable (Emperor, Magician, Fool)
+
    - Relational/Social (Lovers, Sun)
+
+4. If "SUGGESTED FRIENDS" are provided, you MAY use them for a Relational path if it fits the user's emotional state (e.g. "Connect with Ben").
 
 ARCHETYPE MEANINGS:
 - THE_HERMIT: Introspection, digging deeper, understanding self.
@@ -1436,7 +1456,13 @@ Respond with VALID JSON only.`,
 
 FRIENDS LINKED: {{friendNames}}
 SENTIMENT: {{sentimentLabel}}
+
 TOPICS: {{topics}}
+
+{{#if triangulationCandidates}}
+SUGGESTED FRIENDS (Triangulation):
+{{triangulationCandidates}}
+{{/if}}
 
 Identify 3 distinct archetypal paths (JSON):`,
 

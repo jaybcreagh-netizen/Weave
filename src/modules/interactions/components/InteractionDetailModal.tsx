@@ -263,36 +263,41 @@ export function InteractionDetailModal({
         onClose={onClose}
         snapPoints={['85%']}
         scrollable={false} // We manage scrolling internally with BottomSheetScrollView
-      >
-        <View className="flex-row justify-between items-start px-6 pt-6">
-          <View className="flex-1 flex-row items-center gap-3 mb-2">
+        showCloseButton={false} // We handle it in headerRight
+        headerLeft={
+          <View className="pl-2">
             {DisplayIcon ? (
               <DisplayIcon size={32} color={colors.foreground} />
             ) : (
               <Icon name={(displayIconName || 'Calendar') as any} size={32} color={colors.foreground} />
             )}
-            <View>
-              <Text
-                className="text-2xl font-semibold"
-                style={{ color: colors.foreground }}
-              >
-                {displayLabel}
-              </Text>
-              <Text
-                className="text-sm capitalize"
-                style={{ color: colors['muted-foreground'] }}
-              >
-                {activeInteraction.mode?.replace('-', ' ')} • {activeInteraction.interactionType}
-              </Text>
-            </View>
           </View>
-
-          {/* Action buttons */}
-          <View className="flex-row items-center gap-1">
+        }
+        titleComponent={
+          <View className="items-center">
+            <Text
+              className="text-xl font-semibold text-center"
+              style={{ color: colors.foreground }}
+              numberOfLines={1}
+            >
+              {activeInteraction.title || displayLabel}
+            </Text>
+            <Text
+              className="text-xs capitalize text-center"
+              style={{ color: colors['muted-foreground'] }}
+              numberOfLines={1}
+            >
+              {activeInteraction.title ? `${displayLabel} • ` : ''}
+              {activeInteraction.mode?.replace('-', ' ')} • {activeInteraction.interactionType}
+            </Text>
+          </View>
+        }
+        headerRight={
+          <View className="flex-row items-center gap-1 pr-2">
             {isPlanned && (
               <TouchableOpacity
                 onPress={handleShare}
-                className="p-2"
+                className="p-1.5"
                 disabled={isSharing}
               >
                 {isSharing ? (
@@ -305,7 +310,7 @@ export function InteractionDetailModal({
             {onEdit && (
               <TouchableOpacity
                 onPress={handleEditPress}
-                className="p-2"
+                className="p-1.5"
               >
                 <Edit3 color={colors.primary} size={20} />
               </TouchableOpacity>
@@ -313,13 +318,21 @@ export function InteractionDetailModal({
             {onDelete && (
               <TouchableOpacity
                 onPress={handleDeletePress}
-                className="p-2"
+                className="p-1.5"
               >
                 <Trash2 color={colors.destructive} size={20} />
               </TouchableOpacity>
             )}
+            <TouchableOpacity
+              onPress={onClose}
+              className="p-1.5 ml-1"
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <X size={24} color={colors['muted-foreground']} />
+            </TouchableOpacity>
           </View>
-        </View>
+        }
+      >
 
         <BottomSheetScrollView
           contentContainerStyle={{ padding: 24, gap: 24 }}

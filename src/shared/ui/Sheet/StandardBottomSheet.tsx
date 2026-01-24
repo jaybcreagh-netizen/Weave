@@ -220,7 +220,7 @@ export function StandardBottomSheet({
         {/* Header with optional title and close button - FIXED AT TOP */}
         {(title || titleComponent || showCloseButton || headerLeft || headerRight) && (
           <View
-            className="flex-row items-center px-4 py-3 z-10"
+            className="flex-row items-center px-4 pt-6 pb-3 z-10"
             style={{ backgroundColor: colors.card }}
           >
             {/* Left Slot */}
@@ -266,7 +266,8 @@ export function StandardBottomSheet({
         ) : (
           <ContentWrapper
             style={[
-              // !scrollable && { marginTop: 56 }, // REMOVED: Header is static, this adds unnecessary gap
+              // Add margin to account for fixed header if present and not scrollable
+              !scrollable && (!!title || !!titleComponent || showCloseButton || !!headerLeft || !!headerRight) ? { marginTop: 68 } : undefined,
               !scrollable && !isDynamic && { flex: 1 } // Only flex 1 for fixed-height sheets
             ]}
             ref={scrollable ? scrollRef : undefined}

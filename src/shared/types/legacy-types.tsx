@@ -40,6 +40,7 @@ export type Friend = {
   linkedUserId?: string;
   linkStatus?: 'pending_sync' | 'pending_sent' | 'pending_received' | 'linked' | 'declined';
   linkedAt?: number;
+  lastInteractionDate?: Date;
 };
 
 /**

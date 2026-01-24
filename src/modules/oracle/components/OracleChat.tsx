@@ -48,6 +48,7 @@ import { trackEvent, AnalyticsEvents } from '@/shared/services/analytics.service
 import { useAuth } from '@/modules/auth/context/AuthContext';
 import { CachedImage } from '@/shared/ui/CachedImage';
 import { MessageItem } from './MessageItem';
+import { ThinkingBubble } from './ThinkingBubble';
 
 interface OracleChatProps {
     context?: OracleEntryPoint
@@ -349,26 +350,7 @@ INSTRUCTIONS:
                             ListEmptyComponent={
                                 isLoading ? (
                                     <View className="flex-1 justify-end pb-10">
-                                        <View className="flex-row justify-start mb-4">
-                                            <View
-                                                className="w-8 h-8 rounded-full items-center justify-center mr-2 mt-1"
-                                                style={{ backgroundColor: colors.primary }}
-                                            >
-                                                <WeaveIcon size={16} color={colors['primary-foreground']} />
-                                            </View>
-                                            <View
-                                                className="px-4 py-3 rounded-2xl rounded-tl-none bg-gray-100 dark:bg-gray-800"
-                                                style={{
-                                                    backgroundColor: colors.card,
-                                                    borderWidth: 1,
-                                                    borderColor: colors.border
-                                                }}
-                                            >
-                                                <Text style={{ color: colors.foreground, fontFamily: typography.fonts.sans, fontStyle: 'italic' }}>
-                                                    Thinking...
-                                                </Text>
-                                            </View>
-                                        </View>
+                                        <ThinkingBubble />
                                     </View>
                                 ) : emptyState
                             }
@@ -376,6 +358,11 @@ INSTRUCTIONS:
                                 <View className="mb-4">
                                     <InsightsCarousel onTellMeMore={handleTellMeMore} onPlanWeave={handlePlanWeave} onHasInsights={setHasInsights} />
                                 </View>
+                            }
+                            ListFooterComponent={
+                                isLoading && messages.length > 0 ? (
+                                    <ThinkingBubble />
+                                ) : null
                             }
                             showsVerticalScrollIndicator={false}
                             keyboardShouldPersistTaps="handled"
@@ -425,11 +412,7 @@ INSTRUCTIONS:
                                 onPress={handleSend}
                                 disabled={!input.trim() || isLoading}
                             >
-                                {isLoading ? (
-                                    <ActivityIndicator color={colors['primary-foreground']} size="small" />
-                                ) : (
-                                    <Send size={20} color={colors['primary-foreground']} />
-                                )}
+                                <Send size={20} color={colors['primary-foreground']} />
                             </TouchableOpacity>
                         </View>
                     </View>

@@ -91,6 +91,7 @@ export function UsernameSearchSheet({
                         <FriendForm
                             onSave={handleManualSave}
                             embedded={true}
+                            visible={visible}
                         // No initialName passed here, as main search is now separate
                         // If they start searching in modal and switch to manual, we *could* pass it there?
                         // Yes, let's see if we can pass query from modal back to here?

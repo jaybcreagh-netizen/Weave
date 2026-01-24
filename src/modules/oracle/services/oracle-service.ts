@@ -29,6 +29,8 @@ import UserProfile from '@/db/models/UserProfile'
 import JournalEntryFriend from '@/db/models/JournalEntryFriend'
 import JournalEntry from '@/db/models/JournalEntry'
 import JournalSignals from '@/db/models/JournalSignals'
+import SocialBatteryLog from '@/db/models/SocialBatteryLog'
+import { intelligenceEnhancer } from '@/modules/intelligence/services/intelligence-enhancer.service'
 import { INSIGHT_EXPIRY_HOURS } from './insight-rules'
 
 // Daily limit for free users (if implemented later)
@@ -189,16 +191,21 @@ class OracleService {
         const tonePref = contextData.userProfile.oracleTonePreference || 'grounded'
         const toneModifier = TONE_MODIFIERS[tonePref] || TONE_MODIFIERS['grounded']
 
+        const { currentPersona, intelligenceCandidates, intelligenceBlindspots } = contextData
+
         const finalPrompt = interpolatePrompt(promptDef.userPromptTemplate, {
             context: contextString,
             conversationHistory: historyText,
             question: question,
             turnNumber: Math.floor(session.turns.length / 2) + 1,
-            toneModifier: toneModifier // Assuming prompt registry supports this variable, or we inject into system prompt
+            toneModifier: toneModifier,
+            dailyFocus: currentPersona ? `${currentPersona.type}: ${currentPersona.focus}` : '',
+            triangulationCandidates: intelligenceCandidates?.map(c => `- ${c.reason}`).join('\n') || '',
+            blindspots: intelligenceBlindspots?.join('\n') || ''
         })
 
-        // Inject tone modifier into system prompt
-        const systemPromptWithTone = `${promptDef.systemPrompt}\n\n${toneModifier}`
+        // Inject tone modifier and persona instruction into system prompt
+        const systemPromptWithTone = `${promptDef.systemPrompt}\n\n${toneModifier}\n\n${currentPersona?.systemInstruction || ''}`
 
         logger.info('OracleService', 'Asking Oracle', {
             questionLen: question.length,
@@ -272,15 +279,20 @@ class OracleService {
         const tonePref = contextData.userProfile.oracleTonePreference || 'grounded'
         const toneModifier = TONE_MODIFIERS[tonePref] || TONE_MODIFIERS['grounded']
 
+        const { currentPersona, intelligenceCandidates, intelligenceBlindspots } = contextData
+
         const finalPrompt = interpolatePrompt(promptDef.userPromptTemplate, {
             context: contextString,
             conversationHistory: historyText,
             question: question,
             turnNumber: Math.floor(session.turns.length / 2) + 1,
-            toneModifier: toneModifier
+            toneModifier: toneModifier,
+            dailyFocus: currentPersona ? `${currentPersona.type}: ${currentPersona.focus}` : '',
+            triangulationCandidates: intelligenceCandidates?.map(c => `- ${c.reason}`).join('\n') || '',
+            blindspots: intelligenceBlindspots?.join('\n') || ''
         })
 
-        const systemPromptWithTone = `${promptDef.systemPrompt}\n\n${toneModifier}`
+        const systemPromptWithTone = `${promptDef.systemPrompt}\n\n${toneModifier}\n\n${currentPersona?.systemInstruction || ''}`
 
         logger.info('OracleService', 'Asking Oracle (Stream)', {
             questionLen: question.length,
@@ -498,11 +510,23 @@ class OracleService {
                 hasSignals: !!signalData
             })
 
+            // Fetch battery for triangulation
+            let batteryLevel = 3
+            try {
+                const logs = await database.get<SocialBatteryLog>('social_battery_logs')
+                    .query(Q.sortBy('timestamp', Q.desc), Q.take(1))
+                    .fetch()
+                if (logs.length > 0) batteryLevel = logs[0].value
+            } catch (e) { /* ignore */ }
+
+            const candidates = await intelligenceEnhancer.getTriangulationCandidates(batteryLevel)
+
             const userPrompt = interpolatePrompt(promptDef.userPromptTemplate, {
                 content: entry.content || '',
                 friendNames: friends.map(f => f.name).join(', ') || 'None',
                 sentimentLabel: signalData?.sentimentLabel || 'neutral',
-                topics: signalData?.coreThemes?.join(', ') || 'General'
+                topics: signalData?.coreThemes?.join(', ') || 'General',
+                triangulationCandidates: candidates.map(c => `- ${c.reason}`).join('\n')
             })
 
             logger.info('OracleService', 'Sending prompt to LLM')

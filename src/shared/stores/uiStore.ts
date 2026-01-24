@@ -339,8 +339,13 @@ export const useUIStore = create<UIStore>((set, get) => ({
     });
   },
 
-  // This just starts the closing animation
-  closeQuickWeave: () => set({ isQuickWeaveClosing: true }),
+  // This starts the closing animation and schedules the state reset
+  closeQuickWeave: () => {
+    set({ isQuickWeaveClosing: true });
+    setTimeout(() => {
+      get()._finishClosingQuickWeave();
+    }, 200); // Match animation duration (150ms) plus a small buffer
+  },
 
   // This is called by the overlay after the animation finishes
   _finishClosingQuickWeave: () => set({

@@ -76,7 +76,7 @@ export const FriendListRowContent = ({
   if (!friend) return null;
 
   const { id, name, archetype, isDormant = false, photoUrl, relationshipType } = friend;
-  const [statusLine, setStatusLine] = useState<{ text: string; icon?: string; variant?: 'default' | 'accent' | 'warning' | 'success' }>({
+  const [statusLine, setStatusLine] = useState<{ text: string; subtext?: string; icon?: string; variant?: 'default' | 'accent' | 'warning' | 'success' }>({
     text: archetypeData[archetype as Archetype]?.essence || '',
     variant: 'default'
   });
@@ -428,10 +428,11 @@ export const FriendListRowContent = ({
                   numberOfLines={1}
                   ellipsizeMode="tail"
                 >
-                  {statusLine.text}
+                  {statusLine.text}{statusLine.subtext ? ` · ${statusLine.subtext}` : ''}
                 </Text>
               </View>
             </View>
+
 
             {/* Archetype Icon */}
             <View className="relative">

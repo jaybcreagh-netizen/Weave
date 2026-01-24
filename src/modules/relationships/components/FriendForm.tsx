@@ -31,10 +31,11 @@ interface FriendFormProps {
   onSkip?: () => void;
   embedded?: boolean;
   initialName?: string;
+  visible?: boolean;
 }
 
 
-export function FriendForm({ onSave, friend, initialTier, fromOnboarding, onSkip, embedded = false, initialName }: FriendFormProps) {
+export function FriendForm({ onSave, friend, initialTier, fromOnboarding, onSkip, embedded = false, initialName, visible = true }: FriendFormProps) {
   const router = useRouter();
   const { colors } = useTheme(); // Use the hook
 
@@ -48,7 +49,8 @@ export function FriendForm({ onSave, friend, initialTier, fromOnboarding, onSkip
   const archetypeSectionRef = useRef<View>(null);
 
   // Show tutorial if user hasn't added their first friend yet (regardless of entry point)
-  const showTutorial = !hasAddedFirstFriend && !friend;
+  // Only show if the form itself is marked as visible
+  const showTutorial = !hasAddedFirstFriend && !friend && visible;
 
   const measureSection = useCallback((ref: React.RefObject<any>, setter: (layout: any) => void) => {
     if (ref.current) {

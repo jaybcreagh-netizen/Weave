@@ -267,6 +267,9 @@ export function DataInitializer({ children }: DataInitializerProps) {
     useEffect(() => {
         const initBackgroundSync = async () => {
             try {
+                // Initialize Tutorial State first
+                await useTutorialStore.getState().loadTutorialState();
+
                 await useBackgroundSyncStore.getState().loadSettings();
 
                 // Initialize Quick Weave enabled state

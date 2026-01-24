@@ -8,10 +8,11 @@ import InteractionFriend from '@/db/models/InteractionFriend';
 import { Q } from '@nozbe/watermelondb';
 import { calculateCurrentScore } from './orchestrator.service';
 import { type Friend } from '@/shared/types/legacy-types';
-import { HydratedFriend, HydratedLifeEvent } from '@/types/hydrated';
+import { HydratedFriend } from '@/types/hydrated';
 
 export interface StatusLine {
   text: string;
+  subtext?: string;
   icon?: string;
   variant?: 'default' | 'accent' | 'warning' | 'success';
 }
@@ -31,48 +32,31 @@ const LIFE_EVENT_ICONS: Record<string, string> = {
   other: 'Sparkles',
 };
 
-// Archetype-driven actionable nudges
-const ARCHETYPE_NUDGES: Record<string, string[]> = {
-  Emperor: [
-    'Ready to plan something together?',
-    'A structured catch-up would feel good',
-    'Time to reconnect with purpose',
-  ],
-  Empress: [
-    'A good time to nurture this bond',
-    'Ready for some comfort and connection?',
-    'Time to create warmth together',
-  ],
-  HighPriestess: [
-    'A deep conversation would mean a lot',
-    'Space for meaningful connection',
-    'Ready for real talk?',
-  ],
-  Fool: [
-    'Ready for a new adventure together?',
-    'Time for spontaneous fun',
-    'Let\'s try something unexpected',
-  ],
-  Sun: [
-    'Time to celebrate this friendship',
-    'Ready to bring the energy?',
-    'A bright moment together awaits',
-  ],
-  Hermit: [
-    'Quality one-on-one time would be special',
-    'A quiet moment together sounds nice',
-    'Ready for thoughtful connection?',
-  ],
-  Magician: [
-    'Ready to create something together?',
-    'A collaborative moment would spark joy',
-    'Time to build something meaningful',
-  ],
-};
+// Actionable nudges based on relationship health state
+const MOMENTUM_NUDGES = ['Thriving', 'Going strong', 'On a roll'];
+const CONSISTENT_NUDGES = ['Well nurtured', 'Steady bond', 'Keep it up'];
 
-function getRandomNudge(archetype: string): string {
-  const nudges = ARCHETYPE_NUDGES[archetype] || ['Time to reconnect'];
+function getRandomNudge(nudges: string[]): string {
   return nudges[Math.floor(Math.random() * nudges.length)];
+}
+
+// Helper: Short relative time
+function getShortRelativeTime(date: Date): string {
+  const now = new Date();
+  // Ensure we compare start of days for accurate "days ago"
+  const startNow = startOfDay(now);
+  const startDate = startOfDay(date);
+  const days = Math.abs(differenceInDays(startNow, startDate));
+
+  if (days === 0) return 'Today';
+  if (days === 1) return 'Yesterday';
+  if (days < 7) return `${days} days ago`;
+  if (days < 14) return '1 week ago';
+  if (days < 21) return '2 weeks ago';
+  if (days < 28) return '3 weeks ago';
+  if (days < 60) return '1 month ago';
+  if (days < 365) return `${Math.floor(days / 30)} months ago`;
+  return `${Math.floor(days / 365)} years ago`;
 }
 
 /**
@@ -83,18 +67,16 @@ async function checkLifeEventStatus(friend: HydratedFriend | Friend): Promise<St
   today.setHours(0, 0, 0, 0);
 
   try {
-    // Check database life events (past 7 days or upcoming 30 days)
+    // Check database life events
     const activeLifeEvents = await database
       .get<LifeEvent>('life_events')
       .query(
         Q.where('friend_id', friend.id),
         Q.or(
-          // Upcoming events (within next 30 days)
           Q.and(
             Q.where('event_date', Q.gte(today.getTime())),
             Q.where('event_date', Q.lte(today.getTime() + 30 * 24 * 60 * 60 * 1000))
           ),
-          // Recent past events (last 7 days for follow-up)
           Q.and(
             Q.where('event_date', Q.gte(today.getTime() - 7 * 24 * 60 * 60 * 1000)),
             Q.where('event_date', Q.lt(today.getTime()))
@@ -103,8 +85,8 @@ async function checkLifeEventStatus(friend: HydratedFriend | Friend): Promise<St
       )
       .fetch();
 
-    // Prioritize by importance and proximity
     const sortedEvents = activeLifeEvents.sort((a, b) => {
+      // Sort logic...
       const importanceOrder = { critical: 4, high: 3, medium: 2, low: 1 };
       const aScore = importanceOrder[a.importance];
       const bScore = importanceOrder[b.importance];
@@ -116,82 +98,44 @@ async function checkLifeEventStatus(friend: HydratedFriend | Friend): Promise<St
       const topEvent = sortedEvents[0];
       const daysUntil = differenceInDays(startOfDay(topEvent.eventDate), startOfDay(today));
       const icon = LIFE_EVENT_ICONS[topEvent.eventType] || 'Sparkles';
+      const title = topEvent.title || topEvent.eventType;
 
-      if (daysUntil === 0) {
-        return { text: `${topEvent.title || topEvent.eventType} is today!`, icon, variant: 'accent' };
-      } else if (daysUntil === 1) {
-        return { text: `${topEvent.title || topEvent.eventType} is tomorrow`, icon, variant: 'accent' };
-      } else if (daysUntil > 1 && daysUntil <= 30) {
-        return { text: `${topEvent.title || topEvent.eventType} in ${daysUntil} days`, icon, variant: 'default' };
-      } else if (daysUntil < 0 && daysUntil >= -7) {
-        const daysAgo = Math.abs(daysUntil);
-        if (daysAgo === 1) {
-          return { text: `${topEvent.title || topEvent.eventType} was yesterday`, icon, variant: 'accent' };
-        }
-        return { text: `${topEvent.title || topEvent.eventType} was ${daysAgo} days ago`, icon, variant: 'accent' };
-      }
+      if (daysUntil === 0) return { text: `${title} is today!`, icon, variant: 'accent' };
+      if (daysUntil === 1) return { text: `${title} is tomorrow`, icon, variant: 'accent' };
+      if (daysUntil > 1 && daysUntil <= 30) return { text: `${title} in ${daysUntil} days`, icon, variant: 'default' };
+      if (daysUntil < 0 && daysUntil >= -7) return { text: `${title} was ${Math.abs(daysUntil)} days ago`, icon, variant: 'accent' };
     }
 
-    // Check birthday (legacy Friend model field)
+    // Check birthday
     if (friend.birthday) {
-      // Use flexible parser
       const dateParts = parseFlexibleDate(friend.birthday);
+      if (dateParts && dateParts.month >= 1 && dateParts.month <= 12 && dateParts.day >= 1 && dateParts.day <= 31) {
+        const birthdayThisYear = new Date(today.getFullYear(), dateParts.month - 1, dateParts.day);
+        birthdayThisYear.setHours(0, 0, 0, 0);
+        if (birthdayThisYear < today) birthdayThisYear.setFullYear(today.getFullYear() + 1);
 
-      if (!dateParts) {
-        console.warn(`[StatusLine] Invalid birthday format: ${friend.birthday}`);
-      } else {
-        const { month, day } = dateParts;
-
-        // Validate date components (just in case)
-        if (month < 1 || month > 12 || day < 1 || day > 31) {
-          console.warn(`[StatusLine] Invalid birthday date: ${friend.birthday}`);
-        } else {
-          // Create birthday for this year
-          const birthdayThisYear = new Date(today.getFullYear(), month - 1, day);
-          birthdayThisYear.setHours(0, 0, 0, 0);
-
-          if (birthdayThisYear < today) {
-            birthdayThisYear.setFullYear(today.getFullYear() + 1);
-          }
-
-          const daysUntil = differenceInDays(startOfDay(birthdayThisYear), startOfDay(today));
-          if (daysUntil >= 0 && daysUntil <= 7) {
-            if (daysUntil === 0) return { text: 'Birthday is today!', icon: 'Cake', variant: 'accent' };
-            if (daysUntil === 1) return { text: 'Birthday is tomorrow', icon: 'Cake', variant: 'accent' };
-            return { text: `Birthday in ${daysUntil} days`, icon: 'Cake', variant: 'default' };
-          }
+        const daysUntil = differenceInDays(startOfDay(birthdayThisYear), startOfDay(today));
+        if (daysUntil >= 0 && daysUntil <= 7) {
+          if (daysUntil === 0) return { text: 'Birthday is today!', icon: 'Cake', variant: 'accent' };
+          if (daysUntil === 1) return { text: 'Birthday is tomorrow', icon: 'Cake', variant: 'accent' };
+          return { text: `Birthday in ${daysUntil} days`, icon: 'Cake', variant: 'default' };
         }
       }
     }
 
-    // Check anniversary (legacy Friend model field)
+    // Check anniversary
     if (friend.anniversary) {
-      // Use flexible parser
       const dateParts = parseFlexibleDate(friend.anniversary);
+      if (dateParts && dateParts.month >= 1 && dateParts.month <= 12 && dateParts.day >= 1 && dateParts.day <= 31) {
+        const anniversaryThisYear = new Date(today.getFullYear(), dateParts.month - 1, dateParts.day);
+        anniversaryThisYear.setHours(0, 0, 0, 0);
+        if (anniversaryThisYear < today) anniversaryThisYear.setFullYear(today.getFullYear() + 1);
 
-      if (!dateParts) {
-        console.warn(`[StatusLine] Invalid anniversary format: ${friend.anniversary}`);
-      } else {
-        const { month, day } = dateParts;
-
-        // Validate date components (just in case)
-        if (month < 1 || month > 12 || day < 1 || day > 31) {
-          console.warn(`[StatusLine] Invalid anniversary date: ${friend.anniversary}`);
-        } else {
-          // Create anniversary for this year
-          const anniversaryThisYear = new Date(today.getFullYear(), month - 1, day);
-          anniversaryThisYear.setHours(0, 0, 0, 0);
-
-          if (anniversaryThisYear < today) {
-            anniversaryThisYear.setFullYear(today.getFullYear() + 1);
-          }
-
-          const daysUntil = differenceInDays(startOfDay(anniversaryThisYear), startOfDay(today));
-          if (daysUntil >= 0 && daysUntil <= 7) {
-            if (daysUntil === 0) return { text: 'Friendship anniversary today!', icon: 'Heart', variant: 'accent' };
-            if (daysUntil === 1) return { text: 'Friendship anniversary tomorrow', icon: 'Heart', variant: 'accent' };
-            return { text: `Anniversary in ${daysUntil} days`, icon: 'Heart', variant: 'default' };
-          }
+        const daysUntil = differenceInDays(startOfDay(anniversaryThisYear), startOfDay(today));
+        if (daysUntil >= 0 && daysUntil <= 7) {
+          if (daysUntil === 0) return { text: 'Anniversary today!', icon: 'Heart', variant: 'accent' };
+          if (daysUntil === 1) return { text: 'Anniversary tomorrow', icon: 'Heart', variant: 'accent' };
+          return { text: `Anniversary in ${daysUntil} days`, icon: 'Heart', variant: 'default' };
         }
       }
     }
@@ -203,198 +147,36 @@ async function checkLifeEventStatus(friend: HydratedFriend | Friend): Promise<St
 }
 
 /**
- * Generate varied, insightful status messages for healthy relationships
- * Analyzes recent interaction patterns to provide specific, meaningful insights
+ * Generate specific, data-first insights for healthy relationships
  */
 function generateHealthyRelationshipInsight(
   friend: HydratedFriend | Friend,
   recentInteractions: Interaction[],
   recentCount: number
 ): StatusLine {
-  // Analyze interaction patterns
-  const categoryCount: Record<string, number> = {};
-  let totalWithVibe = 0;
-  let positiveVibeCount = 0;
+  if (recentInteractions.length === 0) return { text: 'Time to reconnect', variant: 'default' };
 
-  recentInteractions.forEach(interaction => {
-    const cat = interaction.interactionCategory || 'other';
-    categoryCount[cat] = (categoryCount[cat] || 0) + 1;
-
-    // Track vibe quality if available
-    if (interaction.vibe) {
-      totalWithVibe++;
-      if (interaction.vibe === 'great' || interaction.vibe === 'good') {
-        positiveVibeCount++;
-      }
-    }
-  });
-
-  // Find dominant interaction type
-  const dominantCategory = Object.entries(categoryCount)
-    .sort(([, a], [, b]) => b - a)[0];
-  const dominantType = dominantCategory ? dominantCategory[0] : null;
-  const dominantCount = dominantCategory ? dominantCategory[1] : 0;
-  const hasVariety = Object.keys(categoryCount).length >= 3;
-
-  // Calculate consistency (interactions spread over time vs bunched)
-  const daysSinceFirst = differenceInDays(new Date(), recentInteractions[recentInteractions.length - 1].interactionDate);
-  const isConsistent = daysSinceFirst >= 21 && recentCount >= 4; // 4+ weaves over 3+ weeks
-
-  // Quality indicator (if vibe data exists)
-  const hasHighQuality = totalWithVibe >= 2 && (positiveVibeCount / totalWithVibe) >= 0.75;
-
-  // Archetype-aligned insights
-  const archetypeInsights: Record<string, { types: string[], messages: string[] }> = {
-    Emperor: {
-      types: ['meal-drink', 'activity-hobby'],
-      messages: [
-        'Your structured time together is thriving',
-        'Consistent, purposeful connection',
-        'Building a strong routine together',
-      ]
-    },
-    Empress: {
-      types: ['meal-drink', 'favor-support'],
-      messages: [
-        'Nurturing this bond beautifully',
-        'Creating real comfort together',
-        'This warmth is mutual and strong',
-      ]
-    },
-    HighPriestess: {
-      types: ['deep-talk', 'text-call'],
-      messages: [
-        'Your deep conversations are flowing',
-        'Real vulnerability and trust here',
-        'Meaningful exchanges are frequent',
-      ]
-    },
-    Fool: {
-      types: ['activity-hobby', 'event-party'],
-      messages: [
-        'Adventures together are on fire',
-        'Keeping the spontaneity alive',
-        'Your playful energy is strong',
-      ]
-    },
-    Sun: {
-      types: ['event-party', 'celebration'],
-      messages: [
-        'Celebrating life together often',
-        'Your bright energy is consistent',
-        'Joyful moments are abundant',
-      ]
-    },
-    Hermit: {
-      types: ['deep-talk', 'hangout'],
-      messages: [
-        'Quality one-on-one time is rich',
-        'Thoughtful connection is consistent',
-        'Your quiet moments together matter',
-      ]
-    },
-    Magician: {
-      types: ['activity-hobby', 'hangout'],
-      messages: [
-        'Creating and building together',
-        'Collaborative energy is strong',
-        'Making magic through shared projects',
-      ]
-    },
-  };
-
-  // Priority 1: Archetype-aligned insights (if dominant type matches archetype affinity)
-  const archetypeData = archetypeInsights[friend.archetype];
-  if (archetypeData && dominantType && archetypeData.types.includes(dominantType) && dominantCount >= 2) {
-    const message = archetypeData.messages[Math.floor(Math.random() * archetypeData.messages.length)];
-    return { text: message, icon: 'Sparkles', variant: 'accent' };
-  }
-
-  // Priority 2: High-quality interactions
-  if (hasHighQuality) {
-    const qualityMessages = [
-      'Quality time together is exceptional',
-      'Really meaningful moments lately',
-      'Deep connection is thriving',
-    ];
-    return { text: qualityMessages[Math.floor(Math.random() * qualityMessages.length)], icon: 'Zap', variant: 'accent' };
-  }
-
-  // Priority 3: Consistency/streak insights
-  if (isConsistent) {
-    const consistencyMessages = [
-      `${recentCount} weaves in ${Math.floor(daysSinceFirst / 7)} weeks—solid rhythm`,
-      'Consistent connection over time',
-      'Building a reliable pattern together',
-    ];
-    return { text: consistencyMessages[Math.floor(Math.random() * consistencyMessages.length)], icon: 'Sprout', variant: 'success' };
-  }
-
-  // Priority 4: Interaction type patterns
-  if (dominantType && dominantCount >= 2) {
-    const typeInsights: Record<string, { messages: string[], icon: string }> = {
-      'deep-talk': {
-        messages: [
-          `${dominantCount} deep talks lately—real connection`,
-          'Vulnerability and openness are strong',
-        ],
-        icon: 'MessageSquareHeart'
-      },
-      'meal-drink': {
-        messages: [
-          `${dominantCount} meals together this month`,
-          'Your dining tradition is strong',
-        ],
-        icon: 'UtensilsCrossed'
-      },
-      'activity-hobby': {
-        messages: [
-          `${dominantCount} activities together lately`,
-          'Shared interests are thriving',
-        ],
-        icon: 'Palette'
-      },
-      'text-call': {
-        messages: [
-          `${dominantCount} calls/texts—staying close`,
-          'Regular check-ins are working',
-        ],
-        icon: 'Phone'
-      },
-      'hangout': {
-        messages: [
-          `${dominantCount} hangouts this month`,
-          'Just being together is enough',
-        ],
-        icon: 'Sofa'
-      },
-      'event-party': {
-        messages: [
-          `${dominantCount} events together lately`,
-          'Social moments are abundant',
-        ],
-        icon: 'PartyPopper'
-      },
+  const lastDate = recentInteractions[0].interactionDate;
+  const timeStr = getShortRelativeTime(lastDate);
+  // 1. High momentum (e.g. 4+ in last month)
+  if (recentCount >= 4) {
+    const nudge = getRandomNudge(MOMENTUM_NUDGES);
+    return {
+      text: `${recentCount} weaves in 30 days`,
+      subtext: nudge,
+      icon: 'Zap',
+      variant: 'accent'
     };
-
-    const insight = typeInsights[dominantType];
-    if (insight) {
-      return { text: insight.messages[Math.floor(Math.random() * insight.messages.length)], icon: insight.icon, variant: 'default' };
-    }
   }
 
-  // Priority 5: Variety insight
-  if (hasVariety) {
-    return { text: `${recentCount} weaves across ${Object.keys(categoryCount).length} different types`, icon: 'Palette', variant: 'default' };
-  }
-
-  // Fallback: Simple momentum message (but more varied)
-  const momentumMessages = [
-    `${recentCount} weaves this month—strong bond`,
-    `Maintaining momentum with ${recentCount} weaves`,
-    `${recentCount} quality moments together`,
-  ];
-  return { text: momentumMessages[Math.floor(Math.random() * momentumMessages.length)], icon: 'Star', variant: 'default' };
+  // 2. Consistent
+  const nudge = getRandomNudge(CONSISTENT_NUDGES);
+  return {
+    text: `${timeStr}`,
+    subtext: nudge,
+    icon: 'Sprout',
+    variant: 'success'
+  };
 }
 
 /**
@@ -404,7 +186,7 @@ async function checkConnectionHealth(friend: HydratedFriend | Friend): Promise<S
   const weaveScore = calculateCurrentScore(friend);
 
   try {
-    // Get recent interactions (last 60 days, completed only)
+    // Get recent interactions (last 60 days)
     const sixtyDaysAgo = Date.now() - 60 * 24 * 60 * 60 * 1000;
     const recentInteractions = await database
       .get<Interaction>('interactions')
@@ -415,7 +197,6 @@ async function checkConnectionHealth(friend: HydratedFriend | Friend): Promise<S
       )
       .fetch();
 
-    // Filter to interactions with this friend
     const friendInteractions: Interaction[] = [];
     for (const interaction of recentInteractions) {
       const interactionFriends = await interaction.interactionFriends.fetch();
@@ -424,45 +205,32 @@ async function checkConnectionHealth(friend: HydratedFriend | Friend): Promise<S
       }
     }
 
-    // Check for warming/momentum (3+ weaves in last 30 days)
     const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
     const recentCount = friendInteractions.filter(
       i => i.interactionDate.getTime() >= thirtyDaysAgo
     ).length;
 
+    // Healthy/Momentum
     if (recentCount >= 3 && weaveScore > 65) {
-      // Generate varied, insightful status messages for healthy relationships
-      return generateHealthyRelationshipInsight(friend, friendInteractions.filter(
-        i => i.interactionDate.getTime() >= thirtyDaysAgo
-      ), recentCount);
+      return generateHealthyRelationshipInsight(friend, friendInteractions, recentCount);
     }
 
-    // Check for cooling connection
+    // Cooling
     if (friendInteractions.length > 0) {
       const lastInteraction = friendInteractions[0];
+      const timeStr = getShortRelativeTime(lastInteraction.interactionDate);
       const daysSince = differenceInDays(new Date(), lastInteraction.interactionDate);
 
-      // Find most recent meaningful interaction type
-      const lastMeaningfulType = lastInteraction.interactionCategory;
+      // Warning thresholds
+      const isInnerCircleLate = friend.dunbarTier === 'InnerCircle' && daysSince >= 14;
+      const isCloseFriendLate = friend.dunbarTier === 'CloseFriends' && daysSince >= 21;
 
-      // For Inner Circle, flag after 2+ weeks
-      if (friend.dunbarTier === 'InnerCircle' && daysSince >= 14 && weaveScore < 65) {
-        const typeLabel = getCategoryLabel(lastMeaningfulType);
-        if (daysSince === 14) {
-          return { text: `Last ${typeLabel}: 2 weeks ago`, variant: 'default' };
-        } else if (daysSince === 21) {
-          return { text: `Last ${typeLabel}: 3 weeks ago`, variant: 'default' };
-        } else if (daysSince >= 28) {
-          const weeks = Math.floor(daysSince / 7);
-          return { text: `Last ${typeLabel}: ${weeks} weeks ago`, variant: 'default' };
-        }
-      }
-
-      // For Close Friends, flag after 3+ weeks
-      if (friend.dunbarTier === 'CloseFriends' && daysSince >= 21 && weaveScore < 65) {
-        const typeLabel = getCategoryLabel(lastMeaningfulType);
-        const weeks = Math.floor(daysSince / 7);
-        return { text: `Last ${typeLabel}: ${weeks} weeks ago`, variant: 'default' };
+      if ((isInnerCircleLate || isCloseFriendLate) && weaveScore < 65) {
+        return {
+          text: `${timeStr}`,
+          subtext: 'Time to reconnect?',
+          variant: 'default'
+        };
       }
     }
   } catch (error) {
@@ -475,16 +243,9 @@ async function checkConnectionHealth(friend: HydratedFriend | Friend): Promise<S
 /**
  * PRIORITY 3: Upcoming plans
  */
-/**
- * PRIORITY 3: Upcoming plans
- */
 async function checkUpcomingPlans(friend: HydratedFriend | Friend): Promise<StatusLine | null> {
   try {
     const now = Date.now();
-
-    // FETCH: Get all planned interactions strictly in the future
-    // We fetch a bit more (limit 15) to ensure we capture the full "nearest day" context
-    // sorting by date ASC so we get the soonest ones first
     const futureInteractions = await database
       .get<Interaction>('interactions')
       .query(
@@ -495,151 +256,63 @@ async function checkUpcomingPlans(friend: HydratedFriend | Friend): Promise<Stat
       )
       .fetch();
 
-    // Filter to interactions with THIS friend
-    const friendInteractions: Interaction[] = [];
-
-    // We need to resolve the many-to-many relationship
-    // Optimization: Parallel fetch could be better but sticking to sequential for safety/simplicity in this loop
-    // or we could optimize by querying interaction_friends first if performance triggers issues,
-    // but typically futureInteractions list is small.
+    const friendPlans: Interaction[] = [];
     for (const interaction of futureInteractions) {
       const interactionFriends = await interaction.interactionFriends.fetch();
       if (interactionFriends.some((jf: InteractionFriend) => jf.friendId === friend.id)) {
-        friendInteractions.push(interaction);
+        friendPlans.push(interaction);
       }
     }
 
-    if (friendInteractions.length === 0) return null;
+    if (friendPlans.length === 0) return null;
 
-    // FIND NEAREST DAY: We only want to show prompts for the *nearest* day that has plans
-    // (e.g. if we have plans tomorrow AND next week, we only care about tomorrow's plans for the prompt)
-    const firstPlan = friendInteractions[0];
-    const firstPlanDate = startOfDay(firstPlan.interactionDate);
-
-    const nearestDayPlans = friendInteractions.filter(i =>
-      startOfDay(i.interactionDate).getTime() === firstPlanDate.getTime()
-    );
-
-    // PRIORITIZE: Sort nearest day plans by importance/category
-    // 1. Special/High Effort (Parties, Travel, Life Events)
-    // 2. High Quality (Meals, Activities, Deep Talks)
-    // 3. Standard (Hangouts, Favors)
-    // 4. Low Effort (Calls, Texts)
-    const getPriorityScore = (category?: string | null) => {
-      const cat = category || '';
-      switch (cat) {
-        case 'celebration':
-        case 'travel':
-        case 'event-party':
-        case 'life_event':
-          return 4;
-        case 'meal-drink':
-        case 'activity-hobby':
-        case 'deep-talk':
-          return 3;
-        case 'hangout':
-        case 'favor-support':
-          return 2;
-        case 'text-call':
-        default:
-          return 1;
-      }
-    };
-
-    // Sort descending by score
-    nearestDayPlans.sort((a, b) => {
-      const scoreA = getPriorityScore(a.interactionCategory);
-      const scoreB = getPriorityScore(b.interactionCategory);
-      return scoreB - scoreA;
-    });
-
-    const topPlan = nearestDayPlans[0];
-
-    // FORMAT PROMPT based on the top priority plan
+    const nextPlan = friendPlans[0];
     const today = startOfDay(new Date());
-    const daysUntil = differenceInDays(startOfDay(topPlan.interactionDate), today);
-    const categoryLabel = getCategoryLabel(topPlan.interactionCategory);
+    const daysUntil = differenceInDays(startOfDay(nextPlan.interactionDate), today);
+    const categoryLabel = nextPlan.interactionCategory ? nextPlan.interactionCategory.replace('-', ' ') : 'plans';
 
-    // Use specific icons if available, else calendar
-    const planIcons: Record<string, string> = {
-      'celebration': 'PartyPopper',
-      'travel': 'Plane', // We don't have Plane in the map yet, let's use default or add it? Map has TrendingUp which is weird. Checking StatusLineIcon map... TrendingUp is there. Plane is not. Let's use Calendar as fallback or add Plane. Wait, I should probably check if Plane is available in StatusLineIcon map. It is not. I will use Calendar for now or TrendingUp? No, Calendar is better.
-      'meal-drink': 'UtensilsCrossed',
-      'activity-hobby': 'Palette',
-      'text-call': 'Phone'
-    };
-    const icon = planIcons[topPlan.interactionCategory || ''] || 'Calendar';
+    if (daysUntil === 0) return { text: `${categoryLabel} later today`, icon: 'Calendar', variant: 'accent' };
+    if (daysUntil === 1) return { text: `${categoryLabel} tomorrow`, icon: 'Calendar', variant: 'accent' };
+    if (daysUntil <= 7) return { text: `${categoryLabel} on ${format(nextPlan.interactionDate, 'EEEE')}`, icon: 'Calendar', variant: 'default' };
+    if (daysUntil <= 30) return { text: `${categoryLabel} in ${daysUntil} days`, icon: 'Calendar', variant: 'default' };
 
-    if (daysUntil === 0) {
-      // Double check time - if it's today but the time has passed? 
-      // The query filtered Q.gt(now), so it must be later today.
-      return { text: `${capitalize(categoryLabel)} later today`, icon, variant: 'accent' };
-    } else if (daysUntil === 1) {
-      return { text: `${capitalize(categoryLabel)} planned for tomorrow`, icon, variant: 'accent' };
-    } else if (daysUntil <= 7) {
-      const dayName = format(topPlan.interactionDate, 'EEEE');
-      return { text: `${capitalize(categoryLabel)} planned for ${dayName}`, icon: 'Calendar', variant: 'default' };
-    } else if (daysUntil <= 30) {
-      return { text: `${capitalize(categoryLabel)} planned in ${daysUntil} days`, icon: 'Calendar', variant: 'default' };
-    }
-
-    // If > 30 days, we ignore it
   } catch (error) {
-    console.error('Error checking upcoming plans:', error);
+    console.error('Error checking plans:', error);
   }
 
   return null;
 }
 
 /**
- * Helper: Get friendly category label
- */
-function getCategoryLabel(category: string | null | undefined): string {
-  const labels: Record<string, string> = {
-    'text-call': 'chat',
-    'meal-drink': 'meal',
-    'hangout': 'hangout',
-    'deep-talk': 'deep talk',
-    'activity-hobby': 'activity',
-    'event-party': 'event',
-    'favor-support': 'time together',
-    'celebration': 'celebration',
-  };
-  return labels[category || ''] || 'catch-up';
-}
-
-/**
- * Helper: Capitalize first letter
- */
-function capitalize(str: string): string {
-  return str.charAt(0).toUpperCase() + str.slice(1);
-}
-
-/**
  * Main function: Generate intelligent status line for a friend
- * Follows priority order:
- * 1. Life events
- * 2. Connection health
- * 3. Upcoming plans
- * 4. Archetype nudge (fallback)
  */
 export async function generateIntelligentStatusLine(friend: HydratedFriend | Friend): Promise<StatusLine> {
-  // Priority 1: Life events
+  // 1. Life events
   const lifeEventStatus = await checkLifeEventStatus(friend);
   if (lifeEventStatus) return lifeEventStatus;
 
-  // Priority 2: Connection health
+  // 2. Connection health (Healthy or Cooling)
   const healthStatus = await checkConnectionHealth(friend);
   if (healthStatus) return healthStatus;
 
-  // Priority 3: Upcoming plans
+  // 3. Upcoming plans
   const planStatus = await checkUpcomingPlans(friend);
   if (planStatus) return planStatus;
 
-  // Priority 4: Archetype-driven nudge (fallback)
+  // 4. Fallback (Data-driven Nudge)
+  // Use lastInteractionDate if available to give context
+  if (friend.lastInteractionDate) {
+    const timeStr = getShortRelativeTime(friend.lastInteractionDate);
+    return {
+      text: `${timeStr}`,
+      subtext: 'Reach out?',
+      variant: 'default'
+    };
+  }
+
+  // Truly no data found
   return {
-    text: getRandomNudge(friend.archetype),
-    icon: undefined,
+    text: 'Start your journey together',
     variant: 'default',
   };
 }
