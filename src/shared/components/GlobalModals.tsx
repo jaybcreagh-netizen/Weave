@@ -12,6 +12,7 @@ import { MemoryMomentModal } from '@/modules/journal';
 import { EveningCheckinSheet } from '@/modules/home';
 import { EveningDigestChannel, EveningCheckinContent } from '@/modules/notifications';
 import { OracleSheet } from '@/modules/oracle';
+import { ProfileCompletionSheet } from '@/modules/auth/components/ProfileCompletionSheet';
 
 import { database } from '@/db';
 import FriendModel from '@/db/models/Friend';
@@ -247,6 +248,9 @@ export function GlobalModals() {
 
             {/* Performance Optimization: Keep suggestions fresh in background */}
             <BackgroundSuggestionFetcher />
+
+            {/* Profile Completion Sheet - Global Singleton */}
+            <ProfileCompletionSheet />
         </>
     );
 }

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, TextInput } from 'react-native';
-import { useRouter } from 'expo-router';
+import { router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Phone, Users, Shield, AtSign, CheckCircle2 } from 'lucide-react-native';
 import { database } from '@/db';
@@ -21,7 +21,7 @@ type Step = 'username' | 'phone';
 
 export function ProfileCompletionSheet() {
     const { colors } = useTheme();
-    const router = useRouter();
+    // const router = useRouter(); // Removed hook
     const { user } = useAuth();
     const { profile } = useUserProfile();
 

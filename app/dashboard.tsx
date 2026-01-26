@@ -14,12 +14,12 @@ import FriendsScreen from './_friends';
 import { Tooltip } from '@/shared/ui/Tooltip';
 import { useTutorialStore } from '@/shared/stores/tutorialStore';
 import { shouldSendSocialBatteryNotification } from '@/modules/notifications';
-import { ProfileCompletionSheet } from '@/modules/auth/components/ProfileCompletionSheet';
 import { AccountIncentiveModal } from '@/modules/auth/components/AccountIncentiveModal';
 import { useAccountIncentive } from '@/modules/auth/hooks/useAccountIncentive';
 import { WeaveIcon } from '@/shared/components/WeaveIcon';
 import { ActivityInboxSheet, useActivityCounts } from '@/modules/sync';
 import { TutorialAlert } from '@/shared/ui/TutorialAlert';
+import { CalendarNudgeModal, useCalendarNudge } from '@/modules/interactions';
 
 export default function Dashboard() {
     const theme = useTheme();
@@ -29,6 +29,7 @@ export default function Dashboard() {
     const [showActivityInbox, setShowActivityInbox] = useState(false);
     const { totalPendingCount, refreshCounts } = useActivityCounts();
     const { shouldShow: showAccountIncentive, dismiss: dismissAccountIncentive } = useAccountIncentive();
+    const { shouldShow: showCalendarNudge, dismiss: dismissCalendarNudge, onConnected: onCalendarConnected } = useCalendarNudge();
 
     // - 'loading': Tab selected, showing loader (HomeScreen NOT mounted yet)
     // - 'mounting': HomeScreen mounted but hidden, waiting for onReady
@@ -380,10 +381,15 @@ export default function Dashboard() {
             </SafeAreaView>
 
             <BadgeUnlockModal />
-            <ProfileCompletionSheet />
+            {/* ProfileCompletionSheet moved to GlobalModals */}
             <AccountIncentiveModal
                 isOpen={showAccountIncentive}
                 onDismiss={dismissAccountIncentive}
+            />
+            <CalendarNudgeModal
+                isOpen={showCalendarNudge}
+                onDismiss={dismissCalendarNudge}
+                onConnected={onCalendarConnected}
             />
             <ActivityInboxSheet
                 visible={showActivityInbox}
