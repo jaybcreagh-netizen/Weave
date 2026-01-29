@@ -91,11 +91,11 @@ class SuggestionEngine {
         // Momentum (6).
         this.generators.push(new MomentumGenerator());
 
-        // Deepen (8).
-        this.generators.push(new DeepenGenerator());
-
         // Maintenance (7).
         this.generators.push(new MaintenanceGenerator());
+
+        // Deepen (8).
+        this.generators.push(new DeepenGenerator());
 
         // Reciprocity (10, 11).
         this.generators.push(new ReciprocityGenerator());
