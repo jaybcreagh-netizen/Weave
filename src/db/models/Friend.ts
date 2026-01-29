@@ -20,6 +20,10 @@ export default class Friend extends Model {
     return (this.dunbarTier as Tier) || 'Community'
   }
 
+  set tier(value: Tier) {
+    this.dunbarTier = value
+  }
+
   @text('archetype') archetype!: Archetype
   @field('weave_score') weaveScore!: number
   @date('last_updated') lastUpdated!: Date

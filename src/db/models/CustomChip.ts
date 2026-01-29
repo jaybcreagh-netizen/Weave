@@ -5,7 +5,7 @@
 
 import { Model } from '@nozbe/watermelondb';
 import { field, text, readonly, date } from '@nozbe/watermelondb/decorators';
-import { ChipType } from '@/modules/reflection';
+import { ChipType, StoryChipComponent } from '@/modules/reflection/services/story-chips.service';
 
 export default class CustomChip extends Model {
   static table = 'custom_chips';
@@ -26,7 +26,7 @@ export default class CustomChip extends Model {
   @date('updated_at') updatedAt!: Date;
 
   // Components getter/setter
-  get components(): Record<string, any> | undefined {
+  get components(): Record<string, StoryChipComponent> | undefined {
     if (!this.componentsRaw) return undefined;
     try {
       return JSON.parse(this.componentsRaw);
@@ -35,7 +35,7 @@ export default class CustomChip extends Model {
     }
   }
 
-  set components(components: Record<string, any> | undefined) {
+  set components(components: Record<string, StoryChipComponent> | undefined) {
     this.componentsRaw = components ? JSON.stringify(components) : undefined;
   }
 

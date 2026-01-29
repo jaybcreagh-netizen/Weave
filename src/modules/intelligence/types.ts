@@ -16,3 +16,14 @@ export interface DecayResult {
   decayedAmount: number;
   daysSinceUpdate: number;
 }
+
+export interface WeaveUpdateData {
+  weaveScore: number;
+  lastUpdated: Date;
+  isNewerInteraction: boolean;
+  momentumScore?: number;
+  momentumLastUpdated?: Date;
+  newResilience?: number | null;
+  hasVibe: boolean;
+  pointsEarned: number;
+}

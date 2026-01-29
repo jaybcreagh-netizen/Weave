@@ -2,7 +2,8 @@ import { MAX_INTERACTION_SCORE, SCORE_BUFFER_CAP } from '../constants';
 import { Database, Q } from '@nozbe/watermelondb';
 import FriendModel from '@/db/models/Friend';
 import { type InteractionFormData } from '@/shared/types/scoring.types';
-import { type ScoreUpdate } from '../types';
+import { type ScoreUpdate, type WeaveUpdateData } from '../types';
+import NetworkHealthLog from '@/db/models/NetworkHealthLog';
 import { calculatePointsForWeave } from './scoring.service';
 import { applyDecay, calculateDecayAmount } from './decay.service';
 import { differenceInDays, isAfter } from 'date-fns';
@@ -194,9 +195,9 @@ export async function calculateWeaveScoring(
   interactionData: InteractionFormData,
   database: Database,
   season?: SocialSeason | null
-): Promise<{ scoreUpdates: ScoreUpdate[], updates: Map<string, any> }> {
+): Promise<{ scoreUpdates: ScoreUpdate[], updates: Map<string, WeaveUpdateData> }> {
   const scoreUpdates: ScoreUpdate[] = [];
-  const updates = new Map<string, any>();
+  const updates = new Map<string, WeaveUpdateData>();
 
   // 1. Pre-fetch interaction history counts for all friends
   const historyCounts = new Map<string, number>();
@@ -334,7 +335,7 @@ export async function calculateWeaveScoring(
  */
 export function applyWeaveScoringUpdates(
   friends: FriendModel[],
-  updates: Map<string, any>
+  updates: Map<string, WeaveUpdateData>
 ): any[] {
   const batchOps: any[] = [];
 
@@ -527,7 +528,7 @@ export async function logNetworkHealth(score: number, database: Database, force:
     }
 
     writeScheduler.background('Intelligence:networkHealthLog', async () => {
-      await database.get('network_health_logs').create((log: any) => {
+      await database.get<NetworkHealthLog>('network_health_logs').create((log) => {
         log.score = score;
         log.timestamp = new Date(now);
       });
