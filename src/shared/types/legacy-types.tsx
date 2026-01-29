@@ -98,6 +98,7 @@ export interface LifeEvent {
   friendId: string;
   title: string;
   date: Date; // mapped from eventDate
+  endDate?: Date;
   eventType: LifeEventType;
   description?: string;
   importance: LifeEventImportance;

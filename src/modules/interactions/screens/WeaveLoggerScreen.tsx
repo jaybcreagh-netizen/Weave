@@ -87,6 +87,7 @@ export function WeaveLoggerScreen({
     const [reflection, setReflection] = useState<StructuredReflection>({});
     const [friendArchetype, setFriendArchetype] = useState<Archetype | undefined>(undefined);
     const [title, setTitle] = useState<string>('');
+    const [location, setLocation] = useState<string>('');
     const [initiator, setInitiator] = useState<InitiatorType | undefined>(undefined);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [calendarDates, setCalendarDates] = useState<{ planned: Date[]; completed: Date[] }>({ planned: [], completed: [] });
@@ -342,6 +343,7 @@ export function WeaveLoggerScreen({
             vibe: selectedVibe,
             reflection,
             title: title.trim() || undefined,
+            location: location.trim() || undefined,
             initiator,
         };
 
@@ -746,6 +748,26 @@ export function WeaveLoggerScreen({
                                             placeholderTextColor={colors['muted-foreground']}
                                             value={title}
                                             onChangeText={setTitle}
+                                        />
+                                    </View>
+
+                                    {/* Location Field */}
+                                    <View className="mb-3">
+                                        <Text className="text-xs font-inter-semibold text-muted-foreground mb-1.5 uppercase tracking-wider" style={{ color: colors['muted-foreground'] }}>
+                                            Where?
+                                        </Text>
+                                        <TextInput
+                                            className="p-3 rounded-xl font-inter-medium text-sm"
+                                            style={{
+                                                backgroundColor: colors.card,
+                                                borderWidth: 1,
+                                                borderColor: colors.border,
+                                                color: colors.foreground,
+                                            }}
+                                            placeholder='e.g., "Blue Bottle", "Home", "The Park"'
+                                            placeholderTextColor={colors['muted-foreground']}
+                                            value={location}
+                                            onChangeText={setLocation}
                                         />
                                     </View>
 

@@ -336,7 +336,7 @@ export const FriendListRowContent = ({
               handleCardPress();
             }
           }}
-          onLongPress={() => onLongPress?.(friend as FriendModel)}
+          onLongPress={onLongPress ? () => onLongPress(friend as FriendModel) : undefined}
         >
           {/* Single gradient background - health indicator */}
           <Animated.View style={[{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }, gradientStyle]}>

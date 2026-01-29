@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb'
 
 export default appSchema({
-  version: 62, // v62: Calendar event IDs for life events and birthdays/anniversaries
+  version: 63, // v63: Add end_date and travel type to life_events
   tables: [
     // ===== ORACLE AI INFRASTRUCTURE =====
     tableSchema({
@@ -416,8 +416,9 @@ export default appSchema({
       name: 'life_events',
       columns: [
         { name: 'friend_id', type: 'string', isIndexed: true },
-        { name: 'event_type', type: 'string' }, // birthday, anniversary, new_job, moving, graduation, health_event, celebration, loss, wedding, baby, etc.
+        { name: 'event_type', type: 'string' }, // birthday, anniversary, new_job, moving, graduation, health_event, celebration, loss, wedding, baby, travel, etc.
         { name: 'event_date', type: 'number' }, // When it happened/will happen
+        { name: 'end_date', type: 'number', isOptional: true }, // For duration-based events (travel)
         { name: 'title', type: 'string' },
         { name: 'notes', type: 'string', isOptional: true },
         { name: 'importance', type: 'string' }, // low, medium, high, critical

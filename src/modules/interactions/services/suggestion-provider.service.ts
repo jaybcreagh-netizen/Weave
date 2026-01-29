@@ -31,6 +31,7 @@ import { SuggestionDataLoader } from './suggestion-system/SuggestionDataLoader';
 import { selectDiverseSuggestions } from './suggestion-system/SuggestionDiversifier';
 import { TriageGenerator } from './suggestion-engine/generators/TriageGenerator';
 import { WeeklyReflectionGenerator } from './suggestion-engine/generators/WeeklyReflectionGenerator';
+import { SignalDrivenGenerator } from './suggestion-engine/generators/SignalDrivenGenerator';
 
 /**
  * Maps proactive suggestion types to appropriate icons
@@ -215,7 +216,19 @@ export async function fetchSuggestions(
         }
         allSuggestions.push(...proactiveSuggestions);
 
-        // 5. Sunday Reflection
+        // 5. Signal-Driven Suggestions (Journal/Thread Context)
+        // Uses conversation threads, journal signals, and value alignment to generate
+        // contextual "relationship moment" suggestions
+        try {
+            const signalSuggestions = await SignalDrivenGenerator.generate(friends, contextMap, {
+                maxSuggestions: 2,
+            });
+            allSuggestions.push(...signalSuggestions);
+        } catch (error) {
+            Logger.error('[Suggestions] Error generating signal-driven suggestions', error);
+        }
+
+        // 6. Sunday Reflection
         const weeklyReflection = await WeeklyReflectionGenerator.generate();
         if (weeklyReflection) {
             allSuggestions.push(weeklyReflection);

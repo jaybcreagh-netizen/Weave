@@ -19,6 +19,7 @@ export type LifeEventType =
   | 'loss'
   | 'wedding'
   | 'baby'
+  | 'travel'
   | 'other';
 
 export type LifeEventImportance = 'low' | 'medium' | 'high' | 'critical';
@@ -81,6 +82,14 @@ export interface SuggestionTrackingContext {
   daysSinceLastInteraction: number;
 }
 
+/** Context for signal-driven suggestions (from journal signals, threads, etc.) */
+export interface SuggestionSignalContext {
+  source: 'journal' | 'thread' | 'values' | 'dynamics';
+  type: 'follow-up' | 'repair' | 'values-match' | 'reconnection' | 'deepen';
+  topic?: string;           // Thread topic or journal theme
+  daysSinceSignal?: number; // How old the signal is
+}
+
 export interface Suggestion {
   id: string;
   type: 'connect' | 'deepen' | 'reconnect' | 'celebrate' | 'reflect';
@@ -110,4 +119,7 @@ export interface Suggestion {
   // New for Phase 8: AI-enriched context
   contextSnippet?: string;
   aiEnriched?: boolean;
+  /** Signal-driven context - when suggestion comes from journal/thread signals */
+  signalContext?: SuggestionSignalContext;
 }
+

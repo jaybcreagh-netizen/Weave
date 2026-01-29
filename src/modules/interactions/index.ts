@@ -11,6 +11,7 @@ export { PlanChoiceModal } from './components/PlanChoiceModal';
 export { SuggestionCard } from './components/SuggestionCard';
 export { EventSuggestionModal } from './components/EventSuggestionModal';
 export { PlannedWeaveDetailSheet } from './components/PlannedWeaveDetailSheet';
+export { CalendarNudgeModal } from './components/CalendarNudgeModal';
 
 // Hooks
 export { useInteractions } from './hooks/useInteractions';
@@ -18,6 +19,7 @@ export { usePlans } from './hooks/usePlans';
 export { usePlanSuggestion, type PlanSuggestion } from './hooks/usePlanSuggestion';
 export { useSuggestions } from './hooks/useSuggestions';
 export { useQuickWeave } from './hooks/useQuickWeave';
+export { useCalendarNudge } from './hooks/useCalendarNudge';
 
 // Services
 export { InteractionActions } from './services/interaction.actions';

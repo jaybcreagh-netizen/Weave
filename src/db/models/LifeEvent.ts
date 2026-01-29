@@ -14,6 +14,7 @@ export type LifeEventType =
   | 'loss'
   | 'wedding'
   | 'baby'
+  | 'travel'
   | 'other';
 
 export type LifeEventImportance = 'low' | 'medium' | 'high' | 'critical';
@@ -31,6 +32,7 @@ export default class LifeEvent extends Model {
 
   @text('event_type') eventType!: LifeEventType;
   @date('event_date') eventDate!: Date;
+  @date('end_date') endDate?: Date;
   @text('title') title!: string;
   @text('notes') notes?: string;
   @text('importance') importance!: LifeEventImportance;

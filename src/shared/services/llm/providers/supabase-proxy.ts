@@ -15,6 +15,7 @@ import {
     TokenUsage,
 } from '../types'
 import { createLLMError, LLMErrorType } from '../errors'
+import { withTimeout } from '../retry'
 import { safeParseJson } from '../json-utils'
 import { logger } from '@/shared/services/logger.service'
 
@@ -69,17 +70,23 @@ export class SupabaseProxyProvider implements LLMProvider {
                 promptPreview: prompt.user?.substring(0, 100)
             })
 
-            const { data, error } = await supabase.functions.invoke(this.functionName, {
-                body: {
-                    system: prompt.system,
-                    user: prompt.user,
-                    model: this.model,
-                    temperature: options?.temperature ?? DEFAULT_TEMPERATURE,
-                    maxTokens: options?.maxTokens ?? DEFAULT_MAX_TOKENS,
-                    jsonMode: jsonModeValue,
-                    thinkingLevel: options?.thinkingLevel,
-                },
-            })
+            const timeoutMs = options?.timeoutMs || 30000
+
+            const { data, error } = await withTimeout(
+                supabase.functions.invoke(this.functionName, {
+                    body: {
+                        system: prompt.system,
+                        user: prompt.user,
+                        model: this.model,
+                        temperature: options?.temperature ?? DEFAULT_TEMPERATURE,
+                        maxTokens: options?.maxTokens ?? DEFAULT_MAX_TOKENS,
+                        jsonMode: jsonModeValue,
+                        thinkingLevel: options?.thinkingLevel,
+                    },
+                }),
+                timeoutMs,
+                'Supabase function timed out'
+            )
 
             if (error) {
                 logger.error('SupabaseProxyProvider', 'Edge function error', { error: error.message })

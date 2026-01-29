@@ -45,9 +45,9 @@ export function AddFriendMenu({
       visible={isOpen}
       onClose={onClose}
       title="Add Friends"
-      height="auto"
+      snapPoints={['50%']}
     >
-      <View className="px-6 pb-6 pt-14 gap-3">
+      <View className="px-6 pb-6 gap-3">
         {/* Add Single Friend - Opens search-first sheet */}
         <TouchableOpacity
           className="flex-row items-center gap-3 py-3.5 px-4 rounded-xl"

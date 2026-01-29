@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useDebounceCallback } from '@/shared/hooks/useDebounceCallback';
 import { View, Text, TouchableOpacity, TextInput, ScrollView, Image, StyleSheet, Modal, Alert, ActivityIndicator, Keyboard } from 'react-native';
 import { ArrowLeft, Camera, X, Users, AlertCircle, RotateCw, Handshake, Heart, Briefcase, Home, GraduationCap, Palette, MessageSquare, Mail, Phone, type LucideIcon } from 'lucide-react-native';
@@ -18,7 +18,7 @@ import { MonthDayPicker } from '@/shared/components/MonthDayPicker';
 import { NotesInputField } from '@/shared/components/NotesInputField';
 import { getTierCapacity, getTierDisplayName, isTierAtCapacity } from '@/shared/constants/constants';
 import { normalizeContactImageUri } from '../utils/image.utils';
-import { TutorialOverlay, type TutorialStep } from '@/shared/components/TutorialOverlay';
+import { SimpleTutorialTooltip } from '@/shared/components/SimpleTutorialTooltip';
 import { useTutorialStore } from '@/shared/stores/tutorialStore';
 import { validateMMDDFormat } from '@/shared/utils/validation-helpers';
 import { processAndStoreImage, getRelativePath, resolveImageUri, rotateImage } from '../services/image.service';
@@ -43,37 +43,11 @@ export function FriendForm({ onSave, friend, initialTier, fromOnboarding, onSkip
   const hasAddedFirstFriend = useTutorialStore((state) => state.hasAddedFirstFriend);
   const markFirstFriendAdded = useTutorialStore((state) => state.markFirstFriendAdded);
   const [currentTutorialStep, setCurrentTutorialStep] = useState(0);
-  const [tierSectionLayout, setTierSectionLayout] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
-  const [archetypeSectionLayout, setArchetypeSectionLayout] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
-  const tierSectionRef = useRef<View>(null);
-  const archetypeSectionRef = useRef<View>(null);
 
   // Show tutorial if user hasn't added their first friend yet (regardless of entry point)
   // Only show if the form itself is marked as visible
   const showTutorial = !hasAddedFirstFriend && !friend && visible;
 
-  const measureSection = useCallback((ref: React.RefObject<any>, setter: (layout: any) => void) => {
-    if (ref.current) {
-      ref.current.measure((x: number, y: number, width: number, height: number, pageX: number, pageY: number) => {
-        if (width > 0 && height > 0) {
-          setter({ x: pageX, y: pageY, width, height });
-        }
-      });
-    }
-  }, []);
-
-  // Monitor step changes to remeasure positions
-  useEffect(() => {
-    if (showTutorial) {
-      if (currentTutorialStep === 0) {
-        const timer = setTimeout(() => measureSection(tierSectionRef, setTierSectionLayout), 300);
-        return () => clearTimeout(timer);
-      } else if (currentTutorialStep === 1) {
-        const timer = setTimeout(() => measureSection(archetypeSectionRef, setArchetypeSectionLayout), 300);
-        return () => clearTimeout(timer);
-      }
-    }
-  }, [currentTutorialStep, showTutorial, measureSection]);
 
   // Tutorial handlers
 
@@ -496,7 +470,7 @@ export function FriendForm({ onSave, friend, initialTier, fromOnboarding, onSkip
             />
           </View>
 
-          <View ref={tierSectionRef}>
+          <View>
             <Text style={[styles.label, { color: colors.foreground }]}>Connection Tier</Text>
             <View style={styles.tierSelectorContainer}>
               {[
@@ -506,7 +480,13 @@ export function FriendForm({ onSave, friend, initialTier, fromOnboarding, onSkip
               ].map((tier) => (
                 <TouchableOpacity
                   key={tier.id}
-                  onPress={() => setFormData({ ...formData, tier: tier.id })}
+                  onPress={() => {
+                    setFormData({ ...formData, tier: tier.id });
+                    // Auto-advance tutorial if on this step
+                    if (showTutorial && currentTutorialStep === 0) {
+                      handleTutorialNext();
+                    }
+                  }}
                   style={[
                     styles.tierButton,
                     { backgroundColor: colors.card, borderColor: colors.border },
@@ -526,7 +506,7 @@ export function FriendForm({ onSave, friend, initialTier, fromOnboarding, onSkip
             </View>
           </View>
 
-          <View ref={archetypeSectionRef}>
+          <View>
             <Text style={[styles.label, { color: colors.foreground }]}>Archetype</Text>
             <Text style={[styles.helperText, { color: colors['muted-foreground'] }]}>
               Tap to select • Long-press to learn more
@@ -537,7 +517,13 @@ export function FriendForm({ onSave, friend, initialTier, fromOnboarding, onSkip
                   <ArchetypeCard
                     archetype={archetype}
                     isSelected={formData.archetype === archetype}
-                    onSelect={(arch) => setFormData({ ...formData, archetype: arch })}
+                    onSelect={(arch) => {
+                      setFormData({ ...formData, archetype: arch });
+                      // Auto-advance tutorial if on this step
+                      if (showTutorial && currentTutorialStep === 1) {
+                        handleTutorialNext();
+                      }
+                    }}
                   />
                 </View>
               ))}
@@ -812,17 +798,14 @@ export function FriendForm({ onSave, friend, initialTier, fromOnboarding, onSkip
       </Modal>
 
       {/* Tutorial Tooltip */}
-      <TutorialOverlay
+      {/* Tutorial Tooltip */}
+      <SimpleTutorialTooltip
         visible={showTutorial && currentTutorialStep !== -1}
-        step={{
-          id: `friend_form_${currentTutorialStep}`,
-          title: currentTutorialStep === 0 ? "Choose their circle" : "Discover their archetype",
-          description: currentTutorialStep === 0
-            ? "Inner circles are your closest bonds (up to 5). Close friends are important relationships (up to 15). Community holds enriching connections (up to 50)."
-            : "Each friend has a unique way of connecting. Tap to choose, or press and hold any archetype to learn more about their patterns.",
-          targetPosition: currentTutorialStep === 0 ? tierSectionLayout || undefined : archetypeSectionLayout || undefined,
-          tooltipPosition: 'top',
-        }}
+        title={currentTutorialStep === 0 ? "Choose their circle" : "Discover their archetype"}
+        description={currentTutorialStep === 0
+          ? "Inner circles are your closest bonds (up to 5). Close friends are important relationships (up to 15). Community holds enriching connections."
+          : "Each friend has a unique way of connecting. Tap to choose, or press and hold any archetype to learn more about their patterns."
+        }
         onNext={handleTutorialNext}
         onSkip={handleTutorialSkip}
         currentStep={currentTutorialStep}

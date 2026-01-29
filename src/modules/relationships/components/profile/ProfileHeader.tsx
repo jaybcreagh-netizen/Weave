@@ -17,7 +17,7 @@ interface ProfileHeaderProps {
     onEdit?: () => void;
     onDelete?: () => void;
     onGlobalCalendar?: () => void;
-    onShowBadgePopup?: () => void;
+
     onShowTierFit?: () => void;
     onLinkToWeaveUser?: () => void;
     onUnlinkFriend?: () => void;
@@ -36,7 +36,7 @@ export function ProfileHeader({
     onEdit,
     onDelete,
     onGlobalCalendar,
-    onShowBadgePopup,
+
     onShowTierFit,
     onLinkToWeaveUser,
     onUnlinkFriend,
@@ -81,7 +81,7 @@ export function ProfileHeader({
                             friend={friend}
                             variant="full"
                             onPress={onPressProfile}
-                            onLongPress={onShowBadgePopup}
+
                         />
                     </View>
                     <PatternBadge friend={friend as any} style={{ marginTop: 4, marginLeft: 4 }} />

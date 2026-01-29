@@ -1400,5 +1400,20 @@ export default schemaMigrations({
         }),
       ],
     },
+    {
+      // Migration from schema v62 to v63
+      // Add end_date to life_events for duration-based events (travel)
+      toVersion: 63,
+      steps: [
+        addColumns({
+          table: 'life_events',
+          columns: [
+            { name: 'end_date', type: 'number', isOptional: true },
+          ],
+        }),
+      ],
+    },
   ],
 });
+
+

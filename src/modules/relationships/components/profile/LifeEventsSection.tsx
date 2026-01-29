@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity } from 'react-native';
 import Animated from 'react-native-reanimated';
 import {
     Plus, Briefcase, Package, Church, Baby, Feather, Hospital,
-    GraduationCap, PartyPopper, Cake, Heart, Sparkles, type LucideIcon
+    GraduationCap, PartyPopper, Cake, Heart, Sparkles, Plane, type LucideIcon
 } from 'lucide-react-native';
 import { differenceInDays } from 'date-fns';
 import { useTheme } from '@/shared/hooks/useTheme';
@@ -21,6 +21,7 @@ const LIFE_EVENT_ICONS: Record<string, LucideIcon> = {
     celebration: PartyPopper,
     birthday: Cake,
     anniversary: Heart,
+    travel: Plane,
     other: Sparkles,
 };
 
@@ -57,10 +58,56 @@ export function LifeEventsSection({
                 {lifeEvents.length > 0 ? (
                     <View className="gap-1.5">
                         {lifeEvents.map((event) => {
-                            const daysUntil = differenceInDays(event.date, new Date());
-                            const isPastEvent = daysUntil < 0;
-                            const isUpcoming = daysUntil >= 0 && daysUntil <= 30;
+                            const now = new Date();
+                            const startDate = event.date;
+                            const endDate = event.endDate;
+
+                            let daysUntil = differenceInDays(startDate, now);
+                            let isPastEvent = false;
+                            let isUpcoming = false;
+                            let isCurrent = false;
+
+                            if (endDate) {
+                                const endDiff = differenceInDays(endDate, now);
+                                const startDiff = differenceInDays(now, startDate);
+                                // Check if we are physically ON the start or end day or between them
+                                // differenceInDays returns full days, so we might need more precise check or just trust the day diff
+                                if (startDiff >= 0 && endDiff >= 0) {
+                                    isCurrent = true;
+                                } else if (daysUntil > 0 && daysUntil <= 30) {
+                                    isUpcoming = true;
+                                } else if (endDiff < 0) {
+                                    isPastEvent = true;
+                                    daysUntil = endDiff; // For "X days ago" logic based on end date
+                                }
+                            } else {
+                                isPastEvent = daysUntil < 0;
+                                isUpcoming = daysUntil >= 0 && daysUntil <= 30;
+                            }
+
                             const IconComponent = LIFE_EVENT_ICONS[event.eventType] || Sparkles;
+
+                            // Date display string
+                            let dateDisplay = '';
+                            if (isCurrent) {
+                                dateDisplay = 'Happening now';
+                                if (endDate) {
+                                    const daysLeft = differenceInDays(endDate, now);
+                                    dateDisplay += daysLeft > 0 ? ` (${daysLeft}d left)` : ' (Ends today)';
+                                }
+                            } else if (isPastEvent) {
+                                dateDisplay = `${Math.abs(daysUntil)}d ago`;
+                            } else if (daysUntil === 0) {
+                                dateDisplay = 'Today';
+                            } else if (daysUntil === 1) {
+                                dateDisplay = 'Tomorrow';
+                            } else {
+                                dateDisplay = `${daysUntil}d`;
+                            }
+
+                            // Visualize range in date string if useful? 
+                            // e.g. "Jan 1 - Jan 5" is better than "Happening now" maybe?
+                            // Let's stick to status for now as requested "ends automatically" implies dynamic status.
 
                             return (
                                 <TouchableOpacity
@@ -69,11 +116,11 @@ export function LifeEventsSection({
                                     className="flex-row items-center p-2.5 rounded-xl gap-2.5"
                                     style={{
                                         backgroundColor: colors.muted,
-                                        borderColor: isUpcoming ? colors.primary : colors.border,
-                                        borderWidth: isUpcoming ? 1.5 : 1,
+                                        borderColor: isCurrent ? colors.primary : (isUpcoming ? colors.border : 'transparent'), // Highlight current
+                                        borderWidth: (isUpcoming || isCurrent) ? 1.5 : 0, // Border only for active/upcoming
                                     }}
                                 >
-                                    <IconComponent size={20} color={colors.primary} />
+                                    <IconComponent size={20} color={isCurrent ? colors.primary : (isUpcoming ? colors.foreground : colors['muted-foreground'])} />
                                     <View className="flex-1">
                                         <Text
                                             className="font-inter-semibold text-[13px] mb-0.5"
@@ -82,18 +129,19 @@ export function LifeEventsSection({
                                         >
                                             {event.title}
                                         </Text>
-                                        <Text
-                                            className="font-inter-regular text-[11px]"
-                                            style={{ color: colors['muted-foreground'] }}
-                                        >
-                                            {isPastEvent
-                                                ? `${Math.abs(daysUntil)}d ago`
-                                                : daysUntil === 0
-                                                    ? 'Today'
-                                                    : daysUntil === 1
-                                                        ? 'Tomorrow'
-                                                        : `${daysUntil}d`}
-                                        </Text>
+                                        <View className="flex-row items-center justify-between">
+                                            <Text
+                                                className="font-inter-regular text-[11px]"
+                                                style={{ color: isCurrent ? colors.primary : colors['muted-foreground'] }}
+                                            >
+                                                {dateDisplay}
+                                            </Text>
+                                            {endDate && (
+                                                <Text className="font-inter-regular text-[10px]" style={{ color: colors.border }}>
+                                                    {startDate.getDate()}/{startDate.getMonth() + 1} - {endDate.getDate()}/{endDate.getMonth() + 1}
+                                                </Text>
+                                            )}
+                                        </View>
                                     </View>
                                 </TouchableOpacity>
                             );

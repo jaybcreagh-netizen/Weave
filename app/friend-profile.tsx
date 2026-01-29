@@ -422,7 +422,6 @@ export default function FriendProfile() {
                   onEdit={handleEdit}
                   onDelete={handleDeleteFriend}
                   onGlobalCalendar={() => router.push(`/global-calendar?fromFriendId=${friend.id}`)}
-                  onShowBadgePopup={() => modals.setShowBadgePopup(true)}
                   onShowTierFit={() => modals.setShowTierFitSheet(true)}
                   onLinkToWeaveUser={() => setShowLinkSheet(true)}
                   onUnlinkFriend={handleUnlinkFriend}

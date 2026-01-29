@@ -299,16 +299,16 @@ class OracleService {
             contextTier: session.contextTier
         })
 
-        // 4. Call LLM Stream
-        const stream = llmService.completeStream({
-            system: systemPromptWithTone,
-            user: finalPrompt,
-        }, { ...promptDef.defaultOptions, jsonMode: true }) // Force JSON mode for better streaming parsing
-
         let fullRawText = ''
         let lastYieldedTextLength = 0
 
         try {
+            // 4. Call LLM Stream
+            const stream = llmService.completeStream({
+                system: systemPromptWithTone,
+                user: finalPrompt,
+            }, { ...promptDef.defaultOptions, jsonMode: true }) // Force JSON mode for better streaming parsing
+
             for await (const chunk of stream) {
                 fullRawText += chunk.text
 
@@ -332,10 +332,31 @@ class OracleService {
                 }
             }
         } catch (e) {
-            logger.error('OracleService', 'Streaming failed', e)
-            // Continue to parsing what we have or re-throwing?
-            // If we have some text, we might want to save it.
-            if (!fullRawText) throw e
+            logger.warn('OracleService', 'Streaming failed or unsupported, falling back to standard request', e)
+
+            // If we haven't received any meaningful text yet, fallback to non-streaming
+            if (!fullRawText || fullRawText.length < 10) {
+                try {
+                    const response = await llmService.complete({
+                        system: systemPromptWithTone,
+                        user: finalPrompt,
+                    }, promptDef.defaultOptions)
+
+                    fullRawText = response.text
+
+                    // Parse text from response to yield it cleanly
+                    // (Reuse parsing logic for consistent UX if it's JSON)
+                    const tempParsed = this.parseResponse(fullRawText)
+                    yield tempParsed.text
+                } catch (fallbackError) {
+                    logger.error('OracleService', 'Fallback request also failed', fallbackError)
+                    throw fallbackError
+                }
+            } else {
+                // We had partial content but stream broke. Just rethrow or use what we have.
+                // For now, let's assume if we have content, we try to use it.
+                if (!fullRawText) throw e
+            }
         }
 
         // 5. Parse Final Response

@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useBufferedInput } from '@/shared/hooks/useBufferedInput';
-import { View, Text, TouchableOpacity, Modal, TextInput, ScrollView, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, Modal, TextInput, ScrollView, Alert, Switch } from 'react-native';
 import { BlurView } from 'expo-blur';
 import {
   X, Calendar, Briefcase, Package, Church, Baby, Feather, Hospital,
-  GraduationCap, PartyPopper, Sparkles, type LucideIcon
+  GraduationCap, PartyPopper, Sparkles, Plane, type LucideIcon
 } from 'lucide-react-native';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { useTheme } from '@/shared/hooks/useTheme';
@@ -39,6 +39,7 @@ const EVENT_TYPES: Array<{ value: LifeEventType; label: string; icon: LucideIcon
   { value: 'health_event', label: 'Health Event', icon: Hospital },
   { value: 'graduation', label: 'Graduation', icon: GraduationCap },
   { value: 'celebration', label: 'Milestone/Achievement', icon: PartyPopper },
+  { value: 'travel', label: 'Travel', icon: Plane },
   { value: 'other', label: 'Other', icon: Sparkles },
 ];
 
@@ -58,10 +59,13 @@ export const LifeEventModal: React.FC<LifeEventModalProps> = ({
   const { colors, isDarkMode } = useTheme();
   const [eventType, setEventType] = useState<LifeEventType>(existingEvent?.eventType || 'other');
   const [eventDate, setEventDate] = useState<Date>(existingEvent?.date || startOfDay(new Date()));
+  const [endDate, setEndDate] = useState<Date | undefined>(existingEvent?.endDate);
+  const [isRange, setIsRange] = useState(!!existingEvent?.endDate);
   const [title, setTitle] = useState(existingEvent?.title || '');
   const [notes, setNotes] = useState(existingEvent?.description || '');
   const [importance, setImportance] = useState<LifeEventImportance>(existingEvent?.importance || 'medium');
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [pickingDateType, setPickingDateType] = useState<'start' | 'end'>('start');
   const [isSaving, setIsSaving] = useState(false);
 
   // Buffered inputs to prevent typing flickering
@@ -73,6 +77,8 @@ export const LifeEventModal: React.FC<LifeEventModalProps> = ({
       if (existingEvent) {
         setEventType(existingEvent.eventType);
         setEventDate(existingEvent.date || startOfDay(new Date()));
+        setEndDate(existingEvent.endDate);
+        setIsRange(!!existingEvent.endDate);
         setTitle(existingEvent.title);
         setNotes(existingEvent.description || '');
         setImportance(existingEvent.importance);
@@ -80,6 +86,8 @@ export const LifeEventModal: React.FC<LifeEventModalProps> = ({
         // Reset to defaults for new event
         setEventType('other');
         setEventDate(startOfDay(new Date()));
+        setEndDate(undefined);
+        setIsRange(false);
         setTitle('');
         setNotes('');
         setImportance('medium');
@@ -88,7 +96,22 @@ export const LifeEventModal: React.FC<LifeEventModalProps> = ({
   }, [visible, existingEvent]);
 
   const handleDateSelect = (date: Date) => {
-    setEventDate(startOfDay(date));
+    if (pickingDateType === 'start') {
+      const newStart = startOfDay(date);
+      setEventDate(newStart);
+      // Auto-adjust end date if needed
+      if (endDate && newStart > endDate) {
+        setEndDate(newStart);
+      }
+    } else {
+      const newEnd = startOfDay(date);
+      // Ensure end date is not before start date
+      if (newEnd < eventDate) {
+        setEndDate(eventDate);
+      } else {
+        setEndDate(newEnd);
+      }
+    }
     setShowDatePicker(false);
   };
 
@@ -110,6 +133,7 @@ export const LifeEventModal: React.FC<LifeEventModalProps> = ({
             eventTitle,
             eventType,
             eventDate: startOfDay(eventDate),
+            endDate: isRange && endDate ? startOfDay(endDate) : undefined,
             notes: notes.trim(),
           });
         }
@@ -118,6 +142,7 @@ export const LifeEventModal: React.FC<LifeEventModalProps> = ({
           await eventModel.update(event => {
             event.eventType = eventType;
             event.eventDate = startOfDay(eventDate);
+            event.endDate = isRange && endDate ? startOfDay(endDate) : undefined;
             event.title = eventTitle;
             event.notes = notes.trim();
             event.importance = importance;
@@ -130,6 +155,7 @@ export const LifeEventModal: React.FC<LifeEventModalProps> = ({
           eventType,
           eventTitle,
           eventDate: startOfDay(eventDate),
+          endDate: isRange && endDate ? startOfDay(endDate) : undefined,
           notes: notes.trim(),
         });
 
@@ -139,6 +165,7 @@ export const LifeEventModal: React.FC<LifeEventModalProps> = ({
             event.friendId = friendId;
             event.eventType = eventType;
             event.eventDate = startOfDay(eventDate);
+            event.endDate = isRange && endDate ? startOfDay(endDate) : undefined;
             event.title = eventTitle;
             event.notes = notes.trim();
             event.importance = importance;
@@ -281,20 +308,69 @@ export const LifeEventModal: React.FC<LifeEventModalProps> = ({
             style={{ backgroundColor: colors.muted, color: colors.foreground }}
           />
 
-          {/* Date */}
-          <Text className="font-inter-semibold text-sm mb-2" style={{ color: colors.foreground }}>
-            Date
-          </Text>
-          <TouchableOpacity
-            onPress={() => setShowDatePicker(true)}
-            className="p-4 rounded-xl mb-4 flex-row items-center gap-3"
-            style={{ backgroundColor: colors.muted }}
-          >
-            <Calendar size={20} color={colors['muted-foreground']} />
-            <Text className="font-inter-regular text-base flex-1" style={{ color: colors.foreground }}>
-              {eventDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+          <View className="flex-row items-center justify-between mb-2">
+            <Text className="font-inter-semibold text-sm" style={{ color: colors.foreground }}>
+              Date
             </Text>
-          </TouchableOpacity>
+            <View className="flex-row items-center gap-2">
+              <Text className="font-inter-regular text-xs" style={{ color: colors['muted-foreground'] }}>
+                Date Range
+              </Text>
+              <Switch
+                value={isRange}
+                onValueChange={(val) => {
+                  setIsRange(val);
+                  if (val && !endDate) {
+                    setEndDate(eventDate);
+                  }
+                }}
+                trackColor={{ false: colors.muted, true: colors.primary }}
+                thumbColor={'white'}
+              />
+            </View>
+          </View>
+
+          <View className="flex-row gap-3">
+            <TouchableOpacity
+              onPress={() => {
+                setPickingDateType('start');
+                setShowDatePicker(true);
+              }}
+              className="p-4 rounded-xl mb-4 flex-row items-center gap-3 flex-1"
+              style={{ backgroundColor: colors.muted }}
+            >
+              <Calendar size={20} color={colors['muted-foreground']} />
+              <View>
+                <Text className="font-inter-regular text-xs mb-0.5" style={{ color: colors['muted-foreground'] }}>
+                  Start
+                </Text>
+                <Text className="font-inter-regular text-base" style={{ color: colors.foreground }}>
+                  {eventDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            {isRange && (
+              <TouchableOpacity
+                onPress={() => {
+                  setPickingDateType('end');
+                  setShowDatePicker(true);
+                }}
+                className="p-4 rounded-xl mb-4 flex-row items-center gap-3 flex-1"
+                style={{ backgroundColor: colors.muted }}
+              >
+                <Calendar size={20} color={colors['muted-foreground']} />
+                <View>
+                  <Text className="font-inter-regular text-xs mb-0.5" style={{ color: colors['muted-foreground'] }}>
+                    End
+                  </Text>
+                  <Text className="font-inter-regular text-base" style={{ color: colors.foreground }}>
+                    {endDate ? endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Pick date'}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            )}
+          </View>
 
 
 
@@ -363,9 +439,9 @@ export const LifeEventModal: React.FC<LifeEventModalProps> = ({
 
             <View className="px-4">
               <CustomCalendar
-                selectedDate={eventDate}
+                selectedDate={pickingDateType === 'start' ? eventDate : (endDate || eventDate)}
                 onDateSelect={handleDateSelect}
-                minDate={undefined}
+                minDate={pickingDateType === 'end' ? eventDate : undefined}
               />
             </View>
           </View>

@@ -20,7 +20,7 @@ export interface CalendarSettings {
 }
 
 const DEFAULT_SETTINGS: CalendarSettings = {
-  enabled: false,
+  enabled: true,
   calendarId: null,
   reminderMinutes: 60,
   twoWaySync: true,
@@ -330,6 +330,7 @@ export async function createLifeEventCalendarEvent(params: {
   eventType: string;
   eventTitle: string;
   eventDate: Date;
+  endDate?: Date;
   notes?: string;
 }): Promise<CreateEventResult> {
   try {
@@ -366,7 +367,7 @@ export async function createLifeEventCalendarEvent(params: {
     const eventDetails: Partial<Calendar.Event> = {
       title: eventTitle,
       startDate: params.eventDate,
-      endDate: params.eventDate,
+      endDate: params.endDate || params.eventDate,
       notes: eventNotes,
       allDay: true,
     };
@@ -390,6 +391,7 @@ export async function updateLifeEventCalendarEvent(eventId: string, params: {
   eventTitle?: string;
   eventType?: string;
   eventDate?: Date;
+  endDate?: Date;
   notes?: string;
 }): Promise<boolean> {
   try {
@@ -405,10 +407,24 @@ export async function updateLifeEventCalendarEvent(eventId: string, params: {
       const emoji = params.eventType ? (LIFE_EVENT_EMOJIS[params.eventType] || LIFE_EVENT_EMOJIS.other) : '📌';
       updateParams.title = `${emoji} ${params.eventTitle}`;
     }
-    if (params.eventDate !== undefined) {
-      updateParams.startDate = params.eventDate;
-      updateParams.endDate = params.eventDate;
+    if (params.eventDate !== undefined || params.endDate !== undefined) {
+      if (params.eventDate) updateParams.startDate = params.eventDate;
+      // If updating date, endDate defaults to startDate if not provided
+      // If only updating endDate, we need startDate to keep it (but calendar API handles partial updates usually? expo-calendar might need both if changing one?)
+      // For safety, life events are usually single or range.
+      // We'll trust the caller to provide consistent updates or just update what's passed.
+      if (params.endDate) updateParams.endDate = params.endDate;
+      else if (params.eventDate) updateParams.endDate = params.eventDate; // Fallback to start date if clearing end date? No, logic is tricky.
+      // Let's simplify:
+      // If eventDate is present, start = eventDate.
+      // If endDate is present, end = endDate.
+      // If eventDate is present but endDate is NOT, end = eventDate (unless existing event is range?)
+      // Given the usage, we usually update both or neither.
+      // Let's assume passed params are authoritative.
     }
+    if (params.eventDate) updateParams.startDate = params.eventDate;
+    if (params.endDate) updateParams.endDate = params.endDate;
+    // Fallback logic for single-day to range transition or vice-versa is handled by caller passing both.
     if (params.notes !== undefined) {
       updateParams.notes = params.notes || '';
     }

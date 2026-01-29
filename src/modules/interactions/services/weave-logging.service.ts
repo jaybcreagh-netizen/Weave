@@ -46,6 +46,9 @@ export async function logWeave(data: InteractionFormData): Promise<Interaction> 
             if (data.title) {
                 interaction.title = data.title;
             }
+            if (data.location) {
+                interaction.location = data.location;
+            }
             if (data.category) {
                 interaction.interactionCategory = data.category;
             }

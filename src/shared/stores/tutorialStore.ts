@@ -22,6 +22,7 @@ interface TutorialState {
   hasSeenFirstPlanCongrats: boolean;
   hasSeenFirstLogColorChange: boolean;
   hasSeenFirstInsights: boolean;
+  hasSeenCalendarNudge: boolean;
 
   // Helper
   persistState: (updates: Partial<TutorialState>) => Promise<void>;
@@ -45,6 +46,7 @@ interface TutorialState {
   markFirstPlanCongratsSeen: () => Promise<void>;
   markFirstLogColorChangeSeen: () => Promise<void>;
   markFirstInsightsSeen: () => Promise<void>;
+  markCalendarNudgeSeen: () => Promise<void>;
 
   // Utilities
   resetTutorials: () => Promise<void>;
@@ -73,6 +75,7 @@ export const useTutorialStore = create<TutorialState>((set, get) => ({
   hasSeenFirstPlanCongrats: false,
   hasSeenFirstLogColorChange: false,
   hasSeenFirstInsights: false,
+  hasSeenCalendarNudge: false,
 
   // Helper to persist state
   persistState: async (updates: Partial<TutorialState>) => {
@@ -180,6 +183,11 @@ export const useTutorialStore = create<TutorialState>((set, get) => ({
     await persistState({ hasSeenFirstInsights: true });
   },
 
+  markCalendarNudgeSeen: async () => {
+    const { persistState } = get();
+    await persistState({ hasSeenCalendarNudge: true });
+  },
+
   resetTutorials: async () => {
     try {
       await AsyncStorage.removeItem(STORAGE_KEY);
@@ -202,6 +210,7 @@ export const useTutorialStore = create<TutorialState>((set, get) => ({
         hasSeenFirstPlanCongrats: false,
         hasSeenFirstLogColorChange: false,
         hasSeenFirstInsights: false,
+        hasSeenCalendarNudge: false,
       });
     } catch (error) {
       console.error('Failed to reset tutorial state:', error);

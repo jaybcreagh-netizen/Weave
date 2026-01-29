@@ -37,7 +37,15 @@ export function ContactDiscoverySheet({ visible, onClose }: ContactDiscoveryShee
     const handleScan = async () => {
         setLoading(true);
         try {
-            const results = await ContactMatchingService.findMatches();
+            // 15 second timeout safety
+            const timeoutPromise = new Promise<ContactMatch[]>((_, reject) =>
+                setTimeout(() => reject(new Error('Scan timed out')), 15000)
+            );
+
+            const results = await Promise.race([
+                ContactMatchingService.findMatches(),
+                timeoutPromise
+            ]);
             // Filter out self if phone is linked
             // Filter out already sent requests (client side filter for now)
             setMatches(results);

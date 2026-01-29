@@ -64,25 +64,45 @@ export class ContactMatchingService {
             console.log(`[ContactMatching] Found ${contacts.length} contacts`);
 
             const phoneMap = new Map<string, Contacts.Contact>();
-            const hashes: string[] = [];
             const hashToPlainPhone = new Map<string, string>();
+            const uniqueNumbers = new Set<string>();
+            const numberToContact = new Map<string, Contacts.Contact>();
 
+            // 1. Normalize and Deduplicate
             for (const contact of contacts) {
                 if (!contact.phoneNumbers || contact.phoneNumbers.length === 0) continue;
 
                 for (const phoneNumber of contact.phoneNumbers) {
                     const normalized = this.normalizePhone(phoneNumber.number || '');
                     if (normalized) {
-                        const hash = await this.hashPhone(normalized);
-                        hashes.push(hash);
-                        // Map hash back to the contact so we can display their name
-                        // We use the first valid number for simplicity
-                        if (!phoneMap.has(hash)) {
-                            phoneMap.set(hash, contact);
-                            hashToPlainPhone.set(hash, normalized); // Store normalized plain phone for results
+                        uniqueNumbers.add(normalized);
+                        // Store mapping to any contact having this number (first one wins for display)
+                        if (!numberToContact.has(normalized)) {
+                            numberToContact.set(normalized, contact);
                         }
                     }
                 }
+            }
+
+            console.log(`[ContactMatching] Processing ${uniqueNumbers.size} unique numbers...`);
+
+            // 2. Hash in Parallel (batches of 50 to be safe with bridge)
+            const uniqueArray = Array.from(uniqueNumbers);
+            const batchSize = 50;
+            const hashes: string[] = [];
+
+            for (let i = 0; i < uniqueArray.length; i += batchSize) {
+                const batch = uniqueArray.slice(i, i + batchSize);
+                const batchHashes = await Promise.all(
+                    batch.map(async (phone) => {
+                        const hash = await this.hashPhone(phone);
+                        // Store mappings
+                        phoneMap.set(hash, numberToContact.get(phone)!);
+                        hashToPlainPhone.set(hash, phone);
+                        return hash;
+                    })
+                );
+                hashes.push(...batchHashes);
             }
 
             console.log(`[ContactMatching] Hashed ${hashes.length} numbers. Sending to server...`);

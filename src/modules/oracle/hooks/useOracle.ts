@@ -92,8 +92,21 @@ export function useOracle(): UseOracleResult {
 
     const handleError = (err: any) => {
         logger.error('useOracle', 'Failed to ask Oracle', err)
-        if (err instanceof Error && err.message === 'ORACLE_RATE_LIMIT_EXCEEDED') {
+
+        // Check for specific LLM errors by type or message content
+        const errType = err?.type
+        const errMsg = err?.message?.toLowerCase() || ''
+
+        if (errType === 'auth_failed' || errMsg.includes('api key') || errMsg.includes('unauthorized') || errMsg.includes('403')) {
+            setError('Authentication failed. Please check your API Key in Settings > Developer.')
+        } else if (err.message === 'ORACLE_RATE_LIMIT_EXCEEDED' || errType === 'rate_limited' || errMsg.includes('quota')) {
             setError('You have reached your daily limit of questions.')
+        } else if (errType === 'timeout' || errMsg.includes('timed out')) {
+            setError('The Oracle is taking too long to respond. Please try again.')
+        } else if (errType === 'server_error' || errMsg.includes('500') || errMsg.includes('503')) {
+            setError('The Oracle is currently unavailable. Please try again later.')
+        } else if (errType === 'network_error' || errMsg.includes('network')) {
+            setError('Network connection lost. Please check your internet.')
         } else {
             setError('The Oracle is meditating. Please try again later.')
         }
