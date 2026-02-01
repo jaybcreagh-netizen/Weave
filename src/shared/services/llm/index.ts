@@ -45,6 +45,9 @@ export * from './prompt-registry'
 // Main service
 export { LLMService, llmService, type QualityLogEntry } from './llm-service'
 
+// Request queue (for concurrency control)
+export { llmRequestQueue, type RequestPriority, type QueueOptions } from './request-queue'
+
 // Configuration
 export {
     llmConfigManager,

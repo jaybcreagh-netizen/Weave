@@ -1,8 +1,9 @@
 import * as Calendar from 'expo-calendar';
-import { Linking, Alert } from 'react-native';
+import { Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { database } from '@/db';
 import { logger } from '@/shared/services/logger.service';
+import { safeOpenSettings } from '@/shared/utils/linking-utils';
 import Interaction from '@/db/models/Interaction';
 import InteractionFriend from '@/db/models/InteractionFriend';
 import FriendModel from '@/db/models/Friend';
@@ -64,7 +65,7 @@ export async function requestCalendarPermissions(): Promise<boolean> {
         'Please enable calendar access in your device Settings.',
         [
           { text: 'Cancel', style: 'cancel' },
-          { text: 'Open Settings', onPress: () => Linking.openSettings() },
+          { text: 'Open Settings', onPress: () => safeOpenSettings() },
         ]
       );
       return false;

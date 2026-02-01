@@ -212,11 +212,11 @@ class OracleService {
             contextTier: session.contextTier
         })
 
-        // 4. Call LLM
+        // 4. Call LLM (high priority - interactive user request)
         const response = await llmService.complete({
             system: systemPromptWithTone,
             user: finalPrompt,
-        }, promptDef.defaultOptions)
+        }, { ...promptDef.defaultOptions, priority: 'high' })
 
         // 5. Parse structured response
         const parsed = this.parseResponse(response.text)
@@ -340,7 +340,7 @@ class OracleService {
                     const response = await llmService.complete({
                         system: systemPromptWithTone,
                         user: finalPrompt,
-                    }, promptDef.defaultOptions)
+                    }, { ...promptDef.defaultOptions, priority: 'high' })
 
                     fullRawText = response.text
 
@@ -1178,18 +1178,47 @@ class OracleService {
             const promptDef = getPrompt('oracle_starter_prompts')
             if (!promptDef) throw new Error('Starter prompts prompt not found')
 
-            // Format context for prompt
+            // === RICH CONTEXT PREPARATION ===
             const topFriends = context.friends
                 .slice(0, 3)
                 .map(f => f.name)
                 .join(', ') || 'None'
 
+            // Find drifting friend (highest need of attention)
+            // We use socialHealth context if available, or just heuristic
+            let driftingFriend = 'None'
+            if (context.socialHealth.needingAttentionCount > 0) {
+                // We don't have the specific names in context.socialHealth, but we can check context.friends
+                // which might contain "needing attention" ones if built using default builder logic
+                const drift = context.friends.find(f =>
+                    f.stats?.lastMet && (f.stats.lastMet.includes('weeks') || f.stats.lastMet.includes('months'))
+                )
+                if (drift) driftingFriend = `${drift.name} (Last seen: ${drift.stats!.lastMet})`
+            }
+
+            // Find upcoming events
+            const upcomingEvents = context.userProfile.upcomingLifeEvents
+                .slice(0, 2)
+                .map(e => `${e.title} (${e.friendName})`)
+                .join(', ') || 'None'
+
+            // Day of week
+            const dayOfWeek = new Date().toLocaleDateString('en-US', { weekday: 'long' })
+
+            // Analyze activity pattern
+            // Heuristic from context if available, otherwise generic
+            const activityPattern = context.venueAndActivitySuggestions?.seasonAdapted
+                ? (context.recentJournaling.length > 0 ? "Active journaling" : "Quiet")
+                : "Standard"
+
             const interpolatedUserPrompt = interpolatePrompt(promptDef.userPromptTemplate, {
+                dayOfWeek,
                 socialSeason: context.userProfile.socialSeason,
                 socialBatteryTrend: context.userProfile.socialBattery.trend,
                 socialBatteryLevel: context.userProfile.socialBattery.current,
-                needingAttentionCount: context.socialHealth.needingAttentionCount.toString(),
-                recentSentiment: context.recentJournaling?.[0]?.sentiment === 'reflective' ? 'Reflective' : 'Neutral',
+                activityPattern,
+                driftingFriend,
+                upcomingEvents,
                 topFriends
             })
 
@@ -1220,7 +1249,7 @@ class OracleService {
     }
 
     /**
-     * Fallback static prompts
+     * Fallback static prompts - Natural, short questions
      */
     private _getStaticStarterPrompts(context: OracleContext): { text: string, icon: string, prompt?: string }[] {
         const prompts: { text: string, icon: string, prompt?: string }[] = []
@@ -1228,13 +1257,13 @@ class OracleService {
         // Social season awareness
         if (context.userProfile.socialSeason === 'resting') {
             prompts.push({
-                text: "Reflect on my 'Resting' season",
+                text: "Why am I tired?",
                 prompt: "My social season is currently 'Resting'. Help me check in with my energy levels and reflect on my need for rest.",
                 icon: 'battery-low'
             })
         } else if (context.userProfile.socialSeason === 'blooming') {
             prompts.push({
-                text: "Analyze my social momentum",
+                text: "Is this momentum?",
                 prompt: "My social season is currently 'Blooming' and I have momentum. Help me reflect on how this feels and how to channel this energy sustainably.",
                 icon: 'sparkles'
             })
@@ -1244,22 +1273,27 @@ class OracleService {
         if (context.socialHealth.needingAttentionCount > 0) {
             const count = context.socialHealth.needingAttentionCount
             prompts.push({
-                text: "Who am I losing touch with?",
+                text: "Anyone drifting?",
                 prompt: `I have ${count} friends who haven't heard from me in a while. Help me identify who they might be and draft a quick message to one of them.`,
                 icon: 'users'
             })
         }
 
-        // Specific friend drift (highest priority one)
-        // We'd need to find drifting friends from context.friends if we had that detail exposed easily
-        // context.friends are generic FriendOracleContext.
-        // Let's assume we can check socialHealth or just pick a random specific prompt if we have data.
+        // Check for specific upcoming events (fallback check)
+        if (context.userProfile.upcomingLifeEvents.length > 0) {
+            const event = context.userProfile.upcomingLifeEvents[0]
+            prompts.push({
+                text: `Plans for ${event.friendName}?`,
+                prompt: `I have an upcoming event: ${event.title} for ${event.friendName}. Give me some ideas on how to celebrate or prepare.`,
+                icon: 'sparkles'
+            })
+        }
 
         // Recent journal sentiment
         const recentJournal = context.recentJournaling?.[0]
         if (recentJournal?.sentiment === 'reflective') {
             prompts.push({
-                text: "Go deeper on my last entry",
+                text: "Go deeper?",
                 prompt: "My last journal entry was quite reflective. Help me expand on those thoughts and go deeper.",
                 icon: 'book-open'
             })
@@ -1268,16 +1302,16 @@ class OracleService {
         // Battery trend
         if (context.userProfile.socialBattery.trend === 'Draining') {
             prompts.push({
-                text: "My battery is draining - help?",
+                text: "Why am I drained?",
                 prompt: "My social battery has been draining recently. Suggest some ways I can recharge or protect my energy.",
                 icon: 'battery-charging'
             })
         }
 
-        // Fallback generic prompts if none matched (or to fill up)
+        // Fallback generic natural prompts
         const fallbacks = [
             {
-                text: "I need to vent...",
+                text: "Need to vent?",
                 prompt: "I want to vent or process something. Ask me what's on my mind.",
                 icon: 'message-circle'
             },
@@ -1287,9 +1321,14 @@ class OracleService {
                 icon: 'phone'
             },
             {
-                text: "Check my social battery",
+                text: "Check my battery?",
                 prompt: "Help me assess my current social energy levels.",
                 icon: 'battery'
+            },
+            {
+                text: "Weekend plans?",
+                prompt: "Help me figure out what to do this weekend based on my mood and energy.",
+                icon: 'sparkles'
             }
         ]
 
@@ -1632,7 +1671,8 @@ Output JSON: { "headline": "...", "body": "..." }
                 system: "You're a casual, warm friend helping someone stay connected with the people they care about. Keep it brief and real.",
                 user: prompt
             }, {
-                jsonMode: true
+                jsonMode: true,
+                priority: 'low'  // Background task - don't block interactive requests
             })
 
             const result = JSON.parse(response.text)
@@ -1861,7 +1901,7 @@ Output JSON: { "headline": "...", "body": "..." }
             const response = await llmService.complete({
                 system: `You are a wise relationship companion. ${toneModifier}`,
                 user: prompt
-            })
+            }, { priority: 'low' })  // Background task - don't block interactive requests
 
             const polishedText = response.text.trim().replace(/^["']|["']$/g, '')
             if (!polishedText) return
@@ -2131,6 +2171,76 @@ Output JSON: { "headline": "...", "body": "..." }
             logger.error('OracleService', 'Failed to generate fallback insight', e)
         }
     }
+    /**
+     * Generate a narrative summary for a friendship
+     */
+    async generateFriendshipNarrative(context: {
+        friendName: string;
+        currentChapter: string;
+        moments: string[];
+        yearsKnown: number;
+        totalInteractions: number;
+        recentActivities: string[];
+        commonVibes: string[];
+        avgDurationMinutes: number;
+        avgCadenceDays: number;
+        tier: string;
+        archetype: string;
+        journalSnippets: string[];
+    }): Promise<string> {
+        const prompt = `
+You are helping the user gain insight into what this friendship means to them.
+
+Friend: ${context.friendName}
+Tier: ${context.tier} (shows how close user considers them)
+Archetype: ${context.archetype} (the energy of this friendship)
+Time Known: ${context.yearsKnown.toFixed(1)} years
+Total Shared Moments: ${context.totalInteractions}
+
+What you do together:
+${context.recentActivities.length > 0 ? context.recentActivities.join(', ') : 'Not enough data'}
+
+How it feels:
+${context.commonVibes.length > 0 ? context.commonVibes.join(', ') : 'Not rated yet'}
+
+Your recent thoughts about ${context.friendName} (from journal):
+${context.journalSnippets.length > 0 ? context.journalSnippets.map((s, i) => `${i + 1}. "${s}..."`).join('\n') : 'No journal entries yet'}
+
+Interaction rhythm: ${context.avgCadenceDays > 0 ? `Every ~${context.avgCadenceDays} days` : 'Irregular'}
+Typical hangout length: ${context.avgDurationMinutes > 0 ? `${context.avgDurationMinutes} minutes` : 'Varies'}
+
+Based on this data, write 2-3 sentences that help the user see:
+1. **What this friend is to them** - their role, what they bring to the user's life
+2. **What they do together** - reference specific activities and how they connect
+3. **How they support each other** - draw from journal sentiment, vibes, archetype energy
+
+Write it as a **personal insight**, like something the user might realize about this friendship but hasn't articulated yet. Be warm but grounded. Use "you" to address the user.
+
+**Style notes:**
+- Use simple punctuation (periods, commas). No em dashes (—).
+- Keep sentences clear and direct.
+
+Example:
+"Jamie is your steady anchor. When life gets chaotic, you know you can text them and end up on a walk within the hour. These aren't long, intense conversations. They're reliably calm check-ins that reset your baseline."
+
+Write the insight now:
+`;
+
+        try {
+            const response = await llmService.complete({
+                system: 'You help people understand what their friendships mean to them. Be insightful, warm, and specific.',
+                user: prompt
+            }, {
+                temperature: 0.7
+            });
+
+            return response.text || (response as any).content || `${context.friendName} brings a unique presence to your life.`;
+        } catch (error) {
+            console.warn('OracleService: Failed to generate friendship narrative', error);
+            return `You and ${context.friendName} have a unique dynamic that's still unfolding.`;
+        }
+    }
 }
+
 
 export const oracleService = new OracleService()

@@ -24,6 +24,7 @@ import { LLMError, classifyError, USER_ERROR_MESSAGES } from './errors'
 import { withRetry, RetryConfig } from './retry'
 import { getPrompt, buildPrompt, getPromptVersion } from './prompt-registry'
 import { logger } from '@/shared/services/logger.service'
+import { llmRequestQueue, RequestPriority, QueueOptions } from './request-queue'
 
 // ============================================================================
 // LLM Service Class
@@ -79,6 +80,11 @@ export class LLMService {
 
     /**
      * Complete a prompt using the LLM
+     *
+     * @param options.priority - Request priority: 'high' for interactive (Oracle chat),
+     *                          'normal' for standard, 'low' for background tasks
+     * @param options.useQueue - Whether to use request queue (default: true).
+     *                          Set to false for streaming or when queue is already used.
      */
     async complete(
         prompt: LLMPrompt,
@@ -86,6 +92,10 @@ export class LLMService {
             retryConfig?: Partial<RetryConfig>
             /** Skip quality logging (used by registry methods to avoid double-logging) */
             skipQualityLog?: boolean
+            /** Request priority for queue ordering */
+            priority?: RequestPriority
+            /** Bypass the request queue (default: false) */
+            skipQueue?: boolean
         }
     ): Promise<LLMResponse> {
         const provider = this.getProvider(options?.provider)
@@ -93,6 +103,31 @@ export class LLMService {
             throw classifyError(new Error('No LLM provider available'), 'service')
         }
 
+        // Use queue by default to prevent concurrent request issues
+        if (!options?.skipQueue) {
+            return llmRequestQueue.enqueue(
+                () => this.completeInternal(provider, prompt, options),
+                {
+                    priority: options?.priority || 'normal',
+                    timeoutMs: options?.timeoutMs,
+                }
+            )
+        }
+
+        return this.completeInternal(provider, prompt, options)
+    }
+
+    /**
+     * Internal completion logic (called directly or via queue)
+     */
+    private async completeInternal(
+        provider: LLMProvider,
+        prompt: LLMPrompt,
+        options?: LLMOptions & {
+            retryConfig?: Partial<RetryConfig>
+            skipQualityLog?: boolean
+        }
+    ): Promise<LLMResponse> {
         const startTime = Date.now()
 
         try {
@@ -200,13 +235,42 @@ export class LLMService {
     async completeStructured<T>(
         prompt: LLMPrompt,
         schema: JSONSchema,
-        options?: LLMOptions & { retryConfig?: Partial<RetryConfig> }
+        options?: LLMOptions & {
+            retryConfig?: Partial<RetryConfig>
+            /** Request priority for queue ordering */
+            priority?: RequestPriority
+            /** Bypass the request queue (default: false) */
+            skipQueue?: boolean
+        }
     ): Promise<LLMStructuredResponse<T>> {
         const provider = this.getProvider(options?.provider)
         if (!provider) {
             throw classifyError(new Error('No LLM provider available'), 'service')
         }
 
+        // Use queue by default
+        if (!options?.skipQueue) {
+            return llmRequestQueue.enqueue(
+                () => this.completeStructuredInternal<T>(provider, prompt, schema, options),
+                {
+                    priority: options?.priority || 'normal',
+                    timeoutMs: options?.timeoutMs,
+                }
+            )
+        }
+
+        return this.completeStructuredInternal<T>(provider, prompt, schema, options)
+    }
+
+    /**
+     * Internal structured completion logic
+     */
+    private async completeStructuredInternal<T>(
+        provider: LLMProvider,
+        prompt: LLMPrompt,
+        schema: JSONSchema,
+        options?: LLMOptions & { retryConfig?: Partial<RetryConfig> }
+    ): Promise<LLMStructuredResponse<T>> {
         const startTime = Date.now()
 
         try {
@@ -420,15 +484,15 @@ export class LLMService {
 
     /**
      * Estimate token count for a string (rough approximation)
-     * 
+     *
      * ⚠️ ACCURACY WARNING:
      * This uses a simple ~4 chars/token heuristic. Actual tokenization
      * varies by provider (Gemini vs Claude use different tokenizers).
-     * 
+     *
      * Use for:
      * - Rough UI indicators (e.g., "~500 tokens")
      * - Context length warnings
-     * 
+     *
      * Do NOT use for:
      * - Billing calculations (use actual usage from response)
      * - Strict context window management
@@ -437,6 +501,20 @@ export class LLMService {
         // Rough estimate: ~4 characters per token for English
         // GPT/Claude: closer to 3.5-4, Gemini: varies
         return Math.ceil(text.length / 4)
+    }
+
+    /**
+     * Get current request queue statistics (for debugging)
+     */
+    getQueueStats(): { queued: number; active: number } {
+        return llmRequestQueue.getStats()
+    }
+
+    /**
+     * Clear the request queue (e.g., on logout)
+     */
+    clearQueue(): void {
+        llmRequestQueue.clear()
     }
 }
 

@@ -37,7 +37,7 @@ export const GEMINI_MODELS = {
 export type GeminiModel = keyof typeof GEMINI_MODELS
 
 const DEFAULT_MODEL: GeminiModel = 'gemini-3-flash-preview'
-const DEFAULT_TIMEOUT_MS = 30000
+const DEFAULT_TIMEOUT_MS = 45000  // Increased from 30s to handle API latency spikes
 const DEFAULT_MAX_TOKENS = 8192
 const DEFAULT_TEMPERATURE = 1
 

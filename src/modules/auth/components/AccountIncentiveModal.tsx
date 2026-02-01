@@ -10,7 +10,10 @@ import { useTheme } from '@/shared/hooks/useTheme';
 
 interface AccountIncentiveModalProps {
     isOpen: boolean;
+    /** Temporary dismiss (snooze for 3 days) */
     onDismiss: () => void;
+    /** Permanent dismiss - never show again */
+    onDismissPermanently?: () => void;
 }
 
 /**
@@ -19,7 +22,7 @@ interface AccountIncentiveModalProps {
  * Shown to non-authenticated users after they've added friends and used the app
  * for a few days. Encourages them to create an account.
  */
-export function AccountIncentiveModal({ isOpen, onDismiss }: AccountIncentiveModalProps) {
+export function AccountIncentiveModal({ isOpen, onDismiss, onDismissPermanently }: AccountIncentiveModalProps) {
     const { colors } = useTheme();
     const router = useRouter();
 
@@ -86,6 +89,15 @@ export function AccountIncentiveModal({ isOpen, onDismiss }: AccountIncentiveMod
                         fullWidth
                         style={styles.dismissButton}
                     />
+                    {onDismissPermanently && (
+                        <Button
+                            variant="ghost"
+                            label="Don't ask again"
+                            onPress={onDismissPermanently}
+                            fullWidth
+                            style={styles.permanentDismissButton}
+                        />
+                    )}
                 </View>
             </View>
         </StandardBottomSheet>
@@ -137,5 +149,9 @@ const styles = StyleSheet.create({
     },
     dismissButton: {
         marginTop: 4,
+    },
+    permanentDismissButton: {
+        marginTop: 0,
+        opacity: 0.7,
     },
 });

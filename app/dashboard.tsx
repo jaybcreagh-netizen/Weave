@@ -28,7 +28,7 @@ export default function Dashboard() {
     const [activeTab, setActiveTab] = useState<'insights' | 'circle'>('circle');
     const [showActivityInbox, setShowActivityInbox] = useState(false);
     const { totalPendingCount, refreshCounts } = useActivityCounts();
-    const { shouldShow: showAccountIncentive, dismiss: dismissAccountIncentive } = useAccountIncentive();
+    const { shouldShow: showAccountIncentive, dismiss: dismissAccountIncentive, dismissPermanently: dismissAccountIncentivePermanently } = useAccountIncentive();
     const { shouldShow: showCalendarNudge, dismiss: dismissCalendarNudge, onConnected: onCalendarConnected } = useCalendarNudge();
 
     // - 'loading': Tab selected, showing loader (HomeScreen NOT mounted yet)
@@ -385,6 +385,7 @@ export default function Dashboard() {
             <AccountIncentiveModal
                 isOpen={showAccountIncentive}
                 onDismiss={dismissAccountIncentive}
+                onDismissPermanently={dismissAccountIncentivePermanently}
             />
             <CalendarNudgeModal
                 isOpen={showCalendarNudge}

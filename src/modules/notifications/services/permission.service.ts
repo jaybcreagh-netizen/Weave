@@ -1,7 +1,8 @@
 
 import * as Notifications from 'expo-notifications';
-import { Platform, Linking } from 'react-native';
+import { Platform } from 'react-native';
 import Logger from '@/shared/utils/Logger';
+import { safeOpenSettings } from '@/shared/utils/linking-utils';
 import { notificationAnalytics } from './notification-analytics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -145,5 +146,5 @@ export const requestNotificationPermissions = async (): Promise<boolean> => {
 };
 
 export const openSystemSettings = async (): Promise<void> => {
-    await Linking.openSettings();
+    await safeOpenSettings();
 };
