@@ -51,7 +51,7 @@ platform :ios do
         uploadSymbols: true,
         compileBitcode: false,
         signingStyle: "automatic",
-        teamID: "7P459R5GHW"
+        teamID: "4B8M99LBV9"
       }
     )
 
