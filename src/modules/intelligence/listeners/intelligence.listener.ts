@@ -6,6 +6,7 @@ import { analyzeTierFit } from '@/modules/insights/services/tier-fit.service';
 import { updateTierFit } from '@/modules/insights/services/tier-management.service';
 import { checkTierSuggestionAfterInteraction } from '@/modules/insights/services/tier-suggestion-engine.service';
 import { analyzeAndTagLifeEvents } from '@/modules/relationships/services/life-event-detection';
+import { insightOrchestratorService } from '../services/InsightOrchestratorService';
 import { database } from '@/db';
 import UserProfile from '@/db/models/UserProfile';
 import Logger from '@/shared/utils/Logger';
@@ -114,6 +115,17 @@ const handleInteractionCreated = async (payload: any) => {
             }
         }
         Logger.info(`[Intelligence] Tier Intelligence completed in ${Date.now() - tierStart}ms`);
+
+        // Relationship Intelligence (Phase 3)
+        // Updates RQS, Reciprocity, and generates insights
+        const insightStart = Date.now();
+        try {
+            await insightOrchestratorService.processInteraction(interactionId);
+            Logger.info(`[Intelligence] InsightOrchestrator completed in ${Date.now() - insightStart}ms`);
+        } catch (error) {
+            Logger.error('[Intelligence] Error in InsightOrchestrator:', error);
+        }
+
         Logger.info(`[Intelligence] TOTAL processing time: ${Date.now() - startTime}ms`);
     } catch (error) {
         Logger.error('[Intelligence] Error processing interaction event:', error);

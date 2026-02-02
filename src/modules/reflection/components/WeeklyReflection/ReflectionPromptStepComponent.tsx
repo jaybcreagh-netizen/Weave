@@ -14,6 +14,7 @@ import { useTheme } from '@/shared/hooks/useTheme';
 import { Text } from '@/shared/ui/Text';
 import { Button } from '@/shared/ui/Button';
 import { OracleInsightCard } from '@/modules/oracle/components/OracleInsightCard'; // Import OracleInsightCard
+import { NetworkObservationCard } from './NetworkObservationCard'; // Import NetworkObservationCard
 import ProactiveInsight from '@/db/models/ProactiveInsight'; // Import Model
 import {
   ReflectionPrompt,
@@ -30,10 +31,11 @@ interface ReflectionPromptStepProps {
   prompt: ReflectionPrompt;
   promptEngineInput?: PromptEngineInput; // Make optional to support legacy usage
   insights?: ProactiveInsight[];
+  observations?: string[]; // New prop
   onNext: (text: string, selectedChipIds: string[]) => void;
 }
 
-export function ReflectionPromptStep({ prompt, promptEngineInput, insights = [], onNext }: ReflectionPromptStepProps) {
+export function ReflectionPromptStep({ prompt, promptEngineInput, insights = [], observations = [], onNext }: ReflectionPromptStepProps) {
   const { colors } = useTheme();
   // Using any for ref because BottomSheetTextInput type definition is complex and doesn't match standard TextInput exactly in this context
   const inputRef = useRef<any>(null);
@@ -139,7 +141,14 @@ export function ReflectionPromptStep({ prompt, promptEngineInput, insights = [],
           {/* Insight Card (Context) */}
           {displayInsight && (
             <View className="mb-6 mx-4">
-              <OracleInsightCard insight={displayInsight} onDismiss={() => { }} onAction={() => { }} />
+              <OracleInsightCard insight={displayInsight} onDismiss={() => { }} onTellMeMore={() => { }} />
+            </View>
+          )}
+
+          {/* Network Observations (New) */}
+          {observations && observations.length > 0 && (
+            <View className="mb-6 mx-4">
+              <NetworkObservationCard observations={observations} />
             </View>
           )}
 

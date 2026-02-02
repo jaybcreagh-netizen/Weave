@@ -415,6 +415,11 @@ export async function verifyPhoneOtp(phone: string, token: string): Promise<Auth
         return { success: false, error: 'Supabase not available', errorCode: 'NOT_CONFIGURED' };
     }
 
+    console.log('[Auth] verifyPhoneOtp called');
+    console.log('[Auth] Phone:', phone);
+    console.log('[Auth] Token length:', token?.length);
+    console.log('[Auth] Token:', token); // For debugging only - remove in production
+
     try {
         const verifyPromise = client.auth.verifyOtp({
             phone,
@@ -422,13 +427,18 @@ export async function verifyPhoneOtp(phone: string, token: string): Promise<Auth
             type: 'sms',
         });
 
+        console.log('[Auth] Calling Supabase verifyOtp with type: sms');
+
         const { data, error } = await withTimeout(
             verifyPromise,
             AUTH_TIMEOUTS.OTP_VERIFY,
             'OTP Verify'
         );
 
+        console.log('[Auth] verifyOtp response:', { hasData: !!data, hasUser: !!data?.user, error });
+
         if (error) {
+            console.log('[Auth] verifyOtp error:', error.message, error.status, error.code);
             const classified = classifyAuthError(error);
             return { success: false, error: classified.message, errorCode: classified.code };
         }
@@ -537,6 +547,10 @@ export async function verifyAndLinkPhone(phone: string, token: string): Promise<
     const client = getSupabaseClient();
     if (!client) return { success: false, error: 'Supabase not available', errorCode: 'NOT_CONFIGURED' };
 
+    console.log('[Auth] verifyAndLinkPhone called');
+    console.log('[Auth] Phone:', phone);
+    console.log('[Auth] Token length:', token?.length);
+
     try {
         const verifyPromise = client.auth.verifyOtp({
             phone,
@@ -544,13 +558,18 @@ export async function verifyAndLinkPhone(phone: string, token: string): Promise<
             type: 'phone_change',
         });
 
+        console.log('[Auth] Calling Supabase verifyOtp with type: phone_change');
+
         const { data, error } = await withTimeout(
             verifyPromise,
             AUTH_TIMEOUTS.OTP_VERIFY,
             'Link Verify'
         );
 
+        console.log('[Auth] verifyAndLinkPhone response:', { hasData: !!data, hasUser: !!data?.user, error });
+
         if (error) {
+            console.log('[Auth] verifyAndLinkPhone error:', error.message, error.status, error.code);
             const classified = classifyAuthError(error);
             return { success: false, error: classified.message, errorCode: classified.code };
         }

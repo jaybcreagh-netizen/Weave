@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Pressable, StyleProp, ViewStyle } from 'react-native';
+import { View, Pressable, StyleProp, ViewStyle, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { useUIStore } from '@/shared/stores/uiStore';
@@ -75,7 +75,10 @@ export function ArchetypeCard({
     >
       {/* Gradient Background - more prominent when selected */}
       <LinearGradient
-        colors={[...gradient.map(c => c + (isSelected ? 'E6' : '10')), 'transparent'] as any}
+        colors={[
+          ...gradient.map(c => c + (isSelected ? (Platform.OS === 'android' ? '20' : 'E6') : '10')),
+          'transparent'
+        ] as any}
         className="absolute inset-0"
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}

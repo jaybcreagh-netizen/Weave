@@ -196,26 +196,63 @@ export function PhoneAuthScreen() {
 
     const handleVerify = async () => {
         if (!isValidOtp) return;
+        if (loading) return; // Prevent double-submit
+
         setLoading(true);
 
-        const result = (mode === 'link' || mode === 'change')
-            ? await verifyAndLinkPhone(phone, otp)
-            : await verifyPhoneOtp(phone, otp);
+        console.log('[PhoneAuth] Verifying OTP...');
+        console.log('[PhoneAuth] Phone:', phone);
+        console.log('[PhoneAuth] OTP:', otp);
+        console.log('[PhoneAuth] Mode:', mode);
 
-        setLoading(false);
+        try {
+            const result = (mode === 'link' || mode === 'change')
+                ? await verifyAndLinkPhone(phone, otp)
+                : await verifyPhoneOtp(phone, otp);
 
-        if (result.success) {
-            if (mode === 'link' || mode === 'change') {
-                Alert.alert('Success', 'Phone number verified!', [
-                    { text: 'OK', onPress: () => router.back() }
-                ]);
+            console.log('[PhoneAuth] Verification result:', result);
+
+            setLoading(false);
+
+            if (result.success) {
+                console.log('[PhoneAuth] Verification successful!');
+                if (mode === 'link' || mode === 'change') {
+                    Alert.alert('Success', 'Phone number verified!', [
+                        { text: 'OK', onPress: () => router.back() }
+                    ]);
+                } else {
+                    router.navigate('/dashboard');
+                }
             } else {
-                router.navigate('/dashboard');
+                console.log('[PhoneAuth] Verification failed:', result.error, result.errorCode);
+
+                // Provide more specific error messages
+                let errorMessage = result.error || 'Invalid code';
+                if (result.errorCode === 'INVALID_OTP') {
+                    errorMessage = 'Invalid or expired code. Please try again or request a new code.';
+                } else if (result.errorCode === 'TIMEOUT') {
+                    errorMessage = 'Request timed out. Please check your connection and try again.';
+                }
+
+                Alert.alert('Verification Failed', errorMessage);
+                // Clear OTP so user can try again
+                setOtp('');
             }
-        } else {
-            Alert.alert('Verify Failed', result.error || 'Invalid code');
+        } catch (err) {
+            console.error('[PhoneAuth] Verification error:', err);
+            setLoading(false);
+            Alert.alert('Error', 'An unexpected error occurred during verification.');
+            setOtp('');
         }
     };
+
+    // Auto-submit when 6 digits entered
+    useEffect(() => {
+        if (otp.length === 6 && step === 'otp' && !loading) {
+            console.log('[PhoneAuth] Auto-submitting OTP...');
+            handleVerify();
+        }
+    }, [otp, step, loading]);
 
     return (
         <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
@@ -306,12 +343,23 @@ export function PhoneAuthScreen() {
                                             abortControllerRef.current?.abort();
                                             setLoading(false);
 
-                                            setStep('otp');
-                                            // Ensure we have a phone number set if they skip
-                                            if (!phone.includes(selectedCountry.code)) {
-                                                const formatted = `${selectedCountry.code}${phone.replace(/[^0-9]/g, '')}`;
-                                                setPhone(formatted);
+                                            // IMPORTANT: Use normalizePhone for consistency with OTP send
+                                            let rawPhone = phone.replace(/[^0-9+]/g, '');
+                                            if (!rawPhone.startsWith('+')) {
+                                                if (rawPhone.startsWith('0')) {
+                                                    rawPhone = rawPhone.substring(1);
+                                                }
+                                                rawPhone = `${selectedCountry.code}${rawPhone}`;
                                             }
+                                            const formattedPhone = normalizePhone(rawPhone, selectedCountry.region);
+
+                                            if (!formattedPhone) {
+                                                Alert.alert('Invalid Phone', 'Please enter a valid phone number.');
+                                                return;
+                                            }
+
+                                            setPhone(formattedPhone);
+                                            setStep('otp');
                                         }}
                                         className="mt-4 items-center py-2"
                                     >
@@ -383,8 +431,16 @@ export function PhoneAuthScreen() {
                                             placeholder="000000"
                                             keyboardType="number-pad"
                                             value={otp}
-                                            onChangeText={setOtp}
+                                            onChangeText={(text) => {
+                                                // Only allow digits
+                                                const digits = text.replace(/[^0-9]/g, '');
+                                                setOtp(digits);
+                                            }}
                                             maxLength={6}
+                                            // iOS: Enable auto-fill from SMS
+                                            textContentType="oneTimeCode"
+                                            // Android: Enable auto-fill from SMS
+                                            autoComplete="sms-otp"
                                             // autoFocus removed to prevent EXC_BAD_ACCESS crash
                                             className="text-center text-3xl tracking-[8px] h-16 w-full"
                                             style={{
@@ -404,14 +460,42 @@ export function PhoneAuthScreen() {
                                         className="mt-2"
                                     />
 
-                                    <TouchableOpacity
-                                        onPress={() => setStep('phone')}
-                                        className="mt-6 items-center py-2"
-                                    >
-                                        <Text variant="caption" style={{ color: colors.primary }}>
-                                            Change phone number
-                                        </Text>
-                                    </TouchableOpacity>
+                                    <View className="flex-row justify-center gap-4 mt-6">
+                                        <TouchableOpacity
+                                            onPress={async () => {
+                                                // Resend the OTP
+                                                setLoading(true);
+                                                const result = (mode === 'link' || mode === 'change')
+                                                    ? await linkPhoneToUser(phone)
+                                                    : await signInWithPhone(phone);
+                                                setLoading(false);
+
+                                                if (result.success) {
+                                                    Alert.alert('Code Sent', 'A new verification code has been sent.');
+                                                } else {
+                                                    Alert.alert('Error', result.error || 'Failed to resend code');
+                                                }
+                                            }}
+                                            className="py-2 px-4"
+                                            disabled={loading}
+                                        >
+                                            <Text variant="caption" style={{ color: colors.primary }}>
+                                                Resend code
+                                            </Text>
+                                        </TouchableOpacity>
+
+                                        <TouchableOpacity
+                                            onPress={() => {
+                                                setOtp('');
+                                                setStep('phone');
+                                            }}
+                                            className="py-2 px-4"
+                                        >
+                                            <Text variant="caption" style={{ color: colors['muted-foreground'] }}>
+                                                Change number
+                                            </Text>
+                                        </TouchableOpacity>
+                                    </View>
                                 </>
                             )}
                         </Card>

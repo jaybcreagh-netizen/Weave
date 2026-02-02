@@ -220,16 +220,16 @@ export function StandardBottomSheet({
         {/* Header with optional title and close button - FIXED AT TOP */}
         {(title || titleComponent || showCloseButton || headerLeft || headerRight) && (
           <View
-            className="flex-row items-center px-4 pt-6 pb-3 z-10"
+            className="flex-row items-center justify-between px-4 pt-6 pb-3 z-10"
             style={{ backgroundColor: colors.card }}
           >
-            {/* Left Slot */}
-            <View className="flex-1 items-start">
+            {/* Left Slot: Auto width, shrink limited */}
+            <View className="flex-row items-center justify-start mr-2 shrink-0" style={{ minWidth: 40 }}>
               {headerLeft}
             </View>
 
-            {/* Center Slot (Title) */}
-            <View className="flex-[4] items-center">
+            {/* Center Slot (Title): Takes remaining space */}
+            <View className="flex-1 items-center justify-center pointer-events-none">
               {titleComponent ? (
                 titleComponent
               ) : title ? (
@@ -243,8 +243,8 @@ export function StandardBottomSheet({
               ) : null}
             </View>
 
-            {/* Right Slot */}
-            <View className="flex-1 items-end">
+            {/* Right Slot: Auto width, shrink limited */}
+            <View className="flex-row items-center justify-end ml-2 shrink-0" style={{ minWidth: 40 }}>
               {headerRight || (showCloseButton && (
                 <TouchableOpacity
                   onPress={handleClose}

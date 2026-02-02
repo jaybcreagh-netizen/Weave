@@ -64,6 +64,106 @@ interface GroupedEntries {
 }
 
 // ============================================================================
+// NARRATIVE INSIGHT SUBCOMPONENT
+// ============================================================================
+
+import { narrativeService } from '@/modules/intelligence/services/NarrativeService';
+
+interface NarrativeInsightProps {
+  friendId: string;
+  friendName: string;
+}
+
+function NarrativeInsight({ friendId, friendName }: NarrativeInsightProps) {
+  const { colors } = useTheme();
+  const [insight, setInsight] = React.useState<string | null>(null);
+  const [isLoading, setIsLoading] = React.useState(false);
+  const [hasGenerated, setHasGenerated] = React.useState(false);
+
+  // Load existing narrative on mount
+  React.useEffect(() => {
+    loadExistingNarrative();
+  }, [friendId]);
+
+  const loadExistingNarrative = async () => {
+    try {
+      const narrative = await narrativeService.getNarrative(friendId);
+      if (narrative?.generatedNarrativeJson) {
+        const parsed = JSON.parse(narrative.generatedNarrativeJson);
+        if (parsed.text) {
+          setInsight(parsed.text);
+          setHasGenerated(true);
+        }
+      }
+    } catch (error) {
+      console.warn('[NarrativeInsight] Error loading narrative:', error);
+    }
+  };
+
+  const handleGenerate = async () => {
+    setIsLoading(true);
+    try {
+      const text = await narrativeService.generateNarrativeText(friendId);
+      setInsight(text);
+      setHasGenerated(true);
+    } catch (error) {
+      console.warn('[NarrativeInsight] Error generating narrative:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <View className="px-5 mt-4">
+      <View
+        className="p-4 rounded-xl"
+        style={{ backgroundColor: colors.muted }}
+      >
+        <View className="flex-row items-center gap-2 mb-2">
+          <Sparkles size={14} color={colors.primary} />
+          <Text
+            className="text-xs"
+            style={{ color: colors.primary, fontFamily: 'Inter_500Medium' }}
+          >
+            Friendship Insight
+          </Text>
+        </View>
+
+        {isLoading ? (
+          <ActivityIndicator size="small" color={colors.primary} />
+        ) : insight ? (
+          <>
+            <Text
+              className="text-sm leading-5"
+              style={{ color: colors.foreground, fontFamily: 'Inter_400Regular', fontStyle: 'italic' }}
+            >
+              {insight}
+            </Text>
+            <TouchableOpacity onPress={handleGenerate} className="mt-2">
+              <Text
+                className="text-xs"
+                style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
+              >
+                Refresh
+              </Text>
+            </TouchableOpacity>
+          </>
+        ) : (
+          <TouchableOpacity onPress={handleGenerate}>
+            <Text
+              className="text-sm"
+              style={{ color: colors['muted-foreground'], fontFamily: 'Inter_400Regular' }}
+            >
+              Generate an insight about your friendship with {friendName}
+            </Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    </View>
+  );
+}
+
+// ============================================================================
 // COMPONENT
 // ============================================================================
 
@@ -379,6 +479,9 @@ export function FriendshipArcView({
               </Text>
             </TouchableOpacity>
           </View>
+
+          {/* Narrative Insight - pinned summary of the friendship */}
+          <NarrativeInsight friendId={friendId} friendName={arc.friend.name} />
         </Animated.View>
 
         {/* Timeline */}

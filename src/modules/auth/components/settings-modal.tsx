@@ -143,17 +143,15 @@ export function SettingsModal({
               onPress={() => setShowGroupList(true)}
             />
 
-            <View className="border-t border-border" style={{ borderColor: colors.border }} />
-
-            {/* Trophy Cabinet */}
-            <SettingsItem
+            {/* DEPRECATED: Trophy Cabinet hidden - badge system replaced by Relationship Intelligence (Phase 4) */}
+            {/* <SettingsItem
               icon={Trophy}
               title="Trophy Cabinet"
               subtitle="View your achievements"
               onPress={() => setShowTrophyCabinet(true)}
             />
 
-            <View className="border-t border-border" style={{ borderColor: colors.border }} />
+            <View className="border-t border-border" style={{ borderColor: colors.border }} /> */}
 
             {/* Social Battery Check-in */}
             {onOpenBatteryCheckIn && (

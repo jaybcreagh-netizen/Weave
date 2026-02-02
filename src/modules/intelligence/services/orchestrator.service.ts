@@ -345,6 +345,7 @@ export function applyWeaveScoringUpdates(
     batchOps.push(friend.prepareUpdate(record => {
       record.weaveScore = update.weaveScore;
       record.lastUpdated = update.lastUpdated;
+      record.isDormant = false; // Reactivate friend when interaction is scored
 
       if (update.isNewerInteraction) {
         if (update.momentumScore !== undefined) record.momentumScore = update.momentumScore;

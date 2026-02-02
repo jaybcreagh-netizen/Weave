@@ -20,18 +20,21 @@ export function setupGamificationListeners() {
         }
 
         try {
-            // Badges & Achievements
-            const badgesStart = Date.now();
-            for (const friend of friends) {
-                const friendBadgeStart = Date.now();
-                await checkAndAwardFriendBadges(friend.id, friend.name);
-                Logger.info(`[Gamification] Friend badges for ${friend.name}: ${Date.now() - friendBadgeStart}ms`);
-            }
-            Logger.info(`[Gamification] All friend badges: ${Date.now() - badgesStart}ms`);
+            // DEPRECATED: Badge system is disabled in favor of Relationship Intelligence (Phase 4)
+            // The new InsightOrchestratorService handles friend-level insights via RQS and Reciprocity.
+            // Keeping the infrastructure for potential future use or archival.
+            // const badgesStart = Date.now();
+            // for (const friend of friends) {
+            //     const friendBadgeStart = Date.now();
+            //     await checkAndAwardFriendBadges(friend.id, friend.name);
+            //     Logger.info(`[Gamification] Friend badges for ${friend.name}: ${Date.now() - friendBadgeStart}ms`);
+            // }
+            // Logger.info(`[Gamification] All friend badges: ${Date.now() - badgesStart}ms`);
 
-            const achievementsStart = Date.now();
-            await checkAndAwardGlobalAchievements();
-            Logger.info(`[Gamification] Global achievements: ${Date.now() - achievementsStart}ms`);
+            // DEPRECATED: Global achievements are also disabled
+            // const achievementsStart = Date.now();
+            // await checkAndAwardGlobalAchievements();
+            // Logger.info(`[Gamification] Global achievements: ${Date.now() - achievementsStart}ms`);
 
             // Gamification
             const practiceStart = Date.now();

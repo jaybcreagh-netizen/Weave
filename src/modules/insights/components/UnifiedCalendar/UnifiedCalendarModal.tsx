@@ -189,14 +189,15 @@ export function UnifiedCalendarModal({
                     )}
                     {currentTab === 'patterns' && <PatternsTabContent />}
 
-                    {/* Battery Check-in Sheet - Inside Modal like YearInMoonsModal */}
-                    <SocialBatterySheet
-                        isVisible={isBatterySheetOpen}
-                        onSubmit={handleBatterySubmit}
-                        onDismiss={handleBatteryDismiss}
-                    />
                 </SafeAreaView>
             </Modal>
+
+            {/* Battery Check-in Sheet - Outside Modal for better performance and z-index handling */}
+            <SocialBatterySheet
+                isVisible={isBatterySheetOpen}
+                onSubmit={handleBatterySubmit}
+                onDismiss={handleBatteryDismiss}
+            />
 
 
             <EditInteractionModal

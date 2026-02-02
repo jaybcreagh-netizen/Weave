@@ -510,7 +510,7 @@ export default function FriendProfile() {
 
         </Animated.View>
       </SafeAreaView>
-    </ErrorBoundary>
+    </ErrorBoundary >
   );
 }
 

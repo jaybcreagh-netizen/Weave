@@ -493,6 +493,179 @@ export const TestingSettings: React.FC<TestingSettingsProps> = ({ onClose }) => 
                 onPress={handleTestEveningDigest}
             />
 
+            <View className="border-t border-border" style={{ borderColor: colors.border }} />
+
+            <SettingsItem
+                icon={Sparkles}
+                title="Test RQS Calculation"
+                subtitle="Calculate quality score for a friend"
+                onPress={() => {
+                    Alert.alert(
+                        'Test RQS',
+                        'This will calculate Relationship Quality Score for a random friend. Continue?',
+                        [
+                            { text: 'Cancel', style: 'cancel' },
+                            {
+                                text: 'Calculate',
+                                onPress: async () => {
+                                    try {
+                                        const { database } = await import('@/db');
+                                        const { relationshipQualityService } = await import('@/modules/intelligence');
+
+                                        // Get a random friend
+                                        const friends = await database.get('friends').query().fetch();
+                                        if (friends.length === 0) {
+                                            Alert.alert('No Friends', 'Add some friends first!');
+                                            return;
+                                        }
+
+                                        const friend = friends[Math.floor(Math.random() * friends.length)] as any;
+                                        const rqs = await relationshipQualityService.calculateRQS(friend.id);
+
+                                        Alert.alert(
+                                            `RQS: ${friend.name}`,
+                                            `Texture: ${rqs.texture.summary}\n\n` +
+                                            `Trajectory: ${rqs.trajectory}\n` +
+                                            `Composite: ${rqs.composite}\n\n` +
+                                            `Components:\n` +
+                                            `• Depth: ${rqs.components.depth}\n` +
+                                            `• Consistency: ${rqs.components.consistency}\n` +
+                                            `• Reciprocity: ${rqs.components.reciprocity.toFixed(2)}\n` +
+                                            `• Growth: ${rqs.components.growth}\n` +
+                                            `• Resilience: ${rqs.components.resilience}`
+                                        );
+                                    } catch (error) {
+                                        console.error('RQS calculation failed:', error);
+                                        Alert.alert('Error', `RQS calculation failed: ${error}`);
+                                    }
+                                }
+                            }
+                        ]
+                    );
+                }}
+            />
+
+            <View className="border-t border-border" style={{ borderColor: colors.border }} />
+
+            <SettingsItem
+                icon={Sparkles}
+                title="Test Reciprocity Analysis"
+                subtitle="Analyze initiation balance for a friend"
+                onPress={() => {
+                    Alert.alert(
+                        'Test Reciprocity',
+                        'This will calculate reciprocity metrics for a random friend. Continue?',
+                        [
+                            { text: 'Cancel', style: 'cancel' },
+                            {
+                                text: 'Calculate',
+                                onPress: async () => {
+                                    try {
+                                        const { database } = await import('@/db');
+                                        const { reciprocityService } = await import('@/modules/intelligence');
+
+                                        const friends = await database.get('friends').query().fetch();
+                                        if (friends.length === 0) {
+                                            Alert.alert('No Friends', 'Add some friends first!');
+                                            return;
+                                        }
+
+                                        const friend = friends[Math.floor(Math.random() * friends.length)] as any;
+                                        const analysis = await reciprocityService.calculateReciprocity(friend.id);
+                                        const summary = reciprocityService.generateSummary(analysis);
+
+                                        Alert.alert(
+                                            `Reciprocity: ${friend.name}`,
+                                            `${summary}\n\n` +
+                                            `Ratio: ${(analysis.initiationRatio * 100).toFixed(0)}% you initiate\n` +
+                                            `Trend: ${analysis.trend} (${analysis.trendMagnitude})\n\n` +
+                                            `Windows:\n` +
+                                            `• 30 days: ${analysis.windows.last30Days.yourInitiations}/${analysis.windows.last30Days.totalInteractions} you\n` +
+                                            `• 90 days: ${analysis.windows.last90Days.yourInitiations}/${analysis.windows.last90Days.totalInteractions} you\n` +
+                                            `• Lifetime: ${analysis.windows.lifetime.yourInitiations}/${analysis.windows.lifetime.totalInteractions} you\n\n` +
+                                            `Flags:\n` +
+                                            `• Healthy: ${analysis.flags.healthyBalance ? '✓' : '✗'}\n` +
+                                            `• One carrying: ${analysis.flags.onePersonCarrying ? '⚠️' : '✓'}\n` +
+                                            `• Recent shift: ${analysis.flags.recentShift ? '⚠️' : '—'}`
+                                        );
+                                    } catch (error) {
+                                        console.error('Reciprocity calculation failed:', error);
+                                        Alert.alert('Error', `Reciprocity calculation failed: ${error}`);
+                                    }
+                                }
+                            }
+                        ]
+                    );
+                }}
+            />
+
+            <View className="border-t border-border" style={{ borderColor: colors.border }} />
+
+            <SettingsItem
+                icon={Sparkles}
+                title="Test Insight Generation"
+                subtitle="Generate an insight from existing data"
+                onPress={() => {
+                    Alert.alert(
+                        'Test Insights',
+                        'This will check active insights and try to generate new ones. Continue?',
+                        [
+                            { text: 'Cancel', style: 'cancel' },
+                            {
+                                text: 'Run',
+                                onPress: async () => {
+                                    try {
+                                        const { database } = await import('@/db');
+                                        const { insightOrchestratorService } = await import('@/modules/intelligence');
+
+                                        // Check active insights
+                                        const activeInsights = await insightOrchestratorService.getActiveInsights();
+
+                                        if (activeInsights.length > 0) {
+                                            const insight = activeInsights[0];
+                                            Alert.alert(
+                                                'Active Insight Found',
+                                                `${insight.opener}\n\n${insight.message}\n\n` +
+                                                `Type: ${insight.insightType}\n` +
+                                                `Tone: ${insight.tone}\n` +
+                                                `Friend: ${insight.friendName || 'Network-wide'}`
+                                            );
+                                        } else {
+                                            // Try to trigger generation by processing last interaction
+                                            const interactions = await database.get('interactions').query().fetch();
+                                            if (interactions.length > 0) {
+                                                const lastInteraction = interactions[interactions.length - 1] as any;
+                                                await insightOrchestratorService.processInteraction(lastInteraction.id);
+
+                                                // Check again
+                                                const newInsights = await insightOrchestratorService.getActiveInsights();
+                                                if (newInsights.length > 0) {
+                                                    const insight = newInsights[0];
+                                                    Alert.alert(
+                                                        'Insight Generated!',
+                                                        `${insight.opener}\n\n${insight.message}`
+                                                    );
+                                                } else {
+                                                    Alert.alert(
+                                                        'No Insight Generated',
+                                                        'Insufficient signals or rate-limited. Try again later or log more interactions.'
+                                                    );
+                                                }
+                                            } else {
+                                                Alert.alert('No Interactions', 'Log some weaves first!');
+                                            }
+                                        }
+                                    } catch (error) {
+                                        console.error('Insight test failed:', error);
+                                        Alert.alert('Error', `Insight test failed: ${error}`);
+                                    }
+                                }
+                            }
+                        ]
+                    );
+                }}
+            />
+
             {/* Notification Viewer Modal */}
             <Modal
                 visible={showNotificationViewer}

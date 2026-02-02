@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { differenceInDays, format, isSameDay, addDays, startOfDay } from 'date-fns';
-import { Check, Clock, ChevronRight, Sparkles, Calendar, CheckCircle2, Coffee, Moon, Users } from 'lucide-react-native';
+import { Check, Clock, ChevronRight, Sparkles, Calendar, CheckCircle2, Coffee, Moon, Users, Flame } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { HomeWidgetBase, HomeWidgetConfig } from '../HomeWidgetBase';
@@ -33,6 +33,10 @@ import { usePendingWeaves } from '@/modules/sync';
 import { getPendingIncomingRequests, LinkRequest } from '@/modules/relationships';
 import { UserPlus, Send } from 'lucide-react-native';
 import { CachedImage } from '@/shared/ui/CachedImage';
+import { StreakService } from '@/modules/gamification/services/streak.service';
+import { InsightCardCompact } from '@/modules/intelligence/components/InsightCard';
+import { insightOrchestratorService } from '@/modules/intelligence';
+import RelationshipInsight from '@/db/models/RelationshipInsight';
 
 const WIDGET_CONFIG: HomeWidgetConfig = {
     id: 'todays-focus',
@@ -192,6 +196,8 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = () => {
     const [intentions, setIntentions] = useState<Intention[]>([]);
     const [dailyReflection, setDailyReflection] = useState<string | null>(null);
     const [isLoadingReflection, setIsLoadingReflection] = useState(false);
+    const [currentStreak, setCurrentStreak] = useState<number>(0);
+    const [activeInsights, setActiveInsights] = useState<RelationshipInsight[]>([]);
 
     // Load active intentions
     useEffect(() => {
@@ -230,6 +236,32 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = () => {
         };
         loadRequests();
     }, []);
+
+    // Load streak data
+    useEffect(() => {
+        const loadStreak = async () => {
+            try {
+                const streak = await StreakService.getCurrentStreak();
+                setCurrentStreak(streak);
+            } catch (e) {
+                console.error('Error loading streak:', e);
+            }
+        };
+        loadStreak();
+    }, [interactions]); // Recalculate when interactions change
+
+    // Load active insights
+    useEffect(() => {
+        const loadInsights = async () => {
+            try {
+                const insights = await insightOrchestratorService.getActiveInsights();
+                setActiveInsights(insights);
+            } catch (e) {
+                console.error('Error loading insights:', e);
+            }
+        };
+        loadInsights();
+    }, [interactions]); // Reload when interactions change
 
     // Logic ported from V1
     const pendingConfirmations = useMemo(() => {
@@ -617,6 +649,12 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = () => {
                             : suggestions.length > 0
                                 ? `${suggestions.length} suggestions · ${intentions.length} intentions`
                                 : "No commitments today"}
+                        trailing={currentStreak > 0 ? (
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: tokens.backgroundSubtle, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 }}>
+                                <Flame size={14} color={tokens.primary} />
+                                <Text style={{ fontFamily: typography.fonts.sansSemiBold, fontSize: 12, color: tokens.foreground }}>{currentStreak}w</Text>
+                            </View>
+                        ) : undefined}
                     />
                 </View>
 
@@ -711,6 +749,8 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = () => {
                         )}
                     </View>
                 )}
+
+                {/* Active Insights moved to Journal widget */}
 
                 {/* Tomorrow's Plans Section */}
                 {hasTomorrow && (

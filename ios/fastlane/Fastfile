@@ -45,10 +45,13 @@ platform :ios do
       output_name: "Weave.ipa",
       include_bitcode: false,
       include_symbols: true,
+      export_xcargs: "-allowProvisioningUpdates",
       export_options: {
         uploadBitcode: false,
         uploadSymbols: true,
-        compileBitcode: false
+        compileBitcode: false,
+        signingStyle: "automatic",
+        teamID: "7P459R5GHW"
       }
     )
 

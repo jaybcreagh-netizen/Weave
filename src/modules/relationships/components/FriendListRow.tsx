@@ -36,7 +36,7 @@ import { database } from '@/db';
 import Intention from '@/db/models/Intention';
 import { Q } from '@nozbe/watermelondb';
 import { StatusLineIcon } from '@/shared/components/StatusLineIcon';
-import { Sparkles, Handshake, Users, Heart, Briefcase, Home, GraduationCap, Palette, Target, Star, type LucideIcon } from 'lucide-react-native';
+import { Sparkles, Handshake, Users, Heart, Briefcase, Home, GraduationCap, Palette, Target, Star, Link2, type LucideIcon } from 'lucide-react-native';
 
 const ATTENTION_THRESHOLD = 35;
 const STABLE_THRESHOLD = 65;
@@ -75,7 +75,7 @@ export const FriendListRowContent = ({
 
   if (!friend) return null;
 
-  const { id, name, archetype, isDormant = false, photoUrl, relationshipType } = friend;
+  const { id, name, archetype, isDormant = false, photoUrl, relationshipType, linkStatus, linkedUserId } = friend;
   const [statusLine, setStatusLine] = useState<{ text: string; subtext?: string; icon?: string; variant?: 'default' | 'accent' | 'warning' | 'success' }>({
     text: archetypeData[archetype as Archetype]?.essence || '',
     variant: 'default'
@@ -364,29 +364,44 @@ export const FriendListRowContent = ({
           />
 
           <View className={`flex-row items-center ${containerPadding} gap-3`}>
-            {/* Avatar */}
-            <View
-              className={`rounded-full overflow-hidden items-center justify-center ${avatarSize}`}
-              style={{
-                backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.08)',
-                borderWidth: 0.5,
-                borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
-              }}
-            >
-              {resolvedPhotoUrl && !imageError ? (
-                <CachedImage
-                  source={{ uri: normalizeContactImageUri(resolvedPhotoUrl) }}
-                  style={{ width: '100%', height: '100%' }}
-                  contentFit="cover"
-                  onError={() => setImageError(true)}
-                />
-              ) : (
-                <Text
-                  className="font-semibold"
-                  style={{ color: colors.foreground, fontSize: isCompact ? 16 : 18 }}
+            {/* Avatar with Link Badge */}
+            <View className="relative">
+              <View
+                className={`rounded-full overflow-hidden items-center justify-center ${avatarSize}`}
+                style={{
+                  backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.08)',
+                  borderWidth: 0.5,
+                  borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
+                }}
+              >
+                {resolvedPhotoUrl && !imageError ? (
+                  <CachedImage
+                    source={{ uri: normalizeContactImageUri(resolvedPhotoUrl) }}
+                    style={{ width: '100%', height: '100%' }}
+                    contentFit="cover"
+                    onError={() => setImageError(true)}
+                  />
+                ) : (
+                  <Text
+                    className="font-semibold"
+                    style={{ color: colors.foreground, fontSize: isCompact ? 16 : 18 }}
+                  >
+                    {name.charAt(0).toUpperCase()}
+                  </Text>
+                )}
+              </View>
+              {/* Linked Weave User Badge */}
+              {linkStatus === 'linked' && linkedUserId && (
+                <View
+                  className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full items-center justify-center"
+                  style={{
+                    backgroundColor: colors.primary,
+                    borderWidth: 1.5,
+                    borderColor: colors.card,
+                  }}
                 >
-                  {name.charAt(0).toUpperCase()}
-                </Text>
+                  <Link2 size={8} color="white" strokeWidth={3} />
+                </View>
               )}
             </View>
 

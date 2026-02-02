@@ -45,7 +45,7 @@ export function SimpleTutorialTooltip({
     <Animated.View
       entering={FadeInDown.duration(300).springify()}
       exiting={FadeOutDown.duration(200)}
-      className="absolute bottom-5 left-5 right-5 rounded-2xl p-5 border z-[9999]"
+      className="absolute top-5 left-5 right-5 rounded-2xl p-5 border z-[9999]"
       style={[
         {
           backgroundColor: colors.card,

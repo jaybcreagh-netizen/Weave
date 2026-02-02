@@ -16,6 +16,9 @@ export * from './services/decay.service';
 export * from './services/season-aware-streak.service';
 export * from './services/focus-generator';
 export * from './services/social-season.service';
+export { relationshipQualityService } from './services/RelationshipQualityService';
+export { reciprocityService } from './services/ReciprocityService';
+export { insightOrchestratorService } from './services/InsightOrchestratorService';
 
 // Listeners
 export * from './listeners/intelligence.listener';

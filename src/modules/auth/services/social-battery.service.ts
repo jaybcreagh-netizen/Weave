@@ -59,14 +59,22 @@ export const SocialBatteryService = {
         // Trigger smart notification evaluation after battery check-in
         try {
             const { SmartSuggestionsChannel, BatteryCheckinChannel } = await import('@/modules/notifications');
+            const { InteractionManager } = await import('react-native');
 
-            // 1. Reschedule "Social Battery" notification (Safety Net)
-            await BatteryCheckinChannel.rescheduleForTomorrow();
+            // Defer heavy work to allow sheet close animation to finish smoothly
+            InteractionManager.runAfterInteractions(async () => {
+                try {
+                    // 1. Reschedule "Social Battery" notification (Safety Net)
+                    await BatteryCheckinChannel.rescheduleForTomorrow();
 
-            // 2. Evaluate other smart notifications
-            await SmartSuggestionsChannel.evaluateAndSchedule();
+                    // 2. Evaluate other smart notifications
+                    await SmartSuggestionsChannel.evaluateAndSchedule();
+                } catch (innerError) {
+                    console.error('Error in deferred notification evaluation:', innerError);
+                }
+            });
         } catch (error) {
-            console.error('Error evaluating smart notifications after battery check-in:', error);
+            console.error('Error initiating smart notifications after battery check-in:', error);
         }
     },
 

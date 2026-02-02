@@ -532,12 +532,16 @@ export function FriendForm({ onSave, friend, initialTier, fromOnboarding, onSkip
 
           <View>
             <Text style={[styles.label, { color: colors.foreground }]}>Relationship Type (Optional)</Text>
-            <View style={styles.relationshipTypeContainer}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.relationshipTypeContainer}
+            >
               {([
                 { id: "friend", label: "Friend", Icon: Handshake },
                 { id: "family", label: "Family", Icon: Users },
                 { id: "partner", label: "Partner", Icon: Heart },
-                { id: "colleague", label: "Colleague", Icon: Briefcase },
+                { id: "colleague", label: "Work", Icon: Briefcase },
                 { id: "neighbor", label: "Neighbor", Icon: Home },
                 { id: "mentor", label: "Mentor", Icon: GraduationCap },
                 { id: "creative", label: "Creative", Icon: Palette }
@@ -548,20 +552,18 @@ export function FriendForm({ onSave, friend, initialTier, fromOnboarding, onSkip
                   style={[
                     styles.relationshipTypeButton,
                     { backgroundColor: colors.card, borderColor: colors.border },
-                    formData.relationshipType === type.id && [styles.relationshipTypeButtonSelected, { borderColor: colors.primary, backgroundColor: colors.primary + '20' }]
+                    formData.relationshipType === type.id && { borderColor: colors.primary, backgroundColor: colors.primary + '15' }
                   ]}
                 >
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <type.Icon size={16} color={formData.relationshipType === type.id ? colors.primary : colors.foreground} />
-                    <Text style={[
-                      styles.relationshipTypeButtonText,
-                      { color: colors.foreground },
-                      formData.relationshipType === type.id && { color: colors.primary }
-                    ]}>{type.label}</Text>
-                  </View>
+                  <type.Icon size={14} color={formData.relationshipType === type.id ? colors.primary : colors['muted-foreground']} />
+                  <Text style={[
+                    styles.relationshipTypeButtonText,
+                    { color: colors['muted-foreground'] },
+                    formData.relationshipType === type.id && { color: colors.primary, fontWeight: '600' }
+                  ]}>{type.label}</Text>
                 </TouchableOpacity>
               ))}
-            </View>
+            </ScrollView>
           </View>
 
           <View>
@@ -938,23 +940,20 @@ const styles = StyleSheet.create({
   },
   relationshipTypeContainer: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-    rowGap: 10,
+    gap: 8,
+    paddingVertical: 4,
   },
   relationshipTypeButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 18,
-    borderRadius: 24,
-    borderWidth: 1.5,
-    minWidth: 100,
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: 5,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    borderWidth: 1,
   },
-  relationshipTypeButtonSelected: {},
   relationshipTypeButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    textAlign: 'center',
+    fontSize: 13,
   },
   dateButton: {
     flexDirection: 'row',

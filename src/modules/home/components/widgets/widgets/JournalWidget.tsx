@@ -54,6 +54,10 @@ import {
 import { generateJournalPrompts, type JournalPrompt } from '@/modules/journal/services/journal-prompts';
 // Static import to avoid dynamic import issues in production builds
 import { hasCompletedReflectionForCurrentWeek } from '@/modules/reflection/services/weekly-reflection.service';
+// Insight integration
+import { InsightCardCompact } from '@/modules/intelligence/components/InsightCard';
+import { insightOrchestratorService } from '@/modules/intelligence';
+import type RelationshipInsight from '@/db/models/RelationshipInsight';
 
 const WIDGET_CONFIG: HomeWidgetConfig = {
     id: 'journal',
@@ -254,6 +258,7 @@ export function JournalWidget() {
     const [statIndex, setStatIndex] = useState(0);
     const [promptKey, setPromptKey] = useState(0);
     const [forceDefaultPrompt, setForceDefaultPrompt] = useState(false);
+    const [activeInsights, setActiveInsights] = useState<RelationshipInsight[]>([]);
 
     // Get the current stat config
     // Default to first stat if empty
@@ -434,6 +439,21 @@ export function JournalWidget() {
 
         loadWidgetState();
         loadStats();
+
+        // Load active insights (deferred)
+        const loadInsights = async () => {
+            try {
+                await new Promise(resolve => setTimeout(resolve, 500));
+                if (!mountedRef.current) return;
+                const insights = await insightOrchestratorService.getActiveInsights();
+                if (mountedRef.current) {
+                    setActiveInsights(insights);
+                }
+            } catch (error) {
+                console.error('[JournalWidget] Error loading insights:', error);
+            }
+        };
+        loadInsights();
 
         return () => {
             mountedRef.current = false;
@@ -687,6 +707,24 @@ export function JournalWidget() {
                         </TouchableOpacity>
                     )}
                 </View>
+
+                {/* Active Insight - subtle treatment */}
+                {activeInsights.length > 0 && !isReflectionState && (
+                    <View className="pt-3 mt-3 border-t" style={{ borderTopColor: tokens.borderSubtle }}>
+                        <InsightCardCompact
+                            insight={activeInsights[0]}
+                            onPress={() => {
+                                const insight = activeInsights[0];
+                                insightOrchestratorService.markInsightViewed(insight.id).catch(console.error);
+                                // Navigate to friend profile if insight is about a specific friend
+                                if (insight.friendId) {
+                                    router.push(`/friend-profile?id=${insight.friendId}`);
+                                }
+                                // Otherwise just mark as viewed (network-level insights)
+                            }}
+                        />
+                    </View>
+                )}
             </View>
         </HomeWidgetBase >
     );

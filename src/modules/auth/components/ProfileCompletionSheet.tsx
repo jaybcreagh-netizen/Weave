@@ -74,9 +74,24 @@ export function ProfileCompletionSheet() {
                 return;
             }
 
+
             // 2. Check Phone Need (Secondary)
             // Only prompt if username is settled
             let currentPhone = profile.phone;
+
+            // Check Auth User object (primary source of truth for phone-based logins)
+            if (!currentPhone && user?.phone) {
+                currentPhone = user.phone;
+                console.log('[ProfileCompletionSheet] Found phone in Auth User:', currentPhone);
+
+                // Self-heal: Update local profile immediately
+                const localProfile = profile;
+                database.write(async () => {
+                    await localProfile.update((p: any) => {
+                        p.phone = user.phone;
+                    });
+                }).catch((err: any) => console.warn('[ProfileCompletionSheet] Failed to self-heal phone from Auth User:', err));
+            }
 
             // Should we double check with Supabase?
             if (!currentPhone && !needsUsername) {

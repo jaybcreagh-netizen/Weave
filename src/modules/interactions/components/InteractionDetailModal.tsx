@@ -274,7 +274,7 @@ export function InteractionDetailModal({
           </View>
         }
         titleComponent={
-          <View className="items-center">
+          <View className="items-center w-full px-2">
             <Text
               className="text-xl font-semibold text-center"
               style={{ color: colors.foreground }}

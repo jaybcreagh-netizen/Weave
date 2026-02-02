@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, Dimensions } from 'react-native';
-import { Calendar, Sparkles, Zap } from 'lucide-react-native';
+import { Calendar, Sparkles, Zap, Flame } from 'lucide-react-native';
 import { Q } from '@nozbe/watermelondb';
 import { useRouter } from 'expo-router';
 
@@ -231,18 +231,23 @@ export const YourEnergyWidget: React.FC = () => {
 
                     {/* Stats & Actions Footer */}
                     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 12, borderTopWidth: 1, borderTopColor: tokens.borderSubtle }}>
-                        <View>
-                            <Text style={{
-                                fontSize: typography.scale.bodySmall.fontSize,
-                                lineHeight: typography.scale.bodySmall.lineHeight,
-                                fontFamily: typography.fonts.serifBold,
-                                color: tokens.foreground
-                            }}>
-                                Avg: {currentStats.avgBattery}/5
-                            </Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                            {/* Battery Check-in Streak */}
+                            {asyncData.stats?.streakDays > 0 && (
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                                    <Flame size={14} color={tokens.primary} />
+                                    <Text style={{
+                                        fontSize: typography.scale.bodySmall.fontSize,
+                                        fontFamily: typography.fonts.sansSemiBold,
+                                        color: tokens.foreground
+                                    }}>
+                                        {asyncData.stats.streakDays}d streak
+                                    </Text>
+                                </View>
+                            )}
+                            {/* Check-in count */}
                             <Text style={{
                                 fontSize: typography.scale.caption.fontSize,
-                                lineHeight: typography.scale.caption.lineHeight,
                                 fontFamily: typography.fonts.sans,
                                 color: tokens.foregroundMuted
                             }}>

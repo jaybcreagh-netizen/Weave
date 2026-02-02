@@ -44,6 +44,15 @@ import OracleConversation from './models/OracleConversation';
 import ConversationThread from './models/ConversationThread';
 import LLMQualityLog from './models/LLMQualityLog';
 import UserFact from './models/UserFact';
+// v65: Friendship Narrative (Phase 2)
+import FriendshipNarrative from './models/FriendshipNarrative';
+import NarrativeMoment from './models/NarrativeMoment';
+// v66: Relationship Quality Score (Phase 3)
+import RelationshipQualitySnapshot from './models/RelationshipQualitySnapshot';
+// v67: Reciprocity Metrics (Phase 3B)
+import ReciprocitySnapshot from './models/ReciprocitySnapshot';
+// v68: Relationship Insights (Phase 3C)
+import RelationshipInsight from './models/RelationshipInsight';
 
 import { setGenerator } from '@nozbe/watermelondb/utils/common/randomId';
 import { v4 as uuidv4 } from 'uuid';
@@ -111,6 +120,15 @@ export const database = new Database({
     OracleConversation,
     // v56: Crystalized Memory
     UserFact,
+    // v65: Friendship Narrative
+    FriendshipNarrative,
+    NarrativeMoment,
+    // v66: Relationship Quality Score
+    RelationshipQualitySnapshot,
+    // v67: Reciprocity Metrics
+    ReciprocitySnapshot,
+    // v68: Relationship Insights
+    RelationshipInsight,
   ],
 });
 

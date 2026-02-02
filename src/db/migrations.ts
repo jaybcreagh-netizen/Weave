@@ -1413,6 +1413,124 @@ export default schemaMigrations({
         }),
       ],
     },
+    {
+      // Migration from schema v63 to v64
+      // Add oracle_observations to weekly_reflections for Network Reflections
+      toVersion: 64,
+      steps: [
+        addColumns({
+          table: 'weekly_reflections',
+          columns: [
+            { name: 'oracle_observations', type: 'string', isOptional: true },
+          ],
+        }),
+      ],
+    },
+    {
+      // Migration from schema v64 to v65
+      // Friendship Narrative System (Phase 2)
+      toVersion: 65,
+      steps: [
+        createTable({
+          name: 'friendship_narratives',
+          columns: [
+            { name: 'friend_id', type: 'string', isIndexed: true },
+            { name: 'current_chapter', type: 'string' },
+            { name: 'chapter_started_at', type: 'number' },
+            { name: 'friendship_start_date', type: 'number' },
+            { name: 'generated_narrative_json', type: 'string', isOptional: true },
+            { name: 'created_at', type: 'number' },
+            { name: 'updated_at', type: 'number' },
+          ],
+        }),
+        createTable({
+          name: 'narrative_moments',
+          columns: [
+            { name: 'friend_id', type: 'string', isIndexed: true },
+            { name: 'moment_type', type: 'string', isIndexed: true },
+            { name: 'occurred_at', type: 'number', isIndexed: true },
+            { name: 'user_reflection', type: 'string', isOptional: true },
+            { name: 'context_json', type: 'string', isOptional: true },
+            { name: 'created_at', type: 'number' },
+            { name: 'updated_at', type: 'number' },
+          ],
+        }),
+      ],
+    },
+    {
+      // Migration from schema v65 to v66
+      // Relationship Quality Score (Phase 3)
+      toVersion: 66,
+      steps: [
+        createTable({
+          name: 'relationship_quality_snapshots',
+          columns: [
+            { name: 'friend_id', type: 'string', isIndexed: true },
+            { name: 'calculated_at', type: 'number', isIndexed: true },
+            { name: 'depth_score', type: 'number' },
+            { name: 'consistency_score', type: 'number' },
+            { name: 'reciprocity_score', type: 'number' },
+            { name: 'growth_score', type: 'number' },
+            { name: 'resilience_score', type: 'number' },
+            { name: 'composite_score', type: 'number' },
+            { name: 'texture_json', type: 'string' },
+            { name: 'trajectory', type: 'string' },
+            { name: 'notable_patterns_json', type: 'string', isOptional: true },
+            { name: 'created_at', type: 'number' },
+            { name: 'updated_at', type: 'number' },
+          ],
+        }),
+      ],
+    },
+    {
+      // Migration from schema v66 to v67
+      // Reciprocity Metrics (Phase 3B)
+      toVersion: 67,
+      steps: [
+        createTable({
+          name: 'reciprocity_snapshots',
+          columns: [
+            { name: 'friend_id', type: 'string', isIndexed: true },
+            { name: 'calculated_at', type: 'number', isIndexed: true },
+            { name: 'initiation_ratio', type: 'number' },
+            { name: 'windows_json', type: 'string' },
+            { name: 'trend', type: 'string' },
+            { name: 'trend_magnitude', type: 'string' },
+            { name: 'flags_json', type: 'string' },
+            { name: 'created_at', type: 'number' },
+            { name: 'updated_at', type: 'number' },
+          ],
+        }),
+      ],
+    },
+    {
+      // Migration from schema v67 to v68
+      // RelationshipInsight (Phase 3C)
+      toVersion: 68,
+      steps: [
+        createTable({
+          name: 'relationship_insights',
+          columns: [
+            { name: 'insight_type', type: 'string', isIndexed: true },
+            { name: 'tone', type: 'string' },
+            { name: 'opener', type: 'string' },
+            { name: 'message', type: 'string' },
+            { name: 'context', type: 'string', isOptional: true },
+            { name: 'friend_id', type: 'string', isOptional: true, isIndexed: true },
+            { name: 'friend_name', type: 'string', isOptional: true },
+            { name: 'grounding_json', type: 'string' },
+            { name: 'suggested_action_json', type: 'string', isOptional: true },
+            { name: 'status', type: 'string', isIndexed: true },
+            { name: 'generated_at', type: 'number', isIndexed: true },
+            { name: 'expires_at', type: 'number' },
+            { name: 'viewed_at', type: 'number', isOptional: true },
+            { name: 'acted_on_at', type: 'number', isOptional: true },
+            { name: 'created_at', type: 'number' },
+            { name: 'updated_at', type: 'number' },
+          ],
+        }),
+      ],
+    },
   ],
 });
 

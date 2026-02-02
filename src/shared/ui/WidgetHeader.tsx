@@ -6,6 +6,8 @@ interface WidgetHeaderProps {
     icon?: React.ReactNode;
     title: string;
     subtitle?: string;
+    /** Optional trailing element (e.g., streak badge) */
+    trailing?: React.ReactNode;
     action?: {
         label: string;
         onPress: () => void;
@@ -16,6 +18,7 @@ export const WidgetHeader: React.FC<WidgetHeaderProps> = ({
     icon,
     title,
     subtitle,
+    trailing,
     action,
 }) => {
     const { tokens, typography } = useTheme();
@@ -49,6 +52,8 @@ export const WidgetHeader: React.FC<WidgetHeaderProps> = ({
                     )}
                 </View>
             </View>
+
+            {trailing}
 
             {action && (
                 <TouchableOpacity onPress={action.onPress} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>

@@ -25,6 +25,7 @@ export default class WeeklyReflection extends Model {
   @text('gratitude_prompt') gratitudePrompt?: string; // The prompt they responded to
   @text('prompt_context') promptContext?: string; // Why this prompt was chosen
   @text('story_chips') storyChipsRaw?: string; // JSON: Array of story chip selections
+  @text('oracle_observations') oracleObservationsRaw?: string; // JSON: Array of observation strings
 
   // Metadata
   @readonly @date('created_at') createdAt!: Date;
@@ -48,6 +49,20 @@ export default class WeeklyReflection extends Model {
 
   set storyChips(chips: Array<{ chipId: string; customText?: string }>) {
     this.storyChipsRaw = JSON.stringify(chips);
+  }
+
+  // Oracle Observations getter/setter
+  get oracleObservations(): string[] {
+    if (!this.oracleObservationsRaw) return [];
+    try {
+      return JSON.parse(this.oracleObservationsRaw);
+    } catch {
+      return [];
+    }
+  }
+
+  set oracleObservations(observations: string[]) {
+    this.oracleObservationsRaw = JSON.stringify(observations);
   }
 
 }

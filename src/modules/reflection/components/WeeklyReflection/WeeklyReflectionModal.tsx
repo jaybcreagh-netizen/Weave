@@ -49,6 +49,7 @@ import ProactiveInsight from '@/db/models/ProactiveInsight'; // Default import
 import { Q } from '@nozbe/watermelondb'; // Query
 import { OracleSummaryStep } from './OracleSummaryStep';
 import { oracleService } from '@/modules/oracle/services/oracle-service';
+import { reflectionSynthesizer } from '../../services/ReflectionSynthesizerService';
 
 // ============================================================================
 // TYPES
@@ -131,6 +132,7 @@ export function WeeklyReflectionModal({ isOpen, onClose }: WeeklyReflectionModal
   const [selectedEvents, setSelectedEvents] = useState<ScannedEvent[]>([]);
   const [activeInsights, setActiveInsights] = useState<ProactiveInsight[]>([]); // New state
   const [weeklyNarrative, setWeeklyNarrative] = useState<string | null>(null); // Oracle narrative
+  const [observations, setObservations] = useState<string[]>([]); // Network observations
 
   // Load data when modal opens
   useEffect(() => {
@@ -181,6 +183,17 @@ export function WeeklyReflectionModal({ isOpen, onClose }: WeeklyReflectionModal
       }).catch(err => {
         logger.warn('WeeklyReflection', 'Error generating narrative', err);
         setWeeklyNarrative("The stars are quiet, but your journey continues.");
+      });
+
+      // Generate observations (non-blocking)
+      const weekStart = summaryData.weekStartDate.getTime();
+      const weekEnd = summaryData.weekEndDate.getTime();
+      // Use user ID if available in future, currently undefined implies current user context from DB
+      reflectionSynthesizer.generateWeeklyObservations(undefined, weekStart, weekEnd).then(obs => {
+        setObservations(obs);
+      }).catch(err => {
+        logger.warn('WeeklyReflection', 'Error generating observations', err);
+        setObservations([]);
       });
 
     } catch (error) {
@@ -262,6 +275,7 @@ export function WeeklyReflectionModal({ isOpen, onClose }: WeeklyReflectionModal
           reflection.gratitudePrompt = prompt.question;
           reflection.promptContext = prompt.context;
           reflection.storyChips = reflectionData.chipIds.map(chipId => ({ chipId }));
+          reflection.oracleObservations = observations;
           reflection.completedAt = new Date();
         });
       });
@@ -378,6 +392,7 @@ export function WeeklyReflectionModal({ isOpen, onClose }: WeeklyReflectionModal
                   prompt={prompt}
                   promptEngineInput={buildPromptEngineInput(summary)} // Pass input for context
                   insights={activeInsights} // Pass insights
+                  observations={observations}
                   onNext={handlePromptNext}
                 />
               </View>

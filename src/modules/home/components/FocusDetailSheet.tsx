@@ -13,6 +13,9 @@ import { CachedImage } from '@/shared/ui/CachedImage';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { AnimatedBottomSheet } from '@/shared/ui/Sheet';
+import { InteractionManager } from 'react-native';
+import { Q } from '@nozbe/watermelondb';
+import { database } from '@/db';
 import { ListItem } from '@/shared/ui/ListItem';
 import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
@@ -78,19 +81,41 @@ export const FocusDetailSheet: React.FC<FocusDetailSheetProps> = ({
     React.useEffect(() => {
         let isMounted = true;
         const loadFriends = async () => {
-            const newMap: Record<string, string[]> = {};
             const allPlans = [...upcomingPlans, ...tomorrowPlans, ...completedPlans];
-            for (const plan of allPlans) {
-                try {
-                    const iFriends = await plan.interactionFriends.fetch();
-                    newMap[plan.id] = iFriends.map((f: any) => f.friendId);
-                } catch (e) {
-                    console.error('Error loading plan friends:', e);
-                }
+            if (allPlans.length === 0) return;
+
+            // Batch fetch to avoid N+1 queries
+            const allPlanIds = allPlans.map(p => p.id);
+            try {
+                // Fetch ALL interaction_friends for these interactions in one go
+                const interactionFriends = await database.get('interaction_friends')
+                    .query(Q.where('interaction_id', Q.oneOf(allPlanIds)))
+                    .fetch();
+
+                // Group by interaction ID
+                const newMap: Record<string, string[]> = {};
+
+                // Initialize all keys
+                allPlanIds.forEach(id => newMap[id] = []);
+
+                // Populate map
+                interactionFriends.forEach((ifRecord: any) => {
+                    if (newMap[ifRecord.interactionId]) {
+                        newMap[ifRecord.interactionId].push(ifRecord.friendId);
+                    }
+                });
+
+                if (isMounted) setPlanFriendIds(newMap);
+            } catch (e) {
+                console.error('Error loading plan friends:', e);
             }
-            if (isMounted) setPlanFriendIds(newMap);
         };
-        loadFriends();
+
+        // Defer this work slightly to prioritize sheet animation
+        InteractionManager.runAfterInteractions(() => {
+            loadFriends();
+        });
+
         return () => { isMounted = false; };
     }, [upcomingPlans, tomorrowPlans, completedPlans]);
 
@@ -128,7 +153,10 @@ export const FocusDetailSheet: React.FC<FocusDetailSheetProps> = ({
             }
         };
         if (isVisible) {
-            loadPrompt();
+            // Defer Oracle heavy lifting until after sheet animation
+            InteractionManager.runAfterInteractions(() => {
+                loadPrompt();
+            });
         }
         return () => { isMounted = false; };
     }, [isVisible]);

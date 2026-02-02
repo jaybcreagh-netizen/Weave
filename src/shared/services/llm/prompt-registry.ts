@@ -553,47 +553,61 @@ Generate context snippet (max 15 words):`,
   // ========================================================================
   oracle_starter_prompts: {
     id: 'oracle_starter_prompts',
-    version: '1.0.0',
+    version: '2.0.0',
     description: 'Generate dynamic starter prompts for the Oracle',
 
-    systemPrompt: `You generate generic yet contextual "starter prompts" for a user to ask their AI relationship coach.
+    systemPrompt: `You generate 4 SHORT, NATURAL questions a user might be wondering about their relationships.
 
 GOAL:
-Provide 3-4 diverse questions the user might want to ask, given their current social context.
+Provide 4 diverse "thought starter" chips. These should feel like the user's own wandering thoughts—brief, specific, and curiosity-driven.
 
-CRITERIA:
-1. **User-Centric Phrasing**: MUST be phrased as the user asking the AI.
-   - 🔴 BAD: "How is your social battery?" (AI asking user)
-   - 🟢 GOOD: "Analyze my social battery" (User asking AI)
-   - 🟢 GOOD: "Who should I reach out to?"
-   - 🟢 GOOD: "Reflect on my recent patterns"
+CRITICAL RULES:
+1. **Max 6 words per chip**. Shorter is better.
+2. **First-person phrasing**: "Why am I..." or "What about..." (User asking AI)
+3. **Natural language**: No robot speak. sound like an internal monologue.
+4. **Specific**: Use the provided Friend Names and Events.
+5. **Context-Aware**:
+   - If Friday/Saturday -> Suggest weekend plans.
+   - If birthday coming -> Suggest gift/celebration ideas.
+   - If "drift" -> Ask "Why no [Name]?"
 
-2. **Context-Aware**: Use the provided data (season, battery, etc.) to tailor the questions.
-   - If "Resting" season -> "How can I rest better?"
-   - If "Draining" battery -> "Why is my battery draining?"
-   - If "Needing Attention" > 0 -> "Who am I ignoring?"
+GOOD PROMPTS (Natural & Short):
+- "Why no Sam lately?"
+- "Ideas for Mum's 60th?"
+- "Am I ignoring Bridie?"
+- "Weekend plans?"
+- "Why am I drained?"
+- "Too many group hangs?"
+- "What's up with Isaac?"
+- "Need to vent?"
 
-3. **Variety**: Mix specific (data-driven) and broad (reflective) questions.
-
-4. **Hidden Instruction**: specific instruction for the AI to answer the question well.
+BAD PROMPTS (Too formal/command-like):
+- "Analyze my social battery" (Command)
+- "Who should I reach out to?" (Generic)
+- "Reflect on my recent patterns" (Homework)
+- "How can I improve my connections?" (Stiff)
 
 OUTPUT FORMAT (JSON ARRAY):
 [
   {
-    "text": "Short button label (max 25 chars)",
-    "prompt": "Detailed instruction for the AI when this button is tapped. E.g. 'Analyze my recent history and tell me...'",
+    "text": "Chip Label (Max 6 words)",
+    "prompt": "Full detailed instruction for the AI when clicked. E.g. 'Analyze my recent history with Sam and tell me why we haven't connected...'",
     "icon": "One of: 'heart', 'users', 'battery', 'sparkles', 'book-open', 'message-circle', 'zap'"
   }
 ]`,
 
     userPromptTemplate: `USER CONTEXT:
+Day: {{dayOfWeek}}
 Social Season: {{socialSeason}}
 Social Battery: {{socialBatteryTrend}} (Level: {{socialBatteryLevel}}/5)
-Friends Needing Attention: {{needingAttentionCount}}
-Recent Journey Sentiment: {{recentSentiment}}
-Top Friends Recently: {{topFriends}}
+Recent Pattern: {{activityPattern}}
 
-Generate 4 starter prompts (JSON):`,
+FRIENDS & EVENTS:
+Drifting Friend: {{driftingFriend}}
+Upcoming Events: {{upcomingEvents}}
+Top Friends: {{topFriends}}
+
+Generate 4 natural starter prompts (JSON):`,
 
     defaultOptions: {
       maxTokens: 4096,
@@ -1469,6 +1483,176 @@ Identify 3 distinct archetypal paths (JSON):`,
     defaultOptions: {
       maxTokens: 4096,
       temperature: 0.5,
+    },
+  },
+
+  // ========================================================================
+  // FRIENDSHIP NARRATIVE
+  // Generates a 2-4 sentence narrative about the story of a friendship
+  // ========================================================================
+  friendship_narrative: {
+    id: 'friendship_narrative',
+    version: '1.0.0',
+    description: 'Generate a narrative about the story of a friendship',
+
+    systemPrompt: `You are helping someone understand the story of their friendship.
+Given the data about this relationship, write a brief narrative (2-4 sentences) that:
+1. Captures the essence of how this friendship has evolved
+2. Highlights meaningful moments without being sentimental
+3. Speaks in second person ("You and Sarah...")
+4. Feels like a thoughtful observation, not a summary
+
+AVOID:
+- Flowery language or excessive metaphors
+- Judgment about the quality of the friendship
+- Suggestions or advice (this is observation only)
+- Generic phrases that could apply to any friendship
+
+GROUNDING (critical):
+- Reference specific data: number of interactions, interaction patterns, key moments
+- Use the texture and trajectory to inform the tone
+- Do NOT reference how long you've been friends - we don't have that data
+
+EXAMPLE GOOD NARRATIVES:
+- "You and Marcus have logged 47 connections. What started as climbing partners has deepened—your last three conversations ran over 2 hours each. The intensity is new."
+- "Your rhythm with Sarah remains consistent. Monthly dinners, steady energy. Not flashy, but there's something reassuring in the predictability."
+- "You and Alex have been connecting more frequently lately. Since your last check-in, you've seen each other more than usual. Something shifted."
+
+OUTPUT:
+Return ONLY the narrative text. No quotes, no preamble.`,
+
+    userPromptTemplate: `FRIEND: {{friendName}}
+CURRENT CHAPTER: {{chapter}}
+TOTAL INTERACTIONS LOGGED: {{totalInteractions}}
+
+RELATIONSHIP TEXTURE:
+- Depth: {{textureDepth}}
+- Consistency: {{textureConsistency}}
+- Summary: {{textureSummary}}
+
+TRAJECTORY: {{trajectory}}
+
+NOTABLE PATTERNS:
+{{patterns}}
+
+KEY MOMENTS:
+{{#each moments}}
+- {{this.type}} ({{this.daysAgo}} days ago)
+{{/each}}
+
+Write a brief narrative about this friendship (2-4 sentences):`,
+
+    defaultOptions: {
+      maxTokens: 2048,
+      temperature: 0.7,
+    },
+  },
+
+  // ========================================================================
+  // RECIPROCITY INTERPRETATION
+  // Generates human-readable insight about a friendship's balance
+  // ========================================================================
+  reciprocity_interpretation: {
+    id: 'reciprocity_interpretation',
+    version: '1.0.0',
+    description: 'Interpret reciprocity metrics into a human-readable observation',
+
+    systemPrompt: `You interpret relationship balance data into a gentle, human observation.
+
+VOICE:
+- Warm and curious, not judgmental
+- Observational, not prescriptive
+- 1-2 sentences maximum
+
+INPUT DATA:
+- initiationRatio: 0-1 where 0.5 is balanced, <0.5 means friend initiates more, >0.5 means you initiate more
+- trend: "improving", "stable", or "declining"
+- flags: healthyBalance, onePersonCarrying, recentShift
+
+RULES:
+- NEVER say "you should reach out less" or similar advice
+- If balanced (0.4-0.6 ratio), celebrate the balance
+- If imbalanced, note it with curiosity, not judgment
+- If trend is improving, acknowledge the positive shift
+- If onePersonCarrying, be gentle about it
+
+EXAMPLES:
+- Ratio 0.75, trend stable: "You tend to be the one reaching out. That's not bad—some friendships naturally work that way."
+- Ratio 0.35, trend improving: "They've been initiating more lately. The energy is finding its balance."
+- Ratio 0.52, healthyBalance: "There's an easy back-and-forth here. You both show up."
+- Ratio 0.82, onePersonCarrying: "You've initiated most of your recent connections. Worth noticing, though it doesn't have to mean anything."
+
+OUTPUT:
+Return ONLY the observation. No quotes, no preamble.`,
+
+    userPromptTemplate: `FRIEND: {{friendName}}
+INITIATION RATIO: {{initiationRatio}} (0 = they always initiate, 1 = you always initiate)
+TREND: {{trend}}
+TREND MAGNITUDE: {{trendMagnitude}}
+
+TIME WINDOWS:
+- Last 30 days: {{last30Your}}/{{last30Total}} interactions you initiated
+- Last 90 days: {{last90Your}}/{{last90Total}} interactions you initiated
+- Lifetime: {{lifetimeYour}}/{{lifetimeTotal}} interactions you initiated
+
+FLAGS:
+- Healthy Balance: {{healthyBalance}}
+- One Person Carrying: {{onePersonCarrying}}
+- Recent Shift: {{recentShift}}
+
+Generate a 1-2 sentence observation about the balance in this friendship:`,
+
+    defaultOptions: {
+      maxTokens: 1024,
+      temperature: 0.6,
+    },
+  },
+
+  // ========================================================================
+  // RQS TEXTURE DESCRIPTION
+  // Generates human-readable description of relationship texture
+  // ========================================================================
+  rqs_texture_description: {
+    id: 'rqs_texture_description',
+    version: '1.0.0',
+    description: 'Generate human-readable description of relationship texture',
+
+    systemPrompt: `You describe the "texture" of a relationship in one evocative sentence.
+
+TEXTURE DIMENSIONS:
+- Depth: surface, casual, personal, intimate, profound
+- Consistency: sporadic, irregular, semi_regular, regular, ritual
+- Emotional Range: neutral, warm, complex, intense
+
+YOUR JOB:
+Synthesize these dimensions into ONE sentence that captures the overall feel of this friendship.
+
+VOICE:
+- Evocative but not flowery
+- Concrete where possible ("monthly dinners" not "regular connection")
+- Observation, not judgment
+
+EXAMPLES:
+- Depth: profound, Consistency: ritual, Range: complex → "This is one of your deepest connections—reliable, emotionally rich, and layered with shared history."
+- Depth: casual, Consistency: sporadic, Range: warm → "A light, easygoing friendship that surfaces now and then. Low maintenance, high goodwill."
+- Depth: personal, Consistency: regular, Range: neutral → "Steady and comfortable. You show up for each other without a lot of drama."
+
+OUTPUT:
+Return ONLY the texture description. One sentence.`,
+
+    userPromptTemplate: `FRIEND: {{friendName}}
+DEPTH: {{depth}}
+CONSISTENCY: {{consistency}}
+EMOTIONAL RANGE: {{emotionalRange}}
+AVERAGE DURATION: {{avgDuration}} minutes
+DOMINANT ACTIVITY: {{dominantActivity}}
+TOTAL INTERACTIONS: {{totalInteractions}}
+
+Describe the texture of this friendship in one sentence:`,
+
+    defaultOptions: {
+      maxTokens: 512,
+      temperature: 0.7,
     },
   },
 

@@ -1,8 +1,89 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb'
 
 export default appSchema({
-  version: 63, // v63: Add end_date and travel type to life_events
+  version: 68, // v68: Add relationship_insights (Phase 3C)
   tables: [
+    // ===== RELATIONSHIP INSIGHTS (Phase 3C) =====
+    tableSchema({
+      name: 'relationship_insights',
+      columns: [
+        { name: 'insight_type', type: 'string', isIndexed: true },
+        { name: 'tone', type: 'string' },
+        { name: 'opener', type: 'string' },
+        { name: 'message', type: 'string' },
+        { name: 'context', type: 'string', isOptional: true },
+        { name: 'friend_id', type: 'string', isOptional: true, isIndexed: true },
+        { name: 'friend_name', type: 'string', isOptional: true },
+        { name: 'grounding_json', type: 'string' },
+        { name: 'suggested_action_json', type: 'string', isOptional: true },
+        { name: 'status', type: 'string', isIndexed: true },
+        { name: 'generated_at', type: 'number', isIndexed: true },
+        { name: 'expires_at', type: 'number' },
+        { name: 'viewed_at', type: 'number', isOptional: true },
+        { name: 'acted_on_at', type: 'number', isOptional: true },
+        { name: 'created_at', type: 'number' },
+        { name: 'updated_at', type: 'number' },
+      ]
+    }),
+    // ===== RECIPROCITY METRICS (Phase 3B) =====
+    tableSchema({
+      name: 'reciprocity_snapshots',
+      columns: [
+        { name: 'friend_id', type: 'string', isIndexed: true },
+        { name: 'calculated_at', type: 'number', isIndexed: true },
+        { name: 'initiation_ratio', type: 'number' },
+        { name: 'windows_json', type: 'string' },
+        { name: 'trend', type: 'string' },
+        { name: 'trend_magnitude', type: 'string' },
+        { name: 'flags_json', type: 'string' },
+        { name: 'created_at', type: 'number' },
+        { name: 'updated_at', type: 'number' },
+      ]
+    }),
+    // ===== RELATIONSHIP QUALITY SCORE (Phase 3) =====
+    tableSchema({
+      name: 'relationship_quality_snapshots',
+      columns: [
+        { name: 'friend_id', type: 'string', isIndexed: true },
+        { name: 'calculated_at', type: 'number', isIndexed: true },
+        { name: 'depth_score', type: 'number' },
+        { name: 'consistency_score', type: 'number' },
+        { name: 'reciprocity_score', type: 'number' },
+        { name: 'growth_score', type: 'number' },
+        { name: 'resilience_score', type: 'number' },
+        { name: 'composite_score', type: 'number' },
+        { name: 'texture_json', type: 'string' },
+        { name: 'trajectory', type: 'string' },
+        { name: 'notable_patterns_json', type: 'string', isOptional: true },
+        { name: 'created_at', type: 'number' },
+        { name: 'updated_at', type: 'number' },
+      ]
+    }),
+    // ===== FRIENDSHIP NARRATIVE (Phase 2) =====
+    tableSchema({
+      name: 'friendship_narratives',
+      columns: [
+        { name: 'friend_id', type: 'string', isIndexed: true },
+        { name: 'current_chapter', type: 'string' },
+        { name: 'chapter_started_at', type: 'number' },
+        { name: 'friendship_start_date', type: 'number' },
+        { name: 'generated_narrative_json', type: 'string', isOptional: true },
+        { name: 'created_at', type: 'number' },
+        { name: 'updated_at', type: 'number' },
+      ]
+    }),
+    tableSchema({
+      name: 'narrative_moments',
+      columns: [
+        { name: 'friend_id', type: 'string', isIndexed: true },
+        { name: 'moment_type', type: 'string', isIndexed: true },
+        { name: 'occurred_at', type: 'number', isIndexed: true },
+        { name: 'user_reflection', type: 'string', isOptional: true },
+        { name: 'context_json', type: 'string', isOptional: true },
+        { name: 'created_at', type: 'number' },
+        { name: 'updated_at', type: 'number' },
+      ]
+    }),
     // ===== ORACLE AI INFRASTRUCTURE =====
     tableSchema({
       name: 'oracle_insights',
@@ -524,6 +605,8 @@ export default appSchema({
         { name: 'synced_at', type: 'number', isOptional: true },
         { name: 'sync_status', type: 'string', isOptional: true },
         { name: 'server_updated_at', type: 'number', isOptional: true },
+        // NEW v64: Oracle Observations
+        { name: 'oracle_observations', type: 'string', isOptional: true }, // JSON array of observation strings
 
       ]
     }),

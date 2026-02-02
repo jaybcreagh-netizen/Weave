@@ -7,7 +7,6 @@ import { PatternBadge } from '@/modules/gamification';
 import { TierFitCard } from '@/modules/insights';
 import { useTheme } from '@/shared/hooks/useTheme';
 import FriendModel from '@/db/models/Friend';
-import { LinkStatusBadge } from '../LinkStatusBadge';
 import { LinkedArchetypeBadge } from '../LinkedArchetypeBadge';
 
 interface ProfileHeaderProps {
@@ -86,15 +85,9 @@ export function ProfileHeader({
                     </View>
                     <PatternBadge friend={friend as any} style={{ marginTop: 4, marginLeft: 4 }} />
 
-                    {/* Link Status Badge */}
-                    <View style={{ marginTop: 8, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                        <LinkStatusBadge
-                            friend={friend}
-                            onLinkPress={onLinkToWeaveUser}
-                            onUnlinkPress={onUnlinkFriend}
-                        />
-                        {/* Pending Weaves Badge */}
-                        {pendingWeaveCount > 0 && (
+                    {/* Pending Weaves Badge - only shown when there are pending weaves */}
+                    {pendingWeaveCount > 0 && (
+                        <View style={{ marginTop: 8, flexDirection: 'row', alignItems: 'center' }}>
                             <TouchableOpacity
                                 onPress={onPressPending}
                                 className="flex-row items-center gap-1 px-2 py-1 rounded-full"
@@ -105,8 +98,8 @@ export function ProfileHeader({
                                     {pendingWeaveCount} pending
                                 </Text>
                             </TouchableOpacity>
-                        )}
-                    </View>
+                        </View>
+                    )}
 
                     {/* Linked Friend's Archetype (if linked) */}
                     <View style={{ marginTop: 8 }}>
