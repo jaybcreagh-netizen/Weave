@@ -1,4 +1,4 @@
-import React, { useEffect, useState, ReactNode } from 'react';
+import React, { useEffect, useRef, useState, ReactNode } from 'react';
 import { AppState } from 'react-native';
 import { SplashScreen, usePathname } from 'expo-router';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
@@ -49,6 +49,12 @@ import { useFriendsObservable } from '@/shared/context/FriendsObservableContext'
 import { useUIStore } from '@/shared/stores/uiStore';
 import { QUICK_WEAVE_ENABLED_KEY } from '@/modules/interactions/utils/quick-weave-settings';
 
+// Startup/foreground timings tuned for faster reliability in short sessions.
+const STARTUP_CALENDAR_SYNC_DELAY_MS = 5000;
+const STARTUP_MAINTENANCE_DELAY_MS = 8000;
+const FOREGROUND_MAINTENANCE_DELAY_MS = 4000;
+const FOREGROUND_INSIGHTS_DELAY_MS = 5000;
+
 export function DataInitializer({ children }: DataInitializerProps) {
     const posthog = usePostHog();
     const [analyticsInitialized, setAnalyticsInitialized] = useState(false);
@@ -68,6 +74,8 @@ export function DataInitializer({ children }: DataInitializerProps) {
 
     const [dataLoaded, setDataLoaded] = useState(false);
     const [isSplashAnimationComplete, setIsSplashAnimationComplete] = useState(false);
+    const foregroundMaintenanceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const foregroundInsightsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Animated opacity for smooth fade-in of content
     const contentOpacity = useSharedValue(0);
@@ -212,7 +220,7 @@ export function DataInitializer({ children }: DataInitializerProps) {
                             console.error('[App] Error syncing calendar on launch:', error);
                         });
                     });
-                }, 45000); // 45 seconds delay to clear initial user activity
+                }, STARTUP_CALENDAR_SYNC_DELAY_MS);
 
                 // NOTE: Event suggestion prefetching removed from startup
                 // It runs on foreground via useAppStateChange and React Query's staleTime
@@ -237,7 +245,7 @@ export function DataInitializer({ children }: DataInitializerProps) {
                     PlanService.checkPendingPlans().catch(err => {
                         console.error('[App] Error checking pending plans on launch:', err);
                     });
-                }, 55000);
+                }, STARTUP_MAINTENANCE_DELAY_MS);
 
                 console.log(`[Startup] Total initialization: ${Date.now() - startTime}ms`);
                 setDataLoaded(true);
@@ -297,6 +305,17 @@ export function DataInitializer({ children }: DataInitializerProps) {
         opacity: contentOpacity.value,
     }));
 
+    useEffect(() => {
+        return () => {
+            if (foregroundMaintenanceTimeoutRef.current) {
+                clearTimeout(foregroundMaintenanceTimeoutRef.current);
+            }
+            if (foregroundInsightsTimeoutRef.current) {
+                clearTimeout(foregroundInsightsTimeoutRef.current);
+            }
+        };
+    }, []);
+
     // Monitor app state changes for logging and maintenance
     useAppStateChange((state) => {
         if (state === 'active') {
@@ -304,10 +323,12 @@ export function DataInitializer({ children }: DataInitializerProps) {
             trackEvent(AnalyticsEvents.APP_OPENED);
             trackRetentionMetrics();
 
-            // DEFERRED: Heavy operations run after 2 seconds
-            // This gives priority to user interactions like Quick Weave
-            // which need immediate access to the database write queue
-            setTimeout(() => {
+            // DEFERRED: Heavy operations run shortly after foregrounding
+            // to keep first interaction smooth while still running in short sessions.
+            if (foregroundMaintenanceTimeoutRef.current) {
+                clearTimeout(foregroundMaintenanceTimeoutRef.current);
+            }
+            foregroundMaintenanceTimeoutRef.current = setTimeout(() => {
                 NotificationOrchestrator.onAppForeground().catch((error) => {
                     console.error('[App] Error during foreground notification checks:', error);
                 });
@@ -347,17 +368,19 @@ export function DataInitializer({ children }: DataInitializerProps) {
                         console.error('[App] Error syncing shared weave responses on foreground:', error);
                     });
                 });
-            }, 45000); // 45 second delay to free write queue for user actions
+            }, FOREGROUND_MAINTENANCE_DELAY_MS);
 
             // Oracle Insights Generation (runs in background)
-            // Oracle Insights Generation (runs in background)
-            setTimeout(() => {
+            if (foregroundInsightsTimeoutRef.current) {
+                clearTimeout(foregroundInsightsTimeoutRef.current);
+            }
+            foregroundInsightsTimeoutRef.current = setTimeout(() => {
                 import('@/modules/oracle').then(({ InsightGenerator }) => {
                     InsightGenerator.generateDailyInsights().catch((err: unknown) => {
                         console.error('[App] Error generating daily insights:', err);
                     });
                 });
-            }, 5000); // 5 second delay to ensure critical path is clear
+            }, FOREGROUND_INSIGHTS_DELAY_MS);
         } else if (state === 'background') {
             trackEvent(AnalyticsEvents.APP_BACKGROUNDED);
         }

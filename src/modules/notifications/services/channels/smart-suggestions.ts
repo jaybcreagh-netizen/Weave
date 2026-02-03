@@ -104,6 +104,13 @@ export const SmartSuggestionsChannel: NotificationChannel & {
     evaluateAndSchedule: async (injectedConfig?: NotificationConfigItem): Promise<void> => {
         Logger.info('[SmartSuggestions] Evaluating...');
 
+        const userEnabled = await notificationStore.isSmartNotificationsEnabled();
+        if (!userEnabled) {
+            Logger.info('[SmartSuggestions] Disabled by user setting');
+            await SmartSuggestionsChannel.cancel();
+            return;
+        }
+
         // Use injected effective config (from Orchestrator) or fall back to raw
         const config = injectedConfig || NOTIFICATION_CONFIG['smart-suggestions'];
 

@@ -49,6 +49,9 @@ const adapter = new LokiJSAdapter({
     schema,
     useWebWorker: false,
     useIncrementalIndexedDB: false,
+    extraLokiOptions: {
+        autosave: false,
+    },
 });
 
 const mockDatabase = new Database({

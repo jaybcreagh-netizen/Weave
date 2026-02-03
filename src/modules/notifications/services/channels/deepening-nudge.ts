@@ -19,9 +19,12 @@ import { NOTIFICATION_TIMING } from '../../notification.config';
 
 const ID_PREFIX = 'deepening-nudge-';
 
-export const DeepeningNudgeChannel: NotificationChannel = {
+export const DeepeningNudgeChannel: NotificationChannel & { cancelAll: () => Promise<void> } = {
     schedule: async (interaction: Interaction): Promise<void> => {
         try {
+            const userEnabled = await notificationStore.isDeepeningNudgesEnabled();
+            if (!userEnabled) return;
+
             if (interaction.status !== 'completed') return;
 
             // Check if this type is suppressed (ignored 3+ times)
@@ -55,6 +58,11 @@ export const DeepeningNudgeChannel: NotificationChannel = {
 
             // Limit nudges per day
             const existingNudges = await notificationStore.getDeepeningNudges();
+            const alreadyScheduledForInteraction = existingNudges.some(
+                (n) => n.interactionId === interaction.id && n.scheduledAt >= Date.now()
+            );
+            if (alreadyScheduledForInteraction) return;
+
             const startOfDay = new Date(now);
             startOfDay.setHours(0, 0, 0, 0);
             const todayNudges = existingNudges.filter(n => n.scheduledAt >= startOfDay.getTime());
@@ -132,6 +140,16 @@ export const DeepeningNudgeChannel: NotificationChannel = {
         if (id) {
             await Notifications.cancelScheduledNotificationAsync(id);
         }
+    },
+
+    cancelAll: async (): Promise<void> => {
+        const all = await Notifications.getAllScheduledNotificationsAsync();
+        await Promise.all(
+            all
+                .filter((n) => n.identifier.startsWith(ID_PREFIX))
+                .map((n) => Notifications.cancelScheduledNotificationAsync(n.identifier))
+        );
+        await notificationStore.setDeepeningNudges([]);
     },
 
     handleTap: (data, router) => {

@@ -35,6 +35,7 @@ describe('WeeklyReflectionChannel', () => {
         jest.clearAllMocks();
         (Notifications.scheduleNotificationAsync as jest.Mock).mockResolvedValue('reflection-id');
         (Notifications.getAllScheduledNotificationsAsync as jest.Mock).mockResolvedValue([]);
+        (notificationStore.isWeeklyReflectionEnabled as jest.Mock).mockResolvedValue(true);
         (gracePeriods.shouldSendWeeklyReflectionNotification as jest.Mock).mockResolvedValue({
             shouldSend: true,
         });

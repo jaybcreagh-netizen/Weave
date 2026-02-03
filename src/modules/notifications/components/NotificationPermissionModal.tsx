@@ -96,7 +96,7 @@ export function NotificationPermissionModal({
               <NotificationBenefit
                 icon={<Sparkles size={24} color={theme.colors.primary} />}
                 title="Weekly reflection"
-                description="A Sunday evening invitation to reflect on your week"
+                description="A weekly invitation to pause and reflect on your relationships"
               />
             </Animated.View>
 

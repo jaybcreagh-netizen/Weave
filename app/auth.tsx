@@ -6,8 +6,9 @@
  */
 
 import React from 'react';
-import { View, Text } from 'react-native';
+import { router } from 'expo-router';
 import { FeatureGate } from '@/shared/components/FeatureGate';
+import { AccountsDisabledFallback } from '@/modules/auth/components/AccountsDisabledFallback';
 import { OnboardingAuthScreen } from '@/modules/auth/screens/OnboardingAuthScreen';
 
 export default function AuthRoute() {
@@ -15,9 +16,18 @@ export default function AuthRoute() {
         <FeatureGate
             flag="ACCOUNTS_ENABLED"
             fallback={
-                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-                    <Text>Accounts feature not enabled</Text>
-                </View>
+                <AccountsDisabledFallback
+                    title="Accounts are currently disabled"
+                    description="This build is in local-only mode. You can return to settings and continue without sign-in."
+                    ctaLabel="Go back"
+                    onPress={() => {
+                        if (router.canGoBack()) {
+                            router.back();
+                            return;
+                        }
+                        router.replace('/dashboard');
+                    }}
+                />
             }
         >
             <OnboardingAuthScreen source="settings" />

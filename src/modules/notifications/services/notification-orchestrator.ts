@@ -281,8 +281,14 @@ class NotificationOrchestratorService {
             try {
                 if (!payload?.interactionId) return;
                 const interaction = await database.get<Interaction>('interactions').find(payload.interactionId);
-                if (interaction && interaction.status === 'planned') {
+                if (!interaction) return;
+
+                if (interaction.status === 'planned') {
                     await EventReminderChannel.schedule(interaction);
+                }
+
+                if (interaction.status === 'completed') {
+                    await DeepeningNudgeChannel.schedule(interaction);
                 }
             } catch (error) {
                 Logger.error('[NotificationOrchestrator] Failed to handle interaction:created:', error);
@@ -302,6 +308,10 @@ class NotificationOrchestratorService {
                     } else {
                         // If cancelled or completed, cancel reminder
                         await EventReminderChannel.cancel(interaction.id);
+                    }
+
+                    if (interaction.status === 'completed') {
+                        await DeepeningNudgeChannel.schedule(interaction);
                     }
                 }
             } catch (error) {

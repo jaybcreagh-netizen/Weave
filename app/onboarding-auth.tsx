@@ -6,8 +6,9 @@
  */
 
 import React from 'react';
-import { View, Text } from 'react-native';
+import { router } from 'expo-router';
 import { FeatureGate } from '@/shared/components/FeatureGate';
+import { AccountsDisabledFallback } from '@/modules/auth/components/AccountsDisabledFallback';
 import { OnboardingAuthScreen } from '@/modules/auth/screens/OnboardingAuthScreen';
 
 export default function OnboardingAuthRoute() {
@@ -15,9 +16,12 @@ export default function OnboardingAuthRoute() {
         <FeatureGate
             flag="ACCOUNTS_ENABLED"
             fallback={
-                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-                    <Text>Accounts feature not enabled</Text>
-                </View>
+                <AccountsDisabledFallback
+                    title="Account setup is unavailable"
+                    description="This build is running in local-only mode. You can continue with permissions and start using Weave."
+                    ctaLabel="Continue setup"
+                    onPress={() => router.replace('/permissions')}
+                />
             }
         >
             <OnboardingAuthScreen />

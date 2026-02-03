@@ -73,6 +73,9 @@ jest.mock('@/db', () => {
         useWebWorker: false,
         useIncrementalIndexedDB: false,
         dbName: 'test-db',
+        extraLokiOptions: {
+            autosave: false,
+        },
     });
 
     const database = new Database({
@@ -214,4 +217,3 @@ describe('Suggestion Engine Integrated Tests', () => {
         });
     });
 });
-

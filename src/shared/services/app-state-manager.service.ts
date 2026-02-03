@@ -14,8 +14,13 @@ class AppStateManager {
   private lastActivityTime: number = Date.now();
   private idleTimer: NodeJS.Timeout | null = null;
   private isCurrentlyIdle: boolean = false;
+  private readonly isTestEnv = process.env.NODE_ENV === 'test';
 
   constructor() {
+    if (this.isTestEnv) {
+      return;
+    }
+
     this.subscription = AppState.addEventListener('change', this.handleAppStateChange);
 
     // Initial check
@@ -40,6 +45,9 @@ class AppStateManager {
       this.idleTimer = setTimeout(() => {
         this.handleIdleTrigger();
       }, IDLE_TIMEOUT);
+      if (typeof (this.idleTimer as any)?.unref === 'function') {
+        (this.idleTimer as any).unref();
+      }
     }
   }
 

@@ -11,10 +11,12 @@ import { setupIntelligenceListeners } from '@/modules/intelligence';
 import { setupGamificationListeners } from '@/modules/gamification';
 import { NotificationPermissionModal } from '@/modules/notifications';
 import { useTutorialStore } from '@/shared/stores/tutorialStore';
-import { useDatabaseReady } from '@/shared/hooks/useDatabaseReady';
 import { BackgroundTaskManager } from '@/shared/services/background-task-manager';
 
 const NOTIFICATION_PERMISSION_ASKED_KEY = '@weave:notification_permission_asked';
+const FIRST_RUN_COMPLETED_KEY = '@weave:first_run_completed';
+const NOTIFICATION_INIT_DELAY_MS = 1500;
+const PERMISSION_PROMPT_DELAY_MS = 750;
 
 export function NotificationManager() {
     const [showNotificationPermissionModal, setShowNotificationPermissionModal] = useState(false);
@@ -46,16 +48,19 @@ export function NotificationManager() {
 
     // Initialize all notification systems
     useEffect(() => {
+        let isCancelled = false;
+
         const setupNotifications = async () => {
             try {
-                // Delay initialization to avoid writer contention on startup
-                // This prevents the "writer queue" warning and potential UI jank during splash dismissal
-                // INCREASED: 20000ms to push heavy notification checks well past initial interactions
-                await new Promise(resolve => setTimeout(resolve, 20000));
+                // Keep startup smooth, but still initialize quickly for short sessions.
+                await new Promise(resolve => setTimeout(resolve, NOTIFICATION_INIT_DELAY_MS));
+                if (isCancelled) return;
 
                 await NotificationOrchestrator.init();
+                if (isCancelled) return;
                 // Register background task for reliable notifications
                 await BackgroundTaskManager.registerBackgroundTask();
+                if (isCancelled) return;
 
                 const response = await Notifications.getLastNotificationResponseAsync();
                 if (response) {
@@ -73,6 +78,7 @@ export function NotificationManager() {
         });
 
         return () => {
+            isCancelled = true;
             subscription.remove();
         };
     }, []);
@@ -86,6 +92,12 @@ export function NotificationManager() {
                 const hasAsked = await AsyncStorage.getItem(NOTIFICATION_PERMISSION_ASKED_KEY);
                 if (hasAsked === 'true') return;
 
+                // Avoid showing the post-onboarding modal until the first-run setup
+                // funnel is actually complete (social battery step reached).
+                const firstRunCompleted = await AsyncStorage.getItem(FIRST_RUN_COMPLETED_KEY);
+                const hasCompletedFirstRunSetup = firstRunCompleted === 'true';
+                if (!hasCompletedFirstRunSetup) return;
+
                 const { status } = await Notifications.getPermissionsAsync();
                 if (status === 'granted') {
                     await AsyncStorage.setItem(NOTIFICATION_PERMISSION_ASKED_KEY, 'true');
@@ -94,7 +106,7 @@ export function NotificationManager() {
 
                 setTimeout(() => {
                     setShowNotificationPermissionModal(true);
-                }, 1000);
+                }, PERMISSION_PROMPT_DELAY_MS);
             } catch (error) {
                 console.error('[App] Error checking notification permissions:', error);
             }

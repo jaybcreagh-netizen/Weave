@@ -37,6 +37,9 @@ jest.mock('@/db', () => {
         useWebWorker: false,
         useIncrementalIndexedDB: false,
         dbName: 'test-db-edge-cases',
+        extraLokiOptions: {
+            autosave: false,
+        },
     });
 
     const database = new Database({

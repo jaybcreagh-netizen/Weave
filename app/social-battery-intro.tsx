@@ -13,18 +13,23 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { ArrowRight } from 'lucide-react-native';
 import Slider from '@react-native-community/slider';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { Text } from '@/shared/ui/Text';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { useUserProfileStore } from '@/modules/auth';
+import { useTutorialStore } from '@/shared/stores/tutorialStore';
 import { MoonPhaseIllustration } from '@/modules/intelligence/components/social-season/YearInMoons/MoonPhaseIllustration';
 import { BATTERY_STATES } from '@/modules/home/components/widgets/SocialBatterySheet';
+
+const FIRST_RUN_COMPLETED_KEY = '@weave:first_run_completed';
 
 export default function SocialBatteryIntroScreen() {
     const router = useRouter();
     const insets = useSafeAreaInsets();
     const { colors } = useTheme();
     const { submitBatteryCheckin } = useUserProfileStore();
+    const markSocialBatterySeen = useTutorialStore((state) => state.markSocialBatterySeen);
     const [batteryLevel, setBatteryLevel] = useState<number>(3);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -46,12 +51,29 @@ export default function SocialBatteryIntroScreen() {
             console.error('[SocialBatteryIntro] Error submitting:', error);
         }
 
+        try {
+            await Promise.all([
+                AsyncStorage.setItem(FIRST_RUN_COMPLETED_KEY, 'true'),
+                markSocialBatterySeen(),
+            ]);
+        } catch (error) {
+            console.error('[SocialBatteryIntro] Error finalizing first-run setup:', error);
+        }
+
         setIsSubmitting(false);
         router.replace('/dashboard');
     };
 
-    const handleSkip = () => {
+    const handleSkip = async () => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        try {
+            await Promise.all([
+                AsyncStorage.setItem(FIRST_RUN_COMPLETED_KEY, 'true'),
+                markSocialBatterySeen(),
+            ]);
+        } catch (error) {
+            console.error('[SocialBatteryIntro] Error finalizing skip flow:', error);
+        }
         router.replace('/dashboard');
     };
 

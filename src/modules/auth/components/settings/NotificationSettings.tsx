@@ -10,6 +10,7 @@ import {
     WeeklyReflectionChannel,
     EventReminderChannel,
     EveningDigestChannel,
+    SmartSuggestionsChannel,
     BatteryCheckinChannel, // Assuming this exists based on context
     DeepeningNudgeChannel, // Assuming this exists based on context
 } from '@/modules/notifications';
@@ -164,18 +165,26 @@ export const NotificationSettings = () => {
         await AsyncStorage.setItem('@weave:event_reminders_enabled', JSON.stringify(enabled));
         if (enabled) {
             await EventReminderChannel.scheduleAll();
+        } else {
+            await EventReminderChannel.cancelAll();
         }
     };
 
     const handleToggleDeepeningNudges = async (enabled: boolean) => {
         setDeepeningNudgesEnabled(enabled);
         await AsyncStorage.setItem('@weave:deepening_nudges_enabled', JSON.stringify(enabled));
+        if (!enabled) {
+            await DeepeningNudgeChannel.cancelAll();
+        }
     };
 
     const handleToggleSmartNotifications = async (enabled: boolean) => {
         LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
         setSmartNotificationsEnabled(enabled);
         await AsyncStorage.setItem('@weave:smart_notifications_enabled', JSON.stringify(enabled));
+        if (!enabled) {
+            await SmartSuggestionsChannel.cancel();
+        }
     };
 
     const handleChangeFrequency = async (frequency: 'light' | 'moderate' | 'proactive') => {

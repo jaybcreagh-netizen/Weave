@@ -75,6 +75,9 @@ const adapter = new LokiJSAdapter({
     schema,
     useWebWorker: false,
     useIncrementalIndexedDB: false,
+    extraLokiOptions: {
+        autosave: false,
+    },
 });
 
 // Rename to mockDatabase to allow use in jest.mock

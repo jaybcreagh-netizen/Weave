@@ -55,6 +55,9 @@ jest.mock('@/db', () => {
         useWebWorker: false,
         useIncrementalIndexedDB: false,
         dbName: 'test-db-power-gap',
+        extraLokiOptions: {
+            autosave: false,
+        },
     });
 
     const database = new Database({

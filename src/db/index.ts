@@ -74,6 +74,9 @@ const adapter = isTestEnv
     dbName: 'weave-test-db',
     useWebWorker: false,
     useIncrementalIndexedDB: false,
+    extraLokiOptions: {
+      autosave: false,
+    },
     onSetUpError: error => {
       logger.error('Database', 'Database setup error:', error);
     },

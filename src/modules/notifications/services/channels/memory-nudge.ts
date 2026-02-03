@@ -138,7 +138,9 @@ export const MemoryNudgeChannel: NotificationChannel = {
             const { entryId, entryType } = data;
 
             // Use UIEventBus to trigger UI action from non-React context
-            const { UIEventBus } = await import('@/shared/services/ui-event-bus');
+            const { UIEventBus } = require('@/shared/services/ui-event-bus') as {
+                UIEventBus: { emit: (event: { type: string; data?: any }) => void };
+            };
 
             if (entryType === 'reflection' || entryType === 'journal') {
                 const memoryData = await getMemoryForNotification(entryId, entryType);
@@ -156,4 +158,3 @@ export const MemoryNudgeChannel: NotificationChannel = {
         }
     }
 };
-

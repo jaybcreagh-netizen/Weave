@@ -28,7 +28,7 @@ interface TutorialState {
   persistState: (updates: Partial<TutorialState>) => Promise<void>;
 
   // Actions
-  completeOnboarding: () => Promise<void>;
+  completeOnboarding: (options?: { skipped?: boolean }) => Promise<void>;
   markFirstFriendAdded: () => Promise<void>;
   markQuickWeaveIntroSeen: () => Promise<void>;
   markQuickWeavePerformed: () => Promise<void>;
@@ -89,13 +89,18 @@ export const useTutorialStore = create<TutorialState>((set, get) => ({
     }
   },
 
-  completeOnboarding: async () => {
+  completeOnboarding: async (options?: { skipped?: boolean }) => {
     const { persistState } = get();
     await persistState({ hasCompletedOnboarding: true });
 
-    // Track event and set user property for reliable segmentation
-    trackEvent(AnalyticsEvents.ONBOARDING_COMPLETED);
-    setUserProperties({ onboarding_completed: true });
+    const skipped = options?.skipped ?? false;
+
+    // Track event and set user properties for reliable segmentation
+    trackEvent(skipped ? AnalyticsEvents.ONBOARDING_SKIPPED : AnalyticsEvents.ONBOARDING_COMPLETED);
+    setUserProperties({
+      onboarding_completed: true,
+      onboarding_skipped: skipped,
+    });
   },
 
   markFirstFriendAdded: async () => {

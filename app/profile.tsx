@@ -6,8 +6,9 @@
  */
 
 import React from 'react';
-import { View, Text } from 'react-native';
+import { router } from 'expo-router';
 import { FeatureGate } from '@/shared/components/FeatureGate';
+import { AccountsDisabledFallback } from '@/modules/auth/components/AccountsDisabledFallback';
 import { ProfileScreen } from '@/modules/auth/screens/ProfileScreen';
 
 export default function ProfileRoute() {
@@ -15,9 +16,18 @@ export default function ProfileRoute() {
         <FeatureGate
             flag="ACCOUNTS_ENABLED"
             fallback={
-                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-                    <Text>Accounts feature not enabled</Text>
-                </View>
+                <AccountsDisabledFallback
+                    title="Profile syncing is unavailable"
+                    description="This build is local-only right now. Your local data is still available."
+                    ctaLabel="Back to dashboard"
+                    onPress={() => {
+                        if (router.canGoBack()) {
+                            router.back();
+                            return;
+                        }
+                        router.replace('/dashboard');
+                    }}
+                />
             }
         >
             <ProfileScreen />

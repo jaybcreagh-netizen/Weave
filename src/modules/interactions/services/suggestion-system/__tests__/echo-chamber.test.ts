@@ -32,6 +32,9 @@ jest.mock('@/db', () => {
         useWebWorker: false,
         useIncrementalIndexedDB: false,
         dbName: 'test-db-echo',
+        extraLokiOptions: {
+            autosave: false,
+        },
     });
 
     const database = new Database({

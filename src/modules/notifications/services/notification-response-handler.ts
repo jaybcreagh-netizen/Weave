@@ -51,11 +51,15 @@ export const useNotificationResponseHandler = () => {
       const data = response.notification.request.content.data;
       const type = data?.type as NotificationType;
       const actionId = response.actionIdentifier;
+      const notificationId = response.notification.request.identifier;
 
       Logger.info(`[NotificationHandler] Handling response for type: ${type}, action: ${actionId}`);
 
       // Track the interaction
-      notificationAnalytics.trackTapped(type, actionId, data);
+      notificationAnalytics.trackTapped(type, notificationId, {
+        ...data,
+        actionId,
+      });
 
       // Reset ignore count for this type (user engaged!)
       if (type) {

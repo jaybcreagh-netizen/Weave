@@ -6,7 +6,7 @@ import * as Haptics from 'expo-haptics';
 
 import { useQuickWeave } from '@/modules/interactions/hooks/useQuickWeave';
 import { itemPositions, HIGHLIGHT_THRESHOLD, SELECTION_THRESHOLD } from '@/modules/interactions/constants';
-import { isQuickWeaveEnabled } from '@/modules/interactions/utils/quick-weave-settings';
+import { getQuickWeaveMode, isQuickWeaveEnabled } from '@/modules/interactions/utils/quick-weave-settings';
 import { useUIStore } from '@/shared/stores/uiStore';
 
 interface CardGestureContextType {
@@ -22,6 +22,7 @@ interface CardGestureContextType {
   overlayCenter: SharedValue<{ x: number; y: number }>;
   cardMetadata: SharedValue<Record<string, { initial: string; avatar?: string | null }>>;
   isLongPressActive: SharedValue<boolean>;
+  forceClose: () => void;
 }
 
 const CardGestureContext = createContext<CardGestureContextType | null>(null);
@@ -49,12 +50,24 @@ function useCardGestureCoordinator(): CardGestureContextType {
   const quickWeaveEnabledRef = useRef(true);
   const isQuickWeaveEnabledSV = useSharedValue(true);
 
+  // Track Mode
+  const quickWeaveModeRef = useRef<'gesture' | 'click'>('gesture');
+  const quickWeaveModeSV = useSharedValue<'gesture' | 'click'>('gesture');
+
   useEffect(() => {
     // Load setting on mount
     const loadSetting = async () => {
       const enabled = await isQuickWeaveEnabled();
+      const mode = await getQuickWeaveMode();
+
       quickWeaveEnabledRef.current = enabled;
       isQuickWeaveEnabledSV.value = enabled;
+
+      quickWeaveModeRef.current = mode;
+      quickWeaveModeSV.value = mode;
+
+      // Sync to store in case of mismatch
+      useUIStore.getState().setQuickWeaveMode(mode);
     };
     loadSetting();
 
@@ -68,12 +81,20 @@ function useCardGestureCoordinator(): CardGestureContextType {
     return () => subscription.remove();
   }, []);
 
-  // REACTIVE FIX: Listen to the uiStore for changes and update the ref immediately
+  // REACTIVE FIX: Listen to the uiStore for changes
+  // We use useUIStore safely
   const isFeatureEnabled = useUIStore(state => state.isQuickWeaveFeatureEnabled);
+  const uiStoreMode = useUIStore(state => state.quickWeaveMode);
+
   useEffect(() => {
     quickWeaveEnabledRef.current = isFeatureEnabled;
     isQuickWeaveEnabledSV.value = isFeatureEnabled;
   }, [isFeatureEnabled]);
+
+  useEffect(() => {
+    quickWeaveModeRef.current = uiStoreMode;
+    quickWeaveModeSV.value = uiStoreMode;
+  }, [uiStoreMode]);
 
   // Create refs to hold the latest version of the handlers
   // This prevents the stale closure issue where the gesture (which is memoized once)
@@ -111,6 +132,10 @@ function useCardGestureCoordinator(): CardGestureContextType {
       lastGestureTimestamp.current = timestamp;
       closeQuickWeaveRef.current();
     }
+  };
+
+  const setInteractiveStable = (interactive: boolean) => {
+    useUIStore.getState().setQuickWeaveInteractive(interactive);
   };
 
   const cardRefs = useSharedValue<Record<string, React.RefObject<Animated.View>>>({});
@@ -163,6 +188,17 @@ function useCardGestureCoordinator(): CardGestureContextType {
   const unregisterRef = (id: string) => {
     'worklet';
     delete cardRefs.value[id];
+  };
+
+  const forceClose = () => {
+    'worklet';
+    activeCardId.value = null;
+    pendingCardId.value = null;
+    isLongPressActive.value = false;
+    dragX.value = 0;
+    dragY.value = 0;
+    highlightedIndex.value = -1;
+    runOnJS(closeQuickWeaveStable)(Date.now());
   };
 
   const animatedScrollHandler = useAnimatedScrollHandler({
@@ -312,32 +348,81 @@ function useCardGestureCoordinator(): CardGestureContextType {
         'worklet';
         if (isLongPressActive.value) {
           const distance = Math.sqrt(dragX.value ** 2 + dragY.value ** 2);
-          if (distance >= SELECTION_THRESHOLD && highlightedIndex.value !== -1 && activeCardId.value) {
-            // CRITICAL: Process interaction FIRST before any UI updates
-            // This prevents shadow recalculations from blocking the critical path
+          const hasSelection = distance >= SELECTION_THRESHOLD && highlightedIndex.value !== -1 && activeCardId.value;
+
+          if (hasSelection) {
+            // Case 1: Drag-to-select (works in both modes)
             const selectedIndex = highlightedIndex.value;
             const friendId = activeCardId.value;
-            runOnJS(handleInteractionSelectionStable)(selectedIndex, friendId);
+            if (friendId) {
+              runOnJS(handleInteractionSelectionStable)(selectedIndex, friendId);
+            }
+
+            // Close immediately if selected via drag
+            isLongPressActive.value = false;
+            activeCardId.value = null;
+            pendingCardId.value = null;
+            dragX.value = 0;
+            dragY.value = 0;
+            highlightedIndex.value = -1;
+            runOnJS(closeQuickWeaveStable)(Date.now());
+          } else {
+            // Case 2: No selection made (user released finger)
+            if (quickWeaveModeSV.value === 'click') {
+              // Click mode: Keep open and enable interactivity
+              dragX.value = 0;
+              dragY.value = 0;
+              highlightedIndex.value = -1;
+              // Do NOT reset isLongPressActive or activeCardId here
+              runOnJS(setInteractiveStable)(true);
+            } else {
+              // Gesture mode: Close the menu
+              isLongPressActive.value = false;
+              activeCardId.value = null;
+              pendingCardId.value = null;
+              dragX.value = 0;
+              dragY.value = 0;
+              highlightedIndex.value = -1;
+              runOnJS(closeQuickWeaveStable)(Date.now());
+            }
           }
-
-          // Close overlay AFTER starting the interaction (can run concurrently)
-          runOnJS(closeQuickWeaveStable)(Date.now());
+        } else {
+          // Not active? Reset just in case
+          isLongPressActive.value = false;
+          activeCardId.value = null;
+          pendingCardId.value = null;
+          dragX.value = 0;
+          dragY.value = 0;
+          highlightedIndex.value = -1;
         }
-
-        // Reset all state immediately - always, regardless of gesture state
-        isLongPressActive.value = false;
-        activeCardId.value = null;
-        pendingCardId.value = null;
-        dragX.value = 0;
-        dragY.value = 0;
-        highlightedIndex.value = -1;
       })
       .onFinalize(() => {
         'worklet';
         // Cleanup timeout in case gesture failed before activation
         runOnJS(clearPendingFeedback)();
 
-        // Final cleanup to ensure card scale resets - extra safety
+        // If we are in 'click' mode and the menu is OPEN (activeCardId is set via onEnd non-reset), 
+        // DO NOT reset shared values here.
+        // We only reset if we are NOT in click waiting mode.
+        // How to know if we are waiting?
+        // We can't easily access the JS store state here sync.
+        // But we know if activeCardId IS NOT NULL, we might be open.
+
+        // HOWEVER: onFinalize runs after onEnd.
+        // In click mode, onEnd explicitly leaves activeCardId set.
+        // So we should NOT reset it here if we want it to stay open.
+
+        // BUT: if I don't reset here, when DOES it reset?
+        // It resets when `forceClose` (new method) is called.
+
+        // Check if we effectively "closed" it in onEnd (by checking if activeCardId is null).
+        // If activeCardId is NOT null, it means we chose to keep it open.
+        if (activeCardId.value !== null) {
+          // Keep it open
+          return;
+        }
+
+        // Otherwise reset (standard cleanup)
         activeCardId.value = null;
         pendingCardId.value = null;
         isLongPressActive.value = false;
@@ -361,6 +446,7 @@ function useCardGestureCoordinator(): CardGestureContextType {
     highlightedIndex,
     cardMetadata,
     overlayCenter,
-    isLongPressActive
+    isLongPressActive,
+    forceClose
   };
 }

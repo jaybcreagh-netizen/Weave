@@ -11,6 +11,7 @@ interface SettingsItemProps {
     rightElement?: React.ReactNode;
     destructive?: boolean;
     badge?: number;
+    isChild?: boolean;
 }
 
 export const SettingsItem: React.FC<SettingsItemProps> = ({
@@ -21,11 +22,12 @@ export const SettingsItem: React.FC<SettingsItemProps> = ({
     rightElement,
     destructive = false,
     badge,
+    isChild = false,
 }) => {
     const { colors } = useTheme();
 
     const content = (
-        <View className="flex-row items-center justify-between py-2">
+        <View className="flex-row items-center justify-between py-2" style={{ paddingLeft: isChild ? 48 : 0 }}>
             <View className="flex-row items-center gap-3 flex-1 mr-4">
                 <View className="w-10 h-10 rounded-lg items-center justify-center" style={{ backgroundColor: colors.muted }}>
                     <Icon color={destructive ? colors.destructive : colors.foreground} size={20} />

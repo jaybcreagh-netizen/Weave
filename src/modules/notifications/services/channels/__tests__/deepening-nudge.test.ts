@@ -40,6 +40,7 @@ describe('DeepeningNudgeChannel', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         (Notifications.scheduleNotificationAsync as jest.Mock).mockResolvedValue('nudge-id');
+        (notificationStore.isDeepeningNudgesEnabled as jest.Mock).mockResolvedValue(true);
         (notificationStore.isTypeSuppressed as jest.Mock).mockResolvedValue(false);
         (notificationStore.getDailyBudget as jest.Mock).mockResolvedValue({ used: 0, limit: 5 });
         (notificationStore.getDeepeningNudges as jest.Mock).mockResolvedValue([]);

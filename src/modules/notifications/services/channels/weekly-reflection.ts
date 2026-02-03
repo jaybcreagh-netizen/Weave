@@ -17,6 +17,7 @@ import { database } from '@/db';
 import UserProfile from '@/db/models/UserProfile';
 import Logger from '@/shared/utils/Logger';
 import { notificationAnalytics } from '../notification-analytics';
+import { notificationStore } from '../notification-store';
 import { NotificationChannel } from '@/modules/notifications';
 import { NOTIFICATION_CONFIG } from '../../notification.config';
 import { shouldSendWeeklyReflectionNotification } from '../notification-grace-periods';
@@ -55,6 +56,13 @@ export const WeeklyReflectionChannel: NotificationChannel = {
      */
     schedule: async (): Promise<void> => {
         try {
+            const userEnabled = await notificationStore.isWeeklyReflectionEnabled();
+            if (!userEnabled) {
+                Logger.info('[WeeklyReflection] Disabled by user setting');
+                await cancelAllWeeklyReflectionNotifications();
+                return;
+            }
+
             const config = NOTIFICATION_CONFIG['weekly-reflection'];
             if (!config.enabled) {
                 Logger.info('[WeeklyReflection] Disabled in config');
@@ -160,10 +168,13 @@ export const WeeklyReflectionChannel: NotificationChannel = {
             UIEventBus: { emit: (event: { type: string }) => void };
         };
 
-        setTimeout(() => {
+        const timer = setTimeout(() => {
             UIEventBus.emit({ type: 'OPEN_WEEKLY_REFLECTION' });
             notificationAnalytics.trackActionCompleted('weekly-reflection', 'open_modal');
         }, 500);
+        if (typeof (timer as any)?.unref === 'function') {
+            (timer as any).unref();
+        }
     },
 
     /**
@@ -172,6 +183,13 @@ export const WeeklyReflectionChannel: NotificationChannel = {
      */
     ensureScheduled: async (): Promise<void> => {
         try {
+            const userEnabled = await notificationStore.isWeeklyReflectionEnabled();
+            if (!userEnabled) {
+                Logger.info('[WeeklyReflection] Disabled by user setting, ensuring cleanup');
+                await cancelAllWeeklyReflectionNotifications();
+                return;
+            }
+
             const scheduled = await Notifications.getAllScheduledNotificationsAsync();
             const hasReflection = scheduled.some(n => n.identifier === ID);
             const ghosts = scheduled

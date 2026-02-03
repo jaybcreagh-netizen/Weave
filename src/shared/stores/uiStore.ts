@@ -154,6 +154,12 @@ interface UIStore {
   // Feature Flags
   isQuickWeaveFeatureEnabled: boolean;
   setQuickWeaveFeatureEnabled: (enabled: boolean) => void;
+
+  // Quick Weave Settings
+  quickWeaveMode: 'gesture' | 'click';
+  setQuickWeaveMode: (mode: 'gesture' | 'click') => void;
+  isQuickWeaveInteractive: boolean; // True when waiting for tap in 'click' mode
+  setQuickWeaveInteractive: (interactive: boolean) => void;
 }
 
 export const useUIStore = create<UIStore>((set, get) => ({
@@ -190,6 +196,11 @@ export const useUIStore = create<UIStore>((set, get) => ({
 
   isQuickWeaveFeatureEnabled: true,
   setQuickWeaveFeatureEnabled: (enabled) => set({ isQuickWeaveFeatureEnabled: enabled }),
+
+  quickWeaveMode: 'gesture',
+  setQuickWeaveMode: (mode) => set({ quickWeaveMode: mode }),
+  isQuickWeaveInteractive: false,
+  setQuickWeaveInteractive: (interactive) => set({ isQuickWeaveInteractive: interactive }),
 
   lastReflectionPromptDate: null,
   markReflectionPromptShown: () => set({ lastReflectionPromptDate: Date.now() }),
@@ -341,7 +352,7 @@ export const useUIStore = create<UIStore>((set, get) => ({
 
   // This starts the closing animation and schedules the state reset
   closeQuickWeave: () => {
-    set({ isQuickWeaveClosing: true });
+    set({ isQuickWeaveClosing: true, isQuickWeaveInteractive: false });
     setTimeout(() => {
       get()._finishClosingQuickWeave();
     }, 200); // Match animation duration (150ms) plus a small buffer
@@ -354,6 +365,7 @@ export const useUIStore = create<UIStore>((set, get) => ({
     quickWeaveCenterPoint: null,
     quickWeaveActivities: [],
     isQuickWeaveClosing: false,
+    isQuickWeaveInteractive: false,
   }),
 
   setJustNurturedFriendId: (id) => set({ justNurturedFriendId: id }),
@@ -372,6 +384,7 @@ export const useUIStore = create<UIStore>((set, get) => ({
     // Force close Quick Weave overlay to prevent "double modal" visual
     isQuickWeaveOpen: false,
     isQuickWeaveClosing: false,
+    isQuickWeaveInteractive: false,
   }),
   hideMicroReflectionSheet: () => set({ microReflectionData: null }),
 

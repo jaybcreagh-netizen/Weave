@@ -74,6 +74,9 @@ jest.mock('@/db', () => {
         useWebWorker: false,
         useIncrementalIndexedDB: false,
         dbName: 'test-db-wiring',
+        extraLokiOptions: {
+            autosave: false,
+        },
     });
 
     const database = new Database({

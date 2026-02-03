@@ -41,6 +41,8 @@ export function PhoneAuthScreen() {
     const { colors } = useTheme();
     const router = useRouter();
     const params = useLocalSearchParams();
+    const sourceParam = params.source;
+    const source = Array.isArray(sourceParam) ? sourceParam[0] : sourceParam;
 
     // Mode defaults to 'signin', but can be passed as param
     const mode: AuthMode = (params.mode as AuthMode) || 'signin';
@@ -230,7 +232,17 @@ export function PhoneAuthScreen() {
                         { text: 'OK', onPress: () => router.back() }
                     ]);
                 } else {
-                    router.navigate('/dashboard');
+                    if (source === 'settings') {
+                        if (router.canGoBack()) {
+                            router.back();
+                        } else {
+                            router.replace('/dashboard');
+                        }
+                    } else if (source === 'onboarding') {
+                        router.replace('/permissions');
+                    } else {
+                        router.replace('/dashboard');
+                    }
                 }
             } else {
                 // Provide more specific error messages

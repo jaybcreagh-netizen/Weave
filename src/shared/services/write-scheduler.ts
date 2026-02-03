@@ -133,7 +133,10 @@ class WriteSchedulerService {
                     this.queue.splice(bgIndex, 0, write);
                 }
                 Logger.debug(`[WriteScheduler] #${write.id} QUEUED: "${name}" (important, queue: ${this.queue.length})`);
-                setTimeout(() => this.processQueue(), this.IMPORTANT_DELAY_MS);
+                const timer = setTimeout(() => this.processQueue(), this.IMPORTANT_DELAY_MS);
+                if (typeof (timer as any)?.unref === 'function') {
+                    (timer as any).unref();
+                }
 
             } else {
                 // Background at end, batched with other background writes
@@ -150,6 +153,9 @@ class WriteSchedulerService {
                         this.pendingBackgroundTimeout = null;
                         this.processQueue();
                     }, this.BACKGROUND_BATCH_WINDOW_MS);
+                    if (typeof (this.pendingBackgroundTimeout as any)?.unref === 'function') {
+                        (this.pendingBackgroundTimeout as any).unref();
+                    }
                 });
             }
         });

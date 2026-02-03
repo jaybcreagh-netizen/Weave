@@ -27,12 +27,14 @@ import {
     signInWithEmail,
     signUpWithEmail,
     isAppleSignInAvailable,
+    isGoogleSignInAvailable,
 } from '@/modules/auth/services/supabase-auth.service';
 
 export function OnboardingAuthScreen({ source: sourceProp }: { source?: string }) {
     const { colors, isDarkMode } = useTheme();
     const { source: sourceParam } = useLocalSearchParams<{ source: string }>();
     const source = sourceProp || sourceParam;
+    const googleAvailable = isGoogleSignInAvailable();
     const [appleAvailable, setAppleAvailable] = useState(false);
     const [loading, setLoading] = useState(false);
     const [showEmailForm, setShowEmailForm] = useState(false);
@@ -46,11 +48,9 @@ export function OnboardingAuthScreen({ source: sourceProp }: { source?: string }
 
     const handlePhoneAuth = () => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        if (source) {
-            router.push(`/phone-auth?source=${source}`);
-        } else {
-            router.push('/phone-auth');
-        }
+        // Preserve source for post-auth routing. Default to onboarding flow.
+        const nextSource = source || 'onboarding';
+        router.push(`/phone-auth?source=${encodeURIComponent(nextSource)}`);
     };
 
     const handleSuccessNavigation = () => {
@@ -79,6 +79,10 @@ export function OnboardingAuthScreen({ source: sourceProp }: { source?: string }
     };
 
     const handleGoogleSignIn = async () => {
+        if (!googleAvailable) {
+            Alert.alert('Google Sign-In Unavailable', 'Google Sign-In is not configured for this build.');
+            return;
+        }
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         setLoading(true);
         const result = await signInWithGoogle();
@@ -197,33 +201,35 @@ export function OnboardingAuthScreen({ source: sourceProp }: { source?: string }
                             onPress={handleAppleSignIn}
                         />
                     )}
-                    {/* Custom Google Button matching app design */}
-                    <Button
-                        variant="outline"
-                        label="Sign in with Google"
-                        icon={<GoogleIcon size={20} />}
-                        onPress={handleGoogleSignIn}
-                        style={{
-                            height: 50,
-                            backgroundColor: isDarkMode ? '#FFFFFF' : '#FFFFFF',
-                            borderColor: colors.border
-                        }}
-                        className="w-full"
-                    // Force text color to black/grey since background is white
-                    // We override the default outline text color (which follows theme)
-                    // to ensure contrast on the white Google button
-                    >
-                        <Text
+                    {googleAvailable && (
+                        // Custom Google Button matching app design
+                        <Button
+                            variant="outline"
+                            label="Sign in with Google"
+                            icon={<GoogleIcon size={20} />}
+                            onPress={handleGoogleSignIn}
                             style={{
-                                fontSize: 17,
-                                fontWeight: '500',
-                                color: '#1F1F1F',
-                                marginLeft: 8
+                                height: 50,
+                                backgroundColor: isDarkMode ? '#FFFFFF' : '#FFFFFF',
+                                borderColor: colors.border
                             }}
+                            className="w-full"
+                        // Force text color to black/grey since background is white
+                        // We override the default outline text color (which follows theme)
+                        // to ensure contrast on the white Google button
                         >
-                            Sign in with Google
-                        </Text>
-                    </Button>
+                            <Text
+                                style={{
+                                    fontSize: 17,
+                                    fontWeight: '500',
+                                    color: '#1F1F1F',
+                                    marginLeft: 8
+                                }}
+                            >
+                                Sign in with Google
+                            </Text>
+                        </Button>
+                    )}
                 </Animated.View>
 
                 {/* Tertiary: Email (expandable) */}

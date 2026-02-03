@@ -40,6 +40,7 @@ describe('SmartSuggestionsChannel', () => {
         jest.clearAllMocks();
         (Notifications.scheduleNotificationAsync as jest.Mock).mockResolvedValue('suggestion-id');
         (Notifications.cancelScheduledNotificationAsync as jest.Mock).mockResolvedValue(undefined);
+        (notificationStore.isSmartNotificationsEnabled as jest.Mock).mockResolvedValue(true);
         (notificationStore.getLastSmartNotificationTime as jest.Mock).mockResolvedValue(null);
         (notificationStore.getPreferences as jest.Mock).mockResolvedValue({
             frequency: 'moderate',

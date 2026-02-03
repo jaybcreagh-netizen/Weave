@@ -11,13 +11,17 @@ import Interaction from '@/db/models/Interaction';
 import { Q } from '@nozbe/watermelondb';
 import Logger from '@/shared/utils/Logger';
 import { notificationAnalytics } from '../notification-analytics';
+import { notificationStore } from '../notification-store';
 import { NotificationChannel } from '@/modules/notifications';
 
 const ID_PREFIX = 'event-reminder-';
 
-export const EventReminderChannel: NotificationChannel & { scheduleAll: () => Promise<void> } = {
+export const EventReminderChannel: NotificationChannel & { scheduleAll: () => Promise<void>; cancelAll: () => Promise<void> } = {
     schedule: async (interaction: Interaction): Promise<void> => {
         try {
+            const userEnabled = await notificationStore.isEventRemindersEnabled();
+            if (!userEnabled) return;
+
             if (!interaction || interaction.status !== 'planned') return;
 
             const interactionDate = new Date(interaction.interactionDate);
@@ -73,6 +77,13 @@ export const EventReminderChannel: NotificationChannel & { scheduleAll: () => Pr
 
     scheduleAll: async (): Promise<void> => {
         try {
+            const userEnabled = await notificationStore.isEventRemindersEnabled();
+            if (!userEnabled) {
+                await EventReminderChannel.cancelAll();
+                Logger.info('[EventReminder] Disabled by user setting, cancelled existing reminders');
+                return;
+            }
+
             const now = Date.now();
             const plannedInteractions = await database
                 .get<Interaction>('interactions')
@@ -97,6 +108,15 @@ export const EventReminderChannel: NotificationChannel & { scheduleAll: () => Pr
         const id = `${ID_PREFIX}${interactionId}`;
         await Notifications.cancelScheduledNotificationAsync(id);
         notificationAnalytics.trackCancelled('event-reminder', 'interaction_changed');
+    },
+
+    cancelAll: async (): Promise<void> => {
+        const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+        await Promise.all(
+            scheduled
+                .filter((n) => n.identifier.startsWith(ID_PREFIX))
+                .map((n) => Notifications.cancelScheduledNotificationAsync(n.identifier))
+        );
     },
 
     handleTap: (data, router) => {

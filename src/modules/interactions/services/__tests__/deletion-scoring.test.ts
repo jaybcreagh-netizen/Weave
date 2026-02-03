@@ -55,6 +55,9 @@ jest.mock('@/db', () => {
         useWebWorker: false,
         useIncrementalIndexedDB: false,
         dbName: 'test-db',
+        extraLokiOptions: {
+            autosave: false,
+        },
     });
 
     // We only load the models we know we need
@@ -133,4 +136,3 @@ describe('Interaction Deletion Scoring', () => {
         expect(scoreAfterDelete).toBe(0);
     });
 });
-

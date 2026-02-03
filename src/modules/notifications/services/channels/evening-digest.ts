@@ -476,21 +476,28 @@ export const EveningDigestChannel: NotificationChannel & {
     },
 
     handleTap: async (data: any, router: any) => {
-        const { UIEventBus } = await import('@/shared/services/ui-event-bus');
+        const { UIEventBus } = require('@/shared/services/ui-event-bus') as {
+            UIEventBus: { emit: (event: { type: string; items?: any[] }) => void };
+        };
 
         // Navigate first to ensure stable route where GlobalModals is mounted
-        if (router.canGoBack()) router.dismissAll();
-        router.replace('/dashboard');
+        if (typeof router?.canGoBack === 'function' && router.canGoBack()) {
+            if (typeof router.dismissAll === 'function') router.dismissAll();
+        }
+        if (typeof router?.replace === 'function') router.replace('/dashboard');
 
         // Generate content (non-blocking save)
         try {
             const content = await EveningDigestChannel.generateContent();
 
             // Open the sheet after navigation settles
-            setTimeout(() => {
+            const timer = setTimeout(() => {
                 UIEventBus.emit({ type: 'OPEN_DIGEST_SHEET', items: content.items });
                 notificationAnalytics.trackActionCompleted('evening-digest', 'open_sheet');
             }, 500);
+            if (typeof (timer as any)?.unref === 'function') {
+                (timer as any).unref();
+            }
 
             // Save to database in background (don't block UI)
             EveningDigestChannel.generateAndSave().catch(err => {
@@ -500,9 +507,12 @@ export const EveningDigestChannel: NotificationChannel & {
         } catch (error) {
             Logger.error('[EveningDigest] Error generating content on tap:', error);
             // Still try to open the sheet with empty state
-            setTimeout(() => {
+            const timer = setTimeout(() => {
                 UIEventBus.emit({ type: 'OPEN_DIGEST_SHEET', items: [] });
             }, 500);
+            if (typeof (timer as any)?.unref === 'function') {
+                (timer as any).unref();
+            }
         }
     },
 

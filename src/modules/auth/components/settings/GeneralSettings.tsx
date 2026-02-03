@@ -21,7 +21,7 @@ import { FeedbackModal } from '../FeedbackModal';
 import { isFeatureEnabled } from '@/shared/config/feature-flags';
 
 // Settings keys
-import { QUICK_WEAVE_ENABLED_KEY } from '@/modules/interactions/utils/quick-weave-settings';
+import { QUICK_WEAVE_ENABLED_KEY, QUICK_WEAVE_MODE_KEY } from '@/modules/interactions/utils/quick-weave-settings';
 
 interface GeneralSettingsProps {
     onClose: () => void;
@@ -33,6 +33,7 @@ export const GeneralSettings: React.FC<GeneralSettingsProps> = ({ onClose }) => 
     const [showFeedbackModal, setShowFeedbackModal] = useState(false);
     const [smartDefaultsEnabled, setSmartDefaultsEnabled] = useState(true);
     const [quickWeaveEnabled, setQuickWeaveEnabled] = useState(true);
+    const [quickWeaveMode, setQuickWeaveMode] = useState<'gesture' | 'click'>('gesture');
 
     useEffect(() => {
         loadSettings();
@@ -44,6 +45,9 @@ export const GeneralSettings: React.FC<GeneralSettingsProps> = ({ onClose }) => 
 
         const quickWeaveStr = await AsyncStorage.getItem(QUICK_WEAVE_ENABLED_KEY);
         setQuickWeaveEnabled(quickWeaveStr ? JSON.parse(quickWeaveStr) : true);
+
+        const quickWeaveModeStr = await AsyncStorage.getItem(QUICK_WEAVE_MODE_KEY);
+        setQuickWeaveMode((quickWeaveModeStr as 'gesture' | 'click') || 'gesture');
     };
 
     const handleToggleSmartDefaults = async (enabled: boolean) => {
@@ -55,6 +59,12 @@ export const GeneralSettings: React.FC<GeneralSettingsProps> = ({ onClose }) => 
         setQuickWeaveEnabled(enabled);
         useUIStore.getState().setQuickWeaveFeatureEnabled(enabled);
         await AsyncStorage.setItem(QUICK_WEAVE_ENABLED_KEY, JSON.stringify(enabled));
+    };
+
+    const handleToggleQuickWeaveMode = async (mode: 'gesture' | 'click') => {
+        setQuickWeaveMode(mode);
+        useUIStore.getState().setQuickWeaveMode(mode);
+        await AsyncStorage.setItem(QUICK_WEAVE_MODE_KEY, mode);
     };
 
     return (
@@ -74,6 +84,21 @@ export const GeneralSettings: React.FC<GeneralSettingsProps> = ({ onClose }) => 
                     />
                 }
             />
+
+            {quickWeaveEnabled && (
+                <SettingsItem
+                    icon={Zap} // Or a different icon? Hand?
+                    title="Tap to Interact"
+                    subtitle="Release to tap options instead of dragging"
+                    isChild
+                    rightElement={
+                        <ModernSwitch
+                            value={quickWeaveMode === 'click'}
+                            onValueChange={(val) => handleToggleQuickWeaveMode(val ? 'click' : 'gesture')}
+                        />
+                    }
+                />
+            )}
 
             <SettingsItem
                 icon={Sparkles}

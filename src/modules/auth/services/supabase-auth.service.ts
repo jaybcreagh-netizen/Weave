@@ -18,6 +18,7 @@ import { withTimeout, AUTH_TIMEOUTS } from './auth-utils';
 // Note: client IDs should come from env vars
 const GOOGLE_WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '';
 const GOOGLE_IOS_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || '';
+const GOOGLE_SIGN_IN_CONFIGURED = Boolean(GOOGLE_WEB_CLIENT_ID);
 
 function maskPhoneForLog(phone?: string | null): string {
     if (!phone) return '(none)';
@@ -26,11 +27,13 @@ function maskPhoneForLog(phone?: string | null): string {
     return `***${digits.slice(-4)}`;
 }
 
-GoogleSignin.configure({
-    scopes: ['email', 'profile'],
-    webClientId: GOOGLE_WEB_CLIENT_ID,
-    iosClientId: GOOGLE_IOS_CLIENT_ID,
-});
+if (GOOGLE_SIGN_IN_CONFIGURED) {
+    GoogleSignin.configure({
+        scopes: ['email', 'profile'],
+        webClientId: GOOGLE_WEB_CLIENT_ID,
+        iosClientId: GOOGLE_IOS_CLIENT_ID,
+    });
+}
 
 // ═══════════════════════════════════════════════════════════════════
 // TYPES
@@ -332,10 +335,25 @@ export async function signInWithApple(): Promise<AuthResult> {
 /**
  * Sign in with Google
  */
+export function isGoogleSignInAvailable(): boolean {
+    return isFeatureEnabled('SUPABASE_AUTH_ENABLED') && GOOGLE_SIGN_IN_CONFIGURED;
+}
+
+/**
+ * Sign in with Google
+ */
 export async function signInWithGoogle(): Promise<AuthResult> {
+    if (!GOOGLE_SIGN_IN_CONFIGURED) {
+        return {
+            success: false,
+            error: 'Google Sign-In is not configured for this build.',
+            errorCode: 'NOT_CONFIGURED',
+        };
+    }
+
     const client = getSupabaseClient();
     if (!client) {
-        return { success: false, error: 'Supabase not available' };
+        return { success: false, error: 'Supabase not available', errorCode: 'NOT_CONFIGURED' };
     }
 
     try {

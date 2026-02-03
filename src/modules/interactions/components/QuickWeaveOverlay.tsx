@@ -26,6 +26,7 @@ import {
   HelpCircle,
 } from 'lucide-react-native';
 
+import { useQuickWeave } from '@/modules/interactions/hooks/useQuickWeave';
 import { useUIStore } from '@/shared/stores/uiStore';
 import { useCardGesture } from '@/shared/context/CardGestureContext';
 import { useTheme } from '@/shared/hooks/useTheme';
@@ -69,6 +70,8 @@ const DEFAULT_ACTIVITIES: InteractionCategory[] = [
 
 export function QuickWeaveOverlay() {
   const quickWeaveActivities = useUIStore(state => state.quickWeaveActivities);
+  const isInteractive = useUIStore(state => state.isQuickWeaveInteractive);
+
   // We still use these global stores as fallback/logic notifiers, but visual drive is purely UI thread
   const {
     dragX,
@@ -77,8 +80,11 @@ export function QuickWeaveOverlay() {
     overlayCenter,
     isLongPressActive,
     cardMetadata,
-    activeCardId
+    activeCardId,
+    forceClose,
   } = useCardGesture();
+
+  const { handleInteractionSelection } = useQuickWeave(); // Need this for tap handling
 
   const { colors, isDarkMode } = useTheme();
 
@@ -132,12 +138,43 @@ export function QuickWeaveOverlay() {
     top: overlayCenter.value.y - MENU_RADIUS,
   }));
 
+  const handleItemPress = (index: number) => {
+    if (!activeCardId.value) return;
+    const friendId = activeCardId.value;
+
+    // Trigger selection
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    handleInteractionSelection(index, friendId);
+
+    // Force close gesture state
+    forceClose();
+  };
+
+  const handleBackdropPress = () => {
+    forceClose();
+  };
+
   return (
     <Animated.View
       className="absolute inset-0 z-50 pointer-events-none"
       style={containerStyle}
-      pointerEvents="none" // Explicitly disable touches for this container
+      pointerEvents={isInteractive ? 'box-none' : 'none'}
     >
+      {/* Backdrop for click mode */}
+      {isInteractive && (
+        <React.Fragment>
+          <View
+            style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+            onTouchEnd={(e) => {
+              // Simple touch handling for backdrop
+              e.stopPropagation();
+              handleBackdropPress();
+            }}
+          />
+          {/* Blur is already there, but we need to ensure it doesn't block if we put something over it */}
+        </React.Fragment>
+      )}
+
       <View className="absolute inset-0" pointerEvents="none">
         <BlurView
           intensity={isDarkMode ? 25 : 15}
@@ -157,6 +194,7 @@ export function QuickWeaveOverlay() {
           },
           menuContainerStyle,
         ]}
+        pointerEvents={isInteractive ? 'box-none' : 'none'}
       >
         {/* Center Circle */}
         <View
@@ -197,6 +235,7 @@ export function QuickWeaveOverlay() {
             dragY={dragY}
             isDarkMode={isDarkMode}
             primaryColor={colors.primary}
+            onPress={isInteractive ? () => handleItemPress(index) : undefined}
           />
         ))}
       </Animated.View>
@@ -285,6 +324,7 @@ function MenuItem({
   dragY,
   isDarkMode,
   primaryColor,
+  onPress,
 }: {
   item: RadialMenuItem;
   index: number;
@@ -293,7 +333,7 @@ function MenuItem({
   dragX: SharedValue<number>;
   dragY: SharedValue<number>;
   isDarkMode: boolean;
-  primaryColor: string;
+  onPress?: () => void;
 }) {
   const { x: finalX, y: finalY } = position;
   const IconComponent = item.icon;
@@ -350,7 +390,7 @@ function MenuItem({
     };
   });
 
-  return (
+  const Content = (
     <Animated.View
       style={[
         {
@@ -431,4 +471,142 @@ function MenuItem({
       </Animated.View>
     </Animated.View>
   );
+
+  if (onPress) {
+    // We wrap content in a view that handles the press.
+    // Since content positions itself absolutely, we need to handle that carefully.
+    // Actually, Content uses absolute positioning relative to parent.
+    // If we wrap it, the wrapper needs to be absolute?
+    // Better: Make the wrapper absolute and put content inside.
+    return (
+      <View
+        style={{
+          position: 'absolute',
+          left: MENU_RADIUS - ITEM_SIZE / 2,
+          top: MENU_RADIUS - ITEM_SIZE / 2,
+          width: ITEM_SIZE,
+          height: ITEM_SIZE,
+          zIndex: 100 // Ensure it sits on top for touches
+        }}
+        onTouchEnd={(e) => {
+          e.stopPropagation();
+          onPress();
+        }}
+      >
+        {/* 
+               We need to adjust the content's positioning because we just moved the 'absolute' logic 
+               to the wrapper. The original Content had:
+               left: MENU_RADIUS - ITEM_SIZE / 2 ...
+               
+               If we keep Content as is, it will be absolute INSIDE this absolute wrapper.
+               So we should reset left/top in Content?
+               
+               Actually, MenuItem renders an Animated.View with style including:
+               transform: [translateX: finalX, translateY: finalY]
+               
+               This translation moves it from the center origin (MENU_RADIUS, MENU_RADIUS) to the target ring.
+               
+               Wait, the original code:
+               left: MENU_RADIUS - ITEM_SIZE / 2,
+               top: MENU_RADIUS - ITEM_SIZE / 2,
+               
+               This places the item at the CENTER of the menu container.
+               Then `transform` moves it out by `finalX`/`finalY`.
+               
+               If I wrap it, I should just make the wrapper have the hit slop or be large enough?
+               Or simply attach the touch handler to the Animated.View?
+               
+               Animated.View from Reanimated doesn't always support onPress directly if it's just a View.
+               But it supports `onTouchEnd`.
+             */
+        }
+        {/* 
+                Actually, simpler approach:
+                Pass `onTouchEnd` to the Animated.View directly if I can.
+                But `MenuItem` returns `Animated.View`.
+             */}
+        <Animated.View
+          style={[
+            {
+              width: ITEM_SIZE,
+              height: ITEM_SIZE,
+              alignItems: 'center',
+              justifyContent: 'center',
+            },
+            animatedStyle,
+          ]}
+        >
+          <View onTouchEnd={(e) => { e.stopPropagation(); onPress(); }}>
+            <Animated.View
+              style={[
+                {
+                  width: ITEM_SIZE,
+                  height: ITEM_SIZE,
+                  borderRadius: ITEM_SIZE / 2,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: isDarkMode ? 0.3 : 0.15,
+                  shadowRadius: 6,
+                  elevation: 4,
+                  borderWidth: 1.5,
+                  borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.05)',
+                },
+                itemBgStyle,
+              ]}
+            >
+              <IconComponent
+                size={24}
+                color={primaryColor}
+                strokeWidth={2}
+              />
+            </Animated.View>
+          </View>
+
+          {/* Label (separately positioned) */}
+          <Animated.View
+            style={[
+              {
+                position: 'absolute',
+                top: ITEM_SIZE + 6,
+                alignItems: 'center',
+                justifyContent: 'center',
+                overflow: 'hidden',
+                borderRadius: 8,
+              },
+              labelStyle,
+            ]}
+          >
+            <BlurView
+              intensity={isDarkMode ? 30 : 20}
+              tint={isDarkMode ? 'dark' : 'light'}
+              style={{
+                position: 'absolute',
+                width: '100%',
+                height: '100%',
+                backgroundColor: isDarkMode ? 'rgba(0,0,0,0.3)' : 'rgba(255,255,255,0.3)',
+              }}
+            />
+            <Text
+              style={{
+                fontSize: 11,
+                fontWeight: '600',
+                color: isDarkMode ? 'rgba(255, 255, 255, 0.95)' : 'rgba(0, 0, 0, 0.8)',
+                letterSpacing: 0.2,
+                textAlign: 'center',
+                paddingHorizontal: 8,
+                paddingVertical: 2,
+              }}
+              numberOfLines={1}
+            >
+              {item.label}
+            </Text>
+          </Animated.View>
+        </Animated.View>
+      </View>
+    );
+  }
+
+  return Content;
 }

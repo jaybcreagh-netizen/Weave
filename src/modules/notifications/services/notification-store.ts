@@ -38,6 +38,12 @@ const KEYS = {
     // Permissions
     PERMISSION_REQUESTED: '@weave:notification_permission_requested',
 
+    // Channel toggles (user-facing settings)
+    WEEKLY_REFLECTION_ENABLED: '@weave:weekly_reflection_enabled',
+    EVENT_REMINDERS_ENABLED: '@weave:event_reminders_enabled',
+    DEEPENING_NUDGES_ENABLED: '@weave:deepening_nudges_enabled',
+    SMART_NOTIFICATIONS_ENABLED: '@weave:smart_notifications_enabled',
+
     // Analytics
     CORRELATION: '@weave:notification_correlation',
 
@@ -70,6 +76,16 @@ const DEFAULT_PREFERENCES: NotificationPreferences = {
 };
 
 class NotificationStoreService {
+    private async getBooleanFlag(key: string, defaultValue: boolean = true): Promise<boolean> {
+        try {
+            const value = await AsyncStorage.getItem(key);
+            if (value === null) return defaultValue;
+            return value !== 'false';
+        } catch {
+            return defaultValue;
+        }
+    }
+
     /**
      * Initialize or reset state
      */
@@ -215,6 +231,26 @@ class NotificationStoreService {
 
     async setPermissionRequested(requested: boolean): Promise<void> {
         await AsyncStorage.setItem(KEYS.PERMISSION_REQUESTED, requested ? 'true' : 'false');
+    }
+
+    // ==============================================================================
+    // Channel Toggles
+    // ==============================================================================
+
+    async isWeeklyReflectionEnabled(): Promise<boolean> {
+        return this.getBooleanFlag(KEYS.WEEKLY_REFLECTION_ENABLED, true);
+    }
+
+    async isEventRemindersEnabled(): Promise<boolean> {
+        return this.getBooleanFlag(KEYS.EVENT_REMINDERS_ENABLED, true);
+    }
+
+    async isDeepeningNudgesEnabled(): Promise<boolean> {
+        return this.getBooleanFlag(KEYS.DEEPENING_NUDGES_ENABLED, true);
+    }
+
+    async isSmartNotificationsEnabled(): Promise<boolean> {
+        return this.getBooleanFlag(KEYS.SMART_NOTIFICATIONS_ENABLED, true);
     }
 
     // ==============================================================================

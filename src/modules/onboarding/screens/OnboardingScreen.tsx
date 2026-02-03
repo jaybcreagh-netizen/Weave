@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { ArrowRight, Calendar, CheckCircle2, Sparkles } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -11,6 +11,7 @@ import { FeatureFlags } from '@/shared/config/feature-flags';
 import { AnimatedThoughtBubbles } from '@/shared/components/onboarding/AnimatedThoughtBubbles';
 import { ArchetypeImpactDemo } from '@/shared/components/onboarding/ArchetypeImpactDemo';
 import { useTutorialStore } from '@/shared/stores/tutorialStore';
+import { AnalyticsEvents, trackEvent } from '@/shared/services/analytics.service';
 
 /**
  * Simplified Interactive Onboarding
@@ -25,6 +26,10 @@ import { useTutorialStore } from '@/shared/stores/tutorialStore';
 export function OnboardingScreen() {
     const router = useRouter();
     const completeOnboarding = useTutorialStore(state => state.completeOnboarding);
+
+    useEffect(() => {
+        trackEvent(AnalyticsEvents.ONBOARDING_STARTED);
+    }, []);
 
     const [currentStep, setCurrentStep] = useState(0);
     const steps = ['hook', 'pathways'];
@@ -49,7 +54,7 @@ export function OnboardingScreen() {
 
     const handleSkip = async () => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        await completeOnboarding();
+        await completeOnboarding({ skipped: true });
         router.replace('/permissions');
     };
 
