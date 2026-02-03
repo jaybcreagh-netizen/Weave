@@ -39,6 +39,7 @@ const weaveUpdateHandlerSet = new Set<IncomingWeaveUpdateHandler>();
 const linkHandlerSet = new Set<IncomingLinkHandler>();
 const outgoingLinkHandlerSet = new Set<OutgoingLinkStatusHandler>();
 const participantResponseHandlerSet = new Set<ParticipantResponseHandler>();
+const lastOutgoingStatusByLinkId = new Map<string, string>();
 
 // =============================================================================
 // TYPES
@@ -95,6 +96,7 @@ export async function subscribeToRealtime(): Promise<void> {
 
     // Reset manual disconnect flag
     isManuallyDisconnected = false;
+    lastOutgoingStatusByLinkId.clear();
 
     const client = getSupabaseClient();
     if (!client) {
@@ -112,9 +114,41 @@ export async function subscribeToRealtime(): Promise<void> {
     // Unsubscribe from any existing channel
     if (realtimeChannel) {
         await unsubscribeFromRealtime();
+        // We are intentionally reconnecting (not user-initiated disconnect).
+        isManuallyDisconnected = false;
     }
 
     logger.info('Realtime', `Subscribing to realtime (attempt ${reconnectAttempts + 1})`);
+
+    const handleFriendLinkInsert = (payload: any) => {
+        const data = payload.new as IncomingLinkPayload;
+        const isParticipant = data.user_a_id === user.id || data.user_b_id === user.id;
+        const isIncomingPendingRequest = isParticipant
+            && data.status === 'pending'
+            && data.initiated_by !== user.id;
+
+        if (!isIncomingPendingRequest) return;
+
+        logger.info('Realtime', 'Incoming friend link request', payload);
+        linkHandlerSet.forEach(handler => handler(data));
+    };
+
+    const handleFriendLinkUpdate = (payload: any) => {
+        const data = payload.new as IncomingLinkPayload;
+        const previous = payload.old as Partial<IncomingLinkPayload> | undefined;
+        const isParticipant = data.user_a_id === user.id || data.user_b_id === user.id;
+        const isOutgoingRequest = data.initiated_by === user.id;
+        const statusChanged = previous?.status !== data.status;
+        const isTrackedStatus = data.status === 'accepted' || data.status === 'declined' || data.status === 'unlinked';
+        const alreadyProcessed = lastOutgoingStatusByLinkId.get(data.id) === data.status;
+
+        if (!isParticipant || !isOutgoingRequest || !statusChanged || !isTrackedStatus || alreadyProcessed) return;
+
+        lastOutgoingStatusByLinkId.set(data.id, data.status);
+
+        logger.info('Realtime', 'Outgoing link status changed', payload);
+        outgoingLinkHandlerSet.forEach(handler => handler(data));
+    };
 
     // Subscribe to shared_weave_participants for this user
     realtimeChannel = client
@@ -139,13 +173,19 @@ export async function subscribeToRealtime(): Promise<void> {
                 event: 'INSERT',
                 schema: 'public',
                 table: 'friend_links',
+                filter: `user_a_id=eq.${user.id}`,
+            },
+            handleFriendLinkInsert
+        )
+        .on(
+            'postgres_changes',
+            {
+                event: 'INSERT',
+                schema: 'public',
+                table: 'friend_links',
                 filter: `user_b_id=eq.${user.id}`,
             },
-            (payload) => {
-                logger.info('Realtime', 'Incoming friend link request', payload);
-                const data = payload.new as IncomingLinkPayload;
-                linkHandlerSet.forEach(handler => handler(data));
-            }
+            handleFriendLinkInsert
         )
         // UPDATE: When OUR outgoing link request status changes (accepted/declined)
         .on(
@@ -156,11 +196,17 @@ export async function subscribeToRealtime(): Promise<void> {
                 table: 'friend_links',
                 filter: `user_a_id=eq.${user.id}`,
             },
-            (payload) => {
-                logger.info('Realtime', 'Outgoing link status changed', payload);
-                const data = payload.new as IncomingLinkPayload;
-                outgoingLinkHandlerSet.forEach(handler => handler(data));
-            }
+            handleFriendLinkUpdate
+        )
+        .on(
+            'postgres_changes',
+            {
+                event: 'UPDATE',
+                schema: 'public',
+                table: 'friend_links',
+                filter: `user_b_id=eq.${user.id}`,
+            },
+            handleFriendLinkUpdate
         )
         // OPTIMIZED: Subscribe to realtime_signals with user_id filter
         // This replaces the expensive unfiltered subscriptions to shared_weaves
@@ -291,6 +337,7 @@ export async function unsubscribeFromRealtime(): Promise<void> {
 
     // Reset reconnect counter
     reconnectAttempts = 0;
+    lastOutgoingStatusByLinkId.clear();
 }
 
 // =============================================================================

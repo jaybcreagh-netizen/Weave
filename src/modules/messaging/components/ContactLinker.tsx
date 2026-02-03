@@ -84,7 +84,7 @@ export function ContactLinker({
   }, [friend.name]);
 
   const processContact = useCallback(
-    (contact: Contacts.Contact) => {
+    (contact: Contacts.ExistingContact) => {
       const phone = contact.phoneNumbers?.[0]?.number;
       const emailAddr = contact.emails?.[0]?.email;
 

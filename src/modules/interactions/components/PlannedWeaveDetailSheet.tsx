@@ -351,7 +351,7 @@ export function PlannedWeaveDetailSheet({
                                         setEditingField(null);
                                     }}
                                 >
-                                    <Text style={{ color: colors.mutedForeground }}>Cancel</Text>
+                                    <Text style={{ color: colors['muted-foreground'] }}>Cancel</Text>
                                 </TouchableOpacity>
                                 <View style={{ width: 1, backgroundColor: colors.border }} />
                                 <TouchableOpacity
@@ -394,7 +394,7 @@ export function PlannedWeaveDetailSheet({
                                         setEditingField(null);
                                     }}
                                 >
-                                    <Text style={{ color: colors.mutedForeground }}>Cancel</Text>
+                                    <Text style={{ color: colors['muted-foreground'] }}>Cancel</Text>
                                 </TouchableOpacity>
                                 <View style={{ width: 1, backgroundColor: colors.border }} />
                                 <TouchableOpacity
@@ -439,7 +439,7 @@ export function PlannedWeaveDetailSheet({
                                     { text: 'Cancel', style: 'cancel' },
                                     {
                                         text: 'Save',
-                                        onPress: (text) => {
+                                        onPress: (text?: string) => {
                                             if (text !== undefined) {
                                                 setLocation(text);
                                                 handleFieldChange();

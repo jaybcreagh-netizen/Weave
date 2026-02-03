@@ -415,11 +415,6 @@ export async function verifyPhoneOtp(phone: string, token: string): Promise<Auth
         return { success: false, error: 'Supabase not available', errorCode: 'NOT_CONFIGURED' };
     }
 
-    console.log('[Auth] verifyPhoneOtp called');
-    console.log('[Auth] Phone:', phone);
-    console.log('[Auth] Token length:', token?.length);
-    console.log('[Auth] Token:', token); // For debugging only - remove in production
-
     try {
         const verifyPromise = client.auth.verifyOtp({
             phone,
@@ -427,18 +422,13 @@ export async function verifyPhoneOtp(phone: string, token: string): Promise<Auth
             type: 'sms',
         });
 
-        console.log('[Auth] Calling Supabase verifyOtp with type: sms');
-
         const { data, error } = await withTimeout(
             verifyPromise,
             AUTH_TIMEOUTS.OTP_VERIFY,
             'OTP Verify'
         );
 
-        console.log('[Auth] verifyOtp response:', { hasData: !!data, hasUser: !!data?.user, error });
-
         if (error) {
-            console.log('[Auth] verifyOtp error:', error.message, error.status, error.code);
             const classified = classifyAuthError(error);
             return { success: false, error: classified.message, errorCode: classified.code };
         }
@@ -479,22 +469,16 @@ export async function linkPhoneToUser(phone: string): Promise<AuthResult> {
     try {
         console.log('[Auth] Linking phone:', phone);
 
-        // DEBUG: Check basic connectivity
-        try {
-            console.log('[Auth] Checking internet connectivity...');
-            const pong = await fetch('https://www.google.com', { method: 'HEAD', cache: 'no-store' });
-            console.log('[Auth] Internet is reachable. Status:', pong.status);
-        } catch (netErr) {
-            console.error('[Auth] ❌ NO INTERNET CONNECTION:', netErr);
-            return {
-                success: false,
-                error: 'No internet connection',
-                errorCode: 'TIMEOUT'
-            };
-        }
-
         // 1. Check if already linked to THIS user
         const { data: userData } = await client.auth.getUser();
+
+        if (!userData?.user) {
+            return {
+                success: false,
+                error: 'You need to be signed in before linking a phone number.',
+                errorCode: 'NOT_AUTHENTICATED',
+            };
+        }
 
         console.log('[Auth] Current user phone:', userData?.user?.phone);
 
@@ -547,18 +531,21 @@ export async function verifyAndLinkPhone(phone: string, token: string): Promise<
     const client = getSupabaseClient();
     if (!client) return { success: false, error: 'Supabase not available', errorCode: 'NOT_CONFIGURED' };
 
-    console.log('[Auth] verifyAndLinkPhone called');
-    console.log('[Auth] Phone:', phone);
-    console.log('[Auth] Token length:', token?.length);
-
     try {
+        const { data: { user } } = await client.auth.getUser();
+        if (!user) {
+            return {
+                success: false,
+                error: 'You need to be signed in before verifying a phone change.',
+                errorCode: 'NOT_AUTHENTICATED',
+            };
+        }
+
         const verifyPromise = client.auth.verifyOtp({
             phone,
             token,
             type: 'phone_change',
         });
-
-        console.log('[Auth] Calling Supabase verifyOtp with type: phone_change');
 
         const { data, error } = await withTimeout(
             verifyPromise,
@@ -566,10 +553,7 @@ export async function verifyAndLinkPhone(phone: string, token: string): Promise<
             'Link Verify'
         );
 
-        console.log('[Auth] verifyAndLinkPhone response:', { hasData: !!data, hasUser: !!data?.user, error });
-
         if (error) {
-            console.log('[Auth] verifyAndLinkPhone error:', error.message, error.status, error.code);
             const classified = classifyAuthError(error);
             return { success: false, error: classified.message, errorCode: classified.code };
         }

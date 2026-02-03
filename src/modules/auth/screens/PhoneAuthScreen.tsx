@@ -45,6 +45,7 @@ export function PhoneAuthScreen() {
     const mode: AuthMode = (params.mode as AuthMode) || 'signin';
     const otpInputRef = React.useRef<TextInput>(null);
     const abortControllerRef = React.useRef<AbortController | null>(null);
+    const lastAutoSubmittedOtpRef = React.useRef<string | null>(null);
 
     const [step, setStep] = useState<'phone' | 'otp'>('phone');
     const [phone, setPhone] = useState('');
@@ -136,8 +137,6 @@ export function PhoneAuthScreen() {
                 return;
             }
 
-            console.log('[PhoneAuth] Formatted phone for auth:', formattedPhone);
-
             const result = (mode === 'link' || mode === 'change')
                 ? await linkPhoneToUser(formattedPhone)
                 : await signInWithPhone(formattedPhone);
@@ -153,12 +152,9 @@ export function PhoneAuthScreen() {
                     return;
                 }
 
-                console.log('[PhoneAuth] Success! Moving to OTP step');
                 setStep('otp');
                 setPhone(formattedPhone);
             } else {
-                console.log('[PhoneAuth] Failed:', result.error);
-
                 if (result.errorCode === 'TIMEOUT') {
                     Alert.alert(
                         'Request Timed Out',
@@ -200,22 +196,13 @@ export function PhoneAuthScreen() {
 
         setLoading(true);
 
-        console.log('[PhoneAuth] Verifying OTP...');
-        console.log('[PhoneAuth] Phone:', phone);
-        console.log('[PhoneAuth] OTP:', otp);
-        console.log('[PhoneAuth] Mode:', mode);
-
         try {
             const result = (mode === 'link' || mode === 'change')
                 ? await verifyAndLinkPhone(phone, otp)
                 : await verifyPhoneOtp(phone, otp);
 
-            console.log('[PhoneAuth] Verification result:', result);
-
-            setLoading(false);
-
             if (result.success) {
-                console.log('[PhoneAuth] Verification successful!');
+                setOtp('');
                 if (mode === 'link' || mode === 'change') {
                     Alert.alert('Success', 'Phone number verified!', [
                         { text: 'OK', onPress: () => router.back() }
@@ -224,8 +211,6 @@ export function PhoneAuthScreen() {
                     router.navigate('/dashboard');
                 }
             } else {
-                console.log('[PhoneAuth] Verification failed:', result.error, result.errorCode);
-
                 // Provide more specific error messages
                 let errorMessage = result.error || 'Invalid code';
                 if (result.errorCode === 'INVALID_OTP') {
@@ -240,18 +225,30 @@ export function PhoneAuthScreen() {
             }
         } catch (err) {
             console.error('[PhoneAuth] Verification error:', err);
-            setLoading(false);
             Alert.alert('Error', 'An unexpected error occurred during verification.');
             setOtp('');
+        } finally {
+            setLoading(false);
         }
     };
 
     // Auto-submit when 6 digits entered
     useEffect(() => {
-        if (otp.length === 6 && step === 'otp' && !loading) {
-            console.log('[PhoneAuth] Auto-submitting OTP...');
-            handleVerify();
+        if (step !== 'otp') {
+            lastAutoSubmittedOtpRef.current = null;
+            return;
         }
+
+        if (otp.length < 6) {
+            lastAutoSubmittedOtpRef.current = null;
+            return;
+        }
+
+        if (loading) return;
+        if (lastAutoSubmittedOtpRef.current === otp) return;
+
+        lastAutoSubmittedOtpRef.current = otp;
+        handleVerify();
     }, [otp, step, loading]);
 
     return (
@@ -342,6 +339,7 @@ export function PhoneAuthScreen() {
                                             // Manual override: cancel spinner and abort request
                                             abortControllerRef.current?.abort();
                                             setLoading(false);
+                                            setLoadingMessage('');
 
                                             // IMPORTANT: Use normalizePhone for consistency with OTP send
                                             let rawPhone = phone.replace(/[^0-9+]/g, '');
@@ -438,9 +436,9 @@ export function PhoneAuthScreen() {
                                             }}
                                             maxLength={6}
                                             // iOS: Enable auto-fill from SMS
-                                            textContentType="oneTimeCode"
-                                            // Android: Enable auto-fill from SMS
-                                            autoComplete="sms-otp"
+                                            textContentType={Platform.OS === 'ios' ? 'oneTimeCode' : 'none'}
+                                            // Platform-specific OTP autofill hints
+                                            autoComplete={Platform.OS === 'android' ? 'sms-otp' : 'one-time-code'}
                                             // autoFocus removed to prevent EXC_BAD_ACCESS crash
                                             className="text-center text-3xl tracking-[8px] h-16 w-full"
                                             style={{
@@ -463,17 +461,24 @@ export function PhoneAuthScreen() {
                                     <View className="flex-row justify-center gap-4 mt-6">
                                         <TouchableOpacity
                                             onPress={async () => {
-                                                // Resend the OTP
+                                                if (loading) return;
                                                 setLoading(true);
-                                                const result = (mode === 'link' || mode === 'change')
-                                                    ? await linkPhoneToUser(phone)
-                                                    : await signInWithPhone(phone);
-                                                setLoading(false);
+                                                try {
+                                                    // Resend the OTP
+                                                    const result = (mode === 'link' || mode === 'change')
+                                                        ? await linkPhoneToUser(phone)
+                                                        : await signInWithPhone(phone);
 
-                                                if (result.success) {
-                                                    Alert.alert('Code Sent', 'A new verification code has been sent.');
-                                                } else {
-                                                    Alert.alert('Error', result.error || 'Failed to resend code');
+                                                    if (result.success) {
+                                                        Alert.alert('Code Sent', 'A new verification code has been sent.');
+                                                    } else {
+                                                        Alert.alert('Error', result.error || 'Failed to resend code');
+                                                    }
+                                                } catch (error) {
+                                                    console.error('[PhoneAuth] Resend error:', error);
+                                                    Alert.alert('Error', 'Failed to resend code. Please try again.');
+                                                } finally {
+                                                    setLoading(false);
                                                 }
                                             }}
                                             className="py-2 px-4"

@@ -73,7 +73,6 @@ export const ConversationHistoryList: React.FC<Props> = ({ onSelect, onClose }) 
             <FlashList
                 data={sections}
                 renderItem={renderItem}
-                estimatedItemSize={70}
                 keyExtractor={(item) => item.id}
             />
         </View>

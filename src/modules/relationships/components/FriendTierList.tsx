@@ -153,7 +153,6 @@ export const FriendTierList = React.memo(({ tier, scrollHandler, isQuickWeaveOpe
             <AnimatedFlashList
                 contentContainerStyle={{ paddingHorizontal: 20, paddingVertical: 16 }}
                 data={friends}
-                estimatedItemSize={72}
                 keyExtractor={(item: any) => item.id}
                 scrollEnabled={!isQuickWeaveOpen}
                 onScroll={scrollHandler}
@@ -165,4 +164,3 @@ export const FriendTierList = React.memo(({ tier, scrollHandler, isQuickWeaveOpe
         </View>
     );
 });
-

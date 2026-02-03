@@ -71,16 +71,16 @@ export function ContactDiscoverySheet({ visible, onClose }: ContactDiscoveryShee
             // Optimistic update
             setSentRequests(prev => new Set(prev).add(match.userId));
 
-            const success = await sendLinkRequest('', match.userId); // Pass empty string for localFriendId if it's a new request
+            const result = await sendLinkRequest(undefined, match.userId);
 
-            if (!success) {
+            if (!result.success) {
                 // Revert if failed
                 setSentRequests(prev => {
                     const next = new Set(prev);
                     next.delete(match.userId);
                     return next;
                 });
-                Alert.alert('Error', 'Failed to send request');
+                Alert.alert('Error', result.error || 'Failed to send request');
             }
         } catch (err) {
             console.error('Failed to send request:', err);

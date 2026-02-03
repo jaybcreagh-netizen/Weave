@@ -15,7 +15,7 @@ const ITEM_HEIGHT = 150; // Increased height to prevent clipping
 
 interface ContactPickerGridProps {
   maxSelection: number;
-  onSelectionChange: (selectedContacts: Contacts.Contact[]) => void;
+  onSelectionChange: (selectedContacts: Contacts.ExistingContact[]) => void;
   onAddManually?: () => void;
   title?: string;
   subtitle?: string;
@@ -31,7 +31,7 @@ const ContactItem = React.memo(({
   onSelect,
   colors
 }: {
-  item: Contacts.Contact;
+  item: Contacts.ExistingContact;
   isSelected: boolean;
   onSelect: () => void;
   colors: any;
@@ -154,7 +154,7 @@ export function ContactPickerGrid({
   externalSearchQuery,
 }: ContactPickerGridProps) {
   const { colors, isDarkMode } = useTheme();
-  const [allContacts, setAllContacts] = useState<Contacts.Contact[]>([]);
+  const [allContacts, setAllContacts] = useState<Contacts.ExistingContact[]>([]);
   const [internalSelectedIds, setInternalSelectedIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [permissionDenied, setPermissionDenied] = useState(false);
@@ -210,7 +210,7 @@ export function ContactPickerGrid({
   // Only call onSelectionChange when internal state changes (if not controlled)
   useEffect(() => {
     if (!propSelectedIds) {
-      const selected = allContacts.filter(c => c.id && internalSelectedIds.includes(c.id));
+      const selected = allContacts.filter(c => internalSelectedIds.includes(c.id));
       onSelectionChange(selected);
     }
   }, [internalSelectedIds, allContacts, onSelectionChange, propSelectedIds]);
@@ -249,7 +249,7 @@ export function ContactPickerGrid({
     } else {
       // If controlled, we find the contact objects and pass them up
       // The parent is responsible for updating the `selectedIds` prop
-      const selectedContacts = allContacts.filter(c => c.id && newSelection.includes(c.id));
+      const selectedContacts = allContacts.filter(c => newSelection.includes(c.id));
       onSelectionChange(selectedContacts);
     }
   }, [propSelectedIds, internalSelectedIds, maxSelection, allContacts, onSelectionChange]);
@@ -258,11 +258,11 @@ export function ContactPickerGrid({
     onAddManually?.();
   };
 
-  const renderItem = useCallback(({ item }: { item: Contacts.Contact }) => (
+  const renderItem = useCallback(({ item }: { item: Contacts.ExistingContact }) => (
     <ContactItem
       item={item}
-      isSelected={!!item.id && selectedContactIds.includes(item.id)}
-      onSelect={() => item.id && handleSelectContact(item.id)}
+      isSelected={selectedContactIds.includes(item.id)}
+      onSelect={() => handleSelectContact(item.id)}
       colors={colors}
     />
   ), [selectedContactIds, handleSelectContact, colors]);
@@ -376,7 +376,6 @@ export function ContactPickerGrid({
           keyExtractor={(item, index) => item.id || `contact-${index}-${item.name}`}
           renderItem={renderItem}
           contentContainerStyle={{ paddingBottom: 90, paddingTop: 10 }}
-          estimatedItemSize={ITEM_HEIGHT}
           extraData={selectedContactIds}
         />
       )}

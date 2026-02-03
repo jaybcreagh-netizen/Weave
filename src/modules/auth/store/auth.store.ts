@@ -8,6 +8,13 @@ import { supabase } from '../services/supabase.service';
 import type { User, Session } from '@supabase/supabase-js';
 import { hasFeatureAccess, isAtLimit, TIER_LIMITS, type SubscriptionTier } from '../services/subscription-tiers';
 
+// Type for the auth state change subscription (has unsubscribe method)
+type AuthSubscription = { unsubscribe: () => void };
+
+// Module-level state to prevent duplicate initialization and listeners
+let authListenerSubscription: AuthSubscription | null = null;
+let isInitialized = false;
+
 interface UserSubscription {
   tier: SubscriptionTier;
   status: 'active' | 'canceled' | 'past_due' | 'trialing';
@@ -38,6 +45,7 @@ interface AuthState {
   signOut: () => Promise<void>;
   refreshSubscription: () => Promise<void>;
   refreshUsage: () => Promise<void>;
+  refreshSubscriptionAndUsage: () => Promise<void>;
 
   // Helper getters
   getTier: () => SubscriptionTier;
@@ -45,6 +53,45 @@ interface AuthState {
   isPlusTier: () => boolean;
   isPremiumTier: () => boolean;
   isSubscriptionActive: () => boolean;
+}
+
+/**
+ * Retry a function with exponential backoff
+ * Only retries on network-related errors, not auth errors
+ */
+async function withRetry<T>(
+  fn: () => Promise<T>,
+  maxAttempts = 3,
+  baseDelayMs = 1000
+): Promise<T> {
+  let lastError: Error | null = null;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await fn();
+    } catch (error: any) {
+      lastError = error;
+      const message = String(error?.message || '').toLowerCase();
+
+      // Don't retry on auth errors (invalid token, etc.) - only network issues
+      const isNetworkError =
+        message.includes('network') ||
+        message.includes('fetch') ||
+        message.includes('timeout') ||
+        error?.code === 'NETWORK_ERROR';
+
+      if (!isNetworkError || attempt === maxAttempts) {
+        throw error;
+      }
+
+      // Exponential backoff: 1s, 2s, 4s...
+      const delay = baseDelayMs * Math.pow(2, attempt - 1);
+      console.log(`[Auth] Retry attempt ${attempt}/${maxAttempts} after ${delay}ms`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+
+  throw lastError;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -57,28 +104,75 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   /**
    * Initialize auth state on app startup
+   *
+   * Improvements over naive approach:
+   * 1. Validates cached session with server (getUser) to catch revoked tokens
+   * 2. Parallelizes subscription/usage fetches for faster startup
+   * 3. Retries on transient network failures
+   * 4. Guards against duplicate listener registration
+   * 5. Prevents multiple initialization calls
    */
   initialize: async () => {
+    // Prevent duplicate initialization
+    if (isInitialized) {
+      console.log('[Auth] Already initialized, skipping');
+      return;
+    }
+    isInitialized = true;
+
     try {
-      // Get initial session
-      const { data: { session } } = await supabase.auth.getSession();
+      // Step 1: Get cached session from local storage
+      const { data: { session: cachedSession } } = await supabase.auth.getSession();
 
-      if (session) {
-        set({
-          user: session.user,
-          session,
-          isAuthenticated: true,
-        });
+      if (cachedSession) {
+        // Step 2: Validate the cached session is still valid server-side
+        // This catches revoked tokens, password changes, etc.
+        console.log('[Auth] Validating cached session...');
 
-        // Load subscription and usage data
-        await get().refreshSubscription();
-        await get().refreshUsage();
+        const { data: { user: validatedUser }, error: userError } = await withRetry(
+          () => supabase.auth.getUser(),
+          3,
+          1000
+        );
+
+        if (userError || !validatedUser) {
+          // Cached session is invalid - clear it
+          console.warn('[Auth] Cached session invalid, clearing:', userError?.message);
+          await supabase.auth.signOut();
+          set({
+            user: null,
+            session: null,
+            isAuthenticated: false,
+            subscription: null,
+            usage: null,
+          });
+        } else {
+          // Session is valid - restore auth state
+          console.log('[Auth] Session validated successfully');
+          set({
+            user: validatedUser,
+            session: cachedSession,
+            isAuthenticated: true,
+          });
+
+          // Step 3: Load subscription and usage data in parallel (non-blocking for UI)
+          get().refreshSubscriptionAndUsage().catch(err => {
+            console.error('[Auth] Background refresh failed:', err);
+          });
+        }
       }
 
       set({ isLoading: false });
 
-      // Listen for auth changes
-      supabase.auth.onAuthStateChange(async (_event, session) => {
+      // Step 4: Set up auth state change listener (with duplicate guard)
+      if (authListenerSubscription) {
+        console.log('[Auth] Cleaning up existing listener');
+        authListenerSubscription.unsubscribe();
+      }
+
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+        console.log('[Auth] State change:', event);
+
         set({
           user: session?.user ?? null,
           session,
@@ -86,8 +180,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         });
 
         if (session) {
-          await get().refreshSubscription();
-          await get().refreshUsage();
+          // Refresh in parallel, don't block the state update
+          get().refreshSubscriptionAndUsage().catch(err => {
+            console.error('[Auth] Refresh after state change failed:', err);
+          });
         } else {
           set({
             subscription: null,
@@ -95,8 +191,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           });
         }
       });
+
+      authListenerSubscription = subscription;
+
     } catch (error) {
-      console.error('Auth initialization error:', error);
+      console.error('[Auth] Initialization error:', error);
+      // Reset initialization flag so retry is possible on next app foreground
+      isInitialized = false;
       set({ isLoading: false });
     }
   },
@@ -212,6 +313,20 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     } catch (error) {
       console.error('Usage refresh error:', error);
     }
+  },
+
+  /**
+   * Refresh both subscription and usage data in parallel
+   * More efficient than calling them sequentially
+   */
+  refreshSubscriptionAndUsage: async () => {
+    const { user } = get();
+    if (!user) return;
+
+    await Promise.all([
+      get().refreshSubscription(),
+      get().refreshUsage(),
+    ]);
   },
 
   /**

@@ -249,7 +249,6 @@ const FriendSearchResultsContent = ({
       <AnimatedFlashList
         contentContainerStyle={{ paddingHorizontal: 20, paddingVertical: 8 }}
         data={filteredFriends}
-        estimatedItemSize={72}
         keyExtractor={(item: any) => item.id}
         scrollEnabled={!isQuickWeaveOpen}
         onScroll={scrollHandler}

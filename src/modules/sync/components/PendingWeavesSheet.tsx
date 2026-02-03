@@ -107,7 +107,6 @@ export function PendingWeavesSheet({ visible, onClose }: PendingWeavesSheetProps
                         isProcessing={processingId === item.id}
                     />
                 )}
-                estimatedItemSize={180}
                 keyExtractor={item => item.id}
                 contentContainerStyle={{ padding: 16 }}
             />

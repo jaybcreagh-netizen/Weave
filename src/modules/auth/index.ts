@@ -12,9 +12,8 @@ export * from './store/auth.store';
 export * from './store/user-profile.store';
 export * from './store/background-event-sync.store';
 
-// Context (new)
+// Context
 export * from './context/AuthContext';
-export * from './context/SyncConflictContext';
 
 // New hooks
 export * from './hooks/useUserProfile';

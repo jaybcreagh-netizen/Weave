@@ -49,7 +49,14 @@ export default class SyncQueueItem extends Model {
     @readonly @date('updated_at') updatedAt!: Date
 
     // Helper to parse payload
-    getParsedPayload<T>(): T {
-        return JSON.parse(this.payload) as T
+    getParsedPayload<T>(defaultValue?: T): T {
+        try {
+            return JSON.parse(this.payload) as T
+        } catch {
+            if (defaultValue !== undefined) {
+                return defaultValue
+            }
+            throw new Error(`Failed to parse SyncQueueItem payload for operation: ${this.operationType}`)
+        }
     }
 }

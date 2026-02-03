@@ -29,6 +29,50 @@ export interface LinkRequest {
     createdAt: string;
 }
 
+interface FriendLinkRow {
+    id: string;
+    user_a_id: string;
+    user_b_id: string;
+    initiated_by: string;
+    status: 'pending' | 'accepted' | 'declined' | 'unlinked';
+    created_at: string;
+    linked_at?: string | null;
+    user_a_profile?: LinkedUserProfile | LinkedUserProfile[] | null;
+    user_b_profile?: LinkedUserProfile | LinkedUserProfile[] | null;
+}
+
+interface LinkedUserProfile {
+    id: string;
+    username: string;
+    display_name: string;
+    photo_url?: string | null;
+    archetype?: string | null;
+    birthday?: string | null;
+}
+
+function getOtherUserId(link: { user_a_id: string; user_b_id: string }, currentUserId: string): string | null {
+    if (link.user_a_id === currentUserId) return link.user_b_id;
+    if (link.user_b_id === currentUserId) return link.user_a_id;
+    return null;
+}
+
+function getCurrentUserFriendIdField(
+    link: { user_a_id: string; user_b_id: string },
+    currentUserId: string
+): 'user_a_friend_id' | 'user_b_friend_id' | null {
+    if (link.user_a_id === currentUserId) return 'user_a_friend_id';
+    if (link.user_b_id === currentUserId) return 'user_b_friend_id';
+    return null;
+}
+
+function normalizeLinkedProfile(
+    profile: FriendLinkRow['user_a_profile'] | FriendLinkRow['user_b_profile']
+): LinkedUserProfile | null {
+    if (!profile) return null;
+    if (Array.isArray(profile)) return profile[0] ?? null;
+    return profile;
+}
+
 /**
  * Search for Weave users by username
  * Returns users that match the search query (case-insensitive)
@@ -157,7 +201,7 @@ export async function createLinkedFriend(
  * Send a link request for an existing Friend
  */
 export async function sendLinkRequest(
-    localFriendId: string,
+    localFriendId: string | undefined,
     targetUserId: string
 ): Promise<{ success: boolean; error?: string }> {
     const client = getSupabaseClient();
@@ -193,14 +237,16 @@ export async function sendLinkRequest(
             return { success: false, error: linkError.message || 'Failed to send link request' };
         }
 
-        // 2. Update local Friend
-        await database.write(async () => {
-            const friend = await database.get<Friend>('friends').find(localFriendId);
-            await friend.update(f => {
-                f.linkedUserId = targetUserId;
-                f.linkStatus = 'pending_sent';
+        // 2. Update local Friend if this request came from an existing local friend card.
+        if (localFriendId) {
+            await database.write(async () => {
+                const friend = await database.get<Friend>('friends').find(localFriendId);
+                await friend.update(f => {
+                    f.linkedUserId = targetUserId;
+                    f.linkStatus = 'pending_sent';
+                });
             });
-        });
+        }
 
         return { success: true };
     } catch (e: any) {
@@ -225,32 +271,49 @@ export async function getPendingIncomingRequests(): Promise<LinkRequest[]> {
             .select(`
                 id,
                 user_a_id,
+                user_b_id,
+                initiated_by,
                 status,
                 created_at,
-                user_profiles!friend_links_user_a_id_fkey (
+                user_a_profile:user_profiles!friend_links_user_a_id_fkey (
+                    id,
+                    username,
+                    display_name,
+                    photo_url
+                ),
+                user_b_profile:user_profiles!friend_links_user_b_id_fkey (
                     id,
                     username,
                     display_name,
                     photo_url
                 )
             `)
-            .eq('user_b_id', session.userId)
-            .eq('status', 'pending');
+            .eq('status', 'pending')
+            .or(`user_a_id.eq.${session.userId},user_b_id.eq.${session.userId}`)
+            .neq('initiated_by', session.userId);
 
         if (error || !data) {
             console.error('[FriendLinking] Error fetching requests:', error);
             return [];
         }
 
-        return data.map((link: any) => ({
-            id: link.id,
-            userId: link.user_a_id,
-            username: link.user_profiles?.username || 'unknown',
-            displayName: link.user_profiles?.display_name || 'Unknown',
-            photoUrl: link.user_profiles?.photo_url ?? undefined,
-            status: link.status,
-            createdAt: link.created_at,
-        }));
+        return (data as unknown as FriendLinkRow[]).map((link) => {
+            const requesterId = link.initiated_by || getOtherUserId(link, session.userId) || '';
+            const requesterProfileRaw = requesterId === link.user_a_id
+                ? link.user_a_profile
+                : link.user_b_profile;
+            const requesterProfile = normalizeLinkedProfile(requesterProfileRaw);
+
+            return {
+                id: link.id,
+                userId: requesterId,
+                username: requesterProfile?.username || 'unknown',
+                displayName: requesterProfile?.display_name || 'Unknown',
+                photoUrl: requesterProfile?.photo_url ?? undefined,
+                status: link.status === 'pending' ? 'pending' : link.status === 'accepted' ? 'accepted' : 'declined',
+                createdAt: link.created_at,
+            };
+        });
     } catch (e) {
         console.error('[FriendLinking] Exception fetching requests:', e);
         return [];
@@ -276,7 +339,15 @@ export async function acceptLinkRequest(
         // 1. Get link request details
         const { data: linkData, error: linkError } = await client
             .from('friend_links')
-            .select('*, user_profiles!friend_links_user_a_id_fkey(*)')
+            .select(`
+                id,
+                user_a_id,
+                user_b_id,
+                initiated_by,
+                status,
+                user_a_profile:user_profiles!friend_links_user_a_id_fkey(*),
+                user_b_profile:user_profiles!friend_links_user_b_id_fkey(*)
+            `)
             .eq('id', linkId)
             .single();
 
@@ -285,14 +356,36 @@ export async function acceptLinkRequest(
             return false;
         }
 
+        const requesterUserId = linkData.initiated_by || getOtherUserId(linkData, session.userId);
+        const currentUserFriendIdField = getCurrentUserFriendIdField(linkData, session.userId);
+
+        if (!requesterUserId || !currentUserFriendIdField) {
+            console.error('[FriendLinking] Invalid link participant mapping:', {
+                linkId,
+                userA: linkData.user_a_id,
+                userB: linkData.user_b_id,
+                sessionUserId: session.userId,
+            });
+            return false;
+        }
+
+        if (requesterUserId === session.userId) {
+            console.error('[FriendLinking] Attempted to accept a self-initiated link request:', { linkId });
+            return false;
+        }
+
         // 2. Update link status to accepted
+        const serverUpdatePayload: Record<string, string> = {
+            status: 'accepted',
+            linked_at: new Date().toISOString(),
+        };
+        if (localFriendId) {
+            serverUpdatePayload[currentUserFriendIdField] = localFriendId;
+        }
+
         const { error: updateError } = await client
             .from('friend_links')
-            .update({
-                status: 'accepted',
-                linked_at: new Date().toISOString(),
-                user_b_friend_id: localFriendId,
-            })
+            .update(serverUpdatePayload)
             .eq('id', linkId);
 
         if (updateError) {
@@ -300,15 +393,21 @@ export async function acceptLinkRequest(
             return false;
         }
 
+        const requesterProfileRaw = requesterUserId === linkData.user_a_id
+            ? linkData.user_a_profile
+            : linkData.user_b_profile;
+        const requesterProfile = normalizeLinkedProfile(requesterProfileRaw);
+
         // 3. Create/update local Friend
+        let resolvedLocalFriendId = localFriendId;
         await database.write(async () => {
-            let friendIdToUpdate = localFriendId;
+            let friendIdToUpdate = resolvedLocalFriendId;
 
             // Safety check: If no localFriendId provided, check if a friend with this linkedUserId already exists
             // This prevents duplicate creation if matching failed for any reason
             if (!friendIdToUpdate) {
                 const existingFriends = await database.get<Friend>('friends')
-                    .query(Q.where('linked_user_id', linkData.user_a_id))
+                    .query(Q.where('linked_user_id', requesterUserId))
                     .fetch();
 
                 if (existingFriends.length > 0) {
@@ -321,27 +420,28 @@ export async function acceptLinkRequest(
                 // Update existing friend
                 const friend = await database.get<Friend>('friends').find(friendIdToUpdate);
                 await friend.update(f => {
-                    f.linkedUserId = linkData.user_a_id;
+                    f.linkedUserId = requesterUserId;
                     f.linkStatus = 'linked';
                     f.linkedAt = Date.now();
                     // Optionally sync profile data
-                    if (linkData.user_profiles?.photo_url && !f.photoUrl) {
-                        f.photoUrl = linkData.user_profiles.photo_url;
+                    if (requesterProfile?.photo_url && !f.photoUrl) {
+                        f.photoUrl = requesterProfile.photo_url;
                     }
                     // Sync birthday from linked profile if not already set
-                    if (linkData.user_profiles?.birthday && !f.birthday) {
-                        f.birthday = linkData.user_profiles.birthday;
+                    if (requesterProfile?.birthday && !f.birthday) {
+                        f.birthday = requesterProfile.birthday;
                     }
                 });
+                resolvedLocalFriendId = friendIdToUpdate;
             } else {
                 // Create new friend from linked user
-                await database.get<Friend>('friends').create(friend => {
-                    friend.name = linkData.user_profiles?.display_name || 'Friend';
+                const createdFriend = await database.get<Friend>('friends').create(friend => {
+                    friend.name = requesterProfile?.display_name || 'Friend';
                     friend.dunbarTier = tier;
-                    friend.archetype = (linkData.user_profiles?.archetype as any) || 'Hermit';
+                    friend.archetype = (requesterProfile?.archetype as any) || 'Hermit';
                     friend.weaveScore = 50;
-                    friend.photoUrl = linkData.user_profiles?.photo_url;
-                    friend.birthday = linkData.user_profiles?.birthday;
+                    friend.photoUrl = requesterProfile?.photo_url ?? undefined;
+                    friend.birthday = requesterProfile?.birthday ?? undefined;
                     friend.lastUpdated = new Date();
                     friend.resilience = 0;
                     friend.ratedWeavesCount = 0;
@@ -353,12 +453,21 @@ export async function acceptLinkRequest(
                     friend.consecutiveUserInitiations = 0;
                     friend.totalUserInitiations = 0;
                     friend.totalFriendInitiations = 0;
-                    friend.linkedUserId = linkData.user_a_id;
+                    friend.linkedUserId = requesterUserId;
                     friend.linkStatus = 'linked';
                     friend.linkedAt = Date.now();
                 });
+                resolvedLocalFriendId = createdFriend.id;
             }
         });
+
+        // Backfill our local friend ID on server when we created or matched one after accepting.
+        if (!localFriendId && resolvedLocalFriendId) {
+            await client
+                .from('friend_links')
+                .update({ [currentUserFriendIdField]: resolvedLocalFriendId })
+                .eq('id', linkId);
+        }
 
         return true;
     } catch (e) {
@@ -406,8 +515,9 @@ export async function getPendingRequestCount(): Promise<number> {
         const { count, error } = await client
             .from('friend_links')
             .select('id', { count: 'exact', head: true })
-            .eq('user_b_id', session.userId)
-            .eq('status', 'pending');
+            .eq('status', 'pending')
+            .or(`user_a_id.eq.${session.userId},user_b_id.eq.${session.userId}`)
+            .neq('initiated_by', session.userId);
 
         if (error) return 0;
         return count || 0;
@@ -515,14 +625,15 @@ export async function syncAllOutgoingLinkStatuses(): Promise<void> {
         console.log(`[FriendLinking] Syncing ${pendingSent.length} pending outgoing requests`);
 
         // Get the linked user IDs
-        const linkedUserIds = pendingSent.map(f => f.linkedUserId!);
+        const linkedUserIdSet = new Set(pendingSent.map(f => f.linkedUserId!));
 
-        // Query server for all our outgoing links
+        // Query server for all links we initiated and then match by "other user" ID.
+        // This handles both user_a/user_b directions when IDs are sorted.
         const { data: serverLinks, error } = await client
             .from('friend_links')
-            .select('id, user_a_id, user_b_id, status, linked_at')
-            .eq('user_a_id', session.userId)
-            .in('user_b_id', linkedUserIds)
+            .select('id, user_a_id, user_b_id, initiated_by, status, linked_at')
+            .eq('initiated_by', session.userId)
+            .or(`user_a_id.eq.${session.userId},user_b_id.eq.${session.userId}`)
             .in('status', ['pending', 'accepted']);
 
         if (error) {
@@ -535,9 +646,13 @@ export async function syncAllOutgoingLinkStatuses(): Promise<void> {
         }
 
         // Create a map of linkedUserId -> server link status
-        const statusMap = new Map(
-            serverLinks.map(link => [link.user_b_id, link])
-        );
+        const statusMap = new Map<string, FriendLinkRow>();
+        for (const link of serverLinks as unknown as FriendLinkRow[]) {
+            const otherUserId = getOtherUserId(link, session.userId);
+            if (otherUserId && linkedUserIdSet.has(otherUserId)) {
+                statusMap.set(otherUserId, link);
+            }
+        }
 
         // Update local friends that have been accepted
         await database.write(async () => {
@@ -573,9 +688,10 @@ export async function syncIncomingLinkRequests(): Promise<void> {
         // Get pending incoming link requests from server
         const { data: incomingRequests, error } = await client
             .from('friend_links')
-            .select('id, user_a_id, status, created_at')
-            .eq('user_b_id', session.userId)
-            .eq('status', 'pending');
+            .select('id, user_a_id, user_b_id, initiated_by, status, created_at')
+            .eq('status', 'pending')
+            .or(`user_a_id.eq.${session.userId},user_b_id.eq.${session.userId}`)
+            .neq('initiated_by', session.userId);
 
         if (error) {
             console.error('[FriendLinking] Error fetching incoming requests:', error);
@@ -588,10 +704,7 @@ export async function syncIncomingLinkRequests(): Promise<void> {
 
         console.log(`[FriendLinking] Found ${incomingRequests.length} incoming link requests`);
 
-        // Get the user IDs who sent us requests
-        const requesterUserIds = incomingRequests.map(r => r.user_a_id);
-
-        // Find local friends that match these requester user IDs
+        // Find local friends that match the users who sent us requests
         // This handles the case where you already have someone as a local friend
         // and they send you a link request
         const allFriends = await database
@@ -610,7 +723,7 @@ export async function syncIncomingLinkRequests(): Promise<void> {
         // Update friends who have pending_received status needed
         await database.write(async () => {
             for (const request of incomingRequests) {
-                const friend = friendsByLinkedUserId.get(request.user_a_id);
+                const friend = friendsByLinkedUserId.get(request.initiated_by);
 
                 // Only update if friend exists and doesn't already have pending_received or linked status
                 if (friend && friend.linkStatus !== 'pending_received' && friend.linkStatus !== 'linked') {
@@ -665,8 +778,7 @@ export async function unlinkFriend(localFriendId: string): Promise<boolean> {
                 status: 'unlinked',
                 unlinked_at: new Date().toISOString(),
             })
-            .or(`user_a_id.eq.${session.userId},user_b_id.eq.${session.userId}`)
-            .or(`user_a_id.eq.${friend.linkedUserId},user_b_id.eq.${friend.linkedUserId}`)
+            .or(`and(user_a_id.eq.${session.userId},user_b_id.eq.${friend.linkedUserId}),and(user_a_id.eq.${friend.linkedUserId},user_b_id.eq.${session.userId})`)
             .in('status', ['pending', 'accepted']);
 
         if (serverError) {

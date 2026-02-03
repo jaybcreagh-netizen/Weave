@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo, useRef, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Alert, TouchableWithoutFeedback, BackHandler } from 'react-native';
+import { View, Text, Alert, TouchableWithoutFeedback, BackHandler } from 'react-native';
+import { TouchableOpacity } from 'react-native-gesture-handler';
 import BottomSheet, {
   BottomSheetBackdrop,
   BottomSheetView,

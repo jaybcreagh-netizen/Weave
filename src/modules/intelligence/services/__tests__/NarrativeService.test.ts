@@ -70,7 +70,7 @@ describe('NarrativeService', () => {
         });
     });
 
-    describe('evaluateChapterTransition', () => {
+    describe('ensureNarrative', () => {
         it('should initialize narrative if missing', async () => {
             const mockNarrativeCollection = {
                 create: jest.fn().mockResolvedValue({ currentChapter: 'spark', friendshipStartDate: new Date() }),
@@ -88,7 +88,7 @@ describe('NarrativeService', () => {
                 return {};
             });
 
-            await narrativeService.evaluateChapterTransition(mockFriendId);
+            await narrativeService.ensureNarrative(mockFriendId);
 
             expect(mockNarrativeCollection.create).toHaveBeenCalled();
         });

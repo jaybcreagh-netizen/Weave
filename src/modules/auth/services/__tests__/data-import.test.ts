@@ -1,11 +1,9 @@
-import { importData } from '../data-import';
 // import { database } from '@/db'; // Don't import real database
 import * as fs from 'fs';
 import * as path from 'path';
 import { Database } from '@nozbe/watermelondb';
 import LokiJSAdapter from '@nozbe/watermelondb/adapters/lokijs';
 import schema from '@/db/schema';
-import migrations from '@/db/migrations';
 
 // Import all models required for the DB
 import Friend from '@/db/models/Friend';
@@ -40,17 +38,20 @@ import EveningDigest from '@/db/models/EveningDigest';
 // Mock conflicting modules
 jest.mock('uuid', () => ({ v4: () => 'mock-uuid-1234' }));
 jest.mock('react-native-get-random-values', () => ({}));
-jest.mock('@nozbe/watermelondb/utils/common/randomId', () => ({ setGenerator: jest.fn() }));
+jest.mock('@nozbe/watermelondb/utils/common/randomId', () => ({
+    __esModule: true,
+    default: () => 'mock-id-' + Math.random(),
+    setGenerator: jest.fn(),
+}));
 
 // Setup LokiJS Database
 const adapter = new LokiJSAdapter({
     schema,
     useWebWorker: false,
     useIncrementalIndexedDB: false,
-    migrations, // Include migrations to match real setup
 });
 
-const testDatabase = new Database({
+const mockDatabase = new Database({
     adapter,
     modelClasses: [
         Friend,
@@ -86,16 +87,24 @@ const testDatabase = new Database({
 
 // Mock the @/db module to return our testDatabase
 jest.mock('@/db', () => ({
-    database: testDatabase,
+    database: mockDatabase,
 }));
 
 
 
 describe('Data Import', () => {
     it('should import the provided test export file without errors', async () => {
-        // Read the actual test file
-        // NOTE: Adusting path to point to the file in the workspace
-        const testFilePath = '/Users/DITcart/Desktop/Programs/WeaveNative/test_data/weave-export-2025-12-17T13-31-25.json';
+        const { importData } = require('../data-import');
+
+        // Read the latest fixture in test_data/
+        const fixtureDir = path.resolve(process.cwd(), 'test_data');
+        const fixtureFiles = fs
+            .readdirSync(fixtureDir)
+            .filter((name) => /^weave-export-.*\.json$/.test(name))
+            .sort();
+
+        expect(fixtureFiles.length).toBeGreaterThan(0);
+        const testFilePath = path.join(fixtureDir, fixtureFiles[fixtureFiles.length - 1]);
         const jsonString = fs.readFileSync(testFilePath, 'utf8');
 
         // Attempt import

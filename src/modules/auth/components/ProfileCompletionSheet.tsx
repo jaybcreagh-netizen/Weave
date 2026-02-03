@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, TextInput } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Phone, Users, Shield, AtSign, CheckCircle2 } from 'lucide-react-native';
+import { Phone, Users, Shield, AtSign } from 'lucide-react-native';
 import { database } from '@/db';
 
 import { StandardBottomSheet } from '@/shared/ui/Sheet';
@@ -13,6 +13,7 @@ import { useTheme } from '@/shared/hooks/useTheme';
 import { useUserProfile } from '../hooks/useUserProfile';
 import { useAuth } from '../context/AuthContext';
 import { getSupabaseClient } from '@/shared/services/supabase-client';
+import { useUpdateUsername, SupabaseError } from '@/shared/api/mutations';
 
 const SNOOZE_KEY = 'profile_completion_snoozed_until';
 const SNOOZE_DAYS = 7;
@@ -27,17 +28,37 @@ export function ProfileCompletionSheet() {
 
     const [isVisible, setIsVisible] = useState(false);
     const [hasChecked, setHasChecked] = useState(false);
+    const [isCheckingEligibility, setIsCheckingEligibility] = useState(false);
     const [step, setStep] = useState<Step | null>(null);
 
     // Username state
     const [username, setUsername] = useState('');
-    const [isCheckingUsername, setIsCheckingUsername] = useState(false);
-    const [usernameError, setUsernameError] = useState<string | null>(null);
-    const [isSavingUsername, setIsSavingUsername] = useState(false);
+
+    // Use React Query mutation for username update (automatic retry on network errors)
+    const updateUsernameMutation = useUpdateUsername({
+        onSuccess: () => {
+            // Success! Move to next step or close
+            if (!profile?.phone) {
+                setStep('phone');
+            } else {
+                setIsVisible(false);
+            }
+        },
+    });
+
+    // Derive loading/error state from mutation
+    const isSavingUsername = updateUsernameMutation.isPending;
+    const usernameError = updateUsernameMutation.error
+        ? (updateUsernameMutation.error as SupabaseError).userMessage
+        : null;
 
     useEffect(() => {
+        let isMounted = true;
+
         const checkEligibility = async () => {
             if (!user || !profile || hasChecked) return;
+
+            setIsCheckingEligibility(true);
 
             // 1. Check Username Need
             // Get username from local profile first
@@ -68,6 +89,7 @@ export function ProfileCompletionSheet() {
             const needsUsername = !currentUsername || currentUsername.startsWith('user_');
 
             if (needsUsername) {
+                if (!isMounted) return;
                 setStep('username');
                 setUsername(currentUsername); // Pre-fill current (e.g. user_12345)
                 await checkSnooze();
@@ -84,13 +106,18 @@ export function ProfileCompletionSheet() {
                 currentPhone = user.phone;
                 console.log('[ProfileCompletionSheet] Found phone in Auth User:', currentPhone);
 
-                // Self-heal: Update local profile immediately
+                // Self-heal: Update local profile (best effort, sync will fix if this fails)
                 const localProfile = profile;
                 database.write(async () => {
                     await localProfile.update((p: any) => {
                         p.phone = user.phone;
                     });
-                }).catch((err: any) => console.warn('[ProfileCompletionSheet] Failed to self-heal phone from Auth User:', err));
+                    console.log('[ProfileCompletionSheet] Self-healed phone from Auth User');
+                }).catch((err: any) => {
+                    // This is expected to fail sometimes due to sync conflicts
+                    // Sync will eventually fix it, so just log and continue
+                    console.warn('[ProfileCompletionSheet] Self-heal phone failed (sync will fix):', err?.message);
+                });
             }
 
             // Should we double check with Supabase?
@@ -108,14 +135,18 @@ export function ProfileCompletionSheet() {
                             currentPhone = data.phone;
                             console.log('[ProfileCompletionSheet] Fetched phone from Supabase:', currentPhone);
 
-                            // 🚀 SELF-HEAL: Update local profile immediately
-                            // This ensures next time we don't need to fetch
-                            const localProfile = profile; // Capture for closure
+                            // Self-heal: Update local profile (best effort, sync will fix if this fails)
+                            const localProfile = profile;
                             database.write(async () => {
                                 await localProfile.update((p: any) => {
                                     p.phone = data.phone;
                                 });
-                            }).catch((err: any) => console.warn('[ProfileCompletionSheet] Failed to self-heal phone:', err));
+                                console.log('[ProfileCompletionSheet] Self-healed phone from Supabase');
+                            }).catch((err: any) => {
+                                // This is expected to fail sometimes due to sync conflicts
+                                // Sync will eventually fix it, so just log and continue
+                                console.warn('[ProfileCompletionSheet] Self-heal phone failed (sync will fix):', err?.message);
+                            });
                         }
                     }
                 } catch (e) {
@@ -124,34 +155,54 @@ export function ProfileCompletionSheet() {
             }
 
             if (!currentPhone && !needsUsername) {
+                if (!isMounted) return;
                 setStep('phone');
                 await checkSnooze();
                 return;
             }
 
-            // All good
-            setHasChecked(true);
+            // All good - profile is complete
+            if (isMounted) {
+                setHasChecked(true);
+                setIsCheckingEligibility(false);
+            }
         };
 
         const checkSnooze = async () => {
             try {
                 const snoozedUntil = await AsyncStorage.getItem(SNOOZE_KEY);
+                if (!isMounted) return;
+
                 if (snoozedUntil) {
                     const snoozeDate = parseInt(snoozedUntil, 10);
                     if (Date.now() < snoozeDate) {
                         setHasChecked(true);
                         setIsVisible(false);
+                        setIsCheckingEligibility(false);
                         return;
                     }
                 }
                 setIsVisible(true);
                 setHasChecked(true);
+                setIsCheckingEligibility(false);
             } catch (e) {
-                console.warn('Failed to read snooze key', e);
+                console.warn('[ProfileCompletionSheet] Failed to read snooze key:', e);
+                if (isMounted) {
+                    setIsCheckingEligibility(false);
+                }
             }
         };
 
-        checkEligibility();
+        checkEligibility().catch((err) => {
+            console.error('[ProfileCompletionSheet] Eligibility check failed:', err);
+            if (isMounted) {
+                setIsCheckingEligibility(false);
+            }
+        });
+
+        return () => {
+            isMounted = false;
+        };
     }, [user, profile, hasChecked]);
 
     const handleLater = async () => {
@@ -163,72 +214,17 @@ export function ProfileCompletionSheet() {
     // ─────────────────────────────────────────────────────────────────────────────
     // USERNAME LOGIC
     // ─────────────────────────────────────────────────────────────────────────────
-    const handleSaveUsername = async () => {
+    const handleSaveUsername = () => {
         if (!user || !username) return;
 
-        // Simple validation
-        const cleaned = username.trim().toLowerCase();
-        if (cleaned.length < 3) {
-            setUsernameError('Username must be at least 3 characters');
-            return;
-        }
-        if (!/^[a-z0-9_]+$/.test(cleaned)) {
-            setUsernameError('Only letters, numbers, and underscores allowed');
-            return;
-        }
+        // Reset any previous error before submitting
+        updateUsernameMutation.reset();
 
-        setIsSavingUsername(true);
-        setUsernameError(null);
-
-        try {
-            const client = getSupabaseClient();
-            if (!client) throw new Error('No client');
-
-            // Check availability
-            const { count, error: checkError } = await client
-                .from('user_profiles')
-                .select('id', { count: 'exact', head: true })
-                .eq('username', cleaned)
-                .neq('id', user.id); // Exclude self
-
-            if (checkError) throw checkError;
-
-            if (count && count > 0) {
-                setUsernameError('Username is already taken');
-                setIsSavingUsername(false);
-                return;
-            }
-
-            // Upsert (create if not exists, update if exists)
-            const { error: upsertError } = await client
-                .from('user_profiles')
-                .upsert({
-                    id: user.id,
-                    user_id: user.id,
-                    username: cleaned,
-                    updated_at: new Date().toISOString(),
-                }, {
-                    onConflict: 'user_id'
-                });
-
-            if (upsertError) {
-                console.error('[ProfileCompletionSheet] Upsert error:', upsertError);
-                throw upsertError;
-            }
-
-            // Success! Move to next step or close
-            if (!profile?.phone) {
-                setStep('phone');
-            } else {
-                setIsVisible(false);
-            }
-
-        } catch (error: any) {
-            console.error('Failed to save username:', error);
-            setUsernameError(error.message || 'Failed to update username');
-        } finally {
-            setIsSavingUsername(false);
-        }
+        // Use the React Query mutation (handles validation, retry, error classification)
+        updateUsernameMutation.mutate({
+            userId: user.id,
+            username: username,
+        });
     };
 
     // ─────────────────────────────────────────────────────────────────────────────
@@ -273,7 +269,10 @@ export function ProfileCompletionSheet() {
                             value={username}
                             onChangeText={(t) => {
                                 setUsername(t);
-                                setUsernameError(null);
+                                // Clear error when user types
+                                if (updateUsernameMutation.error) {
+                                    updateUsernameMutation.reset();
+                                }
                             }}
                             autoCapitalize="none"
                             autoCorrect={false}

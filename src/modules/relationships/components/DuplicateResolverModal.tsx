@@ -11,7 +11,7 @@ import { CachedImage } from '@/shared/ui';
 interface DuplicateResolverModalProps {
     isVisible: boolean;
     conflicts: Array<{
-        contact: Contacts.Contact;
+        contact: Contacts.ExistingContact;
         type: 'existing_friend' | 'batch_duplicate';
         originalName: string;
         suggestedName?: string;
@@ -37,7 +37,7 @@ export function DuplicateResolverModal({ isVisible, conflicts, onResolve, onCanc
 
     const handleNext = (skipped: boolean) => {
         const newResolution = {
-            contactId: currentConflict.contact.id || '',
+            contactId: currentConflict.contact.id,
             newName: currentName.trim(),
             skipped,
         };

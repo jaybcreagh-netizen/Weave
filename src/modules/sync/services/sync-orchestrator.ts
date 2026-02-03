@@ -14,8 +14,17 @@ class SyncOrchestratorService {
     private lastSyncTime = 0;
     private readonly DEBOUNCE_MS = 5000;
     private isSyncing = false;
+    private isInitialized = false;
+    private appStateSubscription: { remove: () => void } | null = null;
+    private authSubscription: { unsubscribe: () => void } | null = null;
 
     initialize() {
+        if (this.isInitialized) {
+            Logger.info('[SyncOrchestrator] Already initialized, skipping duplicate setup');
+            return;
+        }
+        this.isInitialized = true;
+
         Logger.info('[SyncOrchestrator] Initializing...');
 
         // 1. Setup AppState listener for foreground syncs
@@ -49,16 +58,23 @@ class SyncOrchestratorService {
         const supabase = getSupabaseClient();
         if (!supabase) return;
 
-        supabase.auth.onAuthStateChange((event, session) => {
+        // Defensive: prevent duplicate listeners if initialize() is called again.
+        this.authSubscription?.unsubscribe();
+
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
             Logger.info(`[SyncOrchestrator] Auth event: ${event}, Session: ${session ? 'Yes' : 'No'}`);
             if (event === 'SIGNED_IN' || (event === 'INITIAL_SESSION' && session) || event === 'TOKEN_REFRESHED') {
                 this.triggerSync('auth-change');
             }
         });
+        this.authSubscription = subscription;
     }
 
     private setupAppStateListener() {
-        AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
+        // Defensive: prevent duplicate listeners if initialize() is called again.
+        this.appStateSubscription?.remove();
+
+        this.appStateSubscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
             if (nextAppState === 'active') {
                 this.triggerSync('foreground');
             }
@@ -83,10 +99,18 @@ class SyncOrchestratorService {
 
     async cleanup() {
         try {
+            this.appStateSubscription?.remove();
+            this.appStateSubscription = null;
+
+            this.authSubscription?.unsubscribe();
+            this.authSubscription = null;
+
             await BackgroundFetch.unregisterTaskAsync(BACKGROUND_SYNC_TASK);
             Logger.info('[SyncOrchestrator] Background sync unregistered');
         } catch (err) {
             Logger.error('[SyncOrchestrator] Failed to unregister background sync:', err);
+        } finally {
+            this.isInitialized = false;
         }
     }
 

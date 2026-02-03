@@ -357,7 +357,6 @@ export function JournalFeed({ onEntryPress, onEntriesDeleted }: JournalFeedProps
             <FlashList
                 data={entries}
                 renderItem={({ item, index }) => renderEntryCard(item, index)}
-                estimatedItemSize={120}
                 contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 100 }}
                 showsVerticalScrollIndicator={false}
                 refreshControl={

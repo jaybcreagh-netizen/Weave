@@ -76,7 +76,13 @@ async function extractWithLLM(text: string): Promise<SignalExtractionResult> {
         jsonMode: true
     })
 
-    const result = JSON.parse(response.text)
+    let result: any
+    try {
+        result = JSON.parse(response.text)
+    } catch (parseError) {
+        console.warn('[SignalExtractor] Failed to parse LLM response, using empty defaults:', parseError)
+        result = {}
+    }
 
     // Validate and sanitize LLM output
     return {

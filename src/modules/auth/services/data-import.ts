@@ -241,7 +241,17 @@ export async function clearAllData(): Promise<void> {
     const tableNames = Object.keys(schema.tables);
 
     for (const tableName of tableNames) {
-      const collection = database.get(tableName);
+      let collection: any;
+      try {
+        collection = database.get(tableName);
+      } catch {
+        // Some test setups don't register every model class.
+        // Skip tables without a registered collection.
+        continue;
+      }
+      if (!collection || typeof collection.query !== 'function') {
+        continue;
+      }
 
       // A. Destroy all visible (active) records
       const allRecords = await collection.query().fetch();

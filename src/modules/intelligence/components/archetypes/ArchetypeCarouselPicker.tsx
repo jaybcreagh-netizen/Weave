@@ -29,6 +29,7 @@ import Animated, {
   interpolate,
   Extrapolation,
   FadeIn,
+  type SharedValue,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -90,7 +91,7 @@ function ArchetypeCard({
   archetype: Archetype;
   isSelected: boolean;
   onSelect: () => void;
-  scrollX: Animated.SharedValue<number>;
+  scrollX: SharedValue<number>;
   index: number;
 }) {
   const { colors } = useTheme();

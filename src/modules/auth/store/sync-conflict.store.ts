@@ -15,7 +15,7 @@ interface SyncConflictStore {
 
     // Actions
     addConflict: (conflict: ConflictData) => void;
-    resolveConflict: (id: string) => void;
+    resolveConflict: (id: string, tableName?: string) => void;
     clearConflicts: () => void;
 }
 
@@ -25,7 +25,10 @@ export const useSyncConflictStore = create<SyncConflictStore>((set) => ({
 
     addConflict: (conflict) =>
         set((state) => {
-            if (state.conflicts.some(c => c.id === conflict.id)) {
+            const existing = state.conflicts.some(
+                c => c.id === conflict.id && c.tableName === conflict.tableName
+            );
+            if (existing) {
                 return state;
             }
             return {
@@ -34,9 +37,14 @@ export const useSyncConflictStore = create<SyncConflictStore>((set) => ({
             };
         }),
 
-    resolveConflict: (id) =>
+    resolveConflict: (id, tableName) =>
         set((state) => {
-            const remainingConflicts = state.conflicts.filter((c) => c.id !== id);
+            const remainingConflicts = state.conflicts.filter((c) => {
+                if (tableName) {
+                    return !(c.id === id && c.tableName === tableName);
+                }
+                return c.id !== id;
+            });
             return {
                 conflicts: remainingConflicts,
                 isModalOpen: remainingConflicts.length > 0,

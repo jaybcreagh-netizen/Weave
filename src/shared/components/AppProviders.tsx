@@ -15,7 +15,6 @@ import { PostHogProvider, POSTHOG_API_KEY, posthogOptions } from '@/shared/servi
 import { useUIStore } from '@/shared/stores/uiStore';
 import { useTheme } from '@/shared/hooks/useTheme';
 import { AuthProvider } from '@/modules/auth';
-import { SyncConflictProvider } from '@/modules/auth';
 import { RealtimeProvider } from '@/shared/components/RealtimeProvider';
 import { runExpirationCheckOnStartup } from '@/modules/sync';
 
@@ -55,32 +54,30 @@ export function AppProviders({ children }: AppProvidersProps) {
             >
                 <AuthProvider>
                     <RealtimeProvider>
-                        <SyncConflictProvider>
-                            <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.background }}>
-                                <StatusBar style={isDarkMode ? 'light' : 'dark'} />
-                                <PortalProvider>
-                                    <FriendsObservableProvider>
-                                        <InteractionObservableProvider>
-                                            <CardGestureProvider>
-                                                <QuickWeaveProvider>
-                                                    <ToastProvider>
-                                                        <ErrorBoundary
-                                                            onError={(error, errorInfo) => {
-                                                                console.error('[App] Global error caught:', error);
-                                                                console.error('[App] Error info:', errorInfo);
-                                                                Sentry.captureException(error);
-                                                            }}
-                                                        >
-                                                            {children}
-                                                        </ErrorBoundary>
-                                                    </ToastProvider>
-                                                </QuickWeaveProvider>
-                                            </CardGestureProvider>
-                                        </InteractionObservableProvider>
-                                    </FriendsObservableProvider>
-                                </PortalProvider>
-                            </GestureHandlerRootView>
-                        </SyncConflictProvider>
+                        <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.background }}>
+                            <StatusBar style={isDarkMode ? 'light' : 'dark'} />
+                            <PortalProvider>
+                                <FriendsObservableProvider>
+                                    <InteractionObservableProvider>
+                                        <CardGestureProvider>
+                                            <QuickWeaveProvider>
+                                                <ToastProvider>
+                                                    <ErrorBoundary
+                                                        onError={(error, errorInfo) => {
+                                                            console.error('[App] Global error caught:', error);
+                                                            console.error('[App] Error info:', errorInfo);
+                                                            Sentry.captureException(error);
+                                                        }}
+                                                    >
+                                                        {children}
+                                                    </ErrorBoundary>
+                                                </ToastProvider>
+                                            </QuickWeaveProvider>
+                                        </CardGestureProvider>
+                                    </InteractionObservableProvider>
+                                </FriendsObservableProvider>
+                            </PortalProvider>
+                        </GestureHandlerRootView>
                     </RealtimeProvider>
                 </AuthProvider>
             </PostHogProvider>

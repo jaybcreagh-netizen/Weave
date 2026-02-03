@@ -29,8 +29,9 @@ import { SuggestionActionSheet } from '@/modules/interactions/components/Suggest
 import { useFriendsObservable } from '@/shared/context/FriendsObservableContext';
 import { useOracleSheet, oracleService, oracleContextBuilder, ContextTier } from '@/modules/oracle';
 import { hasCompletedReflectionForCurrentWeek } from '@/modules/reflection';
-import { usePendingWeaves } from '@/modules/sync';
+import { usePendingWeaves, ActivityInboxSheet } from '@/modules/sync';
 import { getPendingIncomingRequests, LinkRequest } from '@/modules/relationships';
+
 import { UserPlus, Send } from 'lucide-react-native';
 import { CachedImage } from '@/shared/ui/CachedImage';
 import { StreakService } from '@/modules/gamification/services/streak.service';
@@ -190,6 +191,7 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = () => {
     const pendingWeaveInvites = useMemo(() => pendingWeaves.filter(w => w.status === 'pending'), [pendingWeaves]);
 
     const [showDetailSheet, setShowDetailSheet] = useState(false);
+    const [showActivityInbox, setShowActivityInbox] = useState(false);
     const [upcomingDates, setUpcomingDates] = useState<UpcomingDate[]>([]);
     const [confirmingIds, setConfirmingIds] = useState<Set<string>>(new Set());
     const [selectedSuggestion, setSelectedSuggestion] = useState<Suggestion | null>(null);
@@ -456,6 +458,23 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = () => {
 
     const handleReviewPlan = (id?: string) => {
         openPostWeaveRating(id); // Pass ID if available, otherwise opens queue
+    };
+
+    const handleIntentionPress = (intention: Intention, friend: FriendModel) => {
+        // Navigate to weave logger to plan an interaction with this friend
+        router.push({
+            pathname: '/weave-logger',
+            params: {
+                friendId: friend.id,
+                initialCategory: intention.interactionCategory || undefined,
+                mode: 'plan',
+                intentionId: intention.id,
+            }
+        });
+    };
+
+    const handleOpenActivityInbox = () => {
+        setShowActivityInbox(true);
     };
 
     const handleSuggestionAction = async (suggestion: Suggestion) => {
@@ -823,9 +842,19 @@ const TodaysFocusWidgetContent: React.FC<TodaysFocusWidgetProps> = () => {
                 onDeepenPlan={handleDeepenWeave}
                 onReschedulePlan={handleReschedulePlan}
                 onSuggestionAction={handleSuggestionAction}
-
+                onIntentionPress={handleIntentionPress}
+                onOpenActivityInbox={handleOpenActivityInbox}
                 linkRequests={linkRequests}
                 pendingWeaves={pendingWeaveInvites}
+            />
+
+            <ActivityInboxSheet
+                visible={showActivityInbox}
+                onClose={() => setShowActivityInbox(false)}
+                onRequestHandled={() => {
+                    // Refresh link requests after handling
+                    getPendingIncomingRequests().then(setLinkRequests);
+                }}
             />
 
 

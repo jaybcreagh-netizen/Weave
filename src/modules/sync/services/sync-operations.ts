@@ -464,14 +464,39 @@ export async function executeAcceptLinkRequest(payload: Record<string, unknown>)
     const { data: { user } } = await client.auth.getUser();
     if (!user) throw new Error('Not authenticated');
 
+    // Fetch link to determine which side we are on (user_a vs user_b)
+    const { data: linkData, error: fetchLinkError } = await client
+        .from('friend_links')
+        .select('id, user_a_id, user_b_id')
+        .eq('id', data.linkId)
+        .single();
+
+    if (fetchLinkError || !linkData) {
+        throw new Error(`Failed to load link request: ${fetchLinkError?.message || 'Not found'}`);
+    }
+
+    const localFriendField = linkData.user_a_id === user.id
+        ? 'user_a_friend_id'
+        : linkData.user_b_id === user.id
+            ? 'user_b_friend_id'
+            : null;
+
+    if (!localFriendField) {
+        throw new Error(`Current user is not a participant in link request ${data.linkId}`);
+    }
+
     // Update link status to accepted
+    const updatePayload: Record<string, string> = {
+        status: 'accepted',
+        linked_at: new Date().toISOString(),
+    };
+    if (data.localFriendId) {
+        updatePayload[localFriendField] = data.localFriendId;
+    }
+
     const { error } = await client
         .from('friend_links')
-        .update({
-            status: 'accepted',
-            linked_at: new Date().toISOString(),
-            user_b_friend_id: data.localFriendId,
-        })
+        .update(updatePayload)
         .eq('id', data.linkId);
 
     if (error) {
@@ -479,6 +504,7 @@ export async function executeAcceptLinkRequest(payload: Record<string, unknown>)
     }
 
     // Update/create local friend
+    let resolvedLocalFriendId = data.localFriendId;
     await database.write(async () => {
         if (data.localFriendId) {
             try {
@@ -494,12 +520,13 @@ export async function executeAcceptLinkRequest(payload: Record<string, unknown>)
                         f.birthday = data.requesterProfile.birthday;
                     }
                 });
+                resolvedLocalFriendId = friend.id;
             } catch {
                 logger.warn('SyncOps', 'Local friend not found for accept', { friendId: data.localFriendId });
             }
         } else {
             // Create new friend from linked user
-            await database.get<Friend>('friends').create(friend => {
+            const friend = await database.get<Friend>('friends').create(friend => {
                 friend.name = data.requesterProfile.displayName;
                 friend.dunbarTier = data.tier;
                 friend.archetype = (data.requesterProfile.archetype as any) || 'Hermit';
@@ -521,8 +548,17 @@ export async function executeAcceptLinkRequest(payload: Record<string, unknown>)
                 friend.linkStatus = 'linked';
                 friend.linkedAt = Date.now();
             });
+            resolvedLocalFriendId = friend.id;
         }
     });
+
+    // If we created/matched a local friend after acceptance, backfill it to the correct server column.
+    if (!data.localFriendId && resolvedLocalFriendId) {
+        await client
+            .from('friend_links')
+            .update({ [localFriendField]: resolvedLocalFriendId })
+            .eq('id', data.linkId);
+    }
 
     logger.info('SyncOps', 'Accepted link request', { linkId: data.linkId });
     trackEvent(AnalyticsEvents.FRIEND_LINK_ACCEPTED);

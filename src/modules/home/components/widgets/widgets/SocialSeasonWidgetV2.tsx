@@ -148,6 +148,8 @@ export const SocialSeasonWidgetV2: React.FC<SocialSeasonWidgetProps> = () => {
             // Pass null to calculator if no battery data - it will use neutral score (60)
             const averageBattery = batteryStats.average;  // null is valid, don't default to 50!
             const batteryTrend = batteryStats.trend;
+            const safeBatteryAvg = averageBattery ?? 0;
+            const safeBatteryTrend = batteryTrend ?? 'stable';
 
             const input: SeasonCalculationInput = {
                 weavesLast7Days,
@@ -155,8 +157,8 @@ export const SocialSeasonWidgetV2: React.FC<SocialSeasonWidgetProps> = () => {
                 avgScoreAllFriends,
                 avgScoreInnerCircle,
                 momentumCount,
-                batteryLast7DaysAvg: averageBattery ?? 0,
-                batteryTrend: batteryTrend ?? 'stable',
+                batteryLast7DaysAvg: safeBatteryAvg,
+                batteryTrend: safeBatteryTrend,
             };
 
             let newSeason = calculateSocialSeason(input, profile.currentSocialSeason);
@@ -176,8 +178,8 @@ export const SocialSeasonWidgetV2: React.FC<SocialSeasonWidgetProps> = () => {
                 avgScoreAllFriends,
                 avgScoreInnerCircle,
                 momentumCount,
-                batteryLast7DaysAvg: averageBattery,
-                batteryTrend: batteryTrend,
+                batteryLast7DaysAvg: safeBatteryAvg,
+                batteryTrend: safeBatteryTrend,
             });
 
             const oneHourAgo = Date.now() - 60 * 60 * 1000;

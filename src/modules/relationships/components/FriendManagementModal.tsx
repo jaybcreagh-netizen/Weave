@@ -175,9 +175,9 @@ export function FriendManagementModal({ visible, onClose }: FriendManagementModa
   ), [handleDelete, selectedIds.size, isDeleting]);
 
   const renderContent = React.useCallback(() => (
-    <BottomSheetFlatList
+    <BottomSheetFlatList<FriendModel>
       data={sortedFriends}
-      keyExtractor={item => item.id}
+      keyExtractor={(item: FriendModel) => item.id}
       renderItem={renderItem}
       contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }}
       ListHeaderComponent={renderHeader}

@@ -16,7 +16,7 @@ export default function BatchAddFriends() {
   const { tier } = useLocalSearchParams<{ tier: 'inner' | 'close' | 'community' }>();
   const { colors, isDarkMode } = useTheme();
 
-  const [selectedContacts, setSelectedContacts] = useState<Contacts.Contact[]>([]);
+  const [selectedContacts, setSelectedContacts] = useState<Contacts.ExistingContact[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showResolver, setShowResolver] = useState(false);
   const [conflicts, setConflicts] = useState<any[]>([]);

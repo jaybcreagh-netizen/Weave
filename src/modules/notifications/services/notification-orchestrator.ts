@@ -335,34 +335,9 @@ class NotificationOrchestratorService {
         onIncomingLink(async (payload: IncomingLinkPayload) => {
             Logger.info('[NotificationOrchestrator] Received incoming link event', payload);
 
-            // Fetch user name (friend's name)
-            // Payload has user_a_id (requester) if we are user_b (receiver)
-            // or we need to check initiated_by
-
-            // Actually, let's keep it simple. The payload has IDs.
-            // We need to fetch the profile of the "other" person.
-            // But `shared-weave-notifications.ts` logic for link requests isn't fully updated to fetch yet?
-            // Wait, existing `showLinkRequestNotification` takes `userName`.
-            // So we need to fetch it here.
-
             try {
-                // We assume we are the receiver (user_b) usually.
-                // But for 'link_accepted' status update, we might be user_a.
-                // It's safer to fetch the profile of the "other" user.
-
-                // However, `onIncomingLink` in realtime service filters for `user_b_id=eq.${user.id}` (requests TO us).
-                // So the requester is `user_a_id`.
-
-                const requesterId = payload.user_a_id;
-
-                // Fetch profile
-                // We can't easily import `getSupabaseClient` here if it causes cycle, but let's try or use database?
-                // Using database is better if we have them as a friend? No, they might be new.
-                // Use Supabase client.
-
-                // Dynamic import to avoid cycles if any? RealtimeService uses it.
-                // Let's just do it.
-
+                // Requester is always initiated_by, regardless of sorted user_a/user_b ordering.
+                const requesterId = payload.initiated_by;
 
                 const client = getSupabaseClient();
                 if (!client) return;

@@ -83,8 +83,7 @@ export const AddUserByLinkSheet: React.FC<AddUserByLinkSheetProps> = ({
                     id: profile.id,
                     username: profile.username,
                     displayName: profile.display_name,
-                    avatarUrl: profile.avatar_url,
-                    matchScore: 0 // Irrelevant here
+                    photoUrl: profile.avatar_url,
                 });
             }
 
@@ -173,7 +172,7 @@ export const AddUserByLinkSheet: React.FC<AddUserByLinkSheetProps> = ({
                         <Button
                             onPress={handleAddFriend}
                             className="w-full"
-                            isLoading={isAdding}
+                            loading={isAdding}
                             icon={<UserPlus size={18} color="white" />}
                         >
                             Add to Weave

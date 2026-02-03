@@ -104,7 +104,13 @@ async function extractWithLLM(
     })
 
     // Parse response
-    const result: ThreadExtractionResult = JSON.parse(response.text)
+    let result: ThreadExtractionResult
+    try {
+        result = JSON.parse(response.text)
+    } catch (parseError) {
+        console.warn('[ThreadExtractor] Failed to parse LLM response:', parseError)
+        return []
+    }
 
     // Validate threads
     if (!result.threads || !Array.isArray(result.threads)) {

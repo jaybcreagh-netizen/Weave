@@ -2,7 +2,6 @@
 // Removed static imports to avoid hoisting issues with mockDatabase
 // import { exportAllData } from '../data-export';
 // import { importData } from '../data-import';
-import { database } from '@/db';
 import { Database } from '@nozbe/watermelondb';
 import LokiJSAdapter from '@nozbe/watermelondb/adapters/lokijs';
 import schema from '@/db/schema';
@@ -54,6 +53,10 @@ jest.mock('expo-file-system', () => ({
     documentDirectory: 'file:///mock/doc/dir/',
     writeAsStringAsync: jest.fn(),
 }));
+jest.mock('expo-file-system/legacy', () => ({
+    documentDirectory: 'file:///mock/doc/dir/',
+    writeAsStringAsync: jest.fn(),
+}));
 jest.mock('expo-application', () => ({
     nativeApplicationVersion: '1.0.0',
 }));
@@ -61,6 +64,10 @@ jest.mock('react-native', () => ({
     Platform: { OS: 'ios' },
     Alert: { alert: jest.fn() },
     Share: { share: jest.fn() },
+    Appearance: {
+        getColorScheme: jest.fn(() => 'light'),
+        addChangeListener: jest.fn(() => ({ remove: jest.fn() })),
+    },
 }));
 
 // Setup LokiJS Database

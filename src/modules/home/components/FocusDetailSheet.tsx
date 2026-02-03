@@ -53,6 +53,8 @@ interface FocusDetailSheetProps {
     onDeepenPlan?: (plan: Interaction) => void;
     onReschedulePlan: (plan: Interaction) => void;
     onSuggestionAction: (suggestion: Suggestion) => void;
+    onIntentionPress?: (intention: Intention, friend: FriendModel) => void;
+    onOpenActivityInbox?: () => void;
     linkRequests?: LinkRequest[];
     pendingWeaves?: SharedWeaveData[];
 }
@@ -71,6 +73,8 @@ export const FocusDetailSheet: React.FC<FocusDetailSheetProps> = ({
     onDeepenPlan,
     onReschedulePlan,
     onSuggestionAction,
+    onIntentionPress,
+    onOpenActivityInbox,
     linkRequests = [],
     pendingWeaves = [],
 }) => {
@@ -236,8 +240,29 @@ export const FocusDetailSheet: React.FC<FocusDetailSheetProps> = ({
                     <View className="mb-2">
                         <IntentionsList
                             intentions={intentions}
-                            onIntentionPress={() => {
-                                // TODO: Handle intention press - maybe open edit modal or weave logger?
+                            onIntentionPress={async (intention) => {
+                                // Find the friend associated with this intention
+                                try {
+                                    const intentionFriends = await database.get('intention_friends')
+                                        .query(Q.where('intention_id', intention.id))
+                                        .fetch();
+
+                                    if (intentionFriends.length > 0) {
+                                        const friendId = (intentionFriends[0] as any).friendId;
+                                        const friend = friends.find(f => f.id === friendId);
+
+                                        if (friend && onIntentionPress) {
+                                            onClose();
+                                            // Small delay to let sheet close before navigating
+                                            setTimeout(() => {
+                                                onIntentionPress(intention, friend);
+                                            }, 300);
+                                            return;
+                                        }
+                                    }
+                                } catch (error) {
+                                    console.error('Error finding intention friend:', error);
+                                }
                                 onClose();
                             }}
                             onDeleteIntention={async (id) => {
@@ -289,12 +314,13 @@ export const FocusDetailSheet: React.FC<FocusDetailSheetProps> = ({
                                                 label="View"
                                                 size="sm"
                                                 onPress={() => {
-                                                    // TODO: Open ActivityInboxSheet or handle here
-                                                    // For now just close so they can go to settings, or we'd need to emit an event
-                                                    // Ideally we navigate to the inbox or show the sheet
-                                                    // But FocusDetailSheet is a sheet itself...
                                                     onClose();
-                                                    // We might want to pass a handler to open the inbox
+                                                    if (onOpenActivityInbox) {
+                                                        // Small delay to let sheet close before opening inbox
+                                                        setTimeout(() => {
+                                                            onOpenActivityInbox();
+                                                        }, 300);
+                                                    }
                                                 }}
                                                 className="px-3 min-h-[32px] min-w-[60px] py-1"
                                             />
@@ -334,7 +360,15 @@ export const FocusDetailSheet: React.FC<FocusDetailSheetProps> = ({
                                             <Button
                                                 label="View"
                                                 size="sm"
-                                                onPress={onClose}
+                                                onPress={() => {
+                                                    onClose();
+                                                    if (onOpenActivityInbox) {
+                                                        // Small delay to let sheet close before opening inbox
+                                                        setTimeout(() => {
+                                                            onOpenActivityInbox();
+                                                        }, 300);
+                                                    }
+                                                }}
                                                 className="px-3 min-h-[32px] min-w-[60px] py-1"
                                             />
                                         }

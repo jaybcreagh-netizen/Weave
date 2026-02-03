@@ -1,14 +1,16 @@
 import React from 'react';
 import { View, TouchableOpacity, ScrollView } from 'react-native';
 import { useTheme } from '@/shared/hooks/useTheme';
-import { useSyncConflict } from '../context/SyncConflictContext';
+import { useSyncConflictStore } from '../store/sync-conflict.store';
 import { AlertTriangle, Server, Smartphone } from 'lucide-react-native';
 import { StandardBottomSheet } from '@/shared/ui/Sheet';
 import { Text } from '@/shared/ui/Text';
 
 export function SyncConflictModal() {
     const { colors } = useTheme();
-    const { conflicts, isModalOpen, resolveConflict } = useSyncConflict();
+    const conflicts = useSyncConflictStore((state) => state.conflicts);
+    const isModalOpen = useSyncConflictStore((state) => state.isModalOpen);
+    const resolveConflict = useSyncConflictStore((state) => state.resolveConflict);
 
     if (!isModalOpen || conflicts.length === 0) {
         return null;
@@ -19,12 +21,12 @@ export function SyncConflictModal() {
 
     const handleKeepLocal = async () => {
         await currentConflict.resolve('keep_local');
-        resolveConflict(currentConflict.id);
+        resolveConflict(currentConflict.id, currentConflict.tableName);
     };
 
     const handleKeepServer = async () => {
         await currentConflict.resolve('keep_server');
-        resolveConflict(currentConflict.id);
+        resolveConflict(currentConflict.id, currentConflict.tableName);
     };
 
     // Helper to compare fields

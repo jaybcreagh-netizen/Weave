@@ -44,11 +44,15 @@ export function CachedImage({
 }: CachedImageProps) {
     const { tokens } = useTheme();
     const [hasError, setHasError] = React.useState(false);
+    const sourceUri =
+        source && typeof source === 'object' && !Array.isArray(source) && 'uri' in source
+            ? source.uri
+            : undefined;
 
     // Reset error state when source changes
     React.useEffect(() => {
         setHasError(false);
-    }, [typeof source === 'object' && 'uri' in source ? source.uri : source]);
+    }, [source, sourceUri]);
 
     // If image failed to load and we have a fallback, render it
     if (hasError && fallbackIcon) {

@@ -24,6 +24,12 @@ import type {
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type AnyRow = any;
 
+type FriendLinkStatus = 'pending' | 'accepted' | 'declined' | 'unlinked';
+
+function sortLinkUserIds(userIdA: string, userIdB: string): [string, string] {
+    return [userIdA, userIdB].sort() as [string, string];
+}
+
 export class SupabaseCloudAdapter implements CloudAdapter {
     // ─────────────────────────────────────────────────────────────────
     // Status
@@ -306,32 +312,50 @@ export class SupabaseCloudAdapter implements CloudAdapter {
                 return { success: false, error: 'No target user specified' };
             }
 
+            if (targetUserId === userId) {
+                return { success: false, error: 'You cannot link with yourself' };
+            }
+
+            // Sort IDs to satisfy server CHECK constraint (user_a_id < user_b_id)
+            const [userAId, userBId] = sortLinkUserIds(userId, targetUserId);
+
             // Check for existing link
-            const { data: existing } = await client
+            const { data: existing, error: existingError } = await client
                 .from('friend_links')
                 .select('id, status')
-                .or(`and(user_a_id.eq.${userId},user_b_id.eq.${targetUserId}),and(user_a_id.eq.${targetUserId},user_b_id.eq.${userId})`)
-                .single();
+                .eq('user_a_id', userAId)
+                .eq('user_b_id', userBId)
+                .maybeSingle();
 
-            if (existing) {
-                if (existing.status === 'active') {
+            if (existingError) {
+                return { success: false, error: existingError.message };
+            }
+
+            const existingStatus = existing?.status as FriendLinkStatus | undefined;
+            if (existingStatus) {
+                if (existingStatus === 'accepted') {
                     return { success: false, error: 'Already linked with this user' };
                 }
-                if (existing.status === 'pending') {
+                if (existingStatus === 'pending') {
                     return { success: false, error: 'Link request already pending' };
                 }
             }
 
-            // Create link request
+            // Create or reactivate link request
             const { data: link, error } = await client
                 .from('friend_links')
-                .insert({
-                    user_a_id: userId,
-                    user_b_id: targetUserId,
+                .upsert({
+                    user_a_id: userAId,
+                    user_b_id: userBId,
                     initiated_by: userId,
                     status: 'pending',
+                    unlinked_at: null,
+                    linked_at: null,
+                    updated_at: new Date().toISOString(),
+                }, {
+                    onConflict: 'user_a_id,user_b_id',
                 })
-                .select()
+                .select('id')
                 .single();
 
             if (error) {
@@ -359,7 +383,7 @@ export class SupabaseCloudAdapter implements CloudAdapter {
             // Get the link request to determine which field to update
             const { data: link, error: fetchError } = await client
                 .from('friend_links')
-                .select('*')
+                .select('id, user_a_id, user_b_id')
                 .eq('id', requestId)
                 .single();
 
@@ -368,12 +392,20 @@ export class SupabaseCloudAdapter implements CloudAdapter {
             }
 
             // Determine which friend ID field to update
-            const friendIdField = link.user_a_id === userId ? 'user_a_friend_id' : 'user_b_friend_id';
+            const friendIdField = link.user_a_id === userId
+                ? 'user_a_friend_id'
+                : link.user_b_id === userId
+                    ? 'user_b_friend_id'
+                    : null;
+
+            if (!friendIdField) {
+                return { success: false, error: 'You are not part of this link request' };
+            }
 
             const { error } = await client
                 .from('friend_links')
                 .update({
-                    status: 'active',
+                    status: 'accepted',
                     linked_at: new Date().toISOString(),
                     [friendIdField]: localFriendId,
                 })
@@ -422,36 +454,41 @@ export class SupabaseCloudAdapter implements CloudAdapter {
             // Get pending link requests where this user is the recipient
             const { data: links, error } = await client
                 .from('friend_links')
-                .select('id, user_a_id, initiated_by, created_at')
-                .eq('user_b_id', userId)
-                .eq('status', 'pending');
+                .select('id, user_a_id, user_b_id, initiated_by, created_at')
+                .eq('status', 'pending')
+                .or(`user_a_id.eq.${userId},user_b_id.eq.${userId}`)
+                .neq('initiated_by', userId);
 
             if (error || !links) return [];
 
-            // Fetch sender profiles
-            const requests: IncomingLinkRequest[] = [];
+            const senderIds = Array.from(new Set((links as AnyRow[]).map(link => link.initiated_by).filter(Boolean)));
+            if (senderIds.length === 0) return [];
 
-            for (const link of links) {
-                const senderId = link.initiated_by;
-                const { data: sender } = await client
-                    .from('user_profiles')
-                    .select('username, display_name, photo_url')
-                    .eq('id', senderId)
-                    .single();
+            const { data: profiles, error: profilesError } = await client
+                .from('user_profiles')
+                .select('id, username, display_name, photo_url')
+                .in('id', senderIds);
 
-                if (sender) {
-                    requests.push({
+            if (profilesError || !profiles) return [];
+
+            const profilesById = new Map((profiles as AnyRow[]).map(profile => [profile.id, profile]));
+
+            return (links as AnyRow[])
+                .map((link) => {
+                    const senderId = link.initiated_by as string;
+                    const sender = profilesById.get(senderId);
+                    if (!sender) return null;
+
+                    return {
                         requestId: link.id,
                         fromUserId: senderId,
                         fromUsername: sender.username,
                         fromDisplayName: sender.display_name,
                         fromPhotoUrl: sender.photo_url ?? undefined,
                         createdAt: link.created_at,
-                    });
-                }
-            }
-
-            return requests;
+                    } as IncomingLinkRequest;
+                })
+                .filter((request): request is IncomingLinkRequest => request !== null);
         } catch {
             return [];
         }
@@ -465,12 +502,17 @@ export class SupabaseCloudAdapter implements CloudAdapter {
             const userId = await this.getCurrentUserId();
             if (!userId) return false;
 
-            const { data } = await client
+            const [userAId, userBId] = sortLinkUserIds(userId, linkedUserId);
+
+            const { data, error } = await client
                 .from('friend_links')
                 .select('id')
-                .eq('status', 'active')
-                .or(`and(user_a_id.eq.${userId},user_b_id.eq.${linkedUserId}),and(user_a_id.eq.${linkedUserId},user_b_id.eq.${userId})`)
-                .single();
+                .eq('status', 'accepted')
+                .eq('user_a_id', userAId)
+                .eq('user_b_id', userBId)
+                .maybeSingle();
+
+            if (error) return false;
 
             return data !== null;
         } catch {

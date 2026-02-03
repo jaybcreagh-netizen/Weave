@@ -56,11 +56,11 @@ export function FeedbackModal({ visible, onClose }: FeedbackModalProps) {
       });
 
       // Also submit via Sentry's feedback integration
-      Sentry.captureUserFeedback({
-        event_id: eventId,
+      Sentry.captureFeedback({
+        associatedEventId: eventId,
         name: 'Beta Tester',
         email: 'beta@weave.app', // Placeholder
-        comments: feedback.trim(),
+        message: feedback.trim(),
       });
 
       // Track analytics

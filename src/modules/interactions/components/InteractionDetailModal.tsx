@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, LayoutAnimation, Platform, ActivityIndicator } from 'react-native';
+import { View, Text, LayoutAnimation, Platform, ActivityIndicator } from 'react-native';
+import { TouchableOpacity } from 'react-native-gesture-handler';
 import { Calendar, MapPin, Heart, MessageCircle, Sparkles, Edit3, Trash2, Share2, Clock, X, Check } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/shared/hooks/useTheme';

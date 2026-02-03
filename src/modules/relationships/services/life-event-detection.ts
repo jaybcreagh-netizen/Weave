@@ -296,6 +296,7 @@ function generateEventTitle(eventType: LifeEventType): string {
     moving: 'Moving/Relocating',
     wedding: 'Getting Married',
     baby: 'New Baby/Pregnancy',
+    travel: 'Travel/Trip',
     loss: 'Loss/Grief',
     health_event: 'Health Event',
     graduation: 'Graduation',
