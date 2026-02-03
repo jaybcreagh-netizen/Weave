@@ -41,7 +41,7 @@ const EditFriendComponent = ({ friend }: EditFriendProps) => {
       if (router.canGoBack()) {
         router.back();
       } else {
-        router.replace('/(tabs)');
+        router.replace('/dashboard');
       }
     } catch (error) {
       console.error('Error updating friend:', error);

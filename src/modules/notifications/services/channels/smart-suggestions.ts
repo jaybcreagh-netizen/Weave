@@ -336,7 +336,11 @@ export const SmartSuggestionsChannel: NotificationChannel & {
     },
 
     cancel: async (id: string = ID_PREFIX): Promise<void> => {
-        // Cancel all starting with prefix is safer
+        if (id !== ID_PREFIX) {
+            await Notifications.cancelScheduledNotificationAsync(id);
+            return;
+        }
+
         const all = await Notifications.getAllScheduledNotificationsAsync();
         for (const n of all) {
             if (n.identifier.startsWith(ID_PREFIX)) {
@@ -347,7 +351,10 @@ export const SmartSuggestionsChannel: NotificationChannel & {
 
     handleTap: (data, router) => {
         if (data.friendId) {
-            router.push(`/friend-profile?friendId=${data.friendId}`);
+            router.push({
+                pathname: '/friend-profile',
+                params: { id: data.friendId },
+            });
             notificationAnalytics.trackActionCompleted('friend-suggestion', 'view_profile');
         } else {
             router.replace('/dashboard');

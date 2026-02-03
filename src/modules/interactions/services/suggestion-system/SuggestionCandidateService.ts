@@ -44,13 +44,14 @@ export const SuggestionCandidateService = {
                 Q.take(50) // Fetch more than limit to allow for filtering
             ).fetch();
 
-        const driftingFriends = potentialDrifters.filter(f => {
-            const tier = (f.dunbarTier || 'Community') as keyof typeof threshold;
-            const threshold = {
+        const threshold = {
                 InnerCircle: 50,
                 CloseFriends: 30,
                 Community: 20
-            };
+            } as const;
+
+        const driftingFriends = potentialDrifters.filter(f => {
+            const tier = (f.dunbarTier || 'Community') as keyof typeof threshold;
             return f.weaveScore < (threshold[tier] || 20);
         }).slice(0, DRIFT_LIMIT);
 

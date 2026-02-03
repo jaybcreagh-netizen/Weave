@@ -87,7 +87,7 @@ export const ExpandModeView = () => {
 
         // Navigate to Journal Entry creation with prefilled data
         router.push({
-            pathname: '/(tabs)/journal',
+            pathname: '/journal',
             params: {
                 autoCreate: 'true',
                 content: finalEntry
@@ -220,7 +220,7 @@ export const ExpandModeView = () => {
                             onPress={() => {
                                 // Go to journal edit with this text
                                 router.push({
-                                    pathname: '/(tabs)/journal',
+                                    pathname: '/journal',
                                     params: {
                                         autoCreate: 'true',
                                         content: finalEntry

@@ -74,7 +74,7 @@ const SEASON_SUGGESTION_CONFIGS: Record<SocialSeason, SeasonSuggestionConfig> = 
             'community-checkin', // Check on community members
         ],
         preferredEffort: 'low',
-        bypassCategories: ['life-event'], // Birthdays, anniversaries always shown
+        bypassCategories: ['life-event', 'critical-drift'], // Never cap hard-critical prompts
         priorityMultiplier: 0.7, // Less pressure overall
     },
     balanced: {
@@ -99,7 +99,7 @@ const SEASON_SUGGESTION_CONFIGS: Record<SocialSeason, SeasonSuggestionConfig> = 
             'set-intention',    // Prompt to set intentions
         ],
         preferredEffort: 'medium',
-        bypassCategories: ['life-event'],
+        bypassCategories: ['life-event', 'critical-drift'],
         priorityMultiplier: 1.0,
     },
     blooming: {
@@ -125,7 +125,7 @@ const SEASON_SUGGESTION_CONFIGS: Record<SocialSeason, SeasonSuggestionConfig> = 
             'set-intention',    // Prompt to set intentions
         ],
         preferredEffort: 'high',
-        bypassCategories: ['life-event'],
+        bypassCategories: ['life-event', 'critical-drift'],
         priorityMultiplier: 1.2, // More encouragement
     },
 };

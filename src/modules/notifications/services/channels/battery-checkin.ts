@@ -13,7 +13,7 @@ import { shouldSendSocialBatteryNotification } from '../notification-grace-perio
 import { NotificationChannel } from '@/modules/notifications';
 import { NOTIFICATION_CONFIG, NOTIFICATION_TIMING } from '../../notification.config';
 
-const ID_PREFIX = 'daily-battery-checkin';
+const ID_PREFIX = 'battery-checkin';
 
 export const BatteryCheckinChannel: NotificationChannel & {
     rescheduleForTomorrow: () => Promise<void>;
@@ -102,9 +102,6 @@ export const BatteryCheckinChannel: NotificationChannel & {
     },
 
     cancel: async (idPrefix: string = ID_PREFIX): Promise<void> => {
-        // Cancel the main recurring ID just in case
-        await Notifications.cancelScheduledNotificationAsync(ID_PREFIX);
-
         // Cancel all batch items
         const scheduled = await Notifications.getAllScheduledNotificationsAsync();
         for (const n of scheduled) {
@@ -117,15 +114,22 @@ export const BatteryCheckinChannel: NotificationChannel & {
 
     handleTap: async (data: any, router: any) => {
         // Navigate to dashboard then open sheet
-        if (router.canGoBack()) router.dismissAll();
+        if (typeof router?.canGoBack === 'function' && router.canGoBack()) {
+            if (typeof router.dismissAll === 'function') router.dismissAll();
+        }
         router.replace('/dashboard');
 
         // Use UIEventBus to trigger UI action from non-React context
-        const { UIEventBus } = await import('@/shared/services/ui-event-bus');
-        setTimeout(() => {
+        const { UIEventBus } = require('@/shared/services/ui-event-bus') as {
+            UIEventBus: { emit: (event: { type: string }) => void };
+        };
+        const timer = setTimeout(() => {
             UIEventBus.emit({ type: 'OPEN_SOCIAL_BATTERY_SHEET' });
             notificationAnalytics.trackActionCompleted('battery-checkin', 'open_sheet');
         }, 2000);
+        if (typeof (timer as any)?.unref === 'function') {
+            (timer as any).unref();
+        }
     },
 
     // Specific methods for this channel
@@ -155,16 +159,35 @@ export const BatteryCheckinChannel: NotificationChannel & {
         const scheduled = await Notifications.getAllScheduledNotificationsAsync();
         const batteryNotifs = scheduled.filter(n => n.identifier.startsWith(ID_PREFIX));
 
-        // If fewer than minimum days remaining, extend
+        // If coverage is less than minimum days remaining, extend.
+        const getTriggerMs = (notification: any): number | null => {
+            const trigger = notification?.trigger;
+            if (!trigger) return null;
+            if (typeof trigger?.date === 'string' || typeof trigger?.date === 'number') {
+                const ms = new Date(trigger.date).getTime();
+                return Number.isFinite(ms) ? ms : null;
+            }
+            if (typeof trigger?.value === 'number') return trigger.value;
+            if (typeof trigger === 'number') return trigger;
+            return null;
+        };
+
+        const latestScheduledMs = batteryNotifs.reduce((max, notification) => {
+            const triggerMs = getTriggerMs(notification);
+            if (!triggerMs) return max;
+            return Math.max(max, triggerMs);
+        }, 0);
+
         const minDays = NOTIFICATION_TIMING.batteryCheckin.minDaysRemainingForExtend;
-        if (batteryNotifs.length < minDays) {
+        const thresholdMs = Date.now() + minDays * 24 * 60 * 60 * 1000;
+
+        if (latestScheduledMs < thresholdMs) {
             Logger.info('[BatteryCheckin] Batch running low, extending...');
             const profiles = await database.get<UserProfile>('user_profile').query().fetch();
             const profile = profiles[0];
-            if (profile?.batteryCheckinEnabled) {
+            if (profile?.batteryCheckinEnabled !== false) {
                 await BatteryCheckinChannel.schedule();
             }
         }
     }
 };
-

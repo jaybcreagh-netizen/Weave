@@ -19,6 +19,7 @@ import Logger from '@/shared/utils/Logger';
 import { notificationAnalytics } from '../notification-analytics';
 import { NotificationChannel } from '@/modules/notifications';
 import { NOTIFICATION_CONFIG } from '../../notification.config';
+import { shouldSendWeeklyReflectionNotification } from '../notification-grace-periods';
 
 const ID = 'weekly-reflection';
 
@@ -60,7 +61,14 @@ export const WeeklyReflectionChannel: NotificationChannel = {
                 return;
             }
 
+            const graceCheck = await shouldSendWeeklyReflectionNotification();
+            if (!graceCheck.shouldSend) {
+                Logger.info(`[WeeklyReflection] Grace period blocked scheduling: ${graceCheck.reason || 'unknown reason'}`);
+                return;
+            }
+
             // STEP 1: Nuclear cleanup - cancel ALL related notifications
+            await Notifications.cancelScheduledNotificationAsync(ID);
             await cancelAllWeeklyReflectionNotifications();
 
             // NOTE: Grace period and "already reflected" checks are intentionally NOT done here.
@@ -124,8 +132,17 @@ export const WeeklyReflectionChannel: NotificationChannel = {
 
     handleTap: async (data, router) => {
         // Check if reflection already completed for current week
-        const { hasCompletedReflectionForCurrentWeek } = await import('@/modules/reflection');
-        const completed = await hasCompletedReflectionForCurrentWeek();
+        let completed = false;
+        try {
+            const reflectionModule = require('@/modules/reflection/services/weekly-reflection.service') as {
+                hasCompletedReflectionForCurrentWeek?: () => Promise<boolean>;
+            };
+            if (reflectionModule?.hasCompletedReflectionForCurrentWeek) {
+                completed = await reflectionModule.hasCompletedReflectionForCurrentWeek();
+            }
+        } catch (error) {
+            Logger.warn('[WeeklyReflection] Could not load reflection completion check:', error);
+        }
 
         if (completed) {
             Logger.info('[WeeklyReflection] Already completed for current week, skipping modal');
@@ -139,7 +156,9 @@ export const WeeklyReflectionChannel: NotificationChannel = {
         router.replace('/dashboard');
 
         // Use UIEventBus to trigger UI action from non-React context
-        const { UIEventBus } = await import('@/shared/services/ui-event-bus');
+        const { UIEventBus } = require('@/shared/services/ui-event-bus') as {
+            UIEventBus: { emit: (event: { type: string }) => void };
+        };
 
         setTimeout(() => {
             UIEventBus.emit({ type: 'OPEN_WEEKLY_REFLECTION' });
@@ -155,6 +174,21 @@ export const WeeklyReflectionChannel: NotificationChannel = {
         try {
             const scheduled = await Notifications.getAllScheduledNotificationsAsync();
             const hasReflection = scheduled.some(n => n.identifier === ID);
+            const ghosts = scheduled
+                .filter(n =>
+                    n.identifier !== ID &&
+                    (
+                        n.identifier.startsWith('weekly-reflection') ||
+                        n.content.data?.type === 'weekly-reflection'
+                    )
+                )
+                .map(n => n.identifier);
+
+            if (ghosts.length > 0) {
+                await Promise.all(
+                    ghosts.map(identifier => Notifications.cancelScheduledNotificationAsync(identifier))
+                );
+            }
 
             if (!hasReflection) {
                 Logger.info('[WeeklyReflection] Not scheduled, scheduling now...');

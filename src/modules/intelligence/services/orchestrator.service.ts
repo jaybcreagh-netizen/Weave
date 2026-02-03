@@ -116,6 +116,31 @@ export async function recalculateScoreOnDelete(
         ignoreMomentum: true,
       };
       pointsToRemove = calculatePointsForWeave(friend, interactionData);
+
+      // Legacy safety net: if this was the friend's only completed interaction,
+      // removing it should fully reset the score even if fallback scoring drifts.
+      const friendLinks = await database.get<InteractionFriend>('interaction_friends')
+        .query(Q.where('friend_id', friend.id))
+        .fetch();
+      const otherInteractionIds = friendLinks
+        .map(link => link.interactionId)
+        .filter(otherId => otherId !== interaction.id);
+
+      if (otherInteractionIds.length === 0) {
+        pointsToRemove = Math.max(pointsToRemove, friend.weaveScore);
+      } else {
+        const remainingCompleted = await database.get<Interaction>('interactions')
+          .query(
+            Q.where('id', Q.oneOf(otherInteractionIds)),
+            Q.where('status', 'completed')
+          )
+          .fetchCount();
+
+        if (remainingCompleted === 0) {
+          pointsToRemove = Math.max(pointsToRemove, friend.weaveScore);
+        }
+      }
+
       Logger.warn(`[Score Revert] Using fallback calculation for ${friend.name} (legacy data)`);
     }
 

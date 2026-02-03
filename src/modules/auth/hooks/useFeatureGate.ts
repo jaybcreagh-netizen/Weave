@@ -52,14 +52,14 @@ export function useFeatureGate(
         { text: 'Not Now', style: 'cancel' },
         {
           text: 'Upgrade',
-          onPress: () => router.push('/(tabs)/settings?showUpgrade=true'),
+          onPress: () => router.push('/profile'),
         },
       ]
     );
   };
 
   const navigateToUpgrade = () => {
-    router.push('/(tabs)/settings?showUpgrade=true');
+    router.push('/profile');
   };
 
   return {
@@ -107,14 +107,14 @@ export function useQuotaGate(
         { text: 'Not Now', style: 'cancel' },
         {
           text: 'Upgrade',
-          onPress: () => router.push('/(tabs)/settings?showUpgrade=true'),
+          onPress: () => router.push('/profile'),
         },
       ]
     );
   };
 
   const navigateToUpgrade = () => {
-    router.push('/(tabs)/settings?showUpgrade=true');
+    router.push('/profile');
   };
 
   return {

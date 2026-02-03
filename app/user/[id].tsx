@@ -21,12 +21,12 @@ export default function UserDeepLink() {
                 openAddUserSheet(userId);
 
                 // 2. Redirect to dashboard
-                router.replace('/(tabs)/dashboard');
+                router.replace('/dashboard');
             }, 100);
 
             return () => clearTimeout(timer);
         } else {
-            router.replace('/(tabs)/dashboard');
+            router.replace('/dashboard');
         }
     }, [id]);
 

@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 
-const TESTFLIGHT_URL = "https://testflight.apple.com/join/98z2aDtK";
+const TESTFLIGHT_URL = "https://testflight.apple.com/join/gJ7LdCr9";
 
 serve(async (req) => {
     // Check for code OR userId
@@ -15,13 +15,10 @@ serve(async (req) => {
     // Determine App Scheme URL
     let appUrl = '';
     if (code) {
-        appUrl = `weave://invite/${code}`;
+        appUrl = `weave://invite/${encodeURIComponent(code)}`;
     } else if (userId) {
-        appUrl = `weave://user/${userId}`;
+        appUrl = `weave://user/${encodeURIComponent(userId)}`;
     }
-
-    // TestFlight Public Link (Fallback)
-    const testFlightUrl = 'https://testflight.apple.com/join/gJ7LdCr9'
 
     // Basic HTML page with redirection logic
     const html = `

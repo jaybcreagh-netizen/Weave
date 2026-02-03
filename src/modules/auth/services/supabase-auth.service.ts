@@ -19,6 +19,13 @@ import { withTimeout, AUTH_TIMEOUTS } from './auth-utils';
 const GOOGLE_WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '';
 const GOOGLE_IOS_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || '';
 
+function maskPhoneForLog(phone?: string | null): string {
+    if (!phone) return '(none)';
+    const digits = phone.replace(/[^0-9]/g, '');
+    if (digits.length <= 4) return `***${digits}`;
+    return `***${digits.slice(-4)}`;
+}
+
 GoogleSignin.configure({
     scopes: ['email', 'profile'],
     webClientId: GOOGLE_WEB_CLIENT_ID,
@@ -91,6 +98,31 @@ function classifyAuthError(error: any): { code: AuthErrorCode; message: string }
         };
     }
 
+    // SMS provider / Twilio setup issues
+    if (
+        msg.includes('sms provider') ||
+        msg.includes('twilio') ||
+        msg.includes('messaging service') ||
+        msg.includes('auth token') ||
+        msg.includes('unable to create record')
+    ) {
+        return {
+            code: 'NOT_CONFIGURED',
+            message: 'SMS service is temporarily unavailable. Please try again shortly.',
+        };
+    }
+
+    // Phone already in use
+    if (
+        msg.includes('phone') &&
+        (msg.includes('already') || msg.includes('exists') || msg.includes('registered') || msg.includes('taken'))
+    ) {
+        return {
+            code: 'ALREADY_EXISTS',
+            message: 'This phone number is already linked to another account.',
+        };
+    }
+
 
     // Twilio/Provider Configuration Error (Invalid Sender ID)
     if (msg.includes('invalid from number') || msg.includes('caller id')) {
@@ -146,13 +178,18 @@ function classifyAuthError(error: any): { code: AuthErrorCode; message: string }
 
     // OTP errors
     if (msg.includes('otp') || msg.includes('token') || msg.includes('code')) {
-        if (msg.includes('expired')) {
+        if (msg.includes('expired') || msg.includes('token has expired')) {
             return {
                 code: 'INVALID_OTP',
                 message: 'Code expired. Please request a new one.',
             };
         }
-        if (msg.includes('invalid') || msg.includes('incorrect')) {
+        if (
+            msg.includes('invalid') ||
+            msg.includes('incorrect') ||
+            msg.includes('not valid') ||
+            msg.includes('mismatch')
+        ) {
             return {
                 code: 'INVALID_OTP',
                 message: 'Invalid code. Please check and try again.',
@@ -467,7 +504,7 @@ export async function linkPhoneToUser(phone: string): Promise<AuthResult> {
     if (!client) return { success: false, error: 'Supabase not available', errorCode: 'NOT_CONFIGURED' };
 
     try {
-        console.log('[Auth] Linking phone:', phone);
+        console.log('[Auth] Linking phone:', maskPhoneForLog(phone));
 
         // 1. Check if already linked to THIS user
         const { data: userData } = await client.auth.getUser();
@@ -480,13 +517,16 @@ export async function linkPhoneToUser(phone: string): Promise<AuthResult> {
             };
         }
 
-        console.log('[Auth] Current user phone:', userData?.user?.phone);
+        console.log('[Auth] Current user phone:', maskPhoneForLog(userData?.user?.phone));
 
         // Normalize for comparison (remove non-digits)
         const currentPhoneClean = userData?.user?.phone?.replace(/[^0-9]/g, '');
         const newPhoneClean = phone.replace(/[^0-9]/g, '');
 
-        console.log(`[Auth] Comparing clean phones: ${currentPhoneClean} vs ${newPhoneClean}`);
+        console.log('[Auth] Comparing clean phones:', {
+            current: maskPhoneForLog(currentPhoneClean),
+            next: maskPhoneForLog(newPhoneClean),
+        });
 
         if (currentPhoneClean && currentPhoneClean === newPhoneClean) {
             console.log('[Auth] Phone already linked to this user. Returning success.');
@@ -495,7 +535,7 @@ export async function linkPhoneToUser(phone: string): Promise<AuthResult> {
 
         console.log('[Auth] Client ready, invoking updateUser...');
         const params = { phone };
-        console.log('[Auth] Update params:', JSON.stringify(params));
+        console.log('[Auth] Update params: { phone: [redacted] }');
         const start = Date.now();
 
         const authPromise = client.auth.updateUser(params);

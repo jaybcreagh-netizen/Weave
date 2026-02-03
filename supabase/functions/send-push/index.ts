@@ -31,6 +31,18 @@ serve(async (req) => {
     }
 
     try {
+        const authHeader = req.headers.get('Authorization') || ''
+        const token = authHeader.replace('Bearer ', '').trim()
+        const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
+
+        // Restrict this endpoint to trusted server-side callers only.
+        if (!token || token !== serviceRoleKey) {
+            return new Response(
+                JSON.stringify({ error: 'Unauthorized' }),
+                { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            )
+        }
+
         const payload: PushPayload = await req.json()
 
         if (!payload.recipient_user_id || !payload.title) {
@@ -42,7 +54,6 @@ serve(async (req) => {
 
         // Create Supabase client with service role for full access
         const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-        const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
         const supabase = createClient(supabaseUrl, serviceRoleKey)
 
         // Get push tokens for the recipient

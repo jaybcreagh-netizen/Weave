@@ -151,6 +151,36 @@ export async function fetchSuggestions(
             }
         }
 
+        // Safety fallback: if the generator pipeline produced no critical drifts but we have
+        // clearly at-risk Inner Circle relationships, synthesize critical drift suggestions.
+        const existingCriticalDrifts = allSuggestions.filter(
+            s => s.urgency === 'critical' && (s.category === 'drift' || s.category === 'critical-drift')
+        );
+        if (existingCriticalDrifts.length === 0) {
+            const fallbackCriticalFriends = friends
+                .map(friend => ({ friend, score: calculateCurrentScore(friend) }))
+                .filter(({ friend, score }) => friend.dunbarTier === 'InnerCircle' && score < 30)
+                .sort((a, b) => a.score - b.score);
+
+            for (const { friend } of fallbackCriticalFriends) {
+                allSuggestions.push({
+                    id: `critical-drift-${friend.id}`,
+                    friendId: friend.id,
+                    friendName: friend.name,
+                    urgency: 'critical',
+                    category: 'critical-drift',
+                    title: `Reconnect with ${friend.name}`,
+                    subtitle: 'This core relationship may be drifting. A small reach-out can help.',
+                    actionLabel: 'Reach Out',
+                    icon: 'Wind',
+                    action: { type: 'log', prefilledCategory: 'text-call' },
+                    dismissible: false,
+                    createdAt: new Date(),
+                    type: 'reconnect',
+                });
+            }
+        }
+
 
 
         // 4. Proactive Suggestions (Pattern Analysis)
@@ -382,5 +412,3 @@ export async function fetchSuggestions(
         return []; // Return empty array so UI doesn't break
     }
 }
-
-

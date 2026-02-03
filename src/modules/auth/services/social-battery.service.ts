@@ -58,11 +58,19 @@ export const SocialBatteryService = {
 
         // Trigger smart notification evaluation after battery check-in
         try {
-            const { SmartSuggestionsChannel, BatteryCheckinChannel } = await import('@/modules/notifications');
-            const { InteractionManager } = await import('react-native');
+            const { SmartSuggestionsChannel, BatteryCheckinChannel } = require('@/modules/notifications') as {
+                SmartSuggestionsChannel: { evaluateAndSchedule: () => Promise<void> };
+                BatteryCheckinChannel: { rescheduleForTomorrow: () => Promise<void> };
+            };
+            const { InteractionManager } = require('react-native') as {
+                InteractionManager?: {
+                    runAfterInteractions?: (fn: () => void | Promise<void>) => void;
+                };
+            };
 
             // Defer heavy work to allow sheet close animation to finish smoothly
-            InteractionManager.runAfterInteractions(async () => {
+            const runAfterInteractions = InteractionManager?.runAfterInteractions;
+            const execute = async () => {
                 try {
                     // 1. Reschedule "Social Battery" notification (Safety Net)
                     await BatteryCheckinChannel.rescheduleForTomorrow();
@@ -72,7 +80,13 @@ export const SocialBatteryService = {
                 } catch (innerError) {
                     console.error('Error in deferred notification evaluation:', innerError);
                 }
-            });
+            };
+
+            if (typeof runAfterInteractions === 'function') {
+                runAfterInteractions(execute);
+            } else {
+                void execute();
+            }
         } catch (error) {
             console.error('Error initiating smart notifications after battery check-in:', error);
         }
@@ -97,7 +111,12 @@ export const SocialBatteryService = {
         });
 
         // Update notification schedule
-        const { BatteryCheckinChannel } = await import('@/modules/notifications');
+        const { BatteryCheckinChannel } = require('@/modules/notifications') as {
+            BatteryCheckinChannel: {
+                schedule: () => Promise<void>;
+                cancel: () => Promise<void>;
+            };
+        };
         if (enabled) {
             await BatteryCheckinChannel.schedule();
         } else {

@@ -21,7 +21,7 @@ function AddFriend() {
       } else if (router.canGoBack()) {
         router.back();
       } else {
-        router.replace('/(tabs)');
+        router.replace('/dashboard');
       }
     } catch (error) {
       console.error('Error adding friend:', error);

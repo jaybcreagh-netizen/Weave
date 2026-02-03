@@ -7,8 +7,10 @@ import { Suggestion } from '@/shared/types/common';
  */
 export class TriageGenerator {
     static async apply(suggestions: Suggestion[]): Promise<Suggestion[]> {
-        const criticalDriftsCount = suggestions.filter(s => s.urgency === 'critical' && (s.category === 'drift' || s.category === 'critical-drift')).length;
-        const isOverwhelmed = criticalDriftsCount > 5;
+        const criticalDriftsCount = suggestions.filter(
+            s => s.urgency === 'critical' && (s.category === 'drift' || s.category === 'critical-drift')
+        ).length;
+        const isOverwhelmed = criticalDriftsCount >= 5;
 
         if (isOverwhelmed) {
             const criticals = suggestions.filter(s => s.urgency === 'critical' && (s.category === 'drift' || s.category === 'critical-drift'));

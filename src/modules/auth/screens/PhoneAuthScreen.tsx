@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Alert, KeyboardAvoidingView, Platform, TouchableOpacity, ScrollView, Modal, TouchableWithoutFeedback, Keyboard, TextInput } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as Localization from 'expo-localization';
+import * as Clipboard from 'expo-clipboard';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Text } from '@/shared/ui/Text';
@@ -44,13 +45,19 @@ export function PhoneAuthScreen() {
     // Mode defaults to 'signin', but can be passed as param
     const mode: AuthMode = (params.mode as AuthMode) || 'signin';
     const otpInputRef = React.useRef<TextInput>(null);
-    const abortControllerRef = React.useRef<AbortController | null>(null);
+    const isMountedRef = React.useRef(true);
+    const sendRequestIdRef = React.useRef(0);
+    const verifyRequestIdRef = React.useRef(0);
+    const resendRequestIdRef = React.useRef(0);
+    const verifyInFlightRef = React.useRef(false);
     const lastAutoSubmittedOtpRef = React.useRef<string | null>(null);
 
     const [step, setStep] = useState<'phone' | 'otp'>('phone');
     const [phone, setPhone] = useState('');
     const [otp, setOtp] = useState('');
-    const [loading, setLoading] = useState(false);
+    const [isSendingOtp, setIsSendingOtp] = useState(false);
+    const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
+    const [isResendingOtp, setIsResendingOtp] = useState(false);
     const [loadingMessage, setLoadingMessage] = useState('');
     const [showCountryPicker, setShowCountryPicker] = useState(false);
 
@@ -78,7 +85,7 @@ export function PhoneAuthScreen() {
 
     useEffect(() => {
         return () => {
-            abortControllerRef.current?.abort();
+            isMountedRef.current = false;
         };
     }, []);
 
@@ -95,45 +102,54 @@ export function PhoneAuthScreen() {
     // Simple validation
     const isValidPhone = phone.length >= 7; // Loosened slightly to allow for various formats
     const isValidOtp = otp.length === 6;
+    const isBusy = isSendingOtp || isVerifyingOtp || isResendingOtp;
+
+    const getFormattedPhone = () => {
+        let rawPhone = phone.replace(/[^0-9+]/g, '');
+
+        if (!rawPhone.startsWith('+')) {
+            if (rawPhone.startsWith('0')) {
+                rawPhone = rawPhone.substring(1);
+            }
+            rawPhone = `${selectedCountry.code}${rawPhone}`;
+        }
+
+        return normalizePhone(rawPhone, selectedCountry.region);
+    };
+
+    const extractOtpCode = (text: string): string | null => {
+        const match = text.match(/\b(\d{6})\b/);
+        return match ? match[1] : null;
+    };
 
     const handleSendOtp = async () => {
         if (!isValidPhone) {
             Alert.alert('Invalid Phone', 'Please enter a valid phone number');
             return;
         }
+        if (isSendingOtp) return;
 
-        // Cancel any pending request
-        abortControllerRef.current?.abort();
-        abortControllerRef.current = new AbortController();
-
-        setLoading(true);
+        const requestId = ++sendRequestIdRef.current;
+        setIsSendingOtp(true);
         setLoadingMessage('Sending code ...');
 
         // Progress messages
-        const timer1 = setTimeout(() => setLoadingMessage('Still working ...'), 5000);
-        const timer2 = setTimeout(() => setLoadingMessage('Taking longer than usual ...'), 10000);
+        const timer1 = setTimeout(() => {
+            if (isMountedRef.current && sendRequestIdRef.current === requestId) {
+                setLoadingMessage('Still working ...');
+            }
+        }, 5000);
+        const timer2 = setTimeout(() => {
+            if (isMountedRef.current && sendRequestIdRef.current === requestId) {
+                setLoadingMessage('Taking longer than usual ...');
+            }
+        }, 10000);
 
         try {
-            // Format phone with selected country code
-            // First construct the raw full number
-            let rawPhone = phone.replace(/[^0-9+]/g, '');
-
-            // If it doesn't start with +, assume it needs the country code
-            if (!rawPhone.startsWith('+')) {
-                // Remove leading zero if present
-                if (rawPhone.startsWith('0')) {
-                    rawPhone = rawPhone.substring(1);
-                }
-                rawPhone = `${selectedCountry.code}${rawPhone}`;
-            }
-
-            // Normalize using google-libphonenumber
-            const formattedPhone = normalizePhone(rawPhone, selectedCountry.region);
+            const formattedPhone = getFormattedPhone();
 
             if (!formattedPhone) {
                 Alert.alert('Invalid Phone', 'Please enter a valid phone number for the selected country.');
-                setLoading(false);
-                setLoadingMessage('');
                 return;
             }
 
@@ -141,8 +157,8 @@ export function PhoneAuthScreen() {
                 ? await linkPhoneToUser(formattedPhone)
                 : await signInWithPhone(formattedPhone);
 
-            // Check if aborted
-            if (abortControllerRef.current.signal.aborted) return;
+            // Stale response guard
+            if (!isMountedRef.current || sendRequestIdRef.current !== requestId) return;
 
             if (result.success) {
                 if (result.isAlreadyLinked) {
@@ -184,22 +200,28 @@ export function PhoneAuthScreen() {
         } finally {
             clearTimeout(timer1);
             clearTimeout(timer2);
-            setLoading(false);
-            setLoadingMessage('');
-            abortControllerRef.current = null;
+            if (isMountedRef.current && sendRequestIdRef.current === requestId) {
+                setIsSendingOtp(false);
+                setLoadingMessage('');
+            }
         }
     };
 
     const handleVerify = async () => {
         if (!isValidOtp) return;
-        if (loading) return; // Prevent double-submit
+        if (verifyInFlightRef.current) return; // Prevent double-submit
 
-        setLoading(true);
+        const requestId = ++verifyRequestIdRef.current;
+        verifyInFlightRef.current = true;
+        setIsVerifyingOtp(true);
 
         try {
             const result = (mode === 'link' || mode === 'change')
                 ? await verifyAndLinkPhone(phone, otp)
                 : await verifyPhoneOtp(phone, otp);
+
+            // Stale response guard
+            if (!isMountedRef.current || verifyRequestIdRef.current !== requestId) return;
 
             if (result.success) {
                 setOtp('');
@@ -228,7 +250,53 @@ export function PhoneAuthScreen() {
             Alert.alert('Error', 'An unexpected error occurred during verification.');
             setOtp('');
         } finally {
-            setLoading(false);
+            if (isMountedRef.current && verifyRequestIdRef.current === requestId) {
+                verifyInFlightRef.current = false;
+                setIsVerifyingOtp(false);
+            }
+        }
+    };
+
+    const handleResendOtp = async () => {
+        if (isBusy) return;
+
+        const requestId = ++resendRequestIdRef.current;
+        setIsResendingOtp(true);
+        try {
+            const result = (mode === 'link' || mode === 'change')
+                ? await linkPhoneToUser(phone)
+                : await signInWithPhone(phone);
+
+            if (!isMountedRef.current || resendRequestIdRef.current !== requestId) return;
+
+            if (result.success) {
+                Alert.alert('Code Sent', 'A new verification code has been sent.');
+            } else {
+                Alert.alert('Error', result.error || 'Failed to resend code');
+            }
+        } catch (error) {
+            console.error('[PhoneAuth] Resend error:', error);
+            Alert.alert('Error', 'Failed to resend code. Please try again.');
+        } finally {
+            if (isMountedRef.current && resendRequestIdRef.current === requestId) {
+                setIsResendingOtp(false);
+            }
+        }
+    };
+
+    const handlePasteCode = async () => {
+        if (isBusy) return;
+        try {
+            const clipboardText = await Clipboard.getStringAsync();
+            const code = extractOtpCode(clipboardText || '');
+            if (!code) {
+                Alert.alert('No Code Found', 'No 6-digit code was found on your clipboard.');
+                return;
+            }
+            setOtp(code);
+        } catch (error) {
+            console.error('[PhoneAuth] Paste code failed:', error);
+            Alert.alert('Paste Failed', 'Unable to read clipboard right now.');
         }
     };
 
@@ -244,12 +312,12 @@ export function PhoneAuthScreen() {
             return;
         }
 
-        if (loading) return;
+        if (isVerifyingOtp || isResendingOtp) return;
         if (lastAutoSubmittedOtpRef.current === otp) return;
 
         lastAutoSubmittedOtpRef.current = otp;
         handleVerify();
-    }, [otp, step, loading]);
+    }, [otp, step, isVerifyingOtp, isResendingOtp]);
 
     return (
         <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
@@ -324,11 +392,11 @@ export function PhoneAuthScreen() {
                                         variant="primary"
                                         label="Send Code"
                                         onPress={handleSendOtp}
-                                        loading={loading}
-                                        disabled={!isValidPhone}
+                                        loading={isSendingOtp}
+                                        disabled={!isValidPhone || isBusy}
                                         className="mt-4"
                                     />
-                                    {loading && loadingMessage ? (
+                                    {isSendingOtp && loadingMessage ? (
                                         <Text className="text-center mt-2 text-xs opacity-60">
                                             {loadingMessage}
                                         </Text>
@@ -336,20 +404,12 @@ export function PhoneAuthScreen() {
 
                                     <TouchableOpacity
                                         onPress={() => {
-                                            // Manual override: cancel spinner and abort request
-                                            abortControllerRef.current?.abort();
-                                            setLoading(false);
+                                            // Manual override: drop current send response and continue
+                                            sendRequestIdRef.current += 1;
+                                            setIsSendingOtp(false);
                                             setLoadingMessage('');
 
-                                            // IMPORTANT: Use normalizePhone for consistency with OTP send
-                                            let rawPhone = phone.replace(/[^0-9+]/g, '');
-                                            if (!rawPhone.startsWith('+')) {
-                                                if (rawPhone.startsWith('0')) {
-                                                    rawPhone = rawPhone.substring(1);
-                                                }
-                                                rawPhone = `${selectedCountry.code}${rawPhone}`;
-                                            }
-                                            const formattedPhone = normalizePhone(rawPhone, selectedCountry.region);
+                                            const formattedPhone = getFormattedPhone();
 
                                             if (!formattedPhone) {
                                                 Alert.alert('Invalid Phone', 'Please enter a valid phone number.');
@@ -453,48 +513,44 @@ export function PhoneAuthScreen() {
                                         variant="primary"
                                         label="Verify Code"
                                         onPress={handleVerify}
-                                        loading={loading}
-                                        disabled={!isValidOtp}
+                                        loading={isVerifyingOtp}
+                                        disabled={!isValidOtp || isVerifyingOtp}
                                         className="mt-2"
                                     />
 
+                                    <TouchableOpacity
+                                        onPress={handlePasteCode}
+                                        className="mt-3 items-center py-2"
+                                        disabled={isBusy}
+                                    >
+                                        <Text variant="caption" style={{ color: colors.primary }}>
+                                            Paste code
+                                        </Text>
+                                    </TouchableOpacity>
+
                                     <View className="flex-row justify-center gap-4 mt-6">
                                         <TouchableOpacity
-                                            onPress={async () => {
-                                                if (loading) return;
-                                                setLoading(true);
-                                                try {
-                                                    // Resend the OTP
-                                                    const result = (mode === 'link' || mode === 'change')
-                                                        ? await linkPhoneToUser(phone)
-                                                        : await signInWithPhone(phone);
-
-                                                    if (result.success) {
-                                                        Alert.alert('Code Sent', 'A new verification code has been sent.');
-                                                    } else {
-                                                        Alert.alert('Error', result.error || 'Failed to resend code');
-                                                    }
-                                                } catch (error) {
-                                                    console.error('[PhoneAuth] Resend error:', error);
-                                                    Alert.alert('Error', 'Failed to resend code. Please try again.');
-                                                } finally {
-                                                    setLoading(false);
-                                                }
-                                            }}
+                                            onPress={handleResendOtp}
                                             className="py-2 px-4"
-                                            disabled={loading}
+                                            disabled={isBusy}
                                         >
                                             <Text variant="caption" style={{ color: colors.primary }}>
-                                                Resend code
+                                                {isResendingOtp ? 'Resending...' : 'Resend code'}
                                             </Text>
                                         </TouchableOpacity>
 
                                         <TouchableOpacity
                                             onPress={() => {
+                                                verifyRequestIdRef.current += 1;
+                                                resendRequestIdRef.current += 1;
+                                                verifyInFlightRef.current = false;
+                                                setIsVerifyingOtp(false);
+                                                setIsResendingOtp(false);
                                                 setOtp('');
                                                 setStep('phone');
                                             }}
                                             className="py-2 px-4"
+                                            disabled={isBusy}
                                         >
                                             <Text variant="caption" style={{ color: colors['muted-foreground'] }}>
                                                 Change number

@@ -26,6 +26,17 @@ serve(async (req) => {
     try {
         const supabaseUrl = Deno.env.get('SUPABASE_URL')!
         const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+        const authHeader = req.headers.get('Authorization') || ''
+        const token = authHeader.replace('Bearer ', '').trim()
+
+        // Restrict to trusted server-side callers (cron/webhook with service role key).
+        if (!token || token !== serviceRoleKey) {
+            return new Response(
+                JSON.stringify({ error: 'Unauthorized' }),
+                { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            )
+        }
+
         const supabase = createClient(supabaseUrl, serviceRoleKey)
 
         const now = new Date()
@@ -38,8 +49,8 @@ serve(async (req) => {
                 id,
                 title,
                 weave_date,
-                creator_user_id,
-                shared_weave_participants!inner(user_id, status)
+                created_by,
+                shared_weave_participants!inner(user_id, response)
             `)
             .gte('weave_date', now.toISOString())
             .lte('weave_date', oneHourFromNow.toISOString())
@@ -66,10 +77,10 @@ serve(async (req) => {
         for (const weave of upcomingWeaves) {
             // Collect all user IDs to notify (creator + accepted participants)
             const userIds = new Set<string>()
-            userIds.add(weave.creator_user_id)
+            userIds.add(weave.created_by)
 
             for (const participant of weave.shared_weave_participants) {
-                if (participant.status === 'accepted') {
+                if (participant.response === 'accepted') {
                     userIds.add(participant.user_id)
                 }
             }
@@ -104,7 +115,7 @@ serve(async (req) => {
                 const { data: profile } = await supabase
                     .from('user_profiles')
                     .select('display_name, username')
-                    .eq('id', weave.creator_user_id)
+                    .eq('id', weave.created_by)
                     .single()
 
                 const creatorName = profile?.display_name || profile?.username || 'Your friend'

@@ -42,7 +42,7 @@ export default function PrivacyPolicy() {
                             1. Local-First Architecture
                         </Text>
                         <Text className="text-base font-inter-regular leading-6" style={{ color: colors['muted-foreground'] }}>
-                            Weave is a "local-first" application. This means that all your personal data—including your friends list, interaction history, journal entries, and notes—is stored directly on your device. We do not have servers that store your personal relationship data. You own your data.
+                            Weave is a local-first application. Your data is stored on-device first. If you enable an account, selected data (like profile, linked friends, shared weaves, and sync metadata) may also be stored in our Supabase backend so features like cross-device sync and sharing can work.
                         </Text>
                     </View>
 
@@ -51,13 +51,22 @@ export default function PrivacyPolicy() {
                             2. Data Collection & Usage
                         </Text>
                         <Text className="text-base font-inter-regular leading-6 mb-4" style={{ color: colors['muted-foreground'] }}>
-                            Because we don't store your data, we don't collect it. We have no access to:
+                            We do not sell your data. We process only what is needed to run core features you choose to use. Sensitive private content remains local-first, while account/sync features process cloud data you opt into.
+                        </Text>
+                        <Text className="text-base font-inter-regular leading-6 mb-4" style={{ color: colors['muted-foreground'] }}>
+                            Local-first data includes:
+                        </Text>
+                        <View className="gap-2 pl-2 mb-4">
+                            <Text className="text-base font-inter-regular" style={{ color: colors['muted-foreground'] }}>• Journal content and private notes by default</Text>
+                            <Text className="text-base font-inter-regular" style={{ color: colors['muted-foreground'] }}>• Device contact list contents (processed on-device before matching)</Text>
+                        </View>
+                        <Text className="text-base font-inter-regular leading-6 mb-4" style={{ color: colors['muted-foreground'] }}>
+                            Cloud-stored data (when account features are enabled) can include:
                         </Text>
                         <View className="gap-2 pl-2">
-                            <Text className="text-base font-inter-regular" style={{ color: colors['muted-foreground'] }}>• Your contacts or friends</Text>
-                            <Text className="text-base font-inter-regular" style={{ color: colors['muted-foreground'] }}>• Your journal entries or notes</Text>
-                            <Text className="text-base font-inter-regular" style={{ color: colors['muted-foreground'] }}>• Your interaction history</Text>
-                            <Text className="text-base font-inter-regular" style={{ color: colors['muted-foreground'] }}>• Your photos or media</Text>
+                            <Text className="text-base font-inter-regular" style={{ color: colors['muted-foreground'] }}>• Account/profile details (username, display name, optional photo)</Text>
+                            <Text className="text-base font-inter-regular" style={{ color: colors['muted-foreground'] }}>• Shared weave and friend-linking records</Text>
+                            <Text className="text-base font-inter-regular" style={{ color: colors['muted-foreground'] }}>• Sync metadata and push token registration</Text>
                         </View>
                     </View>
 

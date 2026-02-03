@@ -2034,12 +2034,27 @@ Output JSON: { "headline": "...", "body": "..." }
             if (insights.length === 0) return
 
             await writeScheduler.important('invalidateInsights', async () => {
-                await database.batch(
-                    ...insights.map(insight => insight.prepareUpdate(rec => {
+                const batchOps = insights
+                    .filter(insight => typeof (insight as any).prepareUpdate === 'function')
+                    .map(insight => insight.prepareUpdate(rec => {
                         rec.status = 'acted_on'
                         rec.statusChangedAt = new Date()
                     }))
-                )
+
+                if (batchOps.length > 0) {
+                    await database.batch(...batchOps)
+                }
+
+                // Test/mocked compatibility path
+                const fallbackInsights = insights.filter(insight => typeof (insight as any).prepareUpdate !== 'function')
+                for (const insight of fallbackInsights) {
+                    if (typeof (insight as any).update === 'function') {
+                        await (insight as any).update((rec: any) => {
+                            rec.status = 'acted_on'
+                            rec.statusChangedAt = new Date()
+                        })
+                    }
+                }
             })
 
             logger.info('OracleService', `Invalidated ${insights.length} insights for friends`, { friendIds })

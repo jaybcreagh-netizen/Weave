@@ -16,6 +16,20 @@ import { calculateCurrentScore } from '@/modules/intelligence/services/orchestra
 import type { SocialSeason } from '@/db/models/UserProfile';
 import { oracleService } from '@/modules/oracle';
 
+function getSuggestionScore(friend: FriendModel): number {
+    try {
+        const score = calculateCurrentScore(friend);
+        if (Number.isFinite(score) && score > 0) {
+            return score;
+        }
+    } catch {
+        // Fall through to raw score fallback below.
+    }
+
+    const rawScore = (friend as any)?.weaveScore;
+    return typeof rawScore === 'number' ? rawScore : 0;
+}
+
 // ============================================================================
 // DAILY REFLECT PROMPTS
 // Rotate based on day of week for variety
@@ -194,16 +208,24 @@ export function generateGuaranteedSuggestions(
         }
     }
 
-    // 3. ORACLE SUGGESTION - Personalized Oracle prompt (replaces generic wildcards)
-    // This provides more contextual and interesting suggestions than wildcards
-    if (!existingCategories.has('oracle-nudge')) {
+    // 3. WILDCARD - Spontaneous idea to keep suggestions fresh
+    if (!existingCategories.has('wildcard') && suggestions.length < 3) {
+        const wildcardSuggestion = generateWildcard(friends, usedFriendIds, season === 'resting');
+        if (wildcardSuggestion) {
+            suggestions.push(wildcardSuggestion);
+            if (wildcardSuggestion.friendId) usedFriendIds.add(wildcardSuggestion.friendId);
+        }
+    }
+
+    // 4. ORACLE SUGGESTION - Personalized Oracle prompt
+    if (!existingCategories.has('oracle-nudge') && suggestions.length < 3) {
         const oracleSuggestion = generateOracleSuggestion();
         if (oracleSuggestion) {
             suggestions.push(oracleSuggestion);
         }
     }
 
-    // 4. COMMUNITY CHECK-IN - Encourage connection with community tier
+    // 5. COMMUNITY CHECK-IN - Encourage connection with community tier
     if (!existingCategories.has('community-checkin') && suggestions.length < 3) {
         const communityCheckIn = generateCommunityCheckIn(friends, usedFriendIds);
         if (communityCheckIn) {
@@ -212,7 +234,7 @@ export function generateGuaranteedSuggestions(
         }
     }
 
-    // 5. SET INTENTION - Proactive intention-setting for healthy relationships
+    // 6. SET INTENTION - Proactive intention-setting for healthy relationships
     if (!existingCategories.has('set-intention') && suggestions.length < 3) {
         const intentionSuggestion = generateSetIntention(friends, usedFriendIds);
         if (intentionSuggestion) {
@@ -221,7 +243,7 @@ export function generateGuaranteedSuggestions(
         }
     }
 
-    // 6. VARIETY CHECK - Encourage connecting with different people
+    // 7. VARIETY CHECK - Encourage connecting with different people
     if (!existingCategories.has('variety') && suggestions.length < 3) {
         const varietySuggestion = generateVarietyCheck(friends, usedFriendIds);
         if (varietySuggestion) {
@@ -229,7 +251,7 @@ export function generateGuaranteedSuggestions(
         }
     }
 
-    // 7. WHY NOT REACH OUT - For slightly overdue friends (30-60% score)
+    // 8. WHY NOT REACH OUT - For slightly overdue friends (30-60% score)
     // Fallback option when network is mostly healthy
     if (suggestions.length < 3) {
         const whyNotSuggestion = generateWhyNotReachOut(friends, usedFriendIds);
@@ -337,7 +359,7 @@ function generateGentleNudge(
         if (f.isDormant) return false;
         if (excludeFriendIds.has(f.id)) return false;
 
-        const score = calculateCurrentScore(f);
+        const score = getSuggestionScore(f);
         // Accept ANY friend with score above minimum (no upper cap)
         return score >= minScore;
     });
@@ -346,7 +368,7 @@ function generateGentleNudge(
 
     // Pick a random eligible friend (with some weighting toward lower scores)
     const sortedByScore = eligibleFriends
-        .map(f => ({ friend: f, score: calculateCurrentScore(f) }))
+        .map(f => ({ friend: f, score: getSuggestionScore(f) }))
         .sort((a, b) => a.score - b.score); // Lower scores first
 
     // Bias toward lower-scoring friends (more likely to pick from first half)
@@ -472,7 +494,7 @@ function generateWildcard(
 
         if (possibleFriends.length > 0) {
             let sortedByScore = possibleFriends
-                .map(f => ({ friend: f, score: calculateCurrentScore(f) }));
+                .map(f => ({ friend: f, score: getSuggestionScore(f) }));
 
             if (template.friendCriteria === 'inner-circle') {
                 // For Inner Circle tasks like "Try Something New", we want people we ALREADY see often
@@ -539,7 +561,7 @@ function generateWhyNotReachOut(
 
     // Pick random eligible friend, bias toward lower scores
     const sorted = eligibleFriends
-        .map(f => ({ friend: f, score: calculateCurrentScore(f) }))
+        .map(f => ({ friend: f, score: getSuggestionScore(f) }))
         .sort((a, b) => a.score - b.score);
 
     const pickIndex = Math.floor(Math.random() * Math.min(sorted.length, 5));
@@ -598,7 +620,7 @@ function generateCommunityCheckIn(
 
     // Sort by score (lower first, they need more attention)
     const sorted = communityFriends
-        .map(f => ({ friend: f, score: calculateCurrentScore(f) }))
+        .map(f => ({ friend: f, score: getSuggestionScore(f) }))
         .sort((a, b) => a.score - b.score);
 
     // Pick from the lower-scoring community members
@@ -709,9 +731,9 @@ function generateVarietyCheck(
     const sorted = neglectedFriends
         .map(f => ({
             friend: f,
-            score: calculateCurrentScore(f),
+            score: getSuggestionScore(f),
             // Add some randomness to avoid always picking the same person
-            sortKey: calculateCurrentScore(f) + (Math.random() * 20)
+            sortKey: getSuggestionScore(f) + (Math.random() * 20)
         }))
         .sort((a, b) => a.sortKey - b.sortKey);
 
@@ -756,4 +778,3 @@ export function getDailyReflectPrompt(): ReflectPrompt {
 export function getAllWildcardOptions(): WildcardSuggestion[] {
     return WILDCARD_SUGGESTIONS;
 }
-

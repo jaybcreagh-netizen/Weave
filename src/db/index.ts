@@ -2,6 +2,7 @@ import 'react-native-get-random-values';
 import { Database } from '@nozbe/watermelondb';
 import { logger } from '@/shared/services/logger.service';
 import SQLiteAdapter from '@nozbe/watermelondb/adapters/sqlite';
+import LokiJSAdapter from '@nozbe/watermelondb/adapters/lokijs';
 import schema from './schema';
 import migrations from './migrations';
 import Friend from './models/Friend';
@@ -63,16 +64,30 @@ export { repairSchemaIfNeeded } from './repair-schema';
 // Configure WatermelonDB to use UUIDs for new records
 setGenerator(() => uuidv4());
 
-const adapter = new SQLiteAdapter({
-  schema,
-  migrations, // ENABLED: Schema migrations for interaction category system
-  // dbName: 'weave',
-  jsi: true, // Enable JSI for 3x performance boost
-  onSetUpError: error => {
-    // Database failed to load
-    logger.error('Database', 'Database setup error:', error);
-  }
-});
+const isTestEnv = process.env.NODE_ENV === 'test';
+
+const adapter = isTestEnv
+  ? new LokiJSAdapter({
+    schema,
+    // Loki test adapter does not support our SQLite-specific migration steps.
+    // Tests start from clean state, so schema-only setup is sufficient.
+    dbName: 'weave-test-db',
+    useWebWorker: false,
+    useIncrementalIndexedDB: false,
+    onSetUpError: error => {
+      logger.error('Database', 'Database setup error:', error);
+    },
+  })
+  : new SQLiteAdapter({
+    schema,
+    migrations, // ENABLED: Schema migrations for interaction category system
+    // dbName: 'weave',
+    jsi: true,
+    onSetUpError: error => {
+      // Database failed to load
+      logger.error('Database', 'Database setup error:', error);
+    }
+  });
 
 export const database = new Database({
   adapter,
