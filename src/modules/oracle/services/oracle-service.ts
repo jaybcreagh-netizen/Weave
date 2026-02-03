@@ -1543,6 +1543,8 @@ class OracleService {
      * Process raw signals into polished insights via LLM
      */
     async synthesizeInsights(signals: InsightSignal[]): Promise<void> {
+        const now = Date.now()
+
         // 1. Fetch active insights to prevent duplicates/spam
         const activeInsights = await database.get<ProactiveInsight>('proactive_insights').query(
             Q.where('status', Q.oneOf(['unseen', 'seen']))
@@ -1557,49 +1559,88 @@ class OracleService {
 
         // If we have a very recent insight (last 24h), skip
         const recent = activeInsights.find(i =>
-            i.generatedAt.getTime() > Date.now() - 24 * 60 * 60 * 1000
+            i.generatedAt.getTime() > now - 24 * 60 * 60 * 1000
         )
         if (recent) {
             logger.info('OracleService', 'Skipping synthesis: Recent insight exists')
             return
         }
 
-
-
-        // 3. Smart Filtering: 48h Cooldown on Dismissed (Friend + Topic)
-        const fortyEightHoursAgo = new Date(Date.now() - 48 * 60 * 60 * 1000)
-
-        const dismissedInsights = await database.get<ProactiveInsight>('proactive_insights').query(
-            Q.where('status', 'dismissed'),
-            Q.where('generated_at', Q.gte(fortyEightHoursAgo.getTime()))
+        // 3. Build recent history map to reduce repeats and diversify rotation.
+        const rotationLookbackMs = 21 * 24 * 60 * 60 * 1000 // 3 weeks
+        const recentInsights = await database.get<ProactiveInsight>('proactive_insights').query(
+            Q.where('generated_at', Q.gte(now - rotationLookbackMs))
         ).fetch()
 
-        // Create a set of "banned" signatures: `${friendId}:${signalType}`
-        const bannedSignatures = new Set<string>()
+        const signatureFrequency = new Map<string, number>()
+        const friendFrequency = new Map<string, number>()
+        const typeFrequency = new Map<string, number>()
 
-        dismissedInsights.forEach(insight => {
-            try {
-                const sourceSignals = JSON.parse(insight.sourceSignalsJson || '[]')
-                // Only ban the PRIMARY signal (first one), not all
-                const primarySignal = sourceSignals[0]
-                if (primarySignal) {
-                    if (primarySignal.friendId) {
-                        bannedSignatures.add(`${primarySignal.friendId}:${primarySignal.type}`)
-                    } else {
-                        // User signal (no friend), ban the type globally for 48h
-                        bannedSignatures.add(`user:${primarySignal.type}`)
-                    }
+        const addToFrequencyMap = (map: Map<string, number>, key: string, increment: number) => {
+            map.set(key, (map.get(key) || 0) + increment)
+        }
+
+        recentInsights.forEach((insight) => {
+            const ageMs = now - insight.generatedAt.getTime()
+            const weight = ageMs <= 72 * 60 * 60 * 1000
+                ? 3
+                : ageMs <= 7 * 24 * 60 * 60 * 1000
+                    ? 2
+                    : 1
+
+            const sourceSignals = this.getInsightSourceSignals(insight)
+            sourceSignals.forEach((sourceSignal) => {
+                const signature = this.getSignalSignature(sourceSignal)
+                if (!signature) return
+
+                addToFrequencyMap(signatureFrequency, signature, weight)
+                addToFrequencyMap(typeFrequency, sourceSignal.type, weight)
+                if (sourceSignal.friendId) {
+                    addToFrequencyMap(friendFrequency, sourceSignal.friendId, weight)
                 }
-            } catch (e) {
-                // Ignore parse errors
-            }
+            })
         })
+
+        // 4. Smart cooldown: if dismissed, suppress exact signal for longer and friend/topic briefly.
+        const exactDismissCooldownMs = 6 * 24 * 60 * 60 * 1000 // 6 days
+        const friendDismissCooldownMs = 48 * 60 * 60 * 1000 // 48h
+        const bannedSignatures = new Set<string>()
+        const recentlyDismissedFriends = new Set<string>()
+
+        recentInsights
+            .filter((insight) => insight.status === 'dismissed')
+            .forEach((insight) => {
+                const ageMs = now - insight.generatedAt.getTime()
+                const sourceSignals = this.getInsightSourceSignals(insight)
+
+                sourceSignals.forEach((sourceSignal) => {
+                    const signature = this.getSignalSignature(sourceSignal)
+                    if (signature && ageMs <= exactDismissCooldownMs) {
+                        bannedSignatures.add(signature)
+                    }
+
+                    if (sourceSignal.friendId && ageMs <= friendDismissCooldownMs) {
+                        recentlyDismissedFriends.add(sourceSignal.friendId)
+                    }
+                })
+
+                // Legacy fallback for records with friendId but no source_signals_json.
+                if (insight.friendId && ageMs <= friendDismissCooldownMs) {
+                    recentlyDismissedFriends.add(insight.friendId)
+                }
+            })
 
         // Filter incoming signals
         const filteredSignals = signals.filter(s => {
-            const signature = s.friendId ? `${s.friendId}:${s.type}` : `user:${s.type}`
+            const signature = this.getSignalSignature({ type: s.type, friendId: s.friendId })
+            if (!signature) return false
+
             if (bannedSignatures.has(signature)) {
                 logger.info('OracleService', `Skipping signal due to cooldown: ${signature}`)
+                return false
+            }
+            if (s.friendId && recentlyDismissedFriends.has(s.friendId)) {
+                logger.info('OracleService', `Skipping signal due to friend cooldown: ${s.friendId}`)
                 return false
             }
             return true
@@ -1613,8 +1654,61 @@ class OracleService {
             return
         }
 
-        // 4. Prepare Prompt Context (using filtered signals)
-        const signalContexts = await Promise.all(filteredSignals.map(async s => {
+        // 5. Rotate signal focus to reduce "same topic" fatigue.
+        const selectedSignals: InsightSignal[] = []
+        const availableSignals = [...filteredSignals]
+
+        const scoreSignal = (signal: InsightSignal): number => {
+            const signature = this.getSignalSignature({ type: signal.type, friendId: signal.friendId })
+            const signaturePenalty = signature ? (signatureFrequency.get(signature) || 0) * 2.2 : 0
+            const friendPenalty = signal.friendId ? (friendFrequency.get(signal.friendId) || 0) * 1.4 : 0
+            const typePenalty = (typeFrequency.get(signal.type) || 0) * 0.9
+
+            const firstSelected = selectedSignals[0]
+            const sameFriendPenalty = firstSelected && signal.friendId && firstSelected.friendId === signal.friendId ? 3 : 0
+            const sameTypePenalty = firstSelected && firstSelected.type === signal.type ? 1.5 : 0
+            const diversityBonus = selectedSignals.length > 0
+                && firstSelected
+                && signal.friendId
+                && firstSelected.friendId
+                && signal.friendId !== firstSelected.friendId
+                ? 0.8
+                : 0
+
+            const jitter = Math.random() * 1.25 // Slight randomness so repeated asks don't feel identical.
+            return (signal.priority * 10) - signaturePenalty - friendPenalty - typePenalty - sameFriendPenalty - sameTypePenalty + diversityBonus + jitter
+        }
+
+        while (selectedSignals.length < 2 && availableSignals.length > 0) {
+            const scored = availableSignals.map((signal) => ({
+                signal,
+                score: scoreSignal(signal),
+            }))
+            scored.sort((a, b) => b.score - a.score)
+
+            const bestSignal = scored[0]?.signal
+            if (!bestSignal) break
+
+            selectedSignals.push(bestSignal)
+
+            const selectedSignature = this.getSignalSignature({ type: bestSignal.type, friendId: bestSignal.friendId })
+            for (let i = availableSignals.length - 1; i >= 0; i--) {
+                const candidate = availableSignals[i]
+                const candidateSignature = this.getSignalSignature({ type: candidate.type, friendId: candidate.friendId })
+                if (candidateSignature === selectedSignature || candidate === bestSignal) {
+                    availableSignals.splice(i, 1)
+                }
+            }
+        }
+
+        if (selectedSignals.length === 0) {
+            logger.info('OracleService', 'No eligible signals after rotation scoring - generating fallback insight')
+            await this.generateFallbackInsight()
+            return
+        }
+
+        // 6. Prepare Prompt Context (using selected + diversified signals)
+        const topSignals = await Promise.all(selectedSignals.map(async s => {
             let friendName = 'Unknown'
             let relationshipType = 'friend' // default
             if (s.friendId) {
@@ -1633,11 +1727,6 @@ class OracleService {
                 priority: s.priority
             }
         }))
-
-        // 5. Generate Synthesis - FOCUSED: Pick top 2 signals max
-        const topSignals = signalContexts
-            .sort((a, b) => (b.priority || 0) - (a.priority || 0))
-            .slice(0, 2)
 
         if (topSignals.length === 0) return
 
@@ -1698,7 +1787,7 @@ Output JSON: { "headline": "...", "body": "..." }
                         insight.actionParamsJson = JSON.stringify({ friendId: primarySignal.friendId })
                     }
 
-                    insight.severity = Math.max(...signals.map(s => s.priority))
+                    insight.severity = Math.max(...selectedSignals.map(s => s.priority))
                     insight.generatedAt = new Date()
                     insight.expiresAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000) // 14 days expiration
                     insight.status = 'unseen'
@@ -1707,16 +1796,51 @@ Output JSON: { "headline": "...", "body": "..." }
                 // Track Event
                 trackEvent(AnalyticsEvents.INSIGHT_GENERATED, {
                     insightId: newInsight.id,
-                    signalCount: signals.length,
+                    signalCount: selectedSignals.length,
                     severity: newInsight.severity
                 })
             })
 
-            logger.info('OracleService', `Generated Synthesis from ${signals.length} signals`)
+            logger.info('OracleService', `Generated Synthesis from ${selectedSignals.length} signals`)
 
         } catch (e) {
             logger.error('OracleService', 'Synthesis failed', e)
         }
+    }
+
+    private getSignalSignature(signal: { type?: string; friendId?: string }): string | null {
+        if (!signal.type) return null
+        return signal.friendId ? `${signal.friendId}:${signal.type}` : `user:${signal.type}`
+    }
+
+    private getInsightSourceSignals(insight: ProactiveInsight): Array<{ type: string; friendId?: string }> {
+        if (insight.sourceSignalsJson) {
+            try {
+                const parsed = JSON.parse(insight.sourceSignalsJson)
+                if (Array.isArray(parsed)) {
+                    return parsed
+                        .filter((item): item is { type: string; friendId?: string } =>
+                            !!item && typeof item.type === 'string'
+                        )
+                        .map((item) => ({
+                            type: item.type,
+                            friendId: typeof item.friendId === 'string' ? item.friendId : undefined,
+                        }))
+                }
+            } catch {
+                // Graceful fallback below.
+            }
+        }
+
+        // Legacy compatibility: derive signal type from rule id when source_signals_json is missing.
+        if (insight.ruleId?.startsWith('signal_')) {
+            const inferredType = insight.ruleId.replace('signal_', '')
+            if (inferredType) {
+                return [{ type: inferredType, friendId: insight.friendId }]
+            }
+        }
+
+        return []
     }
 
     /**
@@ -2131,6 +2255,8 @@ Output JSON: { "headline": "...", "body": "..." }
      */
     private async generateFallbackInsight(): Promise<void> {
         try {
+            const now = Date.now()
+
             // Get a random active friend
             const friends = await database.get<Friend>('friends').query(
                 Q.where('is_dormant', false)
@@ -2141,8 +2267,28 @@ Output JSON: { "headline": "...", "body": "..." }
                 return
             }
 
-            // Pick a random friend
-            const randomFriend = friends[Math.floor(Math.random() * friends.length)]
+            // Prefer friends not already shown in recent fallback/dismissed insights.
+            const recentLookbackMs = 72 * 60 * 60 * 1000
+            const recentInsights = await database.get<ProactiveInsight>('proactive_insights').query(
+                Q.where('generated_at', Q.gte(now - recentLookbackMs))
+            ).fetch()
+
+            const recentlyMentionedFriendIds = new Set<string>()
+            recentInsights.forEach((insight) => {
+                if (insight.status === 'dismissed' || insight.ruleId.startsWith('fallback_')) {
+                    if (insight.friendId) recentlyMentionedFriendIds.add(insight.friendId)
+
+                    this.getInsightSourceSignals(insight).forEach((sourceSignal) => {
+                        if (sourceSignal.friendId) {
+                            recentlyMentionedFriendIds.add(sourceSignal.friendId)
+                        }
+                    })
+                }
+            })
+
+            const friendPool = friends.filter((friend) => !recentlyMentionedFriendIds.has(friend.id))
+            const randomFriendSource = friendPool.length > 0 ? friendPool : friends
+            const randomFriend = randomFriendSource[Math.floor(Math.random() * randomFriendSource.length)]
 
             // Create a gentle, generic insight
             const fallbackHeadlines = [

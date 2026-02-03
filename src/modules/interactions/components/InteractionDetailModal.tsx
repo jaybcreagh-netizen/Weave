@@ -1,18 +1,27 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, LayoutAnimation, Platform, ActivityIndicator } from 'react-native';
+import { View, LayoutAnimation, Platform, ActivityIndicator } from 'react-native';
 import { TouchableOpacity } from 'react-native-gesture-handler';
-import { Calendar, MapPin, Heart, MessageCircle, Sparkles, Edit3, Trash2, Share2, Clock, X, Check } from 'lucide-react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import {
+  Calendar,
+  MapPin,
+  Heart,
+  MessageCircle,
+  Sparkles,
+  Edit3,
+  Trash2,
+  Share2,
+} from 'lucide-react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
+
 import { useTheme } from '@/shared/hooks/useTheme';
 import { StandardBottomSheet } from '@/shared/ui/Sheet';
-import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { Button } from '@/shared/ui/Button';
-import { type Interaction, type MoonPhase, type InteractionCategory } from '../types';
+import { Icon } from '@/shared/ui/Icon';
+import { Text } from '@/shared/ui/Text';
 import { InteractionShape } from '@/shared/types/derived';
 import { modeIcons } from '@/shared/constants/constants';
 import { getCategoryMetadata } from '@/shared/constants/interaction-categories';
-import { Icon } from '@/shared/ui/Icon';
+import { type Interaction, type MoonPhase, type InteractionCategory } from '../types';
 import { MoonPhaseIllustration } from '@/modules/intelligence';
 import { STORY_CHIPS } from '@/modules/reflection';
 import { database } from '@/db';
@@ -21,36 +30,120 @@ import FriendModel from '@/db/models/Friend';
 import InteractionModel from '@/db/models/Interaction';
 import { shareInteractionAsICS } from '../services/calendar-export.service';
 import { ShareStatusBadge, getShareStatus } from '@/modules/sync';
-import { InviteFriendSheet } from './InviteFriendSheet';
 import { generateInviteCode } from '../services/invite.service';
 
 const MOON_PHASE_LEVELS: Record<MoonPhase, number> = {
-  'NewMoon': 1,
-  'WaxingCrescent': 2,
-  'FirstQuarter': 3,
-  'WaxingGibbous': 4,
-  'FullMoon': 5,
-  'WaningGibbous': 4,
-  'LastQuarter': 3,
-  'WaningCrescent': 2
+  NewMoon: 1,
+  WaxingCrescent: 2,
+  FirstQuarter: 3,
+  WaxingGibbous: 4,
+  FullMoon: 5,
+  WaningGibbous: 4,
+  LastQuarter: 3,
+  WaningCrescent: 2,
+};
+
+const STATUS_LABELS: Record<string, string> = {
+  completed: 'Completed',
+  planned: 'Planned',
+  pending_confirm: 'Awaiting confirmation',
+  cancelled: 'Cancelled',
+  missed: 'Missed',
+};
+
+type ThemeColors = ReturnType<typeof useTheme>['colors'];
+
+type InteractionLike = Interaction | InteractionShape;
+
+type ShareState = {
+  isShared: boolean;
+  status?: 'pending' | 'accepted' | 'declined' | 'expired';
+};
+
+type ReflectionChipData = {
+  chipId: string;
+  componentOverrides: Record<string, string>;
 };
 
 const formatDateTime = (date: Date | string): { date: string; time: string } => {
   const d = typeof date === 'string' ? new Date(date) : date;
+
   return {
-    date: d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }),
-    time: d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+    date: d.toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    }),
+    time: d.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    }),
   };
 };
 
+const formatMode = (mode?: string) => {
+  if (!mode) return 'General weave';
+  return mode
+    .replace(/[-_]/g, ' ')
+    .split(' ')
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+};
+
+const formatMoonPhase = (phase: MoonPhase) => phase.replace(/([A-Z])/g, ' $1').trim();
+
+const getStatusPillColors = (status: string, colors: ThemeColors) => {
+  switch (status) {
+    case 'completed':
+      return {
+        bg: colors.success + '20',
+        border: colors.success + '55',
+        text: colors.success,
+      };
+    case 'cancelled':
+    case 'missed':
+      return {
+        bg: colors.destructive + '20',
+        border: colors.destructive + '45',
+        text: colors.destructive,
+      };
+    default:
+      return {
+        bg: colors.warning + '20',
+        border: colors.warning + '45',
+        text: colors.warning,
+      };
+  }
+};
+
+const getChipText = (chip: ReflectionChipData) => {
+  const storyChip = STORY_CHIPS.find((item) => item.id === chip.chipId);
+  if (!storyChip) return null;
+
+  let text = storyChip.template;
+
+  if (storyChip.components) {
+    Object.entries(storyChip.components).forEach(([componentId, component]) => {
+      const value = chip.componentOverrides[componentId] || component.original;
+      text = text.replace(`{${componentId}}`, value);
+    });
+  }
+
+  return text;
+};
+
+const isPlannedStatus = (status?: string) => status === 'planned' || status === 'pending_confirm';
+
 interface InteractionDetailModalProps {
-  interaction: Interaction | InteractionShape | null;
+  interaction: InteractionLike | null;
   isOpen: boolean;
   onClose: () => void;
   friendName?: string;
-  onEditReflection?: (interaction: Interaction | InteractionShape) => void;
-  onEdit?: (interaction: Interaction | InteractionShape) => void;
-
+  onEditReflection?: (interaction: InteractionLike) => void;
+  onEdit?: (interaction: InteractionLike) => void;
   onDelete?: (interactionId: string) => void;
   onUpdate?: (interactionId: string, updates: Partial<Interaction>) => Promise<void>;
 }
@@ -62,124 +155,180 @@ export function InteractionDetailModal({
   friendName,
   onEditReflection,
   onEdit,
-
   onDelete,
   onUpdate,
 }: InteractionDetailModalProps) {
-  const insets = useSafeAreaInsets();
-  const { colors, isDarkMode } = useTheme();
+  const { colors } = useTheme();
 
-  // Cache interaction to keep displaying it during close animation
-  const [cachedInteraction, setCachedInteraction] = useState<Interaction | InteractionShape | null>(interaction);
+  // Keep rendering data while the close animation runs.
+  const [cachedInteraction, setCachedInteraction] = useState<InteractionLike | null>(interaction);
 
-  // Inline editing state
+  // Inline date editing state.
   const [isEditingDate, setIsEditingDate] = useState(false);
   const [tempDate, setTempDate] = useState<Date>(new Date());
 
-  // Invite Logic
-  // const [showInviteSheet, setShowInviteSheet] = useState(false); // Removed separate sheet
+  // Sharing state.
   const [friendToInvite, setFriendToInvite] = useState<FriendModel | null>(null);
   const [isSharing, setIsSharing] = useState(false);
+  const [participants, setParticipants] = useState<FriendModel[]>([]);
+  const [shareStatus, setShareStatus] = useState<ShareState>({ isShared: false });
 
   useEffect(() => {
     if (interaction) {
       setCachedInteraction(interaction);
+      setIsEditingDate(false);
     }
   }, [interaction]);
 
-  // Use cached version if current is null (during closing)
   const activeInteraction = interaction || cachedInteraction;
+  const interactionId = activeInteraction?.id;
 
-  const [participants, setParticipants] = useState<FriendModel[]>([]);
-  const [shareStatus, setShareStatus] = useState<{
-    isShared: boolean;
-    status?: 'pending' | 'accepted' | 'declined' | 'expired';
-  }>({ isShared: false });
-
-  // Fetch all participants for this interaction
   useEffect(() => {
-    if (!activeInteraction || !activeInteraction.id) {
+    if (!interactionId) {
       setParticipants([]);
       return;
     }
 
+    let cancelled = false;
+
     const fetchParticipants = async () => {
       try {
-        // Get join records for this interaction
         const joinRecords = await database
           .get('interaction_friends')
-          .query(Q.where('interaction_id', activeInteraction.id))
-          .fetch();
+          .query(Q.where('interaction_id', interactionId))
+          .fetch() as Array<{ friendId: string }>;
 
         if (joinRecords.length === 0) {
-          setParticipants([]);
+          if (!cancelled) setParticipants([]);
           return;
         }
 
-        // Get friend IDs from join records
-        const friendIds = joinRecords.map((jr: any) => jr.friendId);
+        const friendIds = joinRecords.map((record) => record.friendId);
 
-        // Fetch all friend models
         const friends = await database
           .get<FriendModel>('friends')
           .query(Q.where('id', Q.oneOf(friendIds)))
           .fetch();
 
-        setParticipants(friends);
+        if (!cancelled) {
+          setParticipants(friends);
+        }
       } catch (error) {
         console.error('Error fetching participants:', error);
-        setParticipants([]);
+        if (!cancelled) {
+          setParticipants([]);
+        }
       }
     };
 
     fetchParticipants();
-  }, [activeInteraction]);
 
+    return () => {
+      cancelled = true;
+    };
+  }, [interactionId]);
 
-  // Determine if we should show the invite button
-  // Show if:
-  // 1. We have participants
-  // 2. At least one participant is NOT linked (no linkedUserId) 
-  // For MVP: If multiple unlinked, we'll just pick the first one or logic could be improved
   useEffect(() => {
-    if (participants.length > 0) {
-      // Find the first unlinked friend
-      const unlinked = participants.find(p => !p.linkedUserId);
-      setFriendToInvite(unlinked || null);
-    } else {
+    if (participants.length === 0) {
       setFriendToInvite(null);
+      return;
     }
+
+    const unlinked = participants.find((participant) => !participant.linkedUserId);
+    setFriendToInvite(unlinked || null);
   }, [participants]);
 
-  // Fetch share status
   useEffect(() => {
-    if (!activeInteraction) {
+    if (!interactionId) {
       setShareStatus({ isShared: false });
       return;
     }
-    getShareStatus(activeInteraction.id).then(setShareStatus);
-  }, [activeInteraction]);
+
+    let cancelled = false;
+
+    getShareStatus(interactionId)
+      .then((status) => {
+        if (!cancelled) {
+          setShareStatus(status);
+        }
+      })
+      .catch((error) => {
+        console.error('Error fetching share status:', error);
+        if (!cancelled) {
+          setShareStatus({ isShared: false });
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [interactionId]);
 
   if (!activeInteraction) return null;
 
   const { date, time } = formatDateTime(activeInteraction.interactionDate);
-  const moonLevel = activeInteraction.vibe ? MOON_PHASE_LEVELS[activeInteraction.vibe as MoonPhase] : null;
-  const isPast = new Date(activeInteraction.interactionDate) < new Date();
-  const isPlanned = activeInteraction.status === 'planned' || activeInteraction.status === 'pending_confirm';
+  const moonLevel = activeInteraction.vibe
+    ? MOON_PHASE_LEVELS[activeInteraction.vibe as MoonPhase]
+    : null;
 
-  // Handler for sharing the plan
+  const isPast = new Date(activeInteraction.interactionDate) < new Date();
+  const isPlanned = isPlannedStatus(activeInteraction.status);
+
+  const isCategory =
+    !!activeInteraction.activity &&
+    typeof activeInteraction.activity === 'string' &&
+    activeInteraction.activity.includes('-');
+
+  let displayLabel: string;
+  let DisplayIcon: React.ElementType | null = null;
+  let displayIconName: string | null = null;
+
+  if (isCategory) {
+    const categoryData = getCategoryMetadata(activeInteraction.activity as InteractionCategory);
+
+    if (categoryData) {
+      displayLabel = categoryData.label;
+      DisplayIcon = categoryData.iconComponent;
+    } else {
+      displayLabel = activeInteraction.activity || 'Interaction';
+      displayIconName = modeIcons[activeInteraction.mode as keyof typeof modeIcons] || 'Calendar';
+    }
+  } else {
+    displayLabel = activeInteraction.activity || 'Interaction';
+    displayIconName = modeIcons[activeInteraction.mode as keyof typeof modeIcons] || 'Calendar';
+  }
+
+  const participantValue =
+    participants.length > 0
+      ? participants.map((participant) => participant.name).join(', ')
+      : friendName || '';
+
+  const hasReflection =
+    !!activeInteraction.reflection &&
+    !!(activeInteraction.reflection.chips?.length || activeInteraction.reflection.customNotes);
+
+  const statusLabel = STATUS_LABELS[activeInteraction.status] || activeInteraction.status;
+  const statusStyles = getStatusPillColors(activeInteraction.status, colors);
+
   const handleShare = async () => {
     try {
       setIsSharing(true);
-      // Fetch the full Interaction model
-      const interactionModel = await database.get<InteractionModel>('interactions').find(activeInteraction.id);
 
-      let code: string | undefined = undefined;
+      const interactionModel = await database
+        .get<InteractionModel>('interactions')
+        .find(activeInteraction.id);
 
-      // If we have an unlinked friend to invite, generate a code
+      let code: string | undefined;
+
       if (friendToInvite) {
-        const generated = await generateInviteCode(friendToInvite.id, friendToInvite.name, interactionModel);
-        if (generated) code = generated.code;
+        const generated = await generateInviteCode(
+          friendToInvite.id,
+          friendToInvite.name,
+          interactionModel
+        );
+        if (generated) {
+          code = generated.code;
+        }
       }
 
       const success = await shareInteractionAsICS(interactionModel, code);
@@ -193,396 +342,527 @@ export function InteractionDetailModal({
     }
   };
 
-  // Action handlers now trigger immediately and close the sheet
   const handleEditPress = () => {
-    if (activeInteraction && onEdit) {
-      onEdit(activeInteraction);
-      onClose();
-    }
+    if (!onEdit) return;
+    onEdit(activeInteraction);
+    onClose();
   };
 
   const handleDeletePress = () => {
-    if (activeInteraction && onDelete) {
-      onDelete(activeInteraction.id);
-      onClose();
-    }
+    if (!onDelete) return;
+    onDelete(activeInteraction.id);
+    onClose();
   };
 
   const handleEditReflectionPress = () => {
-    if (activeInteraction && onEditReflection) {
-      onEditReflection(activeInteraction);
-      onClose();
-    }
+    if (!onEditReflection) return;
+    onEditReflection(activeInteraction);
+    onClose();
   };
 
-  // Get friendly label and icon for category (or fall back to activity)
-  // Check if activity looks like a category ID (has a dash)
-  const isCategory = activeInteraction.activity && activeInteraction.activity.includes('-');
+  const toggleDateEdit = () => {
+    if (!isPlanned || !onUpdate) return;
 
-  let displayLabel: string;
-  let DisplayIcon: React.ElementType | null = null;
-  let displayIconName: string | null = null;
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
 
-  // Save Date Handler
+    if (!isEditingDate) {
+      setTempDate(new Date(activeInteraction.interactionDate));
+      setIsEditingDate(true);
+      return;
+    }
+
+    setIsEditingDate(false);
+  };
+
   const handleSaveDate = async () => {
-    if (activeInteraction && onUpdate && tempDate) {
-      // Optimistic update
-      setCachedInteraction({
-        ...activeInteraction,
-        interactionDate: tempDate
-      } as Interaction | InteractionShape);
+    if (!activeInteraction || !onUpdate) return;
 
-      // Close inline edit
-      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-      setIsEditingDate(false);
+    setCachedInteraction({
+      ...activeInteraction,
+      interactionDate: tempDate,
+    } as InteractionLike);
 
-      // Perform update
-      await onUpdate(activeInteraction.id, { interactionDate: tempDate });
-    }
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setIsEditingDate(false);
+
+    await onUpdate(activeInteraction.id, { interactionDate: tempDate });
   };
 
-  if (isCategory) {
-    const categoryData = getCategoryMetadata(activeInteraction.activity as InteractionCategory);
-    if (categoryData) {
-      displayLabel = categoryData.label;
-      DisplayIcon = categoryData.iconComponent;
-    } else {
-      // Fallback if category not found
-      displayLabel = activeInteraction.activity || 'Interaction';
-      displayIconName = modeIcons[activeInteraction.mode as keyof typeof modeIcons] || 'Calendar';
-    }
-  } else {
-    // Old format - use mode icon and activity name
-    displayLabel = activeInteraction.activity || 'Interaction';
-    displayIconName = modeIcons[activeInteraction.mode as keyof typeof modeIcons] || 'Calendar';
-  }
+  const actions = [
+    isPlanned
+      ? {
+          key: 'share',
+          label: 'Share',
+          icon: <Share2 size={16} color={colors.primary} />,
+          onPress: handleShare,
+          loading: isSharing,
+          tint: colors.primary,
+          background: colors.primary + '15',
+        }
+      : null,
+  ].filter(Boolean) as Array<{
+    key: string;
+    label: string;
+    icon: React.ReactNode;
+    onPress: () => void;
+    tint: string;
+    background: string;
+    loading?: boolean;
+  }>;
+
+  const footerComponent = onEditReflection && isPast
+    ? (
+      <Button
+        label={activeInteraction.reflection?.chips?.length ? 'Edit Reflection' : 'Deepen this weave'}
+        variant="primary"
+        size="lg"
+        fullWidth
+        onPress={handleEditReflectionPress}
+        icon={<Sparkles size={18} color={colors['primary-foreground']} />}
+      />
+    )
+    : undefined;
 
   return (
     <>
       <StandardBottomSheet
         visible={isOpen}
         onClose={onClose}
-        snapPoints={['85%']}
-        scrollable={false} // We manage scrolling internally with BottomSheetScrollView
-        showCloseButton={false} // We handle it in headerRight
+        snapPoints={['88%']}
+        scrollable
+        footerComponent={footerComponent}
+        titleComponent={<View />}
         headerLeft={
-          <View className="pl-2">
-            {DisplayIcon ? (
-              <DisplayIcon size={32} color={colors.foreground} />
-            ) : (
-              <Icon name={(displayIconName || 'Calendar') as any} size={32} color={colors.foreground} />
-            )}
-          </View>
-        }
-        titleComponent={
-          <View className="items-center w-full px-2">
-            <Text
-              className="text-xl font-semibold text-center"
-              style={{ color: colors.foreground }}
-              numberOfLines={1}
-            >
-              {activeInteraction.title || displayLabel}
-            </Text>
-            <Text
-              className="text-xs capitalize text-center"
-              style={{ color: colors['muted-foreground'] }}
-              numberOfLines={1}
-            >
-              {activeInteraction.title ? `${displayLabel} • ` : ''}
-              {activeInteraction.mode?.replace('-', ' ')} • {activeInteraction.interactionType}
-            </Text>
-          </View>
-        }
-        headerRight={
-          <View className="flex-row items-center gap-1 pr-2">
-            {isPlanned && (
-              <TouchableOpacity
-                onPress={handleShare}
-                className="p-1.5"
-                disabled={isSharing}
-              >
-                {isSharing ? (
-                  <ActivityIndicator size="small" color={colors.primary} />
-                ) : (
-                  <Share2 color={colors.primary} size={20} />
-                )}
-              </TouchableOpacity>
-            )}
-            {onEdit && (
-              <TouchableOpacity
-                onPress={handleEditPress}
-                className="p-1.5"
-              >
-                <Edit3 color={colors.primary} size={20} />
-              </TouchableOpacity>
-            )}
-            {onDelete && (
-              <TouchableOpacity
-                onPress={handleDeletePress}
-                className="p-1.5"
-              >
-                <Trash2 color={colors.destructive} size={20} />
-              </TouchableOpacity>
-            )}
-            <TouchableOpacity
-              onPress={onClose}
-              className="p-1.5 ml-1"
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-              <X size={24} color={colors['muted-foreground']} />
-            </TouchableOpacity>
-          </View>
+          (onEdit || onDelete) ? (
+            <View className="flex-row items-center gap-2">
+              {onEdit && (
+                <HeaderIconButton
+                  icon={<Edit3 size={21} color={colors.primary} />}
+                  onPress={handleEditPress}
+                  accessibilityLabel="Edit interaction"
+                />
+              )}
+              {onDelete && (
+                <HeaderIconButton
+                  icon={<Trash2 size={21} color={colors.destructive} />}
+                  onPress={handleDeletePress}
+                  accessibilityLabel="Delete interaction"
+                />
+              )}
+            </View>
+          ) : undefined
         }
       >
+        <View className="px-1 pb-4">
+            {/* Hero */}
+            <View className="pt-1 pb-6">
+              <View className="w-16 h-16 rounded-2xl items-center justify-center mb-4" style={{ backgroundColor: colors.muted }}>
+                {DisplayIcon ? (
+                  <DisplayIcon size={28} color={colors.foreground} />
+                ) : (
+                  <Icon
+                    name={(displayIconName || 'Calendar') as any}
+                    size={28}
+                    color={colors.foreground}
+                  />
+                )}
+              </View>
 
-        <BottomSheetScrollView
-          contentContainerStyle={{ padding: 24, gap: 24 }}
-          style={{ flex: 1 }}
-        >
-          <View className="flex-row items-center gap-2">
-            <View
-              className="self-start px-3 py-1.5 rounded-full"
-              style={{
-                backgroundColor: activeInteraction.status === 'completed' ? '#dcfce7' : '#fef9c3'
-              }}
-            >
               <Text
-                className="text-xs font-medium"
-                style={{
-                  color: activeInteraction.status === 'completed' ? '#166534' : '#854d0e'
-                }}
+                variant="h3"
+                weight="bold"
+                style={{ color: colors.foreground }}
               >
-                {activeInteraction.status === 'completed' ? '✓ Completed' : '⏳ Planned'}
+                {activeInteraction.title || displayLabel}
               </Text>
+
+              <Text
+                variant="caption"
+                className="mt-1"
+                style={{ color: colors['muted-foreground'] }}
+              >
+                {(isCategory ? 'Category' : 'Activity') + ': ' + displayLabel + ' • ' + formatMode(activeInteraction.mode)}
+              </Text>
+
+              <View className="flex-row flex-wrap items-center gap-2 mt-4">
+                <View
+                  className="px-2.5 py-1 rounded-full border"
+                  style={{
+                    backgroundColor: statusStyles.bg,
+                    borderColor: statusStyles.border,
+                  }}
+                >
+                  <Text
+                    variant="caption"
+                    weight="semibold"
+                    style={{ color: statusStyles.text }}
+                  >
+                    {statusLabel}
+                  </Text>
+                </View>
+
+                {shareStatus.isShared && shareStatus.status && (
+                  <View
+                    className="flex-row items-center gap-1.5 px-2 py-1 rounded-full border"
+                    style={{
+                      backgroundColor: colors.background,
+                      borderColor: colors.border,
+                    }}
+                  >
+                    <ShareStatusBadge status={shareStatus.status} />
+                    <Text variant="caption" style={{ color: colors['muted-foreground'] }}>
+                      Shared
+                    </Text>
+                  </View>
+                )}
+              </View>
             </View>
-            {shareStatus.isShared && shareStatus.status && (
-              <View className="flex-row items-center gap-1.5 px-2 py-1 rounded-full" style={{ backgroundColor: colors.muted }}>
-                <ShareStatusBadge status={shareStatus.status} size="small" />
-                <Text className="text-xs" style={{ color: colors['muted-foreground'] }}>Shared</Text>
+
+            {actions.length > 0 && (
+              <View className={`mb-6 ${actions.length > 1 ? 'flex-row gap-2' : ''}`}>
+                {actions.map((action) => (
+                  <View key={action.key} className={actions.length > 1 ? 'flex-1' : ''}>
+                    <ActionCard
+                      icon={action.icon}
+                      label={action.label}
+                      onPress={action.onPress}
+                      tint={action.tint}
+                      background={action.background}
+                      loading={action.loading}
+                      colors={colors}
+                    />
+                  </View>
+                ))}
               </View>
             )}
-          </View>
 
-          <TouchableOpacity
-            onPress={() => {
-              if (isPlanned && onUpdate && activeInteraction) {
-                if (!isEditingDate) {
-                  // Enter edit mode
-                  setTempDate(new Date(activeInteraction.interactionDate));
-                  LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-                  setIsEditingDate(true);
-                } else {
-                  // Close edit mode without saving? Or maybe just toggle?
-                  // Let's toggle off on press if already open (cancel)
-                  LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-                  setIsEditingDate(false);
-                }
-              }
-            }}
-            disabled={!isPlanned || !onUpdate}
-            activeOpacity={0.7}
-          >
-            <InfoRow
-              icon={<Calendar color={colors['muted-foreground']} size={20} />}
-              title={date}
-              subtitle={time}
-              colors={colors}
-              isEditable={isPlanned && !!onUpdate && !isEditingDate}
-            />
-          </TouchableOpacity>
+            {/* Details */}
+            <View className="mb-6">
+              <Text
+                variant="label"
+                className="mb-2"
+                style={{ color: colors['muted-foreground'] }}
+              >
+                Details
+              </Text>
 
-          {/* Inline Date Picker */}
-          {isEditingDate && (
-            <View
-              className="rounded-2xl -mt-4 p-4 gap-4"
-              style={{
-                backgroundColor: colors.muted + '40',
-                borderWidth: 1,
-                borderColor: colors.border
-              }}
-            >
-              <DateTimePicker
-                value={tempDate}
-                mode="datetime"
-                display="spinner"
-                onChange={(event, selectedDate) => {
-                  if (selectedDate) setTempDate(selectedDate);
+              <View
+                className="rounded-2xl border overflow-hidden"
+                style={{
+                  borderColor: colors.border,
+                  backgroundColor: colors.card,
                 }}
-                textColor={colors.foreground}
-                style={{ height: 180 }}
-              />
+              >
+                <InfoRow
+                  icon={<Calendar size={18} color={colors['muted-foreground']} />}
+                  label="Date & time"
+                  value={`${date} at ${time}`}
+                  colors={colors}
+                  onPress={isPlanned && onUpdate ? toggleDateEdit : undefined}
+                  isEditable={isPlanned && !!onUpdate && !isEditingDate}
+                />
 
-              <View className="flex-row gap-3">
-                <View className="flex-1">
-                  <Button
-                    label="Cancel"
-                    variant="ghost"
-                    size="sm"
-                    onPress={() => {
-                      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-                      setIsEditingDate(false);
+                {isEditingDate && (
+                  <View
+                    className="px-4 py-3 border-t"
+                    style={{
+                      borderTopColor: colors.border,
+                      backgroundColor: colors.muted + '45',
                     }}
-                  />
-                </View>
-                <View className="flex-1">
-                  <Button
-                    label="Save"
-                    variant="primary"
-                    size="sm"
-                    onPress={handleSaveDate}
-                    icon={<Check size={16} color="white" />}
-                  />
-                </View>
+                  >
+                    <DateTimePicker
+                      value={tempDate}
+                      mode="datetime"
+                      display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                      onChange={(_, selectedDate) => {
+                        if (selectedDate) {
+                          setTempDate(selectedDate);
+                        }
+                      }}
+                      {...(Platform.OS === 'ios' ? { textColor: colors.foreground } : {})}
+                      style={Platform.OS === 'ios' ? { height: 170 } : undefined}
+                    />
+
+                    <View className="flex-row gap-3 mt-3">
+                      <View className="flex-1">
+                        <Button
+                          label="Cancel"
+                          variant="ghost"
+                          size="sm"
+                          onPress={() => {
+                            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                            setIsEditingDate(false);
+                          }}
+                        />
+                      </View>
+
+                      <View className="flex-1">
+                        <Button
+                          label="Save"
+                          variant="primary"
+                          size="sm"
+                          onPress={handleSaveDate}
+                        />
+                      </View>
+                    </View>
+                  </View>
+                )}
+
+                {!!participantValue && (
+                  <>
+                    <RowDivider colors={colors} />
+                    <InfoRow
+                      icon={<Heart size={18} color={colors['muted-foreground']} />}
+                      label="With"
+                      value={participantValue}
+                      colors={colors}
+                    />
+                  </>
+                )}
+
+                {moonLevel && activeInteraction.vibe && (
+                  <>
+                    <RowDivider colors={colors} />
+                    <InfoRow
+                      icon={<MoonPhaseIllustration phase={moonLevel / 5} size={18} />}
+                      label="Vibe"
+                      value={formatMoonPhase(activeInteraction.vibe as MoonPhase)}
+                      colors={colors}
+                    />
+                  </>
+                )}
+
+                {!!activeInteraction.location && (
+                  <>
+                    <RowDivider colors={colors} />
+                    <InfoRow
+                      icon={<MapPin size={18} color={colors['muted-foreground']} />}
+                      label="Location"
+                      value={activeInteraction.location}
+                      colors={colors}
+                    />
+                  </>
+                )}
+
+                {!!activeInteraction.note && (
+                  <>
+                    <RowDivider colors={colors} />
+                    <InfoRow
+                      icon={<MessageCircle size={18} color={colors['muted-foreground']} />}
+                      label="Notes"
+                      value={activeInteraction.note}
+                      colors={colors}
+                      multiline
+                    />
+                  </>
+                )}
               </View>
             </View>
-          )}
-          {participants.length > 0 && (
-            <InfoRow
-              icon={<Heart color={colors['muted-foreground']} size={20} />}
-              title={participants.map(f => f.name).join(', ')}
-              subtitle={participants.length === 1 ? 'With' : `With ${participants.length} friends`}
-              colors={colors}
-            />
-          )}
-          {isPast && moonLevel && <InfoRow icon={<MoonPhaseIllustration phase={0} size={24} batteryLevel={moonLevel} hasCheckin={true} />} title={(activeInteraction.vibe || '').replace(/([A-Z])/g, ' $1').trim()} subtitle="Moon phase" colors={colors} />}
-          {activeInteraction.location && <InfoRow icon={<MapPin color={colors['muted-foreground']} size={20} />} title={activeInteraction.location} subtitle="Location" colors={colors} />}
 
-          {/* Reflection chips display */}
-          {activeInteraction.reflection && (activeInteraction.reflection.chips?.length || activeInteraction.reflection.customNotes) && (
-            <View
-              className="p-4 rounded-2xl gap-3"
-              style={{ backgroundColor: colors.muted + '80' }}
-            >
-              <View className="flex-row items-center gap-2 mb-1">
-                <Sparkles color={colors.primary} size={16} />
+            {/* Reflection */}
+            {hasReflection && (
+              <View>
                 <Text
-                  className="text-sm font-semibold"
-                  style={{ color: colors.foreground }}
+                  variant="label"
+                  className="mb-2"
+                  style={{ color: colors['muted-foreground'] }}
                 >
                   Reflection
                 </Text>
-              </View>
 
-              {/* Story chips */}
-              {activeInteraction.reflection.chips && activeInteraction.reflection.chips.length > 0 && (
-                <View className="flex-row flex-wrap gap-2">
-                  {activeInteraction.reflection.chips.map((chip, index) => {
-                    const storyChip = STORY_CHIPS.find(s => s.id === chip.chipId);
-                    if (!storyChip) return null;
-
-                    // Build the text with overrides
-                    let text = storyChip.template;
-                    if (storyChip.components) {
-                      Object.entries(storyChip.components).forEach(([componentId, component]) => {
-                        const value = chip.componentOverrides[componentId] || component.original;
-                        text = text.replace(`{${componentId}}`, value);
-                      });
-                    }
-
-                    return (
-                      <View
-                        key={index}
-                        className="border rounded-2xl px-3 py-1.5"
-                        style={{
-                          backgroundColor: colors.primary + '20',
-                          borderColor: colors.primary + '40'
-                        }}
-                      >
-                        <Text
-                          className="text-[13px] font-medium"
-                          style={{ color: colors.foreground }}
-                        >
-                          {text}
-                        </Text>
-                      </View>
-                    );
-                  })}
-                </View>
-              )}
-
-              {/* Custom notes */}
-              {activeInteraction.reflection.customNotes && (
-                <Text
-                  className="text-sm leading-5 italic"
-                  style={{ color: colors.foreground }}
+                <View
+                  className="rounded-2xl border p-4"
+                  style={{
+                    borderColor: colors.border,
+                    backgroundColor: colors.muted + '35',
+                  }}
                 >
-                  {activeInteraction.reflection.customNotes}
-                </Text>
-              )}
-            </View>
-          )}
+                  {!!activeInteraction.reflection?.chips?.length && (
+                    <View className="flex-row flex-wrap gap-2">
+                      {activeInteraction.reflection.chips.map((chip, index) => {
+                        const text = getChipText(chip as ReflectionChipData);
+                        if (!text) return null;
 
-          {activeInteraction.note && <InfoRow icon={<MessageCircle color={colors['muted-foreground']} size={20} />} title={activeInteraction.note} subtitle="Notes" colors={colors} />}
-        </BottomSheetScrollView>
+                        return (
+                          <View
+                            key={`${chip.chipId}-${index}`}
+                            className="px-3 py-1.5 rounded-full border"
+                            style={{
+                              borderColor: colors.border,
+                              backgroundColor: colors.background,
+                            }}
+                          >
+                            <Text
+                              variant="caption"
+                              weight="medium"
+                              style={{ color: colors.foreground }}
+                            >
+                              {text}
+                            </Text>
+                          </View>
+                        );
+                      })}
+                    </View>
+                  )}
 
-        {/* Deepen Weave / Edit Reflection Button - Only for past interactions */}
-        {onEditReflection && isPast && (
-          <View
-            className="px-6 pt-4 border-t"
-            style={{
-              paddingBottom: insets.bottom + 16,
-              borderTopColor: colors.border
-            }}
-          >
-            <TouchableOpacity
-              className="flex-row items-center justify-center gap-2 p-4 rounded-xl shadow-sm"
-              style={{
-                backgroundColor: colors.primary,
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 4 },
-                shadowOpacity: 0.1,
-                shadowRadius: 12,
-                elevation: 8,
-              }}
-              onPress={handleEditReflectionPress}
-            >
-              <Sparkles color={colors['primary-foreground']} size={20} />
-              <Text
-                className="text-base font-semibold"
-                style={{ color: colors['primary-foreground'] }}
-              >
-                {activeInteraction.reflection?.chips?.length ? 'Edit Reflection' : 'Deepen this weave'}
-              </Text>
-            </TouchableOpacity>
+                  {!!activeInteraction.reflection?.customNotes && (
+                    <View
+                      className={`flex-row gap-2 ${activeInteraction.reflection?.chips?.length ? 'mt-3' : ''}`}
+                    >
+                      <View className="w-0.5 rounded-full" style={{ backgroundColor: colors.primary + '70' }} />
+                      <Text
+                        variant="body"
+                        className="flex-1 italic"
+                        style={{ color: colors.foreground }}
+                      >
+                        {`"${activeInteraction.reflection.customNotes}"`}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              </View>
+            )}
           </View>
-        )}
       </StandardBottomSheet>
-
-
-
     </>
   );
 }
 
-const InfoRow = ({ icon, title, subtitle, colors, isEditable }: { icon: React.ReactNode, title: string, subtitle: string, colors: any, isEditable?: boolean }) => (
-  <View
-    className="flex-row items-start gap-3 p-4 rounded-2xl shadow-sm"
-    style={{
-      backgroundColor: colors.muted + '80',
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.05,
-      shadowRadius: 8,
-      elevation: 4,
-      borderWidth: isEditable ? 1 : 0,
-      borderColor: isEditable ? colors.primary + '40' : 'transparent',
-    }}
-  >
-    <View className="w-6 items-center">{icon}</View>
-    <View className="flex-1">
-      <Text
-        className="text-sm"
-        style={{ color: colors['muted-foreground'] }}
+interface HeaderIconButtonProps {
+  icon: React.ReactNode;
+  onPress: () => void;
+  accessibilityLabel: string;
+}
+
+function HeaderIconButton({
+  icon,
+  onPress,
+  accessibilityLabel,
+}: HeaderIconButtonProps) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.7}
+      className="p-2 items-center justify-center"
+      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+    >
+      {icon}
+    </TouchableOpacity>
+  );
+}
+
+function RowDivider({ colors }: { colors: ThemeColors }) {
+  return <View style={{ height: 1, backgroundColor: colors.border }} />;
+}
+
+interface ActionCardProps {
+  icon: React.ReactNode;
+  label: string;
+  onPress: () => void;
+  tint: string;
+  background: string;
+  loading?: boolean;
+  colors: ThemeColors;
+}
+
+function ActionCard({
+  icon,
+  label,
+  onPress,
+  tint,
+  background,
+  loading,
+  colors,
+}: ActionCardProps) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      disabled={loading}
+      activeOpacity={0.7}
+      className="rounded-xl border px-3 py-3 flex-row items-center justify-center gap-2"
+      style={{
+        borderColor: colors.border,
+        backgroundColor: colors.card,
+        opacity: loading ? 0.7 : 1,
+      }}
+    >
+      <View
+        className="w-7 h-7 rounded-full items-center justify-center"
+        style={{ backgroundColor: background }}
       >
-        {subtitle} {isEditable && <Text style={{ color: colors.primary }}>(Tap to change)</Text>}
+        {loading ? <ActivityIndicator size="small" color={tint} /> : icon}
+      </View>
+      <Text variant="caption" weight="semibold" style={{ color: tint }}>
+        {label}
       </Text>
-      <Text
-        className="font-medium"
-        style={{ color: colors.foreground }}
+    </TouchableOpacity>
+  );
+}
+
+interface InfoRowProps {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  colors: ThemeColors;
+  isEditable?: boolean;
+  onPress?: () => void;
+  multiline?: boolean;
+}
+
+function InfoRow({ icon, label, value, colors, isEditable, onPress, multiline }: InfoRowProps) {
+  const content = (
+    <>
+      <View className="w-7 items-center justify-start pt-0.5">{icon}</View>
+
+      <View className="flex-1">
+        <Text
+          variant="label"
+          style={{ color: colors['muted-foreground'] }}
+        >
+          {label}
+        </Text>
+        <Text
+          variant="body"
+          weight="medium"
+          className="mt-0.5"
+          style={{ color: colors.foreground }}
+          numberOfLines={multiline ? undefined : 3}
+        >
+          {value}
+        </Text>
+      </View>
+
+      {isEditable && (
+        <View
+          className="px-2 py-1 rounded-md flex-row items-center gap-1"
+          style={{ backgroundColor: colors.primary + '12' }}
+        >
+          <Edit3 size={12} color={colors.primary} />
+          <Text
+            variant="caption"
+            weight="semibold"
+            style={{ color: colors.primary }}
+          >
+            Edit
+          </Text>
+        </View>
+      )}
+    </>
+  );
+
+  if (onPress) {
+    return (
+      <TouchableOpacity
+        onPress={onPress}
+        className="flex-row items-start px-4 py-3.5 gap-3"
+        activeOpacity={0.7}
       >
-        {title}
-      </Text>
-    </View>
-    {isEditable && <Edit3 size={16} color={colors.primary} style={{ opacity: 0.7 }} />}
-  </View>
-);
+        {content}
+      </TouchableOpacity>
+    );
+  }
+
+  return <View className="flex-row items-start px-4 py-3.5 gap-3">{content}</View>;
+}
